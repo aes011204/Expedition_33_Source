@@ -41,13 +41,341 @@
 
 #include "UI_Utils.h"
 
+#include "BattleWorldUI.h"
+#include "UI_Base.h"
+
 using namespace UI_Utils;
 
 GameplayUI_Battle::~GameplayUI_Battle() = default;
 
 namespace
 {
-    constexpr float kBattleSystemIntroDurationSec = 3.f;
+    constexpr float    kBattleSystemIntroDurationSec = 3.f;
+    constexpr wchar_t  kDebugBattleCommandCaptureBackgroundTargetTag[] = L"RT_DebugBattleCommandCapture_Background";
+    constexpr wchar_t  kDebugBattleCommandCaptureForegroundTargetTag[] = L"RT_DebugBattleCommandCapture_Foreground";
+    constexpr wchar_t  kDebugBattleCommandCaptureBackgroundMRTTag[] = L"MRT_DebugBattleCommandCapture_Background";
+    constexpr wchar_t  kDebugBattleCommandCaptureForegroundMRTTag[] = L"MRT_DebugBattleCommandCapture_Foreground";
+    constexpr uint32   kDebugBattleCommandCaptureWidth = 4096;
+    constexpr uint32   kDebugBattleCommandCaptureHeight = 2048;
+    constexpr bool     kDebugBattleCommandCaptureShowPreview = false;
+    constexpr bool     kDebugBattleCommandHideScreenHUD = true;
+    constexpr bool     kDebugBattleWorldUIForceSelectionCaptureEveryFrame = true;
+    constexpr bool     kDebugBattleWorldUIDisableSelectionScreenSuppression = true;
+    constexpr bool     kDebugBattleWorldUIUseHotPinkClear = false;
+    constexpr bool     kDebugBattleWorldUIHideForeground = false;
+    constexpr bool     kDebugBattleWorldUIBackgroundIgnoreDepth = true;
+    constexpr bool     kDebugBattleWorldUIUseAlphaBoundsUVRect = true;
+    constexpr uint32   kDebugBattleWorldUIAlphaBoundsPaddingPixels = 96;
+    constexpr uint64   kDebugBattleWorldUIDiagnosisLogInterval = 30;
+    const     Vec4     kDebugBattleWorldUIDefaultUVRect{ 1.f, 0.f, 0.f, 1.f };
+    const     Vec2     kDebugBattleCommandWorldUISize{ 1.75f, 1.0f };
+    const     Vec3     kDebugBattleCommandWorldUIOffset{ 0.65f, 0.9f, 0.f };
+    const     Vec3     kDebugBattleCommandWorldUIRotation{ 0.f, 0.f, 0.f };
+    const     Vec2     kDebugBattleSkillWorldUISize{ 1.75f, 1.0f };
+    const     Vec3     kDebugBattleSkillWorldUIOffset{ 0.65f, 0.9f, 0.f };
+    const     Vec3     kDebugBattleSkillWorldUIRotation{ 0.f, 0.f, 0.f };
+    const     Vec2     kDebugBattleItemWorldUISize{ 1.75f, 1.0f };
+    const     Vec3     kDebugBattleItemWorldUIOffset{ 0.65f, 0.9f, 0.f };
+    const     Vec3     kDebugBattleItemWorldUIRotation{ 0.f, 0.f, 0.f };
+    const     Vec2     kDebugBattleCommandCaptureRootOffset{ 0.f, 0.f };
+    const     Vec2     kDebugBattleSkillCaptureRootOffset{ 0.f, 0.f };
+    const     Vec2     kDebugBattleItemCaptureRootOffset{ 0.f, 0.f };
+
+    bool Is_DebugBattleWorldUISelectionState(BattleTurnState state)
+    {
+        return state == BattleTurnState::ChooseAction ||
+            state == BattleTurnState::AttackTargeting ||
+            state == BattleTurnState::ChooseSkill ||
+            state == BattleTurnState::SkillTargeting ||
+            state == BattleTurnState::ChooseItem ||
+            state == BattleTurnState::ItemTargeting;
+    }
+
+#ifdef _DEBUG
+    bool            gDebugBattleWorldUIHasLastLoggedState = false;
+    BattleTurnState gDebugBattleWorldUILastLoggedState = BattleTurnState::None;
+    bool            gDebugBattleWorldCaptureHasLastLoggedState = false;
+    BattleTurnState gDebugBattleWorldCaptureLastLoggedState = BattleTurnState::None;
+    uint64          gDebugBattleWorldUIDiagnosisLogCounter = 0;
+
+    struct DebugBattleWorldUIAlphaSummary
+    {
+        uint32 width = 0;
+        uint32 height = 0;
+        uint64 alphaNonZeroCount = 0;
+        uint8 maxAlpha = 0;
+        uint32 minX = 0;
+        uint32 minY = 0;
+        uint32 maxX = 0;
+        uint32 maxY = 0;
+    };
+
+    const char* DebugBattleWorldUI_TurnStateName(BattleTurnState state)
+    {
+        switch (state)
+        {
+        case BattleTurnState::None: return "None";
+        case BattleTurnState::ChooseSkill: return "ChooseSkill";
+        case BattleTurnState::AttackTargeting: return "AttackTargeting";
+        case BattleTurnState::AttackPlaying: return "AttackPlaying";
+        case BattleTurnState::ChooseItem: return "ChooseItem";
+        case BattleTurnState::ChooseAction: return "ChooseAction";
+        case BattleTurnState::SkillTargeting: return "SkillTargeting";
+        case BattleTurnState::ItemTargeting: return "ItemTargeting";
+        case BattleTurnState::UltimateTargeting: return "UltimateTargeting";
+        case BattleTurnState::ChooseUltimate: return "ChooseUltimate";
+        case BattleTurnState::FreeAimTargeting: return "FreeAimTargeting";
+        default: return "Unknown";
+        }
+    }
+
+    const char* DebugBattleWorldUI_PlacementSlotName(BattleTurnState state)
+    {
+        switch (state)
+        {
+        case BattleTurnState::ChooseSkill:
+        case BattleTurnState::SkillTargeting:
+            return "Skill";
+
+        case BattleTurnState::ChooseItem:
+        case BattleTurnState::ItemTargeting:
+            return "Item";
+
+        case BattleTurnState::ChooseAction:
+        case BattleTurnState::AttackTargeting:
+        default:
+            return "Command";
+        }
+    }
+
+    void Log_DebugBattleWorldUIPlacementIfChanged(
+        BattleTurnState state,
+        const Vec2& worldSize,
+        const Vec3& worldOffset)
+    {
+        if (gDebugBattleWorldUIHasLastLoggedState &&
+            gDebugBattleWorldUILastLoggedState == state)
+        {
+            return;
+        }
+
+        gDebugBattleWorldUIHasLastLoggedState = true;
+        gDebugBattleWorldUILastLoggedState = state;
+
+        LOG_DEBUG(
+            "[DebugBattleWorldUI] state={} slot={} size=({:.2f}, {:.2f}) offset=({:.2f}, {:.2f}, {:.2f})",
+            DebugBattleWorldUI_TurnStateName(state),
+            DebugBattleWorldUI_PlacementSlotName(state),
+            worldSize.x,
+            worldSize.y,
+            worldOffset.x,
+            worldOffset.y,
+            worldOffset.z);
+    }
+
+    void Log_DebugBattleWorldUICaptureIfChanged(
+        BattleTurnState state,
+        const Vec2& rootPositionOffset)
+    {
+        if (gDebugBattleWorldCaptureHasLastLoggedState &&
+            gDebugBattleWorldCaptureLastLoggedState == state)
+        {
+            return;
+        }
+
+        gDebugBattleWorldCaptureHasLastLoggedState = true;
+        gDebugBattleWorldCaptureLastLoggedState = state;
+
+        LOG_DEBUG(
+            "[DebugBattleWorldUICapture] state={} slot={} rootOffset=({:.2f}, {:.2f})",
+            DebugBattleWorldUI_TurnStateName(state),
+            DebugBattleWorldUI_PlacementSlotName(state),
+            rootPositionOffset.x,
+            rootPositionOffset.y);
+    }
+
+    bool Should_LogDebugBattleWorldUIDiagnosis()
+    {
+        ++gDebugBattleWorldUIDiagnosisLogCounter;
+        return gDebugBattleWorldUIDiagnosisLogCounter <= 12 ||
+            (gDebugBattleWorldUIDiagnosisLogCounter % kDebugBattleWorldUIDiagnosisLogInterval) == 0;
+    }
+
+    HRESULT Read_DebugBattleWorldUIAlphaSummary(
+        const wchar_t* targetTag,
+        DebugBattleWorldUIAlphaSummary& outSummary)
+    {
+        outSummary = {};
+
+        ComPtr<ID3D11Texture2D> sourceTexture = GAME->Get_RT_Texture(targetTag);
+        if (sourceTexture == nullptr)
+            return E_FAIL;
+
+        D3D11_TEXTURE2D_DESC desc{};
+        sourceTexture->GetDesc(&desc);
+
+        outSummary.width = desc.Width;
+        outSummary.height = desc.Height;
+
+        if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM)
+            return E_FAIL;
+
+        D3D11_TEXTURE2D_DESC stagingDesc = desc;
+        stagingDesc.Usage = D3D11_USAGE_STAGING;
+        stagingDesc.BindFlags = 0;
+        stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        stagingDesc.MiscFlags = 0;
+
+        ComPtr<ID3D11Texture2D> stagingTexture{};
+        CHECK_FAILED(GAME->Get_Device()->CreateTexture2D(
+            &stagingDesc,
+            nullptr,
+            stagingTexture.GetAddressOf()), E_FAIL);
+
+        GAME->Get_Context()->CopyResource(stagingTexture.Get(), sourceTexture.Get());
+
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        CHECK_FAILED(GAME->Get_Context()->Map(
+            stagingTexture.Get(),
+            0,
+            D3D11_MAP_READ,
+            0,
+            &mapped), E_FAIL);
+
+        bool hasAlpha = false;
+        uint32 minX = desc.Width;
+        uint32 minY = desc.Height;
+        uint32 maxX = 0;
+        uint32 maxY = 0;
+
+        for (uint32 y = 0; y < desc.Height; ++y)
+        {
+            const uint8* row = static_cast<const uint8*>(mapped.pData) + static_cast<size_t>(mapped.RowPitch) * y;
+
+            for (uint32 x = 0; x < desc.Width; ++x)
+            {
+                const uint8 alpha = row[static_cast<size_t>(x) * 4 + 3];
+                if (alpha == 0)
+                    continue;
+
+                ++outSummary.alphaNonZeroCount;
+                if (outSummary.maxAlpha < alpha)
+                    outSummary.maxAlpha = alpha;
+
+                if (!hasAlpha)
+                {
+                    minX = maxX = x;
+                    minY = maxY = y;
+                    hasAlpha = true;
+                }
+                else
+                {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        GAME->Get_Context()->Unmap(stagingTexture.Get(), 0);
+
+        if (hasAlpha)
+        {
+            outSummary.minX = minX;
+            outSummary.minY = minY;
+            outSummary.maxX = maxX;
+            outSummary.maxY = maxY;
+        }
+
+        return S_OK;
+    }
+
+    bool Build_DebugBattleWorldUIAlphaBoundsUVRect(
+        const DebugBattleWorldUIAlphaSummary& backgroundSummary,
+        const DebugBattleWorldUIAlphaSummary& foregroundSummary,
+        Vec4& outUVRect)
+    {
+        uint32 width = 0;
+        uint32 height = 0;
+        uint32 minX = 0;
+        uint32 minY = 0;
+        uint32 maxX = 0;
+        uint32 maxY = 0;
+        bool hasBounds = false;
+
+        auto MergeBounds = [&](const DebugBattleWorldUIAlphaSummary& summary)
+        {
+            if (summary.alphaNonZeroCount == 0 || summary.width == 0 || summary.height == 0)
+                return;
+
+            if (!hasBounds)
+            {
+                width = summary.width;
+                height = summary.height;
+                minX = summary.minX;
+                minY = summary.minY;
+                maxX = summary.maxX;
+                maxY = summary.maxY;
+                hasBounds = true;
+                return;
+            }
+
+            if (summary.width != width || summary.height != height)
+                return;
+
+            if (summary.minX < minX) minX = summary.minX;
+            if (summary.minY < minY) minY = summary.minY;
+            if (summary.maxX > maxX) maxX = summary.maxX;
+            if (summary.maxY > maxY) maxY = summary.maxY;
+        };
+
+        MergeBounds(backgroundSummary);
+        MergeBounds(foregroundSummary);
+
+        if (!hasBounds || width == 0 || height == 0)
+            return false;
+
+        minX = minX > kDebugBattleWorldUIAlphaBoundsPaddingPixels
+            ? minX - kDebugBattleWorldUIAlphaBoundsPaddingPixels
+            : 0;
+        minY = minY > kDebugBattleWorldUIAlphaBoundsPaddingPixels
+            ? minY - kDebugBattleWorldUIAlphaBoundsPaddingPixels
+            : 0;
+        maxX = (maxX + kDebugBattleWorldUIAlphaBoundsPaddingPixels < width)
+            ? maxX + kDebugBattleWorldUIAlphaBoundsPaddingPixels
+            : width - 1;
+        maxY = (maxY + kDebugBattleWorldUIAlphaBoundsPaddingPixels < height)
+            ? maxY + kDebugBattleWorldUIAlphaBoundsPaddingPixels
+            : height - 1;
+
+        const float leftU = static_cast<float>(minX) / static_cast<float>(width);
+        const float rightU = static_cast<float>(maxX + 1) / static_cast<float>(width);
+        const float topV = static_cast<float>(minY) / static_cast<float>(height);
+        const float bottomV = static_cast<float>(maxY + 1) / static_cast<float>(height);
+
+        outUVRect = Vec4(rightU, topV, leftU, bottomV);
+        return true;
+    }
+
+    void Log_DebugBattleWorldUIAlphaSummaryFromReadback(
+        BattleTurnState state,
+        const char* layerName,
+        const DebugBattleWorldUIAlphaSummary& summary)
+    {
+        LOG_DEBUG(
+            "[DebugBattleWorldUIAlpha] state={} layer={} alphaNonZero={} maxAlpha={} bounds=({}, {})-({}, {})",
+            DebugBattleWorldUI_TurnStateName(state),
+            layerName,
+            summary.alphaNonZeroCount,
+            static_cast<uint32>(summary.maxAlpha),
+            summary.minX,
+            summary.minY,
+            summary.maxX,
+            summary.maxY);
+    }
+
+#endif
 
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
@@ -144,9 +472,530 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
         CHECK_NULL(addAP, E_FAIL);
     }
 
+    CHECK_FAILED(Ready_DebugBattleCommandCapture(), E_FAIL);
+    Ready_DebugBattleWorldUIEditorPlacements();
+    CHECK_FAILED(Ready_DebugBattleWorldUI(), E_FAIL);
+
     Bind_BattleDelegates();
 
     return S_OK;
+}
+
+HRESULT GameplayUI_Battle::Ready_DebugBattleWorldUI()
+{
+    if (_debugBattleWorldUIBackground)
+    {
+        _debugBattleWorldUIBackground->Free();
+        _debugBattleWorldUIBackground.reset();
+    }
+
+    if (_debugBattleWorldUIForeground)
+    {
+        _debugBattleWorldUIForeground->Free();
+        _debugBattleWorldUIForeground.reset();
+    }
+
+    ID3D11ShaderResourceView* backgroundSRV = GAME->Get_RT_ShaderResourceView(kDebugBattleCommandCaptureBackgroundTargetTag);
+    ID3D11ShaderResourceView* foregroundSRV = GAME->Get_RT_ShaderResourceView(kDebugBattleCommandCaptureForegroundTargetTag);
+    CHECK_NULL(backgroundSRV, E_FAIL);
+    CHECK_NULL(foregroundSRV, E_FAIL);
+
+    BattleWorldUI::BATTLEWORLDUI_DESC desc{};
+    desc.worldPosition = Vec3::Zero;
+    desc.worldSize = kDebugBattleCommandWorldUISize;
+    desc.worldRotation = kDebugBattleCommandWorldUIRotation;
+    desc.tintColor = Vec4(1.f, 1.f, 1.f, 1.f);
+    desc.uvRect = kDebugBattleWorldUIDefaultUVRect;
+    desc.billboardMode = BattleWorldUIBillboardMode::FaceCamera;
+    desc.useDepthRead = !kDebugBattleWorldUIBackgroundIgnoreDepth;
+    desc.visible = true;
+
+    Shared<BattleWorldUI> prototype =
+        BattleWorldUI::Create(GAME->Get_Device(), GAME->Get_Context());
+
+    CHECK_NULL(prototype, E_FAIL);
+
+    _debugBattleWorldUIBackground =
+        dynamic_pointer_cast<BattleWorldUI>(prototype->Clone(&desc));
+
+    CHECK_NULL(_debugBattleWorldUIBackground, E_FAIL);
+
+    _debugBattleWorldUIBackground->Set_TextureSRV(backgroundSRV);
+    _debugBattleWorldUIBackground->Set_UVRect(desc.uvRect);
+
+    desc.useDepthRead = false;
+
+    _debugBattleWorldUIForeground =
+        dynamic_pointer_cast<BattleWorldUI>(prototype->Clone(&desc));
+
+    CHECK_NULL(_debugBattleWorldUIForeground, E_FAIL);
+
+    _debugBattleWorldUIForeground->Set_TextureSRV(foregroundSRV);
+    _debugBattleWorldUIForeground->Set_UVRect(desc.uvRect);
+
+    return S_OK;
+}
+
+HRESULT GameplayUI_Battle::Ready_DebugBattleCommandCapture()
+{
+    if (_debugBattleCommandCaptureReady)
+        return S_OK;
+
+    const Color debugCaptureClearColor = kDebugBattleWorldUIUseHotPinkClear
+        ? Color(1.f, 0.f, 1.f, 1.f)
+        : Color(0.f, 0.f, 0.f, 0.f);
+
+    CHECK_FAILED(GAME->Add_RenderTarget(
+        kDebugBattleCommandCaptureBackgroundTargetTag,
+        kDebugBattleCommandCaptureWidth,
+        kDebugBattleCommandCaptureHeight,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        debugCaptureClearColor,
+        false,
+        true), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_MRT(
+        kDebugBattleCommandCaptureBackgroundMRTTag,
+        kDebugBattleCommandCaptureBackgroundTargetTag), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_RenderTarget(
+        kDebugBattleCommandCaptureForegroundTargetTag,
+        kDebugBattleCommandCaptureWidth,
+        kDebugBattleCommandCaptureHeight,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        debugCaptureClearColor,
+        false,
+        true), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_MRT(
+        kDebugBattleCommandCaptureForegroundMRTTag,
+        kDebugBattleCommandCaptureForegroundTargetTag), E_FAIL);
+
+#ifdef _DEBUG
+    if (kDebugBattleCommandCaptureShowPreview)
+    {
+        CHECK_FAILED(GAME->Display_RT(
+            kDebugBattleCommandCaptureBackgroundTargetTag,
+            true), E_FAIL);
+
+        CHECK_FAILED(GAME->Display_RT(
+            kDebugBattleCommandCaptureForegroundTargetTag,
+            true), E_FAIL);
+    }
+#endif
+
+    _debugBattleCommandCaptureReady = true;
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Ready_DebugBattleWorldUIEditorPlacements()
+{
+    if (_battleCommandHUD)
+    {
+        _battleCommandHUD->Enable_EditorBattleWorldUIPlacement(
+            kDebugBattleCommandWorldUISize,
+            kDebugBattleCommandWorldUIOffset,
+            kDebugBattleCommandWorldUIRotation);
+    }
+
+    if (_battleSkillPanel)
+    {
+        _battleSkillPanel->Enable_EditorBattleWorldUIPlacement(
+            kDebugBattleSkillWorldUISize,
+            kDebugBattleSkillWorldUIOffset,
+            kDebugBattleSkillWorldUIRotation);
+    }
+
+    if (_battleItemPanel)
+    {
+        _battleItemPanel->Enable_EditorBattleWorldUIPlacement(
+            kDebugBattleItemWorldUISize,
+            kDebugBattleItemWorldUIOffset,
+            kDebugBattleItemWorldUIRotation);
+    }
+
+    Invalidate_DebugBattleWorldUICapture();
+}
+
+UI_RuntimePanelBase* GameplayUI_Battle::Resolve_DebugBattleSelectionPanel() const
+{
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr)
+        return nullptr;
+
+    switch (battleController->Get_CurrentTurnState())
+    {
+    case BattleTurnState::ChooseAction:
+    case BattleTurnState::AttackTargeting:
+        return _battleCommandHUD.get();
+
+    case BattleTurnState::ChooseSkill:
+    case BattleTurnState::SkillTargeting:
+        return _battleSkillPanel.get();
+
+    case BattleTurnState::ChooseItem:
+    case BattleTurnState::ItemTargeting:
+        return _battleItemPanel.get();
+
+    default:
+        return nullptr;
+    }
+}
+
+GameplayUI_Battle::DebugBattleWorldUIPlacement GameplayUI_Battle::Resolve_DebugBattleWorldUIPlacement() const
+{
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr)
+        return { kDebugBattleCommandWorldUISize, kDebugBattleCommandWorldUIOffset, kDebugBattleCommandWorldUIRotation };
+
+    if (UI_RuntimePanelBase* placementPanel = Resolve_DebugBattleSelectionPanel())
+    {
+        if (placementPanel->Supports_EditorBattleWorldUIPlacement())
+        {
+            return {
+                placementPanel->Get_EditorBattleWorldUISize(),
+                placementPanel->Get_EditorBattleWorldUIOffset(),
+                placementPanel->Get_EditorBattleWorldUIRotation()
+            };
+        }
+    }
+
+    switch (battleController->Get_CurrentTurnState())
+    {
+    case BattleTurnState::ChooseSkill:
+    case BattleTurnState::SkillTargeting:
+        return { kDebugBattleSkillWorldUISize, kDebugBattleSkillWorldUIOffset, kDebugBattleSkillWorldUIRotation };
+
+    case BattleTurnState::ChooseItem:
+    case BattleTurnState::ItemTargeting:
+        return { kDebugBattleItemWorldUISize, kDebugBattleItemWorldUIOffset, kDebugBattleItemWorldUIRotation };
+
+    case BattleTurnState::ChooseAction:
+    case BattleTurnState::AttackTargeting:
+    default:
+        return { kDebugBattleCommandWorldUISize, kDebugBattleCommandWorldUIOffset, kDebugBattleCommandWorldUIRotation };
+    }
+}
+
+GameplayUI_Battle::DebugBattleWorldUICaptureDesc GameplayUI_Battle::Resolve_DebugBattleWorldUICaptureDesc() const
+{
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr)
+        return { kDebugBattleCommandCaptureRootOffset };
+
+    switch (battleController->Get_CurrentTurnState())
+    {
+    case BattleTurnState::ChooseSkill:
+    case BattleTurnState::SkillTargeting:
+        return { kDebugBattleSkillCaptureRootOffset };
+
+    case BattleTurnState::ChooseItem:
+    case BattleTurnState::ItemTargeting:
+        return { kDebugBattleItemCaptureRootOffset };
+
+    case BattleTurnState::ChooseAction:
+    case BattleTurnState::AttackTargeting:
+    default:
+        return { kDebugBattleCommandCaptureRootOffset };
+    }
+}
+
+void GameplayUI_Battle::Invalidate_DebugBattleWorldUICapture()
+{
+    _debugBattleWorldUICaptureDirty = true;
+    _debugBattleWorldUIHasAlphaBoundsUVRect = false;
+    _debugBattleWorldUIUVRect = kDebugBattleWorldUIDefaultUVRect;
+}
+
+HRESULT GameplayUI_Battle::Capture_DebugBattleCommandHUD()
+{
+    if (!_debugBattleCommandCaptureReady)
+        return S_OK;
+
+    const auto battleController = CLIENT->Get_BattleController();
+    const BattleTurnState currentTurnState =
+        battleController ? battleController->Get_CurrentTurnState() : BattleTurnState::None;
+    const bool isSelectionState = Is_DebugBattleWorldUISelectionState(currentTurnState);
+
+    UI_RuntimePanelBase* capturePanel = Resolve_DebugBattleSelectionPanel();
+    if (capturePanel == nullptr || !capturePanel->Is_Open())
+    {
+        Invalidate_DebugBattleWorldUICapture();
+        return S_OK;
+    }
+
+    Shared<UI_Base> root = capturePanel->Get_RootUI();
+    if (root == nullptr)
+    {
+        Invalidate_DebugBattleWorldUICapture();
+        return S_OK;
+    }
+
+    if (!root->Is_Open() && kDebugBattleCommandHideScreenHUD)
+        root->Open();
+
+    if (!root->Is_Open())
+    {
+        Invalidate_DebugBattleWorldUICapture();
+        return S_OK;
+    }
+
+    UI_Transform* rootTransform = root->Get_Transform();
+    if (rootTransform == nullptr)
+    {
+        Invalidate_DebugBattleWorldUICapture();
+        return S_OK;
+    }
+
+    const Vec2 originalPosition = rootTransform->Get_Position();
+    const DebugBattleWorldUICaptureDesc captureDesc = Resolve_DebugBattleWorldUICaptureDesc();
+    const uint64 currentRevision = capturePanel->Get_EditorRuntimeTuningRevision();
+    const bool forceCaptureEveryFrame =
+        kDebugBattleWorldUIForceSelectionCaptureEveryFrame && isSelectionState;
+
+    if (!forceCaptureEveryFrame &&
+        !_debugBattleWorldUICaptureDirty &&
+        _debugBattleWorldUICapturedTurnState == currentTurnState &&
+        _debugBattleWorldUICapturedPanel == capturePanel &&
+        _debugBattleWorldUICapturedRevision == currentRevision)
+    {
+        return S_OK;
+    }
+
+#ifdef _DEBUG
+    Log_DebugBattleWorldUICaptureIfChanged(
+        currentTurnState,
+        captureDesc.rootPositionOffset);
+#endif
+
+    rootTransform->Set_Position(originalPosition + captureDesc.rootPositionOffset);
+
+    auto CaptureLayer = [&](const wchar_t* mrtTag, UI_RenderGroup renderGroup) -> HRESULT
+    {
+        const HRESULT beginResult = GAME->Begin_MRT(
+            mrtTag,
+            true,
+            true);
+
+        if (FAILED(beginResult))
+            return beginResult;
+
+        const HRESULT renderResult = capturePanel->Render_DebugCapture(renderGroup);
+        const HRESULT endResult = GAME->End_MRT();
+
+        if (FAILED(renderResult))
+            return renderResult;
+
+        return endResult;
+    };
+
+    const HRESULT backgroundResult = CaptureLayer(
+        kDebugBattleCommandCaptureBackgroundMRTTag,
+        UI_RenderGroup::Background);
+
+    const HRESULT foregroundResult = CaptureLayer(
+        kDebugBattleCommandCaptureForegroundMRTTag,
+        UI_RenderGroup::Foreground);
+
+    rootTransform->Set_Position(originalPosition);
+
+    if (kDebugBattleCommandHideScreenHUD &&
+        !(kDebugBattleWorldUIDisableSelectionScreenSuppression && isSelectionState))
+    {
+        root->Close();
+    }
+
+    CHECK_FAILED(backgroundResult, E_FAIL);
+    CHECK_FAILED(foregroundResult, E_FAIL);
+
+#ifdef _DEBUG
+    const bool shouldLogDiagnosis =
+        isSelectionState && Should_LogDebugBattleWorldUIDiagnosis();
+
+    const bool captureIdentityChanged =
+        _debugBattleWorldUICaptureDirty ||
+        _debugBattleWorldUICapturedTurnState != currentTurnState ||
+        _debugBattleWorldUICapturedPanel != capturePanel ||
+        _debugBattleWorldUICapturedRevision != currentRevision;
+    const bool shouldRefreshAlphaBoundsUV =
+        kDebugBattleWorldUIUseAlphaBoundsUVRect &&
+        (!_debugBattleWorldUIHasAlphaBoundsUVRect || captureIdentityChanged);
+
+    if (isSelectionState &&
+        (shouldLogDiagnosis || shouldRefreshAlphaBoundsUV))
+    {
+        DebugBattleWorldUIAlphaSummary backgroundSummary{};
+        DebugBattleWorldUIAlphaSummary foregroundSummary{};
+        const HRESULT backgroundReadResult = Read_DebugBattleWorldUIAlphaSummary(
+            kDebugBattleCommandCaptureBackgroundTargetTag,
+            backgroundSummary);
+        const HRESULT foregroundReadResult = Read_DebugBattleWorldUIAlphaSummary(
+            kDebugBattleCommandCaptureForegroundTargetTag,
+            foregroundSummary);
+
+        if (shouldLogDiagnosis)
+        {
+            if (FAILED(backgroundReadResult))
+            {
+                LOG_DEBUG(
+                    "[DebugBattleWorldUIAlpha] state={} layer=Background readback=failed",
+                    DebugBattleWorldUI_TurnStateName(currentTurnState));
+            }
+            else
+            {
+                Log_DebugBattleWorldUIAlphaSummaryFromReadback(
+                    currentTurnState,
+                    "Background",
+                    backgroundSummary);
+            }
+
+            if (FAILED(foregroundReadResult))
+            {
+                LOG_DEBUG(
+                    "[DebugBattleWorldUIAlpha] state={} layer=Foreground readback=failed",
+                    DebugBattleWorldUI_TurnStateName(currentTurnState));
+            }
+            else
+            {
+                Log_DebugBattleWorldUIAlphaSummaryFromReadback(
+                    currentTurnState,
+                    "Foreground",
+                    foregroundSummary);
+            }
+        }
+
+        if (kDebugBattleWorldUIUseAlphaBoundsUVRect &&
+            SUCCEEDED(backgroundReadResult) &&
+            SUCCEEDED(foregroundReadResult))
+        {
+            Vec4 uvRect = kDebugBattleWorldUIDefaultUVRect;
+            if (Build_DebugBattleWorldUIAlphaBoundsUVRect(
+                backgroundSummary,
+                foregroundSummary,
+                uvRect))
+            {
+                _debugBattleWorldUIUVRect = uvRect;
+                _debugBattleWorldUIHasAlphaBoundsUVRect = true;
+
+                if (shouldLogDiagnosis)
+                {
+                    LOG_DEBUG(
+                        "[DebugBattleWorldUICrop] state={} uv=({:.4f}, {:.4f}, {:.4f}, {:.4f})",
+                        DebugBattleWorldUI_TurnStateName(currentTurnState),
+                        uvRect.x,
+                        uvRect.y,
+                        uvRect.z,
+                        uvRect.w);
+                }
+            }
+            else
+            {
+                _debugBattleWorldUIUVRect = kDebugBattleWorldUIDefaultUVRect;
+                _debugBattleWorldUIHasAlphaBoundsUVRect = false;
+
+                if (shouldLogDiagnosis)
+                {
+                    LOG_DEBUG(
+                        "[DebugBattleWorldUICrop] state={} uv=default reason=no-alpha-bounds",
+                        DebugBattleWorldUI_TurnStateName(currentTurnState));
+                }
+            }
+        }
+    }
+#endif
+
+    _debugBattleWorldUICaptureDirty = false;
+    _debugBattleWorldUICapturedTurnState = currentTurnState;
+    _debugBattleWorldUICapturedPanel = capturePanel;
+    _debugBattleWorldUICapturedRevision = currentRevision;
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Update_DebugBattleWorldUI(float timeDelta)
+{
+    (void)timeDelta;
+
+    if (_debugBattleWorldUIBackground == nullptr || _debugBattleWorldUIForeground == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+        return;
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+        return;
+
+    const BattleTurnState currentTurnState = battleController->Get_CurrentTurnState();
+
+    UI_RuntimePanelBase* capturePanel = Resolve_DebugBattleSelectionPanel();
+    if (capturePanel == nullptr || !capturePanel->Is_Open())
+        return;
+
+    if (!_hasCurrentPlayerTurnActor)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetBattleCommandHudWorldPos(_currentPlayerTurnActor, worldPos))
+        return;
+
+    const DebugBattleWorldUIPlacement placement = Resolve_DebugBattleWorldUIPlacement();
+#ifdef _DEBUG
+    Log_DebugBattleWorldUIPlacementIfChanged(
+        currentTurnState,
+        placement.worldSize,
+        placement.worldOffset);
+#endif
+
+    worldPos.x += placement.worldOffset.x;
+    worldPos.y += placement.worldOffset.y;
+    worldPos.z += placement.worldOffset.z;
+
+    const Vec4 uvRect = _debugBattleWorldUIHasAlphaBoundsUVRect
+        ? _debugBattleWorldUIUVRect
+        : kDebugBattleWorldUIDefaultUVRect;
+
+    _debugBattleWorldUIBackground->Set_UVRect(uvRect);
+    _debugBattleWorldUIBackground->Set_WorldPosition(worldPos);
+    _debugBattleWorldUIBackground->Set_WorldSize(placement.worldSize);
+    _debugBattleWorldUIBackground->Set_WorldRotation(placement.worldRotation);
+    _debugBattleWorldUIBackground->Set_Visible(true);
+    _debugBattleWorldUIBackground->Submit_Render();
+
+    if (!kDebugBattleWorldUIHideForeground)
+    {
+        _debugBattleWorldUIForeground->Set_UVRect(uvRect);
+        _debugBattleWorldUIForeground->Set_WorldPosition(worldPos);
+        _debugBattleWorldUIForeground->Set_WorldSize(placement.worldSize);
+        _debugBattleWorldUIForeground->Set_WorldRotation(placement.worldRotation);
+        _debugBattleWorldUIForeground->Set_Visible(true);
+        _debugBattleWorldUIForeground->Submit_Render();
+    }
+}
+
+void GameplayUI_Battle::Suppress_DebugBattleScreenHUD()
+{
+    if (!kDebugBattleCommandHideScreenHUD)
+        return;
+
+    const auto battleController = CLIENT->Get_BattleController();
+    const BattleTurnState currentTurnState =
+        battleController ? battleController->Get_CurrentTurnState() : BattleTurnState::None;
+
+    if (kDebugBattleWorldUIDisableSelectionScreenSuppression &&
+        Is_DebugBattleWorldUISelectionState(currentTurnState))
+    {
+        return;
+    }
+
+    UI_RuntimePanelBase* capturePanel = Resolve_DebugBattleSelectionPanel();
+    if (capturePanel == nullptr)
+        return;
+
+    Shared<UI_Base> root = capturePanel->Get_RootUI();
+    if (root)
+        root->Close();
 }
 
 void GameplayUI_Battle::Update(float timeDelta)
@@ -172,6 +1021,9 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
     Update_BattleItemPanel(timeDelta);  // 아이템
     Update_BattleSkillPanel(timeDelta); // 스킬
+    Capture_DebugBattleCommandHUD();
+    Update_DebugBattleWorldUI(timeDelta);
+    Suppress_DebugBattleScreenHUD();
     Update_BattleAnnounce(timeDelta);   // 스킬
     Update_SuddenAttack(timeDelta);     // 선제 공격
     Update_AddAPs(timeDelta);           // AP 증가
@@ -399,6 +1251,8 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
 
 void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvantage)
 {
+    Invalidate_DebugBattleWorldUICapture();
+
     _isBattleUiActive = true;
     _isPlayerTurnUiActive = false;
     _hasTargetPreviewSnapshot = false;
@@ -481,6 +1335,8 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
 
 void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 {
+    Invalidate_DebugBattleWorldUICapture();
+
     Reset_BattleUiRuntimeState(result != EBattleEndResult::Victory);
 
     if (result == EBattleEndResult::Victory)
@@ -503,6 +1359,8 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 
 void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnState state)
 {
+    Invalidate_DebugBattleWorldUICapture();
+
     _isMechanismActionActive = false;
     _activePlayerId = HeroId::END;
 
@@ -567,6 +1425,8 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
 
 void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
 {
+    Invalidate_DebugBattleWorldUICapture();
+
     // 턴 종료 애니메이션 먼저
     if (_battleSystemHUD &&
         actor.statCom != nullptr &&
@@ -606,6 +1466,8 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
 
 void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
 {
+    Invalidate_DebugBattleWorldUICapture();
+
     if (target == nullptr || target->actor == nullptr || target->statCom == nullptr)
     {
         _targetPreviewSnapshot = {};
@@ -620,6 +1482,8 @@ void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
 
 void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
 {
+    Invalidate_DebugBattleWorldUICapture();
+
     if (_choiceTarget)
         _choiceTarget->Close();
 
@@ -846,6 +1710,8 @@ void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType 
 
 void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason)
 {
+    Invalidate_DebugBattleWorldUICapture();
+
     if (!_isBattleUiActive)
         return;
 
@@ -2005,6 +2871,8 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleTransition);
     Release_UI(_battleCommandHUD);
     Release_UI(_battleSystemHUD);
+    Release_UI(_debugBattleWorldUIBackground);
+    Release_UI(_debugBattleWorldUIForeground);
     Release_UI(_monsterHpBar);
     Release_UI(_bossHpBar);
     Release_UI(_playerHpBar);

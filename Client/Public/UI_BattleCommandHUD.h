@@ -13,7 +13,6 @@ NS_END
 NS_BEGIN(Client)
 
 class BattleMechanismCom;
-class BattleWorldUIPlane;
 
 class UI_BattleCommandHUD final : public UI_RuntimePanelBase
 {
@@ -36,7 +35,7 @@ public:
     // 현재 턴 영웅을 받아서, 영웅별로 offset값 조금씩 조절이 가능하게
     void    Set_CurrentHeroId(HeroId heroId);
     HeroId  Get_EditorActiveHeroId() const override { return _currentHeroId; }
-
+    HRESULT Render_DebugCapture();
     bool    Supports_EditorHeroTestOffset() const override { return true; }
     Vec2    Get_EditorHeroTestOffset(HeroId heroId) const override;
     void    Set_EditorHeroTestOffset(HeroId heroId, const Vec2& offset) override;
@@ -75,11 +74,6 @@ private:
     void    Set_CommandSlotHighlighted(const CommandSlot& slot, bool highlighted);
     Vec2    Resolve_HeroTestOffset(HeroId heroId) const;
 
-    HRESULT Ready_WorldBackgroundPlane();
-    void    Update_WorldBackgroundPlane();
-    void    Set_ScreenBackgroundVisible(bool visible);
-    Vec3    Resolve_WorldBackgroundPosition() const;
-
 private:
     vector<Shared<UI_Base>> _allHUDUIs{};
     CommandSlot _attackSlot{};
@@ -90,11 +84,6 @@ private:
     Shared<UI_Text>  _currentPlayerApText{};
     Shared<UI_Text>  _currentPlayerApTextBg{};
     Shared<UI_Image> _currentPlayerApStates[kMaxCommandApSegmentCount]{};
-
-    Shared<UI_Base>  _screenBackgroundImage{};
-    Shared<UI_Base>  _screenBackgroundDeco{};
-    Shared<BattleWorldUIPlane> _worldBackgroundPlane{};
-    bool _useWorldBackgroundPlane = false;
 
 private:
     Vec2 _normalScale = Vec2(1.f, 1.f);

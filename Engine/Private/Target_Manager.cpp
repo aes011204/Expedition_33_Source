@@ -206,6 +206,15 @@ HRESULT Target_Manager::Bind_ShaderResource(Shared<ShaderCom> shader, const char
     return shader->Bind_SRV(constantName, renderTarget->Get_SRV());
 }
 
+ShaderResourceView* Target_Manager::Get_ShaderResourceView(const wstring& targetTag)
+{
+    auto renderTarget = Find_RenderTarget(targetTag);
+    if (renderTarget == nullptr)
+        return nullptr;
+
+    return renderTarget->Get_SRV();
+}
+
 HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV, uint32 arraySlice)
 {
     auto mrt = Find_MRT(mrtTag);

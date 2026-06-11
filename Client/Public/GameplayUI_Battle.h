@@ -37,6 +37,8 @@ class UI_SuddenAttack;
 class UI_AddAP;
 class UI_QTE;
 class UI_MarkEffect;
+class BattleWorldUI;
+class UI_RuntimePanelBase;
 
 class GameplayUI_Battle final : public Base
 {
@@ -82,8 +84,30 @@ private:
 
     void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
 
+    struct DebugBattleWorldUIPlacement
+    {
+        Vec2 worldSize;
+        Vec3 worldOffset;
+        Vec3 worldRotation;
+    };
+
+    struct DebugBattleWorldUICaptureDesc
+    {
+        Vec2 rootPositionOffset;
+    };
+
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
+    HRESULT Ready_DebugBattleWorldUI();
+    HRESULT Ready_DebugBattleCommandCapture();
+    void    Ready_DebugBattleWorldUIEditorPlacements();
+    UI_RuntimePanelBase* Resolve_DebugBattleSelectionPanel() const;
+    DebugBattleWorldUIPlacement Resolve_DebugBattleWorldUIPlacement() const;
+    DebugBattleWorldUICaptureDesc Resolve_DebugBattleWorldUICaptureDesc() const;
+    void    Invalidate_DebugBattleWorldUICapture();
+    HRESULT Capture_DebugBattleCommandHUD();
+    void    Update_DebugBattleWorldUI(float timeDelta);
+    void    Suppress_DebugBattleScreenHUD();
     void    Update_MonsterHpBar(float timeDelta);
     bool    Ensure_BossHpBar();
     void    Update_BossHpBar(float timeDelta);
@@ -137,6 +161,9 @@ private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
     Unique<UI_BattleSystemHUD>              _battleSystemHUD;
+
+    Shared<BattleWorldUI>                   _debugBattleWorldUIBackground{};
+    Shared<BattleWorldUI>                   _debugBattleWorldUIForeground{};
 
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
     Unique<UI_BossHpBar>                    _bossHpBar;
@@ -215,6 +242,13 @@ private:
     bool                     _isBattleSystemIntroPlaying = false;
     float                    _battleSystemIntroElapsed = 0.f;
     bool                     _hasPendingBattleSystemIntroActivation = false;
+    bool                     _debugBattleCommandCaptureReady = false;
+    bool                     _debugBattleWorldUICaptureDirty = true;
+    bool                     _debugBattleWorldUIHasAlphaBoundsUVRect = false;
+    Vec4                     _debugBattleWorldUIUVRect{ 1.f, 0.f, 0.f, 1.f };
+    BattleTurnState          _debugBattleWorldUICapturedTurnState = BattleTurnState::None;
+    UI_RuntimePanelBase*     _debugBattleWorldUICapturedPanel = nullptr;
+    uint64                   _debugBattleWorldUICapturedRevision = 0;
     HeroId                   _pendingBattleSystemIntroActivationHeroId = HeroId::END;
 
 private:

@@ -33,5 +33,14 @@ public:
     virtual HeroId Get_EditorActiveHeroId() const { return HeroId::END; }
     virtual Vec2 Get_EditorHeroTestOffset(HeroId heroId) const { return Vec2::Zero; }
     virtual void Set_EditorHeroTestOffset(HeroId heroId, const Vec2& offset) { UNREFERENCED_PARAMETER(heroId); UNREFERENCED_PARAMETER(offset); }
+
+    virtual bool Supports_EditorBattleWorldUIPlacement() const { return false; }
+    virtual Vec2 Get_EditorBattleWorldUISize() const { return Vec2::Zero; }
+    virtual void Set_EditorBattleWorldUISize(const Vec2& size) { UNREFERENCED_PARAMETER(size); }
+    virtual Vec3 Get_EditorBattleWorldUIOffset() const { return Vec3::Zero; }
+    virtual void Set_EditorBattleWorldUIOffset(const Vec3& offset) { UNREFERENCED_PARAMETER(offset); }
+    virtual Vec3 Get_EditorBattleWorldUIRotation() const { return Vec3::Zero; }
+    virtual void Set_EditorBattleWorldUIRotation(const Vec3& rotation) { UNREFERENCED_PARAMETER(rotation); }
+    virtual uint64 Get_EditorRuntimeTuningRevision() const { return 0; }
 };
 NS_END

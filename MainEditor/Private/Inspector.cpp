@@ -324,6 +324,7 @@ void Inspector::Draw_UIInspector(
     }
 
     Draw_RuntimeUITestOffsetSection(ui); // Battle UI만 공통 테스트 오프셋 편집기를 노출한다.
+    Draw_RuntimeUIWorldPlacementSection(ui);
     Draw_RuntimeUIOwnerReflectionSection(ui);
 
     bool isOpen = ui->Is_Open();
@@ -423,6 +424,34 @@ void Inspector::Draw_RuntimeUITestOffsetSection(const Shared<UI_Base>& ui)
     ImGui::Spacing();
 }
 
+void Inspector::Draw_RuntimeUIWorldPlacementSection(const Shared<UI_Base>& ui)
+{
+    Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+    if (gameplayUI == nullptr)
+        return;
+
+    IRuntimeUI_EditorTarget* editorTarget = gameplayUI->Find_RuntimeUIEditorTarget(ui);
+    if (editorTarget == nullptr || !editorTarget->Supports_EditorBattleWorldUIPlacement())
+        return;
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Battle World UI Placement");
+
+    Vec3 worldOffset = editorTarget->Get_EditorBattleWorldUIOffset();
+    if (Draw_UIVec3Row("위치 오프셋", "##RuntimeUIWorldOffset", worldOffset, 0.01f))
+        editorTarget->Set_EditorBattleWorldUIOffset(worldOffset);
+
+    Vec2 worldSize = editorTarget->Get_EditorBattleWorldUISize();
+    if (Draw_UIVec2Row("크기", "##RuntimeUIWorldSize", worldSize, 0.01f))
+        editorTarget->Set_EditorBattleWorldUISize(worldSize);
+
+    Vec3 worldRotation = editorTarget->Get_EditorBattleWorldUIRotation();
+    if (Draw_UIVec3Row("회전(deg)", "##RuntimeUIWorldRotation", worldRotation, 0.1f))
+        editorTarget->Set_EditorBattleWorldUIRotation(worldRotation);
+
+    ImGui::Spacing();
+}
+
 void Inspector::Draw_RuntimeUIOwnerReflectionSection(const Shared<UI_Base>& ui)
 {
     Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
@@ -452,6 +481,17 @@ bool Inspector::Draw_UIVec2Row(const char* label, const string& id, Vec2& value,
     PropertyInfo property{};
     property.dragSpeed = speed;
     return Draw_Vec2PropertyRow(id, property, value);
+}
+
+bool Inspector::Draw_UIVec3Row(const char* label, const string& id, Vec3& value, float speed)
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(InspectorLabelWidth);
+
+    PropertyInfo property{};
+    property.dragSpeed = speed;
+    return Draw_Vec3PropertyRow(id, property, value);
 }
 
 bool Inspector::Draw_UIFloatRow(const char* label, const string& id, float& value, float speed)
