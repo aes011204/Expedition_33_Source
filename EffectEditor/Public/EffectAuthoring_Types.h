@@ -581,19 +581,21 @@ enum class RibbonCurveQuality : uint8
 struct EmptyTypeData
 {};
 
+// Source History Ribbon preview에서 source/root를 어떻게 움직일지 고르는 editor-only preset이다.
 enum class SourceHistoryPreviewMotionPreset : uint8
 {
-    Off,
-    Line,
-    Arc,
-    Loop,
+    Off,  // preview motion을 끈다.
+    Line, // Ease InOut으로 한 번 직선 이동한 뒤 정지한다.
+    Arc,  // Ease InOut 진행률로 곡선 이동한 뒤 정지한다.
+    Loop, // 등속 순환 이동으로 지속 history 안정성을 확인한다.
 };
 
+// Source History Ribbon preview motion의 기준 진행 축이다.
 enum class SourceHistoryPreviewMotionAxis : uint8
 {
-    X,
-    Y,
-    Z,
+    X, // X축을 기준으로 preview motion을 만든다.
+    Y, // Y축을 기준으로 preview motion을 만든다.
+    Z, // Z축을 기준으로 preview motion을 만든다.
 };
 
 enum class SourceHistoryRibbonSourceMode : uint8
@@ -603,26 +605,30 @@ enum class SourceHistoryRibbonSourceMode : uint8
     SourceEmitter, // Legacy root follower token. Save/Open에서 ParticleEmitter 또는 SelfRoot로 정리한다.
 };
 
+// Source History Ribbon이 어떤 source position history를 따라갈지 결정하는 editor 저장 payload다.
 struct RibbonTypeData
 {
+    // SelfRoot면 emitter root, ParticleEmitter면 다른 particle lane을 source로 쓴다.
     SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
-    uint32 sourceEmitterId{};
-    uint32 followerLaneCount{ 1 };
-    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic };
-    uint32 maxSampleCount{ 64 };
-    float sampleSpacing{ 0.08f };
-    float sampleInterval{ 0.f };
-    float maxLength{ 0.f };
-    float tailFadeLength{ 0.f };
-    bool laneSpawnFadeInEnabled{ true };
-    float laneSpawnFadeInDuration{ 0.08f };
-    float baseWidth{ 0.3f };
-    float tilingDistance{ 0.f };
-    bool autoLifeFade{ false };
+    uint32 sourceEmitterId{};                                     // ParticleEmitter mode에서 따라갈 source emitter id다.
+    uint32 followerLaneCount{ 1 };                                // ParticleEmitter mode에서 동시에 추적할 representative lane 상한이다.
+    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic }; // sampleSpacing/sampleInterval preset 선택값이다.
+    uint32 maxSampleCount{ 64 };                                  // lane 하나가 보관할 source history sample 상한이다.
+    float sampleSpacing{ 0.08f };                                 // source가 이 거리 이상 움직이면 새 history sample을 추가한다.
+    float sampleInterval{ 0.f };                                  // 0보다 크면 정지/저속 source도 시간 기준 sample을 보강한다.
+    float maxLength{ 0.f };                                       // head 기준 최대 표시 길이다. 목표 길이가 아니라 상한이다.
+    float tailFadeLength{ 0.f };                                  // maxLength 끝부분에서 거리 기반 alpha fade를 적용하는 길이다.
+    bool laneSpawnFadeInEnabled{ true };                          // 새 follower lane 시작 폭을 짧게 fade-in할지 결정한다.
+    float laneSpawnFadeInDuration{ 0.08f };                       // 새 follower lane 폭 fade-in 시간이다.
+    float baseWidth{ 0.3f };                                      // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
+    float tilingDistance{ 0.f };                                  // 0 이하면 표시 길이에 stretch, 양수면 거리 기준 texture 반복이다.
+    bool autoLifeFade{ false };                                   // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
+    // EffectEditor 검증용 source motion preset이다.
     SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Line };
+    // preview motion 진행 축이다.
     SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
-    float previewMotionAmplitude{ 2.f };
-    float previewMotionSpeed{ 3.f };
+    float previewMotionAmplitude{ 2.f }; // preview motion offset 크기다.
+    float previewMotionSpeed{ 3.f };     // Line/Arc one-shot 진행 속도 또는 Loop 반복 속도다.
 };
 
 struct TrailTypeData

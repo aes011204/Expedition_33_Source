@@ -199,9 +199,7 @@ float3 Resolve_BeamTangent(
         }
     }
     else if (hasPreviousSample)
-    {
         tangent = NormalizeOrFallback(currentPosition - previousPosition, fallbackAxis);
-    }
 
     return tangent;
 }

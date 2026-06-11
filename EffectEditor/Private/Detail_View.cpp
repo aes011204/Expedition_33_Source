@@ -110,6 +110,23 @@ namespace Internal
         }
     }
 
+    static const char* Get_SourceHistoryPreviewMotionPresetTooltip(SourceHistoryPreviewMotionPreset value)
+    {
+        switch (value)
+        {
+        case SourceHistoryPreviewMotionPreset::Off:
+            return "preview motion을 끄고 emitter root/source 위치를 그대로 사용합니다.";
+        case SourceHistoryPreviewMotionPreset::Line:
+            return "Ease InOut으로 한 번 직선 이동한 뒤 멈춥니다. 정지 후 기존 tail이 사라지는 과정을 확인합니다.";
+        case SourceHistoryPreviewMotionPreset::Arc:
+            return "Ease InOut 진행률로 곡선 이동한 뒤 멈춥니다. 곡선 tail과 drain을 함께 확인합니다.";
+        case SourceHistoryPreviewMotionPreset::Loop:
+            return "등속 순환 이동입니다. 지속 이동 중 history 안정성을 확인합니다.";
+        default:
+            return "";
+        }
+    }
+
     static const char* Get_SourceHistoryPreviewMotionAxisLabel(SourceHistoryPreviewMotionAxis value)
     {
         switch (value)
@@ -409,7 +426,10 @@ namespace Internal
         };
 
         ImGui::PushID("SourceHistoryPreviewMotionPreset");
-        detailContext.Draw_PropertyLabel("프리뷰 이동");
+        detailContext.Draw_PropertyLabel(
+            "프리뷰 이동",
+            "Line/Arc는 Ease InOut one-shot, Loop는 등속 순환 motion입니다."
+        );
         ImGui::SetNextItemWidth(-FLT_MIN);
 
         bool changed = false;
@@ -423,6 +443,8 @@ namespace Internal
                     value = candidate;
                     changed = true;
                 }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", Get_SourceHistoryPreviewMotionPresetTooltip(candidate));
 
                 if (selected)
                     ImGui::SetItemDefaultFocus();
@@ -1573,7 +1595,7 @@ void Detail_View::Render_TypeDataDetail(
                     data->tailFadeLength,
                     defaultData.tailFadeLength,
                     0.01f,
-                    "최대 표시 길이 끝으로 갈수록 alpha를 줄이는 거리입니다. 최대 표시 길이가 0이거나 이 값이 0이면 적용하지 않습니다."
+                    "길이 제한 끝부분에서 alpha를 줄이는 거리입니다. 길이 제한이 0이면 적용되지 않습니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "기본 폭",
@@ -1585,7 +1607,7 @@ void Detail_View::Render_TypeDataDetail(
                 _detailPropertyContext.End_PropertyTable();
             }
 
-            ImGui::TextDisabled("잔상 시간은 Lifetime 모듈에서 조정합니다. 필요한 히스토리는 자동 보정됩니다.");
+            ImGui::TextDisabled("tail 유지 시간은 Lifetime 모듈에서 조정합니다. 빠른 source일수록 같은 시간 안에서 더 긴 tail이 남습니다.");
         }
 
         if (ImGui::CollapsingHeader("고급", data->curveQuality == RibbonCurveQuality::Custom ? ImGuiTreeNodeFlags_DefaultOpen : 0))
@@ -1605,14 +1627,14 @@ void Detail_View::Render_TypeDataDetail(
                         data->sampleSpacing,
                         defaultData.sampleSpacing,
                         0.005f,
-                        "소스가 이 거리 이상 움직였을 때 새 샘플을 추가합니다."
+                        "source가 이 거리 이상 움직였을 때 새 history sample을 추가합니다. 작을수록 tail 밀도가 높아집니다."
                     );
                     changed |= _detailPropertyContext.Draw_FloatProperty(
                         "샘플 보강 간격",
                         data->sampleInterval,
                         defaultData.sampleInterval,
                         0.005f,
-                        "0보다 크면 이동이 작아도 이 시간마다 샘플을 보강합니다."
+                        "0보다 크면 정지/저속에서도 시간 기준 sample을 보강합니다. projectile tail에서는 보통 0으로 둡니다."
                     );
                 }
 
@@ -1621,7 +1643,7 @@ void Detail_View::Render_TypeDataDetail(
                     data->maxLength,
                     defaultData.maxLength,
                     0.01f,
-                    "머리 기준 누적 거리로 제한하는 최대 표시 길이입니다. 0 이하면 제한하지 않습니다."
+                    "head 기준 최대 표시 길이입니다. tail 목표 길이가 아니라 과도한 순간 길이를 막는 상한입니다."
                 );
                 changed |= _detailPropertyContext.Draw_BoolProperty(
                     "생성 페이드",
@@ -1641,7 +1663,7 @@ void Detail_View::Render_TypeDataDetail(
                     "수명 페이드",
                     data->autoLifeFade,
                     defaultData.autoLifeFade,
-                    "켜면 샘플 나이에 따라 알파가 자동 감소합니다."
+                    "켜면 sample age에 따라 알파가 자동 감소합니다. tail을 직접 자르지 않고 기존 tail이 사라지는 과정을 보기 쉽게 만듭니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "타일링 거리",
@@ -1654,7 +1676,7 @@ void Detail_View::Render_TypeDataDetail(
             }
         }
 
-        if (ImGui::CollapsingHeader("Preview Motion (에디터 내 확인용 수치. 저장 X)", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Preview Motion (에디터 tail 검증용 수치. 저장 X)", ImGuiTreeNodeFlags_DefaultOpen))
         {
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonPreviewMotion"))
             {
@@ -1673,14 +1695,14 @@ void Detail_View::Render_TypeDataDetail(
                     data->previewMotionAmplitude,
                     defaultData.previewMotionAmplitude,
                     0.01f,
-                    "Line/Arc/Loop 프리뷰 이동 오프셋 크기입니다."
+                    "Line/Arc의 one-shot 이동 반경 또는 Loop 순환 반경입니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "프리뷰 이동 속도",
                     data->previewMotionSpeed,
                     defaultData.previewMotionSpeed,
                     0.01f,
-                    "Line/Arc는 한 번 이동하는 속도, Loop는 반복 속도입니다."
+                    "Line/Arc는 one-shot 진행 속도, Loop는 등속 반복 속도입니다."
                 );
                 _detailPropertyContext.End_PropertyTable();
             }
@@ -1691,7 +1713,7 @@ void Detail_View::Render_TypeDataDetail(
     case AuthoringTypeDataKind::Beam:
     {
         BeamTypeData* data = get_if<BeamTypeData>(&emitter.typeData.payload);
-        if (data == nullptr)
+        if (nullptr == data)
         {
             ImGui::TextDisabled("Beam TypeData payload is invalid.");
             break;
@@ -2231,7 +2253,7 @@ void Detail_View::Commit_PendingAuthoringEditIfIdle(const Shared<Emitter_View>& 
 
 void Detail_View::Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitterView)
 {
-    if (!_hasPendingAuthoringEdit || emitterView == nullptr)
+    if (!_hasPendingAuthoringEdit || nullptr == emitterView)
         return;
 
     Emitter_View::AuthoringSnapshot afterSnapshot = emitterView->Capture_AuthoringSnapshot();
