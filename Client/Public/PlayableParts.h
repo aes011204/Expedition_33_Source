@@ -63,6 +63,8 @@ protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 
     HRESULT Bind_PlayerRenderCB(Shared<ShaderCom> shader);
+    uint32 Build_DrawFeatureSupportMask(const PlayableParts& playablePart);
+
 
 protected:
     Matrix                      _offsetMatrix{};

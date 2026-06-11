@@ -123,9 +123,9 @@ float3 SampleOrm(float2 uv)
         orm.b = ResolveScalarChannel(ormTex, g_OrmMetalnessSource);
     }
 
-    orm.r *= g_AoScale;         // O
-    orm.g *= g_RoughnessScale;  // R
-    orm.b *= g_MetalnessScale;  // M
+    orm.r *= g_AoScale; // O
+    orm.g *= g_RoughnessScale; // R
+    orm.b *= g_MetalnessScale; // M
 
     return orm;
 }
@@ -145,10 +145,10 @@ float3 SampleEmissive(float2 uv)
 
 struct HairMaterialSample
 {
-    float3  baseColor;  // 최종 diffuse
-    float   opacity;    // 마스크
-    float   depth;      // hair card 내부 깊이/겹침 보정값
-    float   id;         // 가닥/영역별 variation 값
+    float3 baseColor; // 최종 diffuse
+    float opacity; // 마스크
+    float depth; // hair card 내부 깊이/겹침 보정값
+    float id; // 가닥/영역별 variation 값
 };
 
 HairMaterialSample SampleHairMaterial(float2 uv)
@@ -201,153 +201,81 @@ HairMaterialSample SampleHairMaterial(float2 uv)
     return Out;
 }
 
-// 수염 풍부함을 늘리거나 줄일 때는 주로 이 블록의 UV 오프셋, coverage 팽창값, clip 기준을 조정한다.
-struct BeardSampleCoords
+// 수염 풍부함을 늘리거나 줄일 때는 주로 이 블록의 UV 오프셋, coverage 팽창값, clip 기준을 조정한다.struct BeardMaterialSample
 {
-    float2 center;
-    float2 left;
-    float2 right;
-    float2 down;
-    float2 farLeft;
-    float2 farRight;
-    float2 wideLeft;
-    float2 wideRight;
-    float2 farDown;
-    float2 downLeft;
-    float2 downRight;
-    float2 farDownLeft;
-    float2 farDownRight;
+float3 color;
+float coverage;
+float density;
 };
 
-struct BeardTextureSamples
+float SampleBeardOpacity(float2 uv)
 {
-    float4 center;
-    float4 left;
-    float4 right;
-    float4 down;
-    float4 farLeft;
-    float4 farRight;
-    float4 wideLeft;
-    float4 wideRight;
-    float4 farDown;
-    float4 downLeft;
-    float4 downRight;
-    float4 farDownLeft;
-    float4 farDownRight;
-};
+    if (!HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
+        return 1.f;
 
-// 수염 카드 주변 UV를 넓게 잡아 빈 영역도 함께 샘플링한다.
-BeardSampleCoords BuildBeardSampleCoords(float2 centerUV)
-{
-    BeardSampleCoords coords;
-
-    float2 sideOffsetX = float2(0.0060f, 0.f);
-    float2 sideOffsetY = float2(0.f, 0.0042f);
-
-    coords.center = centerUV;
-    coords.left = centerUV - sideOffsetX;
-    coords.right = centerUV + sideOffsetX;
-    coords.down = centerUV + sideOffsetY;
-    coords.farLeft = centerUV - sideOffsetX * 2.f;
-    coords.farRight = centerUV + sideOffsetX * 2.f;
-    coords.wideLeft = centerUV - sideOffsetX * 3.f;
-    coords.wideRight = centerUV + sideOffsetX * 3.f;
-    coords.farDown = centerUV + sideOffsetY * 3.f;
-    coords.downLeft = centerUV - sideOffsetX + sideOffsetY;
-    coords.downRight = centerUV + sideOffsetX + sideOffsetY;
-    coords.farDownLeft = centerUV - sideOffsetX * 2.f + sideOffsetY * 2.f;
-    coords.farDownRight = centerUV + sideOffsetX * 2.f + sideOffsetY * 2.f;
-
-    return coords;
+    return saturate(
+        g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK]
+        .Sample(LinearWrapSampler, uv).r);
 }
 
-// 같은 수염 텍스처를 여러 지점에서 읽어 sparse card를 하나의 면처럼 다룬다.
-BeardTextureSamples SampleBeardTextures(BeardSampleCoords coords)
+float3 SampleBeardBaseColor(float2 uv)
 {
-    BeardTextureSamples samples;
+    if (!HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+        return saturate(g_BaseColorTint.rgb);
 
-    samples.center = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.center);
-    samples.left = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.left);
-    samples.right = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.right);
-    samples.down = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.down);
-    samples.farLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farLeft);
-    samples.farRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farRight);
-    samples.wideLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.wideLeft);
-    samples.wideRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.wideRight);
-    samples.farDown = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farDown);
-    samples.downLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.downLeft);
-    samples.downRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.downRight);
-    samples.farDownLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farDownLeft);
-    samples.farDownRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farDownRight);
-
-    return samples;
+    return saturate(
+        g_MaterialTextures[MATERIAL_SLOT_BASECOLOR]
+        .Sample(LinearWrapSampler, uv).rgb);
 }
 
-// 여러 마스크를 합쳐 sparse card를 하나의 수염 면처럼 보이게 만든다.
-float ComputeBeardCoverage(BeardSampleCoords coords, BeardTextureSamples samples)
+BeardMaterialSample SampleBeardMaterial(float2 uv)
 {
-    float4 maskBaseColor = float4(samples.center.rgb * g_BaseColorTint.rgb, samples.center.a * g_BaseColorTint.a);
+    BeardMaterialSample result;
 
-    float centerMask = GetOpacityMaskForMasked(coords.center, maskBaseColor);
-    float leftMask = GetOpacityMaskForMasked(coords.left, maskBaseColor);
-    float rightMask = GetOpacityMaskForMasked(coords.right, maskBaseColor);
-    float downMask = GetOpacityMaskForMasked(coords.down, maskBaseColor);
-    float farLeftMask = GetOpacityMaskForMasked(coords.farLeft, maskBaseColor);
-    float farRightMask = GetOpacityMaskForMasked(coords.farRight, maskBaseColor);
-    float wideLeftMask = GetOpacityMaskForMasked(coords.wideLeft, maskBaseColor);
-    float wideRightMask = GetOpacityMaskForMasked(coords.wideRight, maskBaseColor);
-    float farDownMask = GetOpacityMaskForMasked(coords.farDown, maskBaseColor);
-    float downLeftMask = GetOpacityMaskForMasked(coords.downLeft, maskBaseColor);
-    float downRightMask = GetOpacityMaskForMasked(coords.downRight, maskBaseColor);
-    float farDownLeftMask = GetOpacityMaskForMasked(coords.farDownLeft, maskBaseColor);
-    float farDownRightMask = GetOpacityMaskForMasked(coords.farDownRight, maskBaseColor);
+    float rawMask = SampleBeardOpacity(uv);
+    float3 beardTexture = SampleBeardBaseColor(uv);
 
-    // 샘플 범위를 넓힐수록 수염 면적이 더 잘 연결된다.
-    float baseCoverage = max(centerMask, max(leftMask, rightMask));
-    baseCoverage = max(baseCoverage, max(farLeftMask, farRightMask));
-    baseCoverage = max(baseCoverage, max(wideLeftMask, wideRightMask));
-    baseCoverage = max(baseCoverage, max(downMask, max(downLeftMask, downRightMask)));
-    baseCoverage = max(baseCoverage, farDownMask);
-    baseCoverage = max(baseCoverage, max(farDownLeftMask, farDownRightMask));
+    // 마스크 변화량이 커지는 먼 거리에서는 경계 폭을 자동으로 넓힌다.
+    // 고정된 hard clip보다 픽셀 깜빡임과 자글거림이 줄어든다.
+    float maskWidth =
+        max(fwidth(rawMask) * 1.25f, 0.015f);
 
-    // 두께를 더 키우고 싶으면 이 팽창식을 먼저 조정한다.
-    return saturate(baseCoverage * 2.35f + 0.42f);
+    // 기존처럼 주변 픽셀을 max로 팽창시키지 않는다.
+    // 원본 BC4 마스크의 실제 가닥만 사용한다.
+    result.coverage =
+        smoothstep(
+            0.20f - maskWidth,
+            0.42f + maskWidth,
+            rawMask);
+
+    // 베이크 컬러의 밝기를 가닥별 밀도로 사용한다.
+    result.density =
+        saturate(
+            dot(
+                beardTexture,
+                float3(0.299f, 0.587f, 0.114f)));
+
+    // 컬러 텍스처의 가닥별 명암을 유지하면서
+    // material의 BaseColorTint를 전체 수염 색상으로 사용한다.
+    float textureDetail =
+        saturate((result.density - 0.20f) * 1.35f);
+
+    result.color =
+        saturate(g_BaseColorTint.rgb) *
+        lerp(0.42f, 1.05f, textureDetail);
+
+    // 마스크 경계의 가느다란 털을 조금 밝게 만들어
+    // 검은 샤프심처럼 튀는 현상을 줄인다.
+    result.color *=
+        lerp(0.72f, 1.f, result.coverage);
+
+    result.color *= g_HairBrightness;
+    result.color = saturate(result.color);
+
+    return result;
 }
 
-// coverage와 같은 범위를 따라가며 수염 색 끊김을 줄일 밀도를 계산한다.
-float ComputeBeardDensity(BeardTextureSamples samples)
-{
-    float centerDensity = dot(samples.center.rgb, float3(0.299f, 0.587f, 0.114f));
-    float leftDensity = dot(samples.left.rgb, float3(0.299f, 0.587f, 0.114f));
-    float rightDensity = dot(samples.right.rgb, float3(0.299f, 0.587f, 0.114f));
-    float downDensity = dot(samples.down.rgb, float3(0.299f, 0.587f, 0.114f));
-    float farLeftDensity = dot(samples.farLeft.rgb, float3(0.299f, 0.587f, 0.114f));
-    float farRightDensity = dot(samples.farRight.rgb, float3(0.299f, 0.587f, 0.114f));
-    float wideLeftDensity = dot(samples.wideLeft.rgb, float3(0.299f, 0.587f, 0.114f));
-    float wideRightDensity = dot(samples.wideRight.rgb, float3(0.299f, 0.587f, 0.114f));
-    float farDownDensity = dot(samples.farDown.rgb, float3(0.299f, 0.587f, 0.114f));
-    float downLeftDensity = dot(samples.downLeft.rgb, float3(0.299f, 0.587f, 0.114f));
-    float downRightDensity = dot(samples.downRight.rgb, float3(0.299f, 0.587f, 0.114f));
-    float farDownLeftDensity = dot(samples.farDownLeft.rgb, float3(0.299f, 0.587f, 0.114f));
-    float farDownRightDensity = dot(samples.farDownRight.rgb, float3(0.299f, 0.587f, 0.114f));
-
-    float density = max(centerDensity, max(leftDensity, rightDensity));
-    density = max(density, max(farLeftDensity, farRightDensity));
-    density = max(density, max(wideLeftDensity, wideRightDensity));
-    density = max(density, max(downDensity, max(downLeftDensity, downRightDensity)));
-    density = max(density, farDownDensity);
-    density = max(density, max(farDownLeftDensity, farDownRightDensity));
-    return density;
-}
-
-// 수염 색 농도는 material json의 baseColorTint와 여기의 density 보정 강도로 조절한다.
-float3 ComputeBeardColor(float density)
-{
-    float3 finalBeardColor = g_BaseColorTint.rgb;
-    finalBeardColor *= lerp(0.94f, 1.0f, density);
-    finalBeardColor *= g_HairBrightness;
-    return saturate(finalBeardColor);
-}
+//===========================================================================================
 
 struct EyeMaterialSample
 {
@@ -550,6 +478,28 @@ float SampleHairMask(float2 uv)
     return saturate(g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r);
 }
 
+float SampleHairDepth(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_DEPTH))
+        return 0.5f;
+
+    return saturate(
+        g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH]
+        .Sample(LinearWrapSampler, uv).r);
+}
+
+float SampleHairIDValue(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_ID))
+        return 0.5f;
+
+    float3 hairIDTex =
+        g_MaterialTextures[MATERIAL_SLOT_HAIR_ID]
+        .Sample(LinearWrapSampler, uv).rgb;
+
+    return saturate(Blender_ColorToValue(hairIDTex));
+}
+
 float3 Blender_HueSaturationValue(float3 color, float hue, float saturation, float value, float factor)
 {
     float3 hsv = RGBToHSV(color);
@@ -574,61 +524,122 @@ float3 Apply_PrincipledHairBSDF_Color(float3 color)
     return color;
 }
 
-float3 Compute_BlenderHairColor(float2 finalUV)
+float SampleHairMaskDensity(float2 uv)
 {
-    // Color Gradient Mix
-    float4 hairColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    if (!HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
+        return 1.f;
 
-    // T_Hair_Lune_Color의 Color 출력이 Factor로 들어간다.
-    float colorFactor = Blender_ColorToValue(hairColorTex.rgb);
+    uint textureWidth = 1u;
+    uint textureHeight = 1u;
 
-    float3 hairColor = g_BaseColorTint.rgb;
+    g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK]
+        .GetDimensions(textureWidth, textureHeight);
 
-    // Blender_MixColor_Mix(
-    //     colorFactor,
-    //     g_BaseColorTint.rgb,
-    //     g_BaseColorTint.rgb + float3(0.02f, 0.02f, 0.02f)
-    // );
+    float2 texelSize =
+        1.f / float2(
+            max(textureWidth, 1u),
+            max(textureHeight, 1u));
 
-    // Per-Strand Color Variation
-    float4 hairIDTex = g_MaterialTextures[MATERIAL_SLOT_HAIR_ID].Sample(LinearWrapSampler, finalUV);
+    float center =
+        SampleHairMask(uv);
 
-    float hairIDValue = Blender_ColorToValue(hairIDTex.rgb);
+    float left =
+        SampleHairMask(uv + float2(-texelSize.x, 0.f));
 
-    float hue = hairIDValue * 0.134f + 0.5f;
+    float right =
+        SampleHairMask(uv + float2(texelSize.x, 0.f));
 
-    hairColor = Blender_HueSaturationValue(hairColor, hue, 1.f, 1.f, 1.f);
+    float up =
+        SampleHairMask(uv + float2(0.f, -texelSize.y));
 
-    // Principled Hair BSDF Color
-    return Apply_PrincipledHairBSDF_Color(hairColor);
+    float down =
+        SampleHairMask(uv + float2(0.f, texelSize.y));
+
+    float upperLeft =
+        SampleHairMask(uv + float2(-texelSize.x, -texelSize.y));
+
+    float upperRight =
+        SampleHairMask(uv + float2(texelSize.x, -texelSize.y));
+
+    float lowerLeft =
+        SampleHairMask(uv + float2(-texelSize.x, texelSize.y));
+
+    float lowerRight =
+        SampleHairMask(uv + float2(texelSize.x, texelSize.y));
+
+    // 중심 픽셀에는 조금 더 높은 비중을 준다.
+    float density =
+        center * 2.f +
+        left +
+        right +
+        up +
+        down +
+        upperLeft +
+        upperRight +
+        lowerLeft +
+        lowerRight;
+
+    return saturate(density / 10.f);
 }
 
-// PS_OUT PS_CharacterHair(PS_IN In)
-// {
-//     PS_OUT Out;
-// 
-//     float2 finalUV = ApplyUVTransform(In.Texcoord);
-// 
-//     HairMaterialSample hair = SampleHairMaterial(finalUV);
-// 
-//     if (hair.opacity < 0.003)
-//         discard;
-// 
-//     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
-//         
-//     Out.Diffuse = float4(hair.baseColor, 1.f);
-//     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
-//     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
-// 
-//     float3 orm = SampleOrm(finalUV);
-//     Out.Material = float4(orm.xyz, 1.f);
-// 
-//     float3 emissive = SampleEmissive(finalUV);
-//     Out.Emissive = float4(emissive.xyz, 1.f);
-// 
-//     return Out;
-// }
+float3 Compute_BlenderHairColor(float2 finalUV)
+{
+    float3 hairColorTex = float3(1.f, 1.f, 1.f);
 
+    if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+    {
+        hairColorTex =
+            g_MaterialTextures[MATERIAL_SLOT_BASECOLOR]
+            .Sample(LinearWrapSampler, finalUV).rgb;
+    }
+
+    float hairMask = SampleHairMask(finalUV);
+    float hairDepth = SampleHairDepth(finalUV);
+    float hairIDValue = SampleHairIDValue(finalUV);
+    float hairMaskDensity = SampleHairMaskDensity(finalUV);
+
+    float3 hairColor = saturate(g_BaseColorTint.rgb);
+
+    // Color 텍스처의 결/밝기 차이를 실제 BaseColor에 반영한다.
+    hairColor *= lerp(
+        float3(0.62f, 0.62f, 0.62f),
+        float3(1.12f, 1.12f, 1.12f),
+        hairColorTex);
+
+    // Depth 텍스처로 카드 내부/외부 층 차이를 준다.
+    // 만약 밝고 어두운 방향이 반대로 느껴지면
+    // hairDepth 대신 (1.f - hairDepth)로 바꾸면 된다.
+    hairColor *= lerp(0.72f, 1.06f, hairDepth);
+
+    // ID 텍스처로 클럼프/가닥 단위 색 편차를 준다.
+    float hue = hairIDValue * 0.10f + 0.5f;
+    hairColor =
+        Blender_HueSaturationValue(
+            hairColor,
+            hue,
+            0.92f,
+            1.00f,
+            1.f);
+
+    hairColor *= lerp(0.92f, 1.08f, hairIDValue);
+
+    float strandInterior =
+        smoothstep(0.12f, 0.62f, hairMask);
+
+    float clumpDensity =
+        smoothstep(0.08f, 0.24f, hairMaskDensity);
+
+    // Mask가 약한 가장자리는 어둡게 눌러 리본 외곽을 줄인다.
+    hairColor *=
+        lerp(0.72f, 1.0f, strandInterior);
+
+    // 주변에 혼자 떨어진 가닥은 본체보다 약간 어둡게 눌러
+    // 검은 전선처럼 튀는 대비를 줄인다.
+    hairColor *=
+        lerp(0.82f, 1.0f, clumpDensity);
+
+    return saturate(Apply_PrincipledHairBSDF_Color(hairColor));
+}
 
 
 #endif

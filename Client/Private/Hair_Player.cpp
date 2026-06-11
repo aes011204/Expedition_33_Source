@@ -7,6 +7,8 @@
 #include "ModelCom.h"
 #include "Debug_Profile.h"
 #include "AnimComputeRuntime.h"
+#include "EffectCom.h"
+
 
 Hair_Player::Hair_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PlayableParts{ device, context } {
@@ -131,14 +133,66 @@ void Hair_Player::Update(float timeDelta)
 
 void Hair_Player::Late_Update(float timeDelta)
 {
-    __super::Late_Update(timeDelta);
+    Shared<GameObject> owner = Get_Owner();
+    if (!owner)
+    {
+        return;
+    }
+
+    if (Casts_DynamicShadow() && Is_Visible())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (!owner->Is_Visible())
+        return;
+
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
 }
 
 HRESULT Hair_Player::Render()
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Render");
 
-    return PlayableParts::Render();
+    if (FAILED(Bind_ShaderResources()))
+        return E_FAIL;
+
+    CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
+
+    const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
+    const uint32 supportFeatureMask = Build_DrawFeatureSupportMask(*this);
+
+    for (uint32 i = 0; i < iNumMeshes; i++)
+    {
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
+
+        if (FAILED(_shaderCom->Bind_MaterialTextures(*material)))
+            continue;
+
+        if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
+            return E_FAIL;
+
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), 60, E_FAIL);
+
+        CHECK_FAILED_THROTTLED(EffectCom::Bind_DrawFeatures(Get_Owner(), _shaderCom.get(), supportFeatureMask), 60, E_FAIL);
+
+        uint32 passIndex = 0;
+        if (GAME->Get_CurrentRenderGroup() == RenderGroup::Blend)
+            passIndex = static_cast<uint32>(VtxAnimMeshPass::HairBlend);
+        else 
+            passIndex = material->Get_PassIndex();
+
+        if (FAILED(_shaderCom->Begin(passIndex)))
+            return E_FAIL;
+
+        // 플레이어 파츠가 그려진 픽셀에 stencil=1을 남겨 Background UI가 이 영역을 피하게 한다.
+        const bool depthWrite = passIndex != static_cast<uint32>(VtxAnimMeshPass::HairBlend);
+        CHECK_FAILED_THROTTLED(GAME->Bind_PlayerStencilWriteState(depthWrite), 60, E_FAIL);
+
+        _modelCom->Render(i);
+    }
+
+    return S_OK;
 }
 
 HRESULT Hair_Player::Render_Shadow()

@@ -550,6 +550,28 @@ float SampleHairMask(float2 uv)
     return saturate(g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r);
 }
 
+float SampleHairDepth(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_DEPTH))
+        return 0.5f;
+
+    return saturate(
+        g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH]
+        .Sample(LinearWrapSampler, uv).r);
+}
+
+float SampleHairIDValue(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_ID))
+        return 0.5f;
+
+    float3 hairIDTex =
+        g_MaterialTextures[MATERIAL_SLOT_HAIR_ID]
+        .Sample(LinearWrapSampler, uv).rgb;
+
+    return saturate(Blender_ColorToValue(hairIDTex));
+}
+
 float3 Blender_HueSaturationValue(float3 color, float hue, float saturation, float value, float factor)
 {
     float3 hsv = RGBToHSV(color);
@@ -574,61 +596,122 @@ float3 Apply_PrincipledHairBSDF_Color(float3 color)
     return color;
 }
 
-float3 Compute_BlenderHairColor(float2 finalUV)
+float SampleHairMaskDensity(float2 uv)
 {
-    // Color Gradient Mix
-    float4 hairColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    if (!HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
+        return 1.f;
 
-    // T_Hair_Lune_Color의 Color 출력이 Factor로 들어간다.
-    float colorFactor = Blender_ColorToValue(hairColorTex.rgb);
+    uint textureWidth = 1u;
+    uint textureHeight = 1u;
 
-    float3 hairColor = g_BaseColorTint.rgb;
+    g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK]
+        .GetDimensions(textureWidth, textureHeight);
 
-    // Blender_MixColor_Mix(
-    //     colorFactor,
-    //     g_BaseColorTint.rgb,
-    //     g_BaseColorTint.rgb + float3(0.02f, 0.02f, 0.02f)
-    // );
+    float2 texelSize =
+        1.f / float2(
+            max(textureWidth, 1u),
+            max(textureHeight, 1u));
 
-    // Per-Strand Color Variation
-    float4 hairIDTex = g_MaterialTextures[MATERIAL_SLOT_HAIR_ID].Sample(LinearWrapSampler, finalUV);
+    float center =
+        SampleHairMask(uv);
 
-    float hairIDValue = Blender_ColorToValue(hairIDTex.rgb);
+    float left =
+        SampleHairMask(uv + float2(-texelSize.x, 0.f));
 
-    float hue = hairIDValue * 0.134f + 0.5f;
+    float right =
+        SampleHairMask(uv + float2(texelSize.x, 0.f));
 
-    hairColor = Blender_HueSaturationValue(hairColor, hue, 1.f, 1.f, 1.f);
+    float up =
+        SampleHairMask(uv + float2(0.f, -texelSize.y));
 
-    // Principled Hair BSDF Color
-    return Apply_PrincipledHairBSDF_Color(hairColor);
+    float down =
+        SampleHairMask(uv + float2(0.f, texelSize.y));
+
+    float upperLeft =
+        SampleHairMask(uv + float2(-texelSize.x, -texelSize.y));
+
+    float upperRight =
+        SampleHairMask(uv + float2(texelSize.x, -texelSize.y));
+
+    float lowerLeft =
+        SampleHairMask(uv + float2(-texelSize.x, texelSize.y));
+
+    float lowerRight =
+        SampleHairMask(uv + float2(texelSize.x, texelSize.y));
+
+    // 중심 픽셀에는 조금 더 높은 비중을 준다.
+    float density =
+        center * 2.f +
+        left +
+        right +
+        up +
+        down +
+        upperLeft +
+        upperRight +
+        lowerLeft +
+        lowerRight;
+
+    return saturate(density / 10.f);
 }
 
-// PS_OUT PS_CharacterHair(PS_IN In)
-// {
-//     PS_OUT Out;
-// 
-//     float2 finalUV = ApplyUVTransform(In.Texcoord);
-// 
-//     HairMaterialSample hair = SampleHairMaterial(finalUV);
-// 
-//     if (hair.opacity < 0.003)
-//         discard;
-// 
-//     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
-//         
-//     Out.Diffuse = float4(hair.baseColor, 1.f);
-//     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
-//     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
-// 
-//     float3 orm = SampleOrm(finalUV);
-//     Out.Material = float4(orm.xyz, 1.f);
-// 
-//     float3 emissive = SampleEmissive(finalUV);
-//     Out.Emissive = float4(emissive.xyz, 1.f);
-// 
-//     return Out;
-// }
+float3 Compute_BlenderHairColor(float2 finalUV)
+{
+    float3 hairColorTex = float3(1.f, 1.f, 1.f);
 
+    if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+    {
+        hairColorTex =
+            g_MaterialTextures[MATERIAL_SLOT_BASECOLOR]
+            .Sample(LinearWrapSampler, finalUV).rgb;
+    }
+
+    float hairMask = SampleHairMask(finalUV);
+    float hairDepth = SampleHairDepth(finalUV);
+    float hairIDValue = SampleHairIDValue(finalUV);
+    float hairMaskDensity = SampleHairMaskDensity(finalUV);
+
+    float3 hairColor = saturate(g_BaseColorTint.rgb);
+
+    // Color 텍스처의 결/밝기 차이를 실제 BaseColor에 반영한다.
+    hairColor *= lerp(
+        float3(0.62f, 0.62f, 0.62f),
+        float3(1.12f, 1.12f, 1.12f),
+        hairColorTex);
+
+    // Depth 텍스처로 카드 내부/외부 층 차이를 준다.
+    // 만약 밝고 어두운 방향이 반대로 느껴지면
+    // hairDepth 대신 (1.f - hairDepth)로 바꾸면 된다.
+    hairColor *= lerp(0.72f, 1.06f, hairDepth);
+
+    // ID 텍스처로 클럼프/가닥 단위 색 편차를 준다.
+    float hue = hairIDValue * 0.10f + 0.5f;
+    hairColor =
+        Blender_HueSaturationValue(
+            hairColor,
+            hue,
+            0.92f,
+            1.00f,
+            1.f);
+
+    hairColor *= lerp(0.92f, 1.08f, hairIDValue);
+
+    float strandInterior =
+        smoothstep(0.12f, 0.62f, hairMask);
+
+    float clumpDensity =
+        smoothstep(0.08f, 0.24f, hairMaskDensity);
+
+    // Mask가 약한 가장자리는 어둡게 눌러 리본 외곽을 줄인다.
+    hairColor *=
+        lerp(0.72f, 1.0f, strandInterior);
+
+    // 주변에 혼자 떨어진 가닥은 본체보다 약간 어둡게 눌러
+    // 검은 전선처럼 튀는 대비를 줄인다.
+    hairColor *=
+        lerp(0.82f, 1.0f, clumpDensity);
+
+    return saturate(Apply_PrincipledHairBSDF_Color(hairColor));
+}
 
 
 #endif

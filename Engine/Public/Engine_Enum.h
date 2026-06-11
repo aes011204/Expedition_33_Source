@@ -129,6 +129,7 @@ namespace Engine
         OpaqueTwoSided,
         MaskedTwoSided,
         Shadow,
+        HairBlend = 8,
 
         END
     };
