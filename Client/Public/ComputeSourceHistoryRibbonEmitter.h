@@ -40,7 +40,8 @@ private:
     enum class PlaybackState : uint8
     {
         Delayed,
-        Playing,
+        Emitting,
+        Draining,
         Completed,
     };
 
@@ -73,6 +74,7 @@ private:
     struct HistoryLane
     {
         uint32 sourceIndex{};
+        Vec3 currentSourcePosition{};
         vector<HistorySample> history{};
         float sampleIntervalAccumulator{};
         float age{};
@@ -121,14 +123,17 @@ private:
     static constexpr uint32 kThreadCountX{ 64 };
     static constexpr uint32 kMaxDistanceTessellationSubdivision{ 8 };
     static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
+    static constexpr float kMinRenderableRibbonLength{ 0.0001f };
 
 private:
     ComputeRibbonEmitterDesc _desc{};
     PlaybackState _playbackState{ PlaybackState::Delayed };
+    bool _finishEmissionAfterHistoryUpdate{};
     float _loopElapsedTime{};
     uint32 _loopIndex{};
     vector<HistorySample> _history{};
     float _sampleIntervalAccumulator{};
+    Vec3 _selfRootSourcePosition{};
     vector<HistoryLane> _sourceLanes{};
     float _materialElapsedTime{};
     float _visibleRibbonLength{ 1.f };
@@ -153,6 +158,8 @@ private:
 private:
     void Reset_PlaybackRuntime();
     void Advance_Playback(float timeDelta);
+    bool Is_UpdatingHistory() const;
+    bool Is_EmittingSourceSamples() const;
     void Update_History(float timeDelta);
     void Update_SelfRootHistory(float timeDelta);
     void Update_ParticleFollowerHistory(float timeDelta);
@@ -160,12 +167,16 @@ private:
     void Insert_HistorySample(vector<HistorySample>& history, float& sampleIntervalAccumulator, const Vec3& sourcePosition);
     void Prune_History(vector<HistorySample>& history);
     void Build_RenderSamples(vector<RenderSample>& outSamples) const;
-    void Build_RenderSamples(const vector<HistorySample>& history, vector<RenderSample>& outSamples) const;
+    void Build_RenderSamples(
+        const vector<HistorySample>& history,
+        vector<RenderSample>& outSamples,
+        const Vec3* currentSourcePosition = nullptr) const;
     HRESULT Append_SegmentPayloads(
         const vector<RenderSample>& renderSamples,
         vector<SegmentPayload>& outPayloads,
         float widthMultiplier = 1.f) const;
     bool Has_RenderableHistory() const;
+    bool Has_RenderableHistory(const vector<HistorySample>& history, const Vec3* currentSourcePosition = nullptr) const;
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
     void Clear_ParticleFollowerHistory();
 

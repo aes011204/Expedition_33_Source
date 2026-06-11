@@ -658,12 +658,6 @@ namespace Internal
         Read_NumberField(root, "baseWidth", outData.baseWidth);
         Read_NumberField(root, "tilingDistance", outData.tilingDistance);
         Read_BoolField(root, "autoLifeFade", outData.autoLifeFade);
-        if (const auto presetIter = root.find("previewMotionPreset"); presetIter != root.end())
-            Try_ReadEnumToken(*presetIter, outData.previewMotionPreset);
-        if (const auto axisIter = root.find("previewMotionAxis"); axisIter != root.end())
-            Try_ReadEnumToken(*axisIter, outData.previewMotionAxis);
-        Read_NumberField(root, "previewMotionAmplitude", outData.previewMotionAmplitude);
-        Read_NumberField(root, "previewMotionSpeed", outData.previewMotionSpeed);
     }
 
     json To_Json(const MeshTypeData& data)

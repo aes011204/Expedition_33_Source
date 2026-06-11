@@ -811,6 +811,12 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* required = Find_ModuleData(emitter, "Required"))
             Apply_RequiredModule(*required, outDefinition, desc);
 
+        if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+        {
+            Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+            Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+        }
+
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
         {
             const auto lifeTimeIter = lifetime->find("lifeTime");
@@ -1031,11 +1037,23 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             const auto colorIter = colorOverLife->find("colorOverLife");
             if (colorIter != colorOverLife->end())
-                Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorIter);
+            {
+                desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
+                desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+                desc.colorOverLife.colorSeed = Read_DistributionRandomSeedDesc(*colorIter, colorOverLife);
+            }
 
             const auto alphaIter = colorOverLife->find("alphaOverLife");
             if (alphaIter != colorOverLife->end())
-                Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *alphaIter);
+            {
+                desc.colorOverLife.endColorMin.w =
+                    clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+                desc.colorOverLife.endColorMax.w =
+                    clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+                desc.colorOverLife.alphaSeed = Read_DistributionRandomSeedDesc(*alphaIter, colorOverLife);
+            }
+
+            Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
         }
 
         if (const json* subUvFrameOverLife = Find_ModuleData(emitter, "SubUVFrameOverLife"))

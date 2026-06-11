@@ -2123,6 +2123,17 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
         definition.useLocalSpace = required->useLocalSpace;
     }
 
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+    }
+
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.lifetime.lifeTime = Vec2{
@@ -2367,7 +2378,42 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
     }
 
     if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMin.x,
+                emitterDesc.colorOverLife.endColorMin.y,
+                emitterDesc.colorOverLife.endColorMin.z,
+                emitterDesc.colorOverLife.endColorMin.w
+            }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMax.x,
+                emitterDesc.colorOverLife.endColorMax.y,
+                emitterDesc.colorOverLife.endColorMax.z,
+                emitterDesc.colorOverLife.endColorMax.w
+            }
+        );
+        const float minEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
         Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+    }
 
     if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
     {
@@ -2420,23 +2466,13 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.modelPath = meshData->modelPath;
         emitterDesc.previewScale = meshData->previewScale;
         emitterDesc.useModelMaterials = meshData->useModelMaterials;
-
-        if (meshData->hasAssignedMaterialInstance)
-            EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
-        else
-        {
-            const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
-                meshData->assignedEffectMaterialGuid,
-                meshData->assignedEffectMaterialPath
-            );
-            EffectMaterialInstanceData assignedMaterial{};
-            if (!assignedMaterialPath.empty() && EffectMaterialPresetReader::Read(assignedMaterialPath, assignedMaterial))
-                EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(assignedMaterial, emitterDesc.material);
-        }
     }
 
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
+    if (required != nullptr)
     {
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
         emitterDesc.playback.delay = max(0.f, required->delay);
@@ -2450,8 +2486,6 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
         emitterDesc.sort.artistSortBias = required->sortBias;
-        emitterDesc.material.blendMode = required->material.blendMode;
-        emitterDesc.material.alphaCutoff = required->material.alphaCutoff;
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -2467,6 +2501,28 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         emitterDesc.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+    }
+
+    if (const auto* meshData = get_if<MeshTypeData>(&emitter.typeData.payload))
+    {
+        if (meshData->hasAssignedMaterialInstance)
+            EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
+        else
+        {
+            const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
+                meshData->assignedEffectMaterialGuid,
+                meshData->assignedEffectMaterialPath
+            );
+            EffectMaterialInstanceData assignedMaterial{};
+            if (!assignedMaterialPath.empty() && EffectMaterialPresetReader::Read(assignedMaterialPath, assignedMaterial))
+                EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(assignedMaterial, emitterDesc.material);
+        }
+    }
+
+    if (required != nullptr)
+    {
+        emitterDesc.material.blendMode = required->material.blendMode;
+        emitterDesc.material.alphaCutoff = required->material.alphaCutoff;
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
