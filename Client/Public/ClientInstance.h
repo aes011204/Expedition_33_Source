@@ -67,6 +67,7 @@ public: /* For.GameData Table */
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     const Skill_Data* Get_Skill(const string& skillId);
     const vector<string> Get_AllSkillIds();
+    HRESULT Reload_GameDataTables();
 
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);

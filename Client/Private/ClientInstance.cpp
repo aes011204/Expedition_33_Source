@@ -217,6 +217,14 @@ const vector<string> ClientInstance::Get_AllSkillIds()
     return _gameDataTable->Get_AllSkillIds();
 }
 
+HRESULT ClientInstance::Reload_GameDataTables()
+{
+    if (_gameDataTable == nullptr)
+        return Ready_GameDataTables();
+
+    return _gameDataTable->Load_All();
+}
+
 const Item_Data* ClientInstance::Get_Item(const string& itemId)
 {
     if (!_gameDataTable)

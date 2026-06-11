@@ -399,6 +399,10 @@ HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
         phase.cameraPresetId = item.value("cameraPresetId", legacyCameraProfileId);
         phase.cameraClipId = item.value("cameraClipId", legacyCameraProfileId);
 
+        phase.playRate = item.value("playRate", 1.f);
+        if (phase.playRate <= 0.f)
+            phase.playRate = 1.f;
+
         phase.movementPolicy =
             magic_enum::enum_cast<BattleMovementPolicy>(item.value("movementPolicy", "None"))
             .value_or(BattleMovementPolicy::None);

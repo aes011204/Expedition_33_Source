@@ -48,6 +48,8 @@ public: /* Delegate 선언 */
     DECLARE_DELEGATE(FOnActionStarted, const BattleAction&);
     // AP ++
     DECLARE_DELEGATE(FOnBattleApChanged, const BattleChar&, uint32, EAPChangeReason);
+    // 턴 시작 상태 이상 Announce
+    DECLARE_DELEGATE(FOnTurnStartStatusAnnounceRequested, const BattleChar&, Buffs);
 
 
 public:
@@ -186,6 +188,9 @@ public:
     bool Has_Buff(const BattleChar& target, Buffs buffId) const;
     Shared<BuffSystem> Get_BuffSystem() const { return _buffSystem; }
 
+    bool Try_ApplySkillBuff(const Skill_Data& skill, const BattleChar& target);
+    void Complete_TurnStartStatusAnnounce();
+
     // HitStop (패링 직후, Free Aim 으로 약점공격 성공했을 떄 잠깐)
     void Play_BattleHitStop(float worldTimeScale, float duration);
 
@@ -227,6 +232,9 @@ private:
 
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
+    bool Try_BeginTurnStartStatusAnnounce();
+    void Continue_StartTurnAfterStatusEffects();
+
 private:
     using BattleReactionInputResult = BattleReactionController::BattleReactionInputResult;
     void Apply_ReactionApReward(const BattleReactionInputResult& result);
@@ -239,6 +247,8 @@ public: /* Delegate */
     FOnTargetPreviewChanged         OnTargetPreviewChanged; // Targeting 중일 때
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
     FOnBattleApChanged              OnBattleApChanged;
+    FOnTurnStartStatusAnnounceRequested OnTurnStartStatusAnnounceRequested;
+
 
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};
@@ -360,6 +370,12 @@ private:
 
     // 전투 튜토리얼
     Shared<BattleTutorialController> _battleTutorialController{};
+
+    Buffs      _pendingTurnStartStatusBuff = Buffs::None;
+    BattleChar _pendingTurnStartStatusActor = {};
+
+    vector<Buffs> _processedTurnStartStatuses = {};
+    bool          _isWaitingTurnStartStatusHit = false;
 
 public:
     static Shared<BattleController> Create();
