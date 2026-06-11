@@ -3,20 +3,6 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 
-BlendState BS_UIAlphaBlendWriteAlpha
-{
-    BlendEnable[0] = true;
-    SrcBlend = Src_Alpha;
-    DestBlend = Inv_Src_Alpha;
-    BlendOp = Add;
-
-    SrcBlendAlpha = One;
-    DestBlendAlpha = Inv_Src_Alpha;
-    BlendOpAlpha = Add;
-
-    RenderTargetWriteMask[0] = 0x0f;
-};
-
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
 Texture2D g_Texture;
@@ -188,10 +174,10 @@ PS_OUT PS_FILL_RATIO(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(NormalPass,    RS_UI, DSS_None, BS_UIAlphaBlendWriteAlpha, VS_MAIN, PS_NORMAL) // 0
-    PASS_RS_DS_BS_VP(MaskPass,      RS_UI, DSS_None, BS_UIAlphaBlendWriteAlpha, VS_MAIN, PS_MASK)   // 1
-    PASS_RS_DS_BS_VP(CircularHolePass, RS_UI, DSS_None, BS_UIAlphaBlendWriteAlpha, VS_MAIN, PS_CIRCULAR_HOLE) // 2
-    PASS_RS_DS_BS_VP(PatternOverlayPass, RS_UI, DSS_None, BS_UIAlphaBlendWriteAlpha, VS_MAIN, PS_PATTERN_OVERLAY) // 3
-    PASS_RS_DS_BS_VP(FillRatioPass, RS_UI, DSS_None, BS_UIAlphaBlendWriteAlpha, VS_MAIN, PS_FILL_RATIO) // 4
-    PASS_RS_DS_BS_VP(BlackWhiteMaskPass, RS_UI, DSS_None, BS_UIAlphaBlendWriteAlpha, VS_MAIN, PS_BLACK_WHITE_MASK) // 5
+    PASS_RS_DS_BS_VP(NormalPass,    RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_NORMAL) // 0
+    PASS_RS_DS_BS_VP(MaskPass,      RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MASK)   // 1
+    PASS_RS_DS_BS_VP(CircularHolePass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_CIRCULAR_HOLE) // 2
+    PASS_RS_DS_BS_VP(PatternOverlayPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY) // 3
+    PASS_RS_DS_BS_VP(FillRatioPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_FILL_RATIO) // 4
+    PASS_RS_DS_BS_VP(BlackWhiteMaskPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_BLACK_WHITE_MASK) // 5
 }

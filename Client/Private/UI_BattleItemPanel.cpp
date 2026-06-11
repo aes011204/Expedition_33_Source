@@ -62,8 +62,6 @@ void UI_BattleItemPanel::Open()
 void UI_BattleItemPanel::Close()
 {
     _isMainPanelOpen = false;
-    _isTooltipOpen = false;
-    _activeTooltipItemType = BattleItemType::Invalid;
     _isPlayingMainPanelIntro = false;
     _mainPanelIntroElapsed = 0.f;
 
@@ -84,9 +82,6 @@ void UI_BattleItemPanel::Open_Tooltip(BattleItemType itemType)
 {
     Open();
 
-    const bool wasMainPanelOpen = _isMainPanelOpen;
-    const bool tooltipChanged = !_isTooltipOpen || _activeTooltipItemType != itemType;
-
     Stop_MainPanelAnimations();
     Close_MainPanelUIs();
 
@@ -95,8 +90,6 @@ void UI_BattleItemPanel::Open_Tooltip(BattleItemType itemType)
     _mainPanelIntroElapsed = 0.f;
 
     Close_Tooltip();
-    _isTooltipOpen = true;
-    _activeTooltipItemType = itemType;
 
     switch (itemType)
     {
@@ -114,17 +107,11 @@ void UI_BattleItemPanel::Open_Tooltip(BattleItemType itemType)
 
     default: ;
     }
-
-    if (wasMainPanelOpen || tooltipChanged)
-        Mark_EditorRuntimeTuningDirty();
 }
 
 void UI_BattleItemPanel::Open_MainPanelRoot()
 {
-    const bool wasTooltipOpen = _isTooltipOpen;
     Close_Tooltip(); // 메인 패널만 키고, 툴팁은 끄기
-    _isTooltipOpen = false;
-    _activeTooltipItemType = BattleItemType::Invalid;
 
     if (_root == nullptr)
         return;
@@ -133,11 +120,7 @@ void UI_BattleItemPanel::Open_MainPanelRoot()
     _isMainPanelOpen = true;
 
     if (!wasMainPanelClosed)
-    {
-        if (wasTooltipOpen)
-            Mark_EditorRuntimeTuningDirty();
         return;
-    }
 
     Open_MainPanelUIs(); // ChooseItem에 새로 진입한 순간에만 intro 대상들을 다시 연다.
     _isPlayingMainPanelIntro = true; // ChooseItem에 새로 진입한 프레임에만 intro 1회 재생
@@ -147,8 +130,6 @@ void UI_BattleItemPanel::Open_MainPanelRoot()
         _isPlayingMainPanelIntro = false;
         Play_MainPanelAnimation(kBattleItemLoopAnimationName);
     }
-
-    Mark_EditorRuntimeTuningDirty();
 }
 
 void UI_BattleItemPanel::Open_MainPanelUIs()
@@ -342,6 +323,7 @@ HRESULT UI_BattleItemPanel::Bind_UI()
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_BattleSystem_Item"), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_1"), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_2"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_BattleSystem_Item_BG"), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Healing_Tint"), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Energy_Tint"), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Revive_Tint"), E_FAIL);

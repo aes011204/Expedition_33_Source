@@ -34,7 +34,6 @@ public :
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
     HRESULT Bind_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
-    ShaderResourceView* Get_ShaderResourceView(const wstring& targetTag);
     HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV, uint32 arraySlice = 0);
     HRESULT End_MRT();
 

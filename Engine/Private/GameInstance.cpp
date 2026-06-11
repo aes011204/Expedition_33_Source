@@ -2092,11 +2092,6 @@ HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const cha
     return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
 }
 
-ShaderResourceView* GameInstance::Get_RT_ShaderResourceView(const wstring& targetTag)
-{
-    return _targetManager->Get_ShaderResourceView(targetTag);
-}
-
 HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
 {
     return _targetManager->Copy_CurrentRTV_To(targetTag);

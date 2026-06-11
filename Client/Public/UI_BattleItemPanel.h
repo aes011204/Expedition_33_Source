@@ -64,8 +64,6 @@ private:
     Shared<UI_Text> _reviveTooltipUnitText;
 
     bool  _isMainPanelOpen = false;
-    bool  _isTooltipOpen = false;
-    BattleItemType _activeTooltipItemType = BattleItemType::Invalid;
     bool  _isPlayingMainPanelIntro = false;
     float _mainPanelIntroElapsed = 0.f;
     float _mainPanelIntroDuration = 0.f;

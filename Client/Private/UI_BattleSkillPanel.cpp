@@ -138,8 +138,6 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
         return;
     }
 
-    Mark_EditorRuntimeTuningDirty();
-
     Close_MainPanels();
 
     _root = nextRoot;
@@ -215,8 +213,6 @@ void UI_BattleSkillPanel::Open_Tooltip(const string& skillKey)
         return;
     }
 
-    Mark_EditorRuntimeTuningDirty();
-
     Close_MainPanels();
     Close_TooltipImmediately();
 
@@ -269,8 +265,6 @@ void UI_BattleSkillPanel::Close()
 
 void UI_BattleSkillPanel::Close_Immediately()
 {
-    const bool wasOpen = _activeView != ActiveView::None || _isOpen;
-
     Close_MainPanels();
     Close_Tooltips();
 
@@ -284,9 +278,6 @@ void UI_BattleSkillPanel::Close_Immediately()
     Reset_EditorDesignPositionCache();
 
     _isOpen = false;
-
-    if (wasOpen)
-        Mark_EditorRuntimeTuningDirty();
 }
 
 void UI_BattleSkillPanel::Set_EditorDefaultTestOffset(const Vec2& offset)
@@ -325,8 +316,6 @@ void UI_BattleSkillPanel::Set_EditorHeroTestOffset(HeroId heroId, const Vec2& of
 
     if (_isOpen && _activeHeroId == heroId)
         Apply_CurrentRootEditorOffsets();
-
-    Mark_EditorRuntimeTuningDirty();
 }
 
 HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
@@ -386,6 +375,7 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
             L"Panel_BattleSystem_Skill_Gustave",
             L"Image_BattleSystem_Skill_Gustave_Deco_1",
             L"Image_BattleSystem_Skill_Gustave_Deco_2",
+            L"Panel_BattleSystem_Skill_BG",
             L"Panel_LumiereAssault",
             L"Panel_UnleashedCharge",
             L"Panel_MarkingShot",
@@ -404,6 +394,7 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
             L"Panel_BattleSystem_Skill_Lune",
             L"Image_BattleSystem_Skill_Lune_Deco_1",
             L"Image_BattleSystem_Skill_Lune_Deco_2",
+            L"Panel_BattleSystem_Skill_BG",
             L"Panel_Immolation",
             L"Panel_IceGust",
             L"Panel_Thunderfall",
@@ -422,6 +413,7 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
             L"Panel_BattleSystem_Skill_Maelle",
             L"Image_BattleSystem_Skill_Maelle_Deco_1",
             L"Image_BattleSystem_Skill_Maelle_Deco_2",
+            L"Panel_BattleSystem_Skill_BG",
             L"Panel_OffensiveSwitch",
             L"Panel_Percee",
             L"Panel_FleuretFury",
@@ -585,7 +577,6 @@ void UI_BattleSkillPanel::Set_MainPanelSkillOptionsAlpha(HeroId heroId, float al
     default:
         break;
     }
-
 }
 
 bool UI_BattleSkillPanel::Play_MainPanelAnimation(HeroId heroId, const wchar_t* animationName)

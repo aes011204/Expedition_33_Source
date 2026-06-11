@@ -184,6 +184,12 @@
     <Filter Include="BehavoirTree\world">
       <UniqueIdentifier>{935d2f6f-378e-41a8-84d6-77c20a0ddfdf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\UI\SkillTree_Panel">
+      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
+      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\Camera\Preview">
       <UniqueIdentifier>{2e34842e-b1f0-4652-925c-5877a9a340a6}</UniqueIdentifier>
     </Filter>
@@ -240,9 +246,6 @@
     </Filter>
     <Filter Include="02.GameObject\UI\BattleWorldUIPlane">
       <UniqueIdentifier>{7425a794-b03d-47fb-93bd-2c43f7292c7c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\BattleWorldUI">
-      <UniqueIdentifier>{b1e4f7a5-2c78-4678-8c2f-25ad13aa80d7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -457,9 +460,6 @@
     <ClCompile Include="..\private\BattleWorldUIPlane.cpp">
       <Filter>02.GameObject\UI\BattleWorldUIPlane</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BattleWorldUI.cpp">
-      <Filter>02.GameObject\UI\BattleWorldUI</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -601,9 +601,6 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BattleWorldUIPlane.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BattleWorldUI.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
@@ -1301,9 +1298,6 @@
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
     <ClInclude Include="..\public\BattleWorldUIPlane.h">
       <Filter>02.GameObject\UI\BattleWorldUIPlane</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BattleWorldUI.h">
-      <Filter>02.GameObject\UI\BattleWorldUI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
