@@ -116,7 +116,7 @@ const char* Get_BattleClipTimeModeLabel(BattleCameraClipTimeMode timeMode)
     }
 }
 
-const BattleCameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip, int trackIndex)
+const CameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip, int trackIndex)
 {
     switch (trackIndex)
     {
@@ -144,7 +144,7 @@ const BattleCameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip
     }
 }
 
-BattleCameraTrack* Get_BattleClipTrackByIndex(BattleCameraClip& clip, int trackIndex)
+CameraTrack* Get_BattleClipTrackByIndex(BattleCameraClip& clip, int trackIndex)
 {
     switch (trackIndex)
     {
@@ -200,7 +200,7 @@ const char* Get_BattleClipTrackLabel(int trackIndex)
     }
 }
 
-bool Is_BattleClipTrackSorted(const BattleCameraTrack& track)
+bool Is_BattleClipTrackSorted(const CameraTrack& track)
 {
     for (size_t i = 1; i < track.keyframes.size(); ++i)
     {
@@ -621,6 +621,7 @@ void BattleCameraPreview_View::Render()
 
         Render_TimelinePanel();
         Render_LoadAuthoringFilePopup();
+        Render_UnsavedSkillChangePopup();
     }
 
     if (!isOpen)
@@ -885,23 +886,7 @@ void BattleCameraPreview_View::Render_ContextPanel()
 
     if (ImGui::Checkbox("Use Skill Override", &_useSkillOverride))
     {
-        if (!_useSkillOverride)
-        {
-            _previewContext.skillId.clear();
-            _selectedSkillIndex = -1;
-            _previewShotBlocks.clear();
-            _selectedPreviewShotBlockIndex = -1;
-        }
-        else if (_selectedSkillIndex >= 0 && _selectedSkillIndex < static_cast<int>(_skillIds.size()))
-        {
-            _previewContext.skillId = _skillIds[_selectedSkillIndex];
-        }
-
-        Try_AutoSelectPreviewActorAndAnimation();
-        _previewSkillPhaseBlocksDirty = true;
-        _hasLoadedBattlePreset = false;
-        _hasLoadedBattleClip = false;
-        _previewDirty = true;
+        Request_SkillOverrideChange(_useSkillOverride, _selectedSkillIndex);
     }
 
     if (_useSkillOverride)
@@ -917,15 +902,7 @@ void BattleCameraPreview_View::Render_ContextPanel()
                 const bool isSelected = (_selectedSkillIndex == i);
                 if (ImGui::Selectable(_skillIds[i].c_str(), isSelected))
                 {
-                    _selectedSkillIndex = i;
-                    _previewContext.skillId = _skillIds[i];
-                    _previewShotBlocks.clear();
-                    _selectedPreviewShotBlockIndex = -1;
-                    Try_AutoSelectPreviewActorAndAnimation();
-                    _previewSkillPhaseBlocksDirty = true;
-                    _hasLoadedBattlePreset = false;
-                    _hasLoadedBattleClip = false;
-                    _previewDirty = true;
+                    Request_SkillOverrideChange(true, i);
                 }
 
                 if (isSelected)
@@ -984,6 +961,33 @@ void BattleCameraPreview_View::Render_ContextPanel()
 
     Render_FormationEditor();
     ImGui::EndChild();
+}
+
+void BattleCameraPreview_View::Render_UnsavedSkillChangePopup()
+{
+    if (_requestOpenUnsavedSkillChangePopup)
+    {
+        ImGui::OpenPopup("Unsaved Battle Camera Changes");
+        _requestOpenUnsavedSkillChangePopup = false;
+    }
+
+    if (!ImGui::BeginPopupModal("Unsaved Battle Camera Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    ImGui::TextWrapped("Current preset or clip changes are not saved. Change the skill target and discard those edits?");
+    ImGui::Separator();
+
+    if (ImGui::Button("Discard Changes", ImVec2(150.f, 0.f)))
+    {
+        Apply_SkillOverrideChange(_pendingUseSkillOverride, _pendingSelectedSkillIndex);
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(120.f, 0.f)))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
 }
 
 void BattleCameraPreview_View::Render_PreviewActorSelector()
@@ -1464,6 +1468,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         Load_BattlePresetForMode(editorMode);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
+        _battlePresetDirty = false;
         _previewDirty = true;
     }
 
@@ -1473,6 +1478,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         Load_BattlePresetForMode(editorMode, true);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
+        _battlePresetDirty = false;
         _previewDirty = true;
     }
 
@@ -1483,6 +1489,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         Client::CameraPresetIO::SaveBattlePresetToFile(editorMode, _editingBattlePreset, selectedPresetId);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
+        _battlePresetDirty = false;
     }
 
     bool changed = false;
@@ -1529,6 +1536,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
 
+        _battlePresetDirty = true;
         _previewDirty = true;
     }
 }
@@ -1565,6 +1573,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
                 _editingBattleClip.duration = std::max(0.f, _editingBattleClip.duration);
                 _battleClipCurrentFrame = std::clamp(_battleClipCurrentFrame, 0, Get_BattleClipFrameMax(_editingBattleClip));
                 Sync_PreviewTimeFromTimeline();
+                _battleClipDirty = true;
                 _previewDirty = true;
             }
 
@@ -1589,6 +1598,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
                             _editingBattleClip.duration = 1.f;
                         _battleClipCurrentFrame = std::clamp(_battleClipCurrentFrame, 0, Get_BattleClipPreviewFrameMax());
                         Sync_PreviewTimeFromTimeline();
+                        _battleClipDirty = true;
                         _previewDirty = true;
                     }
 
@@ -1602,6 +1612,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             if (ImGui::Button("Load Clip"))
             {
                 Load_BattleClipForMode(editorMode);
+                _battleClipDirty = false;
                 _previewDirty = true;
             }
 
@@ -1609,6 +1620,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             if (ImGui::Button("Load Base Clip"))
             {
                 Load_BattleClipForMode(editorMode, true);
+                _battleClipDirty = false;
                 _previewDirty = true;
             }
 
@@ -1619,6 +1631,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
                 Client::BattleCameraClipIO::SaveBattleCameraClipToFile(editorMode, _editingBattleClip, selectedClipId);
                 if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
                     battleTurnCamera->Set_Clip(editorMode, _editingBattleClip, selectedClipId);
+                _battleClipDirty = false;
             }
 
             ImGui::SameLine();
@@ -1641,7 +1654,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
                 _battleClipCurrentFrame = 0;
                 for (int trackIndex = 0; trackIndex < kBattleClipTimelineTrackCount; ++trackIndex)
                 {
-                    BattleCameraTrack* track = Get_BattleClipTrackByIndex(_editingBattleClip, trackIndex);
+                    CameraTrack* track = Get_BattleClipTrackByIndex(_editingBattleClip, trackIndex);
                     if (track != nullptr)
                         track->keyframes.clear();
                 }
@@ -1649,6 +1662,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
                 _battleClipSelectedTrackIndex = 0;
                 _battleClipSelectedKeyIndex = -1;
                 Sync_PreviewTimeFromTimeline();
+                _battleClipDirty = true;
                 _previewDirty = true;
             }
 
@@ -2156,7 +2170,7 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
 
 void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
 {
-    BattleCameraKeyframe* keyframe = Get_SelectedBattleClipKeyframe();
+    CameraKeyframe* keyframe = Get_SelectedBattleClipKeyframe();
     if (keyframe == nullptr)
         return;
 
@@ -2173,7 +2187,7 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
         keyframe->time = std::clamp(keyframe->time, 0.f, authoringDurationSec);
         if (keyframe->time > _editingBattleClip.duration)
             _editingBattleClip.duration = keyframe->time;
-        if (BattleCameraTrack* track = Get_SelectedBattleClipTrack())
+        if (CameraTrack* track = Get_SelectedBattleClipTrack())
         {
             const float selectionTime = keyframe->time;
             Sort_BattleClipTrackKeyframes(*track);
@@ -2189,13 +2203,17 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
 
         _battleClipCurrentFrame = Get_BattleClipFrameFromTime(keyframe->time);
         Sync_PreviewTimeFromTimeline();
+        _battleClipDirty = true;
         _previewDirty = true;
     }
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(140.f);
     if (ImGui::DragFloat("Key Value", &keyframe->value, 0.01f))
+    {
+        _battleClipDirty = true;
         _previewDirty = true;
+    }
 
     ImGui::SetNextItemWidth(160.f);
     const char* interpolationLabel = magic_enum::enum_name(keyframe->interpolation).data();
@@ -2207,6 +2225,7 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
             if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
             {
                 keyframe->interpolation = mode;
+                _battleClipDirty = true;
                 _previewDirty = true;
             }
 
@@ -2223,7 +2242,7 @@ void BattleCameraPreview_View::Render_BattleClipDebugPanel()
     const int debugTrackIndex = Get_BattleClipTrackByIndex(_editingBattleClip, _battleClipSelectedTrackIndex) != nullptr
         ? _battleClipSelectedTrackIndex
         : kBattleClipDebugFallbackTrackIndex;
-    const BattleCameraTrack* debugTrack = Get_BattleClipTrackByIndex(_editingBattleClip, debugTrackIndex);
+    const CameraTrack* debugTrack = Get_BattleClipTrackByIndex(_editingBattleClip, debugTrackIndex);
     if (debugTrack == nullptr)
         return;
 
@@ -2258,8 +2277,8 @@ void BattleCameraPreview_View::Render_BattleClipDebugPanel()
 
     if (!debugTrack->keyframes.empty())
     {
-        const BattleCameraKeyframe& firstKey = debugTrack->keyframes.front();
-        const BattleCameraKeyframe& lastKey = debugTrack->keyframes.back();
+        const CameraKeyframe& firstKey = debugTrack->keyframes.front();
+        const CameraKeyframe& lastKey = debugTrack->keyframes.back();
         ImGui::Text("First Key: time=%.3f value=%.3f", firstKey.time, firstKey.value);
         ImGui::Text("Last Key:  time=%.3f value=%.3f", lastKey.time, lastKey.value);
     }
@@ -2292,6 +2311,7 @@ void BattleCameraPreview_View::Render_BattleClipInsertKeyframePopup()
     {
         Insert_BattleClipKeyAtFrame(_battleClipContextTrackIndex, _battleClipContextFrame);
         Sync_PreviewTimeFromTimeline();
+        _battleClipDirty = true;
         _previewDirty = true;
         ImGui::CloseCurrentPopup();
     }
@@ -2315,13 +2335,14 @@ void BattleCameraPreview_View::Render_BattleClipRemoveKeyframePopup()
 
     if (ImGui::Button("Remove Selected Key"))
     {
-        BattleCameraTrack* track = Get_SelectedBattleClipTrack();
+        CameraTrack* track = Get_SelectedBattleClipTrack();
         if (track != nullptr &&
             _battleClipSelectedKeyIndex >= 0 &&
             _battleClipSelectedKeyIndex < static_cast<int>(track->keyframes.size()))
         {
             track->keyframes.erase(track->keyframes.begin() + _battleClipSelectedKeyIndex);
             _battleClipSelectedKeyIndex = std::clamp(_battleClipSelectedKeyIndex, -1, static_cast<int>(track->keyframes.size()) - 1);
+            _battleClipDirty = true;
             _previewDirty = true;
         }
 
@@ -2799,6 +2820,7 @@ void BattleCameraPreview_View::Load_BattlePresetForMode(BattleCameraMode mode, b
     _loadedBattlePresetMode = mode;
     _loadedBattlePresetSkillId = selectedPresetId;
     _hasLoadedBattlePreset = true;
+    _battlePresetDirty = false;
 }
 
 void BattleCameraPreview_View::Load_BattlePresetForCurrentMode(bool loadBase)
@@ -2825,6 +2847,7 @@ void BattleCameraPreview_View::Load_BattleClipForMode(BattleCameraMode mode, boo
     _loadedBattleClipMode = mode;
     _loadedBattleClipSkillId = selectedClipId;
     _hasLoadedBattleClip = true;
+    _battleClipDirty = false;
     _battleClipSelectedKeyIndex = -1;
 
     if (resetTimeline)
@@ -3562,10 +3585,10 @@ float BattleCameraPreview_View::Snap_PreviewShotTime(float timeSec, float timeli
     return snappedTimeSec;
 }
 
-void BattleCameraPreview_View::Sort_BattleClipTrackKeyframes(BattleCameraTrack& track)
+void BattleCameraPreview_View::Sort_BattleClipTrackKeyframes(CameraTrack& track)
 {
     std::sort(track.keyframes.begin(), track.keyframes.end(),
-        [](const BattleCameraKeyframe& lhs, const BattleCameraKeyframe& rhs)
+        [](const CameraKeyframe& lhs, const CameraKeyframe& rhs)
         {
             return lhs.time < rhs.time;
         });
@@ -3573,7 +3596,7 @@ void BattleCameraPreview_View::Sort_BattleClipTrackKeyframes(BattleCameraTrack& 
 
 void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int frame)
 {
-    BattleCameraTrack* track = nullptr;
+    CameraTrack* track = nullptr;
 
     switch (trackIndex)
     {
@@ -3653,11 +3676,12 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
         }
     }
 
-    BattleCameraKeyframe keyframe{};
+    CameraKeyframe keyframe{};
     keyframe.time = keyTime;
     keyframe.value = Get_DefaultBattleClipValue(trackIndex);
     track->keyframes.push_back(keyframe);
     Sort_BattleClipTrackKeyframes(*track);
+    _battleClipDirty = true;
 
     _battleClipSelectedTrackIndex = trackIndex;
     _battleClipCurrentFrame = frame;
@@ -3684,7 +3708,7 @@ void BattleCameraPreview_View::Sync_PreviewTimeFromTimeline()
 
 void BattleCameraPreview_View::Refresh_SelectedBattleClipKey()
 {
-    BattleCameraTrack* track = Get_SelectedBattleClipTrack();
+    CameraTrack* track = Get_SelectedBattleClipTrack();
     if (track == nullptr)
     {
         _battleClipSelectedKeyIndex = -1;
@@ -3828,6 +3852,60 @@ void BattleCameraPreview_View::Apply_PreviewSkillContext(const string& skillId)
     _hasLoadedBattlePreset = false;
     _hasLoadedBattleClip = false;
     Try_AutoSelectPreviewActorAndAnimation();
+}
+
+bool BattleCameraPreview_View::Has_UnsavedBattleAuthoringChanges() const
+{
+    return _battlePresetDirty || _battleClipDirty;
+}
+
+void BattleCameraPreview_View::Request_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex)
+{
+    const bool currentUseSkillOverride = !_previewContext.skillId.empty();
+    const bool skillSelectionChanged =
+        useSkillOverride &&
+        currentUseSkillOverride &&
+        selectedSkillIndex != _selectedSkillIndex;
+
+    if (useSkillOverride == currentUseSkillOverride && !skillSelectionChanged)
+        return;
+
+    if (Has_UnsavedBattleAuthoringChanges())
+    {
+        _pendingUseSkillOverride = useSkillOverride;
+        _pendingSelectedSkillIndex = selectedSkillIndex;
+        _useSkillOverride = currentUseSkillOverride;
+        _requestOpenUnsavedSkillChangePopup = true;
+        return;
+    }
+
+    Apply_SkillOverrideChange(useSkillOverride, selectedSkillIndex);
+}
+
+void BattleCameraPreview_View::Apply_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex)
+{
+    _useSkillOverride = useSkillOverride;
+
+    if (!_useSkillOverride)
+    {
+        _previewContext.skillId.clear();
+        _selectedSkillIndex = -1;
+        _previewShotBlocks.clear();
+        _selectedPreviewShotBlockIndex = -1;
+    }
+    else if (selectedSkillIndex >= 0 && selectedSkillIndex < static_cast<int>(_skillIds.size()))
+    {
+        _selectedSkillIndex = selectedSkillIndex;
+        _previewContext.skillId = _skillIds[selectedSkillIndex];
+        _previewShotBlocks.clear();
+        _selectedPreviewShotBlockIndex = -1;
+    }
+
+    Try_AutoSelectPreviewActorAndAnimation();
+    _previewSkillPhaseBlocksDirty = true;
+    _hasLoadedBattlePreset = false;
+    _hasLoadedBattleClip = false;
+    _previewDirty = true;
 }
 
 void BattleCameraPreview_View::Apply_TransitionStepContext(const PreviewTransitionStep& step)
@@ -4478,7 +4556,7 @@ BattleCameraMode BattleCameraPreview_View::Get_BattlePresetEditorMode() const
     return _previewContext.mode;
 }
 
-BattleCameraTrack* BattleCameraPreview_View::Get_SelectedBattleClipTrack()
+CameraTrack* BattleCameraPreview_View::Get_SelectedBattleClipTrack()
 {
     switch (_battleClipSelectedTrackIndex)
     {
@@ -4525,9 +4603,9 @@ BattleCameraTrack* BattleCameraPreview_View::Get_SelectedBattleClipTrack()
     }
 }
 
-BattleCameraKeyframe* BattleCameraPreview_View::Get_SelectedBattleClipKeyframe()
+CameraKeyframe* BattleCameraPreview_View::Get_SelectedBattleClipKeyframe()
 {
-    BattleCameraTrack* track = Get_SelectedBattleClipTrack();
+    CameraTrack* track = Get_SelectedBattleClipTrack();
     if (track == nullptr)
         return nullptr;
 

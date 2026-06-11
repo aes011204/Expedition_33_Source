@@ -12,6 +12,10 @@ NS_BEGIN(Engine)
 NS_END
 
 NS_BEGIN(Client)
+
+class CinematicSequenceRunner;
+
+    class CinematicCamera;
 class BattleController;
 class Player_WorldBase;
 class TargetCamera;
@@ -140,9 +144,16 @@ public: /*For.Camera Director*/
     void Request_GamePlay();
     void Request_Preview();
     void Request_BattleTurn();
-    void Request_Cinematic();
+    Shared<CinematicCamera> Request_Cinematic();
     void Request_TargetCameraMode(TargetCameraMode cameraMode);
     void Restore_PreviousCamera();
+
+public: /*CinematicSequenceRunner*/
+    bool Play_Sequence(const wstring& filePath, int trackIndex);
+    void Stop_Sequence();
+
+public:
+    Shared<CinematicCamera> Ensure_CinematicCamera();
 
 public:
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
@@ -197,14 +208,15 @@ private:
     bool         _isTargetCameraEditMode = false;
 
 private:
-    Shared<CameraDirector>      _cameraDirector;
-    Shared<UIPreviewManager>    _previewManager;
-    Shared<ResourceLoader>      _resourceLoader;
-    Unique<GameDataTable>       _gameDataTable;
-    Unique<PreviewShotTable>    _previewShotTable;
-    Unique<EffectInstancePool>  _effectInstancePool;
-    Unique<ScreenFadeTransition> _screenFadeTransition;
-    Unique<LevelTransitionFade>  _levelTransitionFade;
+    Shared<CameraDirector>              _cameraDirector;
+    Shared<UIPreviewManager>            _previewManager;
+    Shared<ResourceLoader>              _resourceLoader;
+    Unique<GameDataTable>               _gameDataTable;
+    Unique<PreviewShotTable>            _previewShotTable;
+    Unique<EffectInstancePool>          _effectInstancePool;
+    Unique<ScreenFadeTransition>        _screenFadeTransition;
+    Unique<LevelTransitionFade>         _levelTransitionFade;
+    Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;
 
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;

@@ -249,7 +249,7 @@ void GameplayUI_World::Update_CrossHair(float timeDelta)
     }
 
     _crossHair->Open();
-    _crossHair->Set_HitState(freeAimState->Is_HitMonster());
+    _crossHair->Set_HitState(freeAimState->Is_HitObject());
     _crossHair->Update(timeDelta);
 }
 

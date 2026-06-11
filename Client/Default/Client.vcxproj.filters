@@ -160,9 +160,6 @@
     <Filter Include="02.GameObject\Effect\Emitters\ComputePointParticle">
       <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\PointParticle %28deprecated%29">
-      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Effect\Emitter Registration">
       <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
     </Filter>
@@ -224,6 +221,7 @@
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail" />
+    <Filter Include="02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon" />
     <Filter Include="02.GameObject\Effect\Emitters\Mesh" />
     <Filter Include="90.EditorSupport" />
     <Filter Include="02.GameObject\Camera\BattleCamera">
@@ -243,6 +241,9 @@
     </Filter>
     <Filter Include="02.GameObject\Map\MapWater">
       <UniqueIdentifier>{dfc611f8-c2e2-475c-aa73-008ab9a996bc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\EyeTarget">
+      <UniqueIdentifier>{da7262d2-5cd4-4324-b7d0-b8d45f6e54ab}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -454,6 +455,15 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\private\CinematicCamera.cpp" />
+    <ClCompile Include="..\Private\PointParticleEffect.cpp" />
+    <ClCompile Include="..\Private\EyeTarget.cpp">
+      <Filter>02.GameObject\EyeTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\PuzzleController.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -491,9 +501,6 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
@@ -594,6 +601,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
@@ -1045,9 +1053,6 @@
     <ClInclude Include="..\Public\Player_WorldBase.h">
       <Filter>02.GameObject\Player\00. World</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PointParticleEffect.h">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\ResourceLoader.h">
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
@@ -1287,6 +1292,15 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\public\CinematicCamera.h" />
+    <ClInclude Include="..\Public\PointParticleEffect.h" />
+    <ClInclude Include="..\Public\EyeTarget.h">
+      <Filter>02.GameObject\EyeTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\PuzzleController.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\CinematicSequenceRunner.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1708,9 +1722,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Player_WorldBase.cpp">
       <Filter>02.GameObject\Player\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PointParticleEffect.cpp">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ResourceLoader.cpp">
       <Filter>01.Levels\Loading\Loader</Filter>

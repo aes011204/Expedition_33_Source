@@ -1,6 +1,8 @@
 ﻿#include "CameraDirector.h"
 #include "GameInstance.h"
 #include "TargetCamera.h"
+#include "ClientInstance.h"
+#include "CinematicCamera.h"
 
 CameraDirector::CameraDirector()
 {
@@ -61,9 +63,30 @@ void CameraDirector::Request_BattleTurn()
     }
 }
 
-void CameraDirector::Request_Cinematic()
+Shared<CinematicCamera> CameraDirector::Request_Cinematic()
 {
-   // GAME->Activate_CameraByType(ObjectType::CinematicCamera);
+    Shared<Camera> currentCamera = nullptr;
+
+    if(GAME->Is_ActiveCameraType(ObjectType::CinematicCamera))
+    {
+        return dynamic_pointer_cast<CinematicCamera>( GAME->Get_ActiveCamera());
+    }
+
+    currentCamera = GAME->Get_ActiveCamera();
+
+    if(currentCamera == nullptr)
+        return nullptr;
+
+    auto cinematicCamera = CLIENT->Ensure_CinematicCamera();
+
+    if(cinematicCamera == nullptr)
+        return nullptr;
+
+    if(!GAME->Activate_CameraByType(ObjectType::CinematicCamera))
+        return nullptr;
+
+    _previousCamera = currentCamera;
+    return cinematicCamera;
 }
 
 void CameraDirector::Restore_PreviousCamera()

@@ -119,7 +119,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir);../Public/;../../EngineSDK/inc/Engine/;../../EngineSDK/inc/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <DebugInformationFormat>ProgramDataBaseForEditAndContinue</DebugInformationFormat>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
@@ -218,15 +218,19 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\public\CinematicCamera.h" />
+    <ClInclude Include="..\public\CinematicSequenceRunner.h" />
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\EyeTarget.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
+    <ClInclude Include="..\public\PuzzleController.h" />
     <ClInclude Include="..\Public\SkyBoxFlow.h" />
     <ClInclude Include="..\Public\SkyCloudCard.h" />
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
@@ -507,8 +511,12 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\private\CinematicCamera.cpp" />
+    <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
+    <ClCompile Include="..\Private\EyeTarget.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp" />
     <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
+    <ClCompile Include="..\private\PuzzleController.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />

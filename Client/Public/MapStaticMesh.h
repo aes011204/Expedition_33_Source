@@ -16,6 +16,8 @@ class MapStaticMesh final : public GameObject
     GENERATED_GAMEOBJECT(MapStaticMesh, ObjectType::StaticMesh)
 
 public:
+    static constexpr size_t InvalidSourceStaticMeshIndex = static_cast<size_t>(-1);
+
     typedef struct tagMapStaticMeshDesc final : public GameObject::GAMEOBJECT_DESC
     {
         Shared<ModelCom> model = nullptr;
@@ -25,6 +27,8 @@ public:
         Vec3 position = Vec3::Zero;
         Quat rotation = Quat::Identity;
         Vec3 scale = Vec3::One;
+        size_t sourceStaticMeshIndex = InvalidSourceStaticMeshIndex;
+        wstring sourceMapPath = {};
     } MAPSTATICMESH_DESC;
 
 public:
@@ -48,6 +52,11 @@ public:
 
     Shared<ModelCom> Get_Model() const { return _model; }
     Shared<StaticCollisionData> Get_CollisionData() const { return _collisionData; }
+    bool Has_SourceStaticMeshEntry() const { return _sourceStaticMeshIndex != InvalidSourceStaticMeshIndex; }
+    size_t Get_SourceStaticMeshIndex() const { return _sourceStaticMeshIndex; }
+    const wstring& Get_SourceStaticMeshId() const { return _sourceStaticMeshId; }
+    const wstring& Get_SourceStaticMeshModelPath() const { return _sourceStaticMeshModelPath; }
+    const wstring& Get_SourceMapPath() const { return _sourceMapPath; }
 
 private:
     Shared<ShaderCom>   _shader;
@@ -56,6 +65,11 @@ private:
     PhysXStaticActorHandle _physxStaticHandle{};
     Shared<StaticCollisionData> _collisionData;
     bool _usesStaticCollision = false;
+
+    size_t _sourceStaticMeshIndex = InvalidSourceStaticMeshIndex;
+    wstring _sourceStaticMeshId = {};
+    wstring _sourceStaticMeshModelPath = {};
+    wstring _sourceMapPath = {};
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

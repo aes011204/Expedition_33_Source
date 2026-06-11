@@ -22,6 +22,8 @@
 #include "CameraDirector.h"
 #include "MapLoader.h"
 #include "ClientScreenFxManager.h"
+#include "CinematicCamera.h"
+#include "CinematicSequenceRunner.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -83,6 +85,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     if (_levelTransitionFade == nullptr)
         LOG_WARN("LevelTransitionFade is not available. Level transition requests will fall back to immediate changes.");
 
+    _cinematicSequenceRunner = CinematicSequenceRunner::Create();
+    CHECK_NULL(_cinematicSequenceRunner, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -138,6 +143,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if (_effectInstancePool)
         _effectInstancePool->Release_Finished();
+
+    if(_cinematicSequenceRunner)
+        _cinematicSequenceRunner->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -454,7 +462,7 @@ void ClientInstance::Request_BattleTurn()
     return _cameraDirector->Request_BattleTurn();
 }
 
-void ClientInstance::Request_Cinematic()
+Shared<CinematicCamera> ClientInstance::Request_Cinematic()
 {
     return _cameraDirector->Request_Cinematic();
 }
@@ -467,6 +475,48 @@ void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
 void ClientInstance::Restore_PreviousCamera()
 {
     return _cameraDirector->Restore_PreviousCamera();
+}
+
+bool ClientInstance::Play_Sequence(const wstring& filePath, int trackIndex)
+{
+    return _cinematicSequenceRunner->Play_Sequence(filePath, trackIndex);
+}
+
+void ClientInstance::Stop_Sequence()
+{
+    return  _cinematicSequenceRunner->Stop_Sequence();
+}
+
+Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
+{
+    if(auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
+    {
+        return camera;  
+    }
+
+    Shared<GameObject> gameObject;
+
+    CinematicCamera::CINEMATICCAMERA_DESC desc{};
+    desc.speedPerSec = 10.f;
+    desc.degreePerSec = 180.f;
+    desc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(60.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 500.f;
+    desc.mouseSensor = 0.05f;
+
+    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_CinematicCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    {
+        return nullptr;
+    }
+
+    Shared<CinematicCamera> cinematicCamera = dynamic_pointer_cast<CinematicCamera>(gameObject);
+    if(cinematicCamera == nullptr)
+        return nullptr;
+
+    GAME->Add_Camera(cinematicCamera);
+    return cinematicCamera;
 }
 
 Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
