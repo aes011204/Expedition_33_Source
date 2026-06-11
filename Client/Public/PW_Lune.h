@@ -27,6 +27,10 @@ protected:
     const wchar_t* Get_BodyModelTag() const override { return L"Model_LuneBody"; }
     const wchar_t* Get_HeadModelTag() const override { return L"Model_LuneHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_LuneHair"; }
+    const wchar_t* Get_GameMenuFacialClipPath() const override
+    {
+        return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
+    }
 
 public:
 	static Shared<PW_Lune> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

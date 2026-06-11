@@ -1,7 +1,6 @@
 ﻿#include "UIPreviewManager.h"
 #include "PreviewCamera.h"
 #include "Player_WorldBase.h"
-#include "PW_Gustave.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Camera.h"
@@ -53,16 +52,7 @@ void UIPreviewManager::Update(float timeDelta)
             if (entry.player)
             {
                 entry.player->Update_StatusPreview(timeDelta);
-
-                if (auto gustave = dynamic_pointer_cast<PW_Gustave>(entry.player))
-                {
-                    const bool playFacialMorph =
-                        _activePanel == PreviewShotPanel::SkillTree &&
-                        _shownHeroId == HeroId::Gustave &&
-                        entry.heroId == HeroId::Gustave;
-
-                    gustave->Update_SkillPanelFacialMorphPreview(timeDelta, playFacialMorph);
-                }
+                entry.player->Update_GameMenuFacialPreview(timeDelta, _shownHeroId != HeroId::END);
             }
         }
     }
@@ -124,8 +114,8 @@ void UIPreviewManager::Hide_Preview()
 
     for (PreviewHeroEntry& entry : _previewHeroes)
     {
-        if (auto gustave = dynamic_pointer_cast<PW_Gustave>(entry.player))
-            gustave->Update_SkillPanelFacialMorphPreview(0.f, false);
+        if (entry.player)
+            entry.player->Update_GameMenuFacialPreview(0.f, false);
     }
 
     CLIENT->Restore_PreviousCamera();

@@ -15,10 +15,13 @@
 #include "FaceAccessory_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
+#include "FacialAnimationModifier.h"
+#include "FacialClip.h"
+#include "ModelCom.h"
 #include "Player_GameMenu.h"
 #include "SkillTreeCom.h"
 
-namespace
+namespace Client::PlayerWorldTuning
 {
     constexpr float kFallStateEnterDelaySec = 0.10f;
     constexpr float kFallStateEnterSpeedY = -2.4f;
@@ -97,11 +100,11 @@ void Player_WorldBase::Priority_Update(float timeDelta)
             _fallStateEnterAccum = 0.f; // 지면을 다시 밟으면 점프 입력 없는 낙하 진입 누적은 바로 리셋한다.
         }
         else if (canEnterFallState &&
-            _movementCom->Get_Velocity().y < kFallStateEnterSpeedY)
+            _movementCom->Get_Velocity().y < PlayerWorldTuning::kFallStateEnterSpeedY)
         {
             _fallStateEnterAccum += timeDelta; // 경사 보행 중 잠깐 비는 공중 프레임은 바로 Jump로 소비하지 않고 짧게 누적 확인한다.
 
-            if (_fallStateEnterAccum >= kFallStateEnterDelaySec)
+            if (_fallStateEnterAccum >= PlayerWorldTuning::kFallStateEnterDelaySec)
             {
                 _fallStateEnterAccum = 0.f;
                 _playerStateMachineCom->Change_State(PlayerState::Jump);
@@ -153,6 +156,72 @@ void Player_WorldBase::Update_StatusPreview(float timeDelta)
 
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+}
+
+void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
+{
+    auto* head = dynamic_cast<Head_Player*>(Get_PartObject(L"Part_Head"));
+    if (head == nullptr)
+        return;
+
+    const Shared<ModelCom> headModel = head->Get_Model();
+    if (headModel == nullptr)
+        return;
+
+    if (!enabled)
+    {
+        if (_gameMenuFacialEnabled && _gameMenuFacialModifier != nullptr)
+        {
+            _gameMenuFacialModifier->Set_Active(false);
+            _gameMenuFacialModifier->Reset_Pose(headModel.get());
+            headModel->Rebuild_BoneCombinedMatrices();
+            CHECK_FAILED(headModel->Apply_MorphWeightsToCpuVertices(), );
+        }
+
+        _gameMenuFacialEnabled = false;
+        return;
+    }
+
+    if (_gameMenuFacialClip == nullptr)
+    {
+        const wchar_t* clipRelPath = Get_GameMenuFacialClipPath();
+        if (clipRelPath == nullptr)
+            return;
+
+        const fs::path clipPath = fs::path(GAME->Get_AssetRoot()) / clipRelPath;
+        auto clip = FacialClip::Create();
+        if (clip == nullptr || FAILED(clip->Load_Binary(String::ToString(clipPath.wstring()))))
+        {
+            LOG_WARN("[GameMenuFacialPreview] Failed to load facialclip: {}", String::ToString(clipPath.wstring()));
+            return;
+        }
+
+        _gameMenuFacialClip = clip;
+    }
+
+    if (_gameMenuFacialModifier == nullptr)
+    {
+        FacialAnimationModifier::FacialModifierDesc modifierDesc{};
+        modifierDesc.modifierTag = L"GameMenuFacialPreview";
+        modifierDesc.clip = _gameMenuFacialClip;
+        modifierDesc.loop = true;
+        modifierDesc.suppressMouthArea = true;
+
+        _gameMenuFacialModifier = FacialAnimationModifier::Create(&modifierDesc);
+        if (_gameMenuFacialModifier == nullptr)
+            return;
+    }
+
+    _gameMenuFacialEnabled = true;
+    _gameMenuFacialModifier->Set_Active(true);
+    _gameMenuFacialModifier->Evaluate_Modifier(headModel.get(), timeDelta);
+    headModel->Rebuild_BoneCombinedMatrices();
+    CHECK_FAILED(headModel->Apply_MorphWeightsToCpuVertices(), );
+}
+
+const wchar_t* Player_WorldBase::Get_GameMenuFacialClipPath() const
+{
+    return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
 }
 
 void Player_WorldBase::Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
