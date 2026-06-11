@@ -188,7 +188,7 @@ void Editor_Manager::Render_RuntimeToolbar()
     const bool paused = EDITOR->IsPaused();
 
     constexpr float toolbarHeight = 34.f;
-    constexpr float toolbarControlWidth = 520.f;
+    constexpr float toolbarControlWidth = 640.f;
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
     ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
@@ -557,6 +557,25 @@ void Editor_Manager::Render_LauncherButton()
     {
         ImGui::BeginTooltip();
         ImGui::Text("GameLauncher 실행 (%s)", previewLabel);
+        ImGui::EndTooltip();
+    }
+
+    ImGui::SameLine(0.f, 16.f);
+    Render_ReloadDataButton();
+}
+
+void Editor_Manager::Render_ReloadDataButton()
+{
+    if (ImGui::SmallButton("Reload Data"))
+    {
+        if (FAILED(CLIENT->Reload_GameDataTables()))
+            MSG_BOX("Failed to reload game data tables.");
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Json 데이터 재로드");
         ImGui::EndTooltip();
     }
 }

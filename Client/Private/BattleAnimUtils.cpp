@@ -2,13 +2,41 @@
 
 #include "ModelCom.h"
 #include "BattleMechanismCom.h"
+#include "Buff.h"
+#include "CombatStatCom.h"
 
 NS_BEGIN(Client)
+
+namespace
+{
+    bool Has_BattleBuff(const BattleChar& actor, Buffs buffId)
+    {
+        if (actor.statCom == nullptr)
+            return false;
+
+        for (const auto& buff : actor.statCom->Get_Buff())
+        {
+            if (buff == nullptr)
+                continue;
+
+            if (buff->Is_PendingRemove())
+                continue;
+
+            if (buff->Get_BuffId() == buffId)
+                return true;
+        }
+
+        return false;
+    }
+}
 
 namespace BattleAnimUtils
 {
     BattleAnimType Resolve_BattleIdleAnimType(const BattleChar& actor)
     {
+        if (Has_BattleBuff(actor, Buffs::Stun))
+            return BattleAnimType::Idle_Stun;
+
         if (actor.heroId == HeroId::Maelle && actor.mechanismCom != nullptr)
         {
             switch (actor.mechanismCom->Get_MaelleStance())
@@ -35,6 +63,7 @@ namespace BattleAnimUtils
     {
         if (actor.ModelCom == nullptr)
             return;
+
 
         actor.ModelCom->Set_AnimationByState(
             ETOI(Resolve_BattleIdleAnimType(actor)),

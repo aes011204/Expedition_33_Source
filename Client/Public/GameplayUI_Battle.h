@@ -90,6 +90,9 @@ private:
     void    Handle_BattleTutorialRequested(const BattleTutorialRequest& request);
     void    Handle_BattleTutorialClosed();
 
+    void    Handle_TurnStartStatusAnnounceRequested(const BattleChar& target, Buffs buffId);
+    void    Handle_BattleAnnounceFinished();
+
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
@@ -209,6 +212,9 @@ private:
     // 튜토리얼
     FDelegateHandle          _battleTutorialRequestedHandle{};
     FDelegateHandle          _battleTutorialClosedHandle{};
+
+    FDelegateHandle          _turnStartStatusAnnounceRequestedHandle{};
+    FDelegateHandle          _battleAnnounceFinishedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};

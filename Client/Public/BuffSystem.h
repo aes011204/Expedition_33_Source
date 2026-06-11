@@ -31,8 +31,16 @@ public:
     // 징표 데미지 추가
     bool Try_ConsumeMarkOnDamage(const BattleChar& attacker, const BattleChar& target, float& inOutDamage);
 
-    void ProcessTurnStart(Shared<CombatStatCom>  statCom);
-    void ProcessTurnEnd(Shared<CombatStatCom> statCom);
+    void ProcessTurnStart(const BattleChar& target);
+    void ProcessTurnEnd(const BattleChar& target);
+
+    bool Has_TurnStartBurn(const BattleChar& target) const;
+    void Apply_BurnTurnStartDamage(const BattleChar& target);
+
+    bool Try_ConsumeStunOnTurnStart(const BattleChar& target);
+    float Resolve_TurnScheduleSpeed(const BattleChar& target) const;
+
+
 
 private:
     void Handle_DamageCalculating(
@@ -51,7 +59,10 @@ public:
     FOnBuffConsumed OnBuffConsumed;
 
 private:
-    static constexpr float MARK_BONUS_DAMAGE = 20.f;    // 징표있는 놈 떄릴 때 추가 데미지
+    static constexpr float MARK_BONUS_DAMAGE = 20.f;     // 징표있는 놈 떄릴 때 추가 데미지
+    static constexpr float BURN_MAX_HP_RATE = 0.1f;      // 화상 데미지
+    static constexpr float SLOW_SPEED_MULTIPLIER = 0.8f; // 감속
+
     FDelegateHandle _damageCalculatingHandle{};
 
 public:

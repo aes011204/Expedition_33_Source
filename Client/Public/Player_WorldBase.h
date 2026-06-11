@@ -90,6 +90,8 @@ private:
     void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms);
     void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms,
         const CostumePartLocalTransform& fallbackTransform);
+    void Reapply_CostumePartBaseMaterial(const wstring& partTag);
+    void Reapply_CostumeBaseMaterials();
 
     Body_Player* Add_CostumeBody(const wstring& modelTag);
     Head_Player* Add_CostumeHead(const wstring& modelTag, const Body_Player* body);
