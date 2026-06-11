@@ -487,12 +487,60 @@ namespace Internal
         Read_NumberField(root, "segmentCount", outData.segmentCount);
         Read_NumberField(root, "noiseAmplitude", outData.noiseAmplitude);
         Read_NumberField(root, "seed", outData.seed);
+        Read_NumberField(root, "stripCount", outData.stripCount);
+        Read_NumberField(root, "endSpreadRadius", outData.endSpreadRadius);
+        Read_NumberField(root, "lengthVariance", outData.lengthVariance);
+        if (const auto branchPresetIter = root.find("branchPreset"); branchPresetIter != root.end())
+            Try_ReadEnumToken(*branchPresetIter, outData.branchPreset);
+        Read_BoolField(root, "branchEnabled", outData.branchEnabled);
+        Read_NumberField(root, "branchCount", outData.branchCount);
+        Read_NumberField(root, "branchChance", outData.branchChance);
+        Read_NumberField(root, "branchSegmentCount", outData.branchSegmentCount);
+        Read_NumberField(root, "branchLength", outData.branchLength);
+        Read_NumberField(root, "branchLengthVariance", outData.branchLengthVariance);
+        Read_NumberField(root, "branchStartMin", outData.branchStartMin);
+        Read_NumberField(root, "branchStartMax", outData.branchStartMax);
+        Read_NumberField(root, "branchSpreadRadius", outData.branchSpreadRadius);
+        if (const auto endSpreadIter = root.find("branchEndSpreadRadius"); endSpreadIter != root.end())
+            Read_NumberField(root, "branchEndSpreadRadius", outData.branchEndSpreadRadius);
+        else
+            outData.branchEndSpreadRadius = outData.branchSpreadRadius;
+        Read_NumberField(root, "branchOutwardAmount", outData.branchOutwardAmount);
+        Read_NumberField(root, "branchCurveAmount", outData.branchCurveAmount);
+        Read_NumberField(root, "branchDownLength", outData.branchDownLength);
+        Read_NumberField(root, "branchEntangleRadius", outData.branchEntangleRadius);
+        Read_NumberField(root, "branchEntangleAdvance", outData.branchEntangleAdvance);
+        Read_NumberField(root, "branchCrackLength", outData.branchCrackLength);
+        Read_NumberField(root, "branchCrackSpreadRadius", outData.branchCrackSpreadRadius);
+        Read_NumberField(root, "branchWidthScale", outData.branchWidthScale);
+        Read_NumberField(root, "branchSeedOffset", outData.branchSeedOffset);
         Read_NumberField(root, "baseWidth", outData.baseWidth);
         Read_NumberField(root, "tilingDistance", outData.tilingDistance);
 
         outData.length = max(0.f, outData.length);
         outData.segmentCount = max(1u, outData.segmentCount);
         outData.noiseAmplitude = max(0.f, outData.noiseAmplitude);
+        outData.stripCount = max(1u, outData.stripCount);
+        outData.endSpreadRadius = max(0.f, outData.endSpreadRadius);
+        outData.lengthVariance = max(0.f, outData.lengthVariance);
+        outData.branchChance = clamp(outData.branchChance, 0.f, 1.f);
+        outData.branchSegmentCount = max(1u, outData.branchSegmentCount);
+        outData.branchLength = max(0.f, outData.branchLength);
+        outData.branchLengthVariance = max(0.f, outData.branchLengthVariance);
+        outData.branchStartMin = clamp(outData.branchStartMin, 0.f, 1.f);
+        outData.branchStartMax = clamp(outData.branchStartMax, 0.f, 1.f);
+        if (outData.branchStartMin > outData.branchStartMax)
+            swap(outData.branchStartMin, outData.branchStartMax);
+        outData.branchSpreadRadius = max(0.f, outData.branchSpreadRadius);
+        outData.branchEndSpreadRadius = max(0.f, outData.branchEndSpreadRadius);
+        outData.branchOutwardAmount = max(0.f, outData.branchOutwardAmount);
+        outData.branchCurveAmount = max(0.f, outData.branchCurveAmount);
+        outData.branchDownLength = max(0.f, outData.branchDownLength);
+        outData.branchEntangleRadius = max(0.f, outData.branchEntangleRadius);
+        outData.branchEntangleAdvance = max(0.f, outData.branchEntangleAdvance);
+        outData.branchCrackLength = max(0.f, outData.branchCrackLength);
+        outData.branchCrackSpreadRadius = max(0.f, outData.branchCrackSpreadRadius);
+        outData.branchWidthScale = max(0.f, outData.branchWidthScale);
         outData.baseWidth = max(0.001f, outData.baseWidth);
         outData.tilingDistance = max(0.f, outData.tilingDistance);
     }
@@ -548,6 +596,29 @@ namespace Internal
         root["segmentCount"] = data.segmentCount;
         root["noiseAmplitude"] = data.noiseAmplitude;
         root["seed"] = data.seed;
+        root["stripCount"] = data.stripCount;
+        root["endSpreadRadius"] = data.endSpreadRadius;
+        root["lengthVariance"] = data.lengthVariance;
+        root["branchPreset"] = To_EnumToken(data.branchPreset);
+        root["branchEnabled"] = data.branchEnabled;
+        root["branchCount"] = data.branchCount;
+        root["branchChance"] = data.branchChance;
+        root["branchSegmentCount"] = data.branchSegmentCount;
+        root["branchLength"] = data.branchLength;
+        root["branchLengthVariance"] = data.branchLengthVariance;
+        root["branchStartMin"] = data.branchStartMin;
+        root["branchStartMax"] = data.branchStartMax;
+        root["branchSpreadRadius"] = data.branchSpreadRadius;
+        root["branchEndSpreadRadius"] = data.branchEndSpreadRadius;
+        root["branchOutwardAmount"] = data.branchOutwardAmount;
+        root["branchCurveAmount"] = data.branchCurveAmount;
+        root["branchDownLength"] = data.branchDownLength;
+        root["branchEntangleRadius"] = data.branchEntangleRadius;
+        root["branchEntangleAdvance"] = data.branchEntangleAdvance;
+        root["branchCrackLength"] = data.branchCrackLength;
+        root["branchCrackSpreadRadius"] = data.branchCrackSpreadRadius;
+        root["branchWidthScale"] = data.branchWidthScale;
+        root["branchSeedOffset"] = data.branchSeedOffset;
         root["baseWidth"] = data.baseWidth;
         root["tilingDistance"] = data.tilingDistance;
         return root;
@@ -2278,6 +2349,7 @@ namespace Internal
         root["playbackMode"] = To_EnumToken(data.playbackMode);
         root["framesPerSecond"] = data.framesPerSecond;
         Write_RandomSeedField(root, data.randomSeed);
+        root["perStripSubUVVariation"] = data.perStripSubUVVariation;
         return root;
     }
 
@@ -2297,6 +2369,7 @@ namespace Internal
             Try_ReadEnumToken(*playbackModeIter, outData.playbackMode);
         Read_NumberField(root, "framesPerSecond", outData.framesPerSecond);
         Read_RandomSeedField(root, outData.randomSeed);
+        Read_BoolField(root, "perStripSubUVVariation", outData.perStripSubUVVariation);
     }
 
     //## Module Data Codec

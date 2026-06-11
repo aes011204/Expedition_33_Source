@@ -2792,6 +2792,8 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("서브UV 프레임 선택/재생", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        const bool isBeamEmitter = emitter.typeData.kind == AuthoringTypeDataKind::Beam;
+
         if (detailContext.Begin_PropertyTable("SubUVFrameOverLife"))
         {
             changed |= Internal::Draw_SubUVFramePlaybackModeProperty(
@@ -2814,10 +2816,40 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
                     changed |= detailContext.Draw_FloatProperty("FPS", data.framesPerSecond, defaultData.framesPerSecond, 0.1f);
                 }
             }
+
             detailContext.End_PropertyTable();
         }
 
-        if (data.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        const bool usesRandomSeed =
+            data.playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+            (isBeamEmitter &&
+             data.playbackMode == SubUVFramePlaybackMode::FramesPerSecond &&
+             data.perStripSubUVVariation);
+        if (isBeamEmitter)
+        {
+            if (ImGui::CollapsingHeader("Beam Multi-Strip Variation", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (detailContext.Begin_PropertyTable("BeamSubUVVariation"))
+                {
+                    changed |= detailContext.Draw_BoolProperty(
+                        "Per-Strip SubUV Variation",
+                        data.perStripSubUVVariation,
+                        defaultData.perStripSubUVVariation,
+                        "Beam multi-strip에서 RandomFrame은 strip별로 샘플하고, loop FPS는 strip별 phase offset을 적용합니다."
+                    );
+                    detailContext.End_PropertyTable();
+                }
+
+                if (usesRandomSeed)
+                {
+                    changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
+                    ImGui::TextDisabled("Beam multi-strip uses this seed for RandomFrame samples and looped FPS phase offsets.");
+                }
+                else
+                    ImGui::TextDisabled("RandomFrame 또는 looped FramesPerSecond에서 seed 기반 strip variation을 사용합니다.");
+            }
+        }
+        else if (usesRandomSeed)
             changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
 
         const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);

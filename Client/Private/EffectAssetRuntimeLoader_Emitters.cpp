@@ -949,6 +949,34 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.segmentCount = max(1u, Read_UInt(typeData, "segmentCount", desc.segmentCount));
                 desc.noiseAmplitude = max(0.f, Read_Float(typeData, "noiseAmplitude", desc.noiseAmplitude));
                 desc.seed = Read_UInt(typeData, "seed", desc.seed);
+                desc.stripCount = max(1u, Read_UInt(typeData, "stripCount", desc.stripCount));
+                desc.endSpreadRadius = max(0.f, Read_Float(typeData, "endSpreadRadius", desc.endSpreadRadius));
+                desc.lengthVariance = max(0.f, Read_Float(typeData, "lengthVariance", desc.lengthVariance));
+                Read_Enum(typeData, "branchPreset", desc.branchPreset);
+                desc.branchEnabled = Read_Bool(typeData, "branchEnabled", desc.branchEnabled);
+                desc.branchCount = Read_UInt(typeData, "branchCount", desc.branchCount);
+                desc.branchChance = clamp(Read_Float(typeData, "branchChance", desc.branchChance), 0.f, 1.f);
+                desc.branchSegmentCount = max(1u, Read_UInt(typeData, "branchSegmentCount", desc.branchSegmentCount));
+                desc.branchLength = max(0.f, Read_Float(typeData, "branchLength", desc.branchLength));
+                desc.branchLengthVariance = max(0.f, Read_Float(typeData, "branchLengthVariance", desc.branchLengthVariance));
+                desc.branchStartMin = clamp(Read_Float(typeData, "branchStartMin", desc.branchStartMin), 0.f, 1.f);
+                desc.branchStartMax = clamp(Read_Float(typeData, "branchStartMax", desc.branchStartMax), 0.f, 1.f);
+                if (desc.branchStartMin > desc.branchStartMax)
+                    swap(desc.branchStartMin, desc.branchStartMax);
+                desc.branchSpreadRadius = max(0.f, Read_Float(typeData, "branchSpreadRadius", desc.branchSpreadRadius));
+                if (typeData.contains("branchEndSpreadRadius"))
+                    desc.branchEndSpreadRadius = max(0.f, Read_Float(typeData, "branchEndSpreadRadius", desc.branchEndSpreadRadius));
+                else
+                desc.branchEndSpreadRadius = desc.branchSpreadRadius;
+                desc.branchOutwardAmount = max(0.f, Read_Float(typeData, "branchOutwardAmount", desc.branchOutwardAmount));
+                desc.branchCurveAmount = max(0.f, Read_Float(typeData, "branchCurveAmount", desc.branchCurveAmount));
+                desc.branchDownLength = max(0.f, Read_Float(typeData, "branchDownLength", desc.branchDownLength));
+                desc.branchEntangleRadius = max(0.f, Read_Float(typeData, "branchEntangleRadius", desc.branchEntangleRadius));
+                desc.branchEntangleAdvance = max(0.f, Read_Float(typeData, "branchEntangleAdvance", desc.branchEntangleAdvance));
+                desc.branchCrackLength = max(0.f, Read_Float(typeData, "branchCrackLength", desc.branchCrackLength));
+                desc.branchCrackSpreadRadius = max(0.f, Read_Float(typeData, "branchCrackSpreadRadius", desc.branchCrackSpreadRadius));
+                desc.branchWidthScale = max(0.f, Read_Float(typeData, "branchWidthScale", desc.branchWidthScale));
+                desc.branchSeedOffset = Read_UInt(typeData, "branchSeedOffset", desc.branchSeedOffset);
                 desc.baseWidth = max(0.001f, Read_Float(typeData, "baseWidth", desc.baseWidth));
                 desc.tilingDistance = max(0.f, Read_Float(typeData, "tilingDistance", desc.tilingDistance));
             }
@@ -1021,11 +1049,14 @@ namespace EffectAssetRuntimeLoad::Emitters
             Read_Enum(*subUvFrameOverLife, "playbackMode", desc.subUVFrameOverLife.playbackMode);
             desc.subUVFrameOverLife.framesPerSecond =
                 max(0.f, Read_Float(*subUvFrameOverLife, "framesPerSecond", desc.subUVFrameOverLife.framesPerSecond));
+            desc.usePerStripSubUVVariation =
+                Read_Bool(*subUvFrameOverLife, "perStripSubUVVariation", desc.usePerStripSubUVVariation);
 
             const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
             if (frameIndexIter != subUvFrameOverLife->end())
                 Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
-            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+                (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::FramesPerSecond && desc.usePerStripSubUVVariation))
                 desc.subUVRandomFrameSeed = Read_RandomSeedDesc(*subUvFrameOverLife);
 
             const uint32 frameCount = max(1u, desc.material.subUVRows * desc.material.subUVCols);

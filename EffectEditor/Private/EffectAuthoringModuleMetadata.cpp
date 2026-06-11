@@ -11,6 +11,7 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         false,
         false,
         true,
+        true,
         true
     };
     static const AuthoringModuleMetadata spawn{
@@ -24,6 +25,7 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         "Lifetime",
         L"수명",
         L"파티클 수명 범위",
+        true,
         true,
         true,
         true,
@@ -146,6 +148,7 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         true,
         true,
         true,
+        true,
         true
     };
     static const AuthoringModuleMetadata colorOverLife{
@@ -155,17 +158,24 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         true,
         true,
         true,
+        true,
         true
     };
     static const AuthoringModuleMetadata subUVFrameOverLife{
         "SubUV Frame Over Life",
         L"서브UV 프레임 선택/재생",
-        L"수명 진행률 기준 frame 선택"
+        L"수명 진행률 기준 frame 선택",
+        true,
+        true,
+        true,
+        false,
+        true
     };
     static const AuthoringModuleMetadata sizeByLife{
         "Size By Life",
         L"수명에 따른 크기",
         L"수명 진행률 기준 크기 배율",
+        true,
         true,
         true,
         true,
@@ -193,6 +203,7 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         "MaterialScalarModulation",
         L"머티리얼 변조",
         L"머티리얼 scalar 시간 변화",
+        true,
         true,
         true,
         true,

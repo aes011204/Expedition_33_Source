@@ -51,6 +51,13 @@ private:
         float distance{}; // beam 시작점 기준 누적 거리다.
     };
 
+    struct PathEntry
+    {
+        vector<PathSample> samples{}; // draw payload로 낮출 generated path sample이다.
+        uint32 stripIndex{};          // SubUV variation seed에 사용할 parent strip index다.
+        float widthScale{ 1.f };      // parent 폭 대비 path 폭 배율이다.
+    };
+
     struct SegmentPayload
     {
         Vec4 previousPosition{};              // compute strip tangent용 이전 sample이다.
@@ -113,7 +120,7 @@ private:
     float _visibleBeamLength{ 1.f };
     uint32 _drawSegmentCount{};
     uint32 _randomSubUVFrameIndex{};
-    vector<PathSample> _pathSamples{}; // 이번 replay에서 생성된 Beam path sample이다.
+    vector<PathEntry> _pathEntries{}; // 이번 replay에서 생성된 parent/branch path 목록이다.
 
     Shared<ShaderCom> _shader{};
     Shared<ComputeShaderCom> _computeShader{};
@@ -134,9 +141,10 @@ private:
     void Reset_PlaybackRuntime();                                              // playback 시간/loop 상태를 초기화한다.
     void Advance_Playback(float timeDelta);                                    // delay/play/completed 상태를 전진시킨다.
     void Rebuild_PathSamples();                                                // desc의 local start/end 또는 direction/length로 world sample을 다시 만든다.
-    Vec3 Resolve_LocalEnd() const;                                             // endpoint mode에 따라 local end를 계산한다.
+    Vec3 Resolve_LocalEnd(uint32 stripIndex) const;                            // endpoint mode와 strip index에 따라 local end를 계산한다.
     Vec3 Transform_LocalPoint(const Vec3& localPoint) const;                   // emitter local point를 world point로 변환한다.
-    Vec3 Evaluate_NoiseOffset(uint32 sampleIndex, const Vec3& tangent) const;  // seed 기반 jitter offset을 만든다.
+    Vec3 Evaluate_NoiseOffset(uint32 stripIndex, uint32 sampleIndex, const Vec3& tangent) const; // seed 기반 jitter offset을 만든다.
+    void Append_BranchPathEntries(const PathEntry& parentPath, uint32 stripIndex, float activeElapsedTime); // parent path에서 branch path를 생성한다.
     HRESULT Append_SegmentPayloads(vector<SegmentPayload>& outPayloads) const; // path sample을 compute input payload로 낮춘다.
     bool Has_RenderablePath() const;                                           // 렌더 가능한 path segment가 있는지 확인한다.
 
@@ -169,8 +177,10 @@ private:
     int Resolve_OpacitySourceIndex() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;
     float Evaluate_WidthScaleByLife(float lifeProgress) const;
-    uint32 Evaluate_SubUVFrameIndex() const;
+    uint32 Evaluate_SubUVFrameIndex(uint32 stripIndex) const;
     Vec4 Resolve_SubUVRect(uint32 frameIndex) const;
+    uint32 Resolve_RandomSubUVFrameIndex(uint32 stripIndex) const;
+    uint32 Resolve_FpsSubUVFramePhaseOffset(uint32 stripIndex, uint32 rangeCount) const;
     void Resample_RandomSubUVFrameIndex();
     float Evaluate_CompactCurve(
         float lifeProgress,

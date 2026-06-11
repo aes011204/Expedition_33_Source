@@ -432,6 +432,14 @@ enum class EffectBeamEndpointMode : uint8
     DirectionLength,
 };
 
+enum class EffectBeamBranchPreset : uint8
+{
+    EndGuided,
+    DownStrike,
+    Entangle,
+    ShortCrack,
+};
+
 // generated beam이 local authored path를 camera-facing strip으로 낮추는 runtime payload다.
 struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -445,6 +453,7 @@ struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
+    bool usePerStripSubUVVariation{ true };                                                         // Beam strip별 SubUV RandomFrame/FPS phase variation을 적용한다.
 
     EffectBeamEndpointMode endpointMode{ EffectBeamEndpointMode::StartEnd }; // local path 작성 방식을 고른다.
     Vec3 localStart{ 0.f, 2.f, 0.f };                                        // effect/emitter local 기준 beam 시작점이다.
@@ -454,6 +463,29 @@ struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
     uint32 segmentCount{ 8 };                                                // generated polyline segment 수다.
     float noiseAmplitude{ 0.f };                                             // 중심선에서 벗어나는 deterministic jitter 크기다.
     uint32 seed{ 1 };                                                        // generated path jitter seed다.
+    uint32 stripCount{ 1 };                                                  // 같은 start에서 생성할 generated strip 수다.
+    float endSpreadRadius{ 0.f };                                            // clustered end가 기준 end 주변에 퍼지는 반경이다.
+    float lengthVariance{ 0.f };                                             // strip별 길이 차이를 만드는 deterministic 편차다.
+    EffectBeamBranchPreset branchPreset{ EffectBeamBranchPreset::EndGuided }; // branch path 생성 preset이다.
+    bool branchEnabled{ false };                                             // main strip에서 짧은 child branch를 생성할지 여부다.
+    uint32 branchCount{ 0 };                                                 // strip별 최대 branch 수다.
+    float branchChance{ 1.f };                                               // branch 후보가 실제 생성될 확률이다.
+    uint32 branchSegmentCount{ 3 };                                          // child branch polyline segment 수다.
+    float branchLength{ 0.75f };                                             // child branch 기본 길이다.
+    float branchLengthVariance{ 0.25f };                                     // branch별 길이 deterministic 편차다.
+    float branchStartMin{ 0.2f };                                            // parent path에서 branch 시작 구간의 최소 비율이다.
+    float branchStartMax{ 0.85f };                                           // parent path에서 branch 시작 구간의 최대 비율이다.
+    float branchSpreadRadius{ 0.5f };                                        // branch end가 parent tangent에서 벗어나는 확산 반경이다.
+    float branchEndSpreadRadius{ 0.5f };                                     // EndGuided branch target이 beam end 주변에 퍼지는 반경이다.
+    float branchOutwardAmount{ 0.25f };                                      // EndGuided branch가 시작 직후 parent에서 벌어지는 정도다.
+    float branchCurveAmount{ 0.5f };                                         // EndGuided branch가 target으로 수렴하는 휘어짐 정도다.
+    float branchDownLength{ 1.f };                                           // DownStrike branch가 authored down axis로 뻗는 길이다.
+    float branchEntangleRadius{ 0.35f };                                     // Entangle branch가 parent 주변을 감는 반경이다.
+    float branchEntangleAdvance{ 0.25f };                                    // Entangle branch target이 parent path를 따라 이동하는 비율이다.
+    float branchCrackLength{ 0.5f };                                         // ShortCrack branch가 start 주변으로 짧게 뻗는 길이다.
+    float branchCrackSpreadRadius{ 0.25f };                                  // ShortCrack endpoint가 radial하게 퍼지는 반경이다.
+    float branchWidthScale{ 0.45f };                                         // parent 폭 대비 branch 폭 배율이다.
+    uint32 branchSeedOffset{ 1009 };                                         // parent seed와 섞어 branch 결과를 갈라놓는 salt다.
     float baseWidth{ 0.25f };                                                // SizeByLife를 곱하기 전 beam 기본 폭이다.
     float tilingDistance{ 0.f };                                             // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
 };

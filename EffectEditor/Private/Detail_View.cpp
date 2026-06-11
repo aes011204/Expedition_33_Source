@@ -145,12 +145,72 @@ namespace Internal
         switch (value)
         {
         case BeamEndpointMode::StartEnd:
-            return "Start / End";
+            return "시작 / 끝";
         case BeamEndpointMode::DirectionLength:
-            return "Direction / Length";
+            return "방향 / 길이";
         default:
-            return "Start / End";
+            return "시작 / 끝";
         }
+    }
+
+    static const char* Get_BeamBranchPresetLabel(BeamBranchPreset value)
+    {
+        switch (value)
+        {
+        case BeamBranchPreset::EndGuided:
+            return "끝점 유도";
+        case BeamBranchPreset::DownStrike:
+            return "내려꽂힘";
+        case BeamBranchPreset::Entangle:
+            return "얽힘";
+        case BeamBranchPreset::ShortCrack:
+            return "짧은 균열";
+        default:
+            return "끝점 유도";
+        }
+    }
+
+    static bool Draw_BeamBranchPresetProperty(
+        DetailPropertyContext& detailContext,
+        BeamBranchPreset& value,
+        BeamBranchPreset defaultValue)
+    {
+        static constexpr BeamBranchPreset values[] = {
+            BeamBranchPreset::EndGuided,
+            BeamBranchPreset::DownStrike,
+            BeamBranchPreset::Entangle,
+            BeamBranchPreset::ShortCrack,
+        };
+
+        ImGui::PushID("BeamBranchPreset");
+        detailContext.Draw_PropertyLabel("가지 형태", "branch가 parent 중간에서 시작해 어떤 목표점으로 수렴할지 선택합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_BeamBranchPresetLabel(value)))
+        {
+            for (const BeamBranchPreset candidate : values)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_BeamBranchPresetLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+        return changed;
     }
 
     static bool Draw_BeamEndpointModeProperty(
@@ -164,7 +224,7 @@ namespace Internal
         };
 
         ImGui::PushID("BeamEndpointMode");
-        detailContext.Draw_PropertyLabel("Endpoint Mode", "Beam path를 local start/end 또는 direction/length 중 어떤 방식으로 만들지 선택합니다.");
+        detailContext.Draw_PropertyLabel("끝점 방식", "Beam path를 로컬 시작/끝 또는 방향/길이 중 어떤 방식으로 만들지 선택합니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
 
         bool changed = false;
@@ -1640,74 +1700,284 @@ void Detail_View::Render_TypeDataDetail(
         const BeamTypeData defaultData{};
         if (ImGui::CollapsingHeader("Beam", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (_detailPropertyContext.Begin_PropertyTable("BeamTypeData"))
+            if (ImGui::CollapsingHeader("경로", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                changed |= Internal::Draw_BeamEndpointModeProperty(_detailPropertyContext, data->endpointMode, defaultData.endpointMode);
-                changed |= _detailPropertyContext.Draw_Vec3Property(
-                    "Local Start",
-                    data->localStart,
-                    defaultData.localStart,
-                    0.01f
-                );
-                if (data->endpointMode == BeamEndpointMode::StartEnd)
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataPath"))
                 {
+                    changed |= Internal::Draw_BeamEndpointModeProperty(_detailPropertyContext, data->endpointMode, defaultData.endpointMode);
                     changed |= _detailPropertyContext.Draw_Vec3Property(
-                        "Local End",
-                        data->localEnd,
-                        defaultData.localEnd,
+                        "로컬 시작점",
+                        data->localStart,
+                        defaultData.localStart,
                         0.01f
                     );
-                }
-                else
-                {
-                    changed |= _detailPropertyContext.Draw_Vec3Property(
-                        "Local Direction",
-                        data->localDirection,
-                        defaultData.localDirection,
-                        0.01f
+                    if (data->endpointMode == BeamEndpointMode::StartEnd)
+                    {
+                        changed |= _detailPropertyContext.Draw_Vec3Property(
+                            "로컬 끝점",
+                            data->localEnd,
+                            defaultData.localEnd,
+                            0.01f
+                        );
+                    }
+                    else
+                    {
+                        changed |= _detailPropertyContext.Draw_Vec3Property(
+                            "로컬 방향",
+                            data->localDirection,
+                            defaultData.localDirection,
+                            0.01f
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "길이",
+                            data->length,
+                            defaultData.length,
+                            0.01f,
+                            "방향 / 길이 방식에서 쓰는 Beam 길이입니다."
+                        );
+                    }
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "세그먼트 수",
+                        data->segmentCount,
+                        defaultData.segmentCount,
+                        "생성되는 polyline segment 수입니다."
                     );
                     changed |= _detailPropertyContext.Draw_FloatProperty(
-                        "Length",
-                        data->length,
-                        defaultData.length,
+                        "노이즈 강도",
+                        data->noiseAmplitude,
+                        defaultData.noiseAmplitude,
                         0.01f,
-                        "DirectionLength 모드에서 쓰는 beam 길이입니다."
+                        "중심선에서 벗어나는 deterministic jitter 크기입니다."
                     );
+                    changed |= _detailPropertyContext.Draw_UintProperty("시드", data->seed, defaultData.seed, "생성 경로 jitter에 쓰는 seed입니다.");
+                    _detailPropertyContext.End_PropertyTable();
                 }
-                changed |= _detailPropertyContext.Draw_UintProperty(
-                    "Segment Count",
-                    data->segmentCount,
-                    defaultData.segmentCount,
-                    "generated polyline segment 수입니다."
-                );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "Noise Amplitude",
-                    data->noiseAmplitude,
-                    defaultData.noiseAmplitude,
-                    0.01f,
-                    "중심선에서 벗어나는 deterministic jitter 크기입니다."
-                );
-                changed |= _detailPropertyContext.Draw_UintProperty("Seed", data->seed, defaultData.seed, "generated path jitter seed입니다.");
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "Base Width",
-                    data->baseWidth,
-                    defaultData.baseWidth,
-                    0.01f,
-                    "SizeByLife를 곱하기 전 beam 기본 폭입니다."
-                );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "Tiling Distance",
-                    data->tilingDistance,
-                    defaultData.tilingDistance,
-                    0.01f,
-                    "0 이하면 전체 길이에 맞춰 늘이고, 양수면 거리 기준으로 texture를 반복합니다."
-                );
-                _detailPropertyContext.End_PropertyTable();
             }
-
+            if (ImGui::CollapsingHeader("스트립 변화", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataStripVariation"))
+                {
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "스트립 수",
+                        data->stripCount,
+                        defaultData.stripCount,
+                        "같은 시작점에서 생성할 strip 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "끝점 확산 반경",
+                        data->endSpreadRadius,
+                        defaultData.endSpreadRadius,
+                        0.01f,
+                        "clustered end가 기준 끝점 주변에 퍼지는 반경입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "길이 편차",
+                        data->lengthVariance,
+                        defaultData.lengthVariance,
+                        0.01f,
+                        "strip별 길이 차이를 만드는 deterministic 편차입니다."
+                    );
+                    _detailPropertyContext.End_PropertyTable();
+                }
+            }
+            if (ImGui::CollapsingHeader("표현", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataPresentation"))
+                {
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "기본 폭",
+                        data->baseWidth,
+                        defaultData.baseWidth,
+                        0.01f,
+                        "SizeByLife를 곱하기 전 Beam 기본 폭입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "반복 거리",
+                        data->tilingDistance,
+                        defaultData.tilingDistance,
+                        0.01f,
+                        "0: 현재 Beam/가지 길이에 texture 전체를 한 번 늘려 붙입니다. 양수: 해당 월드 거리마다 texture를 반복하며, 짧으면 일부만 보입니다."
+                    );
+                    _detailPropertyContext.End_PropertyTable();
+                }
+            }
+            if (ImGui::CollapsingHeader("가지", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataBranch"))
+                {
+                    changed |= _detailPropertyContext.Draw_BoolProperty(
+                        "사용",
+                        data->branchEnabled,
+                        defaultData.branchEnabled,
+                        "main strip 중간에서 짧은 child branch를 생성합니다."
+                    );
+                    changed |= Internal::Draw_BeamBranchPresetProperty(
+                        _detailPropertyContext,
+                        data->branchPreset,
+                        defaultData.branchPreset
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "개수",
+                        data->branchCount,
+                        defaultData.branchCount,
+                        "strip별 최대 branch 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "확률",
+                        data->branchChance,
+                        defaultData.branchChance,
+                        0.01f,
+                        "branch 후보가 실제 생성될 확률입니다."
+                    );
+                    if (data->branchPreset == BeamBranchPreset::EndGuided)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "끝점 퍼짐",
+                            data->branchEndSpreadRadius,
+                            defaultData.branchEndSpreadRadius,
+                            0.01f,
+                            "끝점 유도 가지의 목표점이 Beam 끝점 주변에 퍼지는 반경입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "벌어짐",
+                            data->branchOutwardAmount,
+                            defaultData.branchOutwardAmount,
+                            0.01f,
+                            "가지가 시작 직후 parent path에서 옆으로 벌어지는 정도입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "휘어짐",
+                            data->branchCurveAmount,
+                            defaultData.branchCurveAmount,
+                            0.01f,
+                            "옆으로 벌어진 가지가 끝점 목표로 다시 수렴하는 정도입니다."
+                        );
+                    }
+                    else if (data->branchPreset == BeamBranchPreset::DownStrike)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "내려꽂힘 길이",
+                            data->branchDownLength,
+                            defaultData.branchDownLength,
+                            0.01f,
+                            "가지가 emitter local down 방향으로 뻗는 길이입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "끝점 퍼짐",
+                            data->branchEndSpreadRadius,
+                            defaultData.branchEndSpreadRadius,
+                            0.01f,
+                            "내려꽂힘 가지의 끝점이 down axis 주변으로 퍼지는 반경입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "휘어짐",
+                            data->branchCurveAmount,
+                            defaultData.branchCurveAmount,
+                            0.01f,
+                            "가지가 down target으로 수렴하는 휘어짐 정도입니다."
+                        );
+                    }
+                    else if (data->branchPreset == BeamBranchPreset::Entangle)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "얽힘 반경",
+                            data->branchEntangleRadius,
+                            defaultData.branchEntangleRadius,
+                            0.01f,
+                            "가지가 parent path 주변을 감는 반경입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "진행 오프셋",
+                            data->branchEntangleAdvance,
+                            defaultData.branchEntangleAdvance,
+                            0.01f,
+                            "가지 target이 parent path를 따라 앞/뒤로 이동하는 비율입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "휘어짐",
+                            data->branchCurveAmount,
+                            defaultData.branchCurveAmount,
+                            0.01f,
+                            "얽힘 가지가 target으로 수렴하는 휘어짐 정도입니다."
+                        );
+                    }
+                    else if (data->branchPreset == BeamBranchPreset::ShortCrack)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "균열 길이",
+                            data->branchCrackLength,
+                            defaultData.branchCrackLength,
+                            0.01f,
+                            "가지가 start 주변에서 짧게 뻗는 길이입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "균열 퍼짐",
+                            data->branchCrackSpreadRadius,
+                            defaultData.branchCrackSpreadRadius,
+                            0.01f,
+                            "짧은 균열 endpoint가 radial하게 퍼지는 반경입니다."
+                        );
+                    }
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "세그먼트 수",
+                        data->branchSegmentCount,
+                        defaultData.branchSegmentCount,
+                        "child branch polyline segment 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "시작 최소",
+                        data->branchStartMin,
+                        defaultData.branchStartMin,
+                        0.01f,
+                        "parent path에서 branch 시작 구간의 최소 비율입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "시작 최대",
+                        data->branchStartMax,
+                        defaultData.branchStartMax,
+                        0.01f,
+                        "parent path에서 branch 시작 구간의 최대 비율입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "폭 배율",
+                        data->branchWidthScale,
+                        defaultData.branchWidthScale,
+                        0.01f,
+                        "parent 폭 대비 branch 폭 배율입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "시드 오프셋",
+                        data->branchSeedOffset,
+                        defaultData.branchSeedOffset,
+                        "parent seed와 섞어 branch 결과를 갈라놓는 salt입니다."
+                    );
+                    _detailPropertyContext.End_PropertyTable();
+                }
+            }
             data->length = max(0.f, data->length);
             data->segmentCount = max(1u, data->segmentCount);
             data->noiseAmplitude = max(0.f, data->noiseAmplitude);
+            data->stripCount = max(1u, data->stripCount);
+            data->endSpreadRadius = max(0.f, data->endSpreadRadius);
+            data->lengthVariance = max(0.f, data->lengthVariance);
+            data->branchChance = clamp(data->branchChance, 0.f, 1.f);
+            data->branchSegmentCount = max(1u, data->branchSegmentCount);
+            data->branchLength = max(0.f, data->branchLength);
+            data->branchLengthVariance = max(0.f, data->branchLengthVariance);
+            data->branchStartMin = clamp(data->branchStartMin, 0.f, 1.f);
+            data->branchStartMax = clamp(data->branchStartMax, 0.f, 1.f);
+            if (data->branchStartMin > data->branchStartMax)
+                swap(data->branchStartMin, data->branchStartMax);
+            data->branchSpreadRadius = max(0.f, data->branchSpreadRadius);
+            data->branchEndSpreadRadius = max(0.f, data->branchEndSpreadRadius);
+            data->branchOutwardAmount = max(0.f, data->branchOutwardAmount);
+            data->branchCurveAmount = max(0.f, data->branchCurveAmount);
+            data->branchDownLength = max(0.f, data->branchDownLength);
+            data->branchEntangleRadius = max(0.f, data->branchEntangleRadius);
+            data->branchEntangleAdvance = max(0.f, data->branchEntangleAdvance);
+            data->branchCrackLength = max(0.f, data->branchCrackLength);
+            data->branchCrackSpreadRadius = max(0.f, data->branchCrackSpreadRadius);
+            data->branchWidthScale = max(0.f, data->branchWidthScale);
             data->baseWidth = max(0.001f, data->baseWidth);
             data->tilingDistance = max(0.f, data->tilingDistance);
         }

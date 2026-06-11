@@ -2273,6 +2273,46 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
     emitterDesc.segmentCount = max(1u, beamPolicy.segmentCount);
     emitterDesc.noiseAmplitude = max(0.f, beamPolicy.noiseAmplitude);
     emitterDesc.seed = beamPolicy.seed;
+    emitterDesc.stripCount = max(1u, beamPolicy.stripCount);
+    emitterDesc.endSpreadRadius = max(0.f, beamPolicy.endSpreadRadius);
+    emitterDesc.lengthVariance = max(0.f, beamPolicy.lengthVariance);
+    switch (beamPolicy.branchPreset)
+    {
+    case BeamBranchPreset::DownStrike:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::DownStrike;
+        break;
+    case BeamBranchPreset::Entangle:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::Entangle;
+        break;
+    case BeamBranchPreset::ShortCrack:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::ShortCrack;
+        break;
+    case BeamBranchPreset::EndGuided:
+    default:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::EndGuided;
+        break;
+    }
+    emitterDesc.branchEnabled = beamPolicy.branchEnabled;
+    emitterDesc.branchCount = beamPolicy.branchCount;
+    emitterDesc.branchChance = clamp(beamPolicy.branchChance, 0.f, 1.f);
+    emitterDesc.branchSegmentCount = max(1u, beamPolicy.branchSegmentCount);
+    emitterDesc.branchLength = max(0.f, beamPolicy.branchLength);
+    emitterDesc.branchLengthVariance = max(0.f, beamPolicy.branchLengthVariance);
+    emitterDesc.branchStartMin = clamp(beamPolicy.branchStartMin, 0.f, 1.f);
+    emitterDesc.branchStartMax = clamp(beamPolicy.branchStartMax, 0.f, 1.f);
+    if (emitterDesc.branchStartMin > emitterDesc.branchStartMax)
+        swap(emitterDesc.branchStartMin, emitterDesc.branchStartMax);
+    emitterDesc.branchSpreadRadius = max(0.f, beamPolicy.branchSpreadRadius);
+    emitterDesc.branchEndSpreadRadius = max(0.f, beamPolicy.branchEndSpreadRadius);
+    emitterDesc.branchOutwardAmount = max(0.f, beamPolicy.branchOutwardAmount);
+    emitterDesc.branchCurveAmount = max(0.f, beamPolicy.branchCurveAmount);
+    emitterDesc.branchDownLength = max(0.f, beamPolicy.branchDownLength);
+    emitterDesc.branchEntangleRadius = max(0.f, beamPolicy.branchEntangleRadius);
+    emitterDesc.branchEntangleAdvance = max(0.f, beamPolicy.branchEntangleAdvance);
+    emitterDesc.branchCrackLength = max(0.f, beamPolicy.branchCrackLength);
+    emitterDesc.branchCrackSpreadRadius = max(0.f, beamPolicy.branchCrackSpreadRadius);
+    emitterDesc.branchWidthScale = max(0.f, beamPolicy.branchWidthScale);
+    emitterDesc.branchSeedOffset = beamPolicy.branchSeedOffset;
     emitterDesc.baseWidth = max(0.001f, beamPolicy.baseWidth);
     emitterDesc.tilingDistance = max(0.f, beamPolicy.tilingDistance);
 
@@ -2291,6 +2331,17 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -2317,6 +2368,32 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
 
     if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
         Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+
+    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    {
+        emitterDesc.subUVFrameOverLife.enabled = true;
+        emitterDesc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
+        emitterDesc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
+        emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+        emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
+        emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        emitterDesc.usePerStripSubUVVariation = subUvFrameOverLife->perStripSubUVVariation;
+        Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+            (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::FramesPerSecond && subUvFrameOverLife->perStripSubUVVariation))
+            emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
+
+        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        {
+            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
+            emitterDesc.subUVFrameOverLife.startFrame = min(emitterDesc.subUVFrameOverLife.startFrame, lastFrame);
+            emitterDesc.subUVFrameOverLife.endFrame = min(emitterDesc.subUVFrameOverLife.endFrame, lastFrame);
+
+            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
+                emitterDesc.subUVFrameOverLife.endFrame = lastFrame;
+        }
+    }
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);

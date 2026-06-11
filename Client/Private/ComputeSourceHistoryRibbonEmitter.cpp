@@ -656,9 +656,8 @@ bool ComputeSourceHistoryRibbonEmitter::Has_RenderableHistory() const
     if (_desc.sourceMode != EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
         return _history.size() >= 2u;
 
-    return any_of(
-        _sourceLanes.begin(),
-        _sourceLanes.end(),
+    return ranges::any_of(
+        _sourceLanes,
         [](const HistoryLane& lane)
         {
             return lane.history.size() >= 2u;
@@ -1067,7 +1066,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
         material.coreEmissive.coreColor.z,
         material.coreEmissive.outerIntensity
     );
-    const Vec4 effectRibbonAxisParams = Vec4(static_cast<float>(static_cast<uint32>(EffectRibbonRenderAxis::CameraUp)), _visibleRibbonLength, 0.f, 1.f);
+    const Vec4 effectRibbonAxisParams = Vec4(static_cast<float>(EffectRibbonRenderAxis::CameraUp), _visibleRibbonLength, 0.f, 1.f);
     const Vec4 effectRibbonFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
 
@@ -1260,16 +1259,17 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
     }
 
     const float t = clamp(progress, 0.f, 1.f);
+    const float easedT = Math::GetSmoothStepRatio(t);
     const Vec3 primaryAxis = EffectAssetRuntimeLoad::Resolve_PreviewMotionAxis(_desc.previewMotionAxis);
-    Vec3 offset = primaryAxis * lerp(-amplitude, amplitude, t);
 
     if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Arc)
     {
         const Vec3 arcAxis = EffectAssetRuntimeLoad::Resolve_PreviewMotionArcAxis(_desc.previewMotionAxis);
-        offset += arcAxis * (sinf(t * XM_PI) * amplitude);
+        const float arcAngle = lerp(XM_PI, 0.f, easedT);
+        return (primaryAxis * cosf(arcAngle) + arcAxis * sinf(arcAngle)) * amplitude;
     }
 
-    return offset;
+    return primaryAxis * lerp(-amplitude, amplitude, easedT);
 }
 
 Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgress) const

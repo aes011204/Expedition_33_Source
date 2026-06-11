@@ -1202,6 +1202,10 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         }
     }
 
+    const AuthoringModuleMetadata& metadata = Get_AuthoringModuleMetadata(type);
+    if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
+        return metadata.supportsBeam;
+
     if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
     {
         switch (type)
@@ -1232,7 +1236,6 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         break;
     }
 
-    const AuthoringModuleMetadata& metadata = Get_AuthoringModuleMetadata(type);
     if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
         return metadata.supportsTrail;
 

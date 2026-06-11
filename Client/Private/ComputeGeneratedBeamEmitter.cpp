@@ -1,4 +1,4 @@
-#include "ComputeGeneratedBeamEmitter.h"
+﻿#include "ComputeGeneratedBeamEmitter.h"
 
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
@@ -42,6 +42,31 @@ static uint32 MixSeed(uint32 seed)
 static float Hash01(uint32 seed)
 {
     return static_cast<float>(MixSeed(seed) & 0x00FFFFFFu) / 16777215.f;
+}
+
+static void Resolve_PerpendicularAxes(const Vec3& tangent, Vec3& outRight, Vec3& outUp)
+{
+    const Vec3 upAxis = fabsf(tangent.y) < 0.99f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
+    outRight = tangent.Cross(upAxis);
+    if (outRight.LengthSquared() <= 0.0001f)
+        outRight = tangent.Cross(Vec3{ 0.f, 0.f, 1.f });
+
+    if (outRight.LengthSquared() <= 0.0001f)
+    {
+        outRight = Vec3::Zero;
+        outUp = Vec3::Zero;
+        return;
+    }
+
+    outRight.Normalize();
+    outUp = outRight.Cross(tangent);
+    if (outUp.LengthSquared() <= 0.0001f)
+    {
+        outRight = Vec3::Zero;
+        outUp = Vec3::Zero;
+        return;
+    }
+    outUp.Normalize();
 }
 
 static float Read_Vec4Component(const Vec4& values, uint32 index)
@@ -268,6 +293,27 @@ HRESULT ComputeGeneratedBeamEmitter::Initialize(void* arg)
     _desc.length = max(0.f, _desc.length);
     _desc.segmentCount = max(1u, _desc.segmentCount);
     _desc.noiseAmplitude = max(0.f, _desc.noiseAmplitude);
+    _desc.stripCount = max(1u, _desc.stripCount);
+    _desc.endSpreadRadius = max(0.f, _desc.endSpreadRadius);
+    _desc.lengthVariance = max(0.f, _desc.lengthVariance);
+    _desc.branchChance = clamp(_desc.branchChance, 0.f, 1.f);
+    _desc.branchSegmentCount = max(1u, _desc.branchSegmentCount);
+    _desc.branchLength = max(0.f, _desc.branchLength);
+    _desc.branchLengthVariance = max(0.f, _desc.branchLengthVariance);
+    _desc.branchStartMin = clamp(_desc.branchStartMin, 0.f, 1.f);
+    _desc.branchStartMax = clamp(_desc.branchStartMax, 0.f, 1.f);
+    if (_desc.branchStartMin > _desc.branchStartMax)
+        swap(_desc.branchStartMin, _desc.branchStartMax);
+    _desc.branchSpreadRadius = max(0.f, _desc.branchSpreadRadius);
+    _desc.branchEndSpreadRadius = max(0.f, _desc.branchEndSpreadRadius);
+    _desc.branchOutwardAmount = max(0.f, _desc.branchOutwardAmount);
+    _desc.branchCurveAmount = max(0.f, _desc.branchCurveAmount);
+    _desc.branchDownLength = max(0.f, _desc.branchDownLength);
+    _desc.branchEntangleRadius = max(0.f, _desc.branchEntangleRadius);
+    _desc.branchEntangleAdvance = max(0.f, _desc.branchEntangleAdvance);
+    _desc.branchCrackLength = max(0.f, _desc.branchCrackLength);
+    _desc.branchCrackSpreadRadius = max(0.f, _desc.branchCrackSpreadRadius);
+    _desc.branchWidthScale = max(0.f, _desc.branchWidthScale);
     _desc.baseWidth = max(0.001f, _desc.baseWidth);
     _desc.tilingDistance = max(0.f, _desc.tilingDistance);
     _desc.material.subUVRows = max(1u, _desc.material.subUVRows);
@@ -290,7 +336,7 @@ void ComputeGeneratedBeamEmitter::Update(float timeDelta)
     if (PlaybackState::Playing == _playbackState)
         Rebuild_PathSamples();
     else
-        _pathSamples.clear();
+        _pathEntries.clear();
 
     CHECK_FAILED_THROTTLED(Dispatch_Compute(), 60);
 }
@@ -324,7 +370,7 @@ HRESULT ComputeGeneratedBeamEmitter::Render()
 HRESULT ComputeGeneratedBeamEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
-    _pathSamples.clear();
+    _pathEntries.clear();
     _materialElapsedTime = 0.f;
     _visibleBeamLength = 1.f;
     _drawSegmentCount = 0u;
@@ -344,10 +390,14 @@ bool ComputeGeneratedBeamEmitter::Is_EffectFinished() const
 
 bool ComputeGeneratedBeamEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
-    if (_pathSamples.size() >= 2u)
+    for (const PathEntry& pathEntry : _pathEntries)
     {
-        outWorldPosition = (_pathSamples.front().position + _pathSamples.back().position) * 0.5f;
-        return true;
+        const vector<PathSample>& pathSamples = pathEntry.samples;
+        if (pathSamples.size() >= 2u)
+        {
+            outWorldPosition = (pathSamples.front().position + pathSamples.back().position) * 0.5f;
+            return true;
+        }
     }
 
     if (_transformCom == nullptr)
@@ -413,46 +463,61 @@ void ComputeGeneratedBeamEmitter::Advance_Playback(float timeDelta)
 
 void ComputeGeneratedBeamEmitter::Rebuild_PathSamples()
 {
-    _pathSamples.clear();
+    _pathEntries.clear();
     _visibleBeamLength = 1.f;
 
     const Vec3 localStart = _desc.localStart;
-    const Vec3 localEnd = Resolve_LocalEnd();
-    const Vec3 localDelta = localEnd - localStart;
-    const float localLength = localDelta.Length();
-    if (localLength <= 0.0001f)
-        return;
-
-    const Vec3 tangent = localDelta / localLength;
     const uint32 sampleCount = _desc.segmentCount + 1u;
     const float delay = Resolve_CurrentLoopDelay();
     const float activeElapsedTime = clamp(_loopElapsedTime - delay, 0.f, Resolve_Duration());
 
-    _pathSamples.reserve(sampleCount);
-    Vec3 previousWorldPosition{};
-    for (uint32 index = 0; index < sampleCount; ++index)
+    float maxVisibleLength = 0.f;
+    for (uint32 stripIndex = 0u; stripIndex < _desc.stripCount; ++stripIndex)
     {
-        const float ratio = sampleCount > 1u ? static_cast<float>(index) / static_cast<float>(sampleCount - 1u) : 0.f;
-        Vec3 localPoint = Vec3::Lerp(localStart, localEnd, ratio);
-        if (index > 0u && index + 1u < sampleCount && _desc.noiseAmplitude > 0.f)
-            localPoint += Evaluate_NoiseOffset(index, tangent);
+        const Vec3 localEnd = Resolve_LocalEnd(stripIndex);
+        const Vec3 localDelta = localEnd - localStart;
+        const float localLength = localDelta.Length();
+        if (localLength <= 0.0001f)
+            continue;
 
-        const Vec3 worldPosition = Transform_LocalPoint(localPoint);
-        PathSample sample{};
-        sample.position = worldPosition;
-        sample.age = activeElapsedTime;
-        if (!_pathSamples.empty())
-            sample.distance = _pathSamples.back().distance + (worldPosition - previousWorldPosition).Length();
-        _pathSamples.push_back(sample);
-        previousWorldPosition = worldPosition;
+        const Vec3 tangent = localDelta / localLength;
+        PathEntry parentPath{};
+        parentPath.stripIndex = stripIndex;
+        parentPath.widthScale = 1.f;
+        parentPath.samples.reserve(sampleCount);
+        Vec3 previousWorldPosition{};
+        for (uint32 index = 0u; index < sampleCount; ++index)
+        {
+            const float ratio = sampleCount > 1u ? static_cast<float>(index) / static_cast<float>(sampleCount - 1u) : 0.f;
+            Vec3 localPoint = Vec3::Lerp(localStart, localEnd, ratio);
+            if (index > 0u && index + 1u < sampleCount && _desc.noiseAmplitude > 0.f)
+                localPoint += Evaluate_NoiseOffset(stripIndex, index, tangent);
+
+            const Vec3 worldPosition = Transform_LocalPoint(localPoint);
+            PathSample sample{};
+            sample.position = worldPosition;
+            sample.age = activeElapsedTime;
+            if (!parentPath.samples.empty())
+                sample.distance = parentPath.samples.back().distance + (worldPosition - previousWorldPosition).Length();
+            parentPath.samples.push_back(sample);
+            previousWorldPosition = worldPosition;
+        }
+
+        if (parentPath.samples.size() >= 2u)
+        {
+            maxVisibleLength = max(maxVisibleLength, parentPath.samples.back().distance);
+            _pathEntries.push_back(parentPath);
+            Append_BranchPathEntries(parentPath, stripIndex, activeElapsedTime);
+        }
     }
 
-    if (_pathSamples.size() >= 2u)
-        _visibleBeamLength = max(0.0001f, _pathSamples.back().distance);
+    if (maxVisibleLength > 0.f)
+        _visibleBeamLength = max(0.0001f, maxVisibleLength);
 }
 
-Vec3 ComputeGeneratedBeamEmitter::Resolve_LocalEnd() const
+Vec3 ComputeGeneratedBeamEmitter::Resolve_LocalEnd(uint32 stripIndex) const
 {
+    Vec3 baseLocalEnd = _desc.localEnd;
     if (_desc.endpointMode == EffectBeamEndpointMode::DirectionLength)
     {
         const float safeLength = max(0.f, _desc.length);
@@ -460,10 +525,36 @@ Vec3 ComputeGeneratedBeamEmitter::Resolve_LocalEnd() const
         if (directionLength <= 0.0001f || safeLength <= 0.f)
             return _desc.localStart;
 
-        return _desc.localStart + _desc.localDirection / directionLength * safeLength;
+        baseLocalEnd = _desc.localStart + _desc.localDirection / directionLength * safeLength;
     }
 
-    return _desc.localEnd;
+    const Vec3 baseDelta = baseLocalEnd - _desc.localStart;
+    const float baseLength = baseDelta.Length();
+    if (baseLength <= 0.0001f || (stripIndex == 0u && _desc.lengthVariance <= 0.f && _desc.endSpreadRadius <= 0.f))
+        return baseLocalEnd;
+
+    const Vec3 tangent = baseDelta / baseLength;
+    const uint32 baseSeed = _desc.seed + (_loopIndex + 1u) * 9781u + stripIndex * 15485863u;
+    const float lengthOffset = stripIndex > 0u && _desc.lengthVariance > 0.f
+                               ? (EffectBeamRuntime::Hash01(baseSeed + 11u) * 2.f - 1.f) * _desc.lengthVariance
+                               : 0.f;
+    const float resolvedLength = max(0.f, baseLength + lengthOffset);
+    Vec3 localEnd = _desc.localStart + tangent * resolvedLength;
+
+    if (stripIndex > 0u && _desc.endSpreadRadius > 0.f)
+    {
+        Vec3 right{};
+        Vec3 up{};
+        EffectBeamRuntime::Resolve_PerpendicularAxes(tangent, right, up);
+        if (right.LengthSquared() > 0.0001f && up.LengthSquared() > 0.0001f)
+        {
+            const float angle = EffectBeamRuntime::Hash01(baseSeed + 23u) * XM_2PI;
+            const float radius = sqrtf(EffectBeamRuntime::Hash01(baseSeed + 29u)) * _desc.endSpreadRadius;
+            localEnd += right * cosf(angle) * radius + up * sinf(angle) * radius;
+        }
+    }
+
+    return localEnd;
 }
 
 Vec3 ComputeGeneratedBeamEmitter::Transform_LocalPoint(const Vec3& localPoint) const
@@ -474,75 +565,231 @@ Vec3 ComputeGeneratedBeamEmitter::Transform_LocalPoint(const Vec3& localPoint) c
     return Vec3::Transform(localPoint, _transformCom->Get_WorldMatrix());
 }
 
-Vec3 ComputeGeneratedBeamEmitter::Evaluate_NoiseOffset(uint32 sampleIndex, const Vec3& tangent) const
+Vec3 ComputeGeneratedBeamEmitter::Evaluate_NoiseOffset(uint32 stripIndex, uint32 sampleIndex, const Vec3& tangent) const
 {
     if (_desc.noiseAmplitude <= 0.f)
         return Vec3::Zero;
 
-    const Vec3 upAxis = fabsf(tangent.y) < 0.99f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
-    Vec3 right = tangent.Cross(upAxis);
-    if (right.LengthSquared() <= 0.0001f)
-        right = tangent.Cross(Vec3{ 0.f, 0.f, 1.f });
-
-    if (right.LengthSquared() <= 0.0001f)
+    Vec3 right{};
+    Vec3 up{};
+    EffectBeamRuntime::Resolve_PerpendicularAxes(tangent, right, up);
+    if (right.LengthSquared() <= 0.0001f || up.LengthSquared() <= 0.0001f)
         return Vec3::Zero;
 
-    right.Normalize();
-    Vec3 up = right.Cross(tangent);
-    if (up.LengthSquared() <= 0.0001f)
-        return Vec3::Zero;
-    up.Normalize();
-
-    const uint32 baseSeed = _desc.seed + (_loopIndex + 1u) * 9781u + sampleIndex * 6271u;
+    const uint32 baseSeed = _desc.seed + (_loopIndex + 1u) * 9781u + stripIndex * 15485863u + sampleIndex * 6271u;
     const float lateralX = EffectBeamRuntime::Hash01(baseSeed) * 2.f - 1.f;
     const float lateralY = EffectBeamRuntime::Hash01(baseSeed + 1u) * 2.f - 1.f;
     return (right * lateralX + up * lateralY) * _desc.noiseAmplitude;
 }
 
+void ComputeGeneratedBeamEmitter::Append_BranchPathEntries(const PathEntry& parentPath, uint32 stripIndex, float activeElapsedTime)
+{
+    if (!_desc.branchEnabled || _desc.branchCount == 0u || _desc.branchChance <= 0.f ||
+        _desc.branchSegmentCount == 0u || parentPath.samples.size() < 2u)
+        return;
+
+    const uint32 maxStartIndex = static_cast<uint32>(parentPath.samples.size() - 2u);
+    const uint32 maxSampleIndex = static_cast<uint32>(parentPath.samples.size() - 1u);
+    const float startMin = clamp(_desc.branchStartMin, 0.f, 1.f);
+    const float startMax = clamp(_desc.branchStartMax, startMin, 1.f);
+    const uint32 baseSeed = _desc.seed + _desc.branchSeedOffset + (_loopIndex + 1u) * 9781u + stripIndex * 15485863u;
+    const Vec3 parentEnd = parentPath.samples.back().position;
+    Vec3 parentTangent = parentEnd - parentPath.samples.front().position;
+    if (parentTangent.LengthSquared() <= 0.0001f)
+        return;
+    parentTangent.Normalize();
+
+    Vec3 targetRight{};
+    Vec3 targetUp{};
+    EffectBeamRuntime::Resolve_PerpendicularAxes(parentTangent, targetRight, targetUp);
+    if (targetRight.LengthSquared() <= 0.0001f || targetUp.LengthSquared() <= 0.0001f)
+        return;
+
+    for (uint32 branchIndex = 0u; branchIndex < _desc.branchCount; ++branchIndex)
+    {
+        const uint32 branchSeed = baseSeed + branchIndex * 32452843u;
+        if (EffectBeamRuntime::Hash01(branchSeed + 3u) > _desc.branchChance)
+            continue;
+
+        const float startRatio = startMin + (startMax - startMin) * EffectBeamRuntime::Hash01(branchSeed + 7u);
+        uint32 startIndex = static_cast<uint32>(roundf(startRatio * static_cast<float>(maxStartIndex)));
+        startIndex = min(startIndex, maxStartIndex);
+
+        const PathSample& startSample = parentPath.samples[startIndex];
+        const PathSample& nextSample = parentPath.samples[startIndex + 1u];
+        Vec3 tangent = nextSample.position - startSample.position;
+        if (tangent.LengthSquared() <= 0.0001f && startIndex > 0u)
+            tangent = startSample.position - parentPath.samples[startIndex - 1u].position;
+        if (tangent.LengthSquared() <= 0.0001f)
+            continue;
+        tangent.Normalize();
+
+        Vec3 right{};
+        Vec3 up{};
+        EffectBeamRuntime::Resolve_PerpendicularAxes(tangent, right, up);
+        if (right.LengthSquared() <= 0.0001f || up.LengthSquared() <= 0.0001f)
+            continue;
+
+        const float directionAngle = EffectBeamRuntime::Hash01(branchSeed + 17u) * XM_2PI;
+        const Vec3 lateralAxis = right * cosf(directionAngle) + up * sinf(directionAngle);
+
+        Vec3 branchEnd{};
+        Vec3 controlPoint{};
+        switch (_desc.branchPreset)
+        {
+        case EffectBeamBranchPreset::DownStrike:
+        {
+            Vec3 downAxis = _transformCom != nullptr ? -_transformCom->Get_WorldUp() : Vec3{ 0.f, -1.f, 0.f };
+            if (downAxis.LengthSquared() <= 0.0001f)
+                downAxis = Vec3{ 0.f, -1.f, 0.f };
+            downAxis.Normalize();
+
+            Vec3 downRight{};
+            Vec3 downUp{};
+            EffectBeamRuntime::Resolve_PerpendicularAxes(downAxis, downRight, downUp);
+            const float spreadAngle = EffectBeamRuntime::Hash01(branchSeed + 19u) * XM_2PI;
+            const float spreadRadius = sqrtf(EffectBeamRuntime::Hash01(branchSeed + 23u)) * _desc.branchEndSpreadRadius;
+            const Vec3 spreadOffset = (downRight * cosf(spreadAngle) + downUp * sinf(spreadAngle)) * spreadRadius;
+            branchEnd = startSample.position + downAxis * _desc.branchDownLength + spreadOffset;
+            controlPoint = Vec3::Lerp(startSample.position, branchEnd, 0.5f) + lateralAxis * _desc.branchCurveAmount;
+            break;
+        }
+        case EffectBeamBranchPreset::Entangle:
+        {
+            const float signedAdvance = EffectBeamRuntime::Hash01(branchSeed + 19u) < 0.5f
+                                        ? -_desc.branchEntangleAdvance
+                                        : _desc.branchEntangleAdvance;
+            const float targetRatio = clamp(startRatio + signedAdvance, 0.f, 1.f);
+            uint32 targetIndex = static_cast<uint32>(roundf(targetRatio * static_cast<float>(maxSampleIndex)));
+            targetIndex = min(targetIndex, maxSampleIndex);
+
+            const float targetAngle = EffectBeamRuntime::Hash01(branchSeed + 23u) * XM_2PI;
+            const Vec3 targetOffset = (right * cosf(targetAngle) + up * sinf(targetAngle)) * _desc.branchEntangleRadius;
+            branchEnd = parentPath.samples[targetIndex].position + targetOffset;
+
+            const float controlAngle = targetAngle + XM_PIDIV2;
+            const Vec3 controlOffset =
+                (right * cosf(controlAngle) + up * sinf(controlAngle)) * _desc.branchEntangleRadius * (0.5f + _desc.branchCurveAmount);
+            controlPoint = Vec3::Lerp(startSample.position, branchEnd, 0.5f) + controlOffset;
+            break;
+        }
+        case EffectBeamBranchPreset::ShortCrack:
+        {
+            const float crackLength =
+                _desc.branchCrackLength + sqrtf(EffectBeamRuntime::Hash01(branchSeed + 23u)) * _desc.branchCrackSpreadRadius;
+            branchEnd = startSample.position + lateralAxis * crackLength;
+            controlPoint = Vec3::Lerp(startSample.position, branchEnd, 0.5f);
+            break;
+        }
+        case EffectBeamBranchPreset::EndGuided:
+        default:
+        {
+            const float spreadAngle = EffectBeamRuntime::Hash01(branchSeed + 19u) * XM_2PI;
+            const float spreadRadius = sqrtf(EffectBeamRuntime::Hash01(branchSeed + 23u)) * _desc.branchEndSpreadRadius;
+            const Vec3 spreadOffset = (targetRight * cosf(spreadAngle) + targetUp * sinf(spreadAngle)) * spreadRadius;
+            branchEnd = parentEnd + spreadOffset;
+
+            const float curveRatio = clamp(0.25f + _desc.branchCurveAmount * 0.5f, 0.05f, 0.95f);
+            controlPoint = Vec3::Lerp(startSample.position, branchEnd, curveRatio) + lateralAxis * _desc.branchOutwardAmount;
+            break;
+        }
+        }
+
+        if ((branchEnd - startSample.position).LengthSquared() <= 0.0001f)
+            continue;
+
+        PathEntry branchPath{};
+        branchPath.stripIndex = stripIndex;
+        branchPath.widthScale = _desc.branchWidthScale;
+        branchPath.samples.reserve(_desc.branchSegmentCount + 1u);
+
+        Vec3 previousWorldPosition{};
+        for (uint32 sampleIndex = 0u; sampleIndex <= _desc.branchSegmentCount; ++sampleIndex)
+        {
+            const float ratio = static_cast<float>(sampleIndex) / static_cast<float>(_desc.branchSegmentCount);
+            const float inverseRatio = 1.f - ratio;
+            Vec3 worldPosition =
+                startSample.position * (inverseRatio * inverseRatio) +
+                controlPoint * (2.f * inverseRatio * ratio) +
+                branchEnd * (ratio * ratio);
+            if (sampleIndex > 0u && sampleIndex < _desc.branchSegmentCount && _desc.noiseAmplitude > 0.f)
+            {
+                const float lateralX = EffectBeamRuntime::Hash01(branchSeed + sampleIndex * 6271u + 29u) * 2.f - 1.f;
+                const float lateralY = EffectBeamRuntime::Hash01(branchSeed + sampleIndex * 6271u + 31u) * 2.f - 1.f;
+                worldPosition += (right * lateralX + up * lateralY) * _desc.noiseAmplitude;
+            }
+
+            PathSample sample{};
+            sample.position = worldPosition;
+            sample.age = activeElapsedTime;
+            if (!branchPath.samples.empty())
+                sample.distance = branchPath.samples.back().distance + (worldPosition - previousWorldPosition).Length();
+            branchPath.samples.push_back(sample);
+            previousWorldPosition = worldPosition;
+        }
+
+        if (branchPath.samples.size() >= 2u)
+            _pathEntries.push_back(branchPath);
+    }
+}
+
 HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayload>& outPayloads) const
 {
-    if (_pathSamples.size() < 2u)
+    if (_pathEntries.empty())
         return S_OK;
 
-    const Vec4 subUVRect = Resolve_SubUVRect(Evaluate_SubUVFrameIndex());
     const uint32 maxSegmentCount = Compute_MaxRenderSegmentCount();
     if (outPayloads.size() >= maxSegmentCount)
         return S_OK;
 
-    const uint32 segmentCount = min(
-        static_cast<uint32>(_pathSamples.size() - 1u),
-        maxSegmentCount - static_cast<uint32>(outPayloads.size())
-    );
     const float duration = Resolve_Duration();
     const float activeElapsedTime = clamp(_loopElapsedTime - Resolve_CurrentLoopDelay(), 0.f, duration);
     const float lifeProgress = clamp(activeElapsedTime / duration, 0.f, 1.f);
     const float baseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(lifeProgress));
     const Vec4 color = Evaluate_ColorOverLife(lifeProgress);
 
-    for (uint32 index = 0; index < segmentCount; ++index)
+    for (const PathEntry& pathEntry : _pathEntries)
     {
-        const PathSample& previous = index > 0u ? _pathSamples[index - 1u] : _pathSamples[index];
-        const PathSample& current = _pathSamples[index];
-        const PathSample& next = _pathSamples[index + 1u];
-        const PathSample& nextNext = index + 2u < _pathSamples.size() ? _pathSamples[index + 2u] : next;
+        const vector<PathSample>& pathSamples = pathEntry.samples;
+        if (pathSamples.size() < 2u || outPayloads.size() >= maxSegmentCount)
+            continue;
 
-        SegmentPayload payload{};
-        payload.previousPosition =
-            Vec4(previous.position.x, previous.position.y, previous.position.z, index > 0u ? 1.f : 0.f);
-        payload.currentPosition = Vec4(current.position.x, current.position.y, current.position.z, 1.f);
-        payload.nextPosition = Vec4(next.position.x, next.position.y, next.position.z, 1.f);
-        payload.nextNextPosition = Vec4(
-            nextNext.position.x,
-            nextNext.position.y,
-            nextNext.position.z,
-            index + 2u < _pathSamples.size() ? 1.f : 0.f
+        const Vec4 subUVRect = Resolve_SubUVRect(Evaluate_SubUVFrameIndex(pathEntry.stripIndex));
+        const float uvDistanceScale = _desc.tilingDistance > 0.f
+                                      ? 1.f
+                                      : _visibleBeamLength / max(pathSamples.back().distance, 0.0001f);
+        const uint32 segmentCount = min(
+            static_cast<uint32>(pathSamples.size() - 1u),
+            maxSegmentCount - static_cast<uint32>(outPayloads.size())
         );
-        payload.currentSampleParams = Vec4(current.age, duration, current.distance, baseWidth);
-        payload.nextSampleParams = Vec4(next.age, duration, next.distance, baseWidth);
-        payload.startColor = color;
-        payload.endColor = color;
-        payload.subUVRect = subUVRect;
-        outPayloads.push_back(payload);
+
+        for (uint32 index = 0u; index < segmentCount; ++index)
+        {
+            const PathSample& previous = index > 0u ? pathSamples[index - 1u] : pathSamples[index];
+            const PathSample& current = pathSamples[index];
+            const PathSample& next = pathSamples[index + 1u];
+            const PathSample& nextNext = index + 2u < pathSamples.size() ? pathSamples[index + 2u] : next;
+
+            SegmentPayload payload{};
+            payload.previousPosition =
+                Vec4(previous.position.x, previous.position.y, previous.position.z, index > 0u ? 1.f : 0.f);
+            payload.currentPosition = Vec4(current.position.x, current.position.y, current.position.z, 1.f);
+            payload.nextPosition = Vec4(next.position.x, next.position.y, next.position.z, 1.f);
+            payload.nextNextPosition = Vec4(
+                nextNext.position.x,
+                nextNext.position.y,
+                nextNext.position.z,
+                index + 2u < pathSamples.size() ? 1.f : 0.f
+            );
+            payload.currentSampleParams =
+                Vec4(current.age, duration, current.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
+            payload.nextSampleParams =
+                Vec4(next.age, duration, next.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
+            payload.startColor = color;
+            payload.endColor = color;
+            payload.subUVRect = subUVRect;
+            outPayloads.push_back(payload);
+        }
     }
 
     return S_OK;
@@ -550,7 +797,16 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
 
 bool ComputeGeneratedBeamEmitter::Has_RenderablePath() const
 {
-    return _pathSamples.size() >= 2u && _visibleBeamLength > 0.0001f;
+    if (_visibleBeamLength <= 0.0001f)
+        return false;
+
+    for (const PathEntry& pathEntry : _pathEntries)
+    {
+        if (pathEntry.samples.size() >= 2u)
+            return true;
+    }
+
+    return false;
 }
 
 HRESULT ComputeGeneratedBeamEmitter::Ready_Components()
@@ -938,7 +1194,11 @@ bool ComputeGeneratedBeamEmitter::Can_SubmitRender() const
 
 uint32 ComputeGeneratedBeamEmitter::Compute_MaxRenderSegmentCount() const
 {
-    return max(1u, _desc.segmentCount);
+    const uint32 parentSegmentCount = max(1u, _desc.segmentCount) * max(1u, _desc.stripCount);
+    if (!_desc.branchEnabled || _desc.branchCount == 0u)
+        return parentSegmentCount;
+
+    return parentSegmentCount + max(1u, _desc.stripCount) * _desc.branchCount * max(1u, _desc.branchSegmentCount);
 }
 
 void ComputeGeneratedBeamEmitter::Start_NextLoop()
@@ -946,7 +1206,7 @@ void ComputeGeneratedBeamEmitter::Start_NextLoop()
     ++_loopIndex;
     _loopElapsedTime = 0.f;
     _playbackState = PlaybackState::Delayed;
-    _pathSamples.clear();
+    _pathEntries.clear();
     _visibleBeamLength = 1.f;
     _drawSegmentCount = 0u;
     Resample_RandomSubUVFrameIndex();
@@ -1087,7 +1347,7 @@ float ComputeGeneratedBeamEmitter::Evaluate_WidthScaleByLife(float lifeProgress)
     return _desc.sizeByLife.multiplyX ? max(0.f, curveScale) : 1.f;
 }
 
-uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex() const
+uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex(uint32 stripIndex) const
 {
     const uint32 rows = max(1u, _desc.material.subUVRows);
     const uint32 cols = max(1u, _desc.material.subUVCols);
@@ -1118,10 +1378,16 @@ uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex() const
     case SubUVFramePlaybackMode::FramesPerSecond:
     {
         const uint32 frameOffset = static_cast<uint32>(floorf(activeElapsedTime * max(0.f, _desc.subUVFrameOverLife.framesPerSecond)));
-        return startFrame + (_desc.subUVFrameOverLife.loop ? frameOffset % rangeCount : min(frameOffset, span));
+        if (!_desc.subUVFrameOverLife.loop)
+            return startFrame + min(frameOffset, span);
+
+        const uint32 phaseOffset = Resolve_FpsSubUVFramePhaseOffset(stripIndex, rangeCount);
+        return startFrame + ((frameOffset + phaseOffset) % rangeCount);
     }
     case SubUVFramePlaybackMode::RandomFrame:
-        return min(_randomSubUVFrameIndex, lastFrame);
+        return !_desc.usePerStripSubUVVariation || stripIndex == 0u
+               ? min(_randomSubUVFrameIndex, lastFrame)
+               : Resolve_RandomSubUVFrameIndex(stripIndex);
     case SubUVFramePlaybackMode::FixedFrame:
     default:
         return startFrame;
@@ -1142,7 +1408,7 @@ Vec4 ComputeGeneratedBeamEmitter::Resolve_SubUVRect(uint32 frameIndex) const
     return Vec4{ u0, v0, u0 + invCols, v0 + invRows };
 }
 
-void ComputeGeneratedBeamEmitter::Resample_RandomSubUVFrameIndex()
+uint32 ComputeGeneratedBeamEmitter::Resolve_RandomSubUVFrameIndex(uint32 stripIndex) const
 {
     const uint32 rows = max(1u, _desc.material.subUVRows);
     const uint32 cols = max(1u, _desc.material.subUVCols);
@@ -1154,9 +1420,35 @@ void ComputeGeneratedBeamEmitter::Resample_RandomSubUVFrameIndex()
         endFrame = startFrame;
 
     const uint32 rangeCount = endFrame - startFrame + 1u;
-    const uint32 seed = (_loopIndex + 1u) * 9781u + EffectBeamRuntime::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 1201u;
+    const uint32 stripSeedSalt = stripIndex * 15641u;
+    const uint32 seed =
+        (_loopIndex + 1u) * 9781u +
+        EffectBeamRuntime::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) +
+        stripSeedSalt +
+        1201u;
     const uint32 frameOffset = min(static_cast<uint32>(floorf(EffectBeamRuntime::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
-    _randomSubUVFrameIndex = startFrame + frameOffset;
+    return startFrame + frameOffset;
+}
+
+uint32 ComputeGeneratedBeamEmitter::Resolve_FpsSubUVFramePhaseOffset(uint32 stripIndex, uint32 rangeCount) const
+{
+    if (!_desc.usePerStripSubUVVariation ||
+        _desc.stripCount <= 1u ||
+        stripIndex == 0u ||
+        rangeCount <= 1u)
+        return 0u;
+
+    const uint32 seed =
+        (_loopIndex + 1u) * 9781u +
+        EffectBeamRuntime::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) +
+        stripIndex * 15641u +
+        3919u;
+    return min(static_cast<uint32>(floorf(EffectBeamRuntime::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
+}
+
+void ComputeGeneratedBeamEmitter::Resample_RandomSubUVFrameIndex()
+{
+    _randomSubUVFrameIndex = Resolve_RandomSubUVFrameIndex(0u);
 }
 
 float ComputeGeneratedBeamEmitter::Evaluate_CompactCurve(
