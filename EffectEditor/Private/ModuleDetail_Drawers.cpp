@@ -2840,16 +2840,12 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
                     detailContext.End_PropertyTable();
                 }
 
-                if (usesRandomSeed)
-                {
-                    changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
-                    ImGui::TextDisabled("Beam multi-strip uses this seed for RandomFrame samples and looped FPS phase offsets.");
-                }
-                else
+                if (!usesRandomSeed)
                     ImGui::TextDisabled("RandomFrame 또는 looped FramesPerSecond에서 seed 기반 strip variation을 사용합니다.");
             }
         }
-        else if (usesRandomSeed)
+
+        if (usesRandomSeed)
             changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
 
         const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);
