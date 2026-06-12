@@ -195,7 +195,18 @@ namespace
         }
 
         const fs::path picked = fs::path(buffer).lexically_normal();
-        outPath = String::ToString(picked.wstring());
+        error_code ec;
+        const fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
+        if (!ec && !cwd.empty())
+        {
+            const fs::path rel = picked.lexically_relative(cwd);
+            outPath = rel.empty() ? String::ToString(picked.wstring()) : rel.generic_string();
+        }
+        else
+        {
+            outPath = String::ToString(picked.wstring());
+        }
+
         outGuid.clear();
 
         const string guid = GAME->Ensure_AssetGUID(picked.wstring(), "Texture");
