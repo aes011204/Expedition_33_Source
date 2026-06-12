@@ -11,6 +11,8 @@
 NS_BEGIN(Client)
 
 class BattleWorldUI_CommandCards;
+class BattleWorldUI_ItemCards;
+class BattleWorldUI_SkillCards;
 class UI_BattleDefense;
 class UI_CancelAim;
 class BattleController;
@@ -114,6 +116,18 @@ private:
     HRESULT Ensure_BattleWorldCommandCards();
     void    Hide_BattleWorldCommandCards();
     void    Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState);
+    HRESULT Ensure_BattleWorldItemCards();
+    void    Hide_BattleWorldItemCards();
+    void    Update_BattleWorldItemCards(
+        const BattleChar& actor,
+        BattleItemType selectedItemType,
+        BattleTurnState currentState);
+    HRESULT Ensure_BattleWorldSkillCards();
+    void    Hide_BattleWorldSkillCards();
+    void    Update_BattleWorldSkillCards(
+        BattleTurnState currentState,
+        const BattleChar& actor,
+        const string& selectedSkillKey);
 
 private:
 #pragma region UI 위치맞추기
@@ -142,6 +156,8 @@ private:
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
     Unique<UI_BattleSystemHUD>              _battleSystemHUD;
     Shared<BattleWorldUI_CommandCards>      _battleWorldCommandCards;
+    Shared<BattleWorldUI_ItemCards>         _battleWorldItemCards;
+    Shared<BattleWorldUI_SkillCards>        _battleWorldSkillCards;
 
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
     Unique<UI_BossHpBar>                    _bossHpBar;

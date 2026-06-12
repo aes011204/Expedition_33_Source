@@ -658,6 +658,15 @@
     <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\GameplayUI_World.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1341,6 +1350,15 @@
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\GameplayUI_World.cpp">

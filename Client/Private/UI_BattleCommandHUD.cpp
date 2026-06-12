@@ -215,24 +215,32 @@ HRESULT UI_BattleCommandHUD::Bind_UI()
     CHECK_FAILED(Bind_CurrentPlayerAP(), E_FAIL);
 
     _allHUDUIs.clear();
-    _allHUDUIs.reserve(8);
+    _allHUDUIs.reserve(9);
 
-    auto Add_HUDAnimTarget = [this](const wchar_t* name) -> HRESULT
+    auto Add_HUDAnimTarget = [this](const wchar_t* name, bool required = true) -> HRESULT
         {
             Shared<UI_Base> ui = Find_UI(_uiByName, name);
-            CHECK_NULL(ui, E_FAIL);
+            if (ui == nullptr)
+            {
+                if (required)
+                    CHECK_NULL(ui, E_FAIL);
+
+                return S_OK;
+            }
+
             _allHUDUIs.push_back(ui);
             return S_OK;
         };
 
     CHECK_FAILED(Add_HUDAnimTarget(L"Panel_BattleCommand"), E_FAIL);
-    CHECK_FAILED(Add_HUDAnimTarget(L"Image_BattleCommand_BG"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Image_BattleCommand_BG", false), E_FAIL);
     CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Shot"), E_FAIL);
     CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Item"), E_FAIL);
     CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Skill"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_GradientSkill"), E_FAIL);
     CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Attack"), E_FAIL);
     CHECK_FAILED(Add_HUDAnimTarget(L"Panel_BattlePortrait_Current_Character_AP_Bar"), E_FAIL);
-    CHECK_FAILED(Add_HUDAnimTarget(L"Image_BattleCommand_BG_Deco"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Image_BattleCommand_BG_Deco", false), E_FAIL);
 
     return S_OK;
 }

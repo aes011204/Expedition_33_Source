@@ -4,6 +4,8 @@
 #include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
 #include "BattleWorldUI_CommandCards.h"
+#include "BattleWorldUI_ItemCards.h"
+#include "BattleWorldUI_SkillCards.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
@@ -1442,8 +1444,7 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
 
     if (turnState != BattleTurnState::ChooseAction &&
         turnState != BattleTurnState::ChooseItem &&
-        turnState != BattleTurnState::ChooseSkill &&
-        turnState != BattleTurnState::SkillTargeting)
+        turnState != BattleTurnState::ChooseSkill)
     {
         _escapeSkipTurn->Close();
         _escapeSkipTurn->Update(timeDelta);
@@ -1610,6 +1611,8 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
+    Hide_BattleWorldItemCards();
+
     if (_battleItemPanel == nullptr)
         return;
 
@@ -1627,16 +1630,18 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
     if (healing && energy && revive)
         _battleItemPanel->Refresh_ItemTexts(*healing, *energy, *revive);
 
-    auto turnState = battleController->Get_CurrentTurnState();
+    const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+    const ActionRequest& turnRequest = battleController->Get_TurnActionRequest();
 
     switch (turnState)
     {
     case BattleTurnState::ChooseItem:
         _battleItemPanel->Open_MainPanel();
+        Update_BattleWorldItemCards(turnRequest.actor, turnRequest.itemType, turnState);
         break;
 
     case BattleTurnState::ItemTargeting:
-        _battleItemPanel->Open_Tooltip(battleController->Get_TurnActionRequest().itemType);
+        _battleItemPanel->Open_Tooltip(turnRequest.itemType);
         break;
 
     default:
@@ -1647,6 +1652,8 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
 
 void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
 {
+    Hide_BattleWorldSkillCards();
+
     if (_battleSkillPanel == nullptr)
         return;
 
@@ -1674,6 +1681,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         {
             _battleSkillPanel->Open_MainPanel(turnRequest.actor.statCom->Get_PlayerType());
             _battleSkillPanel->Update(timeDelta);
+            Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey);
         }
         else
         {
@@ -1684,6 +1692,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
     case BattleTurnState::SkillTargeting:
         _battleSkillPanel->Open_Tooltip(turnRequest.skillKey);
         _battleSkillPanel->Update(timeDelta);
+        Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey);
         break;
 
     default:
@@ -1691,6 +1700,78 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         _battleSkillPanel->Update(timeDelta);
         break;
     }
+}
+
+HRESULT GameplayUI_Battle::Ensure_BattleWorldItemCards()
+{
+    if (_battleWorldItemCards != nullptr)
+        return S_OK;
+
+    _battleWorldItemCards = BattleWorldUI_ItemCards::Create(GAME->Get_Device(), GAME->Get_Context());
+    CHECK_NULL(_battleWorldItemCards, E_FAIL);
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Hide_BattleWorldItemCards()
+{
+    if (_battleWorldItemCards)
+        _battleWorldItemCards->Hide();
+}
+
+void GameplayUI_Battle::Update_BattleWorldItemCards(
+    const BattleChar& actor,
+    BattleItemType selectedItemType,
+    BattleTurnState currentState)
+{
+    if (actor.statCom == nullptr)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetBattleCommandHudWorldPos(actor, worldPos))
+        return;
+
+    if (FAILED(Ensure_BattleWorldItemCards()))
+        return;
+
+    _battleWorldItemCards->Show_ForBattleState(worldPos, currentState, selectedItemType);
+    _battleWorldItemCards->Late_Update(0.f);
+}
+
+HRESULT GameplayUI_Battle::Ensure_BattleWorldSkillCards()
+{
+    if (_battleWorldSkillCards != nullptr)
+        return S_OK;
+
+    _battleWorldSkillCards = BattleWorldUI_SkillCards::Create(GAME->Get_Device(), GAME->Get_Context());
+    CHECK_NULL(_battleWorldSkillCards, E_FAIL);
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Hide_BattleWorldSkillCards()
+{
+    if (_battleWorldSkillCards)
+        _battleWorldSkillCards->Hide();
+}
+
+void GameplayUI_Battle::Update_BattleWorldSkillCards(
+    BattleTurnState currentState,
+    const BattleChar& actor,
+    const string& selectedSkillKey)
+{
+    if (actor.statCom == nullptr)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetBattleCommandHudWorldPos(actor, worldPos))
+        return;
+
+    if (FAILED(Ensure_BattleWorldSkillCards()))
+        return;
+
+    _battleWorldSkillCards->Show_ForBattleState(worldPos, currentState, actor, selectedSkillKey);
+    _battleWorldSkillCards->Late_Update(0.f);
 }
 
 void GameplayUI_Battle::Update_BattleAnnounce(float timeDelta)
@@ -1932,6 +2013,8 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _pendingBattleSystemIntroActivationHeroId = HeroId::END;
 
     Hide_BattleWorldCommandCards();
+    Hide_BattleWorldItemCards();
+    Hide_BattleWorldSkillCards();
 
     if (_turnOrder)
         _turnOrder->Set_AnimationPlaybackEnabled(false);
@@ -2031,6 +2114,18 @@ void GameplayUI_Battle::Free()
     {
         _battleWorldCommandCards->Free();
         _battleWorldCommandCards.reset();
+    }
+
+    if (_battleWorldItemCards)
+    {
+        _battleWorldItemCards->Free();
+        _battleWorldItemCards.reset();
+    }
+
+    if (_battleWorldSkillCards)
+    {
+        _battleWorldSkillCards->Free();
+        _battleWorldSkillCards.reset();
     }
 
     auto Release_UI = [](auto& ui)

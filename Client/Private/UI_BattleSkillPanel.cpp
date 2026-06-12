@@ -325,12 +325,26 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
     _luneMainPanelUIs.clear();
     _maelleMainPanelUIs.clear();
 
-    auto Bind_MainPanelAnimTarget = [](const umap<wstring, Shared<UI_Base>>& loadedUIByName, const wchar_t* name, vector<Shared<UI_Base>>& outTargets) -> HRESULT
+    auto Bind_MainPanelAnimTarget = [](const umap<wstring, Shared<UI_Base>>& loadedUIByName, const wchar_t* name, vector<Shared<UI_Base>>& outTargets, bool required = true) -> HRESULT
         {
             Shared<UI_Base> ui = Find_UI(loadedUIByName, name);
-            CHECK_NULL(ui, E_FAIL);
+            if (ui == nullptr)
+            {
+                if (required)
+                    CHECK_NULL(ui, E_FAIL);
+
+                return S_OK;
+            }
+
             outTargets.push_back(ui);
             return S_OK;
+        };
+
+    auto Is_OptionalMainPanelAnimTarget = [](const wchar_t* name) -> bool
+        {
+            const wstring targetName = name != nullptr ? name : L"";
+            return targetName == L"Panel_BattleSystem_Skill_BG" ||
+                targetName.find(L"_Deco_") != wstring::npos;
         };
 
     auto Load_AndMerge = [&](
@@ -354,7 +368,11 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
             if (mainPanelTargets != nullptr)
             {
                 for (const wchar_t* targetName : targetNames)
-                    CHECK_FAILED(Bind_MainPanelAnimTarget(loadedUIByName, targetName, *mainPanelTargets), E_FAIL);
+                    CHECK_FAILED(Bind_MainPanelAnimTarget(
+                        loadedUIByName,
+                        targetName,
+                        *mainPanelTargets,
+                        !Is_OptionalMainPanelAnimTarget(targetName)), E_FAIL);
             }
 
             for (auto& [name, ui] : loadedUIByName)

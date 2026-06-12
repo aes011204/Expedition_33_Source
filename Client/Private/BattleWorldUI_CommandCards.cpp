@@ -1,5 +1,6 @@
 #include "BattleWorldUI_CommandCards.h"
 
+#include "BattleWorldUI_JsonTextureResolver.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -11,11 +12,18 @@ namespace
 {
     constexpr char kBattleWorldAttackCardTextureGuid[] = "bec2ba8a-a265-40d8-9bd1-bc85420ebaa2";
     constexpr char kBattleWorldKeyFrameTextureGuid[] = "72de5c45-b20f-490d-9d69-396a830b514f";
+    constexpr char kBattleWorldSelectionBackdropTextureGuid[] = "6cddf734-cfc4-420a-b75c-2593e48ba29d";
+    constexpr wchar_t kBattleWorldCommandHUDJsonPath[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_HUD.json";
     constexpr uint32 kBattleWorldCardPixelWidth = 768;
     constexpr uint32 kBattleWorldCardPixelHeight = 192;
     const Vec2 kBattleWorldCommandListWorldSize = Vec2(0.86f, 0.215f);
     const Vec2 kBattleWorldCommandTargetingWorldSize = Vec2(0.98f, 0.245f);
     const Vec3 kBattleWorldCommandTargetingOffset = Vec3(0.f, 0.62f, 0.f);
+    const Vec3 kBattleWorldCommandListBackdropOffset = Vec3(0.03f, 0.48f, 0.f);
+    const Vec3 kBattleWorldCommandTargetingBackdropOffset = Vec3(0.02f, 0.62f, 0.f);
+    const Vec2 kBattleWorldCommandListBackdropWorldSize = Vec2(1.04f, 0.72f);
+    const Vec2 kBattleWorldCommandTargetingBackdropWorldSize = Vec2(1.02f, 0.32f);
+    const Vec4 kBattleWorldSelectionBackdropColor = Vec4(0.08f, 0.07f, 0.055f, 0.42f);
     constexpr float kBattleWorldCommandDefaultScale = 1.f;
     constexpr float kBattleWorldCommandSelectedScale = 1.06f;
 
@@ -105,12 +113,27 @@ namespace
         float visualScale = kBattleWorldCommandDefaultScale;
     };
 
+    struct BattleWorldSelectionBackdropPresentation
+    {
+        bool visible = false;
+        Vec3 worldOffset = Vec3::Zero;
+        Vec2 worldSize = Vec2::Zero;
+        Vec4 color = kBattleWorldSelectionBackdropColor;
+    };
+
+    struct BattleWorldSharedSelectionBackdrop
+    {
+        Shared<Texture> texture{};
+        Matrix worldMatrix = Matrix::Identity;
+        Vec4 color = kBattleWorldSelectionBackdropColor;
+        bool visible = false;
+    };
+
     BattleWorldCommandKind Resolve_SelectedCommand(BattleTurnState state)
     {
         switch (state)
         {
         case BattleTurnState::ChooseItem:
-        case BattleTurnState::ItemTargeting:
             return BattleWorldCommandKind::Item;
 
         case BattleTurnState::ChooseSkill:
@@ -132,7 +155,6 @@ namespace
         switch (state)
         {
         case BattleTurnState::ChooseAction:
-        case BattleTurnState::ItemTargeting:
         case BattleTurnState::SkillTargeting:
         case BattleTurnState::AttackTargeting:
             return true;
@@ -149,12 +171,12 @@ namespace
         case BattleTurnState::ChooseAction:
             return BattleWorldCommandVisibility::AllCommands;
 
-        case BattleTurnState::ItemTargeting:
         case BattleTurnState::SkillTargeting:
         case BattleTurnState::AttackTargeting:
             return BattleWorldCommandVisibility::SelectedCommandOnly;
 
         case BattleTurnState::ChooseItem:
+        case BattleTurnState::ItemTargeting:
         case BattleTurnState::ChooseSkill:
         default:
             return BattleWorldCommandVisibility::SelectedCommandOnly;
@@ -193,6 +215,28 @@ namespace
         presentation.worldOffset = def.placement.targetingOffset;
         presentation.worldSize = def.placement.targetingWorldSize;
         presentation.visualScale = kBattleWorldCommandSelectedScale;
+        return presentation;
+    }
+
+    BattleWorldSelectionBackdropPresentation Resolve_SelectionBackdropPresentation(BattleTurnState state)
+    {
+        BattleWorldSelectionBackdropPresentation presentation{};
+
+        if (!Should_ShowBattleWorldCommandCards(state))
+            return presentation;
+
+        presentation.visible = true;
+        presentation.color = kBattleWorldSelectionBackdropColor;
+
+        if (Resolve_CommandVisibility(state) == BattleWorldCommandVisibility::AllCommands)
+        {
+            presentation.worldOffset = kBattleWorldCommandListBackdropOffset;
+            presentation.worldSize = kBattleWorldCommandListBackdropWorldSize;
+            return presentation;
+        }
+
+        presentation.worldOffset = kBattleWorldCommandTargetingBackdropOffset;
+        presentation.worldSize = kBattleWorldCommandTargetingBackdropWorldSize;
         return presentation;
     }
 
@@ -297,6 +341,42 @@ namespace
             });
 
         return def;
+    }
+
+    HRESULT Bind_WorldUIPlaneShaderState(
+        ShaderCom* shader,
+        const Matrix& worldMatrix,
+        const Vec4& color)
+    {
+        CHECK_NULL(shader, E_FAIL);
+
+        const Vec2 defaultPatternOffset = Vec2(0.f, 0.f);
+        const Vec2 defaultPatternScale = Vec2(1.f, 1.f);
+        const Vec2 defaultHoleCenter = Vec2(0.5f, 0.5f);
+        const float defaultHoleRadius = 0.f;
+        const float defaultHoleFeather = 0.05f;
+        const float defaultViewportAspect = 1.f;
+        const float defaultFillRatio = 1.f;
+        const bool disabled = false;
+        const uint32 fillOrigin = 0u;
+
+        CHECK_FAILED(shader->Bind_Matrix("g_WorldMatrix", &worldMatrix), E_FAIL);
+        CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, shader, "g_ViewMatrix"), E_FAIL);
+        CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, shader, "g_ProjMatrix"), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_Color", &color, sizeof(Vec4)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_PatternUvOffset", &defaultPatternOffset, sizeof(Vec2)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_PatternUvScale", &defaultPatternScale, sizeof(Vec2)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
+
+        return S_OK;
     }
 
     vector<BattleWorldCommandCardDef> Build_CommandCardDefs()
@@ -559,20 +639,6 @@ namespace
         Unique<SpriteBatch> _spriteBatch{};
     };
 
-    Shared<Texture> Load_TextureFromGuid(
-        const ComPtr<Device>& device,
-        const ComPtr<Context>& context,
-        const string& guid)
-    {
-        const wstring texturePath = GAME->Resolve_AssetPath(guid);
-        if (texturePath.empty())
-        {
-            LOG_WARN("Battle world command card texture guid could not be resolved. guid='{}'", guid);
-            return nullptr;
-        }
-
-        return Texture::Create(device, context, texturePath.c_str(), 1);
-    }
 }
 
 struct BattleWorldUI_CommandCards::Impl
@@ -581,6 +647,7 @@ struct BattleWorldUI_CommandCards::Impl
     Shared<VIBuffer_Rect> viBuffer{};
     Shared<Texture> backgroundTexture{};
     Shared<Texture> keyFrameTexture{};
+    BattleWorldSharedSelectionBackdrop selectionBackdrop{};
     vector<BattleWorldCommandCardInstance> cards{};
 };
 
@@ -601,11 +668,30 @@ HRESULT BattleWorldUI_CommandCards::Initialize(void* arg)
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_UI"), _impl->shader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("VIBuffer_Rect"), _impl->viBuffer), E_FAIL);
 
-    _impl->backgroundTexture = Load_TextureFromGuid(_device, _context, kBattleWorldAttackCardTextureGuid);
+    _impl->backgroundTexture = BattleWorldUI_JsonTextureResolver::Load_TextureFromUIImage(
+        _device,
+        _context,
+        kBattleWorldCommandHUDJsonPath,
+        "Image_BattleCommand_Attack_Frame_BG",
+        kBattleWorldAttackCardTextureGuid);
     CHECK_NULL(_impl->backgroundTexture, E_FAIL);
 
-    _impl->keyFrameTexture = Load_TextureFromGuid(_device, _context, kBattleWorldKeyFrameTextureGuid);
+    _impl->keyFrameTexture = BattleWorldUI_JsonTextureResolver::Load_TextureFromUIImage(
+        _device,
+        _context,
+        kBattleWorldCommandHUDJsonPath,
+        "Image_KeyFrame_W",
+        kBattleWorldKeyFrameTextureGuid);
     CHECK_NULL(_impl->keyFrameTexture, E_FAIL);
+
+    _impl->selectionBackdrop.texture =
+        BattleWorldUI_JsonTextureResolver::Load_TextureFromUIImage(
+            _device,
+            _context,
+            kBattleWorldCommandHUDJsonPath,
+            "Image_BattleCommand_Attack_Frame_Deco_6",
+            kBattleWorldSelectionBackdropTextureGuid);
+    CHECK_NULL(_impl->selectionBackdrop.texture, E_FAIL);
 
     _impl->cards.clear();
 
@@ -673,6 +759,21 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(const Vec3& anchorWorldPos,
         anyVisible = true;
     }
 
+    const BattleWorldSelectionBackdropPresentation backdropPresentation =
+        Resolve_SelectionBackdropPresentation(currentState);
+    _impl->selectionBackdrop.visible = anyVisible && backdropPresentation.visible;
+    if (_impl->selectionBackdrop.visible)
+    {
+        const Vec3 position = anchorWorldPos + backdropPresentation.worldOffset;
+        _impl->selectionBackdrop.worldMatrix =
+            Matrix::CreateScale(
+                backdropPresentation.worldSize.x,
+                backdropPresentation.worldSize.y,
+                1.f) *
+            Matrix::CreateTranslation(position.x, position.y, position.z);
+        _impl->selectionBackdrop.color = backdropPresentation.color;
+    }
+
     Set_Visible(anyVisible);
 }
 
@@ -685,6 +786,8 @@ void BattleWorldUI_CommandCards::Hide()
 
     for (auto& card : _impl->cards)
         card.visible = false;
+
+    _impl->selectionBackdrop.visible = false;
 }
 
 void BattleWorldUI_CommandCards::Late_Update(float timeDelta)
@@ -703,36 +806,28 @@ HRESULT BattleWorldUI_CommandCards::Render()
         return S_OK;
 
     const Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
-    const Vec2 defaultPatternOffset = Vec2(0.f, 0.f);
-    const Vec2 defaultPatternScale = Vec2(1.f, 1.f);
-    const Vec2 defaultHoleCenter = Vec2(0.5f, 0.5f);
-    const float defaultHoleRadius = 0.f;
-    const float defaultHoleFeather = 0.05f;
-    const float defaultViewportAspect = 1.f;
-    const float defaultFillRatio = 1.f;
-    const bool disabled = false;
-    const uint32 fillOrigin = 0u;
+
+    if (_impl->selectionBackdrop.visible && _impl->selectionBackdrop.texture != nullptr)
+    {
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(
+            _impl->shader.get(),
+            _impl->selectionBackdrop.worldMatrix,
+            _impl->selectionBackdrop.color), E_FAIL);
+        CHECK_FAILED(_impl->selectionBackdrop.texture->Bind_ShaderResourceView(
+            _impl->shader.get(),
+            "g_Texture",
+            0), E_FAIL);
+        CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
+        CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);
+        CHECK_FAILED(_impl->viBuffer->Render(), E_FAIL);
+    }
 
     for (const auto& card : _impl->cards)
     {
         if (!card.visible || card.surface == nullptr)
             continue;
 
-        CHECK_FAILED(_impl->shader->Bind_Matrix("g_WorldMatrix", &card.worldMatrix), E_FAIL);
-        CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _impl->shader.get(), "g_ViewMatrix"), E_FAIL);
-        CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _impl->shader.get(), "g_ProjMatrix"), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_Color", &color, sizeof(Vec4)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_PatternUvOffset", &defaultPatternOffset, sizeof(Vec2)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_PatternUvScale", &defaultPatternScale, sizeof(Vec2)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
-        CHECK_FAILED(_impl->shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), card.worldMatrix, color), E_FAIL);
         CHECK_FAILED(card.surface->Bind_ShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);
@@ -755,6 +850,7 @@ void BattleWorldUI_CommandCards::Free()
         _impl->cards.clear();
         _impl->backgroundTexture.reset();
         _impl->keyFrameTexture.reset();
+        _impl->selectionBackdrop.texture.reset();
         _impl->shader.reset();
         _impl->viBuffer.reset();
         _impl.reset();
