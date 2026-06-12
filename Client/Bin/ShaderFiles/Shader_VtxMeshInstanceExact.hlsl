@@ -92,7 +92,7 @@ PS_OUT PS_Opaque(PS_IN In)
 
     // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확인만
     float3 emissive = SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+    //baseColor.rgb = baseColor.rgb * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
@@ -121,7 +121,6 @@ PS_OUT PS_Mask(PS_IN In)
 
     // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확인만
     float3 emissive = SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
@@ -133,7 +132,7 @@ PS_OUT PS_Mask(PS_IN In)
 }
 
 PS_OUT PS_NoTexture(PS_IN In)
-{
+{   
     PS_OUT Out;
 
     Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
@@ -146,7 +145,7 @@ PS_OUT PS_NoTexture(PS_IN In)
 }
 
 PS_OUT PS_OpaqueAR(PS_IN In)
-{
+{   
     PS_OUT Out;
     float2 finalUV = ApplyUVTransform(In.vTexcoord);
 
@@ -158,9 +157,11 @@ PS_OUT PS_OpaqueAR(PS_IN In)
     float3 orm = float3(g_AoScale, saturate(arTex.a * g_RoughnessScale), g_MetalnessScale);
 
     float3 emissive = SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+    //baseColor.rgb = baseColor.rgb * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
+    //Out.vDiffuse = float4(worldNormal * 0.5f + 0.5f, 1.f);
+    
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
     Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
     Out.vMaterial = float4(orm.xyz, 1.f);

@@ -929,6 +929,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
                 entry.materialMetaJson = data.value("MaterialMeta", json::object());
             }
             Merge_LegacyPassIntoMaterialBindings(entry, legacyPassIndex);
+
             _modelOverrides[filename] = entry;
         }
         _dirtyPassOverrides = true;
@@ -1804,16 +1805,11 @@ void SceneContext::ScatterAt(EditorObject* obj, const ScatterZone& zone)
     _dirtyRenderHandles = true;
 }
 
-void SceneContext::Export_MapInstance(const string& filePath)
+void SceneContext::Export_MapInstance(const string& mapName)
 {
-    fs::path jsonPath(filePath);
-    string mapName = jsonPath.stem().string();
-    if (mapName.empty() || mapName == "Untitled" || mapName == "MapInstance")
-        mapName = String::ToString(_mapName);
-
     if (mapName.empty() || mapName == "MapInstance")
     {
-        LOG_WARN("[SceneContext::Export_MapInstance] invalid map name. filePath='{}' mapName='{}'", filePath, mapName);
+        LOG_WARN("[SceneContext::Export_MapInstance] invalid map name. mapName='{}'", mapName);
         return;
     }
 
@@ -1943,10 +1939,13 @@ void SceneContext::Export_MapInstance(const string& filePath)
         string modelPath = String::ToString(modelPathW);
         string filename = fs::path(modelPath).filename().string();
 
-        auto overrideIt = _modelOverrides.find(filename);
-        if (overrideIt != _modelOverrides.end() && overrideIt->second.HasAnyMaterialOverride())
+        for (const string& key : { filename })
         {
-            overrideIt->second.ExportToNativeMaterial(modelPath, mapName);
+            auto overrideIt = _modelOverrides.find(key);
+            if (overrideIt != _modelOverrides.end() && overrideIt->second.HasAnyMaterialOverride())
+            {
+                overrideIt->second.ExportToNativeMaterial(modelPath, mapName);
+            }
         }
     }
 }
@@ -2006,6 +2005,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
                         {
                             ModelOverrideEntry overrideEntry;
                             overrideEntry.LoadMaterialBindingsJson(rootJson);
+                            ShaderType loadedType = static_cast<ShaderType>(rootJson.value("editor_shaderType", static_cast<int>(ShaderType::VtxMesh)));
                             _modelOverrides[modelKey] = overrideEntry;
                         }
                         continue;
@@ -2028,7 +2028,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
 
                         ModelOverrideEntry overrideEntry;
                         overrideEntry.LoadLegacyMaterialJson(rootJson);
-                        
+
                         _modelOverrides[modelKey] = overrideEntry;
                     }
                 }
