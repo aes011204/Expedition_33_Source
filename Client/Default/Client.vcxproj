@@ -232,6 +232,7 @@
     <ClInclude Include="..\Public\FaceAccessory_Player.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GamePlayMenuFade.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
@@ -525,6 +526,7 @@
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />

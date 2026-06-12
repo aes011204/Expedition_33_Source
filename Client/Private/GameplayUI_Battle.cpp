@@ -3,6 +3,7 @@
 #include "BuffSystem.h"
 #include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
+#include "BattleWorldUI_CommandCards.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
@@ -955,6 +956,8 @@ void GameplayUI_Battle::Handle_CounterAnnounceRequested(const vector<BattleChar>
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 {
+    Hide_BattleWorldCommandCards();
+
     if (_battleCommandHUD == nullptr)
         return;
 
@@ -973,12 +976,6 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     const BattleTurnState currentState = battleController->Get_CurrentTurnState();
 
-    if (currentState != BattleTurnState::ChooseAction)
-    {
-        _battleCommandHUD->Close(); // 공격 중에는 커맨드 HUD 숨기기
-        return;
-    }
-
     if (!_hasCurrentPlayerTurnActor || _currentPlayerTurnActor.statCom == nullptr)
     {
         _battleCommandHUD->Close();
@@ -992,19 +989,54 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
         return;
     }
 
-    _battleCommandHUD->Open();
-    _battleCommandHUD->Set_TargetWorldPosition(worldPos);
+    if (currentState == BattleTurnState::ChooseAction)
+    {
+        _battleCommandHUD->Open();
+        _battleCommandHUD->Set_TargetWorldPosition(worldPos);
 
-    // 현재 턴 영웅을 HUD에 넘겨 Hero별 오프셋 세팅이 되게
-    _battleCommandHUD->Set_CurrentHeroId(_currentPlayerTurnActor.heroId);
+        // 현재 턴 영웅을 HUD에 넘겨 Hero별 오프셋 세팅이 되게
+        _battleCommandHUD->Set_CurrentHeroId(_currentPlayerTurnActor.heroId);
 
-    _battleCommandHUD->Set_CurrentPlayerAP(
-        _currentPlayerTurnActor.statCom->Get_CurAP(),
-        _currentPlayerTurnActor.statCom->Get_MaxAP());
+        _battleCommandHUD->Set_CurrentPlayerAP(
+            _currentPlayerTurnActor.statCom->Get_CurAP(),
+            _currentPlayerTurnActor.statCom->Get_MaxAP());
 
-    _battleCommandHUD->Refresh_ForState(currentState);
+        _battleCommandHUD->Refresh_ForState(currentState);
 
-    _battleCommandHUD->Update(timeDelta);
+        _battleCommandHUD->Update(timeDelta);
+    }
+    else
+    {
+        _battleCommandHUD->Close();
+    }
+
+    Update_BattleWorldCommandCards(worldPos, currentState);
+}
+
+HRESULT GameplayUI_Battle::Ensure_BattleWorldCommandCards()
+{
+    if (_battleWorldCommandCards != nullptr)
+        return S_OK;
+
+    _battleWorldCommandCards = BattleWorldUI_CommandCards::Create(GAME->Get_Device(), GAME->Get_Context());
+    CHECK_NULL(_battleWorldCommandCards, E_FAIL);
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Hide_BattleWorldCommandCards()
+{
+    if (_battleWorldCommandCards)
+        _battleWorldCommandCards->Hide();
+}
+
+void GameplayUI_Battle::Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState)
+{
+    if (FAILED(Ensure_BattleWorldCommandCards()))
+        return;
+
+    _battleWorldCommandCards->Show_ForBattleState(commandHudWorldPos, currentState);
+    _battleWorldCommandCards->Late_Update(0.f);
 }
 
 void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
@@ -1899,6 +1931,8 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _hasPendingBattleSystemIntroActivation = false;
     _pendingBattleSystemIntroActivationHeroId = HeroId::END;
 
+    Hide_BattleWorldCommandCards();
+
     if (_turnOrder)
         _turnOrder->Set_AnimationPlaybackEnabled(false);
 
@@ -1992,6 +2026,12 @@ Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)
 void GameplayUI_Battle::Free()
 {
     Unbind_BattleDelegates(); // BattleController가 살아있는 동안 dangling handle이 남지 않게 먼저 정리한다.
+
+    if (_battleWorldCommandCards)
+    {
+        _battleWorldCommandCards->Free();
+        _battleWorldCommandCards.reset();
+    }
 
     auto Release_UI = [](auto& ui)
         {

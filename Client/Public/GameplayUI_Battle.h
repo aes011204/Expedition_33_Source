@@ -10,6 +10,7 @@
 
 NS_BEGIN(Client)
 
+class BattleWorldUI_CommandCards;
 class UI_BattleDefense;
 class UI_CancelAim;
 class BattleController;
@@ -110,6 +111,9 @@ private:
     void    Update_QTE(float timeDelta);
     void    Update_MarkEffect(float timeDelta);
     void    Update_BattleSystemIntroState(float timeDelta);
+    HRESULT Ensure_BattleWorldCommandCards();
+    void    Hide_BattleWorldCommandCards();
+    void    Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState);
 
 private:
 #pragma region UI 위치맞추기
@@ -137,6 +141,7 @@ private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
     Unique<UI_BattleSystemHUD>              _battleSystemHUD;
+    Shared<BattleWorldUI_CommandCards>      _battleWorldCommandCards;
 
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
     Unique<UI_BossHpBar>                    _bossHpBar;
