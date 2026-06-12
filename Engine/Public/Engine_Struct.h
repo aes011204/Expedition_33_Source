@@ -137,4 +137,36 @@ struct ViewportSize
     uint32 height = 900;
 };
 
+
+// Facial 적용을 위한 Morph 구조체
+struct MorphVertexRange
+{
+    uint32 start{};
+    uint32 count{};
+};
+
+struct MorphVertexDelta
+{
+    uint32 vertexIndex{};
+    float weightScale{ 1.f };
+    Vec3 deltaPosition{};
+    Vec3 deltaNormal{};
+};
+
+struct MorphMeshData
+{
+    uint32 meshIndex{};
+    std::string meshName{};
+    uint32 vertexCount{};
+    std::vector<MorphVertexRange> vertexRanges;
+    std::vector<MorphVertexDelta> vertexDeltas;
+};
+
+struct MorphData
+{
+    std::string sourceName{};
+    std::vector<std::string> targets;
+    std::vector<MorphMeshData> meshes;
+};
+
 }

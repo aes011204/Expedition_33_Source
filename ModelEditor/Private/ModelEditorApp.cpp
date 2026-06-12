@@ -8,6 +8,7 @@
 #include "Level_ModelEditor.h"
 
 #include "ShaderCom.h"
+#include "ComputeShaderCom.h"
 #include "Vertex_Types.h"
 
 #include <filesystem>
@@ -20,12 +21,12 @@ NS_BEGIN(ModelEditor)
 HRESULT ModelEditorApp::Initialize()
 {
 	const std::filesystem::path assetRootPath(Get_ClientResourceRoot());
-	
+
 	ENGINE_DESC engineDesc{};
 	engineDesc.hInstance = g_hInst;
 	engineDesc.hWnd = g_hWnd;
 	engineDesc.winMode = WinMode::Win;
-	engineDesc.numLevels = 1; 
+	engineDesc.numLevels = 1;
 	RECT rc;
 	GetClientRect(g_hWnd, &rc);
 	engineDesc.viewportWidth = rc.right - rc.left;
@@ -41,10 +42,43 @@ HRESULT ModelEditorApp::Initialize()
 	if (FAILED(ModelImGui_Manager::GetInstance()->Initialize(g_hWnd, _device, _context)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", ShaderCom::Create(_device, _context, TEXT("../../Bin/ShaderFiles/Shader_VtxMesh.hlsl"), VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh))))
+	Shared<ShaderCom> vtxMeshShader =
+		ShaderCom::Create(_device, _context,
+			L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
+			VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh);
+	if (vtxMeshShader == nullptr)
 		return E_FAIL;
-	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", ShaderCom::Create(_device, _context, TEXT("../../Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl"), VTXANIMMESH::Elements, VTXANIMMESH::numElements, ShaderType::VtxAnimMesh))))
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", vtxMeshShader)))
 		return E_FAIL;
+
+	Shared<ShaderCom> vtxAnimMeshShader =
+		ShaderCom::Create(_device, _context,
+			L"../../../Client/Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl",
+			VTXANIMMESH::Elements, VTXANIMMESH::numElements, ShaderType::VtxAnimMesh);
+	if (vtxAnimMeshShader == nullptr)
+		return E_FAIL;
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", vtxAnimMeshShader)))
+		return E_FAIL;
+
+    auto addComputeShader = [&](const wchar_t* prototypeTag, const wchar_t* shaderPath) -> HRESULT
+    {
+        Shared<ComputeShaderCom> shader =
+            ComputeShaderCom::Create(_device, _context, shaderPath, "CS_Main");
+        CHECK_NULL(shader, E_FAIL);
+        return GAME->Add_Prototype(0, prototypeTag, shader);
+    };
+
+    CHECK_FAILED(addComputeShader(
+        L"ComputeShader_BoneRemap",
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_BoneRemap.hlsl"), E_FAIL);
+
+    CHECK_FAILED(addComputeShader(
+        L"ComputeShader_AnimMeshSkinning",
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_AnimMeshSkinning.hlsl"), E_FAIL);
+
+    CHECK_FAILED(addComputeShader(
+        L"ComputeShader_MorphDeform",
+        L"../../../Engine/Bin/ShaderFiles/Compute/Shader_Compute_MorphDeform.hlsl"), E_FAIL);
 
 	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelEditorCamera", ModelEditorCamera::Create(_device, _context))))
 		return E_FAIL;

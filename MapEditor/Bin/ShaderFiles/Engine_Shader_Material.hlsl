@@ -115,12 +115,15 @@ float3 SampleOrm(float2 uv)
 {
     float3 orm = float3(1.f, 1.f, 0.05f);
 
-    if (HasMaterialTexture(MATERIAL_SLOT_ORM))
+    float4 ormTex = HasMaterialTexture(MATERIAL_SLOT_ORM) ? g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv) : float4(0, 0, 0, 0);
+    float4 orm2Tex = HasMaterialTexture(MATERIAL_SLOT_ORM2) ? g_MaterialTextures[MATERIAL_SLOT_ORM2].Sample(LinearWrapSampler, uv) : float4(0, 0, 0, 0);
+    float4 orm3Tex = HasMaterialTexture(MATERIAL_SLOT_ORM3) ? g_MaterialTextures[MATERIAL_SLOT_ORM3].Sample(LinearWrapSampler, uv) : float4(0, 0, 0, 0);
+    
+    if (HasMaterialTexture(MATERIAL_SLOT_ORM) || HasMaterialTexture(MATERIAL_SLOT_ORM2) || HasMaterialTexture(MATERIAL_SLOT_ORM3))
     {
-        float4 ormTex = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv);
-        orm.r = ResolveScalarChannel(ormTex, g_OrmAoSource);
-        orm.g = ResolveScalarChannel(ormTex, g_OrmRoughnessSource);
-        orm.b = ResolveScalarChannel(ormTex, g_OrmMetalnessSource);
+        orm.r = ResolveScalarChannel(g_OrmAoSourceSlot == 0 ? ormTex : (g_OrmAoSourceSlot == 1 ? orm2Tex : orm3Tex), g_OrmAoSource);
+        orm.g = ResolveScalarChannel(g_OrmRoughnessSourceSlot == 0 ? ormTex : (g_OrmRoughnessSourceSlot == 1 ? orm2Tex : orm3Tex), g_OrmRoughnessSource);
+        orm.b = ResolveScalarChannel(g_OrmMetalnessSourceSlot == 0 ? ormTex : (g_OrmMetalnessSourceSlot == 1 ? orm2Tex : orm3Tex), g_OrmMetalnessSource);
     }
 
     orm.r *= g_AoScale; // O

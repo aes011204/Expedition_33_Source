@@ -85,7 +85,6 @@ void Mon_WeakPoint::Update(float timeDelta)
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
-
 }
 
 void Mon_WeakPoint::Late_Update(float timeDelta)

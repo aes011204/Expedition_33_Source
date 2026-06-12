@@ -57,6 +57,8 @@ private:
 private:
     bool                      _isActive = false;
     bool                      _pendingPreviewReveal = false;
+    PreviewShotPanel          _activePanel = PreviewShotPanel::CharacterStatus;
+    HeroId                    _shownHeroId = HeroId::END;
     vector<PreviewHeroEntry>  _previewHeroes{};
   //  Shared<Camera>            _previousCamera{};
     Shared<PreviewCamera>     _previewCamera{};

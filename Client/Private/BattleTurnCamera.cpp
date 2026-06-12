@@ -150,6 +150,16 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
         {
+            const string modeName = string(magic_enum::enum_name(event.cameraMode));
+            LOG_INFO(
+                "[BattleCamTrace] EvtBattlePresentation mode={} presetId={} clipId={} useClip={} subject={} opponent={}",
+                modeName.c_str(),
+                event.presetId.c_str(),
+                event.clipId.c_str(),
+                event.useClip,
+                event.subject != nullptr,
+                event.opponent != nullptr);
+
             Apply_ShotRequest(Build_BattleShotRequestFromEvent(event));
         }
     );
@@ -176,7 +186,6 @@ void BattleTurnCamera::BeginPlay()
 
 void BattleTurnCamera::Update(float timeDelta)
 {
-
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
@@ -191,6 +200,16 @@ void BattleTurnCamera::Update(float timeDelta)
         Update_PoseTransition(timeDelta);
         return;
     }
+
+    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
+
+    LOG_INFO(
+        "[BattleCamTrace] Update mode={} presetId={} clipId={} useClip={} activeClip={}",
+        modeName.c_str(),
+        _currentRequest.presetId.c_str(),
+        _currentRequest.clipId.c_str(),
+        _currentRequest.useClip,
+        _activeClip != nullptr);
 
     switch (_currentRequest.mode)
     {
@@ -218,6 +237,7 @@ void BattleTurnCamera::Update(float timeDelta)
     }
 
     Update_TransformMatrices();
+
 }
 
 void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta)
@@ -306,6 +326,14 @@ void BattleTurnCamera::Set_Participants(
 
 void BattleTurnCamera::Reset_RuntimeState()
 {
+    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
+    LOG_INFO(
+        "[BattleCamTrace] Reset_RuntimeState prevMode={} prevPresetId={} prevClipId={} activeClip={}",
+        modeName.c_str(),
+        _currentRequest.presetId.c_str(),
+        _currentRequest.clipId.c_str(),
+        _activeClip != nullptr);
+
     _currentRequest = {};
     _targetTransform.reset();
     _activeClip = nullptr;
@@ -649,28 +677,52 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
 {
     switch (request.mode)
     {
-    case BattleCameraMode::WIDE:
-        return Evaluate_WidePose(preset.camera.fovy, outPose);
-    case BattleCameraMode::ENEMYATTACK:
-    {
-        if (request.subject == nullptr || request.opponent == nullptr)
-            return false;
 
-        Vec3 subjectPos = _enemyPos;
-        Vec3 opponentPos = _playerPos;
-        if (subjectPos.LengthSquared() <= 0.0001f)
-            subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
-        if (opponentPos.LengthSquared() <= 0.0001f)
-            opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
-        return Evaluate_BattleTurnEnemyAttackPose(
-            subjectPos,
-            opponentPos,
-            preset,
-            clipSample,
-            clipTime,
-            outPose);
-    }
+    case BattleCameraMode::PLAYERATTACK:
+        {
+           if(request.subject == nullptr || request.opponent == nullptr)
+               return false;
+
+           //Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+           //Vec3 opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+
+           Vec3 subjectPos = _playerAttackSubjectPos;
+           Vec3 opponentPos = _playerAttackOpponentPos;
+
+           return Evaluate_BattleTurnPlayerAttackRelationPose(
+           subjectPos,
+           opponentPos,
+           preset,
+           clipSample,
+           clipTime,
+           outPose);
+
+        }
+    case BattleCameraMode::WIDE:
+        {
+            return Evaluate_WidePose(preset.camera.fovy, outPose);
+        }
+    case BattleCameraMode::ENEMYATTACK:
+        {
+            if (request.subject == nullptr || request.opponent == nullptr)
+                return false;
+
+            Vec3 subjectPos = _enemyPos;
+            Vec3 opponentPos = _playerPos;
+            if (subjectPos.LengthSquared() <= 0.0001f)
+                subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+            if (opponentPos.LengthSquared() <= 0.0001f)
+                opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+            return Evaluate_BattleTurnEnemyAttackPose(
+                subjectPos,
+                opponentPos,
+                preset,
+                clipSample,
+                clipTime,
+                outPose);
+        }
     default:
+        {
         if (request.subject == nullptr)
             return false;
 
@@ -685,6 +737,8 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
             smoothedTargetPos,
             clipTime,
             outPose);
+
+        }
     }
 }
 
@@ -890,6 +944,18 @@ bool BattleTurnCamera::Evaluate_EnemyAttackPose(
 
 void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 {
+    const string incomingModeName = string(magic_enum::enum_name(request.mode));
+    const string previousModeName = string(magic_enum::enum_name(_currentRequest.mode));
+    LOG_INFO(
+        "[BattleCamTrace] ApplyShot requestMode={} currentMode={} presetId={} clipId={} useClip={} subject={} opponent={}",
+        incomingModeName.c_str(),
+        previousModeName.c_str(),
+        request.presetId.c_str(),
+        request.clipId.c_str(),
+        request.useClip,
+        request.subject != nullptr,
+        request.opponent != nullptr);
+
     const bool isSameRequest =
         _currentRequest.mode == request.mode &&
         _currentRequest.subject == request.subject &&
@@ -962,6 +1028,8 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     Shared<TransformCom> nextTargetTransform = request.subject ? request.subject->Get_Transform() : nullptr;
     Vec3 nextEnemyAttackSubjectPos = _enemyPos;
     Vec3 nextEnemyAttackOpponentPos = _playerPos;
+    Vec3 nextPlayerAttackSubjectPos = _playerAttackSubjectPos;
+    Vec3 nextPlayerAttackOpponentPos = _playerAttackOpponentPos;
 
     const bool shouldReAnchored =
         _currentRequest.subject != request.subject ||
@@ -1001,7 +1069,33 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _enemyPos = nextEnemyAttackSubjectPos;
     _playerPos = nextEnemyAttackOpponentPos;
 
-    if (nextPreset.snapOnEnter || request.mode == BattleCameraMode::WIDE)
+    if(request.mode == BattleCameraMode::PLAYERATTACK)
+    {
+        const bool shouldCaptureEnemyAttackAnchor =
+            nextPreset.snapOnEnter ||
+            shouldReAnchored ||
+            nextEnemyAttackSubjectPos.LengthSquared() <= 0.0001f ||
+            nextEnemyAttackOpponentPos.LengthSquared() <= 0.0001f;
+
+        if (shouldCaptureEnemyAttackAnchor)
+        {
+            if (request.subject != nullptr && request.subject->Get_Transform() != nullptr)
+                nextEnemyAttackSubjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+
+            if (request.opponent != nullptr && request.opponent->Get_Transform() != nullptr)
+                nextEnemyAttackOpponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+        }
+    }
+    else
+    {
+        nextPlayerAttackSubjectPos = Vec3::Zero;
+        nextPlayerAttackOpponentPos = Vec3::Zero;
+    }
+
+    _playerAttackSubjectPos = nextPlayerAttackSubjectPos;
+    _playerAttackOpponentPos = nextPlayerAttackOpponentPos;
+
+    if (nextPreset.snapOnEnter || request.mode == BattleCameraMode::WIDE || request.mode == BattleCameraMode::BATTLEINTRO)
     {
         _poseTransition.active = false;
         _activeClip = nextActiveClip;
@@ -1053,6 +1147,14 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _currentPreset = _targetPreset;
     _smoothedTargetPos = targetSmoothedTargetPos;
     _prevTargetPos = targetPrevTargetPos;
+
+    const string requestModeName = string(magic_enum::enum_name(request.mode));
+    const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
+
+    LOG_DEBUG(
+        "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
+        requestModeName.c_str(),
+        currentModeName.c_str());
 }
 
 void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& subject, const Shared<Character>& opponent)

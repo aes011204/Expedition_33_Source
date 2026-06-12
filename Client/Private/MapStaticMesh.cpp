@@ -158,7 +158,11 @@ MapStaticMesh::MapStaticMesh(const ComPtr<Device>& device, const ComPtr<Context>
 }
 
 MapStaticMesh::MapStaticMesh(const MapStaticMesh& prototype)
-    : GameObject{ prototype }
+    : GameObject{ prototype },
+      _sourceStaticMeshIndex{ prototype._sourceStaticMeshIndex },
+      _sourceStaticMeshId{ prototype._sourceStaticMeshId },
+      _sourceStaticMeshModelPath{ prototype._sourceStaticMeshModelPath },
+      _sourceMapPath{ prototype._sourceMapPath }
 {
 }
 
@@ -189,6 +193,10 @@ HRESULT MapStaticMesh::Initialize(void* arg)
 
     _collisionData = pDesc->collisionData;
     _usesStaticCollision = (_collisionData != nullptr);
+    _sourceStaticMeshIndex = pDesc->sourceStaticMeshIndex;
+    _sourceStaticMeshId = pDesc->name;
+    _sourceStaticMeshModelPath = pDesc->modelPath;
+    _sourceMapPath = pDesc->sourceMapPath;
 
     if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
     {

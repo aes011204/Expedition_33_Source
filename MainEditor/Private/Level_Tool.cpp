@@ -90,11 +90,11 @@ void Level_Tool::Render_MapLoader()
     if (ImGui::Button("Reload Map", ImVec2(-1, 0)))
         Reload_SelectedMap();
 
-    if (ImGui::Button("Save Prefab Instances", ImVec2(-1, 0)))
-        Save_SelectedMapPrefabInstances();
+    if (ImGui::Button("Save Map State", ImVec2(-1, 0)))
+        Save_SelectedMapState();
 
-    if (ImGui::Button("Reload Monster", ImVec2(-1, 0)))
-        Reload_SelectedPrefabInstances();
+    if (ImGui::Button("Reload Authored Objects", ImVec2(-1, 0)))
+        Reload_SelectedAuthoredObjects();
 }
 
 void Level_Tool::Refresh_MapJsonFiles()
@@ -171,7 +171,7 @@ void Level_Tool::Reload_SelectedMap()
         return;
 
     Remove_CurrentLevelMapObjects();
-    Remove_CurrentLevelAuthoredPrefabInstances();
+    Remove_CurrentLevelAuthoredObjects();
 
     if (FAILED(MapLoader::Load(
         GAME->Get_Device(),
@@ -187,7 +187,7 @@ void Level_Tool::Reload_SelectedMap()
     NOTIFY("Map 리로드 완료");
 }
 
-void Level_Tool::Reload_SelectedPrefabInstances()
+void Level_Tool::Reload_SelectedAuthoredObjects()
 {
     const fs::path selectedPath = Resolve_SelectedMapJsonPath();
     if (selectedPath.empty())
@@ -196,19 +196,19 @@ void Level_Tool::Reload_SelectedPrefabInstances()
     const json root = GAME->Load_JsonFile(selectedPath);
     if (!root.is_object() || !root.contains("MapData") || !root["MapData"].is_object())
     {
-        NOTIFY("PrefabInstances 리로드 실패");
+        NOTIFY("Authored Objects 리로드 실패");
         return;
     }
 
-    Remove_CurrentLevelAuthoredPrefabInstances();
+    Remove_CurrentLevelAuthoredObjects();
 
     vector<Shared<GameObject>> spawnedObjects{};
-    if (!Client::MapAuthoringIO::Load_PrefabInstances_FromMapData(
+    if (!Client::MapAuthoringIO::Load_AuthoredObjects_FromMapData(
         root["MapData"],
         GAME->Current_LevelIndex(),
         &spawnedObjects))
     {
-        NOTIFY("PrefabInstances 리로드 실패");
+        NOTIFY("Authored Objects 리로드 실패");
         return;
     }
 
@@ -216,23 +216,23 @@ void Level_Tool::Reload_SelectedPrefabInstances()
     for (const Shared<GameObject>& spawnedObject : spawnedObjects)
         _reloadedMonsterObjects.push_back(spawnedObject);
 
-    NOTIFY("PrefabInstances 리로드 완료");
+    NOTIFY("Authored Objects 리로드 완료");
 }
 
-void Level_Tool::Save_SelectedMapPrefabInstances()
+void Level_Tool::Save_SelectedMapState()
 {
     const fs::path selectedPath = Resolve_SelectedMapJsonPath();
     if (selectedPath.empty())
         return;
 
-    const bool saved = Client::MapAuthoringIO::Save_PrefabInstances_ToMapJson(
+    const bool saved = Client::MapAuthoringIO::Save_MapState_ToMapJson(
         selectedPath.wstring(),
         GAME->Current_LevelIndex());
 
     if (saved)
-        NOTIFY("PrefabInstances 저장 완료");
+        NOTIFY("Map State 저장 완료");
     else
-        NOTIFY("PrefabInstances 저장 실패");
+        NOTIFY("Map State 저장 실패");
 }
 
 void Level_Tool::Remove_CurrentLevelMapObjects()
@@ -253,7 +253,7 @@ void Level_Tool::Remove_CurrentLevelMapObjects()
     GAME->Flush_RemovedGameObjects();
 }
 
-void Level_Tool::Remove_CurrentLevelAuthoredPrefabInstances()
+void Level_Tool::Remove_CurrentLevelAuthoredObjects()
 {
     vector<Shared<GameObject>> authoredObjects{};
     std::unordered_set<uintptr_t> authoredObjectKeys{};

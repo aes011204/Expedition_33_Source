@@ -18,6 +18,7 @@
 #include "EditorInstance.h"
 #include "magic_enum/magic_enum.hpp"
 #include "BattleAction.h"
+#include "CinematicCamera.h"
 
 namespace
 {
@@ -78,7 +79,10 @@ void Cinematic_Tool::Update(float timeDelta)
 {
     _cinematicPlayer->Update(timeDelta);
 
-    if (_cinematicPlayer->Is_CinematicPlaying())
+    bool wasPlaying = _wasCinematicPlaying;
+    bool isPlaying = _cinematicPlayer->Is_CinematicPlaying();
+
+    if (isPlaying)
     {
         const int playbackFrame = _cinematicPlayer->Get_CurrentFrame();
         if (_currentFrame != playbackFrame)
@@ -101,6 +105,15 @@ void Cinematic_Tool::Update(float timeDelta)
         Apply_CurrentFramePose();
         _isPreviewDirty = false;
     }
+
+    _wasCinematicPlaying = isPlaying;
+
+    if( wasPlaying&& !isPlaying)
+    {
+        CLIENT->Restore_PreviousCamera();
+        _isPreviewDirty = true;
+    }
+
 
 }
 
@@ -476,7 +489,7 @@ void Cinematic_Tool::Apply_BattleClipPreviewAnimation(float previewTimeSec) cons
 
 void Cinematic_Tool::Clip_BattleClipHotInput()
 {
-    BattleCameraKeyframe* key = Get_SelectedBattleClipKeyframe();
+    CameraKeyframe* key = Get_SelectedBattleClipKeyframe();
 
     if(key == nullptr)
         return;
@@ -495,7 +508,7 @@ void Cinematic_Tool::Clear_BattleClipPreviewState() const
         model->Set_AnimationPaused(false);
 }
 
-void Cinematic_Tool::Render_BattleClipTrackEditor(const char* label, BattleCameraTrack& track)
+void Cinematic_Tool::Render_BattleClipTrackEditor(const char* label, CameraTrack& track)
 {
     if (!ImGui::CollapsingHeader(label, ImGuiTreeNodeFlags_DefaultOpen))
         return;
@@ -507,7 +520,7 @@ void Cinematic_Tool::Render_BattleClipTrackEditor(const char* label, BattleCamer
     const string addKeyId = string("Add Key##") + label;
     if (ImGui::Button(addKeyId.c_str()))
     {
-        BattleCameraKeyframe keyframe {};
+        CameraKeyframe keyframe {};
         if (!track.keyframes.empty())
             keyframe.time = track.keyframes.back().time;
 
@@ -520,7 +533,7 @@ void Cinematic_Tool::Render_BattleClipTrackEditor(const char* label, BattleCamer
 
     for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
     {
-        BattleCameraKeyframe& keyframe = track.keyframes[i];
+        CameraKeyframe& keyframe = track.keyframes[i];
 
         ImGui::PushID(i);
         ImGui::TextDisabled("Key %d", i);
@@ -620,7 +633,7 @@ void Cinematic_Tool::Render_BattleClipSequencer()
 
 void Cinematic_Tool::Render_SelectedBattleClipKeyframe()
 {
-    BattleCameraKeyframe* keyframe = Get_SelectedBattleClipKeyframe();
+    CameraKeyframe* keyframe = Get_SelectedBattleClipKeyframe();
     if (keyframe == nullptr)
         return;
 
@@ -631,7 +644,7 @@ void Cinematic_Tool::Render_SelectedBattleClipKeyframe()
     if (ImGui::DragFloat("Selected Time", &keyframe->time, 0.01f, 0.f, _editingBattleClip.duration))
     {
         keyframe->time = std::clamp(keyframe->time, 0.f, _editingBattleClip.duration);
-        if (BattleCameraTrack* track = Get_SelectedBattleClipTrack())
+        if (CameraTrack* track = Get_SelectedBattleClipTrack())
         {
             const float selectionTime = keyframe->time;
             Sort_BattleClipTrackKeyframes(*track);
@@ -714,7 +727,7 @@ void Cinematic_Tool::Render_BattleClipRemoveKeyframePopup()
 
     if (ImGui::Button("Remove Selected Key"))
     {
-        BattleCameraTrack* track = Get_SelectedBattleClipTrack();
+        CameraTrack* track = Get_SelectedBattleClipTrack();
         if (track != nullptr &&
             _battleClipSelectedKeyIndex >= 0 &&
             _battleClipSelectedKeyIndex < static_cast<int>(track->keyframes.size()))
@@ -788,6 +801,17 @@ void Cinematic_Tool::Render_SequenceSettings()
         Refresh_SequenceFileList();
         _selectedSequenceFileIndex = -1;
         ImGui::OpenPopup("Load Cinematic Sequence");
+    }
+
+    if (ImGui::Button("Clear All Keys"))
+    {
+        Clear_AllSequenceKeyframes();
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("New Empty Sequence"))
+    {
+        Reset_ToNewSequence();
     }
 }
 
@@ -977,7 +1001,11 @@ void Cinematic_Tool::Render_TrackList()
 
     CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
     if (selectedTrack == nullptr)
+    {
+        if (Is_SelectedModifierTrack())
+            ImGui::TextDisabled("Modifier track is selected in the timeline.");
         return;
+    }
 
     char trackNameBuffer[128]{};
     strncpy_s(trackNameBuffer, selectedTrack->name.c_str(), _TRUNCATE);
@@ -990,6 +1018,74 @@ void Cinematic_Tool::Render_TrackList()
 
 void Cinematic_Tool::Render_KeyframeList()
 {
+    if (Is_SelectedModifierTrack())
+    {
+        CameraTrack* selectedModifierTrack = Get_SelectedModifierTrack();
+        if (selectedModifierTrack == nullptr)
+        {
+            ImGui::TextDisabled("No modifier track selected.");
+            return;
+        }
+
+        Draw_SectionHeader("Modifier Keyframes");
+
+        const bool isRemoveKeyDisabled =
+            (_selectedKeyIndex < 0 || _selectedKeyIndex >= static_cast<int>(selectedModifierTrack->keyframes.size()));
+        if (isRemoveKeyDisabled)
+            ImGui::BeginDisabled();
+
+        if (ImGui::Button("Remove Key"))
+        {
+            selectedModifierTrack->keyframes.erase(selectedModifierTrack->keyframes.begin() + _selectedKeyIndex);
+            _selectedKeyIndex = std::clamp(_selectedKeyIndex, -1, static_cast<int>(selectedModifierTrack->keyframes.size()) - 1);
+            _isPreviewDirty = true;
+        }
+
+        if (isRemoveKeyDisabled)
+            ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        if (ImGui::Button("Sort Keys"))
+        {
+            Sort_SelectedModifierTrackKeyframes();
+            _isPreviewDirty = true;
+        }
+
+        if (selectedModifierTrack->keyframes.empty())
+        {
+            ImGui::TextDisabled("No modifier keys yet. Right click the timeline row to insert one.");
+            return;
+        }
+
+        if (ImGui::BeginListBox("##ModifierKeyframeList", ImVec2(-FLT_MIN, 160.f)))
+        {
+            for (int i = 0; i < static_cast<int>(selectedModifierTrack->keyframes.size()); ++i)
+            {
+                const CameraKeyframe& keyframe = selectedModifierTrack->keyframes[i];
+                char label[128]{};
+                sprintf_s(label, "Time %.3f | Value %.3f", keyframe.time, keyframe.value);
+
+                const bool isSelected = (_selectedKeyIndex == i);
+                if (ImGui::Selectable(label, isSelected))
+                {
+                    _selectedKeyIndex = i;
+                    _currentFrame = std::clamp(
+                        _sequence.startFrame + static_cast<int>(std::lround(keyframe.time * static_cast<float>(std::max(_sequence.fps, 1)))),
+                        _sequence.startFrame,
+                        _sequence.endFrame);
+                    _isPreviewDirty = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndListBox();
+        }
+
+        return;
+    }
+
     CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
     if (selectedTrack == nullptr)
     {
@@ -1047,9 +1143,11 @@ void Cinematic_Tool::Render_KeyframeList()
                 keyframe.camPose.position.z);
 
             const bool isSelected = (_selectedKeyIndex == i);
+
             if (ImGui::Selectable(label, isSelected))
             {
                 _selectedKeyIndex = i;
+                _currentFrame = keyframe.frame;
                 _isPreviewDirty = true;
             }
 
@@ -1063,6 +1161,13 @@ void Cinematic_Tool::Render_KeyframeList()
 
 void Cinematic_Tool::Render_SelectedKeyframe()
 {
+    if (CameraKeyframe* modifierKeyframe = Get_SelectedModifierKeyframe())
+    {
+        Draw_SectionHeader("Modifier Keyframe");
+        Render_SelectedModifierKeyframeEditor(*modifierKeyframe);
+        return;
+    }
+
     CINEMATIC_KEYFRAME* keyframe = Get_SelectedKeyframe();
     if (keyframe == nullptr)
     {
@@ -1176,8 +1281,76 @@ void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
 
 }
 
+void Cinematic_Tool::Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyframe)
+{
+    const float maxTime = Evaluate_CinematicSequenceTime(_sequence, _sequence.endFrame);
+    bool needsSort = false;
+
+    if (ImGui::DragFloat("time", &keyframe.time, 0.01f, 0.f, maxTime))
+    {
+        keyframe.time = std::clamp(keyframe.time, 0.f, maxTime);
+        needsSort = true;
+        _isPreviewDirty = true;
+    }
+
+    if (ImGui::DragFloat("value", &keyframe.value, 0.01f))
+        _isPreviewDirty = true;
+
+    const char* interpolationLabel = magic_enum::enum_name(keyframe.interpolation).data();
+    if (ImGui::BeginCombo("Interpolation", interpolationLabel))
+    {
+        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool isSelected = (mode == keyframe.interpolation);
+            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+            {
+                keyframe.interpolation = mode;
+                _isPreviewDirty = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    if (needsSort)
+    {
+        Sort_SelectedModifierTrackKeyframes();
+        if (CameraKeyframe* selectedModifierKeyframe = Get_SelectedModifierKeyframe())
+        {
+            _currentFrame = std::clamp(
+                _sequence.startFrame + static_cast<int>(std::lround(selectedModifierKeyframe->time * static_cast<float>(std::max(_sequence.fps, 1)))),
+                _sequence.startFrame,
+                _sequence.endFrame);
+        }
+    }
+}
+
 void Cinematic_Tool::Render_SelectedKeyframePopup()
 {
+    if (CameraKeyframe* modifierKeyframe = Get_SelectedModifierKeyframe())
+    {
+        const bool shouldExpandEditor = _requestOpenSelectedKeyPopup;
+        if (shouldExpandEditor)
+        {
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+            _requestOpenSelectedKeyPopup = false;
+        }
+
+        if (!ImGui::CollapsingHeader("Selected Modifier Keyframe", ImGuiTreeNodeFlags_None))
+            return;
+
+        if (shouldExpandEditor)
+            ImGui::SetScrollHereY();
+
+        ImGui::TextDisabled("Track %d | Key %d", _selectedTrackIndex, _selectedKeyIndex);
+        ImGui::Separator();
+        Render_SelectedModifierKeyframeEditor(*modifierKeyframe);
+        return;
+    }
+
     CINEMATIC_KEYFRAME* keyframe = Get_SelectedKeyframe();
 
     if (keyframe == nullptr)
@@ -1223,12 +1396,14 @@ void Cinematic_Tool::Render_InsertKeyframePopup()
     ImGui::TextDisabled("Frame %d", _pendingInsertFrame);
     ImGui::Separator();
 
-    if (!_hasPendingInsertPose)
+    const bool isModifierInsert = _pendingInsertTrackIndex >= static_cast<int>(_sequence.cinematicTracks.size());
+
+    if (!isModifierInsert && !_hasPendingInsertPose)
         ImGui::TextDisabled("Active FreeCamera is required to insert from the current camera pose.");
 
     const bool canInsertFromCamera =
         _hasPendingInsertRequest &&
-        _hasPendingInsertPose &&
+        (isModifierInsert || _hasPendingInsertPose) &&
         _pendingInsertTrackIndex >= 0;
 
     if (!canInsertFromCamera)
@@ -1264,10 +1439,34 @@ void Cinematic_Tool::Render_RemoveKeyframePopup()
     if(!ImGui::BeginPopup("Remove Keyframe"))
         return;
 
-    
+    if (CameraKeyframe* modifierKeyframe = Get_SelectedModifierKeyframe())
+    {
+        ImGui::TextDisabled("Modifier Track %d | Key %d", _selectedTrackIndex, _selectedKeyIndex);
+        ImGui::Separator();
+        Render_SelectedModifierKeyframeEditor(*modifierKeyframe);
+        ImGui::Separator();
+
+        if (ImGui::Button("Remove Keyframe"))
+        {
+            if (CameraTrack* selectedModifierTrack = Get_SelectedModifierTrack())
+            {
+                selectedModifierTrack->keyframes.erase(selectedModifierTrack->keyframes.begin() + _selectedKeyIndex);
+                _selectedKeyIndex = std::clamp(_selectedKeyIndex, -1, static_cast<int>(selectedModifierTrack->keyframes.size()) - 1);
+                _isPreviewDirty = true;
+            }
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::Button("Close"))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+        return;
+    }
+
     if (ImGui::Button("Remove Keyframe Here"))
     {
-        
         CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
 
         selectedTrack->keyframes.erase(selectedTrack->keyframes.begin()+_selectedKeyIndex);
@@ -1298,16 +1497,30 @@ void Cinematic_Tool::Render_PreviewState()
     {
         if(!_cinematicPlayer->Is_CinematicPlaying())
         {
-            auto freeCamera = Get_ActiveFreeCamera();
+            CINEMATIC_TRACK* previewTrack = Get_SelectedTrack();
+            if (previewTrack == nullptr)
+            {
+                if (_sequence.cinematicTracks.empty())
+                    return;
 
-            if(nullptr == freeCamera)
+                previewTrack = &_sequence.cinematicTracks[0];
+            }
+
+            CLIENT->Request_Cinematic();
+
+            auto camera = GAME->Get_CameraByType(ObjectType::CinematicCamera);
+
+            auto cinematicCamera = dynamic_pointer_cast<CinematicCamera>(camera);
+
+            if(nullptr == cinematicCamera)
                 return;
 
-            _cinematicPlayer->Ready_CinematicPlayer(&_sequence, &_sequence.cinematicTracks[_selectedTrackIndex], freeCamera, true);
+            _cinematicPlayer->Ready_CinematicPlayer(&_sequence, previewTrack, cinematicCamera, true);
         }
         else
         {
             _cinematicPlayer->Stop();  
+            CLIENT ->Restore_PreviousCamera();
         }
 
         _isPreviewDirty = true;
@@ -1350,14 +1563,30 @@ void Cinematic_Tool::Ensure_DefaultTrack()
 
 void Cinematic_Tool::Clamp_Selection()
 {
-    if (_sequence.cinematicTracks.empty())
+    const int cinematicTrackCount = static_cast<int>(_sequence.cinematicTracks.size());
+    const int totalTrackCount = cinematicTrackCount + CinematicSequencerAdapter::kModifierTrackCount;
+
+    if (cinematicTrackCount == 0)
     {
         _selectedTrackIndex = 0;
         _selectedKeyIndex = -1;
         return;
     }
 
-    _selectedTrackIndex = std::clamp(_selectedTrackIndex, 0, static_cast<int>(_sequence.cinematicTracks.size()) - 1);
+    _selectedTrackIndex = std::clamp(_selectedTrackIndex, 0, std::max(totalTrackCount - 1, 0));
+
+    if (Is_SelectedModifierTrack())
+    {
+        CameraTrack* selectedModifierTrack = Get_SelectedModifierTrack();
+        if (selectedModifierTrack == nullptr || selectedModifierTrack->keyframes.empty())
+        {
+            _selectedKeyIndex = -1;
+            return;
+        }
+
+        _selectedKeyIndex = std::clamp(_selectedKeyIndex, 0, static_cast<int>(selectedModifierTrack->keyframes.size()) - 1);
+        return;
+    }
 
     CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
     if (selectedTrack == nullptr || selectedTrack->keyframes.empty())
@@ -1410,10 +1639,10 @@ void Cinematic_Tool::Sort_SelectedTrackKeyframes()
     _selectedKeyIndex = 0;
 }
 
-void Cinematic_Tool::Sort_BattleClipTrackKeyframes(BattleCameraTrack& track)
+void Cinematic_Tool::Sort_BattleClipTrackKeyframes(CameraTrack& track)
 {
     std::sort(track.keyframes.begin(), track.keyframes.end(),
-        [](const BattleCameraKeyframe& lhs, const BattleCameraKeyframe& rhs)
+        [](const CameraKeyframe& lhs, const CameraKeyframe& rhs)
         {
             return lhs.time < rhs.time;
         });
@@ -1421,7 +1650,7 @@ void Cinematic_Tool::Sort_BattleClipTrackKeyframes(BattleCameraTrack& track)
 
 void Cinematic_Tool::Insert_BattleClipKeyAtFrame(int trackIndex, int frame)
 {
-    BattleCameraTrack* track = nullptr;
+    CameraTrack* track = nullptr;
 
     switch (trackIndex)
     {
@@ -1469,7 +1698,7 @@ void Cinematic_Tool::Insert_BattleClipKeyAtFrame(int trackIndex, int frame)
         }
     }
 
-    BattleCameraKeyframe keyframe {};
+    CameraKeyframe keyframe {};
     keyframe.time = keyTime;
     track->keyframes.push_back(keyframe);
     Sort_BattleClipTrackKeyframes(*track);
@@ -1513,8 +1742,101 @@ void Cinematic_Tool::Capture_KeyframeFromFreeCamera()
     _isPreviewDirty = true;
 }
 
+void Cinematic_Tool::Sort_SelectedModifierTrackKeyframes()
+{
+    CameraTrack* selectedTrack = Get_SelectedModifierTrack();
+    if (selectedTrack == nullptr)
+        return;
+
+    const float selectedTime = (_selectedKeyIndex >= 0 &&
+        _selectedKeyIndex < static_cast<int>(selectedTrack->keyframes.size()))
+        ? selectedTrack->keyframes[_selectedKeyIndex].time
+        : -1.f;
+
+    std::sort(selectedTrack->keyframes.begin(), selectedTrack->keyframes.end(),
+        [](const CameraKeyframe& lhs, const CameraKeyframe& rhs)
+        {
+            return lhs.time < rhs.time;
+        });
+
+    if (selectedTrack->keyframes.empty())
+    {
+        _selectedKeyIndex = -1;
+        return;
+    }
+
+    if (selectedTime < 0.f)
+    {
+        _selectedKeyIndex = 0;
+        return;
+    }
+
+    for (int i = 0; i < static_cast<int>(selectedTrack->keyframes.size()); ++i)
+    {
+        if (fabsf(selectedTrack->keyframes[i].time - selectedTime) <= 0.0001f)
+        {
+            _selectedKeyIndex = i;
+            return;
+        }
+    }
+
+    _selectedKeyIndex = 0;
+}
+
 void Cinematic_Tool::Insert_KeyframeAtFrame(int trackIndex, int frame)
 {
+    if (trackIndex >= static_cast<int>(_sequence.cinematicTracks.size()))
+    {
+        CameraTrack* modifierTrack = nullptr;
+
+        const int modifierTrackIndex = trackIndex - static_cast<int>(_sequence.cinematicTracks.size());
+        switch (modifierTrackIndex)
+        {
+        case 0: modifierTrack = &_sequence.modifierClip.shakeAmplitude; break;
+        case 1: modifierTrack = &_sequence.modifierClip.shakeFrequencyX; break;
+        case 2: modifierTrack = &_sequence.modifierClip.shakeFrequencyY; break;
+        case 3: modifierTrack = &_sequence.modifierClip.shakeDecayRateX; break;
+        case 4: modifierTrack = &_sequence.modifierClip.shakeDecayRate; break;
+        case 5: modifierTrack = &_sequence.modifierClip.shakeVerticalRatio; break;
+        case 6: modifierTrack = &_sequence.modifierClip.shakeStrengthScale; break;
+        default: return;
+        }
+
+        const float keyTime = std::max(static_cast<float>(frame - _sequence.startFrame) / static_cast<float>(std::max(_sequence.fps, 1)), 0.f);
+        for (int i = 0; i < static_cast<int>(modifierTrack->keyframes.size()); ++i)
+        {
+            if (fabsf(modifierTrack->keyframes[i].time - keyTime) <= 0.0001f)
+            {
+                _selectedTrackIndex = trackIndex;
+                _selectedKeyIndex = i;
+                _currentFrame = frame;
+                _requestOpenSelectedKeyPopup = true;
+                _isPreviewDirty = true;
+                return;
+            }
+        }
+
+        CameraKeyframe keyframe{};
+        keyframe.time = keyTime;
+        modifierTrack->keyframes.push_back(keyframe);
+        _selectedTrackIndex = trackIndex;
+        _currentFrame = frame;
+        Sort_SelectedModifierTrackKeyframes();
+
+        for (int i = 0; i < static_cast<int>(modifierTrack->keyframes.size()); ++i)
+        {
+            if (fabsf(modifierTrack->keyframes[i].time - keyTime) <= 0.0001f)
+            {
+                _selectedKeyIndex = i;
+                break;
+            }
+        }
+
+        _requestOpenSelectedKeyPopup = true;
+        _isPreviewDirty = true;
+        return;
+    }
+
     if (trackIndex < 0 || trackIndex >= static_cast<int>(_sequence.cinematicTracks.size()))
         return;
 
@@ -1560,6 +1882,43 @@ void Cinematic_Tool::Insert_KeyframeAtFrame(int trackIndex, int frame)
     }
 
     _requestOpenSelectedKeyPopup = true;
+    _isPreviewDirty = true;
+}
+
+void Cinematic_Tool::Clear_AllSequenceKeyframes()
+{
+    _cinematicPlayer->Stop();
+    Clear_PendingInsertRequest();
+
+    for (auto& track : _sequence.cinematicTracks)
+        track.keyframes.clear();
+    _sequence.modifierClip = {};
+
+    for (auto& track : _sequence.interactionTracks)
+        track.keyframes.clear();
+
+    _selectedKeyIndex = -1;
+    _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
+    _lastPreviewFrame = -1;
+    _lastPreviewTrackIndex = -1;
+    _lastPreviewKeyIndex = -1;
+    _isPreviewDirty = true;
+}
+
+void Cinematic_Tool::Reset_ToNewSequence()
+{
+    _cinematicPlayer->Stop();
+    Clear_PendingInsertRequest();
+
+    _sequence = {};
+    Ensure_DefaultTrack();
+    _selectedTrackIndex = 0;
+    _selectedKeyIndex = -1;
+    _selectedSequenceFileIndex = -1;
+    _currentFrame = std::clamp(_sequence.startFrame, _sequence.startFrame, _sequence.endFrame);
+    _lastPreviewFrame = -1;
+    _lastPreviewTrackIndex = -1;
+    _lastPreviewKeyIndex = -1;
     _isPreviewDirty = true;
 }
 
@@ -1627,6 +1986,8 @@ void Cinematic_Tool::Apply_CurrentFramePose()
     CINEMATIC_KEYFRAME* rightKey = nullptr;
 
     CAMERAPOSE camPose = Evaluate_CinematicPose(track, _currentFrame, leftKey, rightKey);
+    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, _currentFrame);
+    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, _currentFrame);
 
     freeCamera->Get_Transform()->Set_WorldPosition(camPose.position);
     freeCamera->Get_Transform()->Set_RotationEuler(camPose.rotation);
@@ -1634,6 +1995,15 @@ void Cinematic_Tool::Apply_CurrentFramePose()
     freeCamera->Set_Near(camPose.nearPlane);
     freeCamera->Set_Far(camPose.farPlane);
 
+    freeCamera->Update_TransformMatrices();
+
+    const Vec3 shakeOffset = Sample_CameraModifierShakeOffset(
+        modifierSample,
+        sequenceTime,
+        freeCamera->Get_Transform()->Get_WorldRight(),
+        freeCamera->Get_Transform()->Get_WorldUp());
+
+    freeCamera->Get_Transform()->Set_WorldPosition(camPose.position + shakeOffset);
     freeCamera->Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
@@ -1682,6 +2052,47 @@ CINEMATIC_KEYFRAME* Cinematic_Tool::Get_SelectedKeyframe()
     return &selectedTrack->keyframes[_selectedKeyIndex];
 }
 
+bool Cinematic_Tool::Is_SelectedModifierTrack() const
+{
+    return _selectedTrackIndex >= static_cast<int>(_sequence.cinematicTracks.size()) &&
+        _selectedTrackIndex < static_cast<int>(_sequence.cinematicTracks.size()) + CinematicSequencerAdapter::kModifierTrackCount;
+}
+
+int Cinematic_Tool::Get_SelectedModifierTrackIndex() const
+{
+    if (!Is_SelectedModifierTrack())
+        return -1;
+
+    return _selectedTrackIndex - static_cast<int>(_sequence.cinematicTracks.size());
+}
+
+CameraTrack* Cinematic_Tool::Get_SelectedModifierTrack()
+{
+    switch (Get_SelectedModifierTrackIndex())
+    {
+    case 0: return &_sequence.modifierClip.shakeAmplitude;
+    case 1: return &_sequence.modifierClip.shakeFrequencyX;
+    case 2: return &_sequence.modifierClip.shakeFrequencyY;
+    case 3: return &_sequence.modifierClip.shakeDecayRateX;
+    case 4: return &_sequence.modifierClip.shakeDecayRate;
+    case 5: return &_sequence.modifierClip.shakeVerticalRatio;
+    case 6: return &_sequence.modifierClip.shakeStrengthScale;
+    default: return nullptr;
+    }
+}
+
+CameraKeyframe* Cinematic_Tool::Get_SelectedModifierKeyframe()
+{
+    CameraTrack* selectedTrack = Get_SelectedModifierTrack();
+    if (selectedTrack == nullptr)
+        return nullptr;
+
+    if (_selectedKeyIndex < 0 || _selectedKeyIndex >= static_cast<int>(selectedTrack->keyframes.size()))
+        return nullptr;
+
+    return &selectedTrack->keyframes[_selectedKeyIndex];
+}
+
 Shared<Client::BattleTurnCamera> Cinematic_Tool::Get_BattleTurnCamera() const
 {
     Shared<Camera> camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
@@ -1691,7 +2102,7 @@ Shared<Client::BattleTurnCamera> Cinematic_Tool::Get_BattleTurnCamera() const
     return dynamic_pointer_cast<Client::BattleTurnCamera>(camera);
 }
 
-BattleCameraTrack* Cinematic_Tool::Get_SelectedBattleClipTrack()
+CameraTrack* Cinematic_Tool::Get_SelectedBattleClipTrack()
 {
     switch (_battleClipSelectedTrackIndex)
     {
@@ -1718,9 +2129,9 @@ BattleCameraTrack* Cinematic_Tool::Get_SelectedBattleClipTrack()
     }
 }
 
-BattleCameraKeyframe* Cinematic_Tool::Get_SelectedBattleClipKeyframe()
+CameraKeyframe* Cinematic_Tool::Get_SelectedBattleClipKeyframe()
 {
-    BattleCameraTrack* track = Get_SelectedBattleClipTrack();
+    CameraTrack* track = Get_SelectedBattleClipTrack();
     if (track == nullptr)
         return nullptr;
 

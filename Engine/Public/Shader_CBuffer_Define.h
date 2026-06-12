@@ -39,7 +39,10 @@ struct alignas(16) MaterialCB
     uint32 ormRoughnessSource{ MaterialChannel_G }; // ORM 텍스처의 어느 채널을 roughness로 읽을지 정한다. 보통 G를 쓰고, 채널 packing이 다를 때만 변경한다.
     uint32 ormMetalnessSource{ MaterialChannel_B }; // ORM 텍스처의 어느 채널을 metalness로 읽을지 정한다. 보통 B를 쓰고, packed 소스가 다를 때만 변경한다.
     uint32 opacityMaskSource{ MaterialChannel_R }; // 마스크 텍스처의 어느 채널을 clip 기준값으로 볼지 정한다. 흑백 마스크가 다른 채널에 들어 있을 때만 바꾼다.
-    uint32 _pad1[2]{};
+    uint32 ormAoSourceSlot{ 0 };
+    uint32 ormRoughnessSourceSlot{ 0 };
+    uint32 ormMetalnessSourceSlot{ 0 };
+    uint32 _pad1{ 0 };
 };
 
 /* ------------------------------------------ */

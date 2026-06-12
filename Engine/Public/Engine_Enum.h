@@ -64,6 +64,7 @@ namespace Engine
         TargetCamera,
         PreviewCamera,
         BattleTurnCamera,
+        CinematicCamera,
 
         Terrain,
         Landscape,
@@ -80,6 +81,7 @@ namespace Engine
         Trigger,
         UI,
         BattleStartSpawner,
+        PuzzleTarget,
     };
 
     enum class DeferredPass : uint8

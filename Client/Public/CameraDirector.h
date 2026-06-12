@@ -8,6 +8,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+class CinematicCamera;
 class CameraDirector final : public Base
 {
 public:
@@ -18,7 +19,7 @@ public:
     void Request_GamePlay();
     void Request_Preview();
     void Request_BattleTurn();
-    void Request_Cinematic();
+    Shared<CinematicCamera>  Request_Cinematic();
     void Restore_PreviousCamera();
 
     void Request_ChangeTargetCameraMode(TargetCameraMode mode);
