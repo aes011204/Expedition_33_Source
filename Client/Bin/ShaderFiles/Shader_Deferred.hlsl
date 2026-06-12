@@ -2,6 +2,9 @@
 
 #define IBL_DUMMY_TEST 0
 
+Texture2D g_FogNoiseTexture;
+float g_fDT = 0.f;
+
 //==================================================
 // VS
 //==================================================
@@ -356,6 +359,136 @@ PS_OUT_BACKBUFFER PS_SSAOBlur(PS_IN In)
     return Out;
 }
 
+// ===================================================================
+
+// 카메라 ~ 현재 픽셀까지의 거리를 받아서 안개의 세기를 반환한다.
+float ComputeGlobalDistanceFog(float distanceToSurface)
+{
+    const float g_GlobalFogStart =3.f;
+    const float g_GlobalFogDensity = 0.003f;
+    const float g_GlobalFogMaxDensity = 0.8f;
+
+    float fogDistance = max(distanceToSurface - g_GlobalFogStart, 0.f);
+    return saturate(1.f - exp(-g_GlobalFogDensity * fogDistance));
+}
+
+// 지면 높이 안개
+float ComputeGroundFog(float3 camPos, float3 rayDir, float rayLen)
+{
+    const float groundFogBaseHeight = 18.9f;    // 안개 시작 y 위치
+    const float groundFogTopFadeStart = 19.3f;  // 안개 Fade 시작 y 위치
+    const float groundFogTopHeight = 19.8f;     // 안개 끝 y 위치
+    const float groundFogBottomFade = 0.8f;     // groundFogBaseHeight 기준 아래쪽으로 페이드 범위
+
+    const float groundFogDensity = 0.09f;       // 안개 밀도
+    const float groundFogMaxDistance = 100.f;   // 안개 최대 거리
+
+    const float groundFogMinAccumulationDistance = 10.f;    // 카메라 기준 안개가 쌓인 거리 보장
+    const float groundFogDistanceInfluence = 0.15f;         // 위 거리를 안개 누적에 얼마나 보장할 것인지
+
+    const float groundFogNoiseScale = 0.0025f;                   // 월드 위치를 노이즈 텍스쳐 UV로 바꿀 때 사용하는 크기
+    const float2 groundFogNoiseSpeed = float2(0.005f, 0.003f);   // 안개의 XZ 이동 속도
+    const float groundFogNoiseStrength = 0.9f;                 // 노이즈 텍스쳐가 영향을 주는 정도
+    const float groundFogNoiseMin = 0.38f;                      // 노이즈 텍스쳐 최소 보장
+    const float groundFogNearFadeDistance = 12.f; // 이 거리까지 근거리 안개를 연하게 처리
+    const float groundFogNearMinFactor = 0.65f; // 카메라 바로 앞에서 유지할 안개 세기
+
+    float fogMinY = groundFogBaseHeight - groundFogBottomFade;  // 안개층의 가장 아래쪽 높이
+    float fogMaxY = groundFogTopHeight;                         // 안개층의 가장 위쪽 높이
+
+    float segmentStart = 0.f;                                   // 광선이 안개층에 진입하는 거리
+    float segmentEnd = min(rayLen, groundFogMaxDistance);
+
+    if (abs(rayDir.y) > EPSILON)
+    {
+        float t0 = (fogMinY - camPos.y) / rayDir.y;             // 광선이 안개층 아래쪽 평면에 도달하는 거리
+        float t1 = (fogMaxY - camPos.y) / rayDir.y;             // 광선이 안개층 위쪽 평면에 도달하는 거리
+
+        float tNear = min(t0, t1);
+        float tFar = max(t0, t1);
+
+        segmentStart = max(segmentStart, tNear);                // 광선이 안개층에 들어가는 지점
+        segmentEnd = min(segmentEnd, tFar);                     // 광선이 안개층에서 나오는 지점 
+    }
+    else    // 광선이 지면과 평행
+    {
+        if (camPos.y < fogMinY || camPos.y > fogMaxY)
+            return 0.f;
+    }
+
+    segmentStart = max(segmentStart, 0.f);
+
+    if (segmentEnd <= segmentStart)
+        return 0.f;
+
+    float segmentLength = segmentEnd - segmentStart;
+
+    float t25 = lerp(segmentStart, segmentEnd, 0.25f);
+    float t50 = lerp(segmentStart, segmentEnd, 0.50f);
+    float t75 = lerp(segmentStart, segmentEnd, 0.75f);
+
+    float3 samplePos25 = camPos + rayDir * t25;
+    float3 samplePos50 = camPos + rayDir * t50;
+    float3 samplePos75 = camPos + rayDir * t75;
+
+    float bottomFade25 = smoothstep(groundFogBaseHeight - groundFogBottomFade, groundFogBaseHeight, samplePos25.y);
+    float bottomFade50 = smoothstep(groundFogBaseHeight - groundFogBottomFade, groundFogBaseHeight, samplePos50.y);
+    float bottomFade75 = smoothstep(groundFogBaseHeight - groundFogBottomFade, groundFogBaseHeight, samplePos75.y);
+
+    float topFade25 = 1.f - smoothstep(groundFogTopFadeStart, groundFogTopHeight, samplePos25.y);
+    float topFade50 = 1.f - smoothstep(groundFogTopFadeStart, groundFogTopHeight, samplePos50.y);
+    float topFade75 = 1.f - smoothstep(groundFogTopFadeStart, groundFogTopHeight, samplePos75.y);
+
+    float heightDensity25 = bottomFade25 * topFade25;
+    float heightDensity50 = bottomFade50 * topFade50;
+    float heightDensity75 = bottomFade75 * topFade75;
+
+    float averageHeightDensity = (heightDensity25 + heightDensity50 + heightDensity75) / 3.f;
+
+    if (averageHeightDensity <= EPSILON)
+        return 0.f;
+
+    float2 noiseOffset = g_fDT * groundFogNoiseSpeed;
+
+    float2 noiseUV25A = samplePos25.xz * groundFogNoiseScale + noiseOffset;
+    float2 noiseUV50A = samplePos50.xz * groundFogNoiseScale + noiseOffset;
+    float2 noiseUV75A = samplePos75.xz * groundFogNoiseScale + noiseOffset;
+
+    float2 noiseUV25B = samplePos25.xz * (groundFogNoiseScale * 2.17f) - noiseOffset * 0.47f;
+    float2 noiseUV50B = samplePos50.xz * (groundFogNoiseScale * 2.17f) - noiseOffset * 0.47f;
+    float2 noiseUV75B = samplePos75.xz * (groundFogNoiseScale * 2.17f) - noiseOffset * 0.47f;
+
+    float noise25A = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV25A, 0.f).r;
+    float noise50A = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV50A, 0.f).r;
+    float noise75A = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV75A, 0.f).r;
+
+    float noise25B = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV25B, 0.f).r;
+    float noise50B = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV50B, 0.f).r;
+    float noise75B = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV75B, 0.f).r;
+
+    float noise25 = noise25A * 0.7f + noise25B * 0.3f;
+    float noise50 = noise50A * 0.7f + noise50B * 0.3f;
+    float noise75 = noise75A * 0.7f + noise75B * 0.3f;
+
+    float noise = (noise25 + noise50 + noise75) / 3.f;
+    noise = smoothstep(0.25f, 0.75f, noise);
+    noise = lerp(1.f, max(noise, groundFogNoiseMin), groundFogNoiseStrength);
+
+    float accumulationDistance = lerp(
+        groundFogMinAccumulationDistance,
+        segmentLength,
+        groundFogDistanceInfluence
+    );
+
+    float opticalDepth = groundFogDensity * averageHeightDensity * noise * accumulationDistance;
+    float groundFogFactor = saturate(1.f - exp(-opticalDepth));
+
+    float nearFade = smoothstep(0.f, groundFogNearFadeDistance, rayLen);
+    nearFade = lerp(groundFogNearMinFactor, 1.f, nearFade);
+
+    return groundFogFactor * nearFade;
+}
+
 float4 PS_Fog(PS_IN In) : SV_Target
 {
     float3 camPos = g_DeferredCamPosition.xyz;
@@ -364,61 +497,88 @@ float4 PS_Fog(PS_IN In) : SV_Target
     float2 ndc = float2(In.Texcoord.x * 2.f - 1.f, 1.f - In.Texcoord.y * 2.f);
     float4 viewPos = mul(float4(ndc, depthVal, 1.f), g_DeferredProjMatrixInverse);
     viewPos /= viewPos.w;
-    float3 worldPos = mul(viewPos, g_DeferredViewMatrixInverse).xyz;
 
+    float3 worldPos = mul(viewPos, g_DeferredViewMatrixInverse).xyz;
     float3 rayVec = worldPos - camPos;
-    float3 rayDir = normalize(rayVec);
     float geoLen = length(rayVec);
+
+    if (geoLen <= EPSILON)
+        return float4(0.f, 0.f, 0.f, 0.f);
+
+    float3 rayDir = rayVec / geoLen;
 
     float noGeometry = max(step(0.9999f, depthVal), step(depthVal, 0.0001f));
     float rayLen = lerp(geoLen, g_DeferredFar, noGeometry);
 
-    float3 fogColorOut = float3(0, 0, 0);
-    float fogFactorOut = 0.f;
+    // Global Distance Fog
+    float globalFogFactor = ComputeGlobalDistanceFog(rayLen);
+    float3 globalFogColor = float3(0.65f, 0.68f, 0.65f);
+
+    float3 fogColorOut = globalFogColor * globalFogFactor;
+    float fogFactorOut = globalFogFactor;
+
+    // Ground Height Fog
+    float groundFogFactor = ComputeGroundFog(camPos, rayDir, rayLen);
+    float3 groundFogColor = float3(0.72f, 0.74f, 0.70f);
+
+    float groundRemaining = 1.f - fogFactorOut;
+    float groundContribution = groundRemaining * groundFogFactor;
+
+    fogColorOut += groundFogColor * groundContribution;
+    fogFactorOut += groundContribution;
+
+    float3 safeRayDir = float3(
+        abs(rayDir.x) > EPSILON ? rayDir.x : (rayDir.x >= 0.f ? EPSILON : -EPSILON),
+        abs(rayDir.y) > EPSILON ? rayDir.y : (rayDir.y >= 0.f ? EPSILON : -EPSILON),
+        abs(rayDir.z) > EPSILON ? rayDir.z : (rayDir.z >= 0.f ? EPSILON : -EPSILON)
+    );
 
     [loop]
     for (int i = 0; i < g_FogAABBCount; ++i)
     {
         FogZoneEntry zone = g_FogZones[i];
-        float3 invD = rcp(rayDir);
+
+        float3 invD = rcp(safeRayDir);
         float3 t0 = (zone.zoneMin - camPos) * invD;
         float3 t1 = (zone.zoneMax - camPos) * invD;
-        float tNear = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), min(t0.z, t1.z));
-        float tFar = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), max(t0.z, t1.z));
-        if (tFar <= max(tNear, 0.f))
+
+        float3 tMin = min(t0, t1);
+        float3 tMax = max(t0, t1);
+
+        float tNear = max(max(tMin.x, tMin.y), tMin.z);
+        float tFar = min(min(tMax.x, tMax.y), tMax.z);
+
+        float segmentStart = max(tNear, 0.f);
+        float segmentEnd = min(tFar, rayLen);
+
+        if (segmentEnd <= segmentStart)
             continue;
-        
-        float pathLen = max(0.f, min(tFar, rayLen) - max(tNear, zone.fogStart));
-        float factor = saturate(1.f - exp(-zone.fogDensity * pathLen)) * zone.fogColor.a;
-        fogColorOut = lerp(fogColorOut, zone.fogColor.rgb, factor);
-        fogFactorOut = saturate(fogFactorOut + factor);
+
+        float fogStartDistance = segmentStart + max(zone.fogStart, 0.f);
+        float pathLen = max(segmentEnd - fogStartDistance, 0.f);
+
+        if (pathLen <= EPSILON)
+            continue;
+
+        float factor = saturate(1.f - exp(-max(zone.fogDensity, 0.f) * pathLen));
+        factor *= saturate(zone.fogColor.a);
+
+        float remaining = 1.f - fogFactorOut;
+        float contribution = remaining * factor;
+
+        fogColorOut += zone.fogColor.rgb * contribution;
+        fogFactorOut += contribution;
     }
 
-    [loop]
-    for (int j = g_FogAABBCount; j < g_FogAABBCount + g_FogSphereCount; ++j)
-    {
-        FogZoneEntry zone = g_FogZones[j];
-        float3 oc = camPos - zone.zoneMin;
-        float b = dot(oc, rayDir);
-        float c = dot(oc, oc) - zone.zoneRadius * zone.zoneRadius;
-        float disc = b * b - c;
-        if (disc < 0.f)
-            continue;
-        
-        float sq = sqrt(disc);
-        float tNear = -b - sq;
-        float tFar = -b + sq;
-        if (tFar <= max(tNear, 0.f))
-            continue;
-        
-        float pathLen = max(0.f, min(tFar, rayLen) - max(tNear, zone.fogStart));
-        float factor = saturate(1.f - exp(-zone.fogDensity * pathLen)) * zone.fogColor.a;
-        fogColorOut = lerp(fogColorOut, zone.fogColor.rgb, factor);
-        fogFactorOut = saturate(fogFactorOut + factor);
-    }
+    fogFactorOut = saturate(fogFactorOut);
 
-    return float4(fogColorOut, fogFactorOut);
+    float3 straightFogColor = fogFactorOut > EPSILON
+        ? fogColorOut / fogFactorOut
+        : float3(0.f, 0.f, 0.f);
+
+    return float4(straightFogColor, fogFactorOut);
 }
+
 
 technique11 DefaultTechnique
 {

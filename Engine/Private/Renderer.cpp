@@ -735,6 +735,21 @@ void Renderer::Render_Fog()
         return;
     }
 
+    auto* noiseTexture = GAME->Get_SRV("T_Perlin_Noise_M");
+    if FAILED(_deferredShader->Bind_SRV("g_FogNoiseTexture", noiseTexture))
+    {
+        LOG_WARN("Failed to bind noise texutre!");
+    }
+
+    const float fDT = 0.016f;
+    static float s_elapsed = 0.f;
+    s_elapsed += fDT;
+    if FAILED(_deferredShader->Bind_RawValue("g_fDT", &s_elapsed, sizeof(float)))
+    {
+        LOG_WARN("Failed to bind noise texutre!");
+    }
+
+
     if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
     {
         return;

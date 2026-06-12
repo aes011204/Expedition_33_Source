@@ -314,7 +314,7 @@ struct alignas(16) FogZoneEntry
     Vec3 zoneMax;
     float _pad0;
 
-    Vec4 fogColor{ 1.f, 0.2f, 0.1f, 1.f };
+    Vec4 fogColor{ 0.6f, 0.6f, 0.6f, 1.f };
 
     float fogDensity{ 1.f };
     float fogStart{ 0.f };
