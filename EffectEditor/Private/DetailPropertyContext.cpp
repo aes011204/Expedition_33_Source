@@ -1091,12 +1091,12 @@ private: //## Label Helpers
             const auto draw_item = [&](FloatCurveInterpolationMode mode, bool enabled)
             {
                 const bool selected = !keys.empty() && ranges::all_of(
-                    keys,
-                    [mode](const TKey& key)
-                    {
-                        return key.interpolationMode == mode;
-                    }
-                );
+                                          keys,
+                                          [mode](const TKey& key)
+                                          {
+                                              return key.interpolationMode == mode;
+                                          }
+                                      );
 
                 if (!enabled)
                     ImGui::BeginDisabled();

@@ -1106,7 +1106,7 @@ namespace Internal
                 continue;
 
             const auto* data = get_if<PlaneRadialOrientationModuleData>(&module.data);
-            if (data != nullptr && data->enabled && data->orientationMode != PlaneRadialOrientationMode::None)
+            if (data != nullptr && data->orientationMode != PlaneRadialOrientationMode::None)
                 return true;
         }
 
@@ -2167,7 +2167,7 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
     return changed;
 }
 
-bool LifetimeModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule& module, LifetimeModuleData& data, DetailPropertyContext& detailContext)
+bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const AuthoringModule& module, LifetimeModuleData& data, DetailPropertyContext& detailContext)
 {
     const LifetimeModuleData defaultData{};
     bool changed = false;
@@ -2190,17 +2190,11 @@ bool LifetimeModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
             ImGui::TextDisabled("Beam 무한 반복: 반복 번호를 curve 구간에 순환 적용합니다.");
         }
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
-        {
             ImGui::TextDisabled("Mesh ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
-        }
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail || emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
-        {
             ImGui::TextDisabled("Trail/Ribbon ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
-        }
         else
-        {
             ImGui::TextDisabled("Sprite ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
-        }
     }
 
     return changed;
@@ -2294,7 +2288,6 @@ bool PlaneRadialLocationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("PlaneRadialLocation"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             changed |= Internal::Draw_PlaneRadialLocationPlaneProperty(
                 detailContext,
                 "기준 평면",
@@ -2544,7 +2537,6 @@ bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitO
     {
         if (detailContext.Begin_PropertyTable("OrbitOverLife"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             Internal::Draw_ReadOnlyTextProperty(detailContext, "Pivot", "Emitter Origin", "v1 runtime은 EmitterOrigin만 소비합니다.");
             changed |= Internal::Draw_EffectOrbitPlaneProperty(detailContext, "평면", data.plane, defaultData.plane);
             Internal::Draw_ReadOnlyTextProperty(detailContext, "방향 추적", "Preserve", "v1 runtime은 orientation follow를 적용하지 않습니다.");
@@ -2571,7 +2563,6 @@ bool PlaneRadialOrientationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("PlaneRadialOrientation"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             Internal::Draw_PlaneRadialOrientationResolvedTargetProperty(detailContext, emitter);
             changed |= Internal::Draw_PlaneRadialOrientationModeProperty(
                 detailContext,
@@ -2621,7 +2612,6 @@ bool SphereRadialOrientationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("SphereRadialOrientation"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             changed |= Internal::Draw_SphereRadialOrientationModeProperty(
                 detailContext,
                 "방향",
@@ -2648,8 +2638,7 @@ bool SphereRadialOrientationModuleDetail::Draw(
 
         if (!Internal::Has_SphereLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 구 위치가 없으면 runtime sphere radial frame을 만들 수 없습니다.");
-        if (data.enabled &&
-            data.orientationMode != SphereRadialOrientationMode::None &&
+        if (data.orientationMode != SphereRadialOrientationMode::None &&
             Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
             ImGui::TextDisabled("평면/방사 회전도 켜져 있으면 runtime은 구/방사 회전을 먼저 적용합니다.");
     }
@@ -2977,12 +2966,6 @@ bool SpawnPerUnitModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("거리당 스폰", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (detailContext.Begin_PropertyTable("SpawnPerUnit"))
-        {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
-            detailContext.End_PropertyTable();
-        }
-
         changed |= detailContext.Draw_FloatDistributionGroup("분포", data.spawnPerUnit, defaultData.spawnPerUnit);
 
         if (detailContext.Begin_PropertyTable("SpawnPerUnitPolicy"))
@@ -3087,7 +3070,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                     if (detailContext.Begin_PropertyTable("MaterialCoreColorRgbModulator"))
                     {
-                        changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
+                        changed |= detailContext.Draw_BoolProperty("변조 사용", modulator.enabled, defaultData.enabled);
 
                         bool nextCoreColorRgb = true;
                         MaterialScalarModulationTargetField nextTarget = MaterialScalarModulationTargetField::CoreColor;
@@ -3150,7 +3133,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                     if (detailContext.Begin_PropertyTable("MaterialScalarModulator"))
                     {
-                        changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
+                        changed |= detailContext.Draw_BoolProperty("변조 사용", modulator.enabled, defaultData.enabled);
 
                         bool nextCoreColorRgb = false;
                         MaterialScalarModulationTargetField nextTarget = modulator.targetField;

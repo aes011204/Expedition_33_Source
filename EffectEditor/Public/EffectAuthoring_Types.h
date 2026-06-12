@@ -784,7 +784,6 @@ enum class PlaneRadialLocationPlacementMode : uint8
 
 struct PlaneRadialLocationModuleData
 {
-    bool enabled{ true };
     PlaneRadialLocationPlane plane{ PlaneRadialLocationPlane::XY };
     PlaneRadialLocationShape shape{ PlaneRadialLocationShape::Disc };
     PlaneRadialLocationPlacementMode placementMode{ PlaneRadialLocationPlacementMode::Random };
@@ -825,7 +824,6 @@ enum class PlaneRadialOrientationAxis : uint8
 
 struct PlaneRadialOrientationModuleData
 {
-    bool enabled{ true };
     PlaneRadialOrientationTargetKind targetKind{ PlaneRadialOrientationTargetKind::Auto };
     PlaneRadialOrientationMode orientationMode{ PlaneRadialOrientationMode::None };
     PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
@@ -843,7 +841,6 @@ enum class SphereRadialOrientationMode : uint8
 
 struct SphereRadialOrientationModuleData
 {
-    bool enabled{ true };
     SphereRadialOrientationMode orientationMode{ SphereRadialOrientationMode::None };
     PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
     PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
@@ -927,7 +924,6 @@ enum class EffectOrbitOrientationMode : uint8
 
 struct OrbitOverLifeModuleData
 {
-    bool enabled{ true };
     EffectOrbitPivotMode pivotMode{ EffectOrbitPivotMode::EmitterOrigin };
     EffectOrbitPlane plane{ EffectOrbitPlane::XY };
     FloatDistributionData angleDegreesOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
@@ -1026,7 +1022,6 @@ struct MeshSizeByLifeModuleData
 
 struct SpawnPerUnitModuleData
 {
-    bool enabled{ true };
     FloatDistributionData spawnPerUnit{ FloatDistributionData::Make_Constant(50.f) };
     float unitScalar{ 1.f };
     float movementTolerance{ 0.001f };

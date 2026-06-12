@@ -153,22 +153,26 @@ namespace Internal
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<FloatCurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode : FloatCurveInterpolationMode::Linear;
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
     }
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<Vector2CurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode : FloatCurveInterpolationMode::Linear;
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
     }
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<Vector3CurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode : FloatCurveInterpolationMode::Linear;
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
     }
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<ColorCurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode : FloatCurveInterpolationMode::Linear;
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
     }
 
     template <typename TKey>
@@ -725,10 +729,10 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector3DistributionData&
         const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
         const Vec3 tangent = dt > 0.f
                              ? Vec3{
-                                   (nextKey->value.x - prevKey->value.x) / dt,
-                                   (nextKey->value.y - prevKey->value.y) / dt,
-                                   (nextKey->value.z - prevKey->value.z) / dt
-                               }
+                                 (nextKey->value.x - prevKey->value.x) / dt,
+                                 (nextKey->value.y - prevKey->value.y) / dt,
+                                 (nextKey->value.z - prevKey->value.z) / dt
+                             }
                              : Vec3{};
         key.arriveTangent = tangent;
         key.leaveTangent = tangent;
@@ -764,11 +768,11 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveColorDistributionData& c
         const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
         const Color tangent = dt > 0.f
                               ? Color{
-                                    (nextKey->value.x - prevKey->value.x) / dt,
-                                    (nextKey->value.y - prevKey->value.y) / dt,
-                                    (nextKey->value.z - prevKey->value.z) / dt,
-                                    0.f
-                                }
+                                  (nextKey->value.x - prevKey->value.x) / dt,
+                                  (nextKey->value.y - prevKey->value.y) / dt,
+                                  (nextKey->value.z - prevKey->value.z) / dt,
+                                  0.f
+                              }
                               : Color{};
         key.arriveTangent = tangent;
         key.leaveTangent = tangent;

@@ -664,7 +664,7 @@ namespace Internal
     PointParticlePlaneRadialLocationDesc Build_PointParticlePlaneRadialLocationDesc(const PlaneRadialLocationModuleData& data)
     {
         PointParticlePlaneRadialLocationDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.plane = Resolve_PointParticlePlaneRadialLocationPlane(data.plane);
         desc.shape = Resolve_PointParticlePlaneRadialLocationShape(data.shape);
         desc.placementMode = Resolve_PointParticlePlaneRadialLocationPlacementMode(data.placementMode);
@@ -684,7 +684,7 @@ namespace Internal
     PointParticlePlaneRadialOrientationDesc Build_PointParticlePlaneRadialOrientationDesc(const PlaneRadialOrientationModuleData& data)
     {
         PointParticlePlaneRadialOrientationDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.targetKind = Resolve_PointParticlePlaneRadialOrientationTargetKind(data.targetKind);
         desc.orientationMode = Resolve_PointParticlePlaneRadialOrientationMode(data.orientationMode);
         desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
@@ -697,7 +697,7 @@ namespace Internal
     PointParticleSphereRadialOrientationDesc Build_PointParticleSphereRadialOrientationDesc(const SphereRadialOrientationModuleData& data)
     {
         PointParticleSphereRadialOrientationDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.orientationMode = Resolve_PointParticleSphereRadialOrientationMode(data.orientationMode);
         desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
         desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
@@ -1166,7 +1166,7 @@ namespace Internal
     EffectOrbitOverLifeRuntimeDesc Build_OrbitOverLifeDesc(const OrbitOverLifeModuleData& data)
     {
         EffectOrbitOverLifeRuntimeDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.plane = Resolve_EffectOrbitPlane(data.plane);
         Fill_OrbitFloatCurvePayload(
             desc.angleDegreesOverLife,
@@ -2102,7 +2102,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
     {
-        emitterDesc.spawnPerUnit.enabled = spawnPerUnit->enabled;
+        emitterDesc.spawnPerUnit.enabled = true;
         emitterDesc.spawnPerUnit.spawnPerUnit =
             max(0.f, Internal::Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
         emitterDesc.spawnPerUnit.unitScalar = max(0.0001f, spawnPerUnit->unitScalar);

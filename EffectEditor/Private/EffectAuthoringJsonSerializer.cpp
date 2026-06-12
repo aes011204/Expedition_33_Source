@@ -1825,7 +1825,6 @@ namespace Internal
     json To_Json(const PlaneRadialLocationModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["plane"] = To_EnumToken(data.plane);
         root["shape"] = To_EnumToken(data.shape);
         root["placementMode"] = To_EnumToken(data.placementMode);
@@ -1843,7 +1842,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto planeIter = root.find("plane");
         if (planeIter != root.end())
             Try_ReadEnumToken(*planeIter, outData.plane);
@@ -1873,7 +1871,6 @@ namespace Internal
     json To_Json(const PlaneRadialOrientationModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["targetKind"] = To_EnumToken(data.targetKind);
         root["orientationMode"] = To_EnumToken(data.orientationMode);
         root["meshForwardAxis"] = To_EnumToken(data.meshForwardAxis);
@@ -1888,7 +1885,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto targetKindIter = root.find("targetKind");
         if (targetKindIter != root.end())
             Try_ReadEnumToken(*targetKindIter, outData.targetKind);
@@ -1908,7 +1904,6 @@ namespace Internal
     json To_Json(const SphereRadialOrientationModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["orientationMode"] = To_EnumToken(data.orientationMode);
         root["meshForwardAxis"] = To_EnumToken(data.meshForwardAxis);
         root["meshUpAxis"] = To_EnumToken(data.meshUpAxis);
@@ -1922,7 +1917,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto orientationModeIter = root.find("orientationMode");
         if (orientationModeIter != root.end())
             Try_ReadEnumToken(*orientationModeIter, outData.orientationMode);
@@ -2113,7 +2107,6 @@ namespace Internal
     json To_Json(const OrbitOverLifeModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["pivotMode"] = To_EnumToken(data.pivotMode);
         root["plane"] = To_EnumToken(data.plane);
         root["angleDegreesOverLife"] = To_Json(data.angleDegreesOverLife);
@@ -2127,7 +2120,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto pivotModeIter = root.find("pivotMode");
         if (pivotModeIter != root.end())
             Try_ReadEnumToken(*pivotModeIter, outData.pivotMode);
@@ -2481,7 +2473,6 @@ namespace Internal
     json To_Json(const SpawnPerUnitModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["spawnPerUnit"] = To_Json(data.spawnPerUnit);
         root["unitScalar"] = data.unitScalar;
         root["movementTolerance"] = data.movementTolerance;
@@ -2493,8 +2484,6 @@ namespace Internal
     {
         if (!root.is_object())
             return;
-
-        Read_BoolField(root, "enabled", outData.enabled);
 
         const auto spawnPerUnitIter = root.find("spawnPerUnit");
         if (spawnPerUnitIter != root.end())

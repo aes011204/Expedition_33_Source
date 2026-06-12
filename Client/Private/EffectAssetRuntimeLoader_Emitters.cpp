@@ -750,7 +750,7 @@ namespace EffectAssetRuntimeLoad::Emitters
 
         if (const json* spawnPerUnit = Find_ModuleData(emitter, "SpawnPerUnit"))
         {
-            desc.spawnPerUnit.enabled = Read_Bool(*spawnPerUnit, "enabled", true);
+            desc.spawnPerUnit.enabled = true;
 
             const auto spawnPerUnitIter = spawnPerUnit->find("spawnPerUnit");
             if (spawnPerUnitIter != spawnPerUnit->end())

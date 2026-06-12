@@ -1130,7 +1130,7 @@ namespace EffectAssetRuntimeLoad::Curves
 
     void Fill_OrbitOverLifePayload(EffectOrbitOverLifeRuntimeDesc& desc, const json& orbitOverLife)
     {
-        desc.enabled = Read_Bool(orbitOverLife, "enabled", desc.enabled);
+        desc.enabled = true;
         Read_Enum(orbitOverLife, "plane", desc.plane);
 
         auto fill_float_curve = [](
@@ -1221,7 +1221,7 @@ namespace EffectAssetRuntimeLoad::Curves
 
     void Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation)
     {
-        desc.enabled = Read_Bool(planeRadialLocation, "enabled", desc.enabled);
+        desc.enabled = true;
         Read_Enum(planeRadialLocation, "plane", desc.plane);
         Read_Enum(planeRadialLocation, "shape", desc.shape);
         Read_Enum(planeRadialLocation, "placementMode", desc.placementMode);
@@ -1270,7 +1270,7 @@ namespace EffectAssetRuntimeLoad::Curves
         PointParticleSphereRadialOrientationDesc& desc,
         const json& sphereRadialOrientation)
     {
-        desc.enabled = Read_Bool(sphereRadialOrientation, "enabled", desc.enabled);
+        desc.enabled = true;
         Read_Enum(sphereRadialOrientation, "orientationMode", desc.orientationMode);
         Read_Enum(sphereRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);
         Read_Enum(sphereRadialOrientation, "meshUpAxis", desc.meshUpAxis);
@@ -1282,7 +1282,7 @@ namespace EffectAssetRuntimeLoad::Curves
         PointParticlePlaneRadialOrientationDesc& desc,
         const json& planeRadialOrientation)
     {
-        desc.enabled = Read_Bool(planeRadialOrientation, "enabled", desc.enabled);
+        desc.enabled = true;
         Read_Enum(planeRadialOrientation, "targetKind", desc.targetKind);
         Read_Enum(planeRadialOrientation, "orientationMode", desc.orientationMode);
         Read_Enum(planeRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);

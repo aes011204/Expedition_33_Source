@@ -34,7 +34,7 @@ class LifetimeModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         const AuthoringModule& module,
         LifetimeModuleData& data,
         DetailPropertyContext& detailContext);
