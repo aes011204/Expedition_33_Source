@@ -630,17 +630,8 @@ void SceneContext::SaveToFile(const string& filePath)
                 modelOverrideModelPaths[fs::path(obj->_modelPath).filename().string()] = String::ToString(obj->_modelPath);
             }
 
-            wstring modelFile = obj->_modelPath;
-            const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
-            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
-            {
-                modelFile = modelFile.substr(prefix.size());
-            }
-            else
-            {
-                modelFile = fs::path(modelFile).filename().wstring();
-            }
-            e["ModelPath"] = String::ToString(modelFile);
+            e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
+
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
             staticMeshes.push_back(e);
 
@@ -678,17 +669,7 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::PostProcessVolume:
-            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
-            e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
-            e["Radius"] = obj->_zoneRadius;
-            e["BloomIntensity"] = obj->_ppBloomIntensity;
-            e["ExposureMin"] = obj->_ppExposureMin;
-            e["ExposureMax"] = obj->_ppExposureMax;
-            e["FogDensity"] = obj->_ppFogDensity;
-            e["FogColor"] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
-            e["FogStart"] = obj->_ppFogStart;
-            e["FogZoneType"] = obj->_ppFogZoneType;
-            e["FogRadius"] = obj->_ppFogRadius;
+            Serialize_PostProcessVolume(e, *obj);
             postProcessVols.push_back(e);
             break;
 
@@ -719,16 +700,6 @@ void SceneContext::SaveToFile(const string& filePath)
                 modelOverrideModelPaths[fs::path(obj->_instancedModelPath).filename().string()] = String::ToString(obj->_instancedModelPath);
             }
 
-            wstring modelFile = obj->_instancedModelPath;
-            const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
-            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
-            {
-                modelFile = modelFile.substr(prefix.size());
-            }
-            else
-            {
-                modelFile = fs::path(modelFile).filename().wstring();
-            }
             json instances = json::array();
             for (auto& t : obj->_instancedTransforms)
             {
@@ -738,7 +709,8 @@ void SceneContext::SaveToFile(const string& filePath)
                 inst["Scale"] = { t._scale.x, t._scale.y, t._scale.z };
                 instances.push_back(inst);
             }
-            e["ModelPath"] = String::ToString(modelFile);
+            e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
+
             e["HasCollision"] = obj->_instancedHasCollision;
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
@@ -748,48 +720,7 @@ void SceneContext::SaveToFile(const string& filePath)
 
         case EObjectType::Water:
         {
-            e["Position"] = { obj->_position.x, obj->_position.y, obj->_position.z };
-            e["Rotation"] = { obj->_rotation.x, obj->_rotation.y, obj->_rotation.z, obj->_rotation.w };
-
-            e["CountX"] = obj->_waterDesc.countX;
-            e["CountZ"] = obj->_waterDesc.countZ;
-            e["SizeX"] = obj->_waterDesc.sizeX;
-            e["SizeZ"] = obj->_waterDesc.sizeZ;
-            e["ChunkSize"] = obj->_waterDesc.chunkSize;
-
-            const wstring waterTexPrefix = _waterPath;
-            auto StripWaterTexPath = [&](const wstring& fullPath) -> string {
-                if (fullPath.size() >= waterTexPrefix.size() && fullPath.substr(0, waterTexPrefix.size()) == waterTexPrefix)
-                {
-                    return String::ToString(fullPath.substr(waterTexPrefix.size()));
-                }
-                return String::ToString(fs::path(fullPath).filename().wstring());
-                };
-
-            e["LargeWaveNormal"] = StripWaterTexPath(obj->_waterLargeWaveNormalPath);
-            e["SmallWaveNormal"] = StripWaterTexPath(obj->_waterSmallWaveNormalPath);
-            e["SeafoamTexture"] = StripWaterTexPath(obj->_waterSeafoamPath);
-            e["Cubemap"] = StripWaterTexPath(obj->_waterCubemapPath);
-
-            auto& p = obj->_waterParams;
-            e["LargeWaveScale"] = p.largeWaveScale;
-            e["LargeWaveSpeed"] = p.largeWaveSpeed;
-            e["LargeWaveAmplify"] = p.largeWaveAmplify;
-            e["SmallWaveScale"] = p.smallWaveScale;
-            e["SmallWaveSpeed"] = p.smallWaveSpeed;
-            e["SmallWaveAmplify"] = p.smallWaveAmplify;
-            e["SeafoamScale"] = p.seafoamScale;
-            e["SeafoamSpeed"] = p.seafoamSpeed;
-            e["SeafoamHeightPower"] = p.seafoamHeightPower;
-            e["SeafoamHeightMultiply"] = p.seafoamHeightMultiply;
-            e["FoamDistortion"] = p.foamDistortion;
-            e["DepthFade"] = p.depthFade;
-            e["CameraDistanceFade"] = p.cameraDistanceFade;
-            e["ReflectionAmount"] = p.reflectionAmount;
-            e["LuminanceBias"] = p.luminanceBias;
-            e["WaterColor"] = { p.waterColor.x,   p.waterColor.y,   p.waterColor.z,   p.waterColor.w };
-            e["FresnelColor"] = { p.fresnelColor.x, p.fresnelColor.y, p.fresnelColor.z, p.fresnelColor.w };
-
+            Serialize_Water(e, *obj);
             waters.push_back(e);
             break;
         }
@@ -1044,19 +975,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             auto obj = make_shared<EditorObject>();
             obj->_type = EObjectType::PostProcessVolume;
             obj->_name = String::ToWString(e["Id"].get<string>());
-            obj->_ppBloomIntensity = e.value("BloomIntensity", 1.f);
-            obj->_ppExposureMin = e.value("ExposureMin", 0.f);
-            obj->_ppExposureMax = e.value("ExposureMax", 2.f);
-            obj->_ppFogDensity = e.value("FogDensity", 0.f);
-            if (e.contains("FogColor"))
-            {
-                auto& c = e["FogColor"];
-                obj->_ppFogColor = { c[0], c[1], c[2] };
-            }
-            obj->_ppFogStart = e.value("FogStart", 0.f);
-            obj->_ppFogZoneType = e.value("FogZoneType", 0);
-            obj->_ppFogRadius = e.value("FogRadius", 10.f);
-
+            Deserialize_PostProcessVolume(e, *obj);
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
             Add(obj);
@@ -1175,66 +1094,13 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
 
     if (map.contains("Waters"))
     {
-        const wstring waterTexBase = _waterPath;
-        auto WaterTexPath = [&](const string& filename) -> wstring {
-            if (filename.empty())
-            {
-                return {};
-            }
-            return waterTexBase + String::ToWString(filename);
-            };
-
         for (auto& e : map["Waters"])
         {
             auto obj = make_shared<EditorObject>();
             obj->_type = EObjectType::Water;
             obj->_name = String::ToWString(e.value("Id", string{ "Water" }));
-
-            auto& pos = e["Position"];
-            obj->_position = { pos[0], pos[1], pos[2] };
-            auto& rot = e["Rotation"];
-            obj->_rotation = { rot[0], rot[1], rot[2], rot[3] };
-            obj->UpdateWorldMatrix();
-
-            obj->_waterDesc.countX = e.value("CountX", 64u);
-            obj->_waterDesc.countZ = e.value("CountZ", 64u);
-            obj->_waterDesc.sizeX = e.value("SizeX", 1.f);
-            obj->_waterDesc.sizeZ = e.value("SizeZ", 1.f);
-            obj->_waterDesc.chunkSize = e.value("ChunkSize", 16u);
-
-            obj->_waterLargeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
-            obj->_waterSmallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
-            obj->_waterSeafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
-            obj->_waterCubemapPath = WaterTexPath(e.value("Cubemap", string{}));
-
-            auto& p = obj->_waterParams;
-            p.largeWaveScale = e.value("LargeWaveScale", 64.f);
-            p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
-            p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
-            p.smallWaveScale = e.value("SmallWaveScale", 512.f);
-            p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
-            p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
-            p.seafoamScale = e.value("SeafoamScale", 512.f);
-            p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
-            p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
-            p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
-            p.foamDistortion = e.value("FoamDistortion", 0.f);
-            p.depthFade = e.value("DepthFade", 0.f);
-            p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
-            p.reflectionAmount = e.value("ReflectionAmount", 0.f);
-            p.luminanceBias = e.value("LuminanceBias", 0.f);
-
-            if (e.contains("WaterColor"))
-            {
-                auto& c = e["WaterColor"];
-                p.waterColor = { c[0], c[1], c[2], c[3] };
-            }
-            if (e.contains("FresnelColor"))
-            {
-                auto& c = e["FresnelColor"];
-                p.fresnelColor = { c[0], c[1], c[2], c[3] };
-            }
-
+            Deserialize_Water(e, *obj);
+            LoadTransform(e, *obj);
             Add(obj);
         }
     }
