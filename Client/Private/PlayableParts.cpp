@@ -344,12 +344,12 @@ bool PlayableParts::Has_LeaderPoseComponent() const
     return _modelCom->Has_LeaderPoseComponent();
 }
 
-void PlayableParts::Update_LeaderPoseMatrices() const
+void PlayableParts::Update_LeaderPoseMatrices(float timeDelta) const
 {
     if (_modelCom == nullptr)
         return;
 
-    _modelCom->Update_LeaderPoseMatrices();
+    _modelCom->Update_LeaderPoseMatrices(timeDelta);
     CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers());
 }
 

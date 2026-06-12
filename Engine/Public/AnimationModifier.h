@@ -19,8 +19,7 @@ public:
     {
         wstring modifierTag{};
         float strengthAlpha{ 1.f };
-        
-        bool evaluateOnLeaderPose{ true };
+        bool evaluateOnLeaderPose{ false };
     };
 
 public:
@@ -29,7 +28,7 @@ public:
 
     virtual void Evaluate_Modifier(ModelCom* model, float timeDelta) PURE;
 
-    void Set_Active(bool isActive) { _isActive = isActive; }
+    void Set_Active(bool isActive);
     bool Is_Active() const { return _isActive; }
 
     void Set_StrengthAlpha(float alpha) { _strengthAlpha = alpha; }
@@ -38,13 +37,16 @@ public:
     const wstring& Get_ModifierTag() const { return _modifierTag; }
 
     bool Is_EvaluateOnLeaderPose() const { return _evaluateOnLeaderPose; }
+    void Bind_Model(ModelCom* model) { _ownerModel = model; }
 
 protected:
     virtual HRESULT Initialize(AnimationModifierDesc* desc);
+    virtual void On_ActiveChanged(ModelCom* model, bool isActive) { UNREFERENCED_PARAMETER(model); UNREFERENCED_PARAMETER(isActive); }
 
 protected:
     bool _isActive = true;
     bool _evaluateOnLeaderPose = false;
+    ModelCom* _ownerModel{ nullptr };
     float _strengthAlpha{ 1.f }; // 왜 인지 모르지만 alpha로 언리얼에서 표현 하는듯 섞을 애니메이션 강도 0.f ~ 1.f
     wstring _modifierTag{};
 

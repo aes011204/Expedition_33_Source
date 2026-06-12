@@ -173,9 +173,6 @@ void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enable
         if (_gameMenuFacialEnabled && _gameMenuFacialModifier != nullptr)
         {
             _gameMenuFacialModifier->Set_Active(false);
-            _gameMenuFacialModifier->Reset_Pose(headModel.get());
-            headModel->Rebuild_BoneCombinedMatrices();
-            CHECK_FAILED(headModel->Apply_MorphWeightsToCpuVertices(), );
         }
 
         _gameMenuFacialEnabled = false;
@@ -210,13 +207,12 @@ void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enable
         _gameMenuFacialModifier = FacialAnimationModifier::Create(&modifierDesc);
         if (_gameMenuFacialModifier == nullptr)
             return;
+
+        headModel->Add_AnimModifier(_gameMenuFacialModifier);
     }
 
     _gameMenuFacialEnabled = true;
     _gameMenuFacialModifier->Set_Active(true);
-    _gameMenuFacialModifier->Evaluate_Modifier(headModel.get(), timeDelta);
-    headModel->Rebuild_BoneCombinedMatrices();
-    CHECK_FAILED(headModel->Apply_MorphWeightsToCpuVertices(), );
 }
 
 const wchar_t* Player_WorldBase::Get_GameMenuFacialClipPath() const
@@ -317,7 +313,6 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
     headPartDesc.modelTag = Get_HeadModelTag();
-    //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
     headPartDesc.socketMatrixPointer = nullptr;
 
     if (FAILED(

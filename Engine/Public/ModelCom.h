@@ -234,7 +234,7 @@ public: /* 머리 붙이기 */
     void Clear_LeaderPoseComponent();
     bool Has_LeaderPoseComponent() const { return _leaderPoseModel != nullptr; }
 
-    void Update_LeaderPoseMatrices();
+    void Update_LeaderPoseMatrices(float timeDelta);
 
 public:
     void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; }
@@ -272,6 +272,7 @@ public: // Animation Bone Modifier 기능
     const vector<Shared<AnimationModifier>>& Get_Modifiers() const { return _modifiers; }
 private:
     void Evaluate_AnimationModifiers(float timeDelta);
+    void Evaluate_AnimationModifiersLeaderPose(float timeDelta, bool leaderPoseContext);
 
 private:
     ModelType					        _type = { ModelType::END };

@@ -50,6 +50,7 @@ public:
     void Reset_Pose(ModelCom* model);
 
 private:
+    void On_ActiveChanged(ModelCom* model, bool isActive) override;
     void Rebuild_Bindings(ModelCom* model);
     Matrix Build_LocalMatrix(
         const FacialClip::TransformKey& key,

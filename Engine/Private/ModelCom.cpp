@@ -1386,7 +1386,7 @@ HRESULT ModelCom::Prepare_BoneMatrixBuffers()
     if (_leaderPoseModel != nullptr)
     {
         if (!_leaderPoseMatricesValid)
-            Update_LeaderPoseMatrices();
+            Update_LeaderPoseMatrices(0.f);
 
         if (_leaderPoseCombinedMatrices.empty())
             return E_FAIL;
@@ -1743,7 +1743,7 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
     Build_LeaderPoseRequiredBones();
 
     _leaderPoseMatricesValid = false;
-    Update_LeaderPoseMatrices();
+    Update_LeaderPoseMatrices(0.f);
 }
 
 void ModelCom::Clear_LeaderPoseComponent()
@@ -1759,7 +1759,7 @@ void ModelCom::Clear_LeaderPoseComponent()
     Mark_BoneMatricesDirty();
 }
 
-void ModelCom::Update_LeaderPoseMatrices()
+void ModelCom::Update_LeaderPoseMatrices(float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::UpdateLeaderPose");
     if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
@@ -1767,23 +1767,28 @@ void ModelCom::Update_LeaderPoseMatrices()
 
     // leader가 이번 프레임에 bone을 갱신하지 않았으면 재계산 스킵
     const uint64 leaderGen = _leaderPoseModel->_boneUpdateGeneration;
-     if (leaderGen == _leaderPoseLastSyncedGeneration)
-        return;
+    const bool leaderPoseChanged = leaderGen != _leaderPoseLastSyncedGeneration;
 
-    _leaderPoseLastSyncedGeneration = leaderGen;
-
-    _leaderPoseVisited.assign(_numBones, 0);
-
-    if (_leaderPoseRequiredBones.empty())
-        Build_LeaderPoseRequiredBones();
-
-    for (uint32 boneIndex : _leaderPoseRequiredBones)
+    if (leaderPoseChanged)
     {
-        Build_LeaderPoseMatrix(boneIndex, _leaderPoseVisited);
+        _leaderPoseLastSyncedGeneration = leaderGen;
+
+        _leaderPoseVisited.assign(_numBones, 0);
+
+        if (_leaderPoseRequiredBones.empty())
+            Build_LeaderPoseRequiredBones();
+
+        for (uint32 boneIndex : _leaderPoseRequiredBones)
+        {
+            Build_LeaderPoseMatrix(boneIndex, _leaderPoseVisited);
+        }
+
+        _leaderPoseMatricesValid = true;
+        Mark_BoneMatricesDirty();
     }
 
-    _leaderPoseMatricesValid = true;
-    Mark_BoneMatricesDirty();
+    Evaluate_AnimationModifiersLeaderPose(timeDelta, true);
+    Step_RebuildCombinedBones();
 }
 
 void ModelCom::Build_LeaderPoseRequiredBones()
@@ -2166,6 +2171,7 @@ void ModelCom::Add_AnimModifier(const Shared<AnimationModifier>& modifier)
 {
     if (modifier)
     {
+        modifier->Bind_Model(this);
         _modifiers.push_back(modifier);
     }
 }
@@ -2187,6 +2193,20 @@ void ModelCom::Evaluate_AnimationModifiers(float timeDelta)
     {
         if (modifier != nullptr)
             modifier->Evaluate_Modifier(this, timeDelta);
+    }
+}
+
+void ModelCom::Evaluate_AnimationModifiersLeaderPose(float timeDelta, bool leaderPoseContext)
+{
+    for (auto& modifier : _modifiers)
+    {
+        if (modifier == nullptr)
+            continue;
+
+        if (leaderPoseContext && !modifier->Is_EvaluateOnLeaderPose())
+            continue;
+
+        modifier->Evaluate_Modifier(this, timeDelta);
     }
 }
 

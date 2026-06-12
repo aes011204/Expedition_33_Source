@@ -76,6 +76,7 @@ HRESULT FacialAnimationModifier::Initialize(AnimationModifierDesc* desc)
     _clip = facialDesc->clip;
     _loop = facialDesc->loop;
     _suppressMouthArea = facialDesc->suppressMouthArea;
+    _applyMorphCpu = facialDesc->applyMorphCpu;
     _bindingsDirty = true;
     _timelineTimeSec = 0.f;
     return S_OK;
@@ -88,7 +89,12 @@ void FacialAnimationModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
 
     if (!_isActive)
     {
-        Reset_Pose(model);
+        if (_poseApplied)
+        {
+            Reset_Pose(model);
+            if (_applyMorphCpu)
+                CHECK_FAILED(model->Apply_MorphWeightsToCpuVertices(), );
+        }
         return;
     }
 
@@ -140,6 +146,23 @@ void FacialAnimationModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
     }
 
     _poseApplied = true;
+
+    if (_applyMorphCpu)
+        CHECK_FAILED(model->Apply_MorphWeightsToCpuVertices(), );
+}
+
+void FacialAnimationModifier::On_ActiveChanged(ModelCom* model, bool isActive)
+{
+    if (isActive || model == nullptr || !_poseApplied)
+        return;
+
+    Reset_Pose(model);
+
+    if (_applyMorphCpu)
+    {
+        model->Rebuild_BoneCombinedMatrices();
+        CHECK_FAILED(model->Apply_MorphWeightsToCpuVertices(), );
+    }
 }
 
 void FacialAnimationModifier::Set_FacialClip(const Shared<FacialClip>& clip)
@@ -224,6 +247,7 @@ Matrix FacialAnimationModifier::Build_LocalMatrix(
     Vec3 scale = key.scale;
     Vec3 position = key.position;
     Quat rotation = key.rotation;
+
     if (additiveLocal)
     {
         scale = Vec3::One + key.scale;
@@ -243,7 +267,6 @@ Matrix FacialAnimationModifier::Build_LocalMatrix(
                 Quat::Identity,
                 rotation,
                 std::lerp(kUpperEyelidLowRotationScale, kUpperEyelidPeakRotationScale, peakAlpha));
-
         }
 
         position *= translationScale;

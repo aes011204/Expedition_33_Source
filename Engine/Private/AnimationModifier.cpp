@@ -1,5 +1,14 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "AnimationModifier.h"
+
+void AnimationModifier::Set_Active(bool isActive)
+{
+    if (_isActive == isActive)
+        return;
+
+    _isActive = isActive;
+    On_ActiveChanged(_ownerModel, _isActive);
+}
 
 HRESULT AnimationModifier::Initialize(AnimationModifierDesc* desc)
 {

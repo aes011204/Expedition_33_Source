@@ -46,24 +46,24 @@ void Body_Player::Priority_Update(float fTimeDelta)
 {
 }
 
-void Body_Player::Update(float fTimeDelta)
+void Body_Player::Update(float timeDelta)
 {
-    PlayableParts::Update(fTimeDelta);
+    PlayableParts::Update(timeDelta);
 
     ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Update");
 
     if (Has_LeaderPoseComponent())
     {
-        Update_LeaderPoseMatrices();
+        Update_LeaderPoseMatrices(timeDelta);
     }
     else if (_useComputeSkinning && _animComputeRuntime != nullptr)
     {
         ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::ComputeUpdate");
-        CHECK_FAILED(_animComputeRuntime->Update_Frame(fTimeDelta), ); // compute animation 파이프라인 전체 실행
+        CHECK_FAILED(_animComputeRuntime->Update_Frame(timeDelta), ); // compute animation 파이프라인 전체 실행
     }
     else
     {
-        _modelCom->Play_Animation(fTimeDelta);
+        _modelCom->Play_Animation(timeDelta);
         CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
     }
 
