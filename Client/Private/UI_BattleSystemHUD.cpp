@@ -161,6 +161,23 @@ void UI_BattleSystemHUD::Set_PartyBattleStat(PlayerCharacterType playerType, flo
     Set_ApText(slot, curAp);
 }
 
+void UI_BattleSystemHUD::Set_BattleHeroIds(const vector<HeroId>& heroIds)
+{
+    _visiblePartySlots = { false, false, false };
+
+    for (HeroId heroId : heroIds)
+    {
+        const uint32 slotIndex = Get_SlotIndex(heroId);
+        if (slotIndex < _visiblePartySlots.size())
+            _visiblePartySlots[slotIndex] = true;
+    }
+
+    if (!_visiblePartySlots[0] && !_visiblePartySlots[1] && !_visiblePartySlots[2])
+        _visiblePartySlots = { true, true, true }; // 비정상 입력이면 기존 3인 HUD로 복구한다.
+
+    Apply_BattlePartyLayout();
+}
+
 void UI_BattleSystemHUD::Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom)
 {
     if (mechanismCom == nullptr || !mechanismCom->Is_Gustave())
@@ -291,6 +308,12 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
     {
         const wstring portraitName = kPortraitNames[i];
 
+        _partySlots[i].root = Find_UI(_uiByName, L"Panel_BattlePortrait_" + portraitName);
+        CHECK_NULL(_partySlots[i].root, E_FAIL);
+
+        if (_partySlots[i].root->Get_Transform())
+            _partySlots[i].defaultPosition = _partySlots[i].root->Get_Transform()->Get_Position();
+
         _partySlots[i].hpGauge = Find_TypedUI<UI_Image>(_uiByName, L"Image_BattlePortrait_" + portraitName + L"_HP_Gauge"); // fillRatio는 뒤 프레임이 아니라 실제 빨간 HP 게이지에만 적용한다.
         _partySlots[i].currentHpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_" + portraitName + L"_Current_HP");
         _partySlots[i].currentHpTextBg = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_" + portraitName + L"_Current_HP_BG");
@@ -398,6 +421,25 @@ uint32 UI_BattleSystemHUD::Get_SlotIndex(PlayerCharacterType playerType)
     }
 }
 
+uint32 UI_BattleSystemHUD::Get_SlotIndex(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return 0;
+
+    case HeroId::Lune:
+        return 1;
+
+    case HeroId::Maelle:
+        return 2;
+
+    case HeroId::END:
+    default:
+        return 3;
+    }
+}
+
 void UI_BattleSystemHUD::Set_TextPair(const Shared<UI_Text>& front, const Shared<UI_Text>& back, const wstring& text)
 {
     if (front)
@@ -444,6 +486,40 @@ void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotInd
         {
             if (slot.apStates[i]->Is_Open())
                 slot.apStates[i]->Close();
+        }
+    }
+}
+
+void UI_BattleSystemHUD::Apply_BattlePartyLayout()
+{
+    const bool isGustaveOnly =
+        _visiblePartySlots[0] &&
+        !_visiblePartySlots[1] &&
+        !_visiblePartySlots[2];
+
+    for (uint32 i = 0; i < 3; ++i)
+    {
+        PartyBattleStatSlot& slot = _partySlots[i];
+        if (slot.root == nullptr)
+            continue;
+
+        if (!_visiblePartySlots[i])
+        {
+            slot.root->Close(); // 부모가 닫히면 자식도 Is_EffectivelyOpen에서 렌더되지 않는다.
+            continue;
+        }
+
+        if (!slot.root->Is_Open())
+            slot.root->Open();
+
+        if (slot.root->Get_Transform())
+        {
+            Vec2 position = slot.defaultPosition;
+
+            if (isGustaveOnly && i == Get_SlotIndex(HeroId::Gustave))
+                position = _partySlots[Get_SlotIndex(HeroId::Maelle)].defaultPosition; // 1인 튜토리얼에서는 구스타브를 가장 오른쪽 슬롯에 둔다.
+
+            slot.root->Get_Transform()->Set_Position(position);
         }
     }
 }
@@ -645,6 +721,7 @@ void UI_BattleSystemHUD::Reset_TargetAnimationState(bool includeRoot)
 
     Close_AllLuneStains();
     Close_AllMaelleStanceBadges();
+    Apply_BattlePartyLayout(); // animation reset이 전체 UI를 다시 열어도 현재 전투 파티만 보이게 복구한다.
 }
 
 Unique<UI_BattleSystemHUD> UI_BattleSystemHUD::Create(uint32 levelIndex)

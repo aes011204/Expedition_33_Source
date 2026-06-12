@@ -24,7 +24,7 @@ public:
     void SetAspect(float aspect) { _aspect = aspect; }
 
 public:
-    void Initialize(float fov, float aspect, float nearZ, float farZ);
+    void Initialize(HWND hWnd, float fov, float aspect, float nearZ, float farZ);
     void UpdateInput(float timeDelta);
 
 private:
@@ -40,8 +40,13 @@ private:
 
     float _rotateSensitivity = 0.003f;
 
+    bool _rotating = false;
+    POINT _savedCursorPos = {};
+
     Matrix _view = Matrix::Identity;
     Matrix _proj = Matrix::Identity;
+
+    HWND _hWnd{};
 
 private:
     void ComputeMatrices();
@@ -53,7 +58,7 @@ public:
     void FocusOn(const Vec3& target);
 
 public:
-    static Shared<MECamera> Create(float fov, float aspect, float nearZ, float farZ);
+    static Shared<MECamera> Create(HWND hWnd, float fov, float aspect, float nearZ, float farZ);
 };
 
 NS_END

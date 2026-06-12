@@ -36,6 +36,8 @@ protected:
         return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Gustave.facialclipbin";
     }
 
+    HeroId Get_HeroId() const override { return HeroId::Gustave; }
+
 public:
 	static Shared<PW_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

@@ -7,7 +7,7 @@ IMPLEMENT_REFLECTION(ANS_Trail)
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_WSTRING("Effect 이름", _effectName);
+    PROPERTY_WSTRING("Effect 이름 Override", _effectName);
     PROPERTY_WSTRING("대상 파츠", _partTag);
 
     return true;
@@ -54,6 +54,9 @@ void ANS_Trail::On_End(const AnimNotifyContext& context)
         if (effectOwner)
             effectCom = effectOwner->Get_Component<EffectCom>();
     }
+
+    if (effectCom == nullptr)
+        return;
 
     effectCom->Stop_TrailEffect(_effectName, _partTag);
 }

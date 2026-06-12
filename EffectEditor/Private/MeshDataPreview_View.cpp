@@ -252,13 +252,14 @@ namespace Internal
         const char* payloadType,
         const string& displayPath,
         const char* placeholder,
+        const char* summary,
         const function<bool(const wchar_t*)>& onDrop,
         const function<bool()>& onPick)
     {
-        constexpr float slotHeight = 48.f;
+        constexpr float slotHeight = 46.f;
         constexpr float browseButtonWidth = 34.f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
-        const float slotWidth = max(120.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
+        const float slotWidth = max(160.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
         bool changed = false;
 
         ImGui::PushID(id);
@@ -283,25 +284,30 @@ namespace Internal
         drawList->AddRectFilled(
             slotMin,
             slotMax,
-            hovered || isMatchingPayload ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255),
-            4.f
+            hovered || isMatchingPayload ? IM_COL32(34, 42, 58, 255) : IM_COL32(30, 34, 42, 255),
+            6.f
         );
         drawList->AddRect(
             slotMin,
             slotMax,
             hovered || isMatchingPayload ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255),
-            4.f,
+            6.f,
             0,
             isMatchingPayload ? 2.f : 1.f
         );
-        drawList->AddText(ImVec2(slotMin.x + 10.f, slotMin.y + 6.f), IM_COL32(235, 238, 245, 255), title);
-        drawList->PushClipRect(ImVec2(slotMin.x + 10.f, slotMin.y + 26.f), ImVec2(slotMax.x - 8.f, slotMax.y), true);
+
+        const float textLeft = slotMin.x + 10.f;
+        drawList->PushClipRect(ImVec2(textLeft, slotMin.y), ImVec2(slotMax.x - 8.f, slotMax.y), true);
+        drawList->AddText(ImVec2(textLeft, slotMin.y + 6.f), IM_COL32(235, 238, 245, 255), title);
         drawList->AddText(
-            ImVec2(slotMin.x + 10.f, slotMin.y + 27.f),
+            ImVec2(textLeft, slotMin.y + 25.f),
             IM_COL32(150, 160, 176, 255),
             displayPath.empty() ? placeholder : displayPath.c_str()
         );
         drawList->PopClipRect();
+
+        if (hovered)
+            ImGui::SetTooltip("%s\n%s", summary, displayPath.empty() ? placeholder : displayPath.c_str());
 
         ImGui::SameLine(0.f, spacing);
         if (ImGui::Button(ICON_FA_FOLDER_OPEN, ImVec2(browseButtonWidth, slotHeight)))
@@ -400,7 +406,7 @@ struct MeshDataPreview_View::PreviewRenderer
 
         if (FAILED(renderTarget->Begin(true, true)))
         {
-            statusMessage = "Preview render target begin failed.";
+            statusMessage = "Preview render target begin has failed.";
             return;
         }
 
@@ -651,10 +657,15 @@ struct MeshDataPreview_View::PreviewRenderer
         );
         const Vec4 screenSize(static_cast<float>(max(1u, width)), static_cast<float>(max(1u, height)), 0.f, 0.f);
         const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+        const Vec2 flowUVPolicyParams(
+            static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
+        );
 
         CHECK_FAILED(shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_DistortionScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
@@ -709,6 +720,18 @@ struct MeshDataPreview_View::PreviewRenderer
             static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
             0.f
         );
+        const Vec4 effectMeshUVAxisPolicyParams = Vec4(
+            static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+            static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.vPolicy))
+        );
+        const Vec4 effectMeshMaskUVAxisPolicyParams = Vec4(
+            static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy)),
+            0.f,
+            0.f
+        );
         const EffectMaterialAdditiveContributionData& additive = material.additive;
         const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
         const Vec4 effectMeshAdditiveParams = Vec4(
@@ -746,6 +769,18 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+        CHECK_FAILED(
+            shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)),
+            E_FAIL
+        );
+        CHECK_FAILED(
+            shader->Bind_RawValue(
+                "g_EffectMeshMaskUVAxisPolicyParams",
+                &effectMeshMaskUVAxisPolicyParams,
+                sizeof(effectMeshMaskUVAxisPolicyParams)
+            ),
+            E_FAIL
+        );
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialElapsedTime, sizeof(materialElapsedTime)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
@@ -1133,10 +1168,11 @@ bool MeshDataPreview_View::Render_ModelAssetSection(MeshTypeData& meshData)
             _detailPropertyContext.Draw_PropertyLabel("Model Asset");
             changed |= Internal::Draw_AssetDropSlot(
                 "MeshModelSlot",
-                "Model Asset (.model)",
+                "Model Asset",
                 Internal::kEffectModelPayloadType,
                 meshData.modelPath,
                 "(drop .model here)",
+                "MeshData source model",
                 [&meshData](const wchar_t* payloadPath)
                 {
                     return Internal::Apply_ModelFileToMeshData(payloadPath, meshData);
@@ -1173,10 +1209,11 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
             _detailPropertyContext.Draw_PropertyLabel("Source Material");
             changed |= Internal::Draw_AssetDropSlot(
                 "MeshAssignedMaterialSlot",
-                "Assigned Effect Material",
+                "Source Material",
                 Internal::kEffectMaterialPayloadType,
                 meshData.assignedEffectMaterialPath,
                 "(drop .effectmaterial.json here)",
+                "Material source preset",
                 [&meshData](const wchar_t* payloadPath)
                 {
                     return Internal::Apply_EffectMaterialFileToMeshData(payloadPath, meshData);
@@ -1200,7 +1237,8 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
             _detailPropertyContext.End_PropertyTable();
         }
 
-        if (ImGui::Button("Reset From Source"))
+        ImGui::TextDisabled("Embedded material copy");
+        if (ImGui::Button("Reset Copy From Source"))
         {
             const fs::path materialPath = Resolve_AuthoredAssetPath(
                 meshData.assignedEffectMaterialGuid,
@@ -1247,6 +1285,8 @@ bool MeshDataPreview_View::Render_MaterialInstanceSection(const AuthoringEmitter
         ImGui::TextDisabled("Assign an effect material source before editing the MeshData material instance.");
         return false;
     }
+
+    ImGui::TextDisabled("Embedded material copy is emitter-local MeshData authoring data.");
 
     const RequiredModuleData* required = Find_RequiredModuleData(emitter);
     const EffectMaterialRenderPolicyBinding renderPolicyBinding{

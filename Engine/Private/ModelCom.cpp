@@ -868,6 +868,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
                     if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
                     if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
                     if (base.ormOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+                    if (base.orm2Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+                    if (base.orm3Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
                     if (base.emissiveOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
                     if (base.hairDepthOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, base.hairDepthPath);
                     if (base.hairIDOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, base.hairIDPath);
@@ -885,6 +887,9 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     }
 
     const MaterialInstanceOverride& inst = binding.instance;
+    if (inst.overrideTemplateEnabled)
+        material->Set_TemplateId(inst.templateId);
+
     if (inst.forcedPassIndex >= 0)
         material->Set_ForcedPassIndex(inst.forcedPassIndex);
 
@@ -906,6 +911,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Normal, inst.normal);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM2, inst.orm2);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM3, inst.orm3);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
@@ -955,7 +962,7 @@ json ModelCom::To_Json() const
             || inst.irisMask.enabled;
 
         const bool hasInstanceOverride =
-            (inst.forcedPassIndex >= 0) || inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
+            inst.overrideTemplateEnabled || (inst.forcedPassIndex >= 0) || inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
 
         const string baseKey = String::ToLowerCopy(binding.baseBundleKey);
         const bool hasBaseKey = !baseKey.empty() && baseKey != defaultKey;
@@ -971,6 +978,10 @@ json ModelCom::To_Json() const
         if (hasInstanceOverride)
         {
             json instJson{};
+            instJson["override_template_enabled"] = inst.overrideTemplateEnabled;
+            if (inst.overrideTemplateEnabled)
+                instJson["template"] = static_cast<uint32>(inst.templateId);
+
             instJson["override_render_state_enabled"] = inst.overrideRenderStateEnabled;
             if (inst.forcedPassIndex >= 0)
                 instJson["force_pass_index"] = inst.forcedPassIndex;
@@ -1355,6 +1366,16 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
         material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
     }
 
+    if (base.orm2Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+    }
+
+    if (base.orm3Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
+    }
+
     if (base.emissiveOverride)
     {
         material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
@@ -1616,6 +1637,9 @@ void ModelCom::Update_AnimNotifies(const AnimNotifyData& animationData, const An
 
         if (executeNotifies)
         {
+            if (_isAnimationPaused)
+                return; // notify 실행 중 튜토리얼 pause가 걸리면 같은 프레임의 남은 notify를 막는다.
+
             entry.notify->Execute(context);
         }
     }
@@ -1624,6 +1648,9 @@ void ModelCom::Update_AnimNotifies(const AnimNotifyData& animationData, const An
 void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, const AnimNotifyContext& context,
     bool executeNotifies)
 {
+    if (_isAnimationPaused)
+        return; // notify 실행 중 튜토리얼 pause가 걸리면 같은 프레임의 state notify도 막는다.
+
     Stop_NotifyStates_ExceptAnimation(context.animationName, executeNotifies);
 
     for (int32 stateIndex = 0; stateIndex < static_cast<int32>(animationData.notifyStates.size()); ++stateIndex)
@@ -1662,7 +1689,12 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                 _activeNotifyStates.push_back(active);
 
                 if (executeNotifies)
+                {
+                    if (_isAnimationPaused)
+                        return; // On_Begin 연쇄 실행을 같은 프레임에서 끊는다.
+
                     entry.notifyState->On_Begin(stateContext);
+                }
             }
             else
             {
@@ -1674,6 +1706,9 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                         context.deltaTime > 0.f ||
                         previousActiveTimeSec != context.currentTimeSec))
                 {
+                    if (_isAnimationPaused)
+                        return; // On_Tick 연쇄 실행을 같은 프레임에서 끊는다.
+
                     _activeNotifyStates[activeIndex].notifyState->On_Tick(stateContext);
                 }
             }
@@ -1686,7 +1721,12 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
             stateContext.notifyStateProgress = 1.f; 
 
             if (executeNotifies && instance)
+            {
+                if (_isAnimationPaused)
+                    return; // On_End 연쇄 실행을 같은 프레임에서 끊는다.
+
                 instance->On_End(stateContext);
+            }
         }
     }
 }
@@ -2082,6 +2122,9 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
 
     Mark_BoneMatricesDirty();
 
+    if (_isAnimationPaused)
+        return; // 포즈는 고정하되 pause 프레임에서 AN_PlaySound/ANS_Trail/ANS_QTE가 반복 실행되지 않게 막는다.
+
     const float currentTimeSec = Get_CurrentAnimationTimeSec();
     const bool animationChangedThisFrame = context.previousAnimIndex != _currentAnimIndex;
     const float notifyPreviousTimeSec = animationChangedThisFrame ? 0.f : context.previousTimeSec;
@@ -2475,10 +2518,17 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 	if (!sourceObjectGUID.empty())
 	{
 		wstring resolvedPath = GAME->Resolve_AssetPath(sourceObjectGUID);
+		// sourceObjectGUID가 animmap asset일 때만 direct load를 허용한다.
+		// model guid가 들어오면 prefab context 기반 매핑 탐색까지 내려가야 한다.
 		if (!resolvedPath.empty())
 		{
-			return AnimState_Parser::Load_StateAnimations_FromFile(
-				resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
+            const fs::path resolvedAssetPath = fs::path(resolvedPath);
+            const string resolvedFileName = resolvedAssetPath.filename().string();
+            if (resolvedFileName.find(".animmap.json") != string::npos)
+            {
+			    return AnimState_Parser::Load_StateAnimations_FromFile(
+				    resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
+            }
 		}
 	}
 

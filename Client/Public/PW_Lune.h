@@ -32,6 +32,8 @@ protected:
         return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
     }
 
+    HeroId Get_HeroId() const override { return HeroId::Lune; }
+
 public:
 	static Shared<PW_Lune> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

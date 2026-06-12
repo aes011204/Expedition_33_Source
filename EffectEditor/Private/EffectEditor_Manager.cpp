@@ -509,6 +509,10 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Delete", "Delete Selected Object");
             draw_shortcut_row("Hierarchy Double Click", "Focus selected object in Scene");
 
+            draw_section_row("이미터 편집");
+            draw_shortcut_row("Ctrl + C", "선택한 이미터 또는 모듈 복사");
+            draw_shortcut_row("Ctrl + V", "선택한 이미터 위치에 클립보드 붙여넣기");
+
             draw_section_row("Scene Gizmo");
             draw_shortcut_row("W E R", "Gizmo Mode");
 

@@ -21,12 +21,12 @@ NS_BEGIN(ModelEditor)
 HRESULT ModelEditorApp::Initialize()
 {
 	const std::filesystem::path assetRootPath(Get_ClientResourceRoot());
-	
+
 	ENGINE_DESC engineDesc{};
 	engineDesc.hInstance = g_hInst;
 	engineDesc.hWnd = g_hWnd;
 	engineDesc.winMode = WinMode::Win;
-	engineDesc.numLevels = 1; 
+	engineDesc.numLevels = 1;
 	RECT rc;
 	GetClientRect(g_hWnd, &rc);
 	engineDesc.viewportWidth = rc.right - rc.left;

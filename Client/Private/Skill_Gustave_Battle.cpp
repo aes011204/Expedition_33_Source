@@ -40,10 +40,15 @@ void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const Battl
 
     DamageSystem::ApplyDamage(40.f, attacker, target, attackType);
 
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
+
     if (!attacker.mechanismCom)
         return;
 
-    // 과충전 사용 시, 게이지 소모
+    // 과충전 사용 시, 게이지 전부 소모
     attacker.mechanismCom->Consume_AllGustaveCharge();
 }
 

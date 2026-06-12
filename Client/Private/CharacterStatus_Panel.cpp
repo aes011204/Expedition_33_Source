@@ -49,46 +49,6 @@ namespace
 	{
 		return static_cast<size_t>(type);
 	}
-
-	void Play_RandomAllySelectSound()
-	{
-		constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::AllySelectSounds));
-		const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
-		const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
-
-		GAME->Play_Sound(Constants::Sound::AllySelectSounds[soundIndex], SoundChannel::UI, 1.f);
-	}
-
-	void Play_RandomGlobalGenericEnterSound()
-	{
-		constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::GlobalGenericEnterSounds));
-		const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
-		const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
-
-		GAME->Play_Sound(Constants::Sound::GlobalGenericEnterSounds[soundIndex], SoundChannel::UI, 1.f);
-	}
-
-	constexpr std::array<const wchar_t*, 10> statNavigateClickSounds =
-	{
-		L"UI/Global/SFX_UI_Global_Navigate_Click_01 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_02 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_03 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_04 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_05 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_06 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_07 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_08 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_09 [1].wav",
-		L"UI/Global/SFX_UI_Global_Navigate_Click_10 [1].wav",
-	};
-
-	void Play_RandomStatNavigateClickSound()
-	{
-		const float randomValue = GAME->Random(0.f, static_cast<float>(statNavigateClickSounds.size()));
-		const size_t soundIndex = min(static_cast<size_t>(randomValue), statNavigateClickSounds.size() - 1);
-
-		GAME->Play_Sound(statNavigateClickSounds[soundIndex], SoundChannel::UI, 1.f);
-	}
 }
 
 HRESULT CharacterStatus_Panel::Initialize(uint32 levelIndex)
@@ -121,7 +81,7 @@ void CharacterStatus_Panel::Open()
 	UI_RuntimePanelBase::Open();
 
 	if (!wasOpen)
-		Play_RandomGlobalGenericEnterSound();
+		GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
 
 	Clear_PendingStats(); // 임시 저장값 비우기
 
@@ -186,7 +146,7 @@ void CharacterStatus_Panel::Handle_SelectionInput()
 
 	if (previousIndex != _selectedHeroIndex)
 	{
-		Play_RandomAllySelectSound();
+		GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
 
 		Refresh_CombatStats();
 		Refresh_CharacterSelectUI();
@@ -209,7 +169,7 @@ void CharacterStatus_Panel::Handle_StatInput()
 		if (!button || !button->Was_Clicked())
 			return;
 
-		Play_RandomStatNavigateClickSound();
+		GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
 
         if (Adjust_PendingStat(type, delta))
             needsRefresh = true; // draft가 바뀐 경우만 화면 갱신

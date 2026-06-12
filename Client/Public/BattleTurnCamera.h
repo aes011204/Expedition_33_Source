@@ -240,6 +240,12 @@ private:
     // 전투 연출 중 카메라와 너무 가까운 플레이어 표면 자르기
     float _playerNearClipDistance = 0.45f;
 
+    Vec3                _playerAttackSubjectPos;
+    Vec3                _playerAttackOpponentPos;
+
+    BattleCameraMode _debugLastLoggedMode = BattleCameraMode::WIDE;
+    bool _debugHasLoggedMode = false;
+
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

@@ -1,8 +1,6 @@
 #ifndef SHADER_EFFECT_DISTORTION_COMMON_HLSLI
 #define SHADER_EFFECT_DISTORTION_COMMON_HLSLI
 
-static const float kEffectDistortionLensEdgeCoverage = 0.15f;
-
 float EffectDistortion_ComputeShockwavePixelUvWidth(float2 cardUV)
 {
     return max(max(fwidth(cardUV.x), fwidth(cardUV.y)), 0.0001f);
@@ -49,7 +47,7 @@ float EffectDistortion_ComputeLensCoverage(float materialCoverage, float shapeCo
 
 float EffectDistortion_ComputeLensEdgeAlpha(float lensCoverage)
 {
-    return smoothstep(EPSILON, kEffectDistortionLensEdgeCoverage, saturate(lensCoverage));
+    return saturate(lensCoverage);
 }
 
 float2 EffectDistortion_ResolveFieldOffset(float2 accumulatedOffset, float accumulatedLensCoverage)
@@ -60,6 +58,33 @@ float2 EffectDistortion_ResolveFieldOffset(float2 accumulatedOffset, float accum
 float2 EffectDistortion_ComputeScreenOffset(float2 flow, float intensity)
 {
     return flow * intensity;
+}
+
+float EffectDistortion_ApplyAxisPolicy(float rawValue, float transformedValue, float policy)
+{
+    return policy >= 2.5f ? rawValue : transformedValue;
+}
+
+float EffectDistortion_ApplyAxisAddress(float value, float policy)
+{
+    return policy >= 0.5f && policy < 2.5f ? saturate(value) : value;
+}
+
+float2 EffectDistortion_BuildAxisSeparatedUV(float2 rawUV, float2 scale, float2 offset, float2 scrollSpeed, float materialTime, float2 policy)
+{
+    const float2 transformedUV = rawUV * scale + offset + scrollSpeed * materialTime;
+    return float2(
+        EffectDistortion_ApplyAxisPolicy(rawUV.x, transformedUV.x, policy.x),
+        EffectDistortion_ApplyAxisPolicy(rawUV.y, transformedUV.y, policy.y)
+    );
+}
+
+float2 EffectDistortion_ApplyAxisSeparatedAddress(float2 uv, float2 policy)
+{
+    return float2(
+        EffectDistortion_ApplyAxisAddress(uv.x, policy.x),
+        EffectDistortion_ApplyAxisAddress(uv.y, policy.y)
+    );
 }
 
 float4 EffectDistortion_PackField(float2 offset, float lensCoverage)

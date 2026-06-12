@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "Cinematic_Types.h"
+#include "BattleCameraClipUtils.h"
 
 inline void Find_SurroundingKeyFrames(CINEMATIC_TRACK* cameraTrack, int currentFrame, CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight)
 {
@@ -151,4 +152,16 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
     }
 
     return camPose;
+}
+
+inline float Evaluate_CinematicSequenceTime(const CINEMATIC_SEQUENCE& sequence, int currentFrame)
+{
+    const int fps = std::max(sequence.fps, 1);
+    const int relativeFrame = std::max(currentFrame - sequence.startFrame, 0);
+    return static_cast<float>(relativeFrame) / static_cast<float>(fps);
+}
+
+inline Client::CameraModifierSample Evaluate_CinematicModifierSample(const CINEMATIC_SEQUENCE& sequence, int currentFrame)
+{
+    return Sample_CameraModifierClip(sequence.modifierClip, Evaluate_CinematicSequenceTime(sequence, currentFrame));
 }

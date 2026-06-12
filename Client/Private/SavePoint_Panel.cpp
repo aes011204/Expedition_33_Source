@@ -52,7 +52,7 @@ void SavePoint_Panel::Open()
     Stop_TargetAnimations();
     UI_RuntimePanelBase::Open();
     Play_TargetAnimation(L"SavePoint_Intro");
-    GAME->Play_Sound(Constants::Sound::SavePointIntro, SoundChannel::UI, 1.f);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_SavePoint_Open);
 
     _lastAction = SavePointAction::None;
 
@@ -161,7 +161,7 @@ void SavePoint_Panel::Start_CloseWithOutro(bool restoreWorldControl)
     _closeElapsed = 0.f;
 
     Play_TargetAnimation(L"SavePoint_Outro");
-    GAME->Play_Sound(Constants::Sound::SavePointOutro, SoundChannel::UI, 1.f);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_SavePoint_Close);
 
     if (_outroDuration <= 0.f)
         Close_Immediately(_restoreWorldControlOnClose);

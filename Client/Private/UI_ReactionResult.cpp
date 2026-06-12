@@ -49,7 +49,7 @@ void UI_ReactionResult::Close()
         _parryRoot->Close();
 }
 
-void UI_ReactionResult::Show_Reaction(BattleController::ReactionType reactionType, const Vec2& screenPos)
+void UI_ReactionResult::Show_Reaction(BattleReactionType reactionType, const Vec2& screenPos)
 {
     Open();
     _isShowing = true; // 위치 기반 리액션 텍스트의 표시 시간을 Update에서 관리한다.
@@ -63,9 +63,9 @@ void UI_ReactionResult::Show_Reaction(BattleController::ReactionType reactionTyp
 
     Shared<UI_Base> selectedRoot{};
 
-    if (reactionType == BattleController::ReactionType::Dodge)
+    if (reactionType == BattleReactionType::Dodge)
         selectedRoot = _dodgeRoot;
-    else if (reactionType == BattleController::ReactionType::Parry)
+    else if (reactionType == BattleReactionType::Parry)
         selectedRoot = _parryRoot;
 
     if (selectedRoot == nullptr || selectedRoot->Get_Transform() == nullptr)

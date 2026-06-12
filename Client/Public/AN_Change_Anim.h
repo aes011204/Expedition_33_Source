@@ -14,8 +14,8 @@ public:
     void Execute(const AnimNotifyContext& context) override;
 
 private:
-
     enum class BattleAnimType _animType = {};
+    bool _isLoop = true;
 };
 
 NS_END

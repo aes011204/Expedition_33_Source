@@ -7,11 +7,15 @@
 #include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
-    class GameInstance;
-    class Level;
+class GameInstance;
+class Level;
 NS_END
 
 NS_BEGIN(Client)
+
+class CinematicSequenceRunner;
+
+    class CinematicCamera;
 class BattleController;
 class Player_WorldBase;
 class TargetCamera;
@@ -24,6 +28,8 @@ class EffectInstancePool;
 class ScreenFadeTransition;
 class LevelTransitionFade;
 class ClientScreenFxManager;
+class PlayerInventory;
+class CostumeManager;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -65,6 +71,7 @@ public: /* For.GameData Table */
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     const Skill_Data* Get_Skill(const string& skillId);
     const vector<string> Get_AllSkillIds();
+    HRESULT Reload_GameDataTables();
 
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);
@@ -140,9 +147,16 @@ public: /*For.Camera Director*/
     void Request_GamePlay();
     void Request_Preview();
     void Request_BattleTurn();
-    void Request_Cinematic();
+    Shared<CinematicCamera> Request_Cinematic();
     void Request_TargetCameraMode(TargetCameraMode cameraMode);
     void Restore_PreviousCamera();
+
+public: /*CinematicSequenceRunner*/
+    bool Play_Sequence(const wstring& filePath, int trackIndex);
+    void Stop_Sequence();
+
+public:
+    Shared<CinematicCamera> Ensure_CinematicCamera();
 
 public:
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
@@ -177,8 +191,16 @@ public: /* Effect 재생 */
         const Vec3& localRotation = Vec3::Zero,
         const Vec3& scale = Vec3::One);
 
+    void Clear_RuntimeEffects();
+
 public: /* Delegate */
     void Notify_FreeAimShotHit();
+
+public: /* Player Inventory */
+    Shared<PlayerInventory> Get_PlayerInventory() const { return _playerInventory; }
+
+public: /* Costume Manager */
+    CostumeManager* Get_CostumeManager() const { return _costumeManager.get(); }
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -197,14 +219,15 @@ private:
     bool         _isTargetCameraEditMode = false;
 
 private:
-    Shared<CameraDirector>      _cameraDirector;
-    Shared<UIPreviewManager>    _previewManager;
-    Shared<ResourceLoader>      _resourceLoader;
-    Unique<GameDataTable>       _gameDataTable;
-    Unique<PreviewShotTable>    _previewShotTable;
-    Unique<EffectInstancePool>  _effectInstancePool;
-    Unique<ScreenFadeTransition> _screenFadeTransition;
-    Unique<LevelTransitionFade>  _levelTransitionFade;
+    Shared<CameraDirector>              _cameraDirector;
+    Shared<UIPreviewManager>            _previewManager;
+    Shared<ResourceLoader>              _resourceLoader;
+    Unique<GameDataTable>               _gameDataTable;
+    Unique<PreviewShotTable>            _previewShotTable;
+    Unique<EffectInstancePool>          _effectInstancePool;
+    Unique<ScreenFadeTransition>        _screenFadeTransition;
+    Unique<LevelTransitionFade>         _levelTransitionFade;
+    Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;
 
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;
@@ -212,6 +235,9 @@ private:
     Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
+    Shared<PlayerInventory>     _playerInventory;
+
+    Unique<CostumeManager>      _costumeManager;
 
 public:
 	void Free() override;

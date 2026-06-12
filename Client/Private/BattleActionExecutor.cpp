@@ -7,6 +7,7 @@
 
 void BattleActionExecutor::BeginAction(BattleAction& action)
 {
+    Reset_ActivePhasePlayRate();
     _isFinished = false;
     action.ResetCurAnimIndex();
     Begin_ActionPhase(action);
@@ -65,10 +66,11 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
 
     if (action.GetCurAnimIndex() >= phases.size())
     {
+        Reset_ActivePhasePlayRate();
+
         if (action.Get_CurChar().ModelCom)
         {
             BattleAnimUtils::Play_BattleIdle(action.Get_CurChar(), 0.3f);
-            //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
         }
 
         _isFinished = true;
@@ -81,7 +83,7 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
 
 void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 {
-    if (!action.Get_CurChar().actor)
+    if (!action.Get_CurChar().actor || !action.Get_CurChar().ModelCom)
         return;
 
     //phases 가져옴
@@ -96,10 +98,10 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
         action.Get_CurChar().actor->Get_Transform()->Get_Position(),
         Resolve_PhaseGoalPosition(action, phase));
 
-    // _testPrevRatio = action.Get_CurChar().ModelCom->Get_RootMotionTranslationRatio();
-
     if (phase.faceTarget)
         Face_ActionTarget(action, action.GetPhaseGoalPos());
+
+    Apply_PhasePlayRate(phase, action.Get_CurChar().ModelCom);
 
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
         action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, true);
@@ -219,6 +221,28 @@ void BattleActionExecutor::SmoothFaceActionTarget(BattleAction& action, const Ve
         rot.y += (deltaYaw > 0.f ? turnSpeed : -turnSpeed);
 
     transform->Set_RotationEuler(rot);
+}
+
+void BattleActionExecutor::Apply_PhasePlayRate(const BattleActionPhase& phase, const Shared<Engine::ModelCom>& model)
+{
+    if (model == nullptr)
+        return;
+
+    if (_activePhaseModel != nullptr && _activePhaseModel != model)
+        _activePhaseModel->Set_FrameSpeed(1.f);
+
+    _activePhaseModel = model;
+
+    const float playRate = phase.playRate > 0.f ? phase.playRate : 1.f;
+    model->Set_FrameSpeed(playRate);
+}
+
+void BattleActionExecutor::Reset_ActivePhasePlayRate()
+{
+    if (_activePhaseModel)
+        _activePhaseModel->Set_FrameSpeed(1.f);
+
+    _activePhaseModel.reset();
 }
 
 void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& action)

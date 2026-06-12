@@ -4,6 +4,7 @@
 #include "Client_Constants.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
+#include "PuzzleController.h"
 #include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
@@ -39,7 +40,10 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
-    GAME->Play_BGM(Constants::Sound::SpringBGM, 1.f, true, 0.f);
+    if(FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle"))))
+        return E_FAIL;
+
+    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
 }
@@ -145,6 +149,43 @@ HRESULT Level_GamePlay::Ready_Lights()
     return S_OK;
 }
 
+HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
+{
+    for(size_t i = 0; i < 3 ; i++)
+    {
+        //Shared<GameObject> object;
+        //CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_EyeTarget", ETOI(LevelType::GamePlay), L"Layer_EyeTarget", object), E_FAIL);
+        //if(object != nullptr && object->Get_Transform() != nullptr)
+        //    object->Get_Transform()->Set_WorldPosition(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f));
+
+        auto eyeTarget = Spawn_Prefab::Prefab(Constants::Prefab::Eye_Target /* L"Eye_Target" */)
+            .AtLevel(ETOI(LevelType::GamePlay))
+            .InLayer(L"Layer_EyeTarget")
+            .Position(Vec3(-109.f + 10.f * static_cast<float>(i), 21.f, -133.5f))
+            .Spawn();
+
+    }
+
+    //퍼즐 컨트롤러
+    Shared<GameObject> puzzleController;
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            L"GameObject_PuzzleController",
+            ETOI(LevelType::GamePlay),
+            L"Layer_PuzzleController",
+            puzzleController),
+        E_FAIL);
+
+    CHECK_NULL(puzzleController, E_FAIL);
+
+    Shared<PuzzleController> controller = dynamic_pointer_cast<PuzzleController>(puzzleController);
+    LOG_DEBUG("controller cast = {}", controller != nullptr);
+
+    return S_OK;
+}
+
+
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
     //UI_RuntimeLoader::UI_LoadDesc desc{};
@@ -238,11 +279,12 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
         Constants::Prefab::MW_Lancelier,
         ETOI(LevelType::GamePlay),
         strLayerTag);
-
+    
     CHECK_NULL(monster, E_FAIL);
     monster->Get_Transform()->Set_Position(startPos);
 
-    // 이제 여기서 스폰안하고, 에디터에서 스폰&저장 진행
+    // 이제 여기서 스폰안하고, 에디터에서 스폰&저장 진행.
+    // 아니 그냥 데이터 꼬이니까, 스폰은 코드로 진행하는게 좋을거같기도 하고
 
     return S_OK;
 }

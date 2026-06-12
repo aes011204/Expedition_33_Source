@@ -26,36 +26,25 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
 {
     auto owner = context.owner;
 
-    if(owner == nullptr)
+    if (owner == nullptr)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-    
-    //LOG_DEBUG("Notify owner = {}",
-    //    context.owner ? String::ToString(context.owner->Get_Owner()->Get_Name()).c_str() : "null");
-    //
-    //LOG_DEBUG("Current turn actor = {}",
-    //    battle && battle->Get_TurnAction()._curChar.actor
-    //        ? String::ToString(battle->Get_TurnAction()._curChar.actor->Get_Name()).c_str()
-    //        : "null");
-
-    if(_cameraMode == BattleCameraMode::WIDE)
-    {
-      int a = 10;
-    }
-
     auto character = dynamic_pointer_cast<Character>(owner->GetSharedPtr<PlayableParts>()->Get_Owner());
 
-    if(character == nullptr)
+    if (character == nullptr)
         return;
 
-    EvtBattlePresentation event {};
-        event.cameraMode = _cameraMode;
+    EvtBattlePresentation event{};
+    event.cameraMode = _cameraMode;
 
-    if(_cameraMode == BattleCameraMode::PARRY && battle && battle->Is_GroupParryActive())
+    if (_cameraMode == BattleCameraMode::PARRY &&
+        battle != nullptr &&
+        battle->Get_ReactionController().Is_GroupParryActive())
     {
-         return;
+        return; // 단체 패링 중에는 ReactionController 상태를 보고 중복 Parry 막기
     }
+
     event.subject = character;
 
     if (battle)
@@ -72,13 +61,13 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         {
             const auto& targets = steps[curStepIndex].targets;
             const size_t centerIndex = targets.size() / 2;
-            event.opponent =targets[centerIndex].actor;
+            event.opponent = targets[centerIndex].actor;
         }
 
         if (action.GetCurAnimIndex() < action.GetSkillData().AnimPhases.size())
         {
             const Client::BattleActionPhase& phase = action.GetSkillData().AnimPhases[action.GetCurAnimIndex()];
-             event.presetId = !_presetId.empty()? _presetId: phase.cameraPresetId;
+            event.presetId = !_presetId.empty() ? _presetId : phase.cameraPresetId;
             event.clipId = !_clipId.empty() ? _clipId : phase.cameraClipId;
         }
 

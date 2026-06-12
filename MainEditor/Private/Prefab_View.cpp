@@ -323,6 +323,8 @@ void Prefab_View::Render()
     if (Is_Dirty())
         title += " *";
 
+    const string imguiWindowName = title + "###PrefabWindow"; // dirty 표시가 바뀌어도 ImGui 창 ID는 고정해서 입력 포커스가 끊기지 않게 한다.
+
     if (_openAnimationViewWithPrefab)
         Prepare_AnimationViewSiblingDock();
 
@@ -361,7 +363,7 @@ void Prefab_View::Render()
     _isGizmoHovered = false;
     _isGizmoUsing = false;
 
-    if (ImGui::Begin(title.c_str(), &isOpen, windowFlags))
+    if (ImGui::Begin(imguiWindowName.c_str(), &isOpen, windowFlags))
     {
         _isVisible = true;
         _applyDefaultWindowLayout = false;
@@ -407,7 +409,7 @@ void Prefab_View::Render()
     ImGui::End();
 
     if (_focusPrefabFrames > 0)
-        ImGui::SetWindowFocus(title.c_str());
+        ImGui::SetWindowFocus(imguiWindowName.c_str());
 
     if (_pendingOpenAnimationView)
         Open_PendingAnimationView();
@@ -555,6 +557,8 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
 
 void Prefab_View::Close_Prefab()
 {
+    PreviewObjectHelpers::Stop_AttachedPreviewEffects(_previewObject); // 프리뷰 전용 attached effect를 먼저 반환해 닫은 뒤 월드에 잔상이 남지 않게 한다.
+
     Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
     Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
     if (animationView != nullptr)
@@ -1082,7 +1086,7 @@ void Prefab_View::Draw_InspectorPanel()
         if (Draw_MonsterBattlePrefabList(selectedObject))
             MarkDirty();
 
-        if (Draw_BattleStartSpawnerSelector(selectedObject))
+        if (Draw_MonsterBattleSettings(selectedObject))
             MarkDirty();
 
         const Engine::ClassReflectionInfo& info = selectedObject->Get_ReflectionInfo();
@@ -1193,7 +1197,7 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& 
     }
 }
 
-bool Prefab_View::Draw_BattleStartSpawnerSelector(const Shared<GameObject>& selectedObject)
+bool Prefab_View::Draw_MonsterBattleSettings(const Shared<GameObject>& selectedObject)
 {
     Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(selectedObject);
     if (monster == nullptr)
@@ -1241,15 +1245,25 @@ bool Prefab_View::Draw_BattleStartSpawnerSelector(const Shared<GameObject>& sele
             return a.spawnerId < b.spawnerId;
         });
 
-    if (!ImGui::CollapsingHeader("Battle Start Spawner", ImGuiTreeNodeFlags_DefaultOpen))
+    if (!ImGui::CollapsingHeader("Monster Battle Settings", ImGuiTreeNodeFlags_DefaultOpen))
         return false;
 
     bool changed = false;
     const int32 currentSpawnerId = monster->Get_BattleStartSpawnerId();
 
-    ImGui::PushID("BattleStartSpawner");
+    ImGui::PushID("MonsterBattleSettings");
 
     constexpr float LabelWidth = 110.f;
+    int32 battleFieldId = static_cast<int32>(monster->Get_BattleFieldId());
+    ImGui::Text("Battle Field Id");
+    ImGui::SameLine(LabelWidth);
+    ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+    if (ImGui::DragInt("##BattleFieldId", &battleFieldId, 1.f, 1, 999))
+    {
+        monster->Set_BattleFieldId(static_cast<uint32>(battleFieldId)); // 프리팹 저장값: 조우 시 진입할 배틀 필드 ID
+        changed = true;
+    }
+
     ImGui::Text("Start Position");
     ImGui::SameLine(LabelWidth);
 

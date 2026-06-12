@@ -76,17 +76,18 @@ HRESULT BattleStateMachine::Add_State(BattleTurnState playerState, const Shared<
 bool BattleStateMachine::Change_State(BattleTurnState playerState)
 {
     const auto prevState = _currentState
-        ? Get_CurrentPlayerState()
-        : BattleTurnState::None;
-    const wstring& str = String::ToWString(magic_enum::enum_name(playerState).data());
+        ? Get_CurrentPlayerState() : BattleTurnState::None;
 
-    LOG_DEBUG("BattleStateMachine::Change_State: {} ({}) -> {} ({})",
-        BattleTurnStateClassName(prevState),
-        static_cast<int>(prevState),
-        BattleTurnStateClassName(playerState),
-        static_cast<int>(playerState));
+    const string name = string(magic_enum::enum_name(playerState));
+    const wstring wname = String::ToWString(name);
 
-    return BStateMachine::Change_State(str);
+    const bool changed = BStateMachine::Change_State(wname);
+    const BattleTurnState nextState = Get_CurrentPlayerState();
+
+    if (changed && prevState != nextState)
+        OnBattleTurnStateChanged.Broadcast(prevState, nextState);
+
+    return changed;
 }
 
 BattleTurnState BattleStateMachine::Get_CurrentPlayerState() const

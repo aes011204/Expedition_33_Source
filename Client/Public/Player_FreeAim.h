@@ -15,7 +15,7 @@ class Player_FreeAim final : public Player_State
 private:
     struct FreeAimHitInfo
     {
-        Shared<Monster_WorldBase> monster{};
+        Shared<GameObject> object{};
         Vec3  hitPosition = Vec3::Zero;
         Vec3  hitNormal = Vec3::Up;
     };
@@ -33,8 +33,8 @@ public:
     void ExitInvoke() override;
 
 public:
-    bool Is_HitMonster() const { return _hasHitMonster; }
-    Shared<Monster_WorldBase> Get_HitMonster() const { return _hitMonster.lock(); }
+    bool Is_HitObject() const { return _hasHitObject; }
+    Shared<GameObject> Get_HitObject() const { return _hitObject.lock(); }
 
     // 여기서 맞았는지 마크하고, 애니메이션의 AnimNotify에서, 충돌 판정 세팅
     void Trigger_PendingFreeAimShotHit();
@@ -48,7 +48,7 @@ private:
     void Cache_PendingFreeAimShot();
     void Clear_PendingFreeAimShot();
 
-    Shared<Monster_WorldBase> Find_FreeAimHitMonster(FreeAimHitInfo* outHitInfo = nullptr) const;
+    Shared<GameObject> Find_FreeAimHitTarget(FreeAimHitInfo* outHitInfo = nullptr) const;
     void Play_FreeAimHitEffect() const;
 
 private:
@@ -65,15 +65,15 @@ private:
     float _rotationSensitivity = 0.5f;
 
 private:
-    bool _hasHitMonster = false;
-    Weak<Monster_WorldBase> _hitMonster{};
+    bool _hasHitObject = false;
+    Weak<GameObject> _hitObject{};
 
     FreeAimHitInfo _currentHitInfo {};
 
     // 입력 프레임의 히트 후보를 발사 notify까지 유지한다.
     bool _hasPendingShotHit = false;
     bool _hasConsumedPendingShotHit = false;
-    Weak<Monster_WorldBase> _pendingShotMonster{};
+    Weak<GameObject> _pendingShotObject{};
     FreeAimHitInfo _pendingShotHitInfo{};
 
 public:

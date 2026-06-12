@@ -32,7 +32,18 @@ void Player_State::Begin_Play()
     if (nullptr == _stateCom)
         MSG_BOX("[PLAYER STATE] : Failed to Begin Player_WorldBase State");
 
-    _bodyPlayer = static_cast<Body_Player*>(_owner.lock()->Get_PartObject(L"Part_Body"));
+    Refresh_BodyPlayer();
+}
+
+void Player_State::Refresh_BodyPlayer()
+{
+    if (_owner.expired())
+    {
+        _bodyPlayer = nullptr;
+        return;
+    }
+
+    _bodyPlayer = dynamic_cast<Body_Player*>(_owner.lock()->Get_PartObject(L"Part_Body"));
 }
 
 bool Player_State::EnterInvoke()

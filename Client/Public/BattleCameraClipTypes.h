@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Cinematic_Types.h"
+#include "ScalarTrackTypes.h"
 
 enum class BattleCameraClipTimeMode : uint8
 {
@@ -8,42 +8,30 @@ enum class BattleCameraClipTimeMode : uint8
     Independent
 };
 
-struct BattleCameraKeyframe
-{
-    float time = 0.f;
-    float value = 0.f;
-    InterpolationMode interpolation = InterpolationMode::Linear;
-};
-
-struct BattleCameraTrack
-{
-    vector<BattleCameraKeyframe> keyframes;
-};
-
 struct BattleCameraClip
 {
     float duration = 1.f;
     BattleCameraClipTimeMode timeMode = BattleCameraClipTimeMode::AnimationSync;
 
-    BattleCameraTrack distanceOffset;
-    BattleCameraTrack fovOffset;
-    BattleCameraTrack yawOffset;
-    BattleCameraTrack sideOffset;
-    BattleCameraTrack pivotOffset;
-    BattleCameraTrack heightOffset;
-    BattleCameraTrack aimOffset;
-    BattleCameraTrack lookHeightOffset;
-    BattleCameraTrack orbitYaw;
-    BattleCameraTrack orbitRadius;
-    BattleCameraTrack orbitHeight;
-    BattleCameraTrack orbitLookHeight;
-    BattleCameraTrack shakeAmplitude;
-    BattleCameraTrack shakeFrequencyX;
-    BattleCameraTrack shakeFrequencyY;
-    BattleCameraTrack shakeDecayRateX;
-    BattleCameraTrack shakeDecayRate;
-    BattleCameraTrack shakeVerticalRatio;
-    BattleCameraTrack shakeStrengthScale;
+    CameraTrack distanceOffset;
+    CameraTrack fovOffset;
+    CameraTrack yawOffset;
+    CameraTrack sideOffset;
+    CameraTrack pivotOffset;
+    CameraTrack heightOffset;
+    CameraTrack aimOffset;
+    CameraTrack lookHeightOffset;
+    CameraTrack orbitYaw;
+    CameraTrack orbitRadius;
+    CameraTrack orbitHeight;
+    CameraTrack orbitLookHeight;
+    CameraTrack shakeAmplitude;
+    CameraTrack shakeFrequencyX;
+    CameraTrack shakeFrequencyY;
+    CameraTrack shakeDecayRateX;
+    CameraTrack shakeDecayRate;
+    CameraTrack shakeVerticalRatio;
+    CameraTrack shakeStrengthScale;
 };
 
 struct BattleCameraClipSample
