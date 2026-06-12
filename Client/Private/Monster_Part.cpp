@@ -269,8 +269,8 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
         if (!desc.allowMissingModel)
             return E_FAIL;
 
-        LOG_WARN("Monster_Part: missing model allowed. modelTag={}",
-            String::ToString(desc.modelTag).c_str());
+        //LOG_WARN("Monster_Part: missing model allowed. modelTag={}",
+        //    String::ToString(desc.modelTag).c_str());
     }
 
     if (desc.modelType == ModelType::Anim && _model != nullptr)

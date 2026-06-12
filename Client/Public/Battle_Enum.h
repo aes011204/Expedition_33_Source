@@ -541,8 +541,10 @@ namespace Client
     {
         Invalid,
         Primary,
+        PrimaryJump,
         RandomEnemy,
         AllEnemies,
+        AllEnemiesJump,
         Self,
         ETC, //스폰 , 쉴드 등 
     };
