@@ -239,6 +239,9 @@
     <Filter Include="02.GameObject\Map\MapWater">
       <UniqueIdentifier>{dfc611f8-c2e2-475c-aa73-008ab9a996bc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\EyeTarget">
+      <UniqueIdentifier>{da7262d2-5cd4-4324-b7d0-b8d45f6e54ab}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -449,6 +452,14 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\private\CinematicCamera.cpp" />
+    <ClCompile Include="..\Private\EyeTarget.cpp">
+      <Filter>02.GameObject\EyeTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\PuzzleController.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
     <ClCompile Include="..\Private\MapAdapter.cpp">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClCompile>
@@ -601,6 +612,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
@@ -1297,6 +1309,14 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\public\CinematicCamera.h" />
+    <ClInclude Include="..\Public\EyeTarget.h">
+      <Filter>02.GameObject\EyeTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\PuzzleController.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\CinematicSequenceRunner.h" />
     <ClInclude Include="..\Public\MapAdapter.h">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClInclude>

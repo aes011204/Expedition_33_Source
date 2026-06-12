@@ -23,6 +23,7 @@ HRESULT AnimComputeRuntime::Initialize(const CreateDesc& desc)
 
     _computeBoneRemapShaderCom      = desc.boneRemapShader;
     _computeSkinningShaderCom       = desc.skinningShader;
+    _computeMorphShaderCom          = desc.morphShader;
 
     if (_computeBoneRemapShaderCom      == nullptr ||
         _computeSkinningShaderCom       == nullptr)
@@ -36,6 +37,7 @@ HRESULT AnimComputeRuntime::Initialize(const CreateDesc& desc)
 
     CHECK_FAILED(_model->Ensure_AnimationComputeSource(), E_FAIL);
     _skinningDirty = true;
+    _morphDirty = _model->Has_MorphData();
 
     return S_OK;
 }
@@ -63,6 +65,15 @@ HRESULT AnimComputeRuntime::Update_Frame(float timeDelta)
     CHECK_FAILED(Step_BoneRemap(context), E_FAIL);      // global combined -> mesh-local bone matrices
     CHECK_FAILED(Finalize_ModelFrame(context), E_FAIL); // notify / root motion / dirty는 ModelCom 재사용
 
+    if (_model->Has_MorphData())
+    {
+        if (_model->Consume_MorphDirty())
+        {
+            _morphDirty = true;
+            _skinningDirty = true;
+        }
+    }
+
     _skinningDirty = true;
 
     return S_OK;
@@ -83,12 +94,21 @@ HRESULT AnimComputeRuntime::Prepare_ComputeSkinning()
     CHECK_FAILED(Ensure_RuntimeSkinningBuffers(), E_FAIL);
     CHECK_FAILED(Ensure_RuntimeSkinningConstantBuffer(), E_FAIL);
 
+    if (_model->Has_MorphData())
+        CHECK_FAILED(Prepare_MorphDeform(), E_FAIL);
+
     if (!_skinningDirty)
         return S_OK;
 
     for (uint32 meshIndex = 0; meshIndex < _model->_meshes.size(); ++meshIndex)
     {
-        const Shared<ComputeStructuredBuffer>& sourceVertexBuffer = _meshSourceVertexBuffers[meshIndex];
+        Shared<ComputeStructuredBuffer> sourceVertexBuffer = _meshSourceVertexBuffers[meshIndex];
+        if (meshIndex < _meshMorphedSourceVertexBuffers.size() &&
+            _meshMorphedSourceVertexBuffers[meshIndex] != nullptr)
+        {
+            sourceVertexBuffer = _meshMorphedSourceVertexBuffers[meshIndex];
+        }
+
         const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
         const Shared<ComputeStructuredBuffer>& computedVertexBuffer = _meshComputedVertexBuffers[meshIndex];
 
@@ -381,6 +401,291 @@ HRESULT AnimComputeRuntime::Update_GlobalCombinedBoneBuffer_FromCPU()
     return S_OK;
 }
 
+HRESULT AnimComputeRuntime::Ensure_RuntimeMorphBuffers()
+{
+    if (_model == nullptr)
+        return E_FAIL;
+
+    if (!_model->_isSkeletal)
+        return S_OK;
+
+    const MorphData* morphData = _model->Get_MorphData();
+    if (morphData == nullptr)
+        return S_OK;
+
+    CHECK_FAILED(Ensure_RuntimeSkinningBuffers(), E_FAIL);
+
+    const uint32 meshCount = static_cast<uint32>(_model->_meshes.size());
+
+    _meshMorphVertexRangeBuffers.resize(meshCount);
+    _meshMorphInfluenceBuffers.resize(meshCount);
+    _meshMorphedSourceVertexBuffers.resize(meshCount);
+
+    const uint32 targetCount = static_cast<uint32>(morphData->targets.size());
+
+    for (const MorphMeshData& meshData : morphData->meshes)
+    {
+        if (meshData.meshIndex >= meshCount)
+            continue;
+
+        CHECK_FAILED(Set_MorphVertices(meshData.meshIndex, meshData, targetCount), E_FAIL);
+    }
+
+    return S_OK;
+}
+
+HRESULT AnimComputeRuntime::Set_MorphVertices(uint32 meshIndex, const MorphMeshData& meshData, uint32 targetCount)
+{
+    if (_model == nullptr || meshIndex >= _model->_meshes.size())
+        return E_FAIL;
+
+    const vector<VTXANIMMESH>* vertices = _model->Get_Vertices(meshIndex);
+    if (vertices == nullptr || vertices->empty())
+        return S_OK;
+
+    const uint32 vertexCount = static_cast<uint32>(vertices->size());
+    const uint32 deltaCount = static_cast<uint32>(meshData.vertexDeltas.size());
+    const uint32 rangeCount = std::min<uint32>(
+        targetCount,
+        static_cast<uint32>(meshData.vertexRanges.size()));
+
+    if (deltaCount == 0 || rangeCount == 0)
+    {
+        _meshMorphVertexRangeBuffers[meshIndex] = nullptr;
+        _meshMorphInfluenceBuffers[meshIndex] = nullptr;
+        _meshMorphedSourceVertexBuffers[meshIndex] = nullptr;
+        return S_OK;
+    }
+
+    vector<uint32> influenceCounts(vertexCount, 0u);
+    uint32 influenceCount = 0u;
+
+    for (uint32 targetIndex = 0; targetIndex < rangeCount; ++targetIndex)
+    {
+        const MorphVertexRange& range = meshData.vertexRanges[targetIndex];
+        if (range.start >= deltaCount)
+            continue;
+
+        const uint32 rangeEnd = range.start + std::min<uint32>(range.count, deltaCount - range.start);
+        for (uint32 deltaIndex = range.start; deltaIndex < rangeEnd; ++deltaIndex)
+        {
+            const MorphVertexDelta& delta = meshData.vertexDeltas[deltaIndex];
+            if (delta.vertexIndex >= vertexCount)
+                continue;
+
+            ++influenceCounts[delta.vertexIndex];
+            ++influenceCount;
+        }
+    }
+
+    if (influenceCount == 0)
+    {
+        _meshMorphVertexRangeBuffers[meshIndex] = nullptr;
+        _meshMorphInfluenceBuffers[meshIndex] = nullptr;
+        _meshMorphedSourceVertexBuffers[meshIndex] = nullptr;
+        return S_OK;
+    }
+
+    vector<MorphVertexRange> vertexRanges(vertexCount);
+    uint32 influenceOffset = 0u;
+    for (uint32 vertexIndex = 0; vertexIndex < vertexCount; ++vertexIndex)
+    {
+        vertexRanges[vertexIndex].start = influenceOffset;
+        vertexRanges[vertexIndex].count = influenceCounts[vertexIndex];
+        influenceOffset += influenceCounts[vertexIndex];
+    }
+
+    vector<MorphGpuInfluence> influences(influenceCount);
+    vector<uint32> writeOffsets(vertexCount, 0u);
+
+    for (uint32 targetIndex = 0; targetIndex < rangeCount; ++targetIndex)
+    {
+        const MorphVertexRange& range = meshData.vertexRanges[targetIndex];
+        if (range.start >= deltaCount)
+            continue;
+
+        const uint32 rangeEnd = range.start + std::min<uint32>(range.count, deltaCount - range.start);
+        for (uint32 deltaIndex = range.start; deltaIndex < rangeEnd; ++deltaIndex)
+        {
+            const MorphVertexDelta& delta = meshData.vertexDeltas[deltaIndex];
+            if (delta.vertexIndex >= vertexCount)
+                continue;
+
+            const uint32 writeIndex =
+                vertexRanges[delta.vertexIndex].start + writeOffsets[delta.vertexIndex]++;
+
+            influences[writeIndex].targetIndex = targetIndex;
+            influences[writeIndex].weightScale = delta.weightScale;
+            influences[writeIndex].deltaPosition = delta.deltaPosition;
+            influences[writeIndex].deltaNormal = delta.deltaNormal;
+        }
+    }
+
+    if (_meshMorphVertexRangeBuffers[meshIndex] == nullptr ||
+        _meshMorphVertexRangeBuffers[meshIndex]->Get_ElementCount() != vertexCount)
+    {
+        _meshMorphVertexRangeBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+            _device,
+            _context,
+            sizeof(MorphVertexRange),
+            vertexCount,
+            vertexRanges.data());
+
+        CHECK_NULL(_meshMorphVertexRangeBuffers[meshIndex], E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED(
+            _meshMorphVertexRangeBuffers[meshIndex]->Update_Data(vertexRanges.data(), vertexCount),
+            E_FAIL);
+    }
+
+    if (_meshMorphInfluenceBuffers[meshIndex] == nullptr ||
+        _meshMorphInfluenceBuffers[meshIndex]->Get_ElementCount() != influenceCount)
+    {
+        _meshMorphInfluenceBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+            _device,
+            _context,
+            sizeof(MorphGpuInfluence),
+            influenceCount,
+            influences.data());
+
+        CHECK_NULL(_meshMorphInfluenceBuffers[meshIndex], E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED(
+            _meshMorphInfluenceBuffers[meshIndex]->Update_Data(influences.data(), influenceCount),
+            E_FAIL);
+    }
+
+    if (_meshMorphedSourceVertexBuffers[meshIndex] == nullptr ||
+        _meshMorphedSourceVertexBuffers[meshIndex]->Get_ElementCount() != vertexCount)
+    {
+        _meshMorphedSourceVertexBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+            _device,
+            _context,
+            sizeof(VTXANIMMESH),
+            vertexCount);
+
+        CHECK_NULL(_meshMorphedSourceVertexBuffers[meshIndex], E_FAIL);
+    }
+
+    return S_OK;
+}
+
+HRESULT AnimComputeRuntime::Ensure_RuntimeMorphConstantBuffer()
+{
+    if (_morphDeformConstantBuffer != nullptr)
+        return S_OK;
+
+    D3D11_BUFFER_DESC desc{};
+    desc.ByteWidth = sizeof(MorphDeformCBData);
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+    desc.StructureByteStride = 0;
+
+    CHECK_FAILED(
+        _device->CreateBuffer(&desc, nullptr, _morphDeformConstantBuffer.GetAddressOf()),
+        E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT AnimComputeRuntime::Update_MorphWeightBuffer(const vector<float>* weights)
+{
+    if (weights == nullptr || weights->empty())
+        return S_OK;
+
+    const uint32 weightCount = static_cast<uint32>(weights->size());
+    if (_morphWeightBuffer == nullptr ||
+        _morphWeightBuffer->Get_ElementCount() != weightCount)
+    {
+        _morphWeightBuffer = ComputeStructuredBuffer::Create(
+            _device,
+            _context,
+            sizeof(float),
+            weightCount,
+            weights->data());
+
+        CHECK_NULL(_morphWeightBuffer, E_FAIL);
+        return S_OK;
+    }
+
+    return _morphWeightBuffer->Update_Data(weights->data(), weightCount);
+}
+
+HRESULT AnimComputeRuntime::Prepare_MorphDeform()
+{
+    if (_model == nullptr)
+        return E_FAIL;
+
+    if (!_model->Has_MorphData())
+        return S_OK;
+
+    if (_computeMorphShaderCom == nullptr)
+        return S_OK; // 아직 shader 등록 전이면 기존 skinning 유지
+
+    if (!_morphDirty)
+        return S_OK;
+
+    const vector<float>* weights = _model->Get_MorphWeights();
+    if (weights == nullptr || weights->empty())
+        return S_OK;
+
+    CHECK_FAILED(Ensure_RuntimeMorphBuffers(), E_FAIL);
+    CHECK_FAILED(Ensure_RuntimeMorphConstantBuffer(), E_FAIL);
+    CHECK_FAILED(Update_MorphWeightBuffer(weights), E_FAIL);
+
+
+    for (uint32 meshIndex = 0; meshIndex < _model->_meshes.size(); ++meshIndex)
+    {
+        if (meshIndex >= _meshSourceVertexBuffers.size())
+            continue;
+
+        if (meshIndex >= _meshMorphVertexRangeBuffers.size())
+            continue;
+
+        if (meshIndex >= _meshMorphInfluenceBuffers.size())
+            continue;
+
+        if (meshIndex >= _meshMorphedSourceVertexBuffers.size())
+            continue;
+
+        const auto& source = _meshSourceVertexBuffers[meshIndex];
+        const auto& ranges = _meshMorphVertexRangeBuffers[meshIndex];
+        const auto& influence = _meshMorphInfluenceBuffers[meshIndex];
+        const auto& output = _meshMorphedSourceVertexBuffers[meshIndex];
+
+        if (source == nullptr || ranges == nullptr || influence == nullptr || output == nullptr)
+            continue;
+
+        MorphDeformCBData cbData{};
+        cbData.vertexCount = source->Get_ElementCount();
+        cbData.targetCount = static_cast<uint32>(weights->size());
+        if (cbData.vertexCount == 0)
+            continue;
+
+        _context->UpdateSubresource(_morphDeformConstantBuffer.Get(), 0, nullptr, &cbData, 0, 0);
+
+        CHECK_FAILED(_computeMorphShaderCom->Bind_SRV(0, source->Get_SRV()), E_FAIL);
+        CHECK_FAILED(_computeMorphShaderCom->Bind_SRV(1, ranges->Get_SRV()), E_FAIL);
+        CHECK_FAILED(_computeMorphShaderCom->Bind_SRV(2, influence->Get_SRV()), E_FAIL);
+        CHECK_FAILED(_computeMorphShaderCom->Bind_SRV(3, _morphWeightBuffer->Get_SRV()), E_FAIL);
+        CHECK_FAILED(_computeMorphShaderCom->Bind_UAV(0, output->Get_UAV()), E_FAIL);
+        CHECK_FAILED(_computeMorphShaderCom->Bind_ConstantBuffer(0, _morphDeformConstantBuffer.Get()), E_FAIL);
+
+        CHECK_FAILED(_computeMorphShaderCom->Dispatch((cbData.vertexCount + 63u) / 64u, 1, 1), E_FAIL);
+    }
+
+    _morphDirty = false;
+    _skinningDirty = true;
+
+    return S_OK;
+}
+
 HRESULT AnimComputeRuntime::Step_BoneRemap(const AnimComputeFrameContext& context)
 {
     UNREFERENCED_PARAMETER(context);
@@ -445,6 +750,12 @@ void AnimComputeRuntime::Reset()
         _model->Access_CombinedBoneMatrixCache().clear();
 
     _globalCombinedBoneBuffer = nullptr;
+    _meshMorphVertexRangeBuffers.clear();
+    _meshMorphInfluenceBuffers.clear();
+    _meshMorphedSourceVertexBuffers.clear();
+    _morphWeightBuffer = nullptr;
+    _morphDeformConstantBuffer.Reset();
+    _morphDirty = _model != nullptr && _model->Has_MorphData();
 
     _skinningDirty = true;
 }

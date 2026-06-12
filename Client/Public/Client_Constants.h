@@ -234,7 +234,7 @@ namespace Client::Constants::Map
     inline constexpr wchar_t SpringChunk_04_03_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_03.json";
 
     // multiface
-    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
+    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Copy.json";
     inline constexpr wchar_t LandscapeTextures_Dir[] = L"../../../Client/Bin/Resources/Map/LandscapeTextures/";
     inline constexpr wchar_t MF_Zone_Boss_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Boss.hmap";
     inline constexpr wchar_t MF_Zone_Main_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Main.hmap";
@@ -288,6 +288,9 @@ namespace Client::Constants::Prefab
     inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
     inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
 #pragma endregion
+
+    inline constexpr char Eye_Target[]      = "ETC/EyeTarget";
+
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -297,6 +300,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
     constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
+}
+
+namespace Client::Constants::Cinematic
+{
+    inline constexpr wchar_t BridgeCinematic[]= L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";  
 }
 
 namespace Client::Constants::SoundCue

@@ -7,7 +7,7 @@ class ModelInspector final : public EditorBlock
 {
 public:
 	ModelInspector();
-	~ModelInspector() override = default;
+	~ModelInspector() override;
 
 private:
 	HRESULT Initialize() override;
@@ -15,6 +15,9 @@ private:
 public:
 	void Update(float timeDelta) override;
 	void Render() override;
+
+public:
+    void Set_WindowHandle(HWND hWnd) { _hWnd = hWnd; }
 
 private:
 	void Scan_ModelFiles(const wstring& resourcePath);
@@ -27,6 +30,8 @@ private:
 	void Load_SelectedAsset(const string& extension);
 
 private:
+    HWND _hWnd{ nullptr };
+
 	vector<std::filesystem::path> _cachedModelPaths;
 	vector<std::filesystem::path> _cachedAnimPaths;
 
@@ -48,7 +53,7 @@ private:
     ImGuiTextFilter _modelFilter;
 
 public:
-	static Shared<ModelInspector> Create();
+	static Shared<ModelInspector> Create(HWND hWnd = nullptr);
 };
 
 NS_END

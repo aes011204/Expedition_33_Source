@@ -120,7 +120,6 @@ private:
     void Render_PreviewCanvas();
     void Render_PreviewPanel();
     void Render_TransitionPreviewPanel();
-    void Render_CounterPreviewPanel();
     void Render_BattlePresetEditor();
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
@@ -128,6 +127,7 @@ private:
     void Render_BattleClipDebugPanel();
     void Render_BattleClipInsertKeyframePopup();
     void Render_BattleClipRemoveKeyframePopup();
+    void Render_UnsavedSkillChangePopup();
     void Render_SkillShotTimeline();
     void Render_LoadAuthoringFilePopup();
     void Apply_PreviewContext();
@@ -145,7 +145,7 @@ private:
     void Clear_PreviewContext();
     void Refresh_PreviewAnimationList();
     void Try_AutoSelectPreviewActorAndAnimation();
-    void Sort_BattleClipTrackKeyframes(BattleCameraTrack& track);
+    void Sort_BattleClipTrackKeyframes(CameraTrack& track);
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
     void Sync_PreviewTimeFromTimeline();
     void Ensure_BattlePresetLoaded();
@@ -163,6 +163,9 @@ private:
     void Apply_DefaultPreviewSlotsForMode(BattleCameraMode mode, bool resetPoseState = true);
     void Apply_PreviewTransitionMode(BattleCameraMode mode);
     void Apply_PreviewSkillContext(const string& skillId);
+    bool Has_UnsavedBattleAuthoringChanges() const;
+    void Request_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex);
+    void Apply_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex);
     void Apply_TransitionStepContext(const PreviewTransitionStep& step);
     void Capture_CurrentPreviewIntoTransitionStep(PreviewTransitionStep& step);
     void Set_TransitionPreviewLocalTime(float timeSec);
@@ -215,8 +218,8 @@ private:
     string Get_CurrentPreviewPresetId() const;
     string Get_CurrentPreviewClipId() const;
     BattleCameraMode Get_BattlePresetEditorMode() const;
-    BattleCameraTrack* Get_SelectedBattleClipTrack();
-    BattleCameraKeyframe* Get_SelectedBattleClipKeyframe();
+    CameraTrack* Get_SelectedBattleClipTrack();
+    CameraKeyframe* Get_SelectedBattleClipKeyframe();
     float Get_TransitionSequenceDuration() const;
     float Get_DefaultBattleClipValue(int trackIndex);
     void Resolve_TransitionSequenceTime(float time, int& outStepIndex, float& outStepLocalTime);
@@ -288,12 +291,14 @@ private:
     float _previewShotDragOriginalStartSec = 0.f;
     float _previewShotDragOriginalEndSec = 0.f;
     BattleCameraPreset _editingBattlePreset{};
+    bool _battlePresetDirty = false;
     BattleCameraMode _loadedBattlePresetMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattlePresetSkillId{};
     bool _hasLoadedBattlePreset = false;
     BattleCameraMode _loadedBattleClipMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattleClipSkillId{};
     BattleCameraClip _editingBattleClip{ 1.f };
+    bool _battleClipDirty = false;
     bool _hasLoadedBattleClip = false;
     int _battleClipSelectedTrackIndex = 0;
     int _battleClipSelectedKeyIndex = -1;
@@ -328,6 +333,9 @@ private:
     float _transitionPreviewElapsed = 0.f;
     float _transitionPreviewSequenceTimeSec = 0.f;
     TimelineEditorTab _activeTimelineEditorTab = TimelineEditorTab::ClipTimeline;
+    bool _requestOpenUnsavedSkillChangePopup = false;
+    bool _pendingUseSkillOverride = false;
+    int _pendingSelectedSkillIndex = -1;
 
 public:
     static Shared<BattleCameraPreview_View> Create();

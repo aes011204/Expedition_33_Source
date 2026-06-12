@@ -58,7 +58,7 @@ public:
     // 머리 붙이기
     void Set_LeaderPoseComponent(const PlayableParts* leaderPart) const;
     bool Has_LeaderPoseComponent() const;
-    void Update_LeaderPoseMatrices() const;
+    void Update_LeaderPoseMatrices(float timeDelta) const;
 
 protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;

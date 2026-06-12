@@ -22,6 +22,7 @@
     "effects11",
     "stduuid",
     "physx",
-    "assimp"
+    "assimp",
+    "tinygltf"
   ]
 }

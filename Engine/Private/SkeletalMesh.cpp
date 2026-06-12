@@ -120,6 +120,15 @@ HRESULT SkeletalMesh::Build_ComputeMeshBoneRefs(vector<AnimComputeMeshBoneRef>& 
     return S_OK;
 }
 
+HRESULT SkeletalMesh::Update_VertexBuffer(const vector<VTXANIMMESH>& vertices)
+{
+    if (_vb == nullptr || vertices.size() != _numVertices)
+        return E_FAIL;
+
+    _context->UpdateSubresource(_vb.Get(), 0, nullptr, vertices.data(), 0, 0);
+    return S_OK;
+}
+
 HRESULT SkeletalMesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones)
 {
     for (uint32 i = 0; i < _numBones; ++i)
