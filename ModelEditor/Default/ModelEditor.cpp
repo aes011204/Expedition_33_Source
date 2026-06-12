@@ -156,6 +156,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     switch (message)
     {
+    case WM_SIZE:
+        if (g_runtimeInitialized && SIZE_MINIMIZED != wParam)
+        {
+            const uint32 width = LOWORD(lParam);
+            const uint32 height = HIWORD(lParam);
+            if (0 < width && 0 < height)
+                GAME->Resize_BackBuffer(width, height);
+        }
+        return 0;
+
     case WM_CLOSE:
         PostQuitMessage(0);
         return 0;

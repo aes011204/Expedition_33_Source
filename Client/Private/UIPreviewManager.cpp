@@ -50,14 +50,17 @@ void UIPreviewManager::Update(float timeDelta)
         for (PreviewHeroEntry& entry : _previewHeroes)
         {
             if (entry.player)
+            {
                 entry.player->Update_StatusPreview(timeDelta);
+                entry.player->Update_GameMenuFacialPreview(timeDelta, _shownHeroId != HeroId::END);
+            }
         }
     }
 }
 
 void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
 {
-    UNREFERENCED_PARAMETER(panel);
+    _activePanel = panel;
 
     if (_isActive)
         return;
@@ -81,6 +84,9 @@ void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
 
 void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotPanel panel)
 {
+    _activePanel = panel;
+    _shownHeroId = heroId;
+
     if (!_isActive)
         Begin_Preview(panel);
 
@@ -106,6 +112,12 @@ void UIPreviewManager::Hide_Preview()
     if (!_isActive)
         return;
 
+    for (PreviewHeroEntry& entry : _previewHeroes)
+    {
+        if (entry.player)
+            entry.player->Update_GameMenuFacialPreview(0.f, false);
+    }
+
     CLIENT->Restore_PreviousCamera();
 
     if (_previewCamera)
@@ -114,6 +126,7 @@ void UIPreviewManager::Hide_Preview()
     Clear_StatusPreviewHeroes();
 
     _isActive = false;
+    _shownHeroId = HeroId::END;
 }
 
 void UIPreviewManager::Apply_Layout(const vector<PreviewSlotDesc>& layout)

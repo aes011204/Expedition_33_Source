@@ -4,7 +4,6 @@
 #include "ModelEditorApp.h"
 #include "ModelImGui_Manager.h"
 #include "ModelViewerObject.h"
-#include "ModelCom.h"
 
 namespace fs = std::filesystem;
 
@@ -14,11 +13,20 @@ ModelInspector::ModelInspector() : EditorBlock{}
 {
 }
 
+ModelInspector::~ModelInspector()
+{
+    if (_hWnd != nullptr)
+    {
+        _hWnd = nullptr;
+    }
+}
+
 HRESULT ModelInspector::Initialize()
 {
 	_resourcePath = ResourcePath;
 	strcpy_s(_pathBuffer, ToString(_resourcePath).c_str());
 	Scan_ModelFiles(_resourcePath);
+
 	return S_OK;
 }
 
@@ -51,8 +59,6 @@ void ModelInspector::Render()
 
 	ImGui::Separator();
 	Render_AnimList();
-
-
 
 	ImGui::End();
 }
@@ -297,9 +303,11 @@ void ModelInspector::Load_SelectedAsset(const string& extension)
 	}
 }
 
-Shared<ModelInspector> ModelInspector::Create()
+Shared<ModelInspector> ModelInspector::Create(HWND hWnd)
 {
 	auto instance = make_shared<ModelInspector>();
+    instance->Set_WindowHandle(hWnd);
+
 	if (FAILED(instance->Initialize()))
 	{
 		return nullptr;
