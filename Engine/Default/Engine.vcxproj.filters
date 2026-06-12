@@ -441,12 +441,6 @@
     <ClInclude Include="..\Public\AnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\CurveAnimationModifier.h">
-      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CurveClip.h">
-      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\FacialAnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
@@ -1084,12 +1078,6 @@
       <Filter>01.Utility\04.Component\VIBuffer\TerrainUE</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimationModifier.cpp">
-      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CurveAnimationModifier.cpp">
-      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CurveClip.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FacialAnimationModifier.cpp">

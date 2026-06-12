@@ -76,7 +76,7 @@ protected:
     Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
     Shared<EffectCom>               _effectCom;
-    float                           _fallStateEnterAccum = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
+    float                           _fallStateEnterAcc = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
 
 private:
     Shared<Engine::FacialClip>       _gameMenuFacialClip{};

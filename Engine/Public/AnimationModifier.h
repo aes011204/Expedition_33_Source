@@ -19,6 +19,8 @@ public:
     {
         wstring modifierTag{};
         float strengthAlpha{ 1.f };
+        
+        bool evaluateOnLeaderPose{ true };
     };
 
 public:
@@ -35,11 +37,14 @@ public:
 
     const wstring& Get_ModifierTag() const { return _modifierTag; }
 
+    bool Is_EvaluateOnLeaderPose() const { return _evaluateOnLeaderPose; }
+
 protected:
     virtual HRESULT Initialize(AnimationModifierDesc* desc);
 
 protected:
     bool _isActive = true;
+    bool _evaluateOnLeaderPose = false;
     float _strengthAlpha{ 1.f }; // 왜 인지 모르지만 alpha로 언리얼에서 표현 하는듯 섞을 애니메이션 강도 0.f ~ 1.f
     wstring _modifierTag{};
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "AnimationModifier.h"
 #include "FacialClip.h"
 
@@ -12,6 +12,11 @@ public:
         Shared<FacialClip> clip{};
         bool loop{ true };
         bool suppressMouthArea{ false };
+        bool applyMorphCpu{ true };
+
+        FacialModifierDesc() {
+            evaluateOnLeaderPose = true;
+        }
     };
 
 private:
@@ -62,6 +67,7 @@ private:
     bool _suppressMouthArea{ false };
     bool _bindingsDirty{ true };
     bool _poseApplied{ false };
+    bool _applyMorphCpu{ true };
 
 public:
     static Shared<FacialAnimationModifier> Create(FacialModifierDesc* desc);
