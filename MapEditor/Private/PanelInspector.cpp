@@ -607,6 +607,7 @@ void PanelInspector::DrawMaterialOverrides(Shared<EditorObject>& obj)
     }
 
     string filename = fs::path(pathStr).filename().string();
+
     ImGui::Separator();
     ImGui::Text("Material Overrides");
     

@@ -285,7 +285,13 @@ void MEManager::RenderDockSpace()
         {
             if (ImGui::MenuItem("Export Split Instance"))
             {
-                _ctx->Export_MapInstance(_ctx->_currentFilePath);
+                string defaultName = fs::path(_ctx->_currentFilePath).stem().string();
+                if (defaultName.empty() || defaultName == "Untitled")
+                {
+                    defaultName = String::ToString(_ctx->_mapName);
+                }
+                strncpy_s(_exportNameBuf, defaultName.c_str(), sizeof(_exportNameBuf) - 1);
+                _exportPopupOpen = true;
             }
             if (ImGui::BeginMenu("Import Split Instance"))
             {
@@ -312,6 +318,40 @@ void MEManager::RenderDockSpace()
         }
 
         ImGui::EndMenuBar();
+    }
+
+    if (_exportPopupOpen)
+    {
+        ImGui::OpenPopup("Export Split Instance");
+        _exportPopupOpen = false;
+    }
+
+    if (ImGui::BeginPopupModal("Export Split Instance", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Export 폴더 이름을 입력하세요.");
+        ImGui::InputText("##exportName", _exportNameBuf, sizeof(_exportNameBuf));
+
+        fs::path exportPath = ResolveMapInstanceRootForMenu() / _exportNameBuf;
+        if (fs::exists(exportPath))
+        {
+            ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "경고: 해당 폴더가 이미 존재합니다. 덮어씌워집니다.");
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button("Export", ImVec2(120, 0)))
+        {
+            if (strlen(_exportNameBuf) > 0)
+            {
+                _ctx->Export_MapInstance(_exportNameBuf);
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("취소", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
     }
 
     if (_confirmClearOpen)
