@@ -92,6 +92,7 @@ void PanelViewport::Render()
                     ImGui::SliderFloat("Rotate", &sens, 0.001f, 0.01f, "%.4f");
                     ImGui::Checkbox("BBox", &_ctx->_objectBBoxMode);
                     ImGui::Checkbox("Instance 숨기기", &_ctx->_hideInstancedMesh);
+                    ImGui::Checkbox("Instanced Spawn", &_spawnAsInstanced);
 
                     if (auto lp = GAME->Get_LightingPipeline())
                     {

@@ -34,6 +34,8 @@ enum class MaterialTextureSlot : uint8
 
     IrisHeight,
     IrisMask,
+    ORM2,
+    ORM3,
 
     END
 };

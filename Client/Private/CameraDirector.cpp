@@ -1,6 +1,8 @@
 ﻿#include "CameraDirector.h"
 #include "GameInstance.h"
 #include "TargetCamera.h"
+#include "ClientInstance.h"
+#include "CinematicCamera.h"
 
 CameraDirector::CameraDirector()
 {
@@ -57,19 +59,34 @@ void CameraDirector::Request_BattleTurn()
 
     if(GAME->Activate_CameraByType(ObjectType::BattleTurnCamera))
     {
-        LOG_INFO(
-            "[BattleCamTrace] CameraDirector::Request_BattleTurn prevType={} nextType={} worldScale={:.3f}",
-            static_cast<int>(camera->Get_ObjectType()),
-            static_cast<int>(ObjectType::BattleTurnCamera),
-            GAME->Get_WorldTimeScale());
-
         _previousCamera = camera;
     }
 }
 
-void CameraDirector::Request_Cinematic()
+Shared<CinematicCamera> CameraDirector::Request_Cinematic()
 {
-   // GAME->Activate_CameraByType(ObjectType::CinematicCamera);
+    Shared<Camera> currentCamera = nullptr;
+
+    if(GAME->Is_ActiveCameraType(ObjectType::CinematicCamera))
+    {
+        return dynamic_pointer_cast<CinematicCamera>( GAME->Get_ActiveCamera());
+    }
+
+    currentCamera = GAME->Get_ActiveCamera();
+
+    if(currentCamera == nullptr)
+        return nullptr;
+
+    auto cinematicCamera = CLIENT->Ensure_CinematicCamera();
+
+    if(cinematicCamera == nullptr)
+        return nullptr;
+
+    if(!GAME->Activate_CameraByType(ObjectType::CinematicCamera))
+        return nullptr;
+
+    _previousCamera = currentCamera;
+    return cinematicCamera;
 }
 
 void CameraDirector::Restore_PreviousCamera()
@@ -90,11 +107,6 @@ void CameraDirector::Restore_PreviousCamera()
 void CameraDirector::Request_ChangeTargetCameraMode(TargetCameraMode cameraMode)
 {
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] CameraDirector::Request_TargetCameraMode requestedMode={} activeBefore={} worldScale={:.3f}",
-        static_cast<int>(cameraMode),
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        GAME->Get_WorldTimeScale());
 
     if(!GAME->Is_ActiveCameraType(ObjectType::TargetCamera))
         GAME->Activate_CameraByType(ObjectType::TargetCamera);

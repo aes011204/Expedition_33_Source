@@ -30,12 +30,6 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-
-    if (_cameraMode == BattleCameraMode::WIDE)
-    {
-        int a = 10;
-    }
-
     auto character = dynamic_pointer_cast<Character>(owner->GetSharedPtr<PlayableParts>()->Get_Owner());
 
     if (character == nullptr)

@@ -12,6 +12,33 @@
 
 extern HWND g_hWnd;
 
+namespace
+{
+    fs::path ResolveMapResourceRoot()
+    {
+        fs::path repoRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
+        fs::path mapRoot = repoRoot / "Client" / "Bin" / "Resources" / "Map";
+
+        error_code ec;
+        fs::path resolved = fs::weakly_canonical(mapRoot, ec);
+        return (!ec && !resolved.empty()) ? resolved : mapRoot;
+    }
+
+    bool IsSplitMapInstanceFolder(const fs::path& path)
+    {
+        return fs::exists(path / "StaticMesh") ||
+            fs::exists(path / "InstanceMesh") ||
+            fs::exists(path / "PostProcessVolume") ||
+            fs::exists(path / "Water") ||
+            fs::exists(path / "ETC");
+    }
+
+    fs::path ResolveMapInstanceRootForMenu()
+    {
+        return ResolveMapResourceRoot() / "MapInstance";
+    }
+}
+
 MEManager::~MEManager()
 {
 
@@ -32,7 +59,7 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx,
     Add(PanelHierarchy::Create(ctx));
     Add(PanelInspector::Create(ctx, camera));
     Add(PanelAssetBrowser::Create(ctx));
-    Add(PanelModelOverride::Create(ctx));
+    Add(PanelModelOverride::Create(ctx, viewport));
     Add(PanelLandscape::Create(ctx, landscapeCtx));
 
     _snapSettings = make_shared<SnapSettings>();
@@ -147,7 +174,7 @@ void MEManager::RenderDockSpace()
                 ofn.lpstrFile = buf;
                 ofn.nMaxFile = MAX_PATH;
                 ofn.lpstrInitialDir = _mapSavePath;
-                ofn.Flags = OFN_FILEMUSTEXIST;
+                ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
                 if (GetOpenFileNameA(&ofn))
                 {
                     _ctx->LoadFromFile(buf);
@@ -163,7 +190,7 @@ void MEManager::RenderDockSpace()
                 ofn.lpstrFile = buf;
                 ofn.nMaxFile = MAX_PATH;
                 ofn.lpstrInitialDir = _mapSavePath;
-                ofn.Flags = OFN_FILEMUSTEXIST;
+                ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
                 if (GetOpenFileNameA(&ofn))
                 {
                     _ctx->LoadFromFile(buf, true);
@@ -254,6 +281,36 @@ void MEManager::RenderDockSpace()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Map Explicit Tools"))
+        {
+            if (ImGui::MenuItem("Export Split Instance"))
+            {
+                _ctx->Export_MapInstance(_ctx->_currentFilePath);
+            }
+            if (ImGui::BeginMenu("Import Split Instance"))
+            {
+                fs::path instanceRoot = ResolveMapInstanceRootForMenu();
+                if (fs::exists(instanceRoot))
+                {
+                    for (const auto& entry : fs::directory_iterator(instanceRoot))
+                    {
+                        if (entry.is_directory() &&
+                            entry.path().filename().string() != "MapInstance" &&
+                            IsSplitMapInstanceFolder(entry.path()))
+                        {
+                            string mapName = entry.path().filename().string();
+                            if (ImGui::MenuItem(mapName.c_str()))
+                            {
+                                _ctx->Import_MapInstance(mapName);
+                            }
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMenuBar();
     }
 
@@ -315,7 +372,7 @@ void MEManager::SaveMapDialog()
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrInitialDir = _mapSavePath;
     ofn.lpstrDefExt = "json";
-    ofn.Flags = OFN_OVERWRITEPROMPT;
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
     if (GetSaveFileNameA(&ofn))
     {
         _ctx->SaveToFile(buf);

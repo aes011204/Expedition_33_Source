@@ -1,7 +1,8 @@
 ﻿#include "pch.h"
 #include "ModelViewerObject.h"
 #include "GameInstance.h"
-#include "Material_Types.h"
+#include "Material.h"
+#include "ShaderCom.h"
 
 NS_BEGIN(ModelEditor)
 
@@ -23,12 +24,6 @@ HRESULT ModelViewerObject::Initialize(void* arg)
 
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
-
-    wstring defaultPath = TEXT("../../Bin/ShaderFiles/Default_Material.png");
-    if (FAILED(DirectX::CreateWICTextureFromFile(_device.Get(), defaultPath.c_str(), nullptr, _defaultTextureSRV.GetAddressOf())))
-    {
-        LOG_WARN("Failed to load default texture from: ShaderFiles/Default_Material.png");
-    }
 
     return S_OK;
 }
@@ -63,49 +58,45 @@ HRESULT ModelViewerObject::Render()
 	if (FAILED(Bind_ShaderResources()))
 		return E_FAIL;
 
+    const Shared<ShaderCom> shader = _modelCom->Is_Skeletal() ? _animShaderCom : _staticShaderCom;
+    if (FAILED(shader->Reset_DrawFeatures()))
+        return E_FAIL;
+
 	uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
-    if (_modelCom->Is_Skeletal())
+    for (uint32 i = 0; i < numMeshes; ++i)
     {
-        for (uint32 i = 0; i < numMeshes; ++i)
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
+        if (material == nullptr)
         {
-            if (FAILED(_modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
-            {
-                if (_defaultTextureSRV != nullptr)
-                {
-                    _animShaderCom->Bind_SRV("g_DiffuseTexture", _defaultTextureSRV.Get());
-                }
-            }
-
-            if (_modelCom->Is_Skeletal())
-            {
-                _modelCom->Bind_BoneMatrices(_animShaderCom.get(), "g_BoneMatricesBuffer", i);
-            }
-
-            _animShaderCom->Begin(0);
-            _modelCom->Render(i);
+            continue;
         }
-    }
-    else
-    {
-        for (uint32 i = 0; i < numMeshes; ++i)
+
+        if (FAILED(shader->Bind_MaterialTextures(*material)))
         {
-            if (FAILED(_modelCom->Bind_Material(_staticShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
-            {
-                
-                if (_defaultTextureSRV != nullptr)
-                {
-                    _staticShaderCom->Bind_SRV("g_DiffuseTexture", _defaultTextureSRV.Get());
-                }
-            }
-
-            if (_modelCom->Is_Skeletal())
-            {
-                _modelCom->Bind_BoneMatrices(_staticShaderCom.get(), "g_BoneMatricesBuffer", i);
-            }
-
-            _staticShaderCom->Begin(0);
-            _modelCom->Render(i);
+            continue;
         }
+
+        if (FAILED(shader->Bind_CBufferData(material->Get_CB())))
+        {
+            return E_FAIL;
+        }
+
+        if (_modelCom->Is_Skeletal())
+        {
+            if (FAILED(_modelCom->Bind_BoneMatrices(shader.get(), "g_BoneMatricesBuffer", i)))
+            {
+                return E_FAIL;
+            }
+        }
+
+        const uint32 passIndex = material->Get_PassIndex();
+        if (FAILED(shader->Begin(passIndex)))
+        {
+            return E_FAIL;
+        }
+
+        _modelCom->Render(i);
     }
 	
 
@@ -195,25 +186,11 @@ HRESULT ModelViewerObject::Bind_ShaderResources()
 
     auto target = _modelCom->Is_Skeletal() ? _animShaderCom : _staticShaderCom ;
 
-	if (FAILED(_transformCom->Bind_ShaderResource(target.get(), "g_WorldMatrix")))
+	if (FAILED(target->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
 		return E_FAIL;
 
-	if (FAILED(target->Bind_Matrix("g_ViewMatrix", GAME->Get_Transform(D3DTS::View))))
-		return E_FAIL;
-    if (FAILED(target->Bind_Matrix("g_ProjMatrix", GAME->Get_Transform(D3DTS::Proj))))
-		return E_FAIL;
-
-    if (FAILED(GAME->Bind_CamPosition(target.get(), "g_CamPosition")))
+    if (FAILED(GAME->Bind_CameraCB(target)))
         return E_FAIL;
-
-    const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);
-    if (nullptr != pLightDesc)
-    {
-        target->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(Vec4));
-        target->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(Vec4));
-        target->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(Vec4));
-        target->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(Vec4));
-    }
 
 	return S_OK;
 }

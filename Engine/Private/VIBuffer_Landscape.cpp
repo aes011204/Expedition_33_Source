@@ -460,12 +460,19 @@ float VIBuffer_Landscape::Sample_Height(float worldX, float worldZ) const
     float tx = fx - static_cast<float>(x0);
     float tz = fz - static_cast<float>(z0);
 
-    float h00 = _heights[z0 * numVX + x0];
-    float h10 = _heights[z0 * numVX + x1];
-    float h01 = _heights[z1 * numVX + x0];
-    float h11 = _heights[z1 * numVX + x1];
+    float h_tl = _heights[z0 * numVX + x0];
+    float h_tr = _heights[z0 * numVX + x1];
+    float h_bl = _heights[z1 * numVX + x0];
+    float h_br = _heights[z1 * numVX + x1];
 
-    return h00 * (1 - tx) * (1 - tz) + h10 * tx * (1 - tz) + h01 * (1 - tx) * tz + h11 * tx * tz;
+    if (tx + tz <= 1.f)
+    {
+        return h_tl * (1.f - tx - tz) + h_tr * tx + h_bl * tz;
+    }
+    else
+    {
+        return h_bl * (1.f - tx) + h_br * (tx + tz - 1.f) + h_tr * (1.f - tz);
+    }
 }
 
 void VIBuffer_Landscape::Paint_Layer(uint32 layerIdx, float worldX, float worldZ, float radius, float strength)

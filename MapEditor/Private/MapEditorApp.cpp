@@ -50,7 +50,7 @@ HRESULT MapEditorApp::Initialize()
     _imguiManager = MEImGuiManager::Create(g_hWnd, _device, _context);
     CHECK_NULL(_imguiManager, E_FAIL);
 
-    _camera = MECamera::Create(60.f, static_cast<float>(g_iWinSizeX) / g_iWinSizeY, 0.1f, 1000.f);
+    _camera = MECamera::Create(g_hWnd, 60.f, static_cast<float>(g_iWinSizeX) / g_iWinSizeY, 0.1f, 1000.f);
 
     _bridgeCamera = MEBridgeCamera::Create(_device, _context);
     CHECK_NULL(_bridgeCamera, E_FAIL);
@@ -537,7 +537,14 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
     }
     else
     {
-        spawned = _scene.SpawnObject(String::ToWString(modelPath), _scene._cursorPos);
+        if (_viewport->IsSpawnAsInstanced())
+        {
+            spawned = _scene.SpawnInstancedObject(String::ToWString(modelPath), _scene._cursorPos);
+        }
+        else
+        {
+            spawned = _scene.SpawnObject(String::ToWString(modelPath), _scene._cursorPos);
+        }
     }
 
     if (spawned)
@@ -571,6 +578,16 @@ void MapEditorApp::RebuildOctreeIfDirty()
                 BoundingBox::CreateFromPoints(localBox, localMin, localMax);
                 localBox.Transform(worldBox, model->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
             }
+            else
+            {
+                worldBox.Center = obj->_position;
+                worldBox.Extents = Vec3(0.01f, 0.01f, 0.01f);
+            }
+        }
+        else
+        {
+            worldBox.Center = obj->_position;
+            worldBox.Extents = Vec3(0.01f, 0.01f, 0.01f);
         }
         worldAABBs.push_back(worldBox);
     }

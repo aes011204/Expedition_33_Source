@@ -10,8 +10,9 @@ void MECamera::ApplyBookmark(const Vec3& pos, float yaw, float pitch)
     ComputeMatrices();
 }
 
-void MECamera::Initialize(float fov, float aspect, float nearZ, float farZ)
+void MECamera::Initialize(HWND hWnd,float fov, float aspect, float nearZ, float farZ)
 {
+    _hWnd = hWnd;
     _fov = fov;
     _aspect = aspect;
     _nearZ = nearZ;
@@ -23,40 +24,76 @@ void MECamera::Initialize(float fov, float aspect, float nearZ, float farZ)
 void MECamera::UpdateInput(float timeDelta)
 {
     ImGuiIO& io = ImGui::GetIO();
-    if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
+    bool rightMouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Right);
+
+    if (rightMouseDown)
     {
-        _yaw += io.MouseDelta.x * _rotateSensitivity;
-        _pitch += io.MouseDelta.y * _rotateSensitivity;
-        _pitch = clamp(_pitch, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
+        RECT rect;
+        GetClientRect(_hWnd, &rect);
+        POINT center = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
+        ClientToScreen(_hWnd, &center);
 
-        const Vec3 forward = GetForward();
-        const Vec3 right = GetRight();
-        const float speed = _moveSpeed * timeDelta;
+        if (!_rotating)
+        {
+            GetCursorPos(&_savedCursorPos);
+            ShowCursor(FALSE);
+            _rotating = true;
+            SetCursorPos(center.x, center.y);
+        }
+        else
+        {
+            POINT curPos;
+            GetCursorPos(&curPos);
 
-        if (ImGui::IsKeyDown(ImGuiKey_W))
-        {
-            _position += forward * speed;
+            float dx = static_cast<float>(curPos.x - center.x);
+            float dy = static_cast<float>(curPos.y - center.y);
+
+            _yaw += dx * _rotateSensitivity;
+            _pitch -= dy * _rotateSensitivity;
+            _pitch = clamp(_pitch, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
+
+            const Vec3 forward = GetForward();
+            const Vec3 right = GetRight();
+            const float speed = _moveSpeed * timeDelta;
+
+            if (ImGui::IsKeyDown(ImGuiKey_W))
+            {
+                _position += forward * speed;
+            }
+
+            if (ImGui::IsKeyDown(ImGuiKey_S))
+            {
+                _position -= forward * speed;
+            }
+
+            if (ImGui::IsKeyDown(ImGuiKey_D))
+            {
+                _position += right * speed;
+            }
+
+            if (ImGui::IsKeyDown(ImGuiKey_A))
+            {
+                _position -= right * speed;
+            }
+
+            if (ImGui::IsKeyDown(ImGuiKey_E))
+            {
+                _position += Vec3(0.f, 1.f, 0.f) * speed;
+            }
+
+            if (ImGui::IsKeyDown(ImGuiKey_Q))
+            {
+                _position -= Vec3(0.f, 1.f, 0.f) * speed;
+            }
+
+            SetCursorPos(center.x, center.y);
         }
-        if (ImGui::IsKeyDown(ImGuiKey_S))
-        {
-            _position -= forward * speed;
-        }
-        if (ImGui::IsKeyDown(ImGuiKey_D))
-        {
-            _position += right * speed;
-        }
-        if (ImGui::IsKeyDown(ImGuiKey_A))
-        {
-            _position -= right * speed;
-        }
-        if (ImGui::IsKeyDown(ImGuiKey_E))
-        {
-            _position += Vec3(0.f, 1.f, 0.f) * speed;
-        }
-        if (ImGui::IsKeyDown(ImGuiKey_Q))
-        {
-            _position -= Vec3(0.f, 1.f, 0.f) * speed;
-        }
+    }
+    else if (_rotating)
+    {
+        ShowCursor(TRUE);
+        SetCursorPos(_savedCursorPos.x, _savedCursorPos.y);
+        _rotating = false;
     }
 
     if (io.MouseWheel != 0.f)
@@ -66,6 +103,7 @@ void MECamera::UpdateInput(float timeDelta)
 
     ComputeMatrices();
 }
+
 
 void MECamera::Apply()
 {
@@ -99,9 +137,9 @@ void MECamera::FocusOn(const Vec3& target)
     ComputeMatrices();
 }
 
-Shared<MECamera> MECamera::Create(float fov, float aspect, float nearZ, float farZ)
+Shared<MECamera> MECamera::Create(HWND hWnd, float fov, float aspect, float nearZ, float farZ)
 {
     auto instance = make_shared<MECamera>();
-    instance->Initialize(fov, aspect, nearZ, farZ);
+    instance->Initialize(hWnd,fov, aspect, nearZ, farZ);
     return instance;
 }
