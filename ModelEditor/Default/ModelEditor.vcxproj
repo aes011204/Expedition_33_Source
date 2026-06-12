@@ -150,7 +150,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;D:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -189,7 +189,7 @@ if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;D:\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -222,6 +222,7 @@ if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\EditorBlock.h" />
+    <ClInclude Include="..\Public\GltfMorphBuilder.h" />
     <ClInclude Include="..\Public\Level_ModelEditor.h" />
     <ClInclude Include="..\Public\ModelEditorCamera.h" />
     <ClInclude Include="..\Public\ModelImGui_Manager.h" />
@@ -241,6 +242,7 @@ if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\EditorBlock.cpp" />
+    <ClCompile Include="..\Private\GltfMorphBuilder.cpp" />
     <ClCompile Include="..\Private\Level_ModelEditor.cpp" />
     <ClCompile Include="..\Private\ModelEditorCamera.cpp" />
     <ClCompile Include="..\Private\ModelImGui_Manager.cpp" />

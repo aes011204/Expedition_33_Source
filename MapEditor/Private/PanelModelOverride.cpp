@@ -55,7 +55,8 @@ namespace
 
     fs::path BuildMaterialJsonPath(const string& mapName, const string& modelPath)
     {
-        return fs::path(MapEditor::_materialsPath) / mapName / (fs::path(modelPath).stem().string() + ".material.json");
+        string stem = fs::path(modelPath).stem().string();
+        return fs::path(MapEditor::_materialsPath) / mapName / (stem + ".material.json");
     }
 
     bool ResolveSelectedModel(MapEditor::SceneContext* ctx, SelectedModelContext& out)
@@ -1341,13 +1342,15 @@ void PanelModelOverride::Render()
                 filename = String::ToString(fs::path(sel->_instancedModelPath).filename().wstring());
             }
 
-            if (!filename.empty() && _ctx->_modelOverrides.find(filename) == _ctx->_modelOverrides.end())
+            if (!filename.empty())
             {
                 ModelOverrideEntry newEntry;
-                newEntry.shaderType = sel->_modelPath.empty() ? ShaderType::VtxInstanceMeshExact
-                    : ShaderType::VtxMesh;
-                _ctx->_modelOverrides[filename] = newEntry;
-                _ctx->_dirtyPassOverrides = true;
+                newEntry.shaderType = sel->_modelPath.empty() ? ShaderType::VtxInstanceMeshExact : ShaderType::VtxMesh;
+                if (_ctx->_modelOverrides.find(filename) == _ctx->_modelOverrides.end())
+                {
+                    _ctx->_modelOverrides[filename] = newEntry;
+                    _ctx->_dirtyPassOverrides = true;
+                }
             }
         }
     }
@@ -1392,36 +1395,40 @@ void PanelModelOverride::RenderSelectedMaterialOverride()
 
     auto loadMapMaterial = [&]()
     {
-        ifstream ifs(materialPath);
-        if (ifs.is_open())
-        {
-            try
+
+            ifstream ifs(materialPath);
+            if (ifs.is_open())
             {
-                json root = json::parse(ifs);
-                ModelOverrideEntry& entry = ensureEntry();
-                if (root.contains("material_bindings"))
+                try
                 {
-                    entry.LoadMaterialBindingsJson(root);
+                    json root = json::parse(ifs);
+                    ModelOverrideEntry& entry = ensureEntry();
+                    if (root.contains("material_bindings"))
+                    {
+                        entry.LoadMaterialBindingsJson(root);
+                    }
+                    else
+                    {
+                        entry.LoadLegacyMaterialJson(root);
+                    }
+
+                    entry.shaderType = target.shaderType;
+                    if (entry.materialObjectKind == EMapMaterialObjectKind::Unsupported)
+                    {
+                        entry.materialObjectKind = target.materialObjectKind;
+                    }
+
+                    if (entry.baseBundleKey.empty())
+                    {
+                        entry.baseBundleKey = BuildBaseBundleKey(target.modelPath);
+                    }
+                    ApplySelectedEntryToModel(_ctx, target, entry);
                 }
-                else
+
+                catch (...)
                 {
-                    entry.LoadLegacyMaterialJson(root);
                 }
-                entry.shaderType = target.shaderType;
-                if (entry.materialObjectKind == EMapMaterialObjectKind::Unsupported)
-                {
-                    entry.materialObjectKind = target.materialObjectKind;
-                }
-                if (entry.baseBundleKey.empty())
-                {
-                    entry.baseBundleKey = BuildBaseBundleKey(target.modelPath);
-                }
-                ApplySelectedEntryToModel(_ctx, target, entry);
             }
-            catch (...)
-            {
-            }
-        }
     };
 
     auto createEntry = [&]()
@@ -1848,7 +1855,8 @@ namespace MapEditor
             fs::create_directories(matDir);
         }
 
-        fs::path matPath = matDir / (modelName + ".material.json");
+        string matStem = modelName;
+        fs::path matPath = matDir / (matStem + ".material.json");
 
         if (HasMaterialBindingsOverride())
         {

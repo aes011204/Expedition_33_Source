@@ -75,7 +75,7 @@ struct SceneContext
     void ScatterAt(EditorObject* obj, const ScatterZone& zone);
 
 public: // Minor 테스트 맵 인스턴스 분할
-    void Export_MapInstance(const string& filePath);
+    void Export_MapInstance(const string& mapName);
     void Import_MapInstance(const string& mapName);
 
 };

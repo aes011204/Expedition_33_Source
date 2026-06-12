@@ -12,6 +12,7 @@
 #include "ModelInspector.h"
 #include "ModelSceneWindow.h"
 #include "ModelTestPanel.h"
+#include "GltfMorphBuilder.h"
 #include "RenderTarget.h"
 
 
@@ -49,7 +50,7 @@ HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, 
     if (nullptr == (_modelConverter = ModelConverter::Create(hWnd)))
         LOG_ERROR("[Model Editor] : Failed to Create ModelConverter!");
 
-    if (nullptr == (_modelInspector = ModelInspector::Create()))
+    if (nullptr == (_modelInspector = ModelInspector::Create(hWnd)))
         LOG_ERROR("[Model Editor] : Failed to Create ModelInspector!");
 
     if (nullptr == (_modelSceneWindow = ModelSceneWindow::Create()))
@@ -57,6 +58,9 @@ HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, 
 
     if (nullptr == (_modelTestPanel = ModelTestPanel::Create()))
         LOG_ERROR("[Model Editor] : Failed to Create ModelTestPanel!");
+
+    if (nullptr == (_gltfMorphBuilder = GltfMorphBuilder::Create()))
+        LOG_ERROR("[Model Editor] : Failed to Create GltfMorphBuilder!");
 
 	return S_OK;
 }
@@ -90,6 +94,7 @@ void ModelImGui_Manager::Update(float timeDelta)
 				if (ImGui::MenuItem("Log Console")) { _logWindow->ToggleBlock(); }
                 if (ImGui::MenuItem("Model Converter")) { _modelConverter->ToggleBlock(); }
                 if (ImGui::MenuItem("Model Inspector")) { _modelInspector->ToggleBlock(); }
+                if (ImGui::MenuItem("GLB Morph Builder")) { _gltfMorphBuilder->ToggleBlock(); }
                 if (ImGui::MenuItem("Model Test Panel")) { _modelTestPanel->ToggleBlock(); }
 			    ImGui::EndMenu();
 			}
@@ -101,6 +106,7 @@ void ModelImGui_Manager::Update(float timeDelta)
     _logWindow->Update(timeDelta);
     _modelConverter->Update(timeDelta);
     _modelInspector->Update(timeDelta);
+    _gltfMorphBuilder->Update(timeDelta);
     _modelTestPanel->Update(timeDelta);
 }
 
@@ -109,6 +115,7 @@ void ModelImGui_Manager::Render()
     _logWindow->Render();
     _modelConverter->Render();
     _modelInspector->Render();
+    _gltfMorphBuilder->Render();
     _modelTestPanel->Render();
     if (_modelSceneWindow) _modelSceneWindow->Render();
 
@@ -130,6 +137,7 @@ void ModelImGui_Manager::Free()
     _modelInspector.reset();
     _modelSceneWindow.reset();
     _modelTestPanel.reset();
+    _gltfMorphBuilder.reset();
     _sharedViewportRenderTarget.reset();
 
 	if (ImGui::GetCurrentContext() != nullptr)
