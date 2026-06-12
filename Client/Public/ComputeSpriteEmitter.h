@@ -62,9 +62,10 @@ private: //## Types::PlaybackRuntime
 
     struct PlaybackTick
     {
-        float computeDeltaTime{};   // 이번 frame에서 particle simulation에 흘려보낼 시간이다.
-        uint32 spawnRequest{};      // 이번 frame에 활성화할 particle 수다.
-        bool killActiveParticles{}; // 이번 frame에 active particle을 모두 죽일지 나타낸다.
+        float computeDeltaTime{};     // 이번 frame에서 particle simulation에 흘려보낼 시간이다.
+        float lifetimeSamplePhase{};  // 이번 spawn request의 Lifetime curve sampling phase다.
+        uint32 spawnRequest{};        // 이번 frame에 활성화할 particle 수다.
+        bool killActiveParticles{};   // 이번 frame에 active particle을 모두 죽일지 나타낸다.
     };
 
 private: //## Static Values

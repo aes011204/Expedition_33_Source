@@ -406,6 +406,12 @@ void EffectEditor_Manager::Handle_Shortcuts()
         return;
     }
 
+    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_R, false))
+    {
+        EDITOR->Request_RestartPreview();
+        return;
+    }
+
     if (ImGui::IsKeyPressed(ImGuiKey_F5, false))
     {
         if (EDITOR->IsPaused())
@@ -493,6 +499,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
 
             draw_section_row("Playback / Runtime");
             draw_shortcut_row("F5", "Play / Resume");
+            draw_shortcut_row("R", "Restart Preview");
             draw_shortcut_row("F9", "Pause");
             draw_shortcut_row("Esc", "Stop");
             draw_shortcut_row("Shift +", "Time Scale Up");
@@ -512,9 +519,6 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_section_row("이미터 편집");
             draw_shortcut_row("Ctrl + C", "선택한 이미터 또는 모듈 복사");
             draw_shortcut_row("Ctrl + V", "선택한 이미터 위치에 클립보드 붙여넣기");
-
-            draw_section_row("Scene Gizmo");
-            draw_shortcut_row("W E R", "Gizmo Mode");
 
             draw_section_row("Camera");
             draw_shortcut_row("F", "Home Preview Camera");

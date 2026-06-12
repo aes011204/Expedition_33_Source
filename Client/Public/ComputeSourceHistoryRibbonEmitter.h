@@ -214,6 +214,7 @@ private:
     float Evaluate_WidthScaleByLife(float lifeProgress) const;
     uint32 Evaluate_SubUVFrameIndex() const;
     Vec4 Resolve_SubUVRect(uint32 frameIndex) const;
+    void Resample_SampleLifetime();
     void Resample_RandomSubUVFrameIndex();
     float Evaluate_CompactCurve(
         float lifeProgress,

@@ -2167,7 +2167,7 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
     return changed;
 }
 
-bool LifetimeModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, LifetimeModuleData& data, DetailPropertyContext& detailContext)
+bool LifetimeModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule& module, LifetimeModuleData& data, DetailPropertyContext& detailContext)
 {
     const LifetimeModuleData defaultData{};
     bool changed = false;
@@ -2183,7 +2183,24 @@ bool LifetimeModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module
             true,
             Find_AuthoringValueRange(module.type, "lifeTime")
         );
-        ImGui::TextDisabled("각 particle이 spawn된 뒤 살아 있는 시간입니다. Over Life 계열 curve의 기준이 됩니다.");
+        ImGui::TextDisabled("이미 생성된 particle 또는 visual life를 생애 중간에 다시 바꾸는 Over Life curve가 아닙니다.");
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
+        {
+            ImGui::TextDisabled("Beam ConstantCurve: 전체 반복 순서 진행률로 각 loop의 visual life를 한 번 샘플합니다.");
+            ImGui::TextDisabled("Beam 무한 반복: 반복 번호를 curve 구간에 순환 적용합니다.");
+        }
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+        {
+            ImGui::TextDisabled("Mesh ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
+        }
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail || emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+        {
+            ImGui::TextDisabled("Trail/Ribbon ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
+        }
+        else
+        {
+            ImGui::TextDisabled("Sprite ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
+        }
     }
 
     return changed;

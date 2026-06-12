@@ -54,6 +54,17 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SizeMin;                            // x/y: width/height min
     float4 g_SizeMax;                            // x/y: width/height max
     float4 g_LifeTimeParams;                     // x/y: lifetime min/max
+    float4 g_LifetimeCurveParams;                // x: key count, y: enabled, z: sampling phase
+    float4 g_LifetimeCurveTimes;
+    float4 g_LifetimeCurveTimesBlock1;
+    float4 g_LifetimeCurveValues;
+    float4 g_LifetimeCurveValuesBlock1;
+    float4 g_LifetimeCurveArriveTangents;
+    float4 g_LifetimeCurveArriveTangentsBlock1;
+    float4 g_LifetimeCurveLeaveTangents;
+    float4 g_LifetimeCurveLeaveTangentsBlock1;
+    float4 g_LifetimeCurveModes;
+    float4 g_LifetimeCurveModesBlock1;
     float4 g_StartColorMin;
     float4 g_StartColorMax;
     float4 g_EndColorMin;
@@ -1072,7 +1083,28 @@ float SampleLifeMax(uint seed)
 {
     const float lifeMin = max(0.0001f, min(g_LifeTimeParams.x, g_LifeTimeParams.y));
     const float lifeMax = max(lifeMin, max(g_LifeTimeParams.x, g_LifeTimeParams.y));
-    return lerp(lifeMin, lifeMax, Hash01(seed + 43u));
+    float result = lerp(lifeMin, lifeMax, Hash01(seed + 43u));
+
+    if (g_LifetimeCurveParams.y != 0.0f)
+    {
+        result = EvaluateCompactCurve(
+            saturate(g_LifetimeCurveParams.z),
+            (uint)g_LifetimeCurveParams.x,
+            g_LifetimeCurveTimes,
+            g_LifetimeCurveTimesBlock1,
+            g_LifetimeCurveValues,
+            g_LifetimeCurveValuesBlock1,
+            g_LifetimeCurveArriveTangents,
+            g_LifetimeCurveArriveTangentsBlock1,
+            g_LifetimeCurveLeaveTangents,
+            g_LifetimeCurveLeaveTangentsBlock1,
+            g_LifetimeCurveModes,
+            g_LifetimeCurveModesBlock1,
+            lifeMax
+        );
+    }
+
+    return max(0.0001f, result);
 }
 
 struct ComputeIndirectArgs

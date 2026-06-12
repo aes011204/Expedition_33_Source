@@ -434,6 +434,7 @@ void ComputeSourceHistoryRibbonEmitter::Reset_PlaybackRuntime()
     _finishEmissionAfterHistoryUpdate = false;
     _loopElapsedTime = 0.f;
     _loopIndex = 0u;
+    Resample_SampleLifetime();
     Resample_RandomSubUVFrameIndex();
 }
 
@@ -1544,6 +1545,28 @@ Vec4 ComputeSourceHistoryRibbonEmitter::Resolve_SubUVRect(uint32 frameIndex) con
     const float u0 = static_cast<float>(col) * invCols;
     const float v0 = static_cast<float>(row) * invRows;
     return Vec4{ u0, v0, u0 + invCols, v0 + invRows };
+}
+
+void ComputeSourceHistoryRibbonEmitter::Resample_SampleLifetime()
+{
+    if (!_desc.useLifetimeSampleLifetime)
+    {
+        _desc.sampleLifetime = max(0.0001f, _desc.sampleLifetime);
+        return;
+    }
+
+    const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    if (lifeMin == lifeMax)
+    {
+        _desc.sampleLifetime = lifeMin;
+        return;
+    }
+
+    const uint32 seed =
+        EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed) +
+        1319u;
+    _desc.sampleLifetime = lerp(lifeMin, lifeMax, EffectAssetRuntimeLoad::Hash01(seed));
 }
 
 void ComputeSourceHistoryRibbonEmitter::Resample_RandomSubUVFrameIndex()

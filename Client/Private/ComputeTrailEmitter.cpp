@@ -24,6 +24,24 @@ static int Resolve_MaterialSourceIndex(const string& source)
     return sourceAlpha;
 }
 
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
+{
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
+}
+
+static float Hash01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
 static HRESULT Bind_MaterialScalarModulationPayload(
     ShaderCom* shader,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
@@ -264,6 +282,7 @@ HRESULT ComputeTrailEmitter::Initialize(void* arg)
     _desc.spawnPerUnit.maxFrameDistance = max(0.f, _desc.spawnPerUnit.maxFrameDistance);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
+    Resample_SegmentLifetime();
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
     return S_OK;
@@ -306,6 +325,7 @@ HRESULT ComputeTrailEmitter::Render()
 
 HRESULT ComputeTrailEmitter::Reset_ForEffectReplay()
 {
+    Resample_SegmentLifetime();
     _history.clear();
     _drawSegmentCount = 0u;
     _materialElapsedTime = 0.f;
@@ -1227,6 +1247,28 @@ const char* ComputeTrailEmitter::Resolve_ShaderId() const
 uint32 ComputeTrailEmitter::Resolve_ShaderPassIndex() const
 {
     return Is_DistortionFamily() ? 0u : Resolve_BlendPassIndex();
+}
+
+void ComputeTrailEmitter::Resample_SegmentLifetime()
+{
+    if (!_desc.useLifetimeSegmentLifetime)
+    {
+        _desc.segmentLifetime = max(1e-3f, _desc.segmentLifetime);
+        return;
+    }
+
+    const float lifeMin = max(1e-3f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    if (lifeMin == lifeMax)
+    {
+        _desc.segmentLifetime = lifeMin;
+        return;
+    }
+
+    const uint32 seed =
+        EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed) +
+        1301u;
+    _desc.segmentLifetime = lerp(lifeMin, lifeMax, EffectAssetRuntimeLoad::Hash01(seed));
 }
 
 Shared<ComputeTrailEmitter> ComputeTrailEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

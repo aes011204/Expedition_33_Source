@@ -424,6 +424,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                     Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
                 };
+                Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, *lifeTimeIter, desc.lifetime.lifeTime.y);
                 desc.lifetimeSeed = Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
             }
         }
@@ -691,10 +692,12 @@ namespace EffectAssetRuntimeLoad::Emitters
             const auto lifeTimeIter = lifetime->find("lifeTime");
             if (lifeTimeIter != lifetime->end())
             {
+                desc.useLifetimeSegmentLifetime = true;
                 desc.lifetime.lifeTime = Vec2{
                     Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                     Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
                 };
+                desc.lifetimeSeed = Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
                 desc.segmentLifetime = max(0.001f, desc.lifetime.lifeTime.y);
             }
         }
@@ -822,10 +825,12 @@ namespace EffectAssetRuntimeLoad::Emitters
             const auto lifeTimeIter = lifetime->find("lifeTime");
             if (lifeTimeIter != lifetime->end())
             {
+                desc.useLifetimeSampleLifetime = true;
                 desc.lifetime.lifeTime = Vec2{
                     Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                     Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
                 };
+                desc.lifetimeSeed = Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
                 desc.sampleLifetime = max(0.0001f, desc.lifetime.lifeTime.y);
             }
         }
@@ -1002,10 +1007,13 @@ namespace EffectAssetRuntimeLoad::Emitters
             const auto lifeTimeIter = lifetime->find("lifeTime");
             if (lifeTimeIter != lifetime->end())
             {
+                desc.useLifetimeVisualLife = true;
                 desc.lifetime.lifeTime = Vec2{
                     Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                     Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
                 };
+                Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, *lifeTimeIter, desc.lifetime.lifeTime.y);
+                desc.lifetimeSeed = Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
             }
         }
 
@@ -1265,6 +1273,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                     Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
                 };
+                Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, *lifeTimeIter, desc.lifetime.lifeTime.y);
             }
         }
 

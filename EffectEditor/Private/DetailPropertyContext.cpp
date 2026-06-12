@@ -1045,6 +1045,84 @@ private: //## Label Helpers
             ImGui::EndDisabled();
     }
 
+    template <typename TKey>
+    static const char* Get_CurveBulkInterpolationLabel(const vector<TKey>& keys)
+    {
+        if (keys.empty())
+            return "Linear";
+
+        const FloatCurveInterpolationMode firstMode = keys.front().interpolationMode;
+        const bool allSameMode = ranges::all_of(
+            keys,
+            [firstMode](const TKey& key)
+            {
+                return key.interpolationMode == firstMode;
+            }
+        );
+        return allSameMode ? Get_FloatCurveInterpolationLabel(firstMode) : "Mixed";
+    }
+
+    template <typename TKey>
+    static bool Apply_CurveBulkInterpolationMode(vector<TKey>& keys, FloatCurveInterpolationMode mode)
+    {
+        bool changed = false;
+        for (TKey& key : keys)
+        {
+            if (key.interpolationMode == mode)
+                continue;
+
+            key.interpolationMode = mode;
+            changed = true;
+        }
+        return changed;
+    }
+
+    template <typename TKey>
+    static bool Draw_CurveBulkInterpolationControl(vector<TKey>& keys)
+    {
+        bool changed = false;
+
+        ImGui::SameLine();
+        ImGui::TextUnformatted("전체 보간");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(150.f);
+        if (ImGui::BeginCombo("##BulkInterpolation", Get_CurveBulkInterpolationLabel(keys)))
+        {
+            const auto draw_item = [&](FloatCurveInterpolationMode mode, bool enabled)
+            {
+                const bool selected = !keys.empty() && ranges::all_of(
+                    keys,
+                    [mode](const TKey& key)
+                    {
+                        return key.interpolationMode == mode;
+                    }
+                );
+
+                if (!enabled)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Get_FloatCurveInterpolationLabel(mode), selected) && enabled)
+                    changed |= Apply_CurveBulkInterpolationMode(keys, mode);
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+
+                if (!enabled)
+                    ImGui::EndDisabled();
+            };
+
+            draw_item(FloatCurveInterpolationMode::Linear, true);
+            draw_item(FloatCurveInterpolationMode::Constant, true);
+            draw_item(FloatCurveInterpolationMode::CurveAutoClamped, true);
+            draw_item(FloatCurveInterpolationMode::CurveAuto, false);
+            draw_item(FloatCurveInterpolationMode::CurveUser, false);
+            draw_item(FloatCurveInterpolationMode::CurveBreak, false);
+            ImGui::EndCombo();
+        }
+
+        return changed;
+    }
+
     static float Evaluate_FloatCurveAutoClampedTangent(
         const FloatCurveKeyData* prevKey,
         const FloatCurveKeyData& key,
@@ -1406,6 +1484,11 @@ private: //## Label Helpers
         }
         if (!canAddKey)
             ImGui::EndDisabled();
+        if (Draw_CurveBulkInterpolationControl(value.keys))
+        {
+            Normalize_FloatCurveKeys(value);
+            changed = true;
+        }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -1515,6 +1598,11 @@ private: //## Label Helpers
         }
         if (!canAddKey)
             ImGui::EndDisabled();
+        if (Draw_CurveBulkInterpolationControl(value.keys))
+        {
+            Normalize_Vector2CurveKeys(value);
+            changed = true;
+        }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -1614,6 +1702,11 @@ private: //## Label Helpers
         }
         if (!canAddKey)
             ImGui::EndDisabled();
+        if (Draw_CurveBulkInterpolationControl(value.keys))
+        {
+            Normalize_Vector3CurveKeys(value);
+            changed = true;
+        }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -1710,6 +1803,11 @@ private: //## Label Helpers
         }
         if (!canAddKey)
             ImGui::EndDisabled();
+        if (Draw_CurveBulkInterpolationControl(value.keys))
+        {
+            Normalize_ColorCurveKeys(value);
+            changed = true;
+        }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 

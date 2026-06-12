@@ -94,6 +94,53 @@ static float Read_Vec4Component(const Vec4& valuesBlock0, const Vec4& valuesBloc
     return Read_Vec4Component(valuesBlock1, index - 4u);
 }
 
+static float Evaluate_FloatCurve(const PointParticleFloatCurveRuntimeDesc& curve, float phase, float fallbackValue)
+{
+    if (!curve.enabled)
+        return fallbackValue;
+
+    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.curveKeyCount));
+    const float clampedPhase = clamp(phase, 0.f, 1.f);
+    if (keyCount == 1u || clampedPhase <= Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, 0u))
+        return Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < keyCount; ++index)
+    {
+        const float rightTime = Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, index);
+        if (clampedPhase > rightTime)
+            continue;
+
+        const float leftTime = Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, index - 1u);
+        const float leftValue = Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, index - 1u);
+        const float rightValue = Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, index);
+        const float mode = Read_Vec4Component(curve.curveKeyModes, curve.curveKeyModesBlock1, index - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((clampedPhase - leftTime) / width, 0.f, 1.f);
+
+        if (mode < 0.5f)
+            return leftValue;
+
+        if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = Read_Vec4Component(curve.curveKeyLeaveTangents, curve.curveKeyLeaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = Read_Vec4Component(curve.curveKeyArriveTangents, curve.curveKeyArriveTangentsBlock1, index) * width;
+            return
+                (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
+                (t3 - 2.f * t2 + ratio) * leftLeave +
+                (-2.f * t3 + 3.f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+
+        return lerp(leftValue, rightValue, ratio);
+    }
+
+    return clampedPhase > Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, keyCount - 1u)
+           ? Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, keyCount - 1u)
+           : fallbackValue;
+}
+
 static Vec4 Average_Color(const Vec4& minColor, const Vec4& maxColor)
 {
     return Vec4{
@@ -333,10 +380,16 @@ void ComputeGeneratedBeamEmitter::Update(float timeDelta)
     Advance_Playback(timeDelta);
     _materialElapsedTime += max(0.f, timeDelta);
 
-    if (PlaybackState::Playing == _playbackState)
+    if (PlaybackState::Playing == _playbackState &&
+        Resolve_ActiveElapsedTime(Resolve_Duration()) < Resolve_VisualLife())
+    {
         Rebuild_PathSamples();
+    }
     else
+    {
         _pathEntries.clear();
+        _visibleBeamLength = 1.f;
+    }
 
     CHECK_FAILED_THROTTLED(Dispatch_Compute(), 60);
 }
@@ -429,6 +482,7 @@ void ComputeGeneratedBeamEmitter::Reset_PlaybackRuntime()
     _loopIndex = 0u;
     _drawSegmentCount = 0u;
     _visibleBeamLength = 1.f;
+    Resample_VisualLife();
     Resample_RandomSubUVFrameIndex();
 }
 
@@ -468,8 +522,7 @@ void ComputeGeneratedBeamEmitter::Rebuild_PathSamples()
 
     const Vec3 localStart = _desc.localStart;
     const uint32 sampleCount = _desc.segmentCount + 1u;
-    const float delay = Resolve_CurrentLoopDelay();
-    const float activeElapsedTime = clamp(_loopElapsedTime - delay, 0.f, Resolve_Duration());
+    const float activeElapsedTime = clamp(Resolve_ActiveElapsedTime(Resolve_Duration()), 0.f, Resolve_VisualLife());
 
     float maxVisibleLength = 0.f;
     for (uint32 stripIndex = 0u; stripIndex < _desc.stripCount; ++stripIndex)
@@ -742,9 +795,9 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
     if (outPayloads.size() >= maxSegmentCount)
         return S_OK;
 
-    const float duration = Resolve_Duration();
-    const float activeElapsedTime = clamp(_loopElapsedTime - Resolve_CurrentLoopDelay(), 0.f, duration);
-    const float lifeProgress = clamp(activeElapsedTime / duration, 0.f, 1.f);
+    const float visualLife = Resolve_VisualLife();
+    const float activeElapsedTime = clamp(Resolve_ActiveElapsedTime(Resolve_Duration()), 0.f, visualLife);
+    const float lifeProgress = clamp(activeElapsedTime / visualLife, 0.f, 1.f);
     const float baseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(lifeProgress));
     const Vec4 color = Evaluate_ColorOverLife(lifeProgress);
 
@@ -782,9 +835,9 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
                 index + 2u < pathSamples.size() ? 1.f : 0.f
             );
             payload.currentSampleParams =
-                Vec4(current.age, duration, current.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
+                Vec4(current.age, visualLife, current.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
             payload.nextSampleParams =
-                Vec4(next.age, duration, next.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
+                Vec4(next.age, visualLife, next.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
             payload.startColor = color;
             payload.endColor = color;
             payload.subUVRect = subUVRect;
@@ -1209,7 +1262,51 @@ void ComputeGeneratedBeamEmitter::Start_NextLoop()
     _pathEntries.clear();
     _visibleBeamLength = 1.f;
     _drawSegmentCount = 0u;
+    Resample_VisualLife();
     Resample_RandomSubUVFrameIndex();
+}
+
+void ComputeGeneratedBeamEmitter::Resample_VisualLife()
+{
+    if (!_desc.useLifetimeVisualLife)
+    {
+        _sampledVisualLife = Resolve_Duration();
+        return;
+    }
+
+    const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    if (_desc.lifetime.lifeTimeCurve.enabled)
+    {
+        float sequencePhase = 0.f;
+        if (_desc.playback.loopCount > 0u)
+        {
+            const uint32 lastLoopIndex = max(1u, _desc.playback.loopCount) - 1u;
+            sequencePhase = lastLoopIndex == 0u
+                            ? 0.f
+                            : static_cast<float>(min(_loopIndex, lastLoopIndex)) / static_cast<float>(lastLoopIndex);
+        }
+        else
+        {
+            sequencePhase = static_cast<float>(_loopIndex % 2u);
+        }
+
+        _sampledVisualLife = max(0.0001f, EffectBeamRuntime::Evaluate_FloatCurve(_desc.lifetime.lifeTimeCurve, sequencePhase, lifeMax));
+        return;
+    }
+
+    if (lifeMin == lifeMax)
+    {
+        _sampledVisualLife = lifeMin;
+        return;
+    }
+
+    const uint32 seed =
+        (_loopIndex + 1u) * 9781u +
+        EffectBeamRuntime::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed) +
+        _desc.seed * 6271u +
+        43u;
+    _sampledVisualLife = lerp(lifeMin, lifeMax, EffectBeamRuntime::Hash01(seed));
 }
 
 float ComputeGeneratedBeamEmitter::Resolve_CurrentLoopDelay() const
@@ -1223,6 +1320,19 @@ float ComputeGeneratedBeamEmitter::Resolve_CurrentLoopDelay() const
 float ComputeGeneratedBeamEmitter::Resolve_Duration() const
 {
     return max(0.0001f, _desc.playback.duration);
+}
+
+float ComputeGeneratedBeamEmitter::Resolve_VisualLife() const
+{
+    if (!_desc.useLifetimeVisualLife)
+        return Resolve_Duration();
+
+    return max(0.0001f, _sampledVisualLife);
+}
+
+float ComputeGeneratedBeamEmitter::Resolve_ActiveElapsedTime(float duration) const
+{
+    return clamp(_loopElapsedTime - Resolve_CurrentLoopDelay(), 0.f, duration);
 }
 
 bool ComputeGeneratedBeamEmitter::Has_NextLoop() const
@@ -1368,7 +1478,7 @@ uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex(uint32 stripIndex) 
     {
     case SubUVFramePlaybackMode::LifeProgress:
     {
-        const float lifeProgress = clamp(activeElapsedTime / Resolve_Duration(), 0.f, 1.f);
+        const float lifeProgress = clamp(activeElapsedTime / Resolve_VisualLife(), 0.f, 1.f);
         const uint32 frameOffset = min(
             static_cast<uint32>(floorf(lifeProgress * static_cast<float>(rangeCount))),
             rangeCount - 1u

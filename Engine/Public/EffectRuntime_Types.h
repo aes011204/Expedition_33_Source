@@ -305,7 +305,8 @@ struct EffectSpawnRuntimeDesc
 // Lifetime 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
 struct EffectLifetimeRuntimeDesc
 {
-    Vec2 lifeTime{ 0.5f, 1.f }; // compute payload가 사용할 생존 시간 범위다.
+    Vec2 lifeTime{ 0.5f, 1.f };                      // compute payload가 사용할 생존 시간 범위다.
+    PointParticleFloatCurveRuntimeDesc lifeTimeCurve{}; // Lifetime ConstantCurve를 sampling event phase 기준으로 평가하는 payload다.
 };
 
 // InitialSize 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
@@ -383,6 +384,8 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectRequiredMaterialRuntimeDesc material{};                                                   // trail 기본 material/tint/blend 값이다.
     EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
     EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime replay 단위 segment lifetime random sample seed salt다.
+    bool useLifetimeSegmentLifetime{ false };                                                        // true면 Lifetime 모듈을 segmentLifetime 기준으로 소비한다.
     EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
     EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
     PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
@@ -449,6 +452,8 @@ struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectRequiredMaterialRuntimeDesc material{};                                                   // beam 기본 material/tint/blend 값이다.
     EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
     EffectLifetimeRuntimeDesc lifetime{};                                                           // beam presentation life 기준 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime visual life random sample seed salt다.
+    bool useLifetimeVisualLife{ false };                                                            // true면 Lifetime 모듈을 visual cutoff/over-life 기준으로 소비한다.
     EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 Blend 정렬 규칙으로 소비한다.
     EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 beam 시작 색으로 소비한다.
     EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 beam 색/알파로 소비한다.
@@ -512,6 +517,8 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectRequiredMaterialRuntimeDesc material{};                                                   // ribbon 기본 material/tint/blend 값이다.
     EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
     EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 sample age 기준 fallback으로 소비하는 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime replay 단위 sample lifetime random sample seed salt다.
+    bool useLifetimeSampleLifetime{ false };                                                         // true면 Lifetime 모듈을 sampleLifetime 기준으로 소비한다.
     EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 Blend 정렬 규칙으로 소비하는 값이다.
     EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 source history sample 시작 색으로 소비하는 값이다.
     EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 sample age 기준 색/알파로 소비하는 값이다.

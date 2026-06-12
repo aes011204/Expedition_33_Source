@@ -791,6 +791,54 @@ namespace Internal
         }
     }
 
+    void Fill_FloatCurvePayload(PointParticleFloatCurveRuntimeDesc& desc, const FloatDistributionData& distribution, float fallbackValue)
+    {
+        desc.enabled = false;
+        desc.curveKeyCount = 2u;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{ fallbackValue, fallbackValue, 0.f, 0.f };
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload);
+        if (curve == nullptr)
+            return;
+
+        vector<FloatCurveKeyData> keys = curve->keys;
+        ranges::sort(keys, {}, &FloatCurveKeyData::time);
+        const uint32 keyCount = min(kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+        if (keyCount == 0u)
+            return;
+
+        desc.enabled = true;
+        desc.curveKeyCount = keyCount;
+        desc.curveKeyTimes = Vec4{};
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{};
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const FloatCurveKeyData& key = keys[index];
+            Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+            Set_CurveComponent(desc.curveKeyValues, desc.curveKeyValuesBlock1, index, key.value);
+            Set_CurveComponent(desc.curveKeyArriveTangents, desc.curveKeyArriveTangentsBlock1, index, key.arriveTangent);
+            Set_CurveComponent(desc.curveKeyLeaveTangents, desc.curveKeyLeaveTangentsBlock1, index, key.leaveTangent);
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+        }
+    }
+
     void Fill_ColorOverLifeColorCurveComponent(
         PointParticleColorOverLifeCurveDesc& desc,
         uint32 index,
@@ -1719,6 +1767,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifetime.lifeTime.y)
         };
+        Internal::Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, lifetime->lifeTime, desc.lifetime.lifeTime.y);
         desc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
@@ -1966,10 +2015,12 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
+        emitterDesc.useLifetimeSegmentLifetime = true;
         emitterDesc.lifetime.lifeTime = Vec2{
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
         emitterDesc.segmentLifetime = max(0.001f, emitterDesc.lifetime.lifeTime.y);
     }
 
@@ -2136,10 +2187,12 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
+        emitterDesc.useLifetimeSampleLifetime = true;
         emitterDesc.lifetime.lifeTime = Vec2{
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
         emitterDesc.sampleLifetime = max(0.0001f, emitterDesc.lifetime.lifeTime.y);
     }
 
@@ -2357,10 +2410,13 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
+        emitterDesc.useLifetimeVisualLife = true;
         emitterDesc.lifetime.lifeTime = Vec2{
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
     if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
@@ -2618,6 +2674,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
     }
 
     if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))

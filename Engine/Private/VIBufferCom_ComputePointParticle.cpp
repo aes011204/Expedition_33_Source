@@ -32,6 +32,17 @@ struct ComputePointParticleParams
     Vec4 sizeMin{};                                  // x/y: width/height min.
     Vec4 sizeMax{};                                  // x/y: width/height max.
     Vec4 lifeTime{};                                 // x/y: lifetime min/max.
+    Vec4 lifetimeCurveParams{};                      // x: key count, y: enabled, z: sampling phase.
+    Vec4 lifetimeCurveTimes{};                       // Lifetime curve key times.
+    Vec4 lifetimeCurveTimesBlock1{};
+    Vec4 lifetimeCurveValues{};                      // Lifetime curve key values.
+    Vec4 lifetimeCurveValuesBlock1{};
+    Vec4 lifetimeCurveArriveTangents{};              // Lifetime curve arrive tangents.
+    Vec4 lifetimeCurveArriveTangentsBlock1{};
+    Vec4 lifetimeCurveLeaveTangents{};               // Lifetime curve leave tangents.
+    Vec4 lifetimeCurveLeaveTangentsBlock1{};
+    Vec4 lifetimeCurveModes{};                       // Lifetime curve interpolation modes.
+    Vec4 lifetimeCurveModesBlock1{};
     Vec4 startColorMin{};
     Vec4 startColorMax{};
     Vec4 endColorMin{};
@@ -269,7 +280,7 @@ HRESULT VIBufferCom_ComputePointParticle::Render()
     }
 }
 
-void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 spawnRequest, bool killActiveParticles)
+void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 spawnRequest, float lifetimeSamplePhase, bool killActiveParticles)
 {
     if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _lifecycleState || nullptr == _instanceVB)
         return;
@@ -281,6 +292,7 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
     _deltaTime = max(0.f, timeDelta);
     _elapsedTime += _deltaTime;
     _spawnRequest = spawnRequest;
+    _lifetimeSamplePhase = clamp(lifetimeSamplePhase, 0.f, 1.f);
     _killActiveParticles = killActiveParticles ? 1u : 0u;
 
     CHECK_FAILED(Update_ConstantBuffer());
@@ -324,6 +336,7 @@ HRESULT VIBufferCom_ComputePointParticle::Reset_ForEffectReplay()
 
     _elapsedTime = 0.f;
     _deltaTime = 0.f;
+    _lifetimeSamplePhase = 0.f;
     _spawnRequest = 0u;
     _killActiveParticles = 0u;
     _hasActiveParticles = false;
@@ -583,6 +596,22 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .sizeMin = Vec4{ _desc.sizeMin.x, _desc.sizeMin.y, 0.f, 0.f },
         .sizeMax = Vec4{ _desc.sizeMax.x, _desc.sizeMax.y, 0.f, 0.f },
         .lifeTime = Vec4{ _desc.lifeTime.x, _desc.lifeTime.y, 0.f, 0.f },
+        .lifetimeCurveParams = Vec4{
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.lifetimeCurve.curveKeyCount))),
+            _desc.lifetimeCurve.enabled ? 1.f : 0.f,
+            clamp(_lifetimeSamplePhase, 0.f, 1.f),
+            0.f
+        },
+        .lifetimeCurveTimes = _desc.lifetimeCurve.curveKeyTimes,
+        .lifetimeCurveTimesBlock1 = _desc.lifetimeCurve.curveKeyTimesBlock1,
+        .lifetimeCurveValues = _desc.lifetimeCurve.curveKeyValues,
+        .lifetimeCurveValuesBlock1 = _desc.lifetimeCurve.curveKeyValuesBlock1,
+        .lifetimeCurveArriveTangents = _desc.lifetimeCurve.curveKeyArriveTangents,
+        .lifetimeCurveArriveTangentsBlock1 = _desc.lifetimeCurve.curveKeyArriveTangentsBlock1,
+        .lifetimeCurveLeaveTangents = _desc.lifetimeCurve.curveKeyLeaveTangents,
+        .lifetimeCurveLeaveTangentsBlock1 = _desc.lifetimeCurve.curveKeyLeaveTangentsBlock1,
+        .lifetimeCurveModes = _desc.lifetimeCurve.curveKeyModes,
+        .lifetimeCurveModesBlock1 = _desc.lifetimeCurve.curveKeyModesBlock1,
         .startColorMin = _desc.startColorMin,
         .startColorMax = _desc.startColorMax,
         .endColorMin = _desc.endColorMin,

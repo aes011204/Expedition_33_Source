@@ -682,6 +682,62 @@ namespace EffectAssetRuntimeLoad::Curves
         Set_SubUVFrameCurveComponent(valuesBlock1, index - 4u, value);
     }
 
+    void Fill_FloatCurvePayload(PointParticleFloatCurveRuntimeDesc& desc, const json& distribution, float fallbackValue)
+    {
+        desc.enabled = false;
+        desc.curveKeyCount = 2u;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{ fallbackValue, fallbackValue, 0.f, 0.f };
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        const json* payload = Find_DistributionPayload(distribution);
+        if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
+            return;
+
+        const auto keysIter = payload->find("keys");
+        if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+            return;
+
+        vector<const json*> keys{};
+        keys.reserve(keysIter->size());
+        for (const json& key : *keysIter)
+            keys.push_back(&key);
+        ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+        const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+        if (keyCount == 0u)
+            return;
+
+        desc.enabled = true;
+        desc.curveKeyCount = keyCount;
+        desc.curveKeyTimes = Vec4{};
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{};
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const json& key = *keys[index];
+            Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+            Set_CurveComponent(desc.curveKeyValues, desc.curveKeyValuesBlock1, index, Read_Float(key, "value", fallbackValue));
+            Set_CurveComponent(desc.curveKeyArriveTangents, desc.curveKeyArriveTangentsBlock1, index, Read_Float(key, "arriveTangent"));
+            Set_CurveComponent(desc.curveKeyLeaveTangents, desc.curveKeyLeaveTangentsBlock1, index, Read_Float(key, "leaveTangent"));
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, Resolve_CurveInterpolationMode(key));
+        }
+    }
+
     void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex)
     {
         desc.frameCurveKeyCount = 1;

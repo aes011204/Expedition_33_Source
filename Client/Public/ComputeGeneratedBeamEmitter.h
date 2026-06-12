@@ -117,6 +117,7 @@ private:
     float _loopElapsedTime{};
     uint32 _loopIndex{};
     float _materialElapsedTime{};
+    float _sampledVisualLife{ 1.f };
     float _visibleBeamLength{ 1.f };
     uint32 _drawSegmentCount{};
     uint32 _randomSubUVFrameIndex{};
@@ -167,8 +168,11 @@ private:
     uint32 Compute_MaxRenderSegmentCount() const;
 
     void Start_NextLoop();
+    void Resample_VisualLife();
     float Resolve_CurrentLoopDelay() const;
     float Resolve_Duration() const;
+    float Resolve_VisualLife() const;                       // 한 loop 안에서 Beam이 실제로 보이는 시간을 반환한다.
+    float Resolve_ActiveElapsedTime(float duration) const;  // delay 이후 현재 loop 진행 시간을 duration 안으로 제한한다.
     bool Has_NextLoop() const;
     bool Is_DistortionFamily() const;
     RenderGroup Resolve_RenderGroup() const;

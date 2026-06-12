@@ -277,12 +277,6 @@ void Scene_View::Handle_GizmoShortcut()
         return;
     }
 
-    if (ImGui::IsKeyPressed(ImGuiKey_R, false))
-    {
-        _gizmoOperation = ImGuizmo::SCALE;
-        return;
-    }
-
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
         _gizmoMode = _gizmoMode == ImGuizmo::LOCAL ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
 }

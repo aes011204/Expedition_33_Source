@@ -86,6 +86,7 @@ namespace EffectAssetRuntimeLoad
         void Fill_ColorOverLifeCurvePayload(PointParticleColorOverLifeCurveDesc& desc, const json& colorOverLife);
         void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value);
         void Set_CurveComponent(Vec4& valuesBlock0, Vec4& valuesBlock1, uint32 index, float value);
+        void Fill_FloatCurvePayload(PointParticleFloatCurveRuntimeDesc& desc, const json& distribution, float fallbackValue);
         void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
         void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
         void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);

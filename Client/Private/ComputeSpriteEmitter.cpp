@@ -353,6 +353,7 @@ void ComputeSpriteEmitter::Update(float timeDelta)
     _viBuffer->Dispatch_Compute(
         playbackTick.computeDeltaTime,
         playbackTick.spawnRequest,
+        playbackTick.lifetimeSamplePhase,
         playbackTick.killActiveParticles
     );
 }
@@ -1059,6 +1060,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.sizeMax = EffectAssetRuntimeLoad::Scale_Vector2(_desc.initialSize.sizeMax, spriteScale);
     desc.initialSizeSeed = _desc.initialSize.sizeSeed;
     desc.lifeTime = _desc.lifetime.lifeTime;
+    desc.lifetimeCurve = _desc.lifetime.lifeTimeCurve;
     desc.startColorMin = _desc.initialColor.startColorMin;
     desc.startColorMax = _desc.initialColor.startColorMax;
     desc.initialColorSeed = _desc.initialColor.colorSeed;
@@ -1270,7 +1272,10 @@ ComputeSpriteEmitter::PlaybackTick ComputeSpriteEmitter::Advance_Playback(float 
         if (playbackStep > 0.f)
         {
             tick.computeDeltaTime += playbackStep;
-            tick.spawnRequest += Consume_SpawnRequest(playbackStep);
+            const uint32 spawnRequest = Consume_SpawnRequest(playbackStep);
+            tick.spawnRequest += spawnRequest;
+            if (spawnRequest > 0u)
+                tick.lifetimeSamplePhase = clamp(_emitterElapsedTime / max(0.0001f, duration), 0.f, 1.f);
             _loopElapsedTime += playbackStep;
             remainingTime -= playbackStep;
         }

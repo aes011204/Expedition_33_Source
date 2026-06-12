@@ -162,6 +162,23 @@ struct PointParticleSubUVFrameOverLifeDesc
     Vec4 frameCurveValuesBlock1{};                                             // compact curve key 4..7 frame index 값이다.
 };
 
+// Float ConstantCurve distribution을 runtime에서 평가하기 위한 compact payload다.
+struct PointParticleFloatCurveRuntimeDesc
+{
+    bool enabled{ false };                     // true면 sampling event phase 기준 curve를 평가한다.
+    uint32 curveKeyCount{ 2 };                 // compact curve key 수다.
+    Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };  // key time 0..1 값이다.
+    Vec4 curveKeyTimesBlock1{};                // key 4..7 time 값이다.
+    Vec4 curveKeyValues{ 1.f, 1.f, 0.f, 0.f }; // key별 float 값이다.
+    Vec4 curveKeyValuesBlock1{};               // key 4..7 float 값이다.
+    Vec4 curveKeyArriveTangents{};             // key별 arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsBlock1{};       // key 4..7 arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangents{};              // key별 leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsBlock1{};        // key 4..7 leave tangent 값이다.
+    Vec4 curveKeyModes{ 1.f, 1.f, 0.f, 0.f };  // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 curveKeyModesBlock1{};                // key 4..7 interpolation mode 값이다.
+};
+
 enum class PointParticleSizeByLifeAxisLock : uint8
 {
     None,
@@ -535,6 +552,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     Vec2 sizeMax{ 0.28f, 0.28f };                                     // particle 기본 가로/세로 크기 상한이다.
     PointParticleRandomSeedRuntimeDesc initialSizeSeed{};             // InitialSize random sample seed salt다.
     Vec2 lifeTime{};                                                  // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
+    PointParticleFloatCurveRuntimeDesc lifetimeCurve{};               // Lifetime ConstantCurve를 spawn event phase 기준으로 평가하는 payload다.
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                         // compute sprite preview 시작 색상/알파 하한.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                         // compute sprite preview 시작 색상/알파 상한.
     PointParticleRandomSeedRuntimeDesc initialColorSeed{};            // InitialColor RGB random sample seed salt다.

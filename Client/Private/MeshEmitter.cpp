@@ -33,6 +33,53 @@ float Read_Vec4Component(const Vec4& valuesBlock0, const Vec4& valuesBlock1, uin
     return Read_Vec4Component(valuesBlock1, index - 4u);
 }
 
+float Evaluate_FloatCurve(const PointParticleFloatCurveRuntimeDesc& curve, float phase, float fallbackValue)
+{
+    if (!curve.enabled)
+        return fallbackValue;
+
+    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.curveKeyCount));
+    const float clampedPhase = clamp(phase, 0.f, 1.f);
+    if (keyCount == 1u || clampedPhase <= Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, 0u))
+        return Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < keyCount; ++index)
+    {
+        const float rightTime = Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, index);
+        if (clampedPhase > rightTime)
+            continue;
+
+        const float leftTime = Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, index - 1u);
+        const float leftValue = Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, index - 1u);
+        const float rightValue = Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, index);
+        const float mode = Read_Vec4Component(curve.curveKeyModes, curve.curveKeyModesBlock1, index - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((clampedPhase - leftTime) / width, 0.f, 1.f);
+
+        if (mode < 0.5f)
+            return leftValue;
+
+        if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = Read_Vec4Component(curve.curveKeyLeaveTangents, curve.curveKeyLeaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = Read_Vec4Component(curve.curveKeyArriveTangents, curve.curveKeyArriveTangentsBlock1, index) * width;
+            return
+                (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
+                (t3 - 2.f * t2 + ratio) * leftLeave +
+                (-2.f * t3 + 3.f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+
+        return lerp(leftValue, rightValue, ratio);
+    }
+
+    return clampedPhase > Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, keyCount - 1u)
+           ? Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, keyCount - 1u)
+           : fallbackValue;
+}
+
 bool Has_NonZeroVector(const Vec3& value)
 {
     return fabsf(value.x) > 0.0001f || fabsf(value.y) > 0.0001f || fabsf(value.z) > 0.0001f;
@@ -1388,7 +1435,10 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
 
     particle.active = true;
     particle.age = 0.f;
-    particle.lifeMax = RandomRange(lifeMin, lifeMax, seed + 11u);
+    const float spawnPhase = clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f);
+    particle.lifeMax = _desc.lifetime.lifeTimeCurve.enabled
+                       ? max(0.0001f, Internal::Evaluate_FloatCurve(_desc.lifetime.lifeTimeCurve, spawnPhase, lifeMax))
+                       : RandomRange(lifeMin, lifeMax, seed + 11u);
     particle.position = spawnPosition;
     particle.spawnOffset = spawnOffset;
     particle.spawnPosition = spawnPosition;
