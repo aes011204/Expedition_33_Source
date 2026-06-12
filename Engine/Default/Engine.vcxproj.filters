@@ -480,6 +480,9 @@
     <ClInclude Include="..\Public\ModelDeform.h">
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ChainModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -1105,6 +1108,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ModelDeform.cpp">
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ChainModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

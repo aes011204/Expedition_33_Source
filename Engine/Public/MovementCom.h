@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 //#include "PhysX_Types.h"
@@ -130,6 +130,7 @@ public:
     void Stop_VerticalMovement();
 
     Vec3 Get_Velocity() { return _velocity; }
+    const Vec3* Get_VelocityPtr() const { return &_velocity; }
     void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
 
     void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }

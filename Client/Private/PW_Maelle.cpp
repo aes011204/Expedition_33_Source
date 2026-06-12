@@ -1,4 +1,4 @@
-﻿#include "PW_Maelle.h"
+#include "PW_Maelle.h"
 
 #include <OffsetAnimationModifier.h>
 
@@ -9,6 +9,9 @@
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
+#include <ChainModifier.h>
+#include "MovementCom.h"
+#include "TransformCom.h"
 
 IMPLEMENT_REFLECTION(PW_Maelle)
 {
@@ -139,6 +142,41 @@ HRESULT PW_Maelle::Ready_Modifier()
 			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
 		}
 		else return E_FAIL;
+
+		// --- ChainModifier for Scarf ---
+		ChainModifier::ChainModifierDesc chainDesc{};
+		chainDesc.modifierTag = L"ClothPhysics_Scarf";
+		
+		chainDesc.stiffness = 0.04f;
+		chainDesc.damping = 0.58f;
+		chainDesc.gravity = Vec3(0.f, -0.22f, 0.f);
+		chainDesc.movementInertiaScale = 0.055f;
+		chainDesc.poseRestoreStrength = 0.38f;
+		chainDesc.maxBendAngleDegree = 13.f;
+
+		chainDesc.groups = {
+			{ "Maelle_V4_Scarf_01_01" },
+			{ "Maelle_V4_Scarf_02_01" },
+			{ "Maelle_V4_Scarf_03_01" },
+			{ "Maelle_V4_Scarf_04_01" },
+			{ "Maelle_V4_Scarf_05_01" },
+			{ "Maelle_V4_Scarf_06_01" }
+		};
+
+		if (auto transform = Get_Transform())
+		{
+			chainDesc.ownerTransform = transform.get();
+		}
+		
+		if (auto movement = Get_Component<MovementCom>())
+		{
+			chainDesc.ownerMovement = movement.get();
+		}
+
+		if (auto modifier = ChainModifier::Create(&chainDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(modifier);
+		}
 	}
 	else
 		return E_FAIL;
