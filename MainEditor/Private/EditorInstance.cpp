@@ -230,6 +230,7 @@ void EditorInstance::Play()
         Capture_ActiveCameraPose(_playStartCameraPose);
 
     GAME->Get_DelegateHub().OnEditorPlayRuntime.Broadcast();
+    GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -267,6 +268,7 @@ void EditorInstance::Stop()
             gameplayUI->Handle_EditorStopRuntime();
 
         GAME->Stop_AllSounds(0.f);
+        GAME->Set_SoundGlobalPitch(1.f, false);
 
         Restore_PlayStartMonsterSnapshots(); // F4 Stop은 큰 맵 JSON을 다시 읽지 않고 Play 시작 몬스터만 되돌린다.
         CLIENT->Restore_PartyFormationAfterEditorStop();
@@ -296,6 +298,7 @@ void EditorInstance::Resume()
     Restore_PreviousCameraOrTarget();
 
     GAME->Get_DelegateHub().OnEditorResumeRuntime.Broadcast();
+    GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -336,6 +339,8 @@ void EditorInstance::Enter_EditAfterLoading()
     GAME->Unlock_Mouse();
     _runtimeGameFocusRecoveryFrames = 0;
 
+    GAME->Set_SoundGlobalPitch(1.f, false);
+
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
 
@@ -352,11 +357,17 @@ bool EditorInstance::IsPaused() const
 void EditorInstance::Set_RuntimeTimeScale(float timeScale)
 {
     _runtimeTimeScale = ::clamp(timeScale, 0.01f, 8.f);
+
+    if (IsPlaying() || IsPaused())
+        GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 }
 
 void EditorInstance::Reset_RuntimeTimeScale()
 {
     _runtimeTimeScale = 1.f;
+
+    if (IsPlaying() || IsPaused())
+        GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 }
 
 float EditorInstance::Get_RuntimeTimeScale() const

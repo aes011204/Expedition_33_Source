@@ -1,5 +1,8 @@
 ﻿#include "PB_Gustave.h"
 
+#include "ClientInstance.h"
+#include "GameDataTable.h"
+
 IMPLEMENT_REFLECTION(PB_Gustave)
 {
     auto& info = GetStaticReflectionInfo();
@@ -50,16 +53,25 @@ void PB_Gustave::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
     outDescs.clear();
 
+    const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs("Gustave");
+    const GameDataTable::WeaponDesc* weapon = (weapons != nullptr && !weapons->empty()) ? &weapons->front() : nullptr;
+
     WeaponAttachDesc rightHandDesc{};
     rightHandDesc.partTag = L"Part_Weapon";
-    rightHandDesc.weaponPrefabName = Constants::Prefab::Gustave_Lanceram;
+    rightHandDesc.weaponPrefabName = (weapon != nullptr && !weapon->weaponPrefabName.empty())
+        ? weapon->weaponPrefabName
+        : Constants::Prefab::Gustave_Lanceram;
     rightHandDesc.socketName = "Weapon_R";
+
     outDescs.emplace_back(std::move(rightHandDesc));
 
     WeaponAttachDesc leftHandDesc{};
     leftHandDesc.partTag = L"Part_WeaponL";
-    leftHandDesc.weaponPrefabName = Constants::Prefab::Gustave_Lanceram_Gun;
+    leftHandDesc.weaponPrefabName = (weapon != nullptr && !weapon->subWeaponPrefabName.empty())
+        ? weapon->subWeaponPrefabName
+        : Constants::Prefab::Gustave_Lanceram_Gun;
     leftHandDesc.socketName = "Weapon_L";
+
     outDescs.emplace_back(std::move(leftHandDesc));
 }
 
