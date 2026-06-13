@@ -124,11 +124,11 @@ Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, Ba
             return action.GetInitTarget().actor->Get_Transform()->Get_Position();
         break;
 
-    case BattleTargetAnchor::TargetCenter: // TODO:: 나중에 팀의 중심 값가져오기
+    case BattleTargetAnchor::TargetCenter:  // TODO:: 나중에 팀의 중심 값가져오기
         if (action.GetInitTarget().actor)
             return action.GetInitTarget().actor->Get_Transform()->Get_Position();
         break;
-    case BattleTargetAnchor::Origin: // TODO:: 나중에 팀의 중심 값가져오기
+    case BattleTargetAnchor::Origin:        // TODO:: 나중에 팀의 중심 값가져오기
             return action.GetOriginPos();
         break;
     default:

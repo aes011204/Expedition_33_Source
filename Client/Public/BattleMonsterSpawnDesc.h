@@ -15,6 +15,7 @@ struct BattleMonsterStatSnapshot
     float physicalAttack = 0.f;
     float physicalDefense = 0.f;
     float speed = 0.f;
+    float battleRunMoveSpeed = 0.f;
 
     uint32 shieldPointsAtSpawn = 0;
     uint32 exp = 0;
