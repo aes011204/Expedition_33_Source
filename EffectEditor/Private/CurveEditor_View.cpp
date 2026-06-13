@@ -1130,6 +1130,17 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
         if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->spawnPerUnit, "spawnPerUnit", "Spawn Per Unit", IM_COL32(245, 205, 95, 255), requireActiveCurve);
         break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathFollowModuleData>(&module.data))
+        {
+            Add_FloatTarget(targets, emitter, module, data->speed, "speed", "경로 따라가기 속도", IM_COL32(120, 220, 255, 255), requireActiveCurve);
+            Add_FloatTarget(targets, emitter, module, data->startDelay, "startDelay", "경로 따라가기 시작 딜레이", IM_COL32(125, 190, 255, 255), requireActiveCurve);
+        }
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathReplayModuleData>(&module.data))
+            Add_FloatTarget(targets, emitter, module, data->drainCurve, "drainCurve", "경로 리플레이 흡수 곡선", IM_COL32(120, 235, 210, 255), requireActiveCurve);
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
         {

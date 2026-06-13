@@ -320,6 +320,26 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class SourceHistorySpriteTrailPathFollowModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SourceHistorySpriteTrailPathFollowModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SourceHistorySpriteTrailPathReplayModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SourceHistorySpriteTrailPathReplayModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class MaterialScalarModulationModuleDetail
 {
 public:

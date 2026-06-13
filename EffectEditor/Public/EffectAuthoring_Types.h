@@ -38,6 +38,8 @@ enum class AuthoringModuleType : uint8
     SizeByLife,
     MeshSizeByLife,
     SpawnPerUnit,
+    SourceHistorySpriteTrailPathFollow,
+    SourceHistorySpriteTrailPathReplay,
     MaterialScalarModulation,
 };
 
@@ -1075,6 +1077,45 @@ struct SpawnPerUnitModuleData
     float maxFrameDistance{ 0.f };
 };
 
+enum class SourceHistorySpriteTrailPathFollowDirection : uint8
+{
+    TowardHead,
+    TowardTail,
+};
+
+struct SourceHistorySpriteTrailPathFollowModuleData
+{
+    SourceHistorySpriteTrailPathFollowDirection direction{ SourceHistorySpriteTrailPathFollowDirection::TowardHead };
+    FloatDistributionData speed{ FloatDistributionData::Make_Constant(1.f) };
+    FloatDistributionData startDelay{ FloatDistributionData::Make_Constant(0.f) };
+    bool killOnArrive{ true };
+    bool clampAtEnd{ true };
+};
+
+enum class SourceHistorySpriteTrailPathReplayMode : uint8
+{
+    RecordedSpeed,
+    FitDuration,
+};
+
+enum class SourceHistorySpriteTrailPathReplayStartMode : uint8
+{
+    TailFirst,
+    AllAtOnce,
+};
+
+struct SourceHistorySpriteTrailPathReplayModuleData
+{
+    float delayTime{ 0.f };
+    SourceHistorySpriteTrailPathReplayMode replayMode{ SourceHistorySpriteTrailPathReplayMode::RecordedSpeed };
+    float speedScale{ 1.f };
+    float drainDuration{ 0.35f };
+    FloatDistributionData drainCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
+    SourceHistorySpriteTrailPathReplayStartMode startMode{ SourceHistorySpriteTrailPathReplayStartMode::TailFirst };
+    bool killOnArrive{ true };
+    bool clampAtEnd{ true };
+};
+
 enum class MaterialScalarModulationTargetField : uint8
 {
     Intensity,
@@ -1152,6 +1193,8 @@ using AuthoringModuleData = variant<
     SizeByLifeModuleData,
     MeshSizeByLifeModuleData,
     SpawnPerUnitModuleData,
+    SourceHistorySpriteTrailPathFollowModuleData,
+    SourceHistorySpriteTrailPathReplayModuleData,
     MaterialScalarModulationModuleData>;
 
 struct AuthoringModule

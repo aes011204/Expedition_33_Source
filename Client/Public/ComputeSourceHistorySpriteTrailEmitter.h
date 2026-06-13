@@ -48,6 +48,8 @@ private:
         Vec3 position{};
         float age{};
         float distanceFromHead{};
+        float sampleTime{};
+        float recordedSpeed{};
     };
 
     struct Stamp
@@ -67,6 +69,16 @@ private:
         Vec3 velocity{};
         Vec3 acceleration{};
         float drag{};
+        bool pathFollowActive{};
+        bool pathFollowArrived{};
+        float pathDistanceFromHead{};
+        float pathFollowSpeed{ 1.f };
+        float pathFollowStartDelay{};
+        bool pathReplayActive{};
+        bool pathReplayArrived{};
+        float pathReplayDelayRemaining{};
+        float pathReplayStartDistance{};
+        float pathReplayElapsedTime{};
     };
 
     struct HistoryLane
@@ -139,10 +151,17 @@ private:
     void Update_Lane(HistoryLane& lane, const Vec3& sourcePosition, float timeDelta);
     void Age_Stamps(vector<Stamp>& stamps, float timeDelta) const;
     void Update_StampMotion(Stamp& stamp, float timeDelta) const;
-    void Insert_HistorySample(vector<HistorySample>& history, float& sampleAccumulator, const Vec3& sourcePosition);
-    void Prune_History(vector<HistorySample>& history) const;
+    void Insert_HistorySample(vector<HistorySample>& history, float& sampleAccumulator, const Vec3& sourcePosition, float sampleTime);
+    void Update_PathFollowStamps(vector<Stamp>& stamps, const vector<HistorySample>& history, const Vec3& fallbackTangent, float timeDelta) const;
+    void Update_PathReplayStamps(vector<Stamp>& stamps, const vector<HistorySample>& history, const Vec3& fallbackTangent, float timeDelta) const;
+    void Prune_History(vector<HistorySample>& history, float requiredTailDistance = 0.f) const;
     void Recompute_Distances(vector<HistorySample>& history) const;
+    float Resolve_RequiredHistoryDistance(const vector<Stamp>& stamps) const;
+    float Resolve_HistoryDistanceForPosition(const vector<HistorySample>& history, const Vec3& position) const;
+    bool Sample_HistoryAtDistance(const vector<HistorySample>& history, float distanceFromHead, const Vec3& fallbackTangent, Vec3& outPosition, Vec3& outTangent) const;
+    float Sample_RecordedSpeedAtDistance(const vector<HistorySample>& history, float distanceFromHead) const;
     void Spawn_StampsForPath(
+        const vector<HistorySample>& history,
         vector<Stamp>& stamps,
         float& distanceAccumulator,
         float& timeAccumulator,
@@ -150,7 +169,7 @@ private:
         const Vec3& previousPosition,
         const Vec3& currentPosition,
         float timeDelta);
-    void Push_Stamp(vector<Stamp>& stamps, const Vec3& center, const Vec3& tangent, float widthScale, float lengthScale);
+    void Push_Stamp(vector<Stamp>& stamps, const Vec3& center, const Vec3& tangent, float pathDistanceFromHead, float widthScale, float lengthScale);
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
 
     HRESULT Ready_Components();
@@ -179,6 +198,8 @@ private:
     Vec3 Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const Vec3& tangent) const;
     Vec3 Sample_Acceleration(uint32 stampSerial) const;
     float Sample_Drag(uint32 stampSerial) const;
+    float Sample_PathFollowSpeed(uint32 stampSerial) const;
+    float Sample_PathFollowStartDelay(uint32 stampSerial) const;
     Vec4 Sample_Color(const Vec4& minColor, const Vec4& maxColor, const PointParticleRandomSeedRuntimeDesc& seed, uint32 stampSerial, uint32 salt) const;
     float Sample_Range(float minValue, float maxValue, const PointParticleRandomSeedRuntimeDesc& seed, uint32 stampSerial, uint32 salt) const;
     Vec3 Sample_VectorRange(const Vec3& minValue, const Vec3& maxValue, const PointParticleRandomSeedRuntimeDesc& seed, uint32 stampSerial, uint32 salt) const;
@@ -189,6 +210,7 @@ private:
     float Evaluate_RotationRateScaleByLife(float lifeProgress) const;
     float Evaluate_VelocityScaleByLife(float lifeProgress) const;
     Vec3 Evaluate_AccelerationByLife(const Stamp& stamp, float lifeProgress) const;
+    float Evaluate_PathReplayDrainCurve(float progress) const;
     uint32 Evaluate_SubUVFrameIndex(const Stamp& stamp) const;
     uint32 Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 rangeCount) const;
     Vec4 Resolve_SubUVRect(uint32 frameIndex) const;

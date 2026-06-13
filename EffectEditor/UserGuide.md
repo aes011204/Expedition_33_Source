@@ -157,6 +157,7 @@ TypeData를 추가하려면 Emitter header를 우클릭한 뒤 `타입 데이터
 - `Trail TypeData 추가`: `트레일 데이터` row를 만든다.
 - `Mesh TypeData 추가`: `메시 데이터` row를 만든다.
 - `Ribbon TypeData 추가`: `리본 데이터` row를 만든다.
+- `Sprite Trail TypeData 추가`: `스프라이트 트레일 데이터` row를 만든다.
 - `Beam TypeData 추가`: `빔 데이터` row를 만든다.
 - `타입 데이터 값 초기화`: 현재 TypeData payload를 기본값으로 되돌린다.
 - `타입 데이터 제거`: TypeData를 제거하고 기본 particle-style Emitter로 되돌린다.
@@ -369,7 +370,27 @@ Preview Motion에서 자주 확인하는 값은 다음과 같다.
 - `프리뷰 이동 크기`: Line/Arc의 one-shot 이동 반경 또는 Loop 순환 반경이다.
 - `프리뷰 이동 속도`: Line/Arc의 one-shot 진행 속도 또는 Loop 반복 속도다.
 
-### 5.6 빔 데이터
+### 5.6 스프라이트 트레일 데이터(Source History Sprite Trail)
+
+`스프라이트 트레일 데이터`는 source history를 따라 짧은 sprite/card stamp를 찍는 TypeData다.
+
+![Sprite Trail TypeData](UserGuide_Img/typedata_sprite_trail.png)
+
+Source History Ribbon처럼 source가 지나간 path를 사용하지만, 최종 렌더 단위는 하나로 이어진 strip이 아니라 서로 독립된 sprite card다. 그래서 번개 조각, 칼날 잔상, 짧은 흡수형 trail처럼 texture 방향과 stamp 수명 체감이 중요한 효과에 맞다.
+
+Detail View에서는 다음 그룹으로 나누어 읽는다.
+
+| 그룹 | 주요 UI | 의미 | 주의점 |
+| --- | --- | --- | --- |
+| `Source` | `Source Mode`, `Source Emitter`, `최대 추적 수` | 어떤 source 위치 history를 따라갈지 정한다. | ParticleEmitter source는 같은 effect 안에서 위치를 제공할 수 있어야 한다. |
+| `History` | `샘플 수명`, `샘플 간격`, `길이 제한` | source가 지나간 path sample을 얼마나 오래, 얼마나 촘촘히 보관할지 정한다. | stamp 수명과 source history sample 수명은 별도 값이다. |
+| `Stamp` | `스탬프 생성 기준`, `스탬프 간격`, `스탬프 시간 간격`, `스탬프 수명`, `최대 스탬프 수`, `지터` | path 위에 sprite card를 언제, 얼마나 만들지 정한다. | `Distance`는 이동 거리 기준, `Time`은 시간 간격 기준으로 stamp를 찍는다. |
+| `Card` | `카드 길이`, `카드 폭`, `U 반전`, `V 반전`, `회전 오프셋` | 각 stamp card의 기준 크기와 texture 방향 보정을 정한다. | 실제 최종 크기는 `초기 크기`, `수명에 따른 크기` 같은 Module과 함께 곱해질 수 있다. |
+| `Preview Motion` | `프리뷰 모션`, `프리뷰 이동 축`, `프리뷰 이동 크기`, `프리뷰 이동 속도` | EffectEditor 안에서 source history 움직임을 검증하기 위한 입력이다. | 저장되는 effect 연출 정책이 아니라 preview 검증용 값으로 본다. |
+
+Sprite Trail의 TypeData는 source/history/stamp/card의 기본 생성 계약을 소유한다. 생성된 stamp가 path 위에서 어떻게 따라가거나 흡수될지는 `Path Follow`, `Path Replay` 같은 전용 Module에서 다룬다.
+
+### 5.7 빔 데이터
 
 `빔 데이터`는 authored local path 기반의 generated strip을 만들 때 사용한다.
 
@@ -389,7 +410,7 @@ Branch 관련 값은 beam의 가지 path를 어떻게 생성할지 결정한다.
 
 Beam TypeData의 endpoint, branch, strip 값은 시각적 generated path authoring data다. gameplay hit 판정, target binding, chain target 선택 같은 gameplay logic의 정본으로 해석하지 않는다.
 
-### 5.7 Type 비교 표
+### 5.8 Type 비교 표
 
 | Type | UI 표시 | 핵심 개념 | 주요 입력 | 주로 쓰는 Module | 주의점 |
 | --- | --- | --- | --- | --- | --- |
@@ -397,6 +418,7 @@ Beam TypeData의 endpoint, branch, strip 값은 시각적 generated path authori
 | Mesh | `메시 데이터` | Mesh 기반 effect | model, material, mesh transform | mesh 전용 initial/over-life Module | Mesh Data Preview에서 model/material 확인 |
 | Trail | `트레일 데이터` | 움직임 sample 기반 trail | base/tip sample, length, width | `거리당 스폰`, color/size 계열 | Preview helper는 editor-only |
 | Ribbon | `리본 데이터` | source history 기반 strip | source mode, source emitter, lane | color/size/material/SubUV 계열 | source reference 확인 필요 |
+| Sprite Trail | `스프라이트 트레일 데이터` | source history 기반 sprite/card stamp | source, history, stamp, card | color/size/rotation/velocity/SubUV/material, `Path Follow`, `Path Replay` | `스폰`, `거리당 스폰`과 생성 책임 혼동 금지 |
 | Beam | `빔 데이터` | generated beam path | endpoint, length, branch preset | color/size/SubUV/material 계열 | gameplay hit logic과 구분 |
 
 ## 6. Modules
@@ -495,6 +517,7 @@ Module은 다음 계열로 나눠 보면 이해하기 쉽다.
 - **Mesh 전용 계열**: `초기 메시 크기`, `수명에 따른 메시 회전` 등.
 - **Material/SubUV 계열**: `머티리얼 변조`, `서브UV 프레임 선택/재생`.
 - **Trail 계열**: `거리당 스폰`.
+- **스프라이트 트레일 경로 계열**: `Path Follow`, `Path Replay`.
 
 ### 6.5 필수(Required)
 
@@ -532,13 +555,15 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | `최대 드로우 수 사용` | draw count 제한 사용 여부다. | 켜면 아래 최대 수가 적용된다. | bool | 과도한 draw를 제한할 때 사용한다. |
 | `최대 드로우 수` | 그릴 최대 요소 수다. | runtime draw 제한 수로 읽는다. | uint 고정값 | 너무 낮으면 일부 요소가 보이지 않는다. |
 
+Sprite Trail에서는 방향 정렬 옵션에 따라 `정렬할 텍스처 축` 대신 `카드 길이 축`이 표시될 수 있다. 이 값은 texture X/Y 중 어느 축을 stamp card의 긴 방향으로 맞출지 정하는 보정값이며, source path 자체를 바꾸는 값은 아니다.
+
 ### 6.6 스폰
 
 `스폰`은 Emitter가 particle 또는 visual 요소를 얼마나 생성하는지 결정한다.
 
 ![Spawn module detail](UserGuide_Img/detail_spawn_module.png)
 
-주로 쓰는 TypeData: Sprite/ Mesh 계열의 particle-style spawn. Trail/Ribbon/Beam에서는 TypeData별 lowering에서 직접 소비하는 값과 아닌 값을 구분해야 한다.
+주로 쓰는 TypeData: Sprite/ Mesh 계열의 particle-style spawn. Trail/Ribbon/Beam에서는 TypeData별 lowering에서 직접 소비하는 값과 아닌 값을 구분해야 한다. Sprite Trail의 stamp 생성 밀도는 `스폰` Module이 아니라 TypeData의 `스탬프 간격` / `스탬프 시간 간격`이 소유한다.
 
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
@@ -569,7 +594,7 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 - Sprite: ConstantCurve는 particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플한다.
 - Mesh: ConstantCurve는 particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플한다.
 - Beam: ConstantCurve는 전체 반복 순서 진행률로 각 loop의 visual life를 한 번 샘플한다. 무한 반복에서는 반복 번호를 curve 구간에 순환 적용한다.
-- Trail/Ribbon: ConstantCurve sampling axis는 현재 Sprite/Mesh/Beam 구현 범위 밖으로 표시된다.
+- Trail/Ribbon/Sprite Trail: ConstantCurve sampling axis는 현재 Sprite/Mesh/Beam 구현 범위 밖으로 표시된다.
 
 ### 6.8 위치 Module
 
@@ -684,6 +709,8 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | --- | --- | --- | --- | --- | --- |
 | `수명에 따른 속도` | `속도 배율` | lifetime 진행에 따른 velocity multiplier다. | 1은 유지, 0은 속도 제거 방향이다. | float 분포/curve | 기존 velocity에 대한 배율로 본다. |
 
+Sprite Trail에서 `Path Follow` 또는 `Path Replay`가 위치 정본을 소유할 때는 source history path 위 좌표가 stamp 중심 위치를 결정한다. 이 경우 일반 velocity 계열은 path 좌표 이동과 같은 의미가 아니므로, 경로 흡수 연출은 경로 Module에서 먼저 잡는 편이 안전하다.
+
 ### 6.11 회전 / 방향 Module
 
 회전 Module은 생성 시점 회전, lifetime 회전, radial frame 기반 방향 정렬, 회전 속도를 다룬다.
@@ -770,7 +797,7 @@ Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
 
 ![SubUV frame over life module](UserGuide_Img/detail_subuv_frame_over_life_module.png)
 
-주로 쓰는 TypeData: Sprite, Ribbon, Beam. Mesh/Trail에서는 TypeData 호환성을 Module picker에서 먼저 확인한다.
+주로 쓰는 TypeData: Sprite, Ribbon, Sprite Trail, Beam. Mesh/Trail에서는 TypeData 호환성을 Module picker에서 먼저 확인한다.
 
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
@@ -785,13 +812,15 @@ Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
 | `랜덤 시드` | RandomFrame 또는 Beam variation seed다. | strip 또는 frame 랜덤성을 재현한다. | seed UI | RandomFrame 또는 looped FPS variation에서 사용한다. |
 | `현재 atlas frame 수` | Required material/texture에서 해석한 atlas frame count다. | frame index clamp 기준이다. | read-only | frame 수가 0이면 원하는 결과가 안 나올 수 있다. |
 
+Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 TypeData가 아니라 `서브UV 프레임 선택/재생` Module이 소유한다. 2x2 번개 sprite sheet처럼 frame을 바꿔 찍는 경우에도 먼저 이 Module을 확인한다.
+
 ### 6.15 거리당 스폰
 
 `거리당 스폰`은 이동 거리 기준으로 sample 또는 spawn 밀도를 제어한다. Trail 계열 authoring에서 특히 중요하다.
 
 ![Spawn per unit module](UserGuide_Img/detail_spawn_per_unit_module.png)
 
-주로 쓰는 TypeData: Trail. Sprite의 일반 spawn rate와 구분한다.
+주로 쓰는 TypeData: Trail. Sprite의 일반 spawn rate와 구분한다. Sprite Trail은 TypeData의 `스탬프 간격` / `스탬프 시간 간격`으로 stamp 생성 밀도를 정하므로, `거리당 스폰`을 Sprite Trail stamp 생성 owner로 보지 않는다.
 
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
@@ -800,7 +829,40 @@ Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
 | `무브먼트 허용치` | 너무 작은 이동을 무시하는 threshold다. | 이 거리 미만의 provider 이동은 새 history sample로 받지 않는다. | float 고정값 | 0 이상으로 정규화된다. |
 | `최대 프레임 거리` | 한 frame 이동의 최대 허용 거리다. | 초과하면 teleport/skip으로 보고 history를 재시드한다. | float 고정값 | 0 이하면 제한 없음으로 표시된다. |
 
-### 6.16 머티리얼 변조
+### 6.16 스프라이트 트레일 경로 Module
+
+`Path Follow`와 `Path Replay`는 `스프라이트 트레일 데이터` 전용 Module이다. TypeData가 stamp를 어디에 얼마나 찍을지 정한다면, 이 두 Module은 생성된 stamp가 source history path 위에서 어떻게 움직일지 정한다.
+
+![Path Follow module detail](UserGuide_Img/detail_view_path_follow.png)
+
+`Path Follow`는 stamp가 생성 시점의 tangent 방향으로 직선 이동하는 대신, source history path 위 좌표를 따라 움직이게 한다.
+
+| UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
+| --- | --- | --- | --- | --- |
+| `방향` | path 좌표 진행 방향이다. | `Head 방향`은 최신 source/head 쪽, `Tail 방향`은 과거 path/tail 쪽으로 이동한다. | combo | 기본 흡수 연출은 보통 `Head 방향`으로 시작한다. |
+| `도착 시 제거` | 끝점에 도착한 stamp를 제거할지 정한다. | 켜면 도착한 stamp가 사라진다. | bool | 꺼져 있으면 `끝점 고정` 여부를 함께 본다. |
+| `끝점 고정` | 제거하지 않을 때 끝점에 고정할지 정한다. | 켜면 도착 위치에 머문다. | bool | 꺼져 있으면 도착 후 표시가 유지되지 않을 수 있다. |
+| `속도` | path distance 기준 이동 속도다. | 값이 클수록 path 위를 빠르게 따라간다. | float 분포/curve | 일반 velocity가 아니라 path 좌표 진행 속도다. |
+| `시작 딜레이` | 생성 후 path-follow 시작 전 대기 시간이다. | stamp별로 따라가기 시작 시점을 늦춘다. | float 분포/curve | delay 중에도 stamp life는 별도로 진행될 수 있다. |
+
+![Path Replay module detail](UserGuide_Img/detail_view_path_replay.png)
+
+`Path Replay`는 일정 시간 유지된 stamp가 source history 기록을 따라 head 쪽으로 따라붙는 흡수형 연출에 사용한다.
+
+| UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
+| --- | --- | --- | --- | --- |
+| `딜레이` | replay 시작 전 유지 시간이다. | stamp 생성 후 이 시간 동안 path replay를 기다린다. | float 고정값 | 흡수 시작 타이밍을 늦출 때 사용한다. |
+| `재생 방식` | path replay 진행 기준이다. | `기록 속도`는 source history의 기록 속도, `지정 시간`은 지정된 총 시간 기준이다. | combo | 연출 의도에 따라 둘 중 하나를 고른다. |
+| `속도 배율` | 기록 속도 모드의 배율이다. | source 기록 속도에 곱해진다. | float 고정값 | `기록 속도` 모드에서 주로 체감된다. |
+| `흡수 시간` | 지정 시간 모드의 총 drain 시간이다. | head까지 따라붙는 전체 시간을 정한다. | float 고정값 | `지정 시간` 모드에서 주로 체감된다. |
+| `시작 방식` | replay 시작 순서다. | `Tail 먼저`는 끝쪽부터, `동시 시작`은 전체 stamp가 함께 시작한다. | combo | tail이 접히는 느낌을 만들 때 `Tail 먼저`를 사용한다. |
+| `도착 시 제거` | head 도착 시 stamp를 제거할지 정한다. | 켜면 도착한 stamp가 사라진다. | bool | `수명에 따른 크기`, `수명에 따른 색상`과 함께 조정한다. |
+| `끝점 고정` | 제거하지 않을 때 끝점에 고정할지 정한다. | 켜면 head 위치에 머문다. | bool | 제거하지 않는 연출에서만 의미가 크다. |
+| `흡수 곡선` | 지정 시간 모드의 진행률 curve다. | 0~1 진행률을 curve로 보정한다. | float curve | 빠르게 빨려 들어가거나 뒤늦게 따라붙는 느낌을 만든다. |
+
+`Path Replay`가 있으면 `Path Follow`보다 우선한다. 둘은 동시에 stamp 위치 진행을 소유하는 Module이 아니므로, 같은 Sprite Trail Emitter에서는 한쪽 경로 정책만 기준으로 잡는다.
+
+### 6.17 머티리얼 변조
 
 `머티리얼 변조`는 Material scalar parameter나 core color RGB를 시간에 따라 바꾸는 Module이다.
 
@@ -820,7 +882,7 @@ Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
 
 Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다.
 
-### 6.17 Type 호환성 메모
+### 6.18 Type 호환성 메모
 
 모든 Module이 모든 TypeData에 의미 있는 것은 아니다. 호환성은 Module picker에서 먼저 확인한다.
 
@@ -828,6 +890,8 @@ Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조
 - Mesh TypeData는 mesh 전용 transform Module을 우선 사용한다.
 - Trail은 sample/history 기반 동작이므로 `거리당 스폰`과 Trail TypeData를 함께 본다.
 - Ribbon/Beam은 strip/path 기반 타입이므로 source/path 의미가 없는 spawn shape Module은 비호환일 수 있다.
+- Sprite Trail은 source history 기반 stamp 타입이므로 `Path Follow` / `Path Replay` 같은 전용 경로 Module을 사용할 수 있다.
+- `Path Follow`와 `Path Replay`는 `Sprite Trail TypeData 전용`이며, 같은 Emitter에서 동시에 쓰는 진행 owner가 아니다.
 - `필수`, `수명`, `초기 컬러`, `수명에 따른 색상`, `수명에 따른 크기`, `머티리얼 변조`처럼 여러 타입에서 공통으로 쓰이는 Module도 있다.
 
 ## 7. Material Editing
@@ -1019,6 +1083,8 @@ Detail View의 distribution field가 `float 고정값 커브`, `Vec2 고정값 �
 - `수명에 따른 메시 크기/회전/회전 속도`.
 - `서브UV 프레임 선택/재생`의 life progress 계열.
 - `머티리얼 변조`.
+- `Path Follow`의 `속도`, `시작 딜레이`.
+- `Path Replay`의 `흡수 곡선`.
 - Trail/Ribbon/Beam에서 시간 변화가 필요한 일부 값.
 
 Curve Editor에 노출되는 대상은 Emitter id, Module id, Module type, property id, channel로 식별된다. 즉 같은 이름의 Module이 여러 Emitter에 있어도, 실제 track은 어느 Emitter의 어느 Module인지까지 포함해서 고정된다.
@@ -1089,6 +1155,8 @@ Curve Editor의 graph X축은 key의 `In 값`이며 현재 UI에서는 0~1 범�
 | `머티리얼 변조` + `EmitterTime` | Emitter time 기준으로 분포를 평가한다. |
 | `머티리얼 변조` + `ParticleLife` | Sprite material scalar에서만 선택 가능하며 particle lifetime 기준으로 평가한다. |
 | Trail/Ribbon source history 계열 | curve만이 아니라 source sample이 어떻게 쌓이는지도 결과에 영향을 준다. |
+| Sprite Trail stamp 계열 | stamp age/lifetime 기준 변화와 source history path sampling을 구분해서 본다. |
+| Sprite Trail `Path Replay` 흡수 곡선 | `지정 시간` 모드에서 head로 따라붙는 진행률을 보정한다. |
 
 따라서 curve가 기대와 다르게 보이면 `curve 모양`만 보지 말고, 그 curve가 어떤 시간 축에서 sampling되는지 확인해야 한다.
 

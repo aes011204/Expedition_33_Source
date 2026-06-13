@@ -199,6 +199,20 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         false,
         true
     };
+    static const AuthoringModuleMetadata sourceHistorySpriteTrailPathFollow{
+        "SourceHistorySpriteTrailPathFollow",
+        L"경로 따라가기",
+        L"스프라이트 트레일 stamp가 source path를 따라 이동",
+        false,
+        true
+    };
+    static const AuthoringModuleMetadata sourceHistorySpriteTrailPathReplay{
+        "SourceHistorySpriteTrailPathReplay",
+        L"경로 리플레이",
+        L"스프라이트 트레일 stamp가 기록된 source path를 따라 head로 replay",
+        false,
+        true
+    };
     static const AuthoringModuleMetadata materialScalarModulation{
         "MaterialScalarModulation",
         L"머티리얼 변조",
@@ -274,6 +288,10 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return meshSizeByLife;
     case AuthoringModuleType::SpawnPerUnit:
         return spawnPerUnit;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        return sourceHistorySpriteTrailPathFollow;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        return sourceHistorySpriteTrailPathReplay;
     case AuthoringModuleType::MaterialScalarModulation:
         return materialScalarModulation;
     }

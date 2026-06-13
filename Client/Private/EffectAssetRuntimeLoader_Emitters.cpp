@@ -1123,6 +1123,57 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
             Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
 
+        const json* pathReplay = Find_ModuleData(emitter, "SourceHistorySpriteTrailPathReplay");
+        if (pathReplay != nullptr)
+        {
+            desc.pathReplay.enabled = true;
+            desc.pathReplay.delayTime = max(0.f, Read_Float(*pathReplay, "delayTime", desc.pathReplay.delayTime));
+            const string replayMode = Read_String(*pathReplay, "replayMode", "RecordedSpeed");
+            desc.pathReplay.replayMode = replayMode == "FitDuration"
+                                         ? EffectSourceHistorySpriteTrailPathReplayMode::FitDuration
+                                         : EffectSourceHistorySpriteTrailPathReplayMode::RecordedSpeed;
+            desc.pathReplay.speedScale = max(0.f, Read_Float(*pathReplay, "speedScale", desc.pathReplay.speedScale));
+            desc.pathReplay.drainDuration = max(0.0001f, Read_Float(*pathReplay, "drainDuration", desc.pathReplay.drainDuration));
+            if (const auto drainCurveIter = pathReplay->find("drainCurve"); drainCurveIter != pathReplay->end())
+                Fill_FloatCurvePayload(desc.pathReplay.drainCurve, *drainCurveIter, 1.f);
+            const string startMode = Read_String(*pathReplay, "startMode", "TailFirst");
+            desc.pathReplay.startMode = startMode == "AllAtOnce"
+                                        ? EffectSourceHistorySpriteTrailPathReplayStartMode::AllAtOnce
+                                        : EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst;
+            desc.pathReplay.killOnArrive = Read_Bool(*pathReplay, "killOnArrive", desc.pathReplay.killOnArrive);
+            desc.pathReplay.clampAtEnd = Read_Bool(*pathReplay, "clampAtEnd", desc.pathReplay.clampAtEnd);
+        }
+
+        if (pathReplay == nullptr)
+        {
+            if (const json* pathFollow = Find_ModuleData(emitter, "SourceHistorySpriteTrailPathFollow"))
+            {
+                desc.pathFollow.enabled = true;
+                const string direction = Read_String(*pathFollow, "direction", "TowardHead");
+                desc.pathFollow.direction = direction == "TowardTail"
+                                            ? EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail
+                                            : EffectSourceHistorySpriteTrailPathFollowDirection::TowardHead;
+                if (const auto speedIter = pathFollow->find("speed"); speedIter != pathFollow->end())
+                {
+                    desc.pathFollow.speed = Vec2{
+                        max(0.f, Evaluate_FloatDistributionMin(*speedIter, desc.pathFollow.speed.x)),
+                        max(0.f, Evaluate_FloatDistributionMax(*speedIter, desc.pathFollow.speed.y))
+                    };
+                    desc.pathFollow.speedSeed = Read_DistributionRandomSeedDesc(*speedIter, pathFollow);
+                }
+                if (const auto startDelayIter = pathFollow->find("startDelay"); startDelayIter != pathFollow->end())
+                {
+                    desc.pathFollow.startDelay = Vec2{
+                        max(0.f, Evaluate_FloatDistributionMin(*startDelayIter, desc.pathFollow.startDelay.x)),
+                        max(0.f, Evaluate_FloatDistributionMax(*startDelayIter, desc.pathFollow.startDelay.y))
+                    };
+                    desc.pathFollow.startDelaySeed = Read_DistributionRandomSeedDesc(*startDelayIter, pathFollow);
+                }
+                desc.pathFollow.killOnArrive = Read_Bool(*pathFollow, "killOnArrive", desc.pathFollow.killOnArrive);
+                desc.pathFollow.clampAtEnd = Read_Bool(*pathFollow, "clampAtEnd", desc.pathFollow.clampAtEnd);
+            }
+        }
+
         if (const json* initialVelocity = Find_ModuleData(emitter, "InitialVelocity"))
         {
             desc.motion.enabled = true;

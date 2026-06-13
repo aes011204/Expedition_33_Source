@@ -2474,6 +2474,16 @@ void Detail_View::Render_ModuleDetail(
             changed = _spawnPerUnitModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathFollowModuleData>(&module.data))
+            changed = _sourceHistorySpriteTrailPathFollowModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathReplayModuleData>(&module.data))
+            changed = _sourceHistorySpriteTrailPathReplayModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::MaterialScalarModulation:
         if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
             changed = _materialScalarModulationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);

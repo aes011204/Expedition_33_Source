@@ -46,6 +46,8 @@ namespace
         { AuthoringModuleType::ColorOverLife, "alphaOverLife", MinMax(0.f, 1.f) },
         // Frame indices have no negative authoring meaning; atlas dynamic max is a later phase.
         { AuthoringModuleType::SubUVFrameOverLife, "frameIndex", MinOnly(0.f) },
+        // PathReplay drain curve is a normalized progress curve.
+        { AuthoringModuleType::SourceHistorySpriteTrailPathReplay, "drainCurve", MinOnly(0.f) },
     };
 }
 

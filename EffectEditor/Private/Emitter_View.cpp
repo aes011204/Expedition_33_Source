@@ -813,6 +813,10 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_MeshSizeByLifeModule();
     case AuthoringModuleType::SpawnPerUnit:
         return Make_SpawnPerUnitModule();
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        return Make_SourceHistorySpriteTrailPathFollowModule();
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        return Make_SourceHistorySpriteTrailPathReplayModule();
     case AuthoringModuleType::MaterialScalarModulation:
         return Make_MaterialScalarModulationModule();
     }
@@ -1161,6 +1165,28 @@ AuthoringModule Emitter_View::Make_SpawnPerUnitModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_SourceHistorySpriteTrailPathFollowModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SourceHistorySpriteTrailPathFollow;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SourceHistorySpriteTrailPathFollowModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SourceHistorySpriteTrailPathReplayModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SourceHistorySpriteTrailPathReplay;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SourceHistorySpriteTrailPathReplayModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_MaterialScalarModulationModule()
 {
     AuthoringModule module{};
@@ -1223,6 +1249,8 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         case AuthoringModuleType::ColorOverLife:
         case AuthoringModuleType::SubUVFrameOverLife:
         case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         case AuthoringModuleType::MaterialScalarModulation:
             return true;
         default:
@@ -1252,6 +1280,9 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
 
     switch (type)
     {
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        return emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
@@ -1307,7 +1338,15 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SizeByLife:
     case AuthoringModuleType::MeshSizeByLife:
     case AuthoringModuleType::SpawnPerUnit:
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
     case AuthoringModuleType::MaterialScalarModulation:
+        if (type == AuthoringModuleType::SourceHistorySpriteTrailPathFollow &&
+            Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay))
+            return false;
+        if (type == AuthoringModuleType::SourceHistorySpriteTrailPathReplay &&
+            Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathFollow))
+            return false;
         return Is_ModuleCompatibleWithEmitter(emitter, type) && !Has_ModuleType(emitter, type);
 
     default:
@@ -1413,6 +1452,12 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SpawnPerUnit:
         module = Make_SpawnPerUnitModule();
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        module = Make_SourceHistorySpriteTrailPathFollowModule();
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        module = Make_SourceHistorySpriteTrailPathReplayModule();
         break;
     case AuthoringModuleType::MaterialScalarModulation:
         module = Make_MaterialScalarModulationModule();
@@ -2307,6 +2352,12 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     case AuthoringModuleType::SpawnPerUnit:
         module.data = SpawnPerUnitModuleData{};
         break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        module.data = SourceHistorySpriteTrailPathFollowModuleData{};
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        module.data = SourceHistorySpriteTrailPathReplayModuleData{};
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         module.data = MaterialScalarModulationModuleData{};
         break;
@@ -2746,6 +2797,22 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SpawnPerUnit),
             ""
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SourceHistorySpriteTrailPathFollow,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathFollow),
+            "Sprite Trail TypeData 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SourceHistorySpriteTrailPathReplay,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay),
+            "Sprite Trail TypeData 전용"
         )
     );
     entries.push_back(

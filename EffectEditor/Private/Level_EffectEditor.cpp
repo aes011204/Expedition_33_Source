@@ -254,6 +254,45 @@ namespace Internal
         }
     }
 
+    EffectSourceHistorySpriteTrailPathFollowDirection Resolve_SourceHistorySpriteTrailPathFollowDirection(
+        SourceHistorySpriteTrailPathFollowDirection value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailPathFollowDirection::TowardTail:
+            return EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail;
+        case SourceHistorySpriteTrailPathFollowDirection::TowardHead:
+        default:
+            return EffectSourceHistorySpriteTrailPathFollowDirection::TowardHead;
+        }
+    }
+
+    EffectSourceHistorySpriteTrailPathReplayMode Resolve_SourceHistorySpriteTrailPathReplayMode(
+        SourceHistorySpriteTrailPathReplayMode value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailPathReplayMode::FitDuration:
+            return EffectSourceHistorySpriteTrailPathReplayMode::FitDuration;
+        case SourceHistorySpriteTrailPathReplayMode::RecordedSpeed:
+        default:
+            return EffectSourceHistorySpriteTrailPathReplayMode::RecordedSpeed;
+        }
+    }
+
+    EffectSourceHistorySpriteTrailPathReplayStartMode Resolve_SourceHistorySpriteTrailPathReplayStartMode(
+        SourceHistorySpriteTrailPathReplayStartMode value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailPathReplayStartMode::AllAtOnce:
+            return EffectSourceHistorySpriteTrailPathReplayStartMode::AllAtOnce;
+        case SourceHistorySpriteTrailPathReplayStartMode::TailFirst:
+        default:
+            return EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst;
+        }
+    }
+
     fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
         if (GAME == nullptr)
@@ -2525,6 +2564,48 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+
+    const auto* pathReplay = Internal::Find_ModuleData<SourceHistorySpriteTrailPathReplayModuleData>(
+        emitter,
+        AuthoringModuleType::SourceHistorySpriteTrailPathReplay
+    );
+
+    if (pathReplay != nullptr)
+    {
+        emitterDesc.pathReplay.enabled = true;
+        emitterDesc.pathReplay.delayTime = max(0.f, pathReplay->delayTime);
+        emitterDesc.pathReplay.replayMode = Internal::Resolve_SourceHistorySpriteTrailPathReplayMode(pathReplay->replayMode);
+        emitterDesc.pathReplay.speedScale = max(0.f, pathReplay->speedScale);
+        emitterDesc.pathReplay.drainDuration = max(0.0001f, pathReplay->drainDuration);
+        Internal::Fill_FloatCurvePayload(emitterDesc.pathReplay.drainCurve, pathReplay->drainCurve, 1.f);
+        emitterDesc.pathReplay.startMode = Internal::Resolve_SourceHistorySpriteTrailPathReplayStartMode(pathReplay->startMode);
+        emitterDesc.pathReplay.killOnArrive = pathReplay->killOnArrive;
+        emitterDesc.pathReplay.clampAtEnd = pathReplay->clampAtEnd;
+    }
+
+    if (pathReplay == nullptr)
+    {
+        if (const auto* pathFollow = Internal::Find_ModuleData<SourceHistorySpriteTrailPathFollowModuleData>(
+        emitter,
+        AuthoringModuleType::SourceHistorySpriteTrailPathFollow
+        ))
+        {
+            emitterDesc.pathFollow.enabled = true;
+            emitterDesc.pathFollow.direction = Internal::Resolve_SourceHistorySpriteTrailPathFollowDirection(pathFollow->direction);
+            emitterDesc.pathFollow.speed = Vec2{
+                max(0.f, Internal::Evaluate_FloatDistributionMin(pathFollow->speed, emitterDesc.pathFollow.speed.x)),
+                max(0.f, Internal::Evaluate_FloatDistributionMax(pathFollow->speed, emitterDesc.pathFollow.speed.y))
+            };
+            emitterDesc.pathFollow.speedSeed = Internal::Build_RandomSeedDesc(pathFollow->speed);
+            emitterDesc.pathFollow.startDelay = Vec2{
+                max(0.f, Internal::Evaluate_FloatDistributionMin(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.x)),
+                max(0.f, Internal::Evaluate_FloatDistributionMax(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.y))
+            };
+            emitterDesc.pathFollow.startDelaySeed = Internal::Build_RandomSeedDesc(pathFollow->startDelay);
+            emitterDesc.pathFollow.killOnArrive = pathFollow->killOnArrive;
+            emitterDesc.pathFollow.clampAtEnd = pathFollow->clampAtEnd;
+        }
+    }
 
     if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {

@@ -215,6 +215,8 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_SizeByLifeModule();
     AuthoringModule Make_MeshSizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
+    AuthoringModule Make_SourceHistorySpriteTrailPathFollowModule();
+    AuthoringModule Make_SourceHistorySpriteTrailPathReplayModule();
     AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy

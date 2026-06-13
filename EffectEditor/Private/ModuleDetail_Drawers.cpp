@@ -3036,6 +3036,198 @@ bool SpawnPerUnitModuleDetail::Draw(
     return changed;
 }
 
+bool SourceHistorySpriteTrailPathFollowModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    SourceHistorySpriteTrailPathFollowModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SourceHistorySpriteTrailPathFollowModuleData defaultData{};
+    bool changed = false;
+
+    const auto direction_label = [](SourceHistorySpriteTrailPathFollowDirection direction)
+    {
+        switch (direction)
+        {
+        case SourceHistorySpriteTrailPathFollowDirection::TowardHead:
+            return "Head 방향";
+        case SourceHistorySpriteTrailPathFollowDirection::TowardTail:
+            return "Tail 방향";
+        default:
+            return "Head 방향";
+        }
+    };
+
+    if (ImGui::CollapsingHeader("경로 따라가기", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SourceHistorySpriteTrailPathFollowPolicy"))
+        {
+            ImGui::PushID("Direction");
+            detailContext.Draw_PropertyLabel("방향");
+            SourceHistorySpriteTrailPathFollowDirection nextDirection = data.direction;
+            if (ImGui::BeginCombo("##Value", direction_label(nextDirection)))
+            {
+                const SourceHistorySpriteTrailPathFollowDirection candidates[] = {
+                    SourceHistorySpriteTrailPathFollowDirection::TowardHead,
+                    SourceHistorySpriteTrailPathFollowDirection::TowardTail,
+                };
+                for (const SourceHistorySpriteTrailPathFollowDirection candidate : candidates)
+                {
+                    const bool selected = nextDirection == candidate;
+                    if (ImGui::Selectable(direction_label(candidate), selected))
+                        nextDirection = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.direction != nextDirection)
+            {
+                data.direction = nextDirection;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            changed |= detailContext.Draw_BoolProperty("도착 시 제거", data.killOnArrive, defaultData.killOnArrive);
+            changed |= detailContext.Draw_BoolProperty("끝점 고정", data.clampAtEnd, defaultData.clampAtEnd);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);
+        changed |= detailContext.Draw_FloatDistributionGroup("시작 딜레이", data.startDelay, defaultData.startDelay);
+    }
+
+    return changed;
+}
+
+bool SourceHistorySpriteTrailPathReplayModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    SourceHistorySpriteTrailPathReplayModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SourceHistorySpriteTrailPathReplayModuleData defaultData{};
+    bool changed = false;
+
+    const auto replay_mode_label = [](SourceHistorySpriteTrailPathReplayMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailPathReplayMode::RecordedSpeed:
+            return "기록 속도";
+        case SourceHistorySpriteTrailPathReplayMode::FitDuration:
+            return "지정 시간";
+        default:
+            return "기록 속도";
+        }
+    };
+
+    const auto start_mode_label = [](SourceHistorySpriteTrailPathReplayStartMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailPathReplayStartMode::TailFirst:
+            return "Tail 먼저";
+        case SourceHistorySpriteTrailPathReplayStartMode::AllAtOnce:
+            return "동시 시작";
+        default:
+            return "Tail 먼저";
+        }
+    };
+
+    if (ImGui::CollapsingHeader("경로 리플레이", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SourceHistorySpriteTrailPathReplayPolicy"))
+        {
+            changed |= detailContext.Draw_FloatProperty(
+                "딜레이",
+                data.delayTime,
+                defaultData.delayTime,
+                0.01f,
+                "stamp 생성 후 replay 시작 전 유지 시간입니다."
+            );
+
+            ImGui::PushID("ReplayMode");
+            detailContext.Draw_PropertyLabel("재생 방식");
+            SourceHistorySpriteTrailPathReplayMode nextReplayMode = data.replayMode;
+            if (ImGui::BeginCombo("##Value", replay_mode_label(nextReplayMode)))
+            {
+                const SourceHistorySpriteTrailPathReplayMode candidates[] = {
+                    SourceHistorySpriteTrailPathReplayMode::RecordedSpeed,
+                    SourceHistorySpriteTrailPathReplayMode::FitDuration,
+                };
+                for (const SourceHistorySpriteTrailPathReplayMode candidate : candidates)
+                {
+                    const bool selected = nextReplayMode == candidate;
+                    if (ImGui::Selectable(replay_mode_label(candidate), selected))
+                        nextReplayMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.replayMode != nextReplayMode)
+            {
+                data.replayMode = nextReplayMode;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            changed |= detailContext.Draw_FloatProperty(
+                "속도 배율",
+                data.speedScale,
+                defaultData.speedScale,
+                0.01f,
+                "기록 속도 모드에서 source 기록 속도에 곱하는 배율입니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "흡수 시간",
+                data.drainDuration,
+                defaultData.drainDuration,
+                0.01f,
+                "지정 시간 모드에서 head까지 따라붙는 총 시간입니다."
+            );
+
+            ImGui::PushID("StartMode");
+            detailContext.Draw_PropertyLabel("시작 방식");
+            SourceHistorySpriteTrailPathReplayStartMode nextStartMode = data.startMode;
+            if (ImGui::BeginCombo("##Value", start_mode_label(nextStartMode)))
+            {
+                const SourceHistorySpriteTrailPathReplayStartMode candidates[] = {
+                    SourceHistorySpriteTrailPathReplayStartMode::TailFirst,
+                    SourceHistorySpriteTrailPathReplayStartMode::AllAtOnce,
+                };
+                for (const SourceHistorySpriteTrailPathReplayStartMode candidate : candidates)
+                {
+                    const bool selected = nextStartMode == candidate;
+                    if (ImGui::Selectable(start_mode_label(candidate), selected))
+                        nextStartMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.startMode != nextStartMode)
+            {
+                data.startMode = nextStartMode;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            changed |= detailContext.Draw_BoolProperty("도착 시 제거", data.killOnArrive, defaultData.killOnArrive);
+            changed |= detailContext.Draw_BoolProperty("끝점 고정", data.clampAtEnd, defaultData.clampAtEnd);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("흡수 곡선", data.drainCurve, defaultData.drainCurve, 0.01f, false, true);
+    }
+
+    data.delayTime = max(0.f, data.delayTime);
+    data.speedScale = max(0.f, data.speedScale);
+    data.drainDuration = max(0.0001f, data.drainDuration);
+    return changed;
+}
+
 bool MaterialScalarModulationModuleDetail::Draw(
     const AuthoringEmitter& emitter,
     AuthoringModule&,

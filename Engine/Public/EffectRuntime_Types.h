@@ -569,6 +569,49 @@ enum class EffectSourceHistorySpriteTrailDirectionMode : uint8
     VelocityTextureAxis,
 };
 
+enum class EffectSourceHistorySpriteTrailPathFollowDirection : uint8
+{
+    TowardHead,
+    TowardTail,
+};
+
+enum class EffectSourceHistorySpriteTrailPathReplayMode : uint8
+{
+    RecordedSpeed,
+    FitDuration,
+};
+
+enum class EffectSourceHistorySpriteTrailPathReplayStartMode : uint8
+{
+    TailFirst,
+    AllAtOnce,
+};
+
+struct EffectSourceHistorySpriteTrailPathFollowRuntimeDesc
+{
+    bool enabled{ false }; // true면 stamp center를 local velocity가 아니라 source history path 좌표가 소유한다.
+    EffectSourceHistorySpriteTrailPathFollowDirection direction{ EffectSourceHistorySpriteTrailPathFollowDirection::TowardHead };
+    Vec2 speed{ 1.f, 1.f }; // 초당 path distance 진행량 범위다.
+    PointParticleRandomSeedRuntimeDesc speedSeed{};
+    Vec2 startDelay{ 0.f, 0.f }; // stamp별 path-follow 시작 전 대기 시간 범위다.
+    PointParticleRandomSeedRuntimeDesc startDelaySeed{};
+    bool killOnArrive{ true };
+    bool clampAtEnd{ true };
+};
+
+struct EffectSourceHistorySpriteTrailPathReplayRuntimeDesc
+{
+    bool enabled{ false }; // true면 stamp center를 기록된 source history path 좌표 replay가 소유한다.
+    float delayTime{ 0.f };
+    EffectSourceHistorySpriteTrailPathReplayMode replayMode{ EffectSourceHistorySpriteTrailPathReplayMode::RecordedSpeed };
+    float speedScale{ 1.f };
+    float drainDuration{ 0.35f };
+    PointParticleFloatCurveRuntimeDesc drainCurve{};
+    EffectSourceHistorySpriteTrailPathReplayStartMode startMode{ EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst };
+    bool killOnArrive{ true };
+    bool clampAtEnd{ true };
+};
+
 // source/root history path 위에 Required sprite alignment 기반 sprite card stamp를 찍는 runtime payload다.
 struct ComputeSourceHistorySpriteTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -608,6 +651,8 @@ struct ComputeSourceHistorySpriteTrailEmitterDesc : public GameObject::GAMEOBJEC
     bool flipV{ false };
     float rotationOffsetDegrees{ 0.f };
     float spawnJitter{ 0.f };
+    EffectSourceHistorySpriteTrailPathFollowRuntimeDesc pathFollow{};
+    EffectSourceHistorySpriteTrailPathReplayRuntimeDesc pathReplay{};
 
     EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Line };
     EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X };

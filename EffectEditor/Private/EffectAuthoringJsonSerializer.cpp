@@ -2597,6 +2597,68 @@ namespace Internal
         }
     }
 
+    json To_Json(const SourceHistorySpriteTrailPathFollowModuleData& data)
+    {
+        json root = json::object();
+        root["direction"] = To_EnumToken(data.direction);
+        root["speed"] = To_Json(data.speed);
+        root["startDelay"] = To_Json(data.startDelay);
+        root["killOnArrive"] = data.killOnArrive;
+        root["clampAtEnd"] = data.clampAtEnd;
+        return root;
+    }
+
+    void From_Json(const json& root, SourceHistorySpriteTrailPathFollowModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto directionIter = root.find("direction"); directionIter != root.end())
+            Try_ReadEnumToken(*directionIter, outData.direction);
+        if (const auto speedIter = root.find("speed"); speedIter != root.end())
+            From_Json(*speedIter, outData.speed);
+        if (const auto startDelayIter = root.find("startDelay"); startDelayIter != root.end())
+            From_Json(*startDelayIter, outData.startDelay);
+        Read_BoolField(root, "killOnArrive", outData.killOnArrive);
+        Read_BoolField(root, "clampAtEnd", outData.clampAtEnd);
+    }
+
+    json To_Json(const SourceHistorySpriteTrailPathReplayModuleData& data)
+    {
+        json root = json::object();
+        root["delayTime"] = data.delayTime;
+        root["replayMode"] = To_EnumToken(data.replayMode);
+        root["speedScale"] = data.speedScale;
+        root["drainDuration"] = data.drainDuration;
+        root["drainCurve"] = To_Json(data.drainCurve);
+        root["startMode"] = To_EnumToken(data.startMode);
+        root["killOnArrive"] = data.killOnArrive;
+        root["clampAtEnd"] = data.clampAtEnd;
+        return root;
+    }
+
+    void From_Json(const json& root, SourceHistorySpriteTrailPathReplayModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "delayTime", outData.delayTime);
+        if (const auto replayModeIter = root.find("replayMode"); replayModeIter != root.end())
+            Try_ReadEnumToken(*replayModeIter, outData.replayMode);
+        Read_NumberField(root, "speedScale", outData.speedScale);
+        Read_NumberField(root, "drainDuration", outData.drainDuration);
+        if (const auto drainCurveIter = root.find("drainCurve"); drainCurveIter != root.end())
+            From_Json(*drainCurveIter, outData.drainCurve);
+        if (const auto startModeIter = root.find("startMode"); startModeIter != root.end())
+            Try_ReadEnumToken(*startModeIter, outData.startMode);
+        Read_BoolField(root, "killOnArrive", outData.killOnArrive);
+        Read_BoolField(root, "clampAtEnd", outData.clampAtEnd);
+
+        outData.delayTime = max(0.f, outData.delayTime);
+        outData.speedScale = max(0.f, outData.speedScale);
+        outData.drainDuration = max(0.0001f, outData.drainDuration);
+    }
+
     json To_Json(const MaterialScalarModulatorData& data)
     {
         json root = json::object();
@@ -2849,6 +2911,12 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SpawnPerUnit:
         root["data"] = Internal::To_Json(get<SpawnPerUnitModuleData>(module.data));
         break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        root["data"] = Internal::To_Json(get<SourceHistorySpriteTrailPathFollowModuleData>(module.data));
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        root["data"] = Internal::To_Json(get<SourceHistorySpriteTrailPathReplayModuleData>(module.data));
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         root["data"] = Internal::To_Json(get<MaterialScalarModulationModuleData>(module.data));
         break;
@@ -2989,6 +3057,12 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SpawnPerUnit:
             Internal::From_Json(*dataIter, get<SpawnPerUnitModuleData>(module.data));
             break;
+        case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+            Internal::From_Json(*dataIter, get<SourceHistorySpriteTrailPathFollowModuleData>(module.data));
+            break;
+        case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+            Internal::From_Json(*dataIter, get<SourceHistorySpriteTrailPathReplayModuleData>(module.data));
+            break;
         case AuthoringModuleType::MaterialScalarModulation:
             Internal::From_Json(*dataIter, get<MaterialScalarModulationModuleData>(module.data));
             break;
@@ -3114,6 +3188,10 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return MeshSizeByLifeModuleData{};
     case AuthoringModuleType::SpawnPerUnit:
         return SpawnPerUnitModuleData{};
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        return SourceHistorySpriteTrailPathFollowModuleData{};
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        return SourceHistorySpriteTrailPathReplayModuleData{};
     case AuthoringModuleType::MaterialScalarModulation:
         return MaterialScalarModulationModuleData{};
     }
