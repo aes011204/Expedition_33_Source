@@ -27,7 +27,7 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     int rewardExp = static_cast<int>(desc.exp);
     int rewardChroma = static_cast<int>(desc.chroma);
     int shieldPointsAtSpawn = static_cast<int>(desc.commonCharacterStats.ShieldPointsAtSpawn);
-    bool isBoss = desc.isBoss;
+
 
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);
@@ -56,10 +56,7 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
 
     ImGui::TextDisabled("Is Boss");
     ImGui::SameLine(120.f);
-    if (ImGui::Checkbox("##MonsterIsBoss", &isBoss))
-    {
-        desc.isBoss = isBoss;
-    }
+
 
     ImGui::TextDisabled("Shield At Spawn");
     ImGui::SameLine(120.f);

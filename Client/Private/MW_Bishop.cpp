@@ -36,7 +36,7 @@ HRESULT MW_Bishop::Initialize(void* arg)
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
 
     if (_combatStat)
-        _combatStat->Get_MonsterDesc().isBoss = true;
+        _combatStat->Get_MonsterDesc().enemyClass = EEnemyClass::Boss;
 
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
