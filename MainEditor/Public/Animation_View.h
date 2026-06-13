@@ -129,6 +129,13 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewAnimSpeedStateRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -189,6 +196,8 @@ private:
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
     void Draw_TrailAnchorPreview() const;
+    void Update_PreviewAnimSpeedStates(float timeDelta);
+    void Reset_PreviewAnimSpeedStates();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
@@ -264,6 +273,7 @@ private:
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
+    vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
     mutable int32 _previewTrailProviderStateId = -1; // preview effect가 지금 sample을 요청 중인 runtime state id다.
