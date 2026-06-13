@@ -27,6 +27,7 @@ const char* To_TargetCameraModeName(TargetCameraMode mode)
 float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
 {
     t = clamp(t, 0.f, 1.f);
+    constexpr float kBackOvershoot = 1.70158f;
 
     switch (easing)
     {
@@ -38,6 +39,35 @@ float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
 
     case BattleCameraTransitionEasing::EaseOut:
         return 1.f - (1.f - t) * (1.f - t);
+
+    case BattleCameraTransitionEasing::EaseInStrong:
+        return t * t * t;
+
+    case BattleCameraTransitionEasing::EaseOutStrong:
+        return 1.f - powf(1.f - t, 3.f);
+
+    case BattleCameraTransitionEasing::EaseInOutStrong:
+        return t < 0.5f
+            ? 4.f * t * t * t
+            : 1.f - powf(-2.f * t + 2.f, 3.f) * 0.5f;
+
+    case BattleCameraTransitionEasing::EaseInCubic:
+        return t * t * t;
+
+    case BattleCameraTransitionEasing::EaseOutCubic:
+        return 1.f - powf(1.f - t, 3.f);
+
+    case BattleCameraTransitionEasing::EaseInExpo:
+        return t <= 0.f ? 0.f : powf(2.f, 10.f * t - 10.f);
+
+    case BattleCameraTransitionEasing::EaseOutExpo:
+        return t >= 1.f ? 1.f : 1.f - powf(2.f, -10.f * t);
+
+    case BattleCameraTransitionEasing::EaseOutBack:
+    {
+        const float x = t - 1.f;
+        return 1.f + (kBackOvershoot + 1.f) * x * x * x + kBackOvershoot * x * x;
+    }
 
     case BattleCameraTransitionEasing::EaseInOut:
         return t * t * (3.f - 2.f * t);

@@ -2078,6 +2078,8 @@ void BattleController::Complete_BattleField()
         return;
     }
 
+    _reactionController.Clear_RuntimeState();
+
     _isBattleActive = true;
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
@@ -2404,18 +2406,18 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         for (const BattleChar& hero : _heroes)
         {
             if (hero.actor == nullptr || hero.actor == _currentTurnActor.actor)
-                continue;
+            continue;
+        
+        if (hero.ModelCom == nullptr || hero.statCom == nullptr)
+        continue;
+    
+    if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    continue;
 
-            if (hero.ModelCom == nullptr || hero.statCom == nullptr)
-                continue;
+BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
+}
 
-            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-                continue;
-
-            BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
-        }
-
-        EvtBattlePresentation event;
+        EvtBattlePresentation event {};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         GAME->Get_EventBus().Publish(event);
@@ -2484,7 +2486,7 @@ void BattleController::PlayerStartAnim()
             continue;
 
         it.ModelCom->Set_RootMotionEnabled(false);
-        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), 0.3f, false);
+        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), false);
     }
 
     if (_firstAnimTargetCount == 0)

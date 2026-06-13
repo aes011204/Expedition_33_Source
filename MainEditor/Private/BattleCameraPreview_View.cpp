@@ -15,6 +15,8 @@
 #include "Monster_WorldBase.h"
 #include "PartObject.h"
 #include "RenderTarget.h"
+#include "SkyBoxFlow.h"
+#include "SkyCloudCard.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
 #include "magic_enum/magic_enum.hpp"
@@ -39,8 +41,9 @@ constexpr float kSlotComboWidth = 112.f;
 constexpr float kFormationVec3InputWidth = 190.f;
 constexpr float kPresetInputWidth = 150.f;
 constexpr wchar_t kBattleCameraPresetFolder[] = L"../../../Client/Bin/Resources/Data/json/CameraPreset";
-constexpr int kBattleClipDebugFallbackTrackIndex = 7;
+constexpr int kBattleClipDebugFallbackTrackIndex = 9;
 constexpr int kBattleClipTimelineTrackCount = 19;
+const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
 const std::array<Vec3, 3> kDefaultHeroSlotOffsets =
 {
     Vec3(-2.5f, 0.f, 0.f),
@@ -123,22 +126,22 @@ const CameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip, int 
     case 0: return &clip.distanceOffset;
     case 1: return &clip.fovOffset;
     case 2: return &clip.shakeAmplitude;
-    case 3: return &clip.sideOffset;
-    case 4: return &clip.pivotOffset;
-    case 5: return &clip.heightOffset;
-    case 6: return &clip.aimOffset;
-    case 7: return &clip.lookHeightOffset;
-    case 8: return &clip.yawOffset;
-    case 9: return &clip.orbitYaw;
-    case 10: return &clip.orbitRadius;
-    case 11: return &clip.orbitHeight;
-    case 12: return &clip.orbitLookHeight;
-    case 13: return &clip.shakeFrequencyX;
-    case 14: return &clip.shakeFrequencyY;
-    case 15: return &clip.shakeDecayRateX;
-    case 16: return &clip.shakeDecayRate;
-    case 17: return &clip.shakeVerticalRatio;
-    case 18: return &clip.shakeStrengthScale;
+    case 3: return &clip.shakeFrequencyX;
+    case 4: return &clip.shakeFrequencyY;
+    case 5: return &clip.shakeDecayRateX;
+    case 6: return &clip.shakeDecayRate;
+    case 7: return &clip.shakeVerticalRatio;
+    case 8: return &clip.shakeStrengthScale;
+    case 9: return &clip.sideOffset;
+    case 10: return &clip.pivotOffset;
+    case 11: return &clip.heightOffset;
+    case 12: return &clip.aimOffset;
+    case 13: return &clip.lookHeightOffset;
+    case 14: return &clip.yawOffset;
+    case 15: return &clip.orbitYaw;
+    case 16: return &clip.orbitRadius;
+    case 17: return &clip.orbitHeight;
+    case 18: return &clip.orbitLookHeight;
     default:
         return nullptr;
     }
@@ -151,22 +154,22 @@ CameraTrack* Get_BattleClipTrackByIndex(BattleCameraClip& clip, int trackIndex)
     case 0: return &clip.distanceOffset;
     case 1: return &clip.fovOffset;
     case 2: return &clip.shakeAmplitude;
-    case 3: return &clip.sideOffset;
-    case 4: return &clip.pivotOffset;
-    case 5: return &clip.heightOffset;
-    case 6: return &clip.aimOffset;
-    case 7: return &clip.lookHeightOffset;
-    case 8: return &clip.yawOffset;
-    case 9: return &clip.orbitYaw;
-    case 10: return &clip.orbitRadius;
-    case 11: return &clip.orbitHeight;
-    case 12: return &clip.orbitLookHeight;
-    case 13: return &clip.shakeFrequencyX;
-    case 14: return &clip.shakeFrequencyY;
-    case 15: return &clip.shakeDecayRateX;
-    case 16: return &clip.shakeDecayRate;
-    case 17: return &clip.shakeVerticalRatio;
-    case 18: return &clip.shakeStrengthScale;
+    case 3: return &clip.shakeFrequencyX;
+    case 4: return &clip.shakeFrequencyY;
+    case 5: return &clip.shakeDecayRateX;
+    case 6: return &clip.shakeDecayRate;
+    case 7: return &clip.shakeVerticalRatio;
+    case 8: return &clip.shakeStrengthScale;
+    case 9: return &clip.sideOffset;
+    case 10: return &clip.pivotOffset;
+    case 11: return &clip.heightOffset;
+    case 12: return &clip.aimOffset;
+    case 13: return &clip.lookHeightOffset;
+    case 14: return &clip.yawOffset;
+    case 15: return &clip.orbitYaw;
+    case 16: return &clip.orbitRadius;
+    case 17: return &clip.orbitHeight;
+    case 18: return &clip.orbitLookHeight;
     default:
         return nullptr;
     }
@@ -179,22 +182,22 @@ const char* Get_BattleClipTrackLabel(int trackIndex)
     case 0: return "Distance Offset";
     case 1: return "FOV Offset";
     case 2: return "Shake Amplitude";
-    case 3: return "Side Offset";
-    case 4: return "Pivot Offset";
-    case 5: return "Height Offset";
-    case 6: return "Aim Offset";
-    case 7: return "Look Height Offset";
-    case 8: return "Yaw Offset";
-    case 9: return "Orbit Yaw";
-    case 10: return "Orbit Radius";
-    case 11: return "Orbit Height";
-    case 12: return "Orbit Look Height";
-    case 13: return "Shake Frequency X";
-    case 14: return "Shake Frequency Y";
-    case 15: return "Shake Decay Rate X";
-    case 16: return "Shake Decay Rate Y";
-    case 17: return "Shake Vertical Ratio";
-    case 18: return "Shake Strength Scale";
+    case 3: return "Shake Frequency X";
+    case 4: return "Shake Frequency Y";
+    case 5: return "Shake Decay Rate X";
+    case 6: return "Shake Decay Rate Y";
+    case 7: return "Shake Vertical Ratio";
+    case 8: return "Shake Strength Scale";
+    case 9: return "Side Offset";
+    case 10: return "Pivot Offset";
+    case 11: return "Height Offset";
+    case 12: return "Aim Offset";
+    case 13: return "Look Height Offset";
+    case 14: return "Yaw Offset";
+    case 15: return "Orbit Yaw";
+    case 16: return "Orbit Radius";
+    case 17: return "Orbit Height";
+    case 18: return "Orbit Look Height";
     default:
         return "Unknown";
     }
@@ -236,6 +239,40 @@ BattleCameraPreset Make_FallbackBattleCameraPreset()
     preset.lookHeight = 1.1f;
     preset.pivotHeight = 1.f;
     return preset;
+}
+
+void Apply_PreviewProceduralDrift(
+    const BattleCameraDriftProfile& drift,
+    float timeSec,
+    Client::BattleTurnCameraEvaluatedPose& pose)
+{
+    if (!drift.enabled)
+        return;
+
+    Vec3 forward = pose.lookTarget - pose.cameraPos;
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
+
+    forward.Normalize();
+
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.0001f)
+        return;
+
+    right.Normalize();
+
+    Vec3 up = forward.Cross(right);
+    up.Normalize();
+
+    const float x = sinf(timeSec * drift.lateralFrequency) * drift.lateralAmplitude;
+    const float y = sinf(timeSec * drift.verticalFrequency + 1.37f) * drift.verticalAmplitude;
+    const float z = sinf(timeSec * drift.depthFrequency + 2.11f) * drift.depthAmplitude;
+    const float roll = sinf(timeSec * drift.rollFrequency + 0.73f) * drift.rollAmplitude;
+
+    const Vec3 driftOffset = right * x + up * y + forward * z;
+    pose.cameraPos += driftOffset;
+    pose.lookTarget += driftOffset * 0.6f;
+    pose.rollOffset += roll;
 }
 
 template <typename TEnum>
@@ -282,6 +319,21 @@ void Apply_DefaultPreviewCameraTransform(const Shared<Editor_Camera_Free>& camer
 bool StartsWith(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
+}
+
+bool Contains_CaseInsensitive(std::string_view text, std::string_view query)
+{
+    if (query.empty())
+        return true;
+
+    auto toLower = [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); };
+
+    std::string loweredText(text.begin(), text.end());
+    std::string loweredQuery(query.begin(), query.end());
+    std::transform(loweredText.begin(), loweredText.end(), loweredText.begin(), toLower);
+    std::transform(loweredQuery.begin(), loweredQuery.end(), loweredQuery.begin(), toLower);
+
+    return loweredText.find(loweredQuery) != std::string::npos;
 }
 
 bool Try_PickBattleCameraJsonFileDialog(const wchar_t* title, const wstring& defaultFolder, wstring& outFilePath)
@@ -467,6 +519,7 @@ void BattleCameraPreview_View::Pre_Render()
         return;
 
     Ensure_PreviewCamera();
+    Ensure_PreviewSkyBackdrop();
     Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
 
     if (_previewRenderTarget == nullptr || _previewCamera == nullptr)
@@ -517,6 +570,26 @@ void BattleCameraPreview_View::Pre_Render()
     GAME->UpdateFrustum(previewView, previewProj);
 
     const float dt = ImGui::GetIO().DeltaTime;
+    if (_previewCamera != nullptr)
+    {
+        Shared<TransformCom> previewCameraTransform = _previewCamera->Get_Transform();
+        if (previewCameraTransform != nullptr)
+        {
+            const Vec3 previewCameraPos = previewCameraTransform->Get_WorldPosition();
+            for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+            {
+                if (skyCloudCard == nullptr)
+                    continue;
+
+                Shared<TransformCom> skyCloudTransform = skyCloudCard->Get_Transform();
+                if (skyCloudTransform == nullptr)
+                    continue;
+
+                skyCloudTransform->Set_WorldPosition(previewCameraPos + kPreviewSkyCloudLocalOffset);
+            }
+        }
+    }
+
     if (_previewHeroObject != nullptr)
     {
         if (!_previewObjectsBegunPlay)
@@ -535,6 +608,29 @@ void BattleCameraPreview_View::Pre_Render()
         _previewEnemyObject->Update(dt);
     }
 
+    if (_previewSkyBox != nullptr)
+    {
+        if (!_previewObjectsBegunPlay)
+            _previewSkyBox->Try_BeginPlay();
+
+        _previewSkyBox->Set_Visible(true);
+        _previewSkyBox->Priority_Update(dt);
+        _previewSkyBox->Update(dt);
+    }
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard == nullptr)
+            continue;
+
+        if (!_previewObjectsBegunPlay)
+            skyCloudCard->Try_BeginPlay();
+
+        skyCloudCard->Set_Visible(true);
+        skyCloudCard->Priority_Update(dt);
+        skyCloudCard->Update(dt);
+    }
+
     _previewObjectsBegunPlay = true;
 
     GAME->Backup_RenderGroup();
@@ -545,12 +641,23 @@ void BattleCameraPreview_View::Pre_Render()
     if (_previewEnemyObject != nullptr)
         _previewEnemyObject->Late_Update(dt);
 
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Late_Update(dt);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard != nullptr)
+            skyCloudCard->Late_Update(dt);
+    }
+
     Position_PreviewObjects();
     if (_previewEnabled)
         Update_PreviewAttackActorMotion(_previewContext.timeSec);
 
     GAME->Draw_RendererOnly();
     GAME->Restore_RenderGroup();
+    Ensure_PreviewGridResources();
+    Draw_PreviewGrid();
     EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
 
     GAME->Bind_BackBuffer();
@@ -693,7 +800,7 @@ void BattleCameraPreview_View::Ensure_PreviewCamera()
     desc.at = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
     desc.fovy = XM_PIDIV4;
     desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
+    desc.farPlane = 500.f;
     desc.yaw = 0.f;
     desc.pitch = 0.f;
     desc.mouseSensor = 0.15f;
@@ -708,6 +815,189 @@ void BattleCameraPreview_View::Ensure_PreviewCamera()
 
     _previewCamera->Apply_EditorDesc(desc);
     Apply_DefaultPreviewCameraTransform(_previewCamera);
+}
+
+void BattleCameraPreview_View::Ensure_PreviewGridResources()
+{
+    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState && _previewGridBlendState)
+        return;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC kGridInputElements[] =
+    {
+        { "SV_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR",       0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    _previewGridBatch = make_shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>(GAME->Get_Context().Get());
+    _previewGridEffect = make_shared<DirectX::BasicEffect>(GAME->Get_Device().Get());
+
+    if (_previewGridBatch == nullptr || _previewGridEffect == nullptr)
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        return;
+    }
+
+    _previewGridEffect->SetVertexColorEnabled(true);
+
+    const void* shaderByteCode = nullptr;
+    size_t shaderByteCodeLength = 0;
+    _previewGridEffect->GetVertexShaderBytecode(&shaderByteCode, &shaderByteCodeLength);
+
+    if (FAILED(GAME->Get_Device()->CreateInputLayout(
+        kGridInputElements,
+        static_cast<UINT>(_countof(kGridInputElements)),
+        shaderByteCode,
+        shaderByteCodeLength,
+        _previewGridInputLayout.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC depthDesc{};
+    depthDesc.DepthEnable = TRUE;
+    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+    depthDesc.StencilEnable = FALSE;
+
+    if (FAILED(GAME->Get_Device()->CreateDepthStencilState(&depthDesc, _previewGridDepthState.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        _previewGridDepthState.Reset();
+        _previewGridBlendState.Reset();
+        return;
+    }
+
+    D3D11_BLEND_DESC blendDesc{};
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+    if (FAILED(GAME->Get_Device()->CreateBlendState(&blendDesc, _previewGridBlendState.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        _previewGridDepthState.Reset();
+        _previewGridBlendState.Reset();
+    }
+}
+
+void BattleCameraPreview_View::Ensure_PreviewSkyBackdrop()
+{
+    if (_previewSkyBox != nullptr)
+        return;
+
+    Shared<Client::SkyBoxFlow> skyBoxPrototype = Client::SkyBoxFlow::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyBoxPrototype == nullptr)
+        return;
+
+    Client::SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    _previewSkyBox = dynamic_pointer_cast<Client::SkyBoxFlow>(skyBoxPrototype->Clone(&skyBoxDesc));
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Set_Visible(true);
+
+    _previewSkyCloudCards.clear();
+
+    Shared<Client::SkyCloudCard> skyCloudPrototype = Client::SkyCloudCard::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyCloudPrototype == nullptr)
+        return;
+
+    Client::SkyCloudCard::SKYCLOUDCARD_DESC cloudDesc{};
+    cloudDesc.modelTag = TEXT("Model_Cloud_Mesh");
+    cloudDesc.shaderTag = TEXT("Shader_SkyCloudCard");
+    cloudDesc.cloudTextureTag = TEXT("Texture_T_Cloud_13_H");
+    cloudDesc.position = kPreviewSkyCloudLocalOffset;
+    cloudDesc.rotation = Vec3(-4.763f, -119.267f, -349.155f);
+    cloudDesc.scale = Vec3(1.5f, 0.9f, 0.9f);
+
+    Shared<Client::SkyCloudCard> skyCloudCard =
+        dynamic_pointer_cast<Client::SkyCloudCard>(skyCloudPrototype->Clone(&cloudDesc));
+    if (skyCloudCard != nullptr)
+    {
+        skyCloudCard->Set_Visible(true);
+        _previewSkyCloudCards.push_back(skyCloudCard);
+    }
+}
+
+void BattleCameraPreview_View::Draw_PreviewGrid() const
+{
+    if (!_showPreviewGrid)
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewGridDepthState || !_previewGridBlendState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
+    context->OMSetBlendState(_previewGridBlendState.Get(), nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    _previewGridBatch->Begin();
+
+    const Vec3 gridCenter = Vec3(_previewFormation.origin.x, _previewFormation.origin.y, _previewFormation.origin.z + 2.5f);
+    constexpr int gridDivs = 48;
+    constexpr float gridHalfExtent = 24.f;
+    const float step = (gridHalfExtent * 2.f) / static_cast<float>(gridDivs);
+    const float y = gridCenter.y + 0.02f;
+
+    const XMVECTOR minorColor = XMVectorSet(0.70f, 0.88f, 0.96f, 0.12f);
+    const XMVECTOR majorColor = XMVectorSet(0.82f, 0.94f, 0.98f, 0.24f);
+    const XMVECTOR xAxisColor = XMVectorSet(0.98f, 0.72f, 0.80f, 0.45f);
+    const XMVECTOR zAxisColor = XMVectorSet(0.62f, 0.94f, 1.f, 0.5f);
+
+    for (int i = 0; i <= gridDivs; ++i)
+    {
+        const float offset = -gridHalfExtent + step * static_cast<float>(i);
+        const bool isCenter = fabsf(offset) < 0.0001f;
+        const bool isMajor = (i % 4) == 0;
+
+        const XMVECTOR colorX = isCenter ? zAxisColor : (isMajor ? majorColor : minorColor);
+        const XMVECTOR colorZ = isCenter ? xAxisColor : (isMajor ? majorColor : minorColor);
+
+        DirectX::VertexPositionColor lineXStart(
+            Vec3(gridCenter.x - gridHalfExtent, y, gridCenter.z + offset),
+            colorX);
+        DirectX::VertexPositionColor lineXEnd(
+            Vec3(gridCenter.x + gridHalfExtent, y, gridCenter.z + offset),
+            colorX);
+        _previewGridBatch->DrawLine(lineXStart, lineXEnd);
+
+        DirectX::VertexPositionColor lineZStart(
+            Vec3(gridCenter.x + offset, y, gridCenter.z - gridHalfExtent),
+            colorZ);
+        DirectX::VertexPositionColor lineZEnd(
+            Vec3(gridCenter.x + offset, y, gridCenter.z + gridHalfExtent),
+            colorZ);
+        _previewGridBatch->DrawLine(lineZStart, lineZEnd);
+    }
+
+    _previewGridBatch->End();
 }
 
 void BattleCameraPreview_View::Reset_DefaultFormation()
@@ -851,6 +1141,7 @@ void BattleCameraPreview_View::Render_Header()
     if (ImGui::Button("Load Camera Json##Header"))
     {
         Refresh_AuthoringFileList();
+        _authoringFileSearchText.clear();
         _selectedAuthoringFileIndex = -1;
         ImGui::OpenPopup("Load Battle Camera Json");
     }
@@ -897,8 +1188,18 @@ void BattleCameraPreview_View::Render_ContextPanel()
         ImGui::SetNextItemWidth(kLeftPanelWideComboWidth);
         if (ImGui::BeginCombo("Skill", currentSkillLabel))
         {
+            char skillSearchBuffer[128] = {};
+            strncpy_s(skillSearchBuffer, _skillSearchText.c_str(), _TRUNCATE);
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::InputText("##SkillSearch", skillSearchBuffer, IM_ARRAYSIZE(skillSearchBuffer)))
+                _skillSearchText = skillSearchBuffer;
+
+            ImGui::Separator();
             for (int i = 0; i < static_cast<int>(_skillIds.size()); ++i)
             {
+                if (!Contains_CaseInsensitive(_skillIds[i], _skillSearchText))
+                    continue;
+
                 const bool isSelected = (_selectedSkillIndex == i);
                 if (ImGui::Selectable(_skillIds[i].c_str(), isSelected))
                 {
@@ -1450,6 +1751,9 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         Load_BattlePresetForMode(editorMode);
     }
 
+    if (!_hasLoadedBattleDrift || _loadedBattleDriftMode != editorMode)
+        Load_BattleDriftForMode(editorMode);
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::TextDisabled("Battle Preset Editor");
@@ -1531,12 +1835,50 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     if (ImGui::Checkbox("Snap On Enter", &_editingBattlePreset.snapOnEnter))
         changed = true;
 
+    ImGui::Separator();
+    if (ImGui::Checkbox("Enable Procedural Drift", &_editingBattleDrift.enabled))
+        changed = true;
+
+    if (ImGui::Button("Load Drift"))
+    {
+        Load_BattleDriftForMode(editorMode);
+        if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift);
+        _battleDriftDirty = false;
+        _previewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Drift"))
+    {
+        Client::CameraPresetIO::SaveBattleDriftToFile(editorMode, _editingBattleDrift);
+        if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift);
+        _battleDriftDirty = false;
+    }
+
+    if (_editingBattleDrift.enabled)
+    {
+        dragFloat("Drift Lateral Amp", _editingBattleDrift.lateralAmplitude, 0.01f, 0.f, 20.f);
+        dragFloat("Drift Vertical Amp", _editingBattleDrift.verticalAmplitude, 0.01f, 0.f, 20.f);
+        dragFloat("Drift Depth Amp", _editingBattleDrift.depthAmplitude, 0.01f, 0.f, 20.f);
+        dragFloat("Drift Roll Amp", _editingBattleDrift.rollAmplitude, 0.001f, 0.f, XM_PI);
+        dragFloat("Drift Lateral Freq", _editingBattleDrift.lateralFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Vertical Freq", _editingBattleDrift.verticalFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Depth Freq", _editingBattleDrift.depthFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Roll Freq", _editingBattleDrift.rollFrequency, 0.01f, 0.f, 10.f);
+    }
+
     if (changed)
     {
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+        {
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift);
+        }
 
         _battlePresetDirty = true;
+        _battleDriftDirty = true;
         _previewDirty = true;
     }
 }
@@ -1682,8 +2024,18 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             ImGui::SetNextItemWidth(320.f);
             if (ImGui::BeginCombo("Subject Animation", currentAnimationLabel))
             {
+                char animationSearchBuffer[128] = {};
+                strncpy_s(animationSearchBuffer, _previewAnimationSearchText.c_str(), _TRUNCATE);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputText("##AnimationSearch", animationSearchBuffer, IM_ARRAYSIZE(animationSearchBuffer)))
+                    _previewAnimationSearchText = animationSearchBuffer;
+
+                ImGui::Separator();
                 for (int i = 0; i < static_cast<int>(_previewAnimationNames.size()); ++i)
                 {
+                    if (!Contains_CaseInsensitive(_previewAnimationNames[i], _previewAnimationSearchText))
+                        continue;
+
                     const bool isSelected = _selectedPreviewAnimationIndex == i;
                     if (ImGui::Selectable(_previewAnimationNames[i].c_str(), isSelected))
                     {
@@ -2170,71 +2522,7 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
 
 void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
 {
-    CameraKeyframe* keyframe = Get_SelectedBattleClipKeyframe();
-    if (keyframe == nullptr)
-        return;
-
-    ImGui::Separator();
-    ImGui::TextDisabled("Selected Key | Track %d | Key %d", _battleClipSelectedTrackIndex, _battleClipSelectedKeyIndex);
-
-    const float authoringDurationSec = Get_BattleClipAuthoringDurationSec();
-    const char* timeLabel = _editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync
-        ? "Key Time (Norm)"
-        : "Key Time";
-    ImGui::SetNextItemWidth(140.f);
-    if (ImGui::DragFloat(timeLabel, &keyframe->time, 0.01f, 0.f, authoringDurationSec))
-    {
-        keyframe->time = std::clamp(keyframe->time, 0.f, authoringDurationSec);
-        if (keyframe->time > _editingBattleClip.duration)
-            _editingBattleClip.duration = keyframe->time;
-        if (CameraTrack* track = Get_SelectedBattleClipTrack())
-        {
-            const float selectionTime = keyframe->time;
-            Sort_BattleClipTrackKeyframes(*track);
-            for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
-            {
-                if (fabsf(track->keyframes[i].time - selectionTime) <= 0.0001f)
-                {
-                    _battleClipSelectedKeyIndex = i;
-                    break;
-                }
-            }
-        }
-
-        _battleClipCurrentFrame = Get_BattleClipFrameFromTime(keyframe->time);
-        Sync_PreviewTimeFromTimeline();
-        _battleClipDirty = true;
-        _previewDirty = true;
-    }
-
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(140.f);
-    if (ImGui::DragFloat("Key Value", &keyframe->value, 0.01f))
-    {
-        _battleClipDirty = true;
-        _previewDirty = true;
-    }
-
-    ImGui::SetNextItemWidth(160.f);
-    const char* interpolationLabel = magic_enum::enum_name(keyframe->interpolation).data();
-    if (ImGui::BeginCombo("Interpolation", interpolationLabel))
-    {
-        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
-        {
-            const bool isSelected = keyframe->interpolation == mode;
-            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
-            {
-                keyframe->interpolation = mode;
-                _battleClipDirty = true;
-                _previewDirty = true;
-            }
-
-            if (isSelected)
-                ImGui::SetItemDefaultFocus();
-        }
-
-        ImGui::EndCombo();
-    }
+    return;
 }
 
 void BattleCameraPreview_View::Render_BattleClipDebugPanel()
@@ -2333,9 +2621,79 @@ void BattleCameraPreview_View::Render_BattleClipRemoveKeyframePopup()
     if (!ImGui::BeginPopup("Remove Battle Preview Clip Keyframe"))
         return;
 
+    CameraTrack* track = Get_SelectedBattleClipTrack();
+    CameraKeyframe* keyframe = Get_SelectedBattleClipKeyframe();
+
+    if (track != nullptr && keyframe != nullptr)
+    {
+        ImGui::TextDisabled("Track %d | Key %d", _battleClipSelectedTrackIndex, _battleClipSelectedKeyIndex);
+
+        const float authoringDurationSec = Get_BattleClipAuthoringDurationSec();
+        const char* timeLabel = _editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync
+            ? "Key Time (Norm)"
+            : "Key Time";
+
+        ImGui::SetNextItemWidth(180.f);
+        if (ImGui::DragFloat(timeLabel, &keyframe->time, 0.01f, 0.f, authoringDurationSec))
+        {
+            keyframe->time = std::clamp(keyframe->time, 0.f, authoringDurationSec);
+            if (keyframe->time > _editingBattleClip.duration)
+                _editingBattleClip.duration = keyframe->time;
+
+            const float selectionTime = keyframe->time;
+            Sort_BattleClipTrackKeyframes(*track);
+            for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+            {
+                if (fabsf(track->keyframes[i].time - selectionTime) <= 0.0001f)
+                {
+                    _battleClipSelectedKeyIndex = i;
+                    break;
+                }
+            }
+
+            _battleClipCurrentFrame = Get_BattleClipFrameFromTime(keyframe->time);
+            Sync_PreviewTimeFromTimeline();
+            _battleClipDirty = true;
+            _previewDirty = true;
+            keyframe = Get_SelectedBattleClipKeyframe();
+        }
+
+        if (keyframe != nullptr)
+        {
+            ImGui::SetNextItemWidth(180.f);
+            if (ImGui::DragFloat("Key Value", &keyframe->value, 0.01f))
+            {
+                _battleClipDirty = true;
+                _previewDirty = true;
+            }
+
+            ImGui::SetNextItemWidth(180.f);
+            const char* interpolationLabel = magic_enum::enum_name(keyframe->interpolation).data();
+            if (ImGui::BeginCombo("Interpolation", interpolationLabel))
+            {
+                for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+                {
+                    const bool isSelected = keyframe->interpolation == mode;
+                    if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+                    {
+                        keyframe->interpolation = mode;
+                        _battleClipDirty = true;
+                        _previewDirty = true;
+                    }
+
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+            }
+        }
+
+        ImGui::Separator();
+    }
+
     if (ImGui::Button("Remove Selected Key"))
     {
-        CameraTrack* track = Get_SelectedBattleClipTrack();
         if (track != nullptr &&
             _battleClipSelectedKeyIndex >= 0 &&
             _battleClipSelectedKeyIndex < static_cast<int>(track->keyframes.size()))
@@ -2364,25 +2722,43 @@ void BattleCameraPreview_View::Render_LoadAuthoringFilePopup()
     {
         ImGui::TextDisabled("No battle camera json files found.");
     }
-    else if (ImGui::BeginListBox("##BattleAuthoringFiles", ImVec2(460.f, 260.f)))
+    else
     {
-        for (int i = 0; i < static_cast<int>(_authoringFilePaths.size()); ++i)
+        char authoringSearchBuffer[128] = {};
+        strncpy_s(authoringSearchBuffer, _authoringFileSearchText.c_str(), _TRUNCATE);
+        ImGui::SetNextItemWidth(460.f);
+        if (ImGui::InputText("Search", authoringSearchBuffer, IM_ARRAYSIZE(authoringSearchBuffer)))
+            _authoringFileSearchText = authoringSearchBuffer;
+
+        if (ImGui::Button("Refresh List"))
         {
-            const string label = _authoringFilePaths[i].filename().string();
-            const bool isSelected = (_selectedAuthoringFileIndex == i);
-
-            if (ImGui::Selectable(label.c_str(), isSelected))
-                _selectedAuthoringFileIndex = i;
-
-            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
-            {
-                _selectedAuthoringFileIndex = i;
-                Load_SelectedAuthoringFile();
-                ImGui::CloseCurrentPopup();
-            }
+            Refresh_AuthoringFileList();
+            _selectedAuthoringFileIndex = -1;
         }
 
-        ImGui::EndListBox();
+        if (ImGui::BeginListBox("##BattleAuthoringFiles", ImVec2(460.f, 260.f)))
+        {
+            for (int i = 0; i < static_cast<int>(_authoringFilePaths.size()); ++i)
+            {
+                const string label = _authoringFilePaths[i].filename().string();
+                if (!Contains_CaseInsensitive(label, _authoringFileSearchText))
+                    continue;
+
+                const bool isSelected = (_selectedAuthoringFileIndex == i);
+
+                if (ImGui::Selectable(label.c_str(), isSelected))
+                    _selectedAuthoringFileIndex = i;
+
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+                {
+                    _selectedAuthoringFileIndex = i;
+                    Load_SelectedAuthoringFile();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+
+            ImGui::EndListBox();
+        }
     }
 
     ImGui::Separator();
@@ -2654,6 +3030,17 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         }
     }
 
+    Client::BattleTurnCameraEvaluatedPose driftPose{};
+    driftPose.cameraPos = desiredPos;
+    driftPose.lookTarget = lookTarget;
+    driftPose.fovY = evaluatedFovY;
+    driftPose.rollOffset = evaluatedRollOffset;
+    Apply_PreviewProceduralDrift(_editingBattleDrift, previewTimeSec, driftPose);
+    desiredPos = driftPose.cameraPos;
+    lookTarget = driftPose.lookTarget;
+    evaluatedFovY = driftPose.fovY;
+    evaluatedRollOffset = driftPose.rollOffset;
+
     _previewCamera->Set_FovY(evaluatedFovY);
     if (Shared<TransformCom> transform = _previewCamera->Get_Transform())
     {
@@ -2828,6 +3215,20 @@ void BattleCameraPreview_View::Load_BattlePresetForCurrentMode(bool loadBase)
     Load_BattlePresetForMode(_previewContext.mode, loadBase);
 }
 
+void BattleCameraPreview_View::Load_BattleDriftForMode(BattleCameraMode mode)
+{
+    _editingBattleDrift = BattleCameraDriftProfile{};
+    Client::CameraPresetIO::LoadBattleDriftFromFile(mode, _editingBattleDrift);
+    _loadedBattleDriftMode = mode;
+    _hasLoadedBattleDrift = true;
+    _battleDriftDirty = false;
+}
+
+void BattleCameraPreview_View::Load_BattleDriftForCurrentMode()
+{
+    Load_BattleDriftForMode(_previewContext.mode);
+}
+
 void BattleCameraPreview_View::Load_BattleClipForMode(BattleCameraMode mode, bool loadBase, bool resetTimeline)
 {
     const float preservedTimeSec = _previewContext.timeSec;
@@ -2911,11 +3312,13 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     Apply_AuthoringFileContext(parsed->mode, parsed->kind == BattleAuthoringFileKind::Preset, parsed->skillId);
     Try_AutoSelectPreviewActorAndAnimation();
     Load_BattlePresetForCurrentMode();
+    Load_BattleDriftForCurrentMode();
     Load_BattleClipForCurrentMode();
 
     if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
     {
         battleTurnCamera->Set_Preset(_previewContext.mode, _editingBattlePreset);
+        battleTurnCamera->Set_DriftProfile(_previewContext.mode, _editingBattleDrift);
         battleTurnCamera->Set_Clip(_previewContext.mode, _editingBattleClip, Get_CurrentBattleClipAuthoringOverrideId());
     }
 
@@ -3856,7 +4259,7 @@ void BattleCameraPreview_View::Apply_PreviewSkillContext(const string& skillId)
 
 bool BattleCameraPreview_View::Has_UnsavedBattleAuthoringChanges() const
 {
-    return _battlePresetDirty || _battleClipDirty;
+    return _battlePresetDirty || _battleDriftDirty || _battleClipDirty;
 }
 
 void BattleCameraPreview_View::Request_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex)

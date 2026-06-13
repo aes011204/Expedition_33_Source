@@ -349,6 +349,12 @@ void BattleReactionController::StartCounterReturn()
         target.ModelCom->Set_RootMotionEnabled(true);
         target.ModelCom->Set_FrameSpeed(1.f);
 
+        LOG_INFO(
+            "[BattleCamTrace] StartCounterReturn prefab={} anim=Return targetAlive={} phaseBefore={}",
+            target.actor ? target.actor->Get_SourcePrefabName().c_str() : "",
+            target.statCom && target.statCom->Get_AliveStatus() == EAliveStatus::Alive,
+            static_cast<int>(_animPhase));
+
         if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Return), 0.15f, false))
         {
             TryRestoreTargetToSpawnPose(target);
