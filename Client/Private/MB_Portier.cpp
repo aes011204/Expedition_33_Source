@@ -11,15 +11,18 @@ IMPLEMENT_REFLECTION(MB_Portier)
     info.displayName = "MB_Portier";
     info.category = "Monster";
     PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
+    PROPERTY_FLOAT("Battle RunLoop Move Speed", _battleRunLoopMoveSpeed, 0.f, 30.f, 0.1f);
 
     return true;
 }
 
-MB_Portier::MB_Portier(const ComPtr<Device>& device, const ComPtr<Context>& context):Monster_BattleBase(device,context)
+MB_Portier::MB_Portier(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : Monster_BattleBase(device, context)
 {
 }
 
-MB_Portier::MB_Portier(const MB_Portier& prototype): Monster_BattleBase(prototype)
+MB_Portier::MB_Portier(const MB_Portier& prototype)
+    : Monster_BattleBase(prototype)
 {
 }
 
@@ -33,7 +36,7 @@ HRESULT MB_Portier::Initialize(void* arg)
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
-   // _body->Set_Animation("Portier_Idle", 0.3f, true);
+    // _body->Set_Animation("Portier_Idle", 0.3f, true);
 
     _combatStat->Set_Skill("Portier_AttackAoE");
     _combatStat->Set_Skill("Portier_JumpHit");
@@ -44,19 +47,16 @@ HRESULT MB_Portier::Initialize(void* arg)
 void MB_Portier::Update(float timeDelta)
 {
     Monster_BattleBase::Update(timeDelta);
-    
 
-        if (_body)
-        {
-            _body->Play_Animation(timeDelta);
-        }
+    if (_body)
+        _body->Play_Animation(timeDelta);
 
-        //for (int i = 0; i < _body->Get_Model()->Get_NumMaterials(); i++)
-        //{
-        //    auto cb = _body->Get_Model()->Get_Material(i)->Get_CB();
-        //    cb.emissiveIntensity = 0;
-        //    _body->Get_Model()->Get_Material(i)->Set_CB(cb);
-        //}
+    //for (int i = 0; i < _body->Get_Model()->Get_NumMaterials(); i++)
+    //{
+    //    auto cb = _body->Get_Model()->Get_Material(i)->Get_CB();
+    //    cb.emissiveIntensity = 0;
+    //    _body->Get_Model()->Get_Material(i)->Set_CB(cb);
+    //}
 }
 
 bool MB_Portier::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
@@ -91,11 +91,11 @@ HRESULT MB_Portier::Ready_PartObjects()
     weakDesc.socketName = "Status";
     weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Status");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL); // 약점 파츠는 모델 없이 neck_02 소켓 기준으로 붙인다.
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL)
+    ; // 약점 파츠는 모델 없이 neck_02 소켓 기준으로 붙인다.
 
     _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
     CHECK_NULL(_weak, E_FAIL);
-
 
     return S_OK;
 }

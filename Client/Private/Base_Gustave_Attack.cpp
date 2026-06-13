@@ -15,7 +15,7 @@ Base_Gustave_Attack::Base_Gustave_Attack()
 
 void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
-    float Damage = 40;
+    //float Damage = 40;
 
     const auto enemy = CLIENT->Get_BattleController()->Get_AliveEnemies();
 
@@ -27,7 +27,9 @@ void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleAction& a
 
     auto attacker = action.Get_CurChar();
 
-    DamageSystem::ApplyDamage(Damage, attacker, action.GetCurStepTarget(), attackType);
+    // 음 그런데 이거 몬스터들은 데미지 배율이 어떻게 되고있는거지
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     if (attacker.heroId == HeroId::Gustave &&
         attacker.mechanismCom != nullptr &&

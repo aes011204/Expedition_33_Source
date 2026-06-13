@@ -156,6 +156,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
     <ClInclude Include="..\public\ANS_Dodge.h" />
     <ClInclude Include="..\public\ANS_Emissive.h" />
@@ -212,6 +213,8 @@
     <ClInclude Include="..\Public\Battle_Event.h" />
     <ClInclude Include="..\public\BT_IsStun.h" />
     <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\Public\BT_SetSkillAI.h" />
+    <ClInclude Include="..\public\BT_Set_TargetAI.h" />
     <ClInclude Include="..\public\BT_Stun.h" />
     <ClInclude Include="..\Public\CameraDirector.h" />
     <ClInclude Include="..\Public\CameraPresetIO.h" />
@@ -253,14 +256,26 @@
     <ClInclude Include="..\Public\MapLandscape.h" />
     <ClInclude Include="..\Public\MainTitleMenuSound.h" />
     <ClInclude Include="..\public\Level_GameEntry.h" />
+    <ClInclude Include="..\Public\MB_Abbest.h" />
     <ClInclude Include="..\public\MB_Bishop.h" />
+    <ClInclude Include="..\Public\MB_Mime.h" />
+    <ClInclude Include="..\Public\MB_PotatoBag.h" />
     <ClInclude Include="..\public\MB_Portier.h" />
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\MB_Volester.h" />
+    <ClInclude Include="..\Public\Mon_Abbest_Body.h" />
     <ClInclude Include="..\public\Mon_Bishop_Body.h" />
+    <ClInclude Include="..\Public\Mon_Mime_Bagutte.h" />
+    <ClInclude Include="..\Public\Mon_Mime_Body.h" />
+    <ClInclude Include="..\Public\Mon_PotatoBag_Body.h" />
+    <ClInclude Include="..\Public\Mon_PotatoBag_Shield.h" />
+    <ClInclude Include="..\Public\Mon_PotatoBag_Weapon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="..\public\Mon_Volester_Body.h" />
+    <ClInclude Include="..\Public\MW_Abbest.h" />
     <ClInclude Include="..\public\MW_Bishop.h" />
+    <ClInclude Include="..\Public\MW_Mime.h" />
+    <ClInclude Include="..\Public\MW_PotatoBag.h" />
     <ClInclude Include="..\public\MW_Portier.h" />
     <ClInclude Include="..\public\MW_Simon.h" />
     <ClInclude Include="..\public\MW_Volester.h" />
@@ -469,6 +484,7 @@
     <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
     <ClCompile Include="..\private\ANS_Emissive.cpp" />
@@ -521,6 +537,8 @@
     <ClCompile Include="..\Private\BattleTutorialController.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
     <ClCompile Include="..\private\BT_LookRange.cpp" />
+    <ClCompile Include="..\Private\BT_SetSkillAI.cpp" />
+    <ClCompile Include="..\private\BT_Set_TargetAI.cpp" />
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
@@ -558,14 +576,26 @@
     <ClCompile Include="..\Private\MapLandscape.cpp" />
     <ClCompile Include="..\Private\MainTitleMenuSound.cpp" />
     <ClCompile Include="..\private\Level_GameEntry.cpp" />
+    <ClCompile Include="..\Private\MB_Abbest.cpp" />
     <ClCompile Include="..\private\MB_Bishop.cpp" />
+    <ClCompile Include="..\Private\MB_Mime.cpp" />
+    <ClCompile Include="..\Private\MB_PotatoBag.cpp" />
     <ClCompile Include="..\private\MB_Portier.cpp" />
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\MB_Volester.cpp" />
+    <ClCompile Include="..\Private\Mon_Abbest_Body.cpp" />
     <ClCompile Include="..\private\Mon_Bishop_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Mime_Bagutte.cpp" />
+    <ClCompile Include="..\Private\Mon_Mime_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_PotatoBag_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_PotatoBag_Shield.cpp" />
+    <ClCompile Include="..\Private\Mon_PotatoBag_Weapon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
+    <ClCompile Include="..\Private\MW_Abbest.cpp" />
     <ClCompile Include="..\private\MW_Bishop.cpp" />
+    <ClCompile Include="..\Private\MW_Mime.cpp" />
+    <ClCompile Include="..\Private\MW_PotatoBag.cpp" />
     <ClCompile Include="..\private\MW_Portier.cpp" />
     <ClCompile Include="..\private\MW_Simon.cpp" />
     <ClCompile Include="..\private\MW_Volester.cpp" />

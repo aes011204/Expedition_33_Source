@@ -277,6 +277,22 @@ void Sound_Manager::Set_ChannelPaused(SoundChannel channel, bool paused)
     }
 }
 
+void Sound_Manager::Set_GlobalPitch(float pitch, bool includeBGM)
+{
+    _globalPitch = max(0.01f, pitch);
+    _globalPitchIncludesBGM = includeBGM;
+
+    for (uint32 i = 0; i < ETOI(SoundChannel::END); ++i)
+    {
+        if (!_channelGroups[i])
+            continue;
+
+        const SoundChannel channel = static_cast<SoundChannel>(i);
+        const float channelPitch = (channel == SoundChannel::BGM && !_globalPitchIncludesBGM) ? 1.f : _globalPitch;
+        FMOD_ChannelGroup_SetPitch(_channelGroups[i], channelPitch);
+    }
+}
+
 void Sound_Manager::Stop_Channel(SoundChannel channel, float fadeOutDuration)
 {
     if (!_system || !Validate_Channel(channel))
@@ -778,6 +794,8 @@ HRESULT Sound_Manager::Create_ChannelGroups()
 
         FMOD_ChannelGroup_SetVolume(_channelGroups[i], _channelVolumes[i]);
     }
+
+    Set_GlobalPitch(_globalPitch, _globalPitchIncludesBGM);
 
     return S_OK;
 }

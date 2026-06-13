@@ -2,6 +2,40 @@
 
 #include "MonsterStatCom.h"
 
+namespace
+{
+    bool DrawEnemyClassCombo(EEnemyClass& enemyClass)
+    {
+        bool changed = false;
+        const string previewLabel = string(magic_enum::enum_name(enemyClass));
+        const char* preview = previewLabel.empty() ? "Unknown" : previewLabel.c_str();
+
+        ImGui::TextDisabled("Enemy Class");
+        ImGui::SameLine(120.f);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+        if (ImGui::BeginCombo("##MonsterEnemyClass", preview))
+        {
+            for (const auto& [candidate, candidateName] : magic_enum::enum_entries<EEnemyClass>())
+            {
+                const bool isSelected = (enemyClass == candidate);
+                if (ImGui::Selectable(string(candidateName).c_str(), isSelected))
+                {
+                    enemyClass = candidate; // MonsterStatCom의 PROPERTY_ENUM Enemy Class와 같은 저장값을 편집한다.
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        return changed;
+    }
+}
+
 void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
     Shared<MonsterStatCom> stat = dynamic_pointer_cast<MonsterStatCom>(component);
@@ -24,6 +58,10 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
         "##MonsterBattleAnnounceName",
         desc.battleAnnounceName);
 
+    int rewardExp = static_cast<int>(desc.exp);
+    int rewardChroma = static_cast<int>(desc.chroma);
+    int shieldPointsAtSpawn = static_cast<int>(desc.commonCharacterStats.ShieldPointsAtSpawn);
+
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);
     float physicalAttack = desc.physicalAttack;
@@ -31,6 +69,37 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     float speed = desc.speed;
     bool isBreak = runtime.isBreak;
 
+    ImGui::Spacing();
+
+    ImGui::TextDisabled("Reward Exp");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragInt("##MonsterRewardExp", &rewardExp, 1.f, 0, 9999999))
+    {
+        desc.exp = static_cast<uint32>(max(0, rewardExp));
+    }
+
+    ImGui::TextDisabled("Reward Chroma");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragInt("##MonsterRewardChroma", &rewardChroma, 1.f, 0, 9999999))
+    {
+        desc.chroma = static_cast<uint32>(max(0, rewardChroma));
+    }
+
+    DrawEnemyClassCombo(desc.enemyClass);
+
+    ImGui::TextDisabled("Shield At Spawn");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragInt("##MonsterShieldPointsAtSpawn", &shieldPointsAtSpawn, 1.f, 0, 99))
+    {
+        desc.commonCharacterStats.ShieldPointsAtSpawn = static_cast<uint32>(max(0, shieldPointsAtSpawn));
+        runtime.CurShield = desc.commonCharacterStats.ShieldPointsAtSpawn;
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
 
     ImGui::TextDisabled("Max HP");

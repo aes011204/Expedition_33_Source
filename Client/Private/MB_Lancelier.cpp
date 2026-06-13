@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(MB_Lancelier)
     info.displayName = "MB_Lancelier";
     info.category = "Monster";
     PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
+    PROPERTY_FLOAT("Battle RunLoop Move Speed", _battleRunLoopMoveSpeed, 0.f, 30.f, 0.1f);
 
     return true;
 }
@@ -37,9 +38,9 @@ HRESULT MB_Lancelier::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-    
-    _body->Set_Animation("Lancelier_Idle", 0.3f, true);
 
+    if (Shared<ModelCom> model = _body ? _body->Get_Model() : nullptr)
+        model->Set_Animation("Lancelier_Idle", true);
 
     _combatStat->Set_Skill("Lancelier_Slow");
     _combatStat->Set_Skill("Lancelier_Fast");

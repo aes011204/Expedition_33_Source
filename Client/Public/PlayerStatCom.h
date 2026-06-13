@@ -23,6 +23,9 @@ public:
         int32 agility = 1;      // 민첩
         int32 defense = 1;      // 방어
         int32 luck = 1;         // 행운
+
+        string equippedWeaponId = "";
+        uint32 equippedWeaponPower = 0;
     };
 
     // UI, 전투 데미지 계산, 디버그 출력이 읽는 값
@@ -56,6 +59,9 @@ public:
         float CurCriticalRate = 0.f;
         float CurMastery = 0.f;
         float CurCriticalChance = 0.f;
+
+        string CurEquippedWeaponId = "";
+        uint32 CurEquippedWeaponPower = 0;
     };
 
     // UI에서 미리보여주기용
@@ -117,6 +123,8 @@ public:
     {
         return _playerDesc.battleAnnounceName;
     }
+
+    void Set_EquippedWeapon(const string& weaponId, uint32 power);
 
 public:
     static PreviewStat Calculate_PreviewStat(

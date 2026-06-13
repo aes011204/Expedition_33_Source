@@ -110,6 +110,20 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const v
     }
 }
 
+float DamageSystem::CalculatePlayerAttackDamage(const BattleChar& attacker, float multiplier)
+{
+    if (attacker.statCom == nullptr || multiplier <= 0.f)
+        return 0.f;
+
+    const float attack = attacker.statCom->Get_StatInfo().physicalAttack;
+    const float baseDamage = max(0.f, attack * multiplier);
+
+    // 대충 랜덤값 추가
+    const float variance = GAME->Random(0.9f, 1.1f);
+
+    return baseDamage * variance;
+}
+
 void DamageSystem::ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType)
 {
     BattleChar emptyAttacker{};

@@ -229,6 +229,16 @@ void PlayerStatCom::Set_BattleStartAp()
     Get_PlayerRuntimeStat().CurAp = 3;
 }
 
+void PlayerStatCom::Set_EquippedWeapon(const string& weaponId, uint32 power)
+{
+    _playerDesc.equippedWeaponId = weaponId;
+    _playerDesc.equippedWeaponPower = power;
+
+    // 무기 Power가 physicalAttack에 들어가므로 즉시 재계산
+    Recalculate_Stats();
+    Update_StatInfo();
+}
+
 PlayerStatCom::PreviewStat PlayerStatCom::Calculate_PreviewStat(int32 vitality, int32 might, int32 agility,
                                                                 int32 defense, int32 luck)
 {
@@ -355,9 +365,11 @@ void PlayerStatCom::Recalculate_Stats()
         _PRuntimeStat.CurDefense,
         _PRuntimeStat.CurLuck);
 
+    const float weaponAttack = static_cast<float>(_playerDesc.equippedWeaponPower);
+
     // 33 원정대 데이터 공식 일단 유지해서 해봄
     _playerDesc.maxHp = preview.maxHp;
-    _playerDesc.physicalAttack = preview.physicalAttack;
+    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack; // 기본 스탯 공격력 + 무기 공격력
     _playerDesc.physicalDefense = preview.physicalDefense;
     _playerDesc.speed = preview.speed;
     _playerDesc.criticalRate = preview.criticalRate;
@@ -382,6 +394,9 @@ void PlayerStatCom::Update_StatInfo()
     _PRuntimeStat.CurCriticalRate = _playerDesc.criticalRate;
     _PRuntimeStat.CurMastery = _playerDesc.mastery;
     _PRuntimeStat.CurCriticalChance = _playerDesc.criticalChance;
+
+    _PRuntimeStat.CurEquippedWeaponId = _playerDesc.equippedWeaponId;
+    _PRuntimeStat.CurEquippedWeaponPower = _playerDesc.equippedWeaponPower;
 }
 
 Shared<PlayerStatCom> PlayerStatCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

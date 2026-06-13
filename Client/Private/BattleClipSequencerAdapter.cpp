@@ -237,6 +237,12 @@ void DrawBattleClipKeyMarkers(
             if (selectedKeyIndex != nullptr)
                 *selectedKeyIndex = keyIndex;
 
+            if (currentFrame != nullptr)
+                *currentFrame = keyFrame;
+
+            if (consumedKeyClick != nullptr)
+                *consumedKeyClick = true;
+
             if (requestRemoveKeyPopup != nullptr)
                 *requestRemoveKeyPopup = true;
         }
@@ -300,8 +306,14 @@ void DrawBattleClipKeyMarkers(
         if (selectedTrackIndex != nullptr)
             *selectedTrackIndex = index;
 
+        if (selectedKeyIndex != nullptr)
+            *selectedKeyIndex = -1;
+
         if (currentFrame != nullptr)
             *currentFrame = std::clamp(clickedFrame, frameMin, frameMax);
+
+        if (consumedKeyClick != nullptr)
+            *consumedKeyClick = true;
 
         if (contextTrackIndex != nullptr)
             *contextTrackIndex = index;

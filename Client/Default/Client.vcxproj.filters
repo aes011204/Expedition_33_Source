@@ -285,7 +285,6 @@
     <ClCompile Include="..\Private\MainTitleMenuSound.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp">
       <Filter>06. Effect System\Trail Support</Filter>
@@ -431,12 +430,7 @@
     <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
-    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
-    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
-    <ClCompile Include="..\private\BT_IsStun.cpp" />
-    <ClCompile Include="..\private\BT_Stun.cpp" />
-    <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="..\private\MW_Simon.cpp" />
@@ -447,7 +441,6 @@
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_QTE.cpp" />
-    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\BattleQTEController.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -463,9 +456,7 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
-    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
-    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp">
       <Filter>02.GameObject\Map\MapWater</Filter>
@@ -508,6 +499,33 @@
     </ClCompile>
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp">
       <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
+    <ClCompile Include="..\Private\AN_CounterReturnAll.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_IsStun.cpp" />
+    <ClCompile Include="..\private\BT_LookRange.cpp" />
+    <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\private\BT_Stun.cpp" />
+    <ClCompile Include="..\private\BT_Set_TargetAI.cpp" />
+    <ClCompile Include="..\Private\BT_SetSkillAI.cpp">
+      <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -649,7 +667,6 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
@@ -729,7 +746,16 @@
     <ClInclude Include="..\Public\GameplayUI_World.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MB_Abbest.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\MB_Bishop.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MB_Mime.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MB_PotatoBag.h">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClInclude>
     <ClInclude Include="..\public\MB_Portier.h">
@@ -738,13 +764,40 @@
     <ClInclude Include="..\public\MB_Volester.h">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Mon_Abbest_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\Mon_Bishop_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_Mime_Bagutte.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_Mime_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_PotatoBag_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_PotatoBag_Shield.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_PotatoBag_Weapon.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Mon_Volester_Body.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MW_Abbest.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\MW_Bishop.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MW_Mime.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MW_PotatoBag.h">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClInclude>
     <ClInclude Include="..\public\MW_Portier.h">
@@ -1159,7 +1212,6 @@
     <ClInclude Include="..\Public\MainTitleMenuSound.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h">
       <Filter>06. Effect System\Trail Support</Filter>
@@ -1305,12 +1357,7 @@
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
-    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
-    <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
-    <ClInclude Include="..\public\BT_IsStun.h" />
-    <ClInclude Include="..\public\BT_Stun.h" />
-    <ClInclude Include="..\public\BT_Patrol.h" />
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="..\public\MW_Simon.h" />
@@ -1345,9 +1392,7 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SkyBoxFlow.h" />
-    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
     <ClInclude Include="..\Public\SkyCloudCard.h" />
-    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
     <ClInclude Include="..\Public\MapWater.h">
       <Filter>02.GameObject\Map\MapWater</Filter>
@@ -1382,6 +1427,30 @@
     <ClInclude Include="..\Public\CostumeManager.h" />
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
       <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
+    <ClInclude Include="..\Public\AN_CounterReturnAll.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_Visible_Parts.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_IsStun.h" />
+    <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\public\BT_Patrol.h" />
+    <ClInclude Include="..\public\BT_Stun.h" />
+    <ClInclude Include="..\public\BT_Set_TargetAI.h" />
+    <ClInclude Include="..\Public\BT_SetSkillAI.h">
+      <Filter>BehavoirTree\battle</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1439,7 +1508,16 @@
     <ClCompile Include="..\Private\GameplayUI_World.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MB_Abbest.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\MB_Bishop.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MB_Mime.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MB_PotatoBag.cpp">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MB_Portier.cpp">
@@ -1448,13 +1526,40 @@
     <ClCompile Include="..\private\MB_Volester.cpp">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Mon_Abbest_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\Mon_Bishop_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_Mime_Bagutte.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_Mime_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_PotatoBag_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_PotatoBag_Shield.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_PotatoBag_Weapon.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Mon_Volester_Body.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MW_Abbest.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\MW_Bishop.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MW_Mime.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MW_PotatoBag.cpp">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MW_Portier.cpp">

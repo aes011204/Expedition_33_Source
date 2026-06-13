@@ -26,9 +26,17 @@ enum class BattleCameraMode
 enum class BattleCameraTransitionEasing
 {
     Linear,
+    EaseInOut,
     EaseIn,
     EaseOut,
-    EaseInOut,
+    EaseInStrong,
+    EaseOutStrong,
+    EaseInOutStrong,
+    EaseInCubic,
+    EaseOutCubic,
+    EaseInExpo,
+    EaseOutExpo,
+    EaseOutBack
 };
 
 struct PreviewShotPreset
@@ -85,6 +93,20 @@ struct TargetCameraPreset
 
 };
 
+struct BattleCameraDriftProfile
+{
+    bool enabled = false;
+
+    float lateralAmplitude = 1.6f;
+    float verticalAmplitude = 0.8f;
+    float depthAmplitude = 0.35f;
+    float rollAmplitude = 0.035f;
+
+    float lateralFrequency = 0.65f;
+    float verticalFrequency = 0.92f;
+    float depthFrequency = 0.48f;
+    float rollFrequency = 0.55f;
+};
 
 struct BattleCameraPreset
 {

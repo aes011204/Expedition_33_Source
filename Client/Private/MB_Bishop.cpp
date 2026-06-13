@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(MB_Bishop)
     info.displayName = "MB_Bishop";
     info.category = "Monster";
     PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
+    PROPERTY_FLOAT("Battle RunLoop Move Speed", _battleRunLoopMoveSpeed, 0.f, 30.f, 0.1f);
 
     return true;
 }
@@ -36,18 +37,19 @@ HRESULT MB_Bishop::Initialize_Prototype()
 HRESULT MB_Bishop::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
+
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
     //_body->Set_Animation("Bishop_Idle", 0.3f, true);
 
     //_combatStat->Set_Skill("Eveque_Projectiles");
-    _combatStat->Set_Skill("Eveque_SingleSpear");
-    _combatStat->Set_Skill("Eveque_DoubleSpear");
+    //_combatStat->Set_Skill("Eveque_SingleSpear");
+    //_combatStat->Set_Skill("Eveque_DoubleSpear");
     //_combatStat->Set_Skill("Eveque_Defense");
-    _combatStat->Set_Skill("Eveque_GroundAoE");
-    _combatStat->Set_Skill("Eveque_EnragedCombo");
+    //_combatStat->Set_Skill("Eveque_GroundAoE");
+    //_combatStat->Set_Skill("Eveque_EnragedCombo");
     _combatStat->Set_Skill("Eveque_Spawn_Mini");
-
+    
     return S_OK;
 }
 

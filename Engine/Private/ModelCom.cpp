@@ -167,7 +167,11 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop, float startFrame)
 {
     if (animIndex >= _animations.size()) return;
 
+    _hasExplicitAnimation = true;
+    _skipInitialBlendSourceNotify = false;
     _currentAnimIndex = animIndex;
+    _currentAnimStateIndex = UINT32_MAX;
+    _nextAnimStateIndex = UINT32_MAX;
     _isAnimLoop = isLoop;
     _isBlending = false;
     _isFinished = false;
@@ -180,14 +184,17 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startF
 {
     if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
     {
-         LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
-             String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
+         //LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
+          //   String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
 
         return false;
     }
 
     const uint32 animIndex = _stateAnimIndices[stateIndex];
+    _hasExplicitAnimation = true;
+    _skipInitialBlendSourceNotify = false;
     _currentAnimStateIndex = stateIndex;
+    _nextAnimStateIndex = UINT32_MAX;
     _currentAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = false;
@@ -202,6 +209,10 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop,
 {
     if (animIndex >= _animations.size()) return;
 
+    _skipInitialBlendSourceNotify =
+        !_hasExplicitAnimation && _currentAnimIndex != animIndex;
+    _hasExplicitAnimation = true;
+    _nextAnimStateIndex = UINT32_MAX;
     _nextAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = true;
@@ -246,6 +257,9 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
     }
 
     const uint32 animIndex = _stateAnimIndices[stateIndex];
+    _skipInitialBlendSourceNotify =
+        !_hasExplicitAnimation && _currentAnimIndex != animIndex;
+    _hasExplicitAnimation = true;
     _nextAnimStateIndex = stateIndex;
     _nextAnimIndex = animIndex;
     _isAnimLoop = isLoop;
@@ -2057,6 +2071,7 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
         if (ratio >= 1.f)
         {
             _isBlending = false;
+            _skipInitialBlendSourceNotify = false;
             _currentAnimIndex = _nextAnimIndex;
             _currentAnimStateIndex = _nextAnimStateIndex;
 
@@ -2130,6 +2145,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     const float notifyPreviousTimeSec = animationChangedThisFrame ? 0.f : context.previousTimeSec;
     const bool wrapped = (_isAnimLoop && currentTimeSec < notifyPreviousTimeSec);
 
+    if (!_skipInitialBlendSourceNotify)
     {
         //Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
 
@@ -2597,8 +2613,12 @@ void ModelCom::Reset_ModelData()
     _isFinished = false;
     _isAnimLoop = false;
     _isBlending = false;
+    _hasExplicitAnimation = false;
+    _skipInitialBlendSourceNotify = false;
     _currentAnimIndex = 0;
     _nextAnimIndex = 0;
+    _currentAnimStateIndex = UINT32_MAX;
+    _nextAnimStateIndex = UINT32_MAX;
     _blendDuration = 0.f;
     _blendElapsedTime = 0.f;
 
