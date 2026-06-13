@@ -2,6 +2,7 @@
 #include "ClientInstance.h"
 #include "Mon_Bishop_Body.h"
 #include "Mon_Lancelier_Weapon.h"
+#include "MonsterStatCom.h"
 #include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MW_Bishop)
@@ -33,6 +34,10 @@ HRESULT MW_Bishop::Initialize_Prototype()
 HRESULT MW_Bishop::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
+
+    if (_combatStat)
+        _combatStat->Get_MonsterDesc().isBoss = true;
+
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
     return S_OK;
