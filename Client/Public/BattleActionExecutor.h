@@ -32,7 +32,6 @@ private:
 
     void Update_BasicMovement(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
     void Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
-    void Update_FixedSpeedToTarget(float timeDelta, BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
     void Update_RatioMoveTo(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
 
     void FinishCurrentPhaseAtGoal(BattleAction& action);

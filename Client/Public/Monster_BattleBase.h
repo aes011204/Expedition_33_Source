@@ -89,7 +89,6 @@ protected:
 
     float                           _battleRunLoopMoveSpeed = 0.f;
 
-
 public:
     void Free() override;
 

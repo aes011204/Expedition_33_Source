@@ -106,8 +106,7 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 
     Apply_PhasePlayRate(phase, action.Get_CurChar().ModelCom);
 
-    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::FixedSpeedToTarget)
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
         action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, true);
     else
         action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, false);
@@ -281,10 +280,6 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
         Update_RootMotionToTarget(action, transform, currentPos);
         return;
 
-    case BattleMovementPolicy::FixedSpeedToTarget:
-        Update_FixedSpeedToTarget(timeDelta, action, transform, currentPos);
-        return;
-
     case BattleMovementPolicy::MoveToTarget:
     case BattleMovementPolicy::ReturnToOrigin:
         Update_RatioMoveTo(action, transform, currentPos);
@@ -363,41 +358,6 @@ void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const
     }
 
     transform->Set_Position(currentPos + moveDelta);
-}
-
-void BattleActionExecutor::Update_FixedSpeedToTarget(float timeDelta, BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
-{
-    const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(action.Get_CurChar().actor);
-    if (monster == nullptr)
-        return;
-
-    const float speed = monster->Get_BattleRunLoopMoveSpeed();
-    if (speed <= 0.f)
-        return;
-
-    Vec3 toGoal = action.GetPhaseGoalPos() - currentPos;
-    toGoal.y = 0.f;
-
-    const float remain = toGoal.Length();
-    if (remain <= 0.05f)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
-
-    toGoal.Normalize();
-
-    const float moveAmount = speed * timeDelta;
-    if (moveAmount <= 0.f)
-        return;
-
-    if (moveAmount >= remain)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
-
-    transform->Set_Position(currentPos + toGoal * moveAmount);
 }
 
 void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
