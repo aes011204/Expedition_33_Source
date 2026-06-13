@@ -57,6 +57,8 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
             converted = Build_TrailEmitterDefinition(emitter, emitterDefinition);
         else if (rendererTypeLower == "sourcehistoryribbon" || rendererTypeLower == "ribbon")
             converted = Build_SourceHistoryRibbonEmitterDefinition(emitter, emitterDefinition);
+        else if (rendererTypeLower == "sourcehistoryspritetrail")
+            converted = Build_SourceHistorySpriteTrailEmitterDefinition(emitter, emitterDefinition);
         else if (rendererTypeLower == "beam")
             converted = Build_BeamEmitterDefinition(emitter, emitterDefinition);
         else if (rendererTypeLower == "mesh")

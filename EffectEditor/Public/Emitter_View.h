@@ -84,6 +84,7 @@ private: //## Types::PendingAction
         AddTrail,
         AddMesh,
         AddRibbon,
+        AddSourceHistorySpriteTrail,
         AddBeam,
         ResetData,
         Remove

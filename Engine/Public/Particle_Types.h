@@ -146,6 +146,24 @@ struct BeamInstanceLayout
     };
 };
 
+// Source-history sprite trail shader가 사용하는 vertex + instance input layout.
+// ComputeSourceHistorySpriteTrailEmitter::StampInstanceVertex와 byte layout을 맞춘다.
+struct SourceHistorySpriteTrailInstanceLayout
+{
+    static constexpr uint32 numElements = 8;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 40, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 56, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+    };
+};
+
 // SubUVFrameOverLife 모듈의 최소 preview runtime desc다.
 struct PointParticleSubUVFrameOverLifeDesc
 {

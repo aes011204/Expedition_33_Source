@@ -110,6 +110,55 @@ namespace Internal
         }
     }
 
+    static const char* Get_SourceHistorySpriteTrailStampSpawnModeLabel(SourceHistorySpriteTrailStampSpawnMode value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailStampSpawnMode::Distance:
+            return "Distance";
+        case SourceHistorySpriteTrailStampSpawnMode::Time:
+            return "Time";
+        default:
+            return "Distance";
+        }
+    }
+
+    static bool Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistorySpriteTrailStampSpawnMode& value,
+        SourceHistorySpriteTrailStampSpawnMode defaultValue)
+    {
+        bool changed = false;
+        ImGui::PushID("SourceHistorySpriteTrailStampSpawnMode");
+        detailContext.Draw_PropertyLabel("스탬프 생성 기준", "Distance는 source path 이동 거리, Time은 시간 간격으로 sprite card를 찍습니다.");
+        if (ImGui::BeginCombo("##Value", Get_SourceHistorySpriteTrailStampSpawnModeLabel(value)))
+        {
+            constexpr SourceHistorySpriteTrailStampSpawnMode kValues[] = {
+                SourceHistorySpriteTrailStampSpawnMode::Distance,
+                SourceHistorySpriteTrailStampSpawnMode::Time,
+            };
+            for (const SourceHistorySpriteTrailStampSpawnMode candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_SourceHistorySpriteTrailStampSpawnModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
     static const char* Get_SourceHistoryPreviewMotionPresetTooltip(SourceHistoryPreviewMotionPreset value)
     {
         switch (value)
@@ -1718,6 +1767,230 @@ void Detail_View::Render_TypeDataDetail(
                     0.01f,
                     "Line/Arc는 one-shot 진행 속도, Loop는 등속 반복 속도입니다."
                 );
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        break;
+    }
+    case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+    {
+        SourceHistorySpriteTrailTypeData* data = get_if<SourceHistorySpriteTrailTypeData>(&emitter.typeData.payload);
+        if (data == nullptr)
+        {
+            ImGui::TextDisabled("SourceHistorySpriteTrail TypeData payload is invalid.");
+            break;
+        }
+
+        const SourceHistorySpriteTrailTypeData defaultData{};
+        if (ImGui::CollapsingHeader("Source", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailSource"))
+            {
+                changed |= Internal::Draw_SourceHistoryRibbonSourceModeProperty(
+                    _detailPropertyContext,
+                    data->sourceMode,
+                    defaultData.sourceMode
+                );
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+                {
+                    data->sourceMode = data->sourceEmitterId != 0u
+                                       ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                       : SourceHistoryRibbonSourceMode::SelfRoot;
+                    changed = true;
+                }
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SelfRoot && data->sourceEmitterId != 0u)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+                else if (data->sourceEmitterId == emitter.id)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter)
+                {
+                    changed |= Internal::Draw_SourceHistoryRibbonSourceEmitterProperty(
+                        _detailPropertyContext,
+                        emitterView->Get_Emitters(),
+                        emitter,
+                        data->sourceEmitterId,
+                        defaultData.sourceEmitterId
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "최대 추적 수",
+                        data->followerLaneCount,
+                        defaultData.followerLaneCount,
+                        "동시에 따라갈 source particle lane 상한입니다."
+                    );
+                    data->followerLaneCount = max(1u, data->followerLaneCount);
+                }
+
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("History", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailHistory"))
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 수명",
+                    data->sampleLifetime,
+                    defaultData.sampleLifetime,
+                    0.01f,
+                    "source history sample을 보관하는 시간입니다. stamp lifetime과 구분됩니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 간격",
+                    data->sampleSpacing,
+                    defaultData.sampleSpacing,
+                    0.005f,
+                    "source가 이 거리 이상 움직이면 새 history sample을 추가합니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "길이 제한",
+                    data->maxLength,
+                    defaultData.maxLength,
+                    0.01f,
+                    "head 기준 stamp 생성 후보 path의 최대 길이입니다. 0 이하면 제한하지 않습니다."
+                );
+                data->sampleLifetime = max(0.0001f, data->sampleLifetime);
+                data->sampleSpacing = max(0.001f, data->sampleSpacing);
+                data->maxLength = max(0.f, data->maxLength);
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Stamp", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailStamp"))
+            {
+                changed |= Internal::Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+                    _detailPropertyContext,
+                    data->stampSpawnMode,
+                    defaultData.stampSpawnMode
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "스탬프 간격",
+                    data->stampSpacing,
+                    defaultData.stampSpacing,
+                    0.005f,
+                    "Distance 모드에서 path 위 stamp 사이 거리입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "스탬프 시간 간격",
+                    data->stampInterval,
+                    defaultData.stampInterval,
+                    0.005f,
+                    "Time 모드에서 stamp를 찍는 시간 간격입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "스탬프 수명",
+                    data->stampLifetime,
+                    defaultData.stampLifetime,
+                    0.01f,
+                    "stamp 하나가 fade되며 유지되는 시간입니다."
+                );
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "최대 스탬프 수",
+                    data->maxStampCount,
+                    defaultData.maxStampCount,
+                    "lane 하나가 보관할 stamp 상한입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "지터",
+                    data->spawnJitter,
+                    defaultData.spawnJitter,
+                    0.005f,
+                    "path 주변 random offset 강도입니다. v0 기본값은 0입니다."
+                );
+                data->stampSpacing = max(0.001f, data->stampSpacing);
+                data->stampInterval = max(0.001f, data->stampInterval);
+                data->stampLifetime = max(0.0001f, data->stampLifetime);
+                data->maxStampCount = max(1u, data->maxStampCount);
+                data->spawnJitter = max(0.f, data->spawnJitter);
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Card", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailCard"))
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "카드 길이",
+                    data->cardLength,
+                    defaultData.cardLength,
+                    0.01f,
+                    "stamp card의 기준 길이입니다. 화면 정렬 방식에 따라 path 방향 또는 카메라 평면에 배치됩니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "카드 폭",
+                    data->cardWidth,
+                    defaultData.cardWidth,
+                    0.005f,
+                    "stamp card의 기준 폭입니다. Square 화면 정렬에서는 길이/폭 중 큰 값으로 맞춥니다."
+                );
+                data->cardLength = max(0.001f, data->cardLength);
+                data->cardWidth = max(0.001f, data->cardWidth);
+
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "U 반전",
+                    data->flipU,
+                    defaultData.flipU,
+                    "texture U 방향을 mirror 보정합니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "V 반전",
+                    data->flipV,
+                    defaultData.flipV,
+                    "texture V 방향을 mirror 보정합니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "회전 오프셋",
+                    data->rotationOffsetDegrees,
+                    defaultData.rotationOffsetDegrees,
+                    1.f,
+                    "authored texture의 기본 방향 차이를 degree 단위로 보정합니다."
+                );
+
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Preview Motion (에디터 tail 검증용 수치. 저장 X)", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailPreviewMotion"))
+            {
+                changed |= Internal::Draw_SourceHistoryPreviewMotionPresetProperty(
+                    _detailPropertyContext,
+                    data->previewMotionPreset,
+                    defaultData.previewMotionPreset
+                );
+                changed |= Internal::Draw_SourceHistoryPreviewMotionAxisProperty(
+                    _detailPropertyContext,
+                    data->previewMotionAxis,
+                    defaultData.previewMotionAxis
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "프리뷰 이동 크기",
+                    data->previewMotionAmplitude,
+                    defaultData.previewMotionAmplitude,
+                    0.01f
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "프리뷰 이동 속도",
+                    data->previewMotionSpeed,
+                    defaultData.previewMotionSpeed,
+                    0.01f
+                );
+                data->previewMotionAmplitude = max(0.f, data->previewMotionAmplitude);
+                data->previewMotionSpeed = max(0.f, data->previewMotionSpeed);
                 _detailPropertyContext.End_PropertyTable();
             }
         }

@@ -75,11 +75,14 @@ private:
     {
         uint32 sourceIndex{};
         Vec3 currentSourcePosition{};
+        Vec3 previousSourcePosition{};
         vector<HistorySample> history{};
         float sampleIntervalAccumulator{};
+        float collapseLength{ -1.f };
         float age{};
         float missingTime{};
         bool activeThisFrame{};
+        bool hasPreviousSourcePosition{};
     };
 
     struct RibbonComputeParams
@@ -133,7 +136,10 @@ private:
     uint32 _loopIndex{};
     vector<HistorySample> _history{};
     float _sampleIntervalAccumulator{};
+    float _selfRootCollapseLength{ -1.f };
     Vec3 _selfRootSourcePosition{};
+    Vec3 _selfRootPreviousSourcePosition{};
+    bool _hasSelfRootPreviousSourcePosition{};
     vector<HistoryLane> _sourceLanes{};
     float _materialElapsedTime{};
     float _visibleRibbonLength{ 1.f };
@@ -163,15 +169,14 @@ private:
     void Update_History(float timeDelta);
     void Update_SelfRootHistory(float timeDelta);
     void Update_ParticleFollowerHistory(float timeDelta);
-    bool Should_InsertSample(const vector<HistorySample>& history, float sampleIntervalAccumulator, const Vec3& sourcePosition) const;
     void Insert_HistorySample(vector<HistorySample>& history, float& sampleIntervalAccumulator, const Vec3& sourcePosition);
-    void Collapse_HistoryTowardSource(vector<HistorySample>& history, const Vec3& sourcePosition, float timeDelta) const;
     void Prune_History(vector<HistorySample>& history);
     void Build_RenderSamples(vector<RenderSample>& outSamples) const;
     void Build_RenderSamples(
         const vector<HistorySample>& history,
         vector<RenderSample>& outSamples,
-        const Vec3* currentSourcePosition = nullptr) const;
+        const Vec3* currentSourcePosition = nullptr,
+        const float* visibleLengthLimit = nullptr) const;
     HRESULT Append_SegmentPayloads(
         const vector<RenderSample>& renderSamples,
         vector<SegmentPayload>& outPayloads,

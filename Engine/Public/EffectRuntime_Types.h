@@ -13,11 +13,12 @@ NS_BEGIN(Engine)
 // Effect 내부 emitter의 concrete runtime 종류를 구분한다.
 enum class EffectEmitterKind : uint8
 {
-    Sprite, // compute-first sprite emitter runtime이다.
-    Trail,  // compute-first trail emitter runtime이다.
-    Ribbon, // source/root position history 기반 camera-facing ribbon runtime이다.
-    Beam,   // authored local path 기반 generated beam runtime이다.
-    Mesh,   // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
+    Sprite,                   // compute-first sprite emitter runtime이다.
+    Trail,                    // compute-first trail emitter runtime이다.
+    Ribbon,                   // source/root position history 기반 camera-facing ribbon runtime이다.
+    SourceHistorySpriteTrail, // source/root position history 기반 tangent-aligned sprite stamp runtime이다.
+    Beam,                     // authored local path 기반 generated beam runtime이다.
+    Mesh,                     // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
 };
 
 // Emitter 단위로 자동 render group 판정을 덮을 수 있는 제한된 override다.
@@ -305,7 +306,7 @@ struct EffectSpawnRuntimeDesc
 // Lifetime 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
 struct EffectLifetimeRuntimeDesc
 {
-    Vec2 lifeTime{ 0.5f, 1.f };                      // compute payload가 사용할 생존 시간 범위다.
+    Vec2 lifeTime{ 0.5f, 1.f };                         // compute payload가 사용할 생존 시간 범위다.
     PointParticleFloatCurveRuntimeDesc lifeTimeCurve{}; // Lifetime ConstantCurve를 sampling event phase 기준으로 평가하는 payload다.
 };
 
@@ -381,15 +382,15 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
 struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{};                                                   // trail 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
-    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime replay 단위 segment lifetime random sample seed salt다.
-    bool useLifetimeSegmentLifetime{ false };                                                        // true면 Lifetime 모듈을 segmentLifetime 기준으로 소비한다.
-    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
-    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
-    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{};                                              // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
+    EffectRequiredMaterialRuntimeDesc material{}; // trail 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{}; // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{}; // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{}; // Lifetime replay 단위 segment lifetime random sample seed salt다.
+    bool useLifetimeSegmentLifetime{ false }; // true면 Lifetime 모듈을 segmentLifetime 기준으로 소비한다.
+    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
+    PointParticleSizeByLifeDesc sizeByLife{}; // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
+    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
 
     float width{ 1.f };             // render sample의 base/tip span에 곱할 폭 비율이다. 1이면 원본 base/tip 폭을 유지한다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
@@ -514,17 +515,17 @@ struct EffectFollowerSourcePoint
 struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{};                                                   // ribbon 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 sample age 기준 fallback으로 소비하는 값이다.
-    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime replay 단위 sample lifetime random sample seed salt다.
-    bool useLifetimeSampleLifetime{ false };                                                         // true면 Lifetime 모듈을 sampleLifetime 기준으로 소비한다.
-    EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 Blend 정렬 규칙으로 소비하는 값이다.
-    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 source history sample 시작 색으로 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 sample age 기준 색/알파로 소비하는 값이다.
-    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
-    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 source history strip 폭 배율로 소비하는 값이다.
-    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
+    EffectRequiredMaterialRuntimeDesc material{}; // ribbon 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{}; // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{}; // Lifetime 모듈에서 sample age 기준 fallback으로 소비하는 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{}; // Lifetime replay 단위 sample lifetime random sample seed salt다.
+    bool useLifetimeSampleLifetime{ false }; // true면 Lifetime 모듈을 sampleLifetime 기준으로 소비한다.
+    EffectRequiredSortRuntimeDesc sort{}; // Required 모듈에서 Blend 정렬 규칙으로 소비하는 값이다.
+    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 source history sample 시작 색으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 sample age 기준 색/알파로 소비하는 값이다.
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{}; // SizeByLife 모듈에서 source history strip 폭 배율로 소비하는 값이다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{}; // SubUV RandomFrame replay 단위 seed salt다.
 
     EffectSourceHistoryRibbonSourceMode sourceMode{ EffectSourceHistoryRibbonSourceMode::SelfRoot }; // source history sample을 만들 source owner 종류다.
 
@@ -541,9 +542,9 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     bool laneSpawnFadeInEnabled{ true };    // ParticleEmitter lane이 새로 생길 때 strip 폭 fade-in을 적용할지 결정한다.
     float laneSpawnFadeInDuration{ 0.08f }; // 새 follower lane 폭이 0에서 원래 폭으로 커지는 시간이다.
 
-    float baseWidth{ 0.3f };     // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
-    float tilingDistance{ 0.f }; // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
-    bool autoLifeFade{ false }; // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
+    float baseWidth{ 0.3f };         // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
+    float tilingDistance{ 0.f };     // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
+    bool autoLifeFade{ false };      // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
     bool tailCollapseOnIdle{ true }; // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
     float tailCollapseSpeed{ 10.f }; // idle tail collapse 보간 속도다.
 
@@ -553,6 +554,65 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X };
     float previewMotionAmplitude{ 2.f }; // preview motion offset 크기다.
     float previewMotionSpeed{ 3.f };     // one-shot 진행률 또는 loop 반복 속도다.
+};
+
+enum class EffectSourceHistorySpriteTrailStampSpawnMode : uint8
+{
+    Distance,
+    Time,
+};
+
+enum class EffectSourceHistorySpriteTrailDirectionMode : uint8
+{
+    PathTangent,
+    CameraFacing,
+    VelocityTextureAxis,
+};
+
+// source/root history path 위에 Required sprite alignment 기반 sprite card stamp를 찍는 runtime payload다.
+struct ComputeSourceHistorySpriteTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
+{
+    EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto };
+    EffectRequiredMaterialRuntimeDesc material{};
+    EffectEmitterPlaybackRuntimeDesc playback{};
+    EffectDrawLimitRuntimeDesc drawLimit{};
+    EffectLifetimeRuntimeDesc lifetime{};
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};
+    bool useLifetimeStampLifetime{ false };
+    EffectRequiredSortRuntimeDesc sort{};
+    EffectInitialSizeRuntimeDesc initialSize{};
+    EffectInitialColorRuntimeDesc initialColor{};
+    EffectColorOverLifeRuntimeDesc colorOverLife{};
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};
+    PointParticleSizeByLifeDesc sizeByLife{};
+    PointParticleMotionDesc motion{};
+    PointParticleRotationDesc rotation{};
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};
+    EffectSpriteRenderRuntimeDesc spriteRender{};
+
+    EffectSourceHistoryRibbonSourceMode sourceMode{ EffectSourceHistoryRibbonSourceMode::SelfRoot };
+    uint32 sourceEmitterId{};
+    uint32 followerLaneCount{ 1 };
+    float sampleLifetime{ 0.35f };
+    float sampleSpacing{ 0.08f };
+    float maxLength{ 0.f };
+
+    EffectSourceHistorySpriteTrailStampSpawnMode stampSpawnMode{ EffectSourceHistorySpriteTrailStampSpawnMode::Distance };
+    float stampSpacing{ 0.12f };
+    float stampInterval{ 0.03f };
+    float stampLifetime{ 0.18f };
+    uint32 maxStampCount{ 128 };
+    float cardLength{ 0.45f };
+    float cardWidth{ 0.08f };
+    bool flipU{ false };
+    bool flipV{ false };
+    float rotationOffsetDegrees{ 0.f };
+    float spawnJitter{ 0.f };
+
+    EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Line };
+    EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X };
+    float previewMotionAmplitude{ 2.f };
+    float previewMotionSpeed{ 3.f };
 };
 
 // mesh emitter가 Vec3 transform curve를 CPU instance update에서 평가하기 위한 payload다.
@@ -624,6 +684,7 @@ using EffectEmitterConcreteDesc = variant<
     ComputeSpriteEmitterDesc,
     ComputeTrailEmitterDesc,
     ComputeRibbonEmitterDesc,
+    ComputeSourceHistorySpriteTrailEmitterDesc,
     ComputeBeamEmitterDesc,
     MeshEmitterDesc>;
 

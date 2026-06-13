@@ -126,10 +126,13 @@ private: //## Helper::Render
     HRESULT Render_CheckerBackground() const;
     HRESULT Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material) const;
     HRESULT Render_PostProcessResolve() const;
-    HRESULT Render_PostProcessToneMapping(Shared<RenderTarget> bloomTexture) const;
+    HRESULT Render_PostProcessToneMapping(const Shared<RenderTarget>& bloomTexture) const;
     HRESULT Render_PostProcessCopy() const;
-    HRESULT Render_BloomPass(Shared<RenderTarget> dstTarget, Shared<RenderTarget> srcTarget, PostProcessPass pass) const;
-    HRESULT Render_BloomUpsamplePass(Shared<RenderTarget> dstTarget, Shared<RenderTarget> smallTarget, Shared<RenderTarget> baseTarget) const;
+    HRESULT Render_BloomPass(const Shared<RenderTarget>& dstTarget, const Shared<RenderTarget>& srcTarget, PostProcessPass pass) const;
+    HRESULT Render_BloomUpsamplePass(
+        const Shared<RenderTarget>& dstTarget,
+        const Shared<RenderTarget>& smallTarget,
+        const Shared<RenderTarget>& baseTarget) const;
     HRESULT Bind_PostProcessCommon(uint32 width, uint32 height) const;
     HRESULT Render_Mesh(const PreviewMeshResource& mesh) const;
     void Resize_RenderTarget(uint32 width, uint32 height);

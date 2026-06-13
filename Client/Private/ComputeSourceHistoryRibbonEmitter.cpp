@@ -387,6 +387,8 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Reset_ForEffectReplay()
     Reset_PlaybackRuntime();
     _history.clear();
     _sampleIntervalAccumulator = 0.f;
+    _selfRootCollapseLength = -1.f;
+    _hasSelfRootPreviousSourcePosition = false;
     Clear_ParticleFollowerHistory();
     _materialElapsedTime = 0.f;
     _visibleRibbonLength = 1.f;
@@ -508,12 +510,46 @@ void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
 
         const Vec3 sourcePosition = Resolve_SourcePosition();
         _selfRootSourcePosition = sourcePosition;
-        const bool shouldInsertSample =
-            _history.empty() || Should_InsertSample(_history, _sampleIntervalAccumulator, sourcePosition);
+        const float frameMovedDistance =
+            _hasSelfRootPreviousSourcePosition
+            ? (sourcePosition - _selfRootPreviousSourcePosition).Length()
+            : _desc.sampleSpacing;
+        const bool isIdle =
+            _hasSelfRootPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
+        const bool movedEnough =
+            _history.empty() || (sourcePosition - _history.front().position).Length() >= _desc.sampleSpacing;
+        const bool intervalReady =
+            _desc.sampleInterval > 0.f && _sampleIntervalAccumulator >= _desc.sampleInterval;
+        const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
+        if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
+            _selfRootCollapseLength = -1.f;
+
         if (shouldInsertSample)
+        {
             Insert_HistorySample(_history, _sampleIntervalAccumulator, sourcePosition);
-        else
-            Collapse_HistoryTowardSource(_history, sourcePosition, safeDeltaTime);
+            _selfRootCollapseLength = -1.f;
+        }
+        else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
+        {
+            vector<RenderSample> fullRenderSamples{};
+            Build_RenderSamples(_history, fullRenderSamples, &_selfRootSourcePosition);
+            const float currentLength =
+                _selfRootCollapseLength >= 0.f
+                ? _selfRootCollapseLength
+                : (fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f);
+            if (isIdle)
+            {
+                const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
+                _selfRootCollapseLength = max(0.f, currentLength * (1.f - collapseRatio));
+            }
+            else
+            {
+                _selfRootCollapseLength = -1.f;
+            }
+        }
+
+        _selfRootPreviousSourcePosition = sourcePosition;
+        _hasSelfRootPreviousSourcePosition = true;
     }
 
     Prune_History(_history);
@@ -561,15 +597,47 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
 
             lane->activeThisFrame = true;
             lane->missingTime = 0.f;
+            const float frameMovedDistance =
+                lane->hasPreviousSourcePosition
+                ? (sourcePoint.position - lane->previousSourcePosition).Length()
+                : _desc.sampleSpacing;
+            const bool isIdle =
+                lane->hasPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
             lane->currentSourcePosition = sourcePoint.position;
-            const bool shouldInsertSample =
-                lane->history.empty() ||
-                Should_InsertSample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
-            if (shouldInsertSample)
-                Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
-            else
-                Collapse_HistoryTowardSource(lane->history, sourcePoint.position, safeDeltaTime);
+            const bool movedEnough =
+                lane->history.empty() || (sourcePoint.position - lane->history.front().position).Length() >= _desc.sampleSpacing;
+            const bool intervalReady =
+                _desc.sampleInterval > 0.f && lane->sampleIntervalAccumulator >= _desc.sampleInterval;
+            const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
+            if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
+                lane->collapseLength = -1.f;
 
+            if (shouldInsertSample)
+            {
+                Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
+                lane->collapseLength = -1.f;
+            }
+            else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
+            {
+                vector<RenderSample> fullRenderSamples{};
+                Build_RenderSamples(lane->history, fullRenderSamples, &lane->currentSourcePosition);
+                const float currentLength =
+                    lane->collapseLength >= 0.f
+                    ? lane->collapseLength
+                    : (fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f);
+                if (isIdle)
+                {
+                    const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
+                    lane->collapseLength = max(0.f, currentLength * (1.f - collapseRatio));
+                }
+                else
+                {
+                    lane->collapseLength = -1.f;
+                }
+            }
+
+            lane->previousSourcePosition = sourcePoint.position;
+            lane->hasPreviousSourcePosition = true;
             Prune_History(lane->history);
         }
     }
@@ -588,25 +656,11 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
     vector<RenderSample> renderSamples{};
     for (const HistoryLane& lane : _sourceLanes)
     {
-        Build_RenderSamples(lane.history, renderSamples, &lane.currentSourcePosition);
+        const float* visibleLengthLimit = lane.collapseLength >= 0.f ? &lane.collapseLength : nullptr;
+        Build_RenderSamples(lane.history, renderSamples, &lane.currentSourcePosition, visibleLengthLimit);
         if (renderSamples.size() >= 2)
             _visibleRibbonLength = max(_visibleRibbonLength, renderSamples.back().distanceFromHead);
     }
-}
-
-bool ComputeSourceHistoryRibbonEmitter::Should_InsertSample(
-    const vector<HistorySample>& history,
-    float sampleIntervalAccumulator,
-    const Vec3& sourcePosition) const
-{
-    if (history.empty())
-        return true;
-
-    const float movedDistance = (sourcePosition - history.front().position).Length();
-    if (movedDistance >= _desc.sampleSpacing)
-        return true;
-
-    return _desc.sampleInterval > 0.f && sampleIntervalAccumulator >= _desc.sampleInterval;
 }
 
 void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(
@@ -652,31 +706,6 @@ void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(
     }
 }
 
-void ComputeSourceHistoryRibbonEmitter::Collapse_HistoryTowardSource(
-    vector<HistorySample>& history,
-    const Vec3& sourcePosition,
-    float timeDelta) const
-{
-    if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f || timeDelta <= 0.f || history.empty())
-        return;
-
-    const float movedDistance = (sourcePosition - history.front().position).Length();
-    if (movedDistance >= _desc.sampleSpacing)
-        return;
-
-    const float collapseRatio = clamp(_desc.tailCollapseSpeed * timeDelta, 0.f, 1.f);
-    if (collapseRatio <= 0.f)
-        return;
-
-    const float tailDenominator = max(1.f, static_cast<float>(history.size() - 1u));
-    for (size_t index = 0; index < history.size(); ++index)
-    {
-        const float tailRatio = static_cast<float>(index) / tailDenominator;
-        const float weightedRatio = collapseRatio * (1.f - tailRatio * 0.5f);
-        history[index].position = Vec3::Lerp(history[index].position, sourcePosition, weightedRatio);
-    }
-}
-
 void ComputeSourceHistoryRibbonEmitter::Prune_History(vector<HistorySample>& history)
 {
     for (size_t index = 0; index < history.size(); ++index)
@@ -695,17 +724,29 @@ void ComputeSourceHistoryRibbonEmitter::Prune_History(vector<HistorySample>& his
 
 void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(vector<RenderSample>& outSamples) const
 {
-    Build_RenderSamples(_history, outSamples, &_selfRootSourcePosition);
+    const float* visibleLengthLimit = _selfRootCollapseLength >= 0.f ? &_selfRootCollapseLength : nullptr;
+    Build_RenderSamples(_history, outSamples, &_selfRootSourcePosition, visibleLengthLimit);
 }
 
 void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
     const vector<HistorySample>& history,
     vector<RenderSample>& outSamples,
-    const Vec3* currentSourcePosition) const
+    const Vec3* currentSourcePosition,
+    const float* visibleLengthLimit) const
 {
     outSamples.clear();
     if (history.empty() && currentSourcePosition == nullptr)
         return;
+
+    if (visibleLengthLimit != nullptr)
+    {
+        const float cutoffThreshold = min(
+            max(_desc.baseWidth * 0.5f, _desc.sampleSpacing * 0.5f),
+            max(_desc.sampleSpacing * 0.5f, _desc.maxLength > 0.f ? _desc.maxLength * 0.25f : _desc.baseWidth * 0.5f)
+        );
+        if (*visibleLengthLimit <= cutoffThreshold)
+            return;
+    }
 
     outSamples.reserve(Compute_MaxLaneRenderSegmentCount() + 1u);
 
@@ -752,6 +793,16 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
                 trimRatio = min(trimRatio, clamp((_desc.maxLength - accumulatedDistance) / segmentDistance, 0.f, 1.f));
         }
 
+        if (visibleLengthLimit != nullptr)
+        {
+            if (accumulatedDistance >= *visibleLengthLimit)
+                break;
+
+            const float nextDistance = accumulatedDistance + segmentDistance;
+            if (nextDistance >= *visibleLengthLimit)
+                trimRatio = min(trimRatio, clamp((*visibleLengthLimit - accumulatedDistance) / segmentDistance, 0.f, 1.f));
+        }
+
         if (trimRatio <= 0.f)
             break;
 
@@ -792,8 +843,15 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
         outSamples[index].sample.distance = outSamples[index].distanceFromHead;
     }
 
+    const float minRenderableLength =
+        visibleLengthLimit != nullptr
+        ? min(
+            max(_desc.baseWidth * 0.5f, _desc.sampleSpacing * 0.5f),
+            max(_desc.sampleSpacing * 0.5f, _desc.maxLength > 0.f ? _desc.maxLength * 0.25f : _desc.baseWidth * 0.5f)
+        )
+        : kMinRenderableRibbonLength;
     if (outSamples.size() < 2u ||
-        outSamples.back().distanceFromHead <= kMinRenderableRibbonLength)
+        outSamples.back().distanceFromHead <= minRenderableLength)
     {
         outSamples.clear();
     }
@@ -1010,7 +1068,8 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
         const uint32 maxSegmentCount = Compute_MaxRenderSegmentCount();
         for (const HistoryLane& lane : _sourceLanes)
         {
-            Build_RenderSamples(lane.history, laneRenderSamples, &lane.currentSourcePosition);
+            const float* visibleLengthLimit = lane.collapseLength >= 0.f ? &lane.collapseLength : nullptr;
+            Build_RenderSamples(lane.history, laneRenderSamples, &lane.currentSourcePosition, visibleLengthLimit);
 
             const float fadeDuration = max(_desc.laneSpawnFadeInDuration, 0.0001f);
             const float laneWidthMultiplier =
@@ -1059,16 +1118,6 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
         static_cast<uint32>(renderSamples.size() - 1u),
         maxSegmentCount - static_cast<uint32>(outPayloads.size())
     );
-    const auto resolveCollapsedLengthFadeScale =
-        [this](float visibleLength)
-        {
-            if (!_desc.tailCollapseOnIdle)
-                return 1.f;
-
-            const float collapsedFadeThreshold = max(_desc.baseWidth * 1.5f, _desc.sampleSpacing * 2.f);
-            return clamp(visibleLength / max(collapsedFadeThreshold, 0.0001f), 0.f, 1.f);
-        };
-    const float collapsedLengthFadeScale = resolveCollapsedLengthFadeScale(renderSamples.back().distanceFromHead);
 
     for (uint32 index = 0; index < segmentCount; ++index)
     {
@@ -1097,12 +1146,12 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
         const float nextAlphaScale = resolveSampleAlphaScale(next, nextLifeProgress);
         const float currentBaseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(currentLifeProgress));
         const float nextBaseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(nextLifeProgress));
-        const float currentWidth = currentBaseWidth * safeWidthMultiplier * currentAlphaScale * collapsedLengthFadeScale;
-        const float nextWidth = nextBaseWidth * safeWidthMultiplier * nextAlphaScale * collapsedLengthFadeScale;
+        const float currentWidth = currentBaseWidth * safeWidthMultiplier * currentAlphaScale;
+        const float nextWidth = nextBaseWidth * safeWidthMultiplier * nextAlphaScale;
         Vec4 currentColor = Evaluate_ColorOverLife(currentLifeProgress);
         Vec4 nextColor = Evaluate_ColorOverLife(nextLifeProgress);
-        currentColor.w *= currentAlphaScale * collapsedLengthFadeScale;
-        nextColor.w *= nextAlphaScale * collapsedLengthFadeScale;
+        currentColor.w *= currentAlphaScale;
+        nextColor.w *= nextAlphaScale;
 
         SegmentPayload payload{};
         payload.previousPosition = Vec4(previous.sample.position.x, previous.sample.position.y, previous.sample.position.z, index > 0u ? 1.f : 0.f);
@@ -1354,6 +1403,7 @@ void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
     _finishEmissionAfterHistoryUpdate = false;
     _history.clear();
     _sampleIntervalAccumulator = 0.f;
+    _selfRootCollapseLength = -1.f;
     Clear_ParticleFollowerHistory();
     _drawSegmentCount = 0u;
     Resample_RandomSubUVFrameIndex();

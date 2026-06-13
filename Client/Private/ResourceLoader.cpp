@@ -581,6 +581,9 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     if ("BeamInstance" == strName || "BEAMINSTANCE" == strName)
         return { BeamInstanceLayout::Elements, BeamInstanceLayout::numElements, ShaderType::BillboardParticle };
 
+    if ("SourceHistorySpriteTrailInstance" == strName || "SOURCEHISTORYSPRITETRAILINSTANCE" == strName)
+        return { SourceHistorySpriteTrailInstanceLayout::Elements, SourceHistorySpriteTrailInstanceLayout::numElements, ShaderType::BillboardParticle };
+
     // Mesh Instance (roughly)
     if ("VTXMESHINST" == strName || "VtxMeshInst" == strName || "vtxmeshinst" == strName)
         return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh };

@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "ComputeGeneratedBeamEmitter.h"
 #include "ComputeSourceHistoryRibbonEmitter.h"
+#include "ComputeSourceHistorySpriteTrailEmitter.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
@@ -43,6 +44,7 @@ namespace Internal
             prototypeTag == L"Shader_EffectTrailDistortion" ||
             prototypeTag == L"Shader_EffectRibbon" ||
             prototypeTag == L"Shader_EffectRibbonDistortion" ||
+            prototypeTag == L"Shader_EffectSourceHistorySpriteTrail" ||
             prototypeTag == L"Shader_EffectBeam" ||
             prototypeTag == L"Shader_EffectBeamDistortion" ||
             prototypeTag == L"Shader_VtxMeshInstanceExact" ||
@@ -88,6 +90,7 @@ namespace Internal
             prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeTrailEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeSourceHistorySpriteTrailEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeGeneratedBeamEmitter" ||
             prototypeTag == L"GameObject_Effect_MeshEmitter";
     }
@@ -624,6 +627,19 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
                 ETOI(LevelType::Static),
                 sourceHistoryRibbonTag,
                 Client::ComputeSourceHistoryRibbonEmitter::Create(_device, _context)
+            ),
+            E_FAIL
+        );
+    }
+
+    constexpr auto sourceHistorySpriteTrailTag = L"GameObject_Effect_ComputeSourceHistorySpriteTrailEmitter";
+    if (!GAME->Has_Prototype(ETOI(LevelType::Static), sourceHistorySpriteTrailTag))
+    {
+        CHECK_FAILED(
+            GAME->Add_Prototype(
+                ETOI(LevelType::Static),
+                sourceHistorySpriteTrailTag,
+                Client::ComputeSourceHistorySpriteTrailEmitter::Create(_device, _context)
             ),
             E_FAIL
         );

@@ -506,6 +506,7 @@ enum class AuthoringTypeDataKind : uint8
     Trail,
     Mesh,
     Ribbon,
+    SourceHistorySpriteTrail,
     Beam,
 };
 
@@ -605,6 +606,19 @@ enum class SourceHistoryRibbonSourceMode : uint8
     SourceEmitter, // Legacy root follower token. Save/Open에서 ParticleEmitter 또는 SelfRoot로 정리한다.
 };
 
+enum class SourceHistorySpriteTrailStampSpawnMode : uint8
+{
+    Distance,
+    Time,
+};
+
+enum class SourceHistorySpriteTrailDirectionMode : uint8
+{
+    PathTangent,
+    CameraFacing,
+    VelocityTextureAxis,
+};
+
 // Source History Ribbon이 어떤 source position history를 따라갈지 결정하는 editor 저장 payload다.
 struct RibbonTypeData
 {
@@ -631,6 +645,35 @@ struct RibbonTypeData
     SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
     float previewMotionAmplitude{ 2.f }; // preview motion offset 크기다.
     float previewMotionSpeed{ 3.f };     // Line/Arc one-shot 진행 속도 또는 Loop 반복 속도다.
+};
+
+// Source history path 위에 짧은 sprite/card stamp를 찍는 editor 저장 payload다.
+struct SourceHistorySpriteTrailTypeData
+{
+    SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
+    uint32 sourceEmitterId{};
+    uint32 followerLaneCount{ 1 };
+    float sampleLifetime{ 0.35f };
+    float sampleSpacing{ 0.08f };
+    float maxLength{ 0.f };
+    SourceHistorySpriteTrailStampSpawnMode stampSpawnMode{ SourceHistorySpriteTrailStampSpawnMode::Distance };
+    float stampSpacing{ 0.12f };
+    float stampInterval{ 0.03f };
+    float stampLifetime{ 0.18f };
+    uint32 maxStampCount{ 128 };
+    float cardLength{ 0.45f };
+    float cardWidth{ 0.08f };
+    SourceHistorySpriteTrailDirectionMode directionMode{ SourceHistorySpriteTrailDirectionMode::PathTangent };
+    EffectSpriteTextureAxis textureAxis{ EffectSpriteTextureAxis::Y };
+    bool flipU{ false };
+    bool flipV{ false };
+    float rotationOffsetDegrees{ 0.f };
+    float spawnJitter{ 0.f };
+
+    SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Line };
+    SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
+    float previewMotionAmplitude{ 2.f };
+    float previewMotionSpeed{ 3.f };
 };
 
 struct TrailTypeData
@@ -666,6 +709,7 @@ using AuthoringTypeDataPayload = variant<
     TrailTypeData,
     MeshTypeData,
     RibbonTypeData,
+    SourceHistorySpriteTrailTypeData,
     BeamTypeData>;
 
 struct AuthoringTypeData

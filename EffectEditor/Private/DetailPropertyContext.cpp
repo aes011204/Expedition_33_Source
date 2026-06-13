@@ -31,6 +31,14 @@ namespace Internal
 
     static_assert(IM_ARRAYSIZE(kVisibleScreenAlignmentValues) == IM_ARRAYSIZE(kVisibleScreenAlignmentLabels));
 
+    bool Is_SourceHistorySpriteTrailScreenAlignmentSupported(EmitterScreenAlignment value)
+    {
+        return value == EmitterScreenAlignment::FacingCameraPosition ||
+               value == EmitterScreenAlignment::Rectangle ||
+               value == EmitterScreenAlignment::Square ||
+               value == EmitterScreenAlignment::Velocity;
+    }
+
     constexpr size_t kDistributionCurveMaxKeys{ kEffectDistributionCurveMaxKeys };
 
     float Apply_Range(float value, const AuthoringValueRange* range)
@@ -136,6 +144,13 @@ namespace Internal
             return kVisibleScreenAlignmentValues[visibleIndex];
 
         return EmitterScreenAlignment::FacingCameraPosition;
+    }
+
+    EmitterScreenAlignment Resolve_SourceHistorySpriteTrailScreenAlignmentFallback(EmitterScreenAlignment value)
+    {
+        return Is_SourceHistorySpriteTrailScreenAlignmentSupported(value)
+               ? value
+               : EmitterScreenAlignment::FacingCameraPosition;
     }
 }
 
@@ -523,6 +538,79 @@ public: //## Table / Basic Controls
 
         if (!changed)
             return false;
+
+        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues))
+            value = EmitterScreenAlignment::FacingCameraPosition;
+        else
+            value = Internal::kVisibleScreenAlignmentValues[currentIndex];
+
+        return true;
+    }
+
+    bool Draw_SourceHistorySpriteTrailScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue)
+    {
+        const EmitterScreenAlignment fallbackValue = Internal::Resolve_SourceHistorySpriteTrailScreenAlignmentFallback(value);
+        int currentIndex = Internal::Find_ScreenAlignmentVisibleIndex(fallbackValue);
+        if (currentIndex < 0)
+            currentIndex = 0;
+
+        bool valueChanged = false;
+        if (value != fallbackValue)
+        {
+            value = fallbackValue;
+            valueChanged = true;
+        }
+
+        ImGui::PushID(label);
+        Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool comboChanged = false;
+        if (ImGui::BeginCombo("##Value", Internal::kVisibleScreenAlignmentLabels[currentIndex]))
+        {
+            for (int index = 0; index < IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues); ++index)
+            {
+                const EmitterScreenAlignment candidate = Internal::kVisibleScreenAlignmentValues[index];
+                const bool isSelected = currentIndex == index;
+                const bool supported = Internal::Is_SourceHistorySpriteTrailScreenAlignmentSupported(candidate);
+                if (!supported)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Internal::kVisibleScreenAlignmentLabels[index], isSelected) && supported)
+                {
+                    currentIndex = index;
+                    comboChanged = true;
+                }
+
+                if (!supported)
+                    ImGui::EndDisabled();
+
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_AllowWhenDisabled))
+                {
+                    ImGui::SetTooltip(
+                        supported
+                        ? "%s"
+                        : "SourceHistorySpriteTrail에서는 이 화면 정렬을 사용하지 않습니다.",
+                        Internal::Get_ScreenAlignmentTooltip(candidate)
+                    );
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+        const bool resetClicked = Draw_ResetButton(!Is_DefaultValue(value, defaultValue));
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = Internal::Resolve_SourceHistorySpriteTrailScreenAlignmentFallback(defaultValue);
+            return true;
+        }
+
+        if (!comboChanged)
+            return valueChanged;
 
         if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues))
             value = EmitterScreenAlignment::FacingCameraPosition;
@@ -2909,6 +2997,14 @@ bool DetailPropertyContext::Draw_ScreenAlignmentProperty(const char* label, Emit
     return _basicDrawer->Draw_ScreenAlignmentProperty(label, value, defaultValue);
 }
 
+bool DetailPropertyContext::Draw_SourceHistorySpriteTrailScreenAlignmentProperty(
+    const char* label,
+    EmitterScreenAlignment& value,
+    EmitterScreenAlignment defaultValue)
+{
+    return _basicDrawer->Draw_SourceHistorySpriteTrailScreenAlignmentProperty(label, value, defaultValue);
+}
+
 bool DetailPropertyContext::Draw_DirectionalAlignmentModeProperty(
     const char* label,
     EmitterDirectionalAlignmentMode& outValue,
@@ -2968,7 +3064,12 @@ bool DetailPropertyContext::Draw_DirectionalAlignmentModeProperty(
     return true;
 }
 
-bool DetailPropertyContext::Draw_SpriteTextureAxisProperty(const char* label, EmitterSpriteTextureAxis& outValue, EmitterSpriteTextureAxis defaultValue)
+bool DetailPropertyContext::Draw_SpriteTextureAxisProperty(
+    const char* label,
+    EmitterSpriteTextureAxis& outValue,
+    EmitterSpriteTextureAxis defaultValue,
+    const char* textureXAxisTooltip,
+    const char* textureYAxisTooltip)
 {
     int currentIndex = outValue == EmitterSpriteTextureAxis::X ? 0 : 1;
     static constexpr const char* kTextureAxisLabels[] = {
@@ -2994,9 +3095,10 @@ bool DetailPropertyContext::Draw_SpriteTextureAxisProperty(const char* label, Em
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
             {
                 ImGui::SetTooltip(
+                    "%s",
                     index == 0
-                    ? "정렬 방향에 texture의 가로축을 맞춥니다."
-                    : "정렬 방향에 texture의 세로축을 맞춥니다. 세로로 긴 번개/연기 texture의 기본 후보입니다."
+                    ? (textureXAxisTooltip != nullptr ? textureXAxisTooltip : "정렬 방향에 texture의 가로축을 맞춥니다.")
+                    : (textureYAxisTooltip != nullptr ? textureYAxisTooltip : "정렬 방향에 texture의 세로축을 맞춥니다. 세로로 긴 번개/연기 texture의 기본 후보입니다.")
                 );
             }
 

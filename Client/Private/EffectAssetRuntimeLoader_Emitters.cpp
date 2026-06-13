@@ -167,6 +167,41 @@ namespace EffectAssetRuntimeLoad::Emitters
         definition.useLocalSpace = Read_Bool(data, "useLocalSpace", definition.useLocalSpace);
     }
 
+    void Apply_RequiredModule(
+        const json& data,
+        EffectEmitterDefinition& definition,
+        ComputeSourceHistorySpriteTrailEmitterDesc& desc)
+    {
+        const auto materialIter = data.find("material");
+        if (materialIter != data.end() && materialIter->is_object())
+            Apply_MaterialPayload(*materialIter, desc.material);
+
+        Read_Enum(data, "screenAlignment", desc.spriteRender.screenAlignment);
+        Read_Enum(data, "directionalAlignmentMode", desc.spriteRender.directionalAlignmentMode);
+        Read_Enum(data, "spriteTextureAxis", desc.spriteRender.spriteTextureAxis);
+        desc.spriteRender.spriteRollOffsetDegrees =
+            Read_Float(data, "spriteRollOffsetDegrees", desc.spriteRender.spriteRollOffsetDegrees);
+        Apply_SortPayload(data, desc.sort);
+        desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
+        desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
+        desc.playback.delay = max(0.f, Read_Float(data, "delay", desc.playback.delay));
+        desc.playback.delayFirstLoopOnly = Read_Bool(data, "delayFirstLoopOnly", desc.playback.delayFirstLoopOnly);
+        desc.playback.killOnDeactivate = Read_Bool(data, "killOnDeactivate", desc.playback.killOnDeactivate);
+        desc.playback.killOnCompleted = Read_Bool(data, "killOnCompleted", desc.playback.killOnCompleted);
+        desc.drawLimit.useMaxDrawCount = Read_Bool(data, "useMaxDrawCount", desc.drawLimit.useMaxDrawCount);
+        desc.drawLimit.maxDrawCount = max(1u, Read_UInt(data, "maxDrawCount", desc.drawLimit.maxDrawCount));
+
+        const auto originIter = data.find("emitterOrigin");
+        if (originIter != data.end())
+            Read_Vec3(*originIter, definition.localPosition);
+
+        const auto rotationIter = data.find("emitterRotationDegrees");
+        if (rotationIter != data.end())
+            Read_Vec3(*rotationIter, definition.localRotationDegrees);
+
+        definition.useLocalSpace = Read_Bool(data, "useLocalSpace", definition.useLocalSpace);
+    }
+
     void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeBeamEmitterDesc& desc)
     {
         const auto materialIter = data.find("material");
@@ -920,6 +955,292 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.sampleSpacing,
             desc.maxLength
         );
+
+        outDefinition.concreteDesc = desc;
+        return true;
+    }
+
+    bool Build_SourceHistorySpriteTrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition)
+    {
+        outDefinition = EffectEmitterDefinition{};
+        outDefinition.id = Read_UInt(emitter, "id");
+        outDefinition.name = Read_String(emitter, "name");
+        outDefinition.kind = EffectEmitterKind::SourceHistorySpriteTrail;
+        outDefinition.enabled = true;
+        Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
+
+        ComputeSourceHistorySpriteTrailEmitterDesc desc{};
+        desc.renderLayerOverride = outDefinition.renderLayerOverride;
+
+        const auto typeDataIter = emitter.find("typeData");
+        if (typeDataIter != emitter.end() && typeDataIter->is_object())
+        {
+            const auto dataIter = typeDataIter->find("data");
+            if (dataIter != typeDataIter->end() && dataIter->is_object())
+            {
+                const json& typeData = *dataIter;
+                const string sourceMode = Read_String(typeData, "sourceMode", "SelfRoot");
+                desc.sourceMode = sourceMode == "ParticleEmitter" || sourceMode == "SourceEmitter"
+                                  ? EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+                                  : EffectSourceHistoryRibbonSourceMode::SelfRoot;
+                desc.sourceEmitterId =
+                    desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+                    ? Read_UInt(typeData, "sourceEmitterId", 0u)
+                    : 0u;
+                desc.followerLaneCount = max(1u, Read_UInt(typeData, "followerLaneCount", desc.followerLaneCount));
+                desc.sampleLifetime = max(0.0001f, Read_Float(typeData, "sampleLifetime", desc.sampleLifetime));
+                desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
+                desc.maxLength = max(0.f, Read_Float(typeData, "maxLength", desc.maxLength));
+
+                const string stampSpawnMode = Read_String(typeData, "stampSpawnMode", "Distance");
+                desc.stampSpawnMode = stampSpawnMode == "Time"
+                                      ? EffectSourceHistorySpriteTrailStampSpawnMode::Time
+                                      : EffectSourceHistorySpriteTrailStampSpawnMode::Distance;
+                desc.stampSpacing = max(0.001f, Read_Float(typeData, "stampSpacing", desc.stampSpacing));
+                desc.stampInterval = max(0.001f, Read_Float(typeData, "stampInterval", desc.stampInterval));
+                desc.stampLifetime = max(0.0001f, Read_Float(typeData, "stampLifetime", desc.stampLifetime));
+                desc.maxStampCount = max(1u, Read_UInt(typeData, "maxStampCount", desc.maxStampCount));
+                desc.cardLength = max(0.001f, Read_Float(typeData, "cardLength", desc.cardLength));
+                desc.cardWidth = max(0.001f, Read_Float(typeData, "cardWidth", desc.cardWidth));
+                desc.flipU = Read_Bool(typeData, "flipU", desc.flipU);
+                desc.flipV = Read_Bool(typeData, "flipV", desc.flipV);
+                desc.rotationOffsetDegrees = Read_Float(typeData, "rotationOffsetDegrees", desc.rotationOffsetDegrees);
+                desc.spawnJitter = max(0.f, Read_Float(typeData, "spawnJitter", desc.spawnJitter));
+            }
+        }
+
+        if (const json* required = Find_ModuleData(emitter, "Required"))
+            Apply_RequiredModule(*required, outDefinition, desc);
+
+        if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+        {
+            Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+            Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+        }
+
+        if (const json* initialSize = Find_ModuleData(emitter, "InitialSize"))
+        {
+            desc.initialSize.enabled = true;
+            const auto sizeIter = initialSize->find("size");
+            if (sizeIter != initialSize->end())
+            {
+                const Vec2 minSize = Evaluate_Vector2DistributionMin(*sizeIter, desc.initialSize.sizeMin);
+                const Vec2 maxSize = Evaluate_Vector2DistributionMax(*sizeIter, desc.initialSize.sizeMax);
+                desc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
+                desc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+                desc.initialSize.sizeSeed = Read_DistributionRandomSeedDesc(*sizeIter, initialSize);
+            }
+        }
+
+        if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
+        {
+            const auto lifeTimeIter = lifetime->find("lifeTime");
+            if (lifeTimeIter != lifetime->end())
+            {
+                desc.useLifetimeStampLifetime = true;
+                desc.lifetime.lifeTime = Vec2{
+                    Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
+                    Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
+                };
+                desc.lifetimeSeed = Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
+            }
+        }
+
+        if (const json* initialColor = Find_ModuleData(emitter, "InitialColor"))
+        {
+            const auto colorIter = initialColor->find("color");
+            if (colorIter != initialColor->end())
+            {
+                desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
+                desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+                desc.initialColor.colorSeed = Read_DistributionRandomSeedDesc(*colorIter, initialColor);
+            }
+
+            const auto alphaIter = initialColor->find("alpha");
+            if (alphaIter != initialColor->end())
+            {
+                desc.initialColor.startColorMin.w =
+                    clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
+                desc.initialColor.startColorMax.w =
+                    clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+                desc.initialColor.alphaSeed = Read_DistributionRandomSeedDesc(*alphaIter, initialColor);
+            }
+
+            desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
+            desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
+        }
+
+        if (const json* colorOverLife = Find_ModuleData(emitter, "ColorOverLife"))
+        {
+            const auto colorIter = colorOverLife->find("colorOverLife");
+            if (colorIter != colorOverLife->end())
+            {
+                desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
+                desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+                desc.colorOverLife.colorSeed = Read_DistributionRandomSeedDesc(*colorIter, colorOverLife);
+            }
+
+            const auto alphaIter = colorOverLife->find("alphaOverLife");
+            if (alphaIter != colorOverLife->end())
+            {
+                desc.colorOverLife.endColorMin.w =
+                    clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+                desc.colorOverLife.endColorMax.w =
+                    clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+                desc.colorOverLife.alphaSeed = Read_DistributionRandomSeedDesc(*alphaIter, colorOverLife);
+            }
+
+            Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
+        }
+
+        if (const json* subUvFrameOverLife = Find_ModuleData(emitter, "SubUVFrameOverLife"))
+        {
+            desc.subUVFrameOverLife.enabled = true;
+            desc.subUVFrameOverLife.startFrame = Read_UInt(*subUvFrameOverLife, "startFrame", desc.subUVFrameOverLife.startFrame);
+            desc.subUVFrameOverLife.endFrame = Read_UInt(*subUvFrameOverLife, "endFrame", desc.subUVFrameOverLife.endFrame);
+            desc.subUVFrameOverLife.loop = Read_Bool(*subUvFrameOverLife, "loop", desc.subUVFrameOverLife.loop);
+            Read_Enum(*subUvFrameOverLife, "playbackMode", desc.subUVFrameOverLife.playbackMode);
+            desc.subUVFrameOverLife.framesPerSecond =
+                max(0.f, Read_Float(*subUvFrameOverLife, "framesPerSecond", desc.subUVFrameOverLife.framesPerSecond));
+
+            const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
+            if (frameIndexIter != subUvFrameOverLife->end())
+                Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
+            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+                desc.subUVRandomFrameSeed = Read_RandomSeedDesc(*subUvFrameOverLife);
+
+            const uint32 frameCount = max(1u, desc.material.subUVRows * desc.material.subUVCols);
+            const uint32 lastFrame = frameCount - 1u;
+            desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
+            desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
+
+            if (0u == Read_UInt(*subUvFrameOverLife, "startFrame") &&
+                0u == Read_UInt(*subUvFrameOverLife, "endFrame") &&
+                frameCount > 1u)
+                desc.subUVFrameOverLife.endFrame = lastFrame;
+        }
+
+        if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
+            Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
+
+        if (const json* initialVelocity = Find_ModuleData(emitter, "InitialVelocity"))
+        {
+            desc.motion.enabled = true;
+            desc.motion.initialVelocityEnabled = true;
+            desc.motion.initialVelocityInWorldSpace = Read_Bool(*initialVelocity, "inWorldSpace", desc.motion.initialVelocityInWorldSpace);
+
+            const auto velocityIter = initialVelocity->find("velocity");
+            if (velocityIter != initialVelocity->end())
+            {
+                desc.motion.initialVelocityMin = Evaluate_Vector3DistributionMin(*velocityIter, desc.motion.initialVelocityMin);
+                desc.motion.initialVelocityMax = Evaluate_Vector3DistributionMax(*velocityIter, desc.motion.initialVelocityMax);
+                desc.motion.initialVelocitySeed = Read_DistributionRandomSeedDesc(*velocityIter, initialVelocity);
+            }
+        }
+
+        if (const json* initialRadialVelocity = Find_ModuleData(emitter, "InitialRadialVelocity"))
+        {
+            desc.motion.enabled = true;
+            desc.motion.initialRadialVelocityEnabled = true;
+            desc.motion.initialRadialVelocityInWorldSpace =
+                Read_Bool(*initialRadialVelocity, "inWorldSpace", desc.motion.initialRadialVelocityInWorldSpace);
+
+            const auto radialPivotIter = initialRadialVelocity->find("radialPivot");
+            if (radialPivotIter != initialRadialVelocity->end())
+                Read_Vec3(*radialPivotIter, desc.motion.radialPivot);
+            Read_Enum(*initialRadialVelocity, "centerDirectionMode", desc.motion.initialRadialVelocityCenterDirectionMode);
+
+            const auto speedIter = initialRadialVelocity->find("speed");
+            if (speedIter != initialRadialVelocity->end())
+            {
+                desc.motion.radialSpeed = Vec2{
+                    Evaluate_FloatDistributionMin(*speedIter, desc.motion.radialSpeed.x),
+                    Evaluate_FloatDistributionMax(*speedIter, desc.motion.radialSpeed.y)
+                };
+                desc.motion.initialRadialVelocitySeed = Read_DistributionRandomSeedDesc(*speedIter, initialRadialVelocity);
+            }
+        }
+
+        if (const json* velocityCone = Find_ModuleData(emitter, "VelocityCone"))
+        {
+            desc.motion.enabled = true;
+            Fill_VelocityConePayload(desc.motion, *velocityCone);
+            if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
+                desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
+        }
+
+        if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
+        {
+            desc.motion.enabled = true;
+            const auto accelerationIter = acceleration->find("acceleration");
+            if (accelerationIter != acceleration->end())
+            {
+                desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
+                desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+                Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
+                desc.motion.accelerationSeed = Read_DistributionRandomSeedDesc(*accelerationIter, acceleration);
+            }
+        }
+
+        if (const json* drag = Find_ModuleData(emitter, "Drag"))
+        {
+            desc.motion.enabled = true;
+            const auto dragIter = drag->find("drag");
+            if (dragIter != drag->end())
+            {
+                desc.motion.drag = Vec2{
+                    max(0.f, Evaluate_FloatDistributionMin(*dragIter, desc.motion.drag.x)),
+                    max(0.f, Evaluate_FloatDistributionMax(*dragIter, desc.motion.drag.y))
+                };
+                desc.motion.dragSeed = Read_DistributionRandomSeedDesc(*dragIter, drag);
+            }
+        }
+
+        if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
+        {
+            desc.motion.enabled = true;
+            Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
+        }
+
+        if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
+        {
+            desc.rotation.enabled = true;
+            const auto rotationIter = initialRotation->find("rotationDegrees");
+            if (rotationIter != initialRotation->end())
+            {
+                desc.rotation.initialRotationDegrees = Vec2{
+                    Evaluate_FloatDistributionMin(*rotationIter, desc.rotation.initialRotationDegrees.x),
+                    Evaluate_FloatDistributionMax(*rotationIter, desc.rotation.initialRotationDegrees.y)
+                };
+                desc.rotation.initialRotationSeed = Read_DistributionRandomSeedDesc(*rotationIter, initialRotation);
+            }
+        }
+
+        if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
+        {
+            desc.rotation.enabled = true;
+            Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
+        }
+
+        if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
+        {
+            desc.rotation.enabled = true;
+            const auto rotationRateIter = initialRotationRate->find("rotationRateDegrees");
+            if (rotationRateIter != initialRotationRate->end())
+            {
+                desc.rotation.initialRotationRateDegrees = Vec2{
+                    Evaluate_FloatDistributionMin(*rotationRateIter, desc.rotation.initialRotationRateDegrees.x),
+                    Evaluate_FloatDistributionMax(*rotationRateIter, desc.rotation.initialRotationRateDegrees.y)
+                };
+                desc.rotation.initialRotationRateSeed = Read_DistributionRandomSeedDesc(*rotationRateIter, initialRotationRate);
+            }
+        }
+
+        if (const json* rotationRateScaleByLife = Find_ModuleData(emitter, "RotationRateScaleByLife"))
+        {
+            desc.rotation.enabled = true;
+            Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
+        }
 
         outDefinition.concreteDesc = desc;
         return true;

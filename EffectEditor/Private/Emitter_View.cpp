@@ -1202,6 +1202,34 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         }
     }
 
+    if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+    {
+        switch (type)
+        {
+        case AuthoringModuleType::Required:
+        case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialSize:
+        case AuthoringModuleType::InitialVelocity:
+        case AuthoringModuleType::InitialRadialVelocity:
+        case AuthoringModuleType::VelocityCone:
+        case AuthoringModuleType::Acceleration:
+        case AuthoringModuleType::Drag:
+        case AuthoringModuleType::VelocityOverLife:
+        case AuthoringModuleType::InitialRotation:
+        case AuthoringModuleType::RotationOverLife:
+        case AuthoringModuleType::InitialRotationRate:
+        case AuthoringModuleType::RotationRateScaleByLife:
+        case AuthoringModuleType::InitialColor:
+        case AuthoringModuleType::ColorOverLife:
+        case AuthoringModuleType::SubUVFrameOverLife:
+        case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::MaterialScalarModulation:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     const AuthoringModuleMetadata& metadata = Get_AuthoringModuleMetadata(type);
     if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
         return metadata.supportsBeam;
@@ -2318,6 +2346,12 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
         emitter.typeData.payload = RibbonTypeData{};
         break;
     }
+    case PendingTypeDataAction::AddSourceHistorySpriteTrail:
+    {
+        emitter.typeData.kind = AuthoringTypeDataKind::SourceHistorySpriteTrail;
+        emitter.typeData.payload = SourceHistorySpriteTrailTypeData{};
+        break;
+    }
     case PendingTypeDataAction::AddBeam:
     {
         emitter.typeData.kind = AuthoringTypeDataKind::Beam;
@@ -2330,6 +2364,8 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
             emitter.typeData.payload = MeshTypeData{};
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
             emitter.typeData.payload = RibbonTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            emitter.typeData.payload = SourceHistorySpriteTrailTypeData{};
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
             emitter.typeData.payload = BeamTypeData{};
         else
@@ -2376,6 +2412,10 @@ void Emitter_View::Process_PendingTypeDataAction()
 
     case PendingTypeDataAction::AddRibbon:
         description = "Add Ribbon TypeData";
+        break;
+
+    case PendingTypeDataAction::AddSourceHistorySpriteTrail:
+        description = "Add Source History Sprite Trail TypeData";
         break;
 
     case PendingTypeDataAction::AddBeam:
@@ -2947,6 +2987,8 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
             Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
         if (ImGui::MenuItem("Ribbon TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddRibbon, emitterIndex);
+        if (ImGui::MenuItem("Sprite Trail TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddSourceHistorySpriteTrail, emitterIndex);
         if (ImGui::MenuItem("Beam TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddBeam, emitterIndex);
         return;
@@ -3241,6 +3283,10 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
 
         case AuthoringTypeDataKind::Ribbon:
             ImGui::TextUnformatted("리본 데이터");
+            break;
+
+        case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+            ImGui::TextUnformatted("스프라이트 트레일 데이터");
             break;
 
         case AuthoringTypeDataKind::Beam:

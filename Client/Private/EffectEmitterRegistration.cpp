@@ -2,6 +2,7 @@
 
 #include "ComputeGeneratedBeamEmitter.h"
 #include "ComputeSourceHistoryRibbonEmitter.h"
+#include "ComputeSourceHistorySpriteTrailEmitter.h"
 #include "ComputeSpriteEmitter.h"
 #include "ComputeTrailEmitter.h"
 #include "EffectEmitterFactory.h"
@@ -12,6 +13,7 @@ NS_BEGIN(Client)
 namespace EffectAssetRuntimeLoad
 {
     constexpr auto kComputeSourceHistoryRibbonEmitterPrototypeTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
+    constexpr auto kComputeSourceHistorySpriteTrailEmitterPrototypeTag = L"GameObject_Effect_ComputeSourceHistorySpriteTrailEmitter";
     constexpr auto kComputeBeamEmitterPrototypeTag = L"GameObject_Effect_ComputeGeneratedBeamEmitter";
 
     Shared<EffectEmitter> Create_ClientEffectEmitter(const EffectEmitterDefinition& emitterDefinition)
@@ -76,6 +78,32 @@ namespace EffectAssetRuntimeLoad
             {
                 LOG_WARN(
                     "ComputeSourceHistoryRibbonEmitter prototype missing: failed to clone source history ribbon emitter prototype. emitter='{}'",
+                    emitterDefinition.name
+                );
+            }
+
+            return dynamic_pointer_cast<EffectEmitter>(clonedObject);
+        }
+        case EffectEmitterKind::SourceHistorySpriteTrail:
+        {
+            const auto* desc = get_if<ComputeSourceHistorySpriteTrailEmitterDesc>(&emitterDefinition.concreteDesc);
+            if (nullptr == desc)
+                return nullptr;
+
+            ComputeSourceHistorySpriteTrailEmitterDesc concreteDesc = *desc;
+            concreteDesc.renderLayerOverride = emitterDefinition.renderLayerOverride;
+            const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
+                GAME->Clone_Prototype(
+                    Prototype::GameObject,
+                    ETOI(LevelType::Static),
+                    kComputeSourceHistorySpriteTrailEmitterPrototypeTag,
+                    &concreteDesc
+                )
+            );
+            if (nullptr == clonedObject)
+            {
+                LOG_WARN(
+                    "ComputeSourceHistorySpriteTrailEmitter prototype missing: failed to clone source history sprite trail emitter prototype. emitter='{}'",
                     emitterDefinition.name
                 );
             }

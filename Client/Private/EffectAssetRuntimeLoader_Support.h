@@ -122,6 +122,7 @@ namespace EffectAssetRuntimeLoad
         void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc);
         void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeTrailEmitterDesc& desc);
         void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeRibbonEmitterDesc& desc);
+        void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSourceHistorySpriteTrailEmitterDesc& desc);
         void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeBeamEmitterDesc& desc);
         void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, MeshEmitterDesc& desc);
         void Apply_SpawnModule(const json& data, ComputeSpriteEmitterDesc& desc);
@@ -132,6 +133,7 @@ namespace EffectAssetRuntimeLoad
         bool Build_EmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
         bool Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
         bool Build_SourceHistoryRibbonEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
+        bool Build_SourceHistorySpriteTrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
         bool Build_BeamEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
         bool Build_MeshEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     }

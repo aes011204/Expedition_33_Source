@@ -37,18 +37,13 @@ HRESULT EffectEmitter::Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDe
     return S_OK;
 }
 
-void EffectEmitter::Set_EffectPlaybackSeed(uint32 effectPlaybackSeed)
-{
-    _effectPlaybackSeed = effectPlaybackSeed;
-}
-
 void EffectEmitter::Sync_FromEffectOwner()
 {
     CHECK_NULL_THROTTLED(_transformCom, 120);
 
     const Shared<GameObject> effectOwner = _effectOwner.lock();
     const Shared<TransformCom> ownerTransform =
-        (effectOwner != nullptr) ? effectOwner->Get_Transform() : Shared<TransformCom>{};
+        effectOwner != nullptr ? effectOwner->Get_Transform() : Shared<TransformCom>{};
 
     if (ownerTransform)
     {
@@ -65,6 +60,11 @@ void EffectEmitter::Sync_FromEffectOwner()
     }
 
     On_EffectTransformSynced();
+}
+
+void EffectEmitter::Set_EffectPlaybackSeed(uint32 effectPlaybackSeed)
+{
+    _effectPlaybackSeed = effectPlaybackSeed;
 }
 
 HRESULT EffectEmitter::Reset_ForEffectReplay()

@@ -670,6 +670,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
@@ -735,6 +738,9 @@
       <Filter>02.GameObject\Effect\Emitters\Trail</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
@@ -1494,6 +1500,9 @@
       <Filter>02.GameObject\Effect\Emitters\Trail</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">

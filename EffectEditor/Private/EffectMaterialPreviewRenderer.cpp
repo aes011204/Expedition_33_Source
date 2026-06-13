@@ -1294,7 +1294,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_PostProcessResolve() const
     return Render_PostProcessToneMapping(useBloom ? _bloomHalfB : nullptr);
 }
 
-HRESULT EffectMaterialPreviewRenderer::Render_PostProcessToneMapping(Shared<RenderTarget> bloomTexture) const
+HRESULT EffectMaterialPreviewRenderer::Render_PostProcessToneMapping(const Shared<RenderTarget>& bloomTexture) const
 {
     CHECK_NULL(_hdrRenderTarget, E_FAIL);
     CHECK_NULL(_renderTarget, E_FAIL);
@@ -1353,8 +1353,8 @@ HRESULT EffectMaterialPreviewRenderer::Render_PostProcessCopy() const
 }
 
 HRESULT EffectMaterialPreviewRenderer::Render_BloomPass(
-    Shared<RenderTarget> dstTarget,
-    Shared<RenderTarget> srcTarget,
+    const Shared<RenderTarget>& dstTarget,
+    const Shared<RenderTarget>& srcTarget,
     PostProcessPass pass) const
 {
     CHECK_NULL(dstTarget, E_FAIL);
@@ -1378,9 +1378,9 @@ HRESULT EffectMaterialPreviewRenderer::Render_BloomPass(
 }
 
 HRESULT EffectMaterialPreviewRenderer::Render_BloomUpsamplePass(
-    Shared<RenderTarget> dstTarget,
-    Shared<RenderTarget> smallTarget,
-    Shared<RenderTarget> baseTarget) const
+    const Shared<RenderTarget>& dstTarget,
+    const Shared<RenderTarget>& smallTarget,
+    const Shared<RenderTarget>& baseTarget) const
 {
     CHECK_NULL(dstTarget, E_FAIL);
     CHECK_NULL(smallTarget, E_FAIL);

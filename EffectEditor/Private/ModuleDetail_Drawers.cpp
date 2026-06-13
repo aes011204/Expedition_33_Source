@@ -24,6 +24,13 @@ namespace Internal
                alignment == EmitterScreenAlignment::Velocity;
     }
 
+    bool Uses_SourceHistorySpriteTrailCardAxis(EmitterScreenAlignment alignment, EmitterDirectionalAlignmentMode mode)
+    {
+        return alignment == EmitterScreenAlignment::FacingCameraPosition ||
+               alignment == EmitterScreenAlignment::Rectangle ||
+               (alignment == EmitterScreenAlignment::Velocity && mode == EmitterDirectionalAlignmentMode::TextureAxis);
+    }
+
     void Notify_DirectionalAlignmentModeChanged(EmitterScreenAlignment alignment, EmitterDirectionalAlignmentMode mode)
     {
         if (!Uses_DirectionalAlignmentOptions(alignment))
@@ -1971,11 +1978,13 @@ bool RequiredModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("RequiredSpaceSort"))
         {
-            changed |= detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
+            const bool isSourceHistorySpriteTrail = emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+            changed |= isSourceHistorySpriteTrail
+                       ? detailContext.Draw_SourceHistorySpriteTrailScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment)
+                       : detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
             if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
             {
                 const EmitterDirectionalAlignmentMode oldMode = data.directionalAlignmentMode;
-                const EmitterSpriteTextureAxis oldAxis = data.spriteTextureAxis;
 
                 if (detailContext.Draw_DirectionalAlignmentModeProperty("방향 정렬 방식", data.directionalAlignmentMode, defaultData.directionalAlignmentMode))
                 {
@@ -1983,18 +1992,39 @@ bool RequiredModuleDetail::Draw(
                     if (oldMode != data.directionalAlignmentMode)
                         Internal::Notify_DirectionalAlignmentModeChanged(data.screenAlignment, data.directionalAlignmentMode);
                 }
+            }
 
-                if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
+            const bool showSpriteTextureAxis =
+                isSourceHistorySpriteTrail
+                ? Internal::Uses_SourceHistorySpriteTrailCardAxis(data.screenAlignment, data.directionalAlignmentMode)
+                : Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment) &&
+                  data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis;
+            if (showSpriteTextureAxis)
+            {
+                const EmitterSpriteTextureAxis oldAxis = data.spriteTextureAxis;
+                if (isSourceHistorySpriteTrail)
                 {
-                    if (detailContext.Draw_SpriteTextureAxisProperty("정렬할 텍스처 축", data.spriteTextureAxis, defaultData.spriteTextureAxis))
+                    if (detailContext.Draw_SpriteTextureAxisProperty(
+                        "카드 길이 축",
+                        data.spriteTextureAxis,
+                        defaultData.spriteTextureAxis,
+                        "Texture X를 SourceHistorySpriteTrail 카드 길이 방향으로 사용합니다.",
+                        "Texture Y를 SourceHistorySpriteTrail 카드 길이 방향으로 사용합니다."
+                    ))
                     {
                         changed = true;
                         if (oldAxis != data.spriteTextureAxis)
                             Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
                     }
-
-                    changed |= detailContext.Draw_FloatProperty("롤 보정 (도)", data.spriteRollOffsetDegrees, defaultData.spriteRollOffsetDegrees, 0.1f);
                 }
+                else if (detailContext.Draw_SpriteTextureAxisProperty("정렬할 텍스처 축", data.spriteTextureAxis, defaultData.spriteTextureAxis))
+                {
+                    changed = true;
+                    if (oldAxis != data.spriteTextureAxis)
+                        Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
+                }
+
+                changed |= detailContext.Draw_FloatProperty("롤 보정 (도)", data.spriteRollOffsetDegrees, defaultData.spriteRollOffsetDegrees, 0.1f);
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
@@ -2194,8 +2224,10 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
         }
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             ImGui::TextDisabled("Mesh ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
-        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail || emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
-            ImGui::TextDisabled("Trail/Ribbon ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
+                 emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
+                 emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Trail/Ribbon/SourceHistorySpriteTrail ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
         else
             ImGui::TextDisabled("Sprite ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
     }

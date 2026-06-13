@@ -587,6 +587,29 @@ namespace Internal
         return root;
     }
 
+    json To_Json(const SourceHistorySpriteTrailTypeData& data)
+    {
+        json root = json::object();
+        root["sourceMode"] = To_EnumToken(data.sourceMode);
+        root["sourceEmitterId"] = data.sourceEmitterId;
+        root["followerLaneCount"] = data.followerLaneCount;
+        root["sampleLifetime"] = data.sampleLifetime;
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["maxLength"] = data.maxLength;
+        root["stampSpawnMode"] = To_EnumToken(data.stampSpawnMode);
+        root["stampSpacing"] = data.stampSpacing;
+        root["stampInterval"] = data.stampInterval;
+        root["stampLifetime"] = data.stampLifetime;
+        root["maxStampCount"] = data.maxStampCount;
+        root["cardLength"] = data.cardLength;
+        root["cardWidth"] = data.cardWidth;
+        root["flipU"] = data.flipU;
+        root["flipV"] = data.flipV;
+        root["rotationOffsetDegrees"] = data.rotationOffsetDegrees;
+        root["spawnJitter"] = data.spawnJitter;
+        return root;
+    }
+
     json To_Json(const BeamTypeData& data)
     {
         json root = json::object();
@@ -665,6 +688,56 @@ namespace Internal
         outData.tailCollapseSpeed = max(0.f, outData.tailCollapseSpeed);
     }
 
+    void From_Json(const json& root, SourceHistorySpriteTrailTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto sourceModeIter = root.find("sourceMode"); sourceModeIter != root.end())
+            Try_ReadEnumToken(*sourceModeIter, outData.sourceMode);
+        Read_NumberField(root, "sourceEmitterId", outData.sourceEmitterId);
+        Read_NumberField(root, "followerLaneCount", outData.followerLaneCount);
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+        {
+            outData.sourceMode = outData.sourceEmitterId != 0u
+                                 ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                 : SourceHistoryRibbonSourceMode::SelfRoot;
+        }
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SelfRoot)
+            outData.sourceEmitterId = 0u;
+        outData.followerLaneCount = max(1u, outData.followerLaneCount);
+
+        Read_NumberField(root, "sampleLifetime", outData.sampleLifetime);
+        outData.sampleLifetime = max(0.0001f, outData.sampleLifetime);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        outData.sampleSpacing = max(0.001f, outData.sampleSpacing);
+        Read_NumberField(root, "maxLength", outData.maxLength);
+        outData.maxLength = max(0.f, outData.maxLength);
+        if (const auto stampSpawnModeIter = root.find("stampSpawnMode"); stampSpawnModeIter != root.end())
+            Try_ReadEnumToken(*stampSpawnModeIter, outData.stampSpawnMode);
+        Read_NumberField(root, "stampSpacing", outData.stampSpacing);
+        outData.stampSpacing = max(0.001f, outData.stampSpacing);
+        Read_NumberField(root, "stampInterval", outData.stampInterval);
+        outData.stampInterval = max(0.001f, outData.stampInterval);
+        Read_NumberField(root, "stampLifetime", outData.stampLifetime);
+        outData.stampLifetime = max(0.0001f, outData.stampLifetime);
+        Read_NumberField(root, "maxStampCount", outData.maxStampCount);
+        outData.maxStampCount = max(1u, outData.maxStampCount);
+        Read_NumberField(root, "cardLength", outData.cardLength);
+        outData.cardLength = max(0.001f, outData.cardLength);
+        Read_NumberField(root, "cardWidth", outData.cardWidth);
+        outData.cardWidth = max(0.001f, outData.cardWidth);
+        if (const auto directionModeIter = root.find("directionMode"); directionModeIter != root.end())
+            Try_ReadEnumToken(*directionModeIter, outData.directionMode);
+        if (const auto textureAxisIter = root.find("textureAxis"); textureAxisIter != root.end())
+            Try_ReadEnumToken(*textureAxisIter, outData.textureAxis);
+        Read_BoolField(root, "flipU", outData.flipU);
+        Read_BoolField(root, "flipV", outData.flipV);
+        Read_NumberField(root, "rotationOffsetDegrees", outData.rotationOffsetDegrees);
+        Read_NumberField(root, "spawnJitter", outData.spawnJitter);
+        outData.spawnJitter = max(0.f, outData.spawnJitter);
+    }
+
     json To_Json(const MeshTypeData& data)
     {
         json root = json::object();
@@ -726,6 +799,12 @@ namespace Internal
             root["data"] = To_Json(sourceHistoryRibbonData != nullptr ? *sourceHistoryRibbonData : RibbonTypeData{});
             break;
         }
+        case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+        {
+            const SourceHistorySpriteTrailTypeData* sourceHistorySpriteTrailData = get_if<SourceHistorySpriteTrailTypeData>(&data.payload);
+            root["data"] = To_Json(sourceHistorySpriteTrailData != nullptr ? *sourceHistorySpriteTrailData : SourceHistorySpriteTrailTypeData{});
+            break;
+        }
         case AuthoringTypeDataKind::Beam:
         {
             const BeamTypeData* beamData = get_if<BeamTypeData>(&data.payload);
@@ -783,6 +862,17 @@ namespace Internal
                 From_Json(*dataIter, data);
 
             outData.kind = AuthoringTypeDataKind::Ribbon;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+        {
+            SourceHistorySpriteTrailTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::SourceHistorySpriteTrail;
             outData.payload = data;
             break;
         }
