@@ -270,7 +270,6 @@ PS_OUT PS_CharacterEye(PS_IN In)
     float2 irisUV = ApplyUVTransform(In.Texcoord);
 
     float3 viewDirWS = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-
     float2 irisViewOffset = float2(dot(viewDirWS, normalize(In.Tangent.xyz)), dot(viewDirWS, normalize(In.Binormal.xyz)));
 
     irisUV -= irisViewOffset * 0.1f;
@@ -297,14 +296,12 @@ PS_OUT PS_CharacterEye(PS_IN In)
     eyeBaseColor *= lerp(1.f, eyeCurvatureShade, scleraMask);
 
     Out.Diffuse = float4(eyeBaseColor, 1.f);
-
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
-    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
-    float3 orm = SampleOrm(baseUV);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);\
 
     // 눈 전체를 덮는 매끈한 각막 표면. 값이 낮을수록 반사가 작고 날카롭게 나타난다.
+    float3 orm = SampleOrm(baseUV);
     const float corneaRoughness = 0.005f;
-
     orm.r = max(orm.r, 0.92f);
     orm.g = min(orm.g, corneaRoughness);
     orm.b = 0.f;
@@ -328,10 +325,7 @@ PS_OUT PS_CharacterEye(PS_IN In)
 
     // 작은 흰색 안광. 맨 뒤 값을 높이면 안광 커짐
     float3 corneaHighlight = float3(1.f, 0.96f, 0.90f) * corneaGlint * glintMask * 0.35f;
-    
-    float3 emissive =
-        corneaReflection +
-        corneaHighlight;
+    float3 emissive = corneaReflection + corneaHighlight;
     
     Out.Emissive = float4(emissive, 1.f);
 
@@ -358,32 +352,19 @@ PS_OUT PS_CharacterHair(PS_IN In)
     const float hairCoreStart = 0.22f;
     const float hairCoreEnd = 0.50f;
 
-    float coreMask =
-    smoothstep(
-        hairCoreStart,
-        hairCoreEnd,
-        hairMask);
+    float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
 
     coreMask *= lerp(0.72f, 1.0f, edgeFade);
 
-// 주변 밀도가 높은 부분은 본체 헤어락으로 유지하고,
-// 고립된 얇은 선은 GBuffer 본체 패스에서 약화한다.
-    float clumpDensity =
-    smoothstep(0.08f, 0.24f, hairMaskDensity);
-
-    float isolatedStrandWeight =
-    lerp(0.55f, 1.0f, clumpDensity);
-
-    float coverage =
-    coreMask *
-    isolatedStrandWeight;
+    // 고립된 얇은 선은 GBuffer 본체 패스에서 약화한다.
+    float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);
+    float isolatedStrandWeight = lerp(0.55f, 1.0f, clumpDensity);
+    float coverage = coreMask * isolatedStrandWeight;
 
     clip(coverage - 0.14f);
 
     float3 hairBSDFColor = Compute_BlenderHairColor(finalUV);
-
-    float3 worldNormal =
-        ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
     // 카드 평면 느낌을 줄이기 위해 노멀을 약간 카메라 쪽으로 평균화한다.
     worldNormal = normalize(worldNormal);
@@ -407,34 +388,16 @@ PS_OUT PS_CharacterHair(PS_IN In)
 
     float3 emissive = float3(0.f, 0.f, 0.f);
 
-    // 임시 strand sheen
-    // 정석은 조명 패스에서 tangent 기반 hair specular를 계산하는 것이지만,
-    // 현재 구조에서는 emissive로 약하게 보강해 실제 머리카락 같은 결을 먼저 만든다.
+    // emissive로 약하게 보강해 실제 머리카락 같은 결을 먼저 만든다.
     float3 tangentWS = normalize(In.Tangent.xyz);
     float tangentView = abs(dot(tangentWS, viewDir));
+    float strandSheen = pow(saturate(1.f - tangentView), 10.f);
+    strandSheen *= lerp(0.35f, 1.0f, hairDepth);
+    strandSheen *= lerp(0.55f, 1.0f, coreMask);
+    strandSheen *= saturate(hairMask);
 
-    float strandSheen =
-    pow(
-        saturate(1.f - tangentView),
-        10.f);
-
-    strandSheen *=
-    lerp(0.35f, 1.0f, hairDepth);
-
-    strandSheen *=
-    lerp(0.55f, 1.0f, coreMask);
-
-    strandSheen *=
-    saturate(hairMask);
-
-// 고립된 전선 같은 가닥에는 넓은 하이라이트가 생기지 않게 한다.
-    strandSheen *=
-    lerp(0.45f, 1.0f, clumpDensity);
-
-    emissive +=
-    (hairBSDFColor * 0.06f +
-     float3(1.0f, 0.96f, 0.90f) * 0.025f) *
-    strandSheen;
+    strandSheen *= lerp(0.45f, 1.0f, clumpDensity);
+    emissive += (hairBSDFColor * 0.06f + float3(1.0f, 0.96f, 0.90f) * 0.025f) * strandSheen;
 
     if (HasPreviewRim())
     {
@@ -474,41 +437,23 @@ PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
     const float hairCoreStart = 0.22f;
     const float hairCoreEnd = 0.50f;
 
-    float coreMask =
-    smoothstep(
-        hairCoreStart,
-        hairCoreEnd,
-        hairMask);
+    float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
 
-    coreMask *=
-    lerp(0.72f, 1.0f, edgeFade);
+    coreMask *= lerp(0.72f, 1.0f, edgeFade);
 
-    float clumpDensity =
-    smoothstep(0.08f, 0.24f, hairMaskDensity);
+    float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);
+    float isolatedStrandWeight = lerp(0.55f, 1.0f, clumpDensity);
+    float gbufferCoverage = coreMask * isolatedStrandWeight;
 
-    float isolatedStrandWeight =
-    lerp(0.55f, 1.0f, clumpDensity);
+    // soft pass는 GBuffer에서 빠진 낮은 Mask 영역만 담당한다.
+    float softMask = smoothstep(0.015f, 0.30f, hairMask);
+    float hairAlpha = softMask * (1.f - saturate(gbufferCoverage));
 
-    float gbufferCoverage =
-    coreMask *
-    isolatedStrandWeight;
+    hairAlpha *= lerp(0.40f, 1.0f, edgeFade);
 
-// soft pass는 GBuffer에서 빠진 낮은 Mask 영역만 담당한다.
-    float softMask =
-    smoothstep(0.015f, 0.30f, hairMask);
+    // 잔머리는 soft pass에서 완전히 죽이지 않고 약하게 유지한다.
+    hairAlpha *= lerp(0.65f, 1.0f, clumpDensity);
 
-    float hairAlpha =
-    softMask *
-    (1.f - saturate(gbufferCoverage));
-
-    hairAlpha *=
-    lerp(0.40f, 1.0f, edgeFade);
-
-// 고립된 잔머리는 soft pass에서 완전히 죽이지 않고 약하게 유지한다.
-    hairAlpha *=
-    lerp(0.65f, 1.0f, clumpDensity);
-
-    // 너무 약한 알파는 버림
     clip(hairAlpha);
 
     // soft hair는 너무 세면 노이즈가 되므로 적당히만

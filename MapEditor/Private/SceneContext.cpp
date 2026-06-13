@@ -352,9 +352,14 @@ namespace
         e["ExposureMax"] = obj._ppExposureMax;
         e["FogDensity"] = obj._ppFogDensity;
         e["FogColor"] = { obj._ppFogColor.x, obj._ppFogColor.y, obj._ppFogColor.z };
-        e["FogStart"] = obj._ppFogStart;
-        e["FogZoneType"] = obj._ppFogZoneType;
-        e["FogRadius"] = obj._ppFogRadius;
+        e["BaseHeight"] = obj._ppFogBaseHeight;
+        e["TopFadeStart"] = obj._ppFogTopFadeStart;
+        e["TopHeight"] = obj._ppFogTopHeight;
+        e["EdgeFade"] = obj._ppFogEdgeFade;
+        e["NoiseScale"] = obj._ppFogNoiseScale;
+        e["NoiseSpeed"] = { obj._ppFogNoiseSpeed.x, obj._ppFogNoiseSpeed.y };
+        e["NoiseStrength"] = obj._ppFogNoiseStrength;
+        e["NoiseMin"] = obj._ppFogNoiseMin;
     }
 
     void Deserialize_PostProcessVolume(const json& e, EditorObject& obj)
@@ -376,9 +381,18 @@ namespace
             auto& c = e["FogColor"];
             obj._ppFogColor = { c[0], c[1], c[2] };
         }
-        obj._ppFogStart = e.value("FogStart", 0.f);
-        obj._ppFogZoneType = e.value("FogZoneType", 0);
-        obj._ppFogRadius = e.value("FogRadius", 10.f);
+        obj._ppFogBaseHeight = e.value("BaseHeight", 0.f);
+        obj._ppFogTopFadeStart = e.value("TopFadeStart", 0.4f);
+        obj._ppFogTopHeight = e.value("TopHeight", 0.9f);
+        obj._ppFogEdgeFade = e.value("EdgeFade", 1.f);
+        obj._ppFogNoiseScale = e.value("NoiseScale", 0.0025f);
+        if (e.contains("NoiseSpeed"))
+        {
+            auto& speed = e["NoiseSpeed"];
+            obj._ppFogNoiseSpeed = { speed[0], speed[1] };
+        }
+        obj._ppFogNoiseStrength = e.value("NoiseStrength", 0.9f);
+        obj._ppFogNoiseMin = e.value("NoiseMin", 0.38f);
     }
 
     string Strip_WaterTexturePath(const wstring& fullPath)
@@ -686,9 +700,14 @@ void SceneContext::SaveToFile(const string& filePath)
             e["ExposureMax"] = obj->_ppExposureMax;
             e["FogDensity"] = obj->_ppFogDensity;
             e["FogColor"] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
-            e["FogStart"] = obj->_ppFogStart;
-            e["FogZoneType"] = obj->_ppFogZoneType;
-            e["FogRadius"] = obj->_ppFogRadius;
+            e["BaseHeight"] = obj->_ppFogBaseHeight;
+            e["TopFadeStart"] = obj->_ppFogTopFadeStart;
+            e["TopHeight"] = obj->_ppFogTopHeight;
+            e["EdgeFade"] = obj->_ppFogEdgeFade;
+            e["NoiseScale"] = obj->_ppFogNoiseScale;
+            e["NoiseSpeed"] = { obj->_ppFogNoiseSpeed.x, obj->_ppFogNoiseSpeed.y };
+            e["NoiseStrength"] = obj->_ppFogNoiseStrength;
+            e["NoiseMin"] = obj->_ppFogNoiseMin;
             postProcessVols.push_back(e);
             break;
 
@@ -1053,9 +1072,18 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
                 auto& c = e["FogColor"];
                 obj->_ppFogColor = { c[0], c[1], c[2] };
             }
-            obj->_ppFogStart = e.value("FogStart", 0.f);
-            obj->_ppFogZoneType = e.value("FogZoneType", 0);
-            obj->_ppFogRadius = e.value("FogRadius", 10.f);
+            obj->_ppFogBaseHeight = e.value("BaseHeight", 0.f);
+            obj->_ppFogTopFadeStart = e.value("TopFadeStart", 0.4f);
+            obj->_ppFogTopHeight = e.value("TopHeight", 0.9f);
+            obj->_ppFogEdgeFade = e.value("EdgeFade", 1.f);
+            obj->_ppFogNoiseScale = e.value("NoiseScale", 0.0025f);
+            if (e.contains("NoiseSpeed"))
+            {
+                auto& speed = e["NoiseSpeed"];
+                obj->_ppFogNoiseSpeed = { speed[0], speed[1] };
+            }
+            obj->_ppFogNoiseStrength = e.value("NoiseStrength", 0.9f);
+            obj->_ppFogNoiseMin = e.value("NoiseMin", 0.38f);
 
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
@@ -1411,10 +1439,18 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
                 auto& fc = j["FogColor"];
                 obj->_ppFogColor = { fc[0], fc[1], fc[2] };
             }
-
-            obj->_ppFogStart = j.value("FogStart", 0.f);
-            obj->_ppFogZoneType = j.value("FogZoneType", 0);
-            obj->_ppFogRadius = j.value("FogRadius", 10.f);
+            obj->_ppFogBaseHeight = j.value("BaseHeight", 0.f);
+            obj->_ppFogTopFadeStart = j.value("TopFadeStart", 0.4f);
+            obj->_ppFogTopHeight = j.value("TopHeight", 0.9f);
+            obj->_ppFogEdgeFade = j.value("EdgeFade", 1.f);
+            obj->_ppFogNoiseScale = j.value("NoiseScale", 0.0025f);
+            if (j.contains("NoiseSpeed"))
+            {
+                auto& speed = j["NoiseSpeed"];
+                obj->_ppFogNoiseSpeed = { speed[0], speed[1] };
+            }
+            obj->_ppFogNoiseStrength = j.value("NoiseStrength", 0.9f);
+            obj->_ppFogNoiseMin = j.value("NoiseMin", 0.38f);
         }
         break;
     }

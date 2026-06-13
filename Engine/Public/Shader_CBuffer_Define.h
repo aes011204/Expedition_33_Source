@@ -312,17 +312,21 @@ struct alignas(16) ScreenFxCB
 struct alignas(16) FogZoneEntry
 {
     Vec3 zoneMin;
-    float zoneRadius;
+    float baseHeight{ 0.f };
 
     Vec3 zoneMax;
-    float _pad0;
+    float topFadeStart{ 0.4f };
 
     Vec4 fogColor{ 0.6f, 0.6f, 0.6f, 1.f };
 
     float fogDensity{ 1.f };
-    float fogStart{ 0.f };
-    float _pad1{ 0.f };
-    float _pad2{ 0.f };
+    float topHeight{ 0.9f };
+    float edgeFade{ 1.f };
+    float noiseScale{ 0.0025f };
+
+    Vec2 noiseSpeed{ 0.005f, 0.003f };
+    float noiseStrength{ 0.9f };
+    float noiseMin{ 0.38f };
 };
 
 struct alignas(16) FogZoneCB
@@ -333,7 +337,13 @@ struct alignas(16) FogZoneCB
     FogZoneEntry zones[MAX_FOG_ZONES]{};
     int32 aabbCount{ 0 };
     int32 sphereCount{ 0 };
-    float _pad0[2]{};
+    float groundFogMaxDistance{ 100.f };
+    float groundFogMinAccumulationDistance{ 10.f };
+
+    float groundFogDistanceInfluence{ 0.15f };
+    float groundFogNearFadeDistance{ 12.f };
+    float groundFogNearMinFactor{ 0.65f };
+    float _pad0[3]{};
 };
 
 // ------------------------------------------

@@ -33,9 +33,14 @@ struct EditorObject
     float _ppExposureMax = 2.f;
     float _ppFogDensity = {};
     Vec3 _ppFogColor = Vec3::One;
-    float _ppFogStart = 0.f;
-    float _ppFogRadius = 10.f;
-    int _ppFogZoneType = 0;
+    float _ppFogBaseHeight = 0.f;
+    float _ppFogTopFadeStart = 0.4f;
+    float _ppFogTopHeight = 0.9f;
+    float _ppFogEdgeFade = 1.f;
+    float _ppFogNoiseScale = 0.0025f;
+    Vec2 _ppFogNoiseSpeed = { 0.005f, 0.003f };
+    float _ppFogNoiseStrength = 0.9f;
+    float _ppFogNoiseMin = 0.38f;
 
     LightType _lightType = LightType::Directional;
     Vec4 _lightDiffuse = { 1.f, 1.f, 1.f, 1.f };

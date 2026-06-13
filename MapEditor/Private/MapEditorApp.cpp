@@ -635,31 +635,23 @@ void MapEditorApp::SyncFogZones()
         FogZoneEntry entry{};
         entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
         entry.fogDensity = obj->_ppFogDensity;
-        entry.fogStart = obj->_ppFogStart;
+        entry.baseHeight = obj->_ppFogBaseHeight;
+        entry.topFadeStart = obj->_ppFogTopFadeStart;
+        entry.topHeight = obj->_ppFogTopHeight;
+        entry.edgeFade = obj->_ppFogEdgeFade;
+        entry.noiseScale = obj->_ppFogNoiseScale;
+        entry.noiseSpeed = obj->_ppFogNoiseSpeed;
+        entry.noiseStrength = obj->_ppFogNoiseStrength;
+        entry.noiseMin = obj->_ppFogNoiseMin;
 
-        if (obj->_ppFogZoneType == 0) // AABB
+        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
         {
-            if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                continue;
-            }
-
-            entry.zoneMin = obj->_position - obj->_zoneExtent;
-            entry.zoneMax = obj->_position + obj->_zoneExtent;
-            cb.zones[cb.aabbCount++] = entry;
+            continue;
         }
 
-        else
-        {
-            if (cb.aabbCount + cb.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                continue;
-            }
-
-            entry.zoneMin = obj->_position;
-            entry.zoneRadius = obj->_ppFogRadius;
-            cb.zones[cb.aabbCount + cb.sphereCount++] = entry;
-        }
+        entry.zoneMin = obj->_position - obj->_zoneExtent;
+        entry.zoneMax = obj->_position + obj->_zoneExtent;
+        cb.zones[cb.aabbCount++] = entry;
     }
 
     GAME->Set_FogZones(cb);
