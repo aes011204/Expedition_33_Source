@@ -73,8 +73,6 @@ void MB_Bishop::Update(float timeDelta)
     {
         _body->Play_Animation(timeDelta);
     }
-
-    LOG_DEBUG("MB_Boss : {}", _combatStat->Get_MonsterDesc().isBoss);
 }
 
 bool MB_Bishop::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
