@@ -8,6 +8,8 @@ class ShaderCom;
 class ModelCom;
 class MovementCom;
 class ColliderCom;
+class FacialAnimationModifier;
+class FacialClip;
 NS_END
 
 NS_BEGIN(Client)
@@ -18,6 +20,7 @@ class InputCom;
 class PlayerControllerCom;
 class PlayerStateMachineCom;
 class EffectCom;
+class Head_Player;
 
 class Body_Player;
 class Head_Player;
@@ -46,6 +49,7 @@ public:
     // 스테이터스 찍을 때, 게임 전체는 멈추는데
     // UI 창 안에서 프리뷰 플레이어들은 업데이트가 돌아야 애니메이션이 재생됨
     void    Update_StatusPreview(float timeDelta);
+    void    Update_GameMenuFacialPreview(float timeDelta, bool enabled);
     void    Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim);
     Vec3    Get_MovementVelocity() const;
     void    Start_SwitchDissolve(float durationSec, const string& noiseName);
@@ -73,6 +77,8 @@ protected:
     virtual const wchar_t* Get_BeardModelTag() const { return nullptr; }
     virtual const wchar_t* Get_MustacheModelTag() const { return nullptr; }
 
+    virtual const wchar_t* Get_GameMenuFacialClipPath() const;
+
 private:
     struct CostumePartTransform
     {
@@ -90,6 +96,8 @@ private:
     void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms);
     void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms,
         const CostumePartLocalTransform& fallbackTransform);
+    void Reapply_CostumePartBaseMaterial(const wstring& partTag);
+    void Reapply_CostumeBaseMaterials();
 
     Body_Player* Add_CostumeBody(const wstring& modelTag);
     Head_Player* Add_CostumeHead(const wstring& modelTag, const Body_Player* body);
@@ -105,7 +113,12 @@ protected:
     Shared<PlayerStatCom>           _combatStatCom;
     Shared<EffectCom>               _effectCom;
     CostumePartTransformMap         _defaultCostumePartTransforms{};
-    float                           _fallStateEnterAccum = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
+    float                           _fallStateEnterAcc = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
+
+private:
+    Shared<Engine::FacialClip>       _gameMenuFacialClip{};
+    Shared<Engine::FacialAnimationModifier> _gameMenuFacialModifier{};
+    bool                            _gameMenuFacialEnabled = false;
 
 public:
 	static Shared<Player_WorldBase> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

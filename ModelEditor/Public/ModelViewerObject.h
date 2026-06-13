@@ -4,6 +4,8 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class ComputeShaderCom;
+class AnimComputeRuntime;
 NS_END
 
 NS_BEGIN(ModelEditor)
@@ -36,16 +38,25 @@ public:
 
 public:
     Shared<ModelCom> Get_ModelComponent() const { return _modelCom; }
+    bool Is_ComputePreviewReady() const { return _animComputeRuntime != nullptr; }
+    bool Was_LastRenderComputeSkinned() const { return _lastRenderComputeSkinned; }
 
 private:
 	HRESULT Ready_Components();
-	HRESULT Bind_ShaderResources();
+    HRESULT Ready_AnimComputeRuntime();
+	HRESULT Bind_ShaderResources(const Shared<ShaderCom>& shader);
+    HRESULT Render_Default();
+    HRESULT Render_ComputeSkinned();
 
 private:
     Shared<ShaderCom>                   _staticShaderCom{ nullptr };
     Shared<ShaderCom>                   _animShaderCom{ nullptr };
+    Shared<ComputeShaderCom>            _boneRemapShaderCom{ nullptr };
+    Shared<ComputeShaderCom>            _skinningShaderCom{ nullptr };
+    Shared<ComputeShaderCom>            _morphShaderCom{ nullptr };
+    Shared<AnimComputeRuntime>          _animComputeRuntime{ nullptr };
 	Shared<ModelCom>                    _modelCom = nullptr;
-    ComPtr<ID3D11ShaderResourceView>    _defaultTextureSRV{ nullptr };
+    bool                                _lastRenderComputeSkinned = false;
 
 public:
     static Shared<ModelViewerObject> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

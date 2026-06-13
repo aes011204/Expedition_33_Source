@@ -113,6 +113,7 @@ public:
 
     bool Is_BattleStarted() { return _isBattleActive; }
     bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
+    bool Is_BattleIntroPresentationActive() const { return _isBattleEntering || _isWaitingBattleTransition; }
 
     Shared<SkillScript> Get_CurrentScript() const { return _curScript; }
     void Clear_CurrentScript() { _curScript.reset(); }

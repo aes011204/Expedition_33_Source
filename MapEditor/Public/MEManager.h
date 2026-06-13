@@ -37,6 +37,8 @@ private:
     Shared<SnapSettings> _snapSettings;
 
     bool _confirmClearOpen = false;
+    bool _exportPopupOpen = false;
+    char _exportNameBuf[256] = {};
 
 public:
     void AddWindow(Shared<MEWindow> w);

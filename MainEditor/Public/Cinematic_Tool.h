@@ -35,7 +35,7 @@ private:
     void Render_BattleClipTab();
     void Render_BattleClipHeader();
     void Render_BattleClipSequencer();
-    void Render_BattleClipTrackEditor(const char* label, BattleCameraTrack& track);
+    void Render_BattleClipTrackEditor(const char* label, CameraTrack& track);
     void Render_SelectedBattleClipKeyframe();
     void Render_BattleClipInsertKeyframePopup();
     void Render_BattleClipRemoveKeyframePopup();
@@ -44,6 +44,7 @@ private:
     void Render_KeyframeList();
     void Render_SelectedKeyframe();
     void Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe);
+    void Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyframe);
     void Render_RightPanel();
     void Render_SelectedKeyframePopup();
     void Render_InsertKeyframePopup();
@@ -55,13 +56,16 @@ private:
     void Ensure_DefaultTrack();
     void Clamp_Selection();
     void Sort_SelectedTrackKeyframes();
+    void Sort_SelectedModifierTrackKeyframes();
     void Capture_KeyframeFromFreeCamera();
     void Insert_KeyframeAtFrame(int trackIndex, int frame);
+    void Clear_AllSequenceKeyframes();
+    void Reset_ToNewSequence();
     void Refresh_SequenceFileList();
     void Load_SelectedSequenceFile();
     void Apply_CurrentFramePose();
     void Clear_PendingInsertRequest();
-    void Sort_BattleClipTrackKeyframes(BattleCameraTrack& track);
+    void Sort_BattleClipTrackKeyframes(CameraTrack& track);
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
     void Apply_CurrentBattleClipPreview();
     void Ensure_BattleClipSkillListLoaded();
@@ -71,8 +75,12 @@ private:
 
     CINEMATIC_TRACK* Get_SelectedTrack();
     CINEMATIC_KEYFRAME* Get_SelectedKeyframe();
-    BattleCameraTrack* Get_SelectedBattleClipTrack();
-    BattleCameraKeyframe* Get_SelectedBattleClipKeyframe();
+    CameraTrack* Get_SelectedModifierTrack();
+    CameraKeyframe* Get_SelectedModifierKeyframe();
+    bool Is_SelectedModifierTrack() const;
+    int Get_SelectedModifierTrackIndex() const;
+    CameraTrack* Get_SelectedBattleClipTrack();
+    CameraKeyframe* Get_SelectedBattleClipKeyframe();
     Shared<Client::BattleTurnCamera> Get_BattleTurnCamera() const;
     Shared<Character> Resolve_BattleClipPreviewSubject() const;
     Shared<Character> Resolve_BattleClipPreviewOpponent() const;
@@ -83,6 +91,7 @@ private:
     bool Try_CaptureActiveFreeCameraPose(CAMERAPOSE& outPose) const;
 
 private:
+    bool                                 _wasCinematicPlaying = true;
     bool                                 _isPreviewDirty  = true;
     int                                  _lastPreviewFrame = -1;
     int                                  _lastPreviewTrackIndex = -1;

@@ -33,11 +33,11 @@ private:
 
     void Load_SelectedMap();
     void Reload_SelectedMap();
-    void Reload_SelectedPrefabInstances();
-    void Save_SelectedMapPrefabInstances();
+    void Reload_SelectedAuthoredObjects();
+    void Save_SelectedMapState();
 
     void Remove_CurrentLevelMapObjects();
-    void Remove_CurrentLevelAuthoredPrefabInstances();
+    void Remove_CurrentLevelAuthoredObjects();
 
     void Change_To(LevelType targetLevel);
 

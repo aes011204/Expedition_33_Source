@@ -121,6 +121,8 @@ PS_OUT PS_Opaque(PS_IN In)
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
     Out.Diffuse = baseColor;
+    //Out.Diffuse = float4(worldNormal * 0.5f + 0.5f, 1.f);
+    
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
 
@@ -384,6 +386,36 @@ PS_OUT PS_FaceAccessoryBeard(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_FaceAccAlphaBlend(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+
+    float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
+    baseColor.a = g_BaseColorTint.a;
+
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    float3 orm = float3(g_AoScale, saturate(arTex.a * g_RoughnessScale), g_MetalnessScale);
+
+    float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(orm.xyz, 1.f);
+    Out.Emissive = float4(emissive.xyz, 1.f);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass,         RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
@@ -399,4 +431,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(PackedAR_NMETwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME) // 10
     PASS_RS_DS_BS_VP(LandscapeBlendPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_LandscapeBlend)      // 11
     PASS_RS_DS_BS_VP(FaceAccessoryBeardPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_FaceAccessoryBeard) // 12
+    PASS_RS_DS_BS_VP(FaceAccAlphaBlend, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_Default, PS_FaceAccAlphaBlend) // 13
 }

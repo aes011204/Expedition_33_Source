@@ -26,9 +26,11 @@ private:
     char _renameBuffer[256] = {};
 
     char _modelFolderBuf[256] = {};
+    char _searchBuffer[256] = {};
 
 private:
     void StartRename(int index, const Shared<EditorObject>& obj);
+    bool PassSearchFilter(const Shared<EditorObject>& obj) const;
 
 public:
     static Shared<PanelHierarchy> Create(SceneContext* ctx);

@@ -102,12 +102,6 @@ void BattleController::Update(float timeDelta)
         if (!_hasRequestedBattleEnterCamera)
         {
             const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-            LOG_INFO(
-                "[BattleCamTrace] BattleController::Update request BATTLE_ENTER activeCameraType={} elapsed={:.3f}/{:.3f} worldScale={:.3f}",
-                static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-                _battleEnterSlow.elapsed,
-                _battleEnterSlow.duration,
-                GAME->Get_WorldTimeScale());
 
             CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER);
             _hasRequestedBattleEnterCamera = true;
@@ -307,15 +301,6 @@ void BattleController::OnEnterBattleField(
     _pendingNextTurn = false;
 
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] BattleController::OnEnterBattleField field={} heroes={} monsterSpawns={} activeCameraType={} worldScaleBefore={:.3f} slowScale={:.3f} slowDuration={:.3f}",
-        FieldID,
-        heroIds.size(),
-        battleMonsterSpawnDescs.size(),
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        GAME->Get_WorldTimeScale(),
-        _battleEnterSlow.worldTimeScale,
-        _battleEnterSlow.duration);
 
     // 배틀 진입 소스 오브젝트 세팅
     // ex) MW_Lancelier랑 충돌돼서 전투 시작하면 저장하고있다가, 전투 종료 후 삭제하려고
@@ -966,7 +951,9 @@ void BattleController::Request_WidePresentationMode()
     if (!_battleTurnCamera)
         return;
 
-    EvtBattlePresentation event;
+    LOG_INFO("[BattleCamTrace] Request_WidePresentationMode");
+
+    EvtBattlePresentation event{};
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
     GAME->Get_EventBus().Publish(event);
@@ -2027,12 +2014,6 @@ void BattleController::Activate_BattleTurnCamera()
     _battleTurnCamera->Apply_ShotRequest(request);
 
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] BattleController::Activate_BattleTurnCamera activeBefore={} enemyCount={} subjectPrefab={} worldScale={:.3f}",
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        _enemies.size(),
-        request.presetId.c_str(),
-        GAME->Get_WorldTimeScale());
 
     CLIENT->Request_BattleTurn();
 }

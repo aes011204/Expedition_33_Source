@@ -16,12 +16,15 @@
 #include "FaceAccessory_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
+#include "FacialAnimationModifier.h"
+#include "FacialClip.h"
+#include "ModelCom.h"
 #include "Player_GameMenu.h"
 #include "SkillTreeCom.h"
 #include "CostumeManager.h"
 #include "TransformCom.h"
 
-namespace
+namespace Client::PlayerWorldTuning
 {
     constexpr float kFallStateEnterDelaySec = 0.10f;
     constexpr float kFallStateEnterSpeedY = -2.4f;
@@ -58,7 +61,7 @@ HRESULT Player_WorldBase::Initialize(void* arg)
 void Player_WorldBase::BeginPlay()
 {
     Character_WorldBase::BeginPlay();
-    _fallStateEnterAccum = 0.f;
+    _fallStateEnterAcc = 0.f;
 
     if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
     {
@@ -85,7 +88,7 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
     if (_movementCom && _movementCom->Did_InputJumpStart())
     {
-        _fallStateEnterAccum = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
+        _fallStateEnterAcc = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
         _playerStateMachineCom->Change_State(PlayerState::Jump);
     }
     else if (_movementCom)
@@ -97,27 +100,27 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
         if (_movementCom->Is_Grounded())
         {
-            _fallStateEnterAccum = 0.f; // 지면을 다시 밟으면 점프 입력 없는 낙하 진입 누적은 바로 리셋한다.
+            _fallStateEnterAcc = 0.f; // 지면을 다시 밟으면 점프 입력 없는 낙하 진입 누적은 바로 리셋한다.
         }
         else if (canEnterFallState &&
-            _movementCom->Get_Velocity().y < kFallStateEnterSpeedY)
+            _movementCom->Get_Velocity().y < PlayerWorldTuning::kFallStateEnterSpeedY)
         {
-            _fallStateEnterAccum += timeDelta; // 경사 보행 중 잠깐 비는 공중 프레임은 바로 Jump로 소비하지 않고 짧게 누적 확인한다.
+            _fallStateEnterAcc += timeDelta; // 경사 보행 중 잠깐 비는 공중 프레임은 바로 Jump로 소비하지 않고 짧게 누적 확인한다.
 
-            if (_fallStateEnterAccum >= kFallStateEnterDelaySec)
+            if (_fallStateEnterAcc >= PlayerWorldTuning::kFallStateEnterDelaySec)
             {
-                _fallStateEnterAccum = 0.f;
+                _fallStateEnterAcc = 0.f;
                 _playerStateMachineCom->Change_State(PlayerState::Jump);
             }
         }
         else
         {
-            _fallStateEnterAccum = 0.f; // Idle/Move 외 상태거나 하강 속도가 약하면 가짜 낙하 누적을 버린다.
+            _fallStateEnterAcc = 0.f; // Idle/Move 외 상태거나 하강 속도가 약하면 가짜 낙하 누적을 버린다.
         }
     }
     else
     {
-        _fallStateEnterAccum = 0.f;
+        _fallStateEnterAcc = 0.f;
     }
 
     _playerStateMachineCom->LateUpdate_CurrentState(timeDelta);
@@ -159,6 +162,68 @@ void Player_WorldBase::Update_StatusPreview(float timeDelta)
 
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+}
+
+void Player_WorldBase::Update_GameMenuFacialPreview(float timeDelta, bool enabled)
+{
+    auto* head = dynamic_cast<Head_Player*>(Get_PartObject(L"Part_Head"));
+    if (head == nullptr)
+        return;
+
+    const Shared<ModelCom> headModel = head->Get_Model();
+    if (headModel == nullptr)
+        return;
+
+    if (!enabled)
+    {
+        if (_gameMenuFacialEnabled && _gameMenuFacialModifier != nullptr)
+        {
+            _gameMenuFacialModifier->Set_Active(false);
+        }
+
+        _gameMenuFacialEnabled = false;
+        return;
+    }
+
+    if (_gameMenuFacialClip == nullptr)
+    {
+        const wchar_t* clipRelPath = Get_GameMenuFacialClipPath();
+        if (clipRelPath == nullptr)
+            return;
+
+        const fs::path clipPath = fs::path(GAME->Get_AssetRoot()) / clipRelPath;
+        auto clip = FacialClip::Create();
+        if (clip == nullptr || FAILED(clip->Load_Binary(String::ToString(clipPath.wstring()))))
+        {
+            LOG_WARN("[GameMenuFacialPreview] Failed to load facialclip: {}", String::ToString(clipPath.wstring()));
+            return;
+        }
+
+        _gameMenuFacialClip = clip;
+    }
+
+    if (_gameMenuFacialModifier == nullptr)
+    {
+        FacialAnimationModifier::FacialModifierDesc modifierDesc{};
+        modifierDesc.modifierTag = L"GameMenuFacialPreview";
+        modifierDesc.clip = _gameMenuFacialClip;
+        modifierDesc.loop = true;
+        modifierDesc.suppressMouthArea = true;
+
+        _gameMenuFacialModifier = FacialAnimationModifier::Create(&modifierDesc);
+        if (_gameMenuFacialModifier == nullptr)
+            return;
+
+        headModel->Add_AnimModifier(_gameMenuFacialModifier);
+    }
+
+    _gameMenuFacialEnabled = true;
+    _gameMenuFacialModifier->Set_Active(true);
+}
+
+const wchar_t* Player_WorldBase::Get_GameMenuFacialClipPath() const
+{
+    return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
 }
 
 void Player_WorldBase::Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
@@ -231,6 +296,8 @@ HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
 
     CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Glasses"), preset.parts.glassesModelTag, head), E_FAIL);
     Apply_CostumePartTransform(TEXT("Part_Glasses"), restorePartTransforms, preset.parts.glassesTransform);
+
+    Reapply_CostumeBaseMaterials();
 
     if (_playerStateMachineCom)
         _playerStateMachineCom->Reenter_CurrentState();
@@ -313,6 +380,41 @@ void Player_WorldBase::Apply_CostumePartTransform(const wstring& partTag,
         Apply_CostumePartTransform(partTag, partTransforms);
         return;
     }
+}
+
+void Player_WorldBase::Reapply_CostumePartBaseMaterial(const wstring& partTag)
+{
+    PartObject* partObject = Get_PartObject(partTag);
+    if (partObject == nullptr)
+        return;
+
+    Shared<ModelCom> model{};
+
+    if (auto* playablePart = dynamic_cast<PlayableParts*>(partObject))
+    {
+        model = playablePart->Get_Model();
+    }
+    else if (auto* faceAccessory = dynamic_cast<FaceAccessory_Player*>(partObject))
+    {
+        model = faceAccessory->Get_Model();
+    }
+
+    if (model == nullptr)
+        return;
+
+    // 코스튬 전환은 새 모델만 갈아끼우는 경로라 base bundle 재적용을 명시적으로 다시 돌려준다.
+    model->Apply_BaseMaterialFromBundle_AllSlots();
+    (void)model->Normalize_OwnerComponentTagAndBindings();
+}
+
+void Player_WorldBase::Reapply_CostumeBaseMaterials()
+{
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Body"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Head"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Beard"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Mustache"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Hair"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Glasses"));
 }
 
 Body_Player* Player_WorldBase::Add_CostumeBody(const wstring& modelTag)
@@ -475,7 +577,6 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
     headPartDesc.modelTag = Get_HeadModelTag();
-    //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
     headPartDesc.socketMatrixPointer = nullptr;
 
     if (FAILED(

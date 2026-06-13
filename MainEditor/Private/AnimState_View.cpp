@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "AnimState_View.h"
 #include "Animation_NameUtils.h"
 #include "ContainerObject.h"
@@ -644,6 +644,7 @@ void AnimState_View::Ensure_PreviewCamera()
         return;
 
     Editor_Camera_Free::EDITOR_CAMERA_DESC desc = Build_PreviewCameraDesc(Get_PreviewRenderObject());
+
     if (FAILED(_previewCamera->Initialize(&desc)))
     {
         _previewCamera = nullptr;

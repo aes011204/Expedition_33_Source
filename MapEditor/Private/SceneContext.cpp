@@ -13,6 +13,92 @@ namespace
 {
     constexpr size_t kCookedCollisionWarnBytes = 256 * 1024;
 
+    fs::path Resolve_MapResourceRoot()
+    {
+        fs::path repoRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
+        fs::path mapRoot = repoRoot / "Client" / "Bin" / "Resources" / "Map";
+
+        error_code ec;
+        fs::path resolved = fs::weakly_canonical(mapRoot, ec);
+        return (!ec && !resolved.empty()) ? resolved : mapRoot;
+    }
+
+    string Resolve_MapResourceRootString()
+    {
+        return Resolve_MapResourceRoot().generic_string() + "/";
+    }
+
+    wstring Resolve_MapResourceRootWString()
+    {
+        return Resolve_MapResourceRoot().wstring() + L"\\";
+    }
+
+    string Make_SplitInstanceModelPath(const wstring& modelPathW)
+    {
+        if (modelPathW.empty())
+            return {};
+
+        const fs::path modelPath(modelPathW);
+        const wstring mapSavePrefix = String::ToWString(_mapSavePath);
+        if (modelPathW.size() >= mapSavePrefix.size() && modelPathW.substr(0, mapSavePrefix.size()) == mapSavePrefix)
+            return fs::path(modelPathW.substr(mapSavePrefix.size())).generic_string();
+
+        const wstring absolutePrefix = Resolve_MapResourceRootWString();
+        if (modelPathW.size() >= absolutePrefix.size() && modelPathW.substr(0, absolutePrefix.size()) == absolutePrefix)
+            return fs::path(modelPathW.substr(absolutePrefix.size())).generic_string();
+
+        const fs::path mapRoot = Resolve_MapResourceRoot();
+        error_code ec;
+        const fs::path normalizedMapRoot = fs::weakly_canonical(mapRoot, ec);
+        ec.clear();
+        fs::path absoluteModelPath = fs::absolute(modelPath, ec);
+        if (ec || absoluteModelPath.empty())
+            absoluteModelPath = modelPath;
+
+        ec.clear();
+        const fs::path normalizedModelPath = fs::weakly_canonical(absoluteModelPath, ec);
+        if (!ec && !normalizedMapRoot.empty() && !normalizedModelPath.empty())
+        {
+            const fs::path rel = normalizedModelPath.lexically_relative(normalizedMapRoot);
+            if (!rel.empty() && rel.begin()->wstring() != L"..")
+                return rel.generic_string();
+        }
+
+        return modelPath.filename().generic_string();
+    }
+
+    wstring Resolve_SplitInstanceImportModelPath(const fs::path& mapRoot, const string& mapName, const string& modelPathStr)
+    {
+        if (modelPathStr.empty())
+            return {};
+
+        fs::path modelPath(modelPathStr);
+        if (modelPath.is_absolute())
+            return modelPath.wstring();
+
+        if (modelPath.has_parent_path())
+        {
+            auto first = modelPath.begin();
+            if (first != modelPath.end() && first->string() == mapName)
+                return (mapRoot / modelPath).wstring();
+
+            error_code ec;
+            if (fs::exists(mapRoot / modelPath, ec))
+                return (mapRoot / modelPath).wstring();
+
+            ec.clear();
+            if (fs::exists(mapRoot / mapName / modelPath, ec))
+                return (mapRoot / mapName / modelPath).wstring();
+        }
+
+        error_code ec;
+        const fs::path mapNamePath = mapRoot / mapName / modelPath;
+        if (fs::exists(mapNamePath, ec))
+            return mapNamePath.wstring();
+
+        return mapNamePath.wstring();
+    }
+
     Vec4 ToVec4(const json& arr)
     {
         return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
@@ -45,32 +131,8 @@ namespace
             return;
 
         json binRoot = sourceRoot;
-        if (binRoot.contains("MapData") && binRoot["MapData"].contains("ModelCollisions"))
-        {
-            auto& modelCollisions = binRoot["MapData"]["ModelCollisions"];
-            for (auto it = modelCollisions.begin(); it != modelCollisions.end(); ++it)
-            {
-                auto& collisionEntry = it.value();
-                if (!collisionEntry.is_object() ||
-                    !collisionEntry.contains("CookedTriangleMeshes") ||
-                    !collisionEntry["CookedTriangleMeshes"].is_array())
-                {
-                    continue;
-                }
-
-                json binaryMeshArray = json::array();
-                for (auto& base64Mesh : collisionEntry["CookedTriangleMeshes"])
-                {
-                    if (!base64Mesh.is_string())
-                        continue;
-
-                    vector<uint8_t> binaryData = String::Base64_Decode(base64Mesh.get<string>());
-                    binaryMeshArray.push_back(json::binary(binaryData));
-                }
-
-                collisionEntry["CookedTriangleMeshes"] = std::move(binaryMeshArray);
-            }
-        }
+        if (binRoot.contains("MapData") && binRoot["MapData"].is_object())
+            binRoot["MapData"].erase("ModelCollisions");
 
         fs::path binPath = jsonPath;
         binPath.replace_extension(".bin");
@@ -81,6 +143,454 @@ namespace
 
         vector<uint8_t> msgpack = json::to_msgpack(binRoot);
         ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+    }
+
+    fs::path Make_ModelCollisionBinaryPath(const wstring& modelPath)
+    {
+        fs::path collisionPath(modelPath);
+        collisionPath.replace_extension(".collision.bin");
+        return collisionPath;
+    }
+
+    bool Write_ModelCollisionBinary(
+        const wstring& modelPath,
+        const Shared<ModelCom>& model)
+    {
+        if (modelPath.empty() || model == nullptr)
+            return false;
+
+        const fs::path collisionPath = Make_ModelCollisionBinaryPath(modelPath);
+        if (fs::exists(collisionPath))
+            return true;
+
+        auto physxManager = GAME->Get_PhysXManager();
+        if (!physxManager)
+            return false;
+
+        Shared<StaticCollisionData> colData = MapStaticCollisionBuilder::Build(model);
+        if (!colData)
+            return false;
+
+        json cookedMeshArray = json::array();
+        size_t totalCookedBytes = 0;
+        for (auto& mesh : colData->triangleMeshes)
+        {
+            vector<uint8_t> cookedData;
+            if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
+            {
+                totalCookedBytes += cookedData.size();
+                cookedMeshArray.push_back(json::binary(cookedData));
+            }
+        }
+
+        json primitiveProxyArray = json::array();
+        for (const ModelCollisionProxy& proxy : colData->primitiveProxies)
+            primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
+
+        if (cookedMeshArray.empty() && primitiveProxyArray.empty())
+            return false;
+
+        const string modelPathA = Make_SplitInstanceModelPath(modelPath);
+        if (primitiveProxyArray.empty() &&
+            totalCookedBytes >= kCookedCollisionWarnBytes)
+        {
+            LOG_WARN(
+                "[SceneContext::ModelCollision] Large cooked collision saved without primitive proxies. model={}, cookedBytes={}, cookedMeshCount={}",
+                modelPathA,
+                totalCookedBytes,
+                cookedMeshArray.size());
+        }
+
+        json root = json::object();
+        root["schema"] = "model_collision";
+        root["schema_version"] = 1;
+        root["model_path"] = modelPathA;
+        root["cooked_format"] = "physx_triangle_mesh";
+        root["CookedTriangleMeshes"] = std::move(cookedMeshArray);
+        root["PrimitiveProxies"] = std::move(primitiveProxyArray);
+
+        ofstream ofs(collisionPath, ios::binary);
+        if (!ofs.is_open())
+            return false;
+
+        const vector<uint8_t> msgpack = json::to_msgpack(root);
+        ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+        return true;
+    }
+
+    void Ensure_StaticModelCollisionBinaries(const std::map<wstring, Shared<ModelCom>>& staticModels)
+    {
+        for (const auto& [modelPath, model] : staticModels)
+        {
+            try
+            {
+                (void)Write_ModelCollisionBinary(modelPath, model);
+            }
+            catch (const fs::filesystem_error& e)
+            {
+                LOG_WARN(
+                    "[SceneContext::ModelCollision] failed to write collision. model='{}' error='{}'",
+                    String::ToString(modelPath),
+                    e.what());
+            }
+            catch (...)
+            {
+                LOG_WARN(
+                    "[SceneContext::ModelCollision] failed to write collision. model='{}'",
+                    String::ToString(modelPath));
+            }
+        }
+    }
+
+    bool HasSuffixInsensitive(const string& value, const string& suffix)
+    {
+        if (value.size() < suffix.size())
+            return false;
+
+        return String::ToLowerCopy(value.substr(value.size() - suffix.size())) ==
+            String::ToLowerCopy(suffix);
+    }
+
+    void Remove_JsonFilesInDirectory(const fs::path& dir)
+    {
+        error_code ec;
+        if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec))
+            return;
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir, ec))
+        {
+            if (ec)
+                break;
+
+            if (!entry.is_regular_file(ec) || entry.path().extension() != ".json")
+                continue;
+
+            fs::remove(entry.path(), ec);
+            ec.clear();
+        }
+    }
+
+    void Remove_MaterialJsonFilesInDirectory(const fs::path& dir)
+    {
+        error_code ec;
+        if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec))
+            return;
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir, ec))
+        {
+            if (ec)
+                break;
+
+            if (!entry.is_regular_file(ec))
+                continue;
+
+            const string filename = entry.path().filename().string();
+            if (!HasSuffixInsensitive(filename, ".material.json"))
+                continue;
+
+            fs::remove(entry.path(), ec);
+            ec.clear();
+        }
+    }
+
+    void Serialize_MaterialCB(json& outJson, const Engine::MaterialCB& cb)
+    {
+        outJson["HasMaterialCB"] = true;
+        outJson["BaseColorTint"] = { cb.baseColorTint.x, cb.baseColorTint.y, cb.baseColorTint.z, cb.baseColorTint.w };
+        outJson["EmissiveColor"] = { cb.emissiveColor.x, cb.emissiveColor.y, cb.emissiveColor.z, cb.emissiveColor.w };
+        outJson["EmissiveIntensity"] = cb.emissiveIntensity;
+        outJson["EmissiveMaskMul"] = cb.emissiveMaskMul;
+        outJson["NormalStrength"] = cb.normalStrength;
+        outJson["OpacityMaskClipValue"] = cb.opacityMaskClipValue;
+        outJson["AoScale"] = cb.aoScale;
+        outJson["RoughnessScale"] = cb.roughnessScale;
+        outJson["MetalnessScale"] = cb.metalnessScale;
+        outJson["UvScale"] = { cb.uvScale.x, cb.uvScale.y };
+        outJson["UvOffset"] = { cb.uvOffset.x, cb.uvOffset.y };
+        outJson["UvRotation"] = cb.uvRotation;
+    }
+
+    void Deserialize_MaterialCB(const json& data, Engine::MaterialCB& cb)
+    {
+        if (data.contains("BaseColorTint"))
+        {
+            auto& c = data["BaseColorTint"];
+            cb.baseColorTint = { c[0], c[1], c[2], c[3] };
+        }
+        if (data.contains("EmissiveColor"))
+        {
+            auto& c = data["EmissiveColor"];
+            cb.emissiveColor = { c[0], c[1], c[2], c[3] };
+        }
+        cb.emissiveIntensity = data.value("EmissiveIntensity", 0.f);
+        cb.emissiveMaskMul = data.value("EmissiveMaskMul", 1.f);
+        cb.normalStrength = data.value("NormalStrength", 1.f);
+        cb.opacityMaskClipValue = data.value("OpacityMaskClipValue", 0.3333f);
+        cb.aoScale = data.value("AoScale", 1.f);
+        cb.roughnessScale = data.value("RoughnessScale", 1.f);
+        cb.metalnessScale = data.value("MetalnessScale", 1.f);
+        if (data.contains("UvScale"))
+        {
+            auto& c = data["UvScale"];
+            cb.uvScale = { c[0], c[1] };
+        }
+        if (data.contains("UvOffset"))
+        {
+            auto& c = data["UvOffset"];
+            cb.uvOffset = { c[0], c[1] };
+        }
+        cb.uvRotation = data.value("UvRotation", 0.f);
+    }
+
+    void Serialize_PostProcessVolume(json& e, const EditorObject& obj)
+    {
+        e["Shape"] = (obj._zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+        e["Extent"] = { obj._zoneExtent.x, obj._zoneExtent.y, obj._zoneExtent.z };
+        e["Radius"] = obj._zoneRadius;
+        e["BloomIntensity"] = obj._ppBloomIntensity;
+        e["ExposureMin"] = obj._ppExposureMin;
+        e["ExposureMax"] = obj._ppExposureMax;
+        e["FogDensity"] = obj._ppFogDensity;
+        e["FogColor"] = { obj._ppFogColor.x, obj._ppFogColor.y, obj._ppFogColor.z };
+        e["FogStart"] = obj._ppFogStart;
+        e["FogZoneType"] = obj._ppFogZoneType;
+        e["FogRadius"] = obj._ppFogRadius;
+    }
+
+    void Deserialize_PostProcessVolume(const json& e, EditorObject& obj)
+    {
+        string shape = e.value("Shape", "Box");
+        obj._zoneShape = magic_enum::enum_cast<EZoneShape>(shape).value_or(EZoneShape::Box);
+        if (e.contains("Extent"))
+        {
+            auto& ext = e["Extent"];
+            obj._zoneExtent = { ext[0], ext[1], ext[2] };
+        }
+        obj._zoneRadius = e.value("Radius", 5.f);
+        obj._ppBloomIntensity = e.value("BloomIntensity", 1.f);
+        obj._ppExposureMin = e.value("ExposureMin", 0.f);
+        obj._ppExposureMax = e.value("ExposureMax", 2.f);
+        obj._ppFogDensity = e.value("FogDensity", 0.f);
+        if (e.contains("FogColor"))
+        {
+            auto& c = e["FogColor"];
+            obj._ppFogColor = { c[0], c[1], c[2] };
+        }
+        obj._ppFogStart = e.value("FogStart", 0.f);
+        obj._ppFogZoneType = e.value("FogZoneType", 0);
+        obj._ppFogRadius = e.value("FogRadius", 10.f);
+    }
+
+    string Strip_WaterTexturePath(const wstring& fullPath)
+    {
+        const wstring waterTexPrefix = _waterPath;
+        if (fullPath.size() >= waterTexPrefix.size() && fullPath.substr(0, waterTexPrefix.size()) == waterTexPrefix)
+        {
+            return String::ToString(fullPath.substr(waterTexPrefix.size()));
+        }
+        return String::ToString(fs::path(fullPath).filename().wstring());
+    }
+
+    wstring Make_WaterTexturePath(const string& filename)
+    {
+        if (filename.empty())
+        {
+            return {};
+        }
+        return wstring(_waterPath) + String::ToWString(filename);
+    }
+
+    void Serialize_Water(json& e, const EditorObject& obj)
+    {
+        e["CountX"] = obj._waterDesc.countX;
+        e["CountZ"] = obj._waterDesc.countZ;
+        e["SizeX"] = obj._waterDesc.sizeX;
+        e["SizeZ"] = obj._waterDesc.sizeZ;
+        e["ChunkSize"] = obj._waterDesc.chunkSize;
+
+        e["LargeWaveNormal"] = Strip_WaterTexturePath(obj._waterLargeWaveNormalPath);
+        e["SmallWaveNormal"] = Strip_WaterTexturePath(obj._waterSmallWaveNormalPath);
+        e["SeafoamTexture"] = Strip_WaterTexturePath(obj._waterSeafoamPath);
+        e["Cubemap"] = Strip_WaterTexturePath(obj._waterCubemapPath);
+
+        auto& p = obj._waterParams;
+        e["LargeWaveScale"] = p.largeWaveScale;
+        e["LargeWaveSpeed"] = p.largeWaveSpeed;
+        e["LargeWaveAmplify"] = p.largeWaveAmplify;
+        e["SmallWaveScale"] = p.smallWaveScale;
+        e["SmallWaveSpeed"] = p.smallWaveSpeed;
+        e["SmallWaveAmplify"] = p.smallWaveAmplify;
+        e["SeafoamScale"] = p.seafoamScale;
+        e["SeafoamSpeed"] = p.seafoamSpeed;
+        e["SeafoamHeightPower"] = p.seafoamHeightPower;
+        e["SeafoamHeightMultiply"] = p.seafoamHeightMultiply;
+        e["FoamDistortion"] = p.foamDistortion;
+        e["DepthFade"] = p.depthFade;
+        e["CameraDistanceFade"] = p.cameraDistanceFade;
+        e["ReflectionAmount"] = p.reflectionAmount;
+        e["LuminanceBias"] = p.luminanceBias;
+        e["WaterColor"] = { p.waterColor.x, p.waterColor.y, p.waterColor.z, p.waterColor.w };
+        e["FresnelColor"] = { p.fresnelColor.x, p.fresnelColor.y, p.fresnelColor.z, p.fresnelColor.w };
+    }
+
+    void Deserialize_Water(const json& e, EditorObject& obj)
+    {
+        obj._waterDesc.countX = e.value("CountX", 64u);
+        obj._waterDesc.countZ = e.value("CountZ", 64u);
+        obj._waterDesc.sizeX = e.value("SizeX", 1.f);
+        obj._waterDesc.sizeZ = e.value("SizeZ", 1.f);
+        obj._waterDesc.chunkSize = e.value("ChunkSize", 16u);
+
+        obj._waterLargeWaveNormalPath = Make_WaterTexturePath(e.value("LargeWaveNormal", string{}));
+        obj._waterSmallWaveNormalPath = Make_WaterTexturePath(e.value("SmallWaveNormal", string{}));
+        obj._waterSeafoamPath = Make_WaterTexturePath(e.value("SeafoamTexture", string{}));
+        obj._waterCubemapPath = Make_WaterTexturePath(e.value("Cubemap", string{}));
+
+        auto& p = obj._waterParams;
+        p.largeWaveScale = e.value("LargeWaveScale", 64.f);
+        p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
+        p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
+        p.smallWaveScale = e.value("SmallWaveScale", 512.f);
+        p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
+        p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
+        p.seafoamScale = e.value("SeafoamScale", 512.f);
+        p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
+        p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
+        p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
+        p.foamDistortion = e.value("FoamDistortion", 0.f);
+        p.depthFade = e.value("DepthFade", 0.f);
+        p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
+        p.reflectionAmount = e.value("ReflectionAmount", 0.f);
+        p.luminanceBias = e.value("LuminanceBias", 0.f);
+
+        if (e.contains("WaterColor"))
+        {
+            auto& c = e["WaterColor"];
+            p.waterColor = { c[0], c[1], c[2], c[3] };
+        }
+        if (e.contains("FresnelColor"))
+        {
+            auto& c = e["FresnelColor"];
+            p.fresnelColor = { c[0], c[1], c[2], c[3] };
+        }
+    }
+
+    string Make_SafeObjectJsonStem(string value)
+    {
+        if (value.empty())
+            return "Object";
+
+        for (char& ch : value)
+        {
+            switch (ch)
+            {
+            case '<':
+            case '>':
+            case ':':
+            case '"':
+            case '/':
+            case '\\':
+            case '|':
+            case '?':
+            case '*':
+                ch = '_';
+                break;
+            default:
+                break;
+            }
+        }
+
+        if (value == "." || value == "..")
+            return "Object";
+
+        return value;
+    }
+
+    fs::path Make_UniqueObjectJsonPath(const fs::path& baseDir, const string& objName, int32 index)
+    {
+        const string safeName = Make_SafeObjectJsonStem(objName);
+        fs::path outPath = baseDir / (safeName + ".json");
+
+        error_code ec;
+        if (!fs::exists(outPath, ec))
+            return outPath;
+
+        outPath = baseDir / (safeName + "_" + to_string(index) + ".json");
+        int32 suffix = 1;
+        while (fs::exists(outPath, ec))
+        {
+            outPath = baseDir / (safeName + "_" + to_string(index) + "_" + to_string(suffix++) + ".json");
+            ec.clear();
+        }
+
+        return outPath;
+    }
+
+    void Export_ObjectJson(const fs::path& baseDir, int32 index, const json& e)
+    {
+        string objName = "Object_" + to_string(index);
+        if (e.contains("Id"))
+        {
+            string idStr = e["Id"].get<string>();
+            if (!idStr.empty())
+            {
+                objName = idStr;
+            }
+        }
+
+        fs::path outPath = Make_UniqueObjectJsonPath(baseDir, objName, index);
+
+        ofstream ofs(outPath);
+        if (ofs.is_open())
+        {
+            ofs << e.dump(4);
+        }
+    }
+
+    void Merge_LegacyPassIntoMaterialBindings(ModelOverrideEntry& entry, int32 legacyPassIndex)
+    {
+        if (legacyPassIndex < 0)
+        {
+            return;
+        }
+
+        entry.hasMaterialBindings = true;
+        if (!entry.materialBindingsJson.is_array())
+        {
+            entry.materialBindingsJson = json::array();
+        }
+
+        if (entry.materialBindingsJson.empty())
+        {
+            json binding = json::object();
+            binding["material_index"] = 0u;
+            if (!entry.baseBundleKey.empty())
+            {
+                binding["base_bundle_key"] = entry.baseBundleKey;
+            }
+            binding["instance_override"]["force_pass_index"] = legacyPassIndex;
+            entry.materialBindingsJson.push_back(std::move(binding));
+            return;
+        }
+
+        for (json& binding : entry.materialBindingsJson)
+        {
+            if (!binding.is_object())
+            {
+                continue;
+            }
+
+            if (!binding.contains("instance_override") || !binding["instance_override"].is_object())
+            {
+                binding["instance_override"] = json::object();
+            }
+
+            json& instJson = binding["instance_override"];
+            if (!instJson.contains("force_pass_index") && !instJson.contains("forcePassIndex"))
+            {
+                instJson["force_pass_index"] = legacyPassIndex;
+            }
+        }
     }
 }
 
@@ -102,8 +612,7 @@ void SceneContext::SaveToFile(const string& filePath)
     json lights = json::array();
     json instancedMeshes = json::array();
     json waters = json::array();
-
-    unordered_map<string, Shared<ModelCom>> uniqueModels;
+    std::map<string, string> modelOverrideModelPaths;
 
     for (auto& obj : _objects)
     {
@@ -116,6 +625,11 @@ void SceneContext::SaveToFile(const string& filePath)
         {
         case EObjectType::StaticMesh:
         {
+            if (!obj->_modelPath.empty())
+            {
+                modelOverrideModelPaths[fs::path(obj->_modelPath).filename().string()] = String::ToString(obj->_modelPath);
+            }
+
             wstring modelFile = obj->_modelPath;
             const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
             if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
@@ -130,11 +644,6 @@ void SceneContext::SaveToFile(const string& filePath)
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
             staticMeshes.push_back(e);
 
-            string relativePath = String::ToString(modelFile);
-            if (obj->_renderHandle && obj->_renderHandle->GetModel())
-            {
-                uniqueModels[relativePath] = obj->_renderHandle->GetModel();
-            }
             break;
         }
 
@@ -205,6 +714,11 @@ void SceneContext::SaveToFile(const string& filePath)
 
         case EObjectType::InstancedMesh:
         {
+            if (!obj->_instancedModelPath.empty())
+            {
+                modelOverrideModelPaths[fs::path(obj->_instancedModelPath).filename().string()] = String::ToString(obj->_instancedModelPath);
+            }
+
             wstring modelFile = obj->_instancedModelPath;
             const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
             if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
@@ -225,14 +739,10 @@ void SceneContext::SaveToFile(const string& filePath)
                 instances.push_back(inst);
             }
             e["ModelPath"] = String::ToString(modelFile);
+            e["HasCollision"] = obj->_instancedHasCollision;
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
 
-            string relativePath = String::ToString(modelFile);
-            if (obj->_instancedRenderHandle && obj->_instancedRenderHandle->GetModel())
-            {
-                uniqueModels[relativePath] = obj->_instancedRenderHandle->GetModel();
-            }
             break;
         }
 
@@ -292,72 +802,48 @@ void SceneContext::SaveToFile(const string& filePath)
     json modelOverrides = json::object();
     for (auto& [filename, entry] : _modelOverrides)
     {
+        if (!entry.HasAnyMaterialOverride())
+        {
+            continue;
+        }
+
         json slots = json::object();
         for (auto& [slotIdx, texPath] : entry.textureSlots)
         {
             slots[to_string(slotIdx)] = texPath;
         }
 
-        modelOverrides[filename] = {
-        {"PassIndex",  entry.passIndex},
+        json overrideJson = {
         {"ShaderType", static_cast<int>(entry.shaderType)},
         {"TextureSlots", slots},
         };
-    }
 
-    json modelCollisions = json::object();
-    auto physxManager = GAME->Get_PhysXManager();
-    if (physxManager)
-    {
-        for (auto& [relativePath, model] : uniqueModels)
+        if (entry.hasMaterialCB)
         {
-            Shared<StaticCollisionData> colData = MapStaticCollisionBuilder::Build(model);
-            if (!colData)
-                continue;
-
-            json collisionEntry = json::object();
-
-            json cookedMeshArray = json::array();
-            size_t totalCookedBytes = 0;
-            for (auto& mesh : colData->triangleMeshes) // triangle mesh collision은 기존처럼 cooked binary를 저장한다.
-            {
-                vector<uint8_t> cookedData;
-                if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
-                {
-                    totalCookedBytes += cookedData.size();
-                    string base64Str = String::Base64_Encode(cookedData);
-                    cookedMeshArray.push_back(base64Str);
-                }
-            }
-
-            json primitiveProxyArray = json::array();
-            for (const ModelCollisionProxy& proxy : colData->primitiveProxies)
-            {
-                primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
-            }
-
-            if (primitiveProxyArray.empty() &&
-                totalCookedBytes >= kCookedCollisionWarnBytes)
-            {
-                LOG_WARN(
-                    "[SceneContext::SaveToFile] Large cooked collision saved without primitive proxies. model={}, cookedBytes={}, cookedMeshCount={}",
-                    relativePath,
-                    totalCookedBytes,
-                    cookedMeshArray.size());
-            }
-
-            if (cookedMeshArray.empty() && primitiveProxyArray.empty())
-            {
-                continue;
-            }
-
-            collisionEntry["CookedTriangleMeshes"] = cookedMeshArray;
-            collisionEntry["PrimitiveProxies"] = primitiveProxyArray;
-            modelCollisions[relativePath] = std::move(collisionEntry);
+            Serialize_MaterialCB(overrideJson, entry.materialCB);
         }
+
+        if (entry.hasMaterialBindings && entry.materialBindingsJson.is_array())
+        {
+            const auto modelPathIt = modelOverrideModelPaths.find(filename);
+            const string modelPath = modelPathIt != modelOverrideModelPaths.end()
+                ? modelPathIt->second
+                : filename;
+            const json materialJson = entry.BuildMaterialJson(modelPath, String::ToString(_mapName));
+
+            overrideJson["HasMaterialBindings"] = true;
+            overrideJson["MapObjectKind"] = MapMaterialObjectKindName(entry.materialObjectKind);
+            overrideJson["BaseBundleKey"] = materialJson.value("base_bundle_key", entry.baseBundleKey);
+            overrideJson["MaterialBindings"] = materialJson.value("material_bindings", json::array());
+            if (materialJson.contains("material_meta") && materialJson["material_meta"].is_object())
+            {
+                overrideJson["MaterialMeta"] = materialJson["material_meta"];
+            }
+        }
+
+        modelOverrides[filename] = overrideJson;
     }
 
-    map["ModelCollisions"] = modelCollisions;
     map["ModelOverrides"] = modelOverrides;
     map["StaticMeshes"] = staticMeshes;
     map["SpawnPoints"] = spawnPoints;
@@ -420,7 +906,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
         for (auto& [filename, data] : map["ModelOverrides"].items())
         {
             ModelOverrideEntry entry;
-            entry.passIndex = data.value("PassIndex", -1);
+            const int32 legacyPassIndex = data.value("PassIndex", -1);
             entry.shaderType = static_cast<ShaderType>(data.value("ShaderType", static_cast<int>(ShaderType::VtxMesh)));
             if (data.contains("TextureSlots"))
             {
@@ -429,6 +915,21 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
                     entry.textureSlots[stoi(slotStr)] = texPath.get<string>();
                 }
             }
+            if (data.value("HasMaterialCB", false))
+            {
+                entry.hasMaterialCB = true;
+                Deserialize_MaterialCB(data, entry.materialCB);
+            }
+            if (data.value("HasMaterialBindings", false) && data.contains("MaterialBindings"))
+            {
+                entry.hasMaterialBindings = true;
+                entry.materialObjectKind = MapMaterialObjectKindFromName(data.value("MapObjectKind", string{}));
+                entry.baseBundleKey = data.value("BaseBundleKey", string{});
+                entry.materialBindingsJson = data["MaterialBindings"];
+                entry.materialMetaJson = data.value("MaterialMeta", json::object());
+            }
+            Merge_LegacyPassIntoMaterialBindings(entry, legacyPassIndex);
+
             _modelOverrides[filename] = entry;
         }
         _dirtyPassOverrides = true;
@@ -637,6 +1138,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             auto obj = make_shared<EditorObject>();
             obj->_type = EObjectType::InstancedMesh;
             obj->_name = String::ToWString(e["Id"].get<string>());
+            obj->_instancedHasCollision = e.value("HasCollision", false);
 
             string modelPathStr = e.value("ModelPath", string{});
             if (!modelPathStr.empty())
@@ -761,6 +1263,47 @@ Shared<EditorObject> SceneContext::SpawnObject(const wstring& modelPath, const V
     obj->_worldMatrix = Matrix::CreateScale(obj->_scale)
         * Matrix::CreateFromQuaternion(obj->_rotation)
         * Matrix::CreateTranslation(obj->_position);
+
+    _dirtyRenderHandles = true;
+    Add(obj);
+    return obj;
+}
+
+Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath, const Vec3& pos)
+{
+    for (auto& obj : _instancedMeshes)
+    {
+        if (obj->_instancedModelPath == modelPath)
+        {
+            InstanceTransform t{};
+            t._position = pos;
+            t._scale = Vec3(1.f, 1.f, 1.f);
+            t._rotation = Quat::Identity;
+            obj->_instancedTransforms.push_back(t);
+            obj->_instancedParamsDirty = true;
+            _dirtyRenderHandles = true;
+            return obj;
+        }
+    }
+
+    auto obj = make_shared<EditorObject>();
+    obj->_type = EObjectType::InstancedMesh;
+    obj->_instancedModelPath = modelPath;
+    obj->_position = Vec3::Zero;
+    obj->_scale = Vec3(1.f, 1.f, 1.f);
+    obj->_rotation = Quat::Identity;
+
+    const wstring filename = fs::path(modelPath).stem().wstring();
+    obj->_name = filename.empty() ? L"IM_NEW" : filename;
+
+    InstanceTransform t{};
+    t._position = pos;
+    t._scale = Vec3(1.f, 1.f, 1.f);
+    t._rotation = Quat::Identity;
+    obj->_instancedTransforms.push_back(t);
+
+    obj->UpdateWorldMatrix();
+    obj->_instancedParamsDirty = true;
 
     _dirtyRenderHandles = true;
     Add(obj);
@@ -1043,7 +1586,17 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
         return nullptr;
     }
     auto copy = make_shared<EditorObject>(*src);
-    copy->_name = src->_name + L"_Copy";
+    for (int32 i = 1;; ++i)
+    {
+        const wstring candidate = src->_name + L"_" + to_wstring(i);
+        const bool exists = any_of(_objects.begin(), _objects.end(),
+            [&candidate](const Shared<EditorObject>& obj) { return obj && obj->_name == candidate; });
+        if (!exists)
+        {
+            copy->_name = candidate;
+            break;
+        }
+    }
     Add(copy);
     return copy;
 }
@@ -1162,5 +1715,452 @@ void SceneContext::LoadTerrainConfig(const string& filePath)
     Add(terrainObj);
 
     _terrainDirty = true;
+}
+
+bool SceneContext::SampleTerrainY(float worldX, float worldZ, float& outY) const
+{
+    if (_activeLandscapeIdx < 0 || _activeLandscapeIdx >= static_cast<int32>(_landscapes.size()))
+    {
+        return false;
+    }
+
+    auto& actor = _landscapes[_activeLandscapeIdx];
+    auto vb = actor->Get_VIBuffer();
+    if (!vb)
+    {
+        return false;
+    }
+
+    Vec3 landscapePos = actor->Get_Transform()->Get_Position();
+    Vec3 landscapeScale = actor->Get_Transform()->Get_Scale();
+
+    outY = vb->Sample_Height(
+        (worldX - landscapePos.x) / landscapeScale.x,
+        (worldZ - landscapePos.z) / landscapeScale.z)
+        * landscapeScale.y + landscapePos.y;
+
+    return true;
+}
+
+void SceneContext::ScatterAt(EditorObject* obj, const ScatterZone& zone)
+{
+    if (!obj || obj->_type != EObjectType::InstancedMesh)
+    {
+        return;
+    }
+
+    mt19937 rng(static_cast<uint32>(zone.seed));
+
+    int placed = 0;
+    int attempts = 0;
+    const int maxAttempts = zone.count * 20;
+
+    while (placed < zone.count && attempts < maxAttempts)
+    {
+        ++attempts;
+
+        float angle = Math::RandNum(0.f, XM_2PI, rng);
+        float r = zone.radius * sqrtf(Math::RandNum(0.f, 1.f, rng));
+        float wx = zone.center.x + cosf(angle) * r;
+        float wz = zone.center.z + sinf(angle) * r;
+
+        if (zone.minSpacing > 0.f)
+        {
+            bool tooClose = false;
+            for (auto& t : obj->_instancedTransforms)
+            {
+                float dx = t._position.x - wx;
+                float dz = t._position.z - wz;
+                if (sqrtf(dx * dx + dz * dz) < zone.minSpacing)
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+
+            if (tooClose)
+            {
+                continue;
+            }
+        }
+
+        float wy = zone.center.y;
+        if (!SampleTerrainY(wx, wz, wy))
+        {
+            continue;
+        }
+
+        float scale = Math::RandNum(zone.scaleMin, zone.scaleMax, rng);
+        float yRot = Math::RandNum(0.f, zone.yRotMax * (XM_PI / 180.f), rng);
+
+        InstanceTransform t{};
+        t._position = Vec3(wx, wy, wz);
+        t._scale = Vec3(scale, scale, scale);
+        t._rotation = Vec4(0.f, sinf(yRot * 0.5f), 0.f, cosf(yRot * 0.5f));
+        obj->_instancedTransforms.push_back(t);
+        ++placed;
+    }
+
+    obj->_instancedParamsDirty = true;
+    _dirtyRenderHandles = true;
+}
+
+void SceneContext::Export_MapInstance(const string& mapName)
+{
+    if (mapName.empty() || mapName == "MapInstance")
+    {
+        LOG_WARN("[SceneContext::Export_MapInstance] invalid map name. mapName='{}'", mapName);
+        return;
+    }
+
+    const fs::path mapRoot = Resolve_MapResourceRoot();
+    fs::path root = mapRoot / "MapInstance" / mapName;
+
+    fs::path staticDir = root / "StaticMesh";
+    fs::path instanceDir = root / "InstanceMesh";
+    fs::path waterDir = root / "Water";
+    fs::path postProcessVolumeDir = root / "PostProcessVolume";
+    fs::path etcDir = root / "ETC";
+
+    if(!fs::exists(root))
+        fs::create_directories(root);
+
+    if (fs::exists(root))
+    {
+        if (!fs::exists(staticDir))
+            fs::create_directories(staticDir);
+
+        if (!fs::exists(instanceDir))
+            fs::create_directories(instanceDir);
+
+        if (!fs::exists(waterDir))
+            fs::create_directories(waterDir);
+
+        if (!fs::exists(postProcessVolumeDir))
+            fs::create_directories(postProcessVolumeDir);
+
+        if (!fs::exists(etcDir))
+            fs::create_directories(etcDir);
+    }
+
+    Remove_JsonFilesInDirectory(staticDir);
+    Remove_JsonFilesInDirectory(instanceDir);
+    Remove_JsonFilesInDirectory(waterDir);
+    Remove_JsonFilesInDirectory(postProcessVolumeDir);
+    Remove_JsonFilesInDirectory(etcDir);
+
+    int32 st_idx{}, inst_idx{}, water_idx{}, ppv_idx{}, etc_idx{};
+    std::map<wstring, Shared<ModelCom>> staticCollisionModels;
+
+    for (auto& obj : _objects)
+    {
+        json e;
+        e["Id"] = String::ToString(obj->_name);
+        e["Position"] = { obj->_position.x, obj->_position.y, obj->_position.z };
+        e["Rotation"] = { obj->_rotation.x, obj->_rotation.y, obj->_rotation.z, obj->_rotation.w };
+
+        switch (obj->_type)
+        {
+        case EObjectType::StaticMesh:
+        {
+            e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
+            e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
+            Export_ObjectJson(staticDir, st_idx++, e);
+            if (obj->_renderHandle && obj->_renderHandle->GetModel())
+                staticCollisionModels[obj->_modelPath] = obj->_renderHandle->GetModel();
+            break;
+        }
+        case EObjectType::InstancedMesh:
+        {
+            e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
+            e["HasCollision"] = obj->_instancedHasCollision;
+            json instArr = json::array();
+            for (auto& transform : obj->_instancedTransforms)
+            {
+                json instJson;
+                instJson["Position"] = { transform._position.x, transform._position.y, transform._position.z };
+                instJson["Rotation"] = { transform._rotation.x, transform._rotation.y, transform._rotation.z, transform._rotation.w };
+                instJson["Scale"] = { transform._scale.x, transform._scale.y, transform._scale.z };
+                instArr.push_back(instJson);
+            }
+            e["Instances"] = instArr;
+            Export_ObjectJson(instanceDir, inst_idx++, e);
+            break;
+        }
+        case EObjectType::PostProcessVolume:
+            e["Type"] = "PostProcessVolume";
+            Serialize_PostProcessVolume(e, *obj);
+            Export_ObjectJson(postProcessVolumeDir, ppv_idx++, e);
+            break;
+
+        case EObjectType::Water:
+            e["Type"] = "Water";
+            Serialize_Water(e, *obj);
+            Export_ObjectJson(waterDir, water_idx++, e);
+            break;
+
+        default:
+            e["Type"] = ObjectTypeName(obj->_type);
+            Export_ObjectJson(etcDir, etc_idx++, e);
+            break;
+        }
+    }
+
+    Ensure_StaticModelCollisionBinaries(staticCollisionModels);
+
+    map<wstring, Shared<ModelCom>> instancedCollisionModels;
+    for (auto& obj : _instancedMeshes)
+    {
+        if (obj->_instancedHasCollision && !obj->_instancedModelPath.empty())
+        {
+            instancedCollisionModels[obj->_instancedModelPath] =
+                obj->_instancedRenderHandle ? obj->_instancedRenderHandle->GetModel() : nullptr;
+        }
+    }
+    Ensure_StaticModelCollisionBinaries(instancedCollisionModels);
+
+    Remove_MaterialJsonFilesInDirectory(fs::path(_materialsPath) / mapName);
+
+    map<wstring, Shared<Engine::ModelCom>> uniqueModels;
+    for (auto& obj : _objects)
+    {
+        if (obj->_type == EObjectType::StaticMesh && !obj->_modelPath.empty())
+        {
+            uniqueModels[obj->_modelPath] = obj->_renderHandle ? obj->_renderHandle->GetModel() : nullptr;
+        }
+        else if (obj->_type == EObjectType::InstancedMesh && !obj->_instancedModelPath.empty())
+        {
+            uniqueModels[obj->_instancedModelPath] = obj->_instancedRenderHandle ? obj->_instancedRenderHandle->GetModel() : nullptr;
+        }
+    }
+
+    for (const auto& [modelPathW, model] : uniqueModels)
+    {
+        string modelPath = String::ToString(modelPathW);
+        string filename = fs::path(modelPath).filename().string();
+
+        for (const string& key : { filename })
+        {
+            auto overrideIt = _modelOverrides.find(key);
+            if (overrideIt != _modelOverrides.end() && overrideIt->second.HasAnyMaterialOverride())
+            {
+                overrideIt->second.ExportToNativeMaterial(modelPath, mapName);
+            }
+        }
+    }
+}
+
+void SceneContext::Import_MapInstance(const string& mapName)
+{
+    ClearScene();
+    _mapName = String::ToWString(mapName);
+    const fs::path mapRoot = Resolve_MapResourceRoot();
+    _modelFolder = String::ToWString(mapName);
+    _currentFilePath = (mapRoot / "SaveJson" / (mapName + ".json")).generic_string();
+
+    fs::path root = mapRoot / "MapInstance" / mapName;
+    fs::path staticDir = root / "StaticMesh";
+    fs::path instanceDir = root / "InstanceMesh";
+    fs::path waterDir = root / "Water";
+    fs::path postProcessVolumeDir = root / "PostProcessVolume";
+
+    auto MaterialFileToModelKey = [](const fs::path& materialPath) -> string
+    {
+        string filename = materialPath.filename().string();
+        const string suffix = ".material.json";
+        if (filename.size() > suffix.size() &&
+            String::ToLowerCopy(filename.substr(filename.size() - suffix.size())) == suffix)
+        {
+            filename.resize(filename.size() - suffix.size());
+            return filename + ".model";
+        }
+
+        return materialPath.stem().string() + ".model";
+    };
+
+    fs::path matDir = fs::path(_materialsPath) / mapName;
+    if (fs::exists(matDir))
+    {
+        for (const auto& entry : fs::directory_iterator(matDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json rootJson = json::parse(ifs);
+                    if (rootJson.contains("material_bindings") && rootJson["material_bindings"].is_array())
+                    {
+                        string modelKey = rootJson.value("editor_modelPath", "");
+                        if (!modelKey.empty())
+                        {
+                            modelKey = fs::path(modelKey).filename().string();
+                        }
+                        else
+                        {
+                            modelKey = MaterialFileToModelKey(entry.path());
+                        }
+
+                        if (!modelKey.empty())
+                        {
+                            ModelOverrideEntry overrideEntry;
+                            overrideEntry.LoadMaterialBindingsJson(rootJson);
+                            ShaderType loadedType = static_cast<ShaderType>(rootJson.value("editor_shaderType", static_cast<int>(ShaderType::VtxMesh)));
+                            _modelOverrides[modelKey] = overrideEntry;
+                        }
+                        continue;
+                    }
+
+                    if (rootJson.contains("instances") && rootJson["instances"].is_array() && rootJson["instances"].size() > 0)
+                    {
+                        const json& instJson = rootJson["instances"][0];
+                        
+                        string modelKey = instJson.value("editor_modelPath", "");
+                        if (!modelKey.empty())
+                        {
+                            fs::path pk(modelKey);
+                            modelKey = pk.filename().string();
+                        }
+                        else 
+                        {
+                            modelKey = MaterialFileToModelKey(entry.path()); 
+                        }
+
+                        ModelOverrideEntry overrideEntry;
+                        overrideEntry.LoadLegacyMaterialJson(rootJson);
+
+                        _modelOverrides[modelKey] = overrideEntry;
+                    }
+                }
+            }
+        }
+    }
+
+    if (fs::exists(staticDir))
+    {
+        for (const auto& entry : fs::directory_iterator(staticDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::StaticMesh;
+                    obj->_name = String::ToWString(e.value("Id", "Unknown"));
+                    
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+                    if (e.contains("Scale"))    { auto& scl = e["Scale"];    obj->_scale = { scl[0], scl[1], scl[2] }; }
+                    
+                    string modelPathStr = e.value("ModelPath", "");
+                    if (!modelPathStr.empty())
+                    {
+                        obj->_modelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
+                    }
+                    
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+    
+    if (fs::exists(instanceDir))
+    {
+        for (const auto& entry : fs::directory_iterator(instanceDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::InstancedMesh;
+                    obj->_name = String::ToWString(e.value("Id", "Unknown"));
+                    
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+                    if (e.contains("Scale"))    { auto& scl = e["Scale"];    obj->_scale = { scl[0], scl[1], scl[2] }; }
+                    
+                    string modelPathStr = e.value("ModelPath", "");
+                    if (!modelPathStr.empty())
+                    {
+                        obj->_instancedModelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
+                    }
+                    obj->_instancedHasCollision = e.value("HasCollision", false);
+                    
+                    if (e.contains("Instances"))
+                    {
+                        for (const auto& instJson : e["Instances"])
+                        {
+                            InstanceTransform t;
+                            if (instJson.contains("Position")) { auto& pos = instJson["Position"]; t._position = { pos[0], pos[1], pos[2] }; }
+                            if (instJson.contains("Rotation")) { auto& rot = instJson["Rotation"]; t._rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+                            if (instJson.contains("Scale"))    { auto& scl = instJson["Scale"];    t._scale = { scl[0], scl[1], scl[2] }; }
+                            obj->_instancedTransforms.push_back(t);
+                        }
+                    }
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+
+    if (fs::exists(postProcessVolumeDir))
+    {
+        for (const auto& entry : fs::directory_iterator(postProcessVolumeDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::PostProcessVolume;
+                    obj->_name = String::ToWString(e.value("Id", "PostProcessVolume"));
+
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+
+                    Deserialize_PostProcessVolume(e, *obj);
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+
+    if (fs::exists(waterDir))
+    {
+        for (const auto& entry : fs::directory_iterator(waterDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::Water;
+                    obj->_name = String::ToWString(e.value("Id", "Water"));
+
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+
+                    Deserialize_Water(e, *obj);
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+
+    _dirtyRenderHandles = true;
+    _octreeDirty = true;
 }
 

@@ -15,6 +15,7 @@ class ComputeStructuredBuffer;
 class ComputeShaderCom;
 class AnimComputeRuntime;
 class AnimationModifier;
+class ModelDeform;
 
 class ENGINE_DLL ModelCom final : public Component
 {
@@ -112,6 +113,28 @@ public: /* Animation Speed Control (Per-Animation) */
     bool Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
     bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     uint32 Get_AnimIndexByState(uint32 stateIndex) const;
+
+public: // Morph 메시 연산 
+    bool Has_MorphData() const;
+    const MorphData* Get_MorphData() const;
+
+    uint32 Get_MorphTargetCount() const;
+    const string* Get_MorphTargetName(uint32 index) const;
+    int32 Find_MorphTargetIndex(const string& name) const;
+
+    void Set_MorphWeight(uint32 targetIndex, float weight);
+    void Set_MorphWeight_Unclamped(uint32 targetIndex, float weight);
+    void Reset_MorphWeights();
+    const vector<float>* Get_MorphWeights() const;
+    bool Consume_MorphDirty();
+    HRESULT Apply_MorphWeightsToCpuVertices();
+
+    const vector<VTXANIMMESH>* Get_Vertices(uint32 meshIndex) const;
+    const string* Get_MeshName(uint32 meshIndex) const;
+    int32 Find_MeshIndexByName(const string& meshName) const;
+
+private:
+    HRESULT Try_LoadMorphData(const string& modelPath);
 
 public:
     void Set_RootMotionEnabled(bool enable) { _isRootMotion = enable; }
@@ -211,7 +234,7 @@ public: /* 머리 붙이기 */
     void Clear_LeaderPoseComponent();
     bool Has_LeaderPoseComponent() const { return _leaderPoseModel != nullptr; }
 
-    void Update_LeaderPoseMatrices();
+    void Update_LeaderPoseMatrices(float timeDelta);
 
 public:
     void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; }
@@ -249,6 +272,7 @@ public: // Animation Bone Modifier 기능
     const vector<Shared<AnimationModifier>>& Get_Modifiers() const { return _modifiers; }
 private:
     void Evaluate_AnimationModifiers(float timeDelta);
+    void Evaluate_AnimationModifiersLeaderPose(float timeDelta, bool leaderPoseContext);
 
 private:
     ModelType					        _type = { ModelType::END };
@@ -273,6 +297,7 @@ private:
     vector<uint32>                      _stateAnimIndices;
     unordered_map<string, uint32>       _mappedAnimIndices;
     vector<Shared<AnimationModifier>>   _modifiers;
+    Shared<ModelDeform>                _modelDeform;
 
     struct AppliedMaterialAsset
     {

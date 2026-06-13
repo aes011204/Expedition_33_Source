@@ -1,4 +1,5 @@
-﻿#include "ModelCom.h"
+﻿#include "pch.h"
+#include "ModelCom.h"
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "MaterialBuilder.h"
@@ -17,9 +18,9 @@
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "AnimState_Parser.h"
-#include "Channel.h"
 #include "ComputeShaderCom.h"
 #include "GameObject.h"
+#include "ModelDeform.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
@@ -62,6 +63,16 @@ ModelCom::ModelCom(const ModelCom& prototype)
     Mark_BoneMatricesDirty();
 
     _leaderPoseMatricesValid = false;
+
+    if (prototype._modelDeform != nullptr)
+    {
+        if (const MorphData* morphData = prototype._modelDeform->Get_MorphData())
+        {
+            _modelDeform = ModelDeform::Create();
+            if (_modelDeform != nullptr)
+                _modelDeform->Set_MorphData(MorphData(*morphData));
+        }
+    }
 }
 
 static json Write_PreLocalTransformJson(const Matrix& matrix)
@@ -265,6 +276,175 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
 uint32 ModelCom::Get_AnimIndexByState(uint32 stateIndex) const
 {
     return _stateAnimIndices[stateIndex];
+}
+
+bool ModelCom::Has_MorphData() const
+{
+    return _modelDeform != nullptr && _modelDeform->Has_MorphData();
+}
+
+const MorphData* ModelCom::Get_MorphData() const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphData() : nullptr;
+}
+
+const vector<float>* ModelCom::Get_MorphWeights() const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphWeights() : nullptr;
+}
+
+bool ModelCom::Consume_MorphDirty()
+{
+    return _modelDeform != nullptr && _modelDeform->Consume_MorphDirty();
+}
+
+HRESULT ModelCom::Apply_MorphWeightsToCpuVertices()
+{
+    if (_modelDeform == nullptr || !_modelDeform->Has_MorphData())
+        return S_OK;
+
+    const MorphData* morphData = _modelDeform->Get_MorphData();
+    const vector<float>* weights = _modelDeform->Get_MorphWeights();
+    if (morphData == nullptr || weights == nullptr)
+        return S_OK;
+
+    for (const MorphMeshData& morphMesh : morphData->meshes)
+    {
+        uint32 meshIndex = morphMesh.meshIndex;
+        if (meshIndex >= _meshes.size())
+        {
+            const int32 foundMeshIndex = Find_MeshIndexByName(morphMesh.meshName);
+            if (foundMeshIndex < 0)
+                continue;
+
+            meshIndex = static_cast<uint32>(foundMeshIndex);
+        }
+
+        Shared<SkeletalMesh> skeletalMesh = dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+        if (skeletalMesh == nullptr)
+            continue;
+
+        const vector<VTXANIMMESH>& sourceVertices = skeletalMesh->Get_SourceVertices();
+        if (sourceVertices.empty() || sourceVertices.size() != morphMesh.vertexCount)
+        {
+            const int32 foundMeshIndex = Find_MeshIndexByName(morphMesh.meshName);
+            if (foundMeshIndex < 0 || static_cast<uint32>(foundMeshIndex) == meshIndex)
+                continue;
+
+            meshIndex = static_cast<uint32>(foundMeshIndex);
+            skeletalMesh = dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+            if (skeletalMesh == nullptr)
+                continue;
+
+            if (skeletalMesh->Get_SourceVertices().size() != morphMesh.vertexCount)
+                continue;
+        }
+
+        vector<VTXANIMMESH> morphedVertices = skeletalMesh->Get_SourceVertices();
+        const uint32 targetCount = static_cast<uint32>(std::min(weights->size(), morphMesh.vertexRanges.size()));
+        for (uint32 targetIndex = 0; targetIndex < targetCount; ++targetIndex)
+        {
+            const float targetWeight = (*weights)[targetIndex];
+            if (std::abs(targetWeight) <= 0.000001f)
+                continue;
+
+            const MorphVertexRange& range = morphMesh.vertexRanges[targetIndex];
+            const uint32 end = range.start + range.count;
+            if (range.start > morphMesh.vertexDeltas.size() || end > morphMesh.vertexDeltas.size())
+                continue;
+
+            for (uint32 deltaIndex = range.start; deltaIndex < end; ++deltaIndex)
+            {
+                const MorphVertexDelta& delta = morphMesh.vertexDeltas[deltaIndex];
+                if (delta.vertexIndex >= morphedVertices.size())
+                    continue;
+
+                const float scaledWeight = targetWeight * delta.weightScale;
+                VTXANIMMESH& vertex = morphedVertices[delta.vertexIndex];
+                vertex.position += delta.deltaPosition * scaledWeight;
+                vertex.normal += delta.deltaNormal * scaledWeight;
+                if (vertex.normal.LengthSquared() > 0.000001f)
+                    vertex.normal.Normalize();
+            }
+        }
+
+        CHECK_FAILED(skeletalMesh->Update_VertexBuffer(morphedVertices), E_FAIL);
+    }
+
+    return S_OK;
+}
+
+const vector<VTXANIMMESH>* ModelCom::Get_Vertices(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size())
+        return nullptr;
+
+    const Shared<SkeletalMesh> skeletalMesh = dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+    if (skeletalMesh == nullptr)
+        return nullptr;
+
+    return &skeletalMesh->Get_SourceVertices();
+}
+
+const string* ModelCom::Get_MeshName(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size() || _meshes[meshIndex] == nullptr)
+        return nullptr;
+
+    return &_meshes[meshIndex]->Get_Name();
+}
+
+int32 ModelCom::Find_MeshIndexByName(const string& meshName) const
+{
+    for (uint32 i = 0; i < _meshes.size(); ++i)
+    {
+        if (_meshes[i] != nullptr && _meshes[i]->Get_Name() == meshName)
+            return static_cast<int32>(i);
+    }
+
+    return -1;
+}
+
+HRESULT ModelCom::Try_LoadMorphData(const string& modelPath)
+{
+    if (_modelDeform == nullptr)
+        _modelDeform = ModelDeform::Create();
+
+    CHECK_NULL(_modelDeform, E_FAIL);
+    return _modelDeform->Try_LoadMorphData(modelPath);
+}
+
+uint32 ModelCom::Get_MorphTargetCount() const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphTargetCount() : 0;
+}
+
+const string* ModelCom::Get_MorphTargetName(uint32 index) const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphTargetName(index) : nullptr;
+}
+
+int32 ModelCom::Find_MorphTargetIndex(const string& name) const
+{
+    return _modelDeform != nullptr ? _modelDeform->Find_MorphTargetIndex(name) : -1;
+}
+
+void ModelCom::Set_MorphWeight(uint32 targetIndex, float weight)
+{
+    if (_modelDeform != nullptr)
+        _modelDeform->Set_MorphWeight(targetIndex, weight);
+}
+
+void ModelCom::Set_MorphWeight_Unclamped(uint32 targetIndex, float weight)
+{
+    if (_modelDeform != nullptr)
+        _modelDeform->Set_MorphWeight_Unclamped(targetIndex, weight);
+}
+
+void ModelCom::Reset_MorphWeights()
+{
+    if (_modelDeform != nullptr)
+        _modelDeform->Reset_MorphWeights();
 }
 
 const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
@@ -702,6 +882,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
                     if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
                     if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
                     if (base.ormOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+                    if (base.orm2Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+                    if (base.orm3Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
                     if (base.emissiveOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
                     if (base.hairDepthOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, base.hairDepthPath);
                     if (base.hairIDOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, base.hairIDPath);
@@ -719,6 +901,9 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     }
 
     const MaterialInstanceOverride& inst = binding.instance;
+    if (inst.overrideTemplateEnabled)
+        material->Set_TemplateId(inst.templateId);
+
     if (inst.forcedPassIndex >= 0)
         material->Set_ForcedPassIndex(inst.forcedPassIndex);
 
@@ -740,6 +925,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Normal, inst.normal);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM2, inst.orm2);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM3, inst.orm3);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
@@ -789,7 +976,7 @@ json ModelCom::To_Json() const
             || inst.irisMask.enabled;
 
         const bool hasInstanceOverride =
-            (inst.forcedPassIndex >= 0) || inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
+            inst.overrideTemplateEnabled || (inst.forcedPassIndex >= 0) || inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
 
         const string baseKey = String::ToLowerCopy(binding.baseBundleKey);
         const bool hasBaseKey = !baseKey.empty() && baseKey != defaultKey;
@@ -805,6 +992,10 @@ json ModelCom::To_Json() const
         if (hasInstanceOverride)
         {
             json instJson{};
+            instJson["override_template_enabled"] = inst.overrideTemplateEnabled;
+            if (inst.overrideTemplateEnabled)
+                instJson["template"] = static_cast<uint32>(inst.templateId);
+
             instJson["override_render_state_enabled"] = inst.overrideRenderStateEnabled;
             if (inst.forcedPassIndex >= 0)
                 instJson["force_pass_index"] = inst.forcedPassIndex;
@@ -1189,6 +1380,16 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
         material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
     }
 
+    if (base.orm2Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+    }
+
+    if (base.orm3Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
+    }
+
     if (base.emissiveOverride)
     {
         material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
@@ -1220,7 +1421,7 @@ HRESULT ModelCom::Prepare_BoneMatrixBuffers()
     if (_leaderPoseModel != nullptr)
     {
         if (!_leaderPoseMatricesValid)
-            Update_LeaderPoseMatrices();
+            Update_LeaderPoseMatrices(0.f);
 
         if (_leaderPoseCombinedMatrices.empty())
             return E_FAIL;
@@ -1596,7 +1797,7 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
     Build_LeaderPoseRequiredBones();
 
     _leaderPoseMatricesValid = false;
-    Update_LeaderPoseMatrices();
+    Update_LeaderPoseMatrices(0.f);
 }
 
 void ModelCom::Clear_LeaderPoseComponent()
@@ -1612,7 +1813,7 @@ void ModelCom::Clear_LeaderPoseComponent()
     Mark_BoneMatricesDirty();
 }
 
-void ModelCom::Update_LeaderPoseMatrices()
+void ModelCom::Update_LeaderPoseMatrices(float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::UpdateLeaderPose");
     if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
@@ -1620,23 +1821,28 @@ void ModelCom::Update_LeaderPoseMatrices()
 
     // leader가 이번 프레임에 bone을 갱신하지 않았으면 재계산 스킵
     const uint64 leaderGen = _leaderPoseModel->_boneUpdateGeneration;
-     if (leaderGen == _leaderPoseLastSyncedGeneration)
-        return;
+    const bool leaderPoseChanged = leaderGen != _leaderPoseLastSyncedGeneration;
 
-    _leaderPoseLastSyncedGeneration = leaderGen;
-
-    _leaderPoseVisited.assign(_numBones, 0);
-
-    if (_leaderPoseRequiredBones.empty())
-        Build_LeaderPoseRequiredBones();
-
-    for (uint32 boneIndex : _leaderPoseRequiredBones)
+    if (leaderPoseChanged)
     {
-        Build_LeaderPoseMatrix(boneIndex, _leaderPoseVisited);
+        _leaderPoseLastSyncedGeneration = leaderGen;
+
+        _leaderPoseVisited.assign(_numBones, 0);
+
+        if (_leaderPoseRequiredBones.empty())
+            Build_LeaderPoseRequiredBones();
+
+        for (uint32 boneIndex : _leaderPoseRequiredBones)
+        {
+            Build_LeaderPoseMatrix(boneIndex, _leaderPoseVisited);
+        }
+
+        _leaderPoseMatricesValid = true;
+        Mark_BoneMatricesDirty();
     }
 
-    _leaderPoseMatricesValid = true;
-    Mark_BoneMatricesDirty();
+    Evaluate_AnimationModifiersLeaderPose(timeDelta, true);
+    Step_RebuildCombinedBones();
 }
 
 void ModelCom::Build_LeaderPoseRequiredBones()
@@ -2024,6 +2230,7 @@ void ModelCom::Add_AnimModifier(const Shared<AnimationModifier>& modifier)
 {
     if (modifier)
     {
+        modifier->Bind_Model(this);
         _modifiers.push_back(modifier);
     }
 }
@@ -2043,6 +2250,21 @@ void ModelCom::Evaluate_AnimationModifiers(float timeDelta)
 {
     for (auto& modifier : _modifiers)
     {
+        if (modifier != nullptr)
+            modifier->Evaluate_Modifier(this, timeDelta);
+    }
+}
+
+void ModelCom::Evaluate_AnimationModifiersLeaderPose(float timeDelta, bool leaderPoseContext)
+{
+    for (auto& modifier : _modifiers)
+    {
+        if (modifier == nullptr)
+            continue;
+
+        if (leaderPoseContext && !modifier->Is_EvaluateOnLeaderPose())
+            continue;
+
         modifier->Evaluate_Modifier(this, timeDelta);
     }
 }
@@ -2234,6 +2456,8 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     }
     stream.close();
 
+    CHECK_FAILED(Try_LoadMorphData(resolvedPath), E_FAIL);
+
     return S_OK;
 }
 
@@ -2408,6 +2632,7 @@ void ModelCom::Reset_ModelData()
 
     _boneMatricesDirty = true;
     _leaderPoseMatricesValid = false;
+    _modelDeform.reset();
 
     Invalidate_AnimNotifyAsset();
     Clear_LeaderPoseComponent();

@@ -4,6 +4,8 @@
 
 class CinematicSequencerAdapter : public ImSequencer::SequenceInterface
 {
+public:
+    static constexpr int kModifierTrackCount = 7;
 
 public:
     CinematicSequencerAdapter(
