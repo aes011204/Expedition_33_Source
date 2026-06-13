@@ -242,6 +242,7 @@ private:
     PreviewContext   _previewContext{};
     PreviewFormation _previewFormation{};
     vector<string>   _skillIds{};
+    string _skillSearchText{};
     vector<string>   _enemyPrefabNames{};
     Client::HeroId   _selectedHeroId = Client::HeroId::Gustave;
 
@@ -293,6 +294,7 @@ private:
     Shared<GameObject> _previewHeroObject{};
     Shared<GameObject> _previewEnemyObject{};
     vector<string> _previewAnimationNames{};
+    string _previewAnimationSearchText{};
     int _selectedPreviewAnimationIndex = -1;
     vector<PreviewSkillPhaseBlock> _previewSkillPhaseBlocks{};
     int _selectedPreviewSkillPhaseIndex = -1;
@@ -331,6 +333,7 @@ private:
     int _battleClipContextTrackIndex = -1;
     int _battleClipContextFrame = 0;
     vector<fs::path> _authoringFilePaths{};
+    string _authoringFileSearchText{};
     int _selectedAuthoringFileIndex = -1;
     Vec3 _previewSmoothedTargetPos = Vec3::Zero;
     bool _previewHasSmoothedTarget = false;
