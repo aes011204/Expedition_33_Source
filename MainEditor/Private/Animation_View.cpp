@@ -1788,12 +1788,22 @@ void Animation_View::Handle_ClipboardShortcuts()
             Delete_SelectedState();
     }
 
-    if (!_selectedNotifyIds.empty() && !io.KeyCtrl)
+    if (!io.KeyCtrl)
     {
         if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
-            Move_SelectedNotifiesByFrame(-1);
+        {
+            if (!_selectedNotifyIds.empty())
+                Move_SelectedNotifiesByFrame(-1);
+            else if (_selectedStateId != -1)
+                Move_SelectedStateByFrame(-1);
+        }
         else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
-            Move_SelectedNotifiesByFrame(1);
+        {
+            if (!_selectedNotifyIds.empty())
+                Move_SelectedNotifiesByFrame(1);
+            else if (_selectedStateId != -1)
+                Move_SelectedStateByFrame(1);
+        }
     }
 
     if (!io.KeyCtrl)
@@ -1882,8 +1892,51 @@ void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
         {
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(primaryTimeSec);
-            playbackModel->Refresh_CurrentAnimationPose();
+            playbackModel->Play_Animation(0.f);
         }
+    }
+
+    _isDirty = true;
+}
+
+void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
+{
+    if (frameDelta == 0)
+        return;
+
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    AnimNotifyStateEntry* selectedState = Find_SelectedState();
+    if (animationData == nullptr || selectedState == nullptr)
+        return;
+
+    const int32 fps = max(1, Get_CurrentAnimationFps());
+    const int32 maxFrame = max(0, Get_CurrentAnimationFrameMax());
+    const int32 startFrame = std::clamp(
+        static_cast<int32>(std::round(selectedState->startSec * static_cast<float>(fps))),
+        0,
+        maxFrame);
+    const int32 durationFrames = max(
+        1,
+        static_cast<int32>(std::round(selectedState->durationSec * static_cast<float>(fps))));
+    const int32 endFrame = min(maxFrame, startFrame + durationFrames);
+    const int32 clampedDelta = std::clamp(frameDelta, -startFrame, maxFrame - endFrame);
+    if (clampedDelta == 0)
+        return;
+
+    const int32 movedStartFrame = startFrame + clampedDelta;
+    selectedState->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
+
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+
+    _sequencerCurrentFrame = movedStartFrame;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
+    {
+        const float currentTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+        playbackModel->Set_AnimationPaused(true);
+        playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
+        playbackModel->Play_Animation(0.f);
     }
 
     _isDirty = true;
