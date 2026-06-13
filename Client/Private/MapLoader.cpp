@@ -320,10 +320,6 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             outSession = std::move(mapInstanceSession);
             return S_OK;
         }
-        else
-        {
-            __debugbreak();
-        }
     }
 
     const auto sessionBegin = chrono::steady_clock::now();
