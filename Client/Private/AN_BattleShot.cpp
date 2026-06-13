@@ -7,6 +7,29 @@
 #include "BattleController.h"
 #include "PlayableParts.h"
 
+namespace
+{
+bool Is_BattleRosterModel(const BattleController& battle, const ModelCom* model)
+{
+    if (model == nullptr)
+        return false;
+
+    for (const BattleChar& hero : battle.Get_BattleHeroes())
+    {
+        if (hero.ModelCom.get() == model)
+            return true;
+    }
+
+    for (const BattleChar& enemy : battle.Get_BattleEnemies())
+    {
+        if (enemy.ModelCom.get() == model)
+            return true;
+    }
+
+    return false;
+}
+}
+
 IMPLEMENT_REFLECTION(AN_BattleShot)
 {
     auto& info = GetStaticReflectionInfo();
@@ -24,12 +47,21 @@ IMPLEMENT_REFLECTION(AN_BattleShot)
 
 void AN_BattleShot::Execute(const AnimNotifyContext& context)
 {
+    if (context.isPreview)
+        return;
+
     auto owner = context.owner;
 
-    if (owner == nullptr)
+    if (owner == nullptr || context.model == nullptr)
         return;
 
     auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr || !battle->Is_BattleStarted())
+        return;
+
+    if (!Is_BattleRosterModel(*battle, context.model))
+        return;
+
     auto character = dynamic_pointer_cast<Character>(owner->GetSharedPtr<PlayableParts>()->Get_Owner());
 
     if (character == nullptr)
@@ -75,5 +107,17 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     event.useClip = _useClip;
     event.restartClip = _restartClip;
     event.keepCurrentClip = _keepCurrentClip;
+
+    const string modeName = string(magic_enum::enum_name(_cameraMode));
+    LOG_INFO(
+        "[BattleCamTrace] AN_BattleShot animation={} timeSec={:.3f} mode={} prefab={} useClip={} presetId={} clipId={}",
+        context.animationName.c_str(),
+        context.currentTimeSec,
+        modeName.c_str(),
+        character->Get_SourcePrefabName().c_str(),
+        _useClip,
+        event.presetId.c_str(),
+        event.clipId.c_str());
+
     GAME->Get_EventBus().Publish(event);
 }

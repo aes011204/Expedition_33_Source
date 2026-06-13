@@ -1544,6 +1544,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         CHECK_NULL(hero);
 
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Register_BattleHeroObject(hero, GAME->Current_LevelIndex());
+
         const auto ply = dynamic_pointer_cast<Character_BattleBase>(hero);
         BattleChar battleChar{};
         battleChar.actor = ply;
@@ -1573,6 +1576,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         );
 
         CHECK_NULL(enemy);
+
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Register_BattleMonsterObject(enemy, GAME->Current_LevelIndex());
 
         const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
         BattleChar battleChar{};
@@ -1688,6 +1694,7 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
 
     if (info.damage > 0.f && info.target.actor)
     {
+        _reactionController.Notify_TargetDamaged(info.target);
         HitAction(info.target, info.attackType, info.isCritical);
     }
 
@@ -2078,6 +2085,8 @@ void BattleController::Complete_BattleField()
         return;
     }
 
+    _reactionController.Clear_RuntimeState();
+
     _isBattleActive = true;
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
@@ -2404,18 +2413,18 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         for (const BattleChar& hero : _heroes)
         {
             if (hero.actor == nullptr || hero.actor == _currentTurnActor.actor)
-                continue;
+            continue;
+        
+        if (hero.ModelCom == nullptr || hero.statCom == nullptr)
+        continue;
+    
+    if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    continue;
 
-            if (hero.ModelCom == nullptr || hero.statCom == nullptr)
-                continue;
+BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
+}
 
-            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-                continue;
-
-            BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
-        }
-
-        EvtBattlePresentation event;
+        EvtBattlePresentation event {};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         GAME->Get_EventBus().Publish(event);
@@ -2484,7 +2493,7 @@ void BattleController::PlayerStartAnim()
             continue;
 
         it.ModelCom->Set_RootMotionEnabled(false);
-        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), 0.3f, false);
+        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), false);
     }
 
     if (_firstAnimTargetCount == 0)

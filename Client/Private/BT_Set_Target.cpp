@@ -1,11 +1,11 @@
-﻿#include "BT_Set_Target.h"
+﻿#include "BT_Set_TargetAI.h"
 
 #include "AIController.h"
 #include "BlackBoard.h"
 #include "MonsterStatCom.h"
 #include "GameInstance.h"
 
-IMPLEMENT_REFLECTION(BT_Set_Target)
+IMPLEMENT_REFLECTION(BT_Set_TargetAI)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
@@ -13,19 +13,19 @@ IMPLEMENT_REFLECTION(BT_Set_Target)
     return true;
 }
 
-BT_Set_Target::BT_Set_Target()
+BT_Set_TargetAI::BT_Set_TargetAI()
 {
 }
 
-BT_Set_Target::~BT_Set_Target()
+BT_Set_TargetAI::~BT_Set_TargetAI()
 {
 }
 
-void BT_Set_Target::OnStart()
+void BT_Set_TargetAI::OnStart()
 {
 }
 
-BNode::NODE_STATE BT_Set_Target::Logic_Update(float deltaTime)
+BNode::NODE_STATE BT_Set_TargetAI::Logic_Update(float deltaTime)
 {
 
 
@@ -71,16 +71,16 @@ BNode::NODE_STATE BT_Set_Target::Logic_Update(float deltaTime)
     return BNode::NODE_STATE::SUCCESS;
 }
 
-void BT_Set_Target::OnFinish()
+void BT_Set_TargetAI::OnFinish()
 {
 }
 
-Shared<BT_Set_Target> BT_Set_Target::Create()
+Shared<BT_Set_TargetAI> BT_Set_TargetAI::Create()
 {
-    return make_shared<BT_Set_Target>();
+    return make_shared<BT_Set_TargetAI>();
 }
 
-void BT_Set_Target::Free()
+void BT_Set_TargetAI::Free()
 {
     Task::Free();
 }
