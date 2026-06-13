@@ -2,6 +2,40 @@
 
 #include "MonsterStatCom.h"
 
+namespace
+{
+    bool DrawEnemyClassCombo(EEnemyClass& enemyClass)
+    {
+        bool changed = false;
+        const string previewLabel = string(magic_enum::enum_name(enemyClass));
+        const char* preview = previewLabel.empty() ? "Unknown" : previewLabel.c_str();
+
+        ImGui::TextDisabled("Enemy Class");
+        ImGui::SameLine(120.f);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+        if (ImGui::BeginCombo("##MonsterEnemyClass", preview))
+        {
+            for (const auto& [candidate, candidateName] : magic_enum::enum_entries<EEnemyClass>())
+            {
+                const bool isSelected = (enemyClass == candidate);
+                if (ImGui::Selectable(string(candidateName).c_str(), isSelected))
+                {
+                    enemyClass = candidate; // MonsterStatCom의 PROPERTY_ENUM Enemy Class와 같은 저장값을 편집한다.
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        return changed;
+    }
+}
+
 void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
     Shared<MonsterStatCom> stat = dynamic_pointer_cast<MonsterStatCom>(component);
@@ -27,7 +61,6 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     int rewardExp = static_cast<int>(desc.exp);
     int rewardChroma = static_cast<int>(desc.chroma);
     int shieldPointsAtSpawn = static_cast<int>(desc.commonCharacterStats.ShieldPointsAtSpawn);
-    bool isBoss = desc.isBoss;
 
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);
@@ -54,12 +87,7 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
         desc.chroma = static_cast<uint32>(max(0, rewardChroma));
     }
 
-    ImGui::TextDisabled("Is Boss");
-    ImGui::SameLine(120.f);
-    if (ImGui::Checkbox("##MonsterIsBoss", &isBoss))
-    {
-        desc.isBoss = isBoss;
-    }
+    DrawEnemyClassCombo(desc.enemyClass);
 
     ImGui::TextDisabled("Shield At Spawn");
     ImGui::SameLine(120.f);

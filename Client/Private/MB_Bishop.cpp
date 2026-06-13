@@ -38,9 +38,6 @@ HRESULT MB_Bishop::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
 
-    if (_combatStat)
-        _combatStat->Get_MonsterDesc().isBoss = true;
-
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
     //_body->Set_Animation("Bishop_Idle", 0.3f, true);
