@@ -121,6 +121,8 @@ PS_OUT PS_Opaque(PS_IN In)
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
     Out.Diffuse = baseColor;
+    //Out.Diffuse = float4(worldNormal * 0.5f + 0.5f, 1.f);
+    
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
 

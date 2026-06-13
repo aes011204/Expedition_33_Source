@@ -289,7 +289,7 @@ private: /* 전투 AP */
 
     void Play_EnemyTargetedStart(const BattleChar& target);
     void Play_EnemyTargetedEnd();
-
+    void Play_EnemyTargetedAllyReactions(const BattleChar& target, bool isStart);
 
 private:
     bool _battleEnded = {};

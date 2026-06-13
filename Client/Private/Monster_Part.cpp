@@ -160,21 +160,13 @@ HRESULT Monster_Part::Render_Shadow()
         if (_animComputeRuntime != nullptr)
         {
             CHECK_FAILED(
-                _animComputeRuntime->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+                _animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
         }
         // runtime 없는 기본 ModelCom 경로
         else if (_model->Get_NumAnimations() != 0)
         {
             CHECK_FAILED(
-                _model->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+                _model->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
         }
 
         const uint32 shadowPass =

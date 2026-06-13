@@ -34,15 +34,18 @@ void BattleActionExecutor::Update(float timeDelta, BattleAction& action)
 void BattleActionExecutor::OnActionEndNotify(BattleAction& action)
 {
     const auto& phases = action.GetSkillData().AnimPhases;
-    if (action.GetCurAnimIndex() >= phases.size() )
+    if (action.GetCurAnimIndex() >= phases.size())
         return;
 
     const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
 
-    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget )//||
-        //phase.movementPolicy == BattleMovementPolicy::MoveToTarget )//||
-       // phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
+    {
+        // EndAnim notify fallback은 위치를 스냅하지 않고 phase만 넘긴다.
+        // RootMotion 도중 목표점으로 뚝 보정되는 움직임을 막기 위함이다.
+        Complete_CurPhase(action);
         return;
+    }
 
     //if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
     //    phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)

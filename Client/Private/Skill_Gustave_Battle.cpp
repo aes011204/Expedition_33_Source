@@ -16,7 +16,8 @@ void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const Battle
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.1f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_GustaveCharge(1);
@@ -38,7 +39,9 @@ void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const Battl
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(40.f, attacker, target, attackType);
+    // 과충전은 추후에, 게이지 비례한 데미지로 변경 예정
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 3.f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
@@ -70,7 +73,8 @@ void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleAct
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(25.f, attacker, target, attackType);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.3f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     battle->Apply_Buff(target, Buffs::Mark);
 

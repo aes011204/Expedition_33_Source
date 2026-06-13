@@ -97,7 +97,7 @@ public:
 
     void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
     void EndCounterTimeSection(ModelCom* sourceModel);
-    bool IsBusy() const { return _animPhase != ReactionAnimPhase::None; }
+    bool IsBusy() const { return _animPhase != ReactionAnimPhase::None && !_reactionAnimTargets.empty(); }
 
     bool Is_GroupParryActive() const;
 

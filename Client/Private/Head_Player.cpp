@@ -48,7 +48,7 @@ void Head_Player::Update(float timeDelta)
     if (Has_LeaderPoseComponent())
     {
         ENGINE_PROFILE_SCOPE_DETAIL("Player::Head::LeaderPose");
-        Update_LeaderPoseMatrices();
+        Update_LeaderPoseMatrices(timeDelta);
     }
     else
     {
