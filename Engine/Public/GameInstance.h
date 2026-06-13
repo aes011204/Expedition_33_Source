@@ -293,6 +293,7 @@ public: /* For.Light_Manager */
     void Clear_Lights();
     void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
     HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
+    HRESULT Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const;
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);

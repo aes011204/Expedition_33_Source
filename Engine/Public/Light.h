@@ -17,6 +17,7 @@ public:
 	const LIGHT_DESC* Get_LightDesc() const {
 		return &_desc;
 	}
+    HRESULT Bind_LightCB(Shared<ShaderCom> shader);
 
 public:
 	HRESULT Initialize(const LIGHT_DESC& lightDesc);

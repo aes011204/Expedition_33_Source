@@ -696,69 +696,60 @@ void Renderer::Render_CombinedHDR()
 void Renderer::Render_Fog()
 {
     if (!_deferredShader || !_viBuffer)
-    {
         return;
-    }
 
     if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
-    {
         return;
-    }
 
     if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
-    {
         return;
-    }
 
     if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-    {
         return;
-    }
+
+    if (FAILED(GAME->Bind_PrimaryShadowLightCB(_deferredShader)))
+        return;
+
+    if (FAILED(GAME->Bind_CameraCB(_deferredShader)))
+        return;
+
+    if (FAILED(GAME->Bind_ShadowCB(_deferredShader)))
+        return;
+
+    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+        return;
 
     if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
-    {
         return;
-    }
 
     if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
-    {
         return;
-    }
 
     if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
-    {
         return;
-    }
+
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth)))
+        return;
 
     if (FAILED(_viBuffer->Bind_Resources()))
-    {
         return;
-    }
 
     auto* noiseTexture = GAME->Get_SRV("T_Perlin_Noise_M");
     if FAILED(_deferredShader->Bind_SRV("g_FogNoiseTexture", noiseTexture))
-    {
         LOG_WARN("Failed to bind noise texutre!");
-    }
 
     const float fDT = 0.016f;
     static float s_elapsed = 0.f;
     s_elapsed += fDT;
     if FAILED(_deferredShader->Bind_RawValue("g_fDT", &s_elapsed, sizeof(float)))
-    {
         LOG_WARN("Failed to bind noise texutre!");
-    }
 
 
     if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
-    {
         return;
-    }
 
     if (FAILED(_viBuffer->Render()))
-    {
         return;
-    }
 
     GAME->End_MRT();
     Add_RenderCall();

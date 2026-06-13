@@ -1705,6 +1705,11 @@ HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
     return _lightManager->Set_Lights(lightDescs);
 }
 
+HRESULT GameInstance::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
+{
+    return _lightManager->Bind_PrimaryShadowLightCB(shader);
+}
+
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
     return _fontManager->Add_Font(fontTag, fontFilePath);

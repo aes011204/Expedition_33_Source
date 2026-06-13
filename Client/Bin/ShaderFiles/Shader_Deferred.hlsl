@@ -364,12 +364,33 @@ PS_OUT_BACKBUFFER PS_SSAOBlur(PS_IN In)
 // 카메라 ~ 현재 픽셀까지의 거리를 받아서 안개의 세기를 반환한다.
 float ComputeGlobalDistanceFog(float distanceToSurface)
 {
-    const float g_GlobalFogStart =3.f;
+    const float g_GlobalFogStart = 3.f;
     const float g_GlobalFogDensity = 0.003f;
     const float g_GlobalFogMaxDensity = 0.8f;
 
     float fogDistance = max(distanceToSurface - g_GlobalFogStart, 0.f);
     return saturate(1.f - exp(-g_GlobalFogDensity * fogDistance));
+}
+
+float SampleFogNoisePseudo3D(float3 worldPos, float baseScale, float2 scroll, float seed)
+{
+    float2 primaryOffset = scroll + float2(seed * 1.37f, -seed * 1.91f);
+    float2 secondaryOffset = scroll * 0.43f + float2(-seed * 2.17f, seed * 1.53f);
+
+    const float2x2 rotationA = float2x2(0.866f, -0.5f, 0.5f, 0.866f);
+    const float2x2 rotationB = float2x2(0.7071f, -0.7071f, 0.7071f, 0.7071f);
+    const float2x2 rotationC = float2x2(0.9659f, -0.2588f, 0.2588f, 0.9659f);
+
+    float2 uvXZ = mul(worldPos.xz * baseScale + primaryOffset, rotationA);
+    float2 uvXY = mul(worldPos.xy * (baseScale * 0.41f) + secondaryOffset, rotationB);
+    float2 uvZY = mul(worldPos.zy * (baseScale * 0.37f) - primaryOffset * 0.57f, rotationC);
+
+    float noiseXZ = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, uvXZ, 0.f).r;
+    float noiseXY = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, uvXY, 0.f).r;
+    float noiseZY = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, uvZY, 0.f).r;
+
+    // XZ를 메인으로 두고 Y가 들어간 보조 투영으로 판이 겹친 느낌을 깨준다.
+    return noiseXZ * 0.58f + noiseXY * 0.22f + noiseZY * 0.20f;
 }
 
 // 지면 높이 안개
@@ -476,59 +497,40 @@ float ComputeGroundFog(FogZoneEntry zone, float3 camPos, float3 rayDir, float ra
 
     // 움직이는 noise 표현. 두 번 샘플링해서 패턴 줄이기.
     float2 noiseOffset = g_fDT * zone.noiseSpeed;
-    float2 softNoiseOffset = noiseOffset * 0.43f + float2(1.37f, -2.11f);
-    const float2x2 softNoiseRotation = float2x2(0.866f, -0.5f, 0.5f, 0.866f);
+    float noise25A = SampleFogNoisePseudo3D(samplePos25, zone.noiseScale * 0.58f, noiseOffset * 0.37f, 1.11f);
+    float noise50A = SampleFogNoisePseudo3D(samplePos50, zone.noiseScale * 0.58f, noiseOffset * 0.37f, 1.11f);
+    float noise75A = SampleFogNoisePseudo3D(samplePos75, zone.noiseScale * 0.58f, noiseOffset * 0.37f, 1.11f);
 
-    float2 noiseUV25A = samplePos25.xz * zone.noiseScale + noiseOffset;
-    float2 noiseUV50A = samplePos50.xz * zone.noiseScale + noiseOffset;
-    float2 noiseUV75A = samplePos75.xz * zone.noiseScale + noiseOffset;
+    float noise25B = SampleFogNoisePseudo3D(samplePos25, zone.noiseScale * 0.93f, noiseOffset * 0.71f, 2.37f);
+    float noise50B = SampleFogNoisePseudo3D(samplePos50, zone.noiseScale * 0.93f, noiseOffset * 0.71f, 2.37f);
+    float noise75B = SampleFogNoisePseudo3D(samplePos75, zone.noiseScale * 0.93f, noiseOffset * 0.71f, 2.37f);
 
-    float2 noiseUV25B = samplePos25.xz * (zone.noiseScale * 2.17f) - noiseOffset * 0.47f;
-    float2 noiseUV50B = samplePos50.xz * (zone.noiseScale * 2.17f) - noiseOffset * 0.47f;
-    float2 noiseUV75B = samplePos75.xz * (zone.noiseScale * 2.17f) - noiseOffset * 0.47f;
+    // 같은 noise 자산만 써도 축을 바꿔 섞으면 한 장의 텍스처 판이 반복되는 느낌을 크게 줄일 수 있다.
+    float noise25C = SampleFogNoisePseudo3D(samplePos25, zone.noiseScale * 1.47f, noiseOffset * 1.13f, 3.73f);
+    float noise50C = SampleFogNoisePseudo3D(samplePos50, zone.noiseScale * 1.47f, noiseOffset * 1.13f, 3.73f);
+    float noise75C = SampleFogNoisePseudo3D(samplePos75, zone.noiseScale * 1.47f, noiseOffset * 1.13f, 3.73f);
 
-    // 같은 XZ 평면 노이즈라도 저주파 레이어를 더 섞어서 판이 겹친 결보다 덩어리감이 먼저 보이게 만든다.
-    float2 noiseUV25C = mul(samplePos25.xz * (zone.noiseScale * 0.53f) + softNoiseOffset, softNoiseRotation);
-    float2 noiseUV50C = mul(samplePos50.xz * (zone.noiseScale * 0.53f) + softNoiseOffset, softNoiseRotation);
-    float2 noiseUV75C = mul(samplePos75.xz * (zone.noiseScale * 0.53f) + softNoiseOffset, softNoiseRotation);
+    float noise25D = SampleFogNoisePseudo3D(samplePos25, zone.noiseScale * 2.05f, noiseOffset * 1.57f, 5.29f);
+    float noise50D = SampleFogNoisePseudo3D(samplePos50, zone.noiseScale * 2.05f, noiseOffset * 1.57f, 5.29f);
+    float noise75D = SampleFogNoisePseudo3D(samplePos75, zone.noiseScale * 2.05f, noiseOffset * 1.57f, 5.29f);
 
-    float2 noiseUV25D = samplePos25.xz * (zone.noiseScale * 0.91f) - softNoiseOffset * 0.31f + float2(-3.1f, 2.7f);
-    float2 noiseUV50D = samplePos50.xz * (zone.noiseScale * 0.91f) - softNoiseOffset * 0.31f + float2(-3.1f, 2.7f);
-    float2 noiseUV75D = samplePos75.xz * (zone.noiseScale * 0.91f) - softNoiseOffset * 0.31f + float2(-3.1f, 2.7f);
+    float noise25AB = noise25A * 0.78f + noise25B * 0.22f;
+    float noise50AB = noise50A * 0.78f + noise50B * 0.22f;
+    float noise75AB = noise75A * 0.78f + noise75B * 0.22f;
 
-    float noise25A = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV25A, 0.f).r;
-    float noise50A = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV50A, 0.f).r;
-    float noise75A = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV75A, 0.f).r;
+    float noise25CD = noise25C * 0.66f + noise25D * 0.34f;
+    float noise50CD = noise50C * 0.66f + noise50D * 0.34f;
+    float noise75CD = noise75C * 0.66f + noise75D * 0.34f;
 
-    float noise25B = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV25B, 0.f).r;
-    float noise50B = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV50B, 0.f).r;
-    float noise75B = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV75B, 0.f).r;
-
-    float noise25C = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV25C, 0.f).r;
-    float noise50C = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV50C, 0.f).r;
-    float noise75C = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV75C, 0.f).r;
-
-    float noise25D = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV25D, 0.f).r;
-    float noise50D = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV50D, 0.f).r;
-    float noise75D = g_FogNoiseTexture.SampleLevel(LinearWrapSampler, noiseUV75D, 0.f).r;
-
-    float noise25AB = noise25A * 0.7f + noise25B * 0.3f;
-    float noise50AB = noise50A * 0.7f + noise50B * 0.3f;
-    float noise75AB = noise75A * 0.7f + noise75B * 0.3f;
-
-    float noise25CD = noise25C * 0.62f + noise25D * 0.38f;
-    float noise50CD = noise50C * 0.62f + noise50D * 0.38f;
-    float noise75CD = noise75C * 0.62f + noise75D * 0.38f;
-
-    float noise25 = noise25AB * 0.5f + noise25CD * 0.5f;
-    float noise50 = noise50AB * 0.5f + noise50CD * 0.5f;
-    float noise75 = noise75AB * 0.55f + noise75CD * 0.5f;
+    float noise25 = noise25AB * 0.68f + noise25CD * 0.32f;
+    float noise50 = noise50AB * 0.68f + noise50CD * 0.32f;
+    float noise75 = noise75AB * 0.68f + noise75CD * 0.32f;
 
     float noise = (noise25 + noise50 + noise75) / 3.f;
-    noise = lerp(noise, 0.5f + (noise - 0.5f) * 0.55f, 0.45f);
+    noise = lerp(noise, 0.5f + (noise - 0.5f) * 0.42f, 0.58f);
     noise = smoothstep(0.25f, 0.75f, noise);
 
-    float softenedNoiseStrength = saturate(zone.noiseStrength * 0.78f);
+    float softenedNoiseStrength = saturate(zone.noiseStrength * 0.72f);
     noise = lerp(1.f, max(noise, zone.noiseMin), softenedNoiseStrength);
 
     // Fog box를 오래 통과할수록 안개가 진해져야 한다. (안개의 누적 깊이?)
@@ -600,6 +602,7 @@ float4 PS_Fog(PS_IN In) : SV_Target
         : float3(0.f, 0.f, 0.f);
 
     return float4(straightFogColor, fogFactorOut);
+    return float4(0.65f, 0.65f, 0.65f, 0.2f);
 }
 
 
