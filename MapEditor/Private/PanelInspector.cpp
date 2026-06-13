@@ -275,6 +275,12 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             ImGui::DragFloat("Noise Strength", &obj->_ppFogNoiseStrength, 0.01f, 0.f, 1.f);
             ImGui::DragFloat("Noise Min", &obj->_ppFogNoiseMin, 0.01f, 0.f, 1.f);
+            ImGui::SeparatorText("Global Ground Fog");
+            ImGui::DragFloat("Max Distance", &obj->_ppGroundFogMaxDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Min Accum Distance", &obj->_ppGroundFogMinAccumulationDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Distance Influence", &obj->_ppGroundFogDistanceInfluence, 0.01f, 0.f, 1.f);
+            ImGui::DragFloat("Near Fade Distance", &obj->_ppGroundFogNearFadeDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Near Min Factor", &obj->_ppGroundFogNearMinFactor, 0.01f, 0.f, 1.f);
 
             float fogColor[3] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
             if (ImGui::ColorEdit3("Fog Color", fogColor))

@@ -360,6 +360,11 @@ namespace
         e["NoiseSpeed"] = { obj._ppFogNoiseSpeed.x, obj._ppFogNoiseSpeed.y };
         e["NoiseStrength"] = obj._ppFogNoiseStrength;
         e["NoiseMin"] = obj._ppFogNoiseMin;
+        e["GroundFogMaxDistance"] = obj._ppGroundFogMaxDistance;
+        e["GroundFogMinAccumulationDistance"] = obj._ppGroundFogMinAccumulationDistance;
+        e["GroundFogDistanceInfluence"] = obj._ppGroundFogDistanceInfluence;
+        e["GroundFogNearFadeDistance"] = obj._ppGroundFogNearFadeDistance;
+        e["GroundFogNearMinFactor"] = obj._ppGroundFogNearMinFactor;
     }
 
     void Deserialize_PostProcessVolume(const json& e, EditorObject& obj)
@@ -393,6 +398,11 @@ namespace
         }
         obj._ppFogNoiseStrength = e.value("NoiseStrength", 0.9f);
         obj._ppFogNoiseMin = e.value("NoiseMin", 0.38f);
+        obj._ppGroundFogMaxDistance = e.value("GroundFogMaxDistance", 100.f);
+        obj._ppGroundFogMinAccumulationDistance = e.value("GroundFogMinAccumulationDistance", 10.f);
+        obj._ppGroundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
+        obj._ppGroundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
+        obj._ppGroundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
     }
 
     string Strip_WaterTexturePath(const wstring& fullPath)
@@ -708,6 +718,11 @@ void SceneContext::SaveToFile(const string& filePath)
             e["NoiseSpeed"] = { obj->_ppFogNoiseSpeed.x, obj->_ppFogNoiseSpeed.y };
             e["NoiseStrength"] = obj->_ppFogNoiseStrength;
             e["NoiseMin"] = obj->_ppFogNoiseMin;
+            e["GroundFogMaxDistance"] = obj->_ppGroundFogMaxDistance;
+            e["GroundFogMinAccumulationDistance"] = obj->_ppGroundFogMinAccumulationDistance;
+            e["GroundFogDistanceInfluence"] = obj->_ppGroundFogDistanceInfluence;
+            e["GroundFogNearFadeDistance"] = obj->_ppGroundFogNearFadeDistance;
+            e["GroundFogNearMinFactor"] = obj->_ppGroundFogNearMinFactor;
             postProcessVols.push_back(e);
             break;
 
@@ -1084,6 +1099,11 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             }
             obj->_ppFogNoiseStrength = e.value("NoiseStrength", 0.9f);
             obj->_ppFogNoiseMin = e.value("NoiseMin", 0.38f);
+            obj->_ppGroundFogMaxDistance = e.value("GroundFogMaxDistance", 100.f);
+            obj->_ppGroundFogMinAccumulationDistance = e.value("GroundFogMinAccumulationDistance", 10.f);
+            obj->_ppGroundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
+            obj->_ppGroundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
+            obj->_ppGroundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
 
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
@@ -1451,6 +1471,11 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
             }
             obj->_ppFogNoiseStrength = j.value("NoiseStrength", 0.9f);
             obj->_ppFogNoiseMin = j.value("NoiseMin", 0.38f);
+            obj->_ppGroundFogMaxDistance = j.value("GroundFogMaxDistance", 100.f);
+            obj->_ppGroundFogMinAccumulationDistance = j.value("GroundFogMinAccumulationDistance", 10.f);
+            obj->_ppGroundFogDistanceInfluence = j.value("GroundFogDistanceInfluence", 0.15f);
+            obj->_ppGroundFogNearFadeDistance = j.value("GroundFogNearFadeDistance", 12.f);
+            obj->_ppGroundFogNearMinFactor = j.value("GroundFogNearMinFactor", 0.65f);
         }
         break;
     }

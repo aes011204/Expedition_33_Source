@@ -41,6 +41,11 @@ struct EditorObject
     Vec2 _ppFogNoiseSpeed = { 0.005f, 0.003f };
     float _ppFogNoiseStrength = 0.9f;
     float _ppFogNoiseMin = 0.38f;
+    float _ppGroundFogMaxDistance = 100.f;
+    float _ppGroundFogMinAccumulationDistance = 10.f;
+    float _ppGroundFogDistanceInfluence = 0.15f;
+    float _ppGroundFogNearFadeDistance = 12.f;
+    float _ppGroundFogNearMinFactor = 0.65f;
 
     LightType _lightType = LightType::Directional;
     Vec4 _lightDiffuse = { 1.f, 1.f, 1.f, 1.f };

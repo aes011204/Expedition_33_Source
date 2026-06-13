@@ -624,12 +624,23 @@ void MapEditorApp::SyncSceneLights()
 void MapEditorApp::SyncFogZones()
 {
     FogZoneCB cb{};
+    bool hasGroundFogGlobals = false;
 
     for (const auto& obj : _scene._postProcessVolumes)
     {
         if (!obj || obj->_ppFogDensity <= 0.f)
         {
             continue;
+        }
+
+        if (!hasGroundFogGlobals)
+        {
+            cb.groundFogMaxDistance = obj->_ppGroundFogMaxDistance;
+            cb.groundFogMinAccumulationDistance = obj->_ppGroundFogMinAccumulationDistance;
+            cb.groundFogDistanceInfluence = obj->_ppGroundFogDistanceInfluence;
+            cb.groundFogNearFadeDistance = obj->_ppGroundFogNearFadeDistance;
+            cb.groundFogNearMinFactor = obj->_ppGroundFogNearMinFactor;
+            hasGroundFogGlobals = true;
         }
 
         FogZoneEntry entry{};

@@ -203,15 +203,15 @@ struct alignas(16) LightShaftCB
     float lightFacingCamera{ 0.f };
 
     Vec3 shaftColor{ 1.0f, 0.96f, 0.88f };
-    float intensity{ 0.35f };
+    float intensity{ 0.65f };
 
     uint32 sampleCount{ 12u };
-    float rayLength{ 0.18f };
+    float rayLength{ 0.8f };
     float decay{ 0.96f };
-    float sunDiscRadius{ 0.04f };
+    float sunDiscRadius{ 0.3f };
 
-    float edgeFade{ 0.15f };
-    float depthEmptyThreshold{ 0.001f };
+    float edgeFade{ 0.5f };
+    float depthEmptyThreshold{ 0.0001f };
     float _pad0[2]{};
 };
 

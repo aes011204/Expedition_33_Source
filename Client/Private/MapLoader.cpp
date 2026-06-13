@@ -87,14 +87,25 @@ namespace
     void Apply_PostProcessVolumes(const vector<json>& postProcessVolumes)
     {
         FogZoneCB fogCB{};
+        bool hasGroundFogGlobals = false;
         for (const auto& e : postProcessVolumes)
         {
-            if (fogCB.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-                break;
-
             float density = e.value("FogDensity", 0.f);
             if (density <= 0.f)
                 continue;
+
+            if (!hasGroundFogGlobals)
+            {
+                fogCB.groundFogMaxDistance = e.value("GroundFogMaxDistance", 100.f);
+                fogCB.groundFogMinAccumulationDistance = e.value("GroundFogMinAccumulationDistance", 10.f);
+                fogCB.groundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
+                fogCB.groundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
+                fogCB.groundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
+                hasGroundFogGlobals = true;
+            }
+
+            if (fogCB.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
+                break;
 
             FogZoneEntry entry{};
             if (e.contains("FogColor"))
@@ -308,6 +319,10 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
         {
             outSession = std::move(mapInstanceSession);
             return S_OK;
+        }
+        else
+        {
+            __debugbreak();
         }
     }
 
