@@ -174,6 +174,9 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_RotationRateScaleByLifeCurveValuesBlock1;
     float4 g_RotationRateScaleByLifeCurveParams; // x: key count
     uint4 g_RotationSeedSalts;                   // x: InitialRotation, y: InitialRotationRate
+    float4 g_PlaneRadialCameraFacingRight;       // xyz: camera right axis in emitter-local sampling space
+    float4 g_PlaneRadialCameraFacingUp;          // xyz: camera up axis in emitter-local sampling space
+    float4 g_PlaneRadialCameraFacingNormal;      // xyz: camera look axis in emitter-local sampling space
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -964,6 +967,12 @@ void ResolvePlaneRadialBasis(out float3 axisU, out float3 axisV, out float3 plan
         axisU = float3(0.0f, 1.0f, 0.0f);
         axisV = float3(0.0f, 0.0f, 1.0f);
         planeNormal = float3(1.0f, 0.0f, 0.0f);
+    }
+    else if (plane == 3u)
+    {
+        axisU = g_PlaneRadialCameraFacingRight.xyz;
+        axisV = g_PlaneRadialCameraFacingUp.xyz;
+        planeNormal = g_PlaneRadialCameraFacingNormal.xyz;
     }
 }
 

@@ -1,8 +1,10 @@
 ﻿#include "VIBufferCom_ComputePointParticle.h"
 
+#include "Camera.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "GameInstance.h"
+#include "TransformCom.h"
 
 struct ComputePointParticleParams
 {
@@ -152,6 +154,9 @@ struct ComputePointParticleParams
     Vec4 rotationRateScaleByLifeCurveValuesBlock1{};
     Vec4 rotationRateScaleByLifeCurveParams{};       // x: key count, y/z/w: unused.
     XMUINT4 rotationSeedSalts{};                     // x: InitialRotation, y: InitialRotationRate, z/w: unused.
+    Vec4 planeRadialCameraFacingRight{};             // xyz: camera right axis in emitter-local sampling space.
+    Vec4 planeRadialCameraFacingUp{};                // xyz: camera up axis in emitter-local sampling space.
+    Vec4 planeRadialCameraFacingNormal{};            // xyz: camera look axis in emitter-local sampling space.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -170,6 +175,16 @@ static float Hash01(uint32 seed)
     seed *= 2654435769u;
     seed ^= seed >> 16;
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
+static Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
+{
+    if (value.LengthSquared() <= 1e-8f)
+        return fallback;
+
+    Vec3 result = value;
+    result.Normalize();
+    return result;
 }
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -514,6 +529,29 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
 {
     if (nullptr == _computeConstantBuffer)
         return E_FAIL;
+
+    Vec3 cameraFacingRight{ 1.f, 0.f, 0.f };
+    Vec3 cameraFacingUp{ 0.f, 1.f, 0.f };
+    Vec3 cameraFacingNormal{ 0.f, 0.f, 1.f };
+    if (const Shared<Camera> activeCamera = GAME->Get_ActiveCamera())
+    {
+        if (const Shared<TransformCom> cameraTransform = activeCamera->Get_Transform())
+        {
+            auto to_emitter_sampling_axis = [this](const Vec3& worldAxis, const Vec3& fallback)
+            {
+                const Vec3 localAxis{
+                    worldAxis.Dot(_desc.emitterRight),
+                    worldAxis.Dot(_desc.emitterUp),
+                    worldAxis.Dot(_desc.emitterLook)
+                };
+                return Normalize_OrFallback(localAxis, fallback);
+            };
+
+            cameraFacingRight = to_emitter_sampling_axis(cameraTransform->Get_WorldRight(), cameraFacingRight);
+            cameraFacingUp = to_emitter_sampling_axis(cameraTransform->Get_WorldUp(), cameraFacingUp);
+            cameraFacingNormal = to_emitter_sampling_axis(cameraTransform->Get_WorldForward(), cameraFacingNormal);
+        }
+    }
 
     const ComputePointParticleParams params = {
         .elapsedTime = _elapsedTime,
@@ -880,7 +918,10 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             Resolve_SeedSalt(_desc.rotation.initialRotationRateSeed, _desc.effectPlaybackSeed),
             0u,
             0u
-        }
+        },
+        .planeRadialCameraFacingRight = Vec4{ cameraFacingRight.x, cameraFacingRight.y, cameraFacingRight.z, 0.f },
+        .planeRadialCameraFacingUp = Vec4{ cameraFacingUp.x, cameraFacingUp.y, cameraFacingUp.z, 0.f },
+        .planeRadialCameraFacingNormal = Vec4{ cameraFacingNormal.x, cameraFacingNormal.y, cameraFacingNormal.z, 0.f }
     };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);

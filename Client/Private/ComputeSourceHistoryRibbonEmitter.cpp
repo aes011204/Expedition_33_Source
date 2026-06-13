@@ -317,6 +317,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
     _desc.sampleLifetime = max(0.0001f, _desc.sampleLifetime);
     _desc.maxLength = max(0.f, _desc.maxLength);
     _desc.tailFadeLength = max(0.f, _desc.tailFadeLength);
+    _desc.tailCollapseSpeed = max(0.f, _desc.tailCollapseSpeed);
     _desc.laneSpawnFadeInDuration = max(0.f, _desc.laneSpawnFadeInDuration);
     _desc.baseWidth = max(0.001f, _desc.baseWidth);
     _desc.tilingDistance = max(0.f, _desc.tilingDistance);
@@ -507,8 +508,12 @@ void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
 
         const Vec3 sourcePosition = Resolve_SourcePosition();
         _selfRootSourcePosition = sourcePosition;
-        if (_history.empty() || Should_InsertSample(_history, _sampleIntervalAccumulator, sourcePosition))
+        const bool shouldInsertSample =
+            _history.empty() || Should_InsertSample(_history, _sampleIntervalAccumulator, sourcePosition);
+        if (shouldInsertSample)
             Insert_HistorySample(_history, _sampleIntervalAccumulator, sourcePosition);
+        else
+            Collapse_HistoryTowardSource(_history, sourcePosition, safeDeltaTime);
     }
 
     Prune_History(_history);
@@ -557,9 +562,13 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
             lane->activeThisFrame = true;
             lane->missingTime = 0.f;
             lane->currentSourcePosition = sourcePoint.position;
-            if (lane->history.empty() ||
-                Should_InsertSample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position))
+            const bool shouldInsertSample =
+                lane->history.empty() ||
+                Should_InsertSample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
+            if (shouldInsertSample)
                 Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
+            else
+                Collapse_HistoryTowardSource(lane->history, sourcePoint.position, safeDeltaTime);
 
             Prune_History(lane->history);
         }
@@ -640,6 +649,31 @@ void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(
     while (static_cast<uint32>(history.size()) > _desc.maxSampleCount)
     {
         history.pop_back();
+    }
+}
+
+void ComputeSourceHistoryRibbonEmitter::Collapse_HistoryTowardSource(
+    vector<HistorySample>& history,
+    const Vec3& sourcePosition,
+    float timeDelta) const
+{
+    if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f || timeDelta <= 0.f || history.empty())
+        return;
+
+    const float movedDistance = (sourcePosition - history.front().position).Length();
+    if (movedDistance >= _desc.sampleSpacing)
+        return;
+
+    const float collapseRatio = clamp(_desc.tailCollapseSpeed * timeDelta, 0.f, 1.f);
+    if (collapseRatio <= 0.f)
+        return;
+
+    const float tailDenominator = max(1.f, static_cast<float>(history.size() - 1u));
+    for (size_t index = 0; index < history.size(); ++index)
+    {
+        const float tailRatio = static_cast<float>(index) / tailDenominator;
+        const float weightedRatio = collapseRatio * (1.f - tailRatio * 0.5f);
+        history[index].position = Vec3::Lerp(history[index].position, sourcePosition, weightedRatio);
     }
 }
 

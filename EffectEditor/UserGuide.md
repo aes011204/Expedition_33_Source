@@ -34,6 +34,7 @@ Runtime Toolbar는 effect 파일 조작과 preview 재생을 다루는 상단 �
 주요 기능은 다음과 같다.
 
 - **Save / Open**: 현재 effect authoring data를 저장하거나 기존 effect 파일을 연다.
+- **Add**: 다른 effect 파일을 열어 그 안의 Emitter들을 현재 effect에 가져와 붙인다. 새 빈 Emitter를 만드는 기능이 아니라, 기존 effect의 Emitter stack을 합치는 import 기능이다.
 - **Restart Preview**: 현재 authoring data를 기준으로 preview object를 다시 구성한다.
 - **Play / Pause / Stop / Step**: preview runtime의 시간 진행을 조작한다.
 
@@ -71,6 +72,8 @@ Emitter View에서 주로 하는 작업은 다음과 같다.
 - `새 모듈` 메뉴를 통해 Module 추가.
 - Module 선택, 활성/비활성 전환.
 - Emitter나 Module을 복사/붙여넣기.
+
+새 Emitter, TypeData, Module 추가는 Emitter View의 우클릭 메뉴에서 진입한다. Emitter column의 header나 빈 tail 영역을 우클릭하면 Emitter 단위 메뉴가 열리고, 여기서 `파티클 시스템`, `타입 데이터`, `모듈` 하위 메뉴를 사용할 수 있다. `타입 데이터` row를 우클릭하면 TypeData 추가/초기화/제거 메뉴가 바로 열리고, `모듈 > 새 모듈`을 선택하면 Module picker가 열린다.
 
 새 Emitter는 비어 있는 board 영역이나 Emitter View의 관련 메뉴에서 추가한다.
 
@@ -129,9 +132,13 @@ Save/Open은 일반적인 파일 저장/열기 흐름을 사용한다. 파일 �
 
 기존 effect를 열 때는 저장되지 않은 변경 사항이 사라질 수 있다. 열기 전에 현재 작업을 저장해야 하는지 먼저 확인한다.
 
+Save/Open 옆의 `Add`는 선택한 effect 파일의 Emitter들을 현재 effect 뒤에 import한다. 여러 effect에서 이미 만든 Emitter 구성을 재사용하거나 합칠 때 쓰며, 현재 문서를 완전히 교체하는 Open과 다르다. 새로 비어 있는 Emitter 하나를 만들고 싶다면 `Add`가 아니라 Emitter View의 우클릭 메뉴에서 새 Emitter를 추가한다.
+
 ### 3.2 Emitter 추가
 
 새 Emitter를 추가하면 Emitter View에 새로운 column이 생긴다. Emitter는 effect 안에서 독립적인 방출 단위이므로, 서로 다른 시각 요소를 분리하고 싶을 때 Emitter를 나누는 것이 좋다.
+
+Emitter View에서는 기존 Emitter column의 header나 column 아래 빈 영역을 우클릭한 뒤 `파티클 시스템` 메뉴에서 `앞에 새 이미터 추가` 또는 `뒤에 새 이미터 추가`를 선택한다. board의 빈 영역에서도 새 Emitter 메뉴로 진입할 수 있다.
 
 예를 들어 하나의 폭발 효과라도 중심 flash, 바깥 ring, 잔광 particle, 후속 trail을 각각 다른 Emitter로 나눌 수 있다. 반대로 같은 texture와 같은 lifetime 규칙을 공유하는 단순 변화라면 하나의 Emitter 안에서 Module 조합으로 해결할 수 있다.
 
@@ -142,6 +149,8 @@ Emitter column 안의 `타입 데이터` row는 Emitter가 특수 타입 데이�
 ![TypeData add menu](UserGuide_Img/typedata_add_menu.png)
 
 TypeData가 없는 상태는 UI에서 `타입 데이터 (미장착)`으로 표시된다. 이 상태는 기본 particle-style Emitter로 이해하면 된다.
+
+TypeData를 추가하려면 Emitter header를 우클릭한 뒤 `타입 데이터` 메뉴로 들어가거나, Emitter column 안의 `타입 데이터` row를 직접 우클릭한다. 이미 TypeData가 붙은 상태에서는 같은 메뉴에서 값 초기화나 제거를 선택할 수 있다.
 
 타입 데이터 메뉴에서는 다음 타입을 추가할 수 있다.
 
@@ -160,14 +169,15 @@ TypeData는 단순히 UI 표시만 바꾸는 값이 아니다. Emitter가 previe
 
 ![Module picker statuses](UserGuide_Img/module_picker_statuses.png)
 
+Module을 추가하려면 Emitter header나 column의 빈 tail 영역을 우클릭한 뒤 `모듈 > 새 모듈`을 선택한다. 이때 열린 Module picker는 우클릭한 Emitter를 대상으로 하므로, 여러 Emitter가 있을 때는 어느 column에서 메뉴를 열었는지 먼저 확인한다.
+
 Module picker에는 이름과 상태가 함께 표시된다.
 
 | 상태 | 의미 |
 | --- | --- |
 | `추가 가능` | 현재 Emitter에 추가할 수 있다. |
 | `이미 장착됨` | 같은 타입의 Module이 이미 Emitter에 있다. |
-| `현재 TypeData와 비호환` | 현재 TypeData에서는 preview/runtime 입력으로 소비되지 않는다. |
-| `Mesh TypeData 전용` | Mesh TypeData가 있는 Emitter에서만 의미가 있다. |
+| `현재 TypeData와 비호환` | 현재 TypeData에서는 preview/runtime 입력으로 소비되지 않는다. Mesh 전용 Module처럼 사유가 명확한 경우 `Mesh TypeData 전용` 같은 구체 문구로 표시될 수 있다. |
 | `미구현` | UI에 후보는 있지만 아직 실제 추가 대상으로 열지 않은 상태다. |
 
 Module을 추가할 수 없을 때는 먼저 이 상태 문구를 확인한다. 무조건 버그로 보기 전에, 현재 TypeData와 Module이 맞는 조합인지 확인하는 것이 빠르다.
@@ -350,6 +360,15 @@ UI나 이전 저장 데이터에는 legacy 의미의 SourceEmitter 표현이 남
 
 ParticleEmitter source를 쓸 때는 source Emitter가 실제 particle 위치 history를 제공할 수 있어야 한다. source가 없거나 disabled 상태라면 ribbon이 기대한 위치를 따라가지 않을 수 있다.
 
+Detail View의 `Preview Motion (에디터 tail 검증용 수치. 저장 X)` 섹션은 Source History Ribbon의 tail 움직임을 EffectEditor 안에서 확인하기 위한 preview 검증 입력이다. effect asset에 저장되는 authoring 값이 아니라 preview lowering에서만 소비되는 editor-only 값으로 본다.
+
+Preview Motion에서 자주 확인하는 값은 다음과 같다.
+
+- `프리뷰 모션`: 움직임 없음(Off), 직선 이동(Line), 호 이동(Arc), 반복 순환(Loop) 중 하나를 고른다.
+- `프리뷰 이동 축`: X/Y/Z 중 움직임 기준 축을 고른다.
+- `프리뷰 이동 크기`: Line/Arc의 one-shot 이동 반경 또는 Loop 순환 반경이다.
+- `프리뷰 이동 속도`: Line/Arc의 one-shot 진행 속도 또는 Loop 반복 속도다.
+
 ### 5.6 빔 데이터
 
 `빔 데이터`는 authored local path 기반의 generated strip을 만들 때 사용한다.
@@ -462,8 +481,7 @@ Module picker는 현재 선택한 Emitter에 대해 Module을 추가할 수 있�
 | --- | --- |
 | `추가 가능` | 현재 Emitter에 추가할 수 있다. |
 | `이미 장착됨` | 같은 타입의 Module이 이미 있다. |
-| `현재 TypeData와 비호환` | 현재 TypeData에서는 preview/runtime 입력으로 소비되지 않는다. |
-| `Mesh TypeData 전용` | Mesh TypeData가 있는 Emitter에서만 의미가 있다. |
+| `현재 TypeData와 비호환` | 현재 TypeData에서는 preview/runtime 입력으로 소비되지 않는다. Mesh 전용 Module처럼 사유가 명확한 경우 `Mesh TypeData 전용` 같은 구체 문구로 표시될 수 있다. |
 | `미구현` | 후보는 있지만 현재 버전에서 추가 대상으로 열지 않은 항목이다. |
 
 ### 6.4 Module 계열
@@ -495,13 +513,14 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | `원본 보기` | 원본 material/preset 확인 창을 연다. | 선택 원본을 확인한다. | editor action | Mesh에서는 비활성화될 수 있다. |
 | `원점` | Emitter origin offset이다. | Emitter local 기준 위치 보정으로 읽는다. | Vec3 고정값 | preview 위치 기준에 영향이 있다. |
 | `회전 (도)` | Emitter local 회전이다. | degree 단위 회전 보정이다. | Vec3 고정값 | 축별 회전으로 입력한다. |
-| `화면 정렬` | sprite/card가 camera나 world에 정렬되는 방식이다. | billboard, plane fixed, radial, velocity 계열을 고른다. | combo | 하위 옵션 노출 여부를 결정한다. |
+| `화면 정렬` | sprite/card가 camera나 world에 정렬되는 방식이다. | `Facing Camera Position`, `Rectangle`, `Square`, `Away from Center`, `Velocity`, `World Plane XY`, `World Plane XZ` 중 고른다. | combo | 하위 옵션 노출 여부를 결정한다. |
 | `방향 정렬 방식` | radial/velocity 계열에서 방향을 card에 어떻게 반영할지 정한다. | look 방향 또는 texture axis 기준을 고른다. | combo | UI tooltip과 disabled text를 우선한다. |
 | `정렬할 텍스처 축` | texture X/Y 중 어느 축을 방향에 맞출지 정한다. | 긴 texture의 방향성을 맞출 때 쓴다. | combo | world axis가 아니라 texture 가로/세로 축이다. |
 | `롤 보정 (도)` | 정렬 후 roll 보정값이다. | degree 단위 추가 회전이다. | float 고정값 | texture axis 정렬에서 주로 의미가 있다. |
 | `로컬 스페이스 사용` | Emitter local space 기준 사용 여부다. | 켜면 local transform 기준 해석이 강해진다. | bool | runtime 소비 경계는 TypeData와 renderer별로 확인한다. |
 | `Blend Mode` | material blend path다. | AlphaBlend/Additive/Masked 계열 선택이다. | combo | Trail은 v1에서 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지한다. |
 | `Sort Policy` | 투명 정렬 기준이다. | 카메라/거리/정책별 정렬을 선택한다. | combo | 같은 layer 안에서 결과가 달라진다. |
+| `Sort Mode` | 투명 정렬의 세부 mode다. | `None`, `View Proj Depth`, `Distance to View`, `Age Oldest First`, `Age Newest First` 중 고른다. | combo | `Sort Policy`와 별개 field이므로 둘을 함께 확인한다. |
 | `Sort Layer` | 정렬 layer다. | 큰 단위의 draw order를 나눈다. | int 고정값 | 같은 policy 안에서 우선순위 역할을 한다. |
 | `Sort Bias` | 같은 layer/policy 안의 마지막 보정값이다. | 작은 draw order 보정이다. | float 고정값 | 큰 구조 정렬은 Sort Layer/Policy로 먼저 잡는다. |
 | `루프 횟수` | Emitter loop 반복 수다. | 0 또는 특정 값의 의미는 runtime 정책을 확인한다. | uint 고정값 | loop 기반 sampling Module과 함께 본다. |
@@ -572,25 +591,25 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | --- | --- | --- | --- | --- |
 | `오프셋` | 구 중심 offset이다. | Emitter origin에서 구 중심을 이동한다. | Vec3 고정값 | 모든 구 위치 sample의 기준이다. |
 | `반지름` | 구 반지름이다. | 음수는 0 이상으로 정규화된다. | float 고정값 | 너무 작으면 중심 근처에서만 생성된다. |
-| `생성 방식` | Volume/Surface 선택이다. | 부피 내부 또는 표면에서 sample한다. | combo | `표면 배치`는 Surface일 때 의미가 있다. |
-| `표면 배치` | 표면 sample 배치 방식이다. | Random 또는 EvenByParticleIndex 계열이다. | combo | Surface가 아니면 비활성화된다. |
+| `생성 방식` | 구 내부/표면 sample 선택이다. | `부피(Volume)` 또는 `표면(Surface)`을 고른다. | combo | `표면 배치`는 `표면(Surface)`일 때 의미가 있다. |
+| `표면 배치` | 표면 sample 배치 방식이다. | `랜덤 샘플(Random)` 또는 `인덱스 균등(EvenByParticleIndex)`을 고른다. | combo | `표면(Surface)`가 아니면 비활성화된다. |
 | `랜덤 시드` | 구 위치 랜덤 샘플 seed다. | 같은 seed로 재현 가능하다. | seed UI | Uniform 분포 seed 설명과 같다. |
 
 ![Plane emission position module](UserGuide_Img/detail_plane_emission_position_module.png)
 
-`평면/방사 위치`는 평면 기반 사각/원반/링/호 형태의 위치를 만든다.
+`평면/방사 위치`는 평면 기반 사각/원반/링/호 형태의 위치를 만든다. `기준 평면`은 spawn 위치 분포가 놓이는 평면이며, Required의 `화면 정렬`처럼 sprite/card가 카메라를 바라보는 렌더 정렬 옵션과는 별개다.
 
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
-| `기준 평면` | XY/XZ/YZ 중 기준 평면을 고른다. | U/V 또는 radius/angle이 놓일 plane이다. | combo | 방향/회전 Module과 함께 해석된다. |
-| `형태` | Rectangle/Disc/Ring/Arc 형태다. | 위치 샘플링 모양을 고른다. | combo | Rectangle과 radial shape의 입력 field가 다르다. |
+| `기준 평면` | XY/XZ/YZ 또는 `카메라 정면` 중 기준 평면을 고른다. | U/V 또는 radius/angle이 놓일 plane이다. `카메라 정면`은 현재 preview/runtime camera의 right/up 평면을 spawn 시점에 사용한다. | combo | 이미 생성된 particle을 매 frame 재투영하지 않는다. 방향/회전 Module과 함께 해석된다. |
+| `형태` | 위치 샘플링 모양이다. | `사각(Rectangle)`, `원반(Disc)`, `링(Ring)`, `호(Arc)` 중 고른다. | combo | `사각(Rectangle)`과 radial shape의 입력 field가 다르다. |
 | `중심 오프셋` | 평면 중심 offset이다. | Emitter origin에서 평면 중심을 이동한다. | Vec3 고정값 | 모든 sample의 기준점이다. |
 | `두께` | 기준 평면 normal 방향 위치 범위다. | 두께가 있으면 plane 밖으로 퍼질 수 있다. | float 고정값 | UI tooltip은 음수 정규화 예정이라고 안내한다. |
 | `U 분포` | Rectangle의 U축 위치 분포다. | 기준 평면의 첫 축 범위다. | float 분포 | 현재 위치 분포는 spawn 시점 1회 샘플이며 상수/균등 중심이다. |
 | `V 분포` | Rectangle의 V축 위치 분포다. | 기준 평면의 두 번째 축 범위다. | float 분포 | Rectangle일 때 사용한다. |
 | `반지름 분포` | Disc/Ring/Arc의 radius 분포다. | 중심에서 떨어진 거리다. | float 분포 | 원반 채움은 보통 최소값 0을 사용한다. |
 | `각도 분포` | Disc/Ring/Arc의 angle 분포다. | degree 단위 angular 범위다. | float 분포 | Arc 형태에서 특히 중요하다. |
-| `배치 방식` | radial shape의 배치 방식이다. | Random 또는 EvenByParticleIndex 계열이다. | combo | Rectangle에서는 사용되지 않는다. |
+| `배치 방식` | radial shape의 배치 방식이다. | `랜덤 샘플(Random)` 또는 `인덱스 균등(EvenByParticleIndex)`을 고른다. | combo | `사각(Rectangle)`에서는 사용되지 않는다. |
 
 ### 6.9 크기 Module
 
@@ -638,7 +657,7 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | --- | --- | --- | --- | --- |
 | `방사 기준점` | 방사 방향 계산 기준점이다. | 생성 위치에서 이 기준점으로 방향을 만든다. | Vec3 고정값 | 양수 속도는 기준점에서 멀어지고, 음수는 기준점 쪽으로 이동한다. |
 | `월드 스페이스` | 기준점/방향의 space 선택이다. | world 기준 여부를 정한다. | bool | Emitter transform과 함께 본다. |
-| `방향 없음 처리` | 위치와 기준점이 같을 때 사용할 fallback 방향이다. | RandomUpward 또는 PlaneRadial 계열이다. | combo | 평면/방사 위치가 없으면 랜덤 상승 방향으로 처리될 수 있다. |
+| `방향 없음 처리` | 위치와 기준점이 같을 때 사용할 fallback 방향이다. | `랜덤 상승(RandomUpward)` 또는 `평면 방사(PlaneRadial)`을 고른다. | combo | 평면/방사 위치가 없으면 `랜덤 상승(RandomUpward)` 방향으로 처리될 수 있다. |
 | `속도` | 방사 방향 속도 크기다. | 양수/음수로 발산/흡입 느낌을 만든다. | float 분포 | 지속 attractor가 아니라 생성 시점 속도 항이다. |
 
 ![Cone velocity module](UserGuide_Img/detail_cone_velocity_module.png)
@@ -829,6 +848,61 @@ Material Instance View는 material instance 값을 자세히 편집하는 창이
 
 이 창에서는 texture reference, scalar/vector/color parameter, preview surface를 확인한다. Content Browser에서 texture를 drag/drop하거나 파일 선택 버튼으로 texture를 지정할 수 있다.
 
+Texture slot은 공통으로 thumbnail, drop area, folder browse, reset action을 가진다. texture를 지정하면 asset GUID를 우선 저장하고, resolve가 실패할 때 확인용 path가 fallback/debug hint로 남는다.
+
+| 공통 조작 | 의미 | 주의점 |
+| --- | --- | --- |
+| thumbnail | 현재 slot에 연결된 texture를 미리 본다. | 비어 있거나 로드 실패 상태면 fallback 표시가 날 수 있다. |
+| drag/drop | Content Browser의 texture를 slot에 바로 넣는다. | effect texture는 PNG/DDS 계열 resource를 기준으로 본다. |
+| folder browse | 파일 선택 창으로 texture를 지정한다. | 같은 slot에 새 texture를 넣으면 기존 reference를 교체한다. |
+| reset | 해당 slot 값을 기본값으로 되돌린다. | reset은 source material asset을 수정하지 않고 embedded copy만 바꾼다. |
+
+Material Instance View의 주요 section은 다음처럼 읽으면 된다.
+
+| Section | UI 이름 | 의미 | 값 해석 | 주의점 |
+| --- | --- | --- | --- | --- |
+| `Main` | `Main Texture` | effect의 기본 색/opacity source가 되는 주 texture다. | sprite effect 경로에서는 lit base color보다 emissive-like color와 opacity source로 해석한다. | main texture가 비면 대부분의 preview가 의도대로 보이지 않는다. |
+| `Main` | `Opacity Source` | main texture에서 opacity를 뽑는 방식이다. | `Alpha`, `Red`, `Luminance` 중 선택한다. | channel-packed texture를 쓸 때는 실제 opacity channel과 맞춰야 한다. |
+| `Main` | `Tint` | main texture RGB에 곱하는 색상 계수다. | RGB는 색, A는 alpha 계열 값으로 본다. | texture 자체를 바꾸지 않고 instance copy의 색만 조정한다. |
+| `Main` | `Intensity` | sprite 밝기/발광감 계수다. | 1이 기본이고 커질수록 더 강해진다. | blend mode와 alpha 값에 따라 체감이 달라진다. |
+| `Main` | `Opacity Power` | opacity source를 sharpen/soften하는 계수다. | 1이 기본이다. | 너무 크면 edge가 급격히 딱딱해질 수 있다. |
+| `Main` | `Main UV Tiling Mode` | main texture UV를 어떻게 반복/늘림/고정할지 정한다. | `Wrap`, `Stretch`, `Clamp`, `Raw` 중 선택한다. | U/V policy를 따로 바꾸면 표시용 tiling mode가 compatible 값으로 갱신될 수 있다. |
+| `Main` | `Main U Policy`, `Main V Policy` | U축과 V축의 UV 해석을 따로 정한다. | 각 축별 `Wrap`, `Stretch`, `Clamp`, `Raw`다. | Trail/strip 계열에서는 축별 정책이 반복 방향을 가른다. |
+| `Main` | `Main UV Scale` | main texture UV 배율이다. | X/Y가 U/V scale이다. | `Stretch` 계열에서는 renderer 해석에 따라 체감이 달라질 수 있다. |
+| `Main` | `Main UV Offset` | main texture UV 시작 위치를 민다. | X/Y가 U/V offset이다. | 정적 이동값이고 시간 변화는 `Scroll Speed`가 담당한다. |
+| `Main` | `Main UV Scroll Speed` | main texture UV의 시간당 이동 속도다. | X/Y가 U/V scroll speed다. | preview 시간 기준으로 계속 움직인다. |
+| `Noise` | `Noise Texture` | main 결과를 흔들거나 깎는 보조 scalar texture다. | 선택 slot이다. | 비어 있으면 noise 효과 없이 계속 preview된다. |
+| `Noise` | `Noise Source` | noise texture에서 scalar를 뽑는 방식이다. | `Alpha`, `Red`, `Luminance` 중 선택한다. | noise texture의 실제 채널 packing과 맞춰야 한다. |
+| `Noise` | `Noise Invert` | noise scalar를 뒤집는다. | `1 - x`로 해석한다. | erosion 방향이 반대로 보일 수 있다. |
+| `Noise` | `Noise Strength` | noise가 material 결과에 끼치는 강도다. | 0이면 사실상 noise 영향이 없다. | texture가 있어도 strength가 0이면 변화가 보이지 않는다. |
+| `Noise` | `Noise UV *` | noise texture 전용 tiling, axis policy, scale, offset, scroll speed다. | `Main UV *`와 같은 방식으로 읽는다. | main texture와 다른 속도로 흐르게 할 때 사용한다. |
+| `Mask` | `Mask Texture` | coverage/alpha를 제한하는 보조 texture다. | 선택 slot이다. | 비어 있으면 mask 없이 계속 preview된다. |
+| `Mask` | `Mask Source` | mask texture에서 coverage를 뽑는 방식이다. | `Alpha`, `Red`, `Luminance` 중 선택한다. | mask texture의 channel packing과 맞춰야 한다. |
+| `Mask` | `Mask Invert` | mask coverage를 뒤집는다. | `1 - x`로 해석한다. | 보이는 영역과 사라지는 영역이 바뀐다. |
+| `Mask` | `Alpha Cutoff` | alpha cutoff 기준값이다. | 보통 0~1 범위로 본다. | MeshData Preview에서는 Required render policy가 read-only로 덮을 수 있다. |
+| `Mask` | `Alpha Erosion` | mask/noise 기반 alpha erosion 양이다. | 보통 0~1 범위로 본다. | dissolve처럼 가장자리부터 깎는 느낌을 만들 때 쓴다. |
+| `Mask` | `Mask UV *` | mask texture 전용 tiling, axis policy, scale, offset, scroll speed다. | `Main UV *`와 같은 방식으로 읽는다. | mask만 따로 고정하거나 흐르게 할 수 있다. |
+| `Flow / Distortion` | `Flow Texture` | SpriteDistortion에서 screen UV offset source로 쓰는 texture다. | distortion family 전용 slot이다. | embedded material family가 `SpriteDistortion`일 때만 표시된다. |
+| `Flow / Distortion` | `Flow UV *` | flow texture 전용 tiling, axis policy, scale, offset, scroll speed다. | `Main UV *`와 같은 방식으로 읽는다. | distortion 방향과 흐름을 조정한다. |
+| `Flow / Distortion` | `Refraction Intensity` | screen UV offset 강도다. | 값이 클수록 화면 굴절이 강해진다. | 너무 크면 preview에서 형태가 찢겨 보일 수 있다. |
+| `Flow / Distortion` | `Refraction Presence` | refraction 영향도를 켜고 줄이는 scalar다. | 0에 가까울수록 영향이 약하다. | texture가 있어도 presence가 낮으면 변화가 작다. |
+| `Flow / Distortion` | `Shape Mode` | distortion이 적용될 card-local 영역을 고른다. | `None`, `Radial`, `Ring`, `ShockwaveRing` 계열이다. | Mesh Distortion v0처럼 shape 미지원 consumer에서는 read-only 안내가 뜰 수 있다. |
+| `Flow / Distortion` | `Shape Radius`, `Shape Thickness`, `Shape Softness` | shape의 반경, 폭, falloff를 정한다. | Ring은 UV 기준, `ShockwaveRing`의 thickness/softness는 px 기준이다. | mode에 따라 일부 field만 표시된다. |
+| `Blend / Render` | `Family` | material shader/pass family다. | `Default`, `SpriteDistortion` 같은 상위 분류다. | 어떤 section이 표시되는지에도 영향을 준다. |
+| `Blend / Render` | `Render Policy Source` | render policy를 누가 정하는지 보여준다. | `Required` 또는 assigned material 쪽 source다. | MeshData Preview에서는 Required Module 값이 `Blend Mode`, `Alpha Cutoff`를 덮을 수 있다. |
+| `Blend / Render` | `Blend Mode` | effect material 합성 방식이다. | `AlphaBlend`, `Additive`, `Masked` 등을 사용한다. | `Modulate`는 UI에 보여도 선택 불가일 수 있다. |
+| `Blend / Render` | `Two Sided` | 양면 렌더 여부다. | mesh preview에서는 editable 값이다. | sprite renderer는 항상 양면이라 read-only 안내가 뜰 수 있다. |
+| `Blend / Render` | `SubUV Cols`, `SubUV Rows` | atlas column/row 수다. | 1x1이 기본 단일 texture다. | SubUV module과 함께 볼 때 실제 frame 배치 기준이 된다. |
+| `Additive Contribution` | `Preset` | additive contribution 조합을 빠르게 적용한다. | RGB, tinted, emissive, channel-packed, unmasked preset이 있다. | `Blend Mode`가 `Additive`일 때만 열린다. |
+| `Additive Contribution` | `Color Source` | additive에 더할 색의 출처다. | `Main RGB`, `Tinted RGB`, `Emissive Color`, `Constant Color`다. | preset 적용 후 세부 값을 다시 조정할 수 있다. |
+| `Additive Contribution` | `Amount Source` | additive 양을 결정하는 scalar 출처다. | `Alpha`, `Red`, `Luminance`, `Mask`, `One`이다. | `One`은 mask 없이 강하게 더하는 용도다. |
+| `Additive Contribution` | `Coverage Policy` | coverage와 additive amount를 결합하는 방식이다. | `Amount Only`, `Coverage And Amount`, `Independent`다. | alpha coverage와 additive glow를 분리할지 정한다. |
+| `Additive Contribution` | `Emissive Color`, `Constant Color`, `Intensity Scale`, `Black Neutral` | additive 색/강도/검정 처리 규칙이다. | color와 scalar/bool 조합이다. | additive가 과하면 먼저 intensity scale을 낮춘다. |
+| `Core Emissive` | `Enabled` | alpha 기반 core/outer emissive shaping을 켠다. | bool이다. | 꺼져 있으면 아래 core 값이 preview에 드러나지 않는다. |
+| `Core Emissive` | `Core Color` | 내부 core 색이다. | RGB만 편집한다. | alpha fade와 별개로 core 색감을 만든다. |
+| `Core Emissive` | `Core Power`, `Core Intensity` | 내부 core의 집중도와 밝기다. | power는 shape, intensity는 밝기 계수다. | power가 높으면 중심부가 좁고 강해진다. |
+| `Core Emissive` | `Outer Power`, `Outer Intensity` | 바깥 halo의 shape와 밝기다. | power는 falloff, intensity는 밝기 계수다. | outer가 과하면 전체 sprite가 뿌옇게 보일 수 있다. |
+
 주의할 점은 Material Instance View가 source material asset 자체를 전역 수정하는 창이 아니라는 것이다. Required Module이나 MeshData가 가진 embedded material instance copy를 편집하는 consumer로 보는 편이 정확하다.
 
 ### 7.3 Color Picker
@@ -861,6 +935,16 @@ Model Preview에서는 선택된 mesh asset을 확인한다.
 
 여기서는 model이 정상적으로 로드되는지, mesh slot이 기대한 형태인지, preview에서 material이 적용될 준비가 되어 있는지 본다.
 
+Mesh Data Preview의 왼쪽 viewport는 model load 상태와 material preview 결과를 함께 보여준다. orbit/pan/zoom으로 형태를 확인하고, 오른쪽 inspector에서 source asset과 preview 전용 값을 조정한다.
+
+| UI 이름 | 의미 | 값 해석 | 주의점 |
+| --- | --- | --- | --- |
+| `Model Asset` | MeshData가 사용할 `.model` source다. | Content Browser drag/drop 또는 folder browse로 지정한다. | model asset 자체를 수정하지 않고 MeshData의 reference만 바꾼다. |
+| viewport | 선택 model에 assigned material을 입혀 보는 preview surface다. | model load 실패, shader/material missing 상태 메시지도 여기서 확인한다. | 보이는 결과는 preview renderer 기준이며 실제 runtime renderer와 완전히 같은 진단 surface는 아니다. |
+| orbit/pan/zoom | preview camera 조작이다. | drag와 mouse wheel로 model을 돌려 보고 확대한다. | authoring data에는 저장되지 않는 보기 상태다. |
+| `Preview Scale` | preview draw에만 쓰는 mesh scale이다. | X/Y/Z scale이며 기본 model asset을 변형하지 않는다. | 너무 작거나 크면 camera home 기준에서 보기 어려울 수 있다. |
+| `Use Model Materials` | model 원본 material을 쓰는 debug fallback이다. | 켜면 MeshData material override 대신 model material 확인에 가깝다. | 기본 authoring은 MeshData embedded material copy를 model material slot에 override하는 흐름이다. |
+
 ### 8.3 Assigned Material Preview
 
 Assigned Material Preview에서는 mesh에 연결된 effect material 상태를 확인한다.
@@ -868,6 +952,16 @@ Assigned Material Preview에서는 mesh에 연결된 effect material 상태를 �
 ![Mesh Data Preview material](UserGuide_Img/mesh_data_preview_material.png)
 
 Mesh effect는 model과 material 둘 중 하나만 맞아도 완성되지 않는다. model asset이 정상이어도 material copy나 shader family가 맞지 않으면 preview 결과가 달라질 수 있다.
+
+Assigned Material 영역은 source preset과 MeshData 내부 copy를 분리해서 봐야 한다.
+
+| UI 이름 | 의미 | 값 해석 | 주의점 |
+| --- | --- | --- | --- |
+| `Source Material` | MeshData에 연결할 `.effectmaterial.json` preset이다. | Content Browser drag/drop 또는 folder browse로 지정한다. | source preset 선택만으로 전역 preset을 편집하는 것은 아니다. |
+| `Embedded material copy` | source preset을 읽어 MeshData 안에 복사한 editable material instance다. | copy가 초기화된 뒤 아래 material instance field를 편집할 수 있다. | 이후 편집은 MeshData-local copy에 적용된다. |
+| source reset/read action | 원본 `.effectmaterial.json`을 다시 읽어 embedded copy를 갱신한다. | 현재 copy를 source preset 값으로 덮어쓴다. | 이미 수동으로 조정한 값이 있으면 덮어쓰기 전에 의도를 확인한다. |
+| material instance fields | `Material Instance View`와 같은 슬롯/수치 편집 surface다. | `Main`, `Noise`, `Mask`, `Flow / Distortion`, `Blend / Render`, `Core Emissive`를 같은 방식으로 읽는다. | MeshData Preview에서는 Required Module의 render policy가 일부 표시값을 read-only로 덮을 수 있다. |
+| validation summary | model/source material/embedded copy 상태를 나눠 보여준다. | missing, readable, editable 여부를 구분한다. | model이 valid여도 material source나 embedded copy가 없으면 완성 상태가 아니다. |
 
 ## 9. Trail Preview Helpers
 
@@ -1119,7 +1213,7 @@ Module picker의 상태 문구를 확인한다.
 
 - `이미 장착됨`이면 같은 타입 Module을 중복 추가할 수 없다.
 - `현재 TypeData와 비호환`이면 현재 타입에서는 해당 Module이 소비되지 않는다.
-- `Mesh TypeData 전용`이면 Mesh TypeData를 추가해야 한다.
+- `Mesh TypeData 전용`은 비호환 사유가 Mesh 전용이라는 뜻이므로, 해당 Module을 쓰려면 Mesh TypeData를 추가해야 한다.
 - `미구현`이면 아직 현재 버전에서 사용할 수 없는 항목이다.
 
 ### 12.4 Curve가 적용되지 않는 것처럼 보일 때

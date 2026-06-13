@@ -544,6 +544,8 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     float baseWidth{ 0.3f };     // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
     float tilingDistance{ 0.f }; // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
     bool autoLifeFade{ false }; // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
+    bool tailCollapseOnIdle{ true }; // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
+    float tailCollapseSpeed{ 10.f }; // idle tail collapse 보간 속도다.
 
     // EffectEditor 검증용 source motion preset이다.
     EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Line };

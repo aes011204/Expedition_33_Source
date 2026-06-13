@@ -165,6 +165,7 @@ private:
     void Update_ParticleFollowerHistory(float timeDelta);
     bool Should_InsertSample(const vector<HistorySample>& history, float sampleIntervalAccumulator, const Vec3& sourcePosition) const;
     void Insert_HistorySample(vector<HistorySample>& history, float& sampleIntervalAccumulator, const Vec3& sourcePosition);
+    void Collapse_HistoryTowardSource(vector<HistorySample>& history, const Vec3& sourcePosition, float timeDelta) const;
     void Prune_History(vector<HistorySample>& history);
     void Build_RenderSamples(vector<RenderSample>& outSamples) const;
     void Build_RenderSamples(

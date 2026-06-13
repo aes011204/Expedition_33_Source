@@ -365,6 +365,9 @@ namespace Internal
         case PlaneRadialLocationPlane::YZ:
             return PointParticlePlaneRadialLocationPlane::YZ;
 
+        case PlaneRadialLocationPlane::CameraFacing:
+            return PointParticlePlaneRadialLocationPlane::CameraFacing;
+
         case PlaneRadialLocationPlane::XY:
         default:
             return PointParticlePlaneRadialLocationPlane::XY;
@@ -2150,6 +2153,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     emitterDesc.baseWidth = max(0.001f, sourceHistoryPolicy.baseWidth);
     emitterDesc.tilingDistance = max(0.f, sourceHistoryPolicy.tilingDistance);
     emitterDesc.autoLifeFade = sourceHistoryPolicy.autoLifeFade;
+    emitterDesc.tailCollapseOnIdle = sourceHistoryPolicy.tailCollapseOnIdle;
+    emitterDesc.tailCollapseSpeed = max(0.f, sourceHistoryPolicy.tailCollapseSpeed);
     emitterDesc.previewMotionPreset = Internal::Resolve_SourceHistoryPreviewMotionPreset(sourceHistoryPolicy.previewMotionPreset);
     emitterDesc.previewMotionAxis = Internal::Resolve_SourceHistoryPreviewMotionAxis(sourceHistoryPolicy.previewMotionAxis);
     emitterDesc.previewMotionAmplitude = max(0.f, sourceHistoryPolicy.previewMotionAmplitude);

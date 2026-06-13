@@ -101,6 +101,7 @@ static Vec2 Resolve_PlaneScale(PointParticlePlaneRadialLocationPlane plane, cons
         return Vec2{ scale.x, scale.z };
     case PointParticlePlaneRadialLocationPlane::YZ:
         return Vec2{ scale.y, scale.z };
+    case PointParticlePlaneRadialLocationPlane::CameraFacing:
     case PointParticlePlaneRadialLocationPlane::XY:
     default:
         return Vec2{ scale.x, scale.y };
@@ -769,7 +770,7 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
-    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    const float emitterPhase = Resolve_MaterialScalarEmitterPhase();
     const EffectRequiredMaterialRuntimeDesc material =
         EffectAssetRuntimeLoad::Resolve_EmitterTimeCoreColorRgbModulation(_desc.required.material, emitterPhase);
 
@@ -967,7 +968,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
         _shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)),
         E_FAIL
     );
-    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    const float emitterPhase = Resolve_MaterialScalarEmitterPhase();
     CHECK_FAILED_ONCE(
         EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
         E_FAIL
@@ -978,6 +979,14 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     );
 
     return S_OK;
+}
+
+float ComputeSpriteEmitter::Resolve_MaterialScalarEmitterPhase() const
+{
+    if (PlaybackState::Completed == _playbackState && !_desc.required.playback.killOnCompleted)
+        return 1.f;
+
+    return Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
 }
 
 bool ComputeSpriteEmitter::Is_DistortionFamily() const

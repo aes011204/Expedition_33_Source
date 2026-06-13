@@ -393,6 +393,7 @@ enum class PointParticlePlaneRadialLocationPlane : uint32
     XY = 0,
     XZ = 1,
     YZ = 2,
+    CameraFacing = 3,
 };
 
 // PlaneRadialLocation 모듈이 평면 위에서 사용할 샘플링 형태다.

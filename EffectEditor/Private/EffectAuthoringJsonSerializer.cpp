@@ -582,6 +582,8 @@ namespace Internal
         root["baseWidth"] = data.baseWidth;
         root["tilingDistance"] = data.tilingDistance;
         root["autoLifeFade"] = data.autoLifeFade;
+        root["tailCollapseOnIdle"] = data.tailCollapseOnIdle;
+        root["tailCollapseSpeed"] = data.tailCollapseSpeed;
         return root;
     }
 
@@ -658,6 +660,9 @@ namespace Internal
         Read_NumberField(root, "baseWidth", outData.baseWidth);
         Read_NumberField(root, "tilingDistance", outData.tilingDistance);
         Read_BoolField(root, "autoLifeFade", outData.autoLifeFade);
+        Read_BoolField(root, "tailCollapseOnIdle", outData.tailCollapseOnIdle);
+        Read_NumberField(root, "tailCollapseSpeed", outData.tailCollapseSpeed);
+        outData.tailCollapseSpeed = max(0.f, outData.tailCollapseSpeed);
     }
 
     json To_Json(const MeshTypeData& data)

@@ -1,11 +1,13 @@
 ﻿#include "MeshEmitter.h"
 
+#include "Camera.h"
 #include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
 #include "Texture.h"
+#include "TransformCom.h"
 
 namespace Internal
 {
@@ -147,7 +149,21 @@ Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
     return result;
 }
 
-void Resolve_PlaneRadialBasis(PointParticlePlaneRadialLocationPlane plane, Vec3& axisU, Vec3& axisV, Vec3& planeNormal)
+Vec3 Resolve_WorldAxisToEmitterSamplingAxis(const Vec3& worldAxis, const Shared<TransformCom>& emitterTransform)
+{
+    if (emitterTransform == nullptr)
+        return Normalize_OrFallback(worldAxis, Vec3{ 1.f, 0.f, 0.f });
+
+    const Matrix inverseWorld = emitterTransform->Get_WorldMatrix().Invert();
+    return Normalize_OrFallback(Vec3::TransformNormal(worldAxis, inverseWorld), Vec3{ 1.f, 0.f, 0.f });
+}
+
+void Resolve_PlaneRadialBasis(
+    PointParticlePlaneRadialLocationPlane plane,
+    const Shared<TransformCom>& emitterTransform,
+    Vec3& axisU,
+    Vec3& axisV,
+    Vec3& planeNormal)
 {
     axisU = Vec3{ 1.f, 0.f, 0.f };
     axisV = Vec3{ 0.f, 1.f, 0.f };
@@ -163,6 +179,25 @@ void Resolve_PlaneRadialBasis(PointParticlePlaneRadialLocationPlane plane, Vec3&
         axisU = Vec3{ 0.f, 1.f, 0.f };
         axisV = Vec3{ 0.f, 0.f, 1.f };
         planeNormal = Vec3{ 1.f, 0.f, 0.f };
+    }
+    else if (plane == PointParticlePlaneRadialLocationPlane::CameraFacing)
+    {
+        const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+        const Shared<TransformCom> cameraTransform = activeCamera != nullptr ? activeCamera->Get_Transform() : nullptr;
+        if (cameraTransform == nullptr)
+        {
+            static bool warnedCameraFacingFallback = false;
+            if (!warnedCameraFacingFallback)
+            {
+                LOG_WARN("MeshEmitter PlaneRadialLocation CameraFacing fallback: active camera is unavailable.");
+                warnedCameraFacingFallback = true;
+            }
+            return;
+        }
+
+        axisU = Resolve_WorldAxisToEmitterSamplingAxis(cameraTransform->Get_WorldRight(), emitterTransform);
+        axisV = Resolve_WorldAxisToEmitterSamplingAxis(cameraTransform->Get_WorldUp(), emitterTransform);
+        planeNormal = Resolve_WorldAxisToEmitterSamplingAxis(cameraTransform->Get_WorldForward(), emitterTransform);
     }
 }
 
@@ -1656,7 +1691,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         Vec3 axisU{};
         Vec3 axisV{};
         Vec3 planeNormal{};
-        Internal::Resolve_PlaneRadialBasis(_desc.planeRadialLocation.plane, axisU, axisV, planeNormal);
+        Internal::Resolve_PlaneRadialBasis(_desc.planeRadialLocation.plane, _transformCom, axisU, axisV, planeNormal);
 
         float u = 0.f;
         float v = 0.f;

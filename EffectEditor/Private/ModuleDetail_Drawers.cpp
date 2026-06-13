@@ -243,6 +243,8 @@ namespace Internal
             return "XZ";
         case PlaneRadialLocationPlane::YZ:
             return "YZ";
+        case PlaneRadialLocationPlane::CameraFacing:
+            return "카메라 정면";
         default:
             return "XY";
         }
@@ -694,6 +696,7 @@ namespace Internal
                 PlaneRadialLocationPlane::XY,
                 PlaneRadialLocationPlane::XZ,
                 PlaneRadialLocationPlane::YZ,
+                PlaneRadialLocationPlane::CameraFacing,
             };
 
             for (const PlaneRadialLocationPlane candidate : candidates)

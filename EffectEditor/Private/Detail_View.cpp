@@ -1597,6 +1597,20 @@ void Detail_View::Render_TypeDataDetail(
                     0.01f,
                     "길이 제한 끝부분에서 alpha를 줄이는 거리입니다. 길이 제한이 0이면 적용되지 않습니다."
                 );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "꼬리 수축 사용",
+                    data->tailCollapseOnIdle,
+                    defaultData.tailCollapseOnIdle,
+                    "켜면 source가 느리거나 멈췄을 때 기존 history sample을 현재 source 쪽으로 당깁니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "수축 속도",
+                    data->tailCollapseSpeed,
+                    defaultData.tailCollapseSpeed,
+                    0.1f,
+                    "source가 느리거나 멈췄을 때 tail sample을 현재 source 쪽으로 당기는 속도입니다."
+                );
+                data->tailCollapseSpeed = max(0.f, data->tailCollapseSpeed);
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "기본 폭",
                     data->baseWidth,

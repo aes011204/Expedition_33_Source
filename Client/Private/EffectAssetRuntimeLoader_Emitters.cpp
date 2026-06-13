@@ -808,6 +808,8 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.baseWidth = max(0.001f, Read_Float(typeData, "baseWidth", desc.baseWidth));
                 desc.tilingDistance = max(0.f, Read_Float(typeData, "tilingDistance", desc.tilingDistance));
                 desc.autoLifeFade = Read_Bool(typeData, "autoLifeFade", desc.autoLifeFade);
+                desc.tailCollapseOnIdle = Read_Bool(typeData, "tailCollapseOnIdle", desc.tailCollapseOnIdle);
+                desc.tailCollapseSpeed = max(0.f, Read_Float(typeData, "tailCollapseSpeed", desc.tailCollapseSpeed));
             }
         }
 

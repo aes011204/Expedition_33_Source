@@ -143,6 +143,8 @@ private: //## Helper::Render
     HRESULT Bind_MaterialResources();
     // SpriteDistortion field shader에 flow 파라미터를 바인딩한다.
     HRESULT Bind_DistortionResources();
+    // material scalar EmitterTime 평가에 사용할 playback phase를 반환한다.
+    float Resolve_MaterialScalarEmitterPhase() const;
     // 현재 material family가 sprite distortion 경로인지 확인한다.
     bool Is_DistortionFamily() const;
     // material family에 맞는 renderer group을 반환한다.

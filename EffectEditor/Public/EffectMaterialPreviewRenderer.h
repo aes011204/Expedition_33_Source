@@ -8,6 +8,7 @@ NS_BEGIN(Engine)
 class RenderTarget;
 class ShaderCom;
 class Texture;
+class VIBuffer_Rect;
 struct EffectMaterialScalarModulationRuntimeDesc;
 struct EffectMaterialCoreColorRgbModulationRuntimeDesc;
 NS_END
@@ -61,6 +62,7 @@ private: //## Types
 private: //## Static Values
     static constexpr auto kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
     static constexpr auto kEffectMaterialPreviewDistortionShaderId{ L"Shader_EffectMaterialPreviewDistortion" };
+    static constexpr auto kEffectMaterialPreviewPostProcessShaderPath{ L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl" };
     static constexpr float kHomeDistance{ 6.f };
     static constexpr float kHomeYawDegrees{ 0.f };
     static constexpr float kHomePitchDegrees{ 0.f };
@@ -71,9 +73,18 @@ private: //## Data
     uint32 _previewTextureWidth{ 512 };
     uint32 _previewTextureHeight{ 512 };
     Shared<RenderTarget> _renderTarget{};
+    Shared<RenderTarget> _hdrRenderTarget{};
     Shared<RenderTarget> _distortionSourceTarget{};
+    Shared<RenderTarget> _bloomHalfA{};
+    Shared<RenderTarget> _bloomHalfB{};
+    Shared<RenderTarget> _bloomQuarterA{};
+    Shared<RenderTarget> _bloomQuarterB{};
+    Shared<RenderTarget> _bloomEighthA{};
+    Shared<RenderTarget> _bloomEighthB{};
     Shared<ShaderCom> _shader{};
     Shared<ShaderCom> _distortionShader{};
+    Shared<ShaderCom> _postProcessShader{};
+    Shared<VIBuffer_Rect> _postProcessRect{};
     Shared<Texture> _texture{};
     Shared<Texture> _noiseTexture{};
     Shared<Texture> _maskTexture{};
@@ -94,9 +105,13 @@ private: //## Data
 
 private: //## Helper::Resource
     bool Ready_RenderTarget();
+    bool Ready_HDRRenderTarget();
     bool Ready_DistortionSourceTarget();
+    bool Ready_PostProcessTargets();
     bool Ready_Shader();
     bool Ready_DistortionShader();
+    bool Ready_PostProcessShader();
+    bool Ready_PostProcessRect();
     bool Ready_Texture(const string& textureGuid, const string& texturePath);
     bool Ready_NoiseTexture(const string& textureGuid, const string& texturePath);
     bool Ready_MaskTexture(const string& textureGuid, const string& texturePath);
@@ -110,6 +125,12 @@ private: //## Helper::Render
     HRESULT Render_PreviewMesh(const EffectMaterialInstanceData& material) const;
     HRESULT Render_CheckerBackground() const;
     HRESULT Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material) const;
+    HRESULT Render_PostProcessResolve() const;
+    HRESULT Render_PostProcessToneMapping(Shared<RenderTarget> bloomTexture) const;
+    HRESULT Render_PostProcessCopy() const;
+    HRESULT Render_BloomPass(Shared<RenderTarget> dstTarget, Shared<RenderTarget> srcTarget, PostProcessPass pass) const;
+    HRESULT Render_BloomUpsamplePass(Shared<RenderTarget> dstTarget, Shared<RenderTarget> smallTarget, Shared<RenderTarget> baseTarget) const;
+    HRESULT Bind_PostProcessCommon(uint32 width, uint32 height) const;
     HRESULT Render_Mesh(const PreviewMeshResource& mesh) const;
     void Resize_RenderTarget(uint32 width, uint32 height);
 

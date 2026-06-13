@@ -1540,10 +1540,9 @@ bool Emitter_View::Can_PasteModuleValues(size_t emitterIndex, size_t moduleIndex
         return false;
     }
 
-    if (targetModule.type == AuthoringModuleType::Required ||
-        targetModule.type == AuthoringModuleType::Spawn)
+    if (targetModule.type == AuthoringModuleType::Spawn)
     {
-        set_reason("이 모듈 값 붙여넣기는 이번 v1 범위에서 지원하지 않습니다.");
+        set_reason("Spawn 모듈 값 붙여넣기는 이번 범위에서 지원하지 않습니다.");
         return false;
     }
 
@@ -1601,6 +1600,7 @@ void Emitter_View::Paste_ModuleValues(size_t emitterIndex, size_t moduleIndex)
     AuthoringEmitter& emitter = _emitters[emitterIndex];
     AuthoringModule& targetModule = emitter.modules[moduleIndex];
     targetModule.data = _clipboardModule.value().data;
+    Sync_EmitterMirror(emitter);
     emitter.previewDirty = true;
     _selectedEmitterIndex = emitterIndex;
     _selectedTypeData = false;
