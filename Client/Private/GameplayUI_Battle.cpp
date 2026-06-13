@@ -84,6 +84,22 @@ namespace
 
         Append_RuntimePanelEntry(outEntries, name, panel);
     }
+
+    void Append_RuntimeWorldPlacementEntry(
+        vector<RuntimeUIEntry>& outEntries,
+        const char* name,
+        IRuntimeWorldUI_EditorTarget* target)
+    {
+        if (target == nullptr)
+            return;
+
+        RuntimeUIEntry entry{};
+        entry.category = "Battle";
+        entry.name = name;
+        entry.kind = RuntimeUIEntryKind::WorldPlacement;
+        entry.worldPlacementTarget = target;
+        outEntries.emplace_back(entry);
+    }
 }
 
 HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
@@ -149,6 +165,9 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 
     Bind_BattleDelegates();
 
+    if (FAILED(Ensure_BattleWorldItemCards()))
+        LOG_WARN("BattleWorldUI item cards editor target preload failed.");
+
     return S_OK;
 }
 
@@ -212,6 +231,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "TurnOrder", _turnOrder.get());
     Append_RuntimePanelEntry(entries, "BattleMechanism", _battleMechanism.get());
     Append_RuntimePanelEntry(entries, "BattleItemPanel", _battleItemPanel.get());
+    Append_RuntimeWorldPlacementEntry(entries, "BattleWorldItemCards", _battleWorldItemCards.get());
     Append_RuntimePanelEntry(entries, "BattleSkillPanel", _battleSkillPanel.get());
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
     Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
@@ -1636,7 +1656,7 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
     switch (turnState)
     {
     case BattleTurnState::ChooseItem:
-        _battleItemPanel->Open_MainPanel();
+        _battleItemPanel->Close();
         Update_BattleWorldItemCards(turnRequest.actor, turnRequest.itemType, turnState);
         break;
 
@@ -1734,7 +1754,7 @@ void GameplayUI_Battle::Update_BattleWorldItemCards(
     if (FAILED(Ensure_BattleWorldItemCards()))
         return;
 
-    _battleWorldItemCards->Show_ForBattleState(worldPos, currentState, selectedItemType);
+    _battleWorldItemCards->Show_ForBattleState(worldPos, currentState, selectedItemType, actor.heroId);
     _battleWorldItemCards->Late_Update(0.f);
 }
 

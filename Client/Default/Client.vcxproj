@@ -421,6 +421,8 @@
     <ClInclude Include="..\Public\UI_QTE.h" />
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
+    <ClInclude Include="..\Public\UI_SpriteVfx.h" />
+    <ClInclude Include="..\Public\UI_Vfx.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
     <ClInclude Include="..\Public\ScreenFadeTransition.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
@@ -710,6 +712,8 @@
     <ClCompile Include="..\Private\UI_QTE.cpp" />
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\UI_SpriteVfx.cpp" />
+    <ClCompile Include="..\Private\UI_Vfx.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\ScreenFadeTransition.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />

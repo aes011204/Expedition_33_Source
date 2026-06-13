@@ -11,6 +11,11 @@ class Camera;
 class UI_Base;
 NS_END
 
+namespace Client
+{
+    class IRuntimeWorldUI_EditorTarget;
+}
+
 NS_BEGIN(MainEditor)
 
 class Editor_Window;
@@ -80,14 +85,22 @@ public: /* For.Editor Selection */
     string                  Selected_UIGroup() const;
     string                  Selected_UIDisplayName() const;
     bool                    Selected_UIPositionDrivenByCode() const;
+    Client::IRuntimeWorldUI_EditorTarget* Selected_RuntimeWorldUI() const;
+    string                  Selected_RuntimeWorldUIGroup() const;
+    string                  Selected_RuntimeWorldUIDisplayName() const;
     void                    Select_Object(const Shared<GameObject>& gameObject);
     void                    Select_UI(
         const Shared<UI_Base>& ui,
         const string& groupName,
         const string& displayName,
         bool positionDrivenByCode = false);
+    void                    Select_RuntimeWorldUI(
+        Client::IRuntimeWorldUI_EditorTarget* target,
+        const string& groupName,
+        const string& displayName);
     void                    Clear_SelectedObject();
     void                    Clear_SelectedUI();
+    void                    Clear_SelectedRuntimeWorldUI();
     uint32                  Selection_Revision() const;
     void                    Copy_SelectedObject();
     Shared<GameObject>      Paste_CopiedObject();

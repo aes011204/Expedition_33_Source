@@ -11,6 +11,7 @@
 #include "ModelCom.h"
 #include "ClientInstance.h"
 #include "GameplayUI.h"
+#include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
 #include "MapStaticMesh.h"
 #include "Reflection_Types.h"
@@ -26,6 +27,37 @@ char Inspector::_spawnActorClassSearchBuffer[256]{};
 namespace
 {
 constexpr float CascadePresetLabelWidth = 110.f;
+
+const char* Get_RuntimeWorldPlacementHeroLabel(Client::HeroId heroId)
+{
+    switch (heroId)
+    {
+    case Client::HeroId::Gustave:
+        return "Gustave";
+    case Client::HeroId::Lune:
+        return "Lune";
+    case Client::HeroId::Maelle:
+        return "Maelle";
+    case Client::HeroId::END:
+    default:
+        return "Gustave";
+    }
+}
+
+Client::HeroId Get_RuntimeWorldPlacementHeroByIndex(int index)
+{
+    switch (index)
+    {
+    case 0:
+        return Client::HeroId::Gustave;
+    case 1:
+        return Client::HeroId::Lune;
+    case 2:
+        return Client::HeroId::Maelle;
+    default:
+        return Client::HeroId::Gustave;
+    }
+}
 
 const char* Get_CascadeLevelLabel(Engine::CascadeLevel level)
 {
@@ -256,6 +288,14 @@ void Inspector::Render()
         {
             Draw_Components(selectedObject);
         }
+        else if (Client::IRuntimeWorldUI_EditorTarget* selectedRuntimeWorldUI = EDITOR->Selected_RuntimeWorldUI();
+            selectedRuntimeWorldUI != nullptr)
+        {
+            Draw_RuntimeWorldUIPlacementInspector(
+                selectedRuntimeWorldUI,
+                EDITOR->Selected_RuntimeWorldUIGroup(),
+                EDITOR->Selected_RuntimeWorldUIDisplayName());
+        }
         else if (Shared<UI_Base> selectedUI = EDITOR->Selected_UI(); selectedUI != nullptr)
         {
             Draw_UIInspector(
@@ -287,6 +327,7 @@ void Inspector::Set_PrimaryShadowLightTarget(bool enabled)
     {
         EDITOR->Clear_SelectedObject();
         EDITOR->Clear_SelectedUI();
+        EDITOR->Clear_SelectedRuntimeWorldUI();
     }
 }
 
@@ -361,6 +402,79 @@ void Inspector::Draw_UIInspector(
     float rotationRadians = transform->Get_RotationRadians();
     if (Draw_UIFloatRow("Rotation", "##UIRotation", rotationRadians, 0.01f))
         transform->Set_RotationRadians(rotationRadians);
+}
+
+void Inspector::Draw_RuntimeWorldUIPlacementInspector(
+    Client::IRuntimeWorldUI_EditorTarget* target,
+    const string& groupName,
+    const string& displayName)
+{
+    if (target == nullptr)
+    {
+        ImGui::TextDisabled("Runtime world UI selection is no longer valid");
+        return;
+    }
+
+    const string resolvedName = displayName.empty() ? "RuntimeWorldUI" : displayName;
+
+    ImGui::Text("이름: %s", resolvedName.c_str());
+    ImGui::TextDisabled("그룹: %s", groupName.empty() ? "UI" : groupName.c_str());
+    ImGui::TextDisabled("종류: World Placement");
+    ImGui::Separator();
+
+    Client::HeroId selectedHeroId = target->Get_EditorWorldPlacementHeroId();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Character");
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::BeginCombo("##RuntimeWorldPlacementCharacter", Get_RuntimeWorldPlacementHeroLabel(selectedHeroId)))
+    {
+        for (int heroIndex = 0; heroIndex < 3; ++heroIndex)
+        {
+            const Client::HeroId heroId = Get_RuntimeWorldPlacementHeroByIndex(heroIndex);
+            const bool selected = selectedHeroId == heroId;
+            if (ImGui::Selectable(Get_RuntimeWorldPlacementHeroLabel(heroId), selected))
+            {
+                target->Set_EditorWorldPlacementHeroId(heroId);
+                selectedHeroId = heroId;
+            }
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    Client::RuntimeWorldUIPlacementTuning tuning = target->Get_EditorWorldPlacementTuning();
+    bool changed = false;
+
+    changed |= Draw_UIVec3Row("Screen Position", "##RuntimeWorldScreenPosition", tuning.screenPosition, 0.01f);
+    changed |= Draw_UIVec3Row("Base Offset", "##RuntimeWorldBaseOffset", tuning.baseOffset, 0.01f);
+    changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
+    changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
+    changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    changed |= Draw_UIVec2Row("World Size", "##RuntimeWorldSize", tuning.worldSize, 0.01f);
+    changed |= Draw_UIFloatRow("Visual Scale", "##RuntimeWorldVisualScale", tuning.visualScale, 0.01f);
+    changed |= Draw_UIFloatRow("Pitch", "##RuntimeWorldPitch", tuning.pitchDegrees, 0.1f);
+    changed |= Draw_UIFloatRow("Roll", "##RuntimeWorldRoll", tuning.rollDegrees, 0.1f);
+    changed |= Draw_UIFloatRow("Yaw Offset", "##RuntimeWorldYawOffset", tuning.yawOffsetDegrees, 0.1f);
+
+    if (changed)
+    {
+        tuning.worldSize.x = max(0.01f, tuning.worldSize.x);
+        tuning.worldSize.y = max(0.01f, tuning.worldSize.y);
+        tuning.visualScale = max(0.01f, tuning.visualScale);
+        target->Set_EditorWorldPlacementTuning(tuning, true);
+    }
+
+    ImGui::Spacing();
+    if (ImGui::Button("Reload"))
+        target->Reload_EditorWorldPlacementTuning();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Reset Defaults"))
+        target->Reset_EditorWorldPlacementTuning();
 }
 
 void Inspector::Draw_RuntimeUITestOffsetSection(const Shared<UI_Base>& ui)
@@ -441,6 +555,17 @@ void Inspector::Draw_RuntimeUIOwnerReflectionSection(const Shared<UI_Base>& ui)
     ImGui::Separator();
     Draw_ReflectionSection(info.className, runtimePanel, info);
     runtimePanel->Apply_EditorReflectionRuntimeTuning();
+}
+
+bool Inspector::Draw_UIVec3Row(const char* label, const string& id, Vec3& value, float speed)
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(InspectorLabelWidth);
+
+    PropertyInfo property{};
+    property.dragSpeed = speed;
+    return Draw_Vec3PropertyRow(id, property, value);
 }
 
 bool Inspector::Draw_UIVec2Row(const char* label, const string& id, Vec2& value, float speed)

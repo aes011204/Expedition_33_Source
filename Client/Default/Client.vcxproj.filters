@@ -1000,6 +1000,12 @@
     <ClInclude Include="..\Public\UI_RuntimeLoader.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_SpriteVfx.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Vfx.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SavePoint_Panel.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1678,6 +1684,12 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp">
       <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_SpriteVfx.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Vfx.cpp">
+      <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SavePoint_Panel.cpp">
       <Filter>02.GameObject\UI</Filter>

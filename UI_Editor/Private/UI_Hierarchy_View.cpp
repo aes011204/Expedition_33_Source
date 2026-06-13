@@ -236,6 +236,12 @@ namespace UIEditor
                 _hasPendingCreateObject = true;
             }
 
+            if (ImGui::MenuItem("UI VFX"))
+            {
+                _pendingCreateObjectType = UI_ObjectType::UIVfx;
+                _hasPendingCreateObject = true;
+            }
+
             ImGui::EndMenu();
         }
     }
