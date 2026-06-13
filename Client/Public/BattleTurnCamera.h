@@ -157,6 +157,7 @@ private:
         const BattleShotRequest& request,
         const BattleCameraPreset& preset,
         BattleCameraClip* activeClip,
+        bool shouldRestartClipPlayback,
         const Vec3& targetSmoothedTargetPos,
         const Vec3& targetPrevTargetPos);
     void Update_PoseTransition(float timeDelta);

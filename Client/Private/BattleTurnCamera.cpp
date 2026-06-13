@@ -218,16 +218,6 @@ void BattleTurnCamera::Update(float timeDelta)
         return;
     }
 
-    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
-
-    LOG_INFO(
-        "[BattleCamTrace] Update mode={} presetId={} clipId={} useClip={} activeClip={}",
-        modeName.c_str(),
-        _currentRequest.presetId.c_str(),
-        _currentRequest.clipId.c_str(),
-        _currentRequest.useClip,
-        _activeClip != nullptr);
-
     switch (_currentRequest.mode)
     {
     case BattleCameraMode::WIDE:
@@ -908,6 +898,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     const BattleShotRequest& request,
     const BattleCameraPreset& preset,
     BattleCameraClip* activeClip,
+    bool shouldRestartClipPlayback,
     const Vec3& targetSmoothedTargetPos,
     const Vec3& targetPrevTargetPos)
 {
@@ -948,8 +939,11 @@ bool BattleTurnCamera::Start_PoseTransition(
         return false;
     }
 
-    _activeClip = activeClip;
-    Reset_ClipPlaybackState();
+    if (shouldRestartClipPlayback || _activeClip != activeClip)
+    {
+        _activeClip = activeClip;
+        Reset_ClipPlaybackState();
+    }
 
     _poseTransition.active = true;
         _poseTransition.elapsed = 0.f;
@@ -976,12 +970,6 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     const float t = std::clamp(_poseTransition.elapsed / duration, 0.f, 1.f);
 
     float  easedT = Evaluate_CameraTransitionT(_poseTransition.easing, t);
-    EvaluatedPose blended{};
-
-    blended.cameraPos = Vec3::Lerp(_poseTransition.fromPose.cameraPos, _poseTransition.toPose.cameraPos, easedT);
-    blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, _poseTransition.toPose.lookTarget, easedT);
-    blended.fovY = lerp(_poseTransition.fromPose.fovY, _poseTransition.toPose.fovY, easedT);
-    blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, _poseTransition.toPose.rollOffset, easedT);
     EvaluatedPose clippedTargetPose{};
     bool hasClippedTargetPose = false;
     if (_poseTransition.targetRequest.freezeSubjectDuringTransition &&
@@ -1009,15 +997,15 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
             clippedTargetPose);
     }
 
-    if (hasClippedTargetPose)
-    {
-        float targetCorrectionWeight  = 0.05f;
+    const EvaluatedPose& transitionTargetPose = hasClippedTargetPose
+        ? clippedTargetPose
+        : _poseTransition.toPose;
 
-        blended.cameraPos += (clippedTargetPose.cameraPos - _poseTransition.toPose.cameraPos) * targetCorrectionWeight;
-        blended.lookTarget += (clippedTargetPose.lookTarget - _poseTransition.toPose.lookTarget) * targetCorrectionWeight;
-        blended.fovY += (clippedTargetPose.fovY - _poseTransition.toPose.fovY) * targetCorrectionWeight;
-        blended.rollOffset += (clippedTargetPose.rollOffset - _poseTransition.toPose.rollOffset) * targetCorrectionWeight;
-    }
+    EvaluatedPose blended{};
+    blended.cameraPos = Vec3::Lerp(_poseTransition.fromPose.cameraPos, transitionTargetPose.cameraPos, easedT);
+    blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, transitionTargetPose.lookTarget, easedT);
+    blended.fovY = lerp(_poseTransition.fromPose.fovY, transitionTargetPose.fovY, easedT);
+    blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, transitionTargetPose.rollOffset, easedT);
 
     Apply_RuntimeDrift(blended, timeDelta);
     Apply_RuntimeShake(blended, timeDelta);
@@ -1031,7 +1019,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     _currentRequest = _poseTransition.targetRequest;
     _currentPreset = _poseTransition.targetPreset;
     _targetPreset = _poseTransition.targetPreset;
-    if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
         Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
     _targetTransform = _currentRequest.subject ? _currentRequest.subject->Get_Transform() : nullptr;
     _smoothedTargetPos = _poseTransition.targetSmoothedTargetPos;
@@ -1264,7 +1252,13 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if ((Should_StartPoseTransition(request)&&!isSamePreset)|| shouldReAnchored)
     {
-        if (Start_PoseTransition(request, nextPreset, nextActiveClip, targetSmoothedTargetPos, targetPrevTargetPos))
+        if (Start_PoseTransition(
+            request,
+            nextPreset,
+            nextActiveClip,
+            shouldRestartClip,
+            targetSmoothedTargetPos,
+            targetPrevTargetPos))
             return;
     }
 
