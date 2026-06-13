@@ -263,6 +263,7 @@ private:
     BattleCameraClip      _enemyFocusClip{};
     BattleCameraClip* _activeClip{};
     float                _clipTime{};
+    float                _clipShakeTime{};
     float                _clipSyncBaseTime = 0.f;
     float                _clipSyncPrevAnimationTime = 0.f;
     float                _clipSyncAnimationDuration = 0.f;

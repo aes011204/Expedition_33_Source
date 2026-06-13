@@ -57,6 +57,7 @@ void BattleReactionController::Clear_RuntimeState()
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+    _reactionAnimElapsed = 0.f;
 }
 
 bool BattleReactionController::TryInput(BattleReactionType type, uint32 stepIndex)
@@ -238,12 +239,23 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
 
 void BattleReactionController::UpdateAnimation(float timeDelta)
 {
+    UNREFERENCED_PARAMETER(timeDelta);
+
     if (_reactionAnimTargets.empty())
         return;
+
+    _reactionAnimElapsed += std::max(0.f, GAME->Get_UnscaledTimeDelta());
 
     if (_animPhase == ReactionAnimPhase::CounterReturn)
     {
         UpdateCounterReturn(timeDelta);
+        return;
+    }
+
+    // Dodge/Parry reaction anim이 비정상적으로 종료되지 않아도 턴이 영구 정지되지 않게 fail-safe를 둔다.
+    if (_animPhase == ReactionAnimPhase::Reaction && _reactionAnimElapsed >= 1.25f)
+    {
+        FinishReactionAnimation();
         return;
     }
 
@@ -748,6 +760,7 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
 
     _reactionAnimTargets.push_back(target);
     _animPhase = ReactionAnimPhase::Reaction;
+    _reactionAnimElapsed = 0.f;
 }
 
 void BattleReactionController::FinishReactionAnimation()
@@ -784,6 +797,7 @@ void BattleReactionController::FinishReactionAnimation()
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+    _reactionAnimElapsed = 0.f;
 }
 
 void BattleReactionController::TryRestoreTargetToSpawnPose(const BattleChar& target) const

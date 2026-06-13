@@ -608,10 +608,12 @@ void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 
 void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
 {
+    UNREFERENCED_PARAMETER(timeDelta);
+
    if(!_runtimeShake.active)
       return;
 
-    _runtimeShake.elapsed += timeDelta;
+    _runtimeShake.elapsed += std::max(0.f, GAME->Get_UnscaledTimeDelta());
 
     Vec3 forward = pose.lookTarget - pose.cameraPos;
 
@@ -993,7 +995,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
             _poseTransition.targetPreset,
             &_poseTransition.targetSmoothedTargetPos,
             clipSample,
-            _clipTime,
+            _clipShakeTime,
             clippedTargetPose);
     }
 
@@ -1043,7 +1045,7 @@ bool BattleTurnCamera::Evaluate_CurrentPresetPose(
         yawBase,
         pitchBase,
         smoothedTargetPos,
-        _clipTime,
+        _clipShakeTime,
         outPose);
 }
 
@@ -1059,7 +1061,7 @@ bool BattleTurnCamera::Evaluate_EnemyAttackPose(
         opponentPos,
         preset,
         clipSample,
-        _clipTime,
+        _clipShakeTime,
         outPose);
 }
 
@@ -1244,7 +1246,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
         EvaluatedPose toPose {};
 
-        if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipTime, toPose ))
+        if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
         Apply_EvaluatedPose(toPose);
 
         return;
@@ -1537,6 +1539,8 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
     if (_currentRequest.subject == nullptr)
         return;
 
+    _clipShakeTime = time;
+
     BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
     const BattleCameraClipSample clipSample = clip ? Sample_BattleCameraClip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
 
@@ -1553,6 +1557,8 @@ void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
 {
     if (_currentRequest.subject == nullptr || _currentRequest.opponent == nullptr)
         return;
+
+    _clipShakeTime = time;
 
     BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
     const BattleCameraClipSample clipSample = clip ? Sample_BattleCameraClip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
@@ -1627,6 +1633,8 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
     if(_activeClip == nullptr)
         return sample;
 
+    _clipShakeTime += std::max(0.f, GAME->Get_UnscaledTimeDelta());
+
     if (_activeClip->timeMode == BattleCameraClipTimeMode::AnimationSync)
     {
         Shared<ModelCom> model = Resolve_BattleCameraSubjectModel(request.subject);
@@ -1700,6 +1708,7 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 void BattleTurnCamera::Reset_ClipPlaybackState()
 {
     _clipTime = 0.f;
+    _clipShakeTime = 0.f;
     _clipSyncBaseTime = 0.f;
     _clipSyncPrevAnimationTime = 0.f;
     _clipSyncAnimationDuration = 0.f;
