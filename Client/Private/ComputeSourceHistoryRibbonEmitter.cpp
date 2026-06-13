@@ -1059,6 +1059,16 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
         static_cast<uint32>(renderSamples.size() - 1u),
         maxSegmentCount - static_cast<uint32>(outPayloads.size())
     );
+    const auto resolveCollapsedLengthFadeScale =
+        [this](float visibleLength)
+        {
+            if (!_desc.tailCollapseOnIdle)
+                return 1.f;
+
+            const float collapsedFadeThreshold = max(_desc.baseWidth * 1.5f, _desc.sampleSpacing * 2.f);
+            return clamp(visibleLength / max(collapsedFadeThreshold, 0.0001f), 0.f, 1.f);
+        };
+    const float collapsedLengthFadeScale = resolveCollapsedLengthFadeScale(renderSamples.back().distanceFromHead);
 
     for (uint32 index = 0; index < segmentCount; ++index)
     {
@@ -1087,12 +1097,12 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
         const float nextAlphaScale = resolveSampleAlphaScale(next, nextLifeProgress);
         const float currentBaseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(currentLifeProgress));
         const float nextBaseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(nextLifeProgress));
-        const float currentWidth = currentBaseWidth * safeWidthMultiplier * currentAlphaScale;
-        const float nextWidth = nextBaseWidth * safeWidthMultiplier * nextAlphaScale;
+        const float currentWidth = currentBaseWidth * safeWidthMultiplier * currentAlphaScale * collapsedLengthFadeScale;
+        const float nextWidth = nextBaseWidth * safeWidthMultiplier * nextAlphaScale * collapsedLengthFadeScale;
         Vec4 currentColor = Evaluate_ColorOverLife(currentLifeProgress);
         Vec4 nextColor = Evaluate_ColorOverLife(nextLifeProgress);
-        currentColor.w *= currentAlphaScale;
-        nextColor.w *= nextAlphaScale;
+        currentColor.w *= currentAlphaScale * collapsedLengthFadeScale;
+        nextColor.w *= nextAlphaScale * collapsedLengthFadeScale;
 
         SegmentPayload payload{};
         payload.previousPosition = Vec4(previous.sample.position.x, previous.sample.position.y, previous.sample.position.z, index > 0u ? 1.f : 0.f);
