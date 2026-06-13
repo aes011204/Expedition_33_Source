@@ -62,11 +62,13 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     int rewardChroma = static_cast<int>(desc.chroma);
     int shieldPointsAtSpawn = static_cast<int>(desc.commonCharacterStats.ShieldPointsAtSpawn);
 
+
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);
     float physicalAttack = desc.physicalAttack;
     float physicalDefense = desc.physicalDefense;
     float speed = desc.speed;
+    float battleRunMoveSpeed = desc.battleRunMoveSpeed;
     bool isBreak = runtime.isBreak;
 
     ImGui::Spacing();
@@ -135,6 +137,14 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
             physicalAttack,
             physicalDefense,
             speed);
+    }
+
+    ImGui::TextDisabled("Battle Run Speed");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragFloat("##MonsterBattleRunMoveSpeed", &battleRunMoveSpeed, 0.1f, 0.f, 30.f))
+    {
+        stat->Set_BattleRunMoveSpeed(battleRunMoveSpeed);
     }
 
     ImGui::TextDisabled("Break");
