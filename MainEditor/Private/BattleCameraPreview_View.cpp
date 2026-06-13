@@ -683,6 +683,8 @@ void BattleCameraPreview_View::Render()
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
+        Handle_BattleClipPlaybackShortcut();
+
         Render_Header();
         ImGui::Separator();
 
@@ -1978,7 +1980,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
 
             ImGui::SameLine();
             if (ImGui::Button(_timelinePlaying ? "Pause" : "Play"))
-                _timelinePlaying = !_timelinePlaying;
+                Toggle_BattleClipPlayback();
 
             ImGui::SameLine();
             if (ImGui::Button("Go To Start"))
@@ -3810,6 +3812,24 @@ void BattleCameraPreview_View::RetargetLoadedBattleAuthoringDataToCurrentTarget(
         _loadedBattleClipMode = authoringMode;
         _loadedBattleClipSkillId = authoringClipId;
     }
+}
+
+void BattleCameraPreview_View::Toggle_BattleClipPlayback()
+{
+    _timelinePlaying = !_timelinePlaying;
+}
+
+void BattleCameraPreview_View::Handle_BattleClipPlaybackShortcut()
+{
+    const ImGuiIO& io = ImGui::GetIO();
+    if (!_isFocused || io.WantTextInput || io.KeyCtrl || io.KeyAlt)
+        return;
+
+    if (_activeTimelineEditorTab != TimelineEditorTab::ClipTimeline)
+        return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+        Toggle_BattleClipPlayback();
 }
 
 string BattleCameraPreview_View::Get_CurrentBattlePresetAuthoringOverrideId() const

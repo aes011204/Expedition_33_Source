@@ -174,6 +174,8 @@ private:
     void Apply_PreviewTransitionMode(BattleCameraMode mode);
     void Apply_PreviewSkillContext(const string& skillId);
     bool Has_UnsavedBattleAuthoringChanges() const;
+    void Toggle_BattleClipPlayback();
+    void Handle_BattleClipPlaybackShortcut();
     void Request_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex);
     void Apply_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex);
     void Apply_TransitionStepContext(const PreviewTransitionStep& step);
