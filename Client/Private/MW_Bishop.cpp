@@ -54,6 +54,8 @@ void MW_Bishop::Update(float timeDelta)
         return;
 
     Monster_WorldBase::Update(timeDelta);
+
+    LOG_DEBUG("MW_Boss : {}", _combatStat->Get_MonsterDesc().isBoss);
 }
 
 HRESULT MW_Bishop::Render()

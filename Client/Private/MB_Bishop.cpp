@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(MB_Bishop)
     info.displayName = "MB_Bishop";
     info.category = "Monster";
     PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
+    PROPERTY_FLOAT("Battle RunLoop Move Speed", _battleRunLoopMoveSpeed, 0.f, 30.f, 0.1f);
 
     return true;
 }
@@ -72,6 +73,8 @@ void MB_Bishop::Update(float timeDelta)
     {
         _body->Play_Animation(timeDelta);
     }
+
+    LOG_DEBUG("MB_Boss : {}", _combatStat->Get_MonsterDesc().isBoss);
 }
 
 bool MB_Bishop::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const

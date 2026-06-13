@@ -68,6 +68,7 @@ json Monster_BattleBase::To_Json() const
 {
     json root = Character_BattleBase::To_Json();
     root["custom_properties"]["battle_ground_offset_y"] = _battleGroundOffsetY;
+    root["custom_properties"]["battle_run_loop_move_speed"] = _battleRunLoopMoveSpeed;
     return root;
 }
 
@@ -76,6 +77,7 @@ void Monster_BattleBase::From_Json(const json& data)
     Character_BattleBase::From_Json(data);
 
     _battleGroundOffsetY = 0.f;
+    _battleRunLoopMoveSpeed = 0.f;
     _revivePosition = Vec3::Zero;
     _hasRevivePosition = false;
 
@@ -83,6 +85,7 @@ void Monster_BattleBase::From_Json(const json& data)
     {
         const json& customProperties = data["custom_properties"];
         _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
+        _battleRunLoopMoveSpeed = max(0.f, customProperties.value("battle_run_loop_move_speed", 0.f));
     }
 }
 
