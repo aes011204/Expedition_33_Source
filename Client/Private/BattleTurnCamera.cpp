@@ -1076,17 +1076,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     const string incomingModeName = string(magic_enum::enum_name(request.mode));
     const string previousModeName = string(magic_enum::enum_name(_currentRequest.mode));
-    LOG_INFO(
-        "[BattleCamTrace] ApplyShot seq={} elapsedMs={} requestMode={} currentMode={} presetId={} clipId={} useClip={} subject={} opponent={}",
-        requestId,
-        elapsedMs,
-        incomingModeName.c_str(),
-        previousModeName.c_str(),
-        request.presetId.c_str(),
-        request.clipId.c_str(),
-        request.useClip,
-        request.subject != nullptr,
-        request.opponent != nullptr);
 
     const bool isSameRequest =
         _currentRequest.mode == request.mode &&
