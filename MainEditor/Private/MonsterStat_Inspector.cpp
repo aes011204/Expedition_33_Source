@@ -62,6 +62,7 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     int rewardChroma = static_cast<int>(desc.chroma);
     int shieldPointsAtSpawn = static_cast<int>(desc.commonCharacterStats.ShieldPointsAtSpawn);
 
+
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);
     float physicalAttack = desc.physicalAttack;

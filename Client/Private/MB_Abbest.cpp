@@ -11,9 +11,7 @@ IMPLEMENT_REFLECTION(MB_Abbest)
 
     info.displayName = "MB_Abbest";
     info.category = "Monster";
-
     PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
-
 
     return true;
 }
@@ -38,10 +36,13 @@ HRESULT MB_Abbest::Initialize(void* arg)
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
+    if (Shared<ModelCom> model = _body ? _body->Get_Model() : nullptr)
+        model->Set_Animation("Abbest_ENM_ElementalGrunt_IdleLooping2", true);
+
 
     _combatStat->Set_Skill("Abbest_Knife");
 
-    Get_Transform()->Set_SpeedPerSec(_combatStat->Get_BattleRunMoveSpeed());
+    Get_Transform()->Set_SpeedPerSec(4.f);
 
     return S_OK;
 }
