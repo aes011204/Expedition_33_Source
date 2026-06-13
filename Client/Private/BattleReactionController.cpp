@@ -373,10 +373,6 @@ void BattleReactionController::StartCounterReturn()
 }
 void BattleReactionController::UpdateCounterReturn(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
-
-
     ///////////////////////
     ///
         //ReturnToOrigin
@@ -438,16 +434,27 @@ void BattleReactionController::UpdateCounterReturn(float timeDelta)
         toGoal.y = 0.f;
         const float remain = toGoal.Length();
 
+        const float currentRatio = target.ModelCom->Get_RootMotionTranslationRatio();
+
         if (remain <= 0.05f)
         {
             transform->Set_Position(runtime->goalPos);
             transform->Set_RotationEuler(runtime->goalRot);
+            runtime->prevRootRatio = currentRatio;
+            continue;
+        }
+
+        if (currentRatio >= 0.999f || target.ModelCom->Is_AnimationFinished())
+        {
+            // 복귀 애니메이션이 끝났으면 남은 오차를 스폰 위치로 정리하고 busy를 풀어 턴 종료를 이어간다.
+            transform->Set_Position(runtime->goalPos);
+            transform->Set_RotationEuler(runtime->goalRot);
+            runtime->prevRootRatio = currentRatio;
             continue;
         }
 
         allReached = false;
 
-        const float currentRatio = target.ModelCom->Get_RootMotionTranslationRatio();
         float deltaRatio = currentRatio - runtime->prevRootRatio;
 
         if (deltaRatio < 0.f)
