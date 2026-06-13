@@ -25,6 +25,32 @@ HRESULT Channel::Initialize(const ModelChannelData& channelData)
 
 void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, float duration, bool isLoop, RootMotionFrame& outTransform)
 {
+    if (_keyFrames.empty())
+        return;
+
+    if (_keyFrames.size() == 1)
+    {
+        const KEYFRAME& key = _keyFrames.front();
+        outTransform.scale = key.scale;
+        outTransform.rotation = key.rotation;
+        outTransform.position = key.translation;
+        keyFrameIndex = 0;
+        return;
+    }
+
+    if (keyFrameIndex >= _keyFrames.size() - 1)
+        keyFrameIndex = 0;
+
+    if (trackPosition <= _keyFrames.front().trackPosition)
+    {
+        const KEYFRAME& key = _keyFrames.front();
+        outTransform.scale = key.scale;
+        outTransform.rotation = key.rotation;
+        outTransform.position = key.translation;
+        keyFrameIndex = 0;
+        return;
+    }
+
 	if (trackPosition < _keyFrames[keyFrameIndex].trackPosition)
 		keyFrameIndex = 0;
 

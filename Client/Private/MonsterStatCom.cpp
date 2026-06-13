@@ -19,7 +19,7 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
     PROPERTY_INT("Reward Chroma", _monsterDesc.chroma, 0.f, 9999999.f, 1.f);
 
-    PROPERTY_BOOL("Is Boss", _monsterDesc.isBoss);
+    PROPERTY_ENUM("Enemy Class", _monsterDesc.enemyClass, EEnemyClass);
     PROPERTY_INT("Shield Points At Spawn", _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn, 0.f, 99.f, 1.f);
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
     PROPERTY_WSTRING("Battle Announce Name", _monsterDesc.battleAnnounceName);
@@ -78,6 +78,14 @@ void MonsterStatCom::From_Json(const json& data)
 {
     CombatStatCom::From_Json(data);
 
+    if (!data.contains("_monsterDesc.enemyClass") &&
+        data.contains("_monsterDesc.isBoss") &&
+        data["_monsterDesc.isBoss"].is_boolean() &&
+        data["_monsterDesc.isBoss"].get<bool>())
+    {
+        _monsterDesc.enemyClass = EEnemyClass::Boss;
+    }
+
     _MRuntimeStat.CurHp = _monsterDesc.maxHp;
     _MRuntimeStat.CurAp = _monsterDesc.maxAp;
     _MRuntimeStat.CurShield = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
@@ -127,7 +135,7 @@ BattleMonsterStatSnapshot MonsterStatCom::Create_BattleSyncSnapshot() const
     snapshot.shieldPointsAtSpawn = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
     snapshot.exp = _monsterDesc.exp;
     snapshot.chroma = _monsterDesc.chroma;
-    snapshot.isBoss = _monsterDesc.isBoss;
+    snapshot.enemyClass = _monsterDesc.enemyClass;
     snapshot.battleAnnounceName = _monsterDesc.battleAnnounceName;
 
     return snapshot;
@@ -147,7 +155,7 @@ void MonsterStatCom::Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& s
     _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn = snapshot.shieldPointsAtSpawn;
     _monsterDesc.exp = snapshot.exp;
     _monsterDesc.chroma = snapshot.chroma;
-    _monsterDesc.isBoss = snapshot.isBoss;
+    _monsterDesc.enemyClass = snapshot.enemyClass;
     _monsterDesc.battleAnnounceName = snapshot.battleAnnounceName;
 
     // 전투 진입 직후 적용이므로 runtime도 새 desc 기준으로 다시 맞춘다.

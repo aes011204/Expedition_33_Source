@@ -21,7 +21,7 @@ public:
 
         wstring battleAnnounceName = L"";
 
-        bool isBoss = false;
+
         bool isAir = false;
 
         EEnemyClass enemyClass = EEnemyClass::Normal;
@@ -33,6 +33,9 @@ public:
         vector<FLootData> possibleLoot = {};
 
         vector<string> _skillKeys;
+
+        float _criticalRatio = {};
+        float _midRatio = {};
     };
 
     // UI, 전투 데미지 계산, 디버그 출력이 읽는 값
@@ -63,9 +66,12 @@ public:
     MRuntimeCombatStat& Get_MonsterRuntimeStat() { return _MRuntimeStat; }
     const vector<Shared<Buff>>& Get_Buffs() const { return _buff; }
 
+    float Get_CriticalRatio() const { return _monsterDesc._criticalRatio; }
+    float Get_MidRatio() const { return _monsterDesc._midRatio; }
+
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
-    bool Is_Boss() const { return _monsterDesc.isBoss; }
+    bool Is_Boss() const { return _monsterDesc.enemyClass == EEnemyClass::Boss; }
 
     void Set_RuntimeCombatProfile(
         float maxHp,
