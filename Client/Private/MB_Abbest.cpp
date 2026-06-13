@@ -1,5 +1,6 @@
 ﻿#include "MB_Abbest.h"
 #include "Mon_WeakPoint.h"
+#include "MonsterStatCom.h"
 
 #include "Mon_Abbest_Body.h"
 
@@ -34,6 +35,11 @@ HRESULT MB_Abbest::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+
+ 
+    _combatStat->Set_Skill("Abbest_Knife");
+
+    Get_Transform()->Set_SpeedPerSec(4.f);
 
     return S_OK;
 }

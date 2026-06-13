@@ -4,6 +4,8 @@
 #include "Battle_Enum.h"
 
 NS_BEGIN(Engine)
+
+class BlackBoard;
 class ColliderCom;
 class AIController;
 NS_END
@@ -24,18 +26,64 @@ public:
         EBattleContext actionType = EBattleContext::Invalid;
         float score = -FLT_MAX;
     };
-    struct BattleAIPolicy
+    //struct BattleAIPolicy
+    //{
+    //    bool allowBaseAttack = true;
+    //    bool allowSkill = true;
+    //    bool allowDefend = true;
+
+    //    float baseAttackBias = 0.f;
+    //    float skillBias = 0.f;
+    //    float defendBias = 0.f;
+
+    //    vector<string> forbiddenSkillIds = {};
+    //    vector<string> preferredSkillIds = {};
+    //};
+    enum class EAITargetStyle
     {
-        bool allowBaseAttack = true;
-        bool allowSkill = true;
-        bool allowDefend = true;
+        Single,
+        SingleAoE,
+        ComboAoE,
+        Self,
+        Ally,
+        RandomEnemy
+    };
+    struct SkillAIData
+    {
+        EAITargetStyle targetStyle = EAITargetStyle::Single;
 
-        float baseAttackBias = 0.f;
-        float skillBias = 0.f;
-        float defendBias = 0.f;
+        float openingBias = 0.f;
+        float midBias = 0.f;
+        float criticalBias = 0.f;
 
-        vector<string> forbiddenSkillIds = {};
-        vector<string> preferredSkillIds = {};
+        bool forceOnPhaseEnter = false;
+
+        int cooldownTurn = 0;
+        int minTurn = 0;
+        int maxUseCount = -1;
+    };
+    enum class BattlePhase
+    {
+        None,
+        Opening,
+        Mid,
+        Critical
+    };
+
+    struct SkillChoiceContext
+    {
+        float hpRatio = 1.f;
+        BattlePhase phase = BattlePhase::None;
+        int32 aliveHeroCount = 0;
+
+        string lastSkillIndex = "";
+        int32 lastTargetIndex = -1;
+
+        string _prevSkillKey[3];
+        int32 _prevTarget = {};
+
+        bool phaseJustChanged = false;
+        BattlePhase previousPhase = BattlePhase::None;
     };
 public:
     Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -64,7 +112,6 @@ public:
 public:
     // 약점 세팅
     virtual Shared<Mon_WeakPoint> Get_BattleWeakPoint() const { return nullptr; }
-
     // 약점 소비
     bool Try_Consume_FreeAimWeakPoint();
     // 약점 숨기기
@@ -72,6 +119,17 @@ public:
     // 부활하면 리셋?
     void Reset_FreeAimWeakPoint();
 
+public:
+    float Get_HpRatio();
+    BattlePhase Get_CurPhase();
+    float Score_Skill(const Skill_Data* skill, const SkillChoiceContext& context, const vector<BattleChar>& heroes);
+    float Score_Target(const Skill_Data* skill, const SkillChoiceContext& context, const vector<BattleChar>& heroes);
+    void Push_SkillHistory(const int32 skillKey, int32 prevTarget);
+    SkillChoiceContext Build_SkillChoiceContext(
+        const Shared<BlackBoard>& bb,
+        const vector<BattleChar>& heroes);
+
+    SkillChoiceContext context = {};
 protected:
     virtual HRESULT Ready_Components();
     void ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes);

@@ -8,6 +8,11 @@
 #include "BattleCameraClipTypes.h"
 #include "BattleCameraProfileTypes.h"
 
+namespace Engine
+{
+class Character;
+}
+
 NS_BEGIN(Client)
 
 struct EvtBattleCameraShake;

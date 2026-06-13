@@ -1521,6 +1521,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         CHECK_NULL(hero);
 
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Register_BattleHeroObject(hero, GAME->Current_LevelIndex());
+
         const auto ply = dynamic_pointer_cast<Character_BattleBase>(hero);
         BattleChar battleChar{};
         battleChar.actor = ply;
@@ -1550,6 +1553,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         );
 
         CHECK_NULL(enemy);
+
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Register_BattleMonsterObject(enemy, GAME->Current_LevelIndex());
 
         const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
         BattleChar battleChar{};

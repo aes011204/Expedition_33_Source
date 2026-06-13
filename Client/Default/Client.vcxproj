@@ -212,6 +212,8 @@
     <ClInclude Include="..\Public\Battle_Event.h" />
     <ClInclude Include="..\public\BT_IsStun.h" />
     <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\Public\BT_SetSkillAI.h" />
+    <ClInclude Include="..\public\BT_Set_TargetAI.h" />
     <ClInclude Include="..\public\BT_Stun.h" />
     <ClInclude Include="..\Public\CameraDirector.h" />
     <ClInclude Include="..\Public\CameraPresetIO.h" />
@@ -531,6 +533,8 @@
     <ClCompile Include="..\Private\BattleTutorialController.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
     <ClCompile Include="..\private\BT_LookRange.cpp" />
+    <ClCompile Include="..\Private\BT_SetSkillAI.cpp" />
+    <ClCompile Include="..\private\BT_Set_TargetAI.cpp" />
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />

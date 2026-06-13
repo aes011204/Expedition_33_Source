@@ -3,7 +3,8 @@
 
 #include "AIController.h"
 #include "BlackBoard.h"
-#include "Body_Player.h"
+#include "ClientInstance.h"
+#include "MonsterStatCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
@@ -11,6 +12,7 @@
 #include "Monster_Part.h"
 #include "EffectCom.h"
 #include "Mon_WeakPoint.h"
+#include "BlackBoard.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -159,6 +161,160 @@ void Monster_BattleBase::Reset_FreeAimWeakPoint()
 {
     if (const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint())
         weakPoint->Reset_BattleWeakPoint();
+}
+
+float Monster_BattleBase::Get_HpRatio()
+{
+
+    if (_combatStat == nullptr) return 1.f;
+
+    const float maxHp = max(_combatStat->Get_StatInfo().maxHp, 1.f);
+    return clamp(_combatStat->Get_CurHp() / maxHp, 0.f, 1.f);
+
+}
+
+Monster_BattleBase::BattlePhase Monster_BattleBase::Get_CurPhase()
+{
+    float hpRatio = Get_HpRatio();
+
+    if (hpRatio <= _combatStat->Get_CriticalRatio())
+        return BattlePhase::Critical;
+    if (hpRatio <= _combatStat->Get_MidRatio())
+        return BattlePhase::Mid;
+
+    return BattlePhase::Opening;
+}
+
+float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoiceContext& context, const vector<BattleChar>& heroes)
+{
+    float score = 10.f;
+    //
+    float repeatPenalty = 0.f;
+
+   for(int i = 0 ;  i < 3; i++)
+   {
+       if (skill->skillKey != context._prevSkillKey[i])
+           continue;
+
+           if (i == 0) repeatPenalty -= 6.f;
+           else if (i == 1) repeatPenalty -= 3.f;
+           else if (i == 2) repeatPenalty -= 1.f;
+   }
+
+    score += repeatPenalty;
+
+    //
+
+    if (skill->skillKey == context.lastSkillIndex)
+        score -= 4.f;
+
+
+    if (skill->skillKey == context.lastSkillIndex)
+        score -= 4.f;
+
+    switch(context.phase)
+    {
+    case BattlePhase::Opening:
+        score += skill->openingBias;
+        break;
+    case BattlePhase::Mid:
+        score += skill->midBias;
+        break;
+    case BattlePhase::Critical:
+        score += skill->criticalBias;
+        break;
+    }
+
+    //
+    
+    if (context.aliveHeroCount >= 3)
+    {
+        switch(skill->targetStyle)
+        {
+        case AITargetStyle::ComboAoE:
+        case AITargetStyle::SingleAoE:
+            score += 2.f;
+            break;
+
+        case AITargetStyle::Single:
+            score -= 2.f;
+            break;
+        }
+
+    }
+    else if (context.aliveHeroCount == 1)
+    {
+        switch (skill->targetStyle)
+        {
+        case AITargetStyle::ComboAoE:
+        case AITargetStyle::SingleAoE:
+            score -= 2.f;
+            break;
+
+        case AITargetStyle::Single:
+            score += 2.f;
+            break;
+        }
+    }
+
+    //
+
+
+
+
+
+
+    return score;
+}
+
+void Monster_BattleBase::Push_SkillHistory(const int32 skillKey, int32 prevTarget)
+{
+    context._prevSkillKey[2] = skillKey;
+    context._prevSkillKey[1] = context._prevSkillKey[2];
+    context._prevSkillKey[0] = context._prevSkillKey[1];
+
+    context._prevTarget = prevTarget;
+}
+
+Monster_BattleBase::SkillChoiceContext Monster_BattleBase::Build_SkillChoiceContext(
+    const Shared<BlackBoard>& bb,
+    const vector<BattleChar>& heroes)
+{
+    SkillChoiceContext context{};
+    context.hpRatio = Get_HpRatio();
+    context.phase = Get_CurPhase();
+
+    for (const BattleChar& hero : heroes)
+    {
+        if (hero.statCom && hero.statCom->Get_AliveStatus() == EAliveStatus::Alive)
+            ++context.aliveHeroCount;
+    }
+
+    int32 skillIndex = -1;
+
+    if (const any* value = bb->Find_Value("SkillIndex"))
+    {
+        if (const int32* typedValue = any_cast<int32>(value))
+            skillIndex = *typedValue;
+    }
+
+    int32 targetIndex = -1;
+
+    if (const any* value = bb->Find_Value("TargetIndex"))
+    {
+        if (const int32* typedValue = any_cast<int32>(value))
+            targetIndex = *typedValue;
+    }
+
+    Push_SkillHistory(skillIndex, targetIndex);
+
+
+
+
+    //context.phaseJustChanged = _phaseJustChanged;
+    //context.previousPhase = _previousPhase;
+
+    return context;
 }
 
 void Monster_BattleBase::Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes)

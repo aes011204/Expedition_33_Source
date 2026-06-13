@@ -485,6 +485,10 @@
     <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\private\BT_Stun.cpp" />
+    <ClCompile Include="..\private\BT_Set_TargetAI.cpp" />
+    <ClCompile Include="..\Private\BT_SetSkillAI.cpp">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -625,7 +629,6 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
@@ -1390,6 +1393,10 @@
     <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\public\BT_Patrol.h" />
     <ClInclude Include="..\public\BT_Stun.h" />
+    <ClInclude Include="..\public\BT_Set_TargetAI.h" />
+    <ClInclude Include="..\Public\BT_SetSkillAI.h">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
