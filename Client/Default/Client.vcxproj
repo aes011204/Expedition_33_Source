@@ -156,6 +156,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
     <ClInclude Include="..\public\ANS_Dodge.h" />
     <ClInclude Include="..\public\ANS_Emissive.h" />
@@ -467,6 +468,7 @@
     <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
     <ClCompile Include="..\private\ANS_Emissive.cpp" />

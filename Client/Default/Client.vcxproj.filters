@@ -472,6 +472,7 @@
     <ClCompile Include="..\Private\PlayerInventory.cpp" />
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />
+    <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -612,7 +613,6 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
@@ -1330,6 +1330,7 @@
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
     <ClInclude Include="..\Public\CostumeManager.h" />
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
