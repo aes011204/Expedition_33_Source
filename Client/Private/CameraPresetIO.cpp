@@ -22,10 +22,14 @@ namespace
         return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
 
-    string Build_BattleDriftFilePath(BattleCameraMode cameraMode)
+    string Build_BattleDriftFilePath(BattleCameraMode cameraMode, bool isBossVariant)
     {
         const string modeName = string(magic_enum::enum_name(cameraMode));
-        return "../../../Client/Bin/Resources/Data/json/CameraPreset/BattleDrift_" + modeName + ".json";
+        string fileName = "BattleDrift_" + modeName;
+        if (cameraMode == BattleCameraMode::ENEMYATTACK && isBossVariant)
+            fileName += "_Boss";
+
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
 }
 
@@ -343,7 +347,7 @@ bool CameraPresetIO:: LoadBattlePresetFromFile(BattleCameraMode cameraMode, Batt
     
 }
 
-void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCameraDriftProfile& profile)
+void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool isBossVariant)
 {
     json jsonData{};
 
@@ -357,7 +361,7 @@ void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCa
     jsonData["depthFrequency"] = profile.depthFrequency;
     jsonData["rollFrequency"] = profile.rollFrequency;
 
-    const string filePath = Build_BattleDriftFilePath(mode);
+    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant);
 
     const fs::path savePath = filePath;
     if (!fs::exists(savePath.parent_path()))
@@ -373,9 +377,9 @@ void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCa
     file << jsonData.dump(4);
 }
 
-bool CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode mode, BattleCameraDriftProfile& outProfile)
+bool CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode mode, BattleCameraDriftProfile& outProfile, bool isBossVariant)
 {
-    const string filePath = Build_BattleDriftFilePath(mode);
+    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant);
 
     ifstream file(filePath);
     if (!file.is_open())

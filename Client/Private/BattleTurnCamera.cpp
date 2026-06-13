@@ -8,6 +8,7 @@
 #include "Character.h"
 #include "PartObject.h"
 #include "ModelCom.h"
+#include "MonsterStatCom.h"
 #include "Event_Bus.h"
 #include "Battle_Event.h"
 #include "Character_BattleBase.h"
@@ -127,6 +128,8 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackDrift);
+    if (!CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackBossDrift, true))
+        _enemyAttackBossDrift = _enemyAttackDrift;
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTITEM, _selectItemDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTSKILL, _selectSkillDrift);
@@ -421,7 +424,7 @@ bool BattleTurnCamera::Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawD
     return true;
 }
 
-BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode)
+BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant)
 {
     switch (cameraMode)
     {
@@ -429,7 +432,7 @@ BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode c
     case BattleCameraMode::BATTLEINTRO: return &_battleIntroDrift;
     case BattleCameraMode::PLAYERFOCUS: return &_playerFocusDrift;
     case BattleCameraMode::ENEMYFOCUS: return &_enemyFocusDrift;
-    case BattleCameraMode::ENEMYATTACK: return &_enemyAttackDrift;
+    case BattleCameraMode::ENEMYATTACK: return enemyAttackBossVariant ? &_enemyAttackBossDrift : &_enemyAttackDrift;
     case BattleCameraMode::PLAYERATTACK: return &_playerAttackDrift;
     case BattleCameraMode::SELECTITEM: return &_selectItemDrift;
     case BattleCameraMode::SELECTSKILL: return &_selectSkillDrift;
@@ -440,9 +443,40 @@ BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode c
     }
 }
 
-const BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode) const
+const BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant) const
 {
-    return const_cast<BattleTurnCamera*>(this)->Find_DriftStorage(cameraMode);
+    return const_cast<BattleTurnCamera*>(this)->Find_DriftStorage(cameraMode, enemyAttackBossVariant);
+}
+
+bool BattleTurnCamera::Is_BossEnemyAttackRequest(const BattleShotRequest& request) const
+{
+    if (request.mode != BattleCameraMode::ENEMYATTACK)
+        return false;
+
+    const Shared<CombatStatCom> subjectStatCom =
+        request.subject ? request.subject->Get_Component<CombatStatCom>() : nullptr;
+
+    if (const Shared<MonsterStatCom> directMonsterStat = dynamic_pointer_cast<MonsterStatCom>(subjectStatCom))
+        return directMonsterStat->Is_Boss();
+
+    for (const BattleChar& enemy : _enemies)
+    {
+        const bool isSameActor = enemy.actor.get() == request.subject.get();
+        const bool isSameStatCom = subjectStatCom != nullptr && enemy.statCom.get() == subjectStatCom.get();
+        if ((!isSameActor && !isSameStatCom) || enemy.statCom == nullptr)
+            continue;
+
+        const Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(enemy.statCom);
+        if (monsterStat != nullptr)
+            return monsterStat->Is_Boss();
+    }
+
+    return false;
+}
+
+const BattleCameraDriftProfile* BattleTurnCamera::Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const
+{
+    return Find_DriftStorage(request.mode, Is_BossEnemyAttackRequest(request));
 }
 
 BattleTurnCamera::ResolvedShotAssets BattleTurnCamera::Resolve_ShotAssets(
@@ -1215,7 +1249,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _targetTransform = nextTargetTransform;
         _targetPreset = nextPreset;
         _currentPreset = _targetPreset;
-        if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+        if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
             Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
         _smoothedTargetPos = targetSmoothedTargetPos;
         _prevTargetPos = targetPrevTargetPos;
@@ -1257,7 +1291,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _targetTransform = nextTargetTransform;
     _targetPreset = nextPreset;
     _currentPreset = _targetPreset;
-    if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
         Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
     _smoothedTargetPos = targetSmoothedTargetPos;
     _prevTargetPos = targetPrevTargetPos;
@@ -1289,7 +1323,7 @@ void BattleTurnCamera::Update_LiveEditContext(BattleCameraMode mode, const Share
     {
         _currentPreset = *preset;
         _targetPreset = *preset;
-        if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+        if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
             Refresh_RuntimeDriftFromProfile(*drift, false);
     }
 }
@@ -1405,9 +1439,9 @@ const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) co
     return _wideModePreset;
 }
 
-const BattleCameraDriftProfile& BattleTurnCamera::Get_DriftProfile(BattleCameraMode mode) const
+const BattleCameraDriftProfile& BattleTurnCamera::Get_DriftProfile(BattleCameraMode mode, bool enemyAttackBossVariant) const
 {
-    if (const BattleCameraDriftProfile* profile = Find_DriftStorage(mode))
+    if (const BattleCameraDriftProfile* profile = Find_DriftStorage(mode, enemyAttackBossVariant))
         return *profile;
 
     return _wideModeDrift;
@@ -1431,14 +1465,14 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
         _playerAttackDefaultProfile.preset = preset;
 }
 
-void BattleTurnCamera::Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile)
+void BattleTurnCamera::Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant)
 {
-    BattleCameraDriftProfile* targetProfile = Find_DriftStorage(mode);
+    BattleCameraDriftProfile* targetProfile = Find_DriftStorage(mode, enemyAttackBossVariant);
     if (targetProfile == nullptr)
         return;
 
     *targetProfile = profile;
-    if (mode == _currentRequest.mode)
+    if (mode == _currentRequest.mode && Is_BossEnemyAttackRequest(_currentRequest) == enemyAttackBossVariant)
         Refresh_RuntimeDriftFromProfile(*targetProfile, false);
 }
 

@@ -48,9 +48,9 @@ public:
 public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta);
     const BattleCameraPreset& Get_Preset(BattleCameraMode mode) const;
-    const BattleCameraDriftProfile& Get_DriftProfile(BattleCameraMode mode) const;
+    const BattleCameraDriftProfile& Get_DriftProfile(BattleCameraMode mode, bool enemyAttackBossVariant = false) const;
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
-    void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile);
+    void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant = false);
     void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId = "");
     void Set_ClipScrubPreviewEnabled(bool enabled) { _isClipPreview = enabled; }
     void Apply_PreviewPreset(const BattleCameraPreset& preset);
@@ -179,8 +179,10 @@ private:
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
     const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
-    BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode);
-    const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode) const;
+    BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false);
+    const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false) const;
+    const BattleCameraDriftProfile* Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const;
+    bool Is_BossEnemyAttackRequest(const BattleShotRequest& request) const;
     BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode);
     const BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode) const;
     void Refresh_RuntimeDriftFromProfile(const BattleCameraDriftProfile& profile, bool resetElapsed = false);
@@ -222,6 +224,7 @@ private:
     BattleCameraDriftProfile _playerFocusDrift{};
     BattleCameraDriftProfile _enemyFocusDrift{};
     BattleCameraDriftProfile _enemyAttackDrift{};
+    BattleCameraDriftProfile _enemyAttackBossDrift{};
     BattleCameraDriftProfile _playerAttackDrift{};
     BattleCameraDriftProfile _selectItemDrift{};
     BattleCameraDriftProfile _selectSkillDrift{};
