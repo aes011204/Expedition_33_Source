@@ -15,6 +15,7 @@ namespace ModelEditor
 		{
 			::HDROP hDrop = reinterpret_cast<::HDROP>(wParam);
 			uint32 fileCount = ::DragQueryFileW(hDrop, 0xffffffff, nullptr, 0);
+            bool handled = false;
 
 			for (uint32 i = 0; i < fileCount; ++i)
 			{
@@ -23,12 +24,18 @@ namespace ModelEditor
 
 				if (fs::path(filePath).extension() == ".fbx")
 				{
+                    handled = true;
 					LOG_INFO("Drag & Drop Detected: {}", fs::path(filePath).filename().string());
 					thisPointer->Convert_Model(filePath, fs::path(filePath).parent_path().wstring() + L"/");
 				}
 			}
-			::DragFinish(hDrop);
-			return 0;
+            if (handled)
+            {
+                ::DragFinish(hDrop);
+			    return 0;
+            }
+
+            break;
 		}
 		case WM_NCDESTROY:
 			::RemoveWindowSubclass(hWnd, DragDropWndProc, uIdSubclass);

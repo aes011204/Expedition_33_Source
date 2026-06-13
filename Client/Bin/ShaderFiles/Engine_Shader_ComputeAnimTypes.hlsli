@@ -64,6 +64,23 @@ struct BoneMatrixElement
     row_major float4x4 BoneMatrix;
 };
 
+struct MorphVertexRange
+{
+    uint Start;
+    uint Count;
+};
+
+struct MorphGpuInfluence
+{
+    uint TargetIndex;
+    float WeightScale;
+    float2 Pad0;
+    float3 DeltaPosition;
+    float Pad1;
+    float3 DeltaNormal;
+    float Pad2;
+};
+
 cbuffer AnimComputeCB : register(b0)
 {
     uint g_NumBones;

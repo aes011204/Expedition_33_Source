@@ -109,6 +109,9 @@ public:
     void    Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes);
     void    Decide_Action_BTOnly(ActionRequest& request, const vector<BattleChar>& heroes);
 
+    float   Get_BattleRunLoopMoveSpeed() const { return _battleRunLoopMoveSpeed; }
+    void    Set_BattleRunLoopMoveSpeed(float value) { _battleRunLoopMoveSpeed = max(0.f, value); }
+
 public:
     // 약점 세팅
     virtual Shared<Mon_WeakPoint> Get_BattleWeakPoint() const { return nullptr; }
@@ -142,6 +145,7 @@ protected:
     Vec3                            _revivePosition = Vec3::Zero;
     bool                            _hasRevivePosition = false;
 
+    float                           _battleRunLoopMoveSpeed = 0.f;
 
 public:
     void Free() override;

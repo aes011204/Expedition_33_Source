@@ -24,6 +24,11 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
         "##MonsterBattleAnnounceName",
         desc.battleAnnounceName);
 
+    int rewardExp = static_cast<int>(desc.exp);
+    int rewardChroma = static_cast<int>(desc.chroma);
+    int shieldPointsAtSpawn = static_cast<int>(desc.commonCharacterStats.ShieldPointsAtSpawn);
+    bool isBoss = desc.isBoss;
+
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);
     float physicalAttack = desc.physicalAttack;
@@ -31,6 +36,42 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     float speed = desc.speed;
     bool isBreak = runtime.isBreak;
 
+    ImGui::Spacing();
+
+    ImGui::TextDisabled("Reward Exp");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragInt("##MonsterRewardExp", &rewardExp, 1.f, 0, 9999999))
+    {
+        desc.exp = static_cast<uint32>(max(0, rewardExp));
+    }
+
+    ImGui::TextDisabled("Reward Chroma");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragInt("##MonsterRewardChroma", &rewardChroma, 1.f, 0, 9999999))
+    {
+        desc.chroma = static_cast<uint32>(max(0, rewardChroma));
+    }
+
+    ImGui::TextDisabled("Is Boss");
+    ImGui::SameLine(120.f);
+    if (ImGui::Checkbox("##MonsterIsBoss", &isBoss))
+    {
+        desc.isBoss = isBoss;
+    }
+
+    ImGui::TextDisabled("Shield At Spawn");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragInt("##MonsterShieldPointsAtSpawn", &shieldPointsAtSpawn, 1.f, 0, 99))
+    {
+        desc.commonCharacterStats.ShieldPointsAtSpawn = static_cast<uint32>(max(0, shieldPointsAtSpawn));
+        runtime.CurShield = desc.commonCharacterStats.ShieldPointsAtSpawn;
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
 
     ImGui::TextDisabled("Max HP");

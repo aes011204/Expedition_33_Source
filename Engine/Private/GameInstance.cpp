@@ -1776,6 +1776,12 @@ void GameInstance::Set_SoundChannelPaused(SoundChannel channel, bool paused)
         _soundManager->Set_ChannelPaused(channel, paused);
 }
 
+void GameInstance::Set_SoundGlobalPitch(float pitch, bool includeBGM)
+{
+    if (_soundManager)
+        _soundManager->Set_GlobalPitch(pitch, includeBGM);
+}
+
 bool GameInstance::Has_Sound(const wstring& soundFile) const
 {
     return _soundManager ? _soundManager->Has_Sound(soundFile) : false;

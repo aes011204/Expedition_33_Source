@@ -445,6 +445,11 @@ namespace Client
         Idle_Stun,
         Hit_Stun,
 
+        Waiting,        // 자기 턴 오기 전 Waiting 상태
+        Waiting_LookAround_0,
+        Waiting_LookAround_1,
+        Waiting_LookAround_2,
+
     };
 
     enum class BattleReactionType
