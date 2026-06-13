@@ -106,8 +106,7 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 
     Apply_PhasePlayRate(phase, action.Get_CurChar().ModelCom);
 
-    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::FixedSpeedToTarget)
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
         action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, true);
     else
         action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, false);
@@ -278,11 +277,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
         return;
 
     case BattleMovementPolicy::RootMotionToTarget:
-        Update_RootMotionToTarget(action, transform, currentPos);
-        return;
-
-    case BattleMovementPolicy::FixedSpeedToTarget:
-        Update_FixedSpeedToTarget(timeDelta, action, transform, currentPos);
+        Update_RootMotionToTarget(action, transform, currentPos, timeDelta);
         return;
 
     case BattleMovementPolicy::MoveToTarget:
@@ -314,7 +309,7 @@ void BattleActionExecutor::Update_BasicMovement(BattleAction& action, const Shar
     //transform->Set_Position(currentPos + worldDelta);
 }
 
-void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
+void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos, float timeDelta)
 {
     //RootMotionToTarget
     Vec3 toGoal = action.GetPhaseGoalPos() - currentPos;
@@ -327,35 +322,49 @@ void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const
         return;
     }
 
+    Vec3 goalDir = toGoal;
+    goalDir.Normalize();
+
     const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
     Vec3 localDelta = rm.position * 0.01f;
     localDelta.y = 0.f;
 
-    if (localDelta.LengthSquared() <= 0.0001f)
+    Vec3 moveDelta = Vec3::Zero;
+
+    if (localDelta.LengthSquared() > 0.0001f)
+    {
+        const Vec3 rotDeg = transform->Get_RotationEuler();
+        const Vec3 rotRad(
+            XMConvertToRadians(rotDeg.x),
+            XMConvertToRadians(rotDeg.y),
+            XMConvertToRadians(rotDeg.z)
+        );
+
+        const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+        Vec3 worldDelta = Vec3::TransformNormal(localDelta, rotMat);
+        worldDelta.y = 0.f;
+
+        if (worldDelta.LengthSquared() > 0.0001f)
+        {
+            const float forwardAmount = worldDelta.Dot(goalDir);
+            if (forwardAmount > 0.f)
+                moveDelta = goalDir * forwardAmount;
+        }
+    }
+    else
+    {
+        const float fallbackSpeed = transform->Get_SpeedPerSec();
+        if (fallbackSpeed > 0.f)
+            moveDelta = goalDir * fallbackSpeed * timeDelta;
+    }
+
+    if (moveDelta.LengthSquared() <= 0.0001f)
         return;
 
-    const Vec3 rotDeg = transform->Get_RotationEuler();
-    const Vec3 rotRad(
-        XMConvertToRadians(rotDeg.x),
-        XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z)
-    );
+    //const float forwardAmount = worldDelta.Dot(goalDir);
+    //if (forwardAmount <= 0.f)
+    //    return;
 
-    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
-    Vec3 worldDelta = Vec3::TransformNormal(localDelta, rotMat);
-    worldDelta.y = 0.f;
-
-    if (worldDelta.LengthSquared() <= 0.0001f)
-        return;
-
-    Vec3 goalDir = toGoal;
-    goalDir.Normalize();
-
-    const float forwardAmount = worldDelta.Dot(goalDir);
-    if (forwardAmount <= 0.f)
-        return;
-
-    const Vec3 moveDelta = goalDir * forwardAmount;
     if (moveDelta.Length() >= remain)
     {
         FinishCurrentPhaseAtGoal(action);
@@ -363,41 +372,6 @@ void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const
     }
 
     transform->Set_Position(currentPos + moveDelta);
-}
-
-void BattleActionExecutor::Update_FixedSpeedToTarget(float timeDelta, BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
-{
-    const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(action.Get_CurChar().actor);
-    if (monster == nullptr)
-        return;
-
-    const float speed = monster->Get_BattleRunLoopMoveSpeed();
-    if (speed <= 0.f)
-        return;
-
-    Vec3 toGoal = action.GetPhaseGoalPos() - currentPos;
-    toGoal.y = 0.f;
-
-    const float remain = toGoal.Length();
-    if (remain <= 0.05f)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
-
-    toGoal.Normalize();
-
-    const float moveAmount = speed * timeDelta;
-    if (moveAmount <= 0.f)
-        return;
-
-    if (moveAmount >= remain)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
-
-    transform->Set_Position(currentPos + toGoal * moveAmount);
 }
 
 void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)

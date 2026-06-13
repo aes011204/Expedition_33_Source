@@ -243,6 +243,7 @@ void Animation_View::Pre_Render()
     {
         const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
         GAME->Backup_RenderGroup();
+        Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
@@ -392,6 +393,7 @@ void Animation_View::Render()
 
     if (!isOpen)
     {
+        Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
@@ -414,6 +416,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
@@ -447,6 +450,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::LiveModel;
@@ -494,6 +498,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
@@ -543,6 +548,7 @@ void Animation_View::Rebuild_PreviewClone()
 
 void Animation_View::Reset_PreviewClone()
 {
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
     _previewRootObject.reset();
     _previewModelCom.reset();
@@ -2760,6 +2766,133 @@ void Animation_View::Draw_TrailAnchorPreview() const
         DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Cyan));
 
     _previewGridBatch->End();
+}
+
+void Animation_View::Update_PreviewAnimSpeedStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewAnimSpeedStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewAnimSpeedStates();
+        return;
+    }
+
+    const float currentTimeSec = _previewModelCom->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom->Get_Owner().get();
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = timeDelta;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_AnimSpeed")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewAnimSpeedStateRuntimes.begin(),
+            _previewAnimSpeedStateRuntimes.end(),
+            [&](const PreviewAnimSpeedStateRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewAnimSpeedStateRuntimes.end())
+        {
+            PreviewAnimSpeedStateRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewAnimSpeedStateRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext); // preview sampling 전에 배속을 먼저 세팅한다.
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewAnimSpeedStateRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewAnimSpeedStateRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewAnimSpeedStateRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            _previewAnimSpeedStateRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewAnimSpeedStateRuntimes.erase(_previewAnimSpeedStateRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewAnimSpeedStates()
+{
+    if (_previewAnimSpeedStateRuntimes.empty())
+        return;
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom ? _previewModelCom->Get_Owner().get() : nullptr;
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.isPreview = true;
+
+    for (PreviewAnimSpeedStateRuntime& runtime : _previewAnimSpeedStateRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewAnimSpeedStateRuntimes.clear();
+
+    if (_previewModelCom)
+        _previewModelCom->Set_FrameSpeed(1.f); // preview clone이 남아 있을 때 배속 잔류를 정리한다.
 }
 
 void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta)

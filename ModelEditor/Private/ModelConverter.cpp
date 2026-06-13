@@ -1106,11 +1106,20 @@ namespace ModelEditor
                     vector<KEYFRAME> reverseKeys = _keyframes[i][j];
                     float duration = static_cast<float>(_animHeaders[i].duration);
 
-                    ranges::reverse(reverseKeys);
-
-                    for (auto& key : reverseKeys)
+                    if (reverseKeys.size() == 1)
                     {
-                        key.trackPosition = duration - key.trackPosition;
+                        reverseKeys[0].trackPosition = 0.f;
+                    }
+                    else
+                    {
+                        ranges::reverse(reverseKeys);
+
+                        for (auto& key : reverseKeys)
+                        {
+                            key.trackPosition = duration - key.trackPosition;
+                        }
+
+                        ranges::sort(reverseKeys, {}, &KEYFRAME::trackPosition);
                     }
 
                     out.write(BYTE(reverseKeys.data()), _channelHeaders[i][j].numKeyframes * sizeof(KEYFRAME));

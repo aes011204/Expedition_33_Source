@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Battle_Enum.h"
 
 NS_BEGIN(Client)
 
@@ -18,7 +19,7 @@ struct BattleMonsterStatSnapshot
     uint32 shieldPointsAtSpawn = 0;
     uint32 exp = 0;
     uint32 chroma = 0;
-    bool isBoss = false;
+    EEnemyClass enemyClass = EEnemyClass::Normal;
 
     wstring battleAnnounceName = L"";
 };
