@@ -2055,6 +2055,8 @@ void BattleController::Complete_BattleField()
         return;
     }
 
+    _reactionController.Clear_RuntimeState();
+
     _isBattleActive = true;
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
@@ -2378,7 +2380,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
                 BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Turn_Start 매핑이 없으면 Base Idle
         }
 
-        EvtBattlePresentation event;
+        EvtBattlePresentation event {};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         GAME->Get_EventBus().Publish(event);
@@ -2447,7 +2449,7 @@ void BattleController::PlayerStartAnim()
             continue;
 
         it.ModelCom->Set_RootMotionEnabled(false);
-        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), 0.3f, false);
+        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), false);
     }
 
     if (_firstAnimTargetCount == 0)

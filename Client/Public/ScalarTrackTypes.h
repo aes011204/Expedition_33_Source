@@ -6,7 +6,15 @@ enum class InterpolationMode
     Linear,
     EaseInOut,
     EaseIn,
-    EaseOut
+    EaseOut,
+    EaseInStrong,
+    EaseOutStrong,
+    EaseInOutStrong,
+    EaseInCubic,
+    EaseOutCubic,
+    EaseInExpo,
+    EaseOutExpo,
+    EaseOutBack
 };
 
 struct CameraKeyframe

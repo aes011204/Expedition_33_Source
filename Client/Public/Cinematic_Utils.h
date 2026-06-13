@@ -149,6 +149,19 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
 
     case InterpolationMode::EaseOut:
         return Evaluate_EaseOutPose(outLeft, outRight,t);
+
+    default:
+    {
+        // Reuse the same scalar easing table so battle clips and cinematic camera keys stay predictable.
+        const float easedT = Evaluate_BattleCameraClipInterpolation(outLeft->interpolation, t);
+        CAMERAPOSE easedPose{};
+        easedPose.position = Vec3::Lerp(outLeft->camPose.position, outRight->camPose.position, easedT);
+        easedPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation, easedT);
+        easedPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, easedT);
+        easedPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, easedT);
+        easedPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, easedT);
+        return easedPose;
+    }
     }
 
     return camPose;

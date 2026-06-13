@@ -15,6 +15,8 @@
 #include "Monster_WorldBase.h"
 #include "PartObject.h"
 #include "RenderTarget.h"
+#include "SkyBoxFlow.h"
+#include "SkyCloudCard.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
 #include "magic_enum/magic_enum.hpp"
@@ -41,6 +43,7 @@ constexpr float kPresetInputWidth = 150.f;
 constexpr wchar_t kBattleCameraPresetFolder[] = L"../../../Client/Bin/Resources/Data/json/CameraPreset";
 constexpr int kBattleClipDebugFallbackTrackIndex = 7;
 constexpr int kBattleClipTimelineTrackCount = 19;
+const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
 const std::array<Vec3, 3> kDefaultHeroSlotOffsets =
 {
     Vec3(-2.5f, 0.f, 0.f),
@@ -236,6 +239,40 @@ BattleCameraPreset Make_FallbackBattleCameraPreset()
     preset.lookHeight = 1.1f;
     preset.pivotHeight = 1.f;
     return preset;
+}
+
+void Apply_PreviewProceduralDrift(
+    const BattleCameraDriftProfile& drift,
+    float timeSec,
+    Client::BattleTurnCameraEvaluatedPose& pose)
+{
+    if (!drift.enabled)
+        return;
+
+    Vec3 forward = pose.lookTarget - pose.cameraPos;
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
+
+    forward.Normalize();
+
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.0001f)
+        return;
+
+    right.Normalize();
+
+    Vec3 up = forward.Cross(right);
+    up.Normalize();
+
+    const float x = sinf(timeSec * drift.lateralFrequency) * drift.lateralAmplitude;
+    const float y = sinf(timeSec * drift.verticalFrequency + 1.37f) * drift.verticalAmplitude;
+    const float z = sinf(timeSec * drift.depthFrequency + 2.11f) * drift.depthAmplitude;
+    const float roll = sinf(timeSec * drift.rollFrequency + 0.73f) * drift.rollAmplitude;
+
+    const Vec3 driftOffset = right * x + up * y + forward * z;
+    pose.cameraPos += driftOffset;
+    pose.lookTarget += driftOffset * 0.6f;
+    pose.rollOffset += roll;
 }
 
 template <typename TEnum>
@@ -467,6 +504,7 @@ void BattleCameraPreview_View::Pre_Render()
         return;
 
     Ensure_PreviewCamera();
+    Ensure_PreviewSkyBackdrop();
     Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
 
     if (_previewRenderTarget == nullptr || _previewCamera == nullptr)
@@ -517,6 +555,26 @@ void BattleCameraPreview_View::Pre_Render()
     GAME->UpdateFrustum(previewView, previewProj);
 
     const float dt = ImGui::GetIO().DeltaTime;
+    if (_previewCamera != nullptr)
+    {
+        Shared<TransformCom> previewCameraTransform = _previewCamera->Get_Transform();
+        if (previewCameraTransform != nullptr)
+        {
+            const Vec3 previewCameraPos = previewCameraTransform->Get_WorldPosition();
+            for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+            {
+                if (skyCloudCard == nullptr)
+                    continue;
+
+                Shared<TransformCom> skyCloudTransform = skyCloudCard->Get_Transform();
+                if (skyCloudTransform == nullptr)
+                    continue;
+
+                skyCloudTransform->Set_WorldPosition(previewCameraPos + kPreviewSkyCloudLocalOffset);
+            }
+        }
+    }
+
     if (_previewHeroObject != nullptr)
     {
         if (!_previewObjectsBegunPlay)
@@ -535,6 +593,29 @@ void BattleCameraPreview_View::Pre_Render()
         _previewEnemyObject->Update(dt);
     }
 
+    if (_previewSkyBox != nullptr)
+    {
+        if (!_previewObjectsBegunPlay)
+            _previewSkyBox->Try_BeginPlay();
+
+        _previewSkyBox->Set_Visible(true);
+        _previewSkyBox->Priority_Update(dt);
+        _previewSkyBox->Update(dt);
+    }
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard == nullptr)
+            continue;
+
+        if (!_previewObjectsBegunPlay)
+            skyCloudCard->Try_BeginPlay();
+
+        skyCloudCard->Set_Visible(true);
+        skyCloudCard->Priority_Update(dt);
+        skyCloudCard->Update(dt);
+    }
+
     _previewObjectsBegunPlay = true;
 
     GAME->Backup_RenderGroup();
@@ -545,12 +626,23 @@ void BattleCameraPreview_View::Pre_Render()
     if (_previewEnemyObject != nullptr)
         _previewEnemyObject->Late_Update(dt);
 
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Late_Update(dt);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard != nullptr)
+            skyCloudCard->Late_Update(dt);
+    }
+
     Position_PreviewObjects();
     if (_previewEnabled)
         Update_PreviewAttackActorMotion(_previewContext.timeSec);
 
     GAME->Draw_RendererOnly();
     GAME->Restore_RenderGroup();
+    Ensure_PreviewGridResources();
+    Draw_PreviewGrid();
     EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
 
     GAME->Bind_BackBuffer();
@@ -693,7 +785,7 @@ void BattleCameraPreview_View::Ensure_PreviewCamera()
     desc.at = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
     desc.fovy = XM_PIDIV4;
     desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
+    desc.farPlane = 500.f;
     desc.yaw = 0.f;
     desc.pitch = 0.f;
     desc.mouseSensor = 0.15f;
@@ -708,6 +800,189 @@ void BattleCameraPreview_View::Ensure_PreviewCamera()
 
     _previewCamera->Apply_EditorDesc(desc);
     Apply_DefaultPreviewCameraTransform(_previewCamera);
+}
+
+void BattleCameraPreview_View::Ensure_PreviewGridResources()
+{
+    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState && _previewGridBlendState)
+        return;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC kGridInputElements[] =
+    {
+        { "SV_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR",       0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    _previewGridBatch = make_shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>(GAME->Get_Context().Get());
+    _previewGridEffect = make_shared<DirectX::BasicEffect>(GAME->Get_Device().Get());
+
+    if (_previewGridBatch == nullptr || _previewGridEffect == nullptr)
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        return;
+    }
+
+    _previewGridEffect->SetVertexColorEnabled(true);
+
+    const void* shaderByteCode = nullptr;
+    size_t shaderByteCodeLength = 0;
+    _previewGridEffect->GetVertexShaderBytecode(&shaderByteCode, &shaderByteCodeLength);
+
+    if (FAILED(GAME->Get_Device()->CreateInputLayout(
+        kGridInputElements,
+        static_cast<UINT>(_countof(kGridInputElements)),
+        shaderByteCode,
+        shaderByteCodeLength,
+        _previewGridInputLayout.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC depthDesc{};
+    depthDesc.DepthEnable = TRUE;
+    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+    depthDesc.StencilEnable = FALSE;
+
+    if (FAILED(GAME->Get_Device()->CreateDepthStencilState(&depthDesc, _previewGridDepthState.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        _previewGridDepthState.Reset();
+        _previewGridBlendState.Reset();
+        return;
+    }
+
+    D3D11_BLEND_DESC blendDesc{};
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+    if (FAILED(GAME->Get_Device()->CreateBlendState(&blendDesc, _previewGridBlendState.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        _previewGridDepthState.Reset();
+        _previewGridBlendState.Reset();
+    }
+}
+
+void BattleCameraPreview_View::Ensure_PreviewSkyBackdrop()
+{
+    if (_previewSkyBox != nullptr)
+        return;
+
+    Shared<Client::SkyBoxFlow> skyBoxPrototype = Client::SkyBoxFlow::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyBoxPrototype == nullptr)
+        return;
+
+    Client::SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    _previewSkyBox = dynamic_pointer_cast<Client::SkyBoxFlow>(skyBoxPrototype->Clone(&skyBoxDesc));
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Set_Visible(true);
+
+    _previewSkyCloudCards.clear();
+
+    Shared<Client::SkyCloudCard> skyCloudPrototype = Client::SkyCloudCard::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyCloudPrototype == nullptr)
+        return;
+
+    Client::SkyCloudCard::SKYCLOUDCARD_DESC cloudDesc{};
+    cloudDesc.modelTag = TEXT("Model_Cloud_Mesh");
+    cloudDesc.shaderTag = TEXT("Shader_SkyCloudCard");
+    cloudDesc.cloudTextureTag = TEXT("Texture_T_Cloud_13_H");
+    cloudDesc.position = kPreviewSkyCloudLocalOffset;
+    cloudDesc.rotation = Vec3(-4.763f, -119.267f, -349.155f);
+    cloudDesc.scale = Vec3(1.5f, 0.9f, 0.9f);
+
+    Shared<Client::SkyCloudCard> skyCloudCard =
+        dynamic_pointer_cast<Client::SkyCloudCard>(skyCloudPrototype->Clone(&cloudDesc));
+    if (skyCloudCard != nullptr)
+    {
+        skyCloudCard->Set_Visible(true);
+        _previewSkyCloudCards.push_back(skyCloudCard);
+    }
+}
+
+void BattleCameraPreview_View::Draw_PreviewGrid() const
+{
+    if (!_showPreviewGrid)
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewGridDepthState || !_previewGridBlendState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
+    context->OMSetBlendState(_previewGridBlendState.Get(), nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    _previewGridBatch->Begin();
+
+    const Vec3 gridCenter = Vec3(_previewFormation.origin.x, _previewFormation.origin.y, _previewFormation.origin.z + 2.5f);
+    constexpr int gridDivs = 48;
+    constexpr float gridHalfExtent = 24.f;
+    const float step = (gridHalfExtent * 2.f) / static_cast<float>(gridDivs);
+    const float y = gridCenter.y + 0.02f;
+
+    const XMVECTOR minorColor = XMVectorSet(0.70f, 0.88f, 0.96f, 0.12f);
+    const XMVECTOR majorColor = XMVectorSet(0.82f, 0.94f, 0.98f, 0.24f);
+    const XMVECTOR xAxisColor = XMVectorSet(0.98f, 0.72f, 0.80f, 0.45f);
+    const XMVECTOR zAxisColor = XMVectorSet(0.62f, 0.94f, 1.f, 0.5f);
+
+    for (int i = 0; i <= gridDivs; ++i)
+    {
+        const float offset = -gridHalfExtent + step * static_cast<float>(i);
+        const bool isCenter = fabsf(offset) < 0.0001f;
+        const bool isMajor = (i % 4) == 0;
+
+        const XMVECTOR colorX = isCenter ? zAxisColor : (isMajor ? majorColor : minorColor);
+        const XMVECTOR colorZ = isCenter ? xAxisColor : (isMajor ? majorColor : minorColor);
+
+        DirectX::VertexPositionColor lineXStart(
+            Vec3(gridCenter.x - gridHalfExtent, y, gridCenter.z + offset),
+            colorX);
+        DirectX::VertexPositionColor lineXEnd(
+            Vec3(gridCenter.x + gridHalfExtent, y, gridCenter.z + offset),
+            colorX);
+        _previewGridBatch->DrawLine(lineXStart, lineXEnd);
+
+        DirectX::VertexPositionColor lineZStart(
+            Vec3(gridCenter.x + offset, y, gridCenter.z - gridHalfExtent),
+            colorZ);
+        DirectX::VertexPositionColor lineZEnd(
+            Vec3(gridCenter.x + offset, y, gridCenter.z + gridHalfExtent),
+            colorZ);
+        _previewGridBatch->DrawLine(lineZStart, lineZEnd);
+    }
+
+    _previewGridBatch->End();
 }
 
 void BattleCameraPreview_View::Reset_DefaultFormation()
@@ -1450,6 +1725,9 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         Load_BattlePresetForMode(editorMode);
     }
 
+    if (!_hasLoadedBattleDrift || _loadedBattleDriftMode != editorMode)
+        Load_BattleDriftForMode(editorMode);
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::TextDisabled("Battle Preset Editor");
@@ -1492,6 +1770,25 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         _battlePresetDirty = false;
     }
 
+    ImGui::SameLine();
+    if (ImGui::Button("Load Drift"))
+    {
+        Load_BattleDriftForMode(editorMode);
+        if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift);
+        _battleDriftDirty = false;
+        _previewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Drift"))
+    {
+        Client::CameraPresetIO::SaveBattleDriftToFile(editorMode, _editingBattleDrift);
+        if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift);
+        _battleDriftDirty = false;
+    }
+
     bool changed = false;
     auto dragFloat = [&changed](const char* label, float& value, float speed, float minValue, float maxValue, const char* format = "%.3f")
     {
@@ -1531,12 +1828,32 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     if (ImGui::Checkbox("Snap On Enter", &_editingBattlePreset.snapOnEnter))
         changed = true;
 
+    ImGui::Separator();
+    if (ImGui::Checkbox("Enable Procedural Drift", &_editingBattleDrift.enabled))
+        changed = true;
+
+    if (_editingBattleDrift.enabled)
+    {
+        dragFloat("Drift Lateral Amp", _editingBattleDrift.lateralAmplitude, 0.01f, 0.f, 20.f);
+        dragFloat("Drift Vertical Amp", _editingBattleDrift.verticalAmplitude, 0.01f, 0.f, 20.f);
+        dragFloat("Drift Depth Amp", _editingBattleDrift.depthAmplitude, 0.01f, 0.f, 20.f);
+        dragFloat("Drift Roll Amp", _editingBattleDrift.rollAmplitude, 0.001f, 0.f, XM_PI);
+        dragFloat("Drift Lateral Freq", _editingBattleDrift.lateralFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Vertical Freq", _editingBattleDrift.verticalFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Depth Freq", _editingBattleDrift.depthFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Roll Freq", _editingBattleDrift.rollFrequency, 0.01f, 0.f, 10.f);
+    }
+
     if (changed)
     {
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+        {
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
+            battleTurnCamera->Set_DriftProfile(editorMode, _editingBattleDrift);
+        }
 
         _battlePresetDirty = true;
+        _battleDriftDirty = true;
         _previewDirty = true;
     }
 }
@@ -2654,6 +2971,17 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         }
     }
 
+    Client::BattleTurnCameraEvaluatedPose driftPose{};
+    driftPose.cameraPos = desiredPos;
+    driftPose.lookTarget = lookTarget;
+    driftPose.fovY = evaluatedFovY;
+    driftPose.rollOffset = evaluatedRollOffset;
+    Apply_PreviewProceduralDrift(_editingBattleDrift, previewTimeSec, driftPose);
+    desiredPos = driftPose.cameraPos;
+    lookTarget = driftPose.lookTarget;
+    evaluatedFovY = driftPose.fovY;
+    evaluatedRollOffset = driftPose.rollOffset;
+
     _previewCamera->Set_FovY(evaluatedFovY);
     if (Shared<TransformCom> transform = _previewCamera->Get_Transform())
     {
@@ -2828,6 +3156,20 @@ void BattleCameraPreview_View::Load_BattlePresetForCurrentMode(bool loadBase)
     Load_BattlePresetForMode(_previewContext.mode, loadBase);
 }
 
+void BattleCameraPreview_View::Load_BattleDriftForMode(BattleCameraMode mode)
+{
+    _editingBattleDrift = BattleCameraDriftProfile{};
+    Client::CameraPresetIO::LoadBattleDriftFromFile(mode, _editingBattleDrift);
+    _loadedBattleDriftMode = mode;
+    _hasLoadedBattleDrift = true;
+    _battleDriftDirty = false;
+}
+
+void BattleCameraPreview_View::Load_BattleDriftForCurrentMode()
+{
+    Load_BattleDriftForMode(_previewContext.mode);
+}
+
 void BattleCameraPreview_View::Load_BattleClipForMode(BattleCameraMode mode, bool loadBase, bool resetTimeline)
 {
     const float preservedTimeSec = _previewContext.timeSec;
@@ -2911,11 +3253,13 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     Apply_AuthoringFileContext(parsed->mode, parsed->kind == BattleAuthoringFileKind::Preset, parsed->skillId);
     Try_AutoSelectPreviewActorAndAnimation();
     Load_BattlePresetForCurrentMode();
+    Load_BattleDriftForCurrentMode();
     Load_BattleClipForCurrentMode();
 
     if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
     {
         battleTurnCamera->Set_Preset(_previewContext.mode, _editingBattlePreset);
+        battleTurnCamera->Set_DriftProfile(_previewContext.mode, _editingBattleDrift);
         battleTurnCamera->Set_Clip(_previewContext.mode, _editingBattleClip, Get_CurrentBattleClipAuthoringOverrideId());
     }
 
@@ -3856,7 +4200,7 @@ void BattleCameraPreview_View::Apply_PreviewSkillContext(const string& skillId)
 
 bool BattleCameraPreview_View::Has_UnsavedBattleAuthoringChanges() const
 {
-    return _battlePresetDirty || _battleClipDirty;
+    return _battlePresetDirty || _battleDriftDirty || _battleClipDirty;
 }
 
 void BattleCameraPreview_View::Request_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex)
