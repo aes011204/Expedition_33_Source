@@ -168,23 +168,24 @@ void ResolveTrailBasis(float3 center, float3 tangent, out float3 rightDir, out f
     ResolveCameraPlaneBasis(rightDir, upDir);
 
     const int screenAlignment = (int)g_SourceHistorySpriteTrailParams.x;
-    if (screenAlignment == 4)
+    const float3 pathAxis = NormalizeOrFallback(tangent, float3(0.f, 1.f, 0.f));
+    if (screenAlignment == 0 || screenAlignment == 1)
     {
-        const float3 pathAxis = NormalizeOrFallback(tangent, float3(0.f, 1.f, 0.f));
+        if (!TryResolveTextureAxisBasis(pathAxis, center, rightDir, upDir))
+            ResolveCameraPlaneBasis(rightDir, upDir);
+    }
+    else if (screenAlignment == 4)
+    {
         if (g_DirectionalAlignmentMode == 1)
         {
             if (!TryResolveTextureAxisBasis(pathAxis, center, rightDir, upDir))
                 ResolveCameraPlaneBasis(rightDir, upDir);
         }
         else
-        {
             ResolveLookAlignedBasis(pathAxis, rightDir, upDir);
-        }
     }
     else if (screenAlignment != 1 && screenAlignment != 2)
-    {
         ResolveLookAlignedBasis(ResolveFacingLookDirection(center), rightDir, upDir);
-    }
 }
 
 void ApplyRollOffset(inout float3 rightDir, inout float3 upDir, float rotationRadians)
