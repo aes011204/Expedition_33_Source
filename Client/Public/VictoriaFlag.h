@@ -17,15 +17,12 @@ class VictoriaFlag : public GameObject
 public:
     struct VICTORIAFLAG_DESC final : public GameObject::GAMEOBJECT_DESC
     {
-        wstring clothModelTag = TEXT("Model_Flag_VAT");
+        wstring clothModelTag = TEXT("Model_Flag_Cloth");
         wstring postModelTag = TEXT("Model_Flag_Cylinder");
 
         wstring flagShaderTag = TEXT("Shader_VictoriaFlag");
         wstring postShaderTag = TEXT("Shader_VtxMesh");
 
-        wstring vatPositionTextureTag = TEXT("Texture_VictoriaFlag_VAT_Position");
-        wstring vatRotationTextureTag = TEXT("Texture_VictoriaFlag_VAT_Rotation");
-        wstring vatColorTextureTag = TEXT("Texture_VictoriaFlag_VAT_Color");
         wstring numberTextureTag = TEXT("Texture_VictoriaFlag_Numbers");
         wstring numberAtlasTextureTag = TEXT("Texture_VictoriaFlag_NumbersAtlas");
     };
@@ -55,9 +52,6 @@ private:
     Shared<ModelCom> _postModel = nullptr;
     Shared<ShaderCom> _flagShader = nullptr;
     Shared<ShaderCom> _postShader = nullptr;
-    Shared<Texture> _vatPositionTexture = nullptr;
-    Shared<Texture> _vatRotationTexture = nullptr;
-    Shared<Texture> _vatColorTexture = nullptr;
     Shared<Texture> _numberTexture = nullptr;
     Shared<Texture> _numberAtlasTexture = nullptr;
 
@@ -73,10 +67,6 @@ private:
     float _playbackSpeed = 1.f;
     float _flagMotionScale = 1.f;
     float _flagFixedDirection = -1.f;
-    float _vatFps = 60.f;
-    float _vatFrameCount = 65.f;
-    float _vatRowsPerFrame = 5.f;
-    float _vatDebugFrame = -1.f;
 
     float _brightness = 1.f;
     float _flagNumber = 158.f;

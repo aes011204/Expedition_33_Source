@@ -21,10 +21,6 @@ IMPLEMENT_REFLECTION(VictoriaFlag)
     PROPERTY_VEC3("Pole Local Scale", _postLocalScale, 0.01f);
 
     PROPERTY_FLOAT("Playback Speed", _playbackSpeed, 0.f, 5.f, 0.01f);
-    PROPERTY_FLOAT("VAT FPS", _vatFps, 1.f, 120.f, 0.1f);
-    PROPERTY_FLOAT("VAT Frame Count", _vatFrameCount, 1.f, 256.f, 1.f);
-    PROPERTY_FLOAT("VAT Debug Frame", _vatDebugFrame, -1.f, 255.f, 1.f);
-    PROPERTY_FLOAT("VAT Rows Per Frame", _vatRowsPerFrame, 1.f, 32.f, 1.f);
     PROPERTY_FLOAT("Flag Motion Scale", _flagMotionScale, 0.f, 5.f, 0.01f);
     PROPERTY_FLOAT("Flag Fixed Direction", _flagFixedDirection, -1.f, 1.f, 1.f);
     PROPERTY_FLOAT("Brightness", _brightness, 0.f, 5.f, 0.01f);
@@ -165,9 +161,6 @@ HRESULT VictoriaFlag::Ready_Components(const VICTORIAFLAG_DESC& desc)
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.flagShaderTag, _flagShader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.postShaderTag, _postShader), E_FAIL);
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.vatPositionTextureTag, _vatPositionTexture), E_FAIL);
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.vatRotationTextureTag, _vatRotationTexture), E_FAIL);
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.vatColorTextureTag, _vatColorTexture), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.numberTextureTag, _numberTexture), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.numberAtlasTextureTag, _numberAtlasTexture), E_FAIL);
 
@@ -179,15 +172,12 @@ HRESULT VictoriaFlag::Bind_FlagShaderResources()
     CHECK_FAILED(_flagShader->Bind_ObjectCB(Build_LocalMatrix(_clothLocalPosition, _clothLocalRotation, _clothLocalScale) * _transformCom->Get_WorldMatrix()), E_FAIL);
     CHECK_FAILED(GAME->Bind_CameraCB(_flagShader), E_FAIL);
     CHECK_FAILED(GAME->Bind_ShadowCB(_flagShader), E_FAIL);
-    CHECK_FAILED(_vatPositionTexture->Bind_ShaderResourceView(_flagShader.get(), "g_VATPositionTexture", 0), E_FAIL);
-    CHECK_FAILED(_vatRotationTexture->Bind_ShaderResourceView(_flagShader.get(), "g_VATRotationTexture", 0), E_FAIL);
-    CHECK_FAILED(_vatColorTexture->Bind_ShaderResourceView(_flagShader.get(), "g_VATColorTexture", 0), E_FAIL);
     CHECK_FAILED(_numberTexture->Bind_ShaderResourceViews(_flagShader.get(), "g_NumberTextures"), E_FAIL);
     CHECK_FAILED(_numberAtlasTexture->Bind_ShaderResourceView(_flagShader.get(), "g_NumberAtlasTexture", 0), E_FAIL);
 
     DrawFeatureCB flagCB{};
-    flagCB.param0 = Vec4(_flagElapsed, _playbackSpeed, _vatFps, _vatDebugFrame);
-    flagCB.param1 = Vec4(_vatFrameCount, _vatRowsPerFrame, _flagMotionScale, _brightness);
+    flagCB.param0 = Vec4(_flagElapsed, _playbackSpeed, 0.f, 0.f);
+    flagCB.param1 = Vec4(0.f, 0.f, _flagMotionScale, _brightness);
     flagCB.param2 = Vec4(_numberCenter.x, _numberCenter.y, _numberScale, _flagFixedDirection);
     flagCB.param3 = Vec4(_numberSpacing, 0.f, 0.f, _flagNumber);
 

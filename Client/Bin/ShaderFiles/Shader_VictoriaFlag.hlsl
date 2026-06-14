@@ -9,14 +9,10 @@
 
 Texture2D g_NumberTextures[10];
 Texture2D g_NumberAtlasTexture;
-Texture2D g_VATPositionTexture;
-Texture2D g_VATRotationTexture;
-Texture2D g_VATColorTexture;
 
 static const float kVictoriaFlagFreeMaskCurve = 1.35f;
 static const float3 kVictoriaFlagGoldColor = float3(0.74f, 0.50f, 0.11f);
 static const float3 kVictoriaFlagGoldHighlightColor = float3(1.0f, 0.78f, 0.24f);
-static const float kVictoriaFlagVATTextureHeight = 330.f;
 
 struct VS_IN
 {
@@ -66,41 +62,7 @@ float ComputeVictoriaFlagUpperCornerUnfoldMask(float2 surfaceUV)
 
 float2 ComputeVictoriaFlagSurfaceUV(float2 meshUV)
 {
-    return saturate(float2(1.f - meshUV.x, meshUV.y));
-}
-
-float2 ComputeVictoriaFlagVATFrameUV(float2 vatUV, float frameIndex)
-{
-    const float rowsPerFrame = max(g_FeatureParam1.y, 1.f);
-    const float frameYOffset = frameIndex * rowsPerFrame / kVictoriaFlagVATTextureHeight;
-    return float2(vatUV.x, 1.f - vatUV.y - frameYOffset);
-}
-
-float3 RemapVictoriaFlagVATPosition(float3 vatPosition)
-{
-    return float3(vatPosition.x, vatPosition.z, vatPosition.y);
-}
-
-float3 SampleVictoriaFlagVATPosition(float3 fallbackLocalPos, float2 vatUV)
-{
-    return fallbackLocalPos;
-
-    if (vatUV.y > 0.99f)
-        return fallbackLocalPos;
-
-    const float frameCount = max(g_FeatureParam1.x, 1.f);
-    const float fps = max(g_FeatureParam0.z, 1.f);
-    const float debugFrame = g_FeatureParam0.w;
-    const float frameTime = g_FeatureParam0.x * g_FeatureParam0.y * fps;
-    const float frame = debugFrame >= 0.f ? clamp(debugFrame, 0.f, frameCount - 1.f) : frac(frameTime / frameCount) * frameCount;
-    const float frameA = floor(frame);
-    const float frameB = fmod(frameA + 1.f, frameCount);
-    const float frameAlpha = debugFrame >= 0.f ? 0.f : frac(frame);
-
-    const float3 basePos = RemapVictoriaFlagVATPosition(g_VATPositionTexture.SampleLevel(PointClampSampler, ComputeVictoriaFlagVATFrameUV(vatUV, 0.f), 0.f).xyz);
-    const float3 posA = RemapVictoriaFlagVATPosition(g_VATPositionTexture.SampleLevel(PointClampSampler, ComputeVictoriaFlagVATFrameUV(vatUV, frameA), 0.f).xyz);
-    const float3 posB = RemapVictoriaFlagVATPosition(g_VATPositionTexture.SampleLevel(PointClampSampler, ComputeVictoriaFlagVATFrameUV(vatUV, frameB), 0.f).xyz);
-    return fallbackLocalPos + (lerp(posA, posB, frameAlpha) - basePos);
+    return saturate(float2(meshUV.y, 1.f - meshUV.x / 0.605f));
 }
 
 float2 ComputeVictoriaFlagNumberUV(float2 surfaceUV)
@@ -282,14 +244,13 @@ VS_OUT VS_Default(VS_IN In)
     VS_OUT Out;
 
     const float2 surfaceUV = ComputeVictoriaFlagSurfaceUV(In.Texcoord);
-    const float3 flagPosition = lerp(In.Position, SampleVictoriaFlagVATPosition(In.Position, In.Tangent.xy), saturate(g_FeatureParam1.z));
+    const float3 flagPosition = ApplyVictoriaFlagDeform(In.Position, surfaceUV);
 
     const float4x4 matWV = mul(g_WorldMatrix, g_ViewMatrix);
     const float4x4 matWVP = mul(matWV, g_ProjMatrix);
-    const float3 smoothFlagNormal = normalize(mul(float4(0.f, 0.f, 1.f, 0.f), g_WorldMatrix)).xyz;
 
     Out.Position = mul(float4(flagPosition, 1.f), matWVP);
-    Out.Normal = float4(smoothFlagNormal, 0.f);
+    Out.Normal = float4(normalize(mul(float4(In.Normal, 0.f), g_WorldMatrix)).xyz, 0.f);
     Out.Tangent = normalize(mul(float4(0.f, 1.f, 0.f, 0.f), g_WorldMatrix)).xyz;
     Out.Binormal = normalize(mul(float4(0.f, 0.f, 1.f, 0.f), g_WorldMatrix)).xyz;
     Out.Texcoord = surfaceUV;
@@ -305,14 +266,13 @@ VS_OUT VS_Shadow(VS_IN In)
     VS_OUT Out;
 
     const float2 surfaceUV = ComputeVictoriaFlagSurfaceUV(In.Texcoord);
-    const float3 flagPosition = lerp(In.Position, SampleVictoriaFlagVATPosition(In.Position, In.Tangent.xy), saturate(g_FeatureParam1.z));
+    const float3 flagPosition = ApplyVictoriaFlagDeform(In.Position, surfaceUV);
 
     const float4x4 matWV = mul(g_WorldMatrix, g_LightViewMatrix);
     const float4x4 matWVP = mul(matWV, g_LightProjMatrix);
-    const float3 smoothFlagNormal = normalize(mul(float4(0.f, 0.f, 1.f, 0.f), g_WorldMatrix)).xyz;
 
     Out.Position = mul(float4(flagPosition, 1.f), matWVP);
-    Out.Normal = float4(smoothFlagNormal, 0.f);
+    Out.Normal = float4(normalize(mul(float4(In.Normal, 0.f), g_WorldMatrix)).xyz, 0.f);
     Out.Tangent = normalize(mul(float4(0.f, 1.f, 0.f, 0.f), g_WorldMatrix)).xyz;
     Out.Binormal = normalize(mul(float4(0.f, 0.f, 1.f, 0.f), g_WorldMatrix)).xyz;
     Out.Texcoord = surfaceUV;
@@ -412,6 +372,8 @@ PS_OUT PS_Opaque(PS_IN In)
 
     const float4 baseColor = ApplyNumberOverlay(In.Texcoord, ApplyVictoriaFlagBorder(In.Texcoord, In.VertexColor));
     float3 worldNormal = normalize(In.Normal.xyz);
+    if (!In.IsFrontFace)
+        worldNormal *= -1.f;
 
     Out.Diffuse = baseColor;
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
