@@ -120,6 +120,7 @@ namespace
             return {};
         }
     }
+}
 
 HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 {
