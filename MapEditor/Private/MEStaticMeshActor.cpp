@@ -27,24 +27,6 @@ HRESULT MEStaticMeshActor::Initialize(void* arg)
 
 void MEStaticMeshActor::Late_Update(float timeDelta)
 {
-    if (_model)
-    {
-        Vec3 localMin{}, localMax{};
-        if (_model->Try_Get_LocalBounds(localMin, localMax))
-        {
-            BoundingBox localBox;
-            BoundingBox::CreateFromPoints(localBox, localMin, localMax);
-
-            BoundingBox worldBox{};
-            localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
-
-            if (!GAME->IsVisible(worldBox))
-            {
-                return;
-            }
-        }
-    }
-
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
