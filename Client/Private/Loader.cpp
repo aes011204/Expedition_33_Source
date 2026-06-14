@@ -55,7 +55,7 @@ auto Loader::Find_LandscapeDesc() const -> const LevelLandscapeDesc*
                 Constants::Map::MF_Zone_Stair_3_HMap,
             },
             5,
-            Constants::Map::LandscapeTextures_Dir,
+            Constants::Map::ResourceRoot_Dir,
             L"Layer_BackGround"
         },
     };
