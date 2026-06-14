@@ -9,6 +9,9 @@
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
+#include "ChainModifier.h"
+#include "MovementCom.h"
+#include "TransformCom.h"
 
 IMPLEMENT_REFLECTION(PW_Gustave)
 {
@@ -56,8 +59,16 @@ void PW_Gustave::BeginPlay()
 
 HRESULT PW_Gustave::Ready_Modifier()
 {
-    if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-    {
+    auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
+    CHECK_NULL(body, E_FAIL);
+
+    return Ready_BodyModifiers(body);
+}
+
+HRESULT PW_Gustave::Ready_BodyModifiers(Body_Player* body)
+{
+    CHECK_NULL(body, E_FAIL);
+
         OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
         aimOffsetDesc.baseModelCom = body->Get_Model().get();
         aimOffsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
@@ -140,9 +151,57 @@ HRESULT PW_Gustave::Ready_Modifier()
             wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
         }
         else return E_FAIL;
-    }
-    else
-        return E_FAIL;
+
+        ChainModifier::ChainModifierDesc scarfDesc{};
+        scarfDesc.modifierTag = L"ClothPhysics_Scarf";
+        scarfDesc.stiffness = 0.012f;
+        scarfDesc.damping = 0.64f;
+        scarfDesc.gravity = Vec3(0.f, -0.1f, 0.f);
+        scarfDesc.movementInertiaScale = 0.04f;
+        scarfDesc.maxMovementOffset = 0.022f;
+        scarfDesc.poseRestoreStrength = 0.12f;
+        scarfDesc.maxBendAngleDegree = 68.f;
+        scarfDesc.collisionRadiusPadding = 2.8f;
+        scarfDesc.enableCollision = false;
+        scarfDesc.solverIterations = 1;
+        scarfDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+        scarfDesc.ownerTransform = Get_Transform().get();
+        scarfDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Gustave_Placeholder_Physics.json";
+        scarfDesc.groups = {
+            { "Noah_V2_cloth2" },
+            { "Noah_V2_cloth1" },
+            { "Noah_V2_cloth3" },
+            { "Noah_V2_cloth4" },
+        };
+
+        if (auto modifier = ChainModifier::Create(&scarfDesc))
+        {
+            body->Get_Model()->Add_AnimModifier(modifier);
+        }
+
+        ChainModifier::ChainModifierDesc armbandDesc{};
+        armbandDesc.modifierTag = L"ClothPhysics_Armband";
+        armbandDesc.stiffness = 0.01f;
+        armbandDesc.damping = 0.78f;
+        armbandDesc.gravity = Vec3(0.f, 0.f, 0.f);
+        armbandDesc.movementInertiaScale = 0.35f;
+        armbandDesc.maxMovementOffset = 0.018f;
+        armbandDesc.poseRestoreStrength = 0.18f;
+        armbandDesc.maxBendAngleDegree = 0.f;
+        armbandDesc.collisionRadiusPadding = 0.f;
+        armbandDesc.enableCollision = false;
+        armbandDesc.solverIterations = 3;
+        armbandDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+        armbandDesc.ownerTransform = Get_Transform().get();
+        armbandDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Gustave_Placeholder_Physics.json";
+        armbandDesc.groups = {
+            { "Armband_Root" },
+        };
+
+        if (auto modifier = ChainModifier::Create(&armbandDesc))
+        {
+            body->Get_Model()->Add_AnimModifier(modifier);
+        }
 
     return S_OK;
 }

@@ -3,318 +3,656 @@
 #include "Bone.h"
 #include "GameObject.h"
 #include "Helper_Math.h"
+#include "ModelPhysicsParser.h"
 #include "TransformCom.h"
-#include "MovementCom.h"
 
 NS_BEGIN(Engine)
 
-HRESULT ChainModifier::Initialize(AnimationModifierDesc* desc)
+HRESULT ChainModifier::Initialize(AnimationModifierDesc *desc)
 {
-    if (FAILED(__super::Initialize(desc)))
-        return E_FAIL;
+	if (FAILED(__super::Initialize(desc)))
+	{
+		return E_FAIL;
+	}
 
-    auto chainDesc = static_cast<ChainModifierDesc*>(desc);
-    if (!chainDesc)
-        return E_FAIL;
+	auto chainDesc = static_cast<ChainModifierDesc *>(desc);
+	if (!chainDesc)
+	{
+		return E_FAIL;
+	}
 
-    _desc = *chainDesc;
-    return S_OK;
+	_desc = *chainDesc;
+
+	if (!_desc.physicsAssetPath.empty())
+	{
+		_colliders = ModelPhysicsParser::LoadCapsulesFromJSON(_desc.physicsAssetPath);
+	}
+
+	return S_OK;
 }
 
-void ChainModifier::BuildChainRecursive(ModelCom* model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain& outChain)
+void ChainModifier::BuildChainRecursive(ModelCom *model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain &outChain, uint32 currentDepth, uint32 maxDepth)
 {
-    BoneChainNode node;
-    node.boneIndex = currentBoneIndex;
-    node.parentNodeIndex = parentNodeIndex;
+	BoneChainNode node;
+	node.boneIndex = currentBoneIndex;
+	node.parentNodeIndex = parentNodeIndex;
+	node.bindLocal = model->Get_BoneLocalMatrix(currentBoneIndex);
 
-    // 부모가 있다면, 부모의 로컬 오프셋 기준 거리를 Length로 설정
-    if (parentNodeIndex != -1)
-    {
-        Matrix localMat = model->Get_BoneLocalMatrix(currentBoneIndex);
-        node.length = localMat.Translation().Length();
-        if (node.length < 0.01f) // 최소 길이 임계값
-            node.length = 0.01f;
-    }
+	if (parentNodeIndex != -1)
+	{
+		Vec3 localTranslation = node.bindLocal.Translation();
+		node.length = localTranslation.Length();
+		if (node.length < 0.01f)
+		{
+			node.length = 0.01f;
+		}
+		else
+		{
+			node.bindLocalDir = localTranslation / node.length;
+		}
+	}
 
-    int32 thisNodeIndex = static_cast<int32>(outChain.nodes.size());
-    outChain.nodes.push_back(node);
+	int32 thisNodeIndex = static_cast<int32>(outChain.nodes.size());
+	outChain.nodes.push_back(node);
 
-    if (parentNodeIndex != -1)
-    {
-        outChain.nodes[parentNodeIndex].childNodeIndices.push_back(thisNodeIndex);
-    }
+	if (parentNodeIndex != -1)
+	{
+		outChain.nodes[parentNodeIndex].childNodeIndices.push_back(thisNodeIndex);
+	}
 
-    // 자식 뼈 검색 (엔진의 모든 뼈를 순회하며 ParentIndex가 현재 뼈인 것을 찾음)
-    uint32 numBones = static_cast<uint32>(model->Get_NumBones());
-    for (uint32 i = 0; i < numBones; ++i)
-    {
-        if (model->Get_BoneParentIndex(i) == currentBoneIndex)
-        {
-            BuildChainRecursive(model, static_cast<int32>(i), thisNodeIndex, outChain);
-        }
-    }
+	if (currentDepth >= maxDepth)
+	{
+		return;
+	}
+
+	const uint32 numBones = static_cast<uint32>(model->Get_NumBones());
+	for (uint32 i = 0; i < numBones; ++i)
+	{
+		if (model->Get_BoneParentIndex(i) == currentBoneIndex)
+		{
+			BuildChainRecursive(model, static_cast<int32>(i), thisNodeIndex, outChain, currentDepth + 1, maxDepth);
+		}
+	}
 }
 
-void ChainModifier::Initialize_Chains(ModelCom* model)
+void ChainModifier::Initialize_Chains(ModelCom *model)
 {
-    _chains.clear();
+	_chains.clear();
 
-    for (const auto& groupDesc : _desc.groups)
-    {
-        int32 rootBoneIndex = model->Get_BoneIndex(groupDesc.rootBoneName);
-        if (rootBoneIndex == -1)
-            continue;
+	for (const auto &groupDesc : _desc.groups)
+	{
+		int32 rootBoneIndex = model->Get_BoneIndex(groupDesc.rootBoneName);
+		if (rootBoneIndex == -1)
+		{
+			continue;
+		}
 
-        BoneChain newChain;
-        newChain.rootBoneName = groupDesc.rootBoneName;
-        newChain.stiffnessMul = groupDesc.stiffnessMul;
-        newChain.dampingMul = groupDesc.dampingMul;
-        newChain.gravityMul = groupDesc.gravityMul;
-        newChain.movementInertiaMul = groupDesc.movementInertiaMul;
-        newChain.poseRestoreMul = groupDesc.poseRestoreMul;
-        newChain.maxBendAngleMul = groupDesc.maxBendAngleMul;
+		BoneChain newChain;
+		newChain.rootBoneName = groupDesc.rootBoneName;
+		newChain.stiffnessMul = groupDesc.stiffnessMul;
+		newChain.dampingMul = groupDesc.dampingMul;
+		newChain.gravityMul = groupDesc.gravityMul;
+		newChain.movementInertiaMul = groupDesc.movementInertiaMul;
+		newChain.poseRestoreMul = groupDesc.poseRestoreMul;
+		newChain.maxBendAngleMul = groupDesc.maxBendAngleMul;
 
-        // DFS로 루트부터 말단 뼈까지 트리 형태로 단일 체인에 담음
-        BuildChainRecursive(model, rootBoneIndex, -1, newChain);
+		int32 realParentBoneIndex = model->Get_BoneParentIndex(rootBoneIndex);
+		if (realParentBoneIndex != -1)
+		{
+			BoneChainNode anchorNode;
+			anchorNode.boneIndex = realParentBoneIndex;
+			anchorNode.parentNodeIndex = -1;
+			anchorNode.isVirtualAnchor = true;
 
-        if (!newChain.nodes.empty())
-        {
-            _chains.push_back(std::move(newChain));
-        }
-    }
+			Matrix localMat = model->Get_BoneLocalMatrix(rootBoneIndex);
+			anchorNode.length = localMat.Translation().Length();
+			if (anchorNode.length < 0.01f)
+			{
+				anchorNode.length = 0.01f;
+			}
 
-    _chainsInitialized = true;
+			newChain.nodes.push_back(anchorNode);
+			BuildChainRecursive(model, rootBoneIndex, 0, newChain, 0, groupDesc.maxDepth);
+		}
+		else
+		{
+			BuildChainRecursive(model, rootBoneIndex, -1, newChain, 0, groupDesc.maxDepth);
+		}
+
+		if (!newChain.nodes.empty())
+		{
+			_chains.push_back(std::move(newChain));
+		}
+	}
+
+	_chainsInitialized = true;
 }
 
-void ChainModifier::ResetPose(ModelCom* model)
+void ChainModifier::ResetPose(ModelCom *model)
 {
-    Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
 
-    Capture_CurrentPose(model, ownerWorld);
+	Capture_CurrentPose(model, ownerWorld);
 
-    for (auto& chain : _chains)
-    {
-        for (auto& node : chain.nodes)
-        {
-            node.prevPosition = node.originalWorld.Translation();
-            node.position = node.prevPosition;
-        }
-    }
+	for (auto &chain : _chains)
+	{
+		for (auto &node : chain.nodes)
+		{
+			node.prevOriginalPosition = node.originalWorld.Translation();
+			node.prevPosition = node.originalWorld.Translation();
+			node.position = node.prevPosition;
+		}
+	}
 }
 
-void ChainModifier::Capture_CurrentPose(ModelCom* model, const Matrix& ownerWorld)
+void ChainModifier::Capture_CurrentPose(ModelCom *model, const Matrix &ownerWorld)
 {
-    for (auto& chain : _chains)
-    {
-        for (auto& node : chain.nodes)
-        {
-            const Matrix* combinedMat = model->Get_BoneMatrixPtr(node.boneIndex);
-            if (combinedMat)
-            {
-                node.originalWorld = (*combinedMat) * ownerWorld;
-            }
-            else
-            {
-                node.originalWorld = ownerWorld;
-            }
-        }
-    }
+	for (auto &chain : _chains)
+	{
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto &node = chain.nodes[i];
+			node.prevOriginalPosition = node.originalWorld.Translation();
+
+			if (_desc.blendMode == ModifierBlendMode::ModifyReplace && !node.isVirtualAnchor)
+			{
+				if (node.parentNodeIndex >= 0)
+				{
+					const Matrix &parentWorld = chain.nodes[node.parentNodeIndex].originalWorld;
+					node.originalWorld = node.bindLocal * parentWorld;
+					continue;
+				}
+
+				node.originalWorld = node.bindLocal * ownerWorld;
+				continue;
+			}
+
+			const Matrix *combinedMat = model->Get_BoneMatrixPtr(node.boneIndex);
+			if (combinedMat)
+			{
+				node.originalWorld = (*combinedMat) * ownerWorld;
+			}
+			else
+			{
+				node.originalWorld = ownerWorld;
+			}
+		}
+	}
 }
 
-void ChainModifier::Solve_Verlet(ModelCom* model, float dt, const Matrix& ownerWorld, const Vec3& ownerVelocity)
+void ChainModifier::Solve_Verlet(ModelCom *model, float dt, const Matrix &ownerWorld, float movementWeight)
 {
-    Vec3 movementInertia = -ownerVelocity * _desc.movementInertiaScale;
-    
-    // Y축 이동 관성 감소 (옷 튀어오름 방지)
-    movementInertia.y *= _desc.inertiaY;
+	const float timeDelta = std::clamp(dt, 0.f, 1.f / 30.f);
+	vector<WorldCapsule> worldCapsules = _desc.enableCollision ? Update_WorldCapsule(model, &ownerWorld) : vector<WorldCapsule>{};
 
-    if (movementInertia.Length() > _desc.maxMovementOffset)
-    {
-        movementInertia.Normalize();
-        movementInertia *= _desc.maxMovementOffset;
-    }
+	for (auto &chain : _chains)
+	{
+		float curDamping = _desc.damping * chain.dampingMul;
+		Vec3 curGravity = _desc.gravity * chain.gravityMul;
+		const auto isPinnedNode = [this, &chain](const BoneChainNode &node)
+			{
+				if (node.parentNodeIndex == -1 || node.isVirtualAnchor)
+				{
+					return true;
+				}
 
-    for (auto& chain : _chains)
-    {
-        float curDamping = _desc.damping * chain.dampingMul;
-        Vec3 curGravity = _desc.gravity * chain.gravityMul;
-        Vec3 curInertia = movementInertia * chain.movementInertiaMul;
+				return _desc.pinRoot && chain.nodes[node.parentNodeIndex].isVirtualAnchor;
+			};
 
-        // 1. 공용 Math 헤더의 Verlet 적분 함수 사용
-        for (size_t i = 0; i < chain.nodes.size(); ++i)
-        {
-            auto& node = chain.nodes[i];
-            
-            // 루트 노드는 애니메이션 핀(Pin) 고정
-            if (node.parentNodeIndex == -1)
-            {
-                node.position = node.originalWorld.Translation();
-                node.prevPosition = node.position;
-                continue;
-            }
-            
-            // Pose Restore 힘 적용
-            Vec3 restoreForce = (node.originalWorld.Translation() - node.position) * _desc.poseRestoreStrength * chain.poseRestoreMul;
-            Vec3 force = curGravity + curInertia + restoreForce; 
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto &node = chain.nodes[i];
 
-            // 공통 함수로 다음 위치 계산 (기본값 pow = 2)
-            Vec3 nextPosition = Engine::Math::SolveVerlet(node.position, node.prevPosition, force, curDamping, dt);
+			if (isPinnedNode(node))
+			{
+				node.position = node.originalWorld.Translation();
+				node.prevPosition = node.position;
+				continue;
+			}
 
-            node.prevPosition = node.position;
-            node.position = nextPosition;
-        }
+			Vec3 movementOffset = -(node.originalWorld.Translation() - node.prevOriginalPosition) * _desc.movementInertiaScale * chain.movementInertiaMul * movementWeight;
+			const float movementOffsetLength = movementOffset.Length();
+			const float maxMovementOffset = _desc.maxMovementOffset * movementWeight;
+			if (movementOffsetLength > maxMovementOffset && movementOffsetLength > 0.0001f)
+			{
+				movementOffset /= movementOffsetLength;
+				movementOffset *= maxMovementOffset;
+			}
 
-        // 2. Length Distance Constraint (부모와의 간격 유지)
-        for (size_t i = 0; i < chain.nodes.size(); ++i)
-        {
-            auto& node = chain.nodes[i];
-            if (node.parentNodeIndex == -1)
-                continue;
+			Vec3 nextPosition = Math::SolveVerlet(node.position, node.prevPosition, curGravity, curDamping, timeDelta);
+			nextPosition += movementOffset;
 
-            auto& parentNode = chain.nodes[node.parentNodeIndex];
-            Vec3 dirToParent = parentNode.position - node.position;
-            float currentDist = dirToParent.Length();
+			node.prevPosition = node.position;
+			node.position = nextPosition;
 
-            if (currentDist > 0.0001f)
-            {
-                // 강제 거리 보정 (스프링 대신 하드 제약 적용)
-                Vec3 correction = dirToParent * (1.0f - node.length / currentDist);
-                node.position += correction; // 부모는 고정이고 자식만 당겨짐
-            }
-        }
-    }
+			if (_desc.poseRestoreStrength > 0.f)
+			{
+				const float restoreAlpha = std::clamp(_desc.poseRestoreStrength * chain.poseRestoreMul, 0.f, 1.f);
+				node.position = Vec3::Lerp(node.position, node.originalWorld.Translation(), restoreAlpha);
+			}
+
+			if (_desc.enableCollision)
+			{
+				node.position = Compute_WorldCapsule(node, worldCapsules, node.position);
+			}
+		}
+
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto &node = chain.nodes[i];
+			if (isPinnedNode(node))
+			{
+				continue;
+			}
+
+			auto &parentNode = chain.nodes[node.parentNodeIndex];
+			Vec3 parentToNode = node.position - parentNode.position;
+			const float currentDist = parentToNode.Length();
+
+			if (currentDist > 0.0001f)
+			{
+				node.position = parentNode.position + (parentToNode / currentDist) * node.length;
+			}
+
+			if (_desc.enableCollision)
+			{
+				node.position = Compute_WorldCapsule(node, worldCapsules, node.position);
+			}
+		}
+
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto &node = chain.nodes[i];
+			if (isPinnedNode(node))
+			{
+				continue;
+			}
+
+			auto &parentNode = chain.nodes[node.parentNodeIndex];
+			Vec3 originalDir = node.originalWorld.Translation() - parentNode.originalWorld.Translation();
+			Vec3 simulatedDir = node.position - parentNode.position;
+
+			if (originalDir.LengthSquared() <= 0.0001f || simulatedDir.LengthSquared() <= 0.0001f)
+			{
+				continue;
+			}
+
+			originalDir.Normalize();
+			simulatedDir.Normalize();
+
+			const float maxAngle = XMConvertToRadians(_desc.maxBendAngleDegree * chain.maxBendAngleMul);
+			const float dot = std::clamp(originalDir.Dot(simulatedDir), -1.f, 1.f);
+			const float angle = acosf(dot);
+			if (angle > maxAngle && maxAngle > 0.f)
+			{
+				Vec3 axis = originalDir.Cross(simulatedDir);
+				if (axis.LengthSquared() <= 0.0001f)
+				{
+					continue;
+				}
+
+				axis.Normalize();
+				const Matrix limitRotation = Matrix::CreateFromAxisAngle(axis, maxAngle);
+				const Vec3 limitedDir = Vec3::TransformNormal(originalDir, limitRotation);
+				node.position = parentNode.position + limitedDir * node.length;
+			}
+
+			if (_desc.enableCollision)
+			{
+				node.position = Compute_WorldCapsule(node, worldCapsules, node.position);
+			}
+		}
+	}
 }
 
-void ChainModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorld)
+Vec3 ChainModifier::Get_LocalDirection(const Matrix &parentWorld, const Vec3 &worldDirection)
 {
-    Matrix invOwnerWorld = ownerWorld.Invert();
+	const Matrix parentInv = parentWorld.Invert();
 
-    for (auto& chain : _chains)
-    {
-        for (size_t i = 0; i < chain.nodes.size(); ++i)
-        {
-            auto& node = chain.nodes[i];
-            
-            // 자식이 없으면 방향을 계산할 수 없으므로 무시 (말단 노드)
-            if (node.childNodeIndices.empty())
-                continue;
+	Vec3 localDirection = Vec3::TransformNormal(worldDirection, parentInv);
+	if (localDirection.LengthSquared() > 0.0001f)
+	{
+		localDirection.Normalize();
+	}
 
-            // 여러 자식이 있을 경우(갈래길) 첫 번째 자식 기준으로 방향 산출
-            auto& childNode = chain.nodes[node.childNodeIndices[0]];
-
-            Vec3 originalDir = childNode.originalWorld.Translation() - node.originalWorld.Translation();
-            Vec3 simDir = childNode.position - node.position;
-
-            originalDir.Normalize();
-            simDir.Normalize();
-
-            // 기존 애니메이션 포즈 대비 물리적으로 회전한 변화량(Delta) 계산
-            Quaternion deltaRot = Engine::Math::CreateRotationBetweenVectors(originalDir, simDir);
-
-            // 해당 노드의 Original World Matrix에 Delta 회전을 곱하여 새로운 World Transform 산출
-            Matrix newWorldMat = node.originalWorld;
-            newWorldMat.Translation(Vec3::Zero);
-            newWorldMat = Matrix::CreateFromQuaternion(deltaRot) * newWorldMat;
-            newWorldMat.Translation(node.originalWorld.Translation());
-
-            // 새로운 World Transform을 부모의 World Transform 역행렬과 곱하여 Local Transform으로 변환
-            Matrix parentWorldInv = Matrix::Identity;
-            if (node.parentNodeIndex != -1)
-            {
-                parentWorldInv = chain.nodes[node.parentNodeIndex].originalWorld.Invert();
-            }
-            else
-            {
-                int32 realParentBoneIndex = model->Get_BoneParentIndex(node.boneIndex);
-                if (realParentBoneIndex != -1)
-                {
-                    const Matrix* parentCombined = model->Get_BoneMatrixPtr(realParentBoneIndex);
-                    if (parentCombined)
-                        parentWorldInv = ((*parentCombined) * ownerWorld).Invert();
-                }
-                else
-                {
-                    parentWorldInv = invOwnerWorld;
-                }
-            }
-
-            Matrix newLocalMat = newWorldMat * parentWorldInv;
-            
-            // ModelCom의 로컬 매트릭스 덮어쓰기
-            model->Set_BoneLocalMatrix(node.boneIndex, newLocalMat);
-        }
-    }
+	return localDirection;
 }
 
-void ChainModifier::On_ActiveChanged(ModelCom* model, bool isActive)
+Vec3 ChainModifier::Limit_LocalDirectionByAngle(const Vec3 &bindLocalDirection, const Vec3 &simulatedLocalDirection, float maxAngleDegree)
 {
-    if (isActive && model)
-    {
-        _isFirstUpdate = true;
-        if (_chainsInitialized)
-        {
-            ResetPose(model);
-        }
-    }
+	Vec3 bindDir = bindLocalDirection;
+	Vec3 simDir = simulatedLocalDirection;
+
+	if (bindDir.LengthSquared() <= 0.0001f || simDir.LengthSquared() <= 0.0001f)
+	{
+		return bindLocalDirection;
+	}
+
+	bindDir.Normalize();
+	simDir.Normalize();
+
+	if (maxAngleDegree <= 0.f)
+	{
+		return simDir;
+	}
+
+	const float maxAngle = XMConvertToRadians(maxAngleDegree);
+	float dot = std::clamp(bindDir.Dot(simDir), -1.f, 1.f);
+	const float angle = acosf(dot);
+	if (angle <= maxAngle)
+	{
+		return simDir;
+	}
+
+	Vec3 axis = bindDir.Cross(simDir);
+	if (axis.LengthSquared() <= 0.0001f)
+	{
+		return bindDir;
+	}
+
+	axis.Normalize();
+
+	const Quaternion limitedRotation = Quaternion::CreateFromAxisAngle(axis, maxAngle);
+	Vec3 limitedDir = Vec3::Transform(bindDir, Matrix::CreateFromQuaternion(limitedRotation));
+	if (limitedDir.LengthSquared() > 0.0001f)
+	{
+		limitedDir.Normalize();
+	}
+
+	return limitedDir;
 }
 
-void ChainModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
+Quaternion ChainModifier::Build_RotationDelta(const Vec3 &fromDirection, const Vec3 &toDirection)
 {
-    if (!_isActive || _strengthAlpha <= 0.f || !model)
-        return;
+	Vec3 from = fromDirection;
+	Vec3 to = toDirection;
 
-    if (!_chainsInitialized)
-        Initialize_Chains(model);
+	if (from.LengthSquared() <= 0.0001f || to.LengthSquared() <= 0.0001f)
+	{
+		return Quaternion::Identity;
+	}
 
-    // 컴포넌트 포인터로 가져옴
-    Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
-    Vec3 ownerVelocity = _desc.ownerMovement ? _desc.ownerMovement->Get_Velocity() : Vec3::Zero;
-    
-    Vec3 currentOwnerPos = ownerWorld.Translation();
+	from.Normalize();
+	to.Normalize();
 
-    if (_isFirstUpdate)
-    {
-        _prevOwnerPos = currentOwnerPos;
-        ResetPose(model);
-        _isFirstUpdate = false;
-        return;
-    }
+	float dot = std::clamp(from.Dot(to), -1.f, 1.f);
+	if (dot > 0.9995f)
+	{
+		return Quaternion::Identity;
+	}
 
-    if (Vec3::Distance(_prevOwnerPos, currentOwnerPos) > _desc.resetDistance)
-    {
-        ResetPose(model);
-    }
-    _prevOwnerPos = currentOwnerPos;
+	if (dot < -0.9995f)
+	{
+		Vec3 axis = Vec3::UnitX.Cross(from);
+		if (axis.LengthSquared() <= 0.0001f)
+		{
+			axis = Vec3::UnitY.Cross(from);
+		}
 
-    Capture_CurrentPose(model, ownerWorld);
+		if (axis.LengthSquared() <= 0.0001f)
+		{
+			return Quaternion::Identity;
+		}
 
-    for (uint32 i = 0; i < _desc.solverIterations; ++i)
-    {
-        Solve_Verlet(model, timeDelta, ownerWorld, ownerVelocity);
-    }
+		axis.Normalize();
+		return Quaternion::CreateFromAxisAngle(axis, XM_PI);
+	}
 
-    Write_BackToModel(model, ownerWorld);
-    
-    // 변경된 모든 Local Matrix를 바탕으로 CombinedMatrix를 최상단부터 다시 재귀 계산
-    model->Rebuild_BoneCombinedMatrices();
+	Vec3 axis = from.Cross(to);
+	if (axis.LengthSquared() <= 0.0001f)
+	{
+		return Quaternion::Identity;
+	}
+
+	axis.Normalize();
+
+	const float angle = acosf(dot);
+	Quaternion q = Quaternion::CreateFromAxisAngle(axis, angle);
+	q.Normalize();
+
+	return q;
 }
 
-Shared<ChainModifier> ChainModifier::Create(const ChainModifierDesc* desc)
+Matrix ChainModifier::Build_LocalMatrix_RotationOnly(const Matrix &bindLocal, const Quaternion &deltaRotation)
 {
-    Shared<ChainModifier> instance = make_shared<ChainModifier>();
+	Matrix tempMatrix = bindLocal;
 
-    if (FAILED(instance->Initialize(const_cast<ChainModifierDesc*>(desc))))
-    {
-        assert(false && "Failed to Create ChainModifier");
-        return nullptr;
-    }
+	Vec3 scale{};
+	Quaternion bindRotation{};
+	Vec3 translation{};
+	tempMatrix.Decompose(scale, bindRotation, translation);
 
-    return instance;
+	Quaternion finalRotation = deltaRotation * bindRotation;
+	finalRotation.Normalize();
+
+	Matrix local = Matrix::CreateScale(scale) * Matrix::CreateFromQuaternion(finalRotation);
+	local._41 = bindLocal._41;
+	local._42 = bindLocal._42;
+	local._43 = bindLocal._43;
+	local._44 = bindLocal._44;
+
+	return local;
+}
+
+void ChainModifier::Write_BackToModel(ModelCom *model, const Matrix &ownerWorld)
+{
+	if (!model)
+	{
+		return;
+	}
+
+	for (auto &chain : _chains)
+	{
+		const float maxBendAngleDegree = _desc.maxBendAngleDegree * chain.maxBendAngleMul;
+		const auto isRootNode = [this, &chain](const BoneChainNode &node)
+			{
+				return _desc.pinRoot && node.parentNodeIndex >= 0 && chain.nodes[node.parentNodeIndex].isVirtualAnchor;
+			};
+
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto &node = chain.nodes[i];
+
+			if (node.isVirtualAnchor || node.parentNodeIndex < 0 || isRootNode(node))
+			{
+				continue;
+			}
+
+			auto &parentNode = chain.nodes[node.parentNodeIndex];
+			Vec3 simulatedWorldDir = node.position - parentNode.position;
+			if (simulatedWorldDir.LengthSquared() <= 0.0001f)
+			{
+				continue;
+			}
+
+			simulatedWorldDir.Normalize();
+
+			const Vec3 simulatedLocalDir = Get_LocalDirection(parentNode.originalWorld, simulatedWorldDir);
+
+			if (node.bindLocalDir.LengthSquared() <= 0.0001f || simulatedLocalDir.LengthSquared() <= 0.0001f)
+			{
+				continue;
+			}
+
+			const Vec3 limitedLocalDir = Limit_LocalDirectionByAngle(node.bindLocalDir, simulatedLocalDir, maxBendAngleDegree);
+			const Quaternion deltaRotation = Build_RotationDelta(node.bindLocalDir, limitedLocalDir);
+			const Matrix local = Build_LocalMatrix_RotationOnly(node.bindLocal, deltaRotation);
+
+			model->Set_BoneLocalMatrix(node.boneIndex, local);
+		}
+	}
+}
+
+vector<ChainModifier::WorldCapsule> ChainModifier::Update_WorldCapsule(const ModelCom *model, const Matrix *ownerWorld)
+{
+	vector<WorldCapsule> worldCapsules;
+	worldCapsules.reserve(_colliders.size());
+
+	for (const auto &col : _colliders)
+	{
+		int32 boneIndex = model->Get_BoneIndex(col.boneName);
+		if (boneIndex == -1)
+		{
+			continue;
+		}
+
+		const Matrix *boneCombined = model->Get_BoneMatrixPtr(boneIndex);
+		if (!boneCombined)
+		{
+			continue;
+		}
+
+		Matrix boneWorld = (*boneCombined) * (*ownerWorld);
+
+		Vec3 localAxis = Vec3::Transform(Vec3(0, 0, 1), col.rotationQuat);
+		localAxis.Normalize();
+
+		Vec3 worldCenter = Vec3::Transform(col.center, boneWorld);
+		Vec3 worldAxis = Vec3::TransformNormal(localAxis, boneWorld);
+
+		float scale = Vec3(boneWorld.m[0][0], boneWorld.m[0][1], boneWorld.m[0][2]).Length();
+		worldAxis.Normalize();
+
+		WorldCapsule capsule{};
+		capsule.radius = col.radius * scale;
+		float scaledHalfLength = col.halfLength * scale;
+
+		capsule.startPoint = worldCenter + worldAxis * scaledHalfLength;
+		capsule.endPoint = worldCenter - worldAxis * scaledHalfLength;
+		worldCapsules.push_back(capsule);
+	}
+
+	return worldCapsules;
+}
+
+Vec3 ChainModifier::Compute_WorldCapsule(BoneChainNode &currentNode, const vector<WorldCapsule> &capsules, const Vec3 &nextPosition)
+{
+	Vec3 computePos = nextPosition;
+
+	for (auto &wc : capsules)
+	{
+		Vec3 lineVector = wc.endPoint - wc.startPoint;
+		float lineLengthSq = lineVector.LengthSquared();
+
+		float t = 0.0f;
+		if (lineLengthSq > 0.0001f)
+		{
+			t = (computePos - wc.startPoint).Dot(lineVector) / lineLengthSq;
+			t = std::clamp(t, 0.f, 1.f);
+		}
+
+		Vec3 closestPoint = wc.startPoint + lineVector * t;
+		Vec3 toNode = computePos - closestPoint;
+		float distSq = toNode.LengthSquared();
+
+		const float minCollisionDist = wc.radius + _desc.collisionRadiusPadding;
+		if (distSq >= minCollisionDist * minCollisionDist)
+		{
+			continue;
+		}
+
+		Vec3 pushNormal = toNode;
+		if (pushNormal.LengthSquared() <= 0.0001f)
+		{
+			pushNormal = currentNode.originalWorld.Translation() - closestPoint;
+		}
+
+		if (pushNormal.LengthSquared() <= 0.0001f)
+		{
+			pushNormal = Vec3::UnitY;
+		}
+
+		const float dist = pushNormal.Length();
+		if (dist >= minCollisionDist)
+		{
+			continue;
+		}
+
+		pushNormal /= dist;
+
+		Vec3 offset = pushNormal * (minCollisionDist - dist);
+		computePos += offset;
+		currentNode.position += offset;
+	}
+
+	return computePos;
+}
+
+void ChainModifier::On_ActiveChanged(ModelCom *model, bool isActive)
+{
+	if (isActive && model)
+	{
+		_isFirstUpdate = true;
+		if (_chainsInitialized)
+		{
+			ResetPose(model);
+		}
+	}
+}
+
+void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
+{
+	if (!_isActive || _strengthAlpha <= 0.f || !model)
+	{
+		return;
+	}
+
+	if (!_chainsInitialized)
+	{
+		Initialize_Chains(model);
+	}
+
+	Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	Vec3 currentOwnerPos = ownerWorld.Translation();
+
+	if (_isFirstUpdate)
+	{
+		_prevOwnerPos = currentOwnerPos;
+		ResetPose(model);
+		_isFirstUpdate = false;
+		return;
+	}
+
+	const float ownerDistance = Vec3::Distance(_prevOwnerPos, currentOwnerPos);
+	if (ownerDistance > _desc.resetDistance)
+	{
+		ResetPose(model);
+	}
+
+	_prevOwnerPos = currentOwnerPos;
+
+	Capture_CurrentPose(model, ownerWorld);
+
+	const uint32 solverIterations = std::max<uint32>(_desc.solverIterations, 1);
+	const float solverTimeDelta = timeDelta / static_cast<float>(solverIterations);
+	const float movementWeight = 1.f / static_cast<float>(solverIterations);
+
+	for (uint32 i = 0; i < solverIterations; ++i)
+	{
+		Solve_Verlet(model, solverTimeDelta, ownerWorld, movementWeight);
+	}
+
+	Write_BackToModel(model, ownerWorld);
+
+	model->Rebuild_BoneCombinedMatrices();
+}
+
+Shared<ChainModifier> ChainModifier::Create(const ChainModifierDesc *desc)
+{
+	Shared<ChainModifier> instance = make_shared<ChainModifier>();
+
+	if (FAILED(instance->Initialize(const_cast<ChainModifierDesc *>(desc))))
+	{
+		assert(false && "Failed to Create ChainModifier");
+		return nullptr;
+	}
+
+	return instance;
 }
 
 void ChainModifier::Free()
 {
-    AnimationModifier::Free();
+	AnimationModifier::Free();
 }
 
 NS_END

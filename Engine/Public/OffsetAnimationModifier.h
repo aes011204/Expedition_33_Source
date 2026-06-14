@@ -21,7 +21,6 @@ public:
         vector<OffsetBoneRange> offsetBoneRanges{};
         vector<string> translationOnlyBones{};
         float maxPitchAngle{ 60.f };
-        ModifierBlendMode blendMode{ ModifierBlendMode::ModifyReplace };
         // 사용할 애니메이션 범위 정의 0.f ~ 1.f
         float timeRatio_Max{ 1.0f };
         float timeRatio_Center{ 0.5f };

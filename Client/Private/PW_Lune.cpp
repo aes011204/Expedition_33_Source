@@ -9,6 +9,9 @@
 #include "PlayableParts.h"
 #include "SkillTreeCom.h"
 #include "PlayerStatCom.h"
+#include "ChainModifier.h"
+#include "MovementCom.h"
+#include "TransformCom.h"
 
 IMPLEMENT_REFLECTION(PW_Lune)
 {
@@ -56,8 +59,16 @@ void PW_Lune::BeginPlay()
 
 HRESULT PW_Lune::Ready_Modifier()
 {
-    if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-    {
+    auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
+    CHECK_NULL(body, E_FAIL);
+
+    return Ready_BodyModifiers(body);
+}
+
+HRESULT PW_Lune::Ready_BodyModifiers(Body_Player* body)
+{
+    CHECK_NULL(body, E_FAIL);
+
         OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
         aimOffsetDesc.baseModelCom = body->Get_Model().get();
         aimOffsetDesc.animName = "Lune_IdleFreeAim_LoopingWorld_Sweep";
@@ -139,9 +150,60 @@ HRESULT PW_Lune::Ready_Modifier()
             aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
         }
         else return E_FAIL;
-    }
-    else
-        return E_FAIL;
+
+        ChainModifier::ChainModifierDesc scarfDesc{};
+        scarfDesc.modifierTag = L"ClothPhysics_Scarf";
+        scarfDesc.stiffness = 0.012f;
+        scarfDesc.damping = 0.64f;
+        scarfDesc.gravity = Vec3(0.f, -0.9f, 0.f);
+        scarfDesc.movementInertiaScale = 0.045f;
+        scarfDesc.maxMovementOffset = 0.025f;
+        scarfDesc.poseRestoreStrength = 0.12f;
+        scarfDesc.maxBendAngleDegree = 70.f;
+        scarfDesc.collisionRadiusPadding = 2.8f;
+        scarfDesc.enableCollision = false;
+        scarfDesc.solverIterations = 1;
+        scarfDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+        scarfDesc.ownerTransform = Get_Transform().get();
+        scarfDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Lune_Placeholder_Physics.json";
+        scarfDesc.groups = {
+            { "Lune_V2_Scarf_01_01" },
+            { "Lune_V2_Scarf_02_01" },
+            { "Lune_V2_Scarf_03_01" },
+            { "Lune_V2_Scarf_04_01" },
+            { "Lune_V2_Scarf_05_01" },
+            { "Lune_V2_Scarf_06_01" },
+            { "Lune_FrontBands_Root", 1.f, 1.f, 0.8f, 0.9f, 1.15f, 0.85f },
+        };
+
+        if (auto modifier = ChainModifier::Create(&scarfDesc))
+        {
+            body->Get_Model()->Add_AnimModifier(modifier);
+        }
+
+        ChainModifier::ChainModifierDesc armbandDesc{};
+        armbandDesc.modifierTag = L"ClothPhysics_Armband";
+        armbandDesc.stiffness = 0.01f;
+        armbandDesc.damping = 0.7f;
+        armbandDesc.gravity = Vec3(0.f, -0.7f, 0.f);
+        armbandDesc.movementInertiaScale = 0.025f;
+        armbandDesc.maxMovementOffset = 0.014f;
+        armbandDesc.poseRestoreStrength = 0.16f;
+        armbandDesc.maxBendAngleDegree = 36.f;
+        armbandDesc.collisionRadiusPadding = 2.2f;
+        armbandDesc.enableCollision = false;
+        armbandDesc.solverIterations = 1;
+        armbandDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+        armbandDesc.ownerTransform = Get_Transform().get();
+        armbandDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Lune_Placeholder_Physics.json";
+        armbandDesc.groups = {
+            { "Armband_Root" },
+        };
+
+        if (auto modifier = ChainModifier::Create(&armbandDesc))
+        {
+            body->Get_Model()->Add_AnimModifier(modifier);
+        }
 
     return S_OK;
 }

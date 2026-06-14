@@ -1,4 +1,4 @@
-#include "PW_Maelle.h"
+﻿#include "PW_Maelle.h"
 
 #include <OffsetAnimationModifier.h>
 
@@ -40,7 +40,7 @@ HRESULT PW_Maelle::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
-		auto skilltreeCom = Get_Component<SkillTreeCom>();
+	auto skilltreeCom = Get_Component<SkillTreeCom>();
 
 	skilltreeCom->TryUnlock("OffensiveSwitch");
 	skilltreeCom->TryUnlock("Percee");
@@ -60,8 +60,16 @@ void PW_Maelle::BeginPlay()
 
 HRESULT PW_Maelle::Ready_Modifier()
 {
-	if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-	{
+	auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
+	CHECK_NULL(body, E_FAIL);
+
+	return Ready_BodyModifiers(body);
+}
+
+HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
+{
+	CHECK_NULL(body, E_FAIL);
+
 		OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
 		aimOffsetDesc.baseModelCom = body->Get_Model().get();
 		aimOffsetDesc.animName = "Maelle_IdleFreeAim_LoopingWorld_Sweep";
@@ -100,6 +108,8 @@ HRESULT PW_Maelle::Ready_Modifier()
 		}
 		else return E_FAIL;
 
+		wOffsetDesc.animName = "Maelle_Walk_B";
+		wOffsetDesc.modifierTag = L"Walk_B";
 		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
 		{
 			modifier->Set_Active(false);
@@ -147,12 +157,17 @@ HRESULT PW_Maelle::Ready_Modifier()
 		ChainModifier::ChainModifierDesc chainDesc{};
 		chainDesc.modifierTag = L"ClothPhysics_Scarf";
 		
-		chainDesc.stiffness = 0.04f;
-		chainDesc.damping = 0.58f;
-		chainDesc.gravity = Vec3(0.f, -0.22f, 0.f);
-		chainDesc.movementInertiaScale = 0.055f;
-		chainDesc.poseRestoreStrength = 0.38f;
-		chainDesc.maxBendAngleDegree = 13.f;
+		chainDesc.stiffness = 0.012f;
+		chainDesc.damping = 0.64f;
+		chainDesc.gravity = Vec3(0.f, -0.88f, 0.f);
+		chainDesc.movementInertiaScale = 0.045f;
+		chainDesc.maxMovementOffset = 0.025f;
+		chainDesc.poseRestoreStrength = 0.12f;
+		chainDesc.maxBendAngleDegree = 70.f;
+		chainDesc.collisionRadiusPadding = 2.8f;
+		chainDesc.enableCollision = true;
+		chainDesc.solverIterations = 1;
+		chainDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
 
 		chainDesc.groups = {
 			{ "Maelle_V4_Scarf_01_01" },
@@ -163,23 +178,41 @@ HRESULT PW_Maelle::Ready_Modifier()
 			{ "Maelle_V4_Scarf_06_01" }
 		};
 
-		if (auto transform = Get_Transform())
-		{
-			chainDesc.ownerTransform = transform.get();
-		}
-		
-		if (auto movement = Get_Component<MovementCom>())
-		{
-			chainDesc.ownerMovement = movement.get();
-		}
+		chainDesc.ownerTransform = Get_Transform().get();
+		chainDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Maelle_Placeholder_Physics.json";
 
 		if (auto modifier = ChainModifier::Create(&chainDesc))
 		{
 			body->Get_Model()->Add_AnimModifier(modifier);
 		}
-	}
-	else
-		return E_FAIL;
+
+		// --- ChainModifier for Armband ---
+		ChainModifier::ChainModifierDesc armbandDesc{};
+		armbandDesc.modifierTag = L"ClothPhysics_Armband";
+		
+		armbandDesc.stiffness = 0.01f;
+		armbandDesc.damping = 0.965f;
+		armbandDesc.gravity = Vec3(0.f, -777.f, 0.f);
+		armbandDesc.movementInertiaScale = 0.1f;
+		armbandDesc.maxMovementOffset = 0.028f;
+		armbandDesc.poseRestoreStrength = 0.f;
+		armbandDesc.maxBendAngleDegree = 120.f;
+		armbandDesc.collisionRadiusPadding = 0.15f;
+		armbandDesc.enableCollision = true;
+		armbandDesc.solverIterations = 5;
+		armbandDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+
+		armbandDesc.groups = {
+			{ "Armband_Root" }
+		};
+
+		armbandDesc.ownerTransform = Get_Transform().get();
+		armbandDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Maelle_Placeholder_Physics.json";
+
+		if (auto armbandModifier = ChainModifier::Create(&armbandDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(armbandModifier);
+		}
 
 	return S_OK;
 }

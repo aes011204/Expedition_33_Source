@@ -193,6 +193,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\FacialAnimationModifier.h" />
     <ClInclude Include="..\Public\FacialClip.h" />
     <ClInclude Include="..\Public\ModelDeform.h" />
+    <ClInclude Include="..\Public\ModelPhysicsParser.h" />
     <ClInclude Include="..\Public\OffsetAnimationModifier.h" />
     <ClInclude Include="..\Public\AnimationModifier.h" />
     <ClInclude Include="..\Public\AnimComputeRuntime.h" />
@@ -362,6 +363,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\FacialClip.cpp" />
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
     <ClCompile Include="..\Private\ModelDeform.cpp" />
+    <ClCompile Include="..\Private\ModelPhysicsParser.cpp" />
     <ClCompile Include="..\Private\OffsetAnimationModifier.cpp" />
     <ClCompile Include="..\Private\AnimationModifier.cpp" />
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />

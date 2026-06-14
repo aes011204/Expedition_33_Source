@@ -281,6 +281,8 @@ HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
         _playerStateMachineCom->Refresh_BodyPlayerForStates();
     }
 
+    CHECK_FAILED(Ready_BodyModifiers(body), E_FAIL);
+
     Head_Player* head = Add_CostumeHead(preset.parts.headModelTag, body);
     CHECK_NULL(head, E_FAIL);
     Apply_CostumePartTransform(TEXT("Part_Head"), restorePartTransforms, preset.parts.headTransform);
