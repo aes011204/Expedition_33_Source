@@ -93,13 +93,13 @@ void MELandscapeManager::Save_Landscape(int32 idx, const WCHAR* path)
     for (uint32 i = 0; i < layerCount; ++i)
     {
         // Albedo
-        const wstring& name = _scene->_landscapes[idx]->Get_LayerPath(i);
+        wstring name = fs::relative(_scene->_landscapes[idx]->Get_LayerPath(i), _resourceRoot).wstring();
         uint32 nameLen = static_cast<uint32>(name.size());
         fwrite(&nameLen, sizeof(uint32), 1, f);
         fwrite(name.c_str(), sizeof(wchar_t), nameLen, f);
 
         // Normal
-        const wstring& normalName = _scene->_landscapes[idx]->Get_NormalPath(i);
+        wstring normalName = fs::relative(_scene->_landscapes[idx]->Get_NormalPath(i), _resourceRoot).wstring();
         uint32 normalLen = static_cast<uint32>(normalName.size());
         fwrite(&normalLen, sizeof(uint32), 1, f);
         if (normalLen > 0)
@@ -108,7 +108,7 @@ void MELandscapeManager::Save_Landscape(int32 idx, const WCHAR* path)
         }
 
         // Roughness
-        const wstring& roughName = _scene->_landscapes[idx]->Get_RoughnessPath(i);
+        wstring roughName = fs::relative(_scene->_landscapes[idx]->Get_RoughnessPath(i), _resourceRoot).wstring();
         uint32 roughLen = static_cast<uint32>(roughName.size());
         fwrite(&roughLen, sizeof(uint32), 1, f);
         if (roughLen > 0)
@@ -236,10 +236,9 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
             auto& weights = vb->Get_WeightMap(i);
             fread(weights.data(), sizeof(float), expected, f);
 
-            const wstring root = (fs::path(_resourceRoot) / L"Map" / L"LandscapeTextures").wstring();
-            wstring albedoPath = (fs::path(root) / name).wstring();
-            wstring normalPath = normalLen > 0 ? (fs::path(root) / normalName).wstring() : L"";
-            wstring roughPath = roughLen > 0 ? (fs::path(root) / roughName).wstring() : L"";
+            wstring albedoPath = (fs::path(_resourceRoot) / name).wstring();
+            wstring normalPath = normalLen > 0 ? (fs::path(_resourceRoot) / normalName).wstring() : L"";
+            wstring roughPath = roughLen > 0 ? (fs::path(_resourceRoot) / roughName).wstring() : L"";
 
             auto& land = _scene->_landscapes[idx];
             land->Add_LayerTexture(albedoPath, normalPath, roughPath);

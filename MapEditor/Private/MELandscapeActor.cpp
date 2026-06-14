@@ -250,7 +250,7 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstr
         {
             _normalSRVs[_layerCount] = nsrv;
         }
-        _normalPaths[_layerCount] = fs::path(normalPath).filename().wstring();
+        _normalPaths[_layerCount] = normalPath;
     }
 
     if (!roughnessPath.empty())
@@ -266,7 +266,7 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstr
         {
             _roughnessSRVs[_layerCount] = rsrv;
         }
-        _roughnessPaths[_layerCount] = fs::path(roughnessPath).filename().wstring();
+        _roughnessPaths[_layerCount] = roughnessPath;
     }
 
     uint32 w = _vibuffer->Get_CountX() + 1;
@@ -293,7 +293,7 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstr
     }
 
     _vibuffer->Set_LayerCount(_layerCount + 1);
-    _layerPaths[_layerCount] = fs::path(albedoPath).filename().wstring();
+    _layerPaths[_layerCount] = albedoPath;
     ++_layerCount;
 
     Flush_WeightMap(_layerCount - 1);
