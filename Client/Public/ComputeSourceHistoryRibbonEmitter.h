@@ -131,7 +131,6 @@ private:
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };
     static constexpr uint32 kThreadCountX{ 64 };
-    static constexpr uint32 kMaxDistanceTessellationSubdivision{ 8 };
     static constexpr uint32 kMaxCurveSubdivision{ 32 };
     static constexpr uint32 kMaxRetiredLoopStrokeCount{ 4 };
     static constexpr float kSmoothSampleSideWeight{ 0.25f };

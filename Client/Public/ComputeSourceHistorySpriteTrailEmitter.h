@@ -120,7 +120,6 @@ private:
     static constexpr uint32 kPointVertexCount{ 1 };
     static constexpr uint32 kMaxCurveSubdivision{ 32 };
     static constexpr uint32 kMaxRetiredLoopStrokeCount{ 4 };
-    static constexpr float kSmoothSampleSideWeight{ 0.25f };
     static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
@@ -172,7 +171,7 @@ private:
     void Update_PathReplayStamps(vector<Stamp>& stamps, const vector<HistorySample>& history, const Vec3& fallbackTangent, float timeDelta) const;
     void Prune_History(vector<HistorySample>& history, float requiredTailDistance = 0.f) const;
     void Recompute_Distances(vector<HistorySample>& history) const;
-    HistorySample Build_SmoothedHistorySample(const vector<HistorySample>& history, size_t sampleIndex) const;
+    bool Try_ResolveSmoothedHistoryTangent(const vector<HistorySample>& history, size_t sampleIndex, Vec3& outTangent) const;
     float Resolve_RequiredHistoryDistance(const vector<Stamp>& stamps) const;
     float Resolve_HistoryDistanceForPosition(const vector<HistorySample>& history, const Vec3& position) const;
     bool Sample_HistoryAtDistance(

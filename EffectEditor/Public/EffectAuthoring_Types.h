@@ -615,7 +615,7 @@ struct RibbonTypeData
     uint32 maxSampleCount{ 64 };                                  // lane 하나가 보관할 source history sample 상한이다.
     float sampleSpacing{ 0.08f };                                 // source가 이 거리 이상 움직이면 새 history sample을 추가한다.
     uint32 curveSubdivision{ 4 };                                 // source history segment 하나에서 만들 최대 곡선 render sample 수다.
-    bool smoothTangent{ true };                                   // 앞뒤 source sample 평균으로 path를 완만하게 보정할지 결정한다.
+    bool smoothTangent{ false };                                  // Custom에서 명시적으로 켤 때만 앞뒤 source sample 평균으로 path를 보정한다.
     float sampleInterval{ 0.f };                                  // 0보다 크면 정지/저속 source도 시간 기준 sample을 보강한다.
     float maxLength{ 0.f };                                       // head 기준 최대 표시 길이다. 목표 길이가 아니라 상한이다.
     float tailFadeLength{ 0.f };                                  // maxLength 끝부분에서 거리 기반 alpha fade를 적용하는 길이다.

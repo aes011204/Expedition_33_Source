@@ -641,32 +641,7 @@ void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(
     float& sampleIntervalAccumulator,
     const Vec3& sourcePosition)
 {
-    if (!history.empty())
-    {
-        const HistorySample previousHead = history.front();
-        const float movedDistance = (sourcePosition - previousHead.position).Length();
-        if (movedDistance >= _desc.sampleSpacing)
-        {
-            const uint32 stepCount = min(
-                max(1u, static_cast<uint32>(ceilf(movedDistance / _desc.sampleSpacing))),
-                kMaxDistanceTessellationSubdivision
-            );
-
-            for (uint32 step = 1u; step <= stepCount; ++step)
-            {
-                const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
-                HistorySample sample{};
-                sample.position = Vec3::Lerp(previousHead.position, sourcePosition, ratio);
-                sample.age = previousHead.age * (1.f - ratio);
-                history.insert(history.begin(), sample);
-            }
-        }
-        else
-            history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
-    }
-    else
-        history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
-
+    history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
     sampleIntervalAccumulator = 0.f;
 
     while (static_cast<uint32>(history.size()) > _desc.maxSampleCount)

@@ -610,13 +610,13 @@ namespace Internal
         case RibbonCurveQuality::Smooth:
             preset.sampleSpacing = 0.04f;
             preset.curveSubdivision = 8u;
-            preset.smoothTangent = true;
+            preset.smoothTangent = false;
             preset.sampleInterval = 0.f;
             break;
         case RibbonCurveQuality::HighQuality:
             preset.sampleSpacing = 0.02f;
             preset.curveSubdivision = 12u;
-            preset.smoothTangent = true;
+            preset.smoothTangent = false;
             preset.sampleInterval = 0.f;
             break;
         case RibbonCurveQuality::Basic:
@@ -624,7 +624,7 @@ namespace Internal
         default:
             preset.sampleSpacing = 0.08f;
             preset.curveSubdivision = 4u;
-            preset.smoothTangent = true;
+            preset.smoothTangent = false;
             preset.sampleInterval = 0.f;
             break;
         }
@@ -1728,7 +1728,7 @@ void Detail_View::Render_TypeDataDetail(
                         "탄젠트 스무딩",
                         data->smoothTangent,
                         defaultData.smoothTangent,
-                        "앞뒤 source sample을 함께 보아 path 위치를 완만하게 평균 보정합니다."
+                        "Custom 품질에서만 명시적으로 켭니다. 앞뒤 source sample을 함께 보아 path 위치를 완만하게 평균 보정합니다."
                     );
 
                     if (presetLocked)

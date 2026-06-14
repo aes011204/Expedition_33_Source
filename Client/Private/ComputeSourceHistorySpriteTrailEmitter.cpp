@@ -1075,22 +1075,27 @@ void ComputeSourceHistorySpriteTrailEmitter::Recompute_Distances(vector<HistoryS
     }
 }
 
-ComputeSourceHistorySpriteTrailEmitter::HistorySample ComputeSourceHistorySpriteTrailEmitter::Build_SmoothedHistorySample(
+bool ComputeSourceHistorySpriteTrailEmitter::Try_ResolveSmoothedHistoryTangent(
     const vector<HistorySample>& history,
-    size_t sampleIndex) const
+    size_t sampleIndex,
+    Vec3& outTangent) const
 {
-    HistorySample sample = history[sampleIndex];
-    if (!_desc.smoothTangent || sampleIndex == 0u || sampleIndex + 1u >= history.size())
-        return sample;
+    if (sampleIndex == 0u || sampleIndex + 1u >= history.size())
+        return false;
 
-    const Vec3& newer = history[sampleIndex - 1u].position;
-    const Vec3& current = history[sampleIndex].position;
-    const Vec3& older = history[sampleIndex + 1u].position;
-    sample.position =
-        newer * kSmoothSampleSideWeight +
-        current * (1.f - kSmoothSampleSideWeight * 2.f) +
-        older * kSmoothSampleSideWeight;
-    return sample;
+    const Vec3 newerDirection = history[sampleIndex - 1u].position - history[sampleIndex].position;
+    const Vec3 olderDirection = history[sampleIndex].position - history[sampleIndex + 1u].position;
+    if (newerDirection.LengthSquared() <= 0.0001f || olderDirection.LengthSquared() <= 0.0001f)
+        return false;
+
+    const Vec3 averaged =
+        Internal::Normalize_OrFallback(newerDirection, Vec3{}) +
+        Internal::Normalize_OrFallback(olderDirection, Vec3{});
+    if (averaged.LengthSquared() <= 0.0001f)
+        return false;
+
+    outTangent = Internal::Normalize_OrFallback(averaged, Vec3{ 1.f, 0.f, 0.f });
+    return true;
 }
 
 float ComputeSourceHistorySpriteTrailEmitter::Resolve_RequiredHistoryDistance(const vector<Stamp>& stamps) const
@@ -1163,10 +1168,10 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
         [this, &history, &fallbackTangent, &outPosition, &outTangent](size_t headIndex, float targetDistance, float fallbackRatio)
     {
         const size_t tailIndex = min(headIndex + 1u, history.size() - 1u);
-        const HistorySample p0 = Build_SmoothedHistorySample(history, headIndex > 0u ? headIndex - 1u : headIndex);
-        const HistorySample p1 = Build_SmoothedHistorySample(history, headIndex);
-        const HistorySample p2 = Build_SmoothedHistorySample(history, tailIndex);
-        const HistorySample p3 = Build_SmoothedHistorySample(history, min(tailIndex + 1u, history.size() - 1u));
+        const HistorySample& p0 = history[headIndex > 0u ? headIndex - 1u : headIndex];
+        const HistorySample& p1 = history[headIndex];
+        const HistorySample& p2 = history[tailIndex];
+        const HistorySample& p3 = history[min(tailIndex + 1u, history.size() - 1u)];
         float clampedRatio = clamp(fallbackRatio, 0.f, 1.f);
         const uint32 stepCount = max(1u, _desc.curveSubdivision);
         if (stepCount > 1u && targetDistance > 0.f)
@@ -1196,10 +1201,22 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
             }
         }
         outPosition = Internal::Catmull_Rom(p0.position, p1.position, p2.position, p3.position, clampedRatio);
-        outTangent = Internal::Normalize_OrFallback(
+        const Vec3 rawTangent = Internal::Normalize_OrFallback(
             Internal::Catmull_RomDerivative(p0.position, p1.position, p2.position, p3.position, clampedRatio) * -1.f,
             fallbackTangent
         );
+        outTangent = rawTangent;
+        if (_desc.smoothTangent)
+        {
+            Vec3 headTangent{};
+            Vec3 tailTangent{};
+            if (Try_ResolveSmoothedHistoryTangent(history, headIndex, headTangent) &&
+                Try_ResolveSmoothedHistoryTangent(history, tailIndex, tailTangent))
+            {
+                const Vec3 blendedTangent = headTangent + (tailTangent - headTangent) * clampedRatio;
+                outTangent = Internal::Normalize_OrFallback(blendedTangent, rawTangent);
+            }
+        }
     };
 
     if (distanceFromHead <= 0.f)
