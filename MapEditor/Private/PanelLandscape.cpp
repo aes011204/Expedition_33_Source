@@ -426,7 +426,7 @@ void PanelLandscape::Render_PaintTools()
         }
         ImGui::SameLine();
 
-        string layerFile = String::ToString(actor->Get_LayerPath(i));
+        string layerFile = fs::path(actor->Get_LayerPath(i)).filename().string();
         ImGui::TextDisabled("(%s)", layerFile.c_str());
         if (i > 0)
         {

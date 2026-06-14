@@ -32,6 +32,28 @@ namespace
         return value;
     }
 
+    string ToRelativePath(const string& path)
+    {
+        if (path.empty())
+        {
+            return path;
+        }
+
+        error_code ec;
+        const fs::path abs = fs::weakly_canonical(fs::path(path), ec);
+        const fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
+        if (!ec && !cwd.empty())
+        {
+            const fs::path rel = abs.lexically_relative(cwd);
+            if (!rel.empty())
+            {
+                return rel.generic_string();
+            }
+        }
+
+        return path;
+    }
+
     string GetMapName(const MapEditor::SceneContext* ctx)
     {
         if (!ctx || ctx->_mapName.empty())
@@ -1837,7 +1859,7 @@ namespace MapEditor
         root["schema_version"] = 2;
         root["map_name"] = mapName;
         root["map_object_kind"] = MapMaterialObjectKindName(materialObjectKind);
-        root["editor_modelPath"] = modelPath;
+        root["editor_modelPath"] = ToRelativePath(modelPath);
         root["editor_modelStem"] = fs::path(modelPath).stem().string();
         root["editor_shaderType"] = static_cast<int>(shaderType);
 
@@ -1918,7 +1940,7 @@ namespace MapEditor
         string assetName = modelName + "_Inst";
         instJson["assetName"] = assetName;
         
-        instJson["editor_modelPath"] = modelPath; 
+        instJson["editor_modelPath"] = ToRelativePath(modelPath);
         instJson["editor_shaderType"] = static_cast<int>(shaderType);
         instJson["map_object_kind"] = MapMaterialObjectKindName(materialObjectKind);
 
