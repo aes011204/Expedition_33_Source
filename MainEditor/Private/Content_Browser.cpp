@@ -315,32 +315,15 @@ void Content_Browser::Render()
                 const float settingsWidth = 28.f;
                 const float controlSpacing = 8.f;
                 const float minPathWidth = 80.f;
-                const float preferredPathWidth = 150.f;
-                const float minSearchWidth = 120.f;
                 const bool isLargeTextureFolder = Is_LargeTextureFolder();
                 const float statusWidth = isLargeTextureFolder ? 170.f : 0.f;
                 const float toolbarAvailWidth = ImGui::GetContentRegionAvail().x;
                 const float rightControlWidth = refreshWidth + settingsWidth + statusWidth + controlSpacing * 2.f;
 
-                float searchWidth = 0.f;
-                if (toolbarAvailWidth >= rightControlWidth + preferredPathWidth + controlSpacing + minSearchWidth)
-                    searchWidth = min(220.f, toolbarAvailWidth - rightControlWidth - preferredPathWidth - controlSpacing);
-
-                float pathWidth = toolbarAvailWidth - rightControlWidth;
-                if (searchWidth > 0.f)
-                    pathWidth -= controlSpacing + searchWidth;
-
-                pathWidth = clamp(pathWidth, minPathWidth, 500.f);
+                const float pathWidth = clamp(toolbarAvailWidth - rightControlWidth, minPathWidth, 500.f);
 
                 ImGui::SetNextItemWidth(pathWidth);
                 ImGui::InputText("##CurrentPath", pathBuffer, IM_ARRAYSIZE(pathBuffer), ImGuiInputTextFlags_ReadOnly);
-
-                if (searchWidth > 0.f)
-                {
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(searchWidth);
-                    ImGui::InputTextWithHint("##AssetNameSearch", "Search files...", _assetSearchBuffer, IM_ARRAYSIZE(_assetSearchBuffer));
-                }
 
                 ImGui::SameLine();
 
@@ -371,6 +354,13 @@ void Content_Browser::Render()
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("새로고침");
 
+                ImGui::Spacing();
+                ImGui::TextDisabled("검색");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                ImGui::InputTextWithHint("##AssetNameSearch", "Search files...", _assetSearchBuffer, IM_ARRAYSIZE(_assetSearchBuffer));
+
+                ImGui::Separator();
+                ImGui::TextDisabled("목록");
                 ImGui::Separator();
 
                 ImGui::BeginChild("AssetViewScroll", ImVec2(0, 0), false);
