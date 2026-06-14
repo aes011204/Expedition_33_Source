@@ -483,48 +483,48 @@ void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
         _sampleIntervalAccumulator += safeDeltaTime;
 
         Vec3 sourcePosition{};
-        if (!Try_Resolve_SourcePosition(sourcePosition))
-            return;
-
-        _selfRootSourcePosition = sourcePosition;
-        const float frameMovedDistance =
-            _hasSelfRootPreviousSourcePosition
-            ? (sourcePosition - _selfRootPreviousSourcePosition).Length()
-            : _desc.sampleSpacing;
-        const bool isIdle =
-            _hasSelfRootPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
-        const bool movedEnough =
-            _history.empty() || (sourcePosition - _history.front().position).Length() >= _desc.sampleSpacing;
-        const bool intervalReady =
-            _desc.sampleInterval > 0.f && _sampleIntervalAccumulator >= _desc.sampleInterval;
-        const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
-        if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
-            _selfRootCollapseLength = -1.f;
-
-        if (shouldInsertSample)
+        if (Try_Resolve_SourcePosition(sourcePosition))
         {
-            Insert_HistorySample(_history, _sampleIntervalAccumulator, sourcePosition);
-            _selfRootCollapseLength = -1.f;
-        }
-        else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
-        {
-            vector<RenderSample> fullRenderSamples{};
-            Build_RenderSamples(_history, fullRenderSamples, &_selfRootSourcePosition);
-            const float currentLength =
-                _selfRootCollapseLength >= 0.f
-                ? _selfRootCollapseLength
-                : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
-            if (isIdle)
-            {
-                const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
-                _selfRootCollapseLength = max(0.f, currentLength * (1.f - collapseRatio));
-            }
-            else
+            _selfRootSourcePosition = sourcePosition;
+            const float frameMovedDistance =
+                _hasSelfRootPreviousSourcePosition
+                ? (sourcePosition - _selfRootPreviousSourcePosition).Length()
+                : _desc.sampleSpacing;
+            const bool isIdle =
+                _hasSelfRootPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
+            const bool movedEnough =
+                _history.empty() || (sourcePosition - _history.front().position).Length() >= _desc.sampleSpacing;
+            const bool intervalReady =
+                _desc.sampleInterval > 0.f && _sampleIntervalAccumulator >= _desc.sampleInterval;
+            const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
+            if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
                 _selfRootCollapseLength = -1.f;
-        }
 
-        _selfRootPreviousSourcePosition = sourcePosition;
-        _hasSelfRootPreviousSourcePosition = true;
+            if (shouldInsertSample)
+            {
+                Insert_HistorySample(_history, _sampleIntervalAccumulator, sourcePosition);
+                _selfRootCollapseLength = -1.f;
+            }
+            else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
+            {
+                vector<RenderSample> fullRenderSamples{};
+                Build_RenderSamples(_history, fullRenderSamples, &_selfRootSourcePosition);
+                const float currentLength =
+                    _selfRootCollapseLength >= 0.f
+                    ? _selfRootCollapseLength
+                    : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
+                if (isIdle)
+                {
+                    const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
+                    _selfRootCollapseLength = max(0.f, currentLength * (1.f - collapseRatio));
+                }
+                else
+                    _selfRootCollapseLength = -1.f;
+            }
+
+            _selfRootPreviousSourcePosition = sourcePosition;
+            _hasSelfRootPreviousSourcePosition = true;
+        }
     }
 
     Prune_History(_history);

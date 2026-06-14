@@ -1419,10 +1419,35 @@ ComputeSourceHistorySpriteTrailEmitter::HistoryLane* ComputeSourceHistorySpriteT
 
 HRESULT ComputeSourceHistorySpriteTrailEmitter::Ready_Components()
 {
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), kShaderId, _shader), E_FAIL);
-    CHECK_FAILED(Ready_Texture(), E_FAIL);
+    if (FAILED(Add_Component(ETOI(LevelType::Static), kShaderId, _shader)))
+    {
+        LOG_WARN(
+            "SourceHistorySpriteTrail ready failed: shader. emitter={}, shader={}",
+            _emitterName,
+            String::TCharToString(kShaderId)
+        );
+        return E_FAIL;
+    }
+    if (FAILED(Ready_Texture()))
+    {
+        LOG_WARN(
+            "SourceHistorySpriteTrail ready failed: texture. emitter={}, mainGuid={}, mainPath={}",
+            _emitterName,
+            _desc.material.mainTextureGuid,
+            _desc.material.mainTexturePath
+        );
+        return E_FAIL;
+    }
     _opacitySourceIndex = Resolve_OpacitySourceIndex();
-    CHECK_FAILED(Ready_DrawBuffers(), E_FAIL);
+    if (FAILED(Ready_DrawBuffers()))
+    {
+        LOG_WARN(
+            "SourceHistorySpriteTrail ready failed: buffers. emitter={}, maxStamp={}",
+            _emitterName,
+            Compute_MaxStampCount()
+        );
+        return E_FAIL;
+    }
     return S_OK;
 }
 

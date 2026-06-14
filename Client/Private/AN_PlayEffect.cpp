@@ -16,6 +16,9 @@ IMPLEMENT_REFLECTION(AN_PlayEffect)
     PROPERTY_VEC3("로컬 오프셋", _localOffset);
     PROPERTY_VEC3("로컬 회전", _localRotation);
     PROPERTY_VEC3("스케일", _scale);
+    PROPERTY_BOOL("위치 상속", _inheritPosition);
+    PROPERTY_BOOL("회전 상속", _inheritRotation);
+    PROPERTY_BOOL("스케일 상속", _inheritScale);
 
     return true;
 }
@@ -39,6 +42,9 @@ void AN_PlayEffect::Execute(const AnimNotifyContext& context)
     desc.localOffset = _localOffset;
     desc.localRotation = _localRotation;
     desc.scale = _scale;
+    desc.transformInheritance.inheritPosition = _inheritPosition;
+    desc.transformInheritance.inheritRotation = _inheritRotation;
+    desc.transformInheritance.inheritScale = _inheritScale;
     desc.followTarget = false; // AN은 시작 transform만 계산하고 attach하지 않는다.
 
     effectCom->Play_Effect(desc);
