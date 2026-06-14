@@ -13,6 +13,7 @@
 #include "GameplayUI.h"
 #include "IRuntimeUI_EditorTarget.h"
 #include "MapStaticMesh.h"
+#include "Monster_WorldBase.h"
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 #include "UI_Base.h"
@@ -222,6 +223,88 @@ bool Draw_CascadePresetControls(const char* headerLabel, const char* idPrefix, E
         }
 
         return changed;
+    }
+
+    struct FMonsterBattlePrefabPickerEntry
+    {
+        string prefabName{};
+        string className{};
+    };
+
+    vector<FMonsterBattlePrefabPickerEntry> g_monsterBattlePrefabPickerEntries{};
+
+    fs::path Resolve_PrefabRootForMonsterBattlePicker()
+    {
+        const fs::path currentPath = fs::current_path();
+        const vector<fs::path> candidates =
+        {
+            currentPath / L"../../../Client/Bin/Resources/Data/json/Prefabs",
+            currentPath / L"../../Client/Bin/Resources/Data/json/Prefabs",
+            currentPath / L"Client/Bin/Resources/Data/json/Prefabs",
+        };
+
+        for (const fs::path& candidate : candidates)
+        {
+            const fs::path normalized = fs::absolute(candidate).lexically_normal();
+            if (fs::exists(normalized) && fs::is_directory(normalized))
+                return normalized;
+        }
+
+        return {};
+    }
+
+    void Rebuild_MonsterBattlePrefabPickerEntries()
+    {
+        g_monsterBattlePrefabPickerEntries.clear();
+
+        const fs::path prefabsRoot = Resolve_PrefabRootForMonsterBattlePicker();
+        if (prefabsRoot.empty())
+            return;
+
+        static const string kPrefabSuffix = ".prefab.json";
+
+        std::error_code errorCode{};
+        for (const fs::directory_entry& entry : fs::recursive_directory_iterator(prefabsRoot, errorCode))
+        {
+            if (errorCode)
+                break;
+
+            if (!entry.is_regular_file(errorCode))
+                continue;
+
+            const string fileName = String::ToString(entry.path().filename().wstring());
+            if (fileName.size() <= kPrefabSuffix.size() ||
+                fileName.compare(fileName.size() - kPrefabSuffix.size(), kPrefabSuffix.size(), kPrefabSuffix) != 0)
+            {
+                continue;
+            }
+
+            const json root = GAME->Load_JsonFile(entry.path());
+            if (!root.is_object())
+                continue;
+
+            const string staticClass = root.value("static_class", string{});
+            if (staticClass.empty())
+                continue;
+
+            const auto* typeInfo = GAME->Find_GameObjectType(staticClass);
+            if (typeInfo == nullptr || typeInfo->reflectionInfo == nullptr)
+                continue;
+
+            if (typeInfo->reflectionInfo->category != "Monster")
+                continue;
+
+            const string prefabName = fileName.substr(0, fileName.size() - kPrefabSuffix.size());
+            g_monsterBattlePrefabPickerEntries.push_back({ prefabName, staticClass });
+        }
+
+        sort(
+            g_monsterBattlePrefabPickerEntries.begin(),
+            g_monsterBattlePrefabPickerEntries.end(),
+            [](const FMonsterBattlePrefabPickerEntry& left, const FMonsterBattlePrefabPickerEntry& right)
+            {
+                return left.prefabName < right.prefabName;
+            });
     }
 
 
@@ -686,6 +769,7 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
     }
 
     Draw_ComponentOverride(static_pointer_cast<Component>(transform));
+    Draw_MonsterBattlePrefabList(target);
     Draw_ObjectReflection(target);
 
     target->Visit_Components([&](const wstring&, const Shared<Component>& component)
@@ -712,6 +796,156 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
         if (const Shared<ModelCom> mapModel = mapStaticMesh->Get_Model())
             Draw_ComponentOverride(static_pointer_cast<Component>(mapModel));
     }
+}
+
+bool Inspector::Draw_MonsterBattlePrefabList(const Shared<GameObject>& target)
+{
+    Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(target);
+    if (monster == nullptr)
+        return false;
+
+    if (g_monsterBattlePrefabPickerEntries.empty())
+        Rebuild_MonsterBattlePrefabPickerEntries();
+
+    vector<Client::BattleMonsterSpawnDesc>& spawnDescs = monster->Get_BattleMonsterSpawnDescs_ForEdit();
+
+    // 프리팹/맵 인스턴스가 실제 전투 진입 때 넘기는 소환 목록이다.
+    if (!ImGui::CollapsingHeader("Battle Monster Prefabs", ImGuiTreeNodeFlags_DefaultOpen))
+        return false;
+
+    bool changed = false;
+
+    ImGui::PushID("InspectorBattleMonsterPrefabs");
+
+    constexpr float BattlePrefabLabelWidth = 110.f;
+
+    int32 removeIndex = -1;
+    for (int32 i = 0; i < static_cast<int32>(spawnDescs.size()); ++i)
+    {
+        ImGui::PushID(i);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Slot %d", i);
+        ImGui::SameLine(BattlePrefabLabelWidth);
+
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x - 74.f));
+        const char* previewLabel =
+            spawnDescs[i].prefabName.empty() ? "(select prefab)" : spawnDescs[i].prefabName.c_str();
+        if (ImGui::BeginCombo("##BattleMonsterPrefabName", previewLabel))
+        {
+            bool hasCurrentPrefab = spawnDescs[i].prefabName.empty();
+            for (const FMonsterBattlePrefabPickerEntry& entry : g_monsterBattlePrefabPickerEntries)
+            {
+                const bool isSelected = (spawnDescs[i].prefabName == entry.prefabName);
+                if (isSelected)
+                    hasCurrentPrefab = true;
+
+                const string label = entry.prefabName + "##" + entry.className;
+                if (ImGui::Selectable(label.c_str(), isSelected))
+                {
+                    if (spawnDescs[i].prefabName != entry.prefabName)
+                    {
+                        spawnDescs[i].prefabName = entry.prefabName; // 저장값은 런타임 로드에 쓰는 prefab 이름이다.
+                        changed = true;
+                    }
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            if (!hasCurrentPrefab && !spawnDescs[i].prefabName.empty())
+            {
+                ImGui::Separator();
+                ImGui::TextDisabled("Missing: %s", spawnDescs[i].prefabName.c_str());
+            }
+
+            ImGui::EndCombo();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Remove", ImVec2(68.f, 0.f)))
+            removeIndex = i;
+
+        Vec3 offset = spawnDescs[i].offset;
+        ImGui::Text("Offset");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat3("##BattleMonsterOffset", &offset.x, 0.05f))
+        {
+            spawnDescs[i].offset = offset;
+            changed = true;
+        }
+
+        Vec3 rotation = spawnDescs[i].rotation;
+        ImGui::Text("Rotation");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat3("##BattleMonsterRotation", &rotation.x, 0.25f))
+        {
+            spawnDescs[i].rotation = rotation;
+            changed = true;
+        }
+
+        float wideBackOffset = spawnDescs[i].wideBackOffset;
+        ImGui::Text("Wide Back");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterWideBackOffset", &wideBackOffset, 0.05f))
+        {
+            spawnDescs[i].wideBackOffset = wideBackOffset;
+            changed = true;
+        }
+
+        float wideHeightOffset = spawnDescs[i].wideHeightOffset;
+        ImGui::Text("Wide Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterWideHeightOffset", &wideHeightOffset, 0.05f))
+        {
+            spawnDescs[i].wideHeightOffset = wideHeightOffset;
+            changed = true;
+        }
+
+        float wideLookHeightOffset = spawnDescs[i].wideLookHeightOffset;
+        ImGui::Text("Wide Look Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterWideLookHeightOffset", &wideLookHeightOffset, 0.05f))
+        {
+            spawnDescs[i].wideLookHeightOffset = wideLookHeightOffset;
+            changed = true;
+        }
+
+        ImGui::PopID();
+    }
+
+    if (removeIndex >= 0 && removeIndex < static_cast<int32>(spawnDescs.size()))
+    {
+        spawnDescs.erase(spawnDescs.begin() + removeIndex);
+        changed = true;
+    }
+
+    if (ImGui::Button("Add", ImVec2(70.f, 0.f)))
+    {
+        if (!g_monsterBattlePrefabPickerEntries.empty())
+            spawnDescs.push_back({ g_monsterBattlePrefabPickerEntries.front().prefabName });
+        else
+            spawnDescs.emplace_back();
+        changed = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear", ImVec2(70.f, 0.f)))
+    {
+        spawnDescs.clear();
+        changed = true;
+    }
+
+    ImGui::PopID();
+    ImGui::Spacing();
+
+    return changed;
 }
 
 void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)
