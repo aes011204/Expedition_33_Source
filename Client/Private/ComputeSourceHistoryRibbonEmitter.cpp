@@ -354,6 +354,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Reset_ForEffectReplay()
     _selfRootCollapseLength = -1.f;
     _hasSelfRootPreviousSourcePosition = false;
     Clear_ParticleFollowerHistory();
+    _retiredLoopStrokes.clear();
     _materialElapsedTime = 0.f;
     _visibleRibbonLength = 1.f;
     _drawSegmentCount = 0u;
@@ -458,13 +459,17 @@ bool ComputeSourceHistoryRibbonEmitter::Is_EmittingSourceSamples() const
 
 void ComputeSourceHistoryRibbonEmitter::Update_History(float timeDelta)
 {
+    Update_RetiredLoopStrokes(timeDelta);
+
     if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
     {
         Update_ParticleFollowerHistory(timeDelta);
+        Refresh_VisibleRibbonLengthFromRetired();
         return;
     }
 
     Update_SelfRootHistory(timeDelta);
+    Refresh_VisibleRibbonLengthFromRetired();
 }
 
 void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
@@ -841,13 +846,28 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
 bool ComputeSourceHistoryRibbonEmitter::Has_RenderableHistory() const
 {
     if (_desc.sourceMode != EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
-        return Has_RenderableHistory(_history, &_selfRootSourcePosition);
+    {
+        if (Has_RenderableHistory(_history, &_selfRootSourcePosition))
+            return true;
+    }
+    else
+    {
+        const bool hasActiveLane = ranges::any_of(
+            _sourceLanes,
+            [this](const HistoryLane& lane)
+            {
+                return Has_RenderableHistory(lane.history, &lane.currentSourcePosition);
+            }
+        );
+        if (hasActiveLane)
+            return true;
+    }
 
     return ranges::any_of(
-        _sourceLanes,
-        [this](const HistoryLane& lane)
+        _retiredLoopStrokes,
+        [this](const RetiredLoopStroke& stroke)
         {
-            return Has_RenderableHistory(lane.history, &lane.currentSourcePosition);
+            return Has_RenderableHistory(stroke.history, nullptr);
         }
     );
 }
@@ -873,6 +893,89 @@ ComputeSourceHistoryRibbonEmitter::HistoryLane* ComputeSourceHistoryRibbonEmitte
 void ComputeSourceHistoryRibbonEmitter::Clear_ParticleFollowerHistory()
 {
     _sourceLanes.clear();
+}
+
+void ComputeSourceHistoryRibbonEmitter::Retire_ActiveLoopStrokes()
+{
+    if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+    {
+        for (const HistoryLane& lane : _sourceLanes)
+        {
+            const float fadeDuration = max(_desc.laneSpawnFadeInDuration, 0.0001f);
+            const float laneWidthMultiplier =
+                _desc.laneSpawnFadeInEnabled && _desc.laneSpawnFadeInDuration > 0.f
+                ? clamp(lane.age / fadeDuration, 0.f, 1.f)
+                : 1.f;
+            Retire_HistoryStroke(lane.history, &lane.currentSourcePosition, laneWidthMultiplier);
+        }
+        return;
+    }
+
+    if (_hasSelfRootPreviousSourcePosition || !_history.empty())
+        Retire_HistoryStroke(_history, &_selfRootSourcePosition, 1.f);
+}
+
+void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
+    vector<HistorySample> history,
+    const Vec3* currentSourcePosition,
+    float widthMultiplier)
+{
+    if (currentSourcePosition != nullptr)
+    {
+        if (history.empty() ||
+            (history.front().position - *currentSourcePosition).Length() > kMinRenderableRibbonLength)
+        {
+            history.insert(history.begin(), HistorySample{ .position = *currentSourcePosition, .age = 0.f });
+        }
+        else
+        {
+            history.front().position = *currentSourcePosition;
+            history.front().age = 0.f;
+        }
+    }
+
+    if (!Has_RenderableHistory(history, nullptr))
+        return;
+
+    _retiredLoopStrokes.push_back(
+        RetiredLoopStroke{
+            .history = std::move(history),
+            .widthMultiplier = clamp(widthMultiplier, 0.f, 1.f)
+        }
+    );
+
+    while (_retiredLoopStrokes.size() > kMaxRetiredLoopStrokeCount)
+        _retiredLoopStrokes.erase(_retiredLoopStrokes.begin());
+}
+
+void ComputeSourceHistoryRibbonEmitter::Update_RetiredLoopStrokes(float timeDelta)
+{
+    const float safeDeltaTime = max(0.f, timeDelta);
+    for (RetiredLoopStroke& stroke : _retiredLoopStrokes)
+    {
+        for (HistorySample& sample : stroke.history)
+            sample.age += safeDeltaTime;
+        Prune_History(stroke.history);
+    }
+
+    erase_if(
+        _retiredLoopStrokes,
+        [this](const RetiredLoopStroke& stroke)
+        {
+            return !Has_RenderableHistory(stroke.history, nullptr);
+        }
+    );
+}
+
+void ComputeSourceHistoryRibbonEmitter::Refresh_VisibleRibbonLengthFromRetired()
+{
+    vector<RenderSample> renderSamples{};
+    for (const RetiredLoopStroke& stroke : _retiredLoopStrokes)
+    {
+        Build_RenderSamples(stroke.history, renderSamples, nullptr);
+        if (renderSamples.size() >= 2u)
+            _visibleRibbonLength = max(_visibleRibbonLength, renderSamples.back().distanceFromHead);
+    }
 }
 
 HRESULT ComputeSourceHistoryRibbonEmitter::Ready_Components()
@@ -1068,6 +1171,13 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
         vector<RenderSample> renderSamples{};
         Build_RenderSamples(renderSamples);
         CHECK_FAILED(Append_SegmentPayloads(renderSamples, payloads), E_FAIL);
+    }
+
+    vector<RenderSample> retiredRenderSamples{};
+    for (const RetiredLoopStroke& stroke : _retiredLoopStrokes)
+    {
+        Build_RenderSamples(stroke.history, retiredRenderSamples, nullptr);
+        CHECK_FAILED(Append_SegmentPayloads(retiredRenderSamples, payloads, stroke.widthMultiplier), E_FAIL);
     }
 
     if (payloads.empty())
@@ -1365,9 +1475,9 @@ uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxRenderSegmentCount() const
 {
     const uint32 laneSegmentCount = Compute_MaxLaneRenderSegmentCount();
     if (_desc.sourceMode != EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
-        return laneSegmentCount;
+        return laneSegmentCount * (1u + kMaxRetiredLoopStrokeCount);
 
-    return laneSegmentCount * max(1u, _desc.followerLaneCount);
+    return laneSegmentCount * (max(1u, _desc.followerLaneCount) + kMaxRetiredLoopStrokeCount);
 }
 
 uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxLaneRenderSegmentCount() const
@@ -1378,6 +1488,8 @@ uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxLaneRenderSegmentCount() co
 
 void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
 {
+    Retire_ActiveLoopStrokes();
+
     ++_loopIndex;
     _loopElapsedTime = 0.f;
     _playbackState = PlaybackState::Delayed;

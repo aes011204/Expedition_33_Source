@@ -96,6 +96,13 @@ private:
         bool activeThisFrame{};
     };
 
+    struct RetiredLoopStroke
+    {
+        vector<HistorySample> history{};
+        vector<Stamp> stamps{};
+        Vec3 lastValidTangent{ 1.f, 0.f, 0.f };
+    };
+
     struct StampInstanceVertex
     {
         Vec4 centerAndLength{};
@@ -112,6 +119,7 @@ private:
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr uint32 kPointVertexCount{ 1 };
     static constexpr uint32 kMaxCurveSubdivision{ 32 };
+    static constexpr uint32 kMaxRetiredLoopStrokeCount{ 4 };
     static constexpr float kSmoothSampleSideWeight{ 0.25f };
     static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
     static constexpr int kOpacitySourceAlpha{ 0 };
@@ -133,6 +141,7 @@ private:
     float _stampDistanceAccumulator{};
     float _stampTimeAccumulator{};
     vector<HistoryLane> _sourceLanes{};
+    vector<RetiredLoopStroke> _retiredLoopStrokes{};
     uint32 _drawStampCount{};
     uint32 _stampSerialCounter{};
     int _opacitySourceIndex{ kOpacitySourceAlpha };
@@ -153,6 +162,9 @@ private:
     void Update_SelfRoot(float timeDelta);
     void Update_ParticleFollowers(float timeDelta);
     void Update_Lane(HistoryLane& lane, const Vec3& sourcePosition, float timeDelta);
+    void Retire_ActiveLoopStrokes();
+    void Update_RetiredLoopStrokes(float timeDelta);
+    bool Has_LiveStamps() const;
     void Age_Stamps(vector<Stamp>& stamps, float timeDelta) const;
     void Update_StampMotion(Stamp& stamp, float timeDelta) const;
     void Insert_HistorySample(vector<HistorySample>& history, float& sampleAccumulator, const Vec3& sourcePosition, float sampleTime);

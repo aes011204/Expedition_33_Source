@@ -86,6 +86,12 @@ private:
         bool hasPreviousSourcePosition{};
     };
 
+    struct RetiredLoopStroke
+    {
+        vector<HistorySample> history{};
+        float widthMultiplier{ 1.f };
+    };
+
     struct RibbonComputeParams
     {
         uint32 segmentCount{};
@@ -127,6 +133,7 @@ private:
     static constexpr uint32 kThreadCountX{ 64 };
     static constexpr uint32 kMaxDistanceTessellationSubdivision{ 8 };
     static constexpr uint32 kMaxCurveSubdivision{ 32 };
+    static constexpr uint32 kMaxRetiredLoopStrokeCount{ 4 };
     static constexpr float kSmoothSampleSideWeight{ 0.25f };
     static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
     static constexpr float kMinRenderableRibbonLength{ 0.0001f };
@@ -144,6 +151,7 @@ private:
     Vec3 _selfRootPreviousSourcePosition{};
     bool _hasSelfRootPreviousSourcePosition{};
     vector<HistoryLane> _sourceLanes{};
+    vector<RetiredLoopStroke> _retiredLoopStrokes{};
     float _materialElapsedTime{};
     float _visibleRibbonLength{ 1.f };
     uint32 _drawSegmentCount{};
@@ -188,6 +196,10 @@ private:
     bool Has_RenderableHistory(const vector<HistorySample>& history, const Vec3* currentSourcePosition = nullptr) const;
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
     void Clear_ParticleFollowerHistory();
+    void Retire_ActiveLoopStrokes();
+    void Retire_HistoryStroke(vector<HistorySample> history, const Vec3* currentSourcePosition, float widthMultiplier);
+    void Update_RetiredLoopStrokes(float timeDelta);
+    void Refresh_VisibleRibbonLengthFromRetired();
 
     HRESULT Ready_Components();
     HRESULT Ready_Texture();

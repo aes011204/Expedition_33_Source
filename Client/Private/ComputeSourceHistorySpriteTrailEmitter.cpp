@@ -353,6 +353,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
     Reset_LoopScopedRuntime();
+    _retiredLoopStrokes.clear();
     _materialElapsedTime = 0.f;
     _stampSerialCounter = 0u;
     return S_OK;
@@ -363,16 +364,7 @@ bool ComputeSourceHistorySpriteTrailEmitter::Is_EffectFinished() const
     if (PlaybackState::Completed != _playbackState)
         return false;
 
-    if (!_stamps.empty())
-        return false;
-
-    return ranges::all_of(
-        _sourceLanes,
-        [](const HistoryLane& lane)
-        {
-            return lane.stamps.empty();
-        }
-    );
+    return !Has_LiveStamps();
 }
 
 void ComputeSourceHistorySpriteTrailEmitter::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider)
@@ -393,6 +385,15 @@ bool ComputeSourceHistorySpriteTrailEmitter::Try_Get_BlendSortWorldPosition(Vec3
         if (!lane.stamps.empty())
         {
             outWorldPosition = lane.stamps.front().center;
+            return true;
+        }
+    }
+
+    for (const RetiredLoopStroke& stroke : _retiredLoopStrokes)
+    {
+        if (!stroke.stamps.empty())
+        {
+            outWorldPosition = stroke.stamps.front().center;
             return true;
         }
     }
@@ -477,6 +478,8 @@ bool ComputeSourceHistorySpriteTrailEmitter::Is_EmittingSourceSamples() const
 
 void ComputeSourceHistorySpriteTrailEmitter::Update_HistoryAndStamps(float timeDelta)
 {
+    Update_RetiredLoopStrokes(timeDelta);
+
     if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
         Update_ParticleFollowers(timeDelta);
     else
@@ -485,17 +488,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_HistoryAndStamps(float timeD
     if (_finishEmissionAfterUpdate)
         _playbackState = PlaybackState::Draining;
 
-    const bool hasLiveStamps =
-        !_stamps.empty() ||
-        ranges::any_of(
-            _sourceLanes,
-            [](const HistoryLane& lane)
-            {
-                return !lane.stamps.empty();
-            }
-        );
-
-    if (PlaybackState::Draining == _playbackState && !hasLiveStamps)
+    if (PlaybackState::Draining == _playbackState && !Has_LiveStamps())
         _playbackState = PlaybackState::Completed;
 }
 
@@ -624,6 +617,87 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_Lane(HistoryLane& lane, cons
         timeDelta
     );
     lane.currentSourcePosition = sourcePosition;
+}
+
+void ComputeSourceHistorySpriteTrailEmitter::Retire_ActiveLoopStrokes()
+{
+    if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+    {
+        for (const HistoryLane& lane : _sourceLanes)
+        {
+            if (lane.history.empty() && lane.stamps.empty())
+                continue;
+
+            _retiredLoopStrokes.push_back(
+                RetiredLoopStroke{
+                    .history = lane.history,
+                    .stamps = lane.stamps,
+                    .lastValidTangent = lane.lastValidTangent
+                }
+            );
+        }
+    }
+    else if (!_history.empty() || !_stamps.empty())
+    {
+        _retiredLoopStrokes.push_back(
+            RetiredLoopStroke{
+                .history = _history,
+                .stamps = _stamps,
+                .lastValidTangent = _selfRootLastValidTangent
+            }
+        );
+    }
+
+    while (_retiredLoopStrokes.size() > kMaxRetiredLoopStrokeCount)
+        _retiredLoopStrokes.erase(_retiredLoopStrokes.begin());
+}
+
+void ComputeSourceHistorySpriteTrailEmitter::Update_RetiredLoopStrokes(float timeDelta)
+{
+    const float safeDeltaTime = max(0.f, timeDelta);
+    for (RetiredLoopStroke& stroke : _retiredLoopStrokes)
+    {
+        Age_Stamps(stroke.stamps, safeDeltaTime);
+        for (HistorySample& sample : stroke.history)
+            sample.age += safeDeltaTime;
+
+        Update_PathFollowStamps(stroke.stamps, stroke.history, stroke.lastValidTangent, safeDeltaTime);
+        Update_PathReplayStamps(stroke.stamps, stroke.history, stroke.lastValidTangent, safeDeltaTime);
+        Prune_History(stroke.history, Resolve_RequiredHistoryDistance(stroke.stamps));
+    }
+
+    erase_if(
+        _retiredLoopStrokes,
+        [](const RetiredLoopStroke& stroke)
+        {
+            return stroke.stamps.empty();
+        }
+    );
+}
+
+bool ComputeSourceHistorySpriteTrailEmitter::Has_LiveStamps() const
+{
+    if (!_stamps.empty())
+        return true;
+
+    if (ranges::any_of(
+        _sourceLanes,
+        [](const HistoryLane& lane)
+        {
+            return !lane.stamps.empty();
+        }
+    ))
+    {
+        return true;
+    }
+
+    return ranges::any_of(
+        _retiredLoopStrokes,
+        [](const RetiredLoopStroke& stroke)
+        {
+            return !stroke.stamps.empty();
+        }
+    );
 }
 
 void ComputeSourceHistorySpriteTrailEmitter::Age_Stamps(vector<Stamp>& stamps, float timeDelta) const
@@ -1402,6 +1476,8 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Update_InstanceBuffer()
     CHECK_FAILED(Append_StampInstances(_stamps, instances), E_FAIL);
     for (const HistoryLane& lane : _sourceLanes)
         CHECK_FAILED(Append_StampInstances(lane.stamps, instances), E_FAIL);
+    for (const RetiredLoopStroke& stroke : _retiredLoopStrokes)
+        CHECK_FAILED(Append_StampInstances(stroke.stamps, instances), E_FAIL);
 
     _drawStampCount = min(static_cast<uint32>(instances.size()), Compute_MaxStampCount());
     if (_desc.drawLimit.useMaxDrawCount)
@@ -1583,21 +1659,12 @@ bool ComputeSourceHistorySpriteTrailEmitter::Can_SubmitRender() const
     if (_shader == nullptr || _mainTexture == nullptr || _instanceBuffer == nullptr)
         return false;
 
-    if (!_stamps.empty())
-        return true;
-
-    return ranges::any_of(
-        _sourceLanes,
-        [](const HistoryLane& lane)
-        {
-            return !lane.stamps.empty();
-        }
-    );
+    return Has_LiveStamps();
 }
 
 uint32 ComputeSourceHistorySpriteTrailEmitter::Compute_MaxStampCount() const
 {
-    return max(1u, _desc.maxStampCount * max(1u, _desc.followerLaneCount));
+    return max(1u, _desc.maxStampCount * (max(1u, _desc.followerLaneCount) + kMaxRetiredLoopStrokeCount));
 }
 
 float ComputeSourceHistorySpriteTrailEmitter::Resolve_CurrentLoopDelay() const
@@ -1617,6 +1684,8 @@ bool ComputeSourceHistorySpriteTrailEmitter::Has_NextLoop() const
 
 void ComputeSourceHistorySpriteTrailEmitter::Start_NextLoop()
 {
+    Retire_ActiveLoopStrokes();
+
     ++_loopIndex;
     _loopElapsedTime = 0.f;
     _playbackState = PlaybackState::Delayed;
