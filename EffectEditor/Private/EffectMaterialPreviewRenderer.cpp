@@ -7,6 +7,7 @@
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
+#include "VIBuffer_Rect.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -78,6 +79,26 @@ namespace Internal
         return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
     }
 
+    Shared<RenderTarget> Create_PreviewRenderTarget(
+        const wchar_t* targetTag,
+        uint32 width,
+        uint32 height,
+        DXGI_FORMAT format,
+        const Vec4& clearColor,
+        bool useDepthStencil)
+    {
+        return RenderTarget::Create(
+            targetTag,
+            EDITOR->Get_Device(),
+            EDITOR->Get_Context(),
+            width,
+            height,
+            format,
+            clearColor,
+            useDepthStencil
+        );
+    }
+
     wstring Resolve_PreviewTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
     {
         outUsedPathFallback = false;
@@ -146,9 +167,13 @@ void EffectMaterialPreviewRenderer::Render_Material(
     }
 
     if (!Ready_RenderTarget() ||
+        !Ready_HDRRenderTarget() ||
+        !Ready_PostProcessTargets() ||
         (isDistortionPreview && !Ready_DistortionSourceTarget()) ||
         !Ready_Shader() ||
         (isDistortionPreview && !Ready_DistortionShader()) ||
+        !Ready_PostProcessShader() ||
+        !Ready_PostProcessRect() ||
         !Ready_Texture(previewMaterial.mainTextureGuid, previewMaterial.mainTexturePath) ||
         !Ready_NoiseTexture(previewMaterial.noiseTextureGuid, previewMaterial.noiseTexturePath) ||
         !Ready_MaskTexture(previewMaterial.maskTextureGuid, previewMaterial.maskTexturePath) ||
@@ -170,9 +195,9 @@ void EffectMaterialPreviewRenderer::Render_Material(
         }
     }
 
-    if (FAILED(_renderTarget->Begin(true, true)))
+    if (FAILED(_hdrRenderTarget->Begin(true, true)))
     {
-        _statusMessage = "Preview render target begin is failed.";
+        _statusMessage = "Preview HDR render target begin is failed.";
         return;
     }
 
@@ -183,6 +208,9 @@ void EffectMaterialPreviewRenderer::Render_Material(
              ? Render_DistortionPreviewMesh(previewMaterial)
              : Render_PreviewMesh(previewMaterial);
     }
+
+    if (SUCCEEDED(hr))
+        hr = Render_PostProcessResolve();
 
     GAME->Bind_BackBuffer();
 
@@ -271,15 +299,13 @@ bool EffectMaterialPreviewRenderer::Ready_RenderTarget()
     if (_renderTarget != nullptr)
         return true;
 
-    _renderTarget = RenderTarget::Create(
-        L"RenderTarget",
-        EDITOR->Get_Device(),
-        EDITOR->Get_Context(),
+    _renderTarget = Internal::Create_PreviewRenderTarget(
+        L"EffectMaterialPreviewDisplay",
         _previewTextureWidth,
         _previewTextureHeight,
         DXGI_FORMAT_R8G8B8A8_UNORM,
         Vec4{ 0.18f, 0.18f, 0.18f, 1.f },
-        true
+        false
     );
 
     if (_renderTarget == nullptr)
@@ -291,18 +317,39 @@ bool EffectMaterialPreviewRenderer::Ready_RenderTarget()
     return true;
 }
 
+bool EffectMaterialPreviewRenderer::Ready_HDRRenderTarget()
+{
+    if (_hdrRenderTarget != nullptr)
+        return true;
+
+    _hdrRenderTarget = Internal::Create_PreviewRenderTarget(
+        L"EffectMaterialPreviewHDR",
+        _previewTextureWidth,
+        _previewTextureHeight,
+        DXGI_FORMAT_R16G16B16A16_FLOAT,
+        Vec4{ 0.02f, 0.025f, 0.035f, 1.f },
+        true
+    );
+
+    if (_hdrRenderTarget == nullptr)
+    {
+        _statusMessage = "Preview HDR render target creation failed.";
+        return false;
+    }
+
+    return true;
+}
+
 bool EffectMaterialPreviewRenderer::Ready_DistortionSourceTarget()
 {
     if (_distortionSourceTarget != nullptr)
         return true;
 
-    _distortionSourceTarget = RenderTarget::Create(
+    _distortionSourceTarget = Internal::Create_PreviewRenderTarget(
         L"EffectMaterialPreviewDistortionSource",
-        EDITOR->Get_Device(),
-        EDITOR->Get_Context(),
         _previewTextureWidth,
         _previewTextureHeight,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
+        DXGI_FORMAT_R16G16B16A16_FLOAT,
         Vec4{ 0.18f, 0.18f, 0.18f, 1.f },
         true
     );
@@ -310,6 +357,40 @@ bool EffectMaterialPreviewRenderer::Ready_DistortionSourceTarget()
     if (_distortionSourceTarget == nullptr)
     {
         _statusMessage = "Distortion preview source target creation failed.";
+        return false;
+    }
+
+    return true;
+}
+
+bool EffectMaterialPreviewRenderer::Ready_PostProcessTargets()
+{
+    const uint32 halfWidth = max(1u, _previewTextureWidth / 2u);
+    const uint32 halfHeight = max(1u, _previewTextureHeight / 2u);
+    const uint32 quarterWidth = max(1u, halfWidth / 2u);
+    const uint32 quarterHeight = max(1u, halfHeight / 2u);
+    const uint32 eighthWidth = max(1u, quarterWidth / 2u);
+    const uint32 eighthHeight = max(1u, quarterHeight / 2u);
+    constexpr DXGI_FORMAT bloomFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    const Vec4 clearColor{ 0.f, 0.f, 0.f, 1.f };
+
+    auto readyTarget = [&](Shared<RenderTarget>& target, const wchar_t* tag, uint32 width, uint32 height)
+    {
+        if (target != nullptr)
+            return true;
+
+        target = Internal::Create_PreviewRenderTarget(tag, width, height, bloomFormat, clearColor, false);
+        return target != nullptr;
+    };
+
+    if (!readyTarget(_bloomHalfA, L"EffectMaterialPreviewBloomHalfA", halfWidth, halfHeight) ||
+        !readyTarget(_bloomHalfB, L"EffectMaterialPreviewBloomHalfB", halfWidth, halfHeight) ||
+        !readyTarget(_bloomQuarterA, L"EffectMaterialPreviewBloomQuarterA", quarterWidth, quarterHeight) ||
+        !readyTarget(_bloomQuarterB, L"EffectMaterialPreviewBloomQuarterB", quarterWidth, quarterHeight) ||
+        !readyTarget(_bloomEighthA, L"EffectMaterialPreviewBloomEighthA", eighthWidth, eighthHeight) ||
+        !readyTarget(_bloomEighthB, L"EffectMaterialPreviewBloomEighthB", eighthWidth, eighthHeight))
+    {
+        _statusMessage = "Preview postprocess render target creation failed.";
         return false;
     }
 
@@ -340,6 +421,45 @@ bool EffectMaterialPreviewRenderer::Ready_DistortionShader()
     if (_distortionShader == nullptr)
     {
         _statusMessage = "Shader_EffectMaterialPreviewDistortion prototype is missing.";
+        return false;
+    }
+
+    return true;
+}
+
+bool EffectMaterialPreviewRenderer::Ready_PostProcessShader()
+{
+    if (_postProcessShader != nullptr)
+        return true;
+
+    _postProcessShader = ShaderCom::Create(
+        EDITOR->Get_Device(),
+        EDITOR->Get_Context(),
+        kEffectMaterialPreviewPostProcessShaderPath,
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::PostProcess,
+        false
+    );
+
+    if (_postProcessShader == nullptr)
+    {
+        _statusMessage = "Shader_PostProcess creation failed.";
+        return false;
+    }
+
+    return true;
+}
+
+bool EffectMaterialPreviewRenderer::Ready_PostProcessRect()
+{
+    if (_postProcessRect != nullptr)
+        return true;
+
+    _postProcessRect = VIBuffer_Rect::Create(EDITOR->Get_Device(), EDITOR->Get_Context());
+    if (_postProcessRect == nullptr)
+    {
+        _statusMessage = "Preview postprocess rect creation failed.";
         return false;
     }
 
@@ -1134,6 +1254,194 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     return S_OK;
 }
 
+HRESULT EffectMaterialPreviewRenderer::Render_PostProcessResolve() const
+{
+    CHECK_NULL(_hdrRenderTarget, E_FAIL);
+    CHECK_NULL(_renderTarget, E_FAIL);
+    CHECK_NULL(_postProcessShader, E_FAIL);
+    CHECK_NULL(_postProcessRect, E_FAIL);
+
+    const EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
+    const bool useHDRPostProcess =
+        options.features != PostProcessFeature::None &&
+        Has_Flag(options.features, PostProcessFeature::HDR);
+    const bool useBloom =
+        useHDRPostProcess &&
+        Has_Flag(options.features, PostProcessFeature::Bloom);
+
+    if (!useHDRPostProcess)
+        return Render_PostProcessCopy();
+
+    if (useBloom)
+    {
+        CHECK_FAILED(Render_BloomPass(_bloomHalfA, _hdrRenderTarget, PostProcessPass::BloomExtractHalf), E_FAIL);
+        CHECK_FAILED(Render_BloomPass(_bloomQuarterA, _bloomHalfA, PostProcessPass::BloomDownsample), E_FAIL);
+        CHECK_FAILED(Render_BloomPass(_bloomEighthA, _bloomQuarterA, PostProcessPass::BloomDownsample), E_FAIL);
+
+        CHECK_FAILED(Render_BloomPass(_bloomEighthB, _bloomEighthA, PostProcessPass::BloomBlurH), E_FAIL);
+        CHECK_FAILED(Render_BloomPass(_bloomEighthA, _bloomEighthB, PostProcessPass::BloomBlurV), E_FAIL);
+
+        CHECK_FAILED(Render_BloomPass(_bloomQuarterB, _bloomQuarterA, PostProcessPass::BloomBlurH), E_FAIL);
+        CHECK_FAILED(Render_BloomPass(_bloomQuarterA, _bloomQuarterB, PostProcessPass::BloomBlurV), E_FAIL);
+
+        CHECK_FAILED(Render_BloomPass(_bloomHalfB, _bloomHalfA, PostProcessPass::BloomBlurH), E_FAIL);
+        CHECK_FAILED(Render_BloomPass(_bloomHalfA, _bloomHalfB, PostProcessPass::BloomBlurV), E_FAIL);
+
+        CHECK_FAILED(Render_BloomUpsamplePass(_bloomQuarterB, _bloomEighthA, _bloomQuarterA), E_FAIL);
+        CHECK_FAILED(Render_BloomUpsamplePass(_bloomHalfB, _bloomQuarterB, _bloomHalfA), E_FAIL);
+    }
+
+    return Render_PostProcessToneMapping(useBloom ? _bloomHalfB : nullptr);
+}
+
+HRESULT EffectMaterialPreviewRenderer::Render_PostProcessToneMapping(const Shared<RenderTarget>& bloomTexture) const
+{
+    CHECK_NULL(_hdrRenderTarget, E_FAIL);
+    CHECK_NULL(_renderTarget, E_FAIL);
+    CHECK_NULL(_postProcessShader, E_FAIL);
+    CHECK_NULL(_postProcessRect, E_FAIL);
+
+    ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
+
+    CHECK_FAILED(_renderTarget->Begin(true, false), E_FAIL);
+    CHECK_FAILED(Bind_PostProcessCommon(_previewTextureWidth, _previewTextureHeight), E_FAIL);
+
+    PostProcessCB params = EDITOR->Get_PostProcessOptions().params;
+    params.featureMask = To_Underlying(EDITOR->Get_PostProcessOptions().features);
+    if (bloomTexture == nullptr)
+        params.featureMask &= ~To_Underlying(PostProcessFeature::Bloom);
+
+    CHECK_FAILED(_postProcessShader->Bind_CBufferData(params), E_FAIL);
+    CHECK_FAILED(_hdrRenderTarget->Bind_ShaderResource(_postProcessShader.get(), "g_HDRTexture"), E_FAIL);
+
+    if (bloomTexture != nullptr)
+        CHECK_FAILED(bloomTexture->Bind_ShaderResource(_postProcessShader.get(), "g_BloomTexture"), E_FAIL);
+    else
+        CHECK_FAILED(_postProcessShader->Bind_SRV("g_BloomTexture", nullptr), E_FAIL);
+
+    CHECK_FAILED(_postProcessShader->Bind_SRV("g_BackgroundMaskTexture", nullptr), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Begin(ETOI(PostProcessPass::ToneMapping)), E_FAIL);
+    CHECK_FAILED(_postProcessRect->Render(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT EffectMaterialPreviewRenderer::Render_PostProcessCopy() const
+{
+    CHECK_NULL(_hdrRenderTarget, E_FAIL);
+    CHECK_NULL(_renderTarget, E_FAIL);
+    CHECK_NULL(_postProcessShader, E_FAIL);
+    CHECK_NULL(_postProcessRect, E_FAIL);
+
+    ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
+
+    CHECK_FAILED(_renderTarget->Begin(true, false), E_FAIL);
+    CHECK_FAILED(Bind_PostProcessCommon(_previewTextureWidth, _previewTextureHeight), E_FAIL);
+
+    PostProcessCB params{};
+    params.featureMask = 0u;
+    CHECK_FAILED(_postProcessShader->Bind_CBufferData(params), E_FAIL);
+    CHECK_FAILED(_hdrRenderTarget->Bind_ShaderResource(_postProcessShader.get(), "g_HDRTexture"), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Bind_SRV("g_BloomTexture", nullptr), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Bind_SRV("g_BackgroundMaskTexture", nullptr), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Begin(ETOI(PostProcessPass::ToneMapping)), E_FAIL);
+    CHECK_FAILED(_postProcessRect->Render(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT EffectMaterialPreviewRenderer::Render_BloomPass(
+    const Shared<RenderTarget>& dstTarget,
+    const Shared<RenderTarget>& srcTarget,
+    PostProcessPass pass) const
+{
+    CHECK_NULL(dstTarget, E_FAIL);
+    CHECK_NULL(srcTarget, E_FAIL);
+    CHECK_NULL(_postProcessShader, E_FAIL);
+    CHECK_NULL(_postProcessRect, E_FAIL);
+
+    ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
+
+    CHECK_FAILED(dstTarget->Begin(true, false), E_FAIL);
+    CHECK_FAILED(Bind_PostProcessCommon(srcTarget->Get_Width(), srcTarget->Get_Height()), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Bind_CBufferData(EDITOR->Get_PostProcessOptions().params), E_FAIL);
+
+    const char* sourceName = pass == PostProcessPass::BloomExtractHalf ? "g_HDRTexture" : "g_BloomTexture";
+    CHECK_FAILED(srcTarget->Bind_ShaderResource(_postProcessShader.get(), sourceName), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Begin(ETOI(pass)), E_FAIL);
+    CHECK_FAILED(_postProcessRect->Render(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT EffectMaterialPreviewRenderer::Render_BloomUpsamplePass(
+    const Shared<RenderTarget>& dstTarget,
+    const Shared<RenderTarget>& smallTarget,
+    const Shared<RenderTarget>& baseTarget) const
+{
+    CHECK_NULL(dstTarget, E_FAIL);
+    CHECK_NULL(smallTarget, E_FAIL);
+    CHECK_NULL(baseTarget, E_FAIL);
+    CHECK_NULL(_postProcessShader, E_FAIL);
+    CHECK_NULL(_postProcessRect, E_FAIL);
+
+    ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
+
+    CHECK_FAILED(dstTarget->Begin(true, false), E_FAIL);
+    CHECK_FAILED(Bind_PostProcessCommon(dstTarget->Get_Width(), dstTarget->Get_Height()), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Bind_CBufferData(EDITOR->Get_PostProcessOptions().params), E_FAIL);
+    CHECK_FAILED(smallTarget->Bind_ShaderResource(_postProcessShader.get(), "g_BloomTexture"), E_FAIL);
+    CHECK_FAILED(baseTarget->Bind_ShaderResource(_postProcessShader.get(), "g_BloomBaseTexture"), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Begin(ETOI(PostProcessPass::BloomUpsampleAdd)), E_FAIL);
+    CHECK_FAILED(_postProcessRect->Render(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT EffectMaterialPreviewRenderer::Bind_PostProcessCommon(uint32 width, uint32 height) const
+{
+    CHECK_NULL(_postProcessShader, E_FAIL);
+    CHECK_NULL(_postProcessRect, E_FAIL);
+
+    const uint32 resolvedWidth = max(1u, width);
+    const uint32 resolvedHeight = max(1u, height);
+    const Matrix worldMatrix = Matrix::CreateScale(
+        static_cast<float>(resolvedWidth),
+        static_cast<float>(resolvedHeight),
+        1.f
+    );
+    ScreenSpaceCB screenSpaceCB{};
+    screenSpaceCB.screenViewMatrix = Matrix::Identity;
+    screenSpaceCB.screenProjMatrix = XMMatrixOrthographicLH(
+        static_cast<float>(resolvedWidth),
+        static_cast<float>(resolvedHeight),
+        0.f,
+        1.f
+    );
+    screenSpaceCB.viewInverseMatrix = Matrix::Identity;
+    screenSpaceCB.projInverseMatrix = Matrix::Identity;
+    screenSpaceCB.cameraPosition = Vec4(0.f, 0.f, 0.f, 1.f);
+    screenSpaceCB.farPlane = 100.f;
+    screenSpaceCB.texelSize = Vec2(
+        1.f / static_cast<float>(resolvedWidth),
+        1.f / static_cast<float>(resolvedHeight)
+    );
+    screenSpaceCB.screenSize = Vec2(
+        static_cast<float>(resolvedWidth),
+        static_cast<float>(resolvedHeight)
+    );
+
+    CHECK_FAILED(_postProcessShader->Bind_ObjectCB(worldMatrix), E_FAIL);
+    CHECK_FAILED(_postProcessShader->Bind_CBufferData(screenSpaceCB), E_FAIL);
+    CHECK_FAILED(_postProcessRect->Bind_Resources(), E_FAIL);
+
+    return S_OK;
+}
+
 HRESULT EffectMaterialPreviewRenderer::Render_Mesh(const PreviewMeshResource& mesh) const
 {
     if (mesh.vertexBuffer == nullptr || mesh.indexBuffer == nullptr || mesh.indexCount == 0)
@@ -1162,7 +1470,14 @@ void EffectMaterialPreviewRenderer::Resize_RenderTarget(uint32 width, uint32 hei
     _previewTextureWidth = width;
     _previewTextureHeight = height;
     _renderTarget.reset();
+    _hdrRenderTarget.reset();
     _distortionSourceTarget.reset();
+    _bloomHalfA.reset();
+    _bloomHalfB.reset();
+    _bloomQuarterA.reset();
+    _bloomQuarterB.reset();
+    _bloomEighthA.reset();
+    _bloomEighthB.reset();
     _hasRenderedPreview = false;
 }
 
@@ -1359,9 +1674,18 @@ void EffectMaterialPreviewRenderer::Cleanup()
     End_ViewportDrag();
     _isViewportDragging = false;
     _renderTarget.reset();
+    _hdrRenderTarget.reset();
     _distortionSourceTarget.reset();
+    _bloomHalfA.reset();
+    _bloomHalfB.reset();
+    _bloomQuarterA.reset();
+    _bloomQuarterB.reset();
+    _bloomEighthA.reset();
+    _bloomEighthB.reset();
     _shader.reset();
     _distortionShader.reset();
+    _postProcessShader.reset();
+    _postProcessRect.reset();
     _texture.reset();
     _noiseTexture.reset();
     _maskTexture.reset();

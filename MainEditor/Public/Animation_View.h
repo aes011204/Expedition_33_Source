@@ -113,6 +113,9 @@ private:
         Shared<EffectInstance> effect{};
         wstring effectName{};
         bool isPlaying = false;
+        bool isDraining = false;
+        float drainElapsed = 0.f;
+        float drainDuration = 0.25f;
     };
 
     struct PreviewWeaponRotateRuntime
@@ -204,6 +207,8 @@ private:
     void Reset_PreviewWeaponRotateStates();
     void Update_PreviewTrailEffect(float timeDelta);
     void Reset_PreviewTrailEffect();
+    void Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime);
+    bool Tick_PreviewTrailDrain(PreviewTrailRuntime& runtime, float timeDelta);
     vector<const AnimNotifyStateEntry*> Find_ActivePreviewTrailStates() const;
     bool Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, const wstring& effectName);
     bool Try_ResolvePreviewTrailEffectName(

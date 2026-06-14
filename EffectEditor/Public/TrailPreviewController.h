@@ -29,6 +29,9 @@ public:
     void Priority_Update(float timeDelta) override;
     void Update(float timeDelta) override;
 
+public:
+    bool Try_GetAttackAnimationRatio(float& outRatio) const;
+
 private:
     enum class PreviewAnimationMode
     {

@@ -233,12 +233,15 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
+    <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\MapAdapter.h" />
     <ClInclude Include="..\Public\MapCollisionAdapter.h" />
     <ClInclude Include="..\Public\PlayerInventory.h" />
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h" />
+    <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h" />
+    <ClInclude Include="..\Public\ComputeGeneratedBeamEmitter.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
@@ -540,6 +543,7 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
     <ClCompile Include="..\private\CinematicCamera.cpp" />
     <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
     <ClCompile Include="..\Private\EyeTarget.cpp" />
@@ -565,6 +569,7 @@
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp" />
+    <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
@@ -656,6 +661,10 @@
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Emitters.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Json.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp" />
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
@@ -795,7 +804,10 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
