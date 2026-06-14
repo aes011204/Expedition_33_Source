@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "UI_RuntimePanelBase.h"
-#include "BattleController.h"
+#include "Battle_Enum.h"
 
 NS_BEGIN(Client)
 
@@ -19,7 +19,7 @@ public:
     void    Close() override;
 
 public:
-    void    Show_Reaction(BattleController::ReactionType reactionType, const Vec2& screenPos);
+    void    Show_Reaction(BattleReactionType reactionType, const Vec2& screenPos);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);

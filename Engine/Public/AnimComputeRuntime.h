@@ -19,6 +19,7 @@ public:
 
         Shared<ComputeShaderCom> boneRemapShader{};
         Shared<ComputeShaderCom> skinningShader{};
+        Shared<ComputeShaderCom> morphShader{};
     };
 
 public:
@@ -44,6 +45,13 @@ private:
 
     HRESULT Update_GlobalCombinedBoneBuffer_FromCPU();
 
+private: // Morph 메시
+    HRESULT Ensure_RuntimeMorphBuffers();
+    HRESULT Set_MorphVertices(uint32 meshIndex, const MorphMeshData& meshData, uint32 targetCount);
+    HRESULT Ensure_RuntimeMorphConstantBuffer();
+    HRESULT Update_MorphWeightBuffer(const vector<float>* weights);
+    HRESULT Prepare_MorphDeform();
+
 private:
     HRESULT Build_ComputeCombinedBoneCache();
     HRESULT Step_BoneRemap(const AnimComputeFrameContext& context);
@@ -68,6 +76,17 @@ private:
     ComPtr<Buffer>                          _computeSkinningConstantBuffer{};
 
     bool _skinningDirty = true; // compute 결과를 다시 만들어야하면 true
+
+private:
+    Shared<ComputeShaderCom> _computeMorphShaderCom{};
+    vector<Shared<ComputeStructuredBuffer>> _meshMorphVertexRangeBuffers;
+    vector<Shared<ComputeStructuredBuffer>> _meshMorphInfluenceBuffers;
+    vector<Shared<ComputeStructuredBuffer>> _meshMorphedSourceVertexBuffers;
+
+    Shared<ComputeStructuredBuffer> _morphWeightBuffer{};
+    ComPtr<Buffer> _morphDeformConstantBuffer{};
+
+    bool _morphDirty = false;
 
 public:
     static Shared<AnimComputeRuntime> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const CreateDesc& desc);

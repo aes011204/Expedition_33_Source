@@ -19,20 +19,26 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };
-    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f }; // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
+    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
     float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
-    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f }; // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
+    float2 g_FlowUVPolicyParams = { 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };
     float2 g_FlowUVOffset = { 0.f, 0.f };
     float2 g_FlowUVScrollSpeed = { 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationMeta[8];
     float4 g_EffectMaterialScalarModulationKeyTimes[8];
+    float4 g_EffectMaterialScalarModulationKeyTimesBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyValues[8];
+    float4 g_EffectMaterialScalarModulationKeyValuesBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyArriveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyLeaveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyModes[8];
+    float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
     float g_FlowUVTilingMode = 0.f;
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
@@ -80,11 +86,24 @@ float4 Sample_EffectSpriteMaskTexture(float2 uv, float mode)
            : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
-float2 Sample_EffectSpriteFlowTexture(float2 uv, float mode)
+float2 Build_EffectSpriteFlowUV(float2 rawUV)
 {
-    return Use_EffectSpriteClampSampler(mode)
-           ? g_FlowTexture.Sample(LinearClampSampler, uv).rg
-           : g_FlowTexture.Sample(LinearWrapSampler, uv).rg;
+    return EffectDistortion_BuildAxisSeparatedUV(
+        rawUV,
+        g_FlowUVScale,
+        g_FlowUVOffset,
+        g_FlowUVScrollSpeed,
+        g_EffectSpriteMaterialTime,
+        g_FlowUVPolicyParams
+    );
+}
+
+float2 Sample_EffectSpriteFlowTexture(float2 uv)
+{
+    return g_FlowTexture.Sample(
+        LinearWrapSampler,
+        EffectDistortion_ApplyAxisSeparatedAddress(uv, g_FlowUVPolicyParams)
+    ).rg;
 }
 
 float Compute_InfluenceOutlineWidth(float2 cardUV)
@@ -118,7 +137,7 @@ struct VS_OUT
 
 VS_OUT VS_MAIN(VS_IN In)
 {
-    VS_OUT Out = (VS_OUT) 0;
+    VS_OUT Out = (VS_OUT)0;
 
     const float4 worldPosition = mul(float4(In.position, 1.f), In.InstanceMatrix);
     Out.worldPosition = worldPosition;
@@ -210,13 +229,13 @@ bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocity
 void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upDir)
 {
     float3 worldUp = float3(0.f, 1.f, 0.f);
-    rightDir = cross(worldUp, lookDir);
+    rightDir = cross(lookDir, worldUp);
 
     if (length(rightDir) < 0.0001f)
-        rightDir = cross(float3(0.f, 0.f, 1.f), lookDir);
+        rightDir = cross(lookDir, float3(0.f, 0.f, 1.f));
 
     rightDir = normalize(rightDir);
-    upDir = normalize(cross(lookDir, rightDir));
+    upDir = normalize(cross(rightDir, lookDir));
 }
 
 // 현재 카메라 평면 기준의 right/up 축을 가져온다.
@@ -309,7 +328,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     upDir *= spriteSize.y * 0.5f;
 
     const matrix ViewProjMatrix = mul(g_ViewMatrix, g_ProjMatrix);
-    GS_OUT Out[4] = (GS_OUT[4]) 0;
+    GS_OUT Out[4] = (GS_OUT[4])0;
 
     Out[0].position = mul(float4(particlePosition - rightDir + upDir, 1.f), ViewProjMatrix);
     Out[0].texCoord = float2(0.f, 0.f);
@@ -390,7 +409,7 @@ float Compute_DistortionInfluenceOutline(float2 cardUV, float lifeProgress)
 
 PS_OUT PS_MAIN(PS_IN In)
 {
-    PS_OUT Out = (PS_OUT) 0;
+    PS_OUT Out = (PS_OUT)0;
 
     const float lifeMax = max(In.lifeTime.x, 0.0001f);
     const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
@@ -402,13 +421,13 @@ PS_OUT PS_MAIN(PS_IN In)
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     const float resolvedOpacityPower = g_EffectSpriteParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
     const float resolvedNoiseStrength = g_EffectSpriteParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
     const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
     const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+                                      * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
     const float opacityPower = max(resolvedOpacityPower, 0.0001f);
     const float alphaCutoff = saturate(resolvedAlphaCutoff);
     const float alphaErosion = saturate(resolvedAlphaErosion);
@@ -419,7 +438,7 @@ PS_OUT PS_MAIN(PS_IN In)
     {
         const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
         const float noise = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(noiseTexel, (int) g_EffectSpriteSourceParams.x),
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
             g_EffectSpriteSourceParams.z
         );
         noiseFactor = lerp(1.f, noise, saturate(resolvedNoiseStrength));
@@ -429,7 +448,7 @@ PS_OUT PS_MAIN(PS_IN In)
     {
         const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
         maskAlpha = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(maskTexel, (int) g_EffectSpriteSourceParams.y),
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
             g_EffectSpriteSourceParams.w
         );
     }
@@ -439,9 +458,9 @@ PS_OUT PS_MAIN(PS_IN In)
     if (materialCoverage < max(alphaCutoff, 0.01f))
         discard;
 
-    const float2 flowUV = Build_EffectSpriteUV(sampleUV, float4(g_FlowUVScale, g_FlowUVScrollSpeed), g_FlowUVOffset, g_FlowUVTilingMode);
+    const float2 flowUV = Build_EffectSpriteFlowUV(sampleUV);
     const float2 flow = 0 != g_EffectDistortionParams.z
-                        ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
+                        ? Sample_EffectSpriteFlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
     const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(g_EffectDistortionShapeParams, In.texCoord, lifeProgress);

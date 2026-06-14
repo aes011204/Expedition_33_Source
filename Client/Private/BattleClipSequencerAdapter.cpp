@@ -54,7 +54,7 @@ float FrameToKeyTime(int frame, int frameMax, bool normalizedTime)
     return FrameToTime(frame);
 }
 
-BattleCameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
+CameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
 {
     if (clip == nullptr)
         return nullptr;
@@ -172,7 +172,7 @@ void DrawBattleClipKeyMarkers(
     if (clip == nullptr || drawList == nullptr)
         return;
 
-    BattleCameraTrack* track = GetTrackByIndex(clip, index);
+    CameraTrack* track = GetTrackByIndex(clip, index);
     if (track == nullptr)
         return;
 
@@ -193,7 +193,7 @@ void DrawBattleClipKeyMarkers(
 
     for (int keyIndex = 0; keyIndex < static_cast<int>(track->keyframes.size()); ++keyIndex)
     {
-        BattleCameraKeyframe& keyframe = track->keyframes[keyIndex];
+        CameraKeyframe& keyframe = track->keyframes[keyIndex];
         const int keyFrame = std::clamp(KeyTimeToFrame(keyframe.time, frameMax, normalizedTime), frameMin, frameMax);
         const float normalized = static_cast<float>(keyFrame - frameMin) / static_cast<float>(frameRange);
         const float markerX = std::max(rc.Min.x, std::min(rc.Min.x + normalized * (rc.Max.x - rc.Min.x), rc.Max.x));
@@ -236,6 +236,12 @@ void DrawBattleClipKeyMarkers(
 
             if (selectedKeyIndex != nullptr)
                 *selectedKeyIndex = keyIndex;
+
+            if (currentFrame != nullptr)
+                *currentFrame = keyFrame;
+
+            if (consumedKeyClick != nullptr)
+                *consumedKeyClick = true;
 
             if (requestRemoveKeyPopup != nullptr)
                 *requestRemoveKeyPopup = true;
@@ -300,8 +306,14 @@ void DrawBattleClipKeyMarkers(
         if (selectedTrackIndex != nullptr)
             *selectedTrackIndex = index;
 
+        if (selectedKeyIndex != nullptr)
+            *selectedKeyIndex = -1;
+
         if (currentFrame != nullptr)
             *currentFrame = std::clamp(clickedFrame, frameMin, frameMax);
+
+        if (consumedKeyClick != nullptr)
+            *consumedKeyClick = true;
 
         if (contextTrackIndex != nullptr)
             *contextTrackIndex = index;

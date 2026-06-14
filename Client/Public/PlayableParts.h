@@ -43,7 +43,6 @@ public:
     float Get_AnimationSpeed() const;
 
     Shared<ModelCom> Get_Model() const { return _modelCom; }
-
 public:
     virtual HRESULT Initialize_Prototype() override;
     virtual HRESULT Initialize(void* arg) override;
@@ -58,12 +57,14 @@ public:
     // 머리 붙이기
     void Set_LeaderPoseComponent(const PlayableParts* leaderPart) const;
     bool Has_LeaderPoseComponent() const;
-    void Update_LeaderPoseMatrices() const;
+    void Update_LeaderPoseMatrices(float timeDelta) const;
 
 protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 
     HRESULT Bind_PlayerRenderCB(Shared<ShaderCom> shader);
+    uint32 Build_DrawFeatureSupportMask(const PlayableParts& playablePart);
+
 
 protected:
     Matrix                      _offsetMatrix{};

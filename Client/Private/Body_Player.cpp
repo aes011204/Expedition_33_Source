@@ -46,25 +46,25 @@ void Body_Player::Priority_Update(float fTimeDelta)
 {
 }
 
-void Body_Player::Update(float fTimeDelta)
+void Body_Player::Update(float timeDelta)
 {
-    PlayableParts::Update(fTimeDelta);
+    PlayableParts::Update(timeDelta);
 
     ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Update");
 
     if (Has_LeaderPoseComponent())
     {
-        Update_LeaderPoseMatrices();
+        Update_LeaderPoseMatrices(timeDelta);
     }
     else if (_useComputeSkinning && _animComputeRuntime != nullptr)
     {
         ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::ComputeUpdate");
-        CHECK_FAILED(_animComputeRuntime->Update_Frame(fTimeDelta), ); // compute animation 파이프라인 전체 실행
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Update_Frame(timeDelta), 60); // compute animation 파이프라인 전체 실행
     }
     else
     {
-        _modelCom->Play_Animation(fTimeDelta);
-        CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
+        _modelCom->Play_Animation(timeDelta);
+        CHECK_FAILED_THROTTLED(_modelCom->Prepare_BoneMatrixBuffers(), 60);
     }
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
@@ -79,13 +79,13 @@ HRESULT Body_Player::Render()
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Render");
 
-     if (!_useComputeSkinning)
+    if (!_useComputeSkinning)
         return PlayableParts::Render();
 
-     if (_useComputeSkinning && _animComputeRuntime != nullptr)
-     {
-         CHECK_FAILED(_animComputeRuntime->Prepare_ComputeSkinning(), E_FAIL); // skinned VB 준비는 runtime이 담당
-     }
+    if (_useComputeSkinning && _animComputeRuntime != nullptr)
+    {
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_ComputeSkinning(), 60, E_FAIL); // skinned VB 준비는 runtime이 담당
+    }
 
     if (FAILED(_computeRenderShaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
@@ -111,10 +111,14 @@ HRESULT Body_Player::Render()
         if (FAILED(_computeRenderShaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(EffectCom::Bind_DrawFeatures(
-            Get_Owner(),
-            _computeRenderShaderCom.get(),
-            DrawFeatureFlagDissolve | DrawFeatureFlagPreviewRim), E_FAIL);
+        CHECK_FAILED_THROTTLED(
+            EffectCom::Bind_DrawFeatures(
+                Get_Owner(),
+                _computeRenderShaderCom.get(),
+                DrawFeatureFlagDissolve | DrawFeatureFlagPreviewRim),
+            60,
+            E_FAIL
+        );
 
         const uint32 passIndex =
             ShaderPassFinder::Find_PassIndex(ShaderType::VtxMesh, material->Get_RenderState());
@@ -123,7 +127,7 @@ HRESULT Body_Player::Render()
             return E_FAIL;
 
         // Compute skinning 바디도 기존 pass는 유지하고 stencil=1만 함께 기록한다.
-        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(true), E_FAIL);
+        CHECK_FAILED_THROTTLED(GAME->Bind_PlayerStencilWriteState(true), 60, E_FAIL);
 
         if (FAILED(_animComputeRuntime->Render_ComputeSkinned(i)))
             return E_FAIL;

@@ -28,6 +28,7 @@ GOOGLE_SHEET_EXPORTS = {
     "DT_Skill.xlsx": "https://docs.google.com/spreadsheets/d/1ZYbFBUcuUSYvSQR8D_o_Z95pZRv2HLopIpwxryuCo4Q/export?format=xlsx",
     "DT_Skill_Info.xlsx": "https://docs.google.com/spreadsheets/d/17SLPwvqcSqObjfzEFZymtw2qsnNHvRnS6U1WDk0JNdY/export?format=xlsx",
     "DT_SkillAction.xlsx": "https://docs.google.com/spreadsheets/d/1Zgifm1ACD1RdCZdtqT5FhCy02dZJK663VcyNEWxtCts/export?format=xlsx",
+    "DT_SoundCue.xlsx": "https://docs.google.com/spreadsheets/d/1oG7Imr8t_kLeE8lyCwggafz1gIinoa69icHQF5SwFww/export?format=xlsx",
 }
 
 

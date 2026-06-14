@@ -21,6 +21,12 @@ enum class PreviewViewportMode : uint8
     Manual,
 };
 
+enum class TrailPreviewGateMode : uint8
+{
+    Always,
+    Window,
+};
+
 enum class NotifyType : uint8
 {
     Info,

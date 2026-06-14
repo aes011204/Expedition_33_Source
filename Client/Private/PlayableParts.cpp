@@ -16,37 +16,11 @@ NS_BEGIN(Client)
 
 namespace
 {
-    constexpr uint32 kVtxAnimMeshCharacterHairBlendPass = 8u;
-
     bool SupportsPreviewRimPartTag(const wstring& partTag)
     {
         return partTag == L"Part_Body" ||
                partTag == L"Part_Head" ||
                partTag == L"Part_Hair";
-    }
-
-    // RimRay 효과를 위에 태그들한테만 적용해야 하니까 가능 여부를 마스킹 한다. (수염 같은 거에 들어가면 안 됨)
-    uint32 Build_DrawFeatureSupportMask(const PlayableParts& playablePart)
-    {
-        // 디졸브는 PlayableParts 전체에 적용 가능하니까 일단 기본으로 켜놓는다.
-        uint32 supportMask = DrawFeatureFlagDissolve;
-
-        const Shared<ContainerObject> ownerContainer =
-            dynamic_pointer_cast<ContainerObject>(playablePart.Get_Owner());
-        if (ownerContainer == nullptr)
-            return supportMask;
-
-        for (const auto& [partTag, partObject] : ownerContainer->Get_PartObjects())
-        {
-            if (partObject.get() != &playablePart)
-                continue;
-
-            if (SupportsPreviewRimPartTag(partTag))
-                supportMask |= DrawFeatureFlagPreviewRim;
-            break;
-        }
-
-        return supportMask;
     }
 }
 
@@ -195,15 +169,19 @@ void PlayableParts::Update(float timeDelta)
 
 void PlayableParts::Late_Update(float timeDelta)
 {
-    if (!Get_Owner() || !Get_Owner()->Is_Visible())
+    Shared<GameObject> owner = Get_Owner();
+    if (!owner)
     {
         return;
     }
 
-    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-
-    if (Casts_DynamicShadow())
+    if (Casts_DynamicShadow() && Is_Visible())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (!owner->Is_Visible())
+        return;
+
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
 Matrix PlayableParts::Get_GizmoWorldMatrix() const
@@ -265,7 +243,7 @@ HRESULT PlayableParts::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+    CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
 
     const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
     const uint32 supportFeatureMask = Build_DrawFeatureSupportMask(*this);
@@ -281,18 +259,17 @@ HRESULT PlayableParts::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), 60, E_FAIL);
 
-        CHECK_FAILED(EffectCom::Bind_DrawFeatures(
-            Get_Owner(), _shaderCom.get(), supportFeatureMask), E_FAIL);
+        CHECK_FAILED_THROTTLED(EffectCom::Bind_DrawFeatures(Get_Owner(), _shaderCom.get(), supportFeatureMask), 60, E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
             return E_FAIL;
 
         // 플레이어 파츠가 그려진 픽셀에 stencil=1을 남겨 Background UI가 이 영역을 피하게 한다.
-        const bool depthWrite = passIndex != kVtxAnimMeshCharacterHairBlendPass;
-        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(depthWrite), E_FAIL);
+        const bool depthWrite = passIndex != static_cast<uint32>(VtxAnimMeshPass::HairBlend);
+        CHECK_FAILED_THROTTLED(GAME->Bind_PlayerStencilWriteState(depthWrite), 60, E_FAIL);
 
         _modelCom->Render(i);
     }
@@ -344,12 +321,12 @@ bool PlayableParts::Has_LeaderPoseComponent() const
     return _modelCom->Has_LeaderPoseComponent();
 }
 
-void PlayableParts::Update_LeaderPoseMatrices() const
+void PlayableParts::Update_LeaderPoseMatrices(float timeDelta) const
 {
     if (_modelCom == nullptr)
         return;
 
-    _modelCom->Update_LeaderPoseMatrices();
+    _modelCom->Update_LeaderPoseMatrices(timeDelta);
     CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers());
 }
 
@@ -390,6 +367,29 @@ HRESULT PlayableParts::Bind_PlayerRenderCB(Shared<ShaderCom> shader)
     }
 
     return shader->Bind_CBufferData(playerRenderCB);
+}
+
+uint32 PlayableParts::Build_DrawFeatureSupportMask(const PlayableParts& playablePart)
+{
+    // 디졸브는 PlayableParts 전체에 적용 가능하니까 일단 기본으로 켜놓는다.
+    uint32 supportMask = DrawFeatureFlagDissolve;
+
+    const Shared<ContainerObject> ownerContainer =
+        dynamic_pointer_cast<ContainerObject>(playablePart.Get_Owner());
+    if (ownerContainer == nullptr)
+        return supportMask;
+
+    for (const auto& [partTag, partObject] : ownerContainer->Get_PartObjects())
+    {
+        if (partObject.get() != &playablePart)
+            continue;
+
+        if (SupportsPreviewRimPartTag(partTag))
+            supportMask |= DrawFeatureFlagPreviewRim;
+        break;
+    }
+
+    return supportMask;
 }
 
 HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)

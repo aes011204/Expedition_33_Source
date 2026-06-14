@@ -14,6 +14,11 @@ class ModelCom;
 class RenderTarget;
 NS_END
 
+NS_BEGIN(Client)
+class SkyBoxFlow;
+class SkyCloudCard;
+NS_END
+
 NS_BEGIN(MainEditor)
 class Editor_Camera_Free;
 
@@ -106,6 +111,8 @@ private:
     void Refresh_SkillList();
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
+    void Ensure_PreviewSkyBackdrop();
+    void Ensure_PreviewGridResources();
     void Reset_DefaultFormation();
     void Apply_DefaultHeroFormation();
     void Apply_DefaultEnemyFormation();
@@ -120,7 +127,6 @@ private:
     void Render_PreviewCanvas();
     void Render_PreviewPanel();
     void Render_TransitionPreviewPanel();
-    void Render_CounterPreviewPanel();
     void Render_BattlePresetEditor();
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
@@ -128,8 +134,10 @@ private:
     void Render_BattleClipDebugPanel();
     void Render_BattleClipInsertKeyframePopup();
     void Render_BattleClipRemoveKeyframePopup();
+    void Render_UnsavedSkillChangePopup();
     void Render_SkillShotTimeline();
     void Render_LoadAuthoringFilePopup();
+    void Draw_PreviewGrid() const;
     void Apply_PreviewContext();
     void Apply_PreviewAnimation(float previewTimeSec) const;
     void Apply_BattleCameraPreviewPose(float previewTimeSec);
@@ -145,12 +153,14 @@ private:
     void Clear_PreviewContext();
     void Refresh_PreviewAnimationList();
     void Try_AutoSelectPreviewActorAndAnimation();
-    void Sort_BattleClipTrackKeyframes(BattleCameraTrack& track);
+    void Sort_BattleClipTrackKeyframes(CameraTrack& track);
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
     void Sync_PreviewTimeFromTimeline();
     void Ensure_BattlePresetLoaded();
     void Load_BattlePresetForMode(BattleCameraMode mode, bool loadBase = false);
     void Load_BattlePresetForCurrentMode(bool loadBase = false);
+    void Load_BattleDriftForMode(BattleCameraMode mode);
+    void Load_BattleDriftForCurrentMode();
     void Load_BattleClipForMode(BattleCameraMode mode, bool loadBase = false, bool resetTimeline = false);
     void Load_BattleClipForCurrentMode(bool loadBase = false, bool resetTimeline = false);
     void Refresh_AuthoringFileList();
@@ -163,6 +173,11 @@ private:
     void Apply_DefaultPreviewSlotsForMode(BattleCameraMode mode, bool resetPoseState = true);
     void Apply_PreviewTransitionMode(BattleCameraMode mode);
     void Apply_PreviewSkillContext(const string& skillId);
+    bool Has_UnsavedBattleAuthoringChanges() const;
+    void Toggle_BattleClipPlayback();
+    void Handle_BattleClipPlaybackShortcut();
+    void Request_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex);
+    void Apply_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex);
     void Apply_TransitionStepContext(const PreviewTransitionStep& step);
     void Capture_CurrentPreviewIntoTransitionStep(PreviewTransitionStep& step);
     void Set_TransitionPreviewLocalTime(float timeSec);
@@ -215,8 +230,8 @@ private:
     string Get_CurrentPreviewPresetId() const;
     string Get_CurrentPreviewClipId() const;
     BattleCameraMode Get_BattlePresetEditorMode() const;
-    BattleCameraTrack* Get_SelectedBattleClipTrack();
-    BattleCameraKeyframe* Get_SelectedBattleClipKeyframe();
+    CameraTrack* Get_SelectedBattleClipTrack();
+    CameraKeyframe* Get_SelectedBattleClipKeyframe();
     float Get_TransitionSequenceDuration() const;
     float Get_DefaultBattleClipValue(int trackIndex);
     void Resolve_TransitionSequenceTime(float time, int& outStepIndex, float& outStepLocalTime);
@@ -229,6 +244,7 @@ private:
     PreviewContext   _previewContext{};
     PreviewFormation _previewFormation{};
     vector<string>   _skillIds{};
+    string _skillSearchText{};
     vector<string>   _enemyPrefabNames{};
     Client::HeroId   _selectedHeroId = Client::HeroId::Gustave;
 
@@ -267,11 +283,20 @@ private:
     uint32 _previewHeight = 1;
     bool _isPreviewHovered = false;
     bool _isPreviewActive = false;
+    bool _showPreviewGrid = true;
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
+    Shared<Client::SkyBoxFlow> _previewSkyBox{};
+    vector<Shared<Client::SkyCloudCard>> _previewSkyCloudCards{};
+    Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
+    Shared<DirectX::BasicEffect> _previewGridEffect{};
+    ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
+    ComPtr<ID3D11DepthStencilState> _previewGridDepthState{};
+    ComPtr<ID3D11BlendState> _previewGridBlendState{};
     Shared<GameObject> _previewHeroObject{};
     Shared<GameObject> _previewEnemyObject{};
     vector<string> _previewAnimationNames{};
+    string _previewAnimationSearchText{};
     int _selectedPreviewAnimationIndex = -1;
     vector<PreviewSkillPhaseBlock> _previewSkillPhaseBlocks{};
     int _selectedPreviewSkillPhaseIndex = -1;
@@ -288,12 +313,18 @@ private:
     float _previewShotDragOriginalStartSec = 0.f;
     float _previewShotDragOriginalEndSec = 0.f;
     BattleCameraPreset _editingBattlePreset{};
+    BattleCameraDriftProfile _editingBattleDrift{};
+    bool _battlePresetDirty = false;
+    bool _battleDriftDirty = false;
     BattleCameraMode _loadedBattlePresetMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattlePresetSkillId{};
     bool _hasLoadedBattlePreset = false;
+    BattleCameraMode _loadedBattleDriftMode = BattleCameraMode::PLAYERATTACK;
+    bool _hasLoadedBattleDrift = false;
     BattleCameraMode _loadedBattleClipMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattleClipSkillId{};
     BattleCameraClip _editingBattleClip{ 1.f };
+    bool _battleClipDirty = false;
     bool _hasLoadedBattleClip = false;
     int _battleClipSelectedTrackIndex = 0;
     int _battleClipSelectedKeyIndex = -1;
@@ -304,6 +335,7 @@ private:
     int _battleClipContextTrackIndex = -1;
     int _battleClipContextFrame = 0;
     vector<fs::path> _authoringFilePaths{};
+    string _authoringFileSearchText{};
     int _selectedAuthoringFileIndex = -1;
     Vec3 _previewSmoothedTargetPos = Vec3::Zero;
     bool _previewHasSmoothedTarget = false;
@@ -328,6 +360,9 @@ private:
     float _transitionPreviewElapsed = 0.f;
     float _transitionPreviewSequenceTimeSec = 0.f;
     TimelineEditorTab _activeTimelineEditorTab = TimelineEditorTab::ClipTimeline;
+    bool _requestOpenUnsavedSkillChangePopup = false;
+    bool _pendingUseSkillOverride = false;
+    int _pendingSelectedSkillIndex = -1;
 
 public:
     static Shared<BattleCameraPreview_View> Create();

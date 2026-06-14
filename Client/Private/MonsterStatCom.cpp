@@ -1,5 +1,6 @@
 ﻿#include "MonsterStatCom.h"
 #include "GameInstance.h"
+#include "BattleMonsterSpawnDesc.h"
 
 IMPLEMENT_REFLECTION(MonsterStatCom)
 {
@@ -14,10 +15,12 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("Base Attack", _monsterDesc.physicalAttack, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Base Defense", _monsterDesc.physicalDefense, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Base Speed", _monsterDesc.speed, 0.f, 999999.f, 1.f);
+    PROPERTY_FLOAT("Battle Run Move Speed", _monsterDesc.battleRunMoveSpeed, 0.f, 30.f, 0.1f);
 
     PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
+    PROPERTY_INT("Reward Chroma", _monsterDesc.chroma, 0.f, 9999999.f, 1.f);
 
-    PROPERTY_BOOL("Is Boss", _monsterDesc.isBoss);
+    PROPERTY_ENUM("Enemy Class", _monsterDesc.enemyClass, EEnemyClass);
     PROPERTY_INT("Shield Points At Spawn", _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn, 0.f, 99.f, 1.f);
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
     PROPERTY_WSTRING("Battle Announce Name", _monsterDesc.battleAnnounceName);
@@ -76,6 +79,14 @@ void MonsterStatCom::From_Json(const json& data)
 {
     CombatStatCom::From_Json(data);
 
+    if (!data.contains("_monsterDesc.enemyClass") &&
+        data.contains("_monsterDesc.isBoss") &&
+        data["_monsterDesc.isBoss"].is_boolean() &&
+        data["_monsterDesc.isBoss"].get<bool>())
+    {
+        _monsterDesc.enemyClass = EEnemyClass::Boss;
+    }
+
     _MRuntimeStat.CurHp = _monsterDesc.maxHp;
     _MRuntimeStat.CurAp = _monsterDesc.maxAp;
     _MRuntimeStat.CurShield = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
@@ -109,6 +120,55 @@ void MonsterStatCom::Set_RuntimeCombatProfile(float maxHp, uint32 maxAp, float p
     _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
     _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
     _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+}
+
+BattleMonsterStatSnapshot MonsterStatCom::Create_BattleSyncSnapshot() const
+{
+    BattleMonsterStatSnapshot snapshot{};
+    snapshot.valid = true; // 이 값이 true일 때만 BattleController가 MB에 적용한다.
+
+    snapshot.maxHp = _monsterDesc.maxHp;
+    snapshot.maxAp = _monsterDesc.maxAp;
+    snapshot.physicalAttack = _monsterDesc.physicalAttack;
+    snapshot.physicalDefense = _monsterDesc.physicalDefense;
+    snapshot.speed = _monsterDesc.speed;
+    snapshot.battleRunMoveSpeed = _monsterDesc.battleRunMoveSpeed;
+
+    snapshot.shieldPointsAtSpawn = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
+    snapshot.exp = _monsterDesc.exp;
+    snapshot.chroma = _monsterDesc.chroma;
+    snapshot.enemyClass = _monsterDesc.enemyClass;
+    snapshot.battleAnnounceName = _monsterDesc.battleAnnounceName;
+
+    return snapshot;
+}
+
+void MonsterStatCom::Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& snapshot)
+{
+    if (!snapshot.valid)
+        return;
+
+    _monsterDesc.maxHp = snapshot.maxHp;
+    _monsterDesc.maxAp = snapshot.maxAp;
+    _monsterDesc.physicalAttack = snapshot.physicalAttack;
+    _monsterDesc.physicalDefense = snapshot.physicalDefense;
+    _monsterDesc.speed = snapshot.speed;
+    _monsterDesc.battleRunMoveSpeed = snapshot.battleRunMoveSpeed;
+
+    _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn = snapshot.shieldPointsAtSpawn;
+    _monsterDesc.exp = snapshot.exp;
+    _monsterDesc.chroma = snapshot.chroma;
+    _monsterDesc.enemyClass = snapshot.enemyClass;
+    _monsterDesc.battleAnnounceName = snapshot.battleAnnounceName;
+
+    // 전투 진입 직후 적용이므로 runtime도 새 desc 기준으로 다시 맞춘다.
+    _MRuntimeStat.CurHp = _monsterDesc.maxHp;
+    _MRuntimeStat.CurAp = _monsterDesc.maxAp;
+    _MRuntimeStat.CurShield = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
+    _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
+    _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
+    _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+    _MRuntimeStat.isBreak = false;
 }
 
 Shared<MonsterStatCom> MonsterStatCom::Create(

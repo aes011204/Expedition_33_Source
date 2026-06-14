@@ -1,6 +1,7 @@
 ﻿#include "Light_Manager.h"
 #include "Light.h"
 #include "ShaderCom.h"
+#include "Shader_CBuffer_Define.h"
 
 Light_Manager::Light_Manager()
 {
@@ -41,6 +42,26 @@ const LIGHT_DESC* Light_Manager::Get_PrimaryShadowLightDesc() const
     }
 
     return nullptr;
+}
+
+HRESULT Light_Manager::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
+{
+    // 아직 사용 안 한다. 이후 환경 요소 설정 관련해서 필요해지면 연결
+    if (_lights.empty())
+        return E_FAIL;
+
+    for (const auto& light : _lights)
+    {
+        if (!light) continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (!desc) continue;
+
+        if (desc->type == LightType::Directional && desc->castShadow)
+            return light->Bind_LightCB(shader);
+    }
+
+    return E_FAIL;
 }
 
 uint32 Light_Manager::Get_LightCount() const

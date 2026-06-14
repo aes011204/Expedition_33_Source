@@ -236,6 +236,114 @@ size_t Estimate_TextureSrv_Bytes(ID3D11ShaderResourceView* srv)
 
     return 0;
 }
+
+#ifdef _DEBUG
+constexpr uint32 kCascadeWireEdges[12][2] =
+{
+    { 0u, 1u }, { 1u, 2u }, { 2u, 3u }, { 3u, 0u },
+    { 4u, 5u }, { 5u, 6u }, { 6u, 7u }, { 7u, 4u },
+    { 0u, 4u }, { 1u, 5u }, { 2u, 6u }, { 3u, 7u },
+};
+
+Color Scale_Color(const Color& color, float scale)
+{
+    return Color(
+        min(1.f, color.x * scale),
+        min(1.f, color.y * scale),
+        min(1.f, color.z * scale),
+        color.w);
+}
+
+void Draw_WireBoxFromCorners(const Vec3(&corners)[8], const Color& color)
+{
+    for (const auto& edge : kCascadeWireEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = corners[edge[0]];
+        lineDesc.end = corners[edge[1]];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+}
+
+void Draw_FrustumFarPlane(const Vec3(&corners)[8], const Color& color)
+{
+    constexpr uint32 farEdges[4][2] =
+    {
+        { 4u, 5u },
+        { 5u, 6u },
+        { 6u, 7u },
+        { 7u, 4u },
+    };
+
+    for (const auto& edge : farEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = corners[edge[0]];
+        lineDesc.end = corners[edge[1]];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+}
+
+void Draw_InfluencePrism(const Vec3(&points)[16], const Color& color)
+{
+    for (const auto& edge : kCascadeWireEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = points[edge[0]];
+        lineDesc.end = points[edge[1]];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+
+    for (const auto& edge : kCascadeWireEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = points[edge[0] + 8u];
+        lineDesc.end = points[edge[1] + 8u];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+
+    for (uint32 cornerIndex = 0u; cornerIndex < 8u; ++cornerIndex)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = points[cornerIndex];
+        lineDesc.end = points[cornerIndex + 8u];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+}
+
+void Build_LightSpaceAABBCorners(const Vec3& minLS, const Vec3& maxLS, Vec3(&outCorners)[8])
+{
+    outCorners[0] = Vec3(minLS.x, maxLS.y, minLS.z);
+    outCorners[1] = Vec3(maxLS.x, maxLS.y, minLS.z);
+    outCorners[2] = Vec3(maxLS.x, minLS.y, minLS.z);
+    outCorners[3] = Vec3(minLS.x, minLS.y, minLS.z);
+    outCorners[4] = Vec3(minLS.x, maxLS.y, maxLS.z);
+    outCorners[5] = Vec3(maxLS.x, maxLS.y, maxLS.z);
+    outCorners[6] = Vec3(maxLS.x, minLS.y, maxLS.z);
+    outCorners[7] = Vec3(minLS.x, minLS.y, maxLS.z);
+}
+
+void Draw_LightSpaceAABBWorldWire(const Matrix& inverseView, const Vec3& minLS, const Vec3& maxLS, const Color& color)
+{
+    Vec3 lightSpaceCorners[8]{};
+    Vec3 worldCorners[8]{};
+    Build_LightSpaceAABBCorners(minLS, maxLS, lightSpaceCorners);
+    for (uint32 cornerIndex = 0; cornerIndex < 8u; ++cornerIndex)
+        worldCorners[cornerIndex] = Vec3::Transform(lightSpaceCorners[cornerIndex], inverseView);
+    Draw_WireBoxFromCorners(worldCorners, color);
+}
+
+#endif
 }
 
 GameInstance::GameInstance()
@@ -571,6 +679,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 #endif
 
         _cameraManager->Update(_worldTimeDelta);
+        Update_SoundListenerFromActiveCamera();
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
@@ -640,6 +749,7 @@ HRESULT GameInstance::Draw()
 
     // Debug Manager
     {
+        Draw_ShadowCascadeWorldDebug();
         _debugManager->Render_Depth();
         _debugManager->Render_Overlay();
     }
@@ -1595,6 +1705,11 @@ HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
     return _lightManager->Set_Lights(lightDescs);
 }
 
+HRESULT GameInstance::Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const
+{
+    return _lightManager->Bind_PrimaryShadowLightCB(shader);
+}
+
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
     return _fontManager->Add_Font(fontTag, fontFilePath);
@@ -1622,10 +1737,10 @@ void GameInstance::Draw_Font(
     _fontManager->Draw(fontTag, text, position, color, rotationRadians, pivot, scale);
 }
 
-HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool forceScan)
+HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool forceScan, const wstring& missingMetaRoot)
 {
     auto stepBegin = chrono::steady_clock::now();
-    _assetManager = Asset_Manager::Create(resourceRoot, forceScan);
+    _assetManager = Asset_Manager::Create(resourceRoot, forceScan, missingMetaRoot);
     if (nullptr == _assetManager)
         return E_FAIL;
     LOG_INFO("[StartupTiming] GameInstance::Asset_Manager::Create elapsed={}ms",
@@ -1769,9 +1884,56 @@ float GameInstance::Get_SoundChannelVolume(SoundChannel channel) const
     return _soundManager ? _soundManager->Get_ChannelVolume(channel) : 0.f;
 }
 
+void GameInstance::Set_SoundChannelPaused(SoundChannel channel, bool paused)
+{
+    if (_soundManager)
+        _soundManager->Set_ChannelPaused(channel, paused);
+}
+
+void GameInstance::Set_SoundGlobalPitch(float pitch, bool includeBGM)
+{
+    if (_soundManager)
+        _soundManager->Set_GlobalPitch(pitch, includeBGM);
+}
+
 bool GameInstance::Has_Sound(const wstring& soundFile) const
 {
     return _soundManager ? _soundManager->Has_Sound(soundFile) : false;
+}
+
+const wstring& GameInstance::Get_CurrentBGM() const
+{
+    static const wstring empty{};
+    return _soundManager ? _soundManager->Get_CurrentBGM() : empty;
+}
+
+bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition)
+{
+    return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition) : false;
+}
+
+bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch)
+{
+    return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition, volume, pitch) : false;
+}
+
+bool GameInstance::Try_GetSoundCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const
+{
+    return _soundManager ? _soundManager->Try_GetCueDefaultVolumePitch(cueId, outVolume, outPitch) : false;
+}
+
+void GameInstance::Update_SoundListenerFromActiveCamera()
+{
+    if (!_soundManager || !_cameraManager)
+        return;
+
+    Shared<Camera> activeCamera = _cameraManager->Get_ActiveCamera();
+    if (!activeCamera || !activeCamera->Get_Transform())
+        return;
+
+    auto tr = activeCamera->Get_Transform();
+
+    _soundManager->Set_ListenerAttributes(tr->Get_WorldPosition(), tr->Get_WorldForward(), tr->Get_WorldUp());
 }
 
 bool GameInstance::Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const
@@ -2102,6 +2264,11 @@ HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTa
     return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
 }
 
+HRESULT GameInstance::Copy_RTV_ArraySlice(const wstring& srcTargetTag, uint32 arraySlice, const wstring& dstTargetTag)
+{
+    return _targetManager->Copy_RTV_ArraySlice(srcTargetTag, arraySlice, dstTargetTag);
+}
+
 HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
 {
     return _targetManager->Copy_Resource(targetTag, destTexture);
@@ -2200,12 +2367,6 @@ HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
     return _shadow->Bind_ShadowCB(shader);
 }
 
-HRESULT GameInstance::Bind_StaticShadowCB(Shared<ShaderCom> shader)
-{
-    CHECK_NULL(_shadow, E_FAIL);
-    return _shadow->Bind_StaticShadowCB(shader);
-}
-
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
 {
     return _shadow->Update_ShadowLight(desc);
@@ -2228,30 +2389,38 @@ const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
     return nullptr;
 }
 
+const ShadowCascadeDebugInfo* GameInstance::Get_ShadowCascadeDebugInfos() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_CascadeDebugInfos();
+}
+
+bool GameInstance::Is_Visible_In_ShadowInfluenceVolume(const BoundingBox& worldAABB, uint32 cascadeIndex) const
+{
+    if (_cullingManager == nullptr || _shadow == nullptr)
+        return true;
+
+    const ShadowCascadeInfluenceVolume* influenceVolumes = _shadow->Get_CascadeInfluenceVolumes();
+    if (influenceVolumes == nullptr || cascadeIndex >= _shadow->Get_CascadeCount())
+        return true;
+
+    return _cullingManager->IsVisible(worldAABB, influenceVolumes[cascadeIndex]);
+}
+
+bool GameInstance::Is_Visible_In_ShadowSpace(const BoundingBox& worldAABB, const Matrix& viewProj) const
+{
+    if (_cullingManager == nullptr)
+        return true;
+
+    return _cullingManager->Is_Visible_In_OrthographicShadowSpace(worldAABB, viewProj);
+}
+
 HRESULT GameInstance::Update_ShadowFromCameraFrustum(
     const ShadowLightDesc& desc,
     const Shared<Camera>& camera,
     const Vec3& lightDir)
 {
     return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
-}
-
-HRESULT GameInstance::Update_StaticShadowFromBounds(
-    const ShadowLightDesc& desc,
-    const BoundingBox& bounds,
-    const Vec3& lightDir)
-{
-    return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
-}
-
-void GameInstance::Register_StaticShadowCaster(Shared<GameObject> gameObject)
-{
-    return _renderer->Register_StaticShadowCaster(gameObject);
-}
-
-void GameInstance::Mark_StaticShadowDirty()
-{
-    return _renderer->Mark_StaticShadowDirty();
 }
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
@@ -2377,6 +2546,14 @@ bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
     return true;
 }
 
+bool GameInstance::IsVisible(const BoundingBox& worldAABB, const Matrix& view, const Matrix& proj) const
+{
+    if (_cullingManager)
+        return _cullingManager->IsVisible(worldAABB, view, proj);
+
+    return true;
+}
+
 void GameInstance::BuildOctree(const vector<BoundingBox>& worldAABBs)
 {
     if (_cullingManager)
@@ -2431,6 +2608,90 @@ bool GameInstance::Is_DebugRenderEnabled() const
 {
     return _debugManager->Is_Enabled();
 }
+
+#ifdef _DEBUG
+void GameInstance::Capture_ShadowCascadeDebugSnapshot()
+{
+    _hasShadowCascadeDebugSnapshot = false;
+
+    if (_shadow == nullptr)
+        return;
+
+    const ShadowCascadeDebugInfo* cascadeDebugInfos = _shadow->Get_CascadeDebugInfos();
+    const Matrix* cascadeViews = _shadow->Get_CascadeViewMatrices();
+    if (cascadeDebugInfos == nullptr || cascadeViews == nullptr)
+        return;
+
+    for (uint32 cascadeIndex = 0; cascadeIndex < Shadow::CascadeCount; ++cascadeIndex)
+    {
+        _shadowCascadeDebugSnapshot[cascadeIndex] = cascadeDebugInfos[cascadeIndex];
+        _shadowCascadeViewSnapshot[cascadeIndex] = cascadeViews[cascadeIndex];
+    }
+
+    _hasShadowCascadeDebugSnapshot = true;
+}
+
+void GameInstance::Draw_ShadowCascadeWorldDebug()
+{
+    if (_shadow == nullptr)
+        return;
+
+    const bool drawSlice = _shadowCascadeSliceDebugEnabled;
+    const bool drawProjection = _shadowCascadeProjectionDebugEnabled;
+    const bool drawInfluence = _shadowCascadeInfluenceDebugEnabled;
+    if (!drawSlice && !drawProjection && !drawInfluence)
+        return;
+
+    const ShadowCascadeDebugInfo* cascadeDebugInfos = nullptr;
+    const Matrix* cascadeViews = nullptr;
+
+    if (_hasShadowCascadeDebugSnapshot)
+    {
+        cascadeDebugInfos = _shadowCascadeDebugSnapshot;
+        cascadeViews = _shadowCascadeViewSnapshot;
+    }
+    else
+    {
+        cascadeDebugInfos = _shadow->Get_CascadeDebugInfos();
+        cascadeViews = _shadow->Get_CascadeViewMatrices();
+    }
+
+    if (cascadeDebugInfos == nullptr || cascadeViews == nullptr)
+        return;
+
+    static const Color cascadeBaseColors[Shadow::CascadeCount] =
+    {
+        Color(1.f, 0.35f, 0.35f, 1.f),
+        Color(0.35f, 0.8f, 1.f, 1.f),
+        Color(0.45f, 1.f, 0.45f, 1.f),
+        Color(1.f, 0.8f, 0.35f, 1.f),
+    };
+
+    for (uint32 cascadeIndex = 0; cascadeIndex < _shadow->Get_CascadeCount(); ++cascadeIndex)
+    {
+        const ShadowCascadeDebugInfo& debugInfo = cascadeDebugInfos[cascadeIndex];
+        const Matrix inverseView = cascadeViews[cascadeIndex].Invert();
+        const Color sliceColor = Scale_Color(cascadeBaseColors[cascadeIndex], 1.15f);
+        const Color projectionColor = cascadeBaseColors[cascadeIndex];
+        const Color influenceColor = Scale_Color(cascadeBaseColors[cascadeIndex], 0.7f);
+
+        if (drawSlice)
+            Draw_FrustumFarPlane(debugInfo.sliceCornersWS, sliceColor);
+
+        if (drawProjection)
+        {
+            Draw_LightSpaceAABBWorldWire(
+                inverseView,
+                debugInfo.projectionMinLS,
+                debugInfo.projectionMaxLS,
+                projectionColor);
+        }
+
+        if (drawInfluence)
+            Draw_InfluencePrism(debugInfo.influencePointsWS, influenceColor);
+    }
+}
+#endif
 
 HRESULT GameInstance::Render_DebugDepth()
 {
@@ -2729,18 +2990,48 @@ const map<wstring, bool>& GameInstance::Get_RTs() const
     return _targetManager->Get_RTs();
 }
 
+void GameInstance::Set_ShadowCascadeSliceDebugEnabled(bool enabled)
+{
+    if (enabled && !_shadowCascadeSliceDebugEnabled)
+        Capture_ShadowCascadeDebugSnapshot();
+    _shadowCascadeSliceDebugEnabled = enabled;
+}
+
+bool GameInstance::Is_ShadowCascadeSliceDebugEnabled() const
+{
+    return _shadowCascadeSliceDebugEnabled;
+}
+
+void GameInstance::Set_ShadowCascadeProjectionDebugEnabled(bool enabled)
+{
+    if (enabled && !_shadowCascadeProjectionDebugEnabled)
+        Capture_ShadowCascadeDebugSnapshot();
+    _shadowCascadeProjectionDebugEnabled = enabled;
+}
+
+bool GameInstance::Is_ShadowCascadeProjectionDebugEnabled() const
+{
+    return _shadowCascadeProjectionDebugEnabled;
+}
+
+void GameInstance::Set_ShadowCascadeInfluenceDebugEnabled(bool enabled)
+{
+    if (enabled && !_shadowCascadeInfluenceDebugEnabled)
+        Capture_ShadowCascadeDebugSnapshot();
+    _shadowCascadeInfluenceDebugEnabled = enabled;
+}
+
+bool GameInstance::Is_ShadowCascadeInfluenceDebugEnabled() const
+{
+    return _shadowCascadeInfluenceDebugEnabled;
+}
+
 #endif
 
 HRESULT GameInstance::Set_ActiveShadowCascade(uint32 cascadeIndex)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Set_ActiveCascade(cascadeIndex);
-}
-
-void GameInstance::Set_ActiveStaticShadow()
-{
-    CHECK_NULL(_shadow);
-    _shadow->Set_ActiveStaticShadow();
 }
 
 void GameInstance::Set_ShadowEnabled(bool enabled)

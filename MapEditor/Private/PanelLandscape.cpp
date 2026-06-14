@@ -313,7 +313,7 @@ void PanelLandscape::Render_SaveLoad()
             ofn.lpstrFilter = L"Heightmap Files\0*.hmap\0All Files\0*.*\0";
             ofn.nMaxFile = MAX_PATH;
             ofn.lpstrDefExt = L"hmap";
-            ofn.Flags = OFN_OVERWRITEPROMPT;
+            ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
             if (GetSaveFileNameW(&ofn))
             {
                 _onSave(_ctx->_activeLandscapeIdx, buf);
@@ -331,7 +331,7 @@ void PanelLandscape::Render_SaveLoad()
             ofn.lpstrFilter = L"Heightmap Files\0*.hmap\0All Files\0*.*\0";
             ofn.lpstrFile = buf;
             ofn.nMaxFile = MAX_PATH;
-            ofn.Flags = OFN_FILEMUSTEXIST;
+            ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
             if (GetOpenFileNameW(&ofn))
             {
                 _onLoad(-1, buf);
@@ -426,7 +426,7 @@ void PanelLandscape::Render_PaintTools()
         }
         ImGui::SameLine();
 
-        string layerFile = String::ToString(actor->Get_LayerPath(i));
+        string layerFile = fs::path(actor->Get_LayerPath(i)).filename().string();
         ImGui::TextDisabled("(%s)", layerFile.c_str());
         if (i > 0)
         {
@@ -459,8 +459,8 @@ void PanelLandscape::Render_PaintTools()
         string roughLabel = "Roughness x##" + to_string(i);
         string metallicLabel = "Metallic##" + to_string(i);
 
-        float tiling = actor->Get_LayerTiling(i);
-        if (ImGui::DragFloat(tilingLabel.c_str(), &tiling, 0.01f, 0.1f, 50.f, "%.2f"))
+        Vec2 tiling = actor->Get_LayerTiling(i);
+        if (ImGui::DragFloat2(tilingLabel.c_str(), reinterpret_cast<float*>(&tiling), 0.01f, 0.1f, 50.f, "%.2f"))
         {
             actor->Set_LayerTiling(i, tiling);
         }
@@ -543,7 +543,7 @@ void PanelLandscape::Render_AddLayerDialog()
                     ofn.lpstrFilter = L"Texture Files\0*.dds;*.png\0All Files\0*.*\0";
                     ofn.lpstrFile = buf;
                     ofn.nMaxFile = MAX_PATH;
-                    ofn.Flags = OFN_FILEMUSTEXIST;
+                    ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
                     if (GetOpenFileNameW(&ofn))
                     {
                         path = buf;

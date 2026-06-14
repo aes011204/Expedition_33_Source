@@ -62,6 +62,8 @@ private:
         bool hairIDOverride = false;
         bool irisHeightOverride = false;
         bool irisMaskOverride = false;
+        bool orm2Override = false;
+        bool orm3Override = false;
 
         wstring baseColorPath{};
         wstring normalPath{};
@@ -72,6 +74,8 @@ private:
         wstring hairIDPath{};
         wstring irisHeightPath{};
         wstring irisMaskPath{};
+        wstring orm2Path{};
+        wstring orm3Path{};
     };
 
 public:

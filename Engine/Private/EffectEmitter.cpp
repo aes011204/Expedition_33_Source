@@ -37,18 +37,13 @@ HRESULT EffectEmitter::Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDe
     return S_OK;
 }
 
-void EffectEmitter::Set_EffectPlaybackSeed(uint32 effectPlaybackSeed)
-{
-    _effectPlaybackSeed = effectPlaybackSeed;
-}
-
 void EffectEmitter::Sync_FromEffectOwner()
 {
     CHECK_NULL_THROTTLED(_transformCom, 120);
 
     const Shared<GameObject> effectOwner = _effectOwner.lock();
     const Shared<TransformCom> ownerTransform =
-        (effectOwner != nullptr) ? effectOwner->Get_Transform() : Shared<TransformCom>{};
+        effectOwner != nullptr ? effectOwner->Get_Transform() : Shared<TransformCom>{};
 
     if (ownerTransform)
     {
@@ -65,6 +60,11 @@ void EffectEmitter::Sync_FromEffectOwner()
     }
 
     On_EffectTransformSynced();
+}
+
+void EffectEmitter::Set_EffectPlaybackSeed(uint32 effectPlaybackSeed)
+{
+    _effectPlaybackSeed = effectPlaybackSeed;
 }
 
 HRESULT EffectEmitter::Reset_ForEffectReplay()
@@ -89,6 +89,15 @@ bool EffectEmitter::Is_EffectFinished() const
 
 void EffectEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>&)
 {
+}
+
+void EffectEmitter::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>&)
+{
+}
+
+bool EffectEmitter::Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>&, uint32) const
+{
+    return false;
 }
 
 bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const

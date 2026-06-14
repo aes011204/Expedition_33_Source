@@ -98,6 +98,9 @@ bool MaterialBuilder::Try_ParseCB(const json& value, MaterialCB& out)
     out.ormAoSource = value.value("ormAoSource", out.ormAoSource);
     out.ormRoughnessSource = value.value("ormRoughnessSource", out.ormRoughnessSource);
     out.ormMetalnessSource = value.value("ormMetalnessSource", out.ormMetalnessSource);
+    out.ormAoSourceSlot = value.value("ormAoSourceSlot", out.ormAoSourceSlot);
+    out.ormRoughnessSourceSlot = value.value("ormRoughnessSourceSlot", out.ormRoughnessSourceSlot);
+    out.ormMetalnessSourceSlot = value.value("ormMetalnessSourceSlot", out.ormMetalnessSourceSlot);
     out.opacityMaskSource = value.value("opacityMaskSource", out.opacityMaskSource);
 
     if (value.contains("uvScale"))
@@ -265,11 +268,25 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
     outAsset.materialIndexToAssetName.clear();
     outAsset.instancesByAssetName.clear();
 
-    // 현재 저장 포맷은 번들 파일 위치를 기준으로 Resources 루트를 알아낸다.
-    // e.g., Resources/Materials/lunebody.material.json 이면 resourceRoot = Resources
-    const fs::path resourceRoot = bundlePath.has_parent_path()
-        ? bundlePath.parent_path().parent_path()
-        : fs::path{};
+    // 현재 저장 포맷은 텍스처 경로를 Resources 기준 상대경로로 저장한다.
+    // Materials/<map>/<model>.material.json처럼 폴더가 깊어져도 Resources 루트를 찾아 기준을 유지한다.
+    fs::path resourceRoot{};
+    for (fs::path cursor = bundlePath.parent_path(); !cursor.empty(); cursor = cursor.parent_path())
+    {
+        const string folderName = String::ToLowerCopy(String::ToString(cursor.filename().wstring()));
+        if (folderName == "resources")
+        {
+            resourceRoot = cursor;
+            break;
+        }
+    }
+
+    if (resourceRoot.empty())
+    {
+        resourceRoot = bundlePath.has_parent_path()
+            ? bundlePath.parent_path().parent_path()
+            : fs::path{};
+    }
 
     if (root.contains("instances") && root["instances"].is_array())
     {
@@ -308,6 +325,8 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
                 inst.hairIDOverride = jov.value("hairID", inst.hairIDOverride);
                 inst.irisHeightOverride = jov.value("irisHeight", inst.irisHeightOverride);
                 inst.irisMaskOverride = jov.value("irisMask", inst.irisMaskOverride);
+                inst.orm2Override = jov.value("orm2", inst.orm2Override);
+                inst.orm3Override = jov.value("orm3", inst.orm3Override);
             }
 
             // 상대 경로로 저장 된 번들의 텍스쳐 경로를 런타임 접근을 위한 절대로 변경
@@ -323,6 +342,8 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
                 if (jtex.contains("hairID")) inst.hairIDPath = Resolve_TexturePathFromJson(resourceRoot, jtex["hairID"]);
                 if (jtex.contains("irisHeight")) inst.irisHeightPath = Resolve_TexturePathFromJson(resourceRoot, jtex["irisHeight"]);
                 if (jtex.contains("irisMask")) inst.irisMaskPath = Resolve_TexturePathFromJson(resourceRoot, jtex["irisMask"]);
+                if (jtex.contains("orm2")) inst.orm2Path = Resolve_TexturePathFromJson(resourceRoot, jtex["orm2"]);
+                if (jtex.contains("orm3")) inst.orm3Path = Resolve_TexturePathFromJson(resourceRoot, jtex["orm3"]);
             }
 
             outAsset.instancesByAssetName.emplace(assetName, std::move(inst));
@@ -393,6 +414,17 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
 
         const json& instJson = item["instance_override"];
         MaterialInstanceOverride& inst = binding.instance;
+        inst.overrideTemplateEnabled =
+            ParseBool(instJson.value("override_template_enabled", inst.overrideTemplateEnabled), inst.overrideTemplateEnabled);
+        if (inst.overrideTemplateEnabled)
+        {
+            const uint32 templateValue = instJson.value(
+                "template",
+                instJson.value("template_id", static_cast<uint32>(inst.templateId)));
+            if (templateValue < static_cast<uint32>(MaterialShaderTemplate::END))
+                inst.templateId = static_cast<MaterialShaderTemplate>(templateValue);
+        }
+
         inst.forcedPassIndex = static_cast<int32>(instJson.value("force_pass_index", inst.forcedPassIndex));
         if (inst.forcedPassIndex < 0 && instJson.contains("forcePassIndex"))
             inst.forcedPassIndex = static_cast<int32>(instJson.value("forcePassIndex", inst.forcedPassIndex));
@@ -474,6 +506,8 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
         parseTextureOverride("base_color", inst.baseColor);
         parseTextureOverride("normal", inst.normal);
         parseTextureOverride("orm", inst.orm);
+        parseTextureOverride("orm2", inst.orm2);
+        parseTextureOverride("orm3", inst.orm3);
         parseTextureOverride("emissive", inst.emissive);
         parseTextureOverride("opacity_mask", inst.opacityMask);
 
@@ -519,6 +553,8 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
             else if (slotName == "Emissive")    slot = MaterialTextureSlot::Emissive;
             else if (slotName == "OpacityMask") slot = MaterialTextureSlot::OpacityMask;
             else if (slotName == "ORM")         slot = MaterialTextureSlot::ORM;
+            else if (slotName == "ORM2")        slot = MaterialTextureSlot::ORM2;
+            else if (slotName == "ORM3")        slot = MaterialTextureSlot::ORM3;
             else if (slotName == "HairDepth")   slot = MaterialTextureSlot::HairDepth;
             else if (slotName == "HairID")      slot = MaterialTextureSlot::HairID;
             else if (slotName == "IrisHeight")  slot = MaterialTextureSlot::IrisHeight;
@@ -552,6 +588,8 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         if (slot == MaterialTextureSlot::BaseColor) target = &inst.baseColor;
         else if (slot == MaterialTextureSlot::Normal) target = &inst.normal;
         else if (slot == MaterialTextureSlot::ORM) target = &inst.orm;
+        else if (slot == MaterialTextureSlot::ORM2) target = &inst.orm2;
+        else if (slot == MaterialTextureSlot::ORM3) target = &inst.orm3;
         else if (slot == MaterialTextureSlot::Emissive) target = &inst.emissive;
         else if (slot == MaterialTextureSlot::OpacityMask) target = &inst.opacityMask;
         else if (slot == MaterialTextureSlot::HairDepth) target = &inst.hairDepth;

@@ -10,7 +10,9 @@
 #include "EffectCom.h"
 #include "WeaponPrefabLoader.h"
 #include "BattleMechanismCom.h"
+#include "CostumeManager.h"
 #include "FaceAccessory_Player.h"
+#include "ClientInstance.h"
 
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -101,14 +103,36 @@ void Player_BattleBase::From_Json(const json& data)
         const json& customProperties = data["custom_properties"];
         _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
     }
+
+     Apply_CurrentCostumePartTransforms();
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()
 {
+    const CostumePreset* costumePreset = Get_CurrentBattleCostume();
+
+    const wchar_t* bodyModelTag = Get_BodyModelTag();
+    const wchar_t* headModelTag = Get_HeadModelTag();
+    const wchar_t* hairModelTag = Get_HairModelTag();
+    const wchar_t* beardModelTag = Get_BeardModelTag();
+    const wchar_t* mustacheModelTag = Get_MustacheModelTag();
+    const wchar_t* glassesModelTag = nullptr;
+
+    if (costumePreset != nullptr)
+    {
+        // preset 태그가 비어 있으면 기존 캐릭터 기본 태그를 유지한다.
+        bodyModelTag = Select_CostumeModelTag(costumePreset->parts.bodyModelTag, bodyModelTag);
+        headModelTag = Select_CostumeModelTag(costumePreset->parts.headModelTag, headModelTag);
+        hairModelTag = Select_CostumeModelTag(costumePreset->parts.hairModelTag, hairModelTag);
+        beardModelTag = Select_CostumeModelTag(costumePreset->parts.beardModelTag, beardModelTag);
+        mustacheModelTag = Select_CostumeModelTag(costumePreset->parts.mustacheModelTag, mustacheModelTag);
+        glassesModelTag = Select_CostumeModelTag(costumePreset->parts.glassesModelTag, nullptr);
+    }
+
     Body_Player::BODY_PLAYER_DESC bodyDesc{};
     bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     bodyDesc.modelType = ModelType::Anim;
-    bodyDesc.modelTag = Get_BodyModelTag();
+    bodyDesc.modelTag = bodyModelTag;
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
@@ -118,8 +142,8 @@ HRESULT Player_BattleBase::Ready_PartObjects()
     Head_Player::HEAD_PLAYER_DESC headDesc{};
     headDesc.parentMatrix = bodyDesc.parentMatrix;
     headDesc.modelType = ModelType::Anim;
-    headDesc.modelTag = Get_HeadModelTag();
-    headDesc.socketMatrixPointer = nullptr; // 처음 1회는 LeaderPose 정렬값을 캡처하므로 아직 socket을 바로 쓰지 않는다.
+    headDesc.modelTag = headModelTag;
+    headDesc.socketMatrixPointer = nullptr;
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"), TEXT("Part_Head"), &headDesc), E_FAIL);
 
@@ -128,52 +152,21 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     head->Set_LeaderPoseComponent(body);
 
-    // 수염/콧수염
-    if (const wchar_t* beardModelTag = Get_BeardModelTag())
-    {
-        FaceAccessory_Player::FACE_ACCESSORY_DESC beardPartDesc{};
-        beardPartDesc.parentMatrix = bodyDesc.parentMatrix;
-        beardPartDesc.modelType = ModelType::NonAnim;
-        beardPartDesc.modelTag = beardModelTag;
-        beardPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
-
-        if (FAILED(
-            __super::Add_PartObject(
-                ETOI(LevelType::Static),
-                TEXT("GameObject_FaceAccessory_Player"),
-                TEXT("Part_Beard"),
-                &beardPartDesc)
-        ))
-            return E_FAIL;
-    }
-
-    if (const wchar_t* mustacheModelTag = Get_MustacheModelTag())
-    {
-        FaceAccessory_Player::FACE_ACCESSORY_DESC mustachePartDesc{};
-        mustachePartDesc.parentMatrix = bodyDesc.parentMatrix;
-        mustachePartDesc.modelType = ModelType::NonAnim;
-        mustachePartDesc.modelTag = mustacheModelTag;
-        mustachePartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
-
-        if (FAILED(
-            __super::Add_PartObject(
-                ETOI(LevelType::Static),
-                TEXT("GameObject_FaceAccessory_Player"),
-                TEXT("Part_Mustache"),
-                &mustachePartDesc)
-        ))
-            return E_FAIL;
-    }
+    CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Beard"), beardModelTag, bodyDesc.parentMatrix, head), E_FAIL);
+    CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Mustache"), mustacheModelTag, bodyDesc.parentMatrix, head), E_FAIL);
 
     Hair_Player::HAIR_PLAYER_DESC hairDesc{};
     hairDesc.parentMatrix = bodyDesc.parentMatrix;
     hairDesc.modelType = ModelType::Anim;
-    hairDesc.modelTag = Get_HairModelTag();
+    hairDesc.modelTag = hairModelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
 
+    CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Glasses"), glassesModelTag, bodyDesc.parentMatrix, head), E_FAIL);
+
+    // 무기는 옷장에서 변경 ㄴ
     CHECK_FAILED(Ready_WeaponParts(body), E_FAIL);
 
     return S_OK;
@@ -235,6 +228,74 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
     }
 
     return S_OK;
+}
+
+const CostumePreset* Player_BattleBase::Get_CurrentBattleCostume() const
+{
+    CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
+    if (costumeManager == nullptr)
+        return nullptr;
+
+    return costumeManager->Get_CurrentCostume(Get_HeroId());
+}
+
+const wchar_t* Player_BattleBase::Select_CostumeModelTag(const wstring& costumeModelTag,
+    const wchar_t* defaultModelTag) const
+{
+    if (!costumeModelTag.empty())
+        return costumeModelTag.c_str();
+
+    return defaultModelTag;
+}
+
+HRESULT Player_BattleBase::Add_BattleFaceAccessory(const wstring& partTag, const wchar_t* modelTag,
+    const Matrix* parentMatrix, Head_Player* head)
+{
+    // 빈 태그는 "이 파츠 없음"으로 취급
+    if (modelTag == nullptr || modelTag[0] == L'\0')
+        return S_OK;
+
+    CHECK_NULL(head, E_FAIL);
+
+    FaceAccessory_Player::FACE_ACCESSORY_DESC accessoryDesc{};
+    accessoryDesc.parentMatrix = parentMatrix;
+    accessoryDesc.modelType = ModelType::NonAnim;
+    accessoryDesc.modelTag = modelTag;
+    accessoryDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+    CHECK_FAILED(Add_PartObject(ETOI
+        (LevelType::Static),TEXT("GameObject_FaceAccessory_Player"), partTag.c_str(), &accessoryDesc), E_FAIL);
+
+    return S_OK;
+}
+
+void Player_BattleBase::Apply_CurrentCostumePartTransforms()
+{
+    const CostumePreset* costumePreset = Get_CurrentBattleCostume();
+    if (costumePreset == nullptr)
+        return;
+
+    Apply_CostumePartTransform(TEXT("Part_Body"), costumePreset->parts.bodyTransform);
+    Apply_CostumePartTransform(TEXT("Part_Head"), costumePreset->parts.headTransform);
+    Apply_CostumePartTransform(TEXT("Part_Beard"), costumePreset->parts.beardTransform);
+    Apply_CostumePartTransform(TEXT("Part_Mustache"), costumePreset->parts.mustacheTransform);
+    Apply_CostumePartTransform(TEXT("Part_Hair"), costumePreset->parts.hairTransform);
+    Apply_CostumePartTransform(TEXT("Part_Glasses"), costumePreset->parts.glassesTransform);
+}
+
+void Player_BattleBase::Apply_CostumePartTransform(const wstring& partTag,
+    const CostumePartLocalTransform& fallbackTransform)
+{
+    if (!fallbackTransform.enabled)
+        return;
+
+    PartObject* partObject = Get_PartObject(partTag);
+    if (partObject == nullptr || partObject->Get_Transform() == nullptr)
+        return;
+
+    partObject->Get_Transform()->Set_Position(fallbackTransform.position);
+    partObject->Get_Transform()->Set_RotationEuler(fallbackTransform.rotation);
+    partObject->Get_Transform()->Set_Scale(fallbackTransform.scale);
 }
 
 HRESULT Player_BattleBase::Ready_Components()

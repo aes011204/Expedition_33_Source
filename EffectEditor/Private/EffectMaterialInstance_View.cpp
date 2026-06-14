@@ -908,6 +908,29 @@ namespace Internal
         return changed;
     }
 
+    EffectTextureUVTilingMode Resolve_CompatibleUVTilingModeForView(const EffectMaterialUVAxisPolicy& policy)
+    {
+        return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
+    }
+
+    bool Draw_UVAxisPolicyProperties(
+        DetailPropertyContext& detailContext,
+        const char* uLabel,
+        const char* vLabel,
+        EffectMaterialUVAxisPolicy& policy,
+        EffectMaterialUVAxisPolicy defaultPolicy,
+        EffectTextureUVTilingMode& compatibleMode)
+    {
+        bool changed = false;
+        changed |= Draw_UVTilingModeProperty(detailContext, uLabel, policy.uPolicy, defaultPolicy.uPolicy);
+        changed |= Draw_UVTilingModeProperty(detailContext, vLabel, policy.vPolicy, defaultPolicy.vPolicy);
+
+        if (changed)
+            compatibleMode = Resolve_CompatibleUVTilingModeForView(policy);
+
+        return changed;
+    }
+
     const char* Get_MaterialFamilyLabel(EffectMaterialFamily value)
     {
         switch (value)
@@ -956,7 +979,7 @@ namespace Internal
             value,
             defaultValue,
             kModes,
-            sizeof(kModes) / sizeof(kModes[0]),
+            size(kModes),
             Get_DistortionShapeModeLabel
         );
     }
@@ -1021,12 +1044,14 @@ void EffectMaterialInstance_View::Pre_Render()
 
     if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(*emitter))
     {
+        const bool evaluateParticleLife =
+            emitter->typeData.kind == AuthoringTypeDataKind::None && emitter->rendererType == "Sprite";
         _previewRenderer->Render_Material(
             requiredData->material,
             Build_CoreColorRgbModulationRuntimeDesc(*modulation),
             Build_MaterialScalarModulationRuntimeDesc(*modulation),
             requiredData->duration,
-            false
+            evaluateParticleLife
         );
     }
     else
@@ -1060,29 +1085,65 @@ void EffectMaterialInstance_View::Render()
             ImGui::TextDisabled("Source material GUID is not stored in this instance.");
             ImGui::Separator();
 
-            bool changed = false;
-            bool restartPreview = false;
-            const float contentWidth = ImGui::GetContentRegionAvail().x;
-            const bool useSideBySideLayout = contentWidth >= 760.f;
-            const EffectAuthoringSelection selection{
-                EffectAuthoringSelectionKind::Module,
-                _targetEmitterId,
-                _targetModuleId
-            };
-            const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
-            const EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode =
-                emitter->typeData.kind == AuthoringTypeDataKind::None
-                ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
-                : emitter->typeData.kind == AuthoringTypeDataKind::Trail
-                  ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
-                  : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
-
-            if (useSideBySideLayout)
+            if (emitter->typeData.kind == AuthoringTypeDataKind::Mesh)
             {
-                const float spacing = ImGui::GetStyle().ItemSpacing.x;
-                const float previewPaneWidth = clamp(contentWidth * 0.42f, 360.f, 560.f);
+                Commit_PendingAuthoringEdit(emitterView);
+                ImGui::TextDisabled("Mesh Required material authoring is disabled.");
+                ImGui::TextDisabled("Mesh materials are edited from Mesh TypeData Assigned Material.");
+            }
+            else
+            {
+                bool changed = false;
+                bool restartPreview = false;
+                const float contentWidth = ImGui::GetContentRegionAvail().x;
+                const bool useSideBySideLayout = contentWidth >= 760.f;
+                const EffectAuthoringSelection selection{
+                    EffectAuthoringSelectionKind::Module,
+                    _targetEmitterId,
+                    _targetModuleId
+                };
+                const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
+                const EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode =
+                    emitter->typeData.kind == AuthoringTypeDataKind::None
+                    ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
+                    : emitter->typeData.kind == AuthoringTypeDataKind::Trail
+                      || emitter->typeData.kind == AuthoringTypeDataKind::Ribbon
+                      ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
+                      : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
 
-                ImGui::BeginChild("EffectMaterialInstancePreviewPane", ImVec2(previewPaneWidth, 0.f), false);
+                if (useSideBySideLayout)
+                {
+                    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+                    const float previewPaneWidth = clamp(contentWidth * 0.42f, 360.f, 560.f);
+
+                    ImGui::BeginChild("EffectMaterialInstancePreviewPane", ImVec2(previewPaneWidth, 0.f), false);
+                    {
+                        if (_previewRenderer != nullptr)
+                        {
+                            _previewRenderer->Draw_Viewport(
+                                "EffectMaterialInstancePreview",
+                                requiredData->material,
+                                "현재 인스턴스 프리뷰"
+                            );
+                        }
+                    }
+                    ImGui::EndChild();
+
+                    ImGui::SameLine(0.f, spacing);
+
+                    ImGui::BeginChild("EffectMaterialInstancePropertyPane", ImVec2(0.f, 0.f), false);
+                    {
+                        changed |= Draw_InstanceProperties(
+                            _detailPropertyContext,
+                            _textureThumbnailCache,
+                            requiredData->material,
+                            &restartPreview,
+                            twoSidedDisplayMode
+                        );
+                    }
+                    ImGui::EndChild();
+                }
+                else
                 {
                     if (_previewRenderer != nullptr)
                     {
@@ -1091,14 +1152,9 @@ void EffectMaterialInstance_View::Render()
                             requiredData->material,
                             "현재 인스턴스 프리뷰"
                         );
+                        ImGui::Separator();
                     }
-                }
-                ImGui::EndChild();
 
-                ImGui::SameLine(0.f, spacing);
-
-                ImGui::BeginChild("EffectMaterialInstancePropertyPane", ImVec2(0.f, 0.f), false);
-                {
                     changed |= Draw_InstanceProperties(
                         _detailPropertyContext,
                         _textureThumbnailCache,
@@ -1107,39 +1163,18 @@ void EffectMaterialInstance_View::Render()
                         twoSidedDisplayMode
                     );
                 }
-                ImGui::EndChild();
-            }
-            else
-            {
-                if (_previewRenderer != nullptr)
+
+                if (changed)
                 {
-                    _previewRenderer->Draw_Viewport(
-                        "EffectMaterialInstancePreview",
-                        requiredData->material,
-                        "현재 인스턴스 프리뷰"
-                    );
-                    ImGui::Separator();
+                    Apply_MaterialChanged(emitterView, *emitter, *requiredData);
+                    Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Material Instance");
+
+                    if (restartPreview && EDITOR != nullptr)
+                        EDITOR->Request_RestartPreview();
                 }
 
-                changed |= Draw_InstanceProperties(
-                    _detailPropertyContext,
-                    _textureThumbnailCache,
-                    requiredData->material,
-                    &restartPreview,
-                    twoSidedDisplayMode
-                );
+                Commit_PendingAuthoringEditIfIdle(emitterView);
             }
-
-            if (changed)
-            {
-                Apply_MaterialChanged(emitterView, *emitter, *requiredData);
-                Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Material Instance");
-
-                if (restartPreview && EDITOR != nullptr)
-                    EDITOR->Request_RestartPreview();
-            }
-
-            Commit_PendingAuthoringEditIfIdle(emitterView);
         }
     }
 
@@ -1196,6 +1231,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= mainModeChanged;
             restartPreview |= mainModeChanged;
+            if (mainModeChanged)
+            {
+                material.mainUVPolicy.uPolicy = material.mainUVTilingMode;
+                material.mainUVPolicy.vPolicy = material.mainUVTilingMode;
+            }
+            const bool mainAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Main U Policy",
+                "Main V Policy",
+                material.mainUVPolicy,
+                defaultData.mainUVPolicy,
+                material.mainUVTilingMode
+            );
+            changed |= mainAxisPolicyChanged;
+            restartPreview |= mainAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Offset", material.mainUVOffset, defaultData.mainUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
@@ -1237,6 +1287,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= noiseModeChanged;
             restartPreview |= noiseModeChanged;
+            if (noiseModeChanged)
+            {
+                material.noiseUVPolicy.uPolicy = material.noiseUVTilingMode;
+                material.noiseUVPolicy.vPolicy = material.noiseUVTilingMode;
+            }
+            const bool noiseAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Noise U Policy",
+                "Noise V Policy",
+                material.noiseUVPolicy,
+                defaultData.noiseUVPolicy,
+                material.noiseUVTilingMode
+            );
+            changed |= noiseAxisPolicyChanged;
+            restartPreview |= noiseAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Offset", material.noiseUVOffset, defaultData.noiseUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
@@ -1279,6 +1344,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= maskModeChanged;
             restartPreview |= maskModeChanged;
+            if (maskModeChanged)
+            {
+                material.maskUVPolicy.uPolicy = material.maskUVTilingMode;
+                material.maskUVPolicy.vPolicy = material.maskUVTilingMode;
+            }
+            const bool maskAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Mask U Policy",
+                "Mask V Policy",
+                material.maskUVPolicy,
+                defaultData.maskUVPolicy,
+                material.maskUVTilingMode
+            );
+            changed |= maskAxisPolicyChanged;
+            restartPreview |= maskAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUVScale, defaultData.maskUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Offset", material.maskUVOffset, defaultData.maskUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
@@ -1308,6 +1388,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= flowModeChanged;
             restartPreview |= flowModeChanged;
+            if (flowModeChanged)
+            {
+                material.flowUVPolicy.uPolicy = material.flowUVTilingMode;
+                material.flowUVPolicy.vPolicy = material.flowUVTilingMode;
+            }
+            const bool flowAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Flow U Policy",
+                "Flow V Policy",
+                material.flowUVPolicy,
+                defaultData.flowUVPolicy,
+                material.flowUVTilingMode
+            );
+            changed |= flowAxisPolicyChanged;
+            restartPreview |= flowAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scale", material.flowUVScale, defaultData.flowUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Offset", material.flowUVOffset, defaultData.flowUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);

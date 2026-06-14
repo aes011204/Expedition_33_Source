@@ -189,7 +189,7 @@ namespace PreviewObjectHelpers
             Shared<Client::EffectCom> effectCom = dynamic_pointer_cast<Client::EffectCom>(component);
             if (effectCom)
             {
-                effectCom->Update_AttachedEffects();
+                effectCom->Update_AttachedEffects(timeDelta);
                 effectCom->Tick_AttachedEffectInstances(timeDelta);
             }
         });
@@ -202,6 +202,29 @@ namespace PreviewObjectHelpers
         {
             UNREFERENCED_PARAMETER(partTag);
             Tick_AttachedPreviewEffects(partObject, timeDelta);
+        }
+    }
+
+    inline void Stop_AttachedPreviewEffects(const Shared<GameObject>& gameObject)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
+        {
+            Shared<Client::EffectCom> effectCom = dynamic_pointer_cast<Client::EffectCom>(component);
+            if (effectCom)
+                effectCom->Stop_AllAttachedEffects(); // preview owner가 닫힐 때 manual-release attached effect를 pool로 즉시 반환한다.
+        });
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            Stop_AttachedPreviewEffects(partObject);
         }
     }
 

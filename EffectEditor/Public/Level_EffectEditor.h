@@ -7,6 +7,8 @@
 
 NS_BEGIN(EffectEditor)
 
+class TrailPreviewController;
+
 class Level_EffectEditor final : public Level
 {
 public:
@@ -28,18 +30,42 @@ private:
     static constexpr auto kPreviewLayerTag{ L"Layer_Preview" };
 
 private:
+    struct PreviewTrailStrokeRuntime
+    {
+        EffectInstancePool::AttachedHandle poolHandle{};
+        Shared<bool> sampleEnabled{};
+        Shared<IEffectTrailSampleProvider> sampleProvider{};
+        bool isDraining{ false };
+        float drainElapsed{ 0.f };
+        float drainDuration{ 0.25f };
+    };
+
     EffectInstancePool::AttachedHandle _previewPoolHandle{};
     Shared<const EffectDefinition> _currentPreviewDefinition{};
+    Shared<const EffectDefinition> _currentPreviewTrailDefinition{};
+    vector<PreviewTrailStrokeRuntime> _previewTrailStrokes{};
+    bool _wasTrailPreviewGateOpen{ false };
+    float _lastTrailPreviewSourceRatio{ 0.f };
+    bool _hasTrailPreviewSourceRatio{ false };
     // Trail TypeData preview가 읽을 editor-local sample provider다.
     Weak<IEffectTrailSampleProvider> _trailPreviewSampleProvider{};
+    // SourceHistory Ribbon preview가 읽을 editor-local 단일 source provider다.
+    Shared<IEffectSourcePointSampleProvider> _sourceHistoryPreviewSampleProvider{};
+    // SourceHistorySpriteTrail preview가 읽을 editor-local 단일 source provider다.
+    Shared<IEffectSourcePointSampleProvider> _sourceHistorySpriteTrailPreviewSampleProvider{};
+    Weak<TrailPreviewController> _trailPreviewController{};
 
 private:
     HRESULT Restart_PreviewFromDefinition(const Shared<const EffectDefinition>& previewDefinition);
     // 현재 authoring emitters를 runtime preview용 EffectDefinition으로 묶는다.
-    Shared<const EffectDefinition> Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters) const;
+    Shared<const EffectDefinition> Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters, bool includeTrail) const;
+    Shared<const EffectDefinition> Build_PreviewTrailEffectDefinition(const vector<AuthoringEmitter>& emitters) const;
     // authoring emitter 1개를 runtime preview용 emitter definition으로 번역한다.
     EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const;
     EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter) const;
+    EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const AuthoringEmitter& emitter) const;
+    EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(const AuthoringEmitter& emitter) const;
+    EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitter& emitter) const;
     EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitter& emitter) const;
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();
@@ -51,6 +77,11 @@ private:
     HRESULT Ready_Layer_Sky(const wstring& layerTag);
     // preview layer는 authoring emitter 기반 runtime preview만 담는다.
     HRESULT Ready_Layer_Preview(const wstring& layerTag);
+    void Update_PreviewTrailStrokes(float timeDelta);
+    HRESULT Start_PreviewTrailStroke();
+    void Begin_PreviewTrailStrokeDrain(PreviewTrailStrokeRuntime& runtime);
+    void Drain_ActivePreviewTrailStrokes();
+    void Clear_PreviewTrailStrokes();
     void Clear_PreviewObjects();
 
 public:

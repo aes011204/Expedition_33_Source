@@ -12,6 +12,12 @@ inline const char* Resolve_RendererType(const AuthoringTypeData& typeData)
         return "Trail";
     case AuthoringTypeDataKind::Mesh:
         return "Mesh";
+    case AuthoringTypeDataKind::Ribbon:
+        return "Ribbon";
+    case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+        return "SourceHistorySpriteTrail";
+    case AuthoringTypeDataKind::Beam:
+        return "Beam";
     case AuthoringTypeDataKind::None:
     default:
         return "Sprite";

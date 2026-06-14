@@ -2,13 +2,56 @@
 
 #include "ModelCom.h"
 #include "BattleMechanismCom.h"
+#include "Buff.h"
+#include "CombatStatCom.h"
+
+#include "BattleController.h"
+#include "ClientInstance.h"
 
 NS_BEGIN(Client)
+
+namespace
+{
+    bool Has_BattleBuff(const BattleChar& actor, Buffs buffId)
+    {
+        if (actor.statCom == nullptr)
+            return false;
+
+        for (const auto& buff : actor.statCom->Get_Buff())
+        {
+            if (buff == nullptr)
+                continue;
+
+            if (buff->Is_PendingRemove())
+                continue;
+
+            if (buff->Get_BuffId() == buffId)
+                return true;
+        }
+
+        return false;
+    }
+}
 
 namespace BattleAnimUtils
 {
     BattleAnimType Resolve_BattleIdleAnimType(const BattleChar& actor)
     {
+        // 스턴 부여돼있으면 스턴 (파괴)
+        if (Has_BattleBuff(actor, Buffs::Stun))
+            return BattleAnimType::Idle_Stun;
+
+        const auto battle = CLIENT->Get_BattleController();
+        if (battle != nullptr && battle->Is_BattleStarted() && actor.statCom && actor.statCom->Is_Player())
+        {
+            const BattleChar& turnActor = battle->Get_TurnActionRequest().actor;
+
+            // 자기 턴이 아닌 플레이어는 기본 idle 대신 Waiting을 사용한다.
+            if (turnActor.actor != nullptr && turnActor.actor != actor.actor)
+                return BattleAnimType::Waiting;
+
+        }
+
         if (actor.heroId == HeroId::Maelle && actor.mechanismCom != nullptr)
         {
             switch (actor.mechanismCom->Get_MaelleStance())
@@ -36,8 +79,28 @@ namespace BattleAnimUtils
         if (actor.ModelCom == nullptr)
             return;
 
+        BattleAnimType idleType = Resolve_BattleIdleAnimType(actor);
+
+        if (idleType == BattleAnimType::Waiting ||
+            idleType == BattleAnimType::Base_Idle)
+        {
+            const float roll = GAME->Random(0.f, 1.f);
+
+            if (roll < 0.75f)
+            {
+                const int pick = static_cast<int>(GAME->Random(0.f, 3.f));
+                const BattleAnimType lookAroundType =
+                    pick == 0 ? BattleAnimType::Waiting_LookAround_0 :
+                    pick == 1 ? BattleAnimType::Waiting_LookAround_1 :
+                    BattleAnimType::Waiting_LookAround_2;
+
+                if (actor.ModelCom->Set_AnimationByState(ETOI(lookAroundType), blendTime, false))
+                    return;
+            }
+        }
+
         actor.ModelCom->Set_AnimationByState(
-            ETOI(Resolve_BattleIdleAnimType(actor)),
+            ETOI(idleType),
             blendTime,
             true);
     }

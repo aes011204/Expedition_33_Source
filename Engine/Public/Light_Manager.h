@@ -6,6 +6,7 @@ NS_BEGIN(Engine)
 
 class ShaderCom;
 class VIBuffer_Rect;
+struct LightCB;
 
 class Light_Manager final : public Base
 {
@@ -18,6 +19,7 @@ public:
 public:
 	const LIGHT_DESC* Get_LightDesc(uint32 index);
     const LIGHT_DESC* Get_PrimaryShadowLightDesc() const;
+    HRESULT Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const;
     uint32 Get_LightCount() const;
     void Clear_Lights();
     void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;

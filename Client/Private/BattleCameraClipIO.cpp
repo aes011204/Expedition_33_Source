@@ -31,10 +31,10 @@ string Build_BattleCameraClipFilePath(BattleCameraMode cameraMode, const string&
     return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
 }
 
-json Serialize_BattleCameraTrack(const BattleCameraTrack& track)
+json Serialize_BattleCameraTrack(const CameraTrack& track)
 {
     json keyframes = json::array();
-    for (const BattleCameraKeyframe& keyframe : track.keyframes)
+    for (const CameraKeyframe& keyframe : track.keyframes)
     {
         json keyJson{};
         keyJson["time"] = keyframe.time;
@@ -46,21 +46,21 @@ json Serialize_BattleCameraTrack(const BattleCameraTrack& track)
     return keyframes;
 }
 
-void Sort_BattleCameraTrack(BattleCameraTrack& track)
+void Sort_BattleCameraTrack(CameraTrack& track)
 {
     std::sort(track.keyframes.begin(), track.keyframes.end(),
-        [](const BattleCameraKeyframe& lhs, const BattleCameraKeyframe& rhs)
+        [](const CameraKeyframe& lhs, const CameraKeyframe& rhs)
         {
             return lhs.time < rhs.time;
         });
 }
 
-void Normalize_BattleCameraTrack(BattleCameraTrack& track, float durationSec)
+void Normalize_BattleCameraTrack(CameraTrack& track, float durationSec)
 {
     if (durationSec <= 0.f)
         return;
 
-    for (BattleCameraKeyframe& keyframe : track.keyframes)
+    for (CameraKeyframe& keyframe : track.keyframes)
         keyframe.time = std::clamp(keyframe.time / durationSec, 0.f, 1.f);
 
     Sort_BattleCameraTrack(track);
@@ -97,7 +97,7 @@ void Normalize_AnimationSyncClip(BattleCameraClip& clip)
     clip.duration = 1.f;
 }
 
-void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, BattleCameraTrack& outTrack)
+void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, CameraTrack& outTrack)
 {
     if (!jsonData.contains(keyName))
         return;
@@ -108,7 +108,7 @@ void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, Ba
 
     for (const auto& keyframe : keyframes)
     {
-        BattleCameraKeyframe key{};
+        CameraKeyframe key{};
         key.time = keyframe.value("time", key.time);
         key.value = keyframe.value("value", key.value);
         const int interpolationValue = keyframe.value("interpolation", static_cast<int>(key.interpolation));
@@ -125,6 +125,30 @@ void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, Ba
             break;
         case static_cast<int>(InterpolationMode::EaseOut):
             key.interpolation = InterpolationMode::EaseOut;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInStrong):
+            key.interpolation = InterpolationMode::EaseInStrong;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutStrong):
+            key.interpolation = InterpolationMode::EaseOutStrong;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInOutStrong):
+            key.interpolation = InterpolationMode::EaseInOutStrong;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInCubic):
+            key.interpolation = InterpolationMode::EaseInCubic;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutCubic):
+            key.interpolation = InterpolationMode::EaseOutCubic;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInExpo):
+            key.interpolation = InterpolationMode::EaseInExpo;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutExpo):
+            key.interpolation = InterpolationMode::EaseOutExpo;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutBack):
+            key.interpolation = InterpolationMode::EaseOutBack;
             break;
         case static_cast<int>(InterpolationMode::Linear):
         default:

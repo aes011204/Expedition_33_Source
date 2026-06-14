@@ -36,6 +36,28 @@ namespace
         return entry.displayName;
     }
 
+    float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
+    {
+        constexpr float fallbackDuration = 0.25f;
+        if (definition == nullptr)
+            return fallbackDuration;
+
+        float duration = fallbackDuration;
+        for (const EffectEmitterDefinition& emitter : definition->emitters)
+        {
+            if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
+                continue;
+
+            const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+            if (trailDesc == nullptr)
+                continue;
+
+            duration = max(duration, trailDesc->segmentLifetime);
+        }
+
+        return max(0.001f, duration);
+    }
+
     AnimNotifyData* Find_OrNormalize_NotifyAnimation(
         AnimNotifyAsset& asset,
         const Animation_View::AnimationEntry& entry)
@@ -243,6 +265,7 @@ void Animation_View::Pre_Render()
     {
         const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
         GAME->Backup_RenderGroup();
+        Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
@@ -392,6 +415,7 @@ void Animation_View::Render()
 
     if (!isOpen)
     {
+        Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
@@ -414,6 +438,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
@@ -447,6 +472,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::LiveModel;
@@ -494,6 +520,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
@@ -543,6 +570,7 @@ void Animation_View::Rebuild_PreviewClone()
 
 void Animation_View::Reset_PreviewClone()
 {
+    Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
     _previewRootObject.reset();
     _previewModelCom.reset();
@@ -2762,6 +2790,133 @@ void Animation_View::Draw_TrailAnchorPreview() const
     _previewGridBatch->End();
 }
 
+void Animation_View::Update_PreviewAnimSpeedStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewAnimSpeedStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewAnimSpeedStates();
+        return;
+    }
+
+    const float currentTimeSec = _previewModelCom->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom->Get_Owner().get();
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = timeDelta;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_AnimSpeed")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewAnimSpeedStateRuntimes.begin(),
+            _previewAnimSpeedStateRuntimes.end(),
+            [&](const PreviewAnimSpeedStateRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewAnimSpeedStateRuntimes.end())
+        {
+            PreviewAnimSpeedStateRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewAnimSpeedStateRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext); // preview sampling 전에 배속을 먼저 세팅한다.
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewAnimSpeedStateRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewAnimSpeedStateRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewAnimSpeedStateRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            _previewAnimSpeedStateRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewAnimSpeedStateRuntimes.erase(_previewAnimSpeedStateRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewAnimSpeedStates()
+{
+    if (_previewAnimSpeedStateRuntimes.empty())
+        return;
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom ? _previewModelCom->Get_Owner().get() : nullptr;
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.isPreview = true;
+
+    for (PreviewAnimSpeedStateRuntime& runtime : _previewAnimSpeedStateRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewAnimSpeedStateRuntimes.clear();
+
+    if (_previewModelCom)
+        _previewModelCom->Set_FrameSpeed(1.f); // preview clone이 남아 있을 때 배속 잔류를 정리한다.
+}
+
 void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta)
 {
     if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
@@ -2917,7 +3072,17 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
     const vector<const AnimNotifyStateEntry*> activeTrailStates = Find_ActivePreviewTrailStates();
     if (activeTrailStates.empty())
     {
-        Reset_PreviewTrailEffect();
+        _previewTrailProviderStateId = -1;
+
+        for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
+            Begin_PreviewTrailDrain(runtime);
+
+        for (int32 runtimeIndex = static_cast<int32>(_previewTrailRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+        {
+            if (Tick_PreviewTrailDrain(_previewTrailRuntimes[runtimeIndex], timeDelta))
+                _previewTrailRuntimes.erase(_previewTrailRuntimes.begin() + runtimeIndex);
+        }
+
         return;
     }
 
@@ -2936,7 +3101,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         const json payload = activeTrailState->notifyState->To_Json();
         const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
         const string effectNameValue = payload.value("_effectName", string{});
-        if (effectNameValue.empty())
+        wstring resolvedEffectName{};
+        if (!Try_ResolvePreviewTrailEffectName(effectNameValue, partTag, resolvedEffectName))
             continue;
 
         PreviewTrailRuntime* runtime = nullptr;
@@ -2961,6 +3127,19 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
                 continue;
         }
 
+        if (runtime->isDraining)
+        {
+            if (runtime->effect)
+                runtime->effect->Stop();
+
+            runtime->effect.reset();
+            runtime->effectName.clear();
+            runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
+            runtime->lastTimeSec = -1.f;
+        }
+
         if (runtime->partTag != partTag)
         {
             if (runtime->effect)
@@ -2970,6 +3149,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
             runtime->effect.reset();
             runtime->effectName.clear();
             runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
 
             if (!Load_PreviewTrailAnchorAsset(runtime->partTag, *runtime))
@@ -2979,8 +3160,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         if (runtime->trailAnchorAsset.modelGuid.empty())
             continue;
 
-        const wstring effectName(effectNameValue.begin(), effectNameValue.end());
-        if (!Ensure_PreviewTrailEffect(*runtime, effectName))
+        if (!Ensure_PreviewTrailEffect(*runtime, resolvedEffectName))
             continue;
 
         const bool timeMovedBackward =
@@ -2990,6 +3170,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         {
             runtime->effect->Stop(); // scrub나 seek으로 시간이 뒤로 가면 해당 runtime history만 버리고 다시 시작한다.
             runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
         }
 
         EffectTrailSample trailSample{};
@@ -2997,8 +3179,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         {
             if (runtime->effect && runtime->isPlaying)
             {
-                runtime->effect->Stop();
-                runtime->isPlaying = false;
+                Begin_PreviewTrailDrain(*runtime);
             }
             continue;
         }
@@ -3043,10 +3224,9 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         if (stillActive)
             continue;
 
-        if (_previewTrailRuntimes[runtimeIndex].effect)
-            _previewTrailRuntimes[runtimeIndex].effect->Stop();
-
-        _previewTrailRuntimes.erase(_previewTrailRuntimes.begin() + runtimeIndex);
+        Begin_PreviewTrailDrain(_previewTrailRuntimes[runtimeIndex]);
+        if (Tick_PreviewTrailDrain(_previewTrailRuntimes[runtimeIndex], timeDelta))
+            _previewTrailRuntimes.erase(_previewTrailRuntimes.begin() + runtimeIndex);
     }
 }
 
@@ -3060,6 +3240,37 @@ void Animation_View::Reset_PreviewTrailEffect()
 
     _previewTrailRuntimes.clear();
     _previewTrailProviderStateId = -1;
+}
+
+void Animation_View::Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime)
+{
+    if (runtime.effect == nullptr || runtime.isDraining)
+        return;
+
+    runtime.isDraining = true;
+    runtime.drainElapsed = 0.f;
+    runtime.isPlaying = true;
+}
+
+bool Animation_View::Tick_PreviewTrailDrain(PreviewTrailRuntime& runtime, float timeDelta)
+{
+    if (runtime.effect == nullptr)
+        return true;
+
+    if (!runtime.isDraining)
+        return false;
+
+    runtime.drainElapsed += max(0.f, timeDelta);
+    if (runtime.drainElapsed < runtime.drainDuration)
+    {
+        runtime.effect->Priority_Update(timeDelta);
+        runtime.effect->Update(timeDelta);
+        runtime.effect->Late_Update(timeDelta);
+        return false;
+    }
+
+    runtime.effect->Stop();
+    return true;
 }
 
 vector<const AnimNotifyStateEntry*> Animation_View::Find_ActivePreviewTrailStates() const
@@ -3103,11 +3314,15 @@ bool Animation_View::Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, con
     runtime.effect.reset();
     runtime.effectName.clear();
     runtime.isPlaying = false;
+    runtime.isDraining = false;
+    runtime.drainElapsed = 0.f;
     runtime.lastTimeSec = -1.f;
 
     const Shared<const EffectDefinition> definition = EffectAssetRuntimeLoader::Load_DefinitionByName(effectName);
     if (definition == nullptr)
         return false;
+
+    runtime.drainDuration = Resolve_TrailDrainDuration(definition);
 
     const Shared<EffectInstance> prototype = EffectInstance::Create(GAME->Get_Device(), GAME->Get_Context());
     if (prototype == nullptr)
@@ -3127,6 +3342,27 @@ bool Animation_View::Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, con
 
     runtime.effectName = effectName;
     return true;
+}
+
+bool Animation_View::Try_ResolvePreviewTrailEffectName(
+    const string& effectNameOverride,
+    const string& partTag,
+    wstring& outEffectName) const
+{
+    outEffectName.clear();
+
+    if (!effectNameOverride.empty())
+    {
+        outEffectName = String::ToWString(effectNameOverride);
+        return true;
+    }
+
+    const Weapon* weapon = Resolve_PreviewWeapon(String::ToWString(partTag));
+    if (weapon == nullptr)
+        return false;
+
+    outEffectName = weapon->Get_TrailEffectName(); // preview도 runtime과 같은 fallback 규칙을 써야 한다.
+    return !outEffectName.empty();
 }
 
 void Animation_View::Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot)

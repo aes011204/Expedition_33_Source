@@ -46,29 +46,6 @@ namespace
             return HeroId::Gustave;
         return  characterStatusOrder[selectedHeroIndex];
     }
-
-    void Play_RandomAllySelectSound()
-    {
-        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::AllySelectSounds));
-        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
-        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
-
-        GAME->Play_Sound(Constants::Sound::AllySelectSounds[soundIndex], SoundChannel::UI, 1.f);
-    }
-
-    void Play_RandomGlobalGenericEnterSound()
-    {
-        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::GlobalGenericEnterSounds));
-        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
-        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
-
-        GAME->Play_Sound(Constants::Sound::GlobalGenericEnterSounds[soundIndex], SoundChannel::UI, 1.f);
-    }
-
-    void Play_SkillTreeUISound(const wchar_t* soundPath)
-    {
-        GAME->Play_Sound(soundPath, SoundChannel::UI, 1.f);
-    }
 }
 
 SkillTree_Panel::SkillTree_Panel()
@@ -122,7 +99,7 @@ void SkillTree_Panel::Open()
     _isOpen = true;
 
     if (!wasOpen)
-        Play_RandomGlobalGenericEnterSound();
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
 
     for(auto& [heroId, view] : _viewByPlayerId)
     {
@@ -232,7 +209,7 @@ void SkillTree_Panel::Handle_SelectionInput()
 
     if(previousIndex != _selectedHeroIndex)
     {
-        Play_RandomAllySelectSound();
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
 
         Refresh_CharacterSelectUI();
         Change_ToSelectedViewState();
@@ -604,7 +581,7 @@ void SkillTree_Panel::Update_UI()
         const bool isHovered = node.button->Is_Hovered();
 
         if(!node.wasHovered && isHovered)
-            Play_SkillTreeUISound(Constants::Sound::SkillTreeNavigate);
+            GAME->Play_SoundCue(Constants::SoundCue::UI_SkillTree_Navigate);
 
         node.wasHovered = isHovered;
 
@@ -637,7 +614,7 @@ void SkillTree_Panel::Update_UI()
                         _currentView->skillTreeCom->TryUnlock(node.skillId);
 
                         if(!wasUnlocked && _currentView->skillTreeCom->IsUnlocked(node.skillId))
-                            Play_SkillTreeUISound(Constants::Sound::SkillTreeLearn);
+                            GAME->Play_SoundCue(Constants::SoundCue::UI_SkillTree_Learn);
 
                         Set_SkillPoint();
                     }
@@ -648,7 +625,7 @@ void SkillTree_Panel::Update_UI()
                         node.lockedPopup->Open();
 
                     if(GAME->KeyDown(KEY_TYPE::F))
-                        Play_SkillTreeUISound(Constants::Sound::SkillTreeBlocked);
+                        GAME->Play_SoundCue(Constants::SoundCue::UI_SkillTree_Blocked);
                 }
             }
         }
@@ -670,7 +647,7 @@ void SkillTree_Panel::Update_UI()
         const bool isHovered = lockNode.button->Is_Hovered();
 
         if(!lockNode.wasHovered && isHovered)
-            Play_SkillTreeUISound(Constants::Sound::SkillTreeNavigate);
+            GAME->Play_SoundCue(Constants::SoundCue::UI_SkillTree_Navigate);
 
         lockNode.wasHovered = isHovered;
 

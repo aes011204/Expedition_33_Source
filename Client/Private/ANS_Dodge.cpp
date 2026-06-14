@@ -17,21 +17,23 @@ IMPLEMENT_REFLECTION(ANS_Dodge)
 
 void ANS_Dodge::On_Begin(const AnimNotifyContext& context)
 {
-    auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->OpenReactionWindow(BattleController::ReactionType::Dodge);
+   auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
+
+    battle->Get_ReactionController().OpenWindow(BattleReactionType::Dodge);
 }
 
 void ANS_Dodge::On_Tick(const AnimNotifyContext& context)
 {
     UNREFERENCED_PARAMETER(context);
-    LOG_DEBUG("dodgeeeeeeeeeeeeeeeee");
-
 }
 
 void ANS_Dodge::On_End(const AnimNotifyContext& context)
 {
     auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->CloseReactionWindow(BattleController::ReactionType::Dodge);
+    if (battle == nullptr)
+        return;
+
+    battle->Get_ReactionController().CloseWindow(BattleReactionType::Dodge);
 }

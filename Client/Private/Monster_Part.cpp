@@ -53,16 +53,22 @@ void Monster_Part::Update(float timeDelta)
 
 void Monster_Part::Late_Update(float timeDelta)
 {
-    // culling
-    if (!Get_Owner() || !Get_Owner()->Is_Visible()||!Is_Visible())
+    Shared<GameObject> owner = Get_Owner();
+    if (!owner)
+    {
+        return;
+    }
+
+    if (Casts_DynamicShadow() && Is_Visible())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    // 메인 카메라 가시성은 본체 렌더만 막고, shadow 등록은 위에서 분리한다.
+    if (!owner->Is_Visible() || !Is_Visible())
     {
         return;
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-
-    if (Casts_DynamicShadow())
-        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT Monster_Part::Render()
@@ -73,21 +79,18 @@ HRESULT Monster_Part::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    CHECK_FAILED_ONCE(EffectCom::Bind_DrawFeatures(
-        GetSharedPtr<Monster_Part>(),
-        _shader.get(),
-        DrawFeatureFlagDissolve), E_FAIL);
+    CHECK_FAILED_THROTTLED(
+        EffectCom::Bind_DrawFeatures(GetSharedPtr<Monster_Part>(), _shader.get(), DrawFeatureFlagDissolve),
+        60,
+        E_FAIL
+    );
 
     // runtime compute 경로가 있으면 runtime buffer 준비
     if (_animComputeRuntime != nullptr)
-    {
-        CHECK_FAILED_ONCE(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
-    }
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
     // runtime이 없는 anim/noncompute 경로는 ModelCom 기본 bone buffer 사용S
     else if (_model->Get_NumAnimations() != 0)
-    {
-        CHECK_FAILED_ONCE(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
-    }
+        CHECK_FAILED_THROTTLED(_model->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
 
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
@@ -107,22 +110,20 @@ HRESULT Monster_Part::Render()
         // runtime compute 경로
         if (_animComputeRuntime != nullptr)
         {
-            CHECK_FAILED_ONCE(
-                _animComputeRuntime->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+            CHECK_FAILED_THROTTLED(
+                _animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i),
+                60,
+                E_FAIL
+            );
         }
         // runtime 없는 기본 ModelCom 경로
         else if (_model->Get_NumAnimations() != 0)
         {
-            CHECK_FAILED_ONCE(
-                _model->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+            CHECK_FAILED_THROTTLED(
+                _model->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i),
+                60,
+                E_FAIL
+            );
         }
 
         const uint32 passIndex = Decide_PassIndex(material);
@@ -165,21 +166,13 @@ HRESULT Monster_Part::Render_Shadow()
         if (_animComputeRuntime != nullptr)
         {
             CHECK_FAILED(
-                _animComputeRuntime->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+                _animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
         }
         // runtime 없는 기본 ModelCom 경로
         else if (_model->Get_NumAnimations() != 0)
         {
             CHECK_FAILED(
-                _model->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+                _model->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
         }
 
         const uint32 shadowPass =
@@ -274,8 +267,8 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
         if (!desc.allowMissingModel)
             return E_FAIL;
 
-        LOG_WARN("Monster_Part: missing model allowed. modelTag={}",
-            String::ToString(desc.modelTag).c_str());
+        //LOG_WARN("Monster_Part: missing model allowed. modelTag={}",
+        //    String::ToString(desc.modelTag).c_str());
     }
 
     if (desc.modelType == ModelType::Anim && _model != nullptr)

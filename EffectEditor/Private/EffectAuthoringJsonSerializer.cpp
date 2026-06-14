@@ -32,6 +32,42 @@ namespace Internal
         return true;
     }
 
+    EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy)
+    {
+        return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
+    }
+
+    json To_Json(const EffectMaterialUVAxisPolicy& data)
+    {
+        json root = json::object();
+        root["uPolicy"] = To_EnumToken(data.uPolicy);
+        root["vPolicy"] = To_EnumToken(data.vPolicy);
+        return root;
+    }
+
+    void Read_UVAxisPolicyField(
+        const json& root,
+        const char* key,
+        EffectTextureUVTilingMode legacyMode,
+        EffectMaterialUVAxisPolicy& outPolicy,
+        EffectTextureUVTilingMode& outCompatibleMode)
+    {
+        outPolicy.uPolicy = legacyMode;
+        outPolicy.vPolicy = legacyMode;
+
+        const auto policyIter = root.find(key);
+        if (policyIter != root.end() && policyIter->is_object())
+        {
+            const json& policy = *policyIter;
+            if (const auto uPolicyIter = policy.find("uPolicy"); uPolicyIter != policy.end())
+                Try_ReadEnumToken(*uPolicyIter, outPolicy.uPolicy);
+            if (const auto vPolicyIter = policy.find("vPolicy"); vPolicyIter != policy.end())
+                Try_ReadEnumToken(*vPolicyIter, outPolicy.vPolicy);
+        }
+
+        outCompatibleMode = Resolve_CompatibleUVTilingMode(outPolicy);
+    }
+
     template <typename T>
     void Read_NumberField(const json& node, const char* key, T& outValue)
     {
@@ -64,6 +100,23 @@ namespace Internal
             return;
 
         outValue = iter->get<bool>();
+    }
+
+    SourceHistorySpriteTrailArrivalMode Resolve_SourceHistorySpriteTrailArrivalMode(const json& root)
+    {
+        SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
+        if (const auto arrivalModeIter = root.find("arrivalMode"); arrivalModeIter != root.end() &&
+                                                                   Try_ReadEnumToken(*arrivalModeIter, arrivalMode))
+            return arrivalMode;
+
+        bool killOnArrive = true;
+        bool clampAtEnd = true;
+        Read_BoolField(root, "killOnArrive", killOnArrive);
+        Read_BoolField(root, "clampAtEnd", clampAtEnd);
+        if (!killOnArrive && clampAtEnd)
+            return SourceHistorySpriteTrailArrivalMode::ClampAtEnd;
+
+        return SourceHistorySpriteTrailArrivalMode::KillOnArrive;
     }
 
     json To_Json(const DistributionRandomSeedData& data)
@@ -404,6 +457,7 @@ namespace Internal
         root["uvTiling"] = data.uvTiling;
         root["maxTrailLength"] = data.maxTrailLength;
         root["tailFadeLength"] = data.tailFadeLength;
+        root["autoLifeFade"] = data.autoLifeFade;
         root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["sampleSpacing"] = data.sampleSpacing;
         root["curveSubdivision"] = data.curveSubdivision;
@@ -423,6 +477,7 @@ namespace Internal
         Read_NumberField(root, "uvTiling", outData.uvTiling);
         Read_NumberField(root, "maxTrailLength", outData.maxTrailLength);
         Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
+        Read_BoolField(root, "autoLifeFade", outData.autoLifeFade);
         const auto curveQualityIter = root.find("curveQuality");
         if (curveQualityIter != root.end())
             Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
@@ -430,6 +485,306 @@ namespace Internal
         Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
         Read_BoolField(root, "smoothTangent", outData.smoothTangent);
         Read_NumberField(root, "sideFade", outData.sideFade);
+    }
+
+    void From_Json(const json& root, BeamTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto endpointModeIter = root.find("endpointMode"); endpointModeIter != root.end())
+            Try_ReadEnumToken(*endpointModeIter, outData.endpointMode);
+        if (const auto localStartIter = root.find("localStart"); localStartIter != root.end())
+            Read_Vec3(*localStartIter, outData.localStart);
+        if (const auto localEndIter = root.find("localEnd"); localEndIter != root.end())
+            Read_Vec3(*localEndIter, outData.localEnd);
+        if (const auto localDirectionIter = root.find("localDirection"); localDirectionIter != root.end())
+            Read_Vec3(*localDirectionIter, outData.localDirection);
+        Read_NumberField(root, "length", outData.length);
+        Read_NumberField(root, "segmentCount", outData.segmentCount);
+        Read_NumberField(root, "noiseAmplitude", outData.noiseAmplitude);
+        Read_NumberField(root, "seed", outData.seed);
+        Read_NumberField(root, "stripCount", outData.stripCount);
+        Read_NumberField(root, "endSpreadRadius", outData.endSpreadRadius);
+        Read_NumberField(root, "lengthVariance", outData.lengthVariance);
+        if (const auto branchPresetIter = root.find("branchPreset"); branchPresetIter != root.end())
+            Try_ReadEnumToken(*branchPresetIter, outData.branchPreset);
+        Read_BoolField(root, "branchEnabled", outData.branchEnabled);
+        Read_NumberField(root, "branchCount", outData.branchCount);
+        Read_NumberField(root, "branchChance", outData.branchChance);
+        Read_NumberField(root, "branchSegmentCount", outData.branchSegmentCount);
+        Read_NumberField(root, "branchLength", outData.branchLength);
+        Read_NumberField(root, "branchLengthVariance", outData.branchLengthVariance);
+        Read_NumberField(root, "branchStartMin", outData.branchStartMin);
+        Read_NumberField(root, "branchStartMax", outData.branchStartMax);
+        Read_NumberField(root, "branchSpreadRadius", outData.branchSpreadRadius);
+        if (const auto endSpreadIter = root.find("branchEndSpreadRadius"); endSpreadIter != root.end())
+            Read_NumberField(root, "branchEndSpreadRadius", outData.branchEndSpreadRadius);
+        else
+            outData.branchEndSpreadRadius = outData.branchSpreadRadius;
+        Read_NumberField(root, "branchOutwardAmount", outData.branchOutwardAmount);
+        Read_NumberField(root, "branchCurveAmount", outData.branchCurveAmount);
+        Read_NumberField(root, "branchDownLength", outData.branchDownLength);
+        Read_NumberField(root, "branchEntangleRadius", outData.branchEntangleRadius);
+        Read_NumberField(root, "branchEntangleAdvance", outData.branchEntangleAdvance);
+        Read_NumberField(root, "branchCrackLength", outData.branchCrackLength);
+        Read_NumberField(root, "branchCrackSpreadRadius", outData.branchCrackSpreadRadius);
+        Read_NumberField(root, "branchWidthScale", outData.branchWidthScale);
+        Read_NumberField(root, "branchSeedOffset", outData.branchSeedOffset);
+        Read_NumberField(root, "baseWidth", outData.baseWidth);
+        Read_NumberField(root, "tilingDistance", outData.tilingDistance);
+
+        outData.length = max(0.f, outData.length);
+        outData.segmentCount = max(1u, outData.segmentCount);
+        outData.noiseAmplitude = max(0.f, outData.noiseAmplitude);
+        outData.stripCount = max(1u, outData.stripCount);
+        outData.endSpreadRadius = max(0.f, outData.endSpreadRadius);
+        outData.lengthVariance = max(0.f, outData.lengthVariance);
+        outData.branchChance = clamp(outData.branchChance, 0.f, 1.f);
+        outData.branchSegmentCount = max(1u, outData.branchSegmentCount);
+        outData.branchLength = max(0.f, outData.branchLength);
+        outData.branchLengthVariance = max(0.f, outData.branchLengthVariance);
+        outData.branchStartMin = clamp(outData.branchStartMin, 0.f, 1.f);
+        outData.branchStartMax = clamp(outData.branchStartMax, 0.f, 1.f);
+        if (outData.branchStartMin > outData.branchStartMax)
+            swap(outData.branchStartMin, outData.branchStartMax);
+        outData.branchSpreadRadius = max(0.f, outData.branchSpreadRadius);
+        outData.branchEndSpreadRadius = max(0.f, outData.branchEndSpreadRadius);
+        outData.branchOutwardAmount = max(0.f, outData.branchOutwardAmount);
+        outData.branchCurveAmount = max(0.f, outData.branchCurveAmount);
+        outData.branchDownLength = max(0.f, outData.branchDownLength);
+        outData.branchEntangleRadius = max(0.f, outData.branchEntangleRadius);
+        outData.branchEntangleAdvance = max(0.f, outData.branchEntangleAdvance);
+        outData.branchCrackLength = max(0.f, outData.branchCrackLength);
+        outData.branchCrackSpreadRadius = max(0.f, outData.branchCrackSpreadRadius);
+        outData.branchWidthScale = max(0.f, outData.branchWidthScale);
+        outData.baseWidth = max(0.001f, outData.baseWidth);
+        outData.tilingDistance = max(0.f, outData.tilingDistance);
+    }
+
+    bool Nearly_Equal(float lhs, float rhs)
+    {
+        return fabsf(lhs - rhs) <= 0.0001f;
+    }
+
+    RibbonCurveQuality Infer_RibbonCurveQuality(float sampleSpacing, float sampleInterval)
+    {
+        if (!Nearly_Equal(sampleInterval, 0.f))
+            return RibbonCurveQuality::Custom;
+
+        if (Nearly_Equal(sampleSpacing, 0.08f))
+            return RibbonCurveQuality::Basic;
+        if (Nearly_Equal(sampleSpacing, 0.04f))
+            return RibbonCurveQuality::Smooth;
+        if (Nearly_Equal(sampleSpacing, 0.02f))
+            return RibbonCurveQuality::HighQuality;
+
+        return RibbonCurveQuality::Custom;
+    }
+
+    uint32 Resolve_SourceHistoryCurveSubdivisionPreset(RibbonCurveQuality quality)
+    {
+        switch (quality)
+        {
+        case RibbonCurveQuality::Smooth:
+            return 8u;
+        case RibbonCurveQuality::HighQuality:
+            return 12u;
+        case RibbonCurveQuality::Basic:
+        case RibbonCurveQuality::Custom:
+        default:
+            return 4u;
+        }
+    }
+
+    json To_Json(const RibbonTypeData& data)
+    {
+        json root = json::object();
+        root["sourceMode"] = To_EnumToken(data.sourceMode);
+        root["sourceEmitterId"] = data.sourceEmitterId;
+        root["followerLaneCount"] = data.followerLaneCount;
+        root["curveQuality"] = To_EnumToken(data.curveQuality);
+        root["maxSampleCount"] = data.maxSampleCount;
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["curveSubdivision"] = data.curveSubdivision;
+        root["smoothTangent"] = data.smoothTangent;
+        root["sampleInterval"] = data.sampleInterval;
+        root["maxLength"] = data.maxLength;
+        root["tailFadeLength"] = data.tailFadeLength;
+        root["laneSpawnFadeInEnabled"] = data.laneSpawnFadeInEnabled;
+        root["laneSpawnFadeInDuration"] = data.laneSpawnFadeInDuration;
+        root["baseWidth"] = data.baseWidth;
+        root["tilingDistance"] = data.tilingDistance;
+        root["autoLifeFade"] = data.autoLifeFade;
+        root["tailCollapseOnIdle"] = data.tailCollapseOnIdle;
+        root["tailCollapseSpeed"] = data.tailCollapseSpeed;
+        return root;
+    }
+
+    json To_Json(const SourceHistorySpriteTrailTypeData& data)
+    {
+        json root = json::object();
+        root["sourceMode"] = To_EnumToken(data.sourceMode);
+        root["sourceEmitterId"] = data.sourceEmitterId;
+        root["followerLaneCount"] = data.followerLaneCount;
+        root["sampleLifetime"] = data.sampleLifetime;
+        root["curveQuality"] = To_EnumToken(data.curveQuality);
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["curveSubdivision"] = data.curveSubdivision;
+        root["smoothTangent"] = data.smoothTangent;
+        root["maxLength"] = data.maxLength;
+        root["stampSpawnMode"] = To_EnumToken(data.stampSpawnMode);
+        root["stampSpacing"] = data.stampSpacing;
+        root["stampInterval"] = data.stampInterval;
+        root["maxStampCount"] = data.maxStampCount;
+        root["cardLength"] = data.cardLength;
+        root["cardWidth"] = data.cardWidth;
+        root["flipU"] = data.flipU;
+        root["flipV"] = data.flipV;
+        root["rotationOffsetDegrees"] = data.rotationOffsetDegrees;
+        root["spawnJitter"] = data.spawnJitter;
+        return root;
+    }
+
+    json To_Json(const BeamTypeData& data)
+    {
+        json root = json::object();
+        root["endpointMode"] = To_EnumToken(data.endpointMode);
+        root["localStart"] = To_Json(data.localStart);
+        root["localEnd"] = To_Json(data.localEnd);
+        root["localDirection"] = To_Json(data.localDirection);
+        root["length"] = data.length;
+        root["segmentCount"] = data.segmentCount;
+        root["noiseAmplitude"] = data.noiseAmplitude;
+        root["seed"] = data.seed;
+        root["stripCount"] = data.stripCount;
+        root["endSpreadRadius"] = data.endSpreadRadius;
+        root["lengthVariance"] = data.lengthVariance;
+        root["branchPreset"] = To_EnumToken(data.branchPreset);
+        root["branchEnabled"] = data.branchEnabled;
+        root["branchCount"] = data.branchCount;
+        root["branchChance"] = data.branchChance;
+        root["branchSegmentCount"] = data.branchSegmentCount;
+        root["branchLength"] = data.branchLength;
+        root["branchLengthVariance"] = data.branchLengthVariance;
+        root["branchStartMin"] = data.branchStartMin;
+        root["branchStartMax"] = data.branchStartMax;
+        root["branchSpreadRadius"] = data.branchSpreadRadius;
+        root["branchEndSpreadRadius"] = data.branchEndSpreadRadius;
+        root["branchOutwardAmount"] = data.branchOutwardAmount;
+        root["branchCurveAmount"] = data.branchCurveAmount;
+        root["branchDownLength"] = data.branchDownLength;
+        root["branchEntangleRadius"] = data.branchEntangleRadius;
+        root["branchEntangleAdvance"] = data.branchEntangleAdvance;
+        root["branchCrackLength"] = data.branchCrackLength;
+        root["branchCrackSpreadRadius"] = data.branchCrackSpreadRadius;
+        root["branchWidthScale"] = data.branchWidthScale;
+        root["branchSeedOffset"] = data.branchSeedOffset;
+        root["baseWidth"] = data.baseWidth;
+        root["tilingDistance"] = data.tilingDistance;
+        return root;
+    }
+
+    void From_Json(const json& root, RibbonTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto sourceModeIter = root.find("sourceMode"); sourceModeIter != root.end())
+            Try_ReadEnumToken(*sourceModeIter, outData.sourceMode);
+        Read_NumberField(root, "sourceEmitterId", outData.sourceEmitterId);
+        Read_NumberField(root, "followerLaneCount", outData.followerLaneCount);
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+        {
+            outData.sourceMode = outData.sourceEmitterId != 0u
+                                 ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                 : SourceHistoryRibbonSourceMode::SelfRoot;
+        }
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SelfRoot)
+            outData.sourceEmitterId = 0u;
+        outData.followerLaneCount = max(1u, outData.followerLaneCount);
+        Read_NumberField(root, "maxSampleCount", outData.maxSampleCount);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        const bool hasCurveSubdivision = root.find("curveSubdivision") != root.end();
+        Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
+        Read_BoolField(root, "smoothTangent", outData.smoothTangent);
+        Read_NumberField(root, "sampleInterval", outData.sampleInterval);
+        const auto curveQualityIter = root.find("curveQuality");
+        if (curveQualityIter != root.end())
+            Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
+        else
+            outData.curveQuality = Infer_RibbonCurveQuality(outData.sampleSpacing, outData.sampleInterval);
+        if (!hasCurveSubdivision && outData.curveQuality != RibbonCurveQuality::Custom)
+            outData.curveSubdivision = Resolve_SourceHistoryCurveSubdivisionPreset(outData.curveQuality);
+        Read_NumberField(root, "maxLength", outData.maxLength);
+        Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
+        Read_BoolField(root, "laneSpawnFadeInEnabled", outData.laneSpawnFadeInEnabled);
+        Read_NumberField(root, "laneSpawnFadeInDuration", outData.laneSpawnFadeInDuration);
+        outData.laneSpawnFadeInDuration = max(0.f, outData.laneSpawnFadeInDuration);
+        Read_NumberField(root, "baseWidth", outData.baseWidth);
+        Read_NumberField(root, "tilingDistance", outData.tilingDistance);
+        Read_BoolField(root, "autoLifeFade", outData.autoLifeFade);
+        Read_BoolField(root, "tailCollapseOnIdle", outData.tailCollapseOnIdle);
+        Read_NumberField(root, "tailCollapseSpeed", outData.tailCollapseSpeed);
+        outData.tailCollapseSpeed = max(0.f, outData.tailCollapseSpeed);
+    }
+
+    void From_Json(const json& root, SourceHistorySpriteTrailTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto sourceModeIter = root.find("sourceMode"); sourceModeIter != root.end())
+            Try_ReadEnumToken(*sourceModeIter, outData.sourceMode);
+        Read_NumberField(root, "sourceEmitterId", outData.sourceEmitterId);
+        Read_NumberField(root, "followerLaneCount", outData.followerLaneCount);
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+        {
+            outData.sourceMode = outData.sourceEmitterId != 0u
+                                 ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                 : SourceHistoryRibbonSourceMode::SelfRoot;
+        }
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SelfRoot)
+            outData.sourceEmitterId = 0u;
+        outData.followerLaneCount = max(1u, outData.followerLaneCount);
+
+        Read_NumberField(root, "sampleLifetime", outData.sampleLifetime);
+        outData.sampleLifetime = max(0.0001f, outData.sampleLifetime);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        outData.sampleSpacing = max(0.001f, outData.sampleSpacing);
+        const auto curveQualityIter = root.find("curveQuality");
+        if (curveQualityIter != root.end())
+            Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
+        else
+            outData.curveQuality = Infer_RibbonCurveQuality(outData.sampleSpacing, 0.f);
+        const bool hasCurveSubdivision = root.find("curveSubdivision") != root.end();
+        Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
+        Read_BoolField(root, "smoothTangent", outData.smoothTangent);
+        if (!hasCurveSubdivision && outData.curveQuality != RibbonCurveQuality::Custom)
+            outData.curveSubdivision = Resolve_SourceHistoryCurveSubdivisionPreset(outData.curveQuality);
+        Read_NumberField(root, "maxLength", outData.maxLength);
+        outData.maxLength = max(0.f, outData.maxLength);
+        if (const auto stampSpawnModeIter = root.find("stampSpawnMode"); stampSpawnModeIter != root.end())
+            Try_ReadEnumToken(*stampSpawnModeIter, outData.stampSpawnMode);
+        Read_NumberField(root, "stampSpacing", outData.stampSpacing);
+        outData.stampSpacing = max(0.001f, outData.stampSpacing);
+        Read_NumberField(root, "stampInterval", outData.stampInterval);
+        outData.stampInterval = max(0.001f, outData.stampInterval);
+        Read_NumberField(root, "maxStampCount", outData.maxStampCount);
+        outData.maxStampCount = max(1u, outData.maxStampCount);
+        Read_NumberField(root, "cardLength", outData.cardLength);
+        outData.cardLength = max(0.001f, outData.cardLength);
+        Read_NumberField(root, "cardWidth", outData.cardWidth);
+        outData.cardWidth = max(0.001f, outData.cardWidth);
+        if (const auto directionModeIter = root.find("directionMode"); directionModeIter != root.end())
+            Try_ReadEnumToken(*directionModeIter, outData.directionMode);
+        if (const auto textureAxisIter = root.find("textureAxis"); textureAxisIter != root.end())
+            Try_ReadEnumToken(*textureAxisIter, outData.textureAxis);
+        Read_BoolField(root, "flipU", outData.flipU);
+        Read_BoolField(root, "flipV", outData.flipV);
+        Read_NumberField(root, "rotationOffsetDegrees", outData.rotationOffsetDegrees);
+        Read_NumberField(root, "spawnJitter", outData.spawnJitter);
+        outData.spawnJitter = max(0.f, outData.spawnJitter);
     }
 
     json To_Json(const MeshTypeData& data)
@@ -487,6 +842,24 @@ namespace Internal
             root["data"] = To_Json(meshData != nullptr ? *meshData : MeshTypeData{});
             break;
         }
+        case AuthoringTypeDataKind::Ribbon:
+        {
+            const RibbonTypeData* sourceHistoryRibbonData = get_if<RibbonTypeData>(&data.payload);
+            root["data"] = To_Json(sourceHistoryRibbonData != nullptr ? *sourceHistoryRibbonData : RibbonTypeData{});
+            break;
+        }
+        case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+        {
+            const SourceHistorySpriteTrailTypeData* sourceHistorySpriteTrailData = get_if<SourceHistorySpriteTrailTypeData>(&data.payload);
+            root["data"] = To_Json(sourceHistorySpriteTrailData != nullptr ? *sourceHistorySpriteTrailData : SourceHistorySpriteTrailTypeData{});
+            break;
+        }
+        case AuthoringTypeDataKind::Beam:
+        {
+            const BeamTypeData* beamData = get_if<BeamTypeData>(&data.payload);
+            root["data"] = To_Json(beamData != nullptr ? *beamData : BeamTypeData{});
+            break;
+        }
         case AuthoringTypeDataKind::None:
         default:
             break;
@@ -502,6 +875,7 @@ namespace Internal
 
         AuthoringTypeDataKind kind = AuthoringTypeDataKind::None;
         const auto kindIter = root.find("kind");
+
         if (kindIter == root.end() || !Try_ReadEnumToken(*kindIter, kind))
             return;
 
@@ -526,6 +900,39 @@ namespace Internal
                 From_Json(*dataIter, data);
 
             outData.kind = AuthoringTypeDataKind::Mesh;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::Ribbon:
+        {
+            RibbonTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::Ribbon;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+        {
+            SourceHistorySpriteTrailTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::SourceHistorySpriteTrail;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::Beam:
+        {
+            BeamTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::Beam;
             outData.payload = data;
             break;
         }
@@ -563,19 +970,23 @@ namespace Internal
         root["mainUVScale"] = To_Json(data.mainUVScale);
         root["mainUVOffset"] = To_Json(data.mainUVOffset);
         root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
-        root["mainUVTilingMode"] = To_EnumToken(data.mainUVTilingMode);
+        root["mainUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.mainUVPolicy));
+        root["mainUVPolicy"] = To_Json(data.mainUVPolicy);
         root["noiseUVScale"] = To_Json(data.noiseUVScale);
         root["noiseUVOffset"] = To_Json(data.noiseUVOffset);
         root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
-        root["noiseUVTilingMode"] = To_EnumToken(data.noiseUVTilingMode);
+        root["noiseUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.noiseUVPolicy));
+        root["noiseUVPolicy"] = To_Json(data.noiseUVPolicy);
         root["maskUVScale"] = To_Json(data.maskUVScale);
         root["maskUVOffset"] = To_Json(data.maskUVOffset);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
-        root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
+        root["maskUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.maskUVPolicy));
+        root["maskUVPolicy"] = To_Json(data.maskUVPolicy);
         root["flowUVScale"] = To_Json(data.flowUVScale);
         root["flowUVOffset"] = To_Json(data.flowUVOffset);
         root["flowUVScrollSpeed"] = To_Json(data.flowUVScrollSpeed);
-        root["flowUVTilingMode"] = To_EnumToken(data.flowUVTilingMode);
+        root["flowUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.flowUVPolicy));
+        root["flowUVPolicy"] = To_Json(data.flowUVPolicy);
         root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
@@ -664,6 +1075,7 @@ namespace Internal
 
         if (const auto mainUVTilingModeIter = root.find("mainUVTilingMode"); mainUVTilingModeIter != root.end())
             Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
+        Read_UVAxisPolicyField(root, "mainUVPolicy", outData.mainUVTilingMode, outData.mainUVPolicy, outData.mainUVTilingMode);
 
         if (const auto noiseUVScaleIter = root.find("noiseUVScale"); noiseUVScaleIter != root.end())
             Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
@@ -676,6 +1088,7 @@ namespace Internal
 
         if (const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode"); noiseUVTilingModeIter != root.end())
             Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
+        Read_UVAxisPolicyField(root, "noiseUVPolicy", outData.noiseUVTilingMode, outData.noiseUVPolicy, outData.noiseUVTilingMode);
 
         if (const auto maskUVScaleIter = root.find("maskUVScale"); maskUVScaleIter != root.end())
             Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
@@ -688,6 +1101,7 @@ namespace Internal
 
         if (const auto maskUVTilingModeIter = root.find("maskUVTilingMode"); maskUVTilingModeIter != root.end())
             Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
+        Read_UVAxisPolicyField(root, "maskUVPolicy", outData.maskUVTilingMode, outData.maskUVPolicy, outData.maskUVTilingMode);
 
         if (const auto flowUVScaleIter = root.find("flowUVScale"); flowUVScaleIter != root.end())
             Read_Vec2(*flowUVScaleIter, outData.flowUVScale);
@@ -700,6 +1114,7 @@ namespace Internal
 
         if (const auto flowUVTilingModeIter = root.find("flowUVTilingMode"); flowUVTilingModeIter != root.end())
             Try_ReadEnumToken(*flowUVTilingModeIter, outData.flowUVTilingMode);
+        Read_UVAxisPolicyField(root, "flowUVPolicy", outData.flowUVTilingMode, outData.flowUVPolicy, outData.flowUVTilingMode);
 
         Read_NumberField(root, "refractionIntensity", outData.refractionIntensity);
         Read_NumberField(root, "refractionPresence", outData.refractionPresence);
@@ -1554,7 +1969,6 @@ namespace Internal
     json To_Json(const PlaneRadialLocationModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["plane"] = To_EnumToken(data.plane);
         root["shape"] = To_EnumToken(data.shape);
         root["placementMode"] = To_EnumToken(data.placementMode);
@@ -1572,7 +1986,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto planeIter = root.find("plane");
         if (planeIter != root.end())
             Try_ReadEnumToken(*planeIter, outData.plane);
@@ -1602,7 +2015,6 @@ namespace Internal
     json To_Json(const PlaneRadialOrientationModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["targetKind"] = To_EnumToken(data.targetKind);
         root["orientationMode"] = To_EnumToken(data.orientationMode);
         root["meshForwardAxis"] = To_EnumToken(data.meshForwardAxis);
@@ -1617,7 +2029,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto targetKindIter = root.find("targetKind");
         if (targetKindIter != root.end())
             Try_ReadEnumToken(*targetKindIter, outData.targetKind);
@@ -1637,7 +2048,6 @@ namespace Internal
     json To_Json(const SphereRadialOrientationModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["orientationMode"] = To_EnumToken(data.orientationMode);
         root["meshForwardAxis"] = To_EnumToken(data.meshForwardAxis);
         root["meshUpAxis"] = To_EnumToken(data.meshUpAxis);
@@ -1651,7 +2061,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto orientationModeIter = root.find("orientationMode");
         if (orientationModeIter != root.end())
             Try_ReadEnumToken(*orientationModeIter, outData.orientationMode);
@@ -1842,7 +2251,6 @@ namespace Internal
     json To_Json(const OrbitOverLifeModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["pivotMode"] = To_EnumToken(data.pivotMode);
         root["plane"] = To_EnumToken(data.plane);
         root["angleDegreesOverLife"] = To_Json(data.angleDegreesOverLife);
@@ -1856,7 +2264,6 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_BoolField(root, "enabled", outData.enabled);
         const auto pivotModeIter = root.find("pivotMode");
         if (pivotModeIter != root.end())
             Try_ReadEnumToken(*pivotModeIter, outData.pivotMode);
@@ -2072,6 +2479,7 @@ namespace Internal
         root["playbackMode"] = To_EnumToken(data.playbackMode);
         root["framesPerSecond"] = data.framesPerSecond;
         Write_RandomSeedField(root, data.randomSeed);
+        root["perStripSubUVVariation"] = data.perStripSubUVVariation;
         return root;
     }
 
@@ -2091,6 +2499,7 @@ namespace Internal
             Try_ReadEnumToken(*playbackModeIter, outData.playbackMode);
         Read_NumberField(root, "framesPerSecond", outData.framesPerSecond);
         Read_RandomSeedField(root, outData.randomSeed);
+        Read_BoolField(root, "perStripSubUVVariation", outData.perStripSubUVVariation);
     }
 
     //## Module Data Codec
@@ -2208,7 +2617,6 @@ namespace Internal
     json To_Json(const SpawnPerUnitModuleData& data)
     {
         json root = json::object();
-        root["enabled"] = data.enabled;
         root["spawnPerUnit"] = To_Json(data.spawnPerUnit);
         root["unitScalar"] = data.unitScalar;
         root["movementTolerance"] = data.movementTolerance;
@@ -2220,8 +2628,6 @@ namespace Internal
     {
         if (!root.is_object())
             return;
-
-        Read_BoolField(root, "enabled", outData.enabled);
 
         const auto spawnPerUnitIter = root.find("spawnPerUnit");
         if (spawnPerUnitIter != root.end())
@@ -2238,6 +2644,64 @@ namespace Internal
             if (legacyUnitDistance > 0.f)
                 outData.spawnPerUnit = FloatDistributionData::Make_Constant(max(0.0001f, outData.unitScalar) / legacyUnitDistance);
         }
+    }
+
+    json To_Json(const SourceHistorySpriteTrailPathFollowModuleData& data)
+    {
+        json root = json::object();
+        root["direction"] = To_EnumToken(data.direction);
+        root["speed"] = To_Json(data.speed);
+        root["startDelay"] = To_Json(data.startDelay);
+        root["arrivalMode"] = To_EnumToken(data.arrivalMode);
+        return root;
+    }
+
+    void From_Json(const json& root, SourceHistorySpriteTrailPathFollowModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto directionIter = root.find("direction"); directionIter != root.end())
+            Try_ReadEnumToken(*directionIter, outData.direction);
+        if (const auto speedIter = root.find("speed"); speedIter != root.end())
+            From_Json(*speedIter, outData.speed);
+        if (const auto startDelayIter = root.find("startDelay"); startDelayIter != root.end())
+            From_Json(*startDelayIter, outData.startDelay);
+        outData.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(root);
+    }
+
+    json To_Json(const SourceHistorySpriteTrailPathReplayModuleData& data)
+    {
+        json root = json::object();
+        root["delayTime"] = data.delayTime;
+        root["replayMode"] = To_EnumToken(data.replayMode);
+        root["speedScale"] = data.speedScale;
+        root["drainDuration"] = data.drainDuration;
+        root["drainCurve"] = To_Json(data.drainCurve);
+        root["startMode"] = To_EnumToken(data.startMode);
+        root["arrivalMode"] = To_EnumToken(data.arrivalMode);
+        return root;
+    }
+
+    void From_Json(const json& root, SourceHistorySpriteTrailPathReplayModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "delayTime", outData.delayTime);
+        if (const auto replayModeIter = root.find("replayMode"); replayModeIter != root.end())
+            Try_ReadEnumToken(*replayModeIter, outData.replayMode);
+        Read_NumberField(root, "speedScale", outData.speedScale);
+        Read_NumberField(root, "drainDuration", outData.drainDuration);
+        if (const auto drainCurveIter = root.find("drainCurve"); drainCurveIter != root.end())
+            From_Json(*drainCurveIter, outData.drainCurve);
+        if (const auto startModeIter = root.find("startMode"); startModeIter != root.end())
+            Try_ReadEnumToken(*startModeIter, outData.startMode);
+        outData.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(root);
+
+        outData.delayTime = max(0.f, outData.delayTime);
+        outData.speedScale = max(0.f, outData.speedScale);
+        outData.drainDuration = max(0.0001f, outData.drainDuration);
     }
 
     json To_Json(const MaterialScalarModulatorData& data)
@@ -2492,6 +2956,12 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SpawnPerUnit:
         root["data"] = Internal::To_Json(get<SpawnPerUnitModuleData>(module.data));
         break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        root["data"] = Internal::To_Json(get<SourceHistorySpriteTrailPathFollowModuleData>(module.data));
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        root["data"] = Internal::To_Json(get<SourceHistorySpriteTrailPathReplayModuleData>(module.data));
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         root["data"] = Internal::To_Json(get<MaterialScalarModulationModuleData>(module.data));
         break;
@@ -2632,6 +3102,12 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SpawnPerUnit:
             Internal::From_Json(*dataIter, get<SpawnPerUnitModuleData>(module.data));
             break;
+        case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+            Internal::From_Json(*dataIter, get<SourceHistorySpriteTrailPathFollowModuleData>(module.data));
+            break;
+        case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+            Internal::From_Json(*dataIter, get<SourceHistorySpriteTrailPathReplayModuleData>(module.data));
+            break;
         case AuthoringModuleType::MaterialScalarModulation:
             Internal::From_Json(*dataIter, get<MaterialScalarModulationModuleData>(module.data));
             break;
@@ -2757,6 +3233,10 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return MeshSizeByLifeModuleData{};
     case AuthoringModuleType::SpawnPerUnit:
         return SpawnPerUnitModuleData{};
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        return SourceHistorySpriteTrailPathFollowModuleData{};
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        return SourceHistorySpriteTrailPathReplayModuleData{};
     case AuthoringModuleType::MaterialScalarModulation:
         return MaterialScalarModulationModuleData{};
     }

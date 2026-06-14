@@ -7,12 +7,14 @@
 #include "BattleWorldUI_ItemCards.h"
 #include "BattleWorldUI_SkillCards.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "PlayerStatCom.h"
 #include "ScreenFx_Manager.h"
 #include "Skill_Gustave_Battle.h"
+#include "Mon_WeakPoint.h"
 
 #include "UI_AttackTooltip.h"
 #include "UI_BattleCommandHUD.h"
@@ -41,6 +43,10 @@
 #include "UI_QTE.h"
 #include "UI_MarkEffect.h"
 #include "MonsterStatCom.h"
+#include "UI_BattleTutorial.h"
+#include "BattleTutorialController.h"
+#include "BattleResultRecoder.h"
+#include "BattleSpawnRegistry.h"
 
 #include "UI_Utils.h"
 
@@ -100,7 +106,20 @@ namespace
         entry.worldPlacementTarget = target;
         outEntries.emplace_back(entry);
     }
-}
+    wstring Resolve_BattleVictoryPlayerName(PlayerCharacterType playerType)
+    {
+        switch (playerType)
+        {
+        case PlayerCharacterType::Gustave:
+            return L"구스타브";
+        case PlayerCharacterType::Lune:
+            return L"루네";
+        case PlayerCharacterType::Maelle:
+            return L"마엘";
+        default:
+            return {};
+        }
+    }
 
 HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 {
@@ -135,6 +154,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_suddenAttack, UI_SuddenAttack::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_qte, UI_QTE::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_markEffect, UI_MarkEffect::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleTutorial, UI_BattleTutorial::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -199,6 +219,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_AddAPs(timeDelta);           // AP 증가
     Update_QTE(GAME->Get_UnscaledTimeDelta());
     Update_MarkEffect(timeDelta);
+    Update_BattleTutorial(GAME->Get_UnscaledTimeDelta());
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -206,7 +227,22 @@ void GameplayUI_Battle::Update(float timeDelta)
 
 void GameplayUI_Battle::Update_Input()
 {
+    if (_battleTutorial != nullptr && _battleTutorial->Is_ShowingTutorial())
+    {
+        if (_battleController)
+        {
+            if (auto tutorialController = _battleController->Get_BattleTutorialController())
+            {
+                // 회피/카운터는 Q/E 입력이 실제 전투 처리까지 이어지고, 나머지는 F로 닫는다.
+                if (tutorialController->Can_CloseByConfirmInput() && GAME->KeyDown(KEY_TYPE::F))
+                {
+                    tutorialController->Close_Tutorial();
+                }
+            }
+        }
 
+        return;
+    }
 }
 
 vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
@@ -237,6 +273,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
     Append_RuntimePanelEntry(entries, "QTE", _qte.get());
     Append_RuntimePanelEntry(entries, "MarkEffect", _markEffect.get());
+    Append_RuntimePanelEntry(entries, "BattleTutorial", _battleTutorial.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
@@ -323,14 +360,22 @@ void GameplayUI_Battle::Bind_BattleDelegates()
     _battleApChangedHandle =
         _battleController->OnBattleApChanged.Add(this, &GameplayUI_Battle::Handle_BattleApChanged);
 
+    BattleReactionController& reactionController = _battleController->Get_ReactionController();
+
     _reactionSucceededHandle =
-        _battleController->OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
+        reactionController.OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
 
-    _qteStartedHandle =
-        _battleController->OnQTEStarted.Add(this, &GameplayUI_Battle::Handle_QTEStarted);
+    _counterAnnounceRequestedHandle =
+        reactionController.OnCounterStarted.Add(this, &GameplayUI_Battle::Handle_CounterAnnounceRequested);
 
-    _qteResolvedHandle =
-        _battleController->OnQTEResolved.Add(this, &GameplayUI_Battle::Handle_QTEResolved);
+    if (Shared<BattleQTEController> qteController = _battleController->Get_QTEController())
+    {
+        _qteStartedHandle =
+            qteController->OnQTEStarted.Add(this, &GameplayUI_Battle::Handle_QTEStarted);
+
+        _qteResolvedHandle =
+            qteController->OnQTEResolved.Add(this, &GameplayUI_Battle::Handle_QTEResolved);
+    }
 
     if (auto buffSystem = _battleController->Get_BuffSystem())
     {
@@ -341,9 +386,32 @@ void GameplayUI_Battle::Bind_BattleDelegates()
             buffSystem->OnBuffConsumed.Add(this, &GameplayUI_Battle::Handle_BuffConsumed);
     }
 
-    _counterAnnounceRequestedHandle =
-        _battleController->OnCounterAnnounceRequested.Add(this, &GameplayUI_Battle::Handle_CounterAnnounceRequested);
+    _turnStartStatusAnnounceRequestedHandle =
+        _battleController->OnTurnStartStatusAnnounceRequested.Add(
+            this,
+            &GameplayUI_Battle::Handle_TurnStartStatusAnnounceRequested);
 
+    _battleWeakPointConsumedHandle =
+        Mon_WeakPoint::OnBattleWeakPointConsumed.Add(this, &GameplayUI_Battle::Handle_BattleWeakPointConsumed);
+
+    if (Shared<BattleTutorialController> tutorialController = _battleController->Get_BattleTutorialController())
+    {
+        _battleTutorialRequestedHandle =
+            tutorialController->OnTutorialRequested.Add(
+                this, &GameplayUI_Battle::Handle_BattleTutorialRequested);
+
+        _battleTutorialClosedHandle =
+            tutorialController->OnTutorialClosed.Add(
+                this, &GameplayUI_Battle::Handle_BattleTutorialClosed);
+    }
+
+    if (_battleAnnounce)
+    {
+        _battleAnnounceFinishedHandle =
+            _battleAnnounce->OnAnnounceFinished.Add(
+                this,
+                &GameplayUI_Battle::Handle_BattleAnnounceFinished);
+    }
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -374,17 +442,25 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_healAppliedHandle.IsValid())
         DamageSystem::OnHealApplied.Remove(_healAppliedHandle);
 
+    BattleReactionController& reactionController = _battleController->Get_ReactionController();
+
     if (_reactionSucceededHandle.IsValid())
-        _battleController->OnReactionSucceeded.Remove(_reactionSucceededHandle);
+        reactionController.OnReactionSucceeded.Remove(_reactionSucceededHandle);
 
     if (_battleApChangedHandle.IsValid())
         _battleController->OnBattleApChanged.Remove(_battleApChangedHandle);
 
-    if (_qteStartedHandle.IsValid())
-        _battleController->OnQTEStarted.Remove(_qteStartedHandle);
+    if (_counterAnnounceRequestedHandle.IsValid())
+        reactionController.OnCounterStarted.Remove(_counterAnnounceRequestedHandle);
 
-    if (_qteResolvedHandle.IsValid())
-        _battleController->OnQTEResolved.Remove(_qteResolvedHandle);
+    if (Shared<BattleQTEController> qteController = _battleController->Get_QTEController())
+    {
+        if (_qteStartedHandle.IsValid())
+            qteController->OnQTEStarted.Remove(_qteStartedHandle);
+
+        if (_qteResolvedHandle.IsValid())
+            qteController->OnQTEResolved.Remove(_qteResolvedHandle);
+    }
 
     if (auto buffSystem = _battleController->Get_BuffSystem())
     {
@@ -395,8 +471,23 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
             buffSystem->OnBuffConsumed.Remove(_buffConsumedHandle);
     }
 
-    if (_counterAnnounceRequestedHandle.IsValid())
-        _battleController->OnCounterAnnounceRequested.Remove(_counterAnnounceRequestedHandle);
+    if (_turnStartStatusAnnounceRequestedHandle.IsValid())
+        _battleController->OnTurnStartStatusAnnounceRequested.Remove(_turnStartStatusAnnounceRequestedHandle);
+
+    if (_battleWeakPointConsumedHandle.IsValid())
+        Mon_WeakPoint::OnBattleWeakPointConsumed.Remove(_battleWeakPointConsumedHandle);
+
+    if (Shared<BattleTutorialController> tutorialController = _battleController->Get_BattleTutorialController())
+    {
+        if (_battleTutorialRequestedHandle.IsValid())
+            tutorialController->OnTutorialRequested.Remove(_battleTutorialRequestedHandle);
+
+        if (_battleTutorialClosedHandle.IsValid())
+            tutorialController->OnTutorialClosed.Remove(_battleTutorialClosedHandle);
+    }
+
+    if (_battleAnnounce && _battleAnnounceFinishedHandle.IsValid())
+        _battleAnnounce->OnAnnounceFinished.Remove(_battleAnnounceFinishedHandle);
 
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
@@ -415,9 +506,15 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
 
     _buffAppliedHandle.Reset();
     _buffConsumedHandle.Reset();
+    _turnStartStatusAnnounceRequestedHandle.Reset();
+    _battleWeakPointConsumedHandle.Reset();
+
+    _battleTutorialRequestedHandle.Reset();
+    _battleTutorialClosedHandle.Reset();
+
+    _battleAnnounceFinishedHandle.Reset();
 
     _battleController.reset();
-
 }
 
 void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvantage)
@@ -463,6 +560,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _suddenAttack.get(),
         _qte.get(),
         _markEffect.get(),
+        _battleTutorial.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -495,6 +593,15 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
 
     if (_battleSystemHUD)
     {
+        vector<HeroId> battleHeroIds{};
+
+        if (_battleController)
+        {
+            for (const BattleChar& hero : _battleController->Get_BattleHeroes())
+                battleHeroIds.push_back(hero.heroId);
+        }
+
+        _battleSystemHUD->Set_BattleHeroIds(battleHeroIds);
         _battleSystemHUD->Open();
         _battleSystemHUD->Play_BattleSystemIntro();
     }
@@ -513,10 +620,33 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 
         if (_battleVictory)
         {
-            const uint32 rewardExp = _battleController ? _battleController->Get_LastVictoryRewardExp() : 0;
+            UI_BattleVictory::VictorySummaryDesc summary{};
 
-            _battleVictory->Set_RewardExp(rewardExp);
+            if (_battleController)
+            {
+                summary.rewardExp = _battleController->Get_LastVictoryRewardExp();
+
+                if (const Shared<BattleResultRecoder> resultRecoder = _battleController->Get_BattleResultTracker())
+                {
+                    const BattleResultRecoder::VictoryStats& stats = resultRecoder->Get_VictoryStats();
+                    summary.elapsedSec = stats.elapsedSec;
+                    summary.maxDamage = stats.maxDamage;
+                    summary.totalDamageDealt = stats.totalDamageDealt;
+                    summary.totalDamageTaken = stats.totalDamageTaken;
+                    summary.parrySuccessCount = stats.parrySuccessCount;
+                    summary.dodgeSuccessCount = stats.dodgeSuccessCount;
+                }
+
+                if (const Shared<BattleSpawnRegistry> spawnRegistry = _battleController->Get_BattleSpawnRegistry())
+                {
+                    summary.rewardChroma = spawnRegistry->Get_BattleRewardChroma();
+                    summary.defeatedMonsterPortraitGuids = spawnRegistry->Get_BattleMonsterPortraitGuids();
+                }
+            }
+
+            _battleVictory->Set_VictorySummary(summary);
             _battleVictory->Set_PlayerStatus(Build_BattleVictoryPlayerStats());
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_StateEnd);
             _battleVictory->Open();
         }
 
@@ -845,7 +975,7 @@ void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healA
     selectedSlot->Play_HealFont(target, healAmount, stackIndex);
 }
 
-void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target)
+void GameplayUI_Battle::Handle_ReactionSucceeded(BattleReactionType reactionType, const vector<BattleChar>& target)
 {
     if (!_isBattleUiActive || _reactionResult == nullptr)
         return;
@@ -940,8 +1070,10 @@ void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 a
 
 void GameplayUI_Battle::Handle_QTEStarted(const BattleQTERequest& request)
 {
-    if (_qte)
-        _qte->Play_QTE(request);
+    if (_qte == nullptr)
+        return;
+
+    _qte->Play_QTE(request);
 }
 
 void GameplayUI_Battle::Handle_QTEResolved(BattleQTEResult result)
@@ -961,10 +1093,13 @@ void GameplayUI_Battle::Handle_BuffApplied(const BattleChar& target, Buffs buffI
 
 void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage)
 {
+    UNREFERENCED_PARAMETER(target);
+    UNREFERENCED_PARAMETER(bonusDamage);
+
     if (!_isBattleUiActive)
         return;
 
-    if (_markEffect)
+    if (buffId == Buffs::Mark && _markEffect)
         _markEffect->Clear_Target();
 }
 
@@ -974,6 +1109,59 @@ void GameplayUI_Battle::Handle_CounterAnnounceRequested(const vector<BattleChar>
         return;
 
     _battleAnnounce->Show_Counter(counterActors);
+}
+
+void GameplayUI_Battle::Handle_BattleWeakPointConsumed(const Shared<Monster_BattleBase>& monster)
+{
+    if (!_isBattleUiActive || _battleAnnounce == nullptr || monster == nullptr)
+        return;
+
+    BattleChar target{};
+    target.actor = monster;
+    target.statCom = monster->Get_Component<CombatStatCom>();
+    target.ModelCom = monster->Get_Component<ModelCom>();
+
+    _battleAnnounce->Show_WeakPointHit(target);
+}
+
+void GameplayUI_Battle::Handle_BattleTutorialRequested(const BattleTutorialRequest& request)
+{
+    if (_battleTutorial == nullptr)
+        return;
+
+    _battleTutorial->Show_Tutorial(request);
+}
+
+void GameplayUI_Battle::Handle_BattleTutorialClosed()
+{
+    if (_battleTutorial == nullptr)
+        return;
+
+    _battleTutorial->Close();
+}
+
+void GameplayUI_Battle::Handle_TurnStartStatusAnnounceRequested(const BattleChar& target, Buffs buffId)
+{
+    if (!_isBattleUiActive || _battleAnnounce == nullptr)
+        return;
+
+    if (buffId == Buffs::Burn)
+    {
+        _battleAnnounce->Show_BurnTurnStart(target, true);
+        return;
+    }
+
+    if (buffId == Buffs::Stun)
+    {
+        _battleAnnounce->Show_StunTurnSkip(target, true);
+        return;
+    }
+}
+
+void GameplayUI_Battle::Handle_BattleAnnounceFinished()
+{
+    if (_battleController)
+        _battleController->Complete_TurnStartStatusAnnounce();
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -1079,13 +1267,21 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
         return;
     }
 
+    const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
+
+    vector<HeroId> battleHeroIds{};
+    battleHeroIds.reserve(heroes.size());
+
+    for (const BattleChar& hero : heroes)
+        battleHeroIds.push_back(hero.heroId);
+
+    _battleSystemHUD->Set_BattleHeroIds(battleHeroIds);
     _battleSystemHUD->Open(); // 전투 중에는 파티 portrait HUD를 계속 유지한다.
 
     _battleSystemHUD->Clear_GustaveMechanismCharge();
     _battleSystemHUD->Clear_LuneMechanismStains(); // 이번 프레임 루네 상태를 현재 mechanism 값으로 다시 연다.
     _battleSystemHUD->Clear_MaelleMechanismStance();
 
-    const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
     for (const BattleChar& hero : heroes)
     {
         if (hero.statCom == nullptr)
@@ -1465,6 +1661,7 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
     if (turnState != BattleTurnState::ChooseAction &&
         turnState != BattleTurnState::ChooseItem &&
         turnState != BattleTurnState::ChooseSkill)
+    if (battleController->Get_CurrentTurnState() != BattleTurnState::ChooseAction)
     {
         _escapeSkipTurn->Close();
         _escapeSkipTurn->Update(timeDelta);
@@ -1821,15 +2018,23 @@ void GameplayUI_Battle::Update_QTE(float timeDelta)
         return;
     }
 
+    if (_battleTutorial != nullptr && _battleTutorial->Is_ShowingTutorial())
+    {
+        if (auto tutorialController = _battleController->Get_BattleTutorialController())
+        {
+            if (tutorialController->Get_ActiveStep() == BattleTutorialStep::QTE)
+                return;
+        }
+    }
+
     _qte->Update(timeDelta);
 
     BattleQTEResult result = BattleQTEResult::None;
-
     if (_qte->Try_ConsumeResult(result))
     {
-        _battleController->Resolve_QTE(result);
+        if (Shared<BattleQTEController> qteController = _battleController->Get_QTEController())
+            qteController->Resolve(result);
     }
-
 }
 
 void GameplayUI_Battle::Update_MarkEffect(float timeDelta)
@@ -1859,6 +2064,14 @@ void GameplayUI_Battle::Update_BattleSystemIntroState(float timeDelta)
 
     if (_battleSystemHUD && heroId != HeroId::END)
         _battleSystemHUD->Play_PortraitActivation(heroId);
+}
+
+void GameplayUI_Battle::Update_BattleTutorial(float timeDelta)
+{
+    if (_battleTutorial == nullptr)
+        return;
+
+    _battleTutorial->Update(timeDelta);
 }
 
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
@@ -1941,8 +2154,10 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
         return victoryStats;
 
     const uint32 rewardExp = _battleController->Get_LastVictoryRewardExp();
+    const vector<BattleChar>& battleHeroes = _battleController->Get_BattleHeroes();
+    const bool useCenterSingleSlot = battleHeroes.size() == 1;
 
-    for (const BattleChar& hero : _battleController->Get_BattleHeroes())
+    for (const BattleChar& hero : battleHeroes)
     {
         const Shared<PlayerStatCom> playerStat =
             dynamic_pointer_cast<PlayerStatCom>(hero.statCom);
@@ -1955,6 +2170,9 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
 
         VictoryStatDesc stat{};
         stat.playerType = playerStat->Get_PlayerType();
+        stat.visualSlotIndex = useCenterSingleSlot ? 1u : UINT_MAX;
+        stat.portraitGuid = playerStat->Get_StatInfo().portraitGuid;
+        stat.displayName = Resolve_BattleVictoryPlayerName(stat.playerType);
         stat.level = runtimeStat.CurLevel;
         stat.curExp = runtimeStat.CurExp;
         stat.maxExp = runtimeStat.CurMaxExp;
@@ -2061,6 +2279,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _suddenAttack.get(),
         _qte.get(),
         _markEffect.get(),
+        _battleTutorial.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -2177,6 +2396,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_suddenAttack);
     Release_UI(_qte);
     Release_UI(_markEffect);
+    Release_UI(_battleTutorial);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

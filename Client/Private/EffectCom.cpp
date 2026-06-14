@@ -1,10 +1,12 @@
 ﻿#include "EffectCom.h"
+
 #include "ClientInstance.h"
+#include "ContainerObject.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "GameInstance.h"
-#include "Helper_String.h"
 #include "ModelCom.h"
+#include "PartObject.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
 #include "ShaderCom.h"
@@ -12,8 +14,31 @@
 #include "TrailAnchor_Asset.h"
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
-#include "ContainerObject.h"
-#include "PartObject.h"
+
+namespace
+{
+float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
+{
+    constexpr float fallbackDuration = 0.25f;
+    if (definition == nullptr)
+        return fallbackDuration;
+
+    float duration = fallbackDuration;
+    for (const EffectEmitterDefinition& emitter : definition->emitters)
+    {
+        if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
+            continue;
+
+        const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+        if (trailDesc == nullptr)
+            continue;
+
+        duration = max(duration, trailDesc->segmentLifetime);
+    }
+
+    return max(0.001f, duration);
+}
+}
 
 IMPLEMENT_REFLECTION(EffectCom)
 {
@@ -25,7 +50,7 @@ IMPLEMENT_REFLECTION(EffectCom)
     info.category = "Component";
 
     PROPERTY_WSTRING("Effect Name", _inspectorEffectName);
-    
+
     return true;
 }
 
@@ -41,12 +66,12 @@ EffectCom::~EffectCom()
 
 HRESULT EffectCom::Initialize_Prototype()
 {
-    return Component::Initialize_Prototype();
+    return __super::Initialize_Prototype();
 }
 
 HRESULT EffectCom::Initialize(void* arg)
 {
-    CHECK_FAILED(Component::Initialize(arg), E_FAIL);
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
     _switchDissolve = {}; // 디졸브 런타임은 clone마다 새 상태로 시작
     _previewRim = {};
@@ -59,7 +84,7 @@ HRESULT EffectCom::Initialize(void* arg)
 
 void EffectCom::BeginPlay()
 {
-    Component::BeginPlay();
+    __super::BeginPlay();
     Play_InspectorEffectIfEnabled();
 }
 
@@ -68,7 +93,7 @@ void EffectCom::Update(float timeDelta)
     const bool wasDissolving = _switchDissolve.enabled;
     const bool wasVanish = !_switchDissolve.reveal;
 
-     _switchDissolve.Update(timeDelta);
+    _switchDissolve.Update(timeDelta);
 
     // 사라지면, Visible 끄기
     if (_vanishComplete &&
@@ -99,14 +124,14 @@ void EffectCom::Update(float timeDelta)
         _vanishComplete = false;
     }
 
-    Update_AttachedEffects();
+    Update_AttachedEffects(timeDelta);
 }
 
 void EffectCom::Tick_AttachedEffectInstances(float timeDelta)
 {
     for (AttachedEffect& attached : _attachedEffects)
     {
-        if (attached.poolHandle.effectObject == nullptr)
+        if (nullptr == attached.poolHandle.effectObject)
             continue;
 
         attached.poolHandle.effectObject->Try_BeginPlay();
@@ -116,10 +141,51 @@ void EffectCom::Tick_AttachedEffectInstances(float timeDelta)
     }
 }
 
+void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& outStates)
+{
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        const Shared<EffectInstance> effect =
+            dynamic_pointer_cast<EffectInstance>(attached.poolHandle.effectObject);
+        if (effect == nullptr)
+            continue;
+
+        const bool alreadyCaptured = any_of(
+            outStates.begin(),
+            outStates.end(),
+            [&effect](const AttachedEffectPauseState& state)
+            {
+                return state.effect == effect;
+            }
+        );
+
+        if (alreadyCaptured)
+            continue;
+
+        AttachedEffectPauseState state{};
+        state.effect = effect;
+        state.wasPaused = effect->Is_PlaybackPaused();
+
+        effect->Set_PlaybackPaused(true); // 튜토리얼 UI가 열린 동안 attached trail/effect 시간을 고정한다.
+        outStates.push_back(state);
+    }
+}
+
+void EffectCom::Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& states)
+{
+    for (AttachedEffectPauseState& state : states)
+    {
+        if (state.effect == nullptr)
+            continue;
+
+        state.effect->Set_PlaybackPaused(state.wasPaused); // 튜토리얼 시작 전 effect pause 상태로 되돌린다.
+    }
+
+    states.clear();
+}
+
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
-
-
     const uint32 noiseHandle = GAME->Get_Handle(noiseName);
 
     _vanishComplete = false;
@@ -154,18 +220,18 @@ void EffectCom::Stop_AllAttachedEffects()
 
 HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMask)
 {
-    CHECK_NULL(shader , E_FAIL);
+    CHECK_NULL_THROTTLED(shader, 60, E_FAIL);
 
     DrawFeatureCB drawFeatureCB{};
 
     constexpr uint32 featureTextureCount =
         static_cast<uint32>(ShaderSRV::DrawFeatureTextureSlotNames.size());
 
-    array<ShaderResourceView*, featureTextureCount> featureSrvs{};
+    array<ShaderResourceView*, featureTextureCount> featureSRVs{};
     drawFeatureCB.supportFeatureMask = supportFeatureMask;
 
     if (_switchDissolve.enabled == true &&
-            (supportFeatureMask & DrawFeatureFlagDissolve) != 0u)
+        (supportFeatureMask & DrawFeatureFlagDissolve) != 0u)
     {
         drawFeatureCB.activeFeatureMask |= DrawFeatureFlagDissolve;
         drawFeatureCB.param0.x = _switchDissolve.progress;
@@ -174,11 +240,10 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
         drawFeatureCB.param0.w = _switchDissolve.reveal ? 1.f : 0.f;
         drawFeatureCB.param1 = Vec4(_switchDissolve.edgeColor.x, _switchDissolve.edgeColor.y, _switchDissolve.edgeColor.z, 0.45f);
 
-
         if (ShaderResourceView* noiseSRV = GAME->Get_SRV(_switchDissolve.noiseHandle))
         {
-            featureSrvs[DrawFeatureTexDissolveNoise] = noiseSRV;
-            drawFeatureCB.textureSlotMask |= (1u << DrawFeatureTexDissolveNoise);
+            featureSRVs[DrawFeatureTexDissolveNoise] = noiseSRV;
+            drawFeatureCB.textureSlotMask |= 1u << DrawFeatureTexDissolveNoise;
         }
     }
 
@@ -190,13 +255,13 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
         drawFeatureCB.param3 = Vec4(_previewRim.power, _previewRim.hairIntensity, 0.f, 0.f);
     }
 
-    return shader->Bind_DrawFeatures(drawFeatureCB, featureSrvs.data(), featureTextureCount);
+    return shader->Bind_DrawFeatures(drawFeatureCB, featureSRVs.data(), featureTextureCount);
 }
 
 HRESULT EffectCom::Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask)
 {
     // Render 쪽에 있던 owner->Get_Component<EffectCom>() 조회와 fallback reset을 여기로 이동
-    CHECK_NULL(shader, E_FAIL);
+    CHECK_NULL_THROTTLED(shader, 60, E_FAIL);
 
     Shared<EffectCom> effectCom{};
 
@@ -286,24 +351,38 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
 HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::AttachedHandle* outHandle)
 {
     if (desc.effectName.empty() || desc.layerTag.empty())
+    {
+        LOG_WARN(
+            "[EffectCom] Play_Effect failed: empty effectName or layerTag. effect={}, layer={}",
+            String::ToString(desc.effectName),
+            String::ToString(desc.layerTag)
+        );
         return E_FAIL;
+    }
 
     Vec3 spawnWorldPosition{};
     Vec3 spawnWorldRotation{};
     if (!Try_ResolveEffectWorldTransform(
-            desc.target,
-            desc.partTag,
-            desc.socketName,
-            desc.localOffset,
-            desc.localRotation,
-            spawnWorldPosition,
-            spawnWorldRotation))
-    {
+        desc.target,
+        desc.partTag,
+        desc.socketName,
+        desc.localOffset,
+        desc.localRotation,
+        spawnWorldPosition,
+        spawnWorldRotation
+    ))
         return E_FAIL;
-    }
 
     EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
-    CHECK_NULL(effectPool, E_FAIL);
+    if (effectPool == nullptr)
+    {
+        LOG_WARN(
+            "[EffectCom] Play_Effect failed: effect pool is null. effect={}, layer={}",
+            String::ToString(desc.effectName),
+            String::ToString(desc.layerTag)
+        );
+        return E_FAIL;
+    }
 
     EffectInstancePool::AcquireDesc acquireDesc{};
     acquireDesc.effectName = desc.effectName;
@@ -315,7 +394,21 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
 
     EffectInstancePool::AttachedHandle handle{};
-    CHECK_FAILED(effectPool->Acquire(acquireDesc, handle), E_FAIL);
+    const HRESULT acquireResult = effectPool->Acquire(acquireDesc, handle);
+    if (FAILED(acquireResult))
+    {
+        LOG_WARN(
+            "[EffectCom] Play_Effect failed: pool acquire. hr={}, effect={}, level={}, layer={}, pos=({:.3f},{:.3f},{:.3f})",
+            acquireResult,
+            String::ToString(desc.effectName),
+            desc.levelIndex,
+            String::ToString(desc.layerTag),
+            spawnWorldPosition.x,
+            spawnWorldPosition.y,
+            spawnWorldPosition.z
+        );
+        return E_FAIL;
+    }
     if (desc.requiresManualRelease)
         handle.requiresManualRelease = true;
 
@@ -337,10 +430,19 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     if (outHandle != nullptr)
         *outHandle = handle;
 
+    if (attached.poolHandle.effectObject && attached.poolHandle.effectObject->Get_Transform())
+    {
+        const Vec3 pos = attached.poolHandle.effectObject->Get_Transform()->Get_WorldPosition();
+        LOG_WARN("Attached effect spawned at: {}, {}, {}", pos.x, pos.y, pos.z);
+    }
+
     return S_OK;
 }
 
-void EffectCom::Stop_Effect(const wstring& effectName, EffectPlayTarget target, const wstring& partTag,
+void EffectCom::Stop_Effect(
+    const wstring& effectName,
+    EffectPlayTarget target,
+    const wstring& partTag,
     const string& socketName)
 {
     for (AttachedEffect& attached : _attachedEffects)
@@ -388,9 +490,14 @@ void EffectCom::Play_InspectorEffectIfEnabled()
         _inspectorEffectPlayed = true;
 }
 
-bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const wstring& partTag,
-    const string& socketName, const Vec3& localOffset, const Vec3& localRotation,
-    Vec3& outWorldPosition, Vec3& outWorldRotation) const
+bool EffectCom::Try_ResolveEffectWorldTransform(
+    EffectPlayTarget target,
+    const wstring& partTag,
+    const string& socketName,
+    const Vec3& localOffset,
+    const Vec3& localRotation,
+    Vec3& outWorldPosition,
+    Vec3& outWorldRotation) const
 {
     Matrix baseWorldMatrix = Matrix::Identity;
 
@@ -413,7 +520,8 @@ bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const w
     const Vec3 localRotationRad(
         XMConvertToRadians(localRotation.x),
         XMConvertToRadians(localRotation.y),
-        XMConvertToRadians(localRotation.z));
+        XMConvertToRadians(localRotation.z)
+    );
 
     // local offset/rotation은 owner root 또는 socket matrix 기준으로 합성한다.
     const Matrix localMatrix =
@@ -434,13 +542,16 @@ bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const w
 
         const Vec3 basisRight = normalize_axis(
             Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13),
-            Vec3::Right);
+            Vec3::Right
+        );
         const Vec3 basisUp = normalize_axis(
             Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23),
-            Vec3::Up);
+            Vec3::Up
+        );
         const Vec3 basisLook = normalize_axis(
             Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33),
-            Vec3::Forward);
+            Vec3::Forward
+        );
 
         basisWorldMatrix = Matrix::Identity;
         basisWorldMatrix._11 = basisRight.x;
@@ -471,7 +582,8 @@ bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const w
     outWorldRotation = Vec3(
         XMConvertToDegrees(eulerRad.x),
         XMConvertToDegrees(eulerRad.y),
-        XMConvertToDegrees(eulerRad.z));
+        XMConvertToDegrees(eulerRad.z)
+    );
     return true;
 }
 
@@ -544,7 +656,8 @@ HRESULT EffectCom::Play_AttachedPartEffect(
         layerTag,
         localOffset,
         localRotation,
-        scale);
+        scale
+    );
 }
 
 HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& partTag, const wstring& layerTag)
@@ -553,8 +666,12 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
     CHECK_NULL(ownerContainer, E_FAIL);
 
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
     CHECK_NULL(weaponPart, E_FAIL);
+
+    wstring resolvedEffectName{};
+    if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
+        return E_FAIL;
 
     const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
     CHECK_NULL(weaponModel, E_FAIL);
@@ -568,10 +685,11 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
         return E_FAIL;
 
     AttachedEffect attached{};
-    attached.effectName = effectName;
+    attached.effectName = resolvedEffectName; // Stop에서도 같은 resolved 이름으로 찾아야 한다.
     attached.partTag = partTag;
     attached.layerTag = layerTag;
     attached.isTrail = true;
+    attached.trailSampleEnabled = make_shared<bool>(true);
 
     const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
     if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
@@ -584,17 +702,21 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.trailSampleProvider = make_shared<TrailSampleProvider_ByPart>(
         static_pointer_cast<EffectCom>(GetSharedPtr<EffectCom>()),
         partTag,
-        attached.trailAnchorAsset);
+        attached.trailAnchorAsset,
+        attached.trailSampleEnabled
+    );
     CHECK_NULL(attached.trailSampleProvider, E_FAIL);
 
     EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
     CHECK_NULL(effectPool, E_FAIL);
 
     EffectInstancePool::AcquireDesc acquireDesc{};
-    acquireDesc.effectName = effectName;
+    acquireDesc.effectName = resolvedEffectName;
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.baseWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
+
+    attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
@@ -605,16 +727,20 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
 
 void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partTag)
 {
+    wstring resolvedEffectName{};
+    if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
+        return;
+
     for (AttachedEffect& attached : _attachedEffects)
     {
         if (!attached.isTrail)
             continue;
-        if (attached.effectName != effectName)
+        if (attached.effectName != resolvedEffectName)
             continue;
         if (attached.partTag != partTag)
             continue;
 
-        Release_AttachedEffect(attached);
+        Begin_TrailDrain(attached);
     }
 
     Prune_ReleasedAttachedEffects();
@@ -628,12 +754,47 @@ bool EffectCom::Try_GetTrailSampleForPart(
     return Try_BuildTrailSample(partTag, trailAnchorAsset, outSample);
 }
 
-void EffectCom::Update_AttachedEffects()
+bool EffectCom::Try_ResolveTrailEffectName(
+    const wstring& effectNameOverride,
+    const wstring& partTag,
+    wstring& outEffectName) const
 {
-     for (AttachedEffect& attached : _attachedEffects)
+    outEffectName.clear();
+
+    if (!effectNameOverride.empty())
+    {
+        outEffectName = effectNameOverride;
+        return true;
+    }
+
+    const Shared<GameObject> ownerObject = Get_Owner();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+    if (weaponPart == nullptr)
+        return false;
+
+    outEffectName = weaponPart->Get_TrailEffectName(); // notify가 비어 있으면 무기 프리펩 기본 Trail을 소비한다.
+    return !outEffectName.empty();
+}
+
+void EffectCom::Update_AttachedEffects(float timeDelta)
+{
+    for (AttachedEffect& attached : _attachedEffects)
     {
         if (attached.poolHandle.effectObject == nullptr)
             continue;
+
+        if (attached.isTrailDraining)
+        {
+            attached.trailDrainElapsed += max(0.f, timeDelta);
+            if (attached.trailDrainElapsed >= attached.trailDrainDuration)
+                Release_AttachedEffect(attached);
+
+            continue;
+        }
 
         if (Should_ReleaseAttachedEffect(attached))
         {
@@ -660,16 +821,15 @@ void EffectCom::Update_AttachedEffects()
         Vec3 targetWorldPosition{};
         Vec3 targetWorldRotation{};
         if (!Try_ResolveEffectWorldTransform(
-                attached.target,
-                attached.partTag,
-                attached.socketName,
-                attached.localOffset,
-                attached.localRotation,
-                targetWorldPosition,
-                targetWorldRotation))
-        {
+            attached.target,
+            attached.partTag,
+            attached.socketName,
+            attached.localOffset,
+            attached.localRotation,
+            targetWorldPosition,
+            targetWorldRotation
+        ))
             continue;
-        }
 
         const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
         CHECK_NULL(effectTransform);
@@ -692,6 +852,22 @@ void EffectCom::Release_AttachedEffect(AttachedEffect& attached)
 
     effectPool->Release(attached.poolHandle);
     attached.poolHandle = {};
+    attached.trailSampleEnabled.reset();
+    attached.trailSampleProvider.reset();
+    attached.isTrailDraining = false;
+    attached.trailDrainElapsed = 0.f;
+}
+
+void EffectCom::Begin_TrailDrain(AttachedEffect& attached)
+{
+    if (!attached.isTrail || attached.isTrailDraining)
+        return;
+
+    if (attached.trailSampleEnabled != nullptr)
+        *attached.trailSampleEnabled = false;
+
+    attached.isTrailDraining = true;
+    attached.trailDrainElapsed = 0.f;
 }
 
 bool EffectCom::Should_ReleaseAttachedEffect(const AttachedEffect& attached) const
@@ -741,8 +917,10 @@ bool EffectCom::Try_GetOwnerRootWorldMatrix(Matrix& outWorldMatrix) const
     return true;
 }
 
-bool EffectCom::Try_GetSocketWorldMatrix(const wstring& partTag, const string& socketName,
-                                           Matrix& outWorldMatrix) const
+bool EffectCom::Try_GetSocketWorldMatrix(
+    const wstring& partTag,
+    const string& socketName,
+    Matrix& outWorldMatrix) const
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
@@ -753,7 +931,7 @@ bool EffectCom::Try_GetSocketWorldMatrix(const wstring& partTag, const string& s
     if (partObject == nullptr)
         return false;
 
-    if (auto* playablePart = dynamic_cast<PlayableParts*>(partObject))
+    if (const auto* playablePart = dynamic_cast<PlayableParts*>(partObject))
     {
         const Matrix* socketMatrix = playablePart->Get_SocketBoneMatrixPtr(socketName);
         if (socketMatrix == nullptr)
@@ -765,7 +943,7 @@ bool EffectCom::Try_GetSocketWorldMatrix(const wstring& partTag, const string& s
         return true;
     }
 
-    if (auto* weaponPart = dynamic_cast<Weapon*>(partObject))
+    if (const auto* weaponPart = dynamic_cast<Weapon*>(partObject))
     {
         const Matrix* socketMatrix = weaponPart->Get_SocketBoneMatrixPtr(socketName);
         if (socketMatrix == nullptr)
@@ -786,7 +964,7 @@ bool EffectCom::Try_GetPartRootWorldMatrix(const wstring& partTag, Matrix& outWo
     if (ownerContainer == nullptr)
         return false;
 
-    PartObject* partObject = ownerContainer->Get_PartObject(partTag);
+    const PartObject* partObject = ownerContainer->Get_PartObject(partTag);
     if (partObject == nullptr)
         return false;
 
@@ -804,7 +982,7 @@ bool EffectCom::Try_BuildTrailSample(
     if (ownerContainer == nullptr)
         return false;
 
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
     if (weaponPart == nullptr)
         return false;
 
@@ -842,6 +1020,7 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
+
 Shared<EffectCom> EffectCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<EffectCom>(device, context);
@@ -872,5 +1051,5 @@ void EffectCom::Free()
 {
     Stop_AllAttachedEffects();
 
-    Component::Free();
+    __super::Free();
 }

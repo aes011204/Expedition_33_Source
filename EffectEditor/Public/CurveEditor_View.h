@@ -17,8 +17,11 @@ public:
 public:
     void Render() override;
     void Pin_ModuleTargets(uint32 emitterId, uint32 moduleId);
+    bool Convert_AndPin_ModuleTargets(uint32 emitterId, uint32 moduleId);
     void Clear_PinnedTracks();
+    bool Is_ModuleFocused(uint32 emitterId, uint32 moduleId) const;
     static bool Has_ModuleCurveTargets(AuthoringEmitter& emitter, AuthoringModule& module);
+    static bool Has_ModuleConvertibleCurveTargets(AuthoringEmitter& emitter, AuthoringModule& module);
 
 private:
     enum class CurveTargetChannel : uint8
@@ -66,6 +69,23 @@ private:
         ImU32 color{};
     };
 
+    struct GraphValueRange
+    {
+        float minValue{ 0.f };
+        float maxValue{ 1.f };
+    };
+
+    struct GraphDragState
+    {
+        bool active{ false };
+        CurveTargetIdentity target{};
+        size_t keyIndex{};
+        ImVec2 startMousePos{};
+        float startTime{};
+        float startValue{};
+        GraphValueRange startRange{};
+    };
+
 private:
     static bool Is_SameIdentity(const CurveTargetIdentity& lhs, const CurveTargetIdentity& rhs);
     static const char* Get_ChannelLabel(CurveTargetChannel channel);
@@ -102,8 +122,17 @@ private:
     static Vec3 Evaluate_Curve(const ConstantCurveVector3DistributionData& curve, float x);
     static Color Evaluate_Curve(const ConstantCurveColorDistributionData& curve, float x);
 
+    struct TargetEditRange
+    {
+        float minValue{ -1000.f };
+        float maxValue{ 1000.f };
+    };
+
+    static TargetEditRange Compute_TargetEditRange(const CurveTarget& target);
+    static float Clamp_GraphEditedValue(const CurveTarget& target, float value);
+
     Shared<Emitter_View> Resolve_EmitterView() const;
-    static vector<CurveTarget> Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module);
+    static vector<CurveTarget> Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module, bool requireActiveCurve = true);
     vector<CurveTarget> Resolve_PinnedTargets();
     optional<CurveTarget> Resolve_Target(const CurveTargetIdentity& identity) const;
     optional<size_t> Find_PinnedTrackIndex(const CurveTargetIdentity& identity) const;
@@ -117,28 +146,33 @@ private:
         FloatDistributionData& distribution,
         const string& propertyId,
         const string& label,
-        ImU32 color);
+        ImU32 color,
+        bool requireActiveCurve = true);
     static void Add_Vector2Target(
         vector<CurveTarget>& targets,
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         Vector2DistributionData& distribution,
         const string& propertyId,
-        const string& label);
+        const string& label,
+        bool requireActiveCurve = true);
     static void Add_Vector3Target(
         vector<CurveTarget>& targets,
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         Vector3DistributionData& distribution,
         const string& propertyId,
-        const string& label);
+        const string& label,
+        bool allowCurveTarget = true,
+        bool requireActiveCurve = true);
     static void Add_ColorTarget(
         vector<CurveTarget>& targets,
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         ColorDistributionData& distribution,
         const string& propertyId,
-        const string& label);
+        const string& label,
+        bool requireActiveCurve = true);
     void Pin_Targets(const vector<CurveTarget>& targets);
     void Remove_StalePinnedTracks(const vector<CurveTarget>& targets);
     void Ensure_ActiveTrack(const vector<CurveTarget>& targets);
@@ -149,6 +183,16 @@ private:
     void Mark_CurveChanged(const CurveTarget& target);
 
     bool Convert_ActiveTargetToConstantCurve(const CurveTarget& target);
+    GraphValueRange Compute_GraphValueRange(const vector<CurveTarget>& targets);
+    bool Is_GraphDragActiveFor(const CurveTarget& target, size_t keyIndex) const;
+    void Begin_GraphKeyDrag(
+        const CurveTarget& target,
+        size_t keyIndex,
+        const ImVec2& mousePos,
+        float startTime,
+        float startValue,
+        const GraphValueRange& valueRange);
+    void End_GraphKeyDrag();
     void Draw_EmptyState();
     void Draw_TrackList(const vector<CurveTarget>& targets);
     void Draw_TargetHeader(CurveTarget& target);
@@ -166,6 +210,7 @@ private:
     Emitter_View::AuthoringSnapshot _pendingCurveBeforeSnapshot{};
     CurveTargetIdentity _pendingCurveTarget{};
     string _pendingCurveDescription{};
+    GraphDragState _graphDrag{};
     float _trackListWidth{ 230.f };
 };
 

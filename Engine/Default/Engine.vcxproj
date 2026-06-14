@@ -189,6 +189,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
     <ClInclude Include="..\Public\Engine_Static.h" />
+    <ClInclude Include="..\Public\FacialAnimationModifier.h" />
+    <ClInclude Include="..\Public\FacialClip.h" />
+    <ClInclude Include="..\Public\ModelDeform.h" />
     <ClInclude Include="..\Public\OffsetAnimationModifier.h" />
     <ClInclude Include="..\Public\AnimationModifier.h" />
     <ClInclude Include="..\Public\AnimComputeRuntime.h" />
@@ -231,6 +234,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\EffectEmitterFactory.h" />
     <ClInclude Include="..\Public\EffectInstance.h" />
     <ClInclude Include="..\Public\EffectMaterial_Types.h" />
+    <ClInclude Include="..\Public\EffectRuntime_Lowering.h" />
     <ClInclude Include="..\Public\EffectRuntime_Types.h" />
     <ClInclude Include="..\Public\Engine_Constants.h" />
     <ClInclude Include="..\Public\EnumFlags.h" />
@@ -274,6 +278,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ShaderResourceRegistry.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
     <ClInclude Include="..\Public\Shadow.h" />
+    <ClInclude Include="..\Public\ShadowHelper.h" />
     <ClInclude Include="..\Public\Sound_Manager.h" />
     <ClInclude Include="..\Public\StaticCollisionData.h" />
     <ClInclude Include="..\Public\Target_Manager.h" />
@@ -296,7 +301,6 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\UI_Transform.h" />
     <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
-    <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="..\Public\VIBuffer_Landscape.h" />
     <ClInclude Include="..\Public\VIBuffer_MeshInstance.h" />
     <ClInclude Include="..\Public\VIBuffer_Plane.h" />
@@ -353,7 +357,10 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
+    <ClCompile Include="..\Private\FacialAnimationModifier.cpp" />
+    <ClCompile Include="..\Private\FacialClip.cpp" />
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\ModelDeform.cpp" />
     <ClCompile Include="..\Private\OffsetAnimationModifier.cpp" />
     <ClCompile Include="..\Private\AnimationModifier.cpp" />
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
@@ -427,7 +434,6 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
-    <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Landscape.cpp" />
     <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Plane.cpp" />

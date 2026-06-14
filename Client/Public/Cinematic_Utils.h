@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "Cinematic_Types.h"
+#include "BattleCameraClipUtils.h"
 
 inline void Find_SurroundingKeyFrames(CINEMATIC_TRACK* cameraTrack, int currentFrame, CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight)
 {
@@ -148,7 +149,32 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
 
     case InterpolationMode::EaseOut:
         return Evaluate_EaseOutPose(outLeft, outRight,t);
+
+    default:
+    {
+        // Reuse the same scalar easing table so battle clips and cinematic camera keys stay predictable.
+        const float easedT = Evaluate_BattleCameraClipInterpolation(outLeft->interpolation, t);
+        CAMERAPOSE easedPose{};
+        easedPose.position = Vec3::Lerp(outLeft->camPose.position, outRight->camPose.position, easedT);
+        easedPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation, easedT);
+        easedPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, easedT);
+        easedPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, easedT);
+        easedPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, easedT);
+        return easedPose;
+    }
     }
 
     return camPose;
+}
+
+inline float Evaluate_CinematicSequenceTime(const CINEMATIC_SEQUENCE& sequence, int currentFrame)
+{
+    const int fps = std::max(sequence.fps, 1);
+    const int relativeFrame = std::max(currentFrame - sequence.startFrame, 0);
+    return static_cast<float>(relativeFrame) / static_cast<float>(fps);
+}
+
+inline Client::CameraModifierSample Evaluate_CinematicModifierSample(const CINEMATIC_SEQUENCE& sequence, int currentFrame)
+{
+    return Sample_CameraModifierClip(sequence.modifierClip, Evaluate_CinematicSequenceTime(sequence, currentFrame));
 }

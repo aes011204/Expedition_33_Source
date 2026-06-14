@@ -39,7 +39,10 @@ struct alignas(16) MaterialCB
     uint32 ormRoughnessSource{ MaterialChannel_G }; // ORM 텍스처의 어느 채널을 roughness로 읽을지 정한다. 보통 G를 쓰고, 채널 packing이 다를 때만 변경한다.
     uint32 ormMetalnessSource{ MaterialChannel_B }; // ORM 텍스처의 어느 채널을 metalness로 읽을지 정한다. 보통 B를 쓰고, packed 소스가 다를 때만 변경한다.
     uint32 opacityMaskSource{ MaterialChannel_R }; // 마스크 텍스처의 어느 채널을 clip 기준값으로 볼지 정한다. 흑백 마스크가 다른 채널에 들어 있을 때만 바꾼다.
-    uint32 _pad1[2]{};
+    uint32 ormAoSourceSlot{ 0 };
+    uint32 ormRoughnessSourceSlot{ 0 };
+    uint32 ormMetalnessSourceSlot{ 0 };
+    uint32 _pad1{ 0 };
 };
 
 /* ------------------------------------------ */
@@ -115,18 +118,15 @@ struct alignas(16) ShadowCB
     Matrix  cascadeLightViewMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
     Matrix  cascadeLightProjMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
 
-    Matrix  staticLightViewMatrix;
-    Matrix  staticLightProjMatrix;
-
     Vec4    cascadeSplits = Vec4::Zero;
     float   cascadeBlendDistance = 0.f;
     float   lightFar = 0.f;
     float   bias = 0.f;
 
     float   intensity = 0.f;
-    float   staticShadowEnabled = 0.f;
     uint32  cascadeCount = 0;
     uint32  activeCascadeIndex = 0;
+    float   shadowPadding0 = 0.f;
 }; 
 
 /* ------------------------------------------ */
@@ -203,15 +203,15 @@ struct alignas(16) LightShaftCB
     float lightFacingCamera{ 0.f };
 
     Vec3 shaftColor{ 1.0f, 0.96f, 0.88f };
-    float intensity{ 0.35f };
+    float intensity{ 0.65f };
 
-    uint32 sampleCount{ 12u };
-    float rayLength{ 0.18f };
+    uint32 sampleCount{ 54u };
+    float rayLength{ 0.95f };
     float decay{ 0.96f };
-    float sunDiscRadius{ 0.04f };
+    float sunDiscRadius{ 0.3f };
 
-    float edgeFade{ 0.15f };
-    float depthEmptyThreshold{ 0.001f };
+    float edgeFade{ 1.f };
+    float depthEmptyThreshold{ 0.0001f };
     float _pad0[2]{};
 };
 
@@ -312,17 +312,21 @@ struct alignas(16) ScreenFxCB
 struct alignas(16) FogZoneEntry
 {
     Vec3 zoneMin;
-    float zoneRadius;
+    float baseHeight{ 0.f };
 
     Vec3 zoneMax;
-    float _pad0;
+    float topFadeStart{ 0.4f };
 
-    Vec4 fogColor{ 1.f, 0.2f, 0.1f, 1.f };
+    Vec4 fogColor{ 0.6f, 0.6f, 0.6f, 1.f };
 
     float fogDensity{ 1.f };
-    float fogStart{ 0.f };
-    float _pad1{ 0.f };
-    float _pad2{ 0.f };
+    float topHeight{ 0.9f };
+    float edgeFade{ 1.f };
+    float noiseScale{ 0.0025f };
+
+    Vec2 noiseSpeed{ 0.005f, 0.003f };
+    float noiseStrength{ 0.9f };
+    float noiseMin{ 0.38f };
 };
 
 struct alignas(16) FogZoneCB
@@ -333,7 +337,13 @@ struct alignas(16) FogZoneCB
     FogZoneEntry zones[MAX_FOG_ZONES]{};
     int32 aabbCount{ 0 };
     int32 sphereCount{ 0 };
-    float _pad0[2]{};
+    float groundFogMaxDistance{ 100.f };
+    float groundFogMinAccumulationDistance{ 10.f };
+
+    float groundFogDistanceInfluence{ 0.15f };
+    float groundFogNearFadeDistance{ 12.f };
+    float groundFogNearMinFactor{ 0.65f };
+    float _pad0[3]{};
 };
 
 // ------------------------------------------

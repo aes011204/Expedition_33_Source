@@ -3,14 +3,13 @@
 #include "DetailPropertyContext.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
-#include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "MeshDataPreview_View.h"
 
 NS_BEGIN(EffectEditor)
 
-namespace
+namespace Internal
 {
     constexpr TrailCurveQuality kTrailCurveQualityValues[] = {
         TrailCurveQuality::Basic,
@@ -19,7 +18,14 @@ namespace
         TrailCurveQuality::Custom,
     };
 
-    const char* Get_TrailCurveQualityLabel(TrailCurveQuality value)
+    constexpr RibbonCurveQuality kRibbonCurveQualityValues[] = {
+        RibbonCurveQuality::Basic,
+        RibbonCurveQuality::Smooth,
+        RibbonCurveQuality::HighQuality,
+        RibbonCurveQuality::Custom,
+    };
+
+    static const char* Get_TrailCurveQualityLabel(TrailCurveQuality value)
     {
         switch (value)
         {
@@ -36,7 +42,7 @@ namespace
         }
     }
 
-    const char* Get_TrailCurveQualityTooltip(TrailCurveQuality value)
+    static const char* Get_TrailCurveQualityTooltip(TrailCurveQuality value)
     {
         switch (value)
         {
@@ -53,7 +59,219 @@ namespace
         }
     }
 
-    const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
+    static const char* Get_RibbonCurveQualityLabel(RibbonCurveQuality value)
+    {
+        switch (value)
+        {
+        case RibbonCurveQuality::Basic:
+            return "기본";
+        case RibbonCurveQuality::Smooth:
+            return "부드럽게";
+        case RibbonCurveQuality::HighQuality:
+            return "고품질";
+        case RibbonCurveQuality::Custom:
+            return "사용자 지정";
+        default:
+            return "기본";
+        }
+    }
+
+    static const char* Get_RibbonCurveQualityTooltip(RibbonCurveQuality value)
+    {
+        switch (value)
+        {
+        case RibbonCurveQuality::Basic:
+            return "낮은 비용의 기본 source history 곡선 sample 밀도입니다.";
+        case RibbonCurveQuality::Smooth:
+            return "샘플 간격과 보간 수를 늘려 source history path의 각짐을 줄입니다.";
+        case RibbonCurveQuality::HighQuality:
+            return "가장 촘촘한 sample preset입니다. follower나 stamp 수가 많으면 preview 비용이 늘 수 있습니다.";
+        case RibbonCurveQuality::Custom:
+            return "아래 세부 곡선 값을 직접 편집합니다.";
+        default:
+            return "";
+        }
+    }
+
+    static const char* Get_SourceHistorySpriteTrailStampSpawnModeLabel(SourceHistorySpriteTrailStampSpawnMode value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailStampSpawnMode::Distance:
+            return "Distance";
+        case SourceHistorySpriteTrailStampSpawnMode::Time:
+            return "Time";
+        default:
+            return "Distance";
+        }
+    }
+
+    static bool Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistorySpriteTrailStampSpawnMode& value,
+        SourceHistorySpriteTrailStampSpawnMode defaultValue)
+    {
+        bool changed = false;
+        ImGui::PushID("SourceHistorySpriteTrailStampSpawnMode");
+        detailContext.Draw_PropertyLabel("스탬프 생성 기준", "Distance는 source path 이동 거리, Time은 시간 간격으로 sprite card를 찍습니다.");
+        if (ImGui::BeginCombo("##Value", Get_SourceHistorySpriteTrailStampSpawnModeLabel(value)))
+        {
+            constexpr SourceHistorySpriteTrailStampSpawnMode kValues[] = {
+                SourceHistorySpriteTrailStampSpawnMode::Distance,
+                SourceHistorySpriteTrailStampSpawnMode::Time,
+            };
+            for (const SourceHistorySpriteTrailStampSpawnMode candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_SourceHistorySpriteTrailStampSpawnModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
+    static const char* Get_SourceHistoryRibbonSourceModeLabel(SourceHistoryRibbonSourceMode value)
+    {
+        switch (value)
+        {
+        case SourceHistoryRibbonSourceMode::SelfRoot:
+            return "Self Root";
+        case SourceHistoryRibbonSourceMode::ParticleEmitter:
+            return "Particle Emitter";
+        case SourceHistoryRibbonSourceMode::SourceEmitter:
+            return "Source Emitter (Legacy)";
+        default:
+            return "Self Root";
+        }
+    }
+
+    static const char* Get_BeamEndpointModeLabel(BeamEndpointMode value)
+    {
+        switch (value)
+        {
+        case BeamEndpointMode::StartEnd:
+            return "시작 / 끝";
+        case BeamEndpointMode::DirectionLength:
+            return "방향 / 길이";
+        default:
+            return "시작 / 끝";
+        }
+    }
+
+    static const char* Get_BeamBranchPresetLabel(BeamBranchPreset value)
+    {
+        switch (value)
+        {
+        case BeamBranchPreset::EndGuided:
+            return "끝점 유도";
+        case BeamBranchPreset::DownStrike:
+            return "내려꽂힘";
+        case BeamBranchPreset::Entangle:
+            return "얽힘";
+        case BeamBranchPreset::ShortCrack:
+            return "짧은 균열";
+        default:
+            return "끝점 유도";
+        }
+    }
+
+    static bool Draw_BeamBranchPresetProperty(
+        DetailPropertyContext& detailContext,
+        BeamBranchPreset& value,
+        BeamBranchPreset defaultValue)
+    {
+        static constexpr BeamBranchPreset values[] = {
+            BeamBranchPreset::EndGuided,
+            BeamBranchPreset::DownStrike,
+            BeamBranchPreset::Entangle,
+            BeamBranchPreset::ShortCrack,
+        };
+
+        ImGui::PushID("BeamBranchPreset");
+        detailContext.Draw_PropertyLabel("가지 형태", "branch가 parent 중간에서 시작해 어떤 목표점으로 수렴할지 선택합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_BeamBranchPresetLabel(value)))
+        {
+            for (const BeamBranchPreset candidate : values)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_BeamBranchPresetLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+        return changed;
+    }
+
+    static bool Draw_BeamEndpointModeProperty(
+        DetailPropertyContext& detailContext,
+        BeamEndpointMode& value,
+        BeamEndpointMode defaultValue)
+    {
+        static constexpr BeamEndpointMode values[] = {
+            BeamEndpointMode::StartEnd,
+            BeamEndpointMode::DirectionLength,
+        };
+
+        ImGui::PushID("BeamEndpointMode");
+        detailContext.Draw_PropertyLabel("끝점 방식", "Beam path를 로컬 시작/끝 또는 방향/길이 중 어떤 방식으로 만들지 선택합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_BeamEndpointModeLabel(value)))
+        {
+            for (const BeamEndpointMode candidate : values)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_BeamEndpointModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+        return changed;
+    }
+
+    static const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
     {
         switch (value)
         {
@@ -65,7 +283,93 @@ namespace
         }
     }
 
-    bool Draw_RenderLayerOverrideProperty(
+    static const char* Get_TrailPreviewGateModeLabel(TrailPreviewGateMode value)
+    {
+        switch (value)
+        {
+        case TrailPreviewGateMode::Always:
+            return "항상";
+        case TrailPreviewGateMode::Window:
+            return "구간";
+        default:
+            return "항상";
+        }
+    }
+
+    static bool Draw_TrailPreviewGateModeProperty(
+        DetailPropertyContext& detailContext,
+        TrailPreviewGateMode& value,
+        TrailPreviewGateMode defaultValue,
+        const char* id)
+    {
+        static constexpr TrailPreviewGateMode kValues[] = {
+            TrailPreviewGateMode::Always,
+            TrailPreviewGateMode::Window,
+        };
+
+        ImGui::PushID(id);
+        detailContext.Draw_PropertyLabel("활성 방식", "트레일 프리뷰 sample을 항상 받거나 Play 타임라인 비율 구간에서만 받습니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_TrailPreviewGateModeLabel(value)))
+        {
+            for (const TrailPreviewGateMode candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_TrailPreviewGateModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_TrailPreviewGateRatioProperty(
+        DetailPropertyContext& detailContext,
+        const char* id,
+        const char* label,
+        float& value,
+        float defaultValue,
+        const char* tooltip)
+    {
+        ImGui::PushID(id);
+        detailContext.Draw_PropertyLabel(label, tooltip);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = ImGui::DragFloat("##Value", &value, 0.001f, 0.f, 1.f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        if (detailContext.Draw_ResetButton(fabs(value - defaultValue) > 0.0001f))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+
+        if (changed)
+            value = clamp(value, 0.f, 1.f);
+
+        return changed;
+    }
+
+    static bool Draw_RenderLayerOverrideProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         EmitterRenderLayerOverride& value,
@@ -111,7 +415,162 @@ namespace
         return changed;
     }
 
-    TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
+    static bool Draw_SourceHistoryRibbonSourceModeProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistoryRibbonSourceMode& value,
+        SourceHistoryRibbonSourceMode defaultValue)
+    {
+        static constexpr SourceHistoryRibbonSourceMode kValues[] = {
+            SourceHistoryRibbonSourceMode::SelfRoot,
+            SourceHistoryRibbonSourceMode::ParticleEmitter,
+        };
+
+        ImGui::PushID("SourceHistoryRibbonSourceMode");
+        detailContext.Draw_PropertyLabel("소스 모드", "Particle Emitter는 같은 effect 내부 Sprite/Mesh particle을 follower source로 사용합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_SourceHistoryRibbonSourceModeLabel(value)))
+        {
+            for (const SourceHistoryRibbonSourceMode candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_SourceHistoryRibbonSourceModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        if (value == SourceHistoryRibbonSourceMode::SourceEmitter)
+            ImGui::TextDisabled("Legacy Source Emitter root follower value will be treated as Particle Emitter when a source id is set.");
+
+        return changed;
+    }
+
+    static bool Can_UseAsSourceHistoryRibbonParticleSource(const AuthoringEmitter& emitter)
+    {
+        return emitter.typeData.kind == AuthoringTypeDataKind::None ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
+    }
+
+    static const char* Get_SourceHistoryRibbonParticleSourceTypeLabel(const AuthoringEmitter& emitter)
+    {
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+            return "Mesh";
+
+        return "Sprite";
+    }
+
+    static string Build_SourceHistoryRibbonSourceEmitterLabel(const AuthoringEmitter& emitter)
+    {
+        string label = emitter.name.empty() ? "Emitter" : emitter.name;
+        label += " (id: ";
+        label += to_string(emitter.id);
+        label += ", ";
+        label += Get_SourceHistoryRibbonParticleSourceTypeLabel(emitter);
+        if (!emitter.enabled)
+            label += ", disabled";
+        label += ")";
+        return label;
+    }
+
+    static string Resolve_SourceHistoryRibbonSourceEmitterPreviewLabel(
+        const vector<AuthoringEmitter>& emitters,
+        uint32 currentEmitterId,
+        uint32 sourceEmitterId)
+    {
+        if (sourceEmitterId == 0u)
+            return "None";
+
+        for (const AuthoringEmitter& emitter : emitters)
+        {
+            if (emitter.id == sourceEmitterId)
+            {
+                return emitter.id == currentEmitterId
+                       ? "Self reference is invalid"
+                       : Build_SourceHistoryRibbonSourceEmitterLabel(emitter);
+            }
+        }
+
+        return "Missing emitter (id: " + to_string(sourceEmitterId) + ")";
+    }
+
+    static bool Draw_SourceHistoryRibbonSourceEmitterProperty(
+        DetailPropertyContext& detailContext,
+        const vector<AuthoringEmitter>& emitters,
+        const AuthoringEmitter& currentEmitter,
+        uint32& sourceEmitterId,
+        uint32 defaultValue)
+    {
+        bool changed = false;
+        const string previewLabel =
+            Resolve_SourceHistoryRibbonSourceEmitterPreviewLabel(emitters, currentEmitter.id, sourceEmitterId);
+
+        ImGui::PushID("SourceHistoryRibbonSourceEmitter");
+        detailContext.Draw_PropertyLabel("소스 Emitter", "같은 effect 내부 Sprite/Mesh particle emitter를 선택합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        if (ImGui::BeginCombo("##Value", previewLabel.c_str()))
+        {
+            const bool noneSelected = sourceEmitterId == 0u;
+            if (ImGui::Selectable("None", noneSelected))
+            {
+                sourceEmitterId = 0u;
+                changed = true;
+            }
+            if (noneSelected)
+                ImGui::SetItemDefaultFocus();
+
+            for (const AuthoringEmitter& candidate : emitters)
+            {
+                if (candidate.id == currentEmitter.id ||
+                    !Can_UseAsSourceHistoryRibbonParticleSource(candidate))
+                    continue;
+
+                const string label = Build_SourceHistoryRibbonSourceEmitterLabel(candidate);
+                const bool selected = sourceEmitterId == candidate.id;
+                if (ImGui::Selectable(label.c_str(), selected))
+                {
+                    sourceEmitterId = candidate.id;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(sourceEmitterId != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            sourceEmitterId = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
     {
         TrailTypeData preset{};
 
@@ -142,7 +601,38 @@ namespace
         return preset;
     }
 
-    bool Apply_TrailCurvePreset(TrailTypeData& data)
+    static RibbonTypeData Build_RibbonCurvePreset(RibbonCurveQuality quality)
+    {
+        RibbonTypeData preset{};
+
+        switch (quality)
+        {
+        case RibbonCurveQuality::Smooth:
+            preset.sampleSpacing = 0.04f;
+            preset.curveSubdivision = 8u;
+            preset.smoothTangent = false;
+            preset.sampleInterval = 0.f;
+            break;
+        case RibbonCurveQuality::HighQuality:
+            preset.sampleSpacing = 0.02f;
+            preset.curveSubdivision = 12u;
+            preset.smoothTangent = false;
+            preset.sampleInterval = 0.f;
+            break;
+        case RibbonCurveQuality::Basic:
+        case RibbonCurveQuality::Custom:
+        default:
+            preset.sampleSpacing = 0.08f;
+            preset.curveSubdivision = 4u;
+            preset.smoothTangent = false;
+            preset.sampleInterval = 0.f;
+            break;
+        }
+
+        return preset;
+    }
+
+    static bool Apply_TrailCurvePreset(TrailTypeData& data)
     {
         if (data.curveQuality == TrailCurveQuality::Custom)
             return false;
@@ -174,24 +664,94 @@ namespace
         return changed;
     }
 
-    string Make_AssetRelativePath(const fs::path& filePath)
+    static bool Apply_RibbonCurvePreset(RibbonTypeData& data)
     {
-        if (GAME == nullptr)
-            return String::ToString(filePath.lexically_normal().wstring());
+        if (data.curveQuality == RibbonCurveQuality::Custom)
+            return false;
 
-        const fs::path assetRoot = fs::path(GAME->Get_AssetRoot()).lexically_normal();
-        const fs::path normalizedPath = filePath.lexically_normal();
-        if (!assetRoot.empty())
+        const RibbonTypeData preset = Build_RibbonCurvePreset(data.curveQuality);
+        bool changed = false;
+
+        if (data.sampleSpacing != preset.sampleSpacing)
         {
-            const fs::path relativePath = normalizedPath.lexically_relative(assetRoot);
-            if (!relativePath.empty() && relativePath.native().find(L"..") != 0)
-                return String::ToString(relativePath.generic_wstring());
+            data.sampleSpacing = preset.sampleSpacing;
+            changed = true;
+        }
+        if (data.curveSubdivision != preset.curveSubdivision)
+        {
+            data.curveSubdivision = preset.curveSubdivision;
+            changed = true;
+        }
+        if (data.smoothTangent != preset.smoothTangent)
+        {
+            data.smoothTangent = preset.smoothTangent;
+            changed = true;
+        }
+        if (data.sampleInterval != preset.sampleInterval)
+        {
+            data.sampleInterval = preset.sampleInterval;
+            changed = true;
         }
 
-        return String::ToString(normalizedPath.wstring());
+        return changed;
     }
 
-    fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
+    static SourceHistorySpriteTrailTypeData Build_SourceHistorySpriteTrailCurvePreset(RibbonCurveQuality quality)
+    {
+        SourceHistorySpriteTrailTypeData preset{};
+
+        switch (quality)
+        {
+        case RibbonCurveQuality::Smooth:
+            preset.sampleSpacing = 0.04f;
+            preset.curveSubdivision = 8u;
+            preset.smoothTangent = true;
+            break;
+        case RibbonCurveQuality::HighQuality:
+            preset.sampleSpacing = 0.02f;
+            preset.curveSubdivision = 12u;
+            preset.smoothTangent = true;
+            break;
+        case RibbonCurveQuality::Basic:
+        case RibbonCurveQuality::Custom:
+        default:
+            preset.sampleSpacing = 0.08f;
+            preset.curveSubdivision = 4u;
+            preset.smoothTangent = true;
+            break;
+        }
+
+        return preset;
+    }
+
+    static bool Apply_SourceHistorySpriteTrailCurvePreset(SourceHistorySpriteTrailTypeData& data)
+    {
+        if (data.curveQuality == RibbonCurveQuality::Custom)
+            return false;
+
+        const SourceHistorySpriteTrailTypeData preset = Build_SourceHistorySpriteTrailCurvePreset(data.curveQuality);
+        bool changed = false;
+
+        if (data.sampleSpacing != preset.sampleSpacing)
+        {
+            data.sampleSpacing = preset.sampleSpacing;
+            changed = true;
+        }
+        if (data.curveSubdivision != preset.curveSubdivision)
+        {
+            data.curveSubdivision = preset.curveSubdivision;
+            changed = true;
+        }
+        if (data.smoothTangent != preset.smoothTangent)
+        {
+            data.smoothTangent = preset.smoothTangent;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    static fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
         if (GAME == nullptr)
             return fs::path(String::ToWString(path));
@@ -210,109 +770,7 @@ namespace
         return resolvedPath.lexically_normal();
     }
 
-    bool Apply_ModelFileToMeshData(const wchar_t* payloadPath, MeshTypeData& data)
-    {
-        if (payloadPath == nullptr || GAME == nullptr)
-            return false;
-
-        const fs::path filePath = fs::path(payloadPath).lexically_normal();
-        if (String::ToLowerCopy(filePath.extension().string()) != ".model")
-            return false;
-
-        data.modelGuid = GAME->Ensure_AssetGUID(filePath.wstring(), "Model");
-        data.modelPath = Make_AssetRelativePath(filePath);
-        return true;
-    }
-
-    bool Apply_EffectMaterialFileToMeshData(const wchar_t* payloadPath, MeshTypeData& data)
-    {
-        if (payloadPath == nullptr || GAME == nullptr)
-            return false;
-
-        const fs::path filePath = fs::path(payloadPath).lexically_normal();
-        if (String::ToLowerCopy(filePath.extension().string()) != ".json")
-            return false;
-
-        data.assignedEffectMaterialGuid = GAME->Ensure_AssetGUID(filePath.wstring(), "EffectMaterial");
-        data.assignedEffectMaterialPath = Make_AssetRelativePath(filePath);
-        data.hasAssignedMaterialInstance = EffectMaterialPresetReader::Read(filePath, data.assignedMaterial);
-        if (!data.hasAssignedMaterialInstance)
-            data.assignedMaterial = {};
-        return true;
-    }
-
-    bool Try_PickMeshTypeDataAssetDialog(
-        const wchar_t* title,
-        const wchar_t* filterName,
-        const wchar_t* filterSpec,
-        const wchar_t* defaultFolder,
-        wstring& outFilePath)
-    {
-        outFilePath.clear();
-
-        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-        const bool shouldUnInit = SUCCEEDED(initHr);
-
-        IFileOpenDialog* dialog = nullptr;
-        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
-        if (FAILED(hr) || dialog == nullptr)
-        {
-            if (shouldUnInit)
-                CoUninitialize();
-            return false;
-        }
-
-        dialog->SetTitle(title);
-
-        DWORD options = 0;
-        dialog->GetOptions(&options);
-        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST);
-
-        if (GAME != nullptr && defaultFolder != nullptr)
-        {
-            const fs::path folderPath = fs::path(GAME->Get_AssetRoot()) / defaultFolder;
-            IShellItem* folderItem = nullptr;
-            if (SUCCEEDED(
-                SHCreateItemFromParsingName(folderPath.lexically_normal().wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))
-            ) && folderItem != nullptr)
-            {
-                dialog->SetFolder(folderItem);
-                folderItem->Release();
-            }
-        }
-
-        const COMDLG_FILTERSPEC filters[] =
-        {
-            { filterName, filterSpec },
-            { L"All", L"*.*" },
-        };
-        dialog->SetFileTypes(std::size(filters), filters);
-
-        hr = dialog->Show(nullptr);
-        if (SUCCEEDED(hr))
-        {
-            IShellItem* item = nullptr;
-            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
-            {
-                PWSTR path = nullptr;
-                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
-                {
-                    outFilePath = path;
-                    CoTaskMemFree(path);
-                }
-                item->Release();
-            }
-        }
-
-        dialog->Release();
-
-        if (shouldUnInit)
-            CoUninitialize();
-
-        return !outFilePath.empty();
-    }
-
-    string Build_MeshModelValidationMessage(const MeshTypeData& data, ImVec4& outColor)
+    static string Build_MeshModelValidationMessage(const MeshTypeData& data, ImVec4& outColor)
     {
         outColor = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
         if (data.modelGuid.empty() && data.modelPath.empty())
@@ -358,76 +816,70 @@ namespace
         return "Model asset is valid for authoring.";
     }
 
-    bool Draw_MeshAssetDropSlot(
-        const char* id,
-        const char* title,
-        const char* payloadType,
-        const string& path,
-        const char* emptyText,
-        const function<bool(const wchar_t*)>& applyPayload,
-        const function<bool()>& pickFile)
+    static bool Draw_MeshDataEntryButton(const MeshTypeData& data)
     {
-        constexpr float browseButtonWidth{ 32.f };
-        constexpr float slotHeight = 56.f;
-        const float spacing = ImGui::GetStyle().ItemSpacing.x;
-        const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
-        const bool isMatchingPayload = activePayload != nullptr && activePayload->IsDataType(payloadType);
+        constexpr float kEntryHeight{ 52.f };
+        const float width = max(180.f, ImGui::GetContentRegionAvail().x);
+        const bool hasModel = !data.modelPath.empty();
+        const bool hasMaterialSource = !data.assignedEffectMaterialPath.empty();
 
-        ImGui::PushID(id);
-        const ImVec2 slotMin = ImGui::GetCursorScreenPos();
-        const float slotWidth = max(220.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
-        ImGui::InvisibleButton("##DropSlot", ImVec2(slotWidth, slotHeight));
+        ImGui::InvisibleButton("MeshDataEditEntry", ImVec2{ width, kEntryHeight });
 
-        bool changed = false;
-        if (ImGui::BeginDragDropTarget())
-        {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadType, ImGuiDragDropFlags_AcceptBeforeDelivery))
-            {
-                if (payload->IsDelivery())
-                    changed = applyPayload(static_cast<const wchar_t*>(payload->Data));
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        const bool isHovered = ImGui::IsItemHovered();
-        const ImVec2 slotMax{ slotMin.x + slotWidth, slotMin.y + slotHeight };
-        const ImU32 fillColor = isMatchingPayload ? IM_COL32(38, 56, 48, 255) : IM_COL32(30, 34, 42, 255);
-        const ImU32 borderColor = isMatchingPayload
-                                  ? IM_COL32(74, 222, 128, 255)
-                                  : isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255);
+        const ImVec2 minPos = ImGui::GetItemRectMin();
+        const ImVec2 maxPos = ImGui::GetItemRectMax();
+        const bool hovered = ImGui::IsItemHovered();
+        const bool active = ImGui::IsItemActive();
+        const bool clicked = ImGui::IsItemClicked();
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
-        drawList->AddRect(slotMin, slotMax, borderColor, 6.f, 0, isMatchingPayload ? 2.5f : 1.5f);
-        drawList->AddText(ImVec2(slotMin.x + 10.f, slotMin.y + 8.f), IM_COL32(235, 238, 245, 255), title);
+        const ImU32 fillColor = active
+                                ? IM_COL32(38, 48, 64, 255)
+                                : hovered ? IM_COL32(34, 42, 58, 255) : IM_COL32(30, 34, 42, 255);
+        const ImU32 borderColor = hovered ? IM_COL32(116, 156, 235, 255) : IM_COL32(70, 78, 92, 255);
+        drawList->AddRectFilled(minPos, maxPos, fillColor, 6.f);
+        drawList->AddRect(minPos, maxPos, borderColor, 6.f, 0, hovered ? 2.f : 1.f);
 
-        const string displayPath = path.empty() ? emptyText : path;
-        drawList->PushClipRect(ImVec2(slotMin.x + 10.f, slotMin.y + 28.f), ImVec2(slotMax.x - 10.f, slotMax.y), true);
-        drawList->AddText(ImVec2(slotMin.x + 10.f, slotMin.y + 30.f), IM_COL32(150, 160, 176, 255), displayPath.c_str());
-        drawList->PopClipRect();
+        const ImVec2 textMin{ minPos.x + 12.f, minPos.y + 8.f };
+        drawList->AddText(textMin, IM_COL32(238, 241, 248, 255), ICON_FA_CUBES " MeshData 편집");
+        drawList->AddText(
+            ImGui::GetFont(),
+            ImGui::GetFontSize() * 0.9f,
+            ImVec2{ textMin.x, minPos.y + 30.f },
+            IM_COL32(150, 160, 176, 255),
+            "모델 / 머티리얼 설정"
+        );
 
-        if (isHovered)
-            ImGui::SetTooltip("%s", path.empty() ? emptyText : path.c_str());
+        const bool setupReady = hasModel && hasMaterialSource && data.hasAssignedMaterialInstance;
+        const string status = width >= 420.f
+                              ? string{ hasModel ? "Model OK" : "Model missing" } +
+                                " | " +
+                                (hasMaterialSource ? "Material OK" : "Material missing") +
+                                " | " +
+                                (data.hasAssignedMaterialInstance ? "Copy OK" : "Copy missing")
+                              : setupReady ? string{ "Ready" } : string{ "Setup needed" };
+        const ImVec2 statusSize = ImGui::CalcTextSize(status.c_str());
+        const ImVec2 statusPos{
+            max(textMin.x, maxPos.x - statusSize.x - 12.f),
+            minPos.y + 18.f
+        };
+        const ImU32 statusColor =
+            setupReady
+            ? IM_COL32(105, 220, 135, 255)
+            : IM_COL32(245, 165, 92, 255);
+        drawList->AddText(statusPos, statusColor, status.c_str());
 
-        ImGui::SameLine();
-        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f });
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
-        if (ImGui::Button(ICON_FA_FOLDER_OPEN "##PickAsset", ImVec2{ browseButtonWidth, slotHeight }))
-            changed |= pickFile();
-        ImGui::PopStyleVar(2);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("파일 탐색기에서 선택");
+        if (hovered)
+            ImGui::SetTooltip("MeshData Preview 창에서 model/material 조합과 내부 material copy를 편집합니다.");
 
-        ImGui::PopID();
-        return changed;
+        return clicked;
     }
 
-    bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
+    static bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
     {
         return Has_Flag(features, feature);
     }
 
-    const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
+    static const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
     {
         switch (preset)
         {
@@ -441,7 +893,7 @@ namespace
         }
     }
 
-    const char* Get_ToneMapModeLabel(uint32 toneMapMode)
+    static const char* Get_ToneMapModeLabel(uint32 toneMapMode)
     {
         switch (toneMapMode)
         {
@@ -455,7 +907,7 @@ namespace
         }
     }
 
-    void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
+    static void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
     {
         if (EDITOR == nullptr)
             return;
@@ -491,7 +943,7 @@ namespace
         ImGui::PopID();
     }
 
-    bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
+    static bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
     {
         static constexpr uint32 kToneMapModes[] = { 0u, 1u, 2u };
 
@@ -530,7 +982,7 @@ namespace
         return changed;
     }
 
-    bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
+    static bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
     {
         bool changed = false;
 
@@ -567,6 +1019,85 @@ namespace
 
         if (changed)
             changed |= Apply_TrailCurvePreset(data);
+
+        return changed;
+    }
+
+    static bool Draw_RibbonCurveQualityProperty(DetailPropertyContext& detailContext, RibbonTypeData& data, const RibbonTypeData& defaultData)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RibbonCurveQuality");
+        detailContext.Draw_PropertyLabel("품질", "리본 sample 밀도 preset입니다. 사용자 지정에서만 세부 sample 값을 직접 편집합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_RibbonCurveQualityLabel(data.curveQuality)))
+        {
+            for (const RibbonCurveQuality value : kRibbonCurveQualityValues)
+            {
+                const bool selected = data.curveQuality == value;
+                if (ImGui::Selectable(Get_RibbonCurveQualityLabel(value), selected))
+                {
+                    data.curveQuality = value;
+                    changed = true;
+                }
+
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                    ImGui::SetTooltip("%s", Get_RibbonCurveQualityTooltip(value));
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(data.curveQuality != defaultData.curveQuality))
+        {
+            data.curveQuality = defaultData.curveQuality;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        if (changed)
+            changed |= Apply_RibbonCurvePreset(data);
+
+        return changed;
+    }
+
+    static bool Draw_SourceHistorySpriteTrailCurveQualityProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistorySpriteTrailTypeData& data,
+        const SourceHistorySpriteTrailTypeData& defaultData)
+    {
+        bool changed = false;
+
+        ImGui::PushID("SourceHistorySpriteTrailCurveQuality");
+        detailContext.Draw_PropertyLabel("곡선 품질", "source history path의 곡선 보간 품질 preset입니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_RibbonCurveQualityLabel(data.curveQuality)))
+        {
+            for (const RibbonCurveQuality value : kRibbonCurveQualityValues)
+            {
+                const bool selected = data.curveQuality == value;
+                if (ImGui::Selectable(Get_RibbonCurveQualityLabel(value), selected))
+                {
+                    data.curveQuality = value;
+                    changed = true;
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", Get_RibbonCurveQualityTooltip(value));
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(data.curveQuality != defaultData.curveQuality))
+        {
+            data.curveQuality = defaultData.curveQuality;
+            changed = true;
+        }
+        ImGui::PopID();
 
         return changed;
     }
@@ -708,25 +1239,113 @@ void Detail_View::Render_TrailPreviewDetail()
 
     Vec3 baseLocalOffset = EDITOR->Get_TrailPreviewBaseLocalOffset();
     Vec3 tipLocalOffset = EDITOR->Get_TrailPreviewTipLocalOffset();
+    Vec3 sourceLocalOffset = EDITOR->Get_SourceHistorySpriteTrailPreviewSourceLocalOffset();
     const Vec3 defaultBaseLocalOffset = EDITOR->Get_DefaultTrailPreviewBaseLocalOffset();
     const Vec3 defaultTipLocalOffset = EDITOR->Get_DefaultTrailPreviewTipLocalOffset();
+    const Vec3 defaultSourceLocalOffset = EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset();
     bool visible = EDITOR->Is_TrailPreviewVisible();
     bool debugRenderEnabled = EDITOR->Is_TrailPreviewDebugRenderEnabled();
+    TrailPreviewGateMode gateMode = EDITOR->Get_TrailPreviewGateMode();
+    float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
+    float gateEndRatio = EDITOR->Get_TrailPreviewGateEndRatio();
+    TrailPreviewGateMode spriteTrailGateMode = EDITOR->Get_SourceHistorySpriteTrailPreviewGateMode();
+    float spriteTrailGateStartRatio = EDITOR->Get_SourceHistorySpriteTrailPreviewGateStartRatio();
+    float spriteTrailGateEndRatio = EDITOR->Get_SourceHistorySpriteTrailPreviewGateEndRatio();
 
-    bool changed = false;
-    if (_detailPropertyContext.Begin_PropertyTable("TrailPreview"))
+    if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewCommon"))
     {
         if (_detailPropertyContext.Draw_BoolProperty("트레일 프리뷰", visible, false))
             EDITOR->Set_TrailPreviewVisible(visible);
         if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true))
             EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
-        changed |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f);
-        changed |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f);
         _detailPropertyContext.End_PropertyTable();
     }
 
-    if (changed)
-        EDITOR->Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
+    if (ImGui::TreeNodeEx("트레일", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        bool trailLocalChanged = false;
+        if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewTrail"))
+        {
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f);
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f);
+            if (Internal::Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window, "TrailPreviewTrailGateMode"))
+                EDITOR->Set_TrailPreviewGateMode(gateMode);
+            if (gateMode == TrailPreviewGateMode::Window)
+            {
+                bool gateWindowChanged = false;
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewTrailGateStartRatio",
+                    "시작 비율",
+                    gateStartRatio,
+                    EDITOR->Get_DefaultTrailPreviewGateStartRatio(),
+                    "Trail Preview 공격 모션에서 trail sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
+                );
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewTrailGateEndRatio",
+                    "종료 비율",
+                    gateEndRatio,
+                    EDITOR->Get_DefaultTrailPreviewGateEndRatio(),
+                    "Trail Preview 공격 모션에서 trail sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
+                );
+                if (gateWindowChanged)
+                    EDITOR->Set_TrailPreviewGateWindow(gateStartRatio, gateEndRatio);
+            }
+            _detailPropertyContext.End_PropertyTable();
+        }
+
+        if (trailLocalChanged)
+            EDITOR->Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("리본/스프라이트 트레일", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        bool sourceLocalChanged = false;
+        if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewSourceHistorySpriteTrail"))
+        {
+            sourceLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Source 로컬", sourceLocalOffset, defaultSourceLocalOffset, 0.005f);
+            if (Internal::Draw_TrailPreviewGateModeProperty(
+                _detailPropertyContext,
+                spriteTrailGateMode,
+                TrailPreviewGateMode::Window,
+                "TrailPreviewSourceHistorySpriteTrailGateMode"
+            ))
+                EDITOR->Set_SourceHistorySpriteTrailPreviewGateMode(spriteTrailGateMode);
+
+            if (spriteTrailGateMode == TrailPreviewGateMode::Window)
+            {
+                bool gateWindowChanged = false;
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewSourceHistorySpriteTrailGateStartRatio",
+                    "시작 비율",
+                    spriteTrailGateStartRatio,
+                    EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewGateStartRatio(),
+                    "공격 모션에서 SourceHistorySpriteTrail source sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
+                );
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewSourceHistorySpriteTrailGateEndRatio",
+                    "종료 비율",
+                    spriteTrailGateEndRatio,
+                    EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewGateEndRatio(),
+                    "공격 모션에서 SourceHistorySpriteTrail source sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
+                );
+                if (gateWindowChanged)
+                    EDITOR->Set_SourceHistorySpriteTrailPreviewGateWindow(spriteTrailGateStartRatio, spriteTrailGateEndRatio);
+            }
+
+            _detailPropertyContext.End_PropertyTable();
+        }
+
+        if (sourceLocalChanged)
+            EDITOR->Set_SourceHistorySpriteTrailPreviewSourceLocalOffset(sourceLocalOffset);
+
+        ImGui::TreePop();
+    }
 }
 
 void Detail_View::Render_PostProcessShaderDetail()
@@ -740,21 +1359,21 @@ void Detail_View::Render_PostProcessShaderDetail()
     const EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
     const EffectEditorPostProcessOptions defaultOptions = EDITOR->Get_DefaultPostProcessOptions();
 
-    bool hdr = Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
-    bool exposure = Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
-    bool toneMapping = Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
-    bool bloom = Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
-    bool gamma = Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
+    bool hdr = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
+    bool exposure = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
+    bool toneMapping = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
+    bool bloom = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
+    bool gamma = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
 
-    const bool defaultHdr = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
-    const bool defaultExposure = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
-    const bool defaultToneMapping = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
-    const bool defaultBloom = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
-    const bool defaultGamma = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
+    const bool defaultHdr = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
+    const bool defaultExposure = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
+    const bool defaultToneMapping = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
+    const bool defaultBloom = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
+    const bool defaultGamma = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
 
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessPreset"))
     {
-        Draw_PostProcessPresetProperty(_detailPropertyContext);
+        Internal::Draw_PostProcessPresetProperty(_detailPropertyContext);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -785,7 +1404,7 @@ void Detail_View::Render_PostProcessShaderDetail()
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f);
-        paramsChanged |= Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
+        paramsChanged |= Internal::Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -815,7 +1434,7 @@ void Detail_View::Render_EmitterDetail(
         _detailPropertyContext.Draw_ResetButton(false);
         ImGui::PopID();
 
-        changed |= Draw_RenderLayerOverrideProperty(
+        changed |= Internal::Draw_RenderLayerOverrideProperty(
             _detailPropertyContext,
             "렌더 레이어",
             emitter.renderLayerOverride,
@@ -899,6 +1518,12 @@ void Detail_View::Render_TypeDataDetail(
                     0.01f,
                     "최대 표시 길이 끝으로 갈수록 alpha를 줄이는 거리입니다."
                 );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "자동 수명 페이드",
+                    data->autoLifeFade,
+                    defaultData.autoLifeFade,
+                    "trail sample age 기준 alpha fade를 적용할지 결정합니다. 꺼도 세그먼트 수명이 지나면 sample은 제거됩니다."
+                );
                 _detailPropertyContext.End_PropertyTable();
             }
         }
@@ -907,8 +1532,8 @@ void Detail_View::Render_TypeDataDetail(
         {
             if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataCurveQuality"))
             {
-                changed |= Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
-                changed |= Apply_TrailCurvePreset(*data);
+                changed |= Internal::Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                changed |= Internal::Apply_TrailCurvePreset(*data);
 
                 const bool presetLocked = data->curveQuality != TrailCurveQuality::Custom;
                 if (presetLocked)
@@ -958,40 +1583,730 @@ void Detail_View::Render_TypeDataDetail(
             break;
         }
 
-        ImGui::TextDisabled("MeshData editing is handled in the dedicated preview window.");
-        if (_detailPropertyContext.Begin_PropertyTable("MeshTypeDataCompactSummary"))
-        {
-            _detailPropertyContext.Draw_PropertyLabel("Model Asset");
-            ImGui::TextWrapped("%s", data->modelPath.empty() ? "(not assigned)" : data->modelPath.c_str());
-            _detailPropertyContext.Draw_ResetButton(false);
-
-            _detailPropertyContext.Draw_PropertyLabel("Effect Material");
-            ImGui::TextWrapped("%s", data->assignedEffectMaterialPath.empty() ? "(not assigned)" : data->assignedEffectMaterialPath.c_str());
-            _detailPropertyContext.Draw_ResetButton(false);
-
-            _detailPropertyContext.Draw_PropertyLabel("Preview Scale");
-            ImGui::Text("%.3f, %.3f, %.3f", data->previewScale.x, data->previewScale.y, data->previewScale.z);
-            _detailPropertyContext.Draw_ResetButton(false);
-
-            _detailPropertyContext.End_PropertyTable();
-        }
-
-        ImVec4 validationColor{};
-        const string validationMessage = Build_MeshModelValidationMessage(*data, validationColor);
-        ImGui::PushStyleColor(ImGuiCol_Text, validationColor);
-        ImGui::TextWrapped("%s", validationMessage.c_str());
-        ImGui::PopStyleColor();
-
-        if (ImGui::Button(ICON_FA_CUBES " Preview / Edit"))
+        if (Internal::Draw_MeshDataEntryButton(*data))
         {
             const Shared<Editor_Window> meshPreviewWindow = EDITOR != nullptr ? EDITOR->Get_Window(L"MeshData Preview") : nullptr;
             const Shared<MeshDataPreview_View> meshPreviewView = dynamic_pointer_cast<MeshDataPreview_View>(meshPreviewWindow);
             if (meshPreviewView != nullptr)
                 meshPreviewView->Open_Target(emitter.id);
         }
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("MeshData의 model/material 조합과 내부 material instance 값을 편집합니다.");
 
+        ImVec4 validationColor{};
+        const string validationMessage = Internal::Build_MeshModelValidationMessage(*data, validationColor);
+        if (validationMessage != "Model asset is valid for authoring.")
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, validationColor);
+            ImGui::TextWrapped("%s", validationMessage.c_str());
+            ImGui::PopStyleColor();
+        }
+
+        break;
+    }
+    case AuthoringTypeDataKind::Ribbon:
+    {
+        RibbonTypeData* data = get_if<RibbonTypeData>(&emitter.typeData.payload);
+        if (data == nullptr)
+        {
+            ImGui::TextDisabled("리본 TypeData payload is invalid.");
+            break;
+        }
+
+        const RibbonTypeData defaultData{};
+        if (ImGui::CollapsingHeader("리본", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonSource"))
+            {
+                changed |= Internal::Draw_SourceHistoryRibbonSourceModeProperty(
+                    _detailPropertyContext,
+                    data->sourceMode,
+                    defaultData.sourceMode
+                );
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+                {
+                    data->sourceMode = data->sourceEmitterId != 0u
+                                       ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                       : SourceHistoryRibbonSourceMode::SelfRoot;
+                    changed = true;
+                }
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SelfRoot && data->sourceEmitterId != 0u)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+                else if (data->sourceEmitterId == emitter.id)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter)
+                {
+                    changed |= Internal::Draw_SourceHistoryRibbonSourceEmitterProperty(
+                        _detailPropertyContext,
+                        emitterView->Get_Emitters(),
+                        emitter,
+                        data->sourceEmitterId,
+                        defaultData.sourceEmitterId
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "최대 추적 수",
+                        data->followerLaneCount,
+                        defaultData.followerLaneCount,
+                        "동시에 따라갈 source particle 수 상한입니다."
+                    );
+                    data->followerLaneCount = max(1u, data->followerLaneCount);
+                }
+
+                _detailPropertyContext.End_PropertyTable();
+            }
+
+            if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeData"))
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "꼬리 페이드 길이",
+                    data->tailFadeLength,
+                    defaultData.tailFadeLength,
+                    0.01f,
+                    "길이 제한 끝부분에서 alpha를 줄이는 거리입니다. 길이 제한이 0이면 적용되지 않습니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "꼬리 수축 사용",
+                    data->tailCollapseOnIdle,
+                    defaultData.tailCollapseOnIdle,
+                    "켜면 source가 느리거나 멈췄을 때 기존 history sample을 현재 source 쪽으로 당깁니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "수축 속도",
+                    data->tailCollapseSpeed,
+                    defaultData.tailCollapseSpeed,
+                    0.1f,
+                    "source가 느리거나 멈췄을 때 tail sample을 현재 source 쪽으로 당기는 속도입니다."
+                );
+                data->tailCollapseSpeed = max(0.f, data->tailCollapseSpeed);
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "기본 폭",
+                    data->baseWidth,
+                    defaultData.baseWidth,
+                    0.01f,
+                    "SizeByLife를 곱하기 전 소스 히스토리 strip 기본 폭입니다."
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
+
+            ImGui::TextDisabled("tail 유지 시간은 Lifetime 모듈에서 조정합니다. 빠른 source일수록 같은 시간 안에서 더 긴 tail이 남습니다.");
+        }
+
+        if (ImGui::CollapsingHeader("고급", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::TreeNodeEx("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataCurveQuality"))
+                {
+                    changed |= Internal::Draw_RibbonCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                    changed |= Internal::Apply_RibbonCurvePreset(*data);
+
+                    const bool presetLocked = data->curveQuality != RibbonCurveQuality::Custom;
+                    if (presetLocked)
+                        ImGui::BeginDisabled();
+
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "샘플 간격",
+                        data->sampleSpacing,
+                        defaultData.sampleSpacing,
+                        0.005f,
+                        "source가 이 거리 이상 움직였을 때 새 history sample을 추가하고 곡선 sample 간격으로도 사용합니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "곡선 분할",
+                        data->curveSubdivision,
+                        defaultData.curveSubdivision,
+                        "source history segment 하나에서 보강할 수 있는 최대 곡선 render sample 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_BoolProperty(
+                        "탄젠트 스무딩",
+                        data->smoothTangent,
+                        defaultData.smoothTangent,
+                        "Custom 품질에서만 명시적으로 켭니다. 앞뒤 source sample을 함께 보아 path 위치를 완만하게 평균 보정합니다."
+                    );
+
+                    if (presetLocked)
+                        ImGui::EndDisabled();
+
+                    data->sampleSpacing = max(0.001f, data->sampleSpacing);
+                    _detailPropertyContext.End_PropertyTable();
+                }
+                ImGui::TreePop();
+            }
+
+            if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataAdvanced"))
+            {
+                if (data->curveQuality == RibbonCurveQuality::Custom)
+                {
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "히스토리 수",
+                        data->maxSampleCount,
+                        defaultData.maxSampleCount,
+                        "lane 하나가 보관할 최소 source history sample 수입니다. 필요하면 내부에서 더 크게 보정됩니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "샘플 보강 간격",
+                        data->sampleInterval,
+                        defaultData.sampleInterval,
+                        0.005f,
+                        "0보다 크면 정지/저속에서도 시간 기준 sample을 보강합니다. projectile tail에서는 보통 0으로 둡니다."
+                    );
+                }
+
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "길이 제한",
+                    data->maxLength,
+                    defaultData.maxLength,
+                    0.01f,
+                    "head 기준 최대 표시 길이입니다. tail 목표 길이가 아니라 과도한 순간 길이를 막는 상한입니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "생성 페이드",
+                    data->laneSpawnFadeInEnabled,
+                    defaultData.laneSpawnFadeInEnabled,
+                    "켜면 새 follower lane의 시작 폭이 지정 시간 동안 0에서 원래 폭으로 커집니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "생성 페이드 시간",
+                    data->laneSpawnFadeInDuration,
+                    defaultData.laneSpawnFadeInDuration,
+                    0.01f,
+                    "새 follower lane 폭 fade-in 시간입니다. 위치 히스토리는 보정하지 않습니다."
+                );
+                data->laneSpawnFadeInDuration = max(0.f, data->laneSpawnFadeInDuration);
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "수명 페이드",
+                    data->autoLifeFade,
+                    defaultData.autoLifeFade,
+                    "켜면 sample age에 따라 알파가 자동 감소합니다. tail을 직접 자르지 않고 기존 tail이 사라지는 과정을 보기 쉽게 만듭니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "타일링 거리",
+                    data->tilingDistance,
+                    defaultData.tilingDistance,
+                    0.01f,
+                    "0 이하면 전체 표시 길이에 맞춰 늘이고, 양수면 거리 기준으로 texture를 반복합니다."
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        break;
+    }
+    case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+    {
+        SourceHistorySpriteTrailTypeData* data = get_if<SourceHistorySpriteTrailTypeData>(&emitter.typeData.payload);
+        if (data == nullptr)
+        {
+            ImGui::TextDisabled("SourceHistorySpriteTrail TypeData payload is invalid.");
+            break;
+        }
+
+        const SourceHistorySpriteTrailTypeData defaultData{};
+        if (ImGui::CollapsingHeader("Source", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailSource"))
+            {
+                changed |= Internal::Draw_SourceHistoryRibbonSourceModeProperty(
+                    _detailPropertyContext,
+                    data->sourceMode,
+                    defaultData.sourceMode
+                );
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+                {
+                    data->sourceMode = data->sourceEmitterId != 0u
+                                       ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                       : SourceHistoryRibbonSourceMode::SelfRoot;
+                    changed = true;
+                }
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SelfRoot && data->sourceEmitterId != 0u)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+                else if (data->sourceEmitterId == emitter.id)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter)
+                {
+                    changed |= Internal::Draw_SourceHistoryRibbonSourceEmitterProperty(
+                        _detailPropertyContext,
+                        emitterView->Get_Emitters(),
+                        emitter,
+                        data->sourceEmitterId,
+                        defaultData.sourceEmitterId
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "최대 추적 수",
+                        data->followerLaneCount,
+                        defaultData.followerLaneCount,
+                        "동시에 따라갈 source particle lane 상한입니다."
+                    );
+                    data->followerLaneCount = max(1u, data->followerLaneCount);
+                }
+
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("History", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailHistory"))
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 수명",
+                    data->sampleLifetime,
+                    defaultData.sampleLifetime,
+                    0.01f,
+                    "source history sample을 보관하는 시간입니다. stamp lifetime과 구분됩니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "길이 제한",
+                    data->maxLength,
+                    defaultData.maxLength,
+                    0.01f,
+                    "head 기준 stamp 생성 후보 path의 최대 길이입니다. 0 이하면 제한하지 않습니다."
+                );
+                data->sampleLifetime = max(0.0001f, data->sampleLifetime);
+                data->maxLength = max(0.f, data->maxLength);
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailCurveQuality"))
+            {
+                changed |= Internal::Draw_SourceHistorySpriteTrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                changed |= Internal::Apply_SourceHistorySpriteTrailCurvePreset(*data);
+
+                const bool presetLocked = data->curveQuality != RibbonCurveQuality::Custom;
+                if (presetLocked)
+                    ImGui::BeginDisabled();
+
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 간격",
+                    data->sampleSpacing,
+                    defaultData.sampleSpacing,
+                    0.005f,
+                    "source가 이 거리 이상 움직였을 때 새 history sample을 추가하고 곡선 path sample 간격으로도 사용합니다."
+                );
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "곡선 분할",
+                    data->curveSubdivision,
+                    defaultData.curveSubdivision,
+                    "source history segment 하나에서 보강할 수 있는 최대 곡선 sample 수입니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "탄젠트 스무딩",
+                    data->smoothTangent,
+                    defaultData.smoothTangent,
+                    "앞뒤 source sample을 함께 보아 stamp 위치와 path tangent를 완만하게 보정합니다."
+                );
+
+                if (presetLocked)
+                    ImGui::EndDisabled();
+
+                data->sampleSpacing = max(0.001f, data->sampleSpacing);
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Stamp", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailStamp"))
+            {
+                changed |= Internal::Draw_SourceHistorySpriteTrailStampSpawnModeProperty(
+                    _detailPropertyContext,
+                    data->stampSpawnMode,
+                    defaultData.stampSpawnMode
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "스탬프 간격",
+                    data->stampSpacing,
+                    defaultData.stampSpacing,
+                    0.005f,
+                    "Distance 모드에서 path 위 stamp 사이 거리입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "스탬프 시간 간격",
+                    data->stampInterval,
+                    defaultData.stampInterval,
+                    0.005f,
+                    "Time 모드에서 stamp를 찍는 시간 간격입니다."
+                );
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "최대 스탬프 수",
+                    data->maxStampCount,
+                    defaultData.maxStampCount,
+                    "lane 하나가 보관할 stamp 상한입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "지터",
+                    data->spawnJitter,
+                    defaultData.spawnJitter,
+                    0.005f,
+                    "path 주변 random offset 강도입니다. v0 기본값은 0입니다."
+                );
+                data->stampSpacing = max(0.001f, data->stampSpacing);
+                data->stampInterval = max(0.001f, data->stampInterval);
+                data->maxStampCount = max(1u, data->maxStampCount);
+                data->spawnJitter = max(0.f, data->spawnJitter);
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Card", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailCard"))
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "카드 길이",
+                    data->cardLength,
+                    defaultData.cardLength,
+                    0.01f,
+                    "stamp card의 기준 길이입니다. 화면 정렬 방식에 따라 path 방향 또는 카메라 평면에 배치됩니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "카드 폭",
+                    data->cardWidth,
+                    defaultData.cardWidth,
+                    0.005f,
+                    "stamp card의 기준 폭입니다. Square 화면 정렬에서는 길이/폭 중 큰 값으로 맞춥니다."
+                );
+                data->cardLength = max(0.001f, data->cardLength);
+                data->cardWidth = max(0.001f, data->cardWidth);
+
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "U 반전",
+                    data->flipU,
+                    defaultData.flipU,
+                    "texture U 방향을 mirror 보정합니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "V 반전",
+                    data->flipV,
+                    defaultData.flipV,
+                    "texture V 방향을 mirror 보정합니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "회전 오프셋",
+                    data->rotationOffsetDegrees,
+                    defaultData.rotationOffsetDegrees,
+                    1.f,
+                    "authored texture의 기본 방향 차이를 degree 단위로 보정합니다."
+                );
+
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        break;
+    }
+    case AuthoringTypeDataKind::Beam:
+    {
+        BeamTypeData* data = get_if<BeamTypeData>(&emitter.typeData.payload);
+        if (nullptr == data)
+        {
+            ImGui::TextDisabled("Beam TypeData payload is invalid.");
+            break;
+        }
+
+        const BeamTypeData defaultData{};
+        if (ImGui::CollapsingHeader("Beam", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::CollapsingHeader("경로", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataPath"))
+                {
+                    changed |= Internal::Draw_BeamEndpointModeProperty(_detailPropertyContext, data->endpointMode, defaultData.endpointMode);
+                    changed |= _detailPropertyContext.Draw_Vec3Property(
+                        "로컬 시작점",
+                        data->localStart,
+                        defaultData.localStart,
+                        0.01f
+                    );
+                    if (data->endpointMode == BeamEndpointMode::StartEnd)
+                    {
+                        changed |= _detailPropertyContext.Draw_Vec3Property(
+                            "로컬 끝점",
+                            data->localEnd,
+                            defaultData.localEnd,
+                            0.01f
+                        );
+                    }
+                    else
+                    {
+                        changed |= _detailPropertyContext.Draw_Vec3Property(
+                            "로컬 방향",
+                            data->localDirection,
+                            defaultData.localDirection,
+                            0.01f
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "길이",
+                            data->length,
+                            defaultData.length,
+                            0.01f,
+                            "방향 / 길이 방식에서 쓰는 Beam 길이입니다."
+                        );
+                    }
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "세그먼트 수",
+                        data->segmentCount,
+                        defaultData.segmentCount,
+                        "생성되는 polyline segment 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "노이즈 강도",
+                        data->noiseAmplitude,
+                        defaultData.noiseAmplitude,
+                        0.01f,
+                        "중심선에서 벗어나는 deterministic jitter 크기입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty("시드", data->seed, defaultData.seed, "생성 경로 jitter에 쓰는 seed입니다.");
+                    _detailPropertyContext.End_PropertyTable();
+                }
+            }
+            if (ImGui::CollapsingHeader("스트립 변화", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataStripVariation"))
+                {
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "스트립 수",
+                        data->stripCount,
+                        defaultData.stripCount,
+                        "같은 시작점에서 생성할 strip 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "끝점 확산 반경",
+                        data->endSpreadRadius,
+                        defaultData.endSpreadRadius,
+                        0.01f,
+                        "clustered end가 기준 끝점 주변에 퍼지는 반경입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "길이 편차",
+                        data->lengthVariance,
+                        defaultData.lengthVariance,
+                        0.01f,
+                        "strip별 길이 차이를 만드는 deterministic 편차입니다."
+                    );
+                    _detailPropertyContext.End_PropertyTable();
+                }
+            }
+            if (ImGui::CollapsingHeader("표현", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataPresentation"))
+                {
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "기본 폭",
+                        data->baseWidth,
+                        defaultData.baseWidth,
+                        0.01f,
+                        "SizeByLife를 곱하기 전 Beam 기본 폭입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "반복 거리",
+                        data->tilingDistance,
+                        defaultData.tilingDistance,
+                        0.01f,
+                        "0: 현재 Beam/가지 길이에 texture 전체를 한 번 늘려 붙입니다. 양수: 해당 월드 거리마다 texture를 반복하며, 짧으면 일부만 보입니다."
+                    );
+                    _detailPropertyContext.End_PropertyTable();
+                }
+            }
+            if (ImGui::CollapsingHeader("가지", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("BeamTypeDataBranch"))
+                {
+                    changed |= _detailPropertyContext.Draw_BoolProperty(
+                        "사용",
+                        data->branchEnabled,
+                        defaultData.branchEnabled,
+                        "main strip 중간에서 짧은 child branch를 생성합니다."
+                    );
+                    changed |= Internal::Draw_BeamBranchPresetProperty(
+                        _detailPropertyContext,
+                        data->branchPreset,
+                        defaultData.branchPreset
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "개수",
+                        data->branchCount,
+                        defaultData.branchCount,
+                        "strip별 최대 branch 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "확률",
+                        data->branchChance,
+                        defaultData.branchChance,
+                        0.01f,
+                        "branch 후보가 실제 생성될 확률입니다."
+                    );
+                    if (data->branchPreset == BeamBranchPreset::EndGuided)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "끝점 퍼짐",
+                            data->branchEndSpreadRadius,
+                            defaultData.branchEndSpreadRadius,
+                            0.01f,
+                            "끝점 유도 가지의 목표점이 Beam 끝점 주변에 퍼지는 반경입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "벌어짐",
+                            data->branchOutwardAmount,
+                            defaultData.branchOutwardAmount,
+                            0.01f,
+                            "가지가 시작 직후 parent path에서 옆으로 벌어지는 정도입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "휘어짐",
+                            data->branchCurveAmount,
+                            defaultData.branchCurveAmount,
+                            0.01f,
+                            "옆으로 벌어진 가지가 끝점 목표로 다시 수렴하는 정도입니다."
+                        );
+                    }
+                    else if (data->branchPreset == BeamBranchPreset::DownStrike)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "내려꽂힘 길이",
+                            data->branchDownLength,
+                            defaultData.branchDownLength,
+                            0.01f,
+                            "가지가 emitter local down 방향으로 뻗는 길이입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "끝점 퍼짐",
+                            data->branchEndSpreadRadius,
+                            defaultData.branchEndSpreadRadius,
+                            0.01f,
+                            "내려꽂힘 가지의 끝점이 down axis 주변으로 퍼지는 반경입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "휘어짐",
+                            data->branchCurveAmount,
+                            defaultData.branchCurveAmount,
+                            0.01f,
+                            "가지가 down target으로 수렴하는 휘어짐 정도입니다."
+                        );
+                    }
+                    else if (data->branchPreset == BeamBranchPreset::Entangle)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "얽힘 반경",
+                            data->branchEntangleRadius,
+                            defaultData.branchEntangleRadius,
+                            0.01f,
+                            "가지가 parent path 주변을 감는 반경입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "진행 오프셋",
+                            data->branchEntangleAdvance,
+                            defaultData.branchEntangleAdvance,
+                            0.01f,
+                            "가지 target이 parent path를 따라 앞/뒤로 이동하는 비율입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "휘어짐",
+                            data->branchCurveAmount,
+                            defaultData.branchCurveAmount,
+                            0.01f,
+                            "얽힘 가지가 target으로 수렴하는 휘어짐 정도입니다."
+                        );
+                    }
+                    else if (data->branchPreset == BeamBranchPreset::ShortCrack)
+                    {
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "균열 길이",
+                            data->branchCrackLength,
+                            defaultData.branchCrackLength,
+                            0.01f,
+                            "가지가 start 주변에서 짧게 뻗는 길이입니다."
+                        );
+                        changed |= _detailPropertyContext.Draw_FloatProperty(
+                            "균열 퍼짐",
+                            data->branchCrackSpreadRadius,
+                            defaultData.branchCrackSpreadRadius,
+                            0.01f,
+                            "짧은 균열 endpoint가 radial하게 퍼지는 반경입니다."
+                        );
+                    }
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "세그먼트 수",
+                        data->branchSegmentCount,
+                        defaultData.branchSegmentCount,
+                        "child branch polyline segment 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "시작 최소",
+                        data->branchStartMin,
+                        defaultData.branchStartMin,
+                        0.01f,
+                        "parent path에서 branch 시작 구간의 최소 비율입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "시작 최대",
+                        data->branchStartMax,
+                        defaultData.branchStartMax,
+                        0.01f,
+                        "parent path에서 branch 시작 구간의 최대 비율입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "폭 배율",
+                        data->branchWidthScale,
+                        defaultData.branchWidthScale,
+                        0.01f,
+                        "parent 폭 대비 branch 폭 배율입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "시드 오프셋",
+                        data->branchSeedOffset,
+                        defaultData.branchSeedOffset,
+                        "parent seed와 섞어 branch 결과를 갈라놓는 salt입니다."
+                    );
+                    _detailPropertyContext.End_PropertyTable();
+                }
+            }
+            data->length = max(0.f, data->length);
+            data->segmentCount = max(1u, data->segmentCount);
+            data->noiseAmplitude = max(0.f, data->noiseAmplitude);
+            data->stripCount = max(1u, data->stripCount);
+            data->endSpreadRadius = max(0.f, data->endSpreadRadius);
+            data->lengthVariance = max(0.f, data->lengthVariance);
+            data->branchChance = clamp(data->branchChance, 0.f, 1.f);
+            data->branchSegmentCount = max(1u, data->branchSegmentCount);
+            data->branchLength = max(0.f, data->branchLength);
+            data->branchLengthVariance = max(0.f, data->branchLengthVariance);
+            data->branchStartMin = clamp(data->branchStartMin, 0.f, 1.f);
+            data->branchStartMax = clamp(data->branchStartMax, 0.f, 1.f);
+            if (data->branchStartMin > data->branchStartMax)
+                swap(data->branchStartMin, data->branchStartMax);
+            data->branchSpreadRadius = max(0.f, data->branchSpreadRadius);
+            data->branchEndSpreadRadius = max(0.f, data->branchEndSpreadRadius);
+            data->branchOutwardAmount = max(0.f, data->branchOutwardAmount);
+            data->branchCurveAmount = max(0.f, data->branchCurveAmount);
+            data->branchDownLength = max(0.f, data->branchDownLength);
+            data->branchEntangleRadius = max(0.f, data->branchEntangleRadius);
+            data->branchEntangleAdvance = max(0.f, data->branchEntangleAdvance);
+            data->branchCrackLength = max(0.f, data->branchCrackLength);
+            data->branchCrackSpreadRadius = max(0.f, data->branchCrackSpreadRadius);
+            data->branchWidthScale = max(0.f, data->branchWidthScale);
+            data->baseWidth = max(0.001f, data->baseWidth);
+            data->tilingDistance = max(0.f, data->tilingDistance);
+        }
         break;
     }
     case AuthoringTypeDataKind::None:
@@ -1176,6 +2491,16 @@ void Detail_View::Render_ModuleDetail(
             changed = _spawnPerUnitModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathFollowModuleData>(&module.data))
+            changed = _sourceHistorySpriteTrailPathFollowModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathReplayModuleData>(&module.data))
+            changed = _sourceHistorySpriteTrailPathReplayModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::MaterialScalarModulation:
         if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
             changed = _materialScalarModulationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -1242,7 +2567,7 @@ void Detail_View::Commit_PendingAuthoringEditIfIdle(const Shared<Emitter_View>& 
 
 void Detail_View::Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitterView)
 {
-    if (!_hasPendingAuthoringEdit || emitterView == nullptr)
+    if (!_hasPendingAuthoringEdit || nullptr == emitterView)
         return;
 
     Emitter_View::AuthoringSnapshot afterSnapshot = emitterView->Capture_AuthoringSnapshot();

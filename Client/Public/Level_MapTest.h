@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Client_Defines.h"
+#include "Delegate.h"
 #include "Level_WindowTitleFps.h"
 #include "Level.h"
 
@@ -18,7 +19,11 @@ public:
     virtual HRESULT Render() override;
 
 private:
+    void Play_MapBGM();
+
+private:
     WindowTitleFpsState _windowTitleFps = {};
+    FDelegateHandle _editorPlayRuntimeHandle{};
 
 private:
     HRESULT Ready_Lights();

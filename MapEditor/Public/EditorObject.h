@@ -33,9 +33,19 @@ struct EditorObject
     float _ppExposureMax = 2.f;
     float _ppFogDensity = {};
     Vec3 _ppFogColor = Vec3::One;
-    float _ppFogStart = 0.f;
-    float _ppFogRadius = 10.f;
-    int _ppFogZoneType = 0;
+    float _ppFogBaseHeight = 0.f;
+    float _ppFogTopFadeStart = 0.4f;
+    float _ppFogTopHeight = 0.9f;
+    float _ppFogEdgeFade = 1.f;
+    float _ppFogNoiseScale = 0.0025f;
+    Vec2 _ppFogNoiseSpeed = { 0.005f, 0.003f };
+    float _ppFogNoiseStrength = 0.9f;
+    float _ppFogNoiseMin = 0.38f;
+    float _ppGroundFogMaxDistance = 100.f;
+    float _ppGroundFogMinAccumulationDistance = 10.f;
+    float _ppGroundFogDistanceInfluence = 0.15f;
+    float _ppGroundFogNearFadeDistance = 12.f;
+    float _ppGroundFogNearMinFactor = 0.65f;
 
     LightType _lightType = LightType::Directional;
     Vec4 _lightDiffuse = { 1.f, 1.f, 1.f, 1.f };
@@ -53,6 +63,14 @@ struct EditorObject
 
     Shared<MEInstancedMeshActor> _instancedRenderHandle;
     bool _instancedParamsDirty = true;
+    bool _instancedHasCollision = false;
+    int32 _selectedInstanceIdx = -1;
+
+    float _scatterRadius = 5.f;
+    int32 _scatterCount = 5;
+    float _scatterScaleMin = 0.8f;
+    float _scatterScaleMax = 1.2f;
+    float _scatterYRotMax = 180.f;
 
     VIBuffer_Landscape::LAND_DESC _waterDesc = {};
     WaterCB _waterParams = {};

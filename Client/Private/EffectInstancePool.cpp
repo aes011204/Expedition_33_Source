@@ -74,7 +74,7 @@ HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHan
     if (nullptr == entry || nullptr == entry->instance)
         return E_FAIL;
 
-    Shared<const EffectDefinition> definition = desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
+    const Shared<const EffectDefinition> definition = desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
     CHECK_NULL(definition, E_FAIL);
 
     CHECK_FAILED(entry->instance->Reload_Definition(definition), E_FAIL);
@@ -285,13 +285,39 @@ HRESULT EffectInstancePool::Acquire_Instance(
         //    String::ToString(desc.effectName),
         //    activeCount,
         //    idleCount);
+        LOG_WARN(
+            "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
+            String::ToString(desc.effectName),
+            desc.layerLevelIndex,
+            String::ToString(desc.layerTag),
+            activeCount,
+            idleCount,
+            static_cast<const void*>(outInstance.get())
+        );
 
         return S_OK;
     }
 
     //LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
+    LOG_WARN(
+        "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
+        String::ToString(desc.effectName),
+        desc.layerLevelIndex,
+        String::ToString(desc.layerTag)
+    );
 
-    CHECK_FAILED(Spawn_NewInstance(desc, outDefinition, outInstance), E_FAIL);
+    const HRESULT spawnResult = Spawn_NewInstance(desc, outDefinition, outInstance);
+    if (FAILED(spawnResult))
+    {
+        LOG_WARN(
+            "[EffectPool] spawn failed: hr={}, effect={}, level={}, layer={}",
+            spawnResult,
+            String::ToString(desc.effectName),
+            desc.layerLevelIndex,
+            String::ToString(desc.layerTag)
+        );
+        return E_FAIL;
+    }
 
     PooledInstance newEntry{};
     newEntry.effectName = desc.effectName;
@@ -307,6 +333,14 @@ HRESULT EffectInstancePool::Acquire_Instance(
     //    String::ToString(desc.effectName),
     //    String::ToString(desc.layerTag),
     //    _entries.size());
+    LOG_WARN(
+        "[EffectPool] spawned new instance: effect={}, level={}, layer={}, entries={}, object={}",
+        String::ToString(desc.effectName),
+        desc.layerLevelIndex,
+        String::ToString(desc.layerTag),
+        _entries.size(),
+        static_cast<const void*>(outInstance.get())
+    );
 
     return S_OK;
 }
@@ -325,19 +359,37 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
     instanceDesc.roll = desc.worldRotation.z;
 
     Shared<GameObject> spawnedObject{};
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            ETOI(LevelType::Static),
-            L"GameObject_EffectInstance",
-            desc.layerLevelIndex,
-            desc.layerTag,
-            spawnedObject,
-            &instanceDesc),
-        E_FAIL
+    const HRESULT addResult = GAME->Add_GameObject(
+        ETOI(LevelType::Static),
+        L"GameObject_EffectInstance",
+        desc.layerLevelIndex,
+        desc.layerTag,
+        spawnedObject,
+        &instanceDesc
     );
+    if (FAILED(addResult))
+    {
+        LOG_WARN(
+            "[EffectPool] Add_GameObject failed: hr={}, effect={}, level={}, layer={}",
+            addResult,
+            String::ToString(desc.effectName),
+            desc.layerLevelIndex,
+            String::ToString(desc.layerTag)
+        );
+        return E_FAIL;
+    }
 
     outInstance = dynamic_pointer_cast<EffectInstance>(spawnedObject);
-    CHECK_NULL(outInstance, E_FAIL);
+    if (outInstance == nullptr)
+    {
+        LOG_WARN(
+            "[EffectPool] spawned object is not EffectInstance: effect={}, object={}",
+            String::ToString(desc.effectName),
+            static_cast<const void*>(spawnedObject.get())
+        );
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 
@@ -348,6 +400,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
 {
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider);
+    instance->Bind_SourcePointSampleProvider(desc.sourcePointSampleProvider);
     instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();
@@ -379,7 +432,7 @@ void EffectInstancePool::Populate_Handle(
         if (!emitter.enabled)
             continue;
 
-        if (emitter.kind == EffectEmitterKind::ComputeTrail)
+        if (emitter.kind == EffectEmitterKind::Trail)
         {
             outHandle.requiresManualRelease = true;
             return;

@@ -17,9 +17,8 @@ void AN_StartCounter::Execute(const AnimNotifyContext& context)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-    if (battle)
-    {
-        battle->StartCounter(context.model);
-    }
+    if (battle == nullptr)
+        return;
 
+    battle->Get_ReactionController().StartCounter(context.model);
 }

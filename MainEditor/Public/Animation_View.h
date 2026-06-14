@@ -113,6 +113,9 @@ private:
         Shared<EffectInstance> effect{};
         wstring effectName{};
         bool isPlaying = false;
+        bool isDraining = false;
+        float drainElapsed = 0.f;
+        float drainDuration = 0.25f;
     };
 
     struct PreviewWeaponRotateRuntime
@@ -123,6 +126,13 @@ private:
     };
 
     struct PreviewPlayEffectStateRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
+    struct PreviewAnimSpeedStateRuntime
     {
         int32 stateId = -1;
         Shared<AnimNotifyState> notifyState{};
@@ -189,14 +199,22 @@ private:
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
     void Draw_TrailAnchorPreview() const;
+    void Update_PreviewAnimSpeedStates(float timeDelta);
+    void Reset_PreviewAnimSpeedStates();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
     void Update_PreviewTrailEffect(float timeDelta);
     void Reset_PreviewTrailEffect();
+    void Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime);
+    bool Tick_PreviewTrailDrain(PreviewTrailRuntime& runtime, float timeDelta);
     vector<const AnimNotifyStateEntry*> Find_ActivePreviewTrailStates() const;
     bool Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, const wstring& effectName);
+    bool Try_ResolvePreviewTrailEffectName(
+        const string& effectNameOverride,
+        const string& partTag,
+        wstring& outEffectName) const;
     void Sync_PreviewAnimationSelection(bool keepCurrentTime = false);
     void Validate_SelectedBoneSelection();
     void Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot);
@@ -260,6 +278,7 @@ private:
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
+    vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
     mutable int32 _previewTrailProviderStateId = -1; // preview effect가 지금 sample을 요청 중인 runtime state id다.

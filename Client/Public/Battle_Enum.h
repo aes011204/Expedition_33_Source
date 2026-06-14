@@ -5,7 +5,6 @@
 namespace Engine
 {
     class ModelCom;
-    class Character;
 }
 
 namespace Client
@@ -13,7 +12,6 @@ namespace Client
     class Character_BattleBase;
     struct BattleActionPhase;
     struct Skill_Data;
-    enum class Buffs;
     enum class ElementalType;
     class CombatStatCom;
     class BattleMechanismCom;
@@ -62,35 +60,6 @@ namespace Client
         LuminaOverride
     };
 
-    //액션 시퀀스 내의 이벤트 타입
-    enum class EBattleActionEvent
-    {
-        None,
-        ComboWindowStart,
-        ComboWindowPre,
-        ComboWindowEnd,
-        ActionEffect,
-        ComboExitPoint
-    };
-
-    //전투 장면 전환 효과 타입을 정의
-    enum class EBattleTransitionType
-    {
-        None,
-        Fade,
-        Blur
-    };
-
-    //특정 행동이 금지된 이유
-    enum class EBattleForbiddenActionReason
-    {
-        Invalid,
-        OutOfMana,
-        EmptyConsumable,
-        NoValidTarget,
-        RequirementsNotMet
-    };
-
     //전투 종료 결과
     enum class EBattleEndResult
     {
@@ -123,51 +92,9 @@ namespace Client
         SkillCost
     };
 
-    //그라디언트 게이지 등 특정 게이지 변화 원인
-    enum class EGradientChangeReason
-    {
-        Invalid,
-        APSpentForSkill,
-        PassiveEffect
-    };
-
     // =============================
     // 데미지 / 공격 관련
     // =============================
-
-    //데미지 발생 원인
-    enum class EDamageReason
-    {
-        Invalid,
-        Skill, // 일반 스킬 
-        BuffEffect,
-        FreeAim,
-        Attack,
-        Counter,
-        Item,
-        GradientCounter,
-        RangeCounter,
-        AOECounter,
-        JumpCounter
-    };
-
-    //데미지 계산에 쓰이는 보정 타입
-    enum class EDamageModifierType
-    {
-        Invalid,
-        RelativeMultiplier,
-        FlatValue,
-        AbsoluteMultiplier
-    };
-
-    //데미지 값의 상태
-    enum class EDamageValueState
-    {
-        Invalid,
-        Editable,
-        Initial,
-        Final
-    };
     enum class AttackType
     {
         Invalid,
@@ -183,117 +110,9 @@ namespace Client
         SingleAOE,
         //JumpCounter
     };
-    //EMissReason
-    enum class EMissReason
-    {
-        Invalid,
-        Dodge,
-        Parry,
-        Nullified,
-        Absorbed,
-        Jump,
-        GradientParry,
-        AutoSkillCounter
-    };
-
-    //카운터 공격/반격의 종류
-    enum class ECounterType
-    {
-        Invalid,
-        CloseRange,
-        LongRange,
-        AOE
-    };
-
     // =============================
     // 방어 / 반응
     // =============================
-
-    //방어 기술 분류
-    enum class DefenseMoveType
-    {
-        Defend,
-        Dodge,
-        Parry
-    };
-
-    //브레이크 혹은 스턴이 발생한 이유
-    enum class EBreakStunReason
-    {
-        Invalid,
-        Skill,
-        PassiveEffect
-    };
-
-    //차단 처리 방식 구분
-    enum class EBlockedActionType
-    {
-        Invalid,
-        BlockAction,
-        OnlyFeedback
-    };
-
-    // =============================
-    // 스탠스 / 전투 스타일
-    // =============================
-
-    //E_StanceType
-    enum class EStanceType
-    {
-        Stanceless,
-        Offensive,
-        Defensive,
-        Virtuose
-    };
-
-    // =============================
-    // 퍼펙션 / 랭크
-    // =============================
-
-
-    //퍼펙션/완벽 상태가 생긴 이유를 나타내는 타입
-    enum class EPerfectionReason
-    {
-        Invalid,
-        Skill,
-        Defend,
-        Dodge,
-        Parry,
-        TurnStart,
-        FreeAimShoot,
-        BaseAttack,
-        ConsumableItem,
-        Debug,
-        QTE,
-        GotHit,
-        Died,
-        Revived,
-        Counter,
-        BattleStart,
-        PassiveEffect,
-        Heal,
-        LuminaOverride
-    };
-
-
-    //퍼펙션 값 변경 종류
-    enum class EPerfectionUpdateType
-    {
-        Gain,
-        Lose,
-        SimpleUpdate
-    };
-
-    //퍼펙션 랭크 등급
-    enum class EPerfectionRank
-    {
-        Invalid,
-        D,
-        C,
-        B,
-        A,
-        S
-    };
 
     // =============================
     // 타겟팅 / 상태 검색
@@ -315,95 +134,6 @@ namespace Client
         Allies,
         Enemies,
         Any
-    };
-
-    ////런타임 전투 스탯 조회 타입
-    //enum class ERuntimeBattleStatType
-    //{
-    //    Invalid,
-    //    CurrentHP,
-    //    CurrentAP,
-    //    CurrentHPPercentage,
-    //    CurrentAPPercentage
-    //};
-
-    //숫자 비교/검색 타입
-    enum class ENumericValueQuery
-    {
-        Invalid,
-        Minimum,
-        Maximum
-    };
-
-    // =============================
-    // 상태 / 이펙트 원인
-    // =============================
-
-    //스테인(상태 이상) 변경 이유
-    enum class EStainChangeReason
-    {
-        Invalid,
-        SkillCast,
-        PassiveEffect,
-        ResetStains,
-        Debug
-    };
-
-    //치유가 발생한 이유
-    enum class EHealReason
-    {
-        Invalid,
-        SkillCast,
-        PassiveEffect,
-        Debug,
-        Absorb
-    };
-
-    // =============================
-    // 기타 고유 메커닉
-    // =============================
-
-    //전투에서 보고 있는 방향
-    enum class EBattleLookDirection
-    {
-        Invalid,
-        Left,
-        Right
-    };
-
-    //프리즈프레임(느려짐/강조) 타입
-    enum class EFreezeFrame
-    {
-        No,
-        VeryLight,
-        Light,
-        Medium,
-        Heavy,
-        VeryHeavy,
-        AttackSlowMo,
-        FreeAimWeakpoint
-    };
-
-    //프리즈프레임(느려짐/강조) 타입
-    enum class ETransformMaskMechanic
-    {
-        Invalid,
-        Balanced,
-        Heavy,
-        Caster,
-        Agile,
-        Almighty
-    };
-
-    //------------------------------------------
-
-
-
-
-    struct FEnemyPortraitData
-    {
-        //Texture2D* TimelinePortrait;
-        double PortraitOffset;
     };
 
     enum class BattleItemType
@@ -477,8 +207,6 @@ namespace Client
         double ReceivedSkillDamageMultiplier;//스킬 데미지 받는 배율
         double ReceivedFreeAimDamageMultiplier; //자유조준 피해 배율
     };
-
-
     struct FElementalAffinity
     {
         ElementalType        attackType = ElementalType::None;
@@ -493,10 +221,6 @@ namespace Client
         Shared<ModelCom> ModelCom;
         Shared<BattleMechanismCom> mechanismCom;
     };
-
-
-    enum class BuffType { beforeTurn, changeStat, dot, SLogic };
-
     enum class Buffs
     {
         //버프
@@ -542,8 +266,10 @@ namespace Client
     {
         Invalid,
         Primary,
+        PrimaryJump,
         RandomEnemy,
         AllEnemies,
+        AllEnemiesJump,
         Self,
         ETC, //스폰 , 쉴드 등 
     };
@@ -551,28 +277,13 @@ namespace Client
     struct TurnEntry
     {
         BattleChar hero;
-        float nextTime;
-    };
-
-    struct DamageContext
-    {
-        BattleChar attacker;
-        BattleChar target;
-
-        float baseDamage;
-
-        EDamageReason damageType;
-        ElementalType element;
-
-        float finalMultiplier = 1.0f;
-        float flatBonus = 0.0f;
-
-        bool canCrit = true;
-        bool ignoreDefense = false;
+        float nextTime = 0.f;
+        uint64 orderSeq = 0; // 같은 nextTime이면 먼저 예약된 턴부터 처리한다.
     };
 
     struct DamageAppliedInfo
     {
+        BattleChar attacker{};      // 때린놈
         BattleChar target{};        // 실제 HP가 깎이 대상
         float damage = 0.f;         // 최종 데미지
         AttackType attackType = AttackType::Invalid; // 기존 피격 애니메이션 분기
@@ -582,7 +293,16 @@ namespace Client
         uint32 prevShield = 0;
         uint32 currentShield = 0;
     };
-
+    enum class AITargetStyle
+    {
+        Single,
+        SingleAoE,
+        ComboAoE,
+        Mix,
+        Self,
+        RandomEnemy,
+        ETC
+    };
     struct Skill_Data
     {
         string characterId = "";
@@ -591,7 +311,6 @@ namespace Client
         wstring battleAnnounceActionText = L"";
 
         vector<BattleActionPhase> AnimPhases = {};
-
         vector<TargetType> targetingType = {};
 
 
@@ -601,6 +320,26 @@ namespace Client
         ElementalType element = ElementalType::None;
         Buffs buff = Buffs::None;
         float ailmentChance = 0.f;
+
+        int32 buffDurationTurn = 0;
+
+        //---------------------------
+
+        AITargetStyle targetStyle = {};
+        float openingBias = {};
+        float midBias = {};
+        float criticalBias = {};
+        bool forceOnPhaseEnter = {};
+        bool forceOnPhaseCritical = {};
+        float minTurn = {};
+        float maxUseCount = {};
+        float coolDownTurn = {};
+    };
+
+    struct SkillCandidate
+    {
+        int32 skillIndex = -1;
+        float score = -FLT_MAX;;
     };
 
     //------------------------------------
@@ -642,6 +381,8 @@ namespace Client
         string animationKey = "";
         string cameraPresetId = "";
         string cameraClipId = "";
+        float playRate = 1.f;
+
         //  string sequenceKey = "";
         uint32 phaseIndex = {};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
@@ -698,6 +439,17 @@ namespace Client
         Targeted_End,
 
         Return,
+
+        Stun_Enter,
+        Stun_ToIdle,
+        Idle_Stun,
+        Hit_Stun,
+
+        Waiting,        // 자기 턴 오기 전 Waiting 상태
+        Waiting_LookAround_0,
+        Waiting_LookAround_1,
+        Waiting_LookAround_2,
+
     };
 
     enum class BattleReactionType
@@ -771,6 +523,29 @@ namespace Client
         {
             return target.actor != nullptr && target.statCom != nullptr && hitPart != FreeAimHitPart::None;
         }
+    };
+
+    // 튜토리얼 순서
+    enum class BattleTutorialStep
+    {
+        BattleSystem,
+        TurnOrder,
+        Attack,
+        EnemyTurn,
+        Dodge,
+        Skill,
+        QTE,
+        Counter,
+        FreeAim,
+        END
+    };
+
+    struct BattleTutorialRequest
+    {
+        BattleTutorialStep step = BattleTutorialStep::END;
+        bool pauseBattle = true; // 튜토리얼 표시 중, Model을 멈출것인지
+        bool blockInput = true;  // 입력은?
+        float delaySec = 0.f;    // 연출과 겹치지 않게, 튜토리얼 표시 늦출 때
     };
 
 }

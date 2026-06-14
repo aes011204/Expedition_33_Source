@@ -86,6 +86,9 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
 
 	if (GAME->Is_WorldGameplayInputBlocked())
 	{
+        if (!_movementCom)
+            return;
+
 		_movementCom->Clear_FollowMoveCommand(); 
         _movementCom->Apply_Input({});           
         _movementCom->Update_Movement(timeDelta);

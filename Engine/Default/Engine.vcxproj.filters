@@ -259,6 +259,9 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Plane">
       <UniqueIdentifier>{7b126621-f4e4-42c2-8979-58963f7ac21d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\ModelDeform">
+      <UniqueIdentifier>{79aa129c-34f6-433a-95c6-41a1479a501c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -335,6 +338,9 @@
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterial_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectRuntime_Lowering.h">
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectRuntime_Types.h">
@@ -438,6 +444,12 @@
     <ClInclude Include="..\Public\AnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\FacialAnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\FacialClip.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\IKAnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
@@ -464,6 +476,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\VIBuffer_Plane.h">
       <Filter>01.Utility\04.Component\VIBuffer\Plane</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ShadowHelper.h">
+      <Filter>01.Utility\07.Lights</Filter>
+ </ClInclude>
+    <ClInclude Include="..\Public\ModelDeform.h">
+      <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -722,9 +740,6 @@
     <ClInclude Include="..\Public\VIBufferCom_Instance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\VIBufferCom_PointParticle.h">
-      <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Print_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>
@@ -964,9 +979,6 @@
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp">
-      <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Print_Manager.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
@@ -1068,6 +1080,12 @@
     <ClCompile Include="..\Private\AnimationModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\FacialAnimationModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\FacialClip.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\OffsetAnimationModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
@@ -1087,6 +1105,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\VIBuffer_Plane.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Plane</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ModelDeform.cpp">
+      <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

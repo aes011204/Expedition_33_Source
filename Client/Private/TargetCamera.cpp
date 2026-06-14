@@ -27,6 +27,7 @@ const char* To_TargetCameraModeName(TargetCameraMode mode)
 float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
 {
     t = clamp(t, 0.f, 1.f);
+    constexpr float kBackOvershoot = 1.70158f;
 
     switch (easing)
     {
@@ -38,6 +39,35 @@ float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
 
     case BattleCameraTransitionEasing::EaseOut:
         return 1.f - (1.f - t) * (1.f - t);
+
+    case BattleCameraTransitionEasing::EaseInStrong:
+        return t * t * t;
+
+    case BattleCameraTransitionEasing::EaseOutStrong:
+        return 1.f - powf(1.f - t, 3.f);
+
+    case BattleCameraTransitionEasing::EaseInOutStrong:
+        return t < 0.5f
+            ? 4.f * t * t * t
+            : 1.f - powf(-2.f * t + 2.f, 3.f) * 0.5f;
+
+    case BattleCameraTransitionEasing::EaseInCubic:
+        return t * t * t;
+
+    case BattleCameraTransitionEasing::EaseOutCubic:
+        return 1.f - powf(1.f - t, 3.f);
+
+    case BattleCameraTransitionEasing::EaseInExpo:
+        return t <= 0.f ? 0.f : powf(2.f, 10.f * t - 10.f);
+
+    case BattleCameraTransitionEasing::EaseOutExpo:
+        return t >= 1.f ? 1.f : 1.f - powf(2.f, -10.f * t);
+
+    case BattleCameraTransitionEasing::EaseOutBack:
+    {
+        const float x = t - 1.f;
+        return 1.f + (kBackOvershoot + 1.f) * x * x * x + kBackOvershoot * x * x;
+    }
 
     case BattleCameraTransitionEasing::EaseInOut:
         return t * t * (3.f - 2.f * t);
@@ -457,52 +487,12 @@ void TargetCamera::Update_BattleEnterState(float timeDelta)
 
     if (_battleEnterAcc >= _battleEnterDuration)
     {
-        LOG_INFO(
-            "[BattleCamTrace] TargetCamera::BattleEnter complete acc={:.3f} duration={:.3f} worldScale={:.3f}",
-            _battleEnterAcc,
-            _battleEnterDuration,
-            GAME->Get_WorldTimeScale());
-
         Change_Mode(TargetCameraMode::NORMAL);
         _battleEnterAcc = 0.f;
         return;
     }
 
     Update_FromCurrentSettings(unscaledDelta);
-
-    const Vec3 cameraPos = _transformCom ? _transformCom->Get_WorldPosition() : Vec3::Zero;
-    const Shared<TransformCom> targetTransform = _targetTransformCom.lock();
-    const Vec3 targetPos = targetTransform ? targetTransform->Get_WorldPosition() : Vec3::Zero;
-
-    LOG_INFO_THROTTLED(
-        15,
-        "[BattleCamTrace] TargetCamera::BattleEnter tick acc={:.3f}/{:.3f} unscaledDelta={:.4f} worldScale={:.3f} "
-        "cam=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) look=({:.2f},{:.2f},{:.2f}) "
-        "curDist={:.2f} curSide={:.2f} curYaw={:.2f} curRoll={:.2f} curFov={:.3f} "
-        "targetDist={:.2f} targetSide={:.2f} targetYaw={:.2f} targetRoll={:.2f} targetFov={:.3f}",
-        _battleEnterAcc,
-        _battleEnterDuration,
-        unscaledDelta,
-        GAME->Get_WorldTimeScale(),
-        cameraPos.x,
-        cameraPos.y,
-        cameraPos.z,
-        targetPos.x,
-        targetPos.y,
-        targetPos.z,
-        _currentLookTarget.x,
-        _currentLookTarget.y,
-        _currentLookTarget.z,
-        _currentSettings.distance,
-        _currentSettings.sideOffset,
-        _currentSettings.yawOffset,
-        _currentSettings.rollOffset,
-        _currentSettings.camera.fovy,
-        _targetSettings.distance,
-        _targetSettings.sideOffset,
-        _targetSettings.yawOffset,
-        _targetSettings.rollOffset,
-        _targetSettings.camera.fovy);
 }
 
 Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta)
@@ -556,17 +546,6 @@ Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desired
 
 void TargetCamera::Change_Mode(TargetCameraMode mode)
 {
-    if (_currentState == mode)
-    {
-        LOG_INFO(
-            "[BattleCamTrace] TargetCamera::Change_Mode ignored sameMode={} worldScale={:.3f} battleAcc={:.3f}",
-            To_TargetCameraModeName(mode),
-            GAME->Get_WorldTimeScale(),
-            _battleEnterAcc);
-
-        return;
-    }
-
     const TargetCameraMode previousMode = _currentState;
     const bool wasBattleEnter = previousMode == TargetCameraMode::BATTLE_ENTER;
 
@@ -595,27 +574,6 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
         _currentSettings.followSpeed = _battleEnterPreset.followSpeed;
         break;
     }
-
-    LOG_INFO(
-        "[BattleCamTrace] TargetCamera::Change_Mode {} -> {} activeCameraType={} worldScale={:.3f} battleAcc={:.3f} "
-        "curDist={:.2f} curSide={:.2f} curYaw={:.2f} curRoll={:.2f} curFov={:.3f} "
-        "targetDist={:.2f} targetSide={:.2f} targetYaw={:.2f} targetRoll={:.2f} targetFov={:.3f} snap={}",
-        To_TargetCameraModeName(previousMode),
-        To_TargetCameraModeName(_currentState),
-        static_cast<int>(GAME->Get_ActiveCamera() ? GAME->Get_ActiveCamera()->Get_ObjectType() : ObjectType::None),
-        GAME->Get_WorldTimeScale(),
-        _battleEnterAcc,
-        _currentSettings.distance,
-        _currentSettings.sideOffset,
-        _currentSettings.yawOffset,
-        _currentSettings.rollOffset,
-        _currentSettings.camera.fovy,
-        _targetSettings.distance,
-        _targetSettings.sideOffset,
-        _targetSettings.yawOffset,
-        _targetSettings.rollOffset,
-        _targetSettings.camera.fovy,
-        _targetSettings.snapOnEnter);
 
     if (_targetSettings.snapOnEnter)
     {

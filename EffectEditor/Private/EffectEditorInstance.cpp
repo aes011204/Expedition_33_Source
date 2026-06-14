@@ -46,6 +46,22 @@ namespace Internal
         return lhs.features == rhs.features && Is_SamePostProcessCB(lhs.params, rhs.params);
     }
 
+    bool Is_PreviewGateOpen(TrailPreviewGateMode mode, float startRatio, float endRatio, float sourceRatio)
+    {
+        if (TrailPreviewGateMode::Always == mode)
+            return true;
+
+        startRatio = clamp(startRatio, 0.f, 1.f);
+        endRatio = clamp(endRatio, 0.f, 1.f);
+        sourceRatio = clamp(sourceRatio, 0.f, 1.f);
+        if (fabs(endRatio - startRatio) <= 0.0001f)
+            return false;
+
+        return startRatio < endRatio
+               ? sourceRatio >= startRatio && sourceRatio < endRatio
+               : sourceRatio >= startRatio || sourceRatio < endRatio;
+    }
+
     static bool Is_PreviewCameraDragInputHeld()
     {
         const bool altHeld = GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
@@ -245,6 +261,37 @@ float EffectEditorInstance::Get_RuntimeTimeScale() const
     return _runtimeTimeScale;
 }
 
+bool EffectEditorInstance::Is_TrailPreviewGateOpen() const
+{
+    if (TrailPreviewGateMode::Always == _trailPreviewGateMode)
+        return true;
+
+    const float safeDuration = max(kDefaultTrailPreviewGateDuration, _trailPreviewGateDuration);
+    const float loopTime = fmod(max(0.f, _trailPreviewGateElapsedTime), safeDuration);
+    const float ratio = loopTime / safeDuration;
+    return ratio >= _trailPreviewGateStartRatio && ratio <= _trailPreviewGateEndRatio;
+}
+
+bool EffectEditorInstance::Is_TrailPreviewGateOpen(float sourceRatio) const
+{
+    return Internal::Is_PreviewGateOpen(
+        _trailPreviewGateMode,
+        _trailPreviewGateStartRatio,
+        _trailPreviewGateEndRatio,
+        sourceRatio
+    );
+}
+
+bool EffectEditorInstance::Is_SourceHistorySpriteTrailPreviewGateOpen(float sourceRatio) const
+{
+    return Internal::Is_PreviewGateOpen(
+        _sourceHistorySpriteTrailPreviewGateMode,
+        _sourceHistorySpriteTrailPreviewGateStartRatio,
+        _sourceHistorySpriteTrailPreviewGateEndRatio,
+        sourceRatio
+    );
+}
+
 EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptions() const
 {
     EffectEditorPostProcessOptions options{};
@@ -287,6 +334,9 @@ void EffectEditorInstance::Play()
 {
     End_PreviewCameraDrag();
 
+    if (EffectEditorRuntimeState::Edit == _runtimeState)
+        Reset_TrailPreviewGate();
+
     _runtimeState = EffectEditorRuntimeState::Play;
     Activate_TargetCamera();
 
@@ -318,6 +368,7 @@ void EffectEditorInstance::Stop()
     End_PreviewCameraDrag();
 
     _runtimeState = EffectEditorRuntimeState::Edit;
+    Reset_TrailPreviewGate();
 
     const Shared<Level> currentLevel = GAME->Current_LevelType();
     const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
@@ -380,17 +431,73 @@ void EffectEditorInstance::Request_RestartPreview()
         return;
 
     if (FAILED(effectEditorLevel->Restart_PreviewFromAuthoring()))
+    {
         LOG_ERROR("Failed to restart EffectEditor preview.");
+        return;
+    }
+
+    Reset_TrailPreviewGate();
+}
+
+void EffectEditorInstance::Tick_TrailPreviewGate(float timeDelta)
+{
+    if (timeDelta <= 0.f)
+        return;
+
+    _trailPreviewGateElapsedTime += timeDelta;
+}
+
+void EffectEditorInstance::Reset_TrailPreviewGate()
+{
+    _trailPreviewGateElapsedTime = 0.f;
 }
 
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
+    if (visible && !_isTrailPreviewVisible)
+        Reset_TrailPreviewGate();
+
     _isTrailPreviewVisible = visible;
 }
 
 void EffectEditorInstance::Set_PreviewPlaneVisible(bool visible)
 {
     _isPreviewPlaneVisible = visible;
+}
+
+void EffectEditorInstance::Set_TrailPreviewGateMode(TrailPreviewGateMode mode)
+{
+    if (_trailPreviewGateMode == mode)
+        return;
+
+    _trailPreviewGateMode = mode;
+    Reset_TrailPreviewGate();
+    Request_RestartPreview();
+}
+
+void EffectEditorInstance::Set_TrailPreviewGateWindow(float startRatio, float endRatio)
+{
+    startRatio = clamp(startRatio, 0.f, 1.f);
+    endRatio = clamp(endRatio, 0.f, 1.f);
+
+    _trailPreviewGateStartRatio = startRatio;
+    _trailPreviewGateEndRatio = endRatio;
+}
+
+void EffectEditorInstance::Set_TrailPreviewGateDuration(float duration)
+{
+    _trailPreviewGateDuration = max(kDefaultTrailPreviewGateDuration, duration);
+}
+
+void EffectEditorInstance::Set_SourceHistorySpriteTrailPreviewGateMode(TrailPreviewGateMode mode)
+{
+    _sourceHistorySpriteTrailPreviewGateMode = mode;
+}
+
+void EffectEditorInstance::Set_SourceHistorySpriteTrailPreviewGateWindow(float startRatio, float endRatio)
+{
+    _sourceHistorySpriteTrailPreviewGateStartRatio = clamp(startRatio, 0.f, 1.f);
+    _sourceHistorySpriteTrailPreviewGateEndRatio = clamp(endRatio, 0.f, 1.f);
 }
 
 void EffectEditorInstance::Set_TrailPreviewDebugRenderEnabled(bool enabled)
@@ -404,16 +511,33 @@ void EffectEditorInstance::Set_EffectInfluenceOutlineEnabled(bool enabled)
     ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(enabled);
 }
 
-void EffectEditorInstance::Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset)
+void EffectEditorInstance::Set_TrailPreviewLocalOffsets(
+    const Vec3& baseLocalOffset,
+    const Vec3& tipLocalOffset)
 {
     _trailPreviewBaseLocalOffset = baseLocalOffset;
     _trailPreviewTipLocalOffset = tipLocalOffset;
+}
+
+void EffectEditorInstance::Set_TrailPreviewLocalOffsets(
+    const Vec3& baseLocalOffset,
+    const Vec3& tipLocalOffset,
+    const Vec3& sourceLocalOffset)
+{
+    Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
+    Set_SourceHistorySpriteTrailPreviewSourceLocalOffset(sourceLocalOffset);
+}
+
+void EffectEditorInstance::Set_SourceHistorySpriteTrailPreviewSourceLocalOffset(const Vec3& sourceLocalOffset)
+{
+    _sourceHistorySpriteTrailPreviewSourceLocalOffset = sourceLocalOffset;
 }
 
 void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
 {
     _trailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
     _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
+    _sourceHistorySpriteTrailPreviewSourceLocalOffset = kDefaultTrailPreviewSourceLocalOffset;
 }
 
 void EffectEditorInstance::Apply_PostProcessOptions(const EffectEditorPostProcessOptions& options)

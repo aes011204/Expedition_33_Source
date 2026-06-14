@@ -22,6 +22,7 @@ void BuffSystem::Apply_Buff(const BattleChar& target, Buffs buffId, uint32 stack
     if (existing)
     {
         existing->Add_Stack(stack);
+        existing->Refresh_DurationTurn(durationTurn);
         OnBuffApplied.Broadcast(target, buffId);
         return;
     }
@@ -95,33 +96,60 @@ bool BuffSystem::Try_ConsumeMarkOnDamage(const BattleChar& attacker, const Battl
     return true;
 }
 
-void BuffSystem::ProcessTurnStart(Shared<CombatStatCom> statCom)
+void BuffSystem::ProcessTurnStart(const BattleChar& target)
 {
-    UNREFERENCED_PARAMETER(statCom);
+    UNREFERENCED_PARAMETER(target);
 }
 
-void BuffSystem::ProcessTurnEnd(Shared<CombatStatCom> statCom)
+void BuffSystem::ProcessTurnEnd(const BattleChar& target)
 {
-    if (statCom == nullptr)
+    if (target.statCom == nullptr)
         return;
 
-    auto& buffs = statCom->Get_Buff();
+    auto& buffs = target.statCom->Get_Buff();
 
-    for (auto it = buffs.begin(); it != buffs.end();)
+    for (auto& buff : buffs)
     {
-        if (*it == nullptr || (*it)->Is_PendingRemove())
-        {
-            it = buffs.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
+        if (buff != nullptr)
+            buff->Reduce_DurationTurn(); // 지속 턴은 그 캐릭터 턴 종료 시 1 감소한다.
     }
+
+    Remove_PendingBuffs(target);
+}
+
+bool BuffSystem::Has_TurnStartBurn(const BattleChar& target) const
+{
+    return Find_Buff(target, Buffs::Burn) != nullptr;
+}
+
+bool BuffSystem::Try_ConsumeStunOnTurnStart(const BattleChar& target)
+{
+    if (Find_Buff(target, Buffs::Stun) == nullptr)
+        return false;
+
+    Remove_Buff(target, Buffs::Stun);
+    OnBuffConsumed.Broadcast(target, Buffs::Stun, 0.f);
+
+    return true;
+}
+
+float BuffSystem::Resolve_TurnScheduleSpeed(const BattleChar& target) const
+{
+    if (target.statCom == nullptr)
+        return 1.f;
+
+    float speed = target.statCom->Get_Speed();
+
+    if (Has_Buff(target, Buffs::Slow))
+    {
+        speed *= SLOW_SPEED_MULTIPLIER;
+    }
+
+    return max(speed, 1.f);
 }
 
 void BuffSystem::Handle_DamageCalculating(const BattleChar& attacker, const BattleChar& target, float& damage,
-    AttackType attackType)
+                                          AttackType attackType)
 {
     // 일단 AttackType은 빼고
     Try_ConsumeMarkOnDamage(attacker, target, damage);
@@ -159,6 +187,20 @@ void BuffSystem::Remove_PendingBuffs(const BattleChar& target)
         else
             ++it;
     }
+}
+
+void BuffSystem::Apply_BurnTurnStartDamage(const BattleChar& target)
+{
+    auto burn = Find_Buff(target, Buffs::Burn);
+    if (!burn || !target.statCom)
+        return;
+
+    const float maxHp = target.statCom->Get_StatInfo().maxHp;
+    const float damage = maxHp * BURN_MAX_HP_RATE * static_cast<float>(burn->Get_Stack());
+
+    DamageSystem::ApplyDamage(damage, target, AttackType::BuffEffect);
+
+    OnBuffConsumed.Broadcast(target, Buffs::Burn, damage);
 }
 
 Shared<BuffSystem> BuffSystem::Create()

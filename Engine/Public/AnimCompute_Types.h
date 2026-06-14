@@ -66,6 +66,25 @@ struct AnimComputeMeshBoneRef
     Matrix offsetMatrix{};
 };
 
+struct MorphGpuInfluence
+{
+    uint32 targetIndex{};
+    float weightScale{ 1.f };
+    Vec2 pad0{};
+    Vec3 deltaPosition{};
+    float pad1{};
+    Vec3 deltaNormal{};
+    float pad2{};
+};
+
+struct MorphDeformCBData
+{
+    uint32 vertexCount{};
+    uint32 targetCount{};
+    uint32 pad0{};
+    uint32 pad1{};
+};
+
 struct AnimComputeCBData
 {
     uint32 numBones{ 0u };

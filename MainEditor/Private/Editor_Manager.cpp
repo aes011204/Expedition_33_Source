@@ -188,7 +188,7 @@ void Editor_Manager::Render_RuntimeToolbar()
     const bool paused = EDITOR->IsPaused();
 
     constexpr float toolbarHeight = 34.f;
-    constexpr float toolbarControlWidth = 520.f;
+    constexpr float toolbarControlWidth = 640.f;
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
     ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
@@ -354,6 +354,15 @@ void Editor_Manager::Handle_Shortcuts()
         return;
     }
 
+    // Ctrl + - : 배속 1x 복귀
+    if (io.KeyCtrl &&
+        (ImGui::IsKeyPressed(ImGuiKey_Minus, false) ||
+            ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract, false)))
+    {
+        EDITOR->Reset_RuntimeTimeScale();
+        return;
+    }
+
     // Shift +, - :배속 증가, 감소
     constexpr float timeScaleStep = 0.25f;
     if (io.KeyShift &&
@@ -410,6 +419,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
+            DrawShortcutRow("Ctrl -", "배속 1x 복귀");
             DrawShortcutRow("Alt + Enter", "Fullscreen Toggle");
             DrawShortcutRow("Ctrl + Space", "Focus Scene/Game/Profile/Camera Tool");
 
@@ -557,6 +567,25 @@ void Editor_Manager::Render_LauncherButton()
     {
         ImGui::BeginTooltip();
         ImGui::Text("GameLauncher 실행 (%s)", previewLabel);
+        ImGui::EndTooltip();
+    }
+
+    ImGui::SameLine(0.f, 16.f);
+    Render_ReloadDataButton();
+}
+
+void Editor_Manager::Render_ReloadDataButton()
+{
+    if (ImGui::SmallButton("Reload Data"))
+    {
+        if (FAILED(CLIENT->Reload_GameDataTables()))
+            MSG_BOX("Failed to reload game data tables.");
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Json 데이터 재로드");
         ImGui::EndTooltip();
     }
 }

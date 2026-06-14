@@ -15,10 +15,15 @@
 #include "IRuntimeUI_EditorTarget.h"
 #include "MapStaticMesh.h"
 #include "Reflection_Types.h"
+#include "Shadow.h"
 #include "TransformCom.h"
 #include "UI_Base.h"
 #include "UI_RuntimePanelBase.h"
 #include "UI_Transform.h"
+#include "Renderer_Define.h"
+
+#include <iomanip>
+#include <sstream>
 
 const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
 vector<Inspector::FGameObjectClassPickerEntry> Inspector::_gameObjectClassPickerEntries{};
@@ -588,6 +593,23 @@ bool Inspector::Draw_UIFloatRow(const char* label, const string& id, float& valu
     return ImGui::DragFloat(id.c_str(), &value, speed);
 }
 
+#ifdef _DEBUG
+void Inspector::Draw_ShadowDebugRTToggleRow(const wchar_t* targetTag, const char* label)
+{
+    const auto& rtStates = GAME->Get_RTs();
+    const auto iter = rtStates.find(targetTag);
+    if (iter == rtStates.end())
+        return;
+
+    bool isDisplayed = iter->second;
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(InspectorLabelWidth);
+    if (ImGui::Checkbox((string("##") + label).c_str(), &isDisplayed))
+        GAME->Display_RT(targetTag, isDisplayed);
+}
+#endif
+
 void Inspector::Draw_PrimaryShadowLightInspector()
 {
     const LIGHT_DESC* sourceLight = GAME->Get_PrimaryShadowLightDesc();
@@ -762,6 +784,84 @@ void Inspector::Draw_PrimaryShadowLightInspector()
             cascadePresetChanged |= Draw_CascadePresetControls("Normal", "ShadowCascadeNormal", cascadePresets.normal);
             cascadePresetChanged |= Draw_CascadePresetControls("Far", "ShadowCascadeFar", cascadePresets.farRange);
         }
+
+#ifdef _DEBUG
+        ImGui::Separator();
+        ImGui::TextDisabled("Shadow Debug RTV");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug0, "Cascade 0");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug1, "Cascade 1");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug2, "Cascade 2");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug3, "Cascade 3");
+
+        if (const ShadowCascadeDebugInfo* cascadeDebugInfos = GAME->Get_ShadowCascadeDebugInfos())
+        {
+            ImGui::Separator();
+            ImGui::TextDisabled("Shadow Cascade Bounds");
+            ImGui::SameLine();
+            if (ImGui::Button("Copy Cascade Debug"))
+            {
+                std::ostringstream stream;
+                stream << std::fixed << std::setprecision(3);
+                stream << "activeCascadeLevel=" << Get_CascadeLevelLabel(activeCascadeLevel)
+                       << " cascadeCount=" << GAME->Get_ShadowCascadeCount() << '\n';
+
+                const uint32 cascadeCount = GAME->Get_ShadowCascadeCount();
+                for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+                {
+                    const ShadowCascadeDebugInfo& debugInfo = cascadeDebugInfos[cascadeIndex];
+                    stream << "C" << cascadeIndex
+                           << " near/far " << debugInfo.expandedNear
+                           << " / " << debugInfo.expandedFar << '\n';
+                    stream << "    centerWS(" << debugInfo.centerWS.x << ", " << debugInfo.centerWS.y << ", " << debugInfo.centerWS.z
+                           << ") eyeWS(" << debugInfo.eyeWS.x << ", " << debugInfo.eyeWS.y << ", " << debugInfo.eyeWS.z << ")\n";
+                    stream << "    centerLS(" << debugInfo.centerLS.x << ", " << debugInfo.centerLS.y << ", " << debugInfo.centerLS.z
+                           << ") stableRadius(" << debugInfo.stableRadius << ")\n";
+                    stream << "    minLS(" << debugInfo.minLS.x << ", " << debugInfo.minLS.y << ", " << debugInfo.minLS.z
+                           << ") maxLS(" << debugInfo.maxLS.x << ", " << debugInfo.maxLS.y << ", " << debugInfo.maxLS.z << ")\n";
+                    stream << "    influence minLS(" << debugInfo.influenceMinLS.x << ", " << debugInfo.influenceMinLS.y << ", " << debugInfo.influenceMinLS.z
+                           << ") maxLS(" << debugInfo.influenceMaxLS.x << ", " << debugInfo.influenceMaxLS.y << ", " << debugInfo.influenceMaxLS.z << ")\n";
+                }
+
+                ImGui::SetClipboardText(stream.str().c_str());
+            }
+            bool drawCascadeSliceDebug = GAME->Is_ShadowCascadeSliceDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Slice", &drawCascadeSliceDebug))
+                GAME->Set_ShadowCascadeSliceDebugEnabled(drawCascadeSliceDebug);
+            bool drawCascadeProjectionDebug = GAME->Is_ShadowCascadeProjectionDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Projection", &drawCascadeProjectionDebug))
+                GAME->Set_ShadowCascadeProjectionDebugEnabled(drawCascadeProjectionDebug);
+            bool drawCascadeInfluenceDebug = GAME->Is_ShadowCascadeInfluenceDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Influence", &drawCascadeInfluenceDebug))
+                GAME->Set_ShadowCascadeInfluenceDebugEnabled(drawCascadeInfluenceDebug);
+
+            const uint32 cascadeCount = GAME->Get_ShadowCascadeCount();
+            for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+            {
+                const ShadowCascadeDebugInfo& debugInfo = cascadeDebugInfos[cascadeIndex];
+                ImGui::Text(
+                    "C%u near/far %.2f / %.2f",
+                    cascadeIndex,
+                    debugInfo.expandedNear,
+                    debugInfo.expandedFar);
+                ImGui::Text(
+                    "    centerWS(%.2f, %.2f, %.2f) eyeWS(%.2f, %.2f, %.2f)",
+                    debugInfo.centerWS.x, debugInfo.centerWS.y, debugInfo.centerWS.z,
+                    debugInfo.eyeWS.x, debugInfo.eyeWS.y, debugInfo.eyeWS.z);
+                ImGui::Text(
+                    "    centerLS(%.2f, %.2f, %.2f) stableRadius(%.2f)",
+                    debugInfo.centerLS.x, debugInfo.centerLS.y, debugInfo.centerLS.z,
+                    debugInfo.stableRadius);
+                ImGui::Text(
+                    "    minLS(%.2f, %.2f, %.2f) maxLS(%.2f, %.2f, %.2f)",
+                    debugInfo.minLS.x, debugInfo.minLS.y, debugInfo.minLS.z,
+                    debugInfo.maxLS.x, debugInfo.maxLS.y, debugInfo.maxLS.z);
+                ImGui::Text(
+                    "    influence minLS(%.2f, %.2f, %.2f) maxLS(%.2f, %.2f, %.2f)",
+                    debugInfo.influenceMinLS.x, debugInfo.influenceMinLS.y, debugInfo.influenceMinLS.z,
+                    debugInfo.influenceMaxLS.x, debugInfo.influenceMaxLS.y, debugInfo.influenceMaxLS.z);
+            }
+        }
+#endif
     }
 
     if (lightChanged)

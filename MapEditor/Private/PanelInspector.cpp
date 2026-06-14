@@ -6,6 +6,7 @@
 #include "CmdDeleteObject.h"
 #include "MEWaterActor.h"
 
+
 PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }, _camera{ camera }
 {
@@ -178,7 +179,16 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
     }
 
     int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
-    if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
+    const bool forceBoxShape = (obj->_type == EObjectType::PostProcessVolume);
+    if (forceBoxShape)
+    {
+        obj->_zoneShape = EZoneShape::Box;
+        shapeIdx = 0;
+        ImGui::BeginDisabled();
+        ImGui::Combo("Shape", &shapeIdx, _shapes, 1);
+        ImGui::EndDisabled();
+    }
+    else if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
     {
         obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
     }
@@ -216,6 +226,8 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
         {
             string pathStr = String::ToString(obj->_modelPath);
             ImGui::TextDisabled("%s", pathStr.empty() ? "(없음)" : pathStr.c_str());
+            
+            DrawMaterialOverrides(obj);
         }
         break;
 
@@ -249,15 +261,26 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             ImGui::DragFloat("Exposure Min", &obj->_ppExposureMin, 0.01f, -10.f, 10.f);
             ImGui::DragFloat("Exposure Max", &obj->_ppExposureMax, 0.01f, -10.f, 10.f);
             ImGui::DragFloat("Fog Density", &obj->_ppFogDensity, 0.001f, 0.f, 1.f);
-            ImGui::DragFloat("Fog Start", &obj->_ppFogStart, 0.1f, 0.f, 1000.f);
+            ImGui::DragFloat("Base Height", &obj->_ppFogBaseHeight, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Top Fade Start", &obj->_ppFogTopFadeStart, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Top Height", &obj->_ppFogTopHeight, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Edge Fade", &obj->_ppFogEdgeFade, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Noise Scale", &obj->_ppFogNoiseScale, 0.0001f, 0.f, 10.f, "%.4f");
 
-            const char* zoneTypes[] = { "AABB", "Sphere" };
-            ImGui::Combo("Zone Type", &obj->_ppFogZoneType, zoneTypes, 2);
-
-            if (obj->_ppFogZoneType == 1)
+            float noiseSpeed[2] = { obj->_ppFogNoiseSpeed.x, obj->_ppFogNoiseSpeed.y };
+            if (ImGui::DragFloat2("Noise Speed", noiseSpeed, 0.0001f, -10.f, 10.f, "%.4f"))
             {
-                ImGui::DragFloat("Fog Radius", &obj->_ppFogRadius, 0.1f, 0.f, 1000.f);
+                obj->_ppFogNoiseSpeed = { noiseSpeed[0], noiseSpeed[1] };
             }
+
+            ImGui::DragFloat("Noise Strength", &obj->_ppFogNoiseStrength, 0.01f, 0.f, 1.f);
+            ImGui::DragFloat("Noise Min", &obj->_ppFogNoiseMin, 0.01f, 0.f, 1.f);
+            ImGui::SeparatorText("Global Ground Fog");
+            ImGui::DragFloat("Max Distance", &obj->_ppGroundFogMaxDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Min Accum Distance", &obj->_ppGroundFogMinAccumulationDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Distance Influence", &obj->_ppGroundFogDistanceInfluence, 0.01f, 0.f, 1.f);
+            ImGui::DragFloat("Near Fade Distance", &obj->_ppGroundFogNearFadeDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Near Min Factor", &obj->_ppGroundFogNearMinFactor, 0.01f, 0.f, 1.f);
 
             float fogColor[3] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
             if (ImGui::ColorEdit3("Fog Color", fogColor))
@@ -291,19 +314,19 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             if (ImGui::ColorEdit4("Diffuse", diffuse))
             {
-                obj->_lightDiffuse = { diffuse[0],  diffuse[1],  diffuse[2],  diffuse[3] };
+                obj->_lightDiffuse = Vec4{ diffuse[0],  diffuse[1],  diffuse[2],  diffuse[3] };
                 _ctx->_lightDirty = true;
             }
 
             if (ImGui::ColorEdit4("Ambient", ambient))
             {
-                obj->_lightAmbient = { ambient[0],  ambient[1],  ambient[2],  ambient[3] };
+                obj->_lightAmbient = Vec4{ ambient[0],  ambient[1],  ambient[2],  ambient[3] };
                 _ctx->_lightDirty = true;
             }
 
             if (ImGui::ColorEdit4("Specular", specular))
             {
-                obj->_lightSpecular = { specular[0], specular[1], specular[2], specular[3] };
+                obj->_lightSpecular = Vec4{ specular[0], specular[1], specular[2], specular[3] };
                 _ctx->_lightDirty = true;
             }
 
@@ -312,7 +335,7 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 float dir[3] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z };
                 if (ImGui::DragFloat3("Direction", dir, 0.01f, -1.f, 1.f))
                 {
-                    obj->_lightDirection = { dir[0], dir[1], dir[2], 0.f };
+                    obj->_lightDirection = Vec4{ dir[0], dir[1], dir[2], 0.f };
                     _ctx->_lightDirty = true;
                 }
             }
@@ -350,20 +373,111 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 obj->_instancedParamsDirty = true;
             }
 
-            int instanceCount = static_cast<int>(obj->_instancedTransforms.size());
-            ImGui::LabelText("Instance Count", "%d", instanceCount);
+            ImGui::Checkbox("Has Collision", &obj->_instancedHasCollision);
 
-            if (!obj->_instancedTransforms.empty())
+            //int instanceCount = static_cast<int>(obj->_instancedTransforms.size());
+            //ImGui::LabelText("Instance Count", "%d", instanceCount);
+
+            //if (!obj->_instancedTransforms.empty())
+            //{
+            //    const auto& t = obj->_instancedTransforms[0];
+            //    ImGui::TextDisabled("Instance[0] Pos: (%.2f, %.2f, %.2f)", t._position.x, t._position.y, t._position.z);
+
+            //    if (ImGui::Button("Focus Instance[0]"))
+            //    {
+            //        _camera->FocusOn(t._position);
+            //    }
+            //}
+        }
+
+        if (ImGui::CollapsingHeader("Scatter Zone"))
+        {
+            ImGui::DragFloat("Radius", &_pendingZone.radius, 0.5f, 0.5f, 200.f);
+            ImGui::DragFloat("Min Spacing", &_pendingZone.minSpacing, 0.1f, 0.f, 50.f);
+            ImGui::DragInt("Count", &_pendingZone.count, 1, 1, 500);
+            ImGui::DragInt("Seed", &_pendingZone.seed, 1, 0, 99999);
+            ImGui::DragFloat("Scale Min", &_pendingZone.scaleMin, 0.01f, 0.01f, 10.f);
+            ImGui::DragFloat("Scale Max", &_pendingZone.scaleMax, 0.01f, 0.01f, 10.f);
+            ImGui::DragFloat("Y Rot Max", &_pendingZone.yRotMax, 1.f, 0.f, 360.f);
+
+            if (ImGui::Button("Use Cursor as Center"))
             {
-                const auto& t = obj->_instancedTransforms[0];
-                ImGui::TextDisabled("Instance[0] Pos: (%.2f, %.2f, %.2f)", t._position.x, t._position.y, t._position.z);
+                _pendingZone.center = _ctx->_cursorPos;
+            }
+            ImGui::SameLine();
+            ImGui::Text("(%.1f, %.1f, %1.f)", _pendingZone.center.x, _pendingZone.center.y, _pendingZone.center.z);
 
-                if (ImGui::Button("Focus Instance[0]"))
-                {
-                    _camera->FocusOn(t._position);
-                }
+            if (ImGui::Button("Generate"))
+            {
+                _ctx->ScatterAt(obj.get(), _pendingZone);
             }
         }
+
+        if (ImGui::CollapsingHeader("Instances"))
+        {
+            int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
+            ImGui::LabelText("Count", "%d", instSize);
+
+            if (obj->_selectedInstanceIdx >= 0 && obj->_selectedInstanceIdx < instSize)
+            {
+                auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+                ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
+
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Del"))
+                {
+                    obj->_instancedTransforms.erase(
+                        obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);
+                    obj->_instancedParamsDirty = true;
+                    obj->_selectedInstanceIdx = -1;
+                }
+                else
+                {
+                    float pos[3] = { t._position.x, t._position.y, t._position.z };
+                    if (ImGui::DragFloat3("Inst Pos", pos, 0.1f))
+                    {
+                        t._position = Vec3(pos[0], pos[1], pos[2]);
+                        obj->_instancedParamsDirty = true;
+                    }
+
+                    Quat q(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w);
+                    Matrix rotMat = Matrix::CreateFromQuaternion(q);
+                    float pitch = asinf(clamp(-rotMat._32, -1.f, 1.f));
+                    float yaw = {}, roll = {};
+                    if (cosf(pitch) > 1e-6f)
+                    {
+                        yaw = atan2f(rotMat._31, rotMat._33);
+                        roll = atan2f(rotMat._12, rotMat._22);
+                    }
+                    else
+                    {
+                        yaw = atan2f(-rotMat._13, rotMat._11);
+                    }
+                    float euler[3] = { XMConvertToDegrees(pitch), XMConvertToDegrees(yaw), XMConvertToDegrees(roll) };
+                    if (ImGui::DragFloat3("Inst Rot", euler, 0.5f))
+                    {
+                        Quat newQ = Quat::CreateFromYawPitchRoll(
+                            XMConvertToRadians(euler[1]),
+                            XMConvertToRadians(euler[0]),
+                            XMConvertToRadians(euler[2]));
+                        t._rotation = Vec4(newQ.x, newQ.y, newQ.z, newQ.w);
+                        obj->_instancedParamsDirty = true;
+                    }
+
+                    float scl[3] = { t._scale.x, t._scale.y, t._scale.z };
+                    if (ImGui::DragFloat3("Inst Scale", scl, 0.01f))
+                    {
+                        t._scale = Vec3(scl[0], scl[1], scl[2]);
+                        obj->_instancedParamsDirty = true;
+                    }
+                }
+            }
+            else
+            {
+                ImGui::TextDisabled("(Click instance mesh from viewport)");
+            }
+        }
+
         break;
 
     case EObjectType::Terrain:
@@ -497,4 +611,68 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 Shared<PanelInspector> PanelInspector::Create(SceneContext* ctx, MECamera* camera)
 {
     return make_shared<PanelInspector>(ctx, camera);
+}
+
+void PanelInspector::DrawMaterialOverrides(Shared<EditorObject>& obj)
+{
+    if (obj->_type != EObjectType::StaticMesh && obj->_type != EObjectType::InstancedMesh)
+    {
+        return;
+    }
+
+    string pathStr = String::ToString((obj->_type == EObjectType::StaticMesh) ? obj->_modelPath : obj->_instancedModelPath);
+    if (pathStr.empty())
+    {
+        return;
+    }
+
+    string filename = fs::path(pathStr).filename().string();
+
+    ImGui::Separator();
+    ImGui::Text("Material Overrides");
+    
+    auto it = _ctx->_modelOverrides.find(filename);
+    bool hasOverride = (it != _ctx->_modelOverrides.end() && it->second.hasMaterialCB);
+    
+    if (ImGui::Checkbox("Enable Custom Material", &hasOverride))
+    {
+        _ctx->_modelOverrides[filename].hasMaterialCB = hasOverride;
+        _ctx->_dirtyPassOverrides = true;
+    }
+    
+    if (hasOverride)
+    {
+        auto& cb = _ctx->_modelOverrides[filename].materialCB;
+        bool matChanged = false;
+        
+        float baseColor[4] = { cb.baseColorTint.x, cb.baseColorTint.y, cb.baseColorTint.z, cb.baseColorTint.w };
+        if (ImGui::ColorEdit4("Base Tint", baseColor))
+        {
+            cb.baseColorTint = Vec4(baseColor[0], baseColor[1], baseColor[2], baseColor[3]);
+            matChanged = true;
+        }
+        
+        float emissiveColor[4] = { cb.emissiveColor.x, cb.emissiveColor.y, cb.emissiveColor.z, cb.emissiveColor.w };
+        if (ImGui::ColorEdit4("Emissive Color", emissiveColor))
+        {
+            cb.emissiveColor = Vec4(emissiveColor[0], emissiveColor[1], emissiveColor[2], emissiveColor[3]);
+            matChanged = true;
+        }
+        
+        if (ImGui::DragFloat("Emissive Intensity", &cb.emissiveIntensity, 0.1f, 0.f, 100.f)) matChanged = true;
+        if (ImGui::DragFloat("Roughness Scale", &cb.roughnessScale, 0.05f, 0.f, 5.f)) matChanged = true;
+        if (ImGui::DragFloat("Metallic Scale", &cb.metalnessScale, 0.05f, 0.f, 5.f)) matChanged = true;
+        
+        if (matChanged)
+        {
+            _ctx->_dirtyPassOverrides = true;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button("Export to .material.json", ImVec2(-1, 0)))
+        {
+            const wstring& exportPath = (obj->_type == EObjectType::InstancedMesh) ? obj->_instancedModelPath : obj->_modelPath;
+            _ctx->_modelOverrides[filename].ExportToNativeMaterial(String::ToString(exportPath), String::ToString(_ctx->_mapName));
+        }
+    }
 }

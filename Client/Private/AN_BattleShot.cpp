@@ -7,6 +7,29 @@
 #include "BattleController.h"
 #include "PlayableParts.h"
 
+namespace
+{
+bool Is_BattleRosterModel(const BattleController& battle, const ModelCom* model)
+{
+    if (model == nullptr)
+        return false;
+
+    for (const BattleChar& hero : battle.Get_BattleHeroes())
+    {
+        if (hero.ModelCom.get() == model)
+            return true;
+    }
+
+    for (const BattleChar& enemy : battle.Get_BattleEnemies())
+    {
+        if (enemy.ModelCom.get() == model)
+            return true;
+    }
+
+    return false;
+}
+}
+
 IMPLEMENT_REFLECTION(AN_BattleShot)
 {
     auto& info = GetStaticReflectionInfo();
@@ -24,38 +47,36 @@ IMPLEMENT_REFLECTION(AN_BattleShot)
 
 void AN_BattleShot::Execute(const AnimNotifyContext& context)
 {
+    if (context.isPreview)
+        return;
+
     auto owner = context.owner;
 
-    if(owner == nullptr)
+    if (owner == nullptr || context.model == nullptr)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-    
-    //LOG_DEBUG("Notify owner = {}",
-    //    context.owner ? String::ToString(context.owner->Get_Owner()->Get_Name()).c_str() : "null");
-    //
-    //LOG_DEBUG("Current turn actor = {}",
-    //    battle && battle->Get_TurnAction()._curChar.actor
-    //        ? String::ToString(battle->Get_TurnAction()._curChar.actor->Get_Name()).c_str()
-    //        : "null");
+    if (battle == nullptr || !battle->Is_BattleStarted())
+        return;
 
-    if(_cameraMode == BattleCameraMode::WIDE)
-    {
-      int a = 10;
-    }
+    if (!Is_BattleRosterModel(*battle, context.model))
+        return;
 
     auto character = dynamic_pointer_cast<Character>(owner->GetSharedPtr<PlayableParts>()->Get_Owner());
 
-    if(character == nullptr)
+    if (character == nullptr)
         return;
 
-    EvtBattlePresentation event {};
-        event.cameraMode = _cameraMode;
+    EvtBattlePresentation event{};
+    event.cameraMode = _cameraMode;
 
-    if(_cameraMode == BattleCameraMode::PARRY && battle && battle->Is_GroupParryActive())
+    if (_cameraMode == BattleCameraMode::PARRY &&
+        battle != nullptr &&
+        battle->Get_ReactionController().Is_GroupParryActive())
     {
-         return;
+        return; // 단체 패링 중에는 ReactionController 상태를 보고 중복 Parry 막기
     }
+
     event.subject = character;
 
     if (battle)
@@ -72,13 +93,13 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         {
             const auto& targets = steps[curStepIndex].targets;
             const size_t centerIndex = targets.size() / 2;
-            event.opponent =targets[centerIndex].actor;
+            event.opponent = targets[centerIndex].actor;
         }
 
         if (action.GetCurAnimIndex() < action.GetSkillData().AnimPhases.size())
         {
             const Client::BattleActionPhase& phase = action.GetSkillData().AnimPhases[action.GetCurAnimIndex()];
-             event.presetId = !_presetId.empty()? _presetId: phase.cameraPresetId;
+            event.presetId = !_presetId.empty() ? _presetId : phase.cameraPresetId;
             event.clipId = !_clipId.empty() ? _clipId : phase.cameraClipId;
         }
 
@@ -86,5 +107,17 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     event.useClip = _useClip;
     event.restartClip = _restartClip;
     event.keepCurrentClip = _keepCurrentClip;
+
+    const string modeName = string(magic_enum::enum_name(_cameraMode));
+    LOG_INFO(
+        "[BattleCamTrace] AN_BattleShot animation={} timeSec={:.3f} mode={} prefab={} useClip={} presetId={} clipId={}",
+        context.animationName.c_str(),
+        context.currentTimeSec,
+        modeName.c_str(),
+        character->Get_SourcePrefabName().c_str(),
+        _useClip,
+        event.presetId.c_str(),
+        event.clipId.c_str());
+
     GAME->Get_EventBus().Publish(event);
 }

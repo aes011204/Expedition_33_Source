@@ -37,6 +37,7 @@ private:
     void    Draw_NodeObject(const Shared<GameObject>& gameObject, uint32 objectIndex);
     // Get_Name은 클래스 이름만 가져와져서 Label 세팅해서 보여주기
     string  Build_HierarchyLabel(const Shared<GameObject>& gameObject , uint32 objectIndex) const;
+    string  Build_PartHierarchyLabel(const wstring& partTag, uint32 partIndex) const;
 
 private:
     map<wstring, vector<Shared<GameObject>>> _groupedObjects = {};

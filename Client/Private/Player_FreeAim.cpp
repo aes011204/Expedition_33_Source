@@ -11,6 +11,7 @@
 #include "Player_WorldBase.h"
 #include "TargetCamera.h"
 #include "ClientInstance.h"
+#include "EyeTarget.h"
 
 namespace
 {
@@ -69,8 +70,8 @@ bool Player_FreeAim::EnterInvoke()
     if (_offsetModifier)
         _offsetModifier->Set_Active(true);
 
-    _hasHitMonster = false;
-    _hitMonster.reset();
+    _hasHitObject = false;
+    _hitObject.reset();
     Clear_PendingFreeAimShot(); // 이전 발사 잔여 상태를 들고 들어오지 않도록 초기화한다.
 
     auto owner = _owner.lock();
@@ -98,8 +99,8 @@ void Player_FreeAim::Update(float timeDelta)
 {
     if (false == IsEnterFreeAim())
     {
-        _hasHitMonster = false;
-        _hitMonster.reset();
+        _hasHitObject = false;
+        _hitObject.reset();
         Clear_PendingFreeAimShot();
 
         if (IsEnterMove())
@@ -162,8 +163,8 @@ void Player_FreeAim::LateUpdate(float timeDelta)
 
 void Player_FreeAim::ExitInvoke()
 {
-    _hasHitMonster = false;
-    _hitMonster.reset();
+    _hasHitObject = false;
+    _hitObject.reset();
     Clear_PendingFreeAimShot();
 
     if (_offsetModifier)
@@ -182,22 +183,22 @@ void Player_FreeAim::Update_FreeAimHitState()
 {
     FreeAimHitInfo hitInfo{};
 
-    Shared<Monster_WorldBase> hitMonster = Find_FreeAimHitMonster(&hitInfo);
+    Shared<GameObject> hitMonster = Find_FreeAimHitTarget(&hitInfo);
 
-    _hasHitMonster = (hitMonster != nullptr);
-    _hitMonster = hitMonster;
+    _hasHitObject = (hitMonster != nullptr);
+    _hitObject = hitMonster;
 
-    _currentHitInfo = _hasHitMonster ? hitInfo : FreeAimHitInfo{};
+    _currentHitInfo = _hasHitObject ? hitInfo : FreeAimHitInfo{};
 }
 
 void Player_FreeAim::Cache_PendingFreeAimShot()
 {
     FreeAimHitInfo hitInfo{};
-    Shared<Monster_WorldBase> hitMonster = Find_FreeAimHitMonster(&hitInfo);
+    Shared<GameObject> hitMonster = Find_FreeAimHitTarget(&hitInfo);
 
     _hasPendingShotHit = (hitMonster != nullptr);
     _hasConsumedPendingShotHit = false;
-    _pendingShotMonster = hitMonster;
+    _pendingShotObject = hitMonster;
     _pendingShotHitInfo = _hasPendingShotHit ? hitInfo : FreeAimHitInfo{};
 }
 
@@ -205,7 +206,7 @@ void Player_FreeAim::Clear_PendingFreeAimShot()
 {
     _hasPendingShotHit = false;
     _hasConsumedPendingShotHit = false;
-    _pendingShotMonster.reset();
+    _pendingShotObject.reset();
     _pendingShotHitInfo = FreeAimHitInfo{};
 }
 
@@ -222,16 +223,24 @@ void Player_FreeAim::Trigger_PendingFreeAimShotHit()
     if (!_hasPendingShotHit)
         return; // 발사 시작 시점에 맞춘 대상이 없었으면 히트 없이 지나간다.
 
-    Shared<Monster_WorldBase> hitMonster = _pendingShotMonster.lock();
-    if (!hitMonster)
+    Shared<GameObject> hitObject = _pendingShotObject.lock();
+
+    if (!hitObject)
         return;
 
     _currentHitInfo = _pendingShotHitInfo; // 히트 이펙트는 발사 시점에 캡처한 위치/노멀을 사용한다.
 
-    LOG_DEBUG("World FreeAim Shoot Hit Monster: {}", String::ToString(hitMonster->Get_Name()).c_str());
-
     Play_FreeAimHitEffect();
-    hitMonster->Apply_Stun(3.f);
+
+    if(Shared<Monster_WorldBase> hitMonster = dynamic_pointer_cast<Monster_WorldBase>(hitObject))
+    {
+        hitMonster->Apply_Stun(3.f);
+        LOG_DEBUG("World FreeAim Shoot Hit Monster: {}", String::ToString(hitMonster->Get_Name()).c_str());
+    }
+    else if(Shared<EyeTarget> eyeTarget = dynamic_pointer_cast<EyeTarget>(hitObject))
+    {
+       eyeTarget->Try_Consume_EyeTargetHit();
+    }
 
     CLIENT->Notify_FreeAimShotHit();
 }
@@ -309,7 +318,7 @@ void Player_FreeAim::Update_EnterTurnBurst()
     }
 }
 
-Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster(FreeAimHitInfo* outHitInfo) const
+Shared<GameObject> Player_FreeAim::Find_FreeAimHitTarget(FreeAimHitInfo* outHitInfo) const
 {
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
     if (activeCamera == nullptr)
@@ -336,40 +345,40 @@ Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster(FreeAimHitInfo*
         Collision_Preset::Camera,
         envHit);
 
-    PhysXQueryHit monsterHit{};
-    const bool hasMonsterHit = GAME->Sweep_Sphere(
+    PhysXQueryHit objectHit{};
+    const bool hasObjectHit = GAME->Sweep_Sphere(
         queryOrigin,
         direction,
         FREE_AIM_TRACE_DISTANCE,
         FREE_AIM_MONSTER_SWEEP_RADIUS,
         Collision_Preset::Player_Target,
-        monsterHit);
+        objectHit);
 
-    if (!hasMonsterHit || monsterHit.collider == nullptr)
+    if (!hasObjectHit || objectHit.collider == nullptr)
         return nullptr;
 
-    const Shared<GameObject> hitOwner = monsterHit.collider->Get_Owner();
+    const Shared<GameObject> hitOwner = objectHit.collider->Get_Owner();
     if (!hitOwner)
         return nullptr;
 
-    if (hasEnvBlock && envHit.distance < monsterHit.distance)
+    if (hasEnvBlock && envHit.distance < objectHit.distance)
         return nullptr;
 
-    Shared<Monster_WorldBase> hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner);
-    if (!hitMonsterShared && hitOwner->Get_Owner())
-        hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner->Get_Owner());
+    Shared<GameObject> hitObjectShared = dynamic_pointer_cast<GameObject>(hitOwner);
+    if (!hitObjectShared && hitOwner->Get_Owner())
+        hitObjectShared = dynamic_pointer_cast<GameObject>(hitOwner->Get_Owner());
 
-    if (!hitMonsterShared)
+    if (!hitObjectShared)
         return nullptr;
 
     if (outHitInfo != nullptr)
     {
-        outHitInfo->monster = hitMonsterShared;
-        outHitInfo->hitPosition = monsterHit.position;
-        outHitInfo->hitNormal = monsterHit.normal;
+        outHitInfo->object = hitObjectShared;
+        outHitInfo->hitPosition = objectHit.position;
+        outHitInfo->hitNormal = objectHit.normal;
     }
 
-    return hitMonsterShared;
+    return hitObjectShared;
 }
 
 void Player_FreeAim::Play_FreeAimHitEffect() const
