@@ -304,6 +304,25 @@ namespace UIEditor
                 _editorManager.Set_UIObjectMaskTextureMode(object.id, static_cast<UI_MaskTextureMode>(currentMaskTextureMode));
         }
 
+        ImGui::Separator();
+        ImGui::TextUnformatted("Fill Reveal");
+
+        bool nextUseFillRatio = object.useFillRatio;
+        if (ImGui::Checkbox("Use Fill Ratio", &nextUseFillRatio))
+            _editorManager.Set_UIObjectUseFillRatio(object.id, nextUseFillRatio);
+
+        ImGui::BeginDisabled(!nextUseFillRatio);
+        float nextFillRatio = object.fillRatio;
+        if (ImGui::SliderFloat("Fill Ratio", &nextFillRatio, kFillRatioMin, kFillRatioMax, "%.3f"))
+            _editorManager.Set_UIObjectFillRatio(object.id, nextFillRatio);
+
+        const char* fillOriginItems[] = { "Left To Right", "Right To Left", "Top To Bottom", "Bottom To Top" };
+        int32 currentFillOrigin = static_cast<int32>(object.fillOrigin);
+        currentFillOrigin = min(max(currentFillOrigin, 0), static_cast<int32>(size(fillOriginItems)) - 1);
+        if (ImGui::Combo("Fill Origin", &currentFillOrigin, fillOriginItems, static_cast<int32>(size(fillOriginItems))))
+            _editorManager.Set_UIObjectFillOrigin(object.id, static_cast<UI_FillOrigin>(currentFillOrigin));
+        ImGui::EndDisabled();
+
         if (effectiveRenderMode == UI_ImageRenderMode::PatternOverlay)
         {
             ImGui::Separator();

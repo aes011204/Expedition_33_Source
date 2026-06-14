@@ -1,6 +1,7 @@
 #pragma once
 
 #include "UI_Editor_Defines.h"
+#include "UI_Editor_Struct.h"
 
 namespace Engine
 {
@@ -20,6 +21,9 @@ namespace UIEditor
         string patternMaskTexturePath = "";
         ImVec2 patternUvOffset = ImVec2(0.f, 0.f);
         ImVec2 patternUvScale = ImVec2(1.f, 1.f);
+        bool useFillRatio = false;
+        float fillRatio = 1.f;
+        UI_FillOrigin fillOrigin = UI_FillOrigin::LeftToRight;
     };
 
     class UI_Editor_PreviewService final
@@ -41,6 +45,11 @@ namespace UIEditor
             const string& maskTextureGuid,
             const string& maskTexturePath,
             UI_MaskTextureMode maskTextureMode);
+        ID3D11ShaderResourceView* Get_FillRatioPreviewSRV(
+            const string& textureGuid,
+            const string& texturePath,
+            float fillRatio,
+            UI_FillOrigin fillOrigin);
         ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
             const PatternOverlayPreviewDesc& previewDesc);
 
@@ -91,6 +100,9 @@ namespace UIEditor
             uint32 passIndex,
             const ImVec2& patternUvOffset,
             const ImVec2& patternUvScale,
+            bool useFillRatio,
+            float fillRatio,
+            UI_FillOrigin fillOrigin,
             unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
             unordered_set<string>& failedKeys);
 
@@ -104,6 +116,8 @@ namespace UIEditor
         unordered_set<string> _texturePreviewFailedKeys = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};
         unordered_set<string> _maskedTexturePreviewFailedKeys = {};
+        unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _fillRatioPreviewCache = {};
+        unordered_set<string> _fillRatioPreviewFailedKeys = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _patternOverlayPreviewCache = {};
         unordered_set<string> _patternOverlayPreviewFailedKeys = {};
         Shared<ShaderCom> _imagePreviewShader = nullptr;

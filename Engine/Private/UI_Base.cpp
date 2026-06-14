@@ -186,11 +186,34 @@ void UI_Base::Update(float TimeDelta)
 
     if (sample.hasAlphaMultiplier)
         Set_AlphaMultiplier(sample.alphaMultiplier);
+
+    if (sample.hasPatternUvOffset)
+        Set_PatternUvOffset(sample.patternUvOffset);
+
+    if (sample.hasPatternUvScale)
+        Set_PatternUvScale(sample.patternUvScale);
+
+    if (sample.hasFillRatio)
+        Set_FillRatio(sample.fillRatio);
 }
 
 HRESULT UI_Base::Render()
 {
     return S_OK;
+}
+
+void UI_Base::Notify_EffectiveOpenState(bool isEffectivelyOpen)
+{
+    if (_lastEffectiveOpen == isEffectivelyOpen)
+        return;
+
+    _lastEffectiveOpen = isEffectivelyOpen;
+    On_EffectiveOpenChanged(isEffectivelyOpen);
+}
+
+void UI_Base::On_EffectiveOpenChanged(bool isEffectivelyOpen)
+{
+    UNREFERENCED_PARAMETER(isEffectivelyOpen);
 }
 
 bool UI_Base::Play_UIAnimation(const wstring& animationName, bool restart)
@@ -477,6 +500,18 @@ void UI_Base::Set_Color(const Vec4&)
 Vec4 UI_Base::Get_Color() const
 {
     return Vec4(1.f, 1.f, 1.f, 1.f);
+}
+
+void UI_Base::Set_PatternUvOffset(const Vec2&)
+{
+}
+
+void UI_Base::Set_PatternUvScale(const Vec2&)
+{
+}
+
+void UI_Base::Set_FillRatio(float)
+{
 }
 
 void UI_Base::Set_AlphaMultiplier(float alphaMultiplier)

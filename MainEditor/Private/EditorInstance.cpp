@@ -419,6 +419,21 @@ bool EditorInstance::Selected_UIPositionDrivenByCode() const
     return _editorContext->Get_Selection().selectedUIPositionDrivenByCode;
 }
 
+Client::IRuntimeWorldUI_EditorTarget* EditorInstance::Selected_RuntimeWorldUI() const
+{
+    return _editorContext->Get_Selection().selectedRuntimeWorldUITarget;
+}
+
+string EditorInstance::Selected_RuntimeWorldUIGroup() const
+{
+    return _editorContext->Get_Selection().selectedRuntimeWorldUIGroup;
+}
+
+string EditorInstance::Selected_RuntimeWorldUIDisplayName() const
+{
+    return _editorContext->Get_Selection().selectedRuntimeWorldUIDisplayName;
+}
+
 void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
 {
     return _editorContext->Set_SelectObject(gameObject);
@@ -433,6 +448,14 @@ void EditorInstance::Select_UI(
     return _editorContext->Set_SelectUI(ui, groupName, displayName, positionDrivenByCode);
 }
 
+void EditorInstance::Select_RuntimeWorldUI(
+    Client::IRuntimeWorldUI_EditorTarget* target,
+    const string& groupName,
+    const string& displayName)
+{
+    return _editorContext->Set_SelectRuntimeWorldUI(target, groupName, displayName);
+}
+
 void EditorInstance::Clear_SelectedObject()
 {
     return _editorContext->Clear_SelectedObject();
@@ -441,6 +464,11 @@ void EditorInstance::Clear_SelectedObject()
 void EditorInstance::Clear_SelectedUI()
 {
     return _editorContext->Clear_SelectedUI();
+}
+
+void EditorInstance::Clear_SelectedRuntimeWorldUI()
+{
+    return _editorContext->Clear_SelectedRuntimeWorldUI();
 }
 
 uint32 EditorInstance::Selection_Revision() const

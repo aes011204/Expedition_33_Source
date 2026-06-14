@@ -59,6 +59,9 @@ enum class UI_KeyframeAnimationTrackType
     AlphaMultiplier,
     FontSize,
     Size,
+    PatternUvOffset,
+    PatternUvScale,
+    FillRatio,
 };
 
 enum class UI_KeyframeAnimationValueMode
@@ -134,12 +137,18 @@ struct UI_AnimationSample
     bool hasColorTrack = false;
     bool hasFadeTrack = false;
     bool hasAlphaMultiplier = false;
+    bool hasPatternUvOffset = false;
+    bool hasPatternUvScale = false;
+    bool hasFillRatio = false;
     Vec2 position{ 0.f, 0.f };
     Vec2 size{ 100.f, 100.f };
     Vec2 scale{ 1.f, 1.f };
     float rotationRadians = 0.f;
     Vec4 color{ 1.f, 1.f, 1.f, 1.f };
     float alphaMultiplier = 1.f;
+    Vec2 patternUvOffset{ 0.f, 0.f };
+    Vec2 patternUvScale{ 1.f, 1.f };
+    float fillRatio = 1.f;
 };
 
 class ENGINE_DLL UI_AnimationPlayer final
@@ -277,6 +286,24 @@ inline bool Try_ParseUIKeyframeAnimationTrackType(const string& typeName, UI_Key
     if (typeName == "Size")
     {
         outType = UI_KeyframeAnimationTrackType::Size;
+        return true;
+    }
+
+    if (typeName == "PatternUvOffset")
+    {
+        outType = UI_KeyframeAnimationTrackType::PatternUvOffset;
+        return true;
+    }
+
+    if (typeName == "PatternUvScale")
+    {
+        outType = UI_KeyframeAnimationTrackType::PatternUvScale;
+        return true;
+    }
+
+    if (typeName == "FillRatio")
+    {
+        outType = UI_KeyframeAnimationTrackType::FillRatio;
         return true;
     }
 

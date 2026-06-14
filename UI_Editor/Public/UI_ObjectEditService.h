@@ -49,6 +49,21 @@ namespace UIEditor
         bool Set_ObjectPatternUvScale(UI_Document& document, ObjectId objectId, const ImVec2& patternUvScale) const;
         bool Can_SetObjectPatternUv(const UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale) const;
         bool Set_ObjectPatternUv(UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale) const;
+        bool Can_SetObjectUseFillRatio(const UI_Document& document, ObjectId objectId, bool useFillRatio) const;
+        bool Set_ObjectUseFillRatio(UI_Document& document, ObjectId objectId, bool useFillRatio) const;
+        bool Can_SetObjectFillRatio(const UI_Document& document, ObjectId objectId, float fillRatio) const;
+        bool Set_ObjectFillRatio(UI_Document& document, ObjectId objectId, float fillRatio) const;
+        bool Can_SetObjectFillOrigin(const UI_Document& document, ObjectId objectId, UI_FillOrigin fillOrigin) const;
+        bool Set_ObjectFillOrigin(UI_Document& document, ObjectId objectId, UI_FillOrigin fillOrigin) const;
+
+        bool Can_SetObjectVfxPath(const UI_Document& document, ObjectId objectId, const string& vfxPath) const;
+        bool Set_ObjectVfxPath(UI_Document& document, ObjectId objectId, const string& vfxPath) const;
+        bool Can_SetObjectVfxPlayOnOpen(const UI_Document& document, ObjectId objectId, bool playOnOpen) const;
+        bool Set_ObjectVfxPlayOnOpen(UI_Document& document, ObjectId objectId, bool playOnOpen) const;
+        bool Can_SetObjectVfxLoop(const UI_Document& document, ObjectId objectId, bool loop) const;
+        bool Set_ObjectVfxLoop(UI_Document& document, ObjectId objectId, bool loop) const;
+        bool Can_SetObjectVfxStopOnClose(const UI_Document& document, ObjectId objectId, bool stopOnClose) const;
+        bool Set_ObjectVfxStopOnClose(UI_Document& document, ObjectId objectId, bool stopOnClose) const;
 
         bool Can_SetObjectText(const UI_Document& document, ObjectId objectId, const string& text) const;
         bool Set_ObjectText(UI_Document& document, ObjectId objectId, const string& text) const;

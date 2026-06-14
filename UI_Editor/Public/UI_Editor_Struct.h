@@ -13,6 +13,8 @@ inline constexpr float kPatternUvOffsetMin = -1.f;
 inline constexpr float kPatternUvOffsetMax = 1.f;
 inline constexpr float kPatternUvScaleMin = 0.1f;
 inline constexpr float kPatternUvScaleMax = 8.f;
+inline constexpr float kFillRatioMin = 0.f;
+inline constexpr float kFillRatioMax = 1.f;
 
 inline ImVec2 Get_DefaultPatternUvOffset()
 {
@@ -22,6 +24,16 @@ inline ImVec2 Get_DefaultPatternUvOffset()
 inline ImVec2 Get_DefaultPatternUvScale()
 {
     return ImVec2(1.f, 1.f);
+}
+
+inline float Get_DefaultFillRatio()
+{
+    return 1.f;
+}
+
+inline UI_FillOrigin Get_DefaultFillOrigin()
+{
+    return UI_FillOrigin::LeftToRight;
 }
 
 inline ImVec2 Clamp_PatternUvOffset(const ImVec2& value)
@@ -36,6 +48,11 @@ inline ImVec2 Clamp_PatternUvScale(const ImVec2& value)
     return ImVec2(
         min(max(value.x, kPatternUvScaleMin), kPatternUvScaleMax),
         min(max(value.y, kPatternUvScaleMin), kPatternUvScaleMax));
+}
+
+inline float Clamp_FillRatio(float value)
+{
+    return min(max(value, kFillRatioMin), kFillRatioMax);
 }
 
 struct UI_EDITOR_DESC
@@ -84,6 +101,13 @@ struct UI_Object
     string patternMaskTexturePath = "";
     ImVec2 patternUvOffset = Get_DefaultPatternUvOffset();
     ImVec2 patternUvScale = Get_DefaultPatternUvScale();
+    bool useFillRatio = false;
+    float fillRatio = Get_DefaultFillRatio();
+    UI_FillOrigin fillOrigin = Get_DefaultFillOrigin();
+    string vfxPath = "";
+    bool vfxPlayOnOpen = true;
+    bool vfxLoop = false;
+    bool vfxStopOnClose = true;
     string stateAnimationPath = "";
     vector<UI_AnimationClip> animationClips = {};
 };

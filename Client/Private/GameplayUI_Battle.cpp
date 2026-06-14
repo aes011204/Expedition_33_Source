@@ -3,6 +3,9 @@
 #include "BuffSystem.h"
 #include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
+#include "BattleWorldUI_CommandCards.h"
+#include "BattleWorldUI_ItemCards.h"
+#include "BattleWorldUI_SkillCards.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
 #include "ClientScreenFxManager.h"
@@ -88,6 +91,21 @@ namespace
         Append_RuntimePanelEntry(outEntries, name, panel);
     }
 
+    void Append_RuntimeWorldPlacementEntry(
+        vector<RuntimeUIEntry>& outEntries,
+        const char* name,
+        IRuntimeWorldUI_EditorTarget* target)
+    {
+        if (target == nullptr)
+            return;
+
+        RuntimeUIEntry entry{};
+        entry.category = "Battle";
+        entry.name = name;
+        entry.kind = RuntimeUIEntryKind::WorldPlacement;
+        entry.worldPlacementTarget = target;
+        outEntries.emplace_back(entry);
+    }
     wstring Resolve_BattleVictoryPlayerName(PlayerCharacterType playerType)
     {
         switch (playerType)
@@ -168,6 +186,9 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 
     Bind_BattleDelegates();
 
+    if (FAILED(Ensure_BattleWorldItemCards()))
+        LOG_WARN("BattleWorldUI item cards editor target preload failed.");
+
     return S_OK;
 }
 
@@ -247,6 +268,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "TurnOrder", _turnOrder.get());
     Append_RuntimePanelEntry(entries, "BattleMechanism", _battleMechanism.get());
     Append_RuntimePanelEntry(entries, "BattleItemPanel", _battleItemPanel.get());
+    Append_RuntimeWorldPlacementEntry(entries, "BattleWorldItemCards", _battleWorldItemCards.get());
     Append_RuntimePanelEntry(entries, "BattleSkillPanel", _battleSkillPanel.get());
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
     Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
@@ -1145,6 +1167,8 @@ void GameplayUI_Battle::Handle_BattleAnnounceFinished()
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 {
+    Hide_BattleWorldCommandCards();
+
     if (_battleCommandHUD == nullptr)
         return;
 
@@ -1163,12 +1187,6 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     const BattleTurnState currentState = battleController->Get_CurrentTurnState();
 
-    if (currentState != BattleTurnState::ChooseAction)
-    {
-        _battleCommandHUD->Close(); // 공격 중에는 커맨드 HUD 숨기기
-        return;
-    }
-
     if (!_hasCurrentPlayerTurnActor || _currentPlayerTurnActor.statCom == nullptr)
     {
         _battleCommandHUD->Close();
@@ -1182,19 +1200,54 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
         return;
     }
 
-    _battleCommandHUD->Open();
-    _battleCommandHUD->Set_TargetWorldPosition(worldPos);
+    if (currentState == BattleTurnState::ChooseAction)
+    {
+        _battleCommandHUD->Open();
+        _battleCommandHUD->Set_TargetWorldPosition(worldPos);
 
-    // 현재 턴 영웅을 HUD에 넘겨 Hero별 오프셋 세팅이 되게
-    _battleCommandHUD->Set_CurrentHeroId(_currentPlayerTurnActor.heroId);
+        // 현재 턴 영웅을 HUD에 넘겨 Hero별 오프셋 세팅이 되게
+        _battleCommandHUD->Set_CurrentHeroId(_currentPlayerTurnActor.heroId);
 
-    _battleCommandHUD->Set_CurrentPlayerAP(
-        _currentPlayerTurnActor.statCom->Get_CurAP(),
-        _currentPlayerTurnActor.statCom->Get_MaxAP());
+        _battleCommandHUD->Set_CurrentPlayerAP(
+            _currentPlayerTurnActor.statCom->Get_CurAP(),
+            _currentPlayerTurnActor.statCom->Get_MaxAP());
 
-    _battleCommandHUD->Refresh_ForState(currentState);
+        _battleCommandHUD->Refresh_ForState(currentState);
 
-    _battleCommandHUD->Update(timeDelta);
+        _battleCommandHUD->Update(timeDelta);
+    }
+    else
+    {
+        _battleCommandHUD->Close();
+    }
+
+    Update_BattleWorldCommandCards(worldPos, currentState);
+}
+
+HRESULT GameplayUI_Battle::Ensure_BattleWorldCommandCards()
+{
+    if (_battleWorldCommandCards != nullptr)
+        return S_OK;
+
+    _battleWorldCommandCards = BattleWorldUI_CommandCards::Create(GAME->Get_Device(), GAME->Get_Context());
+    CHECK_NULL(_battleWorldCommandCards, E_FAIL);
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Hide_BattleWorldCommandCards()
+{
+    if (_battleWorldCommandCards)
+        _battleWorldCommandCards->Hide();
+}
+
+void GameplayUI_Battle::Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState)
+{
+    if (FAILED(Ensure_BattleWorldCommandCards()))
+        return;
+
+    _battleWorldCommandCards->Show_ForBattleState(commandHudWorldPos, currentState);
+    _battleWorldCommandCards->Late_Update(0.f);
 }
 
 void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
@@ -1604,7 +1657,11 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
         return;
     }
 
-    if (battleController->Get_CurrentTurnState() != BattleTurnState::ChooseAction)
+    const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+
+    if (turnState != BattleTurnState::ChooseAction &&
+        turnState != BattleTurnState::ChooseItem &&
+        turnState != BattleTurnState::ChooseSkill)
     {
         _escapeSkipTurn->Close();
         _escapeSkipTurn->Update(timeDelta);
@@ -1771,6 +1828,8 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
+    Hide_BattleWorldItemCards();
+
     if (_battleItemPanel == nullptr)
         return;
 
@@ -1788,16 +1847,18 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
     if (healing && energy && revive)
         _battleItemPanel->Refresh_ItemTexts(*healing, *energy, *revive);
 
-    auto turnState = battleController->Get_CurrentTurnState();
+    const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+    const ActionRequest& turnRequest = battleController->Get_TurnActionRequest();
 
     switch (turnState)
     {
     case BattleTurnState::ChooseItem:
-        _battleItemPanel->Open_MainPanel();
+        _battleItemPanel->Close();
+        Update_BattleWorldItemCards(turnRequest.actor, turnRequest.itemType, turnState);
         break;
 
     case BattleTurnState::ItemTargeting:
-        _battleItemPanel->Open_Tooltip(battleController->Get_TurnActionRequest().itemType);
+        _battleItemPanel->Open_Tooltip(turnRequest.itemType);
         break;
 
     default:
@@ -1808,6 +1869,8 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
 
 void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
 {
+    Hide_BattleWorldSkillCards();
+
     if (_battleSkillPanel == nullptr)
         return;
 
@@ -1835,6 +1898,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         {
             _battleSkillPanel->Open_MainPanel(turnRequest.actor.statCom->Get_PlayerType());
             _battleSkillPanel->Update(timeDelta);
+            Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey);
         }
         else
         {
@@ -1845,6 +1909,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
     case BattleTurnState::SkillTargeting:
         _battleSkillPanel->Open_Tooltip(turnRequest.skillKey);
         _battleSkillPanel->Update(timeDelta);
+        Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey);
         break;
 
     default:
@@ -1852,6 +1917,78 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         _battleSkillPanel->Update(timeDelta);
         break;
     }
+}
+
+HRESULT GameplayUI_Battle::Ensure_BattleWorldItemCards()
+{
+    if (_battleWorldItemCards != nullptr)
+        return S_OK;
+
+    _battleWorldItemCards = BattleWorldUI_ItemCards::Create(GAME->Get_Device(), GAME->Get_Context());
+    CHECK_NULL(_battleWorldItemCards, E_FAIL);
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Hide_BattleWorldItemCards()
+{
+    if (_battleWorldItemCards)
+        _battleWorldItemCards->Hide();
+}
+
+void GameplayUI_Battle::Update_BattleWorldItemCards(
+    const BattleChar& actor,
+    BattleItemType selectedItemType,
+    BattleTurnState currentState)
+{
+    if (actor.statCom == nullptr)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetBattleCommandHudWorldPos(actor, worldPos))
+        return;
+
+    if (FAILED(Ensure_BattleWorldItemCards()))
+        return;
+
+    _battleWorldItemCards->Show_ForBattleState(worldPos, currentState, selectedItemType, actor.heroId);
+    _battleWorldItemCards->Late_Update(0.f);
+}
+
+HRESULT GameplayUI_Battle::Ensure_BattleWorldSkillCards()
+{
+    if (_battleWorldSkillCards != nullptr)
+        return S_OK;
+
+    _battleWorldSkillCards = BattleWorldUI_SkillCards::Create(GAME->Get_Device(), GAME->Get_Context());
+    CHECK_NULL(_battleWorldSkillCards, E_FAIL);
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Hide_BattleWorldSkillCards()
+{
+    if (_battleWorldSkillCards)
+        _battleWorldSkillCards->Hide();
+}
+
+void GameplayUI_Battle::Update_BattleWorldSkillCards(
+    BattleTurnState currentState,
+    const BattleChar& actor,
+    const string& selectedSkillKey)
+{
+    if (actor.statCom == nullptr)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetBattleCommandHudWorldPos(actor, worldPos))
+        return;
+
+    if (FAILED(Ensure_BattleWorldSkillCards()))
+        return;
+
+    _battleWorldSkillCards->Show_ForBattleState(worldPos, currentState, actor, selectedSkillKey);
+    _battleWorldSkillCards->Late_Update(0.f);
 }
 
 void GameplayUI_Battle::Update_BattleAnnounce(float timeDelta)
@@ -2113,6 +2250,10 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _hasPendingBattleSystemIntroActivation = false;
     _pendingBattleSystemIntroActivationHeroId = HeroId::END;
 
+    Hide_BattleWorldCommandCards();
+    Hide_BattleWorldItemCards();
+    Hide_BattleWorldSkillCards();
+
     if (_turnOrder)
         _turnOrder->Set_AnimationPlaybackEnabled(false);
 
@@ -2207,6 +2348,24 @@ Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)
 void GameplayUI_Battle::Free()
 {
     Unbind_BattleDelegates(); // BattleController가 살아있는 동안 dangling handle이 남지 않게 먼저 정리한다.
+
+    if (_battleWorldCommandCards)
+    {
+        _battleWorldCommandCards->Free();
+        _battleWorldCommandCards.reset();
+    }
+
+    if (_battleWorldItemCards)
+    {
+        _battleWorldItemCards->Free();
+        _battleWorldItemCards.reset();
+    }
+
+    if (_battleWorldSkillCards)
+    {
+        _battleWorldSkillCards->Free();
+        _battleWorldSkillCards.reset();
+    }
 
     auto Release_UI = [](auto& ui)
         {

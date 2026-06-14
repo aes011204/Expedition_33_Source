@@ -11,6 +11,7 @@ namespace UIEditor
             "Keyframe Animation",
             "State Animation",
             "Sequence Preview",
+            "UI Effect",
         };
     }
 
@@ -60,6 +61,10 @@ namespace UIEditor
             else if (_editorMode == UI_AnimationEditorMode::SequencePreview)
             {
                 Render_SequencePreviewEditor();
+            }
+            else if (_editorMode == UI_AnimationEditorMode::UIEffect)
+            {
+                Render_UIEffectEditor();
             }
             else
             {
@@ -235,6 +240,96 @@ namespace UIEditor
         _sequenceService.Select_Clip(clickResult.clipIndex);
         _sequenceService.Set_CurrentFrame(clickResult.frame);
         Request_SequenceStaticPreviewRefresh();
+    }
+
+    void UI_Animation_View::Render_UIEffectEditor()
+    {
+        const UI_Object* selectedObject = _editorManager.Get_SelectedObject();
+        const bool hasSelectedImage = nullptr != selectedObject && selectedObject->type == UI_ObjectType::Image;
+
+        if (!hasSelectedImage)
+        {
+            ImGui::TextDisabled("Select an Image UI object.");
+            ImGui::Separator();
+            Render_KeyframeAnimationEditor();
+            return;
+        }
+
+        const ObjectId selectedObjectId = selectedObject->id;
+        const bool isLocked = _editorManager.Is_ObjectEffectivelyLocked(selectedObjectId);
+        const bool isPatternOverlay = selectedObject->imageRenderMode == UI_ImageRenderMode::PatternOverlay;
+
+        if (selectedObject->imageRenderMode == UI_ImageRenderMode::Normal)
+        {
+            if (ImGui::Button("Create Brush Overlay"))
+                _editorManager.Create_PatternOverlayFromImage(selectedObjectId);
+        }
+        else
+        {
+            ImGui::BeginDisabled(true);
+            ImGui::Button("Create Brush Overlay");
+            ImGui::EndDisabled();
+        }
+
+        selectedObject = _editorManager.Get_SelectedObject();
+        if (nullptr == selectedObject || selectedObject->id != selectedObjectId || selectedObject->type != UI_ObjectType::Image)
+        {
+            ImGui::Separator();
+            Render_KeyframeAnimationEditor();
+            return;
+        }
+
+        ImGui::Separator();
+        ImGui::BeginDisabled(isLocked);
+        _editorManager.Begin_EditTransaction();
+
+        ImVec4 nextColor = selectedObject->color;
+        if (ImGui::ColorEdit4("Color", &nextColor.x))
+            _editorManager.Set_UIObjectColor(selectedObjectId, nextColor);
+
+        float nextAlphaMultiplier = selectedObject->alphaMultiplier;
+        if (ImGui::SliderFloat("Alpha Multiplier", &nextAlphaMultiplier, 0.f, 1.f, "%.3f"))
+            _editorManager.Set_UIObjectAlphaMultiplier(selectedObjectId, nextAlphaMultiplier);
+
+        bool nextUseFillRatio = selectedObject->useFillRatio;
+        if (ImGui::Checkbox("Use Fill Ratio", &nextUseFillRatio))
+            _editorManager.Set_UIObjectUseFillRatio(selectedObjectId, nextUseFillRatio);
+
+        ImGui::BeginDisabled(!nextUseFillRatio);
+        float nextFillRatio = selectedObject->fillRatio;
+        if (ImGui::SliderFloat("Fill Ratio", &nextFillRatio, kFillRatioMin, kFillRatioMax, "%.3f"))
+            _editorManager.Set_UIObjectFillRatio(selectedObjectId, nextFillRatio);
+
+        const char* fillOriginItems[] = { "Left To Right", "Right To Left", "Top To Bottom", "Bottom To Top" };
+        int32 currentFillOrigin = static_cast<int32>(selectedObject->fillOrigin);
+        currentFillOrigin = min(max(currentFillOrigin, 0), static_cast<int32>(size(fillOriginItems)) - 1);
+        if (ImGui::Combo("Fill Origin", &currentFillOrigin, fillOriginItems, static_cast<int32>(size(fillOriginItems))))
+            _editorManager.Set_UIObjectFillOrigin(selectedObjectId, static_cast<UI_FillOrigin>(currentFillOrigin));
+        ImGui::EndDisabled();
+
+        if (isPatternOverlay)
+        {
+            ImGui::Separator();
+            ImGui::TextUnformatted("Pattern UV");
+
+            ImVec2 nextPatternUvOffset = selectedObject->patternUvOffset;
+            if (ImGui::DragFloat2("Pattern UV Offset", &nextPatternUvOffset.x, 0.01f, kPatternUvOffsetMin, kPatternUvOffsetMax, "%.3f"))
+                _editorManager.Set_UIObjectPatternUvOffset(selectedObjectId, nextPatternUvOffset);
+
+            ImVec2 nextPatternUvScale = selectedObject->patternUvScale;
+            if (ImGui::DragFloat2("Pattern UV Scale", &nextPatternUvScale.x, 0.01f, kPatternUvScaleMin, kPatternUvScaleMax, "%.3f"))
+                _editorManager.Set_UIObjectPatternUvScale(selectedObjectId, nextPatternUvScale);
+
+            if (ImGui::Button("Reset Pattern UV"))
+                _editorManager.Set_UIObjectPatternUv(selectedObjectId, Get_DefaultPatternUvOffset(), Get_DefaultPatternUvScale());
+        }
+
+        if (!ImGui::IsAnyItemActive())
+            _editorManager.Commit_EditTransactionIfChanged();
+        ImGui::EndDisabled();
+
+        ImGui::Separator();
+        Render_KeyframeAnimationEditor();
     }
 
     Shared<UI_Animation_View> UI_Animation_View::Create(UI_Editor_Manager& editorManager)

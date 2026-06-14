@@ -6,7 +6,9 @@
 #include "UI_Button.h"
 #include "UI_Image.h"
 #include "UI_Panel.h"
+#include "UI_SpriteVfx.h"
 #include "UI_Text.h"
+#include "UI_Vfx.h"
 
 namespace
 {
@@ -19,6 +21,7 @@ namespace
         Text,
         Panel,
         Button,
+        UIVfx,
         Unknown,
     };
 
@@ -69,6 +72,14 @@ namespace
         string patternMaskTexturePath{};
         Vec2 patternUvOffset{ 0.f, 0.f };
         Vec2 patternUvScale{ 1.f, 1.f };
+        bool useFillRatio = false;
+        float fillRatio = 1.f;
+        UI_Image::FillOrigin fillOrigin = UI_Image::FillOrigin::LeftToRight;
+
+        string vfxPath{};
+        bool vfxPlayOnOpen = true;
+        bool vfxLoop = false;
+        bool vfxStopOnClose = true;
 
         vector<UI_AnimationClip> animationClips{};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets{};
@@ -289,6 +300,8 @@ namespace
             return RuntimeUIType::Panel;
         if ("Button" == typeName)
             return RuntimeUIType::Button;
+        if ("UIVfx" == typeName || "UIVFX" == typeName || "UI_Vfx" == typeName)
+            return RuntimeUIType::UIVfx;
 
         return RuntimeUIType::Unknown;
     }
@@ -321,6 +334,20 @@ namespace
             return UI_Image::MaskTextureMode::BlackWhite;
 
         return UI_Image::MaskTextureMode::Alpha;
+    }
+
+    UI_Image::FillOrigin Parse_FillOrigin(const string& fillOriginName)
+    {
+        const string fillOrigin = String::ToLowerCopy(fillOriginName);
+
+        if ("righttoleft" == fillOrigin || "right_to_left" == fillOrigin || "right to left" == fillOrigin)
+            return UI_Image::FillOrigin::RightToLeft;
+        if ("toptobottom" == fillOrigin || "top_to_bottom" == fillOrigin || "top to bottom" == fillOrigin)
+            return UI_Image::FillOrigin::TopToBottom;
+        if ("bottomtotop" == fillOrigin || "bottom_to_top" == fillOrigin || "bottom to top" == fillOrigin)
+            return UI_Image::FillOrigin::BottomToTop;
+
+        return UI_Image::FillOrigin::LeftToRight;
     }
 
     bool Can_RuntimeTypeHaveChildren(RuntimeUIType type)
@@ -495,6 +522,12 @@ namespace
                 key.value = min(max(key.value, 0.f), 1.f);
             else if (track.type == UI_KeyframeAnimationTrackType::FontSize)
                 key.value = max(4.f, key.value);
+            else if (track.type == UI_KeyframeAnimationTrackType::FillRatio)
+                key.value = min(max(key.value, 0.f), 1.f);
+            else if (track.type == UI_KeyframeAnimationTrackType::PatternUvOffset)
+                key.valueVec2 = UI_Image::Clamp_PatternUvOffset(key.valueVec2);
+            else if (track.type == UI_KeyframeAnimationTrackType::PatternUvScale)
+                key.valueVec2 = UI_Image::Clamp_PatternUvScale(key.valueVec2);
         }
 
         stable_sort(
@@ -532,9 +565,14 @@ namespace
         {
             key.color = Read_Color255(item, "color", Vec4(255.f, 255.f, 255.f, 255.f));
         }
-        else if (trackType == UI_KeyframeAnimationTrackType::Size)
+        else if (trackType == UI_KeyframeAnimationTrackType::Size ||
+            trackType == UI_KeyframeAnimationTrackType::PatternUvOffset ||
+            trackType == UI_KeyframeAnimationTrackType::PatternUvScale)
         {
-            key.valueVec2 = Read_Vec2(item, "value", Vec2(0.f, 0.f));
+            const Vec2 defaultValue = trackType == UI_KeyframeAnimationTrackType::PatternUvScale
+                ? Vec2(1.f, 1.f)
+                : Vec2(0.f, 0.f);
+            key.valueVec2 = Read_Vec2(item, "value", defaultValue);
         }
         else
         {
@@ -1219,6 +1257,13 @@ namespace
         object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
         object.patternUvOffset = UI_Image::Clamp_PatternUvOffset(Read_Vec2(item, "patternUvOffset", UI_Image::Get_DefaultPatternUvOffset()));
         object.patternUvScale = UI_Image::Clamp_PatternUvScale(Read_Vec2(item, "patternUvScale", UI_Image::Get_DefaultPatternUvScale()));
+        object.useFillRatio = Read_Bool(item, "useFillRatio", false);
+        object.fillRatio = min(max(Read_Float(item, "fillRatio", 1.f), 0.f), 1.f);
+        object.fillOrigin = Parse_FillOrigin(Read_String(item, "fillOrigin", "LeftToRight"));
+        object.vfxPath = Read_String(item, "vfxPath", "");
+        object.vfxPlayOnOpen = Read_Bool(item, "playOnOpen", true);
+        object.vfxLoop = Read_Bool(item, "loop", false);
+        object.vfxStopOnClose = Read_Bool(item, "stopOnClose", true);
         object.animationClips = Read_AnimationClips(item);
         object.stateAnimationPath = Read_String(item, "stateAnimationPath", "");
 
@@ -1460,6 +1505,9 @@ namespace
         desc.maskTextureMode = object.maskTextureMode;
         desc.patternUvOffset = object.patternUvOffset;
         desc.patternUvScale = object.patternUvScale;
+        desc.useFillRatio = object.useFillRatio;
+        desc.fillRatio = object.fillRatio;
+        desc.fillOrigin = object.fillOrigin;
 
         const wstring maskTexturePath = Resolve_JsonAssetPath(object.maskTextureGuid, object.maskTexturePath);
         if (!maskTexturePath.empty() && fs::exists(maskTexturePath))
@@ -1639,6 +1687,61 @@ namespace
         return S_OK;
     }
 
+    HRESULT Spawn_UIVfx(
+        uint32 levelIndex,
+        const wstring& prototypeTagPrefix,
+        const RuntimeUIObject& object,
+        Shared<UI_Base>* outUI)
+    {
+        const wstring vfxPath = Resolve_RuntimeResourcePath(object.vfxPath);
+        if (vfxPath.empty() || !fs::exists(vfxPath))
+        {
+            LOG_WARN("UI RuntimeLoader UIVfx skipped: missing vfx asset. id={}, path={}", object.id, object.vfxPath);
+            return S_OK;
+        }
+
+        UISpriteVfxAsset asset{};
+        if (!UISpriteVfxSerializer::Load_FromFile(vfxPath, asset))
+        {
+            LOG_WARN("UI RuntimeLoader UIVfx skipped: failed to load vfx asset. id={}, path={}", object.id, String::ToString(vfxPath));
+            return S_OK;
+        }
+
+        UI_Vfx::UI_VFX_DESC desc{};
+        desc.asset = asset;
+        desc.assetPath = object.vfxPath;
+        desc.playOnOpen = object.vfxPlayOnOpen;
+        desc.loop = object.vfxLoop;
+        desc.stopOnClose = object.vfxStopOnClose;
+        desc.alphaMultiplier = object.alphaMultiplier;
+        desc.transformDesc.position = object.position;
+        desc.transformDesc.size = object.size;
+        desc.transformDesc.scale = object.scale;
+        desc.transformDesc.pivot = object.pivot;
+        desc.transformDesc.anchorMin = object.anchorMin;
+        desc.transformDesc.anchorMax = object.anchorMax;
+        desc.transformDesc.rotationRadians = object.rotationRadians;
+        desc.sortOrder = object.sortOrder;
+        desc.isOpenOnCreate = object.visible;
+        desc.animationClips = object.animationClips;
+        desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
+        desc.renderGroup = object.renderGroup;
+
+        const wstring prototypeTag =
+            prototypeTagPrefix + L"_UIVfx_" + to_wstring(object.id);
+
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Vfx::Create())))
+                return E_FAIL;
+        }
+
+        if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
+            return E_FAIL;
+
+        return S_OK;
+    }
+
     HRESULT Spawn_Object(
         uint32 levelIndex,
         const wstring& prototypeTagPrefix,
@@ -1662,6 +1765,9 @@ namespace
 
         case RuntimeUIType::Button:
             return Spawn_Button(levelIndex, prototypeTagPrefix, object, outUI);
+
+        case RuntimeUIType::UIVfx:
+            return Spawn_UIVfx(levelIndex, prototypeTagPrefix, object, outUI);
 
         case RuntimeUIType::Unknown:
         default:
