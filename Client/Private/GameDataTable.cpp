@@ -6,36 +6,36 @@
 
 namespace
 {
-bool ReadBoolFlexible(const json& item, const char* key, bool defaultValue)
-{
-    if (!item.contains(key) || item[key].is_null())
-        return defaultValue;
-
-    const json& value = item[key];
-
-    if (value.is_boolean())
-        return value.get<bool>();
-
-    if (value.is_number_integer())
-        return value.get<int>() != 0;
-
-    if (value.is_string())
+    bool ReadBoolFlexible(const json& item, const char* key, bool defaultValue)
     {
-        string text = value.get<string>();
+        if (!item.contains(key) || item[key].is_null())
+            return defaultValue;
 
-        for (char& c : text)
-            c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        const json& value = item[key];
 
-        if (text == "true" || text == "1")
-            return true;
+        if (value.is_boolean())
+            return value.get<bool>();
 
-        if (text == "false" || text == "0")
-            return false;
+        if (value.is_number_integer())
+            return value.get<int>() != 0;
+
+        if (value.is_string())
+        {
+            string text = value.get<string>();
+
+            for (char& c : text)
+                c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+            if (text == "true" || text == "1")
+                return true;
+
+            if (text == "false" || text == "0")
+                return false;
+        }
+
+        LOG_WARN("[GameDataTable] invalid bool field: key={}, valueType={}", key, value.type_name());
+        return defaultValue;
     }
-
-    LOG_WARN("[GameDataTable] invalid bool field: key={}, valueType={}", key, value.type_name());
-    return defaultValue;
-}
 }
 
 HRESULT GameDataTable::Initialize()
@@ -58,7 +58,7 @@ HRESULT GameDataTable::Load_All()
 
     CHECK_FAILED(Load_SkillData(jsonRootPath), E_FAIL);
     CHECK_FAILED(Load_SkillPhaseData(jsonRootPath), E_FAIL);
-    
+
     // CHECK_FAILED(Load_SkillActionData(jsonRootPath), E_FAIL);
 
     CHECK_FAILED(Load_SkillTreeData(jsonRootPath), E_FAIL);
@@ -158,14 +158,14 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
     {
         ifstream file(tablePath);
 
-        if(!file.is_open())
+        if (!file.is_open())
         {
             LOG_ERROR("[GameDataTable] failed to open skill table : {}", String::ToString(tablePath.wstring()));
             return E_FAIL;
         }
 
         file >> root;
-        
+
     }
     catch (const std::exception& e)
     {
@@ -173,13 +173,13 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         return E_FAIL;
     }
 
-    if(!root.contains("DT_Skill") || !root["DT_Skill"].is_array())
+    if (!root.contains("DT_Skill") || !root["DT_Skill"].is_array())
     {
-        LOG_ERROR("[GameDataTable] DT_Skill array not found: {}",String::ToString(tablePath.wstring()));
+        LOG_ERROR("[GameDataTable] DT_Skill array not found: {}", String::ToString(tablePath.wstring()));
         return E_FAIL;
     }
 
-    for(const json& item : root["DT_Skill"])
+    for (const json& item : root["DT_Skill"])
     {
         const string skillId = item.value("skillKey", "");
 
@@ -193,7 +193,7 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         skill.scriptClassName = item.value("scriptClassName", "");
         skill.apCost = item.value("ap cost", 0);
         skill.battleAnnounceActionText =
-                String::ToWString(item.value("battleAnnounceActionText", ""));
+            String::ToWString(item.value("battleAnnounceActionText", ""));
         //skill.AttackCount = item.value("AttackCount", 0);
        /* skill.targetingType =
             magic_enum::enum_cast<ECharacterTeamSelector>(item.value("targetingType", ""))
@@ -208,15 +208,15 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         // skill.IdleAnimationKey = item.value("IdleAnimationKey", "");
 
         skill.buffDurationTurn = item.value("BuffTurn", 0);
-       
+
         skill.targetingType = ParseTargetTypes(item.value("targetingType", ""));
 
         const size_t index = _skillDefs.size();
         _skillDefs.push_back(skill);
         _skillIndexById[skillId] = index;
     }
-  
-    LOG_INFO("[GameDataTable] loaded skill table: count = {}", _skillDefs.size() > 0? _skillDefs.size() - 1 : 0);
+
+    LOG_INFO("[GameDataTable] loaded skill table: count = {}", _skillDefs.size() > 0 ? _skillDefs.size() - 1 : 0);
     return S_OK;
 }
 
@@ -444,111 +444,111 @@ HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
 
 HRESULT GameDataTable::Load_SkillActionData(const wstring& jsonRootPath)
 {
-   /* const fs::path tablePath = fs::path(jsonRootPath) / L"DT_SkillAction.json";
+    /* const fs::path tablePath = fs::path(jsonRootPath) / L"DT_SkillAction.json";
 
-    json root = {};
+     json root = {};
 
-    try
-    {
-        ifstream file(tablePath);
+     try
+     {
+         ifstream file(tablePath);
 
-        if(!file.is_open())
-        {
-            LOG_ERROR("[GameDataTable] failed to open skill action table: {}", String::ToString(tablePath.wstring()));
-            return E_FAIL;
-        }
+         if(!file.is_open())
+         {
+             LOG_ERROR("[GameDataTable] failed to open skill action table: {}", String::ToString(tablePath.wstring()));
+             return E_FAIL;
+         }
 
-        file >>root;
-    }
-    catch (const std::exception& e)
-    {
-        LOG_ERROR("[GameDataTable] failed to parse skill action table : {} ({})", String::ToString(tablePath.wstring()), e.what());
-        return E_FAIL;
-    }
-    
-    if (!root.contains("DT_SkillAction") || !root["DT_SkillAction"].is_array())
-    {
-        LOG_ERROR("[GameDataTable] DT_SkillAction array not found: {}", String::ToString(tablePath.wstring()));
-        return E_FAIL;
-    }
+         file >>root;
+     }
+     catch (const std::exception& e)
+     {
+         LOG_ERROR("[GameDataTable] failed to parse skill action table : {} ({})", String::ToString(tablePath.wstring()), e.what());
+         return E_FAIL;
+     }
 
- for (const json& item : root["DT_SkillAction"])
-    {
-        const string skillId = item.value("skill id", "");
-        const string actionType = item.value("action type", "");
+     if (!root.contains("DT_SkillAction") || !root["DT_SkillAction"].is_array())
+     {
+         LOG_ERROR("[GameDataTable] DT_SkillAction array not found: {}", String::ToString(tablePath.wstring()));
+         return E_FAIL;
+     }
 
-        auto iter = _skillData.find(skillId);
-        if (iter == _skillData.end())
-        {
-            LOG_WARN("Unknown SkillId in DT_SkillAction : {}", skillId);
-            continue;
-        }
+  for (const json& item : root["DT_SkillAction"])
+     {
+         const string skillId = item.value("skill id", "");
+         const string actionType = item.value("action type", "");
 
-        SkillAction action{};
+         auto iter = _skillData.find(skillId);
+         if (iter == _skillData.end())
+         {
+             LOG_WARN("Unknown SkillId in DT_SkillAction : {}", skillId);
+             continue;
+         }
 
-        if (actionType == "DamageAction")
-        {
-            DamageAction payload{};
-            payload.hitCount = item.value("hit count", 1);
-            payload.bonusChargeOnCritical = item.value("bonus charge on critical", 0);
+         SkillAction action{};
 
-            const string damageType = item.value("damage type", "PHYSICAL");
-            if (damageType == "lightning")
-                payload.damageType = DamageType::LIGHTNING;
-            else
-                payload.damageType = DamageType::PHYSICAL;
+         if (actionType == "DamageAction")
+         {
+             DamageAction payload{};
+             payload.hitCount = item.value("hit count", 1);
+             payload.bonusChargeOnCritical = item.value("bonus charge on critical", 0);
 
-            const string damageLevel = item.value("damage level", "NORMAL");
-            if (damageLevel == "low") payload.damageLevel = DamageLevel::LOW;
-            else if (damageLevel == "high") payload.damageLevel = DamageLevel::HIGH;
-            else if (damageLevel == "extreme") payload.damageLevel = DamageLevel::EXTREME;
-            else payload.damageLevel = DamageLevel::NORMAL;
+             const string damageType = item.value("damage type", "PHYSICAL");
+             if (damageType == "lightning")
+                 payload.damageType = DamageType::LIGHTNING;
+             else
+                 payload.damageType = DamageType::PHYSICAL;
 
-            action.skillActionPayLoad = payload;
-        }
-        else if (actionType == "HealAction")
-        {
-            HealAction payload{};
-            payload.healPercent = item.value("heal percent", 0);
-            action.skillActionPayLoad = payload;
-        }
-        else if (actionType == "GainChargeAction")
-        {
-            GainChargeAction payload{};
-            payload.min = item.value("charge gain min", 0);
-            payload.max = item.value("charge gain max", 0);
-            action.skillActionPayLoad = payload;
-        }
-        else if (actionType == "ShatterAction")
-        {
-            ShatterAction payload{};
-            payload.fullChargeOnShatter = item.value("full charge on shatter", 0) != 0;
-            action.skillActionPayLoad = payload;
-        }
-        else if (actionType == "ApplyMarkAction")
-        {
-            action.skillActionPayLoad = ApplyMarkAction{};
-        }
-        else if (actionType == "ClearStatusAction")
-        {
-            action.skillActionPayLoad = ClearStatusAction{};
-        }
-        else if (actionType == "BuffAction")
-        {
-            BuffAction payload {};
+             const string damageLevel = item.value("damage level", "NORMAL");
+             if (damageLevel == "low") payload.damageLevel = DamageLevel::LOW;
+             else if (damageLevel == "high") payload.damageLevel = DamageLevel::HIGH;
+             else if (damageLevel == "extreme") payload.damageLevel = DamageLevel::EXTREME;
+             else payload.damageLevel = DamageLevel::NORMAL;
 
-            payload.durationTurn = item.value("duration turn", 0);
-            action.skillActionPayLoad = payload;
-        }
-        else
-        {
-            LOG_WARN("Unknown action type in DT_SkillAction : {}", actionType);
-            continue;
-        }
+             action.skillActionPayLoad = payload;
+         }
+         else if (actionType == "HealAction")
+         {
+             HealAction payload{};
+             payload.healPercent = item.value("heal percent", 0);
+             action.skillActionPayLoad = payload;
+         }
+         else if (actionType == "GainChargeAction")
+         {
+             GainChargeAction payload{};
+             payload.min = item.value("charge gain min", 0);
+             payload.max = item.value("charge gain max", 0);
+             action.skillActionPayLoad = payload;
+         }
+         else if (actionType == "ShatterAction")
+         {
+             ShatterAction payload{};
+             payload.fullChargeOnShatter = item.value("full charge on shatter", 0) != 0;
+             action.skillActionPayLoad = payload;
+         }
+         else if (actionType == "ApplyMarkAction")
+         {
+             action.skillActionPayLoad = ApplyMarkAction{};
+         }
+         else if (actionType == "ClearStatusAction")
+         {
+             action.skillActionPayLoad = ClearStatusAction{};
+         }
+         else if (actionType == "BuffAction")
+         {
+             BuffAction payload {};
 
-        iter->second.skillActions.push_back(move(action));
-    }*/
-return S_OK;
+             payload.durationTurn = item.value("duration turn", 0);
+             action.skillActionPayLoad = payload;
+         }
+         else
+         {
+             LOG_WARN("Unknown action type in DT_SkillAction : {}", actionType);
+             continue;
+         }
+
+         iter->second.skillActions.push_back(move(action));
+     }*/
+    return S_OK;
 }
 
 HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)
@@ -571,32 +571,40 @@ HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)
     catch (const std::exception& e)
     {
         LOG_ERROR("[GameDataTable] failed to parse skill tree table: {} ({})",
-          String::ToString(tablePath.wstring()), e.what());
+            String::ToString(tablePath.wstring()), e.what());
         return E_FAIL;
     }
 
-    if(!root.contains("DT_SkillTree") || !root["DT_SkillTree"].is_array())
+    if (!root.contains("DT_SkillTree") || !root["DT_SkillTree"].is_array())
     {
         LOG_ERROR("[GameDataTable] DT_SkillTree array not found: {}", String::ToString(tablePath.wstring()));
         return E_FAIL;
     }
 
-    for(const json& item : root["DT_SkillTree"])
+
+    for (const json& item : root["DT_SkillTree"])
     {
         const string skillId = item.value("skill id", "");
 
-        if(skillId == "")
+        if (skillId == "")
             continue;
 
-       // _skillTreeData[skillId].requiredSkillId = item.value("required skill id", "");
-       //
-       // if(_skillTreeData[skillId].requiredSkillId == "")
-       //     continue;
-       //
-        _skillTreeData[skillId].unlockCost = item.value("unlock cost", 0);
+        // _skillTreeData[skillId].requiredSkillId = item.value("required skill id", "");
+        //
+        // if(_skillTreeData[skillId].requiredSkillId == "")
+        //     continue;
+        //
+
+        SkillTreeDesc desc{};
+        desc.unlockCost = item.value("unlock cost", 0u);
+        desc.portraitTextureName = item.value("portrait", "");
+        desc.descUiName = item.value("desc ui", "");
+        desc.skillName = String::ToWString(item.value("skill name", ""));
+
+        _skillTreeData[skillId] = move(desc);
     }
 
-    LOG_INFO("[GameDataTable] loaded skill tree table: count = {}", _skillTreeData.size() > 0? _skillTreeData.size() -1 : 0);
+    LOG_INFO("[GameDataTable] loaded skill tree table: count = {}", _skillTreeData.size() > 0 ? _skillTreeData.size() - 1 : 0);
     return S_OK;
 }
 
@@ -620,32 +628,32 @@ HRESULT GameDataTable::Load_SkillTreeRequirementData(const wstring& jsonRootPath
     catch (const std::exception& e)
     {
         LOG_ERROR("[GameDataTable] failed to parse  skill tree requirement table: {} ({})",
-          String::ToString(tablePath.wstring()), e.what());
+            String::ToString(tablePath.wstring()), e.what());
         return E_FAIL;
     }
 
-    if(!root.contains("DT_SkillTreeRequirement") || !root["DT_SkillTreeRequirement"].is_array())
+    if (!root.contains("DT_SkillTreeRequirement") || !root["DT_SkillTreeRequirement"].is_array())
     {
         LOG_ERROR("[GameDataTable] DT_SkillTreeRequirement array not found: {}", String::ToString(tablePath.wstring()));
         return E_FAIL;
     }
 
-    for(const json& item : root["DT_SkillTreeRequirement"])
+    for (const json& item : root["DT_SkillTreeRequirement"])
     {
         const string skillId = item.value("skill id", "");
 
-        if(skillId == "")
+        if (skillId == "")
             continue;
 
         const string requiredSkill = item.value("required skill id", "");
 
-        if(requiredSkill == "")
+        if (requiredSkill == "")
             continue;
 
         _requirementSkills[skillId].push_back(requiredSkill);
     }
 
-    LOG_INFO("[GameDataTable] loaded skill tree requirement table: count = {}", _requirementSkills.size() > 0? _requirementSkills.size() -1 : 0);
+    LOG_INFO("[GameDataTable] loaded skill tree requirement table: count = {}", _requirementSkills.size() > 0 ? _requirementSkills.size() - 1 : 0);
     return S_OK;
 
 }
@@ -717,7 +725,7 @@ wstring GameDataTable::Get_DefaultJsonRootPath() const
         return {};
 
     return (fs::path(assetRoot) / L"Data" / L"json").wstring();
-}       
+}
 
 uint32 GameDataTable::Get_FallbackNextExp(uint32 level) const
 {
@@ -731,7 +739,7 @@ GameDataTable::SkillTreeDesc* GameDataTable::Get_SkillTreeDesc(const string& ski
 {
     auto iter = _skillTreeData.find(skillName);
 
-    if(iter == _skillTreeData.end())
+    if (iter == _skillTreeData.end())
         return nullptr;
 
     return &iter->second;
@@ -772,9 +780,9 @@ vector<string> GameDataTable::Get_AllSkillIds() const
 
     skillIds.reserve(_skillDefs.size());
 
-    for(const Skill_Data& skill : _skillDefs)
+    for (const Skill_Data& skill : _skillDefs)
     {
-        if(!skill.skillKey.empty())
+        if (!skill.skillKey.empty())
             skillIds.push_back(skill.skillKey);
     }
 

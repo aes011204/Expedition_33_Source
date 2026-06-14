@@ -92,8 +92,12 @@ public:
 
     struct SkillTreeDesc
     {
-       // string      requiredSkillId; //해금시 필요한 선행 스킬
-        uint32      unlockCost; //해금시 필요한 스킬 포인트
+        // string      requiredSkillId; //해금시 필요한 선행 스킬
+        uint32 unlockCost; //해금시 필요한 스킬 포인트
+        string  portraitTextureName{};   // 스킬 텍스처
+        string  descUiName{};            // desc ui
+        wstring skillName{};             // 스킬트리/툴팁 표시명
+
     };
 
     struct WeaponDesc

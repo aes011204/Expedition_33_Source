@@ -256,7 +256,10 @@ namespace Client::Constants::Prefab
     inline constexpr wchar_t Player_Dir[] = L"Data/json/Prefabs/Player";
     inline constexpr wchar_t Monster_Dir[] = L"Data/json/Prefabs/Monster";
     inline constexpr wchar_t Weapon_Dir[] = L"Data/json/Prefabs/Weapons";
+
     inline constexpr wchar_t BattleStartSpawner_Dir[] = L"Data/json/Prefabs/BattleStartSpawner";
+
+    inline constexpr wchar_t VictorialFlag_Dir[] = L"Data/json/Prefabs/ETC/VictoriaFlag";
 
 #pragma region 플레이어
     inline constexpr char PW_Gustave[]  = "PW_Gustave";

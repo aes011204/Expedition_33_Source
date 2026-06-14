@@ -344,6 +344,8 @@ public: /* For.Sound_Manager */
     void Set_SoundChannelVolume(SoundChannel channel, float volume);
     float Get_SoundChannelVolume(SoundChannel channel) const;
     void Set_SoundChannelPaused(SoundChannel channel, bool paused);
+    void Set_AllSoundMuted(bool muted);
+    bool Is_AllSoundMuted() const;
     void Set_SoundGlobalPitch(float pitch, bool includeBGM = false);
     bool Has_Sound(const wstring& soundFile) const;
     const wstring& Get_CurrentBGM() const;

@@ -490,6 +490,7 @@
     <ClCompile Include="..\Private\BT_SetSkillAI.cpp">
       <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\VictoriaFlag.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -635,6 +636,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
+      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1399,6 +1403,7 @@
     <ClInclude Include="..\Public\BT_SetSkillAI.h">
       <Filter>BehavoirTree\battle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\VictoriaFlag.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

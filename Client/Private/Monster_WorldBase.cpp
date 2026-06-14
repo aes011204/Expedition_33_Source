@@ -525,6 +525,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 
     vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
     Set_BattleMonsterSpawnDescs(battleMonsterSpawnDescs);
+
     CLIENT->Get_ScreenFxManager()->Play_BattleInCounterFx();
 
     if (battleMonsterSpawnDescs.empty())
