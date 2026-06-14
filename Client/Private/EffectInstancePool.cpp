@@ -432,7 +432,9 @@ void EffectInstancePool::Populate_Handle(
         if (!emitter.enabled)
             continue;
 
-        if (emitter.kind == EffectEmitterKind::Trail)
+        if (emitter.kind == EffectEmitterKind::Trail ||
+            emitter.kind == EffectEmitterKind::Ribbon ||
+            emitter.kind == EffectEmitterKind::SourceHistorySpriteTrail)
         {
             outHandle.requiresManualRelease = true;
             return;
