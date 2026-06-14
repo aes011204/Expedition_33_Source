@@ -1661,7 +1661,6 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
     if (turnState != BattleTurnState::ChooseAction &&
         turnState != BattleTurnState::ChooseItem &&
         turnState != BattleTurnState::ChooseSkill)
-    if (battleController->Get_CurrentTurnState() != BattleTurnState::ChooseAction)
     {
         _escapeSkipTurn->Close();
         _escapeSkipTurn->Update(timeDelta);
