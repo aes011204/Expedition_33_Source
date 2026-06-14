@@ -50,12 +50,13 @@ enum class CascadeLevel : uint32
     Count
 };
 
+// 카메라의 close/normal/far 모드에 따라서 shadow cascade 구간을 조절하기 위한 프리셋
 struct ShadowCascadePreset
 {
     float focusNear = 0.1f;
     float focusFar = 110.f;
     float cascadeSplitLambda = 0.8f;
-    float cascadeBlendDistance = 4.f;
+    float cascadeBlendDistance = 1.7f;
 };
 
 struct ShadowCascadePresetSet
@@ -85,7 +86,7 @@ using ShadowLightDesc = struct tagShadowLightDesc
     bool followCameraFrustum = true;     // true면 메인 카메라 frustum 기준으로 shadow view/proj를 매 프레임 갱신한다.
     float focusNear = 0.1f;              // shadow가 커버할 카메라 기준 시작 거리.
     float focusFar = 110.f;              // 근거리 cascade 품질을 위해 너무 멀리 잡지 않는다.
-    float cascadeBlendDistance = 4.f;    // cascade 경계 blend 구간 길이.
+    float cascadeBlendDistance = 1.7f;    // cascade 경계 blend 구간 길이.
     float cascadeSplitLambda = 0.8f;     // 0번 cascade에 더 공격적으로 해상도를 몰아준다.
     float lightDistancePadding = 30.f;   // light view eye를 frustum center에서 얼마나 뒤로 뺄지.
     float xyPadding = 4.f;               // frustum AABB 좌우/상하 여유.

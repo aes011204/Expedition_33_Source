@@ -62,18 +62,18 @@ private:
     ComPtr<ID3D11Texture2D> _dummyRoughnessTex;
     ComPtr<ID3D11ShaderResourceView> _dummyRoughnessSRV;
 
-    float _tiling[MAX_LAYERS] = { 3.f, 3.f, 3.14f, 3.f, 10.f, 7.f, 3.68f };
+    Vec2  _tiling[MAX_LAYERS] = { {3.f, 3.f}, {3.f, 3.f}, {3.14f, 3.14f}, {3.f, 3.f}, {10.f, 10.f}, {7.f, 7.f}, {3.68f, 3.68f} };
     Vec4  _groundTint[MAX_LAYERS] = { {1,1,1,1},{1,1,1,1},{1,1,1,1},{1,1,1,1},{1,1,1,1},{1,1,1,1},{1,1,1,1} };
     Vec4  _layerControl[MAX_LAYERS] = { {2.f,1.69f,0.4f,0},{3.f,0.94f,0,0},{1.92f,1.24f,0,0},{4.f,2.82f,0,0},{3.f,0.8f,1.f,0},{1.2f,2.f,0,0},{3.f,0.4f,0,0} };
 
     Vec4  _albedoControl[MAX_LAYERS] = {
-    {1.f, 13.73f, 1.43f, 0},
-    {0.1f, 1.f,   1.f,   0},
-    {0.2f, 4.f,   0.91f, 0},
-    {2.43f,1.f,   1.f,   0},
-    {0.f,  4.865f,0.53f, 0},
-    {1.f,  7.459f,0.05f, 0},
-    {0.2f, 1.973f,1.616f,0},
+    {1.f, 1.f, 1.f, 0},
+    {1.f, 1.f, 1.f, 0},
+    {1.f, 1.f, 1.f, 0},
+    {1.f, 1.f, 1.f, 0},
+    {1.f, 1.f, 1.f, 0},
+    {1.f, 1.f, 1.f, 0},
+    {1.f, 1.f, 1.f, 0},
     };
 
     float _lodDist[2] = { 50.f, 150.f };

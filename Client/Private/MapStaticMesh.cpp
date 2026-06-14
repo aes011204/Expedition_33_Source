@@ -178,7 +178,7 @@ HRESULT MapStaticMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
-    Set_ShadowCasterType(ShadowCasterType::Static);
+    Set_ShadowCasterType(ShadowCasterType::Dynamic);
 
     auto pDesc = static_cast<MAPSTATICMESH_DESC*>(arg);
     if (pDesc == nullptr)
@@ -188,7 +188,6 @@ HRESULT MapStaticMesh::Initialize(void* arg)
             return E_FAIL;
         }
 
-        GAME->Register_StaticShadowCaster(GetSharedPtr<GameObject>());
         return S_OK;
     }
 
@@ -215,8 +214,6 @@ HRESULT MapStaticMesh::Initialize(void* arg)
         objectName = fs::path(pDesc->modelPath).stem().wstring();
     if (!objectName.empty())
         Set_Name(objectName);
-
-    GAME->Register_StaticShadowCaster(GetSharedPtr<GameObject>());
 
     _transformCom->Set_Position(pDesc->position);
     _transformCom->Set_RotationQuaternion(pDesc->rotation);
@@ -265,6 +262,8 @@ void MapStaticMesh::Late_Update(float timeDelta)
 
         if (!GAME->IsVisible(worldBox))
         {
+            if (Casts_DynamicShadow())
+                GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
             return;
         }
 
@@ -281,7 +280,9 @@ void MapStaticMesh::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapStaticMesh::Render()
@@ -559,7 +560,6 @@ void MapStaticMesh::From_Json(const json& data)
     }
 
     Rebuild_StaticCollisionFromModel();
-    GAME->Mark_StaticShadowDirty();
 }
 
 Shared<MapStaticMesh> MapStaticMesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

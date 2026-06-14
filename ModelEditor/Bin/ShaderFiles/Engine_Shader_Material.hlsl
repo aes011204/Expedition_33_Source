@@ -126,9 +126,9 @@ float3 SampleOrm(float2 uv)
         orm.b = ResolveScalarChannel(g_OrmMetalnessSourceSlot == 0 ? ormTex : (g_OrmMetalnessSourceSlot == 1 ? orm2Tex : orm3Tex), g_OrmMetalnessSource);
     }
 
-    orm.r *= g_AoScale;         // O
-    orm.g *= g_RoughnessScale;  // R
-    orm.b *= g_MetalnessScale;  // M
+    orm.r *= g_AoScale; // O
+    orm.g *= g_RoughnessScale; // R
+    orm.b *= g_MetalnessScale; // M
 
     return orm;
 }
@@ -148,10 +148,10 @@ float3 SampleEmissive(float2 uv)
 
 struct HairMaterialSample
 {
-    float3  baseColor;  // 최종 diffuse
-    float   opacity;    // 마스크
-    float   depth;      // hair card 내부 깊이/겹침 보정값
-    float   id;         // 가닥/영역별 variation 값
+    float3 baseColor; // 최종 diffuse
+    float opacity; // 마스크
+    float depth; // hair card 내부 깊이/겹침 보정값
+    float id; // 가닥/영역별 variation 값
 };
 
 HairMaterialSample SampleHairMaterial(float2 uv)
@@ -360,108 +360,112 @@ struct EyeMaterialSample
     float pupilMask;
 };
 
-EyeMaterialSample SampleEyeMaterial(float2 uv)
+EyeMaterialSample SampleEyeMaterial(float2 baseUV, float2 irisUV)
 {
     EyeMaterialSample Out;
 
-    float3 baseColorTex = float3(0.88f, 0.90f, 0.92f);
+    // 흰자 BaseColor는 원본 눈 메쉬 UV로 샘플링한다.
+    float3 scleraColor = float3(0.88f, 0.90f, 0.92f);
+
     if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
     {
-        baseColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv).rgb;
+        scleraColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, baseUV).rgb;
     }
+    scleraColor *= float3(0.88f, 0.84f, 0.82f);
 
     const bool hasIrisHeightTex = HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT);
     const bool hasIrisMaskTex = HasMaterialTexture(MATERIAL_SLOT_IRIS_MASK);
 
+    // Iris Height 텍스처
+    // 홍채 섬유의 밝고 어두운 결을 만드는 주 데이터로 사용한다.
     float irisHeight = 0.5f;
+
     if (hasIrisHeightTex)
-        irisHeight = g_MaterialTextures[MATERIAL_SLOT_IRIS_HEIGHT].Sample(LinearWrapSampler, uv).r;
-
-    float3 irisMaskTex = float3(0.5f, 0.5f, 0.5f);
-    if (hasIrisMaskTex)
-        irisMaskTex = g_MaterialTextures[MATERIAL_SLOT_IRIS_MASK].Sample(LinearWrapSampler, uv).rgb;
-
-    // Iris 텍스처 중앙을 원점으로 한다. (0.5 , 0.5) -> (0, 0)
-    float2 eyeUV = uv * 2.f - 1.f;
-
-    // 원점으로부터의 거리. 홍채 원형 영역 계산
-    float radial = length(eyeUV);
-
-    // 홍채 마스크
-    // 두번째 값 낮추면 홍채 작아짐
-    float irisArea = 1.f - smoothstep(0.20f, 0.35f, radial);
-    irisArea = saturate(irisArea);
-
-    if (!hasIrisHeightTex)
-        irisHeight = 1.f - smoothstep(0.06f, 0.34f, radial);
-
-    // 홍채 tint는 기존 BaseColorTint를 재사용하되, 지나친 검정화 방지를 위해 강도를 제한한다.
-    float3 irisTint = saturate(g_BaseColorTint.rgb);
-    if (irisTint.r > 0.99f && irisTint.g > 0.99f && irisTint.b > 0.99f)
     {
-        irisTint = float3(0.30f, 0.22f, 0.14f);
+        irisHeight = g_MaterialTextures[MATERIAL_SLOT_IRIS_HEIGHT].Sample(LinearClampSampler, irisUV).r;
     }
 
-    // 홍채 섬유 무늬, 밝기, 색 변화 강도
-    float fiber = saturate(irisHeight);
-    // height 텍스처의 0~1 차이를 디테일로 직접 쓰기 위해 대비를 올린다.
-    float heightDetail = saturate((fiber - 0.5f) * 2.4f + 0.5f);
-    float limbal = smoothstep(0.28f, 0.46f, radial);
+    // Iris Mask 텍스처
+    // 현재는 RGB 전체를 색으로 사용하지 않고,
+    // 채널별 보조 디테일로 사용한다.
+    float3 irisMaskTex = float3(0.5f, 0.5f, 0.5f);
 
-    // 범위를 좁히면 띠 얇아짐
-    float limbalRing = smoothstep(0.31f, 0.40f, radial) * (1.f - smoothstep(0.40f, 0.50f, radial));
+    if (hasIrisMaskTex)
+    {
+        irisMaskTex = g_MaterialTextures[MATERIAL_SLOT_IRIS_MASK].Sample(LinearClampSampler, irisUV).rgb;
+    }
 
-    // 중앙의 검은 동공 영역
-    // 둘 다 낮추면 동공 작아짐
-    float pupilMask = 1.f - smoothstep(0.05f, 0.11f, radial);
-    float angle = atan2(eyeUV.y, eyeUV.x);
+    // irisUV는 현재 머테리얼의 UV Scale / Offset이 적용된 상태다.
+    // 텍스처 중앙 (0.5, 0.5)을 기준으로 홍채 영역을 판정한다.
+    float2 irisCenteredUV = irisUV - float2(0.5f, 0.5f);
 
-    // 홍채의 단색 느낌을 줄이기 위한 방사형 결(iris striation)
-    // 과한 나선형 느낌을 줄이고, 섬유질에 가까운 방사형 결로 정리
-    float radialBandA = sin(angle * 12.f + radial * 12.f + fiber * 1.5f);
-    float radialBandB = sin(angle * 18.f + radial * 20.f + fiber * 2.0f);
-    float proceduralDetail = saturate(0.5f + 0.22f * radialBandA + 0.16f * radialBandB);
-    proceduralDetail = lerp(0.90f, 1.12f, proceduralDetail);
+    float radial = length(irisCenteredUV);
 
-    // Iris_M은 영역 마스크가 아니라 홍채 디테일 모듈레이터로 사용한다.
-    // 채널의 결 무늬를 최대한 살리기 위해 G 채널을 중심으로, R/B를 보조로 섞고 대비를 강화한다.
-    float irisMaskBase = saturate(irisMaskTex.g * 1.10f + irisMaskTex.r * 0.18f + irisMaskTex.b * 0.08f);
-    float irisMaskContrast = saturate((irisMaskBase - 0.5f) * 1.9f + 0.5f);
-    float irisMaskDetail = lerp(0.72f, 1.36f, irisMaskContrast);
+    // 홍채 전체 영역
+    // 홍채 크기는 이 두 값으로 조절한다.
+    float irisArea = 1.f - smoothstep(0.43f, 0.50f, radial);
 
-    // 최종 디테일은 Height를 주로, Mask를 보조로 사용한다.
-    float heightDrivenDetail = lerp(0.68f, 1.42f, heightDetail);
-    float irisDetail = heightDrivenDetail * lerp(0.90f, 1.10f, irisMaskContrast);
-    irisDetail *= lerp(0.92f, 1.08f, proceduralDetail);
+    irisArea = saturate(irisArea);
 
-    float3 scleraColor = saturate(baseColorTex * 1.02f);
-    float3 irisBaseColor = lerp(float3(0.10f, 0.08f, 0.06f), irisTint, lerp(0.30f, 0.98f, fiber));
-    irisBaseColor *= irisDetail * irisMaskDetail;
-    irisBaseColor *= lerp(1.0f, 0.68f, limbal); // 홍채 외곽으로 갈수록 기본적으로 어둡게
-    float3 irisColor = irisBaseColor;
-    // 중심 동공은 반드시 어둡게 고정한다.
-    irisColor = lerp(irisColor, float3(0.015f, 0.015f, 0.02f), pupilMask);
-    // 경계 띠는 검은자보다 옅어지지 않도록 별도 고리로 강하게 눌러준다.
-    irisColor *= lerp(1.0f, 0.42f, limbalRing);
-    // 중앙~중간 영역을 살짝 밝게 보정해 "회색 띠" 느낌을 줄인다.
-    float innerLift = 1.f - smoothstep(0.10f, 0.36f, radial);
-    irisColor *= lerp(0.90f, 1.08f, innerLift);
-    irisColor *= lerp(0.88f, 1.0f, irisArea);
+    // 동공 영역
+    float pupilMask = 1.f - smoothstep(0.105f, 0.145f, radial);
 
-    // 홍채-흰자 전이를 더 급하게 만들어 탁한 중간톤 띠를 줄인다.
-    float irisBlend = smoothstep(0.32f, 0.88f, irisArea);
-    irisBlend = saturate(pow(irisBlend, 0.55f));
+    pupilMask = saturate(pupilMask);
+    float irisContactShadow = smoothstep(0.46f, 0.50f, radial) * (1.f - smoothstep(0.50f, 0.57f, radial));
 
-    Out.baseColor = lerp(scleraColor, irisColor, irisBlend);
-    Out.baseColor = saturate(Out.baseColor);
+    scleraColor *= lerp(1.f, 0.8f, irisContactShadow);
 
+    // 눈의 위아래 가장자리를 어둡게 해서 눈꺼풀 안쪽에 들어가 있는 구 형태를 강조한다.
+    float verticalEdge = saturate(abs(baseUV.y - 0.5f) * 2.f);
+    float scleraLidShadow = smoothstep(0.7f, 1.f, verticalEdge);
+    scleraColor *= lerp(0.9f, 0.7f, scleraLidShadow);
+
+    // BaseColorTint를 홍채의 기본 색으로 사용한다.
+    float3 irisTint = saturate(g_BaseColorTint.rgb);
+
+    // Height 텍스처의 대비를 올려 섬유 결로 사용한다.
+    float heightDetail = saturate((irisHeight - 0.5f) * 2.f + 0.5f);
+
+    float3 irisColor = irisTint * lerp(0.45f, 1.35f, heightDetail);
+
+    // Iris_M의 G 채널을 보조 섬유 디테일로 사용한다.
+    float maskDetail = saturate((irisMaskTex.g - 0.5f) * 1.8f + 0.5f);
+
+    irisColor *= lerp(0.78f, 1.22f, maskDetail);
+
+    // Iris_M의 R 채널은 약한 명암 보조로만 사용한다.
+    float innerDetail = saturate((irisMaskTex.r - 0.5f) * 1.5f + 0.5f);
+
+    irisColor *= lerp(0.90f, 1.10f, innerDetail);
+
+    // 홍채 바깥쪽으로 갈수록 어둡게 한다.
+    float outerDarkening = smoothstep(0.15f, 0.49f, radial);
+
+    irisColor *= lerp(1.f, 0.3f, outerDarkening);
+
+    // 홍채 외곽의 어두운 테두리
+    float limbalRing = smoothstep(0.37f, 0.4f, radial) * (1.f - smoothstep(0.4f, 0.495f, radial));
+
+    irisColor *= lerp(1.f, 0.30f, limbalRing);
+
+    // 동공 주변 섬유를 약간 밝힌다.
+    float innerLift = smoothstep(0.13f, 0.23f, radial) * (1.f - smoothstep(0.23f, 0.34f, radial));
+
+    irisColor *= lerp(1.f, 1.12f, innerLift);
+
+    // 중앙 동공
+    float pupilEdge = smoothstep(0.095f, 0.135f, radial) * (1.f - smoothstep(0.135f, 0.185f, radial));
+    irisColor *= lerp(1.f, 0.48f, pupilEdge);
+    irisColor = lerp(irisColor, float3(0.003f, 0.003f, 0.005f), pupilMask);
+
+    // 흰자와 홍채 합성
+    Out.baseColor = saturate(lerp(scleraColor, irisColor, irisArea));
     Out.opacity = 1.f;
-    Out.irisArea = irisBlend;
+    Out.irisArea = irisArea;
     Out.pupilMask = pupilMask;
 
     return Out;
 }
-
 
 float Blender_ColorToValue(float3 color)
 {
@@ -549,6 +553,23 @@ float SampleHairMask(float2 uv)
     return saturate(g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r);
 }
 
+float SampleHairDepth(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_DEPTH))
+        return 0.5f;
+
+    return saturate( g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH].Sample(LinearWrapSampler, uv).r);
+}
+
+float SampleHairIDValue(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_ID))
+        return 0.5f;
+
+    float3 hairIDTex = g_MaterialTextures[MATERIAL_SLOT_HAIR_ID].Sample(LinearWrapSampler, uv).rgb;
+    return saturate(Blender_ColorToValue(hairIDTex));
+}
+
 float3 Blender_HueSaturationValue(float3 color, float hue, float saturation, float value, float factor)
 {
     float3 hsv = RGBToHSV(color);
@@ -573,61 +594,70 @@ float3 Apply_PrincipledHairBSDF_Color(float3 color)
     return color;
 }
 
-float3 Compute_BlenderHairColor(float2 finalUV)
+float SampleHairMaskDensity(float2 uv)
 {
-    // Color Gradient Mix
-    float4 hairColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    if (!HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
+        return 1.f;
 
-    // T_Hair_Lune_Color의 Color 출력이 Factor로 들어간다.
-    float colorFactor = Blender_ColorToValue(hairColorTex.rgb);
+    uint textureWidth = 1u;
+    uint textureHeight = 1u;
 
-    float3 hairColor = g_BaseColorTint.rgb;
+    g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].GetDimensions(textureWidth, textureHeight);
 
-    // Blender_MixColor_Mix(
-    //     colorFactor,
-    //     g_BaseColorTint.rgb,
-    //     g_BaseColorTint.rgb + float3(0.02f, 0.02f, 0.02f)
-    // );
+    float2 texelSize = 1.f / float2(max(textureWidth, 1u), max(textureHeight, 1u));
 
-    // Per-Strand Color Variation
-    float4 hairIDTex = g_MaterialTextures[MATERIAL_SLOT_HAIR_ID].Sample(LinearWrapSampler, finalUV);
+    float center = SampleHairMask(uv);
+    float left = SampleHairMask(uv + float2(-texelSize.x, 0.f));
+    float right = SampleHairMask(uv + float2(texelSize.x, 0.f));
+    float up = SampleHairMask(uv + float2(0.f, -texelSize.y));
+    float down = SampleHairMask(uv + float2(0.f, texelSize.y));
+    float upperLeft = SampleHairMask(uv + float2(-texelSize.x, -texelSize.y));
+    float upperRight = SampleHairMask(uv + float2(texelSize.x, -texelSize.y));
+    float lowerLeft = SampleHairMask(uv + float2(-texelSize.x, texelSize.y));
+    float lowerRight = SampleHairMask(uv + float2(texelSize.x, texelSize.y));
 
-    float hairIDValue = Blender_ColorToValue(hairIDTex.rgb);
+    // 중심 픽셀에는 조금 더 높은 비중을 준다.
+    float density = center * 2.f + left + right + up + down + upperLeft + upperRight + lowerLeft + lowerRight;
 
-    float hue = hairIDValue * 0.134f + 0.5f;
-
-    hairColor = Blender_HueSaturationValue(hairColor, hue, 1.f, 1.f, 1.f);
-
-    // Principled Hair BSDF Color
-    return Apply_PrincipledHairBSDF_Color(hairColor);
+    return saturate(density / 10.f);
 }
 
-// PS_OUT PS_CharacterHair(PS_IN In)
-// {
-//     PS_OUT Out;
-// 
-//     float2 finalUV = ApplyUVTransform(In.Texcoord);
-// 
-//     HairMaterialSample hair = SampleHairMaterial(finalUV);
-// 
-//     if (hair.opacity < 0.003)
-//         discard;
-// 
-//     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
-//         
-//     Out.Diffuse = float4(hair.baseColor, 1.f);
-//     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
-//     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
-// 
-//     float3 orm = SampleOrm(finalUV);
-//     Out.Material = float4(orm.xyz, 1.f);
-// 
-//     float3 emissive = SampleEmissive(finalUV);
-//     Out.Emissive = float4(emissive.xyz, 1.f);
-// 
-//     return Out;
-// }
+float3 Compute_BlenderHairColor(float2 finalUV)
+{
+    float3 hairColorTex = float3(1.f, 1.f, 1.f);
 
+    if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+        hairColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV).rgb;
+
+    float hairMask = SampleHairMask(finalUV);
+    float hairDepth = SampleHairDepth(finalUV);
+    float hairIDValue = SampleHairIDValue(finalUV);
+    float hairMaskDensity = SampleHairMaskDensity(finalUV);
+
+    float3 hairColor = saturate(g_BaseColorTint.rgb);
+
+    // Color 텍스처의 결/밝기 차이를 실제 BaseColor에 반영한다.
+    hairColor *= lerp(float3(0.62f, 0.62f, 0.62f), float3(1.12f, 1.12f, 1.12f), hairColorTex);
+
+    // Depth 텍스처로 카드 내부/외부 층 차이를 준다.
+    hairColor *= lerp(0.72f, 1.06f, hairDepth);
+
+    // ID 텍스처로 클럼프/가닥 단위 색 편차를 준다.
+    float hue = hairIDValue * 0.10f + 0.5f;
+    hairColor = Blender_HueSaturationValue(hairColor, hue, 0.92f, 1.00f, 1.f);
+    hairColor *= lerp(0.92f, 1.08f, hairIDValue);
+
+    float strandInterior = smoothstep(0.12f, 0.62f, hairMask);
+    float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);
+
+    // Mask가 약한 가장자리는 어둡게 눌러 리본 외곽을 줄인다.
+    hairColor *= lerp(0.72f, 1.0f, strandInterior);
+
+    // 주변에 혼자 떨어진 가닥은 본체보다 약간 어둡게 눌러 검은 전선처럼 튀는 대비를 줄인다.
+    hairColor *= lerp(0.82f, 1.0f, clumpDensity);
+
+    return saturate(Apply_PrincipledHairBSDF_Color(hairColor));
+}
 
 
 #endif

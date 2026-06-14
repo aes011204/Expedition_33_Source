@@ -102,10 +102,10 @@ void Renderer::Draw()
     _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
 
     Change_ViewportDesc(_screenSize.width, _screenSize.height);
+    Reset_RenderCall();
 
 #ifdef _DEBUG
     DumpCurrentOMState(L"Renderer::Draw:Begin");
-    Reset_RenderCall();
 
 #pragma region DEBUG_VAR
     const auto renderBegin = chrono::steady_clock::now();
@@ -311,6 +311,7 @@ void Renderer::Render_Shadow()
 {
     _currentGroup = RenderGroup::Shadow;
 
+    // 그림자를 그리지 않는 아래의 경우, shadow MRT를 한 번씩 열고 닫아 비운다.
     if (_shadowEnabled == false)
     {
         const uint32 cascadeCount = max(1u, GAME->Get_ShadowCascadeCount());
@@ -325,6 +326,9 @@ void Renderer::Render_Shadow()
 
         _renderGroups[ETOI(RenderGroup::Shadow)].clear();
         GAME->Set_ActiveShadowCascade(0);
+#ifdef _DEBUG
+        Sync_ShadowDebugTargets();
+#endif
         return;
     }
 
@@ -343,11 +347,16 @@ void Renderer::Render_Shadow()
 
         _renderGroups[ETOI(RenderGroup::Shadow)].clear();
         GAME->Set_ActiveShadowCascade(0);
+#ifdef _DEBUG
+        Sync_ShadowDebugTargets();
+#endif
         return;
     }
 
-    Render_StaticShadowOnce();
     Render_DynamicShadow();
+#ifdef _DEBUG
+    Sync_ShadowDebugTargets();
+#endif
 }
 
 void Renderer::Render_NonBlend()
@@ -588,10 +597,6 @@ void Renderer::Render_CombinedHDR()
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_LightDepthTexture)");
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_StaticLightDepthTexture", RT::StaticLightDepth),
-        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_StaticLightDepthTexture)");
-
-    COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
 
@@ -691,54 +696,60 @@ void Renderer::Render_CombinedHDR()
 void Renderer::Render_Fog()
 {
     if (!_deferredShader || !_viBuffer)
-    {
         return;
-    }
 
     if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
-    {
         return;
-    }
 
     if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
-    {
         return;
-    }
 
     if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-    {
         return;
-    }
+
+    if (FAILED(GAME->Bind_PrimaryShadowLightCB(_deferredShader)))
+        return;
+
+    if (FAILED(GAME->Bind_CameraCB(_deferredShader)))
+        return;
+
+    if (FAILED(GAME->Bind_ShadowCB(_deferredShader)))
+        return;
+
+    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+        return;
 
     if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
-    {
         return;
-    }
 
     if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
-    {
         return;
-    }
 
     if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
-    {
         return;
-    }
+
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth)))
+        return;
 
     if (FAILED(_viBuffer->Bind_Resources()))
-    {
         return;
-    }
+
+    auto* noiseTexture = GAME->Get_SRV("T_Perlin_Noise_M");
+    if FAILED(_deferredShader->Bind_SRV("g_FogNoiseTexture", noiseTexture))
+        LOG_WARN("Failed to bind noise texutre!");
+
+    const float fDT = 0.016f;
+    static float s_elapsed = 0.f;
+    s_elapsed += fDT;
+    if FAILED(_deferredShader->Bind_RawValue("g_fDT", &s_elapsed, sizeof(float)))
+        LOG_WARN("Failed to bind noise texutre!");
+
 
     if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
-    {
         return;
-    }
 
     if (FAILED(_viBuffer->Render()))
-    {
         return;
-    }
 
     GAME->End_MRT();
     Add_RenderCall();
@@ -1627,6 +1638,7 @@ bool Renderer::Try_BuildLightShaftParams(LightShaftCB& outParams) const
     return true;
 }
 
+// 빛 시점의 렌더 범위를 카메라가 실제로 보는 공간으로 변경한다.
 void Renderer::Update_DynamicShadowCamera()
 {
     const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
@@ -1651,56 +1663,15 @@ void Renderer::Update_DynamicShadowCamera()
         lightDesc->direction.z
     );
 
+    // shadow 카메라 재계산
     GAME->Update_ShadowFromCameraFrustum(updatedDesc, activeCamera, lightDir);
-}
-
-void Renderer::Render_StaticShadowOnce()
-{
-    ENGINE_PROFILE_SCOPE_DETAIL("Render::StaticShadow");
-
-    if (!_staticShadowDirty)
-        return;
-
-    BoundingBox staticBounds{};
-    if (!Build_StaticShadowBounds(staticBounds))
-        return;
-
-    Update_StaticShadowCamera(staticBounds);
-    GAME->Set_ActiveStaticShadow();
-
-    if (FAILED(GAME->Begin_MRT(MRT::StaticShadowObjects, UseDSV, ClearRTV)))
-        return;
-
-    const uint32 originWidth = _screenSize.width;
-    const uint32 originHeight = _screenSize.height;
-
-    Change_ViewportDesc(_shadowStaticSize.width, _shadowStaticSize.height);
-
-    for (const auto& weakObject : _staticShadowCasters)
-    {
-        Shared<GameObject> gameObject = weakObject.lock();
-        if (gameObject == nullptr || !gameObject->Casts_StaticShadow())
-            continue;
-
-        if (gameObject->Get_Transform() == nullptr)
-            continue;
-
-        gameObject->Render_Shadow();
-        Add_RenderCall();
-    }
-
-    CHECK_FAILED(GAME->End_MRT());
-
-    Change_ViewportDesc(originWidth, originHeight);
-
-    _staticShadowDirty = false;
-    _staticShadowReady = true;
 }
 
 void Renderer::Render_DynamicShadow()
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Render::DynamicShadow");
 
+    // 카메라가 보는 영역을 기준으로 빛의 shadow frustum을 업데이트한다.
     Update_DynamicShadowCamera();
     ++_shadowFrameIndex;
 
@@ -1719,22 +1690,16 @@ void Renderer::Render_DynamicShadow()
         //if (!Should_UpdateDynamicShadowCascade(cascadeIndex))
         //    continue;
 
-        // 활성화된 cascade의 view, proj 행렬을 받아온다.
-        const Matrix* shadowViewMatrix = GAME->Get_ShadowTransformMatrix(D3DTS::View);
-        const Matrix* shadowProjMatrix = GAME->Get_ShadowTransformMatrix(D3DTS::Proj);
-        if (shadowViewMatrix == nullptr || shadowProjMatrix == nullptr)
+        if (GAME->Get_ShadowTransformMatrix(D3DTS::View) == nullptr || GAME->Get_ShadowTransformMatrix(D3DTS::Proj) == nullptr)
             continue;
-
-        // 컬링 되게
-        GAME->UpdateFrustum(*shadowViewMatrix, *shadowProjMatrix);
-
         if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV, cascadeIndex)))
             continue;
 
         for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
         {
             Shared<GameObject> gameObject = renderObject.lock();
-            if (gameObject != nullptr && Should_RenderDynamicShadowObject(gameObject))
+            // Shadow projection box가 아니라 별도 influence volume으로 caster를 판정한다.
+            if (gameObject != nullptr && Should_RenderDynamicShadowObject(gameObject, cascadeIndex))
             {
                 gameObject->Render_Shadow();
                 Add_RenderCall();
@@ -1768,7 +1733,7 @@ bool Renderer::Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const
     return (_shadowFrameIndex % 4ull) == 0ull;
 }
 
-bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject) const
+bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject, uint32 cascadeIndex) const
 {
     if (gameObject == nullptr)
         return false;
@@ -1780,74 +1745,25 @@ bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameOb
     if (!gameObject->Try_Get_ShadowWorldBounds(objectBounds))
         return true;
 
-    return GAME->IsVisible(objectBounds);
+    return GAME->Is_Visible_In_ShadowInfluenceVolume(objectBounds, cascadeIndex);
 }
 
-bool Renderer::Build_StaticShadowBounds(BoundingBox& outBounds) const
+#ifdef _DEBUG
+void Renderer::Sync_ShadowDebugTargets()
 {
-    bool hasBounds = false;
-
-    for (const auto& weakObject : _staticShadowCasters)
+    static constexpr const wchar_t* kShadowDebugTargets[] =
     {
-        Shared<GameObject> gameObject = weakObject.lock();
-        if (gameObject == nullptr || !gameObject->Casts_StaticShadow())
-            continue;
+        RT::LightDepthDebug0,
+        RT::LightDepthDebug1,
+        RT::LightDepthDebug2,
+        RT::LightDepthDebug3,
+    };
 
-        if (gameObject->Get_Transform() == nullptr)
-            continue;
-
-        BoundingBox objectBounds{};
-        if (!gameObject->Try_Get_ShadowWorldBounds(objectBounds))
-            continue;
-
-        if (!hasBounds)
-        {
-            outBounds = objectBounds;
-            hasBounds = true;
-        }
-        else
-        {
-            BoundingBox::CreateMerged(outBounds, outBounds, objectBounds);
-        }
-    }
-
-    return hasBounds;
+    const uint32 cascadeCount = min<uint32>(GAME->Get_ShadowCascadeCount(), static_cast<uint32>(std::size(kShadowDebugTargets)));
+    for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+        GAME->Copy_RTV_ArraySlice(RT::LightDepth, cascadeIndex, kShadowDebugTargets[cascadeIndex]);
 }
-
-void Renderer::Update_StaticShadowCamera(const BoundingBox& bounds)
-{
-    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
-    const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
-    if (lightDesc == nullptr || shadowDesc == nullptr)
-        return;
-
-    Vec3 lightDir(
-        lightDesc->direction.x,
-        lightDesc->direction.y,
-        lightDesc->direction.z);
-
-    if (lightDir.LengthSquared() < 0.0001f)
-        lightDir = Vec3(1.f, -1.f, -1.f);
-
-    lightDir.Normalize();
-
-    GAME->Update_StaticShadowFromBounds(*shadowDesc, bounds, lightDir);
-}
-
-void Renderer::Register_StaticShadowCaster(const Shared<GameObject>& gameObject)
-{
-    if (gameObject == nullptr || !gameObject->Casts_StaticShadow()) // Static 인지 체크
-        return;
-
-    _staticShadowCasters.push_back(gameObject);
-
-    Mark_StaticShadowDirty();
-}
-
-void Renderer::Mark_StaticShadowDirty()
-{
-     _staticShadowDirty = true;
-}
+#endif
 
 uint32 Renderer::Get_RenderCall() const
 {
