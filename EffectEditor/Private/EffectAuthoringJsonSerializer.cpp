@@ -102,6 +102,23 @@ namespace Internal
         outValue = iter->get<bool>();
     }
 
+    SourceHistorySpriteTrailArrivalMode Resolve_SourceHistorySpriteTrailArrivalMode(const json& root)
+    {
+        SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
+        if (const auto arrivalModeIter = root.find("arrivalMode"); arrivalModeIter != root.end() &&
+                                                                   Try_ReadEnumToken(*arrivalModeIter, arrivalMode))
+            return arrivalMode;
+
+        bool killOnArrive = true;
+        bool clampAtEnd = true;
+        Read_BoolField(root, "killOnArrive", killOnArrive);
+        Read_BoolField(root, "clampAtEnd", clampAtEnd);
+        if (!killOnArrive && clampAtEnd)
+            return SourceHistorySpriteTrailArrivalMode::ClampAtEnd;
+
+        return SourceHistorySpriteTrailArrivalMode::KillOnArrive;
+    }
+
     json To_Json(const DistributionRandomSeedData& data)
     {
         json root = json::object();
@@ -565,6 +582,21 @@ namespace Internal
         return RibbonCurveQuality::Custom;
     }
 
+    uint32 Resolve_SourceHistoryCurveSubdivisionPreset(RibbonCurveQuality quality)
+    {
+        switch (quality)
+        {
+        case RibbonCurveQuality::Smooth:
+            return 8u;
+        case RibbonCurveQuality::HighQuality:
+            return 12u;
+        case RibbonCurveQuality::Basic:
+        case RibbonCurveQuality::Custom:
+        default:
+            return 4u;
+        }
+    }
+
     json To_Json(const RibbonTypeData& data)
     {
         json root = json::object();
@@ -574,6 +606,8 @@ namespace Internal
         root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["maxSampleCount"] = data.maxSampleCount;
         root["sampleSpacing"] = data.sampleSpacing;
+        root["curveSubdivision"] = data.curveSubdivision;
+        root["smoothTangent"] = data.smoothTangent;
         root["sampleInterval"] = data.sampleInterval;
         root["maxLength"] = data.maxLength;
         root["tailFadeLength"] = data.tailFadeLength;
@@ -594,12 +628,14 @@ namespace Internal
         root["sourceEmitterId"] = data.sourceEmitterId;
         root["followerLaneCount"] = data.followerLaneCount;
         root["sampleLifetime"] = data.sampleLifetime;
+        root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["sampleSpacing"] = data.sampleSpacing;
+        root["curveSubdivision"] = data.curveSubdivision;
+        root["smoothTangent"] = data.smoothTangent;
         root["maxLength"] = data.maxLength;
         root["stampSpawnMode"] = To_EnumToken(data.stampSpawnMode);
         root["stampSpacing"] = data.stampSpacing;
         root["stampInterval"] = data.stampInterval;
-        root["stampLifetime"] = data.stampLifetime;
         root["maxStampCount"] = data.maxStampCount;
         root["cardLength"] = data.cardLength;
         root["cardWidth"] = data.cardWidth;
@@ -669,12 +705,17 @@ namespace Internal
         outData.followerLaneCount = max(1u, outData.followerLaneCount);
         Read_NumberField(root, "maxSampleCount", outData.maxSampleCount);
         Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        const bool hasCurveSubdivision = root.find("curveSubdivision") != root.end();
+        Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
+        Read_BoolField(root, "smoothTangent", outData.smoothTangent);
         Read_NumberField(root, "sampleInterval", outData.sampleInterval);
         const auto curveQualityIter = root.find("curveQuality");
         if (curveQualityIter != root.end())
             Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
         else
             outData.curveQuality = Infer_RibbonCurveQuality(outData.sampleSpacing, outData.sampleInterval);
+        if (!hasCurveSubdivision && outData.curveQuality != RibbonCurveQuality::Custom)
+            outData.curveSubdivision = Resolve_SourceHistoryCurveSubdivisionPreset(outData.curveQuality);
         Read_NumberField(root, "maxLength", outData.maxLength);
         Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
         Read_BoolField(root, "laneSpawnFadeInEnabled", outData.laneSpawnFadeInEnabled);
@@ -711,6 +752,16 @@ namespace Internal
         outData.sampleLifetime = max(0.0001f, outData.sampleLifetime);
         Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
         outData.sampleSpacing = max(0.001f, outData.sampleSpacing);
+        const auto curveQualityIter = root.find("curveQuality");
+        if (curveQualityIter != root.end())
+            Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
+        else
+            outData.curveQuality = Infer_RibbonCurveQuality(outData.sampleSpacing, 0.f);
+        const bool hasCurveSubdivision = root.find("curveSubdivision") != root.end();
+        Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
+        Read_BoolField(root, "smoothTangent", outData.smoothTangent);
+        if (!hasCurveSubdivision && outData.curveQuality != RibbonCurveQuality::Custom)
+            outData.curveSubdivision = Resolve_SourceHistoryCurveSubdivisionPreset(outData.curveQuality);
         Read_NumberField(root, "maxLength", outData.maxLength);
         outData.maxLength = max(0.f, outData.maxLength);
         if (const auto stampSpawnModeIter = root.find("stampSpawnMode"); stampSpawnModeIter != root.end())
@@ -719,8 +770,6 @@ namespace Internal
         outData.stampSpacing = max(0.001f, outData.stampSpacing);
         Read_NumberField(root, "stampInterval", outData.stampInterval);
         outData.stampInterval = max(0.001f, outData.stampInterval);
-        Read_NumberField(root, "stampLifetime", outData.stampLifetime);
-        outData.stampLifetime = max(0.0001f, outData.stampLifetime);
         Read_NumberField(root, "maxStampCount", outData.maxStampCount);
         outData.maxStampCount = max(1u, outData.maxStampCount);
         Read_NumberField(root, "cardLength", outData.cardLength);
@@ -2603,8 +2652,7 @@ namespace Internal
         root["direction"] = To_EnumToken(data.direction);
         root["speed"] = To_Json(data.speed);
         root["startDelay"] = To_Json(data.startDelay);
-        root["killOnArrive"] = data.killOnArrive;
-        root["clampAtEnd"] = data.clampAtEnd;
+        root["arrivalMode"] = To_EnumToken(data.arrivalMode);
         return root;
     }
 
@@ -2619,8 +2667,7 @@ namespace Internal
             From_Json(*speedIter, outData.speed);
         if (const auto startDelayIter = root.find("startDelay"); startDelayIter != root.end())
             From_Json(*startDelayIter, outData.startDelay);
-        Read_BoolField(root, "killOnArrive", outData.killOnArrive);
-        Read_BoolField(root, "clampAtEnd", outData.clampAtEnd);
+        outData.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(root);
     }
 
     json To_Json(const SourceHistorySpriteTrailPathReplayModuleData& data)
@@ -2632,8 +2679,7 @@ namespace Internal
         root["drainDuration"] = data.drainDuration;
         root["drainCurve"] = To_Json(data.drainCurve);
         root["startMode"] = To_EnumToken(data.startMode);
-        root["killOnArrive"] = data.killOnArrive;
-        root["clampAtEnd"] = data.clampAtEnd;
+        root["arrivalMode"] = To_EnumToken(data.arrivalMode);
         return root;
     }
 
@@ -2651,8 +2697,7 @@ namespace Internal
             From_Json(*drainCurveIter, outData.drainCurve);
         if (const auto startModeIter = root.find("startMode"); startModeIter != root.end())
             Try_ReadEnumToken(*startModeIter, outData.startMode);
-        Read_BoolField(root, "killOnArrive", outData.killOnArrive);
-        Read_BoolField(root, "clampAtEnd", outData.clampAtEnd);
+        outData.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(root);
 
         outData.delayTime = max(0.f, outData.delayTime);
         outData.speedScale = max(0.f, outData.speedScale);

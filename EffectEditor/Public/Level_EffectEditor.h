@@ -49,6 +49,10 @@ private:
     bool _hasTrailPreviewSourceRatio{ false };
     // Trail TypeData preview가 읽을 editor-local sample provider다.
     Weak<IEffectTrailSampleProvider> _trailPreviewSampleProvider{};
+    // SourceHistory Ribbon preview가 읽을 editor-local 단일 source provider다.
+    Shared<IEffectSourcePointSampleProvider> _sourceHistoryPreviewSampleProvider{};
+    // SourceHistorySpriteTrail preview가 읽을 editor-local 단일 source provider다.
+    Shared<IEffectSourcePointSampleProvider> _sourceHistorySpriteTrailPreviewSampleProvider{};
     Weak<TrailPreviewController> _trailPreviewController{};
 
 private:

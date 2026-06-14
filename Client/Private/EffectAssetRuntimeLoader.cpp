@@ -111,202 +111,199 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_DefinitionByName(c
 
 namespace EffectAssetRuntimeLoad::Assets
 {
-
-bool Try_MakeResourceRelativePath(
-    const fs::path& fullPath,
-    const char* logContext,
-    const string& assetKey,
-    wstring& outRelativePath)
-{
-    outRelativePath.clear();
-
-    const wstring assetRoot = GAME->Get_AssetRoot();
-    if (assetRoot.empty())
+    bool Try_MakeResourceRelativePath(
+        const fs::path& fullPath,
+        const char* logContext,
+        const string& assetKey,
+        wstring& outRelativePath)
     {
-        LOG_ERROR(
-            "EffectAssetRuntimeLoader {} failed: asset root is empty. key='{}'",
-            logContext,
-            assetKey
-        );
-        return false;
-    }
+        outRelativePath.clear();
 
-    const fs::path assetRootPath = fs::path(assetRoot).lexically_normal();
-    const fs::path normalizedFullPath = fullPath.lexically_normal();
-
-    error_code errorCode{};
-    const fs::path relativePath = fs::relative(normalizedFullPath, assetRootPath, errorCode).lexically_normal();
-    if (errorCode || relativePath.empty() || relativePath.native().starts_with(L".."))
-    {
-        LOG_ERROR(
-            "EffectAssetRuntimeLoader {} failed: resolved path is outside asset root. key='{}', path='{}', root='{}'",
-            logContext,
-            assetKey,
-            To_LogPath(normalizedFullPath),
-            To_LogPath(assetRootPath)
-        );
-        return false;
-    }
-
-    outRelativePath = relativePath.wstring();
-    return true;
-}
-
-bool Resolve_EffectAssetPathByGuid(const string& effectAssetGuid, wstring& outEffectAssetPath)
-{
-    outEffectAssetPath.clear();
-
-    if (effectAssetGuid.empty())
-    {
-        LOG_ERROR("Empty guid");
-        return false;
-    }
-
-    const AssetMeta* assetMeta = GAME->Find_AssetByGUID(effectAssetGuid);
-    if (nullptr == assetMeta)
-    {
-        LOG_WARN("Asset not found. guid='{}'", effectAssetGuid);
-        return false;
-    }
-
-    if (assetMeta->type != "Effect")
-    {
-        LOG_ERROR("Asset type mismatch. guid='{}', type='{}'", effectAssetGuid, assetMeta->type);
-        return false;
-    }
-
-    const wstring resolvedPath = GAME->Resolve_AssetPath(effectAssetGuid);
-    if (resolvedPath.empty())
-    {
-        LOG_WARN("Resolved path is empty. guid='{}'", effectAssetGuid);
-        return false;
-    }
-
-    return Try_MakeResourceRelativePath(fs::path(resolvedPath), "guid resolve", effectAssetGuid, outEffectAssetPath);
-}
-
-string Normalize_EffectNameKey(const wstring& effectName)
-{
-    const string effectJsonSuffix = ".effect.json";
-    string key = String::ToLowerCopy(String::ToString(fs::path(effectName).filename().wstring()));
-    if (key.ends_with(effectJsonSuffix))
-        key.erase(key.size() - effectJsonSuffix.size());
-    else
-        key = fs::path(key).stem().generic_string();
-
-    return key;
-}
-
-bool Is_EffectDefinitionAssetPath(const wstring& relativePath)
-{
-    const string lowerPath = String::ToLowerCopy(fs::path(relativePath).generic_string());
-    return lowerPath.starts_with("effects/assets/") && lowerPath.ends_with(".effect.json");
-}
-
-bool Find_EffectAssetGuidByName(const wstring& effectName, string& outEffectAssetGuid)
-{
-    outEffectAssetGuid.clear();
-
-    const string effectNameKey = Normalize_EffectNameKey(effectName);
-    if (effectNameKey.empty())
-    {
-        LOG_ERROR("Empty effect name");
-        return false;
-    }
-
-    AssetMeta matchedAsset{};
-    bool hasMatch = false;
-    const vector<AssetMeta> effectAssets = GAME->Get_AssetsByType("Effect");
-    for (const AssetMeta& assetMeta : effectAssets)
-    {
-        if (!Is_EffectDefinitionAssetPath(assetMeta.relativePath))
-            continue;
-
-        const string candidateKey = Normalize_EffectNameKey(fs::path(assetMeta.relativePath).filename().wstring());
-        if (candidateKey != effectNameKey)
-            continue;
-
-        if (hasMatch)
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
         {
             LOG_ERROR(
-                "Duplicate effect asset name. name='{}', first='{}', duplicate='{}'",
-                String::ToString(effectName),
-                To_LogPath(matchedAsset.relativePath),
-                To_LogPath(assetMeta.relativePath)
+                "EffectAssetRuntimeLoader {} failed: asset root is empty. key='{}'",
+                logContext,
+                assetKey
             );
             return false;
         }
 
-        matchedAsset = assetMeta;
-        hasMatch = true;
-    }
+        const fs::path assetRootPath = fs::path(assetRoot).lexically_normal();
+        const fs::path normalizedFullPath = fullPath.lexically_normal();
 
-    if (!hasMatch)
-    {
-        LOG_WARN("Effect asset name not found. name='{}'", String::ToString(effectName));
-        return false;
-    }
-
-    if (matchedAsset.guid.empty())
-    {
-        LOG_ERROR(
-            "Effect asset guid is empty. name='{}', path='{}'",
-            String::ToString(effectName),
-            To_LogPath(matchedAsset.relativePath)
-        );
-        return false;
-    }
-
-    outEffectAssetGuid = matchedAsset.guid;
-    return true;
-}
-
-bool Load_JsonRoot(const wstring& effectAssetPath, json& outRoot)
-{
-    if (effectAssetPath.empty())
-    {
-        LOG_ERROR("Empty asset path");
-        return false;
-    }
-
-    const wstring assetRoot = GAME->Get_AssetRoot();
-    if (assetRoot.empty())
-    {
-        LOG_ERROR("Asset root is empty");
-        return false;
-    }
-
-    const fs::path fullPath = (fs::path(assetRoot) / effectAssetPath).lexically_normal();
-    if (!fs::exists(fullPath))
-    {
-        LOG_WARN("File not found. path='{}'", To_LogPath(fullPath));
-        return false;
-    }
-
-    try
-    {
-        ifstream file(fullPath);
-        if (!file.is_open())
+        error_code errorCode{};
+        const fs::path relativePath = fs::relative(normalizedFullPath, assetRootPath, errorCode).lexically_normal();
+        if (errorCode || relativePath.empty() || relativePath.native().starts_with(L".."))
         {
-            LOG_ERROR("Open failed. path='{}'", To_LogPath(fullPath));
+            LOG_ERROR(
+                "EffectAssetRuntimeLoader {} failed: resolved path is outside asset root. key='{}', path='{}', root='{}'",
+                logContext,
+                assetKey,
+                To_LogPath(normalizedFullPath),
+                To_LogPath(assetRootPath)
+            );
             return false;
         }
 
-        file >> outRoot;
+        outRelativePath = relativePath.wstring();
         return true;
     }
-    catch (const exception& exception)
-    {
-        LOG_ERROR(
-            "Json parse failed. path='{}', error='{}'",
-            To_LogPath(fullPath),
-            exception.what()
-        );
-        return false;
-    }
-}
 
+    bool Resolve_EffectAssetPathByGuid(const string& effectAssetGuid, wstring& outEffectAssetPath)
+    {
+        outEffectAssetPath.clear();
+
+        if (effectAssetGuid.empty())
+        {
+            LOG_ERROR("Empty guid");
+            return false;
+        }
+
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(effectAssetGuid);
+        if (nullptr == assetMeta)
+        {
+            LOG_WARN("Asset not found. guid='{}'", effectAssetGuid);
+            return false;
+        }
+
+        if (assetMeta->type != "Effect")
+        {
+            LOG_ERROR("Asset type mismatch. guid='{}', type='{}'", effectAssetGuid, assetMeta->type);
+            return false;
+        }
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(effectAssetGuid);
+        if (resolvedPath.empty())
+        {
+            LOG_WARN("Resolved path is empty. guid='{}'", effectAssetGuid);
+            return false;
+        }
+
+        return Try_MakeResourceRelativePath(fs::path(resolvedPath), "guid resolve", effectAssetGuid, outEffectAssetPath);
+    }
+
+    string Normalize_EffectNameKey(const wstring& effectName)
+    {
+        const string effectJsonSuffix = ".effect.json";
+        string key = String::ToLowerCopy(String::ToString(fs::path(effectName).filename().wstring()));
+        if (key.ends_with(effectJsonSuffix))
+            key.erase(key.size() - effectJsonSuffix.size());
+        else
+            key = fs::path(key).stem().generic_string();
+
+        return key;
+    }
+
+    bool Is_EffectDefinitionAssetPath(const wstring& relativePath)
+    {
+        const string lowerPath = String::ToLowerCopy(fs::path(relativePath).generic_string());
+        return lowerPath.starts_with("effects/assets/") && lowerPath.ends_with(".effect.json");
+    }
+
+    bool Find_EffectAssetGuidByName(const wstring& effectName, string& outEffectAssetGuid)
+    {
+        outEffectAssetGuid.clear();
+
+        const string effectNameKey = Normalize_EffectNameKey(effectName);
+        if (effectNameKey.empty())
+        {
+            LOG_ERROR("Empty effect name");
+            return false;
+        }
+
+        AssetMeta matchedAsset{};
+        bool hasMatch = false;
+        const vector<AssetMeta> effectAssets = GAME->Get_AssetsByType("Effect");
+        for (const AssetMeta& assetMeta : effectAssets)
+        {
+            if (!Is_EffectDefinitionAssetPath(assetMeta.relativePath))
+                continue;
+
+            const string candidateKey = Normalize_EffectNameKey(fs::path(assetMeta.relativePath).filename().wstring());
+            if (candidateKey != effectNameKey)
+                continue;
+
+            if (hasMatch)
+            {
+                LOG_ERROR(
+                    "Duplicate effect asset name. name='{}', first='{}', duplicate='{}'",
+                    String::ToString(effectName),
+                    To_LogPath(matchedAsset.relativePath),
+                    To_LogPath(assetMeta.relativePath)
+                );
+                return false;
+            }
+
+            matchedAsset = assetMeta;
+            hasMatch = true;
+        }
+
+        if (!hasMatch)
+        {
+            LOG_WARN("Effect asset name not found. name='{}'", String::ToString(effectName));
+            return false;
+        }
+
+        if (matchedAsset.guid.empty())
+        {
+            LOG_ERROR(
+                "Effect asset guid is empty. name='{}', path='{}'",
+                String::ToString(effectName),
+                To_LogPath(matchedAsset.relativePath)
+            );
+            return false;
+        }
+
+        outEffectAssetGuid = matchedAsset.guid;
+        return true;
+    }
+
+    bool Load_JsonRoot(const wstring& effectAssetPath, json& outRoot)
+    {
+        if (effectAssetPath.empty())
+        {
+            LOG_ERROR("Empty asset path");
+            return false;
+        }
+
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
+        {
+            LOG_ERROR("Asset root is empty");
+            return false;
+        }
+
+        const fs::path fullPath = (fs::path(assetRoot) / effectAssetPath).lexically_normal();
+        if (!fs::exists(fullPath))
+        {
+            LOG_WARN("File not found. path='{}'", To_LogPath(fullPath));
+            return false;
+        }
+
+        try
+        {
+            ifstream file(fullPath);
+            if (!file.is_open())
+            {
+                LOG_ERROR("Open failed. path='{}'", To_LogPath(fullPath));
+                return false;
+            }
+
+            file >> outRoot;
+            return true;
+        }
+        catch (const exception& exception)
+        {
+            LOG_ERROR(
+                "Json parse failed. path='{}', error='{}'",
+                To_LogPath(fullPath),
+                exception.what()
+            );
+            return false;
+        }
+    }
 }
 
 NS_END
-

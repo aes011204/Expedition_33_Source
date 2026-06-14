@@ -18,6 +18,30 @@ namespace Internal
         return value;
     }
 
+    Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float ratio)
+    {
+        const float t2 = ratio * ratio;
+        const float t3 = t2 * ratio;
+
+        return (
+                   p1 * 2.f +
+                   (p2 - p0) * ratio +
+                   (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
+                   (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
+               ) * 0.5f;
+    }
+
+    Vec3 Catmull_RomDerivative(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float ratio)
+    {
+        const float t2 = ratio * ratio;
+
+        return (
+                   (p2 - p0) +
+                   (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * (2.f * ratio) +
+                   (p1 * 3.f - p0 - p2 * 3.f + p3) * (3.f * t2)
+               ) * 0.5f;
+    }
+
     float Hash01(uint32 value)
     {
         value ^= value >> 16u;
@@ -137,53 +161,6 @@ namespace Internal
         case 3u:
         default:
             return values.w;
-        }
-    }
-
-    Vec3 Resolve_PreviewMotionAxis(EffectSourceHistoryPreviewMotionAxis axis)
-    {
-        switch (axis)
-        {
-        case EffectSourceHistoryPreviewMotionAxis::Y:
-            return Vec3{ 0.f, 1.f, 0.f };
-        case EffectSourceHistoryPreviewMotionAxis::Z:
-            return Vec3{ 0.f, 0.f, 1.f };
-        case EffectSourceHistoryPreviewMotionAxis::X:
-        default:
-            return Vec3{ 1.f, 0.f, 0.f };
-        }
-    }
-
-    Vec3 Resolve_PreviewMotionArcAxis(EffectSourceHistoryPreviewMotionAxis axis)
-    {
-        switch (axis)
-        {
-        case EffectSourceHistoryPreviewMotionAxis::Y:
-            return Vec3{ 0.f, 0.f, 1.f };
-        case EffectSourceHistoryPreviewMotionAxis::X:
-        case EffectSourceHistoryPreviewMotionAxis::Z:
-        default:
-            return Vec3{ 0.f, 1.f, 0.f };
-        }
-    }
-
-    void Resolve_PreviewMotionLoopAxes(EffectSourceHistoryPreviewMotionAxis axis, Vec3& outFirstAxis, Vec3& outSecondAxis)
-    {
-        switch (axis)
-        {
-        case EffectSourceHistoryPreviewMotionAxis::X:
-            outFirstAxis = Vec3{ 0.f, 1.f, 0.f };
-            outSecondAxis = Vec3{ 0.f, 0.f, 1.f };
-            break;
-        case EffectSourceHistoryPreviewMotionAxis::Y:
-            outFirstAxis = Vec3{ 1.f, 0.f, 0.f };
-            outSecondAxis = Vec3{ 0.f, 0.f, 1.f };
-            break;
-        case EffectSourceHistoryPreviewMotionAxis::Z:
-        default:
-            outFirstAxis = Vec3{ 1.f, 0.f, 0.f };
-            outSecondAxis = Vec3{ 0.f, 1.f, 0.f };
-            break;
         }
     }
 
@@ -308,6 +285,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Initialize(void* arg)
     _desc.followerLaneCount = max(1u, _desc.followerLaneCount);
     _desc.sampleLifetime = max(0.0001f, _desc.sampleLifetime);
     _desc.sampleSpacing = max(0.001f, _desc.sampleSpacing);
+    _desc.curveSubdivision = min(_desc.curveSubdivision, kMaxCurveSubdivision);
     _desc.stampSpacing = max(0.001f, _desc.stampSpacing);
     _desc.stampInterval = max(0.001f, _desc.stampInterval);
     _desc.stampLifetime = max(0.0001f, _desc.stampLifetime);
@@ -374,13 +352,8 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Render()
 HRESULT ComputeSourceHistorySpriteTrailEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
-    _history.clear();
-    _stamps.clear();
-    _sourceLanes.clear();
-    _sampleAccumulator = 0.f;
-    _stampDistanceAccumulator = 0.f;
-    _stampTimeAccumulator = 0.f;
-    _drawStampCount = 0u;
+    Reset_LoopScopedRuntime();
+    _materialElapsedTime = 0.f;
     _stampSerialCounter = 0u;
     return S_OK;
 }
@@ -400,6 +373,11 @@ bool ComputeSourceHistorySpriteTrailEmitter::Is_EffectFinished() const
             return lane.stamps.empty();
         }
     );
+}
+
+void ComputeSourceHistorySpriteTrailEmitter::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider)
+{
+    _desc.sourcePointSampleProvider = provider;
 }
 
 bool ComputeSourceHistorySpriteTrailEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
@@ -444,6 +422,19 @@ void ComputeSourceHistorySpriteTrailEmitter::Reset_PlaybackRuntime()
     _finishEmissionAfterUpdate = false;
     _loopElapsedTime = 0.f;
     _loopIndex = 0u;
+}
+
+void ComputeSourceHistorySpriteTrailEmitter::Reset_LoopScopedRuntime()
+{
+    _history.clear();
+    _stamps.clear();
+    _sourceLanes.clear();
+    _sampleAccumulator = 0.f;
+    _stampDistanceAccumulator = 0.f;
+    _stampTimeAccumulator = 0.f;
+    _selfRootSourcePosition = Vec3{};
+    _selfRootLastValidTangent = Vec3{ 1.f, 0.f, 0.f };
+    _drawStampCount = 0u;
 }
 
 void ComputeSourceHistorySpriteTrailEmitter::Advance_Playback(float timeDelta)
@@ -516,30 +507,33 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_SelfRoot(float timeDelta)
 
     if (Is_EmittingSourceSamples())
     {
-        const Vec3 sourcePosition = Resolve_SourcePosition();
-        if (_history.empty())
+        Vec3 sourcePosition{};
+        if (Try_Resolve_SourcePosition(sourcePosition))
         {
-            Insert_HistorySample(_history, _sampleAccumulator, sourcePosition, _materialElapsedTime);
-            _selfRootSourcePosition = sourcePosition;
-        }
-        else
-        {
-            const Vec3 previousPosition = _history.front().position;
-            const bool movedEnough = (sourcePosition - previousPosition).Length() >= _desc.sampleSpacing;
-            _sampleAccumulator += max(0.f, timeDelta);
-            if (movedEnough)
+            if (_history.empty())
+            {
                 Insert_HistorySample(_history, _sampleAccumulator, sourcePosition, _materialElapsedTime);
-            Spawn_StampsForPath(
-                _history,
-                _stamps,
-                _stampDistanceAccumulator,
-                _stampTimeAccumulator,
-                _selfRootLastValidTangent,
-                previousPosition,
-                sourcePosition,
-                timeDelta
-            );
-            _selfRootSourcePosition = sourcePosition;
+                _selfRootSourcePosition = sourcePosition;
+            }
+            else
+            {
+                const Vec3 previousPosition = _history.front().position;
+                const bool movedEnough = (sourcePosition - previousPosition).Length() >= _desc.sampleSpacing;
+                _sampleAccumulator += max(0.f, timeDelta);
+                if (movedEnough)
+                    Insert_HistorySample(_history, _sampleAccumulator, sourcePosition, _materialElapsedTime);
+                Spawn_StampsForPath(
+                    _stamps,
+                    _stampDistanceAccumulator,
+                    _stampTimeAccumulator,
+                    _selfRootLastValidTangent,
+                    _history,
+                    previousPosition,
+                    sourcePosition,
+                    timeDelta
+                );
+                _selfRootSourcePosition = sourcePosition;
+            }
         }
     }
 
@@ -620,11 +614,11 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_Lane(HistoryLane& lane, cons
         Insert_HistorySample(lane.history, lane.sampleAccumulator, sourcePosition, _materialElapsedTime);
 
     Spawn_StampsForPath(
-        lane.history,
         lane.stamps,
         lane.stampDistanceAccumulator,
         lane.stampTimeAccumulator,
         lane.lastValidTangent,
+        lane.history,
         previousPosition,
         sourcePosition,
         timeDelta
@@ -710,49 +704,101 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathFollowStamps(
     const float safeDeltaTime = max(0.f, timeDelta);
     for (Stamp& stamp : stamps)
     {
-        if (!stamp.pathFollowActive || stamp.pathFollowArrived)
+        if (!stamp.pathFollowActive)
             continue;
+
+        if (stamp.pathFollowArrived)
+        {
+            if (_desc.pathFollow.arrivalMode == EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive)
+                continue;
+
+            stamp.pathDistanceFromHead =
+                _desc.pathFollow.direction == EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail
+                ? tailDistance
+                : 0.f;
+
+            Vec3 sampledPosition{};
+            Vec3 sampledTangent{};
+            if (Sample_HistoryAtDistance(
+                history,
+                stamp.pathDistanceFromHead,
+                stamp.tangent.LengthSquared() > 0.0001f ? stamp.tangent : fallbackTangent,
+                sampledPosition,
+                sampledTangent
+            ))
+            {
+                stamp.center = sampledPosition;
+                stamp.tangent = sampledTangent;
+            }
+            continue;
+        }
 
         float movementDeltaTime = safeDeltaTime;
         if (stamp.pathFollowStartDelay > 0.f)
         {
+            stamp.pathDistanceFromHead = Resolve_HistoryDistanceForPosition(history, stamp.center);
             const float consumedDelay = min(stamp.pathFollowStartDelay, movementDeltaTime);
             stamp.pathFollowStartDelay -= consumedDelay;
             movementDeltaTime -= consumedDelay;
         }
 
-        if (movementDeltaTime > 0.f)
+        const bool followStarted = movementDeltaTime > 0.f;
+        if (followStarted)
+        {
+            if (_desc.pathFollow.direction == EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail)
+            {
+                if (tailDistance <= 0.0001f && stamp.pathDistanceFromHead <= 0.0001f)
+                {
+                    stamp.pathDistanceFromHead = 0.f;
+                    stamp.pathFollowArrived = true;
+                }
+            }
+            else if (stamp.pathDistanceFromHead <= 0.0001f)
+            {
+                stamp.pathDistanceFromHead = 0.f;
+                stamp.pathFollowArrived = true;
+            }
+        }
+
+        if (followStarted && !stamp.pathFollowArrived)
         {
             const float deltaDistance = max(0.f, stamp.pathFollowSpeed) * movementDeltaTime;
             if (_desc.pathFollow.direction == EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail)
                 stamp.pathDistanceFromHead += deltaDistance;
             else
                 stamp.pathDistanceFromHead -= deltaDistance;
-        }
 
-        if (_desc.pathFollow.direction == EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail)
-        {
-            if (stamp.pathDistanceFromHead >= tailDistance)
+            if (_desc.pathFollow.direction == EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail)
             {
-                stamp.pathDistanceFromHead = tailDistance;
+                if (stamp.pathDistanceFromHead >= tailDistance)
+                {
+                    stamp.pathDistanceFromHead = tailDistance;
+                    stamp.pathFollowArrived = true;
+                }
+            }
+            else if (stamp.pathDistanceFromHead <= 0.f)
+            {
+                stamp.pathDistanceFromHead = 0.f;
                 stamp.pathFollowArrived = true;
             }
         }
-        else if (stamp.pathDistanceFromHead <= 0.f)
-        {
-            stamp.pathDistanceFromHead = 0.f;
-            stamp.pathFollowArrived = true;
-        }
 
-        if (stamp.pathFollowArrived && _desc.pathFollow.killOnArrive)
+        if (stamp.pathFollowArrived &&
+            _desc.pathFollow.arrivalMode == EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive)
             continue;
 
-        if (stamp.pathFollowArrived && !_desc.pathFollow.clampAtEnd)
+        if (!followStarted)
             continue;
 
         Vec3 sampledPosition{};
         Vec3 sampledTangent{};
-        if (Sample_HistoryAtDistance(history, stamp.pathDistanceFromHead, stamp.tangent.LengthSquared() > 0.0001f ? stamp.tangent : fallbackTangent, sampledPosition, sampledTangent))
+        if (Sample_HistoryAtDistance(
+            history,
+            stamp.pathDistanceFromHead,
+            stamp.tangent.LengthSquared() > 0.0001f ? stamp.tangent : fallbackTangent,
+            sampledPosition,
+            sampledTangent
+        ))
         {
             stamp.center = sampledPosition;
             stamp.tangent = sampledTangent;
@@ -765,7 +811,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathFollowStamps(
         {
             return stamp.pathFollowActive &&
                    stamp.pathFollowArrived &&
-                   _desc.pathFollow.killOnArrive;
+                   _desc.pathFollow.arrivalMode == EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive;
         }
     );
 }
@@ -780,6 +826,18 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathReplayStamps(
         return;
 
     const float safeDeltaTime = max(0.f, timeDelta);
+    for (Stamp& stamp : stamps)
+    {
+        if (!stamp.pathReplayActive ||
+            stamp.pathReplayArrived ||
+            stamp.pathReplayElapsedTime > 0.f)
+            continue;
+
+        const float currentDistanceFromHead = Resolve_HistoryDistanceForPosition(history, stamp.center);
+        stamp.pathDistanceFromHead = currentDistanceFromHead;
+        stamp.pathReplayStartDistance = currentDistanceFromHead;
+    }
+
     float maxReplayStartDistance = 0.f;
     for (const Stamp& stamp : stamps)
     {
@@ -789,8 +847,31 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathReplayStamps(
 
     for (Stamp& stamp : stamps)
     {
-        if (!stamp.pathReplayActive || stamp.pathReplayArrived)
+        if (!stamp.pathReplayActive)
             continue;
+
+        if (stamp.pathReplayArrived)
+        {
+            if (_desc.pathReplay.arrivalMode == EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive)
+                continue;
+
+            stamp.pathDistanceFromHead = 0.f;
+
+            Vec3 sampledPosition{};
+            Vec3 sampledTangent{};
+            if (Sample_HistoryAtDistance(
+                history,
+                stamp.pathDistanceFromHead,
+                stamp.tangent.LengthSquared() > 0.0001f ? stamp.tangent : fallbackTangent,
+                sampledPosition,
+                sampledTangent
+            ))
+            {
+                stamp.center = sampledPosition;
+                stamp.tangent = sampledTangent;
+            }
+            continue;
+        }
 
         float movementDeltaTime = safeDeltaTime;
         if (stamp.pathReplayDelayRemaining > 0.f)
@@ -803,6 +884,15 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathReplayStamps(
         if (movementDeltaTime > 0.f)
             stamp.pathReplayElapsedTime += movementDeltaTime;
 
+        if (stamp.pathReplayDelayRemaining <= 0.f && stamp.pathReplayStartDistance <= 0.0001f)
+        {
+            stamp.pathDistanceFromHead = 0.f;
+            stamp.pathReplayArrived = true;
+        }
+
+        if (stamp.pathReplayArrived)
+            continue;
+
         float tailFirstOffset = 0.f;
         if (_desc.pathReplay.startMode == EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst &&
             maxReplayStartDistance > 0.0001f)
@@ -811,17 +901,21 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathReplayStamps(
             if (_desc.pathReplay.replayMode == EffectSourceHistorySpriteTrailPathReplayMode::FitDuration)
             {
                 const float duration = max(0.0001f, _desc.pathReplay.drainDuration);
-                tailFirstOffset = (distanceBehindTail / maxReplayStartDistance) * duration;
+                tailFirstOffset = distanceBehindTail / maxReplayStartDistance * duration;
             }
             else
             {
-                const float speed = max(0.0001f, Sample_RecordedSpeedAtDistance(history, stamp.pathReplayStartDistance) * max(0.f, _desc.pathReplay.speedScale));
+                const float speed = max(
+                    0.0001f,
+                    Sample_RecordedSpeedAtDistance(history, stamp.pathReplayStartDistance) * max(0.f, _desc.pathReplay.speedScale)
+                );
                 tailFirstOffset = distanceBehindTail / speed;
             }
         }
 
         const float effectiveReplayTime = stamp.pathReplayElapsedTime - tailFirstOffset;
-        if (effectiveReplayTime > 0.f)
+        const bool replayStarted = effectiveReplayTime > 0.f;
+        if (replayStarted)
         {
             if (_desc.pathReplay.replayMode == EffectSourceHistorySpriteTrailPathReplayMode::FitDuration)
             {
@@ -836,23 +930,30 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathReplayStamps(
                 const float deltaDistance = max(0.f, segmentSpeed * max(0.f, _desc.pathReplay.speedScale)) * activeDeltaTime;
                 stamp.pathDistanceFromHead -= deltaDistance;
             }
+
+            if (stamp.pathDistanceFromHead <= 0.f)
+            {
+                stamp.pathDistanceFromHead = 0.f;
+                stamp.pathReplayArrived = true;
+            }
         }
 
-        if (stamp.pathDistanceFromHead <= 0.f)
-        {
-            stamp.pathDistanceFromHead = 0.f;
-            stamp.pathReplayArrived = true;
-        }
-
-        if (stamp.pathReplayArrived && _desc.pathReplay.killOnArrive)
+        if (stamp.pathReplayArrived &&
+            _desc.pathReplay.arrivalMode == EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive)
             continue;
 
-        if (stamp.pathReplayArrived && !_desc.pathReplay.clampAtEnd)
+        if (!replayStarted)
             continue;
 
         Vec3 sampledPosition{};
         Vec3 sampledTangent{};
-        if (Sample_HistoryAtDistance(history, stamp.pathDistanceFromHead, stamp.tangent.LengthSquared() > 0.0001f ? stamp.tangent : fallbackTangent, sampledPosition, sampledTangent))
+        if (Sample_HistoryAtDistance(
+            history,
+            stamp.pathDistanceFromHead,
+            stamp.tangent.LengthSquared() > 0.0001f ? stamp.tangent : fallbackTangent,
+            sampledPosition,
+            sampledTangent
+        ))
         {
             stamp.center = sampledPosition;
             stamp.tangent = sampledTangent;
@@ -865,7 +966,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Update_PathReplayStamps(
         {
             return stamp.pathReplayActive &&
                    stamp.pathReplayArrived &&
-                   _desc.pathReplay.killOnArrive;
+                   _desc.pathReplay.arrivalMode == EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive;
         }
     );
 }
@@ -898,6 +999,24 @@ void ComputeSourceHistorySpriteTrailEmitter::Recompute_Distances(vector<HistoryS
             history[index - 1].distanceFromHead +
             (history[index].position - history[index - 1].position).Length();
     }
+}
+
+ComputeSourceHistorySpriteTrailEmitter::HistorySample ComputeSourceHistorySpriteTrailEmitter::Build_SmoothedHistorySample(
+    const vector<HistorySample>& history,
+    size_t sampleIndex) const
+{
+    HistorySample sample = history[sampleIndex];
+    if (!_desc.smoothTangent || sampleIndex == 0u || sampleIndex + 1u >= history.size())
+        return sample;
+
+    const Vec3& newer = history[sampleIndex - 1u].position;
+    const Vec3& current = history[sampleIndex].position;
+    const Vec3& older = history[sampleIndex + 1u].position;
+    sample.position =
+        newer * kSmoothSampleSideWeight +
+        current * (1.f - kSmoothSampleSideWeight * 2.f) +
+        older * kSmoothSampleSideWeight;
+    return sample;
 }
 
 float ComputeSourceHistorySpriteTrailEmitter::Resolve_RequiredHistoryDistance(const vector<Stamp>& stamps) const
@@ -959,19 +1078,66 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
     if (history.empty())
         return false;
 
-    if (history.size() == 1 || distanceFromHead <= 0.f)
+    if (history.size() == 1)
     {
         outPosition = history.front().position;
         outTangent = Internal::Normalize_OrFallback(fallbackTangent, Vec3{ 1.f, 0.f, 0.f });
         return true;
     }
 
+    const auto sample_segment =
+        [this, &history, &fallbackTangent, &outPosition, &outTangent](size_t headIndex, float targetDistance, float fallbackRatio)
+    {
+        const size_t tailIndex = min(headIndex + 1u, history.size() - 1u);
+        const HistorySample p0 = Build_SmoothedHistorySample(history, headIndex > 0u ? headIndex - 1u : headIndex);
+        const HistorySample p1 = Build_SmoothedHistorySample(history, headIndex);
+        const HistorySample p2 = Build_SmoothedHistorySample(history, tailIndex);
+        const HistorySample p3 = Build_SmoothedHistorySample(history, min(tailIndex + 1u, history.size() - 1u));
+        float clampedRatio = clamp(fallbackRatio, 0.f, 1.f);
+        const uint32 stepCount = max(1u, _desc.curveSubdivision);
+        if (stepCount > 1u && targetDistance > 0.f)
+        {
+            const float clampedTargetDistance = max(0.f, targetDistance);
+            Vec3 previousPosition = p1.position;
+            float previousRatio = 0.f;
+            float accumulatedDistance = 0.f;
+            for (uint32 step = 1u; step <= stepCount; ++step)
+            {
+                const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
+                const Vec3 position = Internal::Catmull_Rom(p0.position, p1.position, p2.position, p3.position, ratio);
+                const float stepDistance = (position - previousPosition).Length();
+                if (accumulatedDistance + stepDistance >= clampedTargetDistance)
+                {
+                    const float localRatio =
+                        stepDistance > 0.0001f
+                        ? clamp((clampedTargetDistance - accumulatedDistance) / stepDistance, 0.f, 1.f)
+                        : 0.f;
+                    clampedRatio = lerp(previousRatio, ratio, localRatio);
+                    break;
+                }
+
+                accumulatedDistance += stepDistance;
+                previousPosition = position;
+                previousRatio = ratio;
+            }
+        }
+        outPosition = Internal::Catmull_Rom(p0.position, p1.position, p2.position, p3.position, clampedRatio);
+        outTangent = Internal::Normalize_OrFallback(
+            Internal::Catmull_RomDerivative(p0.position, p1.position, p2.position, p3.position, clampedRatio) * -1.f,
+            fallbackTangent
+        );
+    };
+
+    if (distanceFromHead <= 0.f)
+    {
+        sample_segment(0u, 0.f, 0.f);
+        return true;
+    }
+
     if (distanceFromHead >= history.back().distanceFromHead)
     {
-        const HistorySample& tailSample = history.back();
-        const HistorySample& previousSample = history[history.size() - 2];
-        outPosition = tailSample.position;
-        outTangent = Internal::Normalize_OrFallback(previousSample.position - tailSample.position, fallbackTangent);
+        const float segmentDistance = max(0.0001f, history.back().distanceFromHead - history[history.size() - 2u].distanceFromHead);
+        sample_segment(history.size() - 2u, segmentDistance, 1.f);
         return true;
     }
 
@@ -983,9 +1149,9 @@ bool ComputeSourceHistorySpriteTrailEmitter::Sample_HistoryAtDistance(
             continue;
 
         const float segmentDistance = max(0.0001f, tailSample.distanceFromHead - headSample.distanceFromHead);
-        const float ratio = clamp((distanceFromHead - headSample.distanceFromHead) / segmentDistance, 0.f, 1.f);
-        outPosition = Vec3::Lerp(headSample.position, tailSample.position, ratio);
-        outTangent = Internal::Normalize_OrFallback(headSample.position - tailSample.position, fallbackTangent);
+        const float targetDistance = max(0.f, distanceFromHead - headSample.distanceFromHead);
+        const float ratio = clamp(targetDistance / segmentDistance, 0.f, 1.f);
+        sample_segment(index - 1u, targetDistance, ratio);
         return true;
     }
 
@@ -1013,11 +1179,11 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_RecordedSpeedAtDistance(con
 }
 
 void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
-    const vector<HistorySample>& history,
     vector<Stamp>& stamps,
     float& distanceAccumulator,
     float& timeAccumulator,
     Vec3& lastValidTangent,
+    const vector<HistorySample>& history,
     const Vec3& previousPosition,
     const Vec3& currentPosition,
     float timeDelta)
@@ -1028,15 +1194,23 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
     if (tangent.LengthSquared() > 0.0001f)
         lastValidTangent = tangent;
 
-    const bool currentPositionIsHistoryHead =
-        !history.empty() &&
-        (history.front().position - currentPosition).LengthSquared() <= 0.0001f;
-    const auto resolve_spawn_path_distance = [&](const Vec3& center)
+    const bool canSampleHistoryPath =
+        !history.empty() && (history.front().position - currentPosition).LengthSquared() <= 0.0001f;
+    const auto sample_spawn_point =
+        [this, &history, canSampleHistoryPath, &tangent](float pathDistanceFromHead, const Vec3& fallbackCenter, Vec3& outCenter, Vec3& outTangent)
     {
-        if (currentPositionIsHistoryHead)
-            return (currentPosition - center).Length();
+        outCenter = fallbackCenter;
+        outTangent = tangent;
+        if (!canSampleHistoryPath)
+            return;
 
-        return Resolve_HistoryDistanceForPosition(history, center);
+        Vec3 sampledPosition{};
+        Vec3 sampledTangent{};
+        if (Sample_HistoryAtDistance(history, pathDistanceFromHead, tangent, sampledPosition, sampledTangent))
+        {
+            outCenter = sampledPosition;
+            outTangent = sampledTangent;
+        }
     };
 
     if (_desc.stampSpawnMode == EffectSourceHistorySpriteTrailStampSpawnMode::Time)
@@ -1045,7 +1219,10 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
         while (timeAccumulator >= _desc.stampInterval)
         {
             timeAccumulator -= _desc.stampInterval;
-            Push_Stamp(stamps, currentPosition, tangent, resolve_spawn_path_distance(currentPosition), 1.f, 1.f);
+            Vec3 center{};
+            Vec3 stampTangent{};
+            sample_spawn_point(0.f, currentPosition, center, stampTangent);
+            Push_Stamp(stamps, center, stampTangent, 0.f, 1.f, 1.f);
         }
         return;
     }
@@ -1058,13 +1235,26 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
     {
         const float backDistance = distanceAccumulator - _desc.stampSpacing;
         const float ratio = clamp(1.f - backDistance / distance, 0.f, 1.f);
-        const Vec3 center = Vec3::Lerp(previousPosition, currentPosition, ratio);
-        Push_Stamp(stamps, center, tangent, resolve_spawn_path_distance(center), 1.f, 1.f);
+        Vec3 center{};
+        Vec3 stampTangent{};
+        sample_spawn_point(
+            backDistance,
+            Vec3::Lerp(previousPosition, currentPosition, ratio),
+            center,
+            stampTangent
+        );
+        Push_Stamp(stamps, center, stampTangent, backDistance, 1.f, 1.f);
         distanceAccumulator -= _desc.stampSpacing;
     }
 }
 
-void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(vector<Stamp>& stamps, const Vec3& center, const Vec3& tangent, float pathDistanceFromHead, float widthScale, float lengthScale)
+void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(
+    vector<Stamp>& stamps,
+    const Vec3& center,
+    const Vec3& tangent,
+    float pathDistanceFromHead,
+    float widthScale,
+    float lengthScale)
 {
     const uint32 stampSerial = _stampSerialCounter++;
     Vec3 jitteredCenter = center;
@@ -1216,6 +1406,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Update_InstanceBuffer()
     _drawStampCount = min(static_cast<uint32>(instances.size()), Compute_MaxStampCount());
     if (_desc.drawLimit.useMaxDrawCount)
         _drawStampCount = min(_drawStampCount, max(1u, _desc.drawLimit.maxDrawCount));
+
     if (_drawStampCount == 0u)
         return S_OK;
 
@@ -1235,8 +1426,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Append_StampInstances(const vect
             break;
 
         const float lifeProgress = clamp(stamp.age / max(0.0001f, stamp.lifetime), 0.f, 1.f);
-        Vec4 startColor = Evaluate_ColorOverLife(stamp, 0.f);
-        Vec4 endColor = Evaluate_ColorOverLife(stamp, lifeProgress);
+        const Vec4 color = Evaluate_ColorOverLife(stamp, lifeProgress);
 
         const float widthScale = stamp.widthScale * Evaluate_WidthScaleByLife(lifeProgress);
         const float lengthScale = stamp.lengthScale * Evaluate_LengthScaleByLife(lifeProgress);
@@ -1255,8 +1445,8 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Append_StampInstances(const vect
                 .centerAndLength = Vec4{ stamp.center.x, stamp.center.y, stamp.center.z, _desc.cardLength * max(0.f, lengthScale) },
                 .tangentAndWidth = Vec4{ stamp.tangent.x, stamp.tangent.y, stamp.tangent.z, _desc.cardWidth * max(0.f, widthScale) },
                 .lifeTime = Vec2{ stamp.lifetime, stamp.age },
-                .startColor = startColor,
-                .endColor = endColor,
+                .startColor = color,
+                .endColor = color,
                 .subUVRect = Resolve_SubUVRect(frameIndex),
                 .rotationRadians = rotationRadians
             }
@@ -1430,6 +1620,8 @@ void ComputeSourceHistorySpriteTrailEmitter::Start_NextLoop()
     ++_loopIndex;
     _loopElapsedTime = 0.f;
     _playbackState = PlaybackState::Delayed;
+    _finishEmissionAfterUpdate = false;
+    Reset_LoopScopedRuntime();
 }
 
 RenderGroup ComputeSourceHistorySpriteTrailEmitter::Resolve_RenderGroup() const
@@ -1465,45 +1657,28 @@ int ComputeSourceHistorySpriteTrailEmitter::Resolve_OpacitySourceIndex() const
     return kOpacitySourceAlpha;
 }
 
-Vec3 ComputeSourceHistorySpriteTrailEmitter::Resolve_SourcePosition() const
+bool ComputeSourceHistorySpriteTrailEmitter::Try_Resolve_SourcePosition(Vec3& outPosition) const
 {
-    const Vec3 basePosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
-    return basePosition + Resolve_PreviewMotionOffset();
+    const Shared<IEffectSourcePointSampleProvider> sampleProvider = _desc.sourcePointSampleProvider.lock();
+    if (sampleProvider != nullptr)
+    {
+        EffectSourcePointSample sample{};
+        if (!sampleProvider->Try_GetSourcePointSample(sample))
+            return false;
+
+        outPosition = sample.worldPosition;
+        return true;
+    }
+
+    outPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+    return true;
 }
 
-Vec3 ComputeSourceHistorySpriteTrailEmitter::Resolve_PreviewMotionOffset() const
+Vec3 ComputeSourceHistorySpriteTrailEmitter::Resolve_SourcePosition() const
 {
-    if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Off ||
-        _desc.previewMotionAmplitude <= 0.f)
-        return Vec3{};
-
-    const float speed = max(0.0001f, _desc.previewMotionSpeed);
-    const float activeElapsedTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
-    const float progress = activeElapsedTime * speed;
-    const float amplitude = _desc.previewMotionAmplitude;
-
-    if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Loop)
-    {
-        Vec3 firstAxis{};
-        Vec3 secondAxis{};
-        Internal::Resolve_PreviewMotionLoopAxes(_desc.previewMotionAxis, firstAxis, secondAxis);
-
-        const float angle = progress * XM_2PI;
-        return (firstAxis * cosf(angle) + secondAxis * sinf(angle)) * amplitude;
-    }
-
-    const float t = clamp(progress, 0.f, 1.f);
-    const float easedT = Math::GetSmoothStepRatio(t);
-    const Vec3 primaryAxis = Internal::Resolve_PreviewMotionAxis(_desc.previewMotionAxis);
-
-    if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Arc)
-    {
-        const Vec3 arcAxis = Internal::Resolve_PreviewMotionArcAxis(_desc.previewMotionAxis);
-        const float arcAngle = lerp(XM_PI, 0.f, easedT);
-        return (primaryAxis * cosf(arcAngle) + arcAxis * sinf(arcAngle)) * amplitude;
-    }
-
-    return primaryAxis * lerp(-amplitude, amplitude, easedT);
+    Vec3 sourcePosition{};
+    Try_Resolve_SourcePosition(sourcePosition);
+    return sourcePosition;
 }
 
 float ComputeSourceHistorySpriteTrailEmitter::Sample_Lifetime(uint32 stampSerial) const

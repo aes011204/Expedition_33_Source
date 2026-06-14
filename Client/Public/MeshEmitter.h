@@ -36,7 +36,8 @@ public:
     HRESULT Reload_Definition(const EffectEmitterDefinition& emitterDefinition) override;
     // 마지막 loop 완료와 active particle 소진 여부를 반환한다.
     bool Is_EffectFinished() const override;
-    bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const override; // follower ribbon이 따라갈 active mesh particle 위치를 제공한다.
+    bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const override;
+    // follower ribbon이 따라갈 active mesh particle 위치를 제공한다.
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // active mesh particle의 카메라 기준 대표 표면점을 Blend 정렬 위치로 반환한다.
     EffectSortPolicy Get_BlendSortPolicy() const override;                      // Required Sort Policy authoring 값을 반환한다.
     int32 Get_BlendSortLayer() const override;                                  // Required Sort Layer authoring 값을 반환한다.

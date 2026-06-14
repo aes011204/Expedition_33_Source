@@ -55,6 +55,53 @@ namespace Internal
         Shared<bool> _sampleEnabled{};
     };
 
+    class SourceHistoryPreviewSampleProvider final : public IEffectSourcePointSampleProvider
+    {
+    public:
+        SourceHistoryPreviewSampleProvider(
+            const Weak<IEffectSourcePointSampleProvider>& sourceProvider,
+            const Weak<TrailPreviewController>& previewController,
+            bool useSpriteTrailGate)
+            : _sourceProvider(sourceProvider)
+            , _previewController(previewController)
+            , _useSpriteTrailGate(useSpriteTrailGate)
+        {
+        }
+
+        bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
+        {
+            if (EDITOR == nullptr ||
+                !EDITOR->Is_TrailPreviewVisible())
+                return false;
+
+            if (_useSpriteTrailGate)
+            {
+                float sourceRatio = 0.f;
+                if (EDITOR->Get_SourceHistorySpriteTrailPreviewGateMode() == TrailPreviewGateMode::Window)
+                {
+                    const Shared<TrailPreviewController> previewController = _previewController.lock();
+                    if (previewController == nullptr ||
+                        !previewController->Try_GetAttackAnimationRatio(sourceRatio))
+                        return false;
+                }
+
+                if (!EDITOR->Is_SourceHistorySpriteTrailPreviewGateOpen(sourceRatio))
+                    return false;
+            }
+
+            const Shared<IEffectSourcePointSampleProvider> sourceProvider = _sourceProvider.lock();
+            if (sourceProvider == nullptr)
+                return false;
+
+            return sourceProvider->Try_GetSourcePointSample(outSample);
+        }
+
+    private:
+        Weak<IEffectSourcePointSampleProvider> _sourceProvider{};
+        Weak<TrailPreviewController> _previewController{};
+        bool _useSpriteTrailGate{};
+    };
+
     //## Module Lookup
 
     template <typename TData>
@@ -224,36 +271,6 @@ namespace Internal
         }
     }
 
-    EffectSourceHistoryPreviewMotionPreset Resolve_SourceHistoryPreviewMotionPreset(SourceHistoryPreviewMotionPreset value)
-    {
-        switch (value)
-        {
-        case SourceHistoryPreviewMotionPreset::Line:
-            return EffectSourceHistoryPreviewMotionPreset::Line;
-        case SourceHistoryPreviewMotionPreset::Arc:
-            return EffectSourceHistoryPreviewMotionPreset::Arc;
-        case SourceHistoryPreviewMotionPreset::Loop:
-            return EffectSourceHistoryPreviewMotionPreset::Loop;
-        case SourceHistoryPreviewMotionPreset::Off:
-        default:
-            return EffectSourceHistoryPreviewMotionPreset::Off;
-        }
-    }
-
-    EffectSourceHistoryPreviewMotionAxis Resolve_SourceHistoryPreviewMotionAxis(SourceHistoryPreviewMotionAxis value)
-    {
-        switch (value)
-        {
-        case SourceHistoryPreviewMotionAxis::Y:
-            return EffectSourceHistoryPreviewMotionAxis::Y;
-        case SourceHistoryPreviewMotionAxis::Z:
-            return EffectSourceHistoryPreviewMotionAxis::Z;
-        case SourceHistoryPreviewMotionAxis::X:
-        default:
-            return EffectSourceHistoryPreviewMotionAxis::X;
-        }
-    }
-
     EffectSourceHistorySpriteTrailPathFollowDirection Resolve_SourceHistorySpriteTrailPathFollowDirection(
         SourceHistorySpriteTrailPathFollowDirection value)
     {
@@ -290,6 +307,19 @@ namespace Internal
         case SourceHistorySpriteTrailPathReplayStartMode::TailFirst:
         default:
             return EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst;
+        }
+    }
+
+    EffectSourceHistorySpriteTrailArrivalMode Resolve_SourceHistorySpriteTrailArrivalMode(
+        SourceHistorySpriteTrailArrivalMode value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailArrivalMode::ClampAtEnd:
+            return EffectSourceHistorySpriteTrailArrivalMode::ClampAtEnd;
+        case SourceHistorySpriteTrailArrivalMode::KillOnArrive:
+        default:
+            return EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive;
         }
     }
 
@@ -1600,6 +1630,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = kPreviewLayerTag;
     acquireDesc.trailSampleProvider = _trailPreviewSampleProvider;
+    acquireDesc.sourcePointSampleProvider = _sourceHistorySpriteTrailPreviewSampleProvider;
 
     if (_previewPoolHandle.effectObject != nullptr)
     {
@@ -2188,6 +2219,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     emitterDesc.followerLaneCount = max(1u, sourceHistoryPolicy.followerLaneCount);
     emitterDesc.maxSampleCount = max(2u, sourceHistoryPolicy.maxSampleCount);
     emitterDesc.sampleSpacing = max(0.001f, sourceHistoryPolicy.sampleSpacing);
+    emitterDesc.curveSubdivision = max(0u, sourceHistoryPolicy.curveSubdivision);
+    emitterDesc.smoothTangent = sourceHistoryPolicy.smoothTangent;
     emitterDesc.sampleInterval = max(0.f, sourceHistoryPolicy.sampleInterval);
     emitterDesc.maxLength = max(0.f, sourceHistoryPolicy.maxLength);
     emitterDesc.tailFadeLength = max(0.f, sourceHistoryPolicy.tailFadeLength);
@@ -2198,10 +2231,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     emitterDesc.autoLifeFade = sourceHistoryPolicy.autoLifeFade;
     emitterDesc.tailCollapseOnIdle = sourceHistoryPolicy.tailCollapseOnIdle;
     emitterDesc.tailCollapseSpeed = max(0.f, sourceHistoryPolicy.tailCollapseSpeed);
-    emitterDesc.previewMotionPreset = Internal::Resolve_SourceHistoryPreviewMotionPreset(sourceHistoryPolicy.previewMotionPreset);
-    emitterDesc.previewMotionAxis = Internal::Resolve_SourceHistoryPreviewMotionAxis(sourceHistoryPolicy.previewMotionAxis);
-    emitterDesc.previewMotionAmplitude = max(0.f, sourceHistoryPolicy.previewMotionAmplitude);
-    emitterDesc.previewMotionSpeed = max(0.f, sourceHistoryPolicy.previewMotionSpeed);
+    emitterDesc.sourcePointSampleProvider = _sourceHistoryPreviewSampleProvider;
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
@@ -2385,6 +2415,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
     emitterDesc.followerLaneCount = max(1u, policy.followerLaneCount);
     emitterDesc.sampleLifetime = max(0.0001f, policy.sampleLifetime);
     emitterDesc.sampleSpacing = max(0.001f, policy.sampleSpacing);
+    emitterDesc.curveSubdivision = max(0u, policy.curveSubdivision);
+    emitterDesc.smoothTangent = policy.smoothTangent;
     emitterDesc.maxLength = max(0.f, policy.maxLength);
     emitterDesc.stampSpawnMode =
         policy.stampSpawnMode == SourceHistorySpriteTrailStampSpawnMode::Time
@@ -2392,7 +2424,6 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
         : EffectSourceHistorySpriteTrailStampSpawnMode::Distance;
     emitterDesc.stampSpacing = max(0.001f, policy.stampSpacing);
     emitterDesc.stampInterval = max(0.001f, policy.stampInterval);
-    emitterDesc.stampLifetime = max(0.0001f, policy.stampLifetime);
     emitterDesc.maxStampCount = max(1u, policy.maxStampCount);
     emitterDesc.cardLength = max(0.001f, policy.cardLength);
     emitterDesc.cardWidth = max(0.001f, policy.cardWidth);
@@ -2400,10 +2431,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
     emitterDesc.flipV = policy.flipV;
     emitterDesc.rotationOffsetDegrees = policy.rotationOffsetDegrees;
     emitterDesc.spawnJitter = max(0.f, policy.spawnJitter);
-    emitterDesc.previewMotionPreset = Internal::Resolve_SourceHistoryPreviewMotionPreset(policy.previewMotionPreset);
-    emitterDesc.previewMotionAxis = Internal::Resolve_SourceHistoryPreviewMotionAxis(policy.previewMotionAxis);
-    emitterDesc.previewMotionAmplitude = max(0.f, policy.previewMotionAmplitude);
-    emitterDesc.previewMotionSpeed = max(0.f, policy.previewMotionSpeed);
+    emitterDesc.sourcePointSampleProvider = _sourceHistorySpriteTrailPreviewSampleProvider;
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
@@ -2579,15 +2607,14 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
         emitterDesc.pathReplay.drainDuration = max(0.0001f, pathReplay->drainDuration);
         Internal::Fill_FloatCurvePayload(emitterDesc.pathReplay.drainCurve, pathReplay->drainCurve, 1.f);
         emitterDesc.pathReplay.startMode = Internal::Resolve_SourceHistorySpriteTrailPathReplayStartMode(pathReplay->startMode);
-        emitterDesc.pathReplay.killOnArrive = pathReplay->killOnArrive;
-        emitterDesc.pathReplay.clampAtEnd = pathReplay->clampAtEnd;
+        emitterDesc.pathReplay.arrivalMode = Internal::Resolve_SourceHistorySpriteTrailArrivalMode(pathReplay->arrivalMode);
     }
 
     if (pathReplay == nullptr)
     {
         if (const auto* pathFollow = Internal::Find_ModuleData<SourceHistorySpriteTrailPathFollowModuleData>(
-        emitter,
-        AuthoringModuleType::SourceHistorySpriteTrailPathFollow
+            emitter,
+            AuthoringModuleType::SourceHistorySpriteTrailPathFollow
         ))
         {
             emitterDesc.pathFollow.enabled = true;
@@ -2602,8 +2629,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
                 max(0.f, Internal::Evaluate_FloatDistributionMax(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.y))
             };
             emitterDesc.pathFollow.startDelaySeed = Internal::Build_RandomSeedDesc(pathFollow->startDelay);
-            emitterDesc.pathFollow.killOnArrive = pathFollow->killOnArrive;
-            emitterDesc.pathFollow.clampAtEnd = pathFollow->clampAtEnd;
+            emitterDesc.pathFollow.arrivalMode = Internal::Resolve_SourceHistorySpriteTrailArrivalMode(pathFollow->arrivalMode);
         }
     }
 
@@ -3397,8 +3423,6 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
         return E_FAIL;
     }
 
-    _trailPreviewSampleProvider = trailPreviewWeapon;
-
     TrailPreviewController::PreviewDesc controllerDesc{};
     controllerDesc.player = trailPreviewPlayer;
 
@@ -3408,6 +3432,12 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewController), E_FAIL);
     _trailPreviewController = trailPreviewController;
+
+    _trailPreviewSampleProvider = trailPreviewWeapon;
+    _sourceHistoryPreviewSampleProvider =
+        make_shared<Internal::SourceHistoryPreviewSampleProvider>(trailPreviewWeapon, trailPreviewController, false);
+    _sourceHistorySpriteTrailPreviewSampleProvider =
+        make_shared<Internal::SourceHistoryPreviewSampleProvider>(trailPreviewWeapon, trailPreviewController, true);
 
     return S_OK;
 }
@@ -3424,9 +3454,7 @@ void Level_EffectEditor::Update_PreviewTrailStrokes(float timeDelta)
         return;
     }
 
-    const float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
-    const float gateEndRatio = EDITOR->Get_TrailPreviewGateEndRatio();
-    if (fabs(gateEndRatio - gateStartRatio) <= 0.0001f)
+    if (fabs(EDITOR->Get_TrailPreviewGateEndRatio() - EDITOR->Get_TrailPreviewGateStartRatio()) <= 0.0001f)
     {
         Drain_ActivePreviewTrailStrokes();
         _wasTrailPreviewGateOpen = false;
@@ -3448,10 +3476,7 @@ void Level_EffectEditor::Update_PreviewTrailStrokes(float timeDelta)
         }
         else
         {
-            const bool gateOpen =
-                gateStartRatio < gateEndRatio
-                ? sourceRatio >= gateStartRatio && sourceRatio < gateEndRatio
-                : sourceRatio >= gateStartRatio || sourceRatio < gateEndRatio;
+            const bool gateOpen = EDITOR->Is_TrailPreviewGateOpen(sourceRatio);
             if (gateOpen && !_wasTrailPreviewGateOpen)
             {
                 if (FAILED(Start_PreviewTrailStroke()))

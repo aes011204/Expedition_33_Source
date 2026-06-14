@@ -81,32 +81,15 @@ namespace Internal
         switch (value)
         {
         case RibbonCurveQuality::Basic:
-            return "낮은 비용의 기본 리본 sample 밀도입니다.";
+            return "낮은 비용의 기본 source history 곡선 sample 밀도입니다.";
         case RibbonCurveQuality::Smooth:
-            return "샘플 간격을 줄여 원형/곡선 follower 리본을 더 부드럽게 만듭니다.";
+            return "샘플 간격과 보간 수를 늘려 source history path의 각짐을 줄입니다.";
         case RibbonCurveQuality::HighQuality:
-            return "가장 촘촘한 sample preset입니다. follower 수가 많으면 preview 비용이 늘 수 있습니다.";
+            return "가장 촘촘한 sample preset입니다. follower나 stamp 수가 많으면 preview 비용이 늘 수 있습니다.";
         case RibbonCurveQuality::Custom:
-            return "아래 고급 sample 값을 직접 편집합니다.";
+            return "아래 세부 곡선 값을 직접 편집합니다.";
         default:
             return "";
-        }
-    }
-
-    static const char* Get_SourceHistoryPreviewMotionPresetLabel(SourceHistoryPreviewMotionPreset value)
-    {
-        switch (value)
-        {
-        case SourceHistoryPreviewMotionPreset::Off:
-            return "Off";
-        case SourceHistoryPreviewMotionPreset::Line:
-            return "Line";
-        case SourceHistoryPreviewMotionPreset::Arc:
-            return "Arc";
-        case SourceHistoryPreviewMotionPreset::Loop:
-            return "Loop";
-        default:
-            return "Off";
         }
     }
 
@@ -157,38 +140,6 @@ namespace Internal
         }
         ImGui::PopID();
         return changed;
-    }
-
-    static const char* Get_SourceHistoryPreviewMotionPresetTooltip(SourceHistoryPreviewMotionPreset value)
-    {
-        switch (value)
-        {
-        case SourceHistoryPreviewMotionPreset::Off:
-            return "preview motion을 끄고 emitter root/source 위치를 그대로 사용합니다.";
-        case SourceHistoryPreviewMotionPreset::Line:
-            return "Ease InOut으로 한 번 직선 이동한 뒤 멈춥니다. 정지 후 기존 tail이 사라지는 과정을 확인합니다.";
-        case SourceHistoryPreviewMotionPreset::Arc:
-            return "Ease InOut 진행률로 곡선 이동한 뒤 멈춥니다. 곡선 tail과 drain을 함께 확인합니다.";
-        case SourceHistoryPreviewMotionPreset::Loop:
-            return "등속 순환 이동입니다. 지속 이동 중 history 안정성을 확인합니다.";
-        default:
-            return "";
-        }
-    }
-
-    static const char* Get_SourceHistoryPreviewMotionAxisLabel(SourceHistoryPreviewMotionAxis value)
-    {
-        switch (value)
-        {
-        case SourceHistoryPreviewMotionAxis::X:
-            return "X";
-        case SourceHistoryPreviewMotionAxis::Y:
-            return "Y";
-        case SourceHistoryPreviewMotionAxis::Z:
-            return "Z";
-        default:
-            return "X";
-        }
     }
 
     static const char* Get_SourceHistoryRibbonSourceModeLabel(SourceHistoryRibbonSourceMode value)
@@ -348,14 +299,15 @@ namespace Internal
     static bool Draw_TrailPreviewGateModeProperty(
         DetailPropertyContext& detailContext,
         TrailPreviewGateMode& value,
-        TrailPreviewGateMode defaultValue)
+        TrailPreviewGateMode defaultValue,
+        const char* id)
     {
         static constexpr TrailPreviewGateMode kValues[] = {
             TrailPreviewGateMode::Always,
             TrailPreviewGateMode::Window,
         };
 
-        ImGui::PushID("TrailPreviewGateMode");
+        ImGui::PushID(id);
         detailContext.Draw_PropertyLabel("활성 방식", "트레일 프리뷰 sample을 항상 받거나 Play 타임라인 비율 구간에서만 받습니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
 
@@ -392,12 +344,13 @@ namespace Internal
 
     static bool Draw_TrailPreviewGateRatioProperty(
         DetailPropertyContext& detailContext,
+        const char* id,
         const char* label,
         float& value,
         float defaultValue,
         const char* tooltip)
     {
-        ImGui::PushID(label);
+        ImGui::PushID(id);
         detailContext.Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
 
@@ -438,104 +391,6 @@ namespace Internal
             {
                 const bool selected = value == candidate;
                 if (ImGui::Selectable(Get_RenderLayerOverrideLabel(candidate), selected))
-                {
-                    value = candidate;
-                    changed = true;
-                }
-
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-
-            ImGui::EndCombo();
-        }
-
-        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
-        ImGui::PopID();
-
-        if (resetClicked)
-        {
-            value = defaultValue;
-            return true;
-        }
-
-        return changed;
-    }
-
-    static bool Draw_SourceHistoryPreviewMotionPresetProperty(
-        DetailPropertyContext& detailContext,
-        SourceHistoryPreviewMotionPreset& value,
-        SourceHistoryPreviewMotionPreset defaultValue)
-    {
-        static constexpr SourceHistoryPreviewMotionPreset kValues[] = {
-            SourceHistoryPreviewMotionPreset::Off,
-            SourceHistoryPreviewMotionPreset::Line,
-            SourceHistoryPreviewMotionPreset::Arc,
-            SourceHistoryPreviewMotionPreset::Loop,
-        };
-
-        ImGui::PushID("SourceHistoryPreviewMotionPreset");
-        detailContext.Draw_PropertyLabel(
-            "프리뷰 이동",
-            "Line/Arc는 Ease InOut one-shot, Loop는 등속 순환 motion입니다."
-        );
-        ImGui::SetNextItemWidth(-FLT_MIN);
-
-        bool changed = false;
-        if (ImGui::BeginCombo("##Value", Get_SourceHistoryPreviewMotionPresetLabel(value)))
-        {
-            for (const SourceHistoryPreviewMotionPreset candidate : kValues)
-            {
-                const bool selected = value == candidate;
-                if (ImGui::Selectable(Get_SourceHistoryPreviewMotionPresetLabel(candidate), selected))
-                {
-                    value = candidate;
-                    changed = true;
-                }
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", Get_SourceHistoryPreviewMotionPresetTooltip(candidate));
-
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-
-            ImGui::EndCombo();
-        }
-
-        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
-        ImGui::PopID();
-
-        if (resetClicked)
-        {
-            value = defaultValue;
-            return true;
-        }
-
-        return changed;
-    }
-
-    static bool Draw_SourceHistoryPreviewMotionAxisProperty(
-        DetailPropertyContext& detailContext,
-        SourceHistoryPreviewMotionAxis& value,
-        SourceHistoryPreviewMotionAxis defaultValue)
-    {
-        static constexpr SourceHistoryPreviewMotionAxis kValues[] = {
-            SourceHistoryPreviewMotionAxis::X,
-            SourceHistoryPreviewMotionAxis::Y,
-            SourceHistoryPreviewMotionAxis::Z,
-        };
-
-        ImGui::PushID("SourceHistoryPreviewMotionAxis");
-        detailContext.Draw_PropertyLabel("프리뷰 이동 축");
-        ImGui::SetNextItemWidth(-FLT_MIN);
-
-        bool changed = false;
-        if (ImGui::BeginCombo("##Value", Get_SourceHistoryPreviewMotionAxisLabel(value)))
-        {
-            for (const SourceHistoryPreviewMotionAxis candidate : kValues)
-            {
-                const bool selected = value == candidate;
-                if (ImGui::Selectable(Get_SourceHistoryPreviewMotionAxisLabel(candidate), selected))
                 {
                     value = candidate;
                     changed = true;
@@ -754,16 +609,22 @@ namespace Internal
         {
         case RibbonCurveQuality::Smooth:
             preset.sampleSpacing = 0.04f;
+            preset.curveSubdivision = 8u;
+            preset.smoothTangent = true;
             preset.sampleInterval = 0.f;
             break;
         case RibbonCurveQuality::HighQuality:
             preset.sampleSpacing = 0.02f;
+            preset.curveSubdivision = 12u;
+            preset.smoothTangent = true;
             preset.sampleInterval = 0.f;
             break;
         case RibbonCurveQuality::Basic:
         case RibbonCurveQuality::Custom:
         default:
             preset.sampleSpacing = 0.08f;
+            preset.curveSubdivision = 4u;
+            preset.smoothTangent = true;
             preset.sampleInterval = 0.f;
             break;
         }
@@ -816,9 +677,74 @@ namespace Internal
             data.sampleSpacing = preset.sampleSpacing;
             changed = true;
         }
+        if (data.curveSubdivision != preset.curveSubdivision)
+        {
+            data.curveSubdivision = preset.curveSubdivision;
+            changed = true;
+        }
+        if (data.smoothTangent != preset.smoothTangent)
+        {
+            data.smoothTangent = preset.smoothTangent;
+            changed = true;
+        }
         if (data.sampleInterval != preset.sampleInterval)
         {
             data.sampleInterval = preset.sampleInterval;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    static SourceHistorySpriteTrailTypeData Build_SourceHistorySpriteTrailCurvePreset(RibbonCurveQuality quality)
+    {
+        SourceHistorySpriteTrailTypeData preset{};
+
+        switch (quality)
+        {
+        case RibbonCurveQuality::Smooth:
+            preset.sampleSpacing = 0.04f;
+            preset.curveSubdivision = 8u;
+            preset.smoothTangent = true;
+            break;
+        case RibbonCurveQuality::HighQuality:
+            preset.sampleSpacing = 0.02f;
+            preset.curveSubdivision = 12u;
+            preset.smoothTangent = true;
+            break;
+        case RibbonCurveQuality::Basic:
+        case RibbonCurveQuality::Custom:
+        default:
+            preset.sampleSpacing = 0.08f;
+            preset.curveSubdivision = 4u;
+            preset.smoothTangent = true;
+            break;
+        }
+
+        return preset;
+    }
+
+    static bool Apply_SourceHistorySpriteTrailCurvePreset(SourceHistorySpriteTrailTypeData& data)
+    {
+        if (data.curveQuality == RibbonCurveQuality::Custom)
+            return false;
+
+        const SourceHistorySpriteTrailTypeData preset = Build_SourceHistorySpriteTrailCurvePreset(data.curveQuality);
+        bool changed = false;
+
+        if (data.sampleSpacing != preset.sampleSpacing)
+        {
+            data.sampleSpacing = preset.sampleSpacing;
+            changed = true;
+        }
+        if (data.curveSubdivision != preset.curveSubdivision)
+        {
+            data.curveSubdivision = preset.curveSubdivision;
+            changed = true;
+        }
+        if (data.smoothTangent != preset.smoothTangent)
+        {
+            data.smoothTangent = preset.smoothTangent;
             changed = true;
         }
 
@@ -1137,6 +1063,44 @@ namespace Internal
 
         return changed;
     }
+
+    static bool Draw_SourceHistorySpriteTrailCurveQualityProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistorySpriteTrailTypeData& data,
+        const SourceHistorySpriteTrailTypeData& defaultData)
+    {
+        bool changed = false;
+
+        ImGui::PushID("SourceHistorySpriteTrailCurveQuality");
+        detailContext.Draw_PropertyLabel("곡선 품질", "source history path의 곡선 보간 품질 preset입니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_RibbonCurveQualityLabel(data.curveQuality)))
+        {
+            for (const RibbonCurveQuality value : kRibbonCurveQualityValues)
+            {
+                const bool selected = data.curveQuality == value;
+                if (ImGui::Selectable(Get_RibbonCurveQualityLabel(value), selected))
+                {
+                    data.curveQuality = value;
+                    changed = true;
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", Get_RibbonCurveQualityTooltip(value));
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(data.curveQuality != defaultData.curveQuality))
+        {
+            data.curveQuality = defaultData.curveQuality;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
 }
 
 Detail_View::Detail_View()
@@ -1275,50 +1239,113 @@ void Detail_View::Render_TrailPreviewDetail()
 
     Vec3 baseLocalOffset = EDITOR->Get_TrailPreviewBaseLocalOffset();
     Vec3 tipLocalOffset = EDITOR->Get_TrailPreviewTipLocalOffset();
+    Vec3 sourceLocalOffset = EDITOR->Get_SourceHistorySpriteTrailPreviewSourceLocalOffset();
     const Vec3 defaultBaseLocalOffset = EDITOR->Get_DefaultTrailPreviewBaseLocalOffset();
     const Vec3 defaultTipLocalOffset = EDITOR->Get_DefaultTrailPreviewTipLocalOffset();
+    const Vec3 defaultSourceLocalOffset = EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset();
     bool visible = EDITOR->Is_TrailPreviewVisible();
     bool debugRenderEnabled = EDITOR->Is_TrailPreviewDebugRenderEnabled();
     TrailPreviewGateMode gateMode = EDITOR->Get_TrailPreviewGateMode();
     float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
     float gateEndRatio = EDITOR->Get_TrailPreviewGateEndRatio();
+    TrailPreviewGateMode spriteTrailGateMode = EDITOR->Get_SourceHistorySpriteTrailPreviewGateMode();
+    float spriteTrailGateStartRatio = EDITOR->Get_SourceHistorySpriteTrailPreviewGateStartRatio();
+    float spriteTrailGateEndRatio = EDITOR->Get_SourceHistorySpriteTrailPreviewGateEndRatio();
 
-    bool changed = false;
-    if (_detailPropertyContext.Begin_PropertyTable("TrailPreview"))
+    if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewCommon"))
     {
         if (_detailPropertyContext.Draw_BoolProperty("트레일 프리뷰", visible, false))
             EDITOR->Set_TrailPreviewVisible(visible);
         if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true))
             EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
-        changed |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f);
-        changed |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f);
-        if (Internal::Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window))
-            EDITOR->Set_TrailPreviewGateMode(gateMode);
-        if (gateMode == TrailPreviewGateMode::Window)
-        {
-            bool gateWindowChanged = false;
-            gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
-                _detailPropertyContext,
-                "시작 비율",
-                gateStartRatio,
-                EDITOR->Get_DefaultTrailPreviewGateStartRatio(),
-                "Trail Preview 공격 모션에서 trail sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
-            );
-            gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
-                _detailPropertyContext,
-                "종료 비율",
-                gateEndRatio,
-                EDITOR->Get_DefaultTrailPreviewGateEndRatio(),
-                "Trail Preview 공격 모션에서 trail sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
-            );
-            if (gateWindowChanged)
-                EDITOR->Set_TrailPreviewGateWindow(gateStartRatio, gateEndRatio);
-        }
         _detailPropertyContext.End_PropertyTable();
     }
 
-    if (changed)
-        EDITOR->Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
+    if (ImGui::TreeNodeEx("트레일", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        bool trailLocalChanged = false;
+        if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewTrail"))
+        {
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f);
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f);
+            if (Internal::Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window, "TrailPreviewTrailGateMode"))
+                EDITOR->Set_TrailPreviewGateMode(gateMode);
+            if (gateMode == TrailPreviewGateMode::Window)
+            {
+                bool gateWindowChanged = false;
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewTrailGateStartRatio",
+                    "시작 비율",
+                    gateStartRatio,
+                    EDITOR->Get_DefaultTrailPreviewGateStartRatio(),
+                    "Trail Preview 공격 모션에서 trail sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
+                );
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewTrailGateEndRatio",
+                    "종료 비율",
+                    gateEndRatio,
+                    EDITOR->Get_DefaultTrailPreviewGateEndRatio(),
+                    "Trail Preview 공격 모션에서 trail sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
+                );
+                if (gateWindowChanged)
+                    EDITOR->Set_TrailPreviewGateWindow(gateStartRatio, gateEndRatio);
+            }
+            _detailPropertyContext.End_PropertyTable();
+        }
+
+        if (trailLocalChanged)
+            EDITOR->Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("리본/스프라이트 트레일", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        bool sourceLocalChanged = false;
+        if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewSourceHistorySpriteTrail"))
+        {
+            sourceLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Source 로컬", sourceLocalOffset, defaultSourceLocalOffset, 0.005f);
+            if (Internal::Draw_TrailPreviewGateModeProperty(
+                _detailPropertyContext,
+                spriteTrailGateMode,
+                TrailPreviewGateMode::Window,
+                "TrailPreviewSourceHistorySpriteTrailGateMode"
+            ))
+                EDITOR->Set_SourceHistorySpriteTrailPreviewGateMode(spriteTrailGateMode);
+
+            if (spriteTrailGateMode == TrailPreviewGateMode::Window)
+            {
+                bool gateWindowChanged = false;
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewSourceHistorySpriteTrailGateStartRatio",
+                    "시작 비율",
+                    spriteTrailGateStartRatio,
+                    EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewGateStartRatio(),
+                    "공격 모션에서 SourceHistorySpriteTrail source sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
+                );
+                gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                    _detailPropertyContext,
+                    "TrailPreviewSourceHistorySpriteTrailGateEndRatio",
+                    "종료 비율",
+                    spriteTrailGateEndRatio,
+                    EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewGateEndRatio(),
+                    "공격 모션에서 SourceHistorySpriteTrail source sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
+                );
+                if (gateWindowChanged)
+                    EDITOR->Set_SourceHistorySpriteTrailPreviewGateWindow(spriteTrailGateStartRatio, spriteTrailGateEndRatio);
+            }
+
+            _detailPropertyContext.End_PropertyTable();
+        }
+
+        if (sourceLocalChanged)
+            EDITOR->Set_SourceHistorySpriteTrailPreviewSourceLocalOffset(sourceLocalOffset);
+
+        ImGui::TreePop();
+    }
 }
 
 void Detail_View::Render_PostProcessShaderDetail()
@@ -1637,8 +1664,6 @@ void Detail_View::Render_TypeDataDetail(
 
             if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeData"))
             {
-                changed |= Internal::Draw_RibbonCurveQualityProperty(_detailPropertyContext, *data, defaultData);
-                changed |= Internal::Apply_RibbonCurvePreset(*data);
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "꼬리 페이드 길이",
                     data->tailFadeLength,
@@ -1673,8 +1698,48 @@ void Detail_View::Render_TypeDataDetail(
             ImGui::TextDisabled("tail 유지 시간은 Lifetime 모듈에서 조정합니다. 빠른 source일수록 같은 시간 안에서 더 긴 tail이 남습니다.");
         }
 
-        if (ImGui::CollapsingHeader("고급", data->curveQuality == RibbonCurveQuality::Custom ? ImGuiTreeNodeFlags_DefaultOpen : 0))
+        if (ImGui::CollapsingHeader("고급", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            if (ImGui::TreeNodeEx("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataCurveQuality"))
+                {
+                    changed |= Internal::Draw_RibbonCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                    changed |= Internal::Apply_RibbonCurvePreset(*data);
+
+                    const bool presetLocked = data->curveQuality != RibbonCurveQuality::Custom;
+                    if (presetLocked)
+                        ImGui::BeginDisabled();
+
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "샘플 간격",
+                        data->sampleSpacing,
+                        defaultData.sampleSpacing,
+                        0.005f,
+                        "source가 이 거리 이상 움직였을 때 새 history sample을 추가하고 곡선 sample 간격으로도 사용합니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "곡선 분할",
+                        data->curveSubdivision,
+                        defaultData.curveSubdivision,
+                        "source history segment 하나에서 보강할 수 있는 최대 곡선 render sample 수입니다."
+                    );
+                    changed |= _detailPropertyContext.Draw_BoolProperty(
+                        "탄젠트 스무딩",
+                        data->smoothTangent,
+                        defaultData.smoothTangent,
+                        "앞뒤 source sample을 함께 보아 path 위치를 완만하게 평균 보정합니다."
+                    );
+
+                    if (presetLocked)
+                        ImGui::EndDisabled();
+
+                    data->sampleSpacing = max(0.001f, data->sampleSpacing);
+                    _detailPropertyContext.End_PropertyTable();
+                }
+                ImGui::TreePop();
+            }
+
             if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeDataAdvanced"))
             {
                 if (data->curveQuality == RibbonCurveQuality::Custom)
@@ -1684,13 +1749,6 @@ void Detail_View::Render_TypeDataDetail(
                         data->maxSampleCount,
                         defaultData.maxSampleCount,
                         "lane 하나가 보관할 최소 source history sample 수입니다. 필요하면 내부에서 더 크게 보정됩니다."
-                    );
-                    changed |= _detailPropertyContext.Draw_FloatProperty(
-                        "샘플 간격",
-                        data->sampleSpacing,
-                        defaultData.sampleSpacing,
-                        0.005f,
-                        "source가 이 거리 이상 움직였을 때 새 history sample을 추가합니다. 작을수록 tail 밀도가 높아집니다."
                     );
                     changed |= _detailPropertyContext.Draw_FloatProperty(
                         "샘플 보강 간격",
@@ -1734,38 +1792,6 @@ void Detail_View::Render_TypeDataDetail(
                     defaultData.tilingDistance,
                     0.01f,
                     "0 이하면 전체 표시 길이에 맞춰 늘이고, 양수면 거리 기준으로 texture를 반복합니다."
-                );
-                _detailPropertyContext.End_PropertyTable();
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Preview Motion (에디터 tail 검증용 수치. 저장 X)", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonPreviewMotion"))
-            {
-                changed |= Internal::Draw_SourceHistoryPreviewMotionPresetProperty(
-                    _detailPropertyContext,
-                    data->previewMotionPreset,
-                    defaultData.previewMotionPreset
-                );
-                changed |= Internal::Draw_SourceHistoryPreviewMotionAxisProperty(
-                    _detailPropertyContext,
-                    data->previewMotionAxis,
-                    defaultData.previewMotionAxis
-                );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "프리뷰 이동 크기",
-                    data->previewMotionAmplitude,
-                    defaultData.previewMotionAmplitude,
-                    0.01f,
-                    "Line/Arc의 one-shot 이동 반경 또는 Loop 순환 반경입니다."
-                );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "프리뷰 이동 속도",
-                    data->previewMotionSpeed,
-                    defaultData.previewMotionSpeed,
-                    0.01f,
-                    "Line/Arc는 one-shot 진행 속도, Loop는 등속 반복 속도입니다."
                 );
                 _detailPropertyContext.End_PropertyTable();
             }
@@ -1846,13 +1872,6 @@ void Detail_View::Render_TypeDataDetail(
                     "source history sample을 보관하는 시간입니다. stamp lifetime과 구분됩니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "샘플 간격",
-                    data->sampleSpacing,
-                    defaultData.sampleSpacing,
-                    0.005f,
-                    "source가 이 거리 이상 움직이면 새 history sample을 추가합니다."
-                );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
                     "길이 제한",
                     data->maxLength,
                     defaultData.maxLength,
@@ -1860,8 +1879,46 @@ void Detail_View::Render_TypeDataDetail(
                     "head 기준 stamp 생성 후보 path의 최대 길이입니다. 0 이하면 제한하지 않습니다."
                 );
                 data->sampleLifetime = max(0.0001f, data->sampleLifetime);
-                data->sampleSpacing = max(0.001f, data->sampleSpacing);
                 data->maxLength = max(0.f, data->maxLength);
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailCurveQuality"))
+            {
+                changed |= Internal::Draw_SourceHistorySpriteTrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                changed |= Internal::Apply_SourceHistorySpriteTrailCurvePreset(*data);
+
+                const bool presetLocked = data->curveQuality != RibbonCurveQuality::Custom;
+                if (presetLocked)
+                    ImGui::BeginDisabled();
+
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 간격",
+                    data->sampleSpacing,
+                    defaultData.sampleSpacing,
+                    0.005f,
+                    "source가 이 거리 이상 움직였을 때 새 history sample을 추가하고 곡선 path sample 간격으로도 사용합니다."
+                );
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "곡선 분할",
+                    data->curveSubdivision,
+                    defaultData.curveSubdivision,
+                    "source history segment 하나에서 보강할 수 있는 최대 곡선 sample 수입니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "탄젠트 스무딩",
+                    data->smoothTangent,
+                    defaultData.smoothTangent,
+                    "앞뒤 source sample을 함께 보아 stamp 위치와 path tangent를 완만하게 보정합니다."
+                );
+
+                if (presetLocked)
+                    ImGui::EndDisabled();
+
+                data->sampleSpacing = max(0.001f, data->sampleSpacing);
                 _detailPropertyContext.End_PropertyTable();
             }
         }
@@ -1889,13 +1946,6 @@ void Detail_View::Render_TypeDataDetail(
                     0.005f,
                     "Time 모드에서 stamp를 찍는 시간 간격입니다."
                 );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "스탬프 수명",
-                    data->stampLifetime,
-                    defaultData.stampLifetime,
-                    0.01f,
-                    "stamp 하나가 fade되며 유지되는 시간입니다."
-                );
                 changed |= _detailPropertyContext.Draw_UintProperty(
                     "최대 스탬프 수",
                     data->maxStampCount,
@@ -1911,7 +1961,6 @@ void Detail_View::Render_TypeDataDetail(
                 );
                 data->stampSpacing = max(0.001f, data->stampSpacing);
                 data->stampInterval = max(0.001f, data->stampInterval);
-                data->stampLifetime = max(0.0001f, data->stampLifetime);
                 data->maxStampCount = max(1u, data->maxStampCount);
                 data->spawnJitter = max(0.f, data->spawnJitter);
                 _detailPropertyContext.End_PropertyTable();
@@ -1959,38 +2008,6 @@ void Detail_View::Render_TypeDataDetail(
                     "authored texture의 기본 방향 차이를 degree 단위로 보정합니다."
                 );
 
-                _detailPropertyContext.End_PropertyTable();
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Preview Motion (에디터 tail 검증용 수치. 저장 X)", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            if (_detailPropertyContext.Begin_PropertyTable("SourceHistorySpriteTrailPreviewMotion"))
-            {
-                changed |= Internal::Draw_SourceHistoryPreviewMotionPresetProperty(
-                    _detailPropertyContext,
-                    data->previewMotionPreset,
-                    defaultData.previewMotionPreset
-                );
-                changed |= Internal::Draw_SourceHistoryPreviewMotionAxisProperty(
-                    _detailPropertyContext,
-                    data->previewMotionAxis,
-                    defaultData.previewMotionAxis
-                );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "프리뷰 이동 크기",
-                    data->previewMotionAmplitude,
-                    defaultData.previewMotionAmplitude,
-                    0.01f
-                );
-                changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "프리뷰 이동 속도",
-                    data->previewMotionSpeed,
-                    defaultData.previewMotionSpeed,
-                    0.01f
-                );
-                data->previewMotionAmplitude = max(0.f, data->previewMotionAmplitude);
-                data->previewMotionSpeed = max(0.f, data->previewMotionSpeed);
                 _detailPropertyContext.End_PropertyTable();
             }
         }

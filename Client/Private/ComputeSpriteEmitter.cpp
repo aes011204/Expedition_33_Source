@@ -1099,7 +1099,10 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.planeRadialLocation.thickness *= uniformLocationScale;
     desc.planeRadialLocation.uRange = EffectAssetRuntimeLoad::Scale_Vector2(desc.planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
     desc.planeRadialLocation.vRange = EffectAssetRuntimeLoad::Scale_Vector2(desc.planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
-    desc.planeRadialLocation.radiusRange = EffectAssetRuntimeLoad::Scale_Vector2(desc.planeRadialLocation.radiusRange, Vec2{ uniformPlaneScale, uniformPlaneScale });
+    desc.planeRadialLocation.radiusRange = EffectAssetRuntimeLoad::Scale_Vector2(
+        desc.planeRadialLocation.radiusRange,
+        Vec2{ uniformPlaneScale, uniformPlaneScale }
+    );
     desc.planeRadialOrientation = _desc.planeRadialOrientation;
     desc.initialLocationSeed = _desc.initialLocationSeed;
     desc.sphereLocationSeed = _desc.sphereLocationSeed;

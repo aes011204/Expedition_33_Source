@@ -61,6 +61,22 @@ namespace EffectAssetRuntimeLoad::Emitters
         return {};
     }
 
+    EffectSourceHistorySpriteTrailArrivalMode Resolve_SourceHistorySpriteTrailArrivalMode(const json& data)
+    {
+        const string arrivalMode = Read_String(data, "arrivalMode");
+        if (arrivalMode == "ClampAtEnd")
+            return EffectSourceHistorySpriteTrailArrivalMode::ClampAtEnd;
+        if (arrivalMode == "KillOnArrive")
+            return EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive;
+
+        const bool killOnArrive = Read_Bool(data, "killOnArrive", true);
+        const bool clampAtEnd = Read_Bool(data, "clampAtEnd", true);
+        if (!killOnArrive && clampAtEnd)
+            return EffectSourceHistorySpriteTrailArrivalMode::ClampAtEnd;
+
+        return EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive;
+    }
+
     uint32 Resolve_RibbonAutoHistoryCount(
         uint32 authoredCount,
         float sampleLifetime,
@@ -80,6 +96,17 @@ namespace EffectAssetRuntimeLoad::Emitters
         }
 
         return clamp(required, 2u, kRibbonAutoHistoryMaxCount);
+    }
+
+    uint32 Resolve_SourceHistoryCurveSubdivisionPreset(float sampleSpacing)
+    {
+        const float smoothDelta = sampleSpacing - 0.04f;
+        if (smoothDelta >= -0.0001f && smoothDelta <= 0.0001f)
+            return 8u;
+        const float highQualityDelta = sampleSpacing - 0.02f;
+        if (highQualityDelta >= -0.0001f && highQualityDelta <= 0.0001f)
+            return 12u;
+        return 4u;
     }
 
     void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc)
@@ -835,6 +862,11 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.followerLaneCount = max(1u, Read_UInt(typeData, "followerLaneCount", desc.followerLaneCount));
                 desc.maxSampleCount = max(2u, Read_UInt(typeData, "maxSampleCount", desc.maxSampleCount));
                 desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
+                const bool hasCurveSubdivision = typeData.find("curveSubdivision") != typeData.end();
+                desc.curveSubdivision = max(0u, Read_UInt(typeData, "curveSubdivision", desc.curveSubdivision));
+                desc.smoothTangent = Read_Bool(typeData, "smoothTangent", desc.smoothTangent);
+                if (!hasCurveSubdivision)
+                    desc.curveSubdivision = Resolve_SourceHistoryCurveSubdivisionPreset(desc.sampleSpacing);
                 desc.sampleInterval = max(0.f, Read_Float(typeData, "sampleInterval", desc.sampleInterval));
                 desc.maxLength = max(0.f, Read_Float(typeData, "maxLength", desc.maxLength));
                 desc.tailFadeLength = max(0.f, Read_Float(typeData, "tailFadeLength", desc.tailFadeLength));
@@ -990,6 +1022,11 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.followerLaneCount = max(1u, Read_UInt(typeData, "followerLaneCount", desc.followerLaneCount));
                 desc.sampleLifetime = max(0.0001f, Read_Float(typeData, "sampleLifetime", desc.sampleLifetime));
                 desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
+                const bool hasCurveSubdivision = typeData.find("curveSubdivision") != typeData.end();
+                desc.curveSubdivision = max(0u, Read_UInt(typeData, "curveSubdivision", desc.curveSubdivision));
+                desc.smoothTangent = Read_Bool(typeData, "smoothTangent", desc.smoothTangent);
+                if (!hasCurveSubdivision)
+                    desc.curveSubdivision = Resolve_SourceHistoryCurveSubdivisionPreset(desc.sampleSpacing);
                 desc.maxLength = max(0.f, Read_Float(typeData, "maxLength", desc.maxLength));
 
                 const string stampSpawnMode = Read_String(typeData, "stampSpawnMode", "Distance");
@@ -998,7 +1035,6 @@ namespace EffectAssetRuntimeLoad::Emitters
                                       : EffectSourceHistorySpriteTrailStampSpawnMode::Distance;
                 desc.stampSpacing = max(0.001f, Read_Float(typeData, "stampSpacing", desc.stampSpacing));
                 desc.stampInterval = max(0.001f, Read_Float(typeData, "stampInterval", desc.stampInterval));
-                desc.stampLifetime = max(0.0001f, Read_Float(typeData, "stampLifetime", desc.stampLifetime));
                 desc.maxStampCount = max(1u, Read_UInt(typeData, "maxStampCount", desc.maxStampCount));
                 desc.cardLength = max(0.001f, Read_Float(typeData, "cardLength", desc.cardLength));
                 desc.cardWidth = max(0.001f, Read_Float(typeData, "cardWidth", desc.cardWidth));
@@ -1140,8 +1176,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.pathReplay.startMode = startMode == "AllAtOnce"
                                         ? EffectSourceHistorySpriteTrailPathReplayStartMode::AllAtOnce
                                         : EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst;
-            desc.pathReplay.killOnArrive = Read_Bool(*pathReplay, "killOnArrive", desc.pathReplay.killOnArrive);
-            desc.pathReplay.clampAtEnd = Read_Bool(*pathReplay, "clampAtEnd", desc.pathReplay.clampAtEnd);
+            desc.pathReplay.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(*pathReplay);
         }
 
         if (pathReplay == nullptr)
@@ -1169,8 +1204,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     };
                     desc.pathFollow.startDelaySeed = Read_DistributionRandomSeedDesc(*startDelayIter, pathFollow);
                 }
-                desc.pathFollow.killOnArrive = Read_Bool(*pathFollow, "killOnArrive", desc.pathFollow.killOnArrive);
-                desc.pathFollow.clampAtEnd = Read_Bool(*pathFollow, "clampAtEnd", desc.pathFollow.clampAtEnd);
+                desc.pathFollow.arrivalMode = Resolve_SourceHistorySpriteTrailArrivalMode(*pathFollow);
             }
         }
 
@@ -1352,7 +1386,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                 if (typeData.contains("branchEndSpreadRadius"))
                     desc.branchEndSpreadRadius = max(0.f, Read_Float(typeData, "branchEndSpreadRadius", desc.branchEndSpreadRadius));
                 else
-                desc.branchEndSpreadRadius = desc.branchSpreadRadius;
+                    desc.branchEndSpreadRadius = desc.branchSpreadRadius;
                 desc.branchOutwardAmount = max(0.f, Read_Float(typeData, "branchOutwardAmount", desc.branchOutwardAmount));
                 desc.branchCurveAmount = max(0.f, Read_Float(typeData, "branchCurveAmount", desc.branchCurveAmount));
                 desc.branchDownLength = max(0.f, Read_Float(typeData, "branchDownLength", desc.branchDownLength));

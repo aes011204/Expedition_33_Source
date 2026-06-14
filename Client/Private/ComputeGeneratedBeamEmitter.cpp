@@ -382,9 +382,7 @@ void ComputeGeneratedBeamEmitter::Update(float timeDelta)
 
     if (PlaybackState::Playing == _playbackState &&
         Resolve_ActiveElapsedTime(Resolve_Duration()) < Resolve_VisualLife())
-    {
         Rebuild_PathSamples();
-    }
     else
     {
         _pathEntries.clear();
@@ -1287,9 +1285,7 @@ void ComputeGeneratedBeamEmitter::Resample_VisualLife()
                             : static_cast<float>(min(_loopIndex, lastLoopIndex)) / static_cast<float>(lastLoopIndex);
         }
         else
-        {
             sequencePhase = static_cast<float>(_loopIndex % 2u);
-        }
 
         _sampledVisualLife = max(0.0001f, EffectBeamRuntime::Evaluate_FloatCurve(_desc.lifetime.lifeTimeCurve, sequencePhase, lifeMax));
         return;
@@ -1492,7 +1488,7 @@ uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex(uint32 stripIndex) 
             return startFrame + min(frameOffset, span);
 
         const uint32 phaseOffset = Resolve_FpsSubUVFramePhaseOffset(stripIndex, rangeCount);
-        return startFrame + ((frameOffset + phaseOffset) % rangeCount);
+        return startFrame + (frameOffset + phaseOffset) % rangeCount;
     }
     case SubUVFramePlaybackMode::RandomFrame:
         return !_desc.usePerStripSubUVVariation || stripIndex == 0u

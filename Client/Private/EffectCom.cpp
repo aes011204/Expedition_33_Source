@@ -17,27 +17,27 @@
 
 namespace
 {
-    float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
+float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
+{
+    constexpr float fallbackDuration = 0.25f;
+    if (definition == nullptr)
+        return fallbackDuration;
+
+    float duration = fallbackDuration;
+    for (const EffectEmitterDefinition& emitter : definition->emitters)
     {
-        constexpr float fallbackDuration = 0.25f;
-        if (definition == nullptr)
-            return fallbackDuration;
+        if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
+            continue;
 
-        float duration = fallbackDuration;
-        for (const EffectEmitterDefinition& emitter : definition->emitters)
-        {
-            if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
-                continue;
+        const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+        if (trailDesc == nullptr)
+            continue;
 
-            const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
-            if (trailDesc == nullptr)
-                continue;
-
-            duration = max(duration, trailDesc->segmentLifetime);
-        }
-
-        return max(0.001f, duration);
+        duration = max(duration, trailDesc->segmentLifetime);
     }
+
+    return max(0.001f, duration);
+}
 }
 
 IMPLEMENT_REFLECTION(EffectCom)
@@ -150,11 +150,14 @@ void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         if (effect == nullptr)
             continue;
 
-        const bool alreadyCaptured = any_of(outStates.begin(), outStates.end(),
+        const bool alreadyCaptured = any_of(
+            outStates.begin(),
+            outStates.end(),
             [&effect](const AttachedEffectPauseState& state)
             {
                 return state.effect == effect;
-            });
+            }
+        );
 
         if (alreadyCaptured)
             continue;
@@ -352,7 +355,8 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
         LOG_WARN(
             "[EffectCom] Play_Effect failed: empty effectName or layerTag. effect={}, layer={}",
             String::ToString(desc.effectName),
-            String::ToString(desc.layerTag));
+            String::ToString(desc.layerTag)
+        );
         return E_FAIL;
     }
 
@@ -375,7 +379,8 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
         LOG_WARN(
             "[EffectCom] Play_Effect failed: effect pool is null. effect={}, layer={}",
             String::ToString(desc.effectName),
-            String::ToString(desc.layerTag));
+            String::ToString(desc.layerTag)
+        );
         return E_FAIL;
     }
 
@@ -400,7 +405,8 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
             String::ToString(desc.layerTag),
             spawnWorldPosition.x,
             spawnWorldPosition.y,
-            spawnWorldPosition.z);
+            spawnWorldPosition.z
+        );
         return E_FAIL;
     }
     if (desc.requiresManualRelease)

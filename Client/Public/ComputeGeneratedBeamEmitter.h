@@ -139,15 +139,15 @@ private:
     Shared<ComputeStructuredBuffer> _computeArgsOutput{};
 
 private:
-    void Reset_PlaybackRuntime();                                              // playback 시간/loop 상태를 초기화한다.
-    void Advance_Playback(float timeDelta);                                    // delay/play/completed 상태를 전진시킨다.
-    void Rebuild_PathSamples();                                                // desc의 local start/end 또는 direction/length로 world sample을 다시 만든다.
-    Vec3 Resolve_LocalEnd(uint32 stripIndex) const;                            // endpoint mode와 strip index에 따라 local end를 계산한다.
-    Vec3 Transform_LocalPoint(const Vec3& localPoint) const;                   // emitter local point를 world point로 변환한다.
+    void Reset_PlaybackRuntime(); // playback 시간/loop 상태를 초기화한다.
+    void Advance_Playback(float timeDelta); // delay/play/completed 상태를 전진시킨다.
+    void Rebuild_PathSamples(); // desc의 local start/end 또는 direction/length로 world sample을 다시 만든다.
+    Vec3 Resolve_LocalEnd(uint32 stripIndex) const; // endpoint mode와 strip index에 따라 local end를 계산한다.
+    Vec3 Transform_LocalPoint(const Vec3& localPoint) const; // emitter local point를 world point로 변환한다.
     Vec3 Evaluate_NoiseOffset(uint32 stripIndex, uint32 sampleIndex, const Vec3& tangent) const; // seed 기반 jitter offset을 만든다.
     void Append_BranchPathEntries(const PathEntry& parentPath, uint32 stripIndex, float activeElapsedTime); // parent path에서 branch path를 생성한다.
     HRESULT Append_SegmentPayloads(vector<SegmentPayload>& outPayloads) const; // path sample을 compute input payload로 낮춘다.
-    bool Has_RenderablePath() const;                                           // 렌더 가능한 path segment가 있는지 확인한다.
+    bool Has_RenderablePath() const; // 렌더 가능한 path segment가 있는지 확인한다.
 
     HRESULT Ready_Components();
     HRESULT Ready_Texture();
@@ -171,8 +171,8 @@ private:
     void Resample_VisualLife();
     float Resolve_CurrentLoopDelay() const;
     float Resolve_Duration() const;
-    float Resolve_VisualLife() const;                       // 한 loop 안에서 Beam이 실제로 보이는 시간을 반환한다.
-    float Resolve_ActiveElapsedTime(float duration) const;  // delay 이후 현재 loop 진행 시간을 duration 안으로 제한한다.
+    float Resolve_VisualLife() const;                      // 한 loop 안에서 Beam이 실제로 보이는 시간을 반환한다.
+    float Resolve_ActiveElapsedTime(float duration) const; // delay 이후 현재 loop 진행 시간을 duration 안으로 제한한다.
     bool Has_NextLoop() const;
     bool Is_DistortionFamily() const;
     RenderGroup Resolve_RenderGroup() const;

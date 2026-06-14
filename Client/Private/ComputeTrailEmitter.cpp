@@ -1130,7 +1130,10 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVModeParams", &effectTrailUVModeParams, sizeof(effectTrailUVModeParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVAxisPolicyParams", &effectTrailUVAxisPolicyParams, sizeof(effectTrailUVAxisPolicyParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVAxisPolicyParams", &effectTrailMaskUVAxisPolicyParams, sizeof(effectTrailMaskUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectTrailMaskUVAxisPolicyParams", &effectTrailMaskUVAxisPolicyParams, sizeof(effectTrailMaskUVAxisPolicyParams)),
+        E_FAIL
+    );
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailSourceParams", &effectTrailSourceParams, sizeof(effectTrailSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);

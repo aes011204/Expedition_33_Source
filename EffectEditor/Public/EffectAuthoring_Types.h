@@ -584,23 +584,6 @@ enum class RibbonCurveQuality : uint8
 struct EmptyTypeData
 {};
 
-// Source History Ribbon preview에서 source/root를 어떻게 움직일지 고르는 editor-only preset이다.
-enum class SourceHistoryPreviewMotionPreset : uint8
-{
-    Off,  // preview motion을 끈다.
-    Line, // Ease InOut으로 한 번 직선 이동한 뒤 정지한다.
-    Arc,  // Ease InOut 진행률로 곡선 이동한 뒤 정지한다.
-    Loop, // 등속 순환 이동으로 지속 history 안정성을 확인한다.
-};
-
-// Source History Ribbon preview motion의 기준 진행 축이다.
-enum class SourceHistoryPreviewMotionAxis : uint8
-{
-    X, // X축을 기준으로 preview motion을 만든다.
-    Y, // Y축을 기준으로 preview motion을 만든다.
-    Z, // Z축을 기준으로 preview motion을 만든다.
-};
-
 enum class SourceHistoryRibbonSourceMode : uint8
 {
     SelfRoot,
@@ -631,6 +614,8 @@ struct RibbonTypeData
     RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic }; // sampleSpacing/sampleInterval preset 선택값이다.
     uint32 maxSampleCount{ 64 };                                  // lane 하나가 보관할 source history sample 상한이다.
     float sampleSpacing{ 0.08f };                                 // source가 이 거리 이상 움직이면 새 history sample을 추가한다.
+    uint32 curveSubdivision{ 4 };                                 // source history segment 하나에서 만들 최대 곡선 render sample 수다.
+    bool smoothTangent{ true };                                   // 앞뒤 source sample 평균으로 path를 완만하게 보정할지 결정한다.
     float sampleInterval{ 0.f };                                  // 0보다 크면 정지/저속 source도 시간 기준 sample을 보강한다.
     float maxLength{ 0.f };                                       // head 기준 최대 표시 길이다. 목표 길이가 아니라 상한이다.
     float tailFadeLength{ 0.f };                                  // maxLength 끝부분에서 거리 기반 alpha fade를 적용하는 길이다.
@@ -641,12 +626,6 @@ struct RibbonTypeData
     bool autoLifeFade{ false };                                   // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
     bool tailCollapseOnIdle{ true };                              // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
     float tailCollapseSpeed{ 10.f };                              // idle tail collapse 보간 속도다.
-    // EffectEditor 검증용 source motion preset이다.
-    SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Line };
-    // preview motion 진행 축이다.
-    SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
-    float previewMotionAmplitude{ 2.f }; // preview motion offset 크기다.
-    float previewMotionSpeed{ 3.f };     // Line/Arc one-shot 진행 속도 또는 Loop 반복 속도다.
 };
 
 // Source history path 위에 짧은 sprite/card stamp를 찍는 editor 저장 payload다.
@@ -656,12 +635,14 @@ struct SourceHistorySpriteTrailTypeData
     uint32 sourceEmitterId{};
     uint32 followerLaneCount{ 1 };
     float sampleLifetime{ 0.35f };
+    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic };
     float sampleSpacing{ 0.08f };
+    uint32 curveSubdivision{ 4 };
+    bool smoothTangent{ true };
     float maxLength{ 0.f };
     SourceHistorySpriteTrailStampSpawnMode stampSpawnMode{ SourceHistorySpriteTrailStampSpawnMode::Distance };
     float stampSpacing{ 0.12f };
     float stampInterval{ 0.03f };
-    float stampLifetime{ 0.18f };
     uint32 maxStampCount{ 128 };
     float cardLength{ 0.45f };
     float cardWidth{ 0.08f };
@@ -671,11 +652,6 @@ struct SourceHistorySpriteTrailTypeData
     bool flipV{ false };
     float rotationOffsetDegrees{ 0.f };
     float spawnJitter{ 0.f };
-
-    SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Line };
-    SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
-    float previewMotionAmplitude{ 2.f };
-    float previewMotionSpeed{ 3.f };
 };
 
 struct TrailTypeData
@@ -1083,13 +1059,18 @@ enum class SourceHistorySpriteTrailPathFollowDirection : uint8
     TowardTail,
 };
 
+enum class SourceHistorySpriteTrailArrivalMode : uint8
+{
+    KillOnArrive,
+    ClampAtEnd,
+};
+
 struct SourceHistorySpriteTrailPathFollowModuleData
 {
     SourceHistorySpriteTrailPathFollowDirection direction{ SourceHistorySpriteTrailPathFollowDirection::TowardHead };
     FloatDistributionData speed{ FloatDistributionData::Make_Constant(1.f) };
     FloatDistributionData startDelay{ FloatDistributionData::Make_Constant(0.f) };
-    bool killOnArrive{ true };
-    bool clampAtEnd{ true };
+    SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
 };
 
 enum class SourceHistorySpriteTrailPathReplayMode : uint8
@@ -1112,8 +1093,7 @@ struct SourceHistorySpriteTrailPathReplayModuleData
     float drainDuration{ 0.35f };
     FloatDistributionData drainCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
     SourceHistorySpriteTrailPathReplayStartMode startMode{ SourceHistorySpriteTrailPathReplayStartMode::TailFirst };
-    bool killOnArrive{ true };
-    bool clampAtEnd{ true };
+    SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
 };
 
 enum class MaterialScalarModulationTargetField : uint8

@@ -43,12 +43,26 @@ struct EffectTrailSample
     Vec3 tipWorldPosition{};  // trail 폭의 끝 기준점이다.
 };
 
+// Source history 계열 runtime이 한 프레임에서 소비할 단일 source point sample이다.
+struct EffectSourcePointSample
+{
+    Vec3 worldPosition{}; // source history head로 기록할 world position이다.
+};
+
 // Trail emitter가 attachment owner에게서 sample만 읽기 위한 좁은 provider 계약이다.
 class ENGINE_DLL IEffectTrailSampleProvider
 {
 public:
     virtual ~IEffectTrailSampleProvider() = default;
     virtual bool Try_GetTrailSample(EffectTrailSample& outSample) const = 0;
+};
+
+// Source history 계열 emitter가 attachment owner에게서 단일 point sample만 읽기 위한 좁은 provider 계약이다.
+class ENGINE_DLL IEffectSourcePointSampleProvider
+{
+public:
+    virtual ~IEffectSourcePointSampleProvider() = default;
+    virtual bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const = 0;
 };
 
 //## Module::Sprite
@@ -407,23 +421,6 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
 };
 
-// Source History Ribbon preview에서 source/root를 어떻게 움직일지 고르는 runtime preset이다.
-enum class EffectSourceHistoryPreviewMotionPreset : uint8
-{
-    Off,  // preview motion을 끈다.
-    Line, // Ease InOut 직선 one-shot motion이다.
-    Arc,  // Ease InOut 곡선 one-shot motion이다.
-    Loop, // 등속 순환 motion이다.
-};
-
-// Source History Ribbon preview motion의 기준 진행 축이다.
-enum class EffectSourceHistoryPreviewMotionAxis : uint8
-{
-    X, // X축 기준 preview motion이다.
-    Y, // Y축 기준 preview motion이다.
-    Z, // Z축 기준 preview motion이다.
-};
-
 enum class EffectRibbonRenderAxis : uint8
 {
     CameraUp,
@@ -533,6 +530,8 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     uint32 followerLaneCount{ 1 }; // ParticleEmitter mode에서 동시에 따라갈 representative particle lane 상한이다.
     uint32 maxSampleCount{ 64 };   // source history가 보관할 최대 sample 개수다.
     float sampleSpacing{ 0.08f };  // source가 이 거리 이상 움직였을 때 새 sample을 추가한다.
+    uint32 curveSubdivision{ 4 };  // source history segment 하나에서 만들 최대 곡선 render segment 수다.
+    bool smoothTangent{ true };    // render sample 생성 전 source history path를 완만하게 보정할지 결정한다.
     float sampleInterval{ 0.f };   // 0보다 크면 정지/저속 source도 이 시간마다 sample을 보강한다. projectile tail 기본값은 0이다.
     float sampleLifetime{ 0.35f }; // sample 하나가 strip 구성 후보로 남는 시간이다. 같은 시간 안에서 빠른 source일수록 tail이 길어진다.
 
@@ -548,12 +547,7 @@ struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
     bool tailCollapseOnIdle{ true }; // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
     float tailCollapseSpeed{ 10.f }; // idle tail collapse 보간 속도다.
 
-    // EffectEditor 검증용 source motion preset이다.
-    EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Line };
-    // preview motion 진행 축이다.
-    EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X };
-    float previewMotionAmplitude{ 2.f }; // preview motion offset 크기다.
-    float previewMotionSpeed{ 3.f };     // one-shot 진행률 또는 loop 반복 속도다.
+    Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{}; // attachment 계산 owner가 공급하는 단일 source sample이다.
 };
 
 enum class EffectSourceHistorySpriteTrailStampSpawnMode : uint8
@@ -587,6 +581,13 @@ enum class EffectSourceHistorySpriteTrailPathReplayStartMode : uint8
     AllAtOnce,
 };
 
+// source history path 도착 후 stamp를 어떻게 처리할지 정한다.
+enum class EffectSourceHistorySpriteTrailArrivalMode : uint8
+{
+    KillOnArrive,
+    ClampAtEnd,
+};
+
 struct EffectSourceHistorySpriteTrailPathFollowRuntimeDesc
 {
     bool enabled{ false }; // true면 stamp center를 local velocity가 아니라 source history path 좌표가 소유한다.
@@ -595,8 +596,7 @@ struct EffectSourceHistorySpriteTrailPathFollowRuntimeDesc
     PointParticleRandomSeedRuntimeDesc speedSeed{};
     Vec2 startDelay{ 0.f, 0.f }; // stamp별 path-follow 시작 전 대기 시간 범위다.
     PointParticleRandomSeedRuntimeDesc startDelaySeed{};
-    bool killOnArrive{ true };
-    bool clampAtEnd{ true };
+    EffectSourceHistorySpriteTrailArrivalMode arrivalMode{ EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive };
 };
 
 struct EffectSourceHistorySpriteTrailPathReplayRuntimeDesc
@@ -608,8 +608,7 @@ struct EffectSourceHistorySpriteTrailPathReplayRuntimeDesc
     float drainDuration{ 0.35f };
     PointParticleFloatCurveRuntimeDesc drainCurve{};
     EffectSourceHistorySpriteTrailPathReplayStartMode startMode{ EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst };
-    bool killOnArrive{ true };
-    bool clampAtEnd{ true };
+    EffectSourceHistorySpriteTrailArrivalMode arrivalMode{ EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive };
 };
 
 // source/root history path 위에 Required sprite alignment 기반 sprite card stamp를 찍는 runtime payload다.
@@ -638,6 +637,8 @@ struct ComputeSourceHistorySpriteTrailEmitterDesc : public GameObject::GAMEOBJEC
     uint32 followerLaneCount{ 1 };
     float sampleLifetime{ 0.35f };
     float sampleSpacing{ 0.08f };
+    uint32 curveSubdivision{ 4 }; // source history segment 하나에서 만들 최대 곡선 sample 수다.
+    bool smoothTangent{ true };   // path sample 생성 전 source history path를 완만하게 보정할지 결정한다.
     float maxLength{ 0.f };
 
     EffectSourceHistorySpriteTrailStampSpawnMode stampSpawnMode{ EffectSourceHistorySpriteTrailStampSpawnMode::Distance };
@@ -654,10 +655,7 @@ struct ComputeSourceHistorySpriteTrailEmitterDesc : public GameObject::GAMEOBJEC
     EffectSourceHistorySpriteTrailPathFollowRuntimeDesc pathFollow{};
     EffectSourceHistorySpriteTrailPathReplayRuntimeDesc pathReplay{};
 
-    EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Line };
-    EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X };
-    float previewMotionAmplitude{ 2.f };
-    float previewMotionSpeed{ 3.f };
+    Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{}; // attachment 계산 owner가 공급하는 단일 source sample이다.
 };
 
 // mesh emitter가 Vec3 transform curve를 CPU instance update에서 평가하기 위한 payload다.

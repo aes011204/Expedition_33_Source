@@ -91,6 +91,10 @@ void EffectEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvid
 {
 }
 
+void EffectEmitter::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>&)
+{
+}
+
 bool EffectEmitter::Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>&, uint32) const
 {
     return false;

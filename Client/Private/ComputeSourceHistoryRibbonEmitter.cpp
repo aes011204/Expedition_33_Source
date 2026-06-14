@@ -40,6 +40,19 @@ static float Hash01(uint32 seed)
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
 }
 
+static Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float ratio)
+{
+    const float t2 = ratio * ratio;
+    const float t3 = t2 * ratio;
+
+    return (
+               p1 * 2.f +
+               (p2 - p0) * ratio +
+               (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
+               (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
+           ) * 0.5f;
+}
+
 static float Read_Vec4Component(const Vec4& values, uint32 index)
 {
     switch (index)
@@ -73,53 +86,6 @@ static Vec4 Average_Color(const Vec4& minColor, const Vec4& maxColor)
         (minColor.z + maxColor.z) * 0.5f,
         (minColor.w + maxColor.w) * 0.5f
     };
-}
-
-static Vec3 Resolve_PreviewMotionAxis(EffectSourceHistoryPreviewMotionAxis axis)
-{
-    switch (axis)
-    {
-    case EffectSourceHistoryPreviewMotionAxis::Y:
-        return Vec3{ 0.f, 1.f, 0.f };
-    case EffectSourceHistoryPreviewMotionAxis::Z:
-        return Vec3{ 0.f, 0.f, 1.f };
-    case EffectSourceHistoryPreviewMotionAxis::X:
-    default:
-        return Vec3{ 1.f, 0.f, 0.f };
-    }
-}
-
-static Vec3 Resolve_PreviewMotionArcAxis(EffectSourceHistoryPreviewMotionAxis axis)
-{
-    switch (axis)
-    {
-    case EffectSourceHistoryPreviewMotionAxis::Y:
-        return Vec3{ 0.f, 0.f, 1.f };
-    case EffectSourceHistoryPreviewMotionAxis::X:
-    case EffectSourceHistoryPreviewMotionAxis::Z:
-    default:
-        return Vec3{ 0.f, 1.f, 0.f };
-    }
-}
-
-static void Resolve_PreviewMotionLoopAxes(EffectSourceHistoryPreviewMotionAxis axis, Vec3& outFirstAxis, Vec3& outSecondAxis)
-{
-    switch (axis)
-    {
-    case EffectSourceHistoryPreviewMotionAxis::X:
-        outFirstAxis = Vec3{ 0.f, 1.f, 0.f };
-        outSecondAxis = Vec3{ 0.f, 0.f, 1.f };
-        break;
-    case EffectSourceHistoryPreviewMotionAxis::Y:
-        outFirstAxis = Vec3{ 1.f, 0.f, 0.f };
-        outSecondAxis = Vec3{ 0.f, 0.f, 1.f };
-        break;
-    case EffectSourceHistoryPreviewMotionAxis::Z:
-    default:
-        outFirstAxis = Vec3{ 1.f, 0.f, 0.f };
-        outSecondAxis = Vec3{ 0.f, 1.f, 0.f };
-        break;
-    }
 }
 
 static HRESULT Bind_MaterialScalarModulationPayload(
@@ -313,6 +279,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
     if (_desc.sourceMode != EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
         _desc.sourceEmitterId = 0u;
     _desc.sampleSpacing = max(0.001f, _desc.sampleSpacing);
+    _desc.curveSubdivision = min(_desc.curveSubdivision, kMaxCurveSubdivision);
     _desc.sampleInterval = max(0.f, _desc.sampleInterval);
     _desc.sampleLifetime = max(0.0001f, _desc.sampleLifetime);
     _desc.maxLength = max(0.f, _desc.maxLength);
@@ -325,9 +292,6 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
     _desc.material.subUVCols = max(1u, _desc.material.subUVCols);
     _desc.subUVFrameOverLife.frameCurveKeyCount =
         max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.subUVFrameOverLife.frameCurveKeyCount));
-    _desc.previewMotionAmplitude = max(0.f, _desc.previewMotionAmplitude);
-    _desc.previewMotionSpeed = max(0.f, _desc.previewMotionSpeed);
-
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
     Reset_PlaybackRuntime();
@@ -405,6 +369,11 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Reset_ForEffectReplay()
 bool ComputeSourceHistoryRibbonEmitter::Is_EffectFinished() const
 {
     return PlaybackState::Completed == _playbackState;
+}
+
+void ComputeSourceHistoryRibbonEmitter::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider)
+{
+    _desc.sourcePointSampleProvider = provider;
 }
 
 bool ComputeSourceHistoryRibbonEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
@@ -508,7 +477,10 @@ void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
     {
         _sampleIntervalAccumulator += safeDeltaTime;
 
-        const Vec3 sourcePosition = Resolve_SourcePosition();
+        Vec3 sourcePosition{};
+        if (!Try_Resolve_SourcePosition(sourcePosition))
+            return;
+
         _selfRootSourcePosition = sourcePosition;
         const float frameMovedDistance =
             _hasSelfRootPreviousSourcePosition
@@ -536,16 +508,14 @@ void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
             const float currentLength =
                 _selfRootCollapseLength >= 0.f
                 ? _selfRootCollapseLength
-                : (fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f);
+                : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
             if (isIdle)
             {
                 const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
                 _selfRootCollapseLength = max(0.f, currentLength * (1.f - collapseRatio));
             }
             else
-            {
                 _selfRootCollapseLength = -1.f;
-            }
         }
 
         _selfRootPreviousSourcePosition = sourcePosition;
@@ -624,16 +594,14 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
                 const float currentLength =
                     lane->collapseLength >= 0.f
                     ? lane->collapseLength
-                    : (fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f);
+                    : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
                 if (isIdle)
                 {
                     const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
                     lane->collapseLength = max(0.f, currentLength * (1.f - collapseRatio));
                 }
                 else
-                {
                     lane->collapseLength = -1.f;
-                }
             }
 
             lane->previousSourcePosition = sourcePoint.position;
@@ -689,14 +657,10 @@ void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(
             }
         }
         else
-        {
             history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
-        }
     }
     else
-    {
         history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
-    }
 
     sampleIntervalAccumulator = 0.f;
 
@@ -719,7 +683,9 @@ void ComputeSourceHistoryRibbonEmitter::Prune_History(vector<HistorySample>& his
     }
 
     while (static_cast<uint32>(history.size()) > _desc.maxSampleCount)
+    {
         history.pop_back();
+    }
 }
 
 void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(vector<RenderSample>& outSamples) const
@@ -748,26 +714,41 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
             return;
     }
 
+    vector<HistorySample> sourceSamples{};
+    sourceSamples.reserve(history.size() + (currentSourcePosition != nullptr ? 1u : 0u));
+    if (currentSourcePosition != nullptr)
+        sourceSamples.push_back(HistorySample{ .position = *currentSourcePosition });
+    sourceSamples.insert(sourceSamples.end(), history.begin(), history.end());
+
+    if (sourceSamples.empty())
+        return;
+
     outSamples.reserve(Compute_MaxLaneRenderSegmentCount() + 1u);
 
-    HistorySample currentSample{};
-    size_t historyIndex = 0u;
-    if (currentSourcePosition != nullptr)
+    const auto resolve_source_sample =
+        [this, &sourceSamples](size_t sampleIndex)
     {
-        currentSample.position = *currentSourcePosition;
-    }
-    else
-    {
-        currentSample = history.front();
-        historyIndex = 1u;
-    }
+        HistorySample sample = sourceSamples[sampleIndex];
+        if (!_desc.smoothTangent || sampleIndex == 0u || sampleIndex + 1u >= sourceSamples.size())
+            return sample;
 
-    outSamples.push_back(RenderSample{ .sample = currentSample, .distanceFromHead = 0.f });
+        const Vec3& newer = sourceSamples[sampleIndex - 1u].position;
+        const Vec3& current = sourceSamples[sampleIndex].position;
+        const Vec3& older = sourceSamples[sampleIndex + 1u].position;
+        sample.position =
+            newer * kSmoothSampleSideWeight +
+            current * (1.f - kSmoothSampleSideWeight * 2.f) +
+            older * kSmoothSampleSideWeight;
+        return sample;
+    };
+
+    outSamples.push_back(RenderSample{ .sample = resolve_source_sample(0u), .distanceFromHead = 0.f });
     float accumulatedDistance = 0.f;
 
-    while (historyIndex < history.size())
+    for (size_t sourceIndex = 0u; sourceIndex + 1u < sourceSamples.size(); ++sourceIndex)
     {
-        const HistorySample& targetSample = history[historyIndex++];
+        const HistorySample& currentSample = sourceSamples[sourceIndex];
+        const HistorySample& targetSample = sourceSamples[sourceIndex + 1u];
         const float segmentDistance = (targetSample.position - currentSample.position).Length();
         if (segmentDistance <= kMinRenderableRibbonLength)
             continue;
@@ -808,16 +789,20 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
 
         const uint32 stepCount = min(
             max(1u, static_cast<uint32>(ceilf(segmentDistance / _desc.sampleSpacing))),
-            kMaxDistanceTessellationSubdivision
+            max(1u, _desc.curveSubdivision)
         );
         bool trimmed = false;
+        const HistorySample p0 = resolve_source_sample(sourceIndex > 0u ? sourceIndex - 1u : sourceIndex);
+        const HistorySample p1 = resolve_source_sample(sourceIndex);
+        const HistorySample p2 = resolve_source_sample(sourceIndex + 1u);
+        const HistorySample p3 = resolve_source_sample(min(sourceIndex + 2u, sourceSamples.size() - 1u));
 
         for (uint32 step = 1u; step <= stepCount; ++step)
         {
             const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
             const float sampleRatio = min(ratio, trimRatio);
             HistorySample sample{};
-            sample.position = Vec3::Lerp(currentSample.position, targetSample.position, sampleRatio);
+            sample.position = EffectAssetRuntimeLoad::Catmull_Rom(p0.position, p1.position, p2.position, p3.position, sampleRatio);
             sample.age = currentSample.age + (targetSample.age - currentSample.age) * sampleRatio;
             outSamples.push_back(RenderSample{ .sample = sample });
 
@@ -830,8 +815,6 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
 
         if (trimmed)
             break;
-
-        currentSample = targetSample;
         accumulatedDistance += segmentDistance;
     }
 
@@ -852,9 +835,7 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
         : kMinRenderableRibbonLength;
     if (outSamples.size() < 2u ||
         outSamples.back().distanceFromHead <= minRenderableLength)
-    {
         outSamples.clear();
-    }
 }
 
 bool ComputeSourceHistoryRibbonEmitter::Has_RenderableHistory() const
@@ -1130,17 +1111,17 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
         const float nextLifeProgress = clamp(next.sample.age / max(_desc.sampleLifetime, 0.0001f), 0.f, 1.f);
         const auto resolveSampleAlphaScale =
             [this](const RenderSample& sample, float lifeProgress)
+        {
+            float alphaScale = _desc.autoLifeFade ? 1.f - lifeProgress : 1.f;
+            if (_desc.maxLength > 0.f && _desc.tailFadeLength > 0.f)
             {
-                float alphaScale = _desc.autoLifeFade ? 1.f - lifeProgress : 1.f;
-                if (_desc.maxLength > 0.f && _desc.tailFadeLength > 0.f)
-                {
-                    const float fadeLength = max(_desc.tailFadeLength, 0.001f);
-                    const float fadeStart = max(0.f, _desc.maxLength - fadeLength);
-                    alphaScale *= clamp((_desc.maxLength - sample.distanceFromHead) / max(_desc.maxLength - fadeStart, 0.001f), 0.f, 1.f);
-                }
+                const float fadeLength = max(_desc.tailFadeLength, 0.001f);
+                const float fadeStart = max(0.f, _desc.maxLength - fadeLength);
+                alphaScale *= clamp((_desc.maxLength - sample.distanceFromHead) / max(_desc.maxLength - fadeStart, 0.001f), 0.f, 1.f);
+            }
 
-                return clamp(alphaScale, 0.f, 1.f);
-            };
+            return clamp(alphaScale, 0.f, 1.f);
+        };
         const float safeWidthMultiplier = clamp(widthMultiplier, 0.f, 1.f);
         const float currentAlphaScale = resolveSampleAlphaScale(current, currentLifeProgress);
         const float nextAlphaScale = resolveSampleAlphaScale(next, nextLifeProgress);
@@ -1391,8 +1372,8 @@ uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxRenderSegmentCount() const
 
 uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxLaneRenderSegmentCount() const
 {
-    const uint32 maxRawSegments = max(1u, _desc.maxSampleCount - 1u);
-    return maxRawSegments * kMaxDistanceTessellationSubdivision;
+    const uint32 maxRawSegments = max(1u, _desc.maxSampleCount);
+    return maxRawSegments * max(1u, min(_desc.curveSubdivision, kMaxCurveSubdivision));
 }
 
 void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
@@ -1464,46 +1445,28 @@ int ComputeSourceHistoryRibbonEmitter::Resolve_OpacitySourceIndex() const
     return 0;
 }
 
-Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_SourcePosition() const
+bool ComputeSourceHistoryRibbonEmitter::Try_Resolve_SourcePosition(Vec3& outPosition) const
 {
-    const Vec3 basePosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+    const Shared<IEffectSourcePointSampleProvider> sampleProvider = _desc.sourcePointSampleProvider.lock();
+    if (sampleProvider != nullptr)
+    {
+        EffectSourcePointSample sample{};
+        if (!sampleProvider->Try_GetSourcePointSample(sample))
+            return false;
 
-    return basePosition + Resolve_PreviewMotionOffset();
+        outPosition = sample.worldPosition;
+        return true;
+    }
+
+    outPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+    return true;
 }
 
-Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
+Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_SourcePosition() const
 {
-    if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Off ||
-        _desc.previewMotionAmplitude <= 0.f)
-        return Vec3{};
-
-    const float speed = max(0.0001f, _desc.previewMotionSpeed);
-    const float activeElapsedTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
-    const float progress = activeElapsedTime * speed;
-    const float amplitude = _desc.previewMotionAmplitude;
-
-    if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Loop)
-    {
-        Vec3 firstAxis{};
-        Vec3 secondAxis{};
-        EffectAssetRuntimeLoad::Resolve_PreviewMotionLoopAxes(_desc.previewMotionAxis, firstAxis, secondAxis);
-
-        const float angle = progress * XM_2PI;
-        return (firstAxis * cosf(angle) + secondAxis * sinf(angle)) * amplitude;
-    }
-
-    const float t = clamp(progress, 0.f, 1.f);
-    const float easedT = Math::GetSmoothStepRatio(t);
-    const Vec3 primaryAxis = EffectAssetRuntimeLoad::Resolve_PreviewMotionAxis(_desc.previewMotionAxis);
-
-    if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Arc)
-    {
-        const Vec3 arcAxis = EffectAssetRuntimeLoad::Resolve_PreviewMotionArcAxis(_desc.previewMotionAxis);
-        const float arcAngle = lerp(XM_PI, 0.f, easedT);
-        return (primaryAxis * cosf(arcAngle) + arcAxis * sinf(arcAngle)) * amplitude;
-    }
-
-    return primaryAxis * lerp(-amplitude, amplitude, easedT);
+    Vec3 sourcePosition{};
+    Try_Resolve_SourcePosition(sourcePosition);
+    return sourcePosition;
 }
 
 Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgress) const

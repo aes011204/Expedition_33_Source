@@ -361,6 +361,8 @@ UI나 이전 저장 데이터에는 legacy 의미의 SourceEmitter 표현이 남
 
 ParticleEmitter source를 쓸 때는 source Emitter가 실제 particle 위치 history를 제공할 수 있어야 한다. source가 없거나 disabled 상태라면 ribbon이 기대한 위치를 따라가지 않을 수 있다.
 
+`고급`의 `곡선 품질`은 source history path를 얼마나 촘촘하고 부드럽게 render sample로 재구성할지 정한다. `고품질`은 꺾인 source path를 더 부드럽게 만들지만 follower 수가 많으면 preview 비용이 늘 수 있다.
+
 Detail View의 `Preview Motion (에디터 tail 검증용 수치. 저장 X)` 섹션은 Source History Ribbon의 tail 움직임을 EffectEditor 안에서 확인하기 위한 preview 검증 입력이다. effect asset에 저장되는 authoring 값이 아니라 preview lowering에서만 소비되는 editor-only 값으로 본다.
 
 Preview Motion에서 자주 확인하는 값은 다음과 같다.
@@ -383,8 +385,9 @@ Detail View에서는 다음 그룹으로 나누어 읽는다.
 | 그룹 | 주요 UI | 의미 | 주의점 |
 | --- | --- | --- | --- |
 | `Source` | `Source Mode`, `Source Emitter`, `최대 추적 수` | 어떤 source 위치 history를 따라갈지 정한다. | ParticleEmitter source는 같은 effect 안에서 위치를 제공할 수 있어야 한다. |
-| `History` | `샘플 수명`, `샘플 간격`, `길이 제한` | source가 지나간 path sample을 얼마나 오래, 얼마나 촘촘히 보관할지 정한다. | stamp 수명과 source history sample 수명은 별도 값이다. |
-| `Stamp` | `스탬프 생성 기준`, `스탬프 간격`, `스탬프 시간 간격`, `스탬프 수명`, `최대 스탬프 수`, `지터` | path 위에 sprite card를 언제, 얼마나 만들지 정한다. | `Distance`는 이동 거리 기준, `Time`은 시간 간격 기준으로 stamp를 찍는다. |
+| `History` | `샘플 수명`, `길이 제한` | source가 지나간 path sample을 얼마나 오래 보관하고 어디까지 stamp 후보로 볼지 정한다. | stamp의 표시 수명은 `Lifetime` Module이 소유한다. |
+| `곡선 품질` | `곡선 품질`, `샘플 간격`, `곡선 분할`, `탄젠트 스무딩` | source history path를 stamp 위치와 path tangent로 샘플링할 때의 곡선 품질을 정한다. | `고품질`은 각진 path를 줄이지만 stamp 수가 많으면 preview 비용이 늘 수 있다. |
+| `Stamp` | `스탬프 생성 기준`, `스탬프 간격`, `스탬프 시간 간격`, `최대 스탬프 수`, `지터` | path 위에 sprite card를 언제, 얼마나 만들지 정한다. | `Distance`는 이동 거리 기준, `Time`은 시간 간격 기준으로 stamp를 찍는다. |
 | `Card` | `카드 길이`, `카드 폭`, `U 반전`, `V 반전`, `회전 오프셋` | 각 stamp card의 기준 크기와 texture 방향 보정을 정한다. | 실제 최종 크기는 `초기 크기`, `수명에 따른 크기` 같은 Module과 함께 곱해질 수 있다. |
 | `Preview Motion` | `프리뷰 모션`, `프리뷰 이동 축`, `프리뷰 이동 크기`, `프리뷰 이동 속도` | EffectEditor 안에서 source history 움직임을 검증하기 위한 입력이다. | 저장되는 effect 연출 정책이 아니라 preview 검증용 값으로 본다. |
 

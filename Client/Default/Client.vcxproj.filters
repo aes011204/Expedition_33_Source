@@ -260,6 +260,9 @@
     <Filter Include="02.GameObject\EyeTarget">
       <UniqueIdentifier>{da7262d2-5cd4-4324-b7d0-b8d45f6e54ab}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\Sprite Trail">
+      <UniqueIdentifier>{32e72e43-5d50-467a-8bd0-84129ff62a91}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -527,6 +530,9 @@
     <ClCompile Include="..\Private\BT_SetSkillAI.cpp">
       <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -738,9 +744,6 @@
       <Filter>02.GameObject\Effect\Emitters\Trail</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h">
-      <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
@@ -1458,6 +1461,9 @@
     <ClInclude Include="..\Public\BT_SetSkillAI.h">
       <Filter>BehavoirTree\battle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1500,9 +1506,6 @@
       <Filter>02.GameObject\Effect\Emitters\Trail</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp">
-      <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">

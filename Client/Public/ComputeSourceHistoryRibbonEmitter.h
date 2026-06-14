@@ -31,6 +31,7 @@ public:
 public:
     HRESULT Reset_ForEffectReplay() override;
     bool Is_EffectFinished() const override;
+    void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider) override;
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
     EffectSortPolicy Get_BlendSortPolicy() const override;
     int32 Get_BlendSortLayer() const override;
@@ -125,6 +126,8 @@ private:
     static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };
     static constexpr uint32 kThreadCountX{ 64 };
     static constexpr uint32 kMaxDistanceTessellationSubdivision{ 8 };
+    static constexpr uint32 kMaxCurveSubdivision{ 32 };
+    static constexpr float kSmoothSampleSideWeight{ 0.25f };
     static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
     static constexpr float kMinRenderableRibbonLength{ 0.0001f };
 
@@ -214,8 +217,8 @@ private:
     const wchar_t* Resolve_ShaderId() const;
     uint32 Resolve_ShaderPassIndex() const;
     int Resolve_OpacitySourceIndex() const;
+    bool Try_Resolve_SourcePosition(Vec3& outPosition) const;
     Vec3 Resolve_SourcePosition() const;
-    Vec3 Resolve_PreviewMotionOffset() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;
     float Evaluate_WidthScaleByLife(float lifeProgress) const;
     uint32 Evaluate_SubUVFrameIndex() const;

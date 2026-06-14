@@ -36,6 +36,7 @@ public: //## Behavior::Lifecycle
     void Set_PlaybackPaused(bool paused) { _isPlaybackPaused = paused; } // 튜토리얼 freeze는 Stop이 아니라 update만 멈춘다.
     bool Is_PlaybackPaused() const { return _isPlaybackPaused; }
     void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
+    void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider); // 현재 acquire context가 공급한 source point sample provider를 child emitter에 다시 전파한다.
     Shared<EffectEmitter> Find_EmitterById(uint32 emitterId) const; // 같은 effect root 안의 child emitter를 follower source id로 찾는다.
 
 private: //## Types::Lifecycle

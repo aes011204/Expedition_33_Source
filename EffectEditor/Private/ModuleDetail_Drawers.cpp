@@ -3058,6 +3058,18 @@ bool SourceHistorySpriteTrailPathFollowModuleDetail::Draw(
         }
     };
 
+    const auto arrival_mode_label = [](SourceHistorySpriteTrailArrivalMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailArrivalMode::ClampAtEnd:
+            return "끝점 고정";
+        case SourceHistorySpriteTrailArrivalMode::KillOnArrive:
+        default:
+            return "도착 시 제거";
+        }
+    };
+
     if (ImGui::CollapsingHeader("경로 따라가기", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("SourceHistorySpriteTrailPathFollowPolicy"))
@@ -3088,8 +3100,31 @@ bool SourceHistorySpriteTrailPathFollowModuleDetail::Draw(
             }
             ImGui::PopID();
 
-            changed |= detailContext.Draw_BoolProperty("도착 시 제거", data.killOnArrive, defaultData.killOnArrive);
-            changed |= detailContext.Draw_BoolProperty("끝점 고정", data.clampAtEnd, defaultData.clampAtEnd);
+            ImGui::PushID("ArrivalMode");
+            detailContext.Draw_PropertyLabel("도착 후 처리");
+            SourceHistorySpriteTrailArrivalMode nextArrivalMode = data.arrivalMode;
+            if (ImGui::BeginCombo("##Value", arrival_mode_label(nextArrivalMode)))
+            {
+                const SourceHistorySpriteTrailArrivalMode candidates[] = {
+                    SourceHistorySpriteTrailArrivalMode::KillOnArrive,
+                    SourceHistorySpriteTrailArrivalMode::ClampAtEnd,
+                };
+                for (const SourceHistorySpriteTrailArrivalMode candidate : candidates)
+                {
+                    const bool selected = nextArrivalMode == candidate;
+                    if (ImGui::Selectable(arrival_mode_label(candidate), selected))
+                        nextArrivalMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.arrivalMode != nextArrivalMode)
+            {
+                data.arrivalMode = nextArrivalMode;
+                changed = true;
+            }
+            ImGui::PopID();
             detailContext.End_PropertyTable();
         }
 
@@ -3132,6 +3167,18 @@ bool SourceHistorySpriteTrailPathReplayModuleDetail::Draw(
             return "동시 시작";
         default:
             return "Tail 먼저";
+        }
+    };
+
+    const auto arrival_mode_label = [](SourceHistorySpriteTrailArrivalMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailArrivalMode::ClampAtEnd:
+            return "끝점 고정";
+        case SourceHistorySpriteTrailArrivalMode::KillOnArrive:
+        default:
+            return "도착 시 제거";
         }
     };
 
@@ -3214,8 +3261,31 @@ bool SourceHistorySpriteTrailPathReplayModuleDetail::Draw(
             }
             ImGui::PopID();
 
-            changed |= detailContext.Draw_BoolProperty("도착 시 제거", data.killOnArrive, defaultData.killOnArrive);
-            changed |= detailContext.Draw_BoolProperty("끝점 고정", data.clampAtEnd, defaultData.clampAtEnd);
+            ImGui::PushID("ArrivalMode");
+            detailContext.Draw_PropertyLabel("도착 후 처리");
+            SourceHistorySpriteTrailArrivalMode nextArrivalMode = data.arrivalMode;
+            if (ImGui::BeginCombo("##Value", arrival_mode_label(nextArrivalMode)))
+            {
+                const SourceHistorySpriteTrailArrivalMode candidates[] = {
+                    SourceHistorySpriteTrailArrivalMode::KillOnArrive,
+                    SourceHistorySpriteTrailArrivalMode::ClampAtEnd,
+                };
+                for (const SourceHistorySpriteTrailArrivalMode candidate : candidates)
+                {
+                    const bool selected = nextArrivalMode == candidate;
+                    if (ImGui::Selectable(arrival_mode_label(candidate), selected))
+                        nextArrivalMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.arrivalMode != nextArrivalMode)
+            {
+                data.arrivalMode = nextArrivalMode;
+                changed = true;
+            }
+            ImGui::PopID();
             detailContext.End_PropertyTable();
         }
 

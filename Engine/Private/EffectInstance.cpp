@@ -152,6 +152,7 @@ HRESULT EffectInstance::Play()
 void EffectInstance::Stop()
 {
     Bind_TrailSampleProvider({});
+    Bind_SourcePointSampleProvider({});
     _isPlaybackPaused = false; // Stop은 완전 정지이므로 pause 상태도 같이 해제한다.
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
@@ -209,6 +210,17 @@ void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvi
             continue;
 
         emitter->Bind_TrailSampleProvider(provider);
+    }
+}
+
+void EffectInstance::Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider)
+{
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (nullptr == emitter)
+            continue;
+
+        emitter->Bind_SourcePointSampleProvider(provider);
     }
 }
 

@@ -29,6 +29,7 @@ public:
 public:
     HRESULT Reset_ForEffectReplay() override;
     bool Is_EffectFinished() const override;
+    void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider) override;
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
     EffectSortPolicy Get_BlendSortPolicy() const override;
     int32 Get_BlendSortLayer() const override;
@@ -110,6 +111,8 @@ private:
     static constexpr auto kShaderId{ L"Shader_EffectSourceHistorySpriteTrail" };
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr uint32 kPointVertexCount{ 1 };
+    static constexpr uint32 kMaxCurveSubdivision{ 32 };
+    static constexpr float kSmoothSampleSideWeight{ 0.25f };
     static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
@@ -143,6 +146,7 @@ private:
 
 private:
     void Reset_PlaybackRuntime();
+    void Reset_LoopScopedRuntime();
     void Advance_Playback(float timeDelta);
     bool Is_EmittingSourceSamples() const;
     void Update_HistoryAndStamps(float timeDelta);
@@ -156,16 +160,22 @@ private:
     void Update_PathReplayStamps(vector<Stamp>& stamps, const vector<HistorySample>& history, const Vec3& fallbackTangent, float timeDelta) const;
     void Prune_History(vector<HistorySample>& history, float requiredTailDistance = 0.f) const;
     void Recompute_Distances(vector<HistorySample>& history) const;
+    HistorySample Build_SmoothedHistorySample(const vector<HistorySample>& history, size_t sampleIndex) const;
     float Resolve_RequiredHistoryDistance(const vector<Stamp>& stamps) const;
     float Resolve_HistoryDistanceForPosition(const vector<HistorySample>& history, const Vec3& position) const;
-    bool Sample_HistoryAtDistance(const vector<HistorySample>& history, float distanceFromHead, const Vec3& fallbackTangent, Vec3& outPosition, Vec3& outTangent) const;
+    bool Sample_HistoryAtDistance(
+        const vector<HistorySample>& history,
+        float distanceFromHead,
+        const Vec3& fallbackTangent,
+        Vec3& outPosition,
+        Vec3& outTangent) const;
     float Sample_RecordedSpeedAtDistance(const vector<HistorySample>& history, float distanceFromHead) const;
     void Spawn_StampsForPath(
-        const vector<HistorySample>& history,
         vector<Stamp>& stamps,
         float& distanceAccumulator,
         float& timeAccumulator,
         Vec3& lastValidTangent,
+        const vector<HistorySample>& history,
         const Vec3& previousPosition,
         const Vec3& currentPosition,
         float timeDelta);
@@ -189,8 +199,8 @@ private:
     RenderGroup Resolve_RenderGroup() const;
     uint32 Resolve_ShaderPassIndex() const;
     int Resolve_OpacitySourceIndex() const;
+    bool Try_Resolve_SourcePosition(Vec3& outPosition) const;
     Vec3 Resolve_SourcePosition() const;
-    Vec3 Resolve_PreviewMotionOffset() const;
     float Sample_Lifetime(uint32 stampSerial) const;
     Vec2 Sample_InitialSize(uint32 stampSerial) const;
     float Sample_InitialRotation(uint32 stampSerial) const;
