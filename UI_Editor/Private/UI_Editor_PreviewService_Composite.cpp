@@ -269,6 +269,50 @@ namespace UIEditor
         return Create_MaskedTexturePreviewSRV(cacheKey, textureSRV, maskSRV, maskTextureMode);
     }
 
+    ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_FillRatioPreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        float fillRatio,
+        UI_FillOrigin fillOrigin)
+    {
+        if (nullptr == _device || nullptr == _context)
+            return nullptr;
+
+        if (textureGuid.empty() && texturePath.empty())
+            return nullptr;
+
+        const float clampedFillRatio = Clamp_FillRatio(fillRatio);
+        const string cacheKey =
+            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)) + "|" +
+            to_string(clampedFillRatio) + "|" +
+            to_string(static_cast<int32>(fillOrigin));
+
+        const auto cachedIter = _fillRatioPreviewCache.find(cacheKey);
+        if (cachedIter != _fillRatioPreviewCache.end())
+            return cachedIter->second.Get();
+
+        if (_fillRatioPreviewFailedKeys.find(cacheKey) != _fillRatioPreviewFailedKeys.end())
+            return nullptr;
+
+        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(textureGuid, texturePath);
+        if (nullptr == textureSRV)
+            return nullptr;
+
+        return Create_ImageCompositePreviewSRV(
+            cacheKey,
+            textureSRV,
+            nullptr,
+            nullptr,
+            4u,
+            ImVec2(0.f, 0.f),
+            ImVec2(1.f, 1.f),
+            true,
+            clampedFillRatio,
+            fillOrigin,
+            _fillRatioPreviewCache,
+            _fillRatioPreviewFailedKeys);
+    }
+
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_PatternOverlayPreviewSRV(
         const PatternOverlayPreviewDesc& previewDesc)
     {
@@ -287,7 +331,10 @@ namespace UIEditor
             Make_TexturePreviewGuidKey(previewDesc.paintMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.paintMaskTexturePath)) + "|" +
             Make_TexturePreviewGuidKey(previewDesc.patternMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.patternMaskTexturePath)) + "|" +
             to_string(previewDesc.patternUvOffset.x) + "," + to_string(previewDesc.patternUvOffset.y) + "|" +
-            to_string(previewDesc.patternUvScale.x) + "," + to_string(previewDesc.patternUvScale.y);
+            to_string(previewDesc.patternUvScale.x) + "," + to_string(previewDesc.patternUvScale.y) + "|" +
+            to_string(previewDesc.useFillRatio ? 1 : 0) + "|" +
+            to_string(previewDesc.fillRatio) + "|" +
+            to_string(static_cast<int32>(previewDesc.fillOrigin));
 
         const auto cachedIter = _patternOverlayPreviewCache.find(cacheKey);
         if (cachedIter != _patternOverlayPreviewCache.end())
@@ -309,9 +356,12 @@ namespace UIEditor
             textureSRV,
             paintMaskSRV,
             patternMaskSRV,
-            3u,
+            previewDesc.useFillRatio ? 6u : 3u,
             previewDesc.patternUvOffset,
             previewDesc.patternUvScale,
+            previewDesc.useFillRatio,
+            previewDesc.fillRatio,
+            previewDesc.fillOrigin,
             _patternOverlayPreviewCache,
             _patternOverlayPreviewFailedKeys);
     }
@@ -366,6 +416,9 @@ namespace UIEditor
             passIndex,
             ImVec2(0.f, 0.f),
             ImVec2(1.f, 1.f),
+            false,
+            1.f,
+            UI_FillOrigin::LeftToRight,
             _maskedTexturePreviewCache,
             _maskedTexturePreviewFailedKeys);
     }
@@ -378,10 +431,16 @@ namespace UIEditor
         uint32 passIndex,
         const ImVec2& patternUvOffset,
         const ImVec2& patternUvScale,
+        bool useFillRatio,
+        float fillRatio,
+        UI_FillOrigin fillOrigin,
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
         unordered_set<string>& failedKeys)
     {
-        if (cacheKey.empty() || nullptr == textureSRV || nullptr == maskSRV)
+        if (cacheKey.empty() || nullptr == textureSRV)
+            return nullptr;
+
+        if (passIndex != 4u && nullptr == maskSRV)
             return nullptr;
 
         if (!Can_CreateCompositePreviewThisFrame())
@@ -457,6 +516,8 @@ namespace UIEditor
         Matrix projMatrix;
         XMStoreFloat4x4(&projMatrix, XMMatrixOrthographicLH(static_cast<float>(previewWidth), static_cast<float>(previewHeight), 0.f, 1.f));
         const Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
+        const float clampedFillRatio = Clamp_FillRatio(fillRatio);
+        const uint32 fillOriginValue = static_cast<uint32>(fillOrigin);
 
         bool renderSucceeded =
             SUCCEEDED(_imagePreviewShader->Bind_Matrix("g_WorldMatrix", &worldMatrix)) &&
@@ -465,8 +526,13 @@ namespace UIEditor
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_Color", &color, sizeof(Vec4))) &&
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_PatternUvOffset", &patternUvOffset, sizeof(ImVec2))) &&
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_PatternUvScale", &patternUvScale, sizeof(ImVec2))) &&
-            SUCCEEDED(_imagePreviewShader->Bind_SRV("g_Texture", textureSRV)) &&
-            SUCCEEDED(_imagePreviewShader->Bind_SRV("g_MaskTexture", maskSRV));
+            SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_UseFillRatio", &useFillRatio, sizeof(bool))) &&
+            SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_FillRatio", &clampedFillRatio, sizeof(float))) &&
+            SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_FillOrigin", &fillOriginValue, sizeof(uint32))) &&
+            SUCCEEDED(_imagePreviewShader->Bind_SRV("g_Texture", textureSRV));
+
+        if (renderSucceeded && nullptr != maskSRV)
+            renderSucceeded = SUCCEEDED(_imagePreviewShader->Bind_SRV("g_MaskTexture", maskSRV));
 
         if (renderSucceeded && nullptr != patternMaskSRV)
             renderSucceeded = SUCCEEDED(_imagePreviewShader->Bind_SRV("g_PatternMaskTexture", patternMaskSRV));

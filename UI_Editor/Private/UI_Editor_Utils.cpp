@@ -75,6 +75,8 @@ namespace UIEditor
             return "Panel";
         case UI_ObjectType::Button:
             return "Button";
+        case UI_ObjectType::UIVfx:
+            return "UIVfx";
         default:
             return "Unknown";
         }
@@ -120,6 +122,8 @@ namespace UIEditor
             return IM_COL32(125, 128, 136, 150);
         case UI_ObjectType::Button:
             return IM_COL32(90, 145, 210, 140);
+        case UI_ObjectType::UIVfx:
+            return IM_COL32(220, 95, 170, 120);
         default:
             return IM_COL32(180, 180, 180, 110);
         }

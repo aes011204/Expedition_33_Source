@@ -176,6 +176,62 @@ namespace UIEditor
             [&]() { return _objectEditService.Set_ObjectPatternUv(_document, objectId, patternUvOffset, patternUvScale); });
     }
 
+    bool UI_Editor_Manager::Set_UIObjectUseFillRatio(ObjectId objectId, bool useFillRatio)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectUseFillRatio(_document, objectId, useFillRatio); },
+            [&]() { return _objectEditService.Set_ObjectUseFillRatio(_document, objectId, useFillRatio); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectFillRatio(ObjectId objectId, float fillRatio)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectFillRatio(_document, objectId, fillRatio); },
+            [&]() { return _objectEditService.Set_ObjectFillRatio(_document, objectId, fillRatio); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectFillOrigin(ObjectId objectId, UI_FillOrigin fillOrigin)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectFillOrigin(_document, objectId, fillOrigin); },
+            [&]() { return _objectEditService.Set_ObjectFillOrigin(_document, objectId, fillOrigin); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectVfxPath(ObjectId objectId, const string& vfxPath)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectVfxPath(_document, objectId, vfxPath); },
+            [&]() { return _objectEditService.Set_ObjectVfxPath(_document, objectId, vfxPath); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectVfxPlayOnOpen(ObjectId objectId, bool playOnOpen)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectVfxPlayOnOpen(_document, objectId, playOnOpen); },
+            [&]() { return _objectEditService.Set_ObjectVfxPlayOnOpen(_document, objectId, playOnOpen); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectVfxLoop(ObjectId objectId, bool loop)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectVfxLoop(_document, objectId, loop); },
+            [&]() { return _objectEditService.Set_ObjectVfxLoop(_document, objectId, loop); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectVfxStopOnClose(ObjectId objectId, bool stopOnClose)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectVfxStopOnClose(_document, objectId, stopOnClose); },
+            [&]() { return _objectEditService.Set_ObjectVfxStopOnClose(_document, objectId, stopOnClose); });
+    }
+
     bool UI_Editor_Manager::Set_UIObjectText(ObjectId objectId, const string& text)
     {
         return Apply_UIObjectEdit(

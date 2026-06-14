@@ -41,6 +41,8 @@ namespace UIEditor
         _texturePreviewFailedKeys.clear();
         _maskedTexturePreviewCache.clear();
         _maskedTexturePreviewFailedKeys.clear();
+        _fillRatioPreviewCache.clear();
+        _fillRatioPreviewFailedKeys.clear();
         _patternOverlayPreviewCache.clear();
         _patternOverlayPreviewFailedKeys.clear();
         _fontPreviewCache.clear();
