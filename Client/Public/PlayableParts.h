@@ -43,7 +43,6 @@ public:
     float Get_AnimationSpeed() const;
 
     Shared<ModelCom> Get_Model() const { return _modelCom; }
-
 public:
     virtual HRESULT Initialize_Prototype() override;
     virtual HRESULT Initialize(void* arg) override;
@@ -64,6 +63,8 @@ protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 
     HRESULT Bind_PlayerRenderCB(Shared<ShaderCom> shader);
+    uint32 Build_DrawFeatureSupportMask(const PlayableParts& playablePart);
+
 
 protected:
     Matrix                      _offsetMatrix{};

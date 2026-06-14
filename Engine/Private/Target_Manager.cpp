@@ -49,10 +49,20 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         _shadowMapWidth, _shadowMapHeight,
         DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV, ShadowLightDesc::SHADOW_CASCADE_COUNT), E_FAIL);
 
-    CHECK_FAILED(Add_RenderTarget(RT::StaticLightDepth,
-        _staticShadowMapWidth, _staticShadowMapHeight,
-        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
-
+#ifdef _DEBUG
+    CHECK_FAILED(Add_RenderTarget(RT::LightDepthDebug0,
+        _shadowMapWidth, _shadowMapHeight,
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::LightDepthDebug1,
+        _shadowMapWidth, _shadowMapHeight,
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::LightDepthDebug2,
+        _shadowMapWidth, _shadowMapHeight,
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::LightDepthDebug3,
+        _shadowMapWidth, _shadowMapHeight,
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, !useDSV), E_FAIL);
+#endif
 
     // MRT_PostProcess
     const uint32 bloomHalfWidth = max(1u, width / 2u);
@@ -113,7 +123,6 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::Specular), E_FAIL);		// SV_TARGET2
 
     CHECK_FAILED(Add_MRT(MRT::ShadowObjects, RT::LightDepth), E_FAIL);
-    CHECK_FAILED(Add_MRT(MRT::StaticShadowObjects, RT::StaticLightDepth), E_FAIL);
 
     // PostProcess
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
@@ -445,6 +454,40 @@ HRESULT Target_Manager::Copy_RTV(const wstring& srcTargetTag, const wstring& dst
 
     // src 를 dst 에 그대로 덮어쓴다
     _context->CopyResource(dstTexture.Get(), srcTexture.Get());
+
+    return S_OK;
+}
+
+HRESULT Target_Manager::Copy_RTV_ArraySlice(const wstring& srcTargetTag, uint32 arraySlice, const wstring& dstTargetTag)
+{
+    auto srcTarget = Find_RenderTarget(srcTargetTag);
+    CHECK_NULL(srcTarget, E_FAIL);
+
+    auto dstTarget = Find_RenderTarget(dstTargetTag);
+    CHECK_NULL(dstTarget, E_FAIL);
+
+    ComPtr<Texture2D> srcTexture = srcTarget->Get_Texture();
+    ComPtr<Texture2D> dstTexture = dstTarget->Get_Texture();
+    CHECK_NULL(srcTexture, E_FAIL);
+    CHECK_NULL(dstTexture, E_FAIL);
+
+    D3D11_TEXTURE2D_DESC srcDesc{};
+    D3D11_TEXTURE2D_DESC dstDesc{};
+    srcTexture->GetDesc(&srcDesc);
+    dstTexture->GetDesc(&dstDesc);
+
+    if (srcDesc.ArraySize <= arraySlice)
+        return E_FAIL;
+
+    if (srcDesc.Format != dstDesc.Format)
+        return E_FAIL;
+
+    if (srcDesc.Width != dstDesc.Width || srcDesc.Height != dstDesc.Height)
+        return E_FAIL;
+
+    const UINT srcSubresource = D3D11CalcSubresource(0u, arraySlice, srcDesc.MipLevels);
+    const UINT dstSubresource = D3D11CalcSubresource(0u, 0u, dstDesc.MipLevels);
+    _context->CopySubresourceRegion(dstTexture.Get(), dstSubresource, 0u, 0u, 0u, srcTexture.Get(), srcSubresource, nullptr);
 
     return S_OK;
 }

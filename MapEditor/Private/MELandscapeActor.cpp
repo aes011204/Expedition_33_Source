@@ -1,6 +1,30 @@
 ﻿#include "MELandscapeActor.h"
 #include "GameInstance.h"
 
+namespace
+{
+    fs::path ResolveLandscapeTextureLoadPath(const fs::path& texturePath)
+    {
+        fs::path normalizedPath = texturePath.lexically_normal();
+        const fs::path ext = normalizedPath.extension();
+
+        if (ext == ".dds" || ext == ".DDS")
+            return normalizedPath;
+
+        fs::path ddsPath = normalizedPath;
+        ddsPath.replace_extension(".dds");
+        if (fs::exists(ddsPath) && fs::is_regular_file(ddsPath))
+            return ddsPath.lexically_normal();
+
+        fs::path upperDdsPath = normalizedPath;
+        upperDdsPath.replace_extension(".DDS");
+        if (fs::exists(upperDdsPath) && fs::is_regular_file(upperDdsPath))
+            return upperDdsPath.lexically_normal();
+
+        return normalizedPath;
+    }
+}
+
 MELandscapeActor::MELandscapeActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject{ device, context }
 {
@@ -182,7 +206,7 @@ HRESULT MELandscapeActor::Bind_ShaderResources()
     Vec4 controlArr[MAX_LAYERS];
     for (uint32 i = 0; i < MAX_LAYERS; ++i)
     {
-        tilingArr[i] = Vec4(_tiling[i], 0.f, 0.f, 0.f);
+        tilingArr[i] = Vec4(_tiling[i].x, _tiling[i].y, 0.f, 0.f);
         tintArr[i] = _groundTint[i];
         controlArr[i] = _layerControl[i];
     }
@@ -223,13 +247,15 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstr
         return E_FAIL;
     }
 
+    const fs::path resolvedAlbedoPath = ResolveLandscapeTextureLoadPath(fs::path(albedoPath));
+
     WCHAR ext[MAX_PATH] = {};
-    _wsplitpath_s(albedoPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
+    _wsplitpath_s(resolvedAlbedoPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
 
     ComPtr<ID3D11ShaderResourceView> srv;
     HRESULT hr = (lstrcmp(ext, L".dds") == 0)
-        ? CreateDDSTextureFromFile(_device.Get(), albedoPath.c_str(), nullptr, srv.GetAddressOf())
-        : CreateWICTextureFromFile(_device.Get(), albedoPath.c_str(), nullptr, srv.GetAddressOf());
+        ? CreateDDSTextureFromFile(_device.Get(), resolvedAlbedoPath.c_str(), nullptr, srv.GetAddressOf())
+        : CreateWICTextureFromFile(_device.Get(), resolvedAlbedoPath.c_str(), nullptr, srv.GetAddressOf());
 
     if (FAILED(hr))
     {
@@ -240,33 +266,35 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstr
 
     if (!normalPath.empty())
     {
+        const fs::path resolvedNormalPath = ResolveLandscapeTextureLoadPath(fs::path(normalPath));
         WCHAR nExt[MAX_PATH] = {};
-        _wsplitpath_s(normalPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, nExt, MAX_PATH);
+        _wsplitpath_s(resolvedNormalPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, nExt, MAX_PATH);
         ComPtr<ID3D11ShaderResourceView> nsrv;
         hr = (lstrcmp(nExt, L".dds") == 0)
-            ? CreateDDSTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf())
-            : CreateWICTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf());
+            ? CreateDDSTextureFromFile(_device.Get(), resolvedNormalPath.c_str(), nullptr, nsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), resolvedNormalPath.c_str(), nullptr, nsrv.GetAddressOf());
         if (SUCCEEDED(hr))
         {
             _normalSRVs[_layerCount] = nsrv;
         }
-        _normalPaths[_layerCount] = fs::path(normalPath).filename().wstring();
+        _normalPaths[_layerCount] = normalPath;
     }
 
     if (!roughnessPath.empty())
     {
+        const fs::path resolvedRoughnessPath = ResolveLandscapeTextureLoadPath(fs::path(roughnessPath));
         WCHAR rExt[MAX_PATH] = {};
-        _wsplitpath_s(roughnessPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, rExt, MAX_PATH);
+        _wsplitpath_s(resolvedRoughnessPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, rExt, MAX_PATH);
         ComPtr<ID3D11ShaderResourceView> rsrv;
         hr = (lstrcmp(rExt, L".dds") == 0)
-            ? CreateDDSTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf())
-            : CreateWICTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf());
+            ? CreateDDSTextureFromFile(_device.Get(), resolvedRoughnessPath.c_str(), nullptr, rsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), resolvedRoughnessPath.c_str(), nullptr, rsrv.GetAddressOf());
 
         if (SUCCEEDED(hr))
         {
             _roughnessSRVs[_layerCount] = rsrv;
         }
-        _roughnessPaths[_layerCount] = fs::path(roughnessPath).filename().wstring();
+        _roughnessPaths[_layerCount] = roughnessPath;
     }
 
     uint32 w = _vibuffer->Get_CountX() + 1;
@@ -293,7 +321,7 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstr
     }
 
     _vibuffer->Set_LayerCount(_layerCount + 1);
-    _layerPaths[_layerCount] = fs::path(albedoPath).filename().wstring();
+    _layerPaths[_layerCount] = albedoPath;
     ++_layerCount;
 
     Flush_WeightMap(_layerCount - 1);
@@ -361,6 +389,10 @@ void MELandscapeActor::Remove_LayerTexture(uint32 idx)
         _weightTextures[i] = _weightTextures[i + 1];
         _weightSRVs[i] = _weightSRVs[i + 1];
         _layerPaths[i] = _layerPaths[i + 1];
+        _tiling[i] = _tiling[i + 1];
+        _groundTint[i] = _groundTint[i + 1];
+        _layerControl[i] = _layerControl[i + 1];
+        _albedoControl[i] = _albedoControl[i + 1];
 
         _normalSRVs[i] = _normalSRVs[i + 1];
         _roughnessSRVs[i] = _roughnessSRVs[i + 1];
@@ -373,6 +405,10 @@ void MELandscapeActor::Remove_LayerTexture(uint32 idx)
     _weightTextures[last].Reset();
     _weightSRVs[last].Reset();
     _layerPaths[last].clear();
+    _tiling[last] = Vec2(1.f, 1.f);
+    _groundTint[last] = Vec4(1.f, 1.f, 1.f, 1.f);
+    _layerControl[last] = Vec4(1.f, 1.f, 0.f, 0.f);
+    _albedoControl[last] = Vec4(1.f, 1.f, 1.f, 0.f);
     _normalSRVs[last].Reset();
     _roughnessSRVs[last].Reset();
     _normalPaths[last].clear();
@@ -394,6 +430,10 @@ void MELandscapeActor::Set_BaseLayer(uint32 idx)
     swap(_layerPaths[0], _layerPaths[idx]);
     swap(_weightTextures[0], _weightTextures[idx]);
     swap(_weightSRVs[0], _weightSRVs[idx]);
+    swap(_tiling[0], _tiling[idx]);
+    swap(_groundTint[0], _groundTint[idx]);
+    swap(_layerControl[0], _layerControl[idx]);
+    swap(_albedoControl[0], _albedoControl[idx]);
     swap(_normalSRVs[0], _normalSRVs[idx]);
     swap(_roughnessSRVs[0], _roughnessSRVs[idx]);
     swap(_normalPaths[0], _normalPaths[idx]);

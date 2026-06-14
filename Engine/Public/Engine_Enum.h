@@ -25,7 +25,6 @@ namespace Engine
     {
         None,       // 그림자 X
         Dynamic,    // 매 프레임 Shadow Pass
-        Static,     // Map Static Mesh 등
     };
 
     enum class UI_RenderGroup
@@ -132,6 +131,7 @@ namespace Engine
         OpaqueTwoSided,
         MaskedTwoSided,
         Shadow,
+        HairBlend = 8,
 
         END
     };

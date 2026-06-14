@@ -52,6 +52,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
     MSG   msg{};
     float timeAcc = 0.f;
 
+    float fpsTitleAcc = 0.f;
+    int fpsFrameCount = 0;
+
     while (true)
     {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -72,6 +75,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
             app->Late_Update(dt);
             app->Render();
             timeAcc = 0.f;
+
+            fpsTitleAcc += dt;
+            ++fpsFrameCount;
+            if (fpsTitleAcc >= 0.5f)
+            {
+                const float fps = fpsFrameCount / fpsTitleAcc;
+                const float ms = fpsTitleAcc / fpsFrameCount * 1000.f;
+                WCHAR title[128] = {};
+                swprintf_s(title, L"Expedition 158 Map Editor | FPS: %.0f | %.1f ms", fps, ms);
+                SetWindowTextW(g_hWnd, title);
+                fpsTitleAcc = 0.f;
+                fpsFrameCount = 0;
+            }
         }
     }
 

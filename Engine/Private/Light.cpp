@@ -7,6 +7,7 @@ Light::Light()
 {
 }
 
+
 HRESULT Light::Initialize(const LIGHT_DESC& lightDesc)
 {
     memcpy(&_desc, &lightDesc, sizeof(LIGHT_DESC));
@@ -39,6 +40,19 @@ HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
     else
         return E_FAIL;
 
+    if (FAILED(Bind_LightCB(shader)))
+        return E_FAIL;
+
+    if (FAILED(shader->Begin(pass)))
+        return E_FAIL;
+
+    return viBuffer->Render();
+}
+
+
+HRESULT Light::Bind_LightCB(Shared<ShaderCom> shader)
+{
+
     LightCB lightCB{};
     lightCB.direction = _desc.direction;
     lightCB.direction.Normalize();
@@ -51,10 +65,7 @@ HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
     if (FAILED(shader->Bind_CBufferData(lightCB)))
         return E_FAIL;
 
-    if (FAILED(shader->Begin(pass)))
-        return E_FAIL;
-
-    return viBuffer->Render();
+    return S_OK;
 }
 
 Shared<Light> Light::Create(const LIGHT_DESC& lightDesc)

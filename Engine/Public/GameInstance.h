@@ -15,6 +15,7 @@
 #include "Log_Define.h"
 #ifdef _DEBUG
 #include "Print_Manager.h"
+#include "Shadow.h"
 #endif
 
 #pragma endregion
@@ -24,6 +25,7 @@ NS_BEGIN(Engine)
 
 class Event_Bus;
 class Graphic_Device;
+struct ShadowCascadeDebugInfo;
 class Timer_Manager;
 class Level_Manager;
 class Prototype_Manager;
@@ -291,6 +293,7 @@ public: /* For.Light_Manager */
     void Clear_Lights();
     void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
     HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
+    HRESULT Bind_PrimaryShadowLightCB(Shared<ShaderCom> shader) const;
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
@@ -422,6 +425,7 @@ public : /* For.Target_Manager */
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
+    HRESULT Copy_RTV_ArraySlice(const wstring& srcTargetTag, uint32 arraySlice, const wstring& dstTargetTag);
 
     HRESULT Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
     HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
@@ -436,15 +440,19 @@ public : /* For.Target_Manager */
     HRESULT Display_AllRTs(bool render);
     HRESULT Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader);
     const map<wstring, bool>& Get_RTs() const;
+    void Set_ShadowCascadeSliceDebugEnabled(bool enabled);
+    bool Is_ShadowCascadeSliceDebugEnabled() const;
+    void Set_ShadowCascadeProjectionDebugEnabled(bool enabled);
+    bool Is_ShadowCascadeProjectionDebugEnabled() const;
+    void Set_ShadowCascadeInfluenceDebugEnabled(bool enabled);
+    bool Is_ShadowCascadeInfluenceDebugEnabled() const;
 #endif
 
 public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
-    HRESULT                 Bind_StaticShadowCB(Shared<ShaderCom> shader);
     HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
-    void                    Set_ActiveStaticShadow();
     void                    Set_ShadowEnabled(bool enabled);
     uint32                  Get_ShadowCascadeCount() const;
     HRESULT                 Set_ShadowCascadeLevel(CascadeLevel level);
@@ -455,21 +463,15 @@ public: /* For.Shadow */
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;
     const Matrix* Get_ShadowTransformMatrix(D3DTS eType) const;
+    const ShadowCascadeDebugInfo* Get_ShadowCascadeDebugInfos() const;
+    bool Is_Visible_In_ShadowInfluenceVolume(const BoundingBox& worldAABB, uint32 cascadeIndex) const;
+    bool Is_Visible_In_ShadowSpace(const BoundingBox& worldAABB, const Matrix& viewProj) const;
 
     // 카메라가 플레이어 따라다니면서 그림자 위치 조절
     HRESULT Update_ShadowFromCameraFrustum(
         const ShadowLightDesc& desc,
         const Shared<Camera>& camera,
         const Vec3& lightDir);
-
-    // Static Shadow 크기 구하기
-    HRESULT Update_StaticShadowFromBounds(
-        const ShadowLightDesc& desc,
-        const BoundingBox& bounds,
-        const Vec3& lightDir);
-
-    void Register_StaticShadowCaster(Shared<GameObject> gameObject);
-    void Mark_StaticShadowDirty();
 
 public: /* For.Collision_Manager */
     void Add_Collider(Shared<ColliderCom> collider);
@@ -519,6 +521,7 @@ public: // For. PhysX_Manager
 public: // For. Culling_Manager
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
     bool IsVisible(const BoundingBox& worldAABB) const;
+    bool IsVisible(const BoundingBox& worldAABB, const Matrix& view, const Matrix& proj) const;
     void BuildOctree(const vector<BoundingBox>& worldAABBs);
     void QueryVisible(vector<uint32>& outIndices) const;
 
@@ -624,6 +627,12 @@ private:
 
 #ifdef _DEBUG
     Unique<Print_Manager> _printManager{};
+    bool _shadowCascadeSliceDebugEnabled = false;
+    bool _shadowCascadeProjectionDebugEnabled = false;
+    bool _shadowCascadeInfluenceDebugEnabled = false;
+    bool _hasShadowCascadeDebugSnapshot = false;
+    ShadowCascadeDebugInfo _shadowCascadeDebugSnapshot[Shadow::CascadeCount]{};
+    Matrix _shadowCascadeViewSnapshot[Shadow::CascadeCount]{};
 #endif
 
 private:
@@ -646,6 +655,12 @@ private:
     // 월드 시간 제어
     float _worldTimeScale = 1.f;
     float _unscaledTimeDelta = 0.f;
+
+#ifdef _DEBUG
+private:
+    void Draw_ShadowCascadeWorldDebug();
+    void Capture_ShadowCascadeDebugSnapshot();
+#endif
     float _worldTimeDelta = 0.f;
     bool _isWorldTimeSlowActive = false;
     float _worldTimeSlowElapsed = 0.f;
