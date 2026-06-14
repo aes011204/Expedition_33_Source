@@ -272,6 +272,20 @@ private: //## Helper::SamplingEvaluation
         const Vec4& valuesBlock1,
         uint32 keyCount,
         float fallbackValue) const;
+    float Evaluate_CompactCurve(
+        float lifeProgress,
+        const Vec4& times,
+        const Vec4& timesBlock1,
+        const Vec4& values,
+        const Vec4& valuesBlock1,
+        const Vec4& arriveTangents,
+        const Vec4& arriveTangentsBlock1,
+        const Vec4& leaveTangents,
+        const Vec4& leaveTangentsBlock1,
+        const Vec4& modes,
+        const Vec4& modesBlock1,
+        uint32 keyCount,
+        float fallbackValue) const;
     // mesh vector3 curve runtime desc를 life 진행도에 맞춰 평가한다.
     Vec3 Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& desc, float lifeProgress, const Vec3& fallbackValue) const;
     // local/world space 정책에 따라 벡터 기준 좌표계를 변환한다.

@@ -222,6 +222,16 @@ struct PointParticleSizeByLifeDesc
     Vec4 curveKeyValuesXBlock1{};               // scaleOverLife key 4..7 X multiplier 값이다.
     Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f }; // scaleOverLife Y multiplier 값이다.
     Vec4 curveKeyValuesYBlock1{};               // scaleOverLife key 4..7 Y multiplier 값이다.
+    Vec4 curveKeyArriveTangentsX{};             // scaleOverLife X key별 arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsXBlock1{};       // scaleOverLife key 4..7 X arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangentsX{};              // scaleOverLife X key별 leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsXBlock1{};        // scaleOverLife key 4..7 X leave tangent 값이다.
+    Vec4 curveKeyArriveTangentsY{};             // scaleOverLife Y key별 arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsYBlock1{};       // scaleOverLife key 4..7 Y arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangentsY{};              // scaleOverLife Y key별 leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsYBlock1{};        // scaleOverLife key 4..7 Y leave tangent 값이다.
+    Vec4 curveKeyModes{ 1.f, 1.f, 0.f, 0.f };   // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 curveKeyModesBlock1{};                 // scaleOverLife key 4..7 interpolation mode 값이다.
 };
 
 // ColorOverLife 모듈의 ConstantCurve payload를 compute shader가 평가할 수 있게 압축한 desc다.

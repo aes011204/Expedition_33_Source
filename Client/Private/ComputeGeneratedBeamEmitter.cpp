@@ -1394,6 +1394,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesR,
             curve.colorCurveValuesRBlock1,
+            curve.colorCurveArriveR,
+            curve.colorCurveArriveRBlock1,
+            curve.colorCurveLeaveR,
+            curve.colorCurveLeaveRBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.x
         );
@@ -1403,6 +1409,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesG,
             curve.colorCurveValuesGBlock1,
+            curve.colorCurveArriveG,
+            curve.colorCurveArriveGBlock1,
+            curve.colorCurveLeaveG,
+            curve.colorCurveLeaveGBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.y
         );
@@ -1412,6 +1424,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesB,
             curve.colorCurveValuesBBlock1,
+            curve.colorCurveArriveB,
+            curve.colorCurveArriveBBlock1,
+            curve.colorCurveLeaveB,
+            curve.colorCurveLeaveBBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.z
         );
@@ -1426,6 +1444,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.alphaCurveTimesBlock1,
             curve.alphaCurveValues,
             curve.alphaCurveValuesBlock1,
+            curve.alphaCurveArrive,
+            curve.alphaCurveArriveBlock1,
+            curve.alphaCurveLeave,
+            curve.alphaCurveLeaveBlock1,
+            curve.alphaCurveModes,
+            curve.alphaCurveModesBlock1,
             keyCount,
             color.w
         );
@@ -1447,6 +1471,12 @@ float ComputeGeneratedBeamEmitter::Evaluate_WidthScaleByLife(float lifeProgress)
         _desc.sizeByLife.curveKeyTimesBlock1,
         _desc.sizeByLife.curveKeyValuesX,
         _desc.sizeByLife.curveKeyValuesXBlock1,
+        _desc.sizeByLife.curveKeyArriveTangentsX,
+        _desc.sizeByLife.curveKeyArriveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyLeaveTangentsX,
+        _desc.sizeByLife.curveKeyLeaveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyModes,
+        _desc.sizeByLife.curveKeyModesBlock1,
         _desc.sizeByLife.curveKeyCount,
         fallbackScale
     );
@@ -1583,6 +1613,62 @@ float ComputeGeneratedBeamEmitter::Evaluate_CompactCurve(
             EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, index),
             ratio
         );
+    }
+
+    return lifeProgress > EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+           : fallbackValue;
+}
+
+float ComputeGeneratedBeamEmitter::Evaluate_CompactCurve(
+    float lifeProgress,
+    const Vec4& times,
+    const Vec4& timesBlock1,
+    const Vec4& values,
+    const Vec4& valuesBlock1,
+    const Vec4& arriveTangents,
+    const Vec4& arriveTangentsBlock1,
+    const Vec4& leaveTangents,
+    const Vec4& leaveTangentsBlock1,
+    const Vec4& modes,
+    const Vec4& modesBlock1,
+    uint32 keyCount,
+    float fallbackValue) const
+{
+    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    if (clampedKeyCount == 1u || lifeProgress <= EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, 0u))
+        return EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < clampedKeyCount; ++index)
+    {
+        const float rightTime = EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, index);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftValue = EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, index - 1u);
+        const float rightValue = EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, index);
+        const float mode = EffectBeamRuntime::Read_Vec4Component(modes, modesBlock1, index - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((lifeProgress - leftTime) / width, 0.f, 1.f);
+
+        if (mode < 0.5f)
+            return leftValue;
+
+        if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = EffectBeamRuntime::Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = EffectBeamRuntime::Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
+            return
+                (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
+                (t3 - 2.f * t2 + ratio) * leftLeave +
+                (-2.f * t3 + 3.f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+
+        return lerp(leftValue, rightValue, ratio);
     }
 
     return lifeProgress > EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
