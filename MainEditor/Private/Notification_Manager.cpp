@@ -78,7 +78,6 @@ void Notification_Manager::Render()
         case NotifyType::Warning: textColor = ImVec4(1.0f, 0.8f, 0.0f, 1.0f); break; // Yellow
         case NotifyType::Error:   textColor = ImVec4(1.0f, 0.2f, 0.2f, 1.0f); break; // Red
         }
-        ImGui::SetNextWindowFocus();
         if (ImGui::Begin(windowName.c_str(), nullptr, flags))
         {
             ImGui::TextColored(textColor, note.message.c_str());

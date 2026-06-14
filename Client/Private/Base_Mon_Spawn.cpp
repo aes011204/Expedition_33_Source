@@ -32,8 +32,8 @@ void Base_Mon_Spawn::Execute(const Skill_Data& skill, const BattleAction& action
      {
          auto right = aliveEnemy[0].actor->Get_Transform()->Get_WorldRight();
          auto pos = aliveEnemy[0].actor->Get_Transform()->Get_Position();
-         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Lancelier", pos + right * 4.f,180.f);
-         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Lancelier", pos - right * 4.f,180.f);
+         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Abbest", pos + right * 4.f,180.f);
+         CLIENT->Get_BattleController()->Spawn_BattleChar(false, "MB_Abbest", pos - right * 4.f,180.f);
 
     }
 }

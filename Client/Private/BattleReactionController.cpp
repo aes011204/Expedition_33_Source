@@ -225,6 +225,45 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
     return result;
 }
 
+void BattleReactionController::Notify_TargetDamaged(const BattleChar& target)
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
+        return;
+
+    if (!target.statCom->Is_Player())
+        return;
+
+    for (auto it = _reactionAnimTargets.begin(); it != _reactionAnimTargets.end(); )
+    {
+        if (it->actor == target.actor)
+            it = _reactionAnimTargets.erase(it);
+        else
+            ++it;
+    }
+
+    if (_counterDamageTarget.actor == target.actor)
+        _counterDamageTarget = {};
+
+    for (auto it = _counterReturnRuntimes.begin(); it != _counterReturnRuntimes.end(); )
+    {
+        if (it->target.actor == target.actor)
+            it = _counterReturnRuntimes.erase(it);
+        else
+            ++it;
+    }
+
+    if (!_reactionAnimTargets.empty())
+        return;
+
+    ResetCounterTimeSection();
+
+    _counterReturnRuntimes.clear();
+    _counterDamageTarget = {};
+    _animPhase = ReactionAnimPhase::None;
+    _isCounterPending = false;
+    _isCounterDamageApplied = false;
+}
+
 BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
 {
     if (GAME->KeyDown(KEY_TYPE::Q))
@@ -349,6 +388,12 @@ void BattleReactionController::StartCounterReturn()
         target.ModelCom->Set_RootMotionEnabled(true);
         target.ModelCom->Set_FrameSpeed(1.f);
 
+        LOG_INFO(
+            "[BattleCamTrace] StartCounterReturn prefab={} anim=Return targetAlive={} phaseBefore={}",
+            target.actor ? target.actor->Get_SourcePrefabName().c_str() : "",
+            target.statCom && target.statCom->Get_AliveStatus() == EAliveStatus::Alive,
+            static_cast<int>(_animPhase));
+
         if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Return), 0.15f, false))
         {
             TryRestoreTargetToSpawnPose(target);
@@ -367,10 +412,6 @@ void BattleReactionController::StartCounterReturn()
 }
 void BattleReactionController::UpdateCounterReturn(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
-
-
     ///////////////////////
     ///
         //ReturnToOrigin
@@ -432,16 +473,27 @@ void BattleReactionController::UpdateCounterReturn(float timeDelta)
         toGoal.y = 0.f;
         const float remain = toGoal.Length();
 
+        const float currentRatio = target.ModelCom->Get_RootMotionTranslationRatio();
+
         if (remain <= 0.05f)
         {
             transform->Set_Position(runtime->goalPos);
             transform->Set_RotationEuler(runtime->goalRot);
+            runtime->prevRootRatio = currentRatio;
+            continue;
+        }
+
+        if (currentRatio >= 0.999f || target.ModelCom->Is_AnimationFinished())
+        {
+            // 복귀 애니메이션이 끝났으면 남은 오차를 스폰 위치로 정리하고 busy를 풀어 턴 종료를 이어간다.
+            transform->Set_Position(runtime->goalPos);
+            transform->Set_RotationEuler(runtime->goalRot);
+            runtime->prevRootRatio = currentRatio;
             continue;
         }
 
         allReached = false;
 
-        const float currentRatio = target.ModelCom->Get_RootMotionTranslationRatio();
         float deltaRatio = currentRatio - runtime->prevRootRatio;
 
         if (deltaRatio < 0.f)
@@ -672,9 +724,10 @@ bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
 
 bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) const
 {
-    return //animType == BattleAnimType::Hit_Heavy ||
-        //animType == BattleAnimType::Hit_Medium ||
-       // animType == BattleAnimType::Hit_Light ||
+    return animType == BattleAnimType::Hit_Heavy ||
+        animType == BattleAnimType::Hit_Medium ||
+        animType == BattleAnimType::Hit_Light ||
+        animType == BattleAnimType::Hit_Stun ||
         animType == BattleAnimType::Dead;
 }
 

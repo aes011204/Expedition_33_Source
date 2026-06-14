@@ -290,7 +290,6 @@ private: /* 전투 AP */
     void Play_EnemyTargetedStart(const BattleChar& target);
     void Play_EnemyTargetedEnd();
 
-
 private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};

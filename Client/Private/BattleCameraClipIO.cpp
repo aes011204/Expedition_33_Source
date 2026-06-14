@@ -126,6 +126,30 @@ void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, Ca
         case static_cast<int>(InterpolationMode::EaseOut):
             key.interpolation = InterpolationMode::EaseOut;
             break;
+        case static_cast<int>(InterpolationMode::EaseInStrong):
+            key.interpolation = InterpolationMode::EaseInStrong;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutStrong):
+            key.interpolation = InterpolationMode::EaseOutStrong;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInOutStrong):
+            key.interpolation = InterpolationMode::EaseInOutStrong;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInCubic):
+            key.interpolation = InterpolationMode::EaseInCubic;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutCubic):
+            key.interpolation = InterpolationMode::EaseOutCubic;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInExpo):
+            key.interpolation = InterpolationMode::EaseInExpo;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutExpo):
+            key.interpolation = InterpolationMode::EaseOutExpo;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOutBack):
+            key.interpolation = InterpolationMode::EaseOutBack;
+            break;
         case static_cast<int>(InterpolationMode::Linear):
         default:
             key.interpolation = InterpolationMode::Linear;

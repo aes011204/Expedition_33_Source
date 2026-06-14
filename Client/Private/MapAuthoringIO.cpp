@@ -25,6 +25,31 @@ namespace
         return instanceData.value("static_class", string{});
     }
 
+    void Remove_PrefabOwnedStatComponents(json& instanceData)
+    {
+        if (!instanceData.is_object())
+            return;
+
+        if (!instanceData.contains("components") || !instanceData["components"].is_array())
+            return;
+
+        json filteredComponents = json::array();
+        for (const json& component : instanceData["components"])
+        {
+            if (!component.is_object())
+                continue;
+
+            const string className = component.value("class_name", string{});
+            const string prototypeTag = component.value("prototype_tag", string{});
+            if (className == "MonsterStatCom" || prototypeTag == "Com_MonsterStat")
+                continue;
+
+            filteredComponents.push_back(component);
+        }
+
+        instanceData["components"] = std::move(filteredComponents);
+    }
+
     fs::path Normalize_MapPath(const wstring& filePath)
     {
         std::error_code errorCode{};
@@ -97,6 +122,7 @@ void MapAuthoringIO::Collect_PrefabInstances(
             entry.prefabName = gameObject->Get_SourcePrefabName();
             entry.layerTag = layerTag;
             entry.instanceData = gameObject->To_Json();
+            Remove_PrefabOwnedStatComponents(entry.instanceData);
 
             if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) != nullptr)
             {
@@ -332,7 +358,11 @@ bool MapAuthoringIO::Load_AuthoredObjects_FromMapData(
             gameObject->Set_RuntimeAuthoringLoaded(true);
 
             if (node.contains("InstanceData") && node["InstanceData"].is_object())
-                gameObject->From_Json(node["InstanceData"]);
+            {
+                json instanceData = node["InstanceData"];
+                Remove_PrefabOwnedStatComponents(instanceData);
+                gameObject->From_Json(instanceData);
+            }
 
             if (spawnedObjects != nullptr)
                 spawnedObjects->push_back(gameObject);

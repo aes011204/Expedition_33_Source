@@ -66,6 +66,7 @@ public:
     void    Set_ChannelVolume(SoundChannel channel, float volume);
     float   Get_ChannelVolume(SoundChannel channel) const;
     void    Set_ChannelPaused(SoundChannel channel, bool paused);
+    void    Set_GlobalPitch(float pitch, bool includeBGM = false);
 
     void    Stop_Channel(SoundChannel channel, float fadeOutDuration = 0.f);
     void    Stop_Sound(const wstring& soundFile);
@@ -130,6 +131,8 @@ private:
 
     array<FMOD_CHANNELGROUP*, ETOI(SoundChannel::END)> _channelGroups = {};
     array<float, ETOI(SoundChannel::END)>              _channelVolumes = {};
+    float                                              _globalPitch = 1.f;
+    bool                                               _globalPitchIncludesBGM = false;
 
     // 키는 Resources/Sounds 기준 상대 경로를 소문자로 정규화해서 저장
     umap<wstring, FMOD_SOUND*> _sounds;
