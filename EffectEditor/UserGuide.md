@@ -807,12 +807,11 @@ Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
 | `재생 방식` | frame 선택 방식이다. | FixedFrame, LifeProgress, FramesPerSecond, RandomFrame 계열이다. | combo | 방식에 따라 표시 field가 달라진다. |
 | `프레임` | 고정 frame index다. | FixedFrame에서 사용할 atlas frame이다. | uint 고정값 | 현재 atlas frame 수 안으로 clamp된다. |
 | `시작 프레임` | frame 범위 시작이다. | LifeProgress/FPS/RandomFrame 범위 시작이다. | uint 고정값 | atlas frame 수 안으로 clamp된다. |
-| `종료 프레임` | frame 범위 끝이다. | frame 재생/랜덤 범위 끝이다. | uint 고정값 | atlas frame 수 안으로 clamp된다. |
-| `루프` | FPS 재생 반복 여부다. | 켜면 frame range를 반복 재생한다. | bool | Beam variation과 함께 볼 수 있다. |
+| `종료 프레임` | frame 범위 끝이다. | frame 재생/랜덤 범위 끝이다. 시작보다 작으면 atlas 끝을 거쳐 0번부터 이어진다. | uint 고정값 | atlas frame 수 안으로 clamp된다. |
+| `루프` | FPS 재생 반복 여부다. | 켜면 해석된 frame range 안에서 반복 재생한다. | bool | wrap range에서도 같은 range 안에서 반복된다. |
 | `FPS` | 초당 frame 진행 수다. | 값이 높을수록 빠르게 재생한다. | float 고정값 | 0 이상으로 정규화된다. |
-| `Beam Multi-Strip Variation` | Beam 전용 variation 그룹이다. | strip별 SubUV variation 값을 묶어 보여준다. | foldout | Beam에서만 표시된다. |
-| `Per-Strip SubUV Variation` | Beam multi-strip variation 적용 여부다. | RandomFrame은 strip별 샘플, loop FPS는 strip별 phase offset을 적용한다. | bool | `Beam Multi-Strip Variation` 안에서 편집한다. |
-| `랜덤 시드` | RandomFrame 또는 Beam variation seed다. | strip 또는 frame 랜덤성을 재현한다. | seed UI | RandomFrame 또는 looped FPS variation에서 사용한다. |
+| `개체별 랜덤 시작` | FPS 재생의 시작 phase를 개체별로 다르게 한다. | Sprite는 particle, Sprite Trail은 stamp, Beam은 strip, SourceHistoryRibbon은 replay/loop 단위로 해석한다. | bool | RandomFrame이 아니라 순차 FPS 재생의 시작 위치만 바꾼다. |
+| `랜덤 시드` | RandomFrame 또는 개체별 랜덤 시작 seed다. | frame 선택 또는 FPS 시작 phase 랜덤성을 재현한다. | seed UI | RandomFrame 또는 `개체별 랜덤 시작`이 켜진 FPS에서 사용한다. |
 | `현재 atlas frame 수` | Required material/texture에서 해석한 atlas frame count다. | frame index clamp 기준이다. | read-only | frame 수가 0이면 원하는 결과가 안 나올 수 있다. |
 
 Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 TypeData가 아니라 `서브UV 프레임 선택/재생` Module이 소유한다. 2x2 번개 sprite sheet처럼 frame을 바꿔 찍는 경우에도 먼저 이 Module을 확인한다.

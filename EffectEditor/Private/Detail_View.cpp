@@ -1245,6 +1245,7 @@ void Detail_View::Render_TrailPreviewDetail()
     const Vec3 defaultSourceLocalOffset = EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset();
     bool visible = EDITOR->Is_TrailPreviewVisible();
     bool debugRenderEnabled = EDITOR->Is_TrailPreviewDebugRenderEnabled();
+    float animationSpeed = EDITOR->Get_TrailPreviewAnimationSpeed();
     TrailPreviewGateMode gateMode = EDITOR->Get_TrailPreviewGateMode();
     float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
     float gateEndRatio = EDITOR->Get_TrailPreviewGateEndRatio();
@@ -1258,6 +1259,16 @@ void Detail_View::Render_TrailPreviewDetail()
             EDITOR->Set_TrailPreviewVisible(visible);
         if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true))
             EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
+        static constexpr AuthoringValueRange kAnimationSpeedRange{ true, true, 0.01f, 10.f };
+        if (_detailPropertyContext.Draw_FloatProperty(
+            "애니메이션 배속",
+            animationSpeed,
+            EDITOR->Get_DefaultTrailPreviewAnimationSpeed(),
+            0.01f,
+            "Trail Preview 플레이어 애니메이션 재생 배속입니다.",
+            &kAnimationSpeedRange
+        ))
+            EDITOR->Set_TrailPreviewAnimationSpeed(animationSpeed);
         _detailPropertyContext.End_PropertyTable();
     }
 
