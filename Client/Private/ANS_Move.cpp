@@ -69,6 +69,9 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
     }
     else
     {
+        action.Get_CurChar().actor->Get_Component<ModelCom>()->Set_RootMotionEnabled(false);
+
+
         if (action.Get_CurChar().actor == nullptr)
             return;
 

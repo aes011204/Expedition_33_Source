@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Battle_Enum.h"
 #include "CombatStatCom.h"
+#include <unordered_map>
 
 NS_BEGIN(Client)
 
@@ -87,10 +88,22 @@ public:
 
     BattleMonsterStatSnapshot Create_BattleSyncSnapshot() const;
     void Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& snapshot);
+    void Rebuild_SkillRuntimeState();
+
+    Skill_Data_Inst* Find_SkillRuntimeState(const string& skillKey);
+    const Skill_Data_Inst* Find_SkillRuntimeState(const string& skillKey) const;
+
+    bool Can_UseSkill(const Skill_Data& skill) const;
+    void Notify_SkillUsed(const Skill_Data& skill);
+    void Advance_SkillCooldownTurn();
+
+    int32 Get_BattleTurnCount() const { return _battleTurnCount; }
 
 private:
     MonsterCombatStatDesc _monsterDesc;
     MRuntimeCombatStat _MRuntimeStat;
+    unordered_map<string, Skill_Data_Inst> _skillRuntimeByKey;
+    int32 _battleTurnCount = 0;
 public:
     static Shared<MonsterStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;
