@@ -54,9 +54,14 @@ BNode::NODE_STATE BT_SetSkillAI::Logic_Update(float deltaTime)
 
     Monster_BattleBase::SkillChoiceContext context = owner->Build_SkillChoiceContext(bb, heroes);
 
-    for (int i =0; SkillIDs.size(); i++)
+    for (int i = 0; i < static_cast<int>(SkillIDs.size()); i++)
     {
         const Skill_Data* skill = CLIENT->Get_Skill(SkillIDs[i]);
+        if (skill == nullptr)
+            continue;
+
+        if (!stat->Can_UseSkill(*skill))
+            continue;
 
         if(context.phaseJustChanged == true)
         {
@@ -71,6 +76,7 @@ BNode::NODE_STATE BT_SetSkillAI::Logic_Update(float deltaTime)
                 return BNode::NODE_STATE::SUCCESS;
             }
         }
+
 
         //if (currentTurn < skill->minTurn)
         //    continue;
@@ -89,26 +95,91 @@ BNode::NODE_STATE BT_SetSkillAI::Logic_Update(float deltaTime)
         candidates.push_back({ i, score });
 
     }
+        if (candidates.empty())
+            return BNode::NODE_STATE::FAILED;
 
-    int32 bestSkillIndex = -1;
-    float bestScore = -FLT_MAX;
+        sort(candidates.begin(), candidates.end(),
+            [](const SkillCandidate& a, const SkillCandidate& b)
+            {
+                return a.score > b.score;
+            });
 
-    for (const SkillCandidate& candidate : candidates)
-    {
-        if (candidate.score > bestScore)
+        vector<SkillCandidate> topCandidates;
+        const int32 topCount = min<int32>(3, static_cast<int32>(candidates.size()));
+
+        for (int32 i = 0; i < topCount; ++i)
+            topCandidates.push_back(candidates[i]);
+
+        float minScore = FLT_MAX;
+
+        for (const SkillCandidate& candidate : topCandidates)
         {
-            bestScore = candidate.score;
-            bestSkillIndex = candidate.skillIndex;
+            if (candidate.score < minScore)
+                minScore = candidate.score;
         }
-    }
 
-    SelectSkill(bb, bestSkillIndex);
+        float offset = 0.f;
+        if (minScore <= 0.f)
+            offset = -minScore + 0.1f;
+
+        float totalWeight = 0.f;
+
+        for (const SkillCandidate& candidate : topCandidates)
+        {
+            totalWeight += candidate.score + offset;
+        }
+
+        const float pick = Math::RandNum(0.f, totalWeight);
+        float acc = 0.f;
+
+        for (const SkillCandidate& candidate : topCandidates)
+        {
+            acc += candidate.score + offset;
+
+            if (pick <= acc)
+            {
+                SelectSkill(bb, candidate.skillIndex);
+                return BNode::NODE_STATE::SUCCESS;
+            }
+        }
+    //int32 bestSkillIndex = -1;
+    //float bestScore = -FLT_MAX;
+
+    //for (const SkillCandidate& candidate : candidates)
+    //{
+    //    if (candidate.score > bestScore)
+    //    {
+    //        bestScore = candidate.score;
+    //        bestSkillIndex = candidate.skillIndex;
+    //    }
+    //}
+
+    //SelectSkill(bb, bestSkillIndex);
 
     return BNode::NODE_STATE::SUCCESS;
 }
 
 void BT_SetSkillAI::SelectSkill(const Shared<BlackBoard>& bb, int32 SkillIndex)
 {
+	auto owner = dynamic_pointer_cast<Monster_BattleBase>(_owner.lock());
+	const Shared<MonsterStatCom> stat = _owner.lock()->Get_Component<MonsterStatCom>();
+
+	if (owner && stat)
+	{
+		const vector<string>& skillKeys = stat->Get_SkillKey();
+		if (SkillIndex >= 0 && SkillIndex < static_cast<int32>(skillKeys.size()))
+		{
+			Monster_BattleBase::SkillChoiceContext nextContext = owner->_cachedContext;
+			const string& skillKey = skillKeys[SkillIndex];
+
+			owner->Push_SkillHistory(skillKey);
+			nextContext.lastSkillIndex = skillKey;
+			nextContext.previousPhase = owner->Get_CurPhase();
+			owner->_cachedContext = nextContext;
+		}
+	}
+
+
 
     bb->Set_Value("SkillIndex", SkillIndex);
     bb->Set_Value("ActionType", static_cast<int>(EBattleContext::Skill));

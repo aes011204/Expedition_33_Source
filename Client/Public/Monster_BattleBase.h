@@ -48,6 +48,7 @@ public:
         Ally,
         RandomEnemy
     };
+
     struct SkillAIData
     {
         EAITargetStyle targetStyle = EAITargetStyle::Single;
@@ -62,6 +63,7 @@ public:
         int minTurn = 0;
         int maxUseCount = -1;
     };
+
     enum class BattlePhase
     {
         None,
@@ -80,7 +82,7 @@ public:
         int32 lastTargetIndex = -1;
 
         string _prevSkillKey[3];
-        int32 _prevTarget = {};
+        int32 _prevTarget[3];
 
         bool phaseJustChanged = false;
         BattlePhase previousPhase = BattlePhase::None;
@@ -123,13 +125,17 @@ public:
     float Get_HpRatio();
     BattlePhase Get_CurPhase();
     float Score_Skill(const Skill_Data* skill, const SkillChoiceContext& context, const vector<BattleChar>& heroes);
-    float Score_Target(const Skill_Data* skill, const SkillChoiceContext& context, const vector<BattleChar>& heroes);
-    void Push_SkillHistory(const int32 skillKey, int32 prevTarget);
+    float Score_Target(const Skill_Data* skill, const BattleChar& target, int32 targetIndex);
+    float Estimate_SkillDamage(const Skill_Data* skill, const BattleChar& target);
+    void Push_SkillHistory(const string& skillKey);
+    void Push_TargetHistory(const int32 prevTarget);
+    void Advance_SkillRuntimeTurn();
+    void Notify_SkillExecutionSucceeded(const string& skillKey);
     SkillChoiceContext Build_SkillChoiceContext(
         const Shared<BlackBoard>& bb,
         const vector<BattleChar>& heroes);
 
-    SkillChoiceContext context = {};
+    SkillChoiceContext _cachedContext = {};
 protected:
     virtual HRESULT Ready_Components();
     void ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes);
