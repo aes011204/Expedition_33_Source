@@ -1,10 +1,12 @@
-#include "ChainModifier.h"
+﻿#include "ChainModifier.h"
 #include "ModelCom.h"
 #include "Bone.h"
 #include "GameObject.h"
 #include "Helper_Math.h"
 #include "ModelPhysicsParser.h"
 #include "TransformCom.h"
+#include "GameInstance.h"
+#include "Engine_Macro.h"
 #include <algorithm>
 
 NS_BEGIN(Engine)
@@ -19,7 +21,13 @@ namespace
 			XMConvertToRadians(rotationOffsetDegrees.z));
 	}
 
-	float GetWindNodeWeight(size_t nodeIndex, size_t nodeCount)
+	bool IsCoatSurfaceChain(const string &rootBoneName)
+	{
+		return rootBoneName.find("Coat_") != string::npos
+			&& rootBoneName.find("Collar") == string::npos;
+	}
+
+	float GetWindNodeWeight(const ChainModifier::BoneChain &chain, size_t nodeIndex, size_t nodeCount)
 	{
 		if (nodeCount <= 1)
 		{
@@ -27,8 +35,11 @@ namespace
 		}
 
 		const float ratio = static_cast<float>(nodeIndex) / static_cast<float>(nodeCount - 1);
-		const float tipRatio = Math::NormalizeSegment(ratio, 0.4f, 1.f);
-		return Math::GetSmoothStepRatio(tipRatio) * 0.65f;
+		const bool isCoatChain = IsCoatSurfaceChain(chain.rootBoneName);
+		const float startRatio = isCoatChain ? 0.72f : 0.4f;
+		const float tipRatio = Math::NormalizeSegment(ratio, startRatio, 1.f);
+		const float weightScale = isCoatChain ? 0.08f : 0.65f;
+		return Math::GetSmoothStepRatio(tipRatio) * weightScale;
 	}
 
 	float GetChainTipRatio(size_t nodeIndex, size_t nodeCount)
@@ -47,12 +58,6 @@ namespace
 		return rootValue * (1.f + (tipScale - 1.f) * tipRatio);
 	}
 
-	bool IsCoatSurfaceChain(const string &rootBoneName)
-	{
-		return rootBoneName.find("Coat_") != string::npos
-			&& rootBoneName.find("Collar") == string::npos;
-	}
-
 	Vec3 ComputeWindOffset(
 		const ChainModifier::ChainModifierDesc &desc,
 		const ChainModifier::BoneChain &chain,
@@ -67,7 +72,7 @@ namespace
 		Vec3 windDir = desc.runtime.windDirection;
 		windDir.Normalize();
 
-		const float nodeWeight = GetWindNodeWeight(nodeIndex, chain.nodes.size());
+		const float nodeWeight = GetWindNodeWeight(chain, nodeIndex, chain.nodes.size());
 		if (nodeWeight <= 0.f)
 		{
 			return Vec3::Zero;
@@ -379,6 +384,19 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 {
 	const float delta = std::clamp(timeDelta, 0.f, 1.f / 30.f);
 	vector<WorldCapsule> worldCapsules = _desc.collision.enableCollision ? Update_WorldCapsule(model, &ownerWorld) : vector<WorldCapsule>{};
+	if (_desc.collision.debugDrawCapsules)
+	{
+		for (const WorldCapsule &capsule : worldCapsules)
+		{
+			DebugCapsuleDesc debugDesc{};
+			debugDesc.start = capsule.startPoint;
+			debugDesc.end = capsule.endPoint;
+			debugDesc.radius = capsule.radius;
+			debugDesc.style.color = Color(1.f, 0.9f, 0.05f, 1.f);
+			debugDesc.style.depthEnabled = false;
+			GAME->Draw_DebugCapsule(debugDesc);
+		}
+	}
 
 	for (auto &chain : _chains)
 	{
@@ -1003,18 +1021,23 @@ vector<ChainModifier::WorldCapsule> ChainModifier::Update_WorldCapsule(const Mod
 
 		Matrix boneWorld = (*boneCombined) * (*ownerWorld);
 
-		Vec3 localAxis = Vec3::Transform(Vec3(0, 0, 1), col.rotationQuat);
+		Vec3 localAxis = Vec3::Transform(Vec3::UnitY, col.rotationQuat);
 		localAxis.Normalize();
 
 		Vec3 worldCenter = Vec3::Transform(col.center, boneWorld);
 		Vec3 worldAxis = Vec3::TransformNormal(localAxis, boneWorld);
 
-		float scale = Vec3(boneWorld.m[0][0], boneWorld.m[0][1], boneWorld.m[0][2]).Length();
+		Vec3 worldScale = Vec3::One;
+		Quaternion worldRotation = Quaternion::Identity;
+		Vec3 worldTranslation = Vec3::Zero;
+		Matrix decomposedBoneWorld = boneWorld;
+		decomposedBoneWorld.Decompose(worldScale, worldRotation, worldTranslation);
+
 		worldAxis.Normalize();
 
 		WorldCapsule capsule{};
-		capsule.radius = col.radius * scale;
-		float scaledHalfLength = col.halfLength * scale;
+		capsule.radius = col.radius * std::max(fabsf(worldScale.x), fabsf(worldScale.z));
+		float scaledHalfLength = col.halfLength * fabsf(worldScale.y);
 
 		capsule.startPoint = worldCenter + worldAxis * scaledHalfLength;
 		capsule.endPoint = worldCenter - worldAxis * scaledHalfLength;
@@ -1094,6 +1117,21 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 	if (!_isActive || _strengthAlpha <= 0.f || !model)
 	{
 		return;
+	}
+
+	if (_desc.modifierTag == L"ClothPhysics_Coat")
+	{
+		LOG_INFO_ONCE(
+			"[ChainModifier][CoatEval] tag={} active={} strengthAlpha={} chainCount={} windScale={} movementInertia={} tipMovementInertia={} animatedRest={} transportAlpha={}",
+			String::ToString(_desc.modifierTag),
+			_isActive,
+			_strengthAlpha,
+			_chains.size(),
+			_desc.runtime.windScale,
+			_desc.motion.movementInertiaScale,
+			_desc.motion.tipMovementInertiaScale,
+			_desc.runtime.useAnimatedPoseAsRest,
+			_desc.runtime.animatedPoseTransportAlpha);
 	}
 
 	if (!_chainsInitialized)

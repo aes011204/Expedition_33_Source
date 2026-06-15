@@ -1,6 +1,38 @@
 ﻿#include "pch.h"
 #include "ModelPhysicsParser.h"
 
+namespace
+{
+    Vec3 Convert_UePointToEngine(const Vec3& uePoint)
+    {
+        return Vec3(uePoint.x, uePoint.z, -uePoint.y);
+    }
+
+    Quaternion Convert_UeRotationToEngine(const Quaternion& ueRotation)
+    {
+        const Matrix basisToEngine = Matrix::CreateRotationX(-XM_PIDIV2);
+        const Matrix basisToUe = Matrix::CreateRotationX(XM_PIDIV2);
+        const Matrix ueRotationMatrix = Matrix::CreateFromQuaternion(ueRotation);
+        const Matrix engineRotationMatrix = basisToEngine * ueRotationMatrix * basisToUe;
+
+        Vec3 scale = Vec3::One;
+        Quaternion rotation = Quaternion::Identity;
+        Vec3 translation = Vec3::Zero;
+
+        Matrix tempMat = engineRotationMatrix;
+        tempMat.Decompose(scale, rotation, translation);
+        return rotation;
+    }
+
+    Quaternion Parse_UePrimitiveRotation(const nlohmann::json& rotationNode)
+    {
+        return Quaternion::CreateFromYawPitchRoll(
+            XMConvertToRadians(rotationNode.value("yaw", 0.f)),
+            XMConvertToRadians(rotationNode.value("pitch", 0.f)),
+            XMConvertToRadians(rotationNode.value("roll", 0.f)));
+    }
+}
+
 vector<ChainModifier::CapsuleColliderDesc> ModelPhysicsParser::LoadCapsulesFromJSON(const wstring& filePath)
 {
     vector<ChainModifier::CapsuleColliderDesc> colliders;
@@ -56,28 +88,14 @@ vector<ChainModifier::CapsuleColliderDesc> ModelPhysicsParser::LoadCapsulesFromJ
         desc.boneName = item.value("boneName", "");
 
         auto center = item["center"];
-        desc.center = Vec3(center.value("x", 0.f), center.value("y", 0.f), center.value("z", 0.f));
+        const Vec3 ueCenter(center.value("x", 0.f), center.value("y", 0.f), center.value("z", 0.f));
+        desc.center = Convert_UePointToEngine(ueCenter);
 
         auto rotation = item["rotation"];
-        float halfPitch = XMConvertToRadians(rotation.value("pitch", 0.f)) * 0.5f;
-        float halfYaw = XMConvertToRadians(rotation.value("yaw", 0.f)) * 0.5f;
-        float halfRoll = XMConvertToRadians(rotation.value("roll", 0.f)) * 0.5f;
-
-        float pitchSin, pitchCos, yawSin, yawCos, rollSin, rollCos;
-        // 3차원 회전을 쿼터니언으로 만들려면, 
-        // X축 회전 쿼터니언, Y축 회전 쿼터니언, Z축 회전 쿼터니언을 각각 만든 다음 세 개를 서로 곱해줘야
-        // ($Q_{yaw} * Q_{pitch} * Q_{roll}$) 합니다.
-        XMScalarSinCos(&pitchSin, &pitchCos, halfPitch);
-        XMScalarSinCos(&yawSin, &yawCos, halfYaw);
-        XMScalarSinCos(&rollSin, &rollCos, halfRoll);
-
-        desc.rotationQuat.x = (rollCos * pitchSin * yawSin) - (rollSin * pitchCos * yawCos);
-        desc.rotationQuat.y = (-rollCos * pitchSin * yawCos) - (rollSin * pitchCos * yawSin);
-        desc.rotationQuat.z = (rollCos * pitchCos * yawSin) - (rollSin * pitchSin * yawCos);
-        desc.rotationQuat.w = (rollCos * pitchCos * yawCos) + (rollSin * pitchSin * yawSin);
+        desc.rotationQuat = Convert_UeRotationToEngine(Parse_UePrimitiveRotation(rotation));
 
         desc.radius = item.value("radius", 0.f);
-        desc.halfLength = item.value("length", 0.f) * 0.5f;
+        desc.halfLength = std::max(0.f, item.value("length", 0.f) * 0.5f - desc.radius);
 
         colliders.push_back(desc);
     }

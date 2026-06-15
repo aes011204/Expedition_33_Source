@@ -93,6 +93,7 @@ public:
 			float collisionRadiusPadding{ 1.f };            // 콜라이더 반지름에 추가로 적용할 여유 패딩 값
 			wstring physicsAssetPath{ L"" };            // 충돌 캡슐 정보를 불러올 Physics Asset 데이터 경로 (JSON 파일)
 			vector<string> includedBones{};                 // 비어 있지 않으면 이 본들의 충돌체만 사용
+			bool debugDrawCapsules{ false };                // true면 계산된 월드 캡슐을 DebugDraw로 표시
 		} collision{};
 
 		struct RuntimeSettings
