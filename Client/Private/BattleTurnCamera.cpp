@@ -249,6 +249,14 @@ void BattleTurnCamera::Update(float timeDelta)
 
     Update_TransformMatrices();
 
+    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
+
+    LOG_INFO(
+    "[BattleCamTrace] Update prevMode={} prevPresetId={} prevClipId={} activeClip={}",
+    modeName.c_str(),
+    _currentRequest.presetId.c_str(),
+    _currentRequest.clipId.c_str(),
+    _activeClip != nullptr);
 }
 
 void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta)
@@ -1298,6 +1306,14 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
         if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
         Apply_EvaluatedPose(toPose);
+
+        const string requestModeName = string(magic_enum::enum_name(request.mode));
+        const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
+
+        LOG_DEBUG(
+         "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
+         requestModeName.c_str(),
+         currentModeName.c_str());
 
         return;
     }
