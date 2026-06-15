@@ -242,6 +242,9 @@
     <Filter Include="02.GameObject\EyeTarget">
       <UniqueIdentifier>{da7262d2-5cd4-4324-b7d0-b8d45f6e54ab}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\ModifierPreset">
+      <UniqueIdentifier>{c6888c1b-89f3-4e18-8210-91cb8f4646b0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -472,6 +475,7 @@
     <ClCompile Include="..\Private\PlayerInventory.cpp" />
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />
+    <ClCompile Include="ChainModifierPreset.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -612,7 +616,6 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
@@ -1330,6 +1333,7 @@
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
     <ClInclude Include="..\Public\CostumeManager.h" />
+    <ClInclude Include="ChainModifierPreset.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

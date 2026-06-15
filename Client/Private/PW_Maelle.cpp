@@ -9,6 +9,7 @@
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
+#include "ChainModifierPreset.h"
 #include <ChainModifier.h>
 #include "MovementCom.h"
 #include "TransformCom.h"
@@ -155,31 +156,10 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 
 		// --- ChainModifier for Scarf ---
 		ChainModifier::ChainModifierDesc chainDesc{};
-		chainDesc.modifierTag = L"ClothPhysics_Scarf";
-		
-		chainDesc.stiffness = 0.012f;
-		chainDesc.damping = 0.64f;
-		chainDesc.gravity = Vec3(0.f, -0.88f, 0.f);
-		chainDesc.movementInertiaScale = 0.045f;
-		chainDesc.maxMovementOffset = 0.025f;
-		chainDesc.poseRestoreStrength = 0.12f;
-		chainDesc.maxBendAngleDegree = 70.f;
-		chainDesc.collisionRadiusPadding = 2.8f;
-		chainDesc.enableCollision = true;
-		chainDesc.solverIterations = 1;
-		chainDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
-
-		chainDesc.groups = {
-			{ "Maelle_V4_Scarf_01_01" },
-			{ "Maelle_V4_Scarf_02_01" },
-			{ "Maelle_V4_Scarf_03_01" },
-			{ "Maelle_V4_Scarf_04_01" },
-			{ "Maelle_V4_Scarf_05_01" },
-			{ "Maelle_V4_Scarf_06_01" }
-		};
-
-		chainDesc.ownerTransform = Get_Transform().get();
-		chainDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Maelle_Placeholder_Physics.json";
+		ChainModifierPreset::BuildScarfDesc(
+			chainDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
 
 		if (auto modifier = ChainModifier::Create(&chainDesc))
 		{
@@ -188,30 +168,25 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 
 		// --- ChainModifier for Armband ---
 		ChainModifier::ChainModifierDesc armbandDesc{};
-		armbandDesc.modifierTag = L"ClothPhysics_Armband";
-		
-		armbandDesc.stiffness = 0.01f;
-		armbandDesc.damping = 0.965f;
-		armbandDesc.gravity = Vec3(0.f, -777.f, 0.f);
-		armbandDesc.movementInertiaScale = 0.1f;
-		armbandDesc.maxMovementOffset = 0.028f;
-		armbandDesc.poseRestoreStrength = 0.f;
-		armbandDesc.maxBendAngleDegree = 120.f;
-		armbandDesc.collisionRadiusPadding = 0.15f;
-		armbandDesc.enableCollision = true;
-		armbandDesc.solverIterations = 5;
-		armbandDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
-
-		armbandDesc.groups = {
-			{ "Armband_Root" }
-		};
-
-		armbandDesc.ownerTransform = Get_Transform().get();
-		armbandDesc.physicsAssetPath = L"../Bin/Resources/ModelPhysics/SK_Maelle_Placeholder_Physics.json";
+		ChainModifierPreset::BuildArmbandDesc(
+			armbandDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
 
 		if (auto armbandModifier = ChainModifier::Create(&armbandDesc))
 		{
 			body->Get_Model()->Add_AnimModifier(armbandModifier);
+		}
+
+		ChainModifier::ChainModifierDesc coatDesc{};
+		ChainModifierPreset::BuildCoatDesc(
+			coatDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
+
+		if (auto coatModifier = ChainModifier::Create(&coatDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(coatModifier);
 		}
 
 	return S_OK;
