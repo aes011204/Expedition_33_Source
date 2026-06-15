@@ -40,6 +40,37 @@ static float Hash01(uint32 seed)
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
 }
 
+struct SubUVFrameRange
+{
+    uint32 startFrame{};
+    uint32 frameCount{ 1u };
+    uint32 rangeCount{ 1u };
+};
+
+static SubUVFrameRange Resolve_SubUVFrameRange(uint32 startFrame, uint32 endFrame, uint32 frameCount)
+{
+    const uint32 safeFrameCount = max(1u, frameCount);
+    const uint32 lastFrame = safeFrameCount - 1u;
+    const uint32 clampedStart = min(startFrame, lastFrame);
+    const uint32 clampedEnd = min(endFrame, lastFrame);
+    const uint32 rangeCount =
+        clampedEnd >= clampedStart
+        ? clampedEnd - clampedStart + 1u
+        : safeFrameCount - clampedStart + clampedEnd + 1u;
+    return SubUVFrameRange{ clampedStart, safeFrameCount, max(1u, rangeCount) };
+}
+
+static uint32 Resolve_SubUVFrameInRange(const SubUVFrameRange& range, uint32 frameOffset)
+{
+    return (range.startFrame + min(frameOffset, range.rangeCount - 1u)) % range.frameCount;
+}
+
+static uint32 Resolve_SubUVPlaybackOffset(const SubUVFrameRange& range, uint32 frameOffset, uint32 phaseOffset, bool loop)
+{
+    const uint32 offset = frameOffset + phaseOffset;
+    return loop ? offset % range.rangeCount : min(offset, range.rangeCount - 1u);
+}
+
 static Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float ratio)
 {
     const float t2 = ratio * ratio;
@@ -1674,14 +1705,11 @@ uint32 ComputeSourceHistoryRibbonEmitter::Evaluate_SubUVFrameIndex() const
     if (!_desc.subUVFrameOverLife.enabled)
         return 0u;
 
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 span = endFrame - startFrame;
-    const uint32 rangeCount = span + 1u;
+    const EffectAssetRuntimeLoad::SubUVFrameRange frameRange = EffectAssetRuntimeLoad::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const float activeElapsedTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
     switch (_desc.subUVFrameOverLife.playbackMode)
     {
@@ -1689,21 +1717,31 @@ uint32 ComputeSourceHistoryRibbonEmitter::Evaluate_SubUVFrameIndex() const
     {
         const float lifeProgress = clamp(activeElapsedTime / Resolve_Duration(), 0.f, 1.f);
         const uint32 frameOffset = min(
-            static_cast<uint32>(floorf(lifeProgress * static_cast<float>(rangeCount))),
-            rangeCount - 1u
+            static_cast<uint32>(floorf(lifeProgress * static_cast<float>(frameRange.rangeCount))),
+            frameRange.rangeCount - 1u
         );
-        return startFrame + frameOffset;
+        return EffectAssetRuntimeLoad::Resolve_SubUVFrameInRange(frameRange, frameOffset);
     }
     case SubUVFramePlaybackMode::FramesPerSecond:
     {
         const uint32 frameOffset = static_cast<uint32>(floorf(activeElapsedTime * max(0.f, _desc.subUVFrameOverLife.framesPerSecond)));
-        return startFrame + (_desc.subUVFrameOverLife.loop ? frameOffset % rangeCount : min(frameOffset, span));
+        const uint32 phaseOffset =
+            _desc.subUVFrameOverLife.randomStartPhase
+            ? min(
+                  static_cast<uint32>(floorf(EffectAssetRuntimeLoad::Hash01((_loopIndex + 1u) * 9781u + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 3919u) * static_cast<float>(frameRange.rangeCount))),
+                  frameRange.rangeCount - 1u
+              )
+            : 0u;
+        return EffectAssetRuntimeLoad::Resolve_SubUVFrameInRange(
+            frameRange,
+            EffectAssetRuntimeLoad::Resolve_SubUVPlaybackOffset(frameRange, frameOffset, phaseOffset, _desc.subUVFrameOverLife.loop)
+        );
     }
     case SubUVFramePlaybackMode::RandomFrame:
-        return min(_randomSubUVFrameIndex, lastFrame);
+        return min(_randomSubUVFrameIndex, frameRange.frameCount - 1u);
     case SubUVFramePlaybackMode::FixedFrame:
     default:
-        return startFrame;
+        return frameRange.startFrame;
     }
 }
 
@@ -1748,16 +1786,15 @@ void ComputeSourceHistoryRibbonEmitter::Resample_RandomSubUVFrameIndex()
     const uint32 rows = max(1u, _desc.material.subUVRows);
     const uint32 cols = max(1u, _desc.material.subUVCols);
     const uint32 frameCount = max(1u, rows * cols);
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 rangeCount = endFrame - startFrame + 1u;
+    const EffectAssetRuntimeLoad::SubUVFrameRange frameRange = EffectAssetRuntimeLoad::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const uint32 seed = (_loopIndex + 1u) * 9781u + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 1201u;
-    const uint32 frameOffset = min(static_cast<uint32>(floorf(EffectAssetRuntimeLoad::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
-    _randomSubUVFrameIndex = startFrame + frameOffset;
+    const uint32 frameOffset =
+        min(static_cast<uint32>(floorf(EffectAssetRuntimeLoad::Hash01(seed) * static_cast<float>(frameRange.rangeCount))), frameRange.rangeCount - 1u);
+    _randomSubUVFrameIndex = EffectAssetRuntimeLoad::Resolve_SubUVFrameInRange(frameRange, frameOffset);
 }
 
 float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(

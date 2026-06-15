@@ -108,7 +108,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SubUVFrameCurveTimesBlock1;
     float4 g_SubUVFrameCurveValues; // SubUV frame curve frame values
     float4 g_SubUVFrameCurveValuesBlock1;
-    float4 g_SubUVFrameCurveParams; // x: key count
+    float4 g_SubUVFrameCurveParams; // x: key count, y: random start phase flag
     uint4 g_SpawnSeedSalts;         // x: Lifetime, y: InitialLocation, z: SphereLocation, w: unused
     uint4 g_SubUVSeedSalts;         // x: SubUV RandomFrame
     uint4 g_AppearanceSeedSalts0;   // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB
@@ -1331,13 +1331,11 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         const uint lastFrame = frameCount - 1u;
         const uint startFrame = min((uint)g_SubUVFrameParams.x, lastFrame);
-        uint endFrame = min((uint)g_SubUVFrameParams.y, lastFrame);
-
-        if (endFrame < startFrame)
-            endFrame = startFrame;
-
-        const uint span = endFrame - startFrame;
-        const uint rangeCount = span + 1u;
+        const uint endFrame = min((uint)g_SubUVFrameParams.y, lastFrame);
+        const uint rangeCount =
+            endFrame >= startFrame
+            ? endFrame - startFrame + 1u
+            : frameCount - startFrame + endFrame + 1u;
 
         if ((uint)g_SubUVParams.z == 0u)
             frameIndex = startFrame;
@@ -1347,15 +1345,20 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                 (uint)floor(saturate(lifeProgress) * (float)rangeCount),
                 rangeCount - 1u
             );
-            frameIndex = startFrame + frameOffset;
+            frameIndex = (startFrame + frameOffset) % frameCount;
         }
         else if ((uint)g_SubUVParams.z == 2u)
         {
             const uint frameOffset = (uint)floor(lifeAge * max(0.0f, g_SubUVParams.w));
-            if (g_SubUVFrameParams.z != 0.0f && rangeCount > 0u)
-                frameIndex = startFrame + frameOffset % rangeCount;
-            else
-                frameIndex = startFrame + min(frameOffset, span);
+            const uint phaseOffset =
+                g_SubUVFrameCurveParams.y != 0.0f
+                ? min((uint)floor(Hash01(subUVRandomFrameSeed + 3919u) * (float)rangeCount), rangeCount - 1u)
+                : 0u;
+            const uint playbackOffset =
+                g_SubUVFrameParams.z != 0.0f
+                ? (frameOffset + phaseOffset) % rangeCount
+                : min(frameOffset + phaseOffset, rangeCount - 1u);
+            frameIndex = (startFrame + playbackOffset) % frameCount;
         }
         else if ((uint)g_SubUVParams.z == 3u)
         {
@@ -1363,7 +1366,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                 (uint)floor(Hash01(subUVRandomFrameSeed + 1201u) * (float)rangeCount),
                 rangeCount - 1u
             );
-            frameIndex = startFrame + frameOffset;
+            frameIndex = (startFrame + frameOffset) % frameCount;
         }
     }
 

@@ -1940,8 +1940,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         desc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         desc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        desc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
             desc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -2386,8 +2387,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
         emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        emitterDesc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
             emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -2601,8 +2603,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
         emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        emitterDesc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
             emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -2928,10 +2931,11 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
         emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
-        emitterDesc.usePerStripSubUVVariation = subUvFrameOverLife->perStripSubUVVariation;
+        const bool randomStartPhase = subUvFrameOverLife->randomStartPhase || subUvFrameOverLife->perStripSubUVVariation;
+        emitterDesc.subUVFrameOverLife.randomStartPhase = randomStartPhase;
+        emitterDesc.usePerStripSubUVVariation = randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame ||
-            (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::FramesPerSecond && subUvFrameOverLife->perStripSubUVVariation))
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || randomStartPhase)
             emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))

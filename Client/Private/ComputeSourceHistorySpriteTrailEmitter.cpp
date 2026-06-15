@@ -60,6 +60,37 @@ namespace Internal
         return salt;
     }
 
+    struct SubUVFrameRange
+    {
+        uint32 startFrame{};
+        uint32 frameCount{ 1u };
+        uint32 rangeCount{ 1u };
+    };
+
+    SubUVFrameRange Resolve_SubUVFrameRange(uint32 startFrame, uint32 endFrame, uint32 frameCount)
+    {
+        const uint32 safeFrameCount = max(1u, frameCount);
+        const uint32 lastFrame = safeFrameCount - 1u;
+        const uint32 clampedStart = min(startFrame, lastFrame);
+        const uint32 clampedEnd = min(endFrame, lastFrame);
+        const uint32 rangeCount =
+            clampedEnd >= clampedStart
+            ? clampedEnd - clampedStart + 1u
+            : safeFrameCount - clampedStart + clampedEnd + 1u;
+        return SubUVFrameRange{ clampedStart, safeFrameCount, max(1u, rangeCount) };
+    }
+
+    uint32 Resolve_SubUVFrameInRange(const SubUVFrameRange& range, uint32 frameOffset)
+    {
+        return (range.startFrame + min(frameOffset, range.rangeCount - 1u)) % range.frameCount;
+    }
+
+    uint32 Resolve_SubUVPlaybackOffset(const SubUVFrameRange& range, uint32 frameOffset, uint32 phaseOffset, bool loop)
+    {
+        const uint32 offset = frameOffset + phaseOffset;
+        return loop ? offset % range.rangeCount : min(offset, range.rangeCount - 1u);
+    }
+
     int Resolve_MaterialSourceIndex(const string& source)
     {
         if (source == "Red" || source == "red")
@@ -2299,43 +2330,49 @@ uint32 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SubUVFrameIndex(const St
     if (!_desc.subUVFrameOverLife.enabled)
         return 0u;
 
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 span = endFrame - startFrame;
-    const uint32 rangeCount = span + 1u;
+    const Internal::SubUVFrameRange frameRange = Internal::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const float stampLifeProgress = clamp(stamp.age / max(0.0001f, stamp.lifetime), 0.f, 1.f);
     switch (_desc.subUVFrameOverLife.playbackMode)
     {
     case SubUVFramePlaybackMode::LifeProgress:
     {
-        const uint32 frameOffset = min(static_cast<uint32>(floorf(stampLifeProgress * static_cast<float>(rangeCount))), rangeCount - 1u);
-        return startFrame + frameOffset;
+        const uint32 frameOffset =
+            min(static_cast<uint32>(floorf(stampLifeProgress * static_cast<float>(frameRange.rangeCount))), frameRange.rangeCount - 1u);
+        return Internal::Resolve_SubUVFrameInRange(frameRange, frameOffset);
     }
     case SubUVFramePlaybackMode::FramesPerSecond:
     {
         const uint32 frameOffset = static_cast<uint32>(floorf(stamp.age * max(0.f, _desc.subUVFrameOverLife.framesPerSecond)));
-        return startFrame + (_desc.subUVFrameOverLife.loop ? frameOffset % rangeCount : min(frameOffset, span));
+        const uint32 phaseOffset =
+            _desc.subUVFrameOverLife.randomStartPhase
+            ? Sample_RandomSubUVFrameIndex(stamp.serial, 0u, frameRange.rangeCount, frameRange.rangeCount)
+            : 0u;
+        return Internal::Resolve_SubUVFrameInRange(
+            frameRange,
+            Internal::Resolve_SubUVPlaybackOffset(frameRange, frameOffset, phaseOffset, _desc.subUVFrameOverLife.loop)
+        );
     }
     case SubUVFramePlaybackMode::RandomFrame:
-        return Sample_RandomSubUVFrameIndex(stamp.serial, startFrame, rangeCount);
+        return Sample_RandomSubUVFrameIndex(stamp.serial, frameRange.startFrame, frameRange.frameCount, frameRange.rangeCount);
     case SubUVFramePlaybackMode::FixedFrame:
     default:
-        return startFrame;
+        return frameRange.startFrame;
     }
 }
 
-uint32 ComputeSourceHistorySpriteTrailEmitter::Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 rangeCount) const
+uint32 ComputeSourceHistorySpriteTrailEmitter::Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 frameCount, uint32 rangeCount) const
 {
     const uint32 seed =
         Internal::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) +
         stampSerial * 7919u +
         1201u;
-    const uint32 frameOffset = min(static_cast<uint32>(floorf(Internal::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
-    return startFrame + frameOffset;
+    const uint32 safeRangeCount = max(1u, rangeCount);
+    const uint32 frameOffset = min(static_cast<uint32>(floorf(Internal::Hash01(seed) * static_cast<float>(safeRangeCount))), safeRangeCount - 1u);
+    return (startFrame + frameOffset) % max(1u, frameCount);
 }
 
 Vec4 ComputeSourceHistorySpriteTrailEmitter::Resolve_SubUVRect(uint32 frameIndex) const

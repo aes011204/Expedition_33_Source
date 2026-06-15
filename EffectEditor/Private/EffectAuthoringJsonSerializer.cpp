@@ -2478,6 +2478,7 @@ namespace Internal
         root["loop"] = data.loop;
         root["playbackMode"] = To_EnumToken(data.playbackMode);
         root["framesPerSecond"] = data.framesPerSecond;
+        root["randomStartPhase"] = data.randomStartPhase;
         Write_RandomSeedField(root, data.randomSeed);
         root["perStripSubUVVariation"] = data.perStripSubUVVariation;
         return root;
@@ -2498,6 +2499,7 @@ namespace Internal
         if (playbackModeIter != root.end())
             Try_ReadEnumToken(*playbackModeIter, outData.playbackMode);
         Read_NumberField(root, "framesPerSecond", outData.framesPerSecond);
+        Read_BoolField(root, "randomStartPhase", outData.randomStartPhase);
         Read_RandomSeedField(root, outData.randomSeed);
         Read_BoolField(root, "perStripSubUVVariation", outData.perStripSubUVVariation);
     }

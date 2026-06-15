@@ -88,7 +88,7 @@ struct ComputePointParticleParams
     Vec4 subUVFrameCurveTimesBlock1{};
     Vec4 subUVFrameCurveValues{};                    // SubUV frame curve frame values.
     Vec4 subUVFrameCurveValuesBlock1{};
-    Vec4 subUVFrameCurveParams{};                    // x: key count, y/z/w: unused.
+    Vec4 subUVFrameCurveParams{};                    // x: key count, y: random start phase flag, z/w: unused.
     XMUINT4 spawnSeedSalts{};                        // x: Lifetime, y: InitialLocation, z: SphereLocation, w: PlaneRadialLocation.
     XMUINT4 subUVSeedSalts{};                        // x: SubUV RandomFrame, y/z/w: unused.
     XMUINT4 appearanceSeedSalts0{};                  // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB.
@@ -720,7 +720,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .subUVFrameCurveValuesBlock1 = _desc.subUvFrameOverLife.frameCurveValuesBlock1,
         .subUVFrameCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.subUvFrameOverLife.frameCurveKeyCount))),
-            0.f,
+            _desc.subUvFrameOverLife.randomStartPhase ? 1.f : 0.f,
             0.f,
             0.f
         },

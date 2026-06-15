@@ -3098,7 +3098,7 @@ bool DetailPropertyContext::Draw_SpriteTextureAxisProperty(
                     "%s",
                     index == 0
                     ? (textureXAxisTooltip != nullptr ? textureXAxisTooltip : "정렬 방향에 texture의 가로축을 맞춥니다.")
-                    : (textureYAxisTooltip != nullptr ? textureYAxisTooltip : "정렬 방향에 texture의 세로축을 맞춥니다. 세로로 긴 번개/연기 texture의 기본 후보입니다.")
+                    : textureYAxisTooltip != nullptr ? textureYAxisTooltip : "정렬 방향에 texture의 세로축을 맞춥니다. 세로로 긴 번개/연기 texture의 기본 후보입니다."
                 );
             }
 
