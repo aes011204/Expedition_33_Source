@@ -85,9 +85,6 @@
     <ClCompile Include="..\Private\EffectAuthoringJsonSerializer.cpp">
       <Filter>06. Serializer</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp">
-      <Filter>07. Authoring Support</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\EffectPreviewOrbitCamera.cpp">
       <Filter>04. Camera\Preview Support</Filter>
     </ClCompile>
@@ -120,6 +117,12 @@
     </ClCompile>
     <ClCompile Include="..\Private\MeshDataPreview_View.cpp">
       <Filter>02. View\Mesh Effect Preview</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAuthoringValueRange.cpp">
+      <Filter>07. Authoring Support\Value Range</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp">
+      <Filter>07. Authoring Support\Module Metadata</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -234,9 +237,6 @@
     <ClInclude Include="..\Public\EffectAuthoringJsonSerializer.h">
       <Filter>06. Serializer</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h">
-      <Filter>07. Authoring Support</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\EffectPreviewOrbitCamera.h">
       <Filter>04. Camera\Preview Support</Filter>
     </ClInclude>
@@ -269,6 +269,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditorPreviewPlane.h">
       <Filter>05. EditorOnly Object\Preview Plane Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectAuthoringValueRange.h">
+      <Filter>07. Authoring Support\Value Range</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h">
+      <Filter>07. Authoring Support\Module Metadata</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -394,6 +400,12 @@
     </Filter>
     <Filter Include="02. View\Mesh Effect Preview">
       <UniqueIdentifier>{4cef3f45-c637-4449-9069-8e695140c66b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. Authoring Support\Module Metadata">
+      <UniqueIdentifier>{371c4911-0b27-4342-bafa-7e0589834f76}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. Authoring Support\Value Range">
+      <UniqueIdentifier>{ce4df0ed-a569-487d-bc47-493a44a1a46d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

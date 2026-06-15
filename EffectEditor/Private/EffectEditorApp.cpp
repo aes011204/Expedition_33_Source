@@ -1,7 +1,9 @@
 ﻿#include "EffectEditorApp.h"
 
 #include "ClientInstance.h"
+#include "ComputeGeneratedBeamEmitter.h"
 #include "ComputeSourceHistoryRibbonEmitter.h"
+#include "ComputeSourceHistorySpriteTrailEmitter.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
@@ -39,9 +41,12 @@ namespace Internal
             prototypeTag == L"Shader_EffectSprite" ||
             prototypeTag == L"Shader_EffectDistortionSprite" ||
             prototypeTag == L"Shader_EffectTrail" ||
+            prototypeTag == L"Shader_EffectTrailDistortion" ||
             prototypeTag == L"Shader_EffectRibbon" ||
             prototypeTag == L"Shader_EffectRibbonDistortion" ||
-            prototypeTag == L"Shader_EffectTrailDistortion" ||
+            prototypeTag == L"Shader_EffectSourceHistorySpriteTrail" ||
+            prototypeTag == L"Shader_EffectBeam" ||
+            prototypeTag == L"Shader_EffectBeamDistortion" ||
             prototypeTag == L"Shader_VtxMeshInstanceExact" ||
             prototypeTag == L"Shader_EffectMesh" ||
             prototypeTag == L"Shader_EffectMeshDistortion" ||
@@ -85,6 +90,8 @@ namespace Internal
             prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeTrailEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeSourceHistorySpriteTrailEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeGeneratedBeamEmitter" ||
             prototypeTag == L"GameObject_Effect_MeshEmitter";
     }
 
@@ -222,7 +229,11 @@ HRESULT EffectEditorApp::Initialize()
     };
 
     CHECK_FAILED(run_startup_step(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring(), true); }), E_FAIL);
+    const fs::path missingMetaRootPath = assetRootPath / L"Effects";
+    CHECK_FAILED(
+        run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring(), true, missingMetaRootPath.wstring()); }),
+        E_FAIL
+    );
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
@@ -287,6 +298,7 @@ void EffectEditorApp::Update(float timeDelta)
         freeCameraDelta = timeDelta;
     }
 
+    EDITOR->Tick_TrailPreviewGate(runtimeDelta);
     GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
     {
         ENGINE_PROFILE_SCOPE_BASIC("Game::Update");
@@ -607,7 +619,7 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
 
     Internal::Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
 
-    constexpr const wchar_t* sourceHistoryRibbonTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
+    constexpr auto sourceHistoryRibbonTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
     if (!GAME->Has_Prototype(ETOI(LevelType::Static), sourceHistoryRibbonTag))
     {
         CHECK_FAILED(
@@ -615,6 +627,32 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
                 ETOI(LevelType::Static),
                 sourceHistoryRibbonTag,
                 Client::ComputeSourceHistoryRibbonEmitter::Create(_device, _context)
+            ),
+            E_FAIL
+        );
+    }
+
+    constexpr auto sourceHistorySpriteTrailTag = L"GameObject_Effect_ComputeSourceHistorySpriteTrailEmitter";
+    if (!GAME->Has_Prototype(ETOI(LevelType::Static), sourceHistorySpriteTrailTag))
+    {
+        CHECK_FAILED(
+            GAME->Add_Prototype(
+                ETOI(LevelType::Static),
+                sourceHistorySpriteTrailTag,
+                Client::ComputeSourceHistorySpriteTrailEmitter::Create(_device, _context)
+            ),
+            E_FAIL
+        );
+    }
+
+    constexpr auto beamTag = L"GameObject_Effect_ComputeGeneratedBeamEmitter";
+    if (!GAME->Has_Prototype(ETOI(LevelType::Static), beamTag))
+    {
+        CHECK_FAILED(
+            GAME->Add_Prototype(
+                ETOI(LevelType::Static),
+                beamTag,
+                Client::ComputeGeneratedBeamEmitter::Create(_device, _context)
             ),
             E_FAIL
         );

@@ -278,6 +278,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ShaderResourceRegistry.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
     <ClInclude Include="..\Public\Shadow.h" />
+    <ClInclude Include="..\Public\ShadowHelper.h" />
     <ClInclude Include="..\Public\Sound_Manager.h" />
     <ClInclude Include="..\Public\StaticCollisionData.h" />
     <ClInclude Include="..\Public\Target_Manager.h" />

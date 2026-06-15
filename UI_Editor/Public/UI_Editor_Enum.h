@@ -10,6 +10,7 @@ enum class UI_ObjectType
     Text,
     Panel,
     Button,
+    UIVfx,
 };
 
 enum class UI_TextAlign
@@ -29,6 +30,14 @@ enum class UI_MaskTextureMode
 {
     Alpha,
     BlackWhite,
+};
+
+enum class UI_FillOrigin
+{
+    LeftToRight,
+    RightToLeft,
+    TopToBottom,
+    BottomToTop,
 };
 
 enum class UI_AlignmentCommand

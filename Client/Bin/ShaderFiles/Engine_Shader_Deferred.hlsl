@@ -28,7 +28,6 @@ Texture2D g_DepthTexture;
 Texture2DArray g_LightDepthTexture;
 Texture2D g_MaterialTexture;
 Texture2D g_EmissiveTexture;
-Texture2D g_StaticLightDepthTexture;
 Texture2D g_SSAOTexture;
 Texture2D g_SSAOBlurTexture;
 TextureCube g_IrradianceMap;
@@ -86,7 +85,7 @@ float4 Reconstruct_WorldPos(float2 Texcoord)
     return WorldPos;
 }
 
-// Poisson Disk 샘플링으로 PCF 수행
+// Poisson Disk 샘플링으로 PCF 수행. 주변 여러 점을 같이 샘플링해서 그림자 경계를 부드럽게 만드는 방식이다.
 float SampleShadowMapPCF(Texture2DArray shadowTexture, float2 shadowUV, float currentDepth, uint cascadeIndex, float bias)
 {
     uint shadowWidth, shadowHeight, shadowLayers;
@@ -107,11 +106,13 @@ float SampleShadowMapPCF(Texture2DArray shadowTexture, float2 shadowUV, float cu
     return shadowAmount / 16.f;
 }
 
+// 빛 카메라 기준 clip space으로 변환
 bool ComputeShadowCoords(float4 worldPos, row_major float4x4 lightView, row_major float4x4 lightProj, out float2 shadowUV, out float currentDepth)
 {
     float4 shadowPos = mul(worldPos, lightView);
     shadowPos = mul(shadowPos, lightProj);
 
+    // -> ndc
     shadowUV.x = (shadowPos.x / shadowPos.w) * 0.5f + 0.5f;
     shadowUV.y = (shadowPos.y / shadowPos.w) * -0.5f + 0.5f;
     currentDepth = shadowPos.z / shadowPos.w;
@@ -119,6 +120,19 @@ bool ComputeShadowCoords(float4 worldPos, row_major float4x4 lightView, row_majo
     return shadowPos.w > 0.f && all(shadowUV >= 0.f) && all(shadowUV <= 1.f);
 }
 
+bool TrySampleCascadeShadowAmount(float4 worldPos, uint cascadeIndex, out float shadowAmount)
+{
+    shadowAmount = 0.f;
+    float2 shadowUV = 0.f;
+    float currentDepth = 0.f;   // 투영된 깊이 값
+    if (!ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex], g_CascadeLightProjMatrices[cascadeIndex], shadowUV, currentDepth))
+        return false;
+
+    shadowAmount = SampleShadowMapPCF(g_LightDepthTexture, shadowUV, currentDepth, cascadeIndex, g_Bias);
+    return true;
+}
+
+// 해당 오브젝트의 캐스케이드 구간 결정
 uint SelectShadowCascade(float viewDepth)
 {
     const uint cascadeCount = max(1u, g_ShadowCascadeCount);
@@ -135,31 +149,26 @@ uint SelectShadowCascade(float viewDepth)
 
 float SampleDynamicShadowAmount(float4 worldPos, float viewDepth)
 {
-    uint cascadeIndex = SelectShadowCascade(viewDepth);
+    const uint cascadeCount = max(1u, g_ShadowCascadeCount);
+    const uint selectedCascadeIndex = SelectShadowCascade(viewDepth);
 
-    float2 shadowUV = 0.f;
-    float currentDepth = 0.f;
-    if (!ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex], g_CascadeLightProjMatrices[cascadeIndex], shadowUV, currentDepth))
+    float shadowAmount = 0.f;
+    if (!TrySampleCascadeShadowAmount(worldPos, selectedCascadeIndex, shadowAmount))
         return 0.f;
 
-    float shadowAmount = SampleShadowMapPCF(g_LightDepthTexture, shadowUV, currentDepth, cascadeIndex, g_Bias);
-
-    const uint cascadeCount = max(1u, g_ShadowCascadeCount);
-    if (cascadeIndex + 1u < cascadeCount && g_CascadeBlendDistance > 0.f)
+    if (selectedCascadeIndex + 1u < cascadeCount && g_CascadeBlendDistance > 0.f)
     {
-        const float cascadeFar = g_CascadeSplits[cascadeIndex];
+        const float cascadeFar = g_CascadeSplits[selectedCascadeIndex];
         const float blendStart = max(0.f, cascadeFar - g_CascadeBlendDistance);
         const float blendFactor = saturate((viewDepth - blendStart) / max(g_CascadeBlendDistance, 0.0001f));
 
         if (blendFactor > 0.f)
         {
-            float2 nextShadowUV = 0.f;
-            float nextCurrentDepth = 0.f;
-            if (ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex + 1u], g_CascadeLightProjMatrices[cascadeIndex + 1u], nextShadowUV, nextCurrentDepth))
+            float nextShadowAmount = 0.f;
+            if (TrySampleCascadeShadowAmount(worldPos, selectedCascadeIndex + 1u, nextShadowAmount))
             {
-                const float nextShadowAmount =
-                    SampleShadowMapPCF(g_LightDepthTexture, nextShadowUV, nextCurrentDepth, cascadeIndex + 1u, g_Bias);
-                shadowAmount = lerp(shadowAmount, nextShadowAmount, blendFactor);
+                // 경계 handoff에서는 어느 한 cascade라도 shadow면 유지해 경계 소실을 막는다.
+                shadowAmount = max(shadowAmount, nextShadowAmount);
             }
         }
     }
@@ -176,30 +185,6 @@ float3 GetCascadeDebugColor(uint cascadeIndex)
     case 2u: return float3(0.25f, 0.6f, 1.f);
     default: return float3(1.f, 0.9f, 0.25f);
     }
-}
-
-float SampleStaticShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 lightView, float4x4 lightProj, float bias)
-{
-    float2 shadowUV = 0.f;
-    float currentDepth = 0.f;
-    if (!ComputeShadowCoords(worldPos, lightView, lightProj, shadowUV, currentDepth))
-        return 0.f;
-
-    uint shadowWidth, shadowHeight;
-    shadowTexture.GetDimensions(shadowWidth, shadowHeight);
-
-    float2 shadowTexel = 1.f / float2(max(1u, shadowWidth), max(1u, shadowHeight));
-    float shadowAmount = 0.f;
-
-    [unroll]
-    for (int sampleIndex = 0; sampleIndex < 16; ++sampleIndex)
-    {
-        float2 sampleUV = shadowUV + ShadowPoissonDisk[sampleIndex] * shadowTexel * SHADOW_POISSON_RADIUS;
-        float storedDepth = shadowTexture.Sample(PointClampSampler, sampleUV).x;
-        shadowAmount += (storedDepth + bias < currentDepth) ? 1.f : 0.f;
-    }
-
-    return shadowAmount / 16.f;
 }
 
 // hemisphere sample kernel

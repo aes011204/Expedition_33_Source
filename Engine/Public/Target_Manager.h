@@ -41,6 +41,7 @@ public :
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
+    HRESULT Copy_RTV_ArraySlice(const wstring& srcTargetTag, uint32 arraySlice, const wstring& dstTargetTag);
 
     HRESULT Copy_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
 
@@ -65,9 +66,6 @@ private :
     // TODO ! Shadow 관련 클래스 확장되기 전까지는 여기서 Renderer랑 동기화해줘야 한다.
     uint32                          _shadowMapWidth = 4096;
     uint32                          _shadowMapHeight = 4096;
-
-    uint32                          _staticShadowMapWidth = 4096;
-    uint32                          _staticShadowMapHeight = 4096;
 
 public :
     static Unique<Target_Manager>   Create(ComPtr<Device> device, ComPtr<Context> context);

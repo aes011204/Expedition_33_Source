@@ -64,8 +64,6 @@ public:
 #endif
 
 public:
-    void Register_StaticShadowCaster(const Shared<GameObject>& gameObject);
-    void Mark_StaticShadowDirty();
     void PostDraw();
 
 private:
@@ -102,12 +100,12 @@ private :
 
 private: /* 그림자 */
     void Update_DynamicShadowCamera();  // 카메라가 플레이어 위치 추적
-    void Render_StaticShadowOnce();     // Static Shadow는 한번만
     void Render_DynamicShadow();        // 기존 Render Shadow 로직 이동
     bool Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const;
-    bool Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject) const;
-    bool Build_StaticShadowBounds(BoundingBox& outBounds) const;
-    void Update_StaticShadowCamera(const BoundingBox& bounds);
+    bool Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject, uint32 cascadeIndex) const;
+#ifdef _DEBUG
+    void Sync_ShadowDebugTargets();
+#endif
 
 private:
     ComPtr<Device>                  _device;
@@ -145,14 +143,10 @@ private:
     bool                            _useRTVDump = false;
 
 private:
-    list<Weak<GameObject>>          _staticShadowCasters;
-    bool                            _staticShadowDirty = true;
-    bool                            _staticShadowReady = false;
     uint64                          _shadowFrameIndex = 0;
 
     ViewportSize                    _screenSize{};
     ViewportSize                    _shadowMapSize = { 2048, 2048 };
-    ViewportSize                    _shadowStaticSize = { 4096, 4096 };
 
     RenderGroup                     _currentGroup = RenderGroup::END;
 

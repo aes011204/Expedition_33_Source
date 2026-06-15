@@ -53,16 +53,22 @@ void Monster_Part::Update(float timeDelta)
 
 void Monster_Part::Late_Update(float timeDelta)
 {
-    // culling
-    if (!Get_Owner() || !Get_Owner()->Is_Visible()||!Is_Visible())
+    Shared<GameObject> owner = Get_Owner();
+    if (!owner)
+    {
+        return;
+    }
+
+    if (Casts_DynamicShadow() && Is_Visible())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    // 메인 카메라 가시성은 본체 렌더만 막고, shadow 등록은 위에서 분리한다.
+    if (!owner->Is_Visible() || !Is_Visible())
     {
         return;
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-
-    if (Casts_DynamicShadow())
-        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT Monster_Part::Render()

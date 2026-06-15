@@ -3,6 +3,65 @@
 #include "StaticCollisionData.h"
 #include "Collision_Define.h"
 
+#include <cstring>
+
+namespace
+{
+    constexpr char LANDSCAPE_HMAP_MAGIC[8] = { 'L', 'X', 'Y', 'T', 'I', 'L', 'E', '1' };
+    constexpr uint32 LANDSCAPE_HMAP_VERSION = 1;
+
+    fs::path ResolveLandscapeTextureLoadPath(const fs::path& texturePath)
+    {
+        fs::path normalizedPath = texturePath.lexically_normal();
+        const fs::path ext = normalizedPath.extension();
+
+        if (ext == ".dds" || ext == ".DDS")
+            return normalizedPath;
+
+        fs::path ddsPath = normalizedPath;
+        ddsPath.replace_extension(".dds");
+        if (fs::exists(ddsPath) && fs::is_regular_file(ddsPath))
+            return ddsPath.lexically_normal();
+
+        fs::path upperDdsPath = normalizedPath;
+        upperDdsPath.replace_extension(".DDS");
+        if (fs::exists(upperDdsPath) && fs::is_regular_file(upperDdsPath))
+            return upperDdsPath.lexically_normal();
+
+        return normalizedPath;
+    }
+
+    bool Try_ReadLandscapeLayerFormatHeader(FILE* file, bool& outIsNewFormat)
+    {
+        outIsNewFormat = false;
+
+        char magic[sizeof(LANDSCAPE_HMAP_MAGIC)] = {};
+        const size_t readBytes = fread(magic, 1, sizeof(magic), file);
+        if (readBytes != sizeof(magic))
+        {
+            if (readBytes > 0)
+                fseek(file, -static_cast<long>(readBytes), SEEK_CUR);
+            return true;
+        }
+
+        if (memcmp(magic, LANDSCAPE_HMAP_MAGIC, sizeof(magic)) != 0)
+        {
+            fseek(file, -static_cast<long>(sizeof(magic)), SEEK_CUR);
+            return true;
+        }
+
+        uint32 version = 0;
+        if (fread(&version, sizeof(uint32), 1, file) != 1)
+            return false;
+
+        if (version != LANDSCAPE_HMAP_VERSION)
+            return false;
+
+        outIsNewFormat = true;
+        return true;
+    }
+}
+
 IMPLEMENT_REFLECTION(MapLandscape)
 {
     auto& info = GetStaticReflectionInfo();
@@ -205,6 +264,13 @@ HRESULT MapLandscape::Load_HMap(const wstring& hmapPath, const wstring& texRoot)
         _layerCount = layerCount;
         _vibuffer->Set_LayerCount(layerCount);
 
+        bool isNewLayerFormat = false;
+        if (!Try_ReadLandscapeLayerFormatHeader(f, isNewLayerFormat))
+        {
+            fclose(f);
+            return E_FAIL;
+        }
+
         for (uint32 i = 0; i < layerCount; ++i)
         {
             uint32 nameLen = 0;
@@ -228,10 +294,21 @@ HRESULT MapLandscape::Load_HMap(const wstring& hmapPath, const wstring& texRoot)
                 fread(roughName.data(), sizeof(WCHAR), roughLen, f);
             }
 
-            float tiling = 3.f;
+            Vec2 tiling = { 3.f, 3.f };
             Vec4 tint = { 1.f, 1.f, 1.f, 1.f };
             Vec4 control = { 1, 1, 0, 0 };
-            fread(&tiling, sizeof(float), 1, f);
+
+            if (isNewLayerFormat)
+            {
+                fread(&tiling, sizeof(Vec2), 1, f);
+            }
+            else
+            {
+                float legacyTiling = 3.f;
+                fread(&legacyTiling, sizeof(float), 1, f);
+                tiling = Vec2(legacyTiling, legacyTiling);
+            }
+
             fread(&tint, sizeof(Vec4), 1, f);
             fread(&control, sizeof(Vec4), 1, f);
             Vec4 albedo = { 1.f, 1.f, 1.f, 0.f };
@@ -328,13 +405,15 @@ HRESULT MapLandscape::Build_CollisionData()
 
 HRESULT MapLandscape::Add_LayerTexture(const wstring& fullTexPath, uint32 idx, const wstring& normalPath, const wstring& roughnessPath)
 {
+    const fs::path resolvedAlbedoPath = ResolveLandscapeTextureLoadPath(fs::path(fullTexPath));
+
     WCHAR ext[MAX_PATH] = {};
-    _wsplitpath_s(fullTexPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
+    _wsplitpath_s(resolvedAlbedoPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
 
     ComPtr<ID3D11ShaderResourceView> srv;
     HRESULT hr = (lstrcmp(ext, L".dds") == 0)
-        ? CreateDDSTextureFromFile(_device.Get(), fullTexPath.c_str(), nullptr, srv.GetAddressOf())
-        : CreateWICTextureFromFile(_device.Get(), fullTexPath.c_str(), nullptr, srv.GetAddressOf());
+        ? CreateDDSTextureFromFile(_device.Get(), resolvedAlbedoPath.c_str(), nullptr, srv.GetAddressOf())
+        : CreateWICTextureFromFile(_device.Get(), resolvedAlbedoPath.c_str(), nullptr, srv.GetAddressOf());
 
     if (FAILED(hr))
     {
@@ -345,12 +424,13 @@ HRESULT MapLandscape::Add_LayerTexture(const wstring& fullTexPath, uint32 idx, c
 
     if (!normalPath.empty())
     {
+        const fs::path resolvedNormalPath = ResolveLandscapeTextureLoadPath(fs::path(normalPath));
         WCHAR nExt[MAX_PATH] = {};
-        _wsplitpath_s(normalPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, nExt, MAX_PATH);
+        _wsplitpath_s(resolvedNormalPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, nExt, MAX_PATH);
         ComPtr<ID3D11ShaderResourceView> nsrv;
         HRESULT hr = (lstrcmp(nExt, L".dds") == 0)
-            ? CreateDDSTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf())
-            : CreateWICTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf());
+            ? CreateDDSTextureFromFile(_device.Get(), resolvedNormalPath.c_str(), nullptr, nsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), resolvedNormalPath.c_str(), nullptr, nsrv.GetAddressOf());
 
         if (SUCCEEDED(hr))
         {
@@ -360,12 +440,13 @@ HRESULT MapLandscape::Add_LayerTexture(const wstring& fullTexPath, uint32 idx, c
 
     if (!roughnessPath.empty())
     {
+        const fs::path resolvedRoughnessPath = ResolveLandscapeTextureLoadPath(fs::path(roughnessPath));
         WCHAR rExt[MAX_PATH] = {};
-        _wsplitpath_s(roughnessPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, rExt, MAX_PATH);
+        _wsplitpath_s(resolvedRoughnessPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, rExt, MAX_PATH);
         ComPtr<ID3D11ShaderResourceView> rsrv;
         HRESULT hr = (lstrcmp(rExt, L".dds") == 0)
-            ? CreateDDSTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf())
-            : CreateWICTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf());
+            ? CreateDDSTextureFromFile(_device.Get(), resolvedRoughnessPath.c_str(), nullptr, rsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), resolvedRoughnessPath.c_str(), nullptr, rsrv.GetAddressOf());
         if (SUCCEEDED(hr))
         {
             _roughnessSRVs[idx] = rsrv;
@@ -479,7 +560,7 @@ HRESULT MapLandscape::Bind_ShaderResources()
     Vec4 controlArr[MAX_LAYERS];
     for (uint32 i = 0; i < MAX_LAYERS; ++i)
     {
-        tilingArr[i] = Vec4(_tiling[i], 0.f, 0.f, 0.f);
+        tilingArr[i] = Vec4(_tiling[i].x, _tiling[i].y, 0.f, 0.f);
         tintArr[i] = _groundTint[i];
         controlArr[i] = _layerControl[i];
     }

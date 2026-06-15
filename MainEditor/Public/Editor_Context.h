@@ -6,6 +6,11 @@ class GameObject;
 class UI_Base;
 NS_END
 
+namespace Client
+{
+    class IRuntimeWorldUI_EditorTarget;
+}
+
 NS_BEGIN(MainEditor)
 
 // 현재 선택 오브젝트를 모든 창이 공유할 수 있게
@@ -24,8 +29,13 @@ public:
         const string& groupName,
         const string& displayName,
         bool positionDrivenByCode);
+    void Set_SelectRuntimeWorldUI(
+        Client::IRuntimeWorldUI_EditorTarget* target,
+        const string& groupName,
+        const string& displayName);
     void Clear_SelectedObject();
     void Clear_SelectedUI();
+    void Clear_SelectedRuntimeWorldUI();
     void Clear_Selection();
     void Request_FocusObject(const Shared<GameObject>& gameObject);
     Shared<GameObject> Consume_FocusObjectRequest();

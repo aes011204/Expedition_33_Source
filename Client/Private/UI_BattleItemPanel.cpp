@@ -312,18 +312,25 @@ HRESULT UI_BattleItemPanel::Bind_UI()
     _mainPanelUIs.clear();
     _mainPanelUIs.reserve(6);
 
-    auto Add_MainPanelAnimTarget = [this](const wchar_t* name) -> HRESULT
+    auto Add_MainPanelAnimTarget = [this](const wchar_t* name, bool required = true) -> HRESULT
         {
             Shared<UI_Base> ui = Find_UI(_uiByName, name);
-            CHECK_NULL(ui, E_FAIL);
+            if (ui == nullptr)
+            {
+                if (required)
+                    CHECK_NULL(ui, E_FAIL);
+
+                return S_OK;
+            }
+
             _mainPanelUIs.push_back(ui);
             return S_OK;
         };
 
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_BattleSystem_Item"), E_FAIL);
-    CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_1"), E_FAIL);
-    CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_2"), E_FAIL);
-    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_BattleSystem_Item_BG"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_1", false), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_2", false), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_BattleSystem_Item_BG", false), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Healing_Tint"), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Energy_Tint"), E_FAIL);
     CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Revive_Tint"), E_FAIL);

@@ -16,7 +16,7 @@ cbuffer cbEffectMeshMaterial : register(b2)
     float4 g_EffectMeshUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshUVModeParams = { 0.f, 0.f, 0.f, 0.f };
-    float4 g_EffectMeshUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main U/V policy, zw: noise U/V policy
+    float4 g_EffectMeshUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
     float4 g_EffectMeshMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
     float4 g_EffectMeshSourceParams = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshAdditiveParams = { 0.f, 0.f, 0.f, 1.f };

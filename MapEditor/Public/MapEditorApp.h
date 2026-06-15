@@ -70,6 +70,8 @@ private:
 
 private:
     HRESULT Ready_Light();
+    void Apply_DefaultPostProcessSettings();
+    void Apply_DefaultShadowSettings();
 
     void SyncSceneLights();
     void SyncFogZones();

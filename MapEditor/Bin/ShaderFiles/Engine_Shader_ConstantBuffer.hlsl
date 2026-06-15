@@ -34,18 +34,15 @@ cbuffer ShadowBuffer
     row_major float4x4 g_CascadeLightViewMatrices[4];
     row_major float4x4 g_CascadeLightProjMatrices[4];
 
-    row_major float4x4 g_StaticLightViewMatrix;
-    row_major float4x4 g_StaticLightProjMatrix;
-
     float4 g_CascadeSplits;
     float g_CascadeBlendDistance;
     float g_LightFar;
     float g_Bias;
 
     float g_ShadowIntensity;
-    float g_StaticShadowEnabled;
     uint g_ShadowCascadeCount;
     uint g_ActiveShadowCascadeIndex;
+    float g_ShadowPadding0;
 };
 
 cbuffer ScreenSpaceBuffer
@@ -247,17 +244,21 @@ cbuffer ScreenFxBuffer
 struct FogZoneEntry
 {
     float3 zoneMin;
-    float zoneRadius;
+    float baseHeight;
 
     float3 zoneMax;
-    float _pad0;
+    float topFadeStart;
 
     float4 fogColor;
 
     float fogDensity;
-    float fogStart;
-    float _pad1;
-    float _pad2;
+    float topHeight;
+    float edgeFade;
+    float noiseScale;
+
+    float2 noiseSpeed;
+    float noiseStrength;
+    float noiseMin;
 };
 
 cbuffer FogZoneBuffer
@@ -265,7 +266,13 @@ cbuffer FogZoneBuffer
     FogZoneEntry g_FogZones[8];
     int g_FogAABBCount;
     int g_FogSphereCount;
-    float2 g_FogZonePad0;
+    float g_GroundFogMaxDistance;
+    float g_GroundFogMinAccumulationDistance;
+
+    float g_GroundFogDistanceInfluence;
+    float g_GroundFogNearFadeDistance;
+    float g_GroundFogNearMinFactor;
+    float3 g_FogZonePad0;
 };
 
 cbuffer WaterBuffer : register(b13)

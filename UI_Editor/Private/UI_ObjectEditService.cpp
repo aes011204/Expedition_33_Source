@@ -51,6 +51,11 @@ namespace UIEditor
             return min(max(alphaMultiplier, 0.f), 1.f);
         }
 
+        float Resolve_ClampedFillRatio(float fillRatio)
+        {
+            return Clamp_FillRatio(fillRatio);
+        }
+
     }
 
     bool UI_ObjectEditService::Can_SetObjectVisible(const UI_Document& document, ObjectId objectId, bool visible) const
@@ -408,6 +413,128 @@ namespace UIEditor
 
         object->patternUvOffset = clampedPatternUvOffset;
         object->patternUvScale = clampedPatternUvScale;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectUseFillRatio(const UI_Document& document, ObjectId objectId, bool useFillRatio) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object &&
+            object->type == UI_ObjectType::Image &&
+            object->useFillRatio != useFillRatio;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectUseFillRatio(UI_Document& document, ObjectId objectId, bool useFillRatio) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image || object->useFillRatio == useFillRatio)
+            return false;
+
+        object->useFillRatio = useFillRatio;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectFillRatio(const UI_Document& document, ObjectId objectId, float fillRatio) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object &&
+            object->type == UI_ObjectType::Image &&
+            !NearlyEqual(object->fillRatio, Resolve_ClampedFillRatio(fillRatio));
+    }
+
+    bool UI_ObjectEditService::Set_ObjectFillRatio(UI_Document& document, ObjectId objectId, float fillRatio) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image)
+            return false;
+
+        const float clampedFillRatio = Resolve_ClampedFillRatio(fillRatio);
+        if (NearlyEqual(object->fillRatio, clampedFillRatio))
+            return false;
+
+        object->fillRatio = clampedFillRatio;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectFillOrigin(const UI_Document& document, ObjectId objectId, UI_FillOrigin fillOrigin) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object &&
+            object->type == UI_ObjectType::Image &&
+            object->fillOrigin != fillOrigin;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectFillOrigin(UI_Document& document, ObjectId objectId, UI_FillOrigin fillOrigin) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image || object->fillOrigin == fillOrigin)
+            return false;
+
+        object->fillOrigin = fillOrigin;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectVfxPath(const UI_Document& document, ObjectId objectId, const string& vfxPath) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object && object->type == UI_ObjectType::UIVfx && object->vfxPath != vfxPath;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectVfxPath(UI_Document& document, ObjectId objectId, const string& vfxPath) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::UIVfx || object->vfxPath == vfxPath)
+            return false;
+
+        object->vfxPath = vfxPath;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectVfxPlayOnOpen(const UI_Document& document, ObjectId objectId, bool playOnOpen) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object && object->type == UI_ObjectType::UIVfx && object->vfxPlayOnOpen != playOnOpen;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectVfxPlayOnOpen(UI_Document& document, ObjectId objectId, bool playOnOpen) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::UIVfx || object->vfxPlayOnOpen == playOnOpen)
+            return false;
+
+        object->vfxPlayOnOpen = playOnOpen;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectVfxLoop(const UI_Document& document, ObjectId objectId, bool loop) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object && object->type == UI_ObjectType::UIVfx && object->vfxLoop != loop;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectVfxLoop(UI_Document& document, ObjectId objectId, bool loop) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::UIVfx || object->vfxLoop == loop)
+            return false;
+
+        object->vfxLoop = loop;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectVfxStopOnClose(const UI_Document& document, ObjectId objectId, bool stopOnClose) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object && object->type == UI_ObjectType::UIVfx && object->vfxStopOnClose != stopOnClose;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectVfxStopOnClose(UI_Document& document, ObjectId objectId, bool stopOnClose) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::UIVfx || object->vfxStopOnClose == stopOnClose)
+            return false;
+
+        object->vfxStopOnClose = stopOnClose;
         return true;
     }
 

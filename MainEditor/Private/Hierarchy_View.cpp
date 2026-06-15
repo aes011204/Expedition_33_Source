@@ -471,6 +471,13 @@ void Hierarchy_View::Draw_RuntimeUINode()
         {
             EDITOR->Clear_SelectedUI();
         }
+
+        if (EDITOR->Selected_RuntimeWorldUI() != nullptr ||
+            !EDITOR->Selected_RuntimeWorldUIGroup().empty() ||
+            !EDITOR->Selected_RuntimeWorldUIDisplayName().empty())
+        {
+            EDITOR->Clear_SelectedRuntimeWorldUI();
+        }
         return;
     }
 
@@ -502,23 +509,35 @@ void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Cl
     }
 
     const Shared<UI_Base> selectedUI = EDITOR->Selected_UI();
+    Client::IRuntimeWorldUI_EditorTarget* selectedRuntimeWorldUI = EDITOR->Selected_RuntimeWorldUI();
     for (const Client::RuntimeUIEntry& entry : entries)
     {
-        const bool isSelected = (selectedUI == entry.ui);
+        const bool isWorldPlacement = entry.kind == Client::RuntimeUIEntryKind::WorldPlacement;
+        const bool isSelected = isWorldPlacement
+            ? (selectedRuntimeWorldUI != nullptr && selectedRuntimeWorldUI == entry.worldPlacementTarget)
+            : (selectedUI == entry.ui);
         ImGuiTreeNodeFlags itemFlags =
             ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
         if (isSelected)
             itemFlags |= ImGuiTreeNodeFlags_Selected;
 
-        ImGui::PushID(entry.ui.get());
+        ImGui::PushID(isWorldPlacement ? static_cast<void*>(entry.worldPlacementTarget) : static_cast<void*>(entry.ui.get()));
         ImGui::TreeNodeEx(entry.name.c_str(), itemFlags);
-        if (ImGui::IsItemClicked() && entry.ui != nullptr)
+        if (ImGui::IsItemClicked())
         {
             _isPrimaryShadowLightSelected = false;
             if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
                 inspector->Set_PrimaryShadowLightTarget(false);
 
-            EDITOR->Select_UI(entry.ui, entry.category, entry.name, entry.positionDrivenByCode);
+            if (isWorldPlacement)
+            {
+                if (entry.worldPlacementTarget != nullptr)
+                    EDITOR->Select_RuntimeWorldUI(entry.worldPlacementTarget, entry.category, entry.name);
+            }
+            else if (entry.ui != nullptr)
+            {
+                EDITOR->Select_UI(entry.ui, entry.category, entry.name, entry.positionDrivenByCode);
+            }
         }
         ImGui::PopID();
     }
@@ -535,22 +554,52 @@ void Hierarchy_View::Sync_RuntimeUISelection(
     {
         if (!EDITOR->Selected_UIGroup().empty() || !EDITOR->Selected_UIDisplayName().empty())
             EDITOR->Clear_SelectedUI();
-        return;
+    }
+    else
+    {
+        auto containsSelected = [&selectedUI](const vector<Client::RuntimeUIEntry>& entries)
+        {
+            for (const Client::RuntimeUIEntry& entry : entries)
+            {
+                if (entry.ui == selectedUI)
+                    return true;
+            }
+
+            return false;
+        };
+
+        if (!containsSelected(worldEntries) && !containsSelected(battleEntries))
+            EDITOR->Clear_SelectedUI();
     }
 
-    auto containsSelected = [&selectedUI](const vector<Client::RuntimeUIEntry>& entries)
-    {
-        for (const Client::RuntimeUIEntry& entry : entries)
+    Client::IRuntimeWorldUI_EditorTarget* selectedRuntimeWorldUI = EDITOR->Selected_RuntimeWorldUI();
+    const bool hasRuntimeWorldUISelection = selectedRuntimeWorldUI != nullptr ||
+        !EDITOR->Selected_RuntimeWorldUIGroup().empty() ||
+        !EDITOR->Selected_RuntimeWorldUIDisplayName().empty();
+    if (!hasRuntimeWorldUISelection)
+        return;
+
+    auto containsSelectedRuntimeWorldUI =
+        [selectedRuntimeWorldUI](const vector<Client::RuntimeUIEntry>& entries)
         {
-            if (entry.ui == selectedUI)
-                return true;
-        }
+            for (const Client::RuntimeUIEntry& entry : entries)
+            {
+                if (entry.kind == Client::RuntimeUIEntryKind::WorldPlacement &&
+                    entry.worldPlacementTarget == selectedRuntimeWorldUI)
+                {
+                    return true;
+                }
+            }
 
-        return false;
-    };
+            return false;
+        };
 
-    if (!containsSelected(worldEntries) && !containsSelected(battleEntries))
-        EDITOR->Clear_SelectedUI();
+    if (selectedRuntimeWorldUI == nullptr ||
+        (!containsSelectedRuntimeWorldUI(worldEntries) &&
+            !containsSelectedRuntimeWorldUI(battleEntries)))
+    {
+        EDITOR->Clear_SelectedRuntimeWorldUI();
+    }
 }
 
 void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint32 objectIndex)
