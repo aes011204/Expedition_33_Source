@@ -115,6 +115,7 @@ public: /* For.Editor World */
     HRESULT Save_CurrentLevelSnapShot(const fs::path& path) const;
     HRESULT Load_CurrentLevelSnapShot(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
+    void    Capture_PlayStartMonsterSnapshots();
 
 public: /* For.Inspector */
     Shared<Component_Inspector> Find_Inspector(const string& key) const;
@@ -214,8 +215,8 @@ private: /* 저장 */
     };
     PendingPickRequest _pendingPick = {};
 
-    void Capture_PlayStartMonsterSnapshots();
     void Restore_PlayStartMonsterSnapshots();
+    void Refresh_PlayStartMonsterSnapshotsForPrefab(const string& prefabName, const json& prefabRoot);
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
