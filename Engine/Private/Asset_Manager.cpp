@@ -175,7 +175,7 @@ Asset_Manager::Asset_Manager()
 
 Asset_Manager::~Asset_Manager() = default;
 
-HRESULT Asset_Manager::Initialize(const wstring& resourceRoot, bool forceScan)
+HRESULT Asset_Manager::Initialize(const wstring& resourceRoot, bool forceScan, const wstring& missingMetaRoot)
 {
     const auto startupBegin = chrono::steady_clock::now();
     auto stepBegin = startupBegin;
@@ -215,7 +215,7 @@ HRESULT Asset_Manager::Initialize(const wstring& resourceRoot, bool forceScan)
     if (shouldScan)
     {
         stepBegin = chrono::steady_clock::now();
-        Scan_And_Register(_resourceRoot);
+        Scan_And_Register(_resourceRoot, missingMetaRoot);
         LOG_INFO("[StartupTiming] Asset_Manager::Scan_And_Register elapsed={}ms assetCount={} dirty={} forceScan={}",
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count(),
             _guidToMeta.size(),
@@ -378,13 +378,18 @@ string Asset_Manager::Register_Asset(const wstring& filePath, const string& type
     }
 }
 
-void Asset_Manager::Scan_And_Register(const wstring& directory)
+void Asset_Manager::Scan_And_Register(const wstring& directory, const wstring& missingMetaRoot)
 {
 	 try
     {
         const fs::path directoryPath = fs::path(directory);
         if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
             return;
+
+        const bool restrictMissingMeta = !missingMetaRoot.empty();
+        const fs::path normalizedMissingMetaRoot = restrictMissingMeta
+            ? fs::absolute(fs::path(missingMetaRoot)).lexically_normal()
+            : fs::path();
 
         fs::recursive_directory_iterator iter(directoryPath);
         const fs::recursive_directory_iterator end = {};
@@ -409,7 +414,7 @@ void Asset_Manager::Scan_And_Register(const wstring& directory)
 
             if (fs::exists(metaPath))
                 Load_Meta(metaPath);
-            else
+            else if (!restrictMissingMeta || Is_PathUnderRoot(entry.path(), normalizedMissingMetaRoot))
                 Register_Asset(assetPath);
         }
 
@@ -885,6 +890,35 @@ wstring Asset_Manager::Build_MetaPath(const wstring& assetPath)
     return assetPath + L".meta";
 }
 
+bool Asset_Manager::Is_PathUnderRoot(const fs::path& path, const fs::path& root)
+{
+    try
+    {
+        if (root.empty())
+            return true;
+
+        const fs::path normalizedPath = fs::absolute(path).lexically_normal();
+        const fs::path normalizedRoot = fs::absolute(root).lexically_normal();
+        const fs::path relativePath = fs::relative(normalizedPath, normalizedRoot);
+
+        if (relativePath.is_absolute())
+            return false;
+
+        if (relativePath.empty())
+            return true;
+
+        const auto firstPart = relativePath.begin();
+        if (firstPart == relativePath.end())
+            return true;
+
+        return *firstPart != L"..";
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
 void Asset_Manager::Rebuild_PathIndex()
 {
 	_pathToGuid.clear();
@@ -1000,11 +1034,11 @@ string Asset_Manager::Generate_GUID()
 	return guid;
 }
 
-Unique<Asset_Manager> Asset_Manager::Create(const wstring& resourceRoot, bool forceScan)
+Unique<Asset_Manager> Asset_Manager::Create(const wstring& resourceRoot, bool forceScan, const wstring& missingMetaRoot)
 {
     Unique<Asset_Manager> instance(new Asset_Manager());
 
-    if (FAILED(instance->Initialize(resourceRoot, forceScan)))
+    if (FAILED(instance->Initialize(resourceRoot, forceScan, missingMetaRoot)))
     {
         MSG_BOX("Create Failed : Asset Manager");
 

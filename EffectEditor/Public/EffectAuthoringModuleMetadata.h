@@ -12,6 +12,7 @@ struct AuthoringModuleMetadata
     bool removable{ true };
     bool supportsSprite{ true };
     bool supportsTrail{ false };
+    bool supportsBeam{ false };
 };
 
 // AuthoringModuleType에서 파생되는 editor-local 표시/정책 metadata를 제공한다.

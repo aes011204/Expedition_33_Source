@@ -17,12 +17,14 @@
 #include "Monster_WorldBase.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
+#include "Spawn_Prefab.h"
 #include "Transform_Inspector.h"
 #include "Weapon.h"
 #include "PartObject.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
 #include "BattleTurnCameraPoseUtils.h"
+#include "EditorInstance.h"
 
 namespace
 {
@@ -1252,6 +1254,24 @@ bool Prefab_View::Draw_MonsterBattleSettings(const Shared<GameObject>& selectedO
     const int32 currentSpawnerId = monster->Get_BattleStartSpawnerId();
 
     ImGui::PushID("MonsterBattleSettings");
+
+    if (ImGui::Button("Reload MW From Disk"))
+    {
+        const string sourcePrefabName = monster->Get_SourcePrefabName();
+        if (!sourcePrefabName.empty())
+        {
+            const fs::path prefabPath = Client::Spawn_Prefab::Resolve_PrefabPath(sourcePrefabName);
+            if (SUCCEEDED(GAME->Load_GameObjectJson(prefabPath, monster)))
+            {
+                EDITOR->Apply_SavedPrefabToCurrentLevel(sourcePrefabName, prefabPath);
+                Rebuild_MonsterBattlePrefabEntries();
+                MarkDirty();
+            }
+        }
+    }
+
+    ImGui::SameLine();
+    ImGui::TextDisabled("Re-read battle_monster_spawns and battle start settings from the MW prefab json.");
 
     constexpr float LabelWidth = 110.f;
     int32 battleFieldId = static_cast<int32>(monster->Get_BattleFieldId());

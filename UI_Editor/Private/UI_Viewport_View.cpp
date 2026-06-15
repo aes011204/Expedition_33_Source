@@ -4,6 +4,7 @@
 #include "UI_Editor_Utils.h"
 #include "UI_PreviewTransformResolver.h"
 #include "UI_Viewport_Utils.h"
+#include "UI_SpriteVfx.h"
 
 namespace UIEditor
 {
@@ -34,6 +35,131 @@ namespace UIEditor
             return ImVec2(
                 canvasPos.x + worldPoint.x * displayScale,
                 canvasPos.y + worldPoint.y * displayScale);
+        }
+
+        void Draw_RotatedImageOrQuad(
+            ImDrawList* drawList,
+            ImTextureID textureId,
+            const ImVec2& center,
+            const ImVec2& size,
+            float rotationRadians,
+            ImU32 color)
+        {
+            const float cosAngle = cosf(rotationRadians);
+            const float sinAngle = sinf(rotationRadians);
+            const ImVec2 halfSize(size.x * 0.5f, size.y * 0.5f);
+            const ImVec2 corners[4] = {
+                ImVec2(-halfSize.x, -halfSize.y),
+                ImVec2(halfSize.x, -halfSize.y),
+                ImVec2(halfSize.x, halfSize.y),
+                ImVec2(-halfSize.x, halfSize.y),
+            };
+
+            ImVec2 points[4] = {};
+            for (int32 index = 0; index < 4; ++index)
+            {
+                points[index] = ImVec2(
+                    center.x + corners[index].x * cosAngle - corners[index].y * sinAngle,
+                    center.y + corners[index].x * sinAngle + corners[index].y * cosAngle);
+            }
+
+            if (textureId != ImTextureID{})
+            {
+                drawList->AddImageQuad(
+                    textureId,
+                    points[0],
+                    points[1],
+                    points[2],
+                    points[3],
+                    ImVec2(0.f, 0.f),
+                    ImVec2(1.f, 0.f),
+                    ImVec2(1.f, 1.f),
+                    ImVec2(0.f, 1.f),
+                    color);
+            }
+            else
+            {
+                drawList->AddQuadFilled(points[0], points[1], points[2], points[3], color);
+            }
+        }
+
+        string Make_NormalizedPathKey(const wstring& path)
+        {
+            wstring normalizedPath = path;
+            replace(normalizedPath.begin(), normalizedPath.end(), L'\\', L'/');
+            transform(normalizedPath.begin(), normalizedPath.end(), normalizedPath.begin(), [](wchar_t character)
+                {
+                    return static_cast<wchar_t>(towlower(character));
+                });
+
+            return String::ToString(normalizedPath);
+        }
+
+        bool Try_LoadUIVfxAsset(const string& vfxPath, Client::UISpriteVfxAsset& outAsset)
+        {
+            struct CachedAsset
+            {
+                Client::UISpriteVfxAsset asset{};
+                fs::file_time_type writeTime{};
+                bool loaded{ false };
+            };
+
+            static unordered_map<string, CachedAsset> cache{};
+
+            if (vfxPath.empty())
+                return false;
+
+            const wstring resolvedPath = Resolve_ClientRuntimeResourcePath(vfxPath);
+            if (resolvedPath.empty() || !fs::exists(resolvedPath))
+                return false;
+
+            const string cacheKey = Make_NormalizedPathKey(resolvedPath);
+            fs::file_time_type writeTime{};
+            try
+            {
+                writeTime = fs::last_write_time(resolvedPath);
+            }
+            catch (...)
+            {
+            }
+
+            const auto cachedIter = cache.find(cacheKey);
+            if (cachedIter != cache.end() && cachedIter->second.loaded && cachedIter->second.writeTime == writeTime)
+            {
+                outAsset = cachedIter->second.asset;
+                return true;
+            }
+
+            Client::UISpriteVfxAsset asset{};
+            if (!Client::UISpriteVfxSerializer::Load_FromFile(resolvedPath, asset))
+                return false;
+
+            CachedAsset cachedAsset{};
+            cachedAsset.asset = asset;
+            cachedAsset.writeTime = writeTime;
+            cachedAsset.loaded = true;
+            cache[cacheKey] = cachedAsset;
+
+            outAsset = asset;
+            return true;
+        }
+
+        Client::UISpriteVfxAsset Make_ViewportScaledAsset(
+            const Client::UISpriteVfxAsset& asset,
+            const ImVec2& objectScale)
+        {
+            Client::UISpriteVfxAsset scaledAsset = asset;
+            scaledAsset.spawnRange.x *= objectScale.x;
+            scaledAsset.spawnRange.y *= objectScale.y;
+            scaledAsset.velocityMin.x *= objectScale.x;
+            scaledAsset.velocityMin.y *= objectScale.y;
+            scaledAsset.velocityMax.x *= objectScale.x;
+            scaledAsset.velocityMax.y *= objectScale.y;
+            scaledAsset.sizeStart.x *= objectScale.x;
+            scaledAsset.sizeStart.y *= objectScale.y;
+            scaledAsset.sizeEnd.x *= objectScale.x;
+            scaledAsset.sizeEnd.y *= objectScale.y;
+            return scaledAsset;
         }
     }
 
@@ -345,6 +471,7 @@ namespace UIEditor
                 const float objectRounding = renderObject.type == UI_ObjectType::Button ? 4.f : 0.f;
                 ID3D11ShaderResourceView* previewSRV = nullptr;
                 bool requiresCompositePreview = false;
+                bool drewUIVfxPreview = false;
 
                 if (renderObject.type == UI_ObjectType::Image && (!renderObject.textureGuid.empty() || !renderObject.texturePath.empty()))
                 {
@@ -360,7 +487,19 @@ namespace UIEditor
                         previewDesc.patternMaskTexturePath = renderObject.patternMaskTexturePath;
                         previewDesc.patternUvOffset = renderObject.patternUvOffset;
                         previewDesc.patternUvScale = renderObject.patternUvScale;
+                        previewDesc.useFillRatio = renderObject.useFillRatio;
+                        previewDesc.fillRatio = renderObject.fillRatio;
+                        previewDesc.fillOrigin = renderObject.fillOrigin;
                         previewSRV = _editorManager.Get_PatternOverlayPreviewSRV(previewDesc);
+                    }
+                    else if (renderObject.useFillRatio)
+                    {
+                        requiresCompositePreview = true;
+                        previewSRV = _editorManager.Get_FillRatioPreviewSRV(
+                            renderObject.textureGuid,
+                            renderObject.texturePath,
+                            renderObject.fillRatio,
+                            renderObject.fillOrigin);
                     }
                     else if (!renderObject.maskTextureGuid.empty() || !renderObject.maskTexturePath.empty())
                     {
@@ -375,6 +514,54 @@ namespace UIEditor
 
                     if (nullptr == previewSRV && !requiresCompositePreview)
                         previewSRV = _editorManager.Get_TexturePreviewSRV(renderObject.textureGuid, renderObject.texturePath);
+                }
+
+                if (renderObject.type == UI_ObjectType::UIVfx && !renderObject.vfxPath.empty())
+                {
+                    Client::UISpriteVfxAsset vfxAsset{};
+                    if (Try_LoadUIVfxAsset(renderObject.vfxPath, vfxAsset))
+                    {
+                        const ImVec2 objectScale(
+                            objectSize.x / max(1.f, resolvedLocalSize.x),
+                            objectSize.y / max(1.f, resolvedLocalSize.y));
+                        const Client::UISpriteVfxAsset scaledAsset = Make_ViewportScaledAsset(vfxAsset, objectScale);
+                        ID3D11ShaderResourceView* textureSRV = _editorManager.Get_TexturePreviewSRV(scaledAsset.textureGuid, scaledAsset.texturePath);
+                        const ImTextureID textureId = nullptr != textureSRV ? To_ImTextureID(textureSRV) : ImTextureID{};
+                        const Vec2 origin(objectWorldPivot.x, objectWorldPivot.y);
+                        const float previewTime = static_cast<float>(ImGui::GetTime());
+                        const vector<Client::UISpriteVfxParticlePreview> particles =
+                            Client::UISpriteVfxPreviewSampler::Sample(scaledAsset, previewTime, origin, true);
+                        const float cosAngle = cosf(objectWorldRotationRadians);
+                        const float sinAngle = sinf(objectWorldRotationRadians);
+
+                        drawList->PushClipRect(canvasPos, canvasMax, true);
+                        for (const Client::UISpriteVfxParticlePreview& particle : particles)
+                        {
+                            const Vec2 offset = particle.position - origin;
+                            const Vec2 rotatedPosition(
+                                origin.x + offset.x * cosAngle - offset.y * sinAngle,
+                                origin.y + offset.x * sinAngle + offset.y * cosAngle);
+                            const ImVec2 particleCenter = Canvas_ToScreen(canvasPos, displayScale, ImVec2(rotatedPosition.x, rotatedPosition.y));
+                            const ImVec2 particleSize(
+                                max(0.01f, particle.size.x * displayScale),
+                                max(0.01f, particle.size.y * displayScale));
+                            const ImVec4 color(
+                                min(max(particle.color.x, 0.f), 1.f),
+                                min(max(particle.color.y, 0.f), 1.f),
+                                min(max(particle.color.z, 0.f), 1.f),
+                                min(max(particle.color.w, 0.f), 1.f));
+
+                            Draw_RotatedImageOrQuad(
+                                drawList,
+                                textureId,
+                                particleCenter,
+                                particleSize,
+                                particle.rotationRadians + objectWorldRotationRadians,
+                                ImGui::ColorConvertFloat4ToU32(color));
+                        }
+                        drawList->PopClipRect();
+                        drewUIVfxPreview = true;
+                    }
                 }
 
                 const bool hasTextContent = renderObject.type == UI_ObjectType::Text && !renderObject.text.empty();
@@ -407,7 +594,7 @@ namespace UIEditor
                             ImGui::ColorConvertFloat4ToU32(renderObject.color));
                     }
                 }
-                else if (!hasTextContent && (!_previewMode || renderObject.type != UI_ObjectType::Image))
+                else if (!drewUIVfxPreview && !hasTextContent && (!_previewMode || renderObject.type != UI_ObjectType::Image))
                 {
                     if (isRotated)
                         drawList->AddQuadFilled(objectQuad[0], objectQuad[1], objectQuad[2], objectQuad[3], fillColor);

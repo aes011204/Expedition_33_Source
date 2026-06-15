@@ -171,6 +171,21 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     ImGui::TextDisabled("Runtime Speed");
     ImGui::SameLine(120.f);
     ImGui::Text("%.1f", runtime.CurSpeed);
+
+
+    ImGui::Spacing();
+
+    ImGui::TextDisabled("criticalRatio");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    ImGui::DragFloat("##MonsterCriticalRatio", &desc._criticalRatio, 0.1f, 0.f, 1.f);
+
+    ImGui::TextDisabled("midRatio");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    ImGui::DragFloat("##MonsterMidRatio", &desc._midRatio, 0.1f, 0.f, 1.f);
+
+
 }
 
 Shared<MonsterStat_Inspector> MonsterStat_Inspector::Create()

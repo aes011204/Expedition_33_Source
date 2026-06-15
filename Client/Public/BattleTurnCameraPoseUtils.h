@@ -63,7 +63,7 @@ inline bool Evaluate_BattleTurnPresetPose(
     float yawBase,
     float pitchBase,
     const Vec3* smoothedTargetPos,
-    float clipTime,
+    float /*clipTime*/,
     BattleTurnCameraEvaluatedPose& outPose)
 {
     const float finalFovY = clamp(preset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
@@ -132,21 +132,6 @@ inline bool Evaluate_BattleTurnPresetPose(
         lookTarget += Vec3::Up * clipSample.orbitLookHeight;
     }
 
-    Vec3 cameraForward = lookTarget - desiredPos;
-    cameraForward.Normalize();
-
-    Vec3 cameraRight = Vec3::Up.Cross(cameraForward);
-    cameraRight.Normalize();
-
-    Vec3 cameraUp = cameraForward.Cross(cameraRight);
-    cameraUp.Normalize();
-
-    desiredPos += Sample_CameraModifierShakeOffset(
-        Extract_CameraModifierSample(clipSample),
-        clipTime,
-        cameraRight,
-        cameraUp);
-
     outPose.cameraPos = desiredPos;
     outPose.lookTarget = lookTarget;
     outPose.fovY = finalFovY;
@@ -159,7 +144,7 @@ inline bool Evaluate_BattleTurnPlayerAttackRelationPose (
  const Vec3& opponentPos,
  const BattleCameraPreset& preset,
  const BattleCameraClipSample& clipSample,
- float clipTime,
+ float /*clipTime*/,
  BattleTurnCameraEvaluatedPose& outPose)
 {
     const float finalFovY = clamp(preset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
@@ -191,21 +176,6 @@ inline bool Evaluate_BattleTurnPlayerAttackRelationPose (
     Vec3 cameraPos = anchorPos + yawAdjustedBack * finalDistance + right * finalSideOffset + Vec3::Up * finalHeightOffset;
     const Vec3 lookTarget = subjectPos + attackDir * finalAimOffset + Vec3::Up * finalLookHeight;
 
-    Vec3 cameraForward = lookTarget - cameraPos;
-    cameraForward.Normalize();
-
-    Vec3 cameraRight = Vec3::Up.Cross(cameraForward);
-    cameraRight.Normalize();
-
-    Vec3 cameraUp = cameraForward.Cross(cameraRight);
-    cameraUp.Normalize();
-
-    cameraPos += Sample_CameraModifierShakeOffset(
-        Extract_CameraModifierSample(clipSample),
-        clipTime,
-        cameraRight,
-        cameraUp);
-
     outPose.cameraPos = cameraPos;
     outPose.lookTarget = lookTarget;
     outPose.fovY = finalFovY;
@@ -218,7 +188,7 @@ inline bool Evaluate_BattleTurnEnemyAttackPose (
     const Vec3& opponentPos,
     const BattleCameraPreset& preset,
     const BattleCameraClipSample& clipSample,
-    float clipTime,
+    float /*clipTime*/,
     BattleTurnCameraEvaluatedPose& outPose)
 {
     const float finalFovY = clamp(preset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
@@ -248,21 +218,6 @@ inline bool Evaluate_BattleTurnEnemyAttackPose (
 
     Vec3 cameraPos = opponentPos + yawAdjustedBack * finalDistance + right * finalSideOffset + Vec3::Up * finalHeightOffset;
     const Vec3 lookTarget = subjectPos + forward * finalAimOffset + Vec3::Up * finalLookHeight;
-
-    Vec3 cameraForward = lookTarget - cameraPos;
-    cameraForward.Normalize();
-
-    Vec3 cameraRight = Vec3::Up.Cross(cameraForward);
-    cameraRight.Normalize();
-
-    Vec3 cameraUp = cameraForward.Cross(cameraRight);
-    cameraUp.Normalize();
-
-    cameraPos += Sample_CameraModifierShakeOffset(
-        Extract_CameraModifierSample(clipSample),
-        clipTime,
-        cameraRight,
-        cameraUp);
 
     outPose.cameraPos = cameraPos;
     outPose.lookTarget = lookTarget;

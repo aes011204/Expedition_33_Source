@@ -87,6 +87,83 @@ struct TrailInstanceLayout
     };
 };
 
+struct EffectMeshInstanceLayout
+{
+    static constexpr uint32 numElements = 11;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "INST_WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_LIFE", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+    };
+};
+
+// Source-history ribbon shader가 사용하는 vertex + instance input layout.
+// ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
+struct RibbonInstanceLayout
+{
+    static constexpr uint32 numElements = 10; // ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+    };
+};
+
+// Generated beam shader가 사용하는 vertex + instance input layout.
+// ComputeGeneratedBeamEmitter::BeamInstanceVertex와 byte layout을 맞춘다.
+struct BeamInstanceLayout
+{
+    static constexpr uint32 numElements = 10;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+    };
+};
+
+// Source-history sprite trail shader가 사용하는 vertex + instance input layout.
+// ComputeSourceHistorySpriteTrailEmitter::StampInstanceVertex와 byte layout을 맞춘다.
+struct SourceHistorySpriteTrailInstanceLayout
+{
+    static constexpr uint32 numElements = 8;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 40, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 56, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+    };
+};
+
 // SubUVFrameOverLife 모듈의 최소 preview runtime desc다.
 struct PointParticleSubUVFrameOverLifeDesc
 {
@@ -101,6 +178,23 @@ struct PointParticleSubUVFrameOverLifeDesc
     Vec4 frameCurveTimesBlock1{};                                              // compact curve key 4..7 time 값이다.
     Vec4 frameCurveValues{};                                                   // 후속 Curve Editor용 frame index 값이다.
     Vec4 frameCurveValuesBlock1{};                                             // compact curve key 4..7 frame index 값이다.
+};
+
+// Float ConstantCurve distribution을 runtime에서 평가하기 위한 compact payload다.
+struct PointParticleFloatCurveRuntimeDesc
+{
+    bool enabled{ false };                     // true면 sampling event phase 기준 curve를 평가한다.
+    uint32 curveKeyCount{ 2 };                 // compact curve key 수다.
+    Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };  // key time 0..1 값이다.
+    Vec4 curveKeyTimesBlock1{};                // key 4..7 time 값이다.
+    Vec4 curveKeyValues{ 1.f, 1.f, 0.f, 0.f }; // key별 float 값이다.
+    Vec4 curveKeyValuesBlock1{};               // key 4..7 float 값이다.
+    Vec4 curveKeyArriveTangents{};             // key별 arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsBlock1{};       // key 4..7 arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangents{};              // key별 leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsBlock1{};        // key 4..7 leave tangent 값이다.
+    Vec4 curveKeyModes{ 1.f, 1.f, 0.f, 0.f };  // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 curveKeyModesBlock1{};                // key 4..7 interpolation mode 값이다.
 };
 
 enum class PointParticleSizeByLifeAxisLock : uint8
@@ -304,9 +398,9 @@ enum class PointParticleSphereLocationPlacementMode : uint32
 // SphereLocation 모듈이 만든 생성 시점 구형 위치 offset 분포다.
 struct PointParticleSphereLocationDesc
 {
-    bool enabled{ false };        // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    bool enabled{ false }; // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
     Vec3 offset{ 0.f, 0.f, 0.f }; // emitter center 기준 구 중심 offset이다.
-    float radius{ 1.f };          // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
+    float radius{ 1.f }; // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
     PointParticleSphereLocationMode mode{ PointParticleSphereLocationMode::Volume }; // 구 내부/표면 샘플링 정책이다.
     PointParticleSphereLocationPlacementMode placementMode{ PointParticleSphereLocationPlacementMode::Random }; // Surface 모드에서 구 표면 방향을 고르는 정책이다.
 };
@@ -317,6 +411,7 @@ enum class PointParticlePlaneRadialLocationPlane : uint32
     XY = 0,
     XZ = 1,
     YZ = 2,
+    CameraFacing = 3,
 };
 
 // PlaneRadialLocation 모듈이 평면 위에서 사용할 샘플링 형태다.
@@ -476,6 +571,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     Vec2 sizeMax{ 0.28f, 0.28f };                                     // particle 기본 가로/세로 크기 상한이다.
     PointParticleRandomSeedRuntimeDesc initialSizeSeed{};             // InitialSize random sample seed salt다.
     Vec2 lifeTime{};                                                  // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
+    PointParticleFloatCurveRuntimeDesc lifetimeCurve{};               // Lifetime ConstantCurve를 spawn event phase 기준으로 평가하는 payload다.
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                         // compute sprite preview 시작 색상/알파 하한.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                         // compute sprite preview 시작 색상/알파 상한.
     PointParticleRandomSeedRuntimeDesc initialColorSeed{};            // InitialColor RGB random sample seed salt다.

@@ -5,6 +5,11 @@ class GameObject;
 class UI_Base;
 NS_END
 
+namespace Client
+{
+    class IRuntimeWorldUI_EditorTarget;
+}
+
 namespace MainEditor
 {
     struct EditorSelection
@@ -14,6 +19,9 @@ namespace MainEditor
         string selectedUIGroup{};
         string selectedUIDisplayName{};
         bool selectedUIPositionDrivenByCode = false;
+        Client::IRuntimeWorldUI_EditorTarget* selectedRuntimeWorldUITarget = nullptr;
+        string selectedRuntimeWorldUIGroup{};
+        string selectedRuntimeWorldUIDisplayName{};
     };
 
     struct EditorFocusRequest

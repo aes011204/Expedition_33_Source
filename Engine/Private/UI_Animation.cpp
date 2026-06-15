@@ -52,6 +52,7 @@ namespace
             return max(0.01f, value);
         case UI_KeyframeAnimationTrackType::Alpha:
         case UI_KeyframeAnimationTrackType::AlphaMultiplier:
+        case UI_KeyframeAnimationTrackType::FillRatio:
             return min(max(value, 0.f), 1.f);
         case UI_KeyframeAnimationTrackType::FontSize:
             return max(4.f, value);
@@ -62,7 +63,20 @@ namespace
 
     Vec2 Clamp_KeyframeTrackVec2Value(UI_KeyframeAnimationTrackType type, const Vec2& value)
     {
-        (void)type;
+        if (type == UI_KeyframeAnimationTrackType::PatternUvOffset)
+        {
+            return Vec2(
+                min(max(value.x, -1.f), 1.f),
+                min(max(value.y, -1.f), 1.f));
+        }
+
+        if (type == UI_KeyframeAnimationTrackType::PatternUvScale)
+        {
+            return Vec2(
+                min(max(value.x, 0.1f), 8.f),
+                min(max(value.y, 0.1f), 8.f));
+        }
+
         return value;
     }
 
@@ -137,6 +151,24 @@ namespace
         {
             outSample.hasAlphaMultiplier = true;
             outSample.alphaMultiplier = sample.alphaMultiplier;
+        }
+
+        if (sample.hasPatternUvOffset)
+        {
+            outSample.hasPatternUvOffset = true;
+            outSample.patternUvOffset = sample.patternUvOffset;
+        }
+
+        if (sample.hasPatternUvScale)
+        {
+            outSample.hasPatternUvScale = true;
+            outSample.patternUvScale = sample.patternUvScale;
+        }
+
+        if (sample.hasFillRatio)
+        {
+            outSample.hasFillRatio = true;
+            outSample.fillRatio = sample.fillRatio;
         }
     }
 
@@ -584,6 +616,30 @@ namespace
                 continue;
             }
 
+            if (track.type == UI_KeyframeAnimationTrackType::PatternUvOffset ||
+                track.type == UI_KeyframeAnimationTrackType::PatternUvScale)
+            {
+                bool hasVec2Value = false;
+                const Vec2 value = Clamp_KeyframeTrackVec2Value(
+                    track.type,
+                    Evaluate_Vec2Keyframes(track, frame, hasVec2Value));
+                if (!hasVec2Value)
+                    continue;
+
+                if (track.type == UI_KeyframeAnimationTrackType::PatternUvOffset)
+                {
+                    sample.hasPatternUvOffset = true;
+                    sample.patternUvOffset = value;
+                }
+                else
+                {
+                    sample.hasPatternUvScale = true;
+                    sample.patternUvScale = value;
+                }
+                hasSampledTrack = true;
+                continue;
+            }
+
             bool hasValue = false;
             float currentValue = 0.f;
             switch (track.type)
@@ -605,6 +661,9 @@ namespace
                 break;
             case UI_KeyframeAnimationTrackType::AlphaMultiplier:
                 currentValue = transitionStartAlphaMultiplier;
+                break;
+            case UI_KeyframeAnimationTrackType::FillRatio:
+                currentValue = 1.f;
                 break;
             default:
                 break;
@@ -659,6 +718,10 @@ namespace
             case UI_KeyframeAnimationTrackType::AlphaMultiplier:
                 sample.hasAlphaMultiplier = true;
                 sample.alphaMultiplier = value;
+                break;
+            case UI_KeyframeAnimationTrackType::FillRatio:
+                sample.hasFillRatio = true;
+                sample.fillRatio = value;
                 break;
             default:
                 break;

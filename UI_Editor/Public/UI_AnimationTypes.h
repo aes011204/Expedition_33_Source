@@ -64,6 +64,9 @@ enum class UI_AnimationKeyframeTrackType
     AlphaMultiplier,
     FontSize,
     Size,
+    PatternUvOffset,
+    PatternUvScale,
+    FillRatio,
 };
 
 struct UI_AnimationKeyframeTrackMetadata
@@ -228,6 +231,9 @@ inline const UI_AnimationKeyframeTrackMetadata* Get_AnimationKeyframeTrackMetada
         { UI_AnimationKeyframeTrackType::AlphaMultiplier, "AlphaMultiplier", 1.f, 0.01f, 0.f, 1.f, true, true, true, true },
         { UI_AnimationKeyframeTrackType::FontSize, "FontSize", 32.f, 1.f, 4.f, 0.f, true, false, true, false },
         { UI_AnimationKeyframeTrackType::Size, "Size", 0.f, 1.f, 0.f, 0.f, false, false, true, true },
+        { UI_AnimationKeyframeTrackType::PatternUvOffset, "PatternUvOffset", 0.f, 0.01f, 0.f, 0.f, false, false, true, false },
+        { UI_AnimationKeyframeTrackType::PatternUvScale, "PatternUvScale", 1.f, 0.01f, 0.f, 0.f, false, false, true, false },
+        { UI_AnimationKeyframeTrackType::FillRatio, "FillRatio", 1.f, 0.01f, 0.f, 1.f, true, true, true, false },
     };
 
     outCount = sizeof(kMetadata) / sizeof(kMetadata[0]);
@@ -324,7 +330,9 @@ inline const char* Get_AnimationKeyframeTrackTypeName(UI_AnimationKeyframeTrackT
 
 inline bool Is_AnimationKeyframeTrackVec2Value(UI_AnimationKeyframeTrackType type)
 {
-    return type == UI_AnimationKeyframeTrackType::Size;
+    return type == UI_AnimationKeyframeTrackType::Size ||
+        type == UI_AnimationKeyframeTrackType::PatternUvOffset ||
+        type == UI_AnimationKeyframeTrackType::PatternUvScale;
 }
 
 inline bool Try_ParseAnimationKeyframeTrackType(const string& typeName, UI_AnimationKeyframeTrackType& outType)
@@ -355,7 +363,17 @@ inline float Clamp_AnimationKeyframeTrackValue(UI_AnimationKeyframeTrackType typ
 
 inline ImVec2 Clamp_AnimationKeyframeTrackVec2Value(UI_AnimationKeyframeTrackType type, ImVec2 value)
 {
-    (void)type;
+    if (type == UI_AnimationKeyframeTrackType::PatternUvOffset)
+    {
+        value.x = min(max(value.x, -1.f), 1.f);
+        value.y = min(max(value.y, -1.f), 1.f);
+    }
+    else if (type == UI_AnimationKeyframeTrackType::PatternUvScale)
+    {
+        value.x = min(max(value.x, 0.1f), 8.f);
+        value.y = min(max(value.y, 0.1f), 8.f);
+    }
+
     return value;
 }
 

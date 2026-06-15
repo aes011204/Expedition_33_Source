@@ -53,10 +53,11 @@ public:
 public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta);
     const BattleCameraPreset& Get_Preset(BattleCameraMode mode) const;
-    const BattleCameraDriftProfile& Get_DriftProfile(BattleCameraMode mode) const;
+    const BattleCameraDriftProfile& Get_DriftProfile(BattleCameraMode mode, bool enemyAttackBossVariant = false) const;
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
-    void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile);
+    void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant = false);
     void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId = "");
+    void Reload_BattleCameraAuthoringData();
     void Set_ClipScrubPreviewEnabled(bool enabled) { _isClipPreview = enabled; }
     void Apply_PreviewPreset(const BattleCameraPreset& preset);
     void Apply_ShotRequest(const BattleShotRequest& request);
@@ -162,6 +163,7 @@ private:
         const BattleShotRequest& request,
         const BattleCameraPreset& preset,
         BattleCameraClip* activeClip,
+        bool shouldRestartClipPlayback,
         const Vec3& targetSmoothedTargetPos,
         const Vec3& targetPrevTargetPos);
     void Update_PoseTransition(float timeDelta);
@@ -184,14 +186,18 @@ private:
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
     const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
-    BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode);
-    const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode) const;
+    BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false);
+    const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false) const;
+    const BattleCameraDriftProfile* Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const;
+    bool Is_BossEnemyAttackRequest(const BattleShotRequest& request) const;
     BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode);
     const BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode) const;
     void Refresh_RuntimeDriftFromProfile(const BattleCameraDriftProfile& profile, bool resetElapsed = false);
     void Start_RuntimeShake(const EvtBattleCameraShake& event);
     void Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta);
+    void Apply_ClipShake(EvaluatedPose& pose, const BattleCameraClipSample& clipSample, float clipShakeTime) const;
     void Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta);
+    void Debug_PrintClipShakeSample(float animationTimeSec, float sampleTime, float shakeSampleTime, const BattleCameraClipSample& clipSample) const;
 
 private:
     void Update_EnemyAttackMode(float timeDelta);
@@ -227,6 +233,7 @@ private:
     BattleCameraDriftProfile _playerFocusDrift{};
     BattleCameraDriftProfile _enemyFocusDrift{};
     BattleCameraDriftProfile _enemyAttackDrift{};
+    BattleCameraDriftProfile _enemyAttackBossDrift{};
     BattleCameraDriftProfile _playerAttackDrift{};
     BattleCameraDriftProfile _selectItemDrift{};
     BattleCameraDriftProfile _selectSkillDrift{};
@@ -259,6 +266,7 @@ private:
     BattleCameraClip      _enemyFocusClip{};
     BattleCameraClip* _activeClip{};
     float                _clipTime{};
+    float                _clipShakeTime{};
     float                _clipSyncBaseTime = 0.f;
     float                _clipSyncPrevAnimationTime = 0.f;
     float                _clipSyncAnimationDuration = 0.f;

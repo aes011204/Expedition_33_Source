@@ -309,7 +309,8 @@ public: /* For.Font_Manager */
         float scale = 1.f);
 
 public: /* For.Asset_Manager */
-    HRESULT Initialize_AssetManager(const wstring& resourceRoot, bool forceScan = false);
+    // missingMetaRoot가 비어 있지 않으면 force scan 중 누락 meta 자동 생성 범위를 해당 루트 하위로 제한한다.
+    HRESULT Initialize_AssetManager(const wstring& resourceRoot, bool forceScan = false, const wstring& missingMetaRoot = {});
 
     /* 파일 경로를 GUID로 저장해야 하는 ResourceLoader/Editor 파이프라인에서 호출한다. */
     string Find_AssetGUID(const wstring& filePath) const;
