@@ -820,6 +820,7 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
