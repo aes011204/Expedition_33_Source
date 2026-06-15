@@ -63,6 +63,7 @@
     <ClCompile Include="..\Private\UI_PreviewTransformResolver.cpp" />
     <ClCompile Include="..\Private\UI_SelectionService.cpp" />
     <ClCompile Include="..\Private\UI_TransformService.cpp" />
+    <ClCompile Include="..\Private\UI_Vfx_View.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_View.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_Utils.cpp" />
     <ClCompile Include="pch.cpp">
@@ -113,6 +114,7 @@
     <ClInclude Include="..\Public\UI_PreviewTransformResolver.h" />
     <ClInclude Include="..\Public\UI_SelectionService.h" />
     <ClInclude Include="..\Public\UI_TransformService.h" />
+    <ClInclude Include="..\Public\UI_Vfx_View.h" />
     <ClInclude Include="..\Public\UI_Viewport_View.h" />
     <ClInclude Include="..\Public\UI_Viewport_Utils.h" />
     <ClInclude Include="pch.h" />

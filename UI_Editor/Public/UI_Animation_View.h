@@ -16,6 +16,7 @@ namespace UIEditor
         KeyframeAnimation,
         StateAnimation,
         SequencePreview,
+        UIEffect,
     };
 
     class UI_Animation_View final : public UI_Editor_Window
@@ -31,6 +32,7 @@ namespace UIEditor
     private:
         void Render_Toolbar();
         void Render_KeyframeAnimationEditor();
+        void Render_UIEffectEditor();
         void Render_StateAnimationEditor();
         void Render_SequencePreviewEditor();
         void Render_StateAnimationToolbar();

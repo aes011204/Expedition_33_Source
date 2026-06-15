@@ -56,7 +56,7 @@ void PuzzleController::BeginPlay()
             {
                _bridgeStartPos = _bridgeObject->Get_Transform()->Get_WorldPosition();
                _bridgeStartRot = _bridgeObject->Get_Transform()->Get_WorldRotationEuler();
-               _bridgeTargetPos = Vec3(47.08, 8.42f, -22.46f);
+               _bridgeTargetPos = Vec3(47.08f, 8.42f, -22.46f);
                _bridgeTargetRot = Vec3(-3.5f, -15.3f, 2.1f);
                _bridgeMoveElapsed = 0.f;
                _isBridgeMoving = true;

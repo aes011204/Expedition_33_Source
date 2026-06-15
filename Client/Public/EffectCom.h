@@ -3,6 +3,7 @@
 #include "Component.h"
 #include "EffectInstancePool.h"
 #include "PreviewRimFeature.h"
+#include "SourcePointSampleProvider_ByPart.h"
 #include "SwitchDissolveFeature.h"
 #include "TrailAnchor_Asset.h"
 
@@ -29,6 +30,13 @@ public:
         PartRoot = 2,   // socket 없는 part root 기준
     };
 
+    struct EffectTransformInheritance
+    {
+        bool inheritPosition = true;
+        bool inheritRotation = true;
+        bool inheritScale = false;
+    };
+
     struct EffectPlayDesc
     {
         uint32 levelIndex = ETOI(LevelType::Static);
@@ -42,6 +50,7 @@ public:
         Vec3 localOffset = Vec3::Zero;
         Vec3 localRotation = Vec3::Zero;
         Vec3 scale = Vec3::One;
+        EffectTransformInheritance transformInheritance{};
 
         bool followTarget = false;          // AN은 false, ANS/attach 는 true로 사용
         bool requiresManualRelease = false; // owner가 살아 있는 동안 붙어 있어야 하는 effect는 자동 완료 release를 막는다.
@@ -70,6 +79,13 @@ public:
     };
 
 private:
+    enum class AttachedEffectRole : uint8
+    {
+        Normal,
+        Trail,
+        SourceHistoryPoint,
+    };
+
     struct AttachedEffect
     {
         EffectInstancePool::AttachedHandle poolHandle{};
@@ -84,11 +100,22 @@ private:
         Vec3 localOffset{ Vec3::Zero };
         Vec3 localRotation{ Vec3::Zero };
         Vec3 scale{ Vec3::One };
+        EffectTransformInheritance transformInheritance{};
 
         bool followTarget = false; // true면 Update에서 owner/socket 위치를 계속 따라간다.
-        bool isTrail = false;
+        AttachedEffectRole role{ AttachedEffectRole::Normal };
         TrailAnchorAsset trailAnchorAsset{};
         Shared<IEffectTrailSampleProvider> trailSampleProvider{}; // 각 trail instance가 자기 sample source를 유지한다.
+        Shared<bool> trailSampleEnabled{};
+        bool isTrailDraining = false;
+        float trailDrainElapsed = 0.f;
+        float trailDrainDuration = 0.25f;
+        SourceHistorySourceBindingMode sourceHistorySourceBindingMode{ SourceHistorySourceBindingMode::TrailAnchor };
+        Shared<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};
+        Shared<bool> sourcePointSampleEnabled{};
+        bool isSourceHistoryDraining = false;
+        float sourceHistoryDrainElapsed = 0.f;
+        float sourceHistoryDrainDuration = 0.5f;
     };
 
 public:
@@ -121,7 +148,7 @@ public:
     // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
     static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
 
-    void Update_AttachedEffects();                                           // socket follow와 자동 release 후보 정리를 함께 수행한다.
+    void Update_AttachedEffects(float timeDelta); // socket follow와 자동 release 후보 정리를 함께 수행한다.
     void Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& outStates);
     void Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& states);
 
@@ -188,11 +215,35 @@ public:
         const wstring& partTag,
         const TrailAnchorAsset& trailAnchorAsset,
         EffectTrailSample& outSample) const;
+
+    HRESULT Play_SourceHistoryEffect(
+        const wstring& effectName,
+        const wstring& partTag,
+        const wstring& layerTag,
+        SourceHistorySourcePointPolicy sourcePointPolicy = SourceHistorySourcePointPolicy::Tip,
+        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
+        const string& socketName = "");
+
+    void Stop_SourceHistoryEffect(
+        const wstring& effectName,
+        const wstring& partTag,
+        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
+        const string& socketName = "");
+
+    bool Try_GetSourcePointSampleForPart(
+        const wstring& partTag,
+        SourceHistorySourceBindingMode sourceBindingMode,
+        const string& socketName,
+        const TrailAnchorAsset& trailAnchorAsset,
+        SourceHistorySourcePointPolicy sourcePointPolicy,
+        EffectSourcePointSample& outSample) const;
 #pragma endregion
 
 private:
     void Play_InspectorEffectIfEnabled();
     void Release_AttachedEffect(AttachedEffect& attached);                   // 명시 반환이 필요한 attached effect를 pool로 되돌린다.
+    void Begin_TrailDrain(AttachedEffect& attached);                         // sample 공급을 끊고 segmentLifetime 동안 자연 fade시킨다.
+    void Begin_SourceHistoryDrain(AttachedEffect& attached);                 // sample 공급을 끊고 단일 source history가 자연 fade되게 둔다.
     bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const; // auto/manual release 정책을 판정한다.
     void Prune_ReleasedAttachedEffects();                                    // 반환이 끝난 attached entry를 목록에서 제거한다.
 
@@ -213,13 +264,16 @@ private:
         const string& socketName,
         const Vec3& localOffset,
         const Vec3& localRotation,
+        const Vec3& scale,
+        const EffectTransformInheritance& transformInheritance,
         Vec3& outWorldPosition,
-        Vec3& outWorldRotation) const;
+        Vec3& outWorldRotation,
+        Vec3& outWorldScale) const;
 
     bool Try_ResolveTrailEffectName(
-            const wstring& effectNameOverride,
-            const wstring& partTag,
-            wstring& outEffectName) const;
+        const wstring& effectNameOverride,
+        const wstring& partTag,
+        wstring& outEffectName) const;
 
     bool Try_BuildTrailSample(
         const wstring& partTag,
@@ -230,6 +284,18 @@ private:
         const Weapon& weaponPart,
         const TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
+
+    bool Try_ResolveSourceHistoryEffectName(
+        const wstring& effectName,
+        wstring& outEffectName) const;
+
+    bool Try_BuildSourcePointSample(
+        const wstring& partTag,
+        SourceHistorySourceBindingMode sourceBindingMode,
+        const string& socketName,
+        const TrailAnchorAsset& trailAnchorAsset,
+        SourceHistorySourcePointPolicy sourcePointPolicy,
+        EffectSourcePointSample& outSample) const;
 
 private:
     SwitchDissolveRuntime _switchDissolve{};   // 디졸브

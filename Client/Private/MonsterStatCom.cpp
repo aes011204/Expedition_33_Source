@@ -15,6 +15,7 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("Base Attack", _monsterDesc.physicalAttack, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Base Defense", _monsterDesc.physicalDefense, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Base Speed", _monsterDesc.speed, 0.f, 999999.f, 1.f);
+    PROPERTY_FLOAT("Battle Run Move Speed", _monsterDesc.battleRunMoveSpeed, 0.f, 30.f, 0.1f);
 
     PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
     PROPERTY_INT("Reward Chroma", _monsterDesc.chroma, 0.f, 9999999.f, 1.f);
@@ -217,6 +218,7 @@ BattleMonsterStatSnapshot MonsterStatCom::Create_BattleSyncSnapshot() const
     snapshot.physicalAttack = _monsterDesc.physicalAttack;
     snapshot.physicalDefense = _monsterDesc.physicalDefense;
     snapshot.speed = _monsterDesc.speed;
+    snapshot.battleRunMoveSpeed = _monsterDesc.battleRunMoveSpeed;
 
     snapshot.shieldPointsAtSpawn = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
     snapshot.exp = _monsterDesc.exp;
@@ -237,6 +239,7 @@ void MonsterStatCom::Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& s
     _monsterDesc.physicalAttack = snapshot.physicalAttack;
     _monsterDesc.physicalDefense = snapshot.physicalDefense;
     _monsterDesc.speed = snapshot.speed;
+    _monsterDesc.battleRunMoveSpeed = snapshot.battleRunMoveSpeed;
 
     _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn = snapshot.shieldPointsAtSpawn;
     _monsterDesc.exp = snapshot.exp;

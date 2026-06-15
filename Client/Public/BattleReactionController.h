@@ -83,6 +83,7 @@ public:
     BattleReactionInputResult UpdateInput(const BattleAction& turnAction);
     //BattleReactionInputResult UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex, bool pressedQ, bool pressedE);
     void UpdateAnimation(float timeDelta);
+    void Notify_TargetDamaged(const BattleChar& target);
 
     void StartCounterReturn();
     // void FinishCounterReturn();
@@ -138,6 +139,7 @@ private:
     ReactionAnimPhase _animPhase = ReactionAnimPhase::None;
     bool _isCounterPending = false;
     bool _isCounterDamageApplied = false;
+    float _reactionAnimElapsed = 0.f;
 
     const Skill_Data* _curSkillData = {};
 

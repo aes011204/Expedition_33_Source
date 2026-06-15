@@ -21,7 +21,86 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const wchar_t* kPreviewPoolKey = L"EffectEditorPreview";
+    constexpr auto kPreviewPoolKey = L"EffectEditorPreview";
+    constexpr auto kPreviewTrailStrokePoolKey = L"EffectEditorPreviewTrailStroke";
+    constexpr uint32 kRibbonAutoHistoryMaxCount{ 4096 };
+    constexpr float kRibbonAutoHistoryFrameStep{ 0.016f };
+    constexpr uint32 kRibbonAutoHistoryMargin{ 8 };
+
+    class TrailPreviewStrokeSampleProvider final : public IEffectTrailSampleProvider
+    {
+    public:
+        TrailPreviewStrokeSampleProvider(
+            const Weak<IEffectTrailSampleProvider>& sourceProvider,
+            const Shared<bool>& sampleEnabled)
+            : _sourceProvider(sourceProvider)
+            , _sampleEnabled(sampleEnabled)
+        {
+        }
+
+        bool Try_GetTrailSample(EffectTrailSample& outSample) const override
+        {
+            if (_sampleEnabled == nullptr || !*_sampleEnabled)
+                return false;
+
+            const Shared<IEffectTrailSampleProvider> sourceProvider = _sourceProvider.lock();
+            if (sourceProvider == nullptr)
+                return false;
+
+            return sourceProvider->Try_GetTrailSample(outSample);
+        }
+
+    private:
+        Weak<IEffectTrailSampleProvider> _sourceProvider{};
+        Shared<bool> _sampleEnabled{};
+    };
+
+    class SourceHistoryPreviewSampleProvider final : public IEffectSourcePointSampleProvider
+    {
+    public:
+        SourceHistoryPreviewSampleProvider(
+            const Weak<IEffectSourcePointSampleProvider>& sourceProvider,
+            const Weak<TrailPreviewController>& previewController,
+            bool useSpriteTrailGate)
+            : _sourceProvider(sourceProvider)
+            , _previewController(previewController)
+            , _useSpriteTrailGate(useSpriteTrailGate)
+        {
+        }
+
+        bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
+        {
+            if (EDITOR == nullptr ||
+                !EDITOR->Is_TrailPreviewVisible())
+                return false;
+
+            if (_useSpriteTrailGate)
+            {
+                float sourceRatio = 0.f;
+                if (EDITOR->Get_SourceHistorySpriteTrailPreviewGateMode() == TrailPreviewGateMode::Window)
+                {
+                    const Shared<TrailPreviewController> previewController = _previewController.lock();
+                    if (previewController == nullptr ||
+                        !previewController->Try_GetAttackAnimationRatio(sourceRatio))
+                        return false;
+                }
+
+                if (!EDITOR->Is_SourceHistorySpriteTrailPreviewGateOpen(sourceRatio))
+                    return false;
+            }
+
+            const Shared<IEffectSourcePointSampleProvider> sourceProvider = _sourceProvider.lock();
+            if (sourceProvider == nullptr)
+                return false;
+
+            return sourceProvider->Try_GetSourcePointSample(outSample);
+        }
+
+    private:
+        Weak<IEffectSourcePointSampleProvider> _sourceProvider{};
+        Weak<TrailPreviewController> _previewController{};
+        bool _useSpriteTrailGate{};
+    };
 
     //## Module Lookup
 
@@ -40,6 +119,83 @@ namespace Internal
         }
 
         return nullptr;
+    }
+
+    float Resolve_RequiredDuration(const AuthoringEmitter& emitter)
+    {
+        const RequiredModuleData* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
+        if (required == nullptr)
+            return 0.f;
+
+        if (required->useDurationRange)
+            return max(required->duration, required->durationLow);
+
+        return required->duration;
+    }
+
+    float Resolve_TrailPreviewGateDuration(const vector<AuthoringEmitter>& emitters)
+    {
+        float trailDuration = 0.f;
+        float anyDuration = 0.f;
+
+        for (const AuthoringEmitter& emitter : emitters)
+        {
+            if (!emitter.enabled)
+                continue;
+
+            const float duration = max(0.f, Resolve_RequiredDuration(emitter));
+            if (duration <= 0.f)
+                continue;
+
+            anyDuration = max(anyDuration, duration);
+            if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+                trailDuration = max(trailDuration, duration);
+        }
+
+        constexpr float fallbackDuration = 1.f;
+        return trailDuration > 0.f ? trailDuration : max(fallbackDuration, anyDuration);
+    }
+
+    float Resolve_TrailStrokeDrainDuration(const Shared<const EffectDefinition>& definition)
+    {
+        if (definition == nullptr)
+            return 0.25f;
+
+        float duration = 0.f;
+        for (const EffectEmitterDefinition& emitter : definition->emitters)
+        {
+            if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
+                continue;
+
+            const auto* desc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+            if (desc == nullptr)
+                continue;
+
+            duration = max(duration, desc->segmentLifetime);
+        }
+
+        return duration > 0.f ? duration : 0.25f;
+    }
+
+    uint32 Resolve_RibbonAutoHistoryCount(
+        uint32 authoredCount,
+        float sampleLifetime,
+        float sampleSpacing,
+        float maxLength)
+    {
+        const uint32 authored = max(2u, authoredCount);
+        const uint32 timeBased =
+            static_cast<uint32>(ceilf(max(0.0001f, sampleLifetime) / kRibbonAutoHistoryFrameStep)) + kRibbonAutoHistoryMargin;
+        uint32 required = max(authored, timeBased);
+
+        if (maxLength > 0.f)
+        {
+            const uint32 distanceBased =
+                static_cast<uint32>(ceilf(maxLength / max(0.001f, sampleSpacing))) + kRibbonAutoHistoryMargin;
+            required = max(required, distanceBased);
+        }
+
+        return clamp(required, 2u, kRibbonAutoHistoryMaxCount);
     }
 
     //## Preview Policy
@@ -115,33 +271,55 @@ namespace Internal
         }
     }
 
-    EffectSourceHistoryPreviewMotionPreset Resolve_SourceHistoryPreviewMotionPreset(SourceHistoryPreviewMotionPreset value)
+    EffectSourceHistorySpriteTrailPathFollowDirection Resolve_SourceHistorySpriteTrailPathFollowDirection(
+        SourceHistorySpriteTrailPathFollowDirection value)
     {
         switch (value)
         {
-        case SourceHistoryPreviewMotionPreset::Line:
-            return EffectSourceHistoryPreviewMotionPreset::Line;
-        case SourceHistoryPreviewMotionPreset::Arc:
-            return EffectSourceHistoryPreviewMotionPreset::Arc;
-        case SourceHistoryPreviewMotionPreset::Loop:
-            return EffectSourceHistoryPreviewMotionPreset::Loop;
-        case SourceHistoryPreviewMotionPreset::Off:
+        case SourceHistorySpriteTrailPathFollowDirection::TowardTail:
+            return EffectSourceHistorySpriteTrailPathFollowDirection::TowardTail;
+        case SourceHistorySpriteTrailPathFollowDirection::TowardHead:
         default:
-            return EffectSourceHistoryPreviewMotionPreset::Off;
+            return EffectSourceHistorySpriteTrailPathFollowDirection::TowardHead;
         }
     }
 
-    EffectSourceHistoryPreviewMotionAxis Resolve_SourceHistoryPreviewMotionAxis(SourceHistoryPreviewMotionAxis value)
+    EffectSourceHistorySpriteTrailPathReplayMode Resolve_SourceHistorySpriteTrailPathReplayMode(
+        SourceHistorySpriteTrailPathReplayMode value)
     {
         switch (value)
         {
-        case SourceHistoryPreviewMotionAxis::Y:
-            return EffectSourceHistoryPreviewMotionAxis::Y;
-        case SourceHistoryPreviewMotionAxis::Z:
-            return EffectSourceHistoryPreviewMotionAxis::Z;
-        case SourceHistoryPreviewMotionAxis::X:
+        case SourceHistorySpriteTrailPathReplayMode::FitDuration:
+            return EffectSourceHistorySpriteTrailPathReplayMode::FitDuration;
+        case SourceHistorySpriteTrailPathReplayMode::RecordedSpeed:
         default:
-            return EffectSourceHistoryPreviewMotionAxis::X;
+            return EffectSourceHistorySpriteTrailPathReplayMode::RecordedSpeed;
+        }
+    }
+
+    EffectSourceHistorySpriteTrailPathReplayStartMode Resolve_SourceHistorySpriteTrailPathReplayStartMode(
+        SourceHistorySpriteTrailPathReplayStartMode value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailPathReplayStartMode::AllAtOnce:
+            return EffectSourceHistorySpriteTrailPathReplayStartMode::AllAtOnce;
+        case SourceHistorySpriteTrailPathReplayStartMode::TailFirst:
+        default:
+            return EffectSourceHistorySpriteTrailPathReplayStartMode::TailFirst;
+        }
+    }
+
+    EffectSourceHistorySpriteTrailArrivalMode Resolve_SourceHistorySpriteTrailArrivalMode(
+        SourceHistorySpriteTrailArrivalMode value)
+    {
+        switch (value)
+        {
+        case SourceHistorySpriteTrailArrivalMode::ClampAtEnd:
+            return EffectSourceHistorySpriteTrailArrivalMode::ClampAtEnd;
+        case SourceHistorySpriteTrailArrivalMode::KillOnArrive:
+        default:
+            return EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive;
         }
     }
 
@@ -255,6 +433,9 @@ namespace Internal
 
         case PlaneRadialLocationPlane::YZ:
             return PointParticlePlaneRadialLocationPlane::YZ;
+
+        case PlaneRadialLocationPlane::CameraFacing:
+            return PointParticlePlaneRadialLocationPlane::CameraFacing;
 
         case PlaneRadialLocationPlane::XY:
         default:
@@ -555,7 +736,7 @@ namespace Internal
     PointParticlePlaneRadialLocationDesc Build_PointParticlePlaneRadialLocationDesc(const PlaneRadialLocationModuleData& data)
     {
         PointParticlePlaneRadialLocationDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.plane = Resolve_PointParticlePlaneRadialLocationPlane(data.plane);
         desc.shape = Resolve_PointParticlePlaneRadialLocationShape(data.shape);
         desc.placementMode = Resolve_PointParticlePlaneRadialLocationPlacementMode(data.placementMode);
@@ -575,7 +756,7 @@ namespace Internal
     PointParticlePlaneRadialOrientationDesc Build_PointParticlePlaneRadialOrientationDesc(const PlaneRadialOrientationModuleData& data)
     {
         PointParticlePlaneRadialOrientationDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.targetKind = Resolve_PointParticlePlaneRadialOrientationTargetKind(data.targetKind);
         desc.orientationMode = Resolve_PointParticlePlaneRadialOrientationMode(data.orientationMode);
         desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
@@ -588,7 +769,7 @@ namespace Internal
     PointParticleSphereRadialOrientationDesc Build_PointParticleSphereRadialOrientationDesc(const SphereRadialOrientationModuleData& data)
     {
         PointParticleSphereRadialOrientationDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.orientationMode = Resolve_PointParticleSphereRadialOrientationMode(data.orientationMode);
         desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
         desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
@@ -682,6 +863,54 @@ namespace Internal
         }
     }
 
+    void Fill_FloatCurvePayload(PointParticleFloatCurveRuntimeDesc& desc, const FloatDistributionData& distribution, float fallbackValue)
+    {
+        desc.enabled = false;
+        desc.curveKeyCount = 2u;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{ fallbackValue, fallbackValue, 0.f, 0.f };
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload);
+        if (curve == nullptr)
+            return;
+
+        vector<FloatCurveKeyData> keys = curve->keys;
+        ranges::sort(keys, {}, &FloatCurveKeyData::time);
+        const uint32 keyCount = min(kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+        if (keyCount == 0u)
+            return;
+
+        desc.enabled = true;
+        desc.curveKeyCount = keyCount;
+        desc.curveKeyTimes = Vec4{};
+        desc.curveKeyTimesBlock1 = Vec4{};
+        desc.curveKeyValues = Vec4{};
+        desc.curveKeyValuesBlock1 = Vec4{};
+        desc.curveKeyArriveTangents = Vec4{};
+        desc.curveKeyArriveTangentsBlock1 = Vec4{};
+        desc.curveKeyLeaveTangents = Vec4{};
+        desc.curveKeyLeaveTangentsBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const FloatCurveKeyData& key = keys[index];
+            Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+            Set_CurveComponent(desc.curveKeyValues, desc.curveKeyValuesBlock1, index, key.value);
+            Set_CurveComponent(desc.curveKeyArriveTangents, desc.curveKeyArriveTangentsBlock1, index, key.arriveTangent);
+            Set_CurveComponent(desc.curveKeyLeaveTangents, desc.curveKeyLeaveTangentsBlock1, index, key.leaveTangent);
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+        }
+    }
+
     void Fill_ColorOverLifeColorCurveComponent(
         PointParticleColorOverLifeCurveDesc& desc,
         uint32 index,
@@ -716,7 +945,7 @@ namespace Internal
         PointParticleColorOverLifeCurveDesc& desc,
         const ColorOverLifeModuleData& data)
     {
-        constexpr uint32 maxColorOverLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+        constexpr uint32 maxColorOverLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
 
         if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.colorOverLife.payload))
         {
@@ -797,7 +1026,7 @@ namespace Internal
         if (nullptr == curve || curve->keys.empty())
             return;
 
-        constexpr uint32 maxSubUVFrameCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+        constexpr uint32 maxSubUVFrameCurveKeys{ kEffectDistributionCurveMaxKeys };
         const uint32 keyCount = min(maxSubUVFrameCurveKeys, static_cast<uint32>(curve->keys.size()));
         desc.frameCurveKeyCount = keyCount;
 
@@ -877,7 +1106,7 @@ namespace Internal
         {
             vector<Vector2CurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &Vector2CurveKeyData::time);
-            constexpr uint32 maxSizeByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxSizeByLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxSizeByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -909,7 +1138,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxRotationOverLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxRotationOverLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxRotationOverLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -939,7 +1168,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxRotationRateScaleByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxRotationRateScaleByLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxRotationRateScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -954,17 +1183,17 @@ namespace Internal
         }
     }
 
-    ::Engine::EffectOrbitPlane Resolve_EffectOrbitPlane(EffectOrbitPlane plane)
+    Engine::EffectOrbitPlane Resolve_EffectOrbitPlane(EffectOrbitPlane plane)
     {
         switch (plane)
         {
         case EffectOrbitPlane::XZ:
-            return ::Engine::EffectOrbitPlane::XZ;
+            return Engine::EffectOrbitPlane::XZ;
         case EffectOrbitPlane::YZ:
-            return ::Engine::EffectOrbitPlane::YZ;
+            return Engine::EffectOrbitPlane::YZ;
         case EffectOrbitPlane::XY:
         default:
-            return ::Engine::EffectOrbitPlane::XY;
+            return Engine::EffectOrbitPlane::XY;
         }
     }
 
@@ -991,7 +1220,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxOrbitCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxOrbitCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 clampedKeyCount = min(maxOrbitCurveKeys, static_cast<uint32>(keys.size()));
             if (clampedKeyCount == 0)
                 return;
@@ -1009,7 +1238,7 @@ namespace Internal
     EffectOrbitOverLifeRuntimeDesc Build_OrbitOverLifeDesc(const OrbitOverLifeModuleData& data)
     {
         EffectOrbitOverLifeRuntimeDesc desc{};
-        desc.enabled = data.enabled;
+        desc.enabled = true;
         desc.plane = Resolve_EffectOrbitPlane(data.plane);
         Fill_OrbitFloatCurvePayload(
             desc.angleDegreesOverLife,
@@ -1100,7 +1329,7 @@ namespace Internal
         {
             vector<Vector3CurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &Vector3CurveKeyData::time);
-            constexpr uint32 maxMeshCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxMeshCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxMeshCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -1138,7 +1367,7 @@ namespace Internal
 
         vector<Vector3CurveKeyData> keys = curve->keys;
         ranges::sort(keys, {}, &Vector3CurveKeyData::time);
-        constexpr uint32 maxAccelerationCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+        constexpr uint32 maxAccelerationCurveKeys{ kEffectDistributionCurveMaxKeys };
         const uint32 keyCount = min(maxAccelerationCurveKeys, static_cast<uint32>(keys.size()));
         if (keyCount == 0)
             return;
@@ -1177,7 +1406,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxVelocityScaleByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxVelocityScaleByLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxVelocityScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -1326,6 +1555,8 @@ HRESULT Level_EffectEditor::Initialize()
 
 void Level_EffectEditor::Update(float timeDelta)
 {
+    Update_PreviewTrailStrokes(timeDelta);
+
     __super::Update(timeDelta);
 }
 
@@ -1346,15 +1577,27 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         return E_FAIL;
     }
 
+    Clear_PreviewTrailStrokes();
+
+    const bool splitTrailPreview =
+        EDITOR->Get_TrailPreviewGateMode() == TrailPreviewGateMode::Window;
     const Shared<const EffectDefinition> previewDefinition =
-        Build_PreviewEffectDefinition(emitterView->Get_Emitters());
+        Build_PreviewEffectDefinition(emitterView->Get_Emitters(), !splitTrailPreview);
     CHECK_NULL(previewDefinition, E_FAIL);
+    const Shared<const EffectDefinition> previewTrailDefinition =
+        splitTrailPreview ? Build_PreviewTrailEffectDefinition(emitterView->Get_Emitters()) : nullptr;
 
     const EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
     CHECK_NULL(effectPool, E_FAIL);
 
     CHECK_FAILED(Restart_PreviewFromDefinition(previewDefinition), E_FAIL);
     _currentPreviewDefinition = previewDefinition;
+    _currentPreviewTrailDefinition = previewTrailDefinition;
+    _wasTrailPreviewGateOpen = false;
+    _lastTrailPreviewSourceRatio = 0.f;
+    _hasTrailPreviewSourceRatio = false;
+    EDITOR->Set_TrailPreviewGateDuration(Internal::Resolve_TrailPreviewGateDuration(emitterView->Get_Emitters()));
+    EDITOR->Reset_TrailPreviewGate();
 
     for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
         emitterView->Clear_PreviewDirty(emitter.id);
@@ -1367,6 +1610,10 @@ HRESULT Level_EffectEditor::Reset_PreviewRuntime()
     if (_currentPreviewDefinition == nullptr)
         return S_OK;
 
+    Clear_PreviewTrailStrokes();
+    _wasTrailPreviewGateOpen = false;
+    _lastTrailPreviewSourceRatio = 0.f;
+    _hasTrailPreviewSourceRatio = false;
     return Restart_PreviewFromDefinition(_currentPreviewDefinition);
 }
 
@@ -1383,6 +1630,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = kPreviewLayerTag;
     acquireDesc.trailSampleProvider = _trailPreviewSampleProvider;
+    acquireDesc.sourcePointSampleProvider = _sourceHistorySpriteTrailPreviewSampleProvider;
 
     if (_previewPoolHandle.effectObject != nullptr)
     {
@@ -1398,7 +1646,9 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
     return S_OK;
 }
 
-Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters) const
+Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition(
+    const vector<AuthoringEmitter>& emitters,
+    bool includeTrail) const
 {
     auto definition = make_shared<EffectDefinition>();
     definition->name = "EffectEditorPreview";
@@ -1411,6 +1661,9 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
         switch (emitter.typeData.kind)
         {
         case AuthoringTypeDataKind::Trail:
+            if (!includeTrail)
+                break;
+
             definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
             break;
 
@@ -1418,8 +1671,16 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
             definition->emitters.push_back(Build_PreviewMeshEmitterDefinition(emitter));
             break;
 
-        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        case AuthoringTypeDataKind::Ribbon:
             definition->emitters.push_back(Build_PreviewSourceHistoryRibbonEmitterDefinition(emitter));
+            break;
+
+        case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+            definition->emitters.push_back(Build_PreviewSourceHistorySpriteTrailEmitterDefinition(emitter));
+            break;
+
+        case AuthoringTypeDataKind::Beam:
+            definition->emitters.push_back(Build_PreviewBeamEmitterDefinition(emitter));
             break;
 
         case AuthoringTypeDataKind::None:
@@ -1432,12 +1693,28 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
     return definition;
 }
 
+Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewTrailEffectDefinition(const vector<AuthoringEmitter>& emitters) const
+{
+    auto definition = make_shared<EffectDefinition>();
+    definition->name = "EffectEditorPreviewTrailStroke";
+
+    for (const AuthoringEmitter& emitter : emitters)
+    {
+        if (!emitter.enabled || emitter.typeData.kind != AuthoringTypeDataKind::Trail)
+            continue;
+
+        definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
+    }
+
+    return definition->emitters.empty() ? nullptr : definition;
+}
+
 EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const
 {
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::ComputeSprite;
+    definition.kind = EffectEmitterKind::Sprite;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
@@ -1447,7 +1724,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, desc.required.material);
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, desc.required.material);
 
         desc.required.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
         desc.required.sort.sortLayer = required->sortLayer;
@@ -1567,6 +1844,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifetime.lifeTime.y)
         };
+        Internal::Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, lifetime->lifeTime, desc.lifetime.lifeTime.y);
         desc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
@@ -1765,7 +2043,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::ComputeTrail;
+    definition.kind = EffectEmitterKind::Trail;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
@@ -1789,8 +2067,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
-        Engine::EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
@@ -1814,10 +2092,12 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
+        emitterDesc.useLifetimeSegmentLifetime = true;
         emitterDesc.lifetime.lifeTime = Vec2{
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
         emitterDesc.segmentLifetime = max(0.001f, emitterDesc.lifetime.lifeTime.y);
     }
 
@@ -1899,7 +2179,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
     {
-        emitterDesc.spawnPerUnit.enabled = spawnPerUnit->enabled;
+        emitterDesc.spawnPerUnit.enabled = true;
         emitterDesc.spawnPerUnit.spawnPerUnit =
             max(0.f, Internal::Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
         emitterDesc.spawnPerUnit.unitScalar = max(0.0001f, spawnPerUnit->unitScalar);
@@ -1917,34 +2197,45 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::SourceHistoryRibbon;
+    definition.kind = EffectEmitterKind::Ribbon;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
-    ComputeSourceHistoryRibbonEmitterDesc emitterDesc{};
+    ComputeRibbonEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
 
-    const SourceHistoryRibbonTypeData* sourceHistoryData = get_if<SourceHistoryRibbonTypeData>(&emitter.typeData.payload);
-    const SourceHistoryRibbonTypeData defaultSourceHistoryData{};
-    const SourceHistoryRibbonTypeData& sourceHistoryPolicy =
+    const RibbonTypeData* sourceHistoryData = get_if<RibbonTypeData>(&emitter.typeData.payload);
+    const RibbonTypeData defaultSourceHistoryData{};
+    const RibbonTypeData& sourceHistoryPolicy =
         sourceHistoryData != nullptr ? *sourceHistoryData : defaultSourceHistoryData;
 
+    emitterDesc.sourceMode = sourceHistoryPolicy.sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter
+                             ? EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+                             : EffectSourceHistoryRibbonSourceMode::SelfRoot;
+    emitterDesc.sourceEmitterId =
+        emitterDesc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+        ? sourceHistoryPolicy.sourceEmitterId
+        : 0u;
+    emitterDesc.followerLaneCount = max(1u, sourceHistoryPolicy.followerLaneCount);
     emitterDesc.maxSampleCount = max(2u, sourceHistoryPolicy.maxSampleCount);
     emitterDesc.sampleSpacing = max(0.001f, sourceHistoryPolicy.sampleSpacing);
+    emitterDesc.curveSubdivision = max(0u, sourceHistoryPolicy.curveSubdivision);
+    emitterDesc.smoothTangent = sourceHistoryPolicy.smoothTangent;
     emitterDesc.sampleInterval = max(0.f, sourceHistoryPolicy.sampleInterval);
     emitterDesc.maxLength = max(0.f, sourceHistoryPolicy.maxLength);
     emitterDesc.tailFadeLength = max(0.f, sourceHistoryPolicy.tailFadeLength);
+    emitterDesc.laneSpawnFadeInEnabled = sourceHistoryPolicy.laneSpawnFadeInEnabled;
+    emitterDesc.laneSpawnFadeInDuration = max(0.f, sourceHistoryPolicy.laneSpawnFadeInDuration);
     emitterDesc.baseWidth = max(0.001f, sourceHistoryPolicy.baseWidth);
     emitterDesc.tilingDistance = max(0.f, sourceHistoryPolicy.tilingDistance);
     emitterDesc.autoLifeFade = sourceHistoryPolicy.autoLifeFade;
-    emitterDesc.previewMotionPreset = Internal::Resolve_SourceHistoryPreviewMotionPreset(sourceHistoryPolicy.previewMotionPreset);
-    emitterDesc.previewMotionAxis = Internal::Resolve_SourceHistoryPreviewMotionAxis(sourceHistoryPolicy.previewMotionAxis);
-    emitterDesc.previewMotionAmplitude = max(0.f, sourceHistoryPolicy.previewMotionAmplitude);
-    emitterDesc.previewMotionSpeed = max(0.f, sourceHistoryPolicy.previewMotionSpeed);
+    emitterDesc.tailCollapseOnIdle = sourceHistoryPolicy.tailCollapseOnIdle;
+    emitterDesc.tailCollapseSpeed = max(0.f, sourceHistoryPolicy.tailCollapseSpeed);
+    emitterDesc.sourcePointSampleProvider = _sourceHistoryPreviewSampleProvider;
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
 
         emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
@@ -1961,12 +2252,25 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
         definition.useLocalSpace = required->useLocalSpace;
     }
 
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+    }
+
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
+        emitterDesc.useLifetimeSampleLifetime = true;
         emitterDesc.lifetime.lifeTime = Vec2{
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
         emitterDesc.sampleLifetime = max(0.0001f, emitterDesc.lifetime.lifeTime.y);
     }
 
@@ -2074,6 +2378,550 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
+    emitterDesc.maxSampleCount = Internal::Resolve_RibbonAutoHistoryCount(
+        emitterDesc.maxSampleCount,
+        emitterDesc.sampleLifetime,
+        emitterDesc.sampleSpacing,
+        emitterDesc.maxLength
+    );
+
+    definition.concreteDesc = emitterDesc;
+    return definition;
+}
+
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrailEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::SourceHistorySpriteTrail;
+    definition.enabled = emitter.enabled;
+    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+
+    ComputeSourceHistorySpriteTrailEmitterDesc emitterDesc{};
+    emitterDesc.renderLayerOverride = definition.renderLayerOverride;
+
+    const SourceHistorySpriteTrailTypeData* typeData = get_if<SourceHistorySpriteTrailTypeData>(&emitter.typeData.payload);
+    const SourceHistorySpriteTrailTypeData defaultTypeData{};
+    const SourceHistorySpriteTrailTypeData& policy = typeData != nullptr ? *typeData : defaultTypeData;
+
+    emitterDesc.sourceMode = policy.sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter
+                             ? EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+                             : EffectSourceHistoryRibbonSourceMode::SelfRoot;
+    emitterDesc.sourceEmitterId =
+        emitterDesc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+        ? policy.sourceEmitterId
+        : 0u;
+    emitterDesc.followerLaneCount = max(1u, policy.followerLaneCount);
+    emitterDesc.sampleLifetime = max(0.0001f, policy.sampleLifetime);
+    emitterDesc.sampleSpacing = max(0.001f, policy.sampleSpacing);
+    emitterDesc.curveSubdivision = max(0u, policy.curveSubdivision);
+    emitterDesc.smoothTangent = policy.smoothTangent;
+    emitterDesc.maxLength = max(0.f, policy.maxLength);
+    emitterDesc.stampSpawnMode =
+        policy.stampSpawnMode == SourceHistorySpriteTrailStampSpawnMode::Time
+        ? EffectSourceHistorySpriteTrailStampSpawnMode::Time
+        : EffectSourceHistorySpriteTrailStampSpawnMode::Distance;
+    emitterDesc.stampSpacing = max(0.001f, policy.stampSpacing);
+    emitterDesc.stampInterval = max(0.001f, policy.stampInterval);
+    emitterDesc.maxStampCount = max(1u, policy.maxStampCount);
+    emitterDesc.cardLength = max(0.001f, policy.cardLength);
+    emitterDesc.cardWidth = max(0.001f, policy.cardWidth);
+    emitterDesc.flipU = policy.flipU;
+    emitterDesc.flipV = policy.flipV;
+    emitterDesc.rotationOffsetDegrees = policy.rotationOffsetDegrees;
+    emitterDesc.spawnJitter = max(0.f, policy.spawnJitter);
+    emitterDesc.sourcePointSampleProvider = _sourceHistorySpriteTrailPreviewSampleProvider;
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        emitterDesc.spriteRender.screenAlignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
+        emitterDesc.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
+        emitterDesc.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
+        emitterDesc.spriteRender.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
+
+        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortLayer = required->sortLayer;
+        emitterDesc.sort.artistSortBias = required->sortBias;
+
+        emitterDesc.playback.duration = max(0.0001f, required->duration);
+        emitterDesc.playback.loopCount = required->loopCount;
+        emitterDesc.playback.delay = max(0.f, required->delay);
+        emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        emitterDesc.playback.killOnDeactivate = required->killOnDeactivate;
+        emitterDesc.playback.killOnCompleted = required->killOnCompleted;
+        emitterDesc.drawLimit.useMaxDrawCount = required->useMaxDrawCount;
+        emitterDesc.drawLimit.maxDrawCount = max(1u, required->maxDrawCount);
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+    }
+
+    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+    {
+        emitterDesc.initialSize.enabled = true;
+        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, emitterDesc.initialSize.sizeMin);
+        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, emitterDesc.initialSize.sizeMax);
+        emitterDesc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
+        emitterDesc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+        emitterDesc.initialSize.sizeSeed = Internal::Build_RandomSeedDesc(initialSize->size);
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        emitterDesc.useLifetimeStampLifetime = true;
+        emitterDesc.lifetime.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+        };
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMin.x,
+                emitterDesc.initialColor.startColorMin.y,
+                emitterDesc.initialColor.startColorMin.z,
+                emitterDesc.initialColor.startColorMin.w
+            }
+        );
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMax.x,
+                emitterDesc.initialColor.startColorMax.y,
+                emitterDesc.initialColor.startColorMax.z,
+                emitterDesc.initialColor.startColorMax.w
+            }
+        );
+        const float minAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
+        emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMin.x,
+                emitterDesc.colorOverLife.endColorMin.y,
+                emitterDesc.colorOverLife.endColorMin.z,
+                emitterDesc.colorOverLife.endColorMin.w
+            }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMax.x,
+                emitterDesc.colorOverLife.endColorMax.y,
+                emitterDesc.colorOverLife.endColorMax.z,
+                emitterDesc.colorOverLife.endColorMax.w
+            }
+        );
+        const float minEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+    }
+
+    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    {
+        emitterDesc.subUVFrameOverLife.enabled = true;
+        emitterDesc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
+        emitterDesc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
+        emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+        emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
+        emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
+
+        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        {
+            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
+            emitterDesc.subUVFrameOverLife.startFrame = min(emitterDesc.subUVFrameOverLife.startFrame, lastFrame);
+            emitterDesc.subUVFrameOverLife.endFrame = min(emitterDesc.subUVFrameOverLife.endFrame, lastFrame);
+
+            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
+                emitterDesc.subUVFrameOverLife.endFrame = lastFrame;
+        }
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+
+    const auto* pathReplay = Internal::Find_ModuleData<SourceHistorySpriteTrailPathReplayModuleData>(
+        emitter,
+        AuthoringModuleType::SourceHistorySpriteTrailPathReplay
+    );
+
+    if (pathReplay != nullptr)
+    {
+        emitterDesc.pathReplay.enabled = true;
+        emitterDesc.pathReplay.delayTime = max(0.f, pathReplay->delayTime);
+        emitterDesc.pathReplay.replayMode = Internal::Resolve_SourceHistorySpriteTrailPathReplayMode(pathReplay->replayMode);
+        emitterDesc.pathReplay.speedScale = max(0.f, pathReplay->speedScale);
+        emitterDesc.pathReplay.drainDuration = max(0.0001f, pathReplay->drainDuration);
+        Internal::Fill_FloatCurvePayload(emitterDesc.pathReplay.drainCurve, pathReplay->drainCurve, 1.f);
+        emitterDesc.pathReplay.startMode = Internal::Resolve_SourceHistorySpriteTrailPathReplayStartMode(pathReplay->startMode);
+        emitterDesc.pathReplay.arrivalMode = Internal::Resolve_SourceHistorySpriteTrailArrivalMode(pathReplay->arrivalMode);
+    }
+
+    if (pathReplay == nullptr)
+    {
+        if (const auto* pathFollow = Internal::Find_ModuleData<SourceHistorySpriteTrailPathFollowModuleData>(
+            emitter,
+            AuthoringModuleType::SourceHistorySpriteTrailPathFollow
+        ))
+        {
+            emitterDesc.pathFollow.enabled = true;
+            emitterDesc.pathFollow.direction = Internal::Resolve_SourceHistorySpriteTrailPathFollowDirection(pathFollow->direction);
+            emitterDesc.pathFollow.speed = Vec2{
+                max(0.f, Internal::Evaluate_FloatDistributionMin(pathFollow->speed, emitterDesc.pathFollow.speed.x)),
+                max(0.f, Internal::Evaluate_FloatDistributionMax(pathFollow->speed, emitterDesc.pathFollow.speed.y))
+            };
+            emitterDesc.pathFollow.speedSeed = Internal::Build_RandomSeedDesc(pathFollow->speed);
+            emitterDesc.pathFollow.startDelay = Vec2{
+                max(0.f, Internal::Evaluate_FloatDistributionMin(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.x)),
+                max(0.f, Internal::Evaluate_FloatDistributionMax(pathFollow->startDelay, emitterDesc.pathFollow.startDelay.y))
+            };
+            emitterDesc.pathFollow.startDelaySeed = Internal::Build_RandomSeedDesc(pathFollow->startDelay);
+            emitterDesc.pathFollow.arrivalMode = Internal::Resolve_SourceHistorySpriteTrailArrivalMode(pathFollow->arrivalMode);
+        }
+    }
+
+    if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
+    {
+        emitterDesc.motion.enabled = true;
+        emitterDesc.motion.initialVelocityEnabled = true;
+        emitterDesc.motion.initialVelocityInWorldSpace = initialVelocity->inWorldSpace;
+        emitterDesc.motion.initialVelocityMin =
+            Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, emitterDesc.motion.initialVelocityMin);
+        emitterDesc.motion.initialVelocityMax =
+            Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, emitterDesc.motion.initialVelocityMax);
+        emitterDesc.motion.initialVelocitySeed = Internal::Build_RandomSeedDesc(initialVelocity->velocity);
+    }
+
+    if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::InitialRadialVelocity
+    ))
+    {
+        emitterDesc.motion.enabled = true;
+        emitterDesc.motion.initialRadialVelocityEnabled = true;
+        emitterDesc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
+        emitterDesc.motion.radialPivot = initialRadialVelocity->radialPivot;
+        emitterDesc.motion.initialRadialVelocityCenterDirectionMode =
+            Internal::Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
+        emitterDesc.motion.radialSpeed = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
+            Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)
+        };
+        emitterDesc.motion.initialRadialVelocitySeed = Internal::Build_RandomSeedDesc(initialRadialVelocity->speed);
+    }
+
+    if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+    {
+        Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
+        emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
+    {
+        emitterDesc.motion.enabled = true;
+        emitterDesc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
+        emitterDesc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
+        Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
+        emitterDesc.motion.accelerationSeed = Internal::Build_RandomSeedDesc(acceleration->acceleration);
+    }
+
+    if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
+    {
+        emitterDesc.motion.enabled = true;
+        emitterDesc.motion.drag = Vec2{
+            max(0.f, Internal::Evaluate_FloatDistributionMin(drag->drag, emitterDesc.motion.drag.x)),
+            max(0.f, Internal::Evaluate_FloatDistributionMax(drag->drag, emitterDesc.motion.drag.y))
+        };
+        emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
+    }
+
+    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
+    {
+        emitterDesc.motion.enabled = true;
+        Internal::Fill_VelocityScaleByLifePayload(emitterDesc.motion, velocityOverLife->scaleOverLife);
+    }
+
+    if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
+    {
+        emitterDesc.rotation.enabled = true;
+        emitterDesc.rotation.initialRotationDegrees = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.x),
+            Internal::Evaluate_FloatDistributionMax(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.y)
+        };
+        emitterDesc.rotation.initialRotationSeed = Internal::Build_RandomSeedDesc(initialRotation->rotationDegrees);
+    }
+
+    if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
+    {
+        emitterDesc.rotation.enabled = true;
+        Internal::Fill_RotationOverLifePayload(emitterDesc.rotation, *rotationOverLife);
+    }
+
+    if (const auto* initialRotationRate = Internal::Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))
+    {
+        emitterDesc.rotation.enabled = true;
+        emitterDesc.rotation.initialRotationRateDegrees = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.x),
+            Internal::Evaluate_FloatDistributionMax(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.y)
+        };
+        emitterDesc.rotation.initialRotationRateSeed = Internal::Build_RandomSeedDesc(initialRotationRate->rotationRateDegrees);
+    }
+
+    if (const auto* rotationRateScaleByLife = Internal::Find_ModuleData<RotationRateScaleByLifeModuleData>(
+        emitter,
+        AuthoringModuleType::RotationRateScaleByLife
+    ))
+    {
+        emitterDesc.rotation.enabled = true;
+        Internal::Fill_RotationRateScaleByLifePayload(emitterDesc.rotation, *rotationRateScaleByLife);
+    }
+
+    definition.concreteDesc = emitterDesc;
+    return definition;
+}
+
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::Beam;
+    definition.enabled = emitter.enabled;
+    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+
+    ComputeBeamEmitterDesc emitterDesc{};
+    emitterDesc.renderLayerOverride = definition.renderLayerOverride;
+
+    const BeamTypeData* beamData = get_if<BeamTypeData>(&emitter.typeData.payload);
+    const BeamTypeData defaultBeamData{};
+    const BeamTypeData& beamPolicy = beamData != nullptr ? *beamData : defaultBeamData;
+
+    emitterDesc.endpointMode = beamPolicy.endpointMode == BeamEndpointMode::DirectionLength
+                               ? EffectBeamEndpointMode::DirectionLength
+                               : EffectBeamEndpointMode::StartEnd;
+    emitterDesc.localStart = beamPolicy.localStart;
+    emitterDesc.localEnd = beamPolicy.localEnd;
+    emitterDesc.localDirection = beamPolicy.localDirection;
+    emitterDesc.length = max(0.f, beamPolicy.length);
+    emitterDesc.segmentCount = max(1u, beamPolicy.segmentCount);
+    emitterDesc.noiseAmplitude = max(0.f, beamPolicy.noiseAmplitude);
+    emitterDesc.seed = beamPolicy.seed;
+    emitterDesc.stripCount = max(1u, beamPolicy.stripCount);
+    emitterDesc.endSpreadRadius = max(0.f, beamPolicy.endSpreadRadius);
+    emitterDesc.lengthVariance = max(0.f, beamPolicy.lengthVariance);
+    switch (beamPolicy.branchPreset)
+    {
+    case BeamBranchPreset::DownStrike:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::DownStrike;
+        break;
+    case BeamBranchPreset::Entangle:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::Entangle;
+        break;
+    case BeamBranchPreset::ShortCrack:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::ShortCrack;
+        break;
+    case BeamBranchPreset::EndGuided:
+    default:
+        emitterDesc.branchPreset = EffectBeamBranchPreset::EndGuided;
+        break;
+    }
+    emitterDesc.branchEnabled = beamPolicy.branchEnabled;
+    emitterDesc.branchCount = beamPolicy.branchCount;
+    emitterDesc.branchChance = clamp(beamPolicy.branchChance, 0.f, 1.f);
+    emitterDesc.branchSegmentCount = max(1u, beamPolicy.branchSegmentCount);
+    emitterDesc.branchLength = max(0.f, beamPolicy.branchLength);
+    emitterDesc.branchLengthVariance = max(0.f, beamPolicy.branchLengthVariance);
+    emitterDesc.branchStartMin = clamp(beamPolicy.branchStartMin, 0.f, 1.f);
+    emitterDesc.branchStartMax = clamp(beamPolicy.branchStartMax, 0.f, 1.f);
+    if (emitterDesc.branchStartMin > emitterDesc.branchStartMax)
+        swap(emitterDesc.branchStartMin, emitterDesc.branchStartMax);
+    emitterDesc.branchSpreadRadius = max(0.f, beamPolicy.branchSpreadRadius);
+    emitterDesc.branchEndSpreadRadius = max(0.f, beamPolicy.branchEndSpreadRadius);
+    emitterDesc.branchOutwardAmount = max(0.f, beamPolicy.branchOutwardAmount);
+    emitterDesc.branchCurveAmount = max(0.f, beamPolicy.branchCurveAmount);
+    emitterDesc.branchDownLength = max(0.f, beamPolicy.branchDownLength);
+    emitterDesc.branchEntangleRadius = max(0.f, beamPolicy.branchEntangleRadius);
+    emitterDesc.branchEntangleAdvance = max(0.f, beamPolicy.branchEntangleAdvance);
+    emitterDesc.branchCrackLength = max(0.f, beamPolicy.branchCrackLength);
+    emitterDesc.branchCrackSpreadRadius = max(0.f, beamPolicy.branchCrackSpreadRadius);
+    emitterDesc.branchWidthScale = max(0.f, beamPolicy.branchWidthScale);
+    emitterDesc.branchSeedOffset = beamPolicy.branchSeedOffset;
+    emitterDesc.baseWidth = max(0.001f, beamPolicy.baseWidth);
+    emitterDesc.tilingDistance = max(0.f, beamPolicy.tilingDistance);
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortLayer = required->sortLayer;
+        emitterDesc.sort.artistSortBias = required->sortBias;
+        emitterDesc.playback.duration = max(0.0001f, required->duration);
+        emitterDesc.playback.loopCount = required->loopCount;
+        emitterDesc.playback.delay = max(0.f, required->delay);
+        emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        emitterDesc.playback.killOnDeactivate = required->killOnDeactivate;
+        emitterDesc.playback.killOnCompleted = required->killOnCompleted;
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        emitterDesc.useLifetimeVisualLife = true;
+        emitterDesc.lifetime.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+        };
+        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
+        const float minAlpha = clamp(Internal::Evaluate_FloatDistributionMin(initialColor->alpha, 1.f), 0.f, 1.f);
+        const float maxAlpha = clamp(Internal::Evaluate_FloatDistributionMax(initialColor->alpha, 1.f), 0.f, 1.f);
+        emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
+        emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMin.x,
+                emitterDesc.colorOverLife.endColorMin.y,
+                emitterDesc.colorOverLife.endColorMin.z,
+                emitterDesc.colorOverLife.endColorMin.w
+            }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMax.x,
+                emitterDesc.colorOverLife.endColorMax.y,
+                emitterDesc.colorOverLife.endColorMax.z,
+                emitterDesc.colorOverLife.endColorMax.w
+            }
+        );
+        const float minEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+    }
+
+    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    {
+        emitterDesc.subUVFrameOverLife.enabled = true;
+        emitterDesc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
+        emitterDesc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
+        emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+        emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
+        emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        emitterDesc.usePerStripSubUVVariation = subUvFrameOverLife->perStripSubUVVariation;
+        Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+            (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::FramesPerSecond && subUvFrameOverLife->perStripSubUVVariation))
+            emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
+
+        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        {
+            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
+            emitterDesc.subUVFrameOverLife.startFrame = min(emitterDesc.subUVFrameOverLife.startFrame, lastFrame);
+            emitterDesc.subUVFrameOverLife.endFrame = min(emitterDesc.subUVFrameOverLife.endFrame, lastFrame);
+
+            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
+                emitterDesc.subUVFrameOverLife.endFrame = lastFrame;
+        }
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+
     definition.concreteDesc = emitterDesc;
     return definition;
 }
@@ -2096,23 +2944,13 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.modelPath = meshData->modelPath;
         emitterDesc.previewScale = meshData->previewScale;
         emitterDesc.useModelMaterials = meshData->useModelMaterials;
-
-        if (meshData->hasAssignedMaterialInstance)
-            Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
-        else
-        {
-            const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
-                meshData->assignedEffectMaterialGuid,
-                meshData->assignedEffectMaterialPath
-            );
-            EffectMaterialInstanceData assignedMaterial{};
-            if (!assignedMaterialPath.empty() && EffectMaterialPresetReader::Read(assignedMaterialPath, assignedMaterial))
-                Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(assignedMaterial, emitterDesc.material);
-        }
     }
 
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
+    if (required != nullptr)
     {
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
         emitterDesc.playback.delay = max(0.f, required->delay);
@@ -2126,8 +2964,6 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
         emitterDesc.sort.artistSortBias = required->sortBias;
-        emitterDesc.material.blendMode = required->material.blendMode;
-        emitterDesc.material.alphaCutoff = required->material.alphaCutoff;
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -2143,6 +2979,28 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         emitterDesc.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+    }
+
+    if (const auto* meshData = get_if<MeshTypeData>(&emitter.typeData.payload))
+    {
+        if (meshData->hasAssignedMaterialInstance)
+            EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
+        else
+        {
+            const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
+                meshData->assignedEffectMaterialGuid,
+                meshData->assignedEffectMaterialPath
+            );
+            EffectMaterialInstanceData assignedMaterial{};
+            if (!assignedMaterialPath.empty() && EffectMaterialPresetReader::Read(assignedMaterialPath, assignedMaterial))
+                EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(assignedMaterial, emitterDesc.material);
+        }
+    }
+
+    if (required != nullptr)
+    {
+        emitterDesc.material.blendMode = required->material.blendMode;
+        emitterDesc.material.alphaCutoff = required->material.alphaCutoff;
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
@@ -2238,6 +3096,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
     }
 
     if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
@@ -2564,8 +3423,6 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
         return E_FAIL;
     }
 
-    _trailPreviewSampleProvider = trailPreviewWeapon;
-
     TrailPreviewController::PreviewDesc controllerDesc{};
     controllerDesc.player = trailPreviewPlayer;
 
@@ -2574,8 +3431,161 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     CHECK_NULL(trailPreviewController, E_FAIL);
     CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewController), E_FAIL);
+    _trailPreviewController = trailPreviewController;
+
+    _trailPreviewSampleProvider = trailPreviewWeapon;
+    _sourceHistoryPreviewSampleProvider =
+        make_shared<Internal::SourceHistoryPreviewSampleProvider>(trailPreviewWeapon, trailPreviewController, false);
+    _sourceHistorySpriteTrailPreviewSampleProvider =
+        make_shared<Internal::SourceHistoryPreviewSampleProvider>(trailPreviewWeapon, trailPreviewController, true);
 
     return S_OK;
+}
+
+void Level_EffectEditor::Update_PreviewTrailStrokes(float timeDelta)
+{
+    if (EDITOR->Get_TrailPreviewGateMode() != TrailPreviewGateMode::Window ||
+        !EDITOR->Is_TrailPreviewVisible() ||
+        _currentPreviewTrailDefinition == nullptr)
+    {
+        Clear_PreviewTrailStrokes();
+        _wasTrailPreviewGateOpen = false;
+        _hasTrailPreviewSourceRatio = false;
+        return;
+    }
+
+    if (fabs(EDITOR->Get_TrailPreviewGateEndRatio() - EDITOR->Get_TrailPreviewGateStartRatio()) <= 0.0001f)
+    {
+        Drain_ActivePreviewTrailStrokes();
+        _wasTrailPreviewGateOpen = false;
+        _hasTrailPreviewSourceRatio = false;
+    }
+    else
+    {
+        float sourceRatio = 0.f;
+        const Shared<TrailPreviewController> trailPreviewController = _trailPreviewController.lock();
+        const bool hasSourceRatio =
+            trailPreviewController != nullptr &&
+            trailPreviewController->Try_GetAttackAnimationRatio(sourceRatio);
+
+        if (!hasSourceRatio)
+        {
+            Drain_ActivePreviewTrailStrokes();
+            _wasTrailPreviewGateOpen = false;
+            _hasTrailPreviewSourceRatio = false;
+        }
+        else
+        {
+            const bool gateOpen = EDITOR->Is_TrailPreviewGateOpen(sourceRatio);
+            if (gateOpen && !_wasTrailPreviewGateOpen)
+            {
+                if (FAILED(Start_PreviewTrailStroke()))
+                    LOG_WARN("[EffectEditor] Failed to start trail preview stroke.");
+            }
+            else if (!gateOpen && _wasTrailPreviewGateOpen)
+                Drain_ActivePreviewTrailStrokes();
+
+            _wasTrailPreviewGateOpen = gateOpen;
+            _lastTrailPreviewSourceRatio = sourceRatio;
+            _hasTrailPreviewSourceRatio = true;
+        }
+    }
+
+    const float safeTimeDelta = max(0.f, timeDelta);
+    for (int32 runtimeIndex = static_cast<int32>(_previewTrailStrokes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        PreviewTrailStrokeRuntime& runtime = _previewTrailStrokes[runtimeIndex];
+        if (!runtime.isDraining)
+            continue;
+
+        runtime.drainElapsed += safeTimeDelta;
+        if (runtime.drainElapsed < runtime.drainDuration)
+            continue;
+
+        EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+        if (effectPool != nullptr)
+            effectPool->Release(runtime.poolHandle);
+
+        _previewTrailStrokes.erase(_previewTrailStrokes.begin() + runtimeIndex);
+    }
+}
+
+HRESULT Level_EffectEditor::Start_PreviewTrailStroke()
+{
+    CHECK_NULL(_currentPreviewTrailDefinition, E_FAIL);
+
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
+
+    PreviewTrailStrokeRuntime runtime{};
+    runtime.sampleEnabled = make_shared<bool>(true);
+    runtime.sampleProvider = make_shared<Internal::TrailPreviewStrokeSampleProvider>(
+        _trailPreviewSampleProvider,
+        runtime.sampleEnabled
+    );
+    CHECK_NULL(runtime.sampleProvider, E_FAIL);
+    runtime.drainDuration = Internal::Resolve_TrailStrokeDrainDuration(_currentPreviewTrailDefinition);
+
+    EffectTrailSample initialSample{};
+    if (runtime.sampleProvider->Try_GetTrailSample(initialSample))
+    {
+        EffectInstancePool::AcquireDesc acquireDesc{};
+        acquireDesc.worldPosition = initialSample.baseWorldPosition;
+        acquireDesc.effectName = Internal::kPreviewTrailStrokePoolKey;
+        acquireDesc.definition = _currentPreviewTrailDefinition;
+        acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
+        acquireDesc.layerTag = kPreviewLayerTag;
+        acquireDesc.trailSampleProvider = runtime.sampleProvider;
+
+        CHECK_FAILED(effectPool->Acquire(acquireDesc, runtime.poolHandle), E_FAIL);
+        _previewTrailStrokes.push_back(std::move(runtime));
+        return S_OK;
+    }
+
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = Internal::kPreviewTrailStrokePoolKey;
+    acquireDesc.definition = _currentPreviewTrailDefinition;
+    acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
+    acquireDesc.layerTag = kPreviewLayerTag;
+    acquireDesc.trailSampleProvider = runtime.sampleProvider;
+
+    CHECK_FAILED(effectPool->Acquire(acquireDesc, runtime.poolHandle), E_FAIL);
+    _previewTrailStrokes.push_back(std::move(runtime));
+    return S_OK;
+}
+
+void Level_EffectEditor::Begin_PreviewTrailStrokeDrain(PreviewTrailStrokeRuntime& runtime)
+{
+    if (runtime.isDraining)
+        return;
+
+    if (runtime.sampleEnabled != nullptr)
+        *runtime.sampleEnabled = false;
+
+    runtime.isDraining = true;
+    runtime.drainElapsed = 0.f;
+}
+
+void Level_EffectEditor::Drain_ActivePreviewTrailStrokes()
+{
+    for (PreviewTrailStrokeRuntime& runtime : _previewTrailStrokes)
+        Begin_PreviewTrailStrokeDrain(runtime);
+}
+
+void Level_EffectEditor::Clear_PreviewTrailStrokes()
+{
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+
+    if (effectPool != nullptr)
+    {
+        for (const PreviewTrailStrokeRuntime& runtime : _previewTrailStrokes)
+            effectPool->Release(runtime.poolHandle);
+    }
+
+    _previewTrailStrokes.clear();
+    _wasTrailPreviewGateOpen = false;
+    _lastTrailPreviewSourceRatio = 0.f;
+    _hasTrailPreviewSourceRatio = false;
 }
 
 void Level_EffectEditor::Clear_PreviewObjects()
@@ -2584,9 +3594,11 @@ void Level_EffectEditor::Clear_PreviewObjects()
     if (nullptr == effectPool)
         return;
 
+    Clear_PreviewTrailStrokes();
     effectPool->Release(_previewPoolHandle);
     _previewPoolHandle = {};
     effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
+    effectPool->Discard_Inactive(Internal::kPreviewTrailStrokePoolKey);
 }
 
 Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

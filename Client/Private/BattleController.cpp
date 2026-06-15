@@ -1698,6 +1698,7 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
 
     if (info.damage > 0.f && info.target.actor)
     {
+        _reactionController.Notify_TargetDamaged(info.target);
         HitAction(info.target, info.attackType, info.isCritical);
     }
 

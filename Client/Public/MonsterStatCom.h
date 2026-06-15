@@ -27,6 +27,8 @@ public:
 
         EEnemyClass enemyClass = EEnemyClass::Normal;
 
+        float battleRunMoveSpeed = 0.f;
+
         float breakBarHPPercent = 120.f;
         float breakBarStunDuration = 1.f;
 
@@ -69,6 +71,8 @@ public:
 
     float Get_CriticalRatio() const { return _monsterDesc._criticalRatio; }
     float Get_MidRatio() const { return _monsterDesc._midRatio; }
+    float Get_BattleRunMoveSpeed() const { return _monsterDesc.battleRunMoveSpeed; }
+    void Set_BattleRunMoveSpeed(float value) { _monsterDesc.battleRunMoveSpeed = (value < 0.f) ? 0.f : value; }
 
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }

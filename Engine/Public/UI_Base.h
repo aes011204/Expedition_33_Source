@@ -35,6 +35,7 @@ public:
 
     virtual void Update(float TimeDelta);
     virtual HRESULT Render();
+    void Notify_EffectiveOpenState(bool isEffectivelyOpen);
     bool Play_UIAnimation(const wstring& animationName, bool restart = true); // 붙어 있는 keyframe animation asset 중 이름으로 골라 재생
     void Stop_UIAnimation();                                                   // 현재 재생 중인 UI animation 정지
     void Add_UIAnimationAsset(const UI_KeyframeAnimationAsset& animationAsset);
@@ -59,6 +60,9 @@ public:
     void Refresh_OpenBaseTransform();
     virtual void Set_Color(const Vec4& color);
     virtual Vec4 Get_Color() const;
+    virtual void Set_PatternUvOffset(const Vec2& patternUvOffset);
+    virtual void Set_PatternUvScale(const Vec2& patternUvScale);
+    virtual void Set_FillRatio(float fillRatio);
     void Set_AlphaMultiplier(float alphaMultiplier);
     float Get_AlphaMultiplier() const { return _alphaMultiplier; }
     float Get_EffectiveAlphaMultiplier() const;
@@ -67,6 +71,7 @@ public:
 
 protected:
     Vec4 Get_EffectiveRenderColor(const Vec4& color) const;
+    virtual void On_EffectiveOpenChanged(bool isEffectivelyOpen);
 
 protected:
     Unique<UI_Transform> _transform{};
@@ -81,6 +86,7 @@ protected:
     float _openBaseRotationRadians{ 0.f };
     float _openBaseAlphaMultiplier{ 1.f };
     bool _hasOpenBaseTransform{ false };
+    bool _lastEffectiveOpen{ false };
 
     UI_RenderGroup _renderGroup { UI_RenderGroup::Foreground };
 

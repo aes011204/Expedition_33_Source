@@ -506,6 +506,8 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
         parseTextureOverride("base_color", inst.baseColor);
         parseTextureOverride("normal", inst.normal);
         parseTextureOverride("orm", inst.orm);
+        parseTextureOverride("orm2", inst.orm2);
+        parseTextureOverride("orm3", inst.orm3);
         parseTextureOverride("emissive", inst.emissive);
         parseTextureOverride("opacity_mask", inst.opacityMask);
 
@@ -551,6 +553,8 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
             else if (slotName == "Emissive")    slot = MaterialTextureSlot::Emissive;
             else if (slotName == "OpacityMask") slot = MaterialTextureSlot::OpacityMask;
             else if (slotName == "ORM")         slot = MaterialTextureSlot::ORM;
+            else if (slotName == "ORM2")        slot = MaterialTextureSlot::ORM2;
+            else if (slotName == "ORM3")        slot = MaterialTextureSlot::ORM3;
             else if (slotName == "HairDepth")   slot = MaterialTextureSlot::HairDepth;
             else if (slotName == "HairID")      slot = MaterialTextureSlot::HairID;
             else if (slotName == "IrisHeight")  slot = MaterialTextureSlot::IrisHeight;
@@ -584,6 +588,8 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         if (slot == MaterialTextureSlot::BaseColor) target = &inst.baseColor;
         else if (slot == MaterialTextureSlot::Normal) target = &inst.normal;
         else if (slot == MaterialTextureSlot::ORM) target = &inst.orm;
+        else if (slot == MaterialTextureSlot::ORM2) target = &inst.orm2;
+        else if (slot == MaterialTextureSlot::ORM3) target = &inst.orm3;
         else if (slot == MaterialTextureSlot::Emissive) target = &inst.emissive;
         else if (slot == MaterialTextureSlot::OpacityMask) target = &inst.opacityMask;
         else if (slot == MaterialTextureSlot::HairDepth) target = &inst.hairDepth;

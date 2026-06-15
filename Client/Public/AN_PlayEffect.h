@@ -26,6 +26,9 @@ private:
     Vec3                        _localOffset = Vec3::Zero;
     Vec3                        _localRotation = Vec3::Zero;
     Vec3                        _scale = Vec3::One;
+    bool                        _inheritPosition = true;
+    bool                        _inheritRotation = true;
+    bool                        _inheritScale = false;
 };
 
 NS_END

@@ -150,21 +150,31 @@ PS_OUT PS_PATTERN_OVERLAY(PS_IN In)
     return Out;
 }
 
+float Compute_FillVisible(float2 uv)
+{
+    if (g_FillOrigin == 0)
+        return step(uv.x, g_FillRatio);
+    if (g_FillOrigin == 1)
+        return step(1.0f - g_FillRatio, uv.x);
+    if (g_FillOrigin == 2)
+        return step(uv.y, g_FillRatio);
+
+    return step(1.0f - g_FillRatio, uv.y);
+}
+
+PS_OUT PS_PATTERN_OVERLAY_FILL_RATIO(PS_IN In)
+{
+    PS_OUT Out = PS_PATTERN_OVERLAY(In);
+    Out.vColor.a *= Compute_FillVisible(In.vTexcoord);
+    return Out;
+}
+
 PS_OUT PS_FILL_RATIO(PS_IN In)
 {
     PS_OUT Out;
 
     float2 uv = In.vTexcoord;
-    float visible = 1.0f;
-
-    if (g_FillOrigin == 0)
-        visible = step(uv.x, g_FillRatio);
-    else if (g_FillOrigin == 1)
-        visible = step(1.0f - g_FillRatio, uv.x);
-    else if (g_FillOrigin == 2)
-        visible = step(uv.y, g_FillRatio);
-    else
-        visible = step(1.0f - g_FillRatio, uv.y);
+    float visible = Compute_FillVisible(uv);
 
     Out.vColor = g_Texture.Sample(LinearClampSampler, uv) * g_Color;
     Out.vColor.a *= visible;
@@ -180,4 +190,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(PatternOverlayPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY) // 3
     PASS_RS_DS_BS_VP(FillRatioPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_FILL_RATIO) // 4
     PASS_RS_DS_BS_VP(BlackWhiteMaskPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_BLACK_WHITE_MASK) // 5
+    PASS_RS_DS_BS_VP(PatternOverlayFillRatioPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY_FILL_RATIO) // 6
 }

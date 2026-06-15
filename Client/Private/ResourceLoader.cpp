@@ -4,8 +4,8 @@
 #include "Body_Player.h"
 #include "ColliderCom.h"
 #include "Component.h"
-#include "ComputeSpriteEmitter.h"
 #include "ComputeShaderCom.h"
+#include "ComputeSpriteEmitter.h"
 #include "FreeCamera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -21,70 +21,34 @@
 #include "VIBuffer_Terrain.h"
 
 namespace fs = std::filesystem;
+
 namespace
 {
-    struct EffectMeshInstanceLayout
+string Get_TableLabel(const wstring& tablePath)
+{
+    return fs::path(tablePath).filename().string();
+}
+
+void Log_TableWarning(const char* action, const wstring& tablePath)
+{
+    LOG_WARN("Skipping DT table {}: {}", action, Get_TableLabel(tablePath));
+}
+
+string FormatDuration(chrono::milliseconds duration)
+{
+    const auto ms = duration.count();
+
+    if (ms >= 1000)
     {
-        static constexpr uint32 numElements = 11;
-
-        static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "INST_WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "INST_WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "INST_WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "INST_WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "INST_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "INST_LIFE", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-        };
-    };
-
-    struct RibbonInstanceLayout
-    {
-        static constexpr uint32 numElements = 10; // ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
-
-        static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-            { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-        };
-    };
-
-    string Get_TableLabel(const wstring& tablePath)
-    {
-        return fs::path(tablePath).filename().string();
+        ostringstream oss;
+        oss.setf(ios_base::fixed);
+        oss.precision(ms < 10000 ? 1 : 0);
+        oss << static_cast<double>(ms) / 1000.0 << " seconds";
+        return oss.str();
     }
 
-    void Log_TableWarning(const char* action, const wstring& tablePath)
-    {
-        LOG_WARN("Skipping DT table {}: {}", action, Get_TableLabel(tablePath));
-    }
-
-    string FormatDuration(chrono::milliseconds duration)
-    {
-        const auto ms = duration.count();
-
-        if (ms >= 1000)
-        {
-            ostringstream oss;
-            oss.setf(ios_base::fixed);
-            oss.precision(ms < 10000 ? 1 : 0);
-            oss << static_cast<double>(ms) / 1000.0 << " seconds";
-            return oss.str();
-        }
-
-        return to_string(ms) + " milliseconds";
-    }
+    return to_string(ms) + " milliseconds";
+}
 }
 
 class ResourceLoaderPathHelpers final
@@ -227,8 +191,8 @@ HRESULT ResourceLoader::Load_LevelTables(LevelType eLevel, const wstring& strJso
 {
     vector<FLoadJob> LoadJobs;
     const fs::path jsonRootPath = strJsonRootPath.empty()
-        ? fs::path(Get_DefaultJsonRootPath())
-        : fs::path(Resolve_RuntimePath(strJsonRootPath));
+                                  ? fs::path(Get_DefaultJsonRootPath())
+                                  : fs::path(Resolve_RuntimePath(strJsonRootPath));
 
     if (FAILED(Build_TextureJobs((jsonRootPath / L"DT_Texture.json").wstring(), LoadJobs)))
         Log_TableWarning("build failed", (jsonRootPath / L"DT_Texture.json").wstring());
@@ -330,9 +294,9 @@ HRESULT ResourceLoader::Build_ShaderJobs(const wstring& strTablePath, vector<FLo
             continue;
 
         FLoadJob LoadJob = {};
-        LoadJob.eType = ("Compute" == strInputLayout || "COMPUTE" == strInputLayout)
-            ? ELoadJobType::ComputeShader
-            : ELoadJobType::Shader;
+        LoadJob.eType = "Compute" == strInputLayout || "COMPUTE" == strInputLayout
+                        ? ELoadJobType::ComputeShader
+                        : ELoadJobType::Shader;
         LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
         LoadJob.strPrototypeTag = String::ToWString(strId);
         LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
@@ -508,8 +472,8 @@ HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& o
     const auto start = chrono::steady_clock::now();
 
     const fs::path jsonRootPath = strJsonRootPath.empty()
-        ? fs::path(Get_DefaultJsonRootPath())
-        : fs::path(Resolve_RuntimePath(strJsonRootPath));
+                                  ? fs::path(Get_DefaultJsonRootPath())
+                                  : fs::path(Resolve_RuntimePath(strJsonRootPath));
 
     auto buildTable = [&](const wchar_t* fileName, auto buildFunc)
     {
@@ -545,12 +509,15 @@ HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& o
     outJobs = std::move(filteredJobs);
 
     const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
-        chrono::steady_clock::now() - start);
+        chrono::steady_clock::now() - start
+    );
 
-    LOG_INFO("Built level jobs. level={}, jobCount={}, elapsed={}",
+    LOG_INFO(
+        "Built level jobs. level={}, jobCount={}, elapsed={}",
         targetLevel,
         static_cast<int>(outJobs.size()),
-        FormatDuration(elapsed));
+        FormatDuration(elapsed)
+    );
 
     return S_OK;
 }
@@ -560,8 +527,8 @@ HRESULT ResourceLoader::Build_LoadingUIRenderJobs(vector<FLoadJob>& outJobs, con
     outJobs.clear();
 
     const fs::path jsonRootPath = strJsonRootPath.empty()
-        ? fs::path(Get_DefaultJsonRootPath())
-        : fs::path(Resolve_RuntimePath(strJsonRootPath));
+                                  ? fs::path(Get_DefaultJsonRootPath())
+                                  : fs::path(Resolve_RuntimePath(strJsonRootPath));
 
     vector<FLoadJob> candidates;
 
@@ -611,6 +578,12 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     if ("RibbonInstance" == strName || "RIBBONINSTANCE" == strName)
         return { RibbonInstanceLayout::Elements, RibbonInstanceLayout::numElements, ShaderType::BillboardParticle };
 
+    if ("BeamInstance" == strName || "BEAMINSTANCE" == strName)
+        return { BeamInstanceLayout::Elements, BeamInstanceLayout::numElements, ShaderType::BillboardParticle };
+
+    if ("SourceHistorySpriteTrailInstance" == strName || "SOURCEHISTORYSPRITETRAILINSTANCE" == strName)
+        return { SourceHistorySpriteTrailInstanceLayout::Elements, SourceHistorySpriteTrailInstanceLayout::numElements, ShaderType::BillboardParticle };
+
     // Mesh Instance (roughly)
     if ("VTXMESHINST" == strName || "VtxMeshInst" == strName || "vtxmeshinst" == strName)
         return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh };
@@ -623,6 +596,184 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
         return { EffectMeshInstanceLayout::Elements, EffectMeshInstanceLayout::numElements, ShaderType::VtxInstanceMeshExact };
 
     return { VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex };
+}
+
+HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& loadJob)
+{
+    if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
+        return S_OK;
+
+    Shared<Base> prototype = nullptr;
+
+    CHECK_FAILED(Create_LoadJobPrototype(loadJob, prototype), E_FAIL);
+    CHECK_FAILED(Commit_LoadJobPrototype(loadJob, prototype), E_FAIL);
+
+    return S_OK;
+}
+
+bool ResourceLoader::Can_CreatePrototypeOnWorker(const FLoadJob& loadJob)
+{
+    switch (loadJob.eType)
+    {
+    case ELoadJobType::TextureCreate:
+    case ELoadJobType::Shader:
+    case ELoadJobType::ComputeShader:
+    case ELoadJobType::Model:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<Base>& outPrototype)
+{
+    outPrototype = nullptr;
+
+    switch (loadJob.eType)
+    {
+    case ELoadJobType::TextureCreate:
+    {
+        outPrototype = Texture::Create(_device, _context, loadJob.strPath.c_str(), loadJob.iCount);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+        return S_OK;
+    }
+
+    case ELoadJobType::Shader:
+    {
+        const FInputLayoutInfo inputLayout = Get_InputLayout(loadJob.strInputLayout);
+
+        outPrototype = ShaderCom::Create(
+            _device,
+            _context,
+            loadJob.strPath.c_str(),
+            inputLayout.pElements,
+            inputLayout.iNumElements,
+            inputLayout.eShaderType
+        );
+
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+        return S_OK;
+    }
+
+    case ELoadJobType::ComputeShader:
+    {
+        outPrototype = ComputeShaderCom::Create(
+            _device,
+            _context,
+            loadJob.strPath.c_str(),
+            loadJob.strEntryPoint.c_str()
+        );
+
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+        return S_OK;
+    }
+
+    case ELoadJobType::Model:
+    {
+        const ModelType modelType =
+            "ANIM" == loadJob.strModelType || "Anim" == loadJob.strModelType
+            ? ModelType::Anim
+            : ModelType::NonAnim;
+
+        const XMMATRIX preLocalTransform =
+            XMMatrixScaling(loadJob.fScaleX, loadJob.fScaleY, loadJob.fScaleZ) *
+            XMMatrixRotationX(XMConvertToRadians(loadJob.fRotX)) *
+            XMMatrixRotationY(XMConvertToRadians(loadJob.fRotY)) *
+            XMMatrixRotationZ(XMConvertToRadians(loadJob.fRotZ));
+
+        const string modelPath = String::ToString(loadJob.strPath);
+
+        outPrototype = ModelCom::Create(
+            _device,
+            _context,
+            modelType,
+            modelPath.c_str(),
+            preLocalTransform
+        );
+
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+        return S_OK;
+    }
+
+    case ELoadJobType::GameObject:
+    {
+        if (loadJob.strClassName == "MeshEmitter")
+        {
+            const Shared<MeshEmitter> meshEmitter = MeshEmitter::Create(_device, _context);
+            outPrototype = static_pointer_cast<Base>(meshEmitter);
+            if (nullptr == outPrototype)
+                Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+            return S_OK;
+        }
+
+        const Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(loadJob.strClassName);
+        outPrototype = static_pointer_cast<Base>(gameObject);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+        return S_OK;
+    }
+
+    case ELoadJobType::Component:
+    {
+        if (loadJob.strClassName == "ColliderCom")
+        {
+            const Shared<ColliderCom> collider =
+                ColliderCom::Create(_device, _context, Get_Shape_FromPrototypeTag(loadJob.strPrototypeTag));
+
+            outPrototype = static_pointer_cast<Base>(collider);
+            if (nullptr == outPrototype)
+                Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+            return S_OK;
+        }
+
+        const Shared<Component> component = GAME->Create_ComponentPrototype(loadJob.strClassName);
+        outPrototype = static_pointer_cast<Base>(component);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+        return S_OK;
+    }
+
+    case ELoadJobType::StaticLevel:
+    {
+        outPrototype = Create_StaticPrototype(loadJob);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+        return S_OK;
+    }
+
+    default:
+        Log_LoadJobPrototypeFailure(loadJob, "unsupported job type");
+        return S_OK;
+    }
+}
+
+HRESULT ResourceLoader::Commit_LoadJobPrototype(const FLoadJob& loadJob, const Shared<Base>& prototype)
+{
+    // Loading UI가 미리 만든 Shader_UI / VIBuffer_Rect 같은 중복 등록 방지.
+    if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
+        return S_OK;
+
+    if (nullptr == prototype)
+        return S_OK;
+
+    if (FAILED(GAME->Add_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag, prototype)))
+    {
+        LOG_WARN(
+            "Skipping Add_Prototype failure. id='{}', type={}, level={}",
+            String::ToString(loadJob.strPrototypeTag),
+            string(magic_enum::enum_name(loadJob.eType)),
+            loadJob.iLevelIndex
+        );
+
+        return E_FAIL;
+    }
+
+    return S_OK;
 }
 
 HRESULT ResourceLoader::Load_Textures(const json& JsonData)
@@ -696,7 +847,13 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
 
         const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
         Shared<ShaderCom> pShader = ShaderCom::Create(
-            _device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements, InputLayout.eShaderType);
+            _device,
+            _context,
+            resolvedPath.c_str(),
+            InputLayout.pElements,
+            InputLayout.iNumElements,
+            InputLayout.eShaderType
+        );
         if (nullptr == pShader)
         {
             LOG_WARN("Skipping Shader prototype registration. id='{}', path='{}', type='{}'", strId, strPath, strInputLayout);
@@ -711,200 +868,6 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
     }
 
     return S_OK;
-}
-
-HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& loadJob)
-{
-    if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
-        return S_OK;
-
-    Shared<Base> prototype = nullptr;
-
-    CHECK_FAILED(Create_LoadJobPrototype(loadJob, prototype), E_FAIL);
-    CHECK_FAILED(Commit_LoadJobPrototype(loadJob, prototype), E_FAIL);
-
-    return S_OK;
-}
-
-bool ResourceLoader::Can_CreatePrototypeOnWorker(const FLoadJob& loadJob)
-{
-    switch (loadJob.eType)
-    {
-    case ELoadJobType::TextureCreate:
-    case ELoadJobType::Shader:
-    case ELoadJobType::ComputeShader:
-    case ELoadJobType::Model:
-        return true;
-
-    default:
-        return false;
-    }
-}
-
-HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<Base>& outPrototype)
-{
-    outPrototype = nullptr;
-
-    switch (loadJob.eType)
-    {
-    case ELoadJobType::TextureCreate:
-    {
-        outPrototype = Texture::Create(_device, _context, loadJob.strPath.c_str(), loadJob.iCount);
-        if (nullptr == outPrototype)
-            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-        return S_OK;
-    }
-
-    case ELoadJobType::Shader:
-    {
-        const FInputLayoutInfo inputLayout = Get_InputLayout(loadJob.strInputLayout);
-
-        outPrototype = ShaderCom::Create(
-            _device,
-            _context,
-            loadJob.strPath.c_str(),
-            inputLayout.pElements,
-            inputLayout.iNumElements,
-            inputLayout.eShaderType);
-
-        if (nullptr == outPrototype)
-            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-        return S_OK;
-    }
-
-    case ELoadJobType::ComputeShader:
-    {
-        outPrototype = ComputeShaderCom::Create(
-            _device,
-            _context,
-            loadJob.strPath.c_str(),
-            loadJob.strEntryPoint.c_str());
-
-        if (nullptr == outPrototype)
-            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-        return S_OK;
-    }
-
-    case ELoadJobType::Model:
-    {
-        const ModelType modelType =
-            ("ANIM" == loadJob.strModelType || "Anim" == loadJob.strModelType)
-            ? ModelType::Anim
-            : ModelType::NonAnim;
-
-        const XMMATRIX preLocalTransform =
-            XMMatrixScaling(loadJob.fScaleX, loadJob.fScaleY, loadJob.fScaleZ) *
-            XMMatrixRotationX(XMConvertToRadians(loadJob.fRotX)) *
-            XMMatrixRotationY(XMConvertToRadians(loadJob.fRotY)) *
-            XMMatrixRotationZ(XMConvertToRadians(loadJob.fRotZ));
-
-        const string modelPath = String::ToString(loadJob.strPath);
-
-        outPrototype = ModelCom::Create(
-            _device,
-            _context,
-            modelType,
-            modelPath.c_str(),
-            preLocalTransform);
-
-        if (nullptr == outPrototype)
-            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-        return S_OK;
-    }
-
-    case ELoadJobType::GameObject:
-    {
-        if (loadJob.strClassName == "MeshEmitter")
-        {
-            Shared<MeshEmitter> meshEmitter = MeshEmitter::Create(_device, _context);
-            outPrototype = static_pointer_cast<Base>(meshEmitter);
-            if (nullptr == outPrototype)
-                Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-            return S_OK;
-        }
-
-        Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(loadJob.strClassName);
-        outPrototype = static_pointer_cast<Base>(gameObject);
-        if (nullptr == outPrototype)
-            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-        return S_OK;
-    }
-
-    case ELoadJobType::Component:
-    {
-        if (loadJob.strClassName == "ColliderCom")
-        {
-            Shared<ColliderCom> collider =
-                ColliderCom::Create(_device, _context, Get_Shape_FromPrototypeTag(loadJob.strPrototypeTag));
-
-            outPrototype = static_pointer_cast<Base>(collider);
-            if (nullptr == outPrototype)
-                Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-            return S_OK;
-        }
-
-        Shared<Component> component = GAME->Create_ComponentPrototype(loadJob.strClassName);
-        outPrototype = static_pointer_cast<Base>(component);
-        if (nullptr == outPrototype)
-            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-        return S_OK;
-    }
-
-    case ELoadJobType::StaticLevel:
-    {
-        outPrototype = Create_StaticPrototype(loadJob);
-        if (nullptr == outPrototype)
-            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
-        return S_OK;
-    }
-
-    default:
-        Log_LoadJobPrototypeFailure(loadJob, "unsupported job type");
-        return S_OK;
-    }
-}
-
-HRESULT ResourceLoader::Commit_LoadJobPrototype(const FLoadJob& loadJob, const Shared<Base>& prototype)
-{
-    // Loading UI가 미리 만든 Shader_UI / VIBuffer_Rect 같은 중복 등록 방지.
-    if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
-        return S_OK;
-
-    if (nullptr == prototype)
-    {
-        return S_OK;
-    }
-
-    if (FAILED(GAME->Add_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag, prototype)))
-    {
-        LOG_WARN(
-            "Skipping Add_Prototype failure. id='{}', type={}, level={}",
-            String::ToString(loadJob.strPrototypeTag),
-            string(magic_enum::enum_name(loadJob.eType)),
-            loadJob.iLevelIndex);
-
-        return E_FAIL;
-    }
-
-    return S_OK;
-}
-
-void ResourceLoader::Log_LoadJobPrototypeFailure(const FLoadJob& loadJob, string_view reason)
-{
-    LOG_WARN(
-        "Prototype load job failed. reason='{}', table='{}', id='{}', jobType={}, level={}, path='{}', inputLayout='{}', entryPoint='{}', modelType='{}', className='{}', resourceType='{}'",
-        reason,
-        loadJob.strSourceTable,
-        String::ToString(loadJob.strPrototypeTag),
-        string(magic_enum::enum_name(loadJob.eType)),
-        loadJob.iLevelIndex,
-        String::ToString(loadJob.strPath),
-        loadJob.strInputLayout,
-        loadJob.strEntryPoint,
-        loadJob.strModelType,
-        loadJob.strClassName,
-        loadJob.strResourceType
-    );
 }
 
 Shared<Base> ResourceLoader::Create_StaticPrototype(const FLoadJob& LoadJob)
@@ -1087,6 +1050,24 @@ wstring ResourceLoader::Resolve_RuntimePath(const wstring& path)
     return fs::absolute(inputPath).lexically_normal().wstring();
 }
 
+void ResourceLoader::Log_LoadJobPrototypeFailure(const FLoadJob& loadJob, string_view reason)
+{
+    LOG_WARN(
+        "Prototype load job failed. reason='{}', table='{}', id='{}', jobType={}, level={}, path='{}', inputLayout='{}', entryPoint='{}', modelType='{}', className='{}', resourceType='{}'",
+        reason,
+        loadJob.strSourceTable,
+        String::ToString(loadJob.strPrototypeTag),
+        string(magic_enum::enum_name(loadJob.eType)),
+        loadJob.iLevelIndex,
+        String::ToString(loadJob.strPath),
+        loadJob.strInputLayout,
+        loadJob.strEntryPoint,
+        loadJob.strModelType,
+        loadJob.strClassName,
+        loadJob.strResourceType
+    );
+}
+
 Shared<ResourceLoader> ResourceLoader::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto pInstance = make_shared<ResourceLoader>(device, context);
@@ -1103,5 +1084,3 @@ void ResourceLoader::Free()
 {
     __super::Free();
 }
-
-

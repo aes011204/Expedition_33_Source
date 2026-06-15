@@ -57,6 +57,7 @@ void BattleReactionController::Clear_RuntimeState()
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+    _reactionAnimElapsed = 0.f;
 }
 
 bool BattleReactionController::TryInput(BattleReactionType type, uint32 stepIndex)
@@ -225,6 +226,45 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
     return result;
 }
 
+void BattleReactionController::Notify_TargetDamaged(const BattleChar& target)
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
+        return;
+
+    if (!target.statCom->Is_Player())
+        return;
+
+    for (auto it = _reactionAnimTargets.begin(); it != _reactionAnimTargets.end(); )
+    {
+        if (it->actor == target.actor)
+            it = _reactionAnimTargets.erase(it);
+        else
+            ++it;
+    }
+
+    if (_counterDamageTarget.actor == target.actor)
+        _counterDamageTarget = {};
+
+    for (auto it = _counterReturnRuntimes.begin(); it != _counterReturnRuntimes.end(); )
+    {
+        if (it->target.actor == target.actor)
+            it = _counterReturnRuntimes.erase(it);
+        else
+            ++it;
+    }
+
+    if (!_reactionAnimTargets.empty())
+        return;
+
+    ResetCounterTimeSection();
+
+    _counterReturnRuntimes.clear();
+    _counterDamageTarget = {};
+    _animPhase = ReactionAnimPhase::None;
+    _isCounterPending = false;
+    _isCounterDamageApplied = false;
+}
+
 BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
 {
     if (GAME->KeyDown(KEY_TYPE::Q))
@@ -238,12 +278,23 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
 
 void BattleReactionController::UpdateAnimation(float timeDelta)
 {
+    UNREFERENCED_PARAMETER(timeDelta);
+
     if (_reactionAnimTargets.empty())
         return;
+
+    _reactionAnimElapsed += std::max(0.f, GAME->Get_UnscaledTimeDelta());
 
     if (_animPhase == ReactionAnimPhase::CounterReturn)
     {
         UpdateCounterReturn(timeDelta);
+        return;
+    }
+
+    // Dodge/Parry reaction anim이 비정상적으로 종료되지 않아도 턴이 영구 정지되지 않게 fail-safe를 둔다.
+    if (_animPhase == ReactionAnimPhase::Reaction && _reactionAnimElapsed >= 1.25f)
+    {
+        FinishReactionAnimation();
         return;
     }
 
@@ -685,9 +736,10 @@ bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
 
 bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) const
 {
-    return //animType == BattleAnimType::Hit_Heavy ||
-        //animType == BattleAnimType::Hit_Medium ||
-       // animType == BattleAnimType::Hit_Light ||
+    return animType == BattleAnimType::Hit_Heavy ||
+        animType == BattleAnimType::Hit_Medium ||
+        animType == BattleAnimType::Hit_Light ||
+        animType == BattleAnimType::Hit_Stun ||
         animType == BattleAnimType::Dead;
 }
 
@@ -748,6 +800,7 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
 
     _reactionAnimTargets.push_back(target);
     _animPhase = ReactionAnimPhase::Reaction;
+    _reactionAnimElapsed = 0.f;
 }
 
 void BattleReactionController::FinishReactionAnimation()
@@ -784,6 +837,7 @@ void BattleReactionController::FinishReactionAnimation()
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+    _reactionAnimElapsed = 0.f;
 }
 
 void BattleReactionController::TryRestoreTargetToSpawnPose(const BattleChar& target) const

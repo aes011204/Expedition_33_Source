@@ -114,6 +114,7 @@ void UI_Manager::Update(float timeDelta)
 #endif
 
         const bool isEffectivelyOpen = ui->Is_EffectivelyOpen();
+        ui->Notify_EffectiveOpenState(isEffectivelyOpen);
 
 #if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
         const chrono::steady_clock::time_point openCheckEndTime = chrono::steady_clock::now();

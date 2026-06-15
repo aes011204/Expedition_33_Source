@@ -39,7 +39,7 @@ cbuffer TrailComputeParams : register(b0)
     float4 g_EndColor;
     float4 g_ColorOverLifeCurveParams; // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
     float4 g_ColorOverLifeColorCurveTimes;
-    float4 g_ColorOverLifeColorCurveTimesBlock1;
+    float4 g_ColorOverLifeColorCurveTimesBlock1; // 커브 Key를 4개 -> 8개로 확장하면서 Block1들 추가됨
     float4 g_ColorOverLifeColorCurveValuesR;
     float4 g_ColorOverLifeColorCurveValuesRBlock1;
     float4 g_ColorOverLifeColorCurveValuesG;

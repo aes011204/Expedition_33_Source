@@ -54,13 +54,24 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SizeMin;                            // x/y: width/height min
     float4 g_SizeMax;                            // x/y: width/height max
     float4 g_LifeTimeParams;                     // x/y: lifetime min/max
+    float4 g_LifetimeCurveParams;                // x: key count, y: enabled, z: sampling phase
+    float4 g_LifetimeCurveTimes;
+    float4 g_LifetimeCurveTimesBlock1;
+    float4 g_LifetimeCurveValues;
+    float4 g_LifetimeCurveValuesBlock1;
+    float4 g_LifetimeCurveArriveTangents;
+    float4 g_LifetimeCurveArriveTangentsBlock1;
+    float4 g_LifetimeCurveLeaveTangents;
+    float4 g_LifetimeCurveLeaveTangentsBlock1;
+    float4 g_LifetimeCurveModes;
+    float4 g_LifetimeCurveModesBlock1;
     float4 g_StartColorMin;
     float4 g_StartColorMax;
     float4 g_EndColorMin;
     float4 g_EndColorMax;
     float4 g_ColorOverLifeCurveParams; // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
     float4 g_ColorOverLifeColorCurveTimes;
-    float4 g_ColorOverLifeColorCurveTimesBlock1;
+    float4 g_ColorOverLifeColorCurveTimesBlock1; // 커브 Key를 4개 -> 8개로 확장하면서 Block1들 추가됨
     float4 g_ColorOverLifeColorCurveValuesR;
     float4 g_ColorOverLifeColorCurveValuesRBlock1;
     float4 g_ColorOverLifeColorCurveValuesG;
@@ -163,6 +174,9 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_RotationRateScaleByLifeCurveValuesBlock1;
     float4 g_RotationRateScaleByLifeCurveParams; // x: key count
     uint4 g_RotationSeedSalts;                   // x: InitialRotation, y: InitialRotationRate
+    float4 g_PlaneRadialCameraFacingRight;       // xyz: camera right axis in emitter-local sampling space
+    float4 g_PlaneRadialCameraFacingUp;          // xyz: camera up axis in emitter-local sampling space
+    float4 g_PlaneRadialCameraFacingNormal;      // xyz: camera look axis in emitter-local sampling space
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -954,6 +968,12 @@ void ResolvePlaneRadialBasis(out float3 axisU, out float3 axisV, out float3 plan
         axisV = float3(0.0f, 0.0f, 1.0f);
         planeNormal = float3(1.0f, 0.0f, 0.0f);
     }
+    else if (plane == 3u)
+    {
+        axisU = g_PlaneRadialCameraFacingRight.xyz;
+        axisV = g_PlaneRadialCameraFacingUp.xyz;
+        planeNormal = g_PlaneRadialCameraFacingNormal.xyz;
+    }
 }
 
 void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint placementIndex, uint placementCount, out PlaneRadialFrame frame)
@@ -1072,7 +1092,28 @@ float SampleLifeMax(uint seed)
 {
     const float lifeMin = max(0.0001f, min(g_LifeTimeParams.x, g_LifeTimeParams.y));
     const float lifeMax = max(lifeMin, max(g_LifeTimeParams.x, g_LifeTimeParams.y));
-    return lerp(lifeMin, lifeMax, Hash01(seed + 43u));
+    float result = lerp(lifeMin, lifeMax, Hash01(seed + 43u));
+
+    if (g_LifetimeCurveParams.y != 0.0f)
+    {
+        result = EvaluateCompactCurve(
+            saturate(g_LifetimeCurveParams.z),
+            (uint)g_LifetimeCurveParams.x,
+            g_LifetimeCurveTimes,
+            g_LifetimeCurveTimesBlock1,
+            g_LifetimeCurveValues,
+            g_LifetimeCurveValuesBlock1,
+            g_LifetimeCurveArriveTangents,
+            g_LifetimeCurveArriveTangentsBlock1,
+            g_LifetimeCurveLeaveTangents,
+            g_LifetimeCurveLeaveTangentsBlock1,
+            g_LifetimeCurveModes,
+            g_LifetimeCurveModesBlock1,
+            lifeMax
+        );
+    }
+
+    return max(0.0001f, result);
 }
 
 struct ComputeIndirectArgs

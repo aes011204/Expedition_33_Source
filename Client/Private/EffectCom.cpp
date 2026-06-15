@@ -11,9 +11,79 @@
 #include "Player_WorldBase.h"
 #include "ShaderCom.h"
 #include "Shader_CBuffer_Define.h"
+#include "SourcePointSampleProvider_ByPart.h"
 #include "TrailAnchor_Asset.h"
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
+
+namespace
+{
+float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
+{
+    constexpr float fallbackDuration = 0.25f;
+    if (definition == nullptr)
+        return fallbackDuration;
+
+    float duration = fallbackDuration;
+    for (const EffectEmitterDefinition& emitter : definition->emitters)
+    {
+        if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
+            continue;
+
+        const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+        if (trailDesc == nullptr)
+            continue;
+
+        duration = max(duration, trailDesc->segmentLifetime);
+    }
+
+    return max(0.001f, duration);
+}
+
+float Resolve_SourceHistoryDrainDuration(const Shared<const EffectDefinition>& definition)
+{
+    constexpr float fallbackDuration = 0.5f;
+    if (definition == nullptr)
+        return fallbackDuration;
+
+    float duration = fallbackDuration;
+    for (const EffectEmitterDefinition& emitter : definition->emitters)
+    {
+        if (!emitter.enabled)
+            continue;
+
+        if (emitter.kind == EffectEmitterKind::Ribbon)
+        {
+            const ComputeRibbonEmitterDesc* ribbonDesc = get_if<ComputeRibbonEmitterDesc>(&emitter.concreteDesc);
+            if (ribbonDesc == nullptr || ribbonDesc->sourceMode != EffectSourceHistoryRibbonSourceMode::SelfRoot)
+                continue;
+
+            duration = max(duration, ribbonDesc->sampleLifetime);
+        }
+        else if (emitter.kind == EffectEmitterKind::SourceHistorySpriteTrail)
+        {
+            const ComputeSourceHistorySpriteTrailEmitterDesc* spriteTrailDesc =
+                get_if<ComputeSourceHistorySpriteTrailEmitterDesc>(&emitter.concreteDesc);
+            if (spriteTrailDesc == nullptr || spriteTrailDesc->sourceMode != EffectSourceHistoryRibbonSourceMode::SelfRoot)
+                continue;
+
+            float spriteDuration =
+                spriteTrailDesc->sampleLifetime +
+                spriteTrailDesc->stampLifetime;
+            if (spriteTrailDesc->pathReplay.enabled)
+            {
+                spriteDuration +=
+                    spriteTrailDesc->pathReplay.delayTime +
+                    spriteTrailDesc->pathReplay.drainDuration;
+            }
+
+            duration = max(duration, spriteDuration);
+        }
+    }
+
+    return max(0.001f, duration + 0.1f);
+}
+}
 
 IMPLEMENT_REFLECTION(EffectCom)
 {
@@ -99,7 +169,7 @@ void EffectCom::Update(float timeDelta)
         _vanishComplete = false;
     }
 
-    Update_AttachedEffects();
+    Update_AttachedEffects(timeDelta);
 }
 
 void EffectCom::Tick_AttachedEffectInstances(float timeDelta)
@@ -125,11 +195,14 @@ void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         if (effect == nullptr)
             continue;
 
-        const bool alreadyCaptured = any_of(outStates.begin(), outStates.end(),
+        const bool alreadyCaptured = any_of(
+            outStates.begin(),
+            outStates.end(),
             [&effect](const AttachedEffectPauseState& state)
             {
                 return state.effect == effect;
-            });
+            }
+        );
 
         if (alreadyCaptured)
             continue;
@@ -327,20 +400,25 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
         LOG_WARN(
             "[EffectCom] Play_Effect failed: empty effectName or layerTag. effect={}, layer={}",
             String::ToString(desc.effectName),
-            String::ToString(desc.layerTag));
+            String::ToString(desc.layerTag)
+        );
         return E_FAIL;
     }
 
     Vec3 spawnWorldPosition{};
     Vec3 spawnWorldRotation{};
+    Vec3 spawnWorldScale{};
     if (!Try_ResolveEffectWorldTransform(
         desc.target,
         desc.partTag,
         desc.socketName,
         desc.localOffset,
         desc.localRotation,
+        desc.scale,
+        desc.transformInheritance,
         spawnWorldPosition,
-        spawnWorldRotation
+        spawnWorldRotation,
+        spawnWorldScale
     ))
         return E_FAIL;
 
@@ -350,7 +428,8 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
         LOG_WARN(
             "[EffectCom] Play_Effect failed: effect pool is null. effect={}, layer={}",
             String::ToString(desc.effectName),
-            String::ToString(desc.layerTag));
+            String::ToString(desc.layerTag)
+        );
         return E_FAIL;
     }
 
@@ -360,7 +439,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     acquireDesc.layerTag = desc.layerTag;
     acquireDesc.worldPosition = spawnWorldPosition;
     acquireDesc.worldRotation = spawnWorldRotation;
-    acquireDesc.scale = desc.scale;
+    acquireDesc.scale = spawnWorldScale;
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
 
     EffectInstancePool::AttachedHandle handle{};
@@ -375,7 +454,8 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
             String::ToString(desc.layerTag),
             spawnWorldPosition.x,
             spawnWorldPosition.y,
-            spawnWorldPosition.z);
+            spawnWorldPosition.z
+        );
         return E_FAIL;
     }
     if (desc.requiresManualRelease)
@@ -391,8 +471,9 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     attached.localOffset = desc.localOffset;
     attached.localRotation = desc.localRotation;
     attached.scale = desc.scale;
+    attached.transformInheritance = desc.transformInheritance;
     attached.followTarget = desc.followTarget;
-    attached.isTrail = false;
+    attached.role = AttachedEffectRole::Normal;
     attached.trailSampleProvider = desc.trailSampleProvider.lock();
     _attachedEffects.push_back(attached);
 
@@ -416,7 +497,8 @@ void EffectCom::Stop_Effect(
 {
     for (AttachedEffect& attached : _attachedEffects)
     {
-        if (attached.isTrail)
+        if (attached.role == AttachedEffectRole::Trail ||
+            attached.role == AttachedEffectRole::SourceHistoryPoint)
             continue;
         if (attached.effectName != effectName)
             continue;
@@ -465,8 +547,11 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     const string& socketName,
     const Vec3& localOffset,
     const Vec3& localRotation,
+    const Vec3& scale,
+    const EffectTransformInheritance& transformInheritance,
     Vec3& outWorldPosition,
-    Vec3& outWorldRotation) const
+    Vec3& outWorldRotation,
+    Vec3& outWorldScale) const
 {
     Matrix baseWorldMatrix = Matrix::Identity;
 
@@ -486,55 +571,57 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
             return false;
     }
 
+    Vec3 baseScale = Vec3::One;
+    Quat baseRotation = Quat::Identity;
+    Vec3 baseTranslation = Vec3::Zero;
+    if (!baseWorldMatrix.Decompose(baseScale, baseRotation, baseTranslation))
+        return false;
+
     const Vec3 localRotationRad(
         XMConvertToRadians(localRotation.x),
         XMConvertToRadians(localRotation.y),
         XMConvertToRadians(localRotation.z)
     );
 
-    // local offset/rotation은 owner root 또는 socket matrix 기준으로 합성한다.
+    // local offset/rotation은 선택된 위치/회전 상속 basis 기준으로 합성한다.
     const Matrix localMatrix =
         Matrix::CreateFromYawPitchRoll(localRotationRad.y, localRotationRad.x, localRotationRad.z) *
         Matrix::CreateTranslation(localOffset);
 
-    Matrix basisWorldMatrix = baseWorldMatrix;
-    if (target != EffectPlayTarget::OwnerRoot)
+    auto normalize_axis = [](Vec3 axis, const Vec3& fallback) -> Vec3
     {
-        auto normalize_axis = [](Vec3 axis, const Vec3& fallback) -> Vec3
-        {
-            if (axis.LengthSquared() <= 0.000001f)
-                return fallback;
+        if (axis.LengthSquared() <= 0.000001f)
+            return fallback;
 
-            axis.Normalize();
-            return axis;
-        };
+        axis.Normalize();
+        return axis;
+    };
 
-        const Vec3 basisRight = normalize_axis(
-            Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13),
-            Vec3::Right
-        );
-        const Vec3 basisUp = normalize_axis(
-            Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23),
-            Vec3::Up
-        );
-        const Vec3 basisLook = normalize_axis(
-            Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33),
-            Vec3::Forward
-        );
+    const Vec3 basisRight = transformInheritance.inheritRotation
+        ? normalize_axis(Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13), Vec3::Right)
+        : Vec3::Right;
+    const Vec3 basisUp = transformInheritance.inheritRotation
+        ? normalize_axis(Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23), Vec3::Up)
+        : Vec3::Up;
+    const Vec3 basisLook = transformInheritance.inheritRotation
+        ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Forward)
+        : Vec3::Forward;
 
-        basisWorldMatrix = Matrix::Identity;
-        basisWorldMatrix._11 = basisRight.x;
-        basisWorldMatrix._12 = basisRight.y;
-        basisWorldMatrix._13 = basisRight.z;
-        basisWorldMatrix._21 = basisUp.x;
-        basisWorldMatrix._22 = basisUp.y;
-        basisWorldMatrix._23 = basisUp.z;
-        basisWorldMatrix._31 = basisLook.x;
-        basisWorldMatrix._32 = basisLook.y;
-        basisWorldMatrix._33 = basisLook.z;
-        basisWorldMatrix._41 = baseWorldMatrix._41;
-        basisWorldMatrix._42 = baseWorldMatrix._42;
-        basisWorldMatrix._43 = baseWorldMatrix._43;
+    Matrix basisWorldMatrix = Matrix::Identity;
+    basisWorldMatrix._11 = basisRight.x;
+    basisWorldMatrix._12 = basisRight.y;
+    basisWorldMatrix._13 = basisRight.z;
+    basisWorldMatrix._21 = basisUp.x;
+    basisWorldMatrix._22 = basisUp.y;
+    basisWorldMatrix._23 = basisUp.z;
+    basisWorldMatrix._31 = basisLook.x;
+    basisWorldMatrix._32 = basisLook.y;
+    basisWorldMatrix._33 = basisLook.z;
+    if (transformInheritance.inheritPosition)
+    {
+        basisWorldMatrix._41 = baseTranslation.x;
+        basisWorldMatrix._42 = baseTranslation.y;
+        basisWorldMatrix._43 = baseTranslation.z;
     }
 
     Matrix finalWorldMatrix = localMatrix * basisWorldMatrix;
@@ -553,6 +640,13 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
         XMConvertToDegrees(eulerRad.y),
         XMConvertToDegrees(eulerRad.z)
     );
+    outWorldScale = scale;
+    if (transformInheritance.inheritScale)
+    {
+        outWorldScale.x *= baseScale.x;
+        outWorldScale.y *= baseScale.y;
+        outWorldScale.z *= baseScale.z;
+    }
     return true;
 }
 
@@ -657,7 +751,8 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.effectName = resolvedEffectName; // Stop에서도 같은 resolved 이름으로 찾아야 한다.
     attached.partTag = partTag;
     attached.layerTag = layerTag;
-    attached.isTrail = true;
+    attached.role = AttachedEffectRole::Trail;
+    attached.trailSampleEnabled = make_shared<bool>(true);
 
     const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
     if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
@@ -670,7 +765,8 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.trailSampleProvider = make_shared<TrailSampleProvider_ByPart>(
         static_pointer_cast<EffectCom>(GetSharedPtr<EffectCom>()),
         partTag,
-        attached.trailAnchorAsset
+        attached.trailAnchorAsset,
+        attached.trailSampleEnabled
     );
     CHECK_NULL(attached.trailSampleProvider, E_FAIL);
 
@@ -682,6 +778,8 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.baseWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
+
+    attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
@@ -698,14 +796,14 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
 
     for (AttachedEffect& attached : _attachedEffects)
     {
-        if (!attached.isTrail)
+        if (attached.role != AttachedEffectRole::Trail)
             continue;
         if (attached.effectName != resolvedEffectName)
             continue;
         if (attached.partTag != partTag)
             continue;
 
-        Release_AttachedEffect(attached);
+        Begin_TrailDrain(attached);
     }
 
     Prune_ReleasedAttachedEffects();
@@ -717,6 +815,226 @@ bool EffectCom::Try_GetTrailSampleForPart(
     EffectTrailSample& outSample) const
 {
     return Try_BuildTrailSample(partTag, trailAnchorAsset, outSample);
+}
+
+HRESULT EffectCom::Play_SourceHistoryEffect(
+    const wstring& effectName,
+    const wstring& partTag,
+    const wstring& layerTag,
+    SourceHistorySourcePointPolicy sourcePointPolicy,
+    SourceHistorySourceBindingMode sourceBindingMode,
+    const string& socketName)
+{
+    const Shared<GameObject> ownerObject = Get_Owner();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
+    if (ownerContainer == nullptr)
+    {
+        LOG_WARN(
+            "[EffectCom] Play_SourceHistoryEffect failed: owner is not container. effect={}, part={}, layer={}",
+            String::ToString(effectName),
+            String::ToString(partTag),
+            String::ToString(layerTag)
+        );
+        return E_FAIL;
+    }
+
+    wstring resolvedEffectName{};
+    if (!Try_ResolveSourceHistoryEffectName(effectName, resolvedEffectName))
+    {
+        LOG_WARN(
+            "[EffectCom] Play_SourceHistoryEffect failed: effect name is empty. part={}, layer={}",
+            String::ToString(partTag),
+            String::ToString(layerTag)
+        );
+        return E_FAIL;
+    }
+
+    AttachedEffect attached{};
+    attached.effectName = resolvedEffectName;
+    attached.partTag = partTag;
+    attached.socketName = socketName;
+    attached.layerTag = layerTag;
+    attached.role = AttachedEffectRole::SourceHistoryPoint;
+    attached.sourceHistorySourceBindingMode = sourceBindingMode;
+    attached.sourcePointSampleEnabled = make_shared<bool>(true);
+
+    if (sourceBindingMode == SourceHistorySourceBindingMode::TrailAnchor)
+    {
+        const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+        if (weaponPart == nullptr)
+        {
+            LOG_WARN(
+                "[EffectCom] Play_SourceHistoryEffect failed: weapon part not found. effect={}, part={}, layer={}",
+                String::ToString(effectName),
+                String::ToString(partTag),
+                String::ToString(layerTag)
+            );
+            return E_FAIL;
+        }
+
+        const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+        if (weaponModel == nullptr)
+        {
+            LOG_WARN(
+                "[EffectCom] Play_SourceHistoryEffect failed: weapon model is null. effect={}, part={}",
+                String::ToString(resolvedEffectName),
+                String::ToString(partTag)
+            );
+            return E_FAIL;
+        }
+
+        const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
+        if (sourceModelPath.empty())
+        {
+            LOG_WARN(
+                "[EffectCom] Play_SourceHistoryEffect failed: source model path is empty. effect={}, part={}",
+                String::ToString(resolvedEffectName),
+                String::ToString(partTag)
+            );
+            return E_FAIL;
+        }
+
+        const string modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+        if (modelGuid.empty())
+        {
+            LOG_WARN(
+                "[EffectCom] Play_SourceHistoryEffect failed: model guid is empty. effect={}, part={}, model={}",
+                String::ToString(resolvedEffectName),
+                String::ToString(partTag),
+                String::ToString(sourceModelPath)
+            );
+            return E_FAIL;
+        }
+
+        const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
+        if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
+        {
+            LOG_WARN(
+                "[EffectCom] Play_SourceHistoryEffect failed: trail anchor load. effect={}, part={}, path={}",
+                String::ToString(resolvedEffectName),
+                String::ToString(partTag),
+                String::ToString(anchorPath.wstring())
+            );
+            return E_FAIL;
+        }
+    }
+
+    EffectSourcePointSample initialSample{};
+    if (!Try_BuildSourcePointSample(attached.partTag, sourceBindingMode, socketName, attached.trailAnchorAsset, sourcePointPolicy, initialSample))
+    {
+        LOG_WARN(
+            "[EffectCom] Play_SourceHistoryEffect failed: source point sample. effect={}, part={}, binding={}, socket={}, policy={}",
+            String::ToString(resolvedEffectName),
+            String::ToString(partTag),
+            static_cast<int>(sourceBindingMode),
+            socketName,
+            static_cast<int>(sourcePointPolicy)
+        );
+        return E_FAIL;
+    }
+
+    attached.sourcePointSampleProvider = make_shared<SourcePointSampleProvider_ByPart>(
+        static_pointer_cast<EffectCom>(GetSharedPtr<EffectCom>()),
+        partTag,
+        sourceBindingMode,
+        socketName,
+        attached.trailAnchorAsset,
+        sourcePointPolicy,
+        attached.sourcePointSampleEnabled
+    );
+    CHECK_NULL(attached.sourcePointSampleProvider, E_FAIL);
+
+    EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
+    if (effectPool == nullptr)
+    {
+        LOG_WARN(
+            "[EffectCom] Play_SourceHistoryEffect failed: effect pool is null. effect={}, part={}, layer={}",
+            String::ToString(resolvedEffectName),
+            String::ToString(partTag),
+            String::ToString(layerTag)
+        );
+        return E_FAIL;
+    }
+
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = resolvedEffectName;
+    acquireDesc.layerTag = layerTag;
+    acquireDesc.worldPosition = initialSample.worldPosition;
+    acquireDesc.sourcePointSampleProvider = attached.sourcePointSampleProvider;
+
+    attached.sourceHistoryDrainDuration =
+        Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
+
+    const HRESULT acquireResult = effectPool->Acquire(acquireDesc, attached.poolHandle);
+    if (FAILED(acquireResult))
+    {
+        LOG_WARN(
+            "[EffectCom] Play_SourceHistoryEffect failed: pool acquire. hr={}, effect={}, part={}, layer={}, pos=({:.3f},{:.3f},{:.3f})",
+            acquireResult,
+            String::ToString(resolvedEffectName),
+            String::ToString(partTag),
+            String::ToString(layerTag),
+            initialSample.worldPosition.x,
+            initialSample.worldPosition.y,
+            initialSample.worldPosition.z
+        );
+        return E_FAIL;
+    }
+
+    _attachedEffects.push_back(attached);
+
+    LOG_WARN(
+        "[EffectCom] Play_SourceHistoryEffect spawned. effect={}, part={}, layer={}, manualRelease={}, pos=({:.3f},{:.3f},{:.3f})",
+        String::ToString(resolvedEffectName),
+        String::ToString(partTag),
+        String::ToString(layerTag),
+        attached.poolHandle.requiresManualRelease,
+        initialSample.worldPosition.x,
+        initialSample.worldPosition.y,
+        initialSample.worldPosition.z
+    );
+
+    return S_OK;
+}
+
+void EffectCom::Stop_SourceHistoryEffect(
+    const wstring& effectName,
+    const wstring& partTag,
+    SourceHistorySourceBindingMode sourceBindingMode,
+    const string& socketName)
+{
+    wstring resolvedEffectName{};
+    if (!Try_ResolveSourceHistoryEffectName(effectName, resolvedEffectName))
+        return;
+
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.role != AttachedEffectRole::SourceHistoryPoint)
+            continue;
+        if (attached.effectName != resolvedEffectName)
+            continue;
+        if (attached.partTag != partTag)
+            continue;
+        if (attached.sourceHistorySourceBindingMode != sourceBindingMode)
+            continue;
+        if (attached.socketName != socketName)
+            continue;
+
+        Begin_SourceHistoryDrain(attached);
+    }
+
+    Prune_ReleasedAttachedEffects();
+}
+
+bool EffectCom::Try_GetSourcePointSampleForPart(
+    const wstring& partTag,
+    SourceHistorySourceBindingMode sourceBindingMode,
+    const string& socketName,
+    const TrailAnchorAsset& trailAnchorAsset,
+    SourceHistorySourcePointPolicy sourcePointPolicy,
+    EffectSourcePointSample& outSample) const
+{
+    return Try_BuildSourcePointSample(partTag, sourceBindingMode, socketName, trailAnchorAsset, sourcePointPolicy, outSample);
 }
 
 bool EffectCom::Try_ResolveTrailEffectName(
@@ -745,12 +1063,30 @@ bool EffectCom::Try_ResolveTrailEffectName(
     return !outEffectName.empty();
 }
 
-void EffectCom::Update_AttachedEffects()
+void EffectCom::Update_AttachedEffects(float timeDelta)
 {
     for (AttachedEffect& attached : _attachedEffects)
     {
         if (attached.poolHandle.effectObject == nullptr)
             continue;
+
+        if (attached.isTrailDraining)
+        {
+            attached.trailDrainElapsed += max(0.f, timeDelta);
+            if (attached.trailDrainElapsed >= attached.trailDrainDuration)
+                Release_AttachedEffect(attached);
+
+            continue;
+        }
+
+        if (attached.isSourceHistoryDraining)
+        {
+            attached.sourceHistoryDrainElapsed += max(0.f, timeDelta);
+            if (attached.sourceHistoryDrainElapsed >= attached.sourceHistoryDrainDuration)
+                Release_AttachedEffect(attached);
+
+            continue;
+        }
 
         if (Should_ReleaseAttachedEffect(attached))
         {
@@ -758,7 +1094,7 @@ void EffectCom::Update_AttachedEffects()
             continue;
         }
 
-        if (attached.isTrail)
+        if (attached.role == AttachedEffectRole::Trail)
         {
             EffectTrailSample trailSample{};
             if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, trailSample))
@@ -776,14 +1112,18 @@ void EffectCom::Update_AttachedEffects()
 
         Vec3 targetWorldPosition{};
         Vec3 targetWorldRotation{};
+        Vec3 targetWorldScale{};
         if (!Try_ResolveEffectWorldTransform(
             attached.target,
             attached.partTag,
             attached.socketName,
             attached.localOffset,
             attached.localRotation,
+            attached.scale,
+            attached.transformInheritance,
             targetWorldPosition,
-            targetWorldRotation
+            targetWorldRotation,
+            targetWorldScale
         ))
             continue;
 
@@ -792,6 +1132,7 @@ void EffectCom::Update_AttachedEffects()
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
         effectTransform->Set_WorldRotationEuler(targetWorldRotation);
+        effectTransform->Set_Scale(targetWorldScale);
     }
 
     Prune_ReleasedAttachedEffects();
@@ -808,6 +1149,38 @@ void EffectCom::Release_AttachedEffect(AttachedEffect& attached)
 
     effectPool->Release(attached.poolHandle);
     attached.poolHandle = {};
+    attached.trailSampleEnabled.reset();
+    attached.trailSampleProvider.reset();
+    attached.isTrailDraining = false;
+    attached.trailDrainElapsed = 0.f;
+    attached.sourcePointSampleEnabled.reset();
+    attached.sourcePointSampleProvider.reset();
+    attached.isSourceHistoryDraining = false;
+    attached.sourceHistoryDrainElapsed = 0.f;
+}
+
+void EffectCom::Begin_TrailDrain(AttachedEffect& attached)
+{
+    if (attached.role != AttachedEffectRole::Trail || attached.isTrailDraining)
+        return;
+
+    if (attached.trailSampleEnabled != nullptr)
+        *attached.trailSampleEnabled = false;
+
+    attached.isTrailDraining = true;
+    attached.trailDrainElapsed = 0.f;
+}
+
+void EffectCom::Begin_SourceHistoryDrain(AttachedEffect& attached)
+{
+    if (attached.role != AttachedEffectRole::SourceHistoryPoint || attached.isSourceHistoryDraining)
+        return;
+
+    if (attached.sourcePointSampleEnabled != nullptr)
+        *attached.sourcePointSampleEnabled = false;
+
+    attached.isSourceHistoryDraining = true;
+    attached.sourceHistoryDrainElapsed = 0.f;
 }
 
 bool EffectCom::Should_ReleaseAttachedEffect(const AttachedEffect& attached) const
@@ -937,6 +1310,56 @@ bool EffectCom::Try_BuildTrailSample(
     outSample.tipWorldPosition = tipWorld;
 
     return true;
+}
+
+bool EffectCom::Try_ResolveSourceHistoryEffectName(
+    const wstring& effectName,
+    wstring& outEffectName) const
+{
+    outEffectName.clear();
+
+    if (effectName.empty())
+        return false;
+
+    outEffectName = effectName;
+    return true;
+}
+
+bool EffectCom::Try_BuildSourcePointSample(
+    const wstring& partTag,
+    SourceHistorySourceBindingMode sourceBindingMode,
+    const string& socketName,
+    const TrailAnchorAsset& trailAnchorAsset,
+    SourceHistorySourcePointPolicy sourcePointPolicy,
+    EffectSourcePointSample& outSample) const
+{
+    if (sourceBindingMode == SourceHistorySourceBindingMode::Socket)
+    {
+        Matrix socketWorldMatrix{};
+        if (!Try_GetSocketWorldMatrix(partTag, socketName, socketWorldMatrix))
+            return false;
+
+        outSample.worldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        return true;
+    }
+
+    EffectTrailSample trailSample{};
+    if (!Try_BuildTrailSample(partTag, trailAnchorAsset, trailSample))
+        return false;
+
+    switch (sourcePointPolicy)
+    {
+    case SourceHistorySourcePointPolicy::Base:
+        outSample.worldPosition = trailSample.baseWorldPosition;
+        return true;
+    case SourceHistorySourcePointPolicy::Mid:
+        outSample.worldPosition = (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f;
+        return true;
+    case SourceHistorySourcePointPolicy::Tip:
+    default:
+        outSample.worldPosition = trailSample.tipWorldPosition;
+        return true;
+    }
 }
 
 bool EffectCom::Try_ResolveTrailAnchorWorldPosition(

@@ -79,6 +79,9 @@ public:
     HRESULT Render() override;
     void Set_Color(const Vec4& color) override { _color = color; }
     Vec4 Get_Color() const override { return _color; }
+    void Set_PatternUvOffset(const Vec2& patternUvOffset) override { _patternUvOffset = Clamp_PatternUvOffset(patternUvOffset); }
+    void Set_PatternUvScale(const Vec2& patternUvScale) override { _patternUvScale = Clamp_PatternUvScale(patternUvScale); }
+    void Set_FillRatio(float fillRatio) override;
     void Set_OverlayEnabled(bool boolean) {_isOverlay = boolean;}
     void Set_GrayScaleEnabled(bool boolean) {_useGrayScale = boolean;}
     void Set_GrayAmount(float amount) {_grayAmount = amount;}
@@ -89,7 +92,6 @@ public:
     void Set_HoleRadius(float radius) { _holeRadius = radius; }
     void Set_HoleFeather(float feather) { _holeFeather = feather; }
     void Set_UseFillRatio(bool useFillRatio) { _useFillRatio = useFillRatio; }
-    void Set_FillRatio(float fillRatio);
     void Set_FillOrigin(FillOrigin fillOrigin) { _fillOrigin = fillOrigin; }
 
     HRESULT Set_TexturePath(const wstring& texturePath);

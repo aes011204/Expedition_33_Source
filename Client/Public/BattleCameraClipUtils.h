@@ -189,6 +189,24 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     return sample;
 }
 
+inline void Apply_BattleCameraClipShakeSample(
+    const BattleCameraClip& clip,
+    float time,
+    BattleCameraClipSample& inOutSample)
+{
+    const float sampleTime = std::clamp(time, 0.f, std::max(clip.duration, 0.f));
+    const CameraModifierSample modifierSample =
+        Sample_CameraModifierClip(Extract_CameraModifierClip(clip), sampleTime);
+
+    inOutSample.shakeAmplitude = modifierSample.shakeAmplitude;
+    inOutSample.shakeFrequencyX = modifierSample.shakeFrequencyX;
+    inOutSample.shakeFrequencyY = modifierSample.shakeFrequencyY;
+    inOutSample.shakeDecayRateX = modifierSample.shakeDecayRateX;
+    inOutSample.shakeDecayRate = modifierSample.shakeDecayRate;
+    inOutSample.shakeVerticalRatio = modifierSample.shakeVerticalRatio;
+    inOutSample.shakeStrengthScale = modifierSample.shakeStrengthScale;
+}
+
 inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float verticalRatio, float strengthScale, float frequencyX, float frequencyY, float decayRateX, float decayRateY, float time, const Vec3& right, const Vec3& up)
 {
     CameraModifierSample modifierSample{};

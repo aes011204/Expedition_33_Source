@@ -38,6 +38,8 @@ enum class AuthoringModuleType : uint8
     SizeByLife,
     MeshSizeByLife,
     SpawnPerUnit,
+    SourceHistorySpriteTrailPathFollow,
+    SourceHistorySpriteTrailPathReplay,
     MaterialScalarModulation,
 };
 
@@ -505,7 +507,62 @@ enum class AuthoringTypeDataKind : uint8
     None,
     Trail,
     Mesh,
-    SourceHistoryRibbon,
+    Ribbon,
+    SourceHistorySpriteTrail,
+    Beam,
+};
+
+// Beam path를 EffectEditor에서 어떤 방식으로 작성할지 결정한다.
+enum class BeamEndpointMode : uint8
+{
+    StartEnd,
+    DirectionLength,
+};
+
+enum class BeamBranchPreset : uint8
+{
+    EndGuided,
+    DownStrike,
+    Entangle,
+    ShortCrack,
+};
+
+// AuthoredLocal single beam v0의 editor 저장 payload다.
+struct BeamTypeData
+{
+    BeamEndpointMode endpointMode{ BeamEndpointMode::StartEnd };  // local path 작성 방식이다.
+    Vec3 localStart{ 0.f, 2.f, 0.f };                             // effect/emitter local 기준 시작점이다.
+    Vec3 localEnd{ 0.f, -2.f, 0.f };                              // StartEnd 모드의 끝점이다.
+    Vec3 localDirection{ 0.f, -1.f, 0.f };                        // DirectionLength 모드의 방향이다.
+    float length{ 4.f };                                          // DirectionLength 모드의 길이다.
+    uint32 segmentCount{ 8 };                                     // generated polyline segment 수다.
+    float noiseAmplitude{ 0.f };                                  // deterministic path jitter 크기다.
+    uint32 seed{ 1 };                                             // deterministic path jitter seed다.
+    uint32 stripCount{ 1 };                                       // 같은 start에서 생성할 strip 수다.
+    float endSpreadRadius{ 0.f };                                 // clustered end가 기준 end 주변에 퍼지는 반경이다.
+    float lengthVariance{ 0.f };                                  // strip별 길이 차이를 만드는 deterministic 편차다.
+    BeamBranchPreset branchPreset{ BeamBranchPreset::EndGuided }; // branch path 생성 preset이다.
+    bool branchEnabled{ false };                                  // main strip에서 짧은 child branch를 생성할지 여부다.
+    uint32 branchCount{ 0 };                                      // strip별 최대 branch 수다.
+    float branchChance{ 1.f };                                    // branch 후보가 실제 생성될 확률이다.
+    uint32 branchSegmentCount{ 3 };                               // child branch polyline segment 수다.
+    float branchLength{ 0.75f };                                  // child branch 기본 길이다.
+    float branchLengthVariance{ 0.25f };                          // branch별 길이 deterministic 편차다.
+    float branchStartMin{ 0.2f };                                 // parent path에서 branch 시작 구간의 최소 비율이다.
+    float branchStartMax{ 0.85f };                                // parent path에서 branch 시작 구간의 최대 비율이다.
+    float branchSpreadRadius{ 0.5f };                             // branch end가 parent tangent에서 벗어나는 확산 반경이다.
+    float branchEndSpreadRadius{ 0.5f };                          // EndGuided branch target이 beam end 주변에 퍼지는 반경이다.
+    float branchOutwardAmount{ 0.25f };                           // EndGuided branch가 시작 직후 parent에서 벌어지는 정도다.
+    float branchCurveAmount{ 0.5f };                              // EndGuided branch가 target으로 수렴하는 휘어짐 정도다.
+    float branchDownLength{ 1.f };                                // DownStrike branch가 authored down axis로 뻗는 길이다.
+    float branchEntangleRadius{ 0.35f };                          // Entangle branch가 parent 주변을 감는 반경이다.
+    float branchEntangleAdvance{ 0.25f };                         // Entangle branch target이 parent path를 따라 이동하는 비율이다.
+    float branchCrackLength{ 0.5f };                              // ShortCrack branch가 start 주변으로 짧게 뻗는 길이다.
+    float branchCrackSpreadRadius{ 0.25f };                       // ShortCrack endpoint가 radial하게 퍼지는 반경이다.
+    float branchWidthScale{ 0.45f };                              // parent 폭 대비 branch 폭 배율이다.
+    uint32 branchSeedOffset{ 1009 };                              // parent seed와 섞어 branch 결과를 갈라놓는 salt다.
+    float baseWidth{ 0.25f };                                     // SizeByLife 전 기본 폭이다.
+    float tilingDistance{ 0.f };                                  // 0 이하면 전체 길이 stretch, 양수면 거리 기준 반복이다.
 };
 
 enum class TrailCurveQuality : uint8
@@ -516,38 +573,85 @@ enum class TrailCurveQuality : uint8
     Custom,      // 세부 곡선 값을 직접 편집하는 모드다.
 };
 
+enum class RibbonCurveQuality : uint8
+{
+    Basic,       // 낮은 보간 비용의 기본 source history sample preset이다.
+    Smooth,      // 더 촘촘한 sample로 follower ribbon 곡선을 부드럽게 만든다.
+    HighQuality, // 가장 촘촘한 sample preset이다.
+    Custom,      // 세부 sample 값을 직접 편집하는 모드다.
+};
+
 struct EmptyTypeData
 {};
 
-enum class SourceHistoryPreviewMotionPreset : uint8
+enum class SourceHistoryRibbonSourceMode : uint8
 {
-    Off,
-    Line,
-    Arc,
-    Loop,
+    SelfRoot,
+    ParticleEmitter,
+    SourceEmitter, // Legacy root follower token. Save/Open에서 ParticleEmitter 또는 SelfRoot로 정리한다.
 };
 
-enum class SourceHistoryPreviewMotionAxis : uint8
+enum class SourceHistorySpriteTrailStampSpawnMode : uint8
 {
-    X,
-    Y,
-    Z,
+    Distance,
+    Time,
 };
 
-struct SourceHistoryRibbonTypeData
+enum class SourceHistorySpriteTrailDirectionMode : uint8
 {
-    uint32 maxSampleCount{ 64 };
+    PathTangent,
+    CameraFacing,
+    VelocityTextureAxis,
+};
+
+// Source History Ribbon이 어떤 source position history를 따라갈지 결정하는 editor 저장 payload다.
+struct RibbonTypeData
+{
+    // SelfRoot면 emitter root, ParticleEmitter면 다른 particle lane을 source로 쓴다.
+    SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
+    uint32 sourceEmitterId{};                                     // ParticleEmitter mode에서 따라갈 source emitter id다.
+    uint32 followerLaneCount{ 1 };                                // ParticleEmitter mode에서 동시에 추적할 representative lane 상한이다.
+    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic }; // sampleSpacing/sampleInterval preset 선택값이다.
+    uint32 maxSampleCount{ 64 };                                  // lane 하나가 보관할 source history sample 상한이다.
+    float sampleSpacing{ 0.08f };                                 // source가 이 거리 이상 움직이면 새 history sample을 추가한다.
+    uint32 curveSubdivision{ 4 };                                 // source history segment 하나에서 만들 최대 곡선 render sample 수다.
+    bool smoothTangent{ false };                                  // Custom에서 명시적으로 켤 때만 앞뒤 source sample 평균으로 path를 보정한다.
+    float sampleInterval{ 0.f };                                  // 0보다 크면 정지/저속 source도 시간 기준 sample을 보강한다.
+    float maxLength{ 0.f };                                       // head 기준 최대 표시 길이다. 목표 길이가 아니라 상한이다.
+    float tailFadeLength{ 0.f };                                  // maxLength 끝부분에서 거리 기반 alpha fade를 적용하는 길이다.
+    bool laneSpawnFadeInEnabled{ true };                          // 새 follower lane 시작 폭을 짧게 fade-in할지 결정한다.
+    float laneSpawnFadeInDuration{ 0.08f };                       // 새 follower lane 폭 fade-in 시간이다.
+    float baseWidth{ 0.3f };                                      // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
+    float tilingDistance{ 0.f };                                  // 0 이하면 표시 길이에 stretch, 양수면 거리 기준 texture 반복이다.
+    bool autoLifeFade{ false };                                   // sample age 기준 alpha fade를 적용해 기존 tail이 사라지는 과정을 보이게 할지 결정한다.
+    bool tailCollapseOnIdle{ true };                              // source가 느리거나 멈췄을 때 history sample을 source 쪽으로 당길지 결정한다.
+    float tailCollapseSpeed{ 10.f };                              // idle tail collapse 보간 속도다.
+};
+
+// Source history path 위에 짧은 sprite/card stamp를 찍는 editor 저장 payload다.
+struct SourceHistorySpriteTrailTypeData
+{
+    SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
+    uint32 sourceEmitterId{};
+    uint32 followerLaneCount{ 1 };
+    float sampleLifetime{ 0.35f };
+    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic };
     float sampleSpacing{ 0.08f };
-    float sampleInterval{ 0.f };
+    uint32 curveSubdivision{ 4 };
+    bool smoothTangent{ true };
     float maxLength{ 0.f };
-    float tailFadeLength{ 0.f };
-    float baseWidth{ 0.3f };
-    float tilingDistance{ 0.f };
-    bool autoLifeFade{ false };
-    SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Line };
-    SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
-    float previewMotionAmplitude{ 2.f };
-    float previewMotionSpeed{ 3.f };
+    SourceHistorySpriteTrailStampSpawnMode stampSpawnMode{ SourceHistorySpriteTrailStampSpawnMode::Distance };
+    float stampSpacing{ 0.12f };
+    float stampInterval{ 0.03f };
+    uint32 maxStampCount{ 128 };
+    float cardLength{ 0.45f };
+    float cardWidth{ 0.08f };
+    SourceHistorySpriteTrailDirectionMode directionMode{ SourceHistorySpriteTrailDirectionMode::PathTangent };
+    EffectSpriteTextureAxis textureAxis{ EffectSpriteTextureAxis::Y };
+    bool flipU{ false };
+    bool flipV{ false };
+    float rotationOffsetDegrees{ 0.f };
+    float spawnJitter{ 0.f };
 };
 
 struct TrailTypeData
@@ -578,7 +682,13 @@ struct MeshTypeData
     bool useModelMaterials{ false };
 };
 
-using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData, SourceHistoryRibbonTypeData>;
+using AuthoringTypeDataPayload = variant<
+    EmptyTypeData,
+    TrailTypeData,
+    MeshTypeData,
+    RibbonTypeData,
+    SourceHistorySpriteTrailTypeData,
+    BeamTypeData>;
 
 struct AuthoringTypeData
 {
@@ -680,6 +790,7 @@ enum class PlaneRadialLocationPlane : uint8
     XY,
     XZ,
     YZ,
+    CameraFacing,
 };
 
 enum class PlaneRadialLocationShape : uint8
@@ -698,7 +809,6 @@ enum class PlaneRadialLocationPlacementMode : uint8
 
 struct PlaneRadialLocationModuleData
 {
-    bool enabled{ true };
     PlaneRadialLocationPlane plane{ PlaneRadialLocationPlane::XY };
     PlaneRadialLocationShape shape{ PlaneRadialLocationShape::Disc };
     PlaneRadialLocationPlacementMode placementMode{ PlaneRadialLocationPlacementMode::Random };
@@ -739,7 +849,6 @@ enum class PlaneRadialOrientationAxis : uint8
 
 struct PlaneRadialOrientationModuleData
 {
-    bool enabled{ true };
     PlaneRadialOrientationTargetKind targetKind{ PlaneRadialOrientationTargetKind::Auto };
     PlaneRadialOrientationMode orientationMode{ PlaneRadialOrientationMode::None };
     PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
@@ -757,7 +866,6 @@ enum class SphereRadialOrientationMode : uint8
 
 struct SphereRadialOrientationModuleData
 {
-    bool enabled{ true };
     SphereRadialOrientationMode orientationMode{ SphereRadialOrientationMode::None };
     PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
     PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
@@ -841,7 +949,6 @@ enum class EffectOrbitOrientationMode : uint8
 
 struct OrbitOverLifeModuleData
 {
-    bool enabled{ true };
     EffectOrbitPivotMode pivotMode{ EffectOrbitPivotMode::EmitterOrigin };
     EffectOrbitPlane plane{ EffectOrbitPlane::XY };
     FloatDistributionData angleDegreesOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
@@ -912,6 +1019,7 @@ struct SubUVFrameOverLifeModuleData
     SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };
     float framesPerSecond{ 12.f };
     DistributionRandomSeedData randomSeed{};
+    bool perStripSubUVVariation{ true }; // Beam multi-strip에서 RandomFrame/FPS strip variation을 적용할지 결정한다.
 };
 
 struct SizeByLifeModuleData
@@ -939,11 +1047,53 @@ struct MeshSizeByLifeModuleData
 
 struct SpawnPerUnitModuleData
 {
-    bool enabled{ true };
     FloatDistributionData spawnPerUnit{ FloatDistributionData::Make_Constant(50.f) };
     float unitScalar{ 1.f };
     float movementTolerance{ 0.001f };
     float maxFrameDistance{ 0.f };
+};
+
+enum class SourceHistorySpriteTrailPathFollowDirection : uint8
+{
+    TowardHead,
+    TowardTail,
+};
+
+enum class SourceHistorySpriteTrailArrivalMode : uint8
+{
+    KillOnArrive,
+    ClampAtEnd,
+};
+
+struct SourceHistorySpriteTrailPathFollowModuleData
+{
+    SourceHistorySpriteTrailPathFollowDirection direction{ SourceHistorySpriteTrailPathFollowDirection::TowardHead };
+    FloatDistributionData speed{ FloatDistributionData::Make_Constant(1.f) };
+    FloatDistributionData startDelay{ FloatDistributionData::Make_Constant(0.f) };
+    SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
+};
+
+enum class SourceHistorySpriteTrailPathReplayMode : uint8
+{
+    RecordedSpeed,
+    FitDuration,
+};
+
+enum class SourceHistorySpriteTrailPathReplayStartMode : uint8
+{
+    TailFirst,
+    AllAtOnce,
+};
+
+struct SourceHistorySpriteTrailPathReplayModuleData
+{
+    float delayTime{ 0.f };
+    SourceHistorySpriteTrailPathReplayMode replayMode{ SourceHistorySpriteTrailPathReplayMode::RecordedSpeed };
+    float speedScale{ 1.f };
+    float drainDuration{ 0.35f };
+    FloatDistributionData drainCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
+    SourceHistorySpriteTrailPathReplayStartMode startMode{ SourceHistorySpriteTrailPathReplayStartMode::TailFirst };
+    SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
 };
 
 enum class MaterialScalarModulationTargetField : uint8
@@ -991,7 +1141,7 @@ struct MaterialScalarModulationModuleData
     vector<MaterialCoreColorRgbModulatorData> coreColorRgbModulators{};
 };
 
-using AuthoringModuleData = std::variant<
+using AuthoringModuleData = variant<
     RequiredModuleData,
     SpawnModuleData,
     LifetimeModuleData,
@@ -1023,6 +1173,8 @@ using AuthoringModuleData = std::variant<
     SizeByLifeModuleData,
     MeshSizeByLifeModuleData,
     SpawnPerUnitModuleData,
+    SourceHistorySpriteTrailPathFollowModuleData,
+    SourceHistorySpriteTrailPathReplayModuleData,
     MaterialScalarModulationModuleData>;
 
 struct AuthoringModule

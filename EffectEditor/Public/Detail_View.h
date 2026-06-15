@@ -92,6 +92,8 @@ private: //## Data::ModuleDetail
     SizeByLifeModuleDetail _sizeByLifeModuleDetail{};
     MeshSizeByLifeModuleDetail _meshSizeByLifeModuleDetail{};
     SpawnPerUnitModuleDetail _spawnPerUnitModuleDetail{};
+    SourceHistorySpriteTrailPathFollowModuleDetail _sourceHistorySpriteTrailPathFollowModuleDetail{};
+    SourceHistorySpriteTrailPathReplayModuleDetail _sourceHistorySpriteTrailPathReplayModuleDetail{};
     MaterialScalarModulationModuleDetail _materialScalarModulationModuleDetail{};
 
 private: //## Data::AuthoringHistory

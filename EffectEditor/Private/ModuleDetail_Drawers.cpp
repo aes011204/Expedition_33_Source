@@ -24,6 +24,13 @@ namespace Internal
                alignment == EmitterScreenAlignment::Velocity;
     }
 
+    bool Uses_SourceHistorySpriteTrailCardAxis(EmitterScreenAlignment alignment, EmitterDirectionalAlignmentMode mode)
+    {
+        return alignment == EmitterScreenAlignment::FacingCameraPosition ||
+               alignment == EmitterScreenAlignment::Rectangle ||
+               (alignment == EmitterScreenAlignment::Velocity && mode == EmitterDirectionalAlignmentMode::TextureAxis);
+    }
+
     void Notify_DirectionalAlignmentModeChanged(EmitterScreenAlignment alignment, EmitterDirectionalAlignmentMode mode)
     {
         if (!Uses_DirectionalAlignmentOptions(alignment))
@@ -243,6 +250,8 @@ namespace Internal
             return "XZ";
         case PlaneRadialLocationPlane::YZ:
             return "YZ";
+        case PlaneRadialLocationPlane::CameraFacing:
+            return "카메라 정면";
         default:
             return "XY";
         }
@@ -694,6 +703,7 @@ namespace Internal
                 PlaneRadialLocationPlane::XY,
                 PlaneRadialLocationPlane::XZ,
                 PlaneRadialLocationPlane::YZ,
+                PlaneRadialLocationPlane::CameraFacing,
             };
 
             for (const PlaneRadialLocationPlane candidate : candidates)
@@ -1106,7 +1116,7 @@ namespace Internal
                 continue;
 
             const auto* data = get_if<PlaneRadialOrientationModuleData>(&module.data);
-            if (data != nullptr && data->enabled && data->orientationMode != PlaneRadialOrientationMode::None)
+            if (data != nullptr && data->orientationMode != PlaneRadialOrientationMode::None)
                 return true;
         }
 
@@ -1891,6 +1901,7 @@ bool RequiredModuleDetail::Draw(
 {
     const RequiredModuleData defaultData{};
     bool changed = false;
+    const AuthoringModuleType moduleType = module.type;
 
     if (_materialSlotPreview == nullptr)
         _materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
@@ -1967,11 +1978,13 @@ bool RequiredModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("RequiredSpaceSort"))
         {
-            changed |= detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
+            const bool isSourceHistorySpriteTrail = emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+            changed |= isSourceHistorySpriteTrail
+                       ? detailContext.Draw_SourceHistorySpriteTrailScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment)
+                       : detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
             if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
             {
                 const EmitterDirectionalAlignmentMode oldMode = data.directionalAlignmentMode;
-                const EmitterSpriteTextureAxis oldAxis = data.spriteTextureAxis;
 
                 if (detailContext.Draw_DirectionalAlignmentModeProperty("방향 정렬 방식", data.directionalAlignmentMode, defaultData.directionalAlignmentMode))
                 {
@@ -1979,18 +1992,39 @@ bool RequiredModuleDetail::Draw(
                     if (oldMode != data.directionalAlignmentMode)
                         Internal::Notify_DirectionalAlignmentModeChanged(data.screenAlignment, data.directionalAlignmentMode);
                 }
+            }
 
-                if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
+            const bool showSpriteTextureAxis =
+                isSourceHistorySpriteTrail
+                ? Internal::Uses_SourceHistorySpriteTrailCardAxis(data.screenAlignment, data.directionalAlignmentMode)
+                : Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment) &&
+                  data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis;
+            if (showSpriteTextureAxis)
+            {
+                const EmitterSpriteTextureAxis oldAxis = data.spriteTextureAxis;
+                if (isSourceHistorySpriteTrail)
                 {
-                    if (detailContext.Draw_SpriteTextureAxisProperty("정렬할 텍스처 축", data.spriteTextureAxis, defaultData.spriteTextureAxis))
+                    if (detailContext.Draw_SpriteTextureAxisProperty(
+                        "카드 길이 축",
+                        data.spriteTextureAxis,
+                        defaultData.spriteTextureAxis,
+                        "Texture X를 SourceHistorySpriteTrail 카드 길이 방향으로 사용합니다.",
+                        "Texture Y를 SourceHistorySpriteTrail 카드 길이 방향으로 사용합니다."
+                    ))
                     {
                         changed = true;
                         if (oldAxis != data.spriteTextureAxis)
                             Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
                     }
-
-                    changed |= detailContext.Draw_FloatProperty("롤 보정 (도)", data.spriteRollOffsetDegrees, defaultData.spriteRollOffsetDegrees, 0.1f);
                 }
+                else if (detailContext.Draw_SpriteTextureAxisProperty("정렬할 텍스처 축", data.spriteTextureAxis, defaultData.spriteTextureAxis))
+                {
+                    changed = true;
+                    if (oldAxis != data.spriteTextureAxis)
+                        Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
+                }
+
+                changed |= detailContext.Draw_FloatProperty("롤 보정 (도)", data.spriteRollOffsetDegrees, defaultData.spriteRollOffsetDegrees, 0.1f);
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
@@ -2043,8 +2077,22 @@ bool RequiredModuleDetail::Draw(
         if (detailContext.Begin_PropertyTable("RequiredTime"))
         {
             changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
-            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이", data.delay, defaultData.delay);
+            changed |= detailContext.Draw_FloatProperty(
+                "스폰 활성 시간",
+                data.duration,
+                defaultData.duration,
+                0.01f,
+                nullptr,
+                Find_AuthoringValueRange(moduleType, "duration")
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "스폰 시작 딜레이",
+                data.delay,
+                defaultData.delay,
+                0.01f,
+                nullptr,
+                Find_AuthoringValueRange(moduleType, "delay")
+            );
             changed |= detailContext.Draw_BoolProperty("첫 루프만 스폰 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
             detailContext.End_PropertyTable();
         }
@@ -2087,7 +2135,7 @@ bool RequiredModuleDetail::Draw(
     return changed;
 }
 
-bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleData& data, DetailPropertyContext& detailContext)
+bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, SpawnModuleData& data, DetailPropertyContext& detailContext)
 {
     const SpawnModuleData defaultData{};
     bool changed = false;
@@ -2100,8 +2148,24 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleDat
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("초당 생성 수", data.spawnRate, defaultData.spawnRate);
-        changed |= detailContext.Draw_FloatDistributionGroup("스폰 속도 스케일", data.spawnRateScale, defaultData.spawnRateScale);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "초당 생성 수",
+            data.spawnRate,
+            defaultData.spawnRate,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "spawnRate")
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "스폰 속도 스케일",
+            data.spawnRateScale,
+            defaultData.spawnRateScale,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "spawnRateScale")
+        );
     }
 
     if (ImGui::CollapsingHeader("버스트", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2112,7 +2176,15 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleDat
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("버스트 스케일", data.burstScale, defaultData.burstScale);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "버스트 스케일",
+            data.burstScale,
+            defaultData.burstScale,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "burstScale")
+        );
         changed |= detailContext.Draw_BurstListProperty(data.burstList, defaultData.burstList);
     }
 
@@ -2128,15 +2200,36 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleDat
     return changed;
 }
 
-bool LifetimeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, LifetimeModuleData& data, DetailPropertyContext& detailContext)
+bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const AuthoringModule& module, LifetimeModuleData& data, DetailPropertyContext& detailContext)
 {
     const LifetimeModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("파티클 생존 시간", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        changed |= detailContext.Draw_FloatDistributionGroup("파티클 생존 시간", data.lifeTime, defaultData.lifeTime);
-        ImGui::TextDisabled("각 particle이 spawn된 뒤 살아 있는 시간입니다. Over Life 계열 curve의 기준이 됩니다.");
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "파티클 생존 시간",
+            data.lifeTime,
+            defaultData.lifeTime,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "lifeTime")
+        );
+        ImGui::TextDisabled("이미 생성된 particle 또는 visual life를 생애 중간에 다시 바꾸는 Over Life curve가 아닙니다.");
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
+        {
+            ImGui::TextDisabled("Beam ConstantCurve: 전체 반복 순서 진행률로 각 loop의 visual life를 한 번 샘플합니다.");
+            ImGui::TextDisabled("Beam 무한 반복: 반복 번호를 curve 구간에 순환 적용합니다.");
+        }
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+            ImGui::TextDisabled("Mesh ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
+                 emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
+                 emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Trail/Ribbon/SourceHistorySpriteTrail ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
+        else
+            ImGui::TextDisabled("Sprite ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
     }
 
     return changed;
@@ -2175,7 +2268,7 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
-bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SphereLocationModuleData& data, DetailPropertyContext& detailContext)
+bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, SphereLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const SphereLocationModuleData defaultData{};
     bool changed = false;
@@ -2185,7 +2278,14 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
         if (detailContext.Begin_PropertyTable("SphereLocation"))
         {
             changed |= detailContext.Draw_Vec3Property("오프셋", data.offset, defaultData.offset);
-            changed |= detailContext.Draw_FloatProperty("반지름", data.radius, defaultData.radius);
+            changed |= detailContext.Draw_FloatProperty(
+                "반지름",
+                data.radius,
+                defaultData.radius,
+                0.01f,
+                nullptr,
+                Find_AuthoringValueRange(module.type, "radius")
+            );
             changed |= Internal::Draw_SphereLocationSpawnModeProperty(
                 detailContext,
                 "생성 방식",
@@ -2212,7 +2312,7 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
 
 bool PlaneRadialLocationModuleDetail::Draw(
     AuthoringEmitter&,
-    AuthoringModule&,
+    const AuthoringModule& module,
     PlaneRadialLocationModuleData& data,
     DetailPropertyContext& detailContext)
 {
@@ -2223,7 +2323,6 @@ bool PlaneRadialLocationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("PlaneRadialLocation"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             changed |= Internal::Draw_PlaneRadialLocationPlaneProperty(
                 detailContext,
                 "기준 평면",
@@ -2254,7 +2353,15 @@ bool PlaneRadialLocationModuleDetail::Draw(
         }
         else
         {
-            changed |= detailContext.Draw_FloatDistributionGroup("반지름 분포", data.radiusDistribution, defaultData.radiusDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup(
+                "반지름 분포",
+                data.radiusDistribution,
+                defaultData.radiusDistribution,
+                0.01f,
+                true,
+                false,
+                Find_AuthoringValueRange(module.type, "radiusDistribution")
+            );
             changed |= detailContext.Draw_FloatDistributionGroup(
                 "각도 분포",
                 data.angleDegreesDistribution,
@@ -2413,13 +2520,23 @@ bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Acceler
     return changed;
 }
 
-bool DragModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, DragModuleData& data, DetailPropertyContext& detailContext)
+bool DragModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, DragModuleData& data, DetailPropertyContext& detailContext)
 {
     const DragModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("드래그", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("드래그", data.drag, defaultData.drag);
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "드래그",
+            data.drag,
+            defaultData.drag,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "drag")
+        );
+    }
 
     return changed;
 }
@@ -2455,7 +2572,6 @@ bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitO
     {
         if (detailContext.Begin_PropertyTable("OrbitOverLife"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             Internal::Draw_ReadOnlyTextProperty(detailContext, "Pivot", "Emitter Origin", "v1 runtime은 EmitterOrigin만 소비합니다.");
             changed |= Internal::Draw_EffectOrbitPlaneProperty(detailContext, "평면", data.plane, defaultData.plane);
             Internal::Draw_ReadOnlyTextProperty(detailContext, "방향 추적", "Preserve", "v1 runtime은 orientation follow를 적용하지 않습니다.");
@@ -2482,7 +2598,6 @@ bool PlaneRadialOrientationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("PlaneRadialOrientation"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             Internal::Draw_PlaneRadialOrientationResolvedTargetProperty(detailContext, emitter);
             changed |= Internal::Draw_PlaneRadialOrientationModeProperty(
                 detailContext,
@@ -2532,7 +2647,6 @@ bool SphereRadialOrientationModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("SphereRadialOrientation"))
         {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
             changed |= Internal::Draw_SphereRadialOrientationModeProperty(
                 detailContext,
                 "방향",
@@ -2559,8 +2673,7 @@ bool SphereRadialOrientationModuleDetail::Draw(
 
         if (!Internal::Has_SphereLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 구 위치가 없으면 runtime sphere radial frame을 만들 수 없습니다.");
-        if (data.enabled &&
-            data.orientationMode != SphereRadialOrientationMode::None &&
+        if (data.orientationMode != SphereRadialOrientationMode::None &&
             Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
             ImGui::TextDisabled("평면/방사 회전도 켜져 있으면 runtime은 구/방사 회전을 먼저 적용합니다.");
     }
@@ -2665,7 +2778,7 @@ bool MeshRotationRateScaleByLifeModuleDetail::Draw(
     return changed;
 }
 
-bool InitialColorModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialColorModuleData& data, DetailPropertyContext& detailContext)
+bool InitialColorModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, InitialColorModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialColorModuleData defaultData{};
     bool changed = false;
@@ -2673,13 +2786,21 @@ bool InitialColorModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Initial
     if (ImGui::CollapsingHeader("초기 컬러", ImGuiTreeNodeFlags_DefaultOpen))
     {
         changed |= detailContext.Draw_ColorRgbDistributionGroup("색상(RGB)", data.color, defaultData.color);
-        changed |= detailContext.Draw_FloatDistributionGroup("알파", data.alpha, defaultData.alpha);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "알파",
+            data.alpha,
+            defaultData.alpha,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "alpha")
+        );
     }
 
     return changed;
 }
 
-bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, ColorOverLifeModuleData& data, DetailPropertyContext& detailContext)
+bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, ColorOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const ColorOverLifeModuleData defaultData{};
     bool changed = false;
@@ -2687,7 +2808,15 @@ bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, ColorO
     if (ImGui::CollapsingHeader("수명에 따른 색상", ImGuiTreeNodeFlags_DefaultOpen))
     {
         changed |= detailContext.Draw_ColorRgbDistributionGroup("색상(RGB)", data.colorOverLife, defaultData.colorOverLife);
-        changed |= detailContext.Draw_FloatDistributionGroup("알파", data.alphaOverLife, defaultData.alphaOverLife);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "알파",
+            data.alphaOverLife,
+            defaultData.alphaOverLife,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "alphaOverLife")
+        );
     }
 
     return changed;
@@ -2704,6 +2833,8 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("서브UV 프레임 선택/재생", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        const bool isBeamEmitter = emitter.typeData.kind == AuthoringTypeDataKind::Beam;
+
         if (detailContext.Begin_PropertyTable("SubUVFrameOverLife"))
         {
             changed |= Internal::Draw_SubUVFramePlaybackModeProperty(
@@ -2726,10 +2857,36 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
                     changed |= detailContext.Draw_FloatProperty("FPS", data.framesPerSecond, defaultData.framesPerSecond, 0.1f);
                 }
             }
+
             detailContext.End_PropertyTable();
         }
 
-        if (data.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        const bool usesRandomSeed =
+            data.playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+            (isBeamEmitter &&
+             data.playbackMode == SubUVFramePlaybackMode::FramesPerSecond &&
+             data.perStripSubUVVariation);
+        if (isBeamEmitter)
+        {
+            if (ImGui::CollapsingHeader("Beam Multi-Strip Variation", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (detailContext.Begin_PropertyTable("BeamSubUVVariation"))
+                {
+                    changed |= detailContext.Draw_BoolProperty(
+                        "Per-Strip SubUV Variation",
+                        data.perStripSubUVVariation,
+                        defaultData.perStripSubUVVariation,
+                        "Beam multi-strip에서 RandomFrame은 strip별로 샘플하고, loop FPS는 strip별 phase offset을 적용합니다."
+                    );
+                    detailContext.End_PropertyTable();
+                }
+
+                if (!usesRandomSeed)
+                    ImGui::TextDisabled("RandomFrame 또는 looped FramesPerSecond에서 seed 기반 strip variation을 사용합니다.");
+            }
+        }
+
+        if (usesRandomSeed)
             changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
 
         const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);
@@ -2844,12 +3001,6 @@ bool SpawnPerUnitModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("거리당 스폰", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (detailContext.Begin_PropertyTable("SpawnPerUnit"))
-        {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
-            detailContext.End_PropertyTable();
-        }
-
         changed |= detailContext.Draw_FloatDistributionGroup("분포", data.spawnPerUnit, defaultData.spawnPerUnit);
 
         if (detailContext.Begin_PropertyTable("SpawnPerUnitPolicy"))
@@ -2882,6 +3033,268 @@ bool SpawnPerUnitModuleDetail::Draw(
     data.unitScalar = max(0.0001f, data.unitScalar);
     data.movementTolerance = max(0.f, data.movementTolerance);
     data.maxFrameDistance = max(0.f, data.maxFrameDistance);
+    return changed;
+}
+
+bool SourceHistorySpriteTrailPathFollowModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    SourceHistorySpriteTrailPathFollowModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SourceHistorySpriteTrailPathFollowModuleData defaultData{};
+    bool changed = false;
+
+    const auto direction_label = [](SourceHistorySpriteTrailPathFollowDirection direction)
+    {
+        switch (direction)
+        {
+        case SourceHistorySpriteTrailPathFollowDirection::TowardHead:
+            return "Head 방향";
+        case SourceHistorySpriteTrailPathFollowDirection::TowardTail:
+            return "Tail 방향";
+        default:
+            return "Head 방향";
+        }
+    };
+
+    const auto arrival_mode_label = [](SourceHistorySpriteTrailArrivalMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailArrivalMode::ClampAtEnd:
+            return "끝점 고정";
+        case SourceHistorySpriteTrailArrivalMode::KillOnArrive:
+        default:
+            return "도착 시 제거";
+        }
+    };
+
+    if (ImGui::CollapsingHeader("경로 따라가기", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SourceHistorySpriteTrailPathFollowPolicy"))
+        {
+            ImGui::PushID("Direction");
+            detailContext.Draw_PropertyLabel("방향");
+            SourceHistorySpriteTrailPathFollowDirection nextDirection = data.direction;
+            if (ImGui::BeginCombo("##Value", direction_label(nextDirection)))
+            {
+                const SourceHistorySpriteTrailPathFollowDirection candidates[] = {
+                    SourceHistorySpriteTrailPathFollowDirection::TowardHead,
+                    SourceHistorySpriteTrailPathFollowDirection::TowardTail,
+                };
+                for (const SourceHistorySpriteTrailPathFollowDirection candidate : candidates)
+                {
+                    const bool selected = nextDirection == candidate;
+                    if (ImGui::Selectable(direction_label(candidate), selected))
+                        nextDirection = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.direction != nextDirection)
+            {
+                data.direction = nextDirection;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            ImGui::PushID("ArrivalMode");
+            detailContext.Draw_PropertyLabel("도착 후 처리");
+            SourceHistorySpriteTrailArrivalMode nextArrivalMode = data.arrivalMode;
+            if (ImGui::BeginCombo("##Value", arrival_mode_label(nextArrivalMode)))
+            {
+                const SourceHistorySpriteTrailArrivalMode candidates[] = {
+                    SourceHistorySpriteTrailArrivalMode::KillOnArrive,
+                    SourceHistorySpriteTrailArrivalMode::ClampAtEnd,
+                };
+                for (const SourceHistorySpriteTrailArrivalMode candidate : candidates)
+                {
+                    const bool selected = nextArrivalMode == candidate;
+                    if (ImGui::Selectable(arrival_mode_label(candidate), selected))
+                        nextArrivalMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.arrivalMode != nextArrivalMode)
+            {
+                data.arrivalMode = nextArrivalMode;
+                changed = true;
+            }
+            ImGui::PopID();
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);
+        changed |= detailContext.Draw_FloatDistributionGroup("시작 딜레이", data.startDelay, defaultData.startDelay);
+    }
+
+    return changed;
+}
+
+bool SourceHistorySpriteTrailPathReplayModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    SourceHistorySpriteTrailPathReplayModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SourceHistorySpriteTrailPathReplayModuleData defaultData{};
+    bool changed = false;
+
+    const auto replay_mode_label = [](SourceHistorySpriteTrailPathReplayMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailPathReplayMode::RecordedSpeed:
+            return "기록 속도";
+        case SourceHistorySpriteTrailPathReplayMode::FitDuration:
+            return "지정 시간";
+        default:
+            return "기록 속도";
+        }
+    };
+
+    const auto start_mode_label = [](SourceHistorySpriteTrailPathReplayStartMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailPathReplayStartMode::TailFirst:
+            return "Tail 먼저";
+        case SourceHistorySpriteTrailPathReplayStartMode::AllAtOnce:
+            return "동시 시작";
+        default:
+            return "Tail 먼저";
+        }
+    };
+
+    const auto arrival_mode_label = [](SourceHistorySpriteTrailArrivalMode mode)
+    {
+        switch (mode)
+        {
+        case SourceHistorySpriteTrailArrivalMode::ClampAtEnd:
+            return "끝점 고정";
+        case SourceHistorySpriteTrailArrivalMode::KillOnArrive:
+        default:
+            return "도착 시 제거";
+        }
+    };
+
+    if (ImGui::CollapsingHeader("경로 리플레이", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SourceHistorySpriteTrailPathReplayPolicy"))
+        {
+            changed |= detailContext.Draw_FloatProperty(
+                "딜레이",
+                data.delayTime,
+                defaultData.delayTime,
+                0.01f,
+                "stamp 생성 후 replay 시작 전 유지 시간입니다."
+            );
+
+            ImGui::PushID("ReplayMode");
+            detailContext.Draw_PropertyLabel("재생 방식");
+            SourceHistorySpriteTrailPathReplayMode nextReplayMode = data.replayMode;
+            if (ImGui::BeginCombo("##Value", replay_mode_label(nextReplayMode)))
+            {
+                const SourceHistorySpriteTrailPathReplayMode candidates[] = {
+                    SourceHistorySpriteTrailPathReplayMode::RecordedSpeed,
+                    SourceHistorySpriteTrailPathReplayMode::FitDuration,
+                };
+                for (const SourceHistorySpriteTrailPathReplayMode candidate : candidates)
+                {
+                    const bool selected = nextReplayMode == candidate;
+                    if (ImGui::Selectable(replay_mode_label(candidate), selected))
+                        nextReplayMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.replayMode != nextReplayMode)
+            {
+                data.replayMode = nextReplayMode;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            changed |= detailContext.Draw_FloatProperty(
+                "속도 배율",
+                data.speedScale,
+                defaultData.speedScale,
+                0.01f,
+                "기록 속도 모드에서 source 기록 속도에 곱하는 배율입니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "흡수 시간",
+                data.drainDuration,
+                defaultData.drainDuration,
+                0.01f,
+                "지정 시간 모드에서 head까지 따라붙는 총 시간입니다."
+            );
+
+            ImGui::PushID("StartMode");
+            detailContext.Draw_PropertyLabel("시작 방식");
+            SourceHistorySpriteTrailPathReplayStartMode nextStartMode = data.startMode;
+            if (ImGui::BeginCombo("##Value", start_mode_label(nextStartMode)))
+            {
+                const SourceHistorySpriteTrailPathReplayStartMode candidates[] = {
+                    SourceHistorySpriteTrailPathReplayStartMode::TailFirst,
+                    SourceHistorySpriteTrailPathReplayStartMode::AllAtOnce,
+                };
+                for (const SourceHistorySpriteTrailPathReplayStartMode candidate : candidates)
+                {
+                    const bool selected = nextStartMode == candidate;
+                    if (ImGui::Selectable(start_mode_label(candidate), selected))
+                        nextStartMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.startMode != nextStartMode)
+            {
+                data.startMode = nextStartMode;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            ImGui::PushID("ArrivalMode");
+            detailContext.Draw_PropertyLabel("도착 후 처리");
+            SourceHistorySpriteTrailArrivalMode nextArrivalMode = data.arrivalMode;
+            if (ImGui::BeginCombo("##Value", arrival_mode_label(nextArrivalMode)))
+            {
+                const SourceHistorySpriteTrailArrivalMode candidates[] = {
+                    SourceHistorySpriteTrailArrivalMode::KillOnArrive,
+                    SourceHistorySpriteTrailArrivalMode::ClampAtEnd,
+                };
+                for (const SourceHistorySpriteTrailArrivalMode candidate : candidates)
+                {
+                    const bool selected = nextArrivalMode == candidate;
+                    if (ImGui::Selectable(arrival_mode_label(candidate), selected))
+                        nextArrivalMode = candidate;
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (data.arrivalMode != nextArrivalMode)
+            {
+                data.arrivalMode = nextArrivalMode;
+                changed = true;
+            }
+            ImGui::PopID();
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("흡수 곡선", data.drainCurve, defaultData.drainCurve, 0.01f, false, true);
+    }
+
+    data.delayTime = max(0.f, data.delayTime);
+    data.speedScale = max(0.f, data.speedScale);
+    data.drainDuration = max(0.0001f, data.drainDuration);
     return changed;
 }
 
@@ -2954,7 +3367,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                     if (detailContext.Begin_PropertyTable("MaterialCoreColorRgbModulator"))
                     {
-                        changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
+                        changed |= detailContext.Draw_BoolProperty("변조 사용", modulator.enabled, defaultData.enabled);
 
                         bool nextCoreColorRgb = true;
                         MaterialScalarModulationTargetField nextTarget = MaterialScalarModulationTargetField::CoreColor;
@@ -3017,7 +3430,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                     if (detailContext.Begin_PropertyTable("MaterialScalarModulator"))
                     {
-                        changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
+                        changed |= detailContext.Draw_BoolProperty("변조 사용", modulator.enabled, defaultData.enabled);
 
                         bool nextCoreColorRgb = false;
                         MaterialScalarModulationTargetField nextTarget = modulator.targetField;

@@ -46,10 +46,10 @@ namespace UIEditor
             if (track.type == UI_AnimationKeyframeTrackType::Rotation)
                 return to_string(Radians_ToDegrees(key.value)) + " deg";
 
-            if (track.type == UI_AnimationKeyframeTrackType::Size)
+            if (Is_AnimationKeyframeTrackVec2Value(track.type))
             {
                 return
-                    "Size(" +
+                    string(Get_AnimationKeyframeTrackTypeName(track.type)) + "(" +
                     to_string(key.valueVec2.x) + ", " +
                     to_string(key.valueVec2.y) + ")";
             }
@@ -565,10 +565,10 @@ namespace UIEditor
             }
             Show_ItemTooltip("Edit R, G, B, and A as 0 to 255 values.");
         }
-        else if (editableTrack->type == UI_AnimationKeyframeTrackType::Size)
+        else if (Is_AnimationKeyframeTrackVec2Value(editableTrack->type))
         {
             ImVec2 value = selectedKey->valueVec2;
-            if (ImGui::DragFloat2("Size", &value.x, Get_AnimationKeyframeTrackDragSpeed(editableTrack->type), 0.f, 0.f, "%.3f"))
+            if (ImGui::DragFloat2(Get_AnimationKeyframeTrackTypeName(editableTrack->type), &value.x, Get_AnimationKeyframeTrackDragSpeed(editableTrack->type), 0.f, 0.f, "%.3f"))
             {
                 if (_assetService.Set_SelectedKeyVec2Value(value))
                     Request_StaticPreviewRefresh();

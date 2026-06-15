@@ -33,7 +33,7 @@ public:
     virtual HRESULT Render_Shadow() { return S_OK; }
     virtual HRESULT RenderPickingID(uint32 id) { return S_OK; }
 
-    // Static Shadow 캐싱할 때 이 오브젝트가 차지하는 월드 Bounds 넘겨주기
+    // Shadow Pass 컬링용 월드 Bounds 넘겨주기
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const { return false;}
 
     HRESULT         Try_BeginPlay();
@@ -78,7 +78,6 @@ public: /* 그림자 */
     ShadowCasterType Get_ShadowCasterType() const { return _shadowCasterType; }
 
     bool Casts_DynamicShadow() const { return _shadowCasterType == ShadowCasterType::Dynamic; }
-    bool Casts_StaticShadow() const { return _shadowCasterType == ShadowCasterType::Static; }
 
 public:
     // 일반적으로 컴포넌트 가져올 때 = Get_Component<ShaderCom>(); 이런느낌
