@@ -83,7 +83,9 @@ private: //## Types::PendingAction
         None,
         AddTrail,
         AddMesh,
-        AddSourceHistoryRibbon,
+        AddRibbon,
+        AddSourceHistorySpriteTrail,
+        AddBeam,
         ResetData,
         Remove
     };
@@ -103,9 +105,10 @@ private: //## Types::ModulePicker
         optional<AuthoringModuleType> moduleType{};
         wstring displayName{};
         string stateText{};
-        string disabledReason{};
+        string tooltipText{};
         bool implemented{ false };
         bool compatible{ true };
+        bool alreadyAdded{ false };
         bool canAdd{ false };
     };
 
@@ -212,6 +215,8 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_SizeByLifeModule();
     AuthoringModule Make_MeshSizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
+    AuthoringModule Make_SourceHistorySpriteTrailPathFollowModule();
+    AuthoringModule Make_SourceHistorySpriteTrailPathReplayModule();
     AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy

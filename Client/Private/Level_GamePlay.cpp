@@ -103,7 +103,7 @@ HRESULT Level_GamePlay::Ready_Lights()
     {
         ShadowLightDesc ShadowDesc{};
 
-        ShadowDesc.eye = Vec3(0.f, 10.f, -7.f);
+        ShadowDesc.eye = Vec3(0.f, 15.f, -7.f);
         ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
 
         // Camera 따라다니게
@@ -111,9 +111,11 @@ HRESULT Level_GamePlay::Ready_Lights()
         ShadowDesc.focusNear = 0.1f;
         ShadowDesc.focusFar = 110.f;
         ShadowDesc.lightDistancePadding = 30.f;
+        // 그림자용 ortho projection 범위 여유 값
         ShadowDesc.xyPadding = 2.f;
         ShadowDesc.zPadding = 40.f;
 
+        // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
         ShadowDesc.shadowMapWidth = 4096;
         ShadowDesc.shadowMapHeight = 4096;
 
@@ -123,22 +125,23 @@ HRESULT Level_GamePlay::Ready_Lights()
 
         if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
             return E_FAIL;
-
+        
+        // 카메라 close/normal/far 모드에 따라서 그림자 구간을 동적 조절하기 위한 프리셋 설정
         ShadowCascadePresetSet cascadePresets{};
         cascadePresets.close.focusNear = 0.1f;
         cascadePresets.close.focusFar = 28.f;
         cascadePresets.close.cascadeSplitLambda = 0.95f;
-        cascadePresets.close.cascadeBlendDistance = 2.5f;
+        cascadePresets.close.cascadeBlendDistance = 0.8f;
 
         cascadePresets.normal.focusNear = 0.1f;
         cascadePresets.normal.focusFar = 110.f;
         cascadePresets.normal.cascadeSplitLambda = 0.8f;
-        cascadePresets.normal.cascadeBlendDistance = 4.f;
+        cascadePresets.normal.cascadeBlendDistance = 1.7f;
 
         cascadePresets.farRange.focusNear = 0.1f;
         cascadePresets.farRange.focusFar = 180.f;
         cascadePresets.farRange.cascadeSplitLambda = 0.55f;
-        cascadePresets.farRange.cascadeBlendDistance = 6.f;
+        cascadePresets.farRange.cascadeBlendDistance = 3.f;
 
         if (FAILED(GAME->Set_ShadowCascadePresets(cascadePresets)))
             return E_FAIL;

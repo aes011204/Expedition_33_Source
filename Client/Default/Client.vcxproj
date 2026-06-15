@@ -165,6 +165,7 @@
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\Public\ANS_PlayEffect.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h" />
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
     <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
@@ -233,22 +234,30 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
+    <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\MapAdapter.h" />
     <ClInclude Include="..\Public\MapCollisionAdapter.h" />
     <ClInclude Include="..\Public\PlayerInventory.h" />
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h" />
+    <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h" />
+    <ClInclude Include="..\Public\ComputeGeneratedBeamEmitter.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
     <ClInclude Include="..\public\PuzzleController.h" />
     <ClInclude Include="..\Public\SkyBoxFlow.h" />
     <ClInclude Include="..\Public\SkyCloudCard.h" />
+    <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h" />
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
     <ClInclude Include="..\Public\FaceAccessory_Player.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GamePlayMenuFade.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
@@ -446,6 +455,8 @@
     <ClInclude Include="..\Public\UI_QTE.h" />
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
+    <ClInclude Include="..\Public\UI_SpriteVfx.h" />
+    <ClInclude Include="..\Public\UI_Vfx.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
     <ClInclude Include="..\Public\ScreenFadeTransition.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
@@ -491,6 +502,7 @@
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
+    <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp" />
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
@@ -540,6 +552,7 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
     <ClCompile Include="..\private\CinematicCamera.cpp" />
     <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
     <ClCompile Include="..\Private\EyeTarget.cpp" />
@@ -552,6 +565,7 @@
     <ClCompile Include="..\private\PuzzleController.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
+    <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />
     <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
@@ -565,9 +579,14 @@
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp" />
+    <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
@@ -656,6 +675,10 @@
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Emitters.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Json.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp" />
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
@@ -757,6 +780,8 @@
     <ClCompile Include="..\Private\UI_QTE.cpp" />
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\UI_SpriteVfx.cpp" />
+    <ClCompile Include="..\Private\UI_Vfx.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\ScreenFadeTransition.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
@@ -795,7 +820,11 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />

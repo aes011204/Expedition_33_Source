@@ -6,7 +6,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentUIJsonVersion = 8;
+        constexpr int32 kCurrentUIJsonVersion = 9;
         constexpr const char* kDefaultCanvasName = "MainCanvas";
         constexpr const char* kDefaultFontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
 
@@ -22,6 +22,8 @@ namespace UIEditor
                 return "Panel";
             case UI_ObjectType::Button:
                 return "Button";
+            case UI_ObjectType::UIVfx:
+                return "UIVfx";
             default:
                 return "Image";
             }
@@ -50,6 +52,12 @@ namespace UIEditor
             if (typeName == "Button")
             {
                 objectType = UI_ObjectType::Button;
+                return true;
+            }
+
+            if (typeName == "UIVfx" || typeName == "UIVFX" || typeName == "UI_Vfx")
+            {
+                objectType = UI_ObjectType::UIVfx;
                 return true;
             }
 
@@ -136,6 +144,36 @@ namespace UIEditor
                 return UI_MaskTextureMode::BlackWhite;
 
             return UI_MaskTextureMode::Alpha;
+        }
+
+        const char* Get_FillOriginName(UI_FillOrigin fillOrigin)
+        {
+            switch (fillOrigin)
+            {
+            case UI_FillOrigin::RightToLeft:
+                return "RightToLeft";
+            case UI_FillOrigin::TopToBottom:
+                return "TopToBottom";
+            case UI_FillOrigin::BottomToTop:
+                return "BottomToTop";
+            case UI_FillOrigin::LeftToRight:
+            default:
+                return "LeftToRight";
+            }
+        }
+
+        UI_FillOrigin Parse_FillOrigin(const string& fillOriginName)
+        {
+            const string fillOrigin = String::ToLowerCopy(fillOriginName);
+
+            if ("righttoleft" == fillOrigin || "right_to_left" == fillOrigin || "right to left" == fillOrigin)
+                return UI_FillOrigin::RightToLeft;
+            if ("toptobottom" == fillOrigin || "top_to_bottom" == fillOrigin || "top to bottom" == fillOrigin)
+                return UI_FillOrigin::TopToBottom;
+            if ("bottomtotop" == fillOrigin || "bottom_to_top" == fillOrigin || "bottom to top" == fillOrigin)
+                return UI_FillOrigin::BottomToTop;
+
+            return UI_FillOrigin::LeftToRight;
         }
 
         const char* Get_RenderGroupName(UI_RenderGroup renderGroup)
@@ -449,6 +487,10 @@ namespace UIEditor
                 object.fontPath = kDefaultFontPath;
                 object.fontTag = Make_FontTagFromPath(object.fontPath);
             }
+            else if (objectType == UI_ObjectType::UIVfx)
+            {
+                object.size = ImVec2(360.f, 160.f);
+            }
 
             return object;
         }
@@ -596,6 +638,12 @@ namespace UIEditor
                 item["patternUvOffset"] = Vec2_ToJson(object.patternUvOffset);
             if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !NearlyEqual(object.patternUvScale, Get_DefaultPatternUvScale()))
                 item["patternUvScale"] = Vec2_ToJson(object.patternUvScale);
+            if (object.useFillRatio)
+                item["useFillRatio"] = true;
+            if (object.useFillRatio && !NearlyEqual(object.fillRatio, Get_DefaultFillRatio()))
+                item["fillRatio"] = Clamp_FillRatio(object.fillRatio);
+            if (object.useFillRatio && object.fillOrigin != Get_DefaultFillOrigin())
+                item["fillOrigin"] = Get_FillOriginName(object.fillOrigin);
         }
         else if (object.type == UI_ObjectType::Text)
         {
@@ -613,6 +661,13 @@ namespace UIEditor
         {
             if (!object.stateAnimationPath.empty())
                 item["stateAnimationPath"] = object.stateAnimationPath;
+        }
+        else if (object.type == UI_ObjectType::UIVfx)
+        {
+            item["vfxPath"] = object.vfxPath;
+            item["playOnOpen"] = object.vfxPlayOnOpen;
+            item["loop"] = object.vfxLoop;
+            item["stopOnClose"] = object.vfxStopOnClose;
         }
 
         if (!object.animationClips.empty())
@@ -688,6 +743,9 @@ namespace UIEditor
             object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
             object.patternUvOffset = Clamp_PatternUvOffset(Read_Vec2(item, "patternUvOffset", Get_DefaultPatternUvOffset()));
             object.patternUvScale = Clamp_PatternUvScale(Read_Vec2(item, "patternUvScale", Get_DefaultPatternUvScale()));
+            object.useFillRatio = Read_Bool(item, "useFillRatio", false);
+            object.fillRatio = Clamp_FillRatio(Read_Float(item, "fillRatio", Get_DefaultFillRatio()));
+            object.fillOrigin = Parse_FillOrigin(Read_String(item, "fillOrigin", Get_FillOriginName(Get_DefaultFillOrigin())));
         }
         else if (object.type == UI_ObjectType::Text)
         {
@@ -709,6 +767,13 @@ namespace UIEditor
         else if (object.type == UI_ObjectType::Button)
         {
             object.stateAnimationPath = Read_String(item, "stateAnimationPath", "");
+        }
+        else if (object.type == UI_ObjectType::UIVfx)
+        {
+            object.vfxPath = Read_String(item, "vfxPath", "");
+            object.vfxPlayOnOpen = Read_Bool(item, "playOnOpen", true);
+            object.vfxLoop = Read_Bool(item, "loop", false);
+            object.vfxStopOnClose = Read_Bool(item, "stopOnClose", true);
         }
 
         const auto animationsIter = item.find("animations");

@@ -58,6 +58,9 @@
     <Filter Include="02. View\Animation">
       <UniqueIdentifier>{a01f31fb-b31d-4ba8-a9f3-0df824fb0900}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02. View\VFX">
+      <UniqueIdentifier>{6b7cfead-857c-4f39-89e6-7b0ea46f2295}</UniqueIdentifier>
+    </Filter>
     <Filter Include="01. Manager\UI_Editor_Manager\SelectionService">
       <UniqueIdentifier>{d91188a8-cb82-40a8-b9a8-1174182b191b}</UniqueIdentifier>
     </Filter>
@@ -213,6 +216,9 @@
     <ClCompile Include="..\Private\UI_Hierarchy_View.cpp">
       <Filter>02. View\Hierarchy</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Vfx_View.cpp">
+      <Filter>02. View\VFX</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Viewport_View.cpp">
       <Filter>02. View\Viewport</Filter>
     </ClCompile>
@@ -334,6 +340,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_Hierarchy_View.h">
       <Filter>02. View\Hierarchy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Vfx_View.h">
+      <Filter>02. View\VFX</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Viewport_View.h">
       <Filter>02. View\Viewport</Filter>

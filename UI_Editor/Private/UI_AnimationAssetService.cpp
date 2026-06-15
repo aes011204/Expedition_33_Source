@@ -364,6 +364,8 @@ namespace UIEditor
                 key.frame = min(max(key.frame, _asset.startFrame), _asset.endFrame);
                 if (track.type == UI_AnimationKeyframeTrackType::Color)
                     key.color = Clamp_AnimationKeyframeColor(key.color);
+                else if (Is_AnimationKeyframeTrackVec2Value(track.type))
+                    key.valueVec2 = Clamp_AnimationKeyframeTrackVec2Value(track.type, key.valueVec2);
                 else
                     key.value = Clamp_AnimationKeyframeTrackValue(track.type, key.value);
             }
@@ -378,6 +380,8 @@ namespace UIEditor
                     key.frame = min(max(key.frame, _asset.startFrame), _asset.endFrame);
                     if (track.type == UI_AnimationKeyframeTrackType::Color)
                         key.color = Clamp_AnimationKeyframeColor(key.color);
+                    else if (Is_AnimationKeyframeTrackVec2Value(track.type))
+                        key.valueVec2 = Clamp_AnimationKeyframeTrackVec2Value(track.type, key.valueVec2);
                     else
                         key.value = Clamp_AnimationKeyframeTrackValue(track.type, key.value);
                 }
@@ -502,6 +506,8 @@ namespace UIEditor
             return targetObject->alphaMultiplier;
         case UI_AnimationKeyframeTrackType::FontSize:
             return targetObject->fontSize;
+        case UI_AnimationKeyframeTrackType::FillRatio:
+            return targetObject->fillRatio;
         case UI_AnimationKeyframeTrackType::Color:
             return 0.f;
         default:
@@ -511,18 +517,46 @@ namespace UIEditor
 
     ImVec2 UI_AnimationAssetService::Get_TargetCurrentVec2Value(const UI_Document& document, UI_AnimationKeyframeTrackType trackType) const
     {
-        if (trackType != UI_AnimationKeyframeTrackType::Size)
-            return ImVec2(0.f, 0.f);
+        if (trackType == UI_AnimationKeyframeTrackType::Size)
+        {
+            if (Is_PublicAnimationMode())
+                return ImVec2(100.f, 100.f);
 
-        if (Is_PublicAnimationMode())
-            return ImVec2(100.f, 100.f);
+            const UI_AnimationTargetBinding* target = Get_SelectedTarget();
+            const UI_Object* targetObject = nullptr != target ? document.Find_Object(target->targetObjectId) : nullptr;
+            if (nullptr == targetObject)
+                return ImVec2(100.f, 100.f);
 
-        const UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        const UI_Object* targetObject = nullptr != target ? document.Find_Object(target->targetObjectId) : nullptr;
-        if (nullptr == targetObject)
-            return ImVec2(100.f, 100.f);
+            return targetObject->size;
+        }
 
-        return targetObject->size;
+        if (trackType == UI_AnimationKeyframeTrackType::PatternUvOffset)
+        {
+            if (Is_PublicAnimationMode())
+                return Get_DefaultPatternUvOffset();
+
+            const UI_AnimationTargetBinding* target = Get_SelectedTarget();
+            const UI_Object* targetObject = nullptr != target ? document.Find_Object(target->targetObjectId) : nullptr;
+            if (nullptr == targetObject)
+                return Get_DefaultPatternUvOffset();
+
+            return targetObject->patternUvOffset;
+        }
+
+        if (trackType == UI_AnimationKeyframeTrackType::PatternUvScale)
+        {
+            if (Is_PublicAnimationMode())
+                return Get_DefaultPatternUvScale();
+
+            const UI_AnimationTargetBinding* target = Get_SelectedTarget();
+            const UI_Object* targetObject = nullptr != target ? document.Find_Object(target->targetObjectId) : nullptr;
+            if (nullptr == targetObject)
+                return Get_DefaultPatternUvScale();
+
+            return targetObject->patternUvScale;
+        }
+
+        return ImVec2(0.f, 0.f);
     }
 
     ImVec4 UI_AnimationAssetService::Get_TargetCurrentColor255(const UI_Document& document) const

@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "MapEditorApp.h"
 #include "GameInstance.h"
+#include "PostProcessPipeline.h"
 #include "RenderTarget.h"
 
 #include "MEPickingSystem.h"
@@ -139,6 +140,8 @@ HRESULT MapEditorApp::Initialize()
 
 
     CHECK_FAILED(Ready_Light(), E_FAIL);
+    Apply_DefaultPostProcessSettings();
+    Apply_DefaultShadowSettings();
 
     return S_OK;
 }
@@ -644,6 +647,9 @@ void MapEditorApp::SyncSceneLights()
 
     GAME->Clear_Lights();
 
+    bool hasPrimaryDirectional = false;
+    LIGHT_DESC primaryDirectionalDesc{};
+
     for (const auto& obj : _scene._lights)
     {
         LIGHT_DESC desc{};
@@ -655,12 +661,26 @@ void MapEditorApp::SyncSceneLights()
         desc.ambient = obj->_lightAmbient;
         desc.specular = obj->_lightSpecular;
         GAME->Add_Light(desc);
+
+        if (!hasPrimaryDirectional && desc.type == LightType::Directional)
+        {
+            primaryDirectionalDesc = desc;
+            primaryDirectionalDesc.castShadow = true;
+            hasPrimaryDirectional = true;
+        }
+    }
+
+    if (hasPrimaryDirectional)
+    {
+        GAME->Update_PrimaryShadowLightDesc(primaryDirectionalDesc);
+        Apply_DefaultShadowSettings();
     }
 }
 
 void MapEditorApp::SyncFogZones()
 {
     FogZoneCB cb{};
+    bool hasGroundFogGlobals = false;
 
     for (const auto& obj : _scene._postProcessVolumes)
     {
@@ -669,34 +689,36 @@ void MapEditorApp::SyncFogZones()
             continue;
         }
 
+        if (!hasGroundFogGlobals)
+        {
+            cb.groundFogMaxDistance = obj->_ppGroundFogMaxDistance;
+            cb.groundFogMinAccumulationDistance = obj->_ppGroundFogMinAccumulationDistance;
+            cb.groundFogDistanceInfluence = obj->_ppGroundFogDistanceInfluence;
+            cb.groundFogNearFadeDistance = obj->_ppGroundFogNearFadeDistance;
+            cb.groundFogNearMinFactor = obj->_ppGroundFogNearMinFactor;
+            hasGroundFogGlobals = true;
+        }
+
         FogZoneEntry entry{};
         entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
         entry.fogDensity = obj->_ppFogDensity;
-        entry.fogStart = obj->_ppFogStart;
+        entry.baseHeight = obj->_ppFogBaseHeight;
+        entry.topFadeStart = obj->_ppFogTopFadeStart;
+        entry.topHeight = obj->_ppFogTopHeight;
+        entry.edgeFade = obj->_ppFogEdgeFade;
+        entry.noiseScale = obj->_ppFogNoiseScale;
+        entry.noiseSpeed = obj->_ppFogNoiseSpeed;
+        entry.noiseStrength = obj->_ppFogNoiseStrength;
+        entry.noiseMin = obj->_ppFogNoiseMin;
 
-        if (obj->_ppFogZoneType == 0) // AABB
+        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
         {
-            if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                continue;
-            }
-
-            entry.zoneMin = obj->_position - obj->_zoneExtent;
-            entry.zoneMax = obj->_position + obj->_zoneExtent;
-            cb.zones[cb.aabbCount++] = entry;
+            continue;
         }
 
-        else
-        {
-            if (cb.aabbCount + cb.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                continue;
-            }
-
-            entry.zoneMin = obj->_position;
-            entry.zoneRadius = obj->_ppFogRadius;
-            cb.zones[cb.aabbCount + cb.sphereCount++] = entry;
-        }
+        entry.zoneMin = obj->_position - obj->_zoneExtent;
+        entry.zoneMax = obj->_position + obj->_zoneExtent;
+        cb.zones[cb.aabbCount++] = entry;
     }
 
     GAME->Set_FogZones(cb);
@@ -713,6 +735,73 @@ HRESULT MapEditorApp::Ready_Light()
     obj->_isDefaultLight = true;
     _scene.Add(obj);
     return S_OK;
+}
+
+void MapEditorApp::Apply_DefaultPostProcessSettings()
+{
+    const Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
+    if (!pipeline)
+    {
+        return;
+    }
+
+    pipeline->Set_PostProcessFeatures(
+        PostProcessFeature::HDR |
+        PostProcessFeature::Exposure |
+        PostProcessFeature::ToneMapping |
+        PostProcessFeature::Bloom |
+        PostProcessFeature::Gamma |
+        PostProcessFeature::LightShaft);
+
+    pipeline->Set_PostProcessParams(pipeline->Get_PostProcessParams());
+    pipeline->Set_LightShaftParams(pipeline->Get_LightShaftParams());
+}
+
+void MapEditorApp::Apply_DefaultShadowSettings()
+{
+    ShadowLightDesc shadowDesc{};
+
+    shadowDesc.eye = Vec3(0.f, 15.f, -7.f);
+    shadowDesc.at = Vec3(0.f, 0.f, 0.f);
+
+    // Camera 따라다니게
+    shadowDesc.followCameraFrustum = true;
+    shadowDesc.focusNear = 0.1f;
+    shadowDesc.focusFar = 110.f;
+    shadowDesc.lightDistancePadding = 30.f;
+    // 그림자용 ortho projection 범위 여유 값
+    shadowDesc.xyPadding = 2.f;
+    shadowDesc.zPadding = 40.f;
+
+    // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
+    shadowDesc.shadowMapWidth = 4096;
+    shadowDesc.shadowMapHeight = 4096;
+
+    shadowDesc.cascadeSplitLambda = 0.8f;
+    shadowDesc.bias = 0.0002f;
+    shadowDesc.intensity = 0.45f;
+
+    GAME->Update_ShadowLight(shadowDesc);
+
+    // 카메라 close/normal/far 모드에 따라서 그림자 구간을 동적 조절하기 위한 프리셋 설정
+    ShadowCascadePresetSet cascadePresets{};
+    cascadePresets.close.focusNear = 0.1f;
+    cascadePresets.close.focusFar = 28.f;
+    cascadePresets.close.cascadeSplitLambda = 0.95f;
+    cascadePresets.close.cascadeBlendDistance = 0.8f;
+
+    cascadePresets.normal.focusNear = 0.1f;
+    cascadePresets.normal.focusFar = 110.f;
+    cascadePresets.normal.cascadeSplitLambda = 0.8f;
+    cascadePresets.normal.cascadeBlendDistance = 1.7f;
+
+    cascadePresets.farRange.focusNear = 0.1f;
+    cascadePresets.farRange.focusFar = 180.f;
+    cascadePresets.farRange.cascadeSplitLambda = 0.55f;
+    cascadePresets.farRange.cascadeBlendDistance = 3.f;
+
+    GAME->Set_ShadowCascadePresets(cascadePresets);
+    GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal);
 }
 
 wstring MapEditorApp::Get_ClientResourceRoot() const

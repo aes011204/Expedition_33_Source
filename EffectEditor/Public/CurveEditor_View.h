@@ -121,6 +121,14 @@ private:
     static Vec2 Evaluate_Curve(const ConstantCurveVector2DistributionData& curve, float x);
     static Vec3 Evaluate_Curve(const ConstantCurveVector3DistributionData& curve, float x);
     static Color Evaluate_Curve(const ConstantCurveColorDistributionData& curve, float x);
+
+    struct TargetEditRange
+    {
+        float minValue{ -1000.f };
+        float maxValue{ 1000.f };
+    };
+
+    static TargetEditRange Compute_TargetEditRange(const CurveTarget& target);
     static float Clamp_GraphEditedValue(const CurveTarget& target, float value);
 
     Shared<Emitter_View> Resolve_EmitterView() const;

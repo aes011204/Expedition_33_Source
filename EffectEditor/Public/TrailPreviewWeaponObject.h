@@ -16,7 +16,7 @@ NS_BEGIN(EffectEditor)
 
 class TrailPreviewPlayerObject;
 
-class TrailPreviewWeaponObject final : public PartObject, public IEffectTrailSampleProvider
+class TrailPreviewWeaponObject final : public PartObject, public IEffectTrailSampleProvider, public IEffectSourcePointSampleProvider
 {
 public:
     TrailPreviewWeaponObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -37,9 +37,13 @@ public: //## Runtime::TrailSample
     Vec3 Get_TrailBaseWorldPosition() const { return _trailBaseWorldPosition; }
     // 다음 trail/ribbon consumer가 읽을 weapon-local tip world sample이다.
     Vec3 Get_TrailTipWorldPosition() const { return _trailTipWorldPosition; }
+    // 다음 source-history consumer가 읽을 weapon-local source world sample이다.
+    Vec3 Get_SourcePointWorldPosition() const { return _sourcePointWorldPosition; }
 
     // Trail runtime이 attachment 계산을 몰라도 되도록 base/tip sample만 제공한다.
     bool Try_GetTrailSample(EffectTrailSample& outSample) const override;
+    // SourceHistory runtime이 attachment 계산을 몰라도 되도록 단일 point sample만 제공한다.
+    bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override;
 
 private: //## Static Values
     static constexpr auto kWeaponModelRelativePath{
@@ -59,6 +63,7 @@ private: //## Data::TrailSample
     Matrix _weaponWorldMatrix{ Matrix::Identity };
     Vec3 _trailBaseWorldPosition{};
     Vec3 _trailTipWorldPosition{};
+    Vec3 _sourcePointWorldPosition{};
     bool _hasTrailSample{ false };
     bool _isSocketAttached{ false };
     bool _socketWarningLogged{ false };

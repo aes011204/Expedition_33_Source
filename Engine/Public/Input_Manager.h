@@ -39,9 +39,10 @@ enum class KEY_TYPE
     F = 'F',
 	Z = 'Z',
 	C = 'C',
-	V = 'V',
-	R = 'R',
+    V = 'V',
+    R = 'R',
     T = 'T',
+    H = 'H',
 
 	KEY_0 = '0',
 	KEY_1 = '1',

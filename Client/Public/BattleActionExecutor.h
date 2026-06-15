@@ -46,10 +46,11 @@ private:
 
 private:
     bool _isFinished = {true};
+    bool _hasTriggeredCloseApproachShot = false;
     float _testPrevRatio = {};
 
     Shared<ModelCom> _activePhaseModel{};
-
+    
 public:
     static Shared<BattleActionExecutor> Create();
     void Free() override;

@@ -41,8 +41,6 @@ HRESULT MB_Mime::Initialize(void* arg)
     _combatStat->Set_Skill("Mime_Wall");
     _combatStat->Set_Skill("Mime_AttHamor");
 
-
-
     return S_OK;
 }
 

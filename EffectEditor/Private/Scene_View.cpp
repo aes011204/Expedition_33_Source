@@ -277,12 +277,6 @@ void Scene_View::Handle_GizmoShortcut()
         return;
     }
 
-    if (ImGui::IsKeyPressed(ImGuiKey_R, false))
-    {
-        _gizmoOperation = ImGuizmo::SCALE;
-        return;
-    }
-
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
         _gizmoMode = _gizmoMode == ImGuizmo::LOCAL ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
 }
@@ -647,6 +641,12 @@ void Scene_View::Render_PreviewViewportOverlay()
     {
         EDITOR->Enable_ManualPreviewViewport();
         Sync_PreviewViewportInput();
+        static constexpr uint32 defaultManualPreviewViewportWidth = 1600;
+        static constexpr uint32 defaultManualPreviewViewportHeight = 900;
+
+        EDITOR->Set_ManualPreviewViewportSize(defaultManualPreviewViewportWidth, defaultManualPreviewViewportHeight);
+        _pendingPreviewViewportWidth = static_cast<int>(defaultManualPreviewViewportWidth);
+        _pendingPreviewViewportHeight = static_cast<int>(defaultManualPreviewViewportHeight);
     }
 
     ImGui::SameLine(0.f, 8.f);

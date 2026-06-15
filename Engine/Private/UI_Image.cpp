@@ -240,7 +240,7 @@ HRESULT UI_Image::Render()
         if (FAILED(_shader->Bind_SRV("g_PatternMaskTexture", _patternMaskSrv.Get())))
             return E_FAIL;
 
-        passIndex = 3u;
+        passIndex = _useFillRatio ? 6u : 3u;
     }
     else if (_maskMode == MaskMode::CircularHole)
     {

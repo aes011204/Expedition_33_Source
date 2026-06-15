@@ -122,6 +122,10 @@ namespace
             return "normal";
         case MaterialTextureSlot::ORM:
             return "orm";
+        case MaterialTextureSlot::ORM2:
+            return "orm2";
+        case MaterialTextureSlot::ORM3:
+            return "orm3";
         case MaterialTextureSlot::Emissive:
             return "emissive";
         case MaterialTextureSlot::OpacityMask:
@@ -149,6 +153,10 @@ namespace
             return "normal";
         case MaterialTextureSlot::ORM:
             return "orm";
+        case MaterialTextureSlot::ORM2:
+            return "orm2";
+        case MaterialTextureSlot::ORM3:
+            return "orm3";
         case MaterialTextureSlot::Emissive:
             return "emissive";
         case MaterialTextureSlot::OpacityMask:
@@ -268,6 +276,17 @@ namespace
         }
 
         return {};
+    }
+
+    string BuildTextureDisplayName(const string& texturePath)
+    {
+        if (texturePath.empty())
+        {
+            return {};
+        }
+
+        const string filename = fs::path(texturePath).filename().string();
+        return filename.empty() ? texturePath : filename;
     }
 
     void SetTextureOverrideFromFile(json& instJson, const char* key, const string& texturePath, const string& textureGuid)
@@ -877,6 +896,8 @@ namespace
             MaterialTextureSlot::BaseColor,
             MaterialTextureSlot::Normal,
             MaterialTextureSlot::ORM,
+            MaterialTextureSlot::ORM2,
+            MaterialTextureSlot::ORM3,
             MaterialTextureSlot::Emissive,
             MaterialTextureSlot::OpacityMask,
             MaterialTextureSlot::HairDepth,
@@ -925,11 +946,16 @@ namespace
             ImGui::SameLine();
 
             string texPath = ReadTextureOverrideDisplayPath(instJson, key);
+            const string texDisplayName = BuildTextureDisplayName(texPath);
             char pathBuffer[MAX_PATH] = {};
-            strncpy_s(pathBuffer, texPath.c_str(), sizeof(pathBuffer) - 1);
+            strncpy_s(pathBuffer, texDisplayName.c_str(), sizeof(pathBuffer) - 1);
 
             ImGui::SetNextItemWidth(300.f);
             ImGui::InputText("##tex_path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_ReadOnly);
+            if (!texPath.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            {
+                ImGui::SetTooltip("%s", texPath.c_str());
+            }
             ImGui::SameLine();
 
             if (ImGui::SmallButton("Browse"))
@@ -1722,6 +1748,8 @@ namespace MapEditor
                 MaterialTextureSlot::BaseColor,
                 MaterialTextureSlot::Normal,
                 MaterialTextureSlot::ORM,
+                MaterialTextureSlot::ORM2,
+                MaterialTextureSlot::ORM3,
                 MaterialTextureSlot::Emissive,
                 MaterialTextureSlot::OpacityMask,
                 MaterialTextureSlot::HairDepth,

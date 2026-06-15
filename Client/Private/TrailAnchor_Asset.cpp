@@ -3,21 +3,21 @@
 
 namespace
 {
-    json Vec3_ToJson(const Vec3& value)
-    {
-        return json::array({ value.x, value.y, value.z });
-    }
+json Vec3_ToJson(const Vec3& value)
+{
+    return json::array({ value.x, value.y, value.z });
+}
 
-    bool Json_ToVec3(const json& value, Vec3& outVec3)
-    {
-        if (!value.is_array() || value.size() != 3)
-            return false;
+bool Json_ToVec3(const json& value, Vec3& outVec3)
+{
+    if (!value.is_array() || value.size() != 3)
+        return false;
 
-        outVec3.x = value[0].get<float>();
-        outVec3.y = value[1].get<float>();
-        outVec3.z = value[2].get<float>();
-        return true;
-    }
+    outVec3.x = value[0].get<float>();
+    outVec3.y = value[1].get<float>();
+    outVec3.z = value[2].get<float>();
+    return true;
+}
 }
 
 NS_BEGIN(Client)
@@ -26,8 +26,8 @@ fs::path TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(const string& modelGui
 {
     // notify와 비슷하게 model guid 단위로 저장해서 무기 모델별 anchor를 독립 관리한다.
     return fs::path(GAME->Get_AssetRoot()) /
-        L"Data" / L"json" / L"TrailAnchors" /
-        String::ToWString(modelGuid + ".trailanchors.json");
+           L"Data" / L"json" / L"TrailAnchors" /
+           String::ToWString(modelGuid + ".trailanchors.json");
 }
 
 bool TrailAnchor_Parser::Load_FromFile(const wstring& filePath, TrailAnchorAsset& outAsset)

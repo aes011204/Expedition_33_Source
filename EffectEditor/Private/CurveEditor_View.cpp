@@ -1,5 +1,6 @@
 ﻿#include "CurveEditor_View.h"
 
+#include "EffectAuthoringValueRange.h"
 #include "EffectEditorInstance.h"
 #include "Emitter_View.h"
 #include "Helper_String.h"
@@ -65,6 +66,145 @@ namespace Internal
     {
         const float valueRange = max(maxValue - minValue, kMinimumDragValueRange);
         return valueRange / max(graphHeight, 1.f);
+    }
+
+    float Evaluate_CurveSegmentAutoClamped(const FloatCurveKeyData& left, const FloatCurveKeyData& right, float x)
+    {
+        const float width = max(0.0001f, right.time - left.time);
+        const float t = clamp((x - left.time) / width, 0.f, 1.f);
+        const float m0 = left.leaveTangent * width;
+        const float m1 = right.arriveTangent * width;
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return (2.f * t3 - 3.f * t2 + 1.f) * left.value +
+               (t3 - 2.f * t2 + t) * m0 +
+               (-2.f * t3 + 3.f * t2) * right.value +
+               (t3 - t2) * m1;
+    }
+
+    Vec2 Evaluate_CurveSegmentAutoClamped(const Vector2CurveKeyData& left, const Vector2CurveKeyData& right, float x)
+    {
+        const float width = max(0.0001f, right.time - left.time);
+        const float t = clamp((x - left.time) / width, 0.f, 1.f);
+        const Vec2 m0{ left.leaveTangent.x * width, left.leaveTangent.y * width };
+        const Vec2 m1{ right.arriveTangent.x * width, right.arriveTangent.y * width };
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return Vec2{
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.x +
+            (t3 - 2.f * t2 + t) * m0.x +
+            (-2.f * t3 + 3.f * t2) * right.value.x +
+            (t3 - t2) * m1.x,
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.y +
+            (t3 - 2.f * t2 + t) * m0.y +
+            (-2.f * t3 + 3.f * t2) * right.value.y +
+            (t3 - t2) * m1.y
+        };
+    }
+
+    Vec3 Evaluate_CurveSegmentAutoClamped(const Vector3CurveKeyData& left, const Vector3CurveKeyData& right, float x)
+    {
+        const float width = max(0.0001f, right.time - left.time);
+        const float t = clamp((x - left.time) / width, 0.f, 1.f);
+        const Vec3 m0{ left.leaveTangent.x * width, left.leaveTangent.y * width, left.leaveTangent.z * width };
+        const Vec3 m1{ right.arriveTangent.x * width, right.arriveTangent.y * width, right.arriveTangent.z * width };
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return Vec3{
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.x +
+            (t3 - 2.f * t2 + t) * m0.x +
+            (-2.f * t3 + 3.f * t2) * right.value.x +
+            (t3 - t2) * m1.x,
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.y +
+            (t3 - 2.f * t2 + t) * m0.y +
+            (-2.f * t3 + 3.f * t2) * right.value.y +
+            (t3 - t2) * m1.y,
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.z +
+            (t3 - 2.f * t2 + t) * m0.z +
+            (-2.f * t3 + 3.f * t2) * right.value.z +
+            (t3 - t2) * m1.z
+        };
+    }
+
+    Color Evaluate_CurveSegmentAutoClamped(const ColorCurveKeyData& left, const ColorCurveKeyData& right, float x)
+    {
+        const float width = max(0.0001f, right.time - left.time);
+        const float t = clamp((x - left.time) / width, 0.f, 1.f);
+        const Color m0{ left.leaveTangent.x * width, left.leaveTangent.y * width, left.leaveTangent.z * width, 0.f };
+        const Color m1{ right.arriveTangent.x * width, right.arriveTangent.y * width, right.arriveTangent.z * width, 0.f };
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return Color{
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.x +
+            (t3 - 2.f * t2 + t) * m0.x +
+            (-2.f * t3 + 3.f * t2) * right.value.x +
+            (t3 - t2) * m1.x,
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.y +
+            (t3 - 2.f * t2 + t) * m0.y +
+            (-2.f * t3 + 3.f * t2) * right.value.y +
+            (t3 - t2) * m1.y,
+            (2.f * t3 - 3.f * t2 + 1.f) * left.value.z +
+            (t3 - 2.f * t2 + t) * m0.z +
+            (-2.f * t3 + 3.f * t2) * right.value.z +
+            (t3 - t2) * m1.z,
+            1.f
+        };
+    }
+
+    FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<FloatCurveKeyData>& keys, optional<size_t> selectedKeyIndex)
+    {
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
+    }
+
+    FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<Vector2CurveKeyData>& keys, optional<size_t> selectedKeyIndex)
+    {
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
+    }
+
+    FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<Vector3CurveKeyData>& keys, optional<size_t> selectedKeyIndex)
+    {
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
+    }
+
+    FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<ColorCurveKeyData>& keys, optional<size_t> selectedKeyIndex)
+    {
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+               : FloatCurveInterpolationMode::Linear;
+    }
+
+    template <typename TKey>
+    const char* Get_CurveBulkInterpolationLabel(const vector<TKey>& keys)
+    {
+        if (keys.empty())
+            return "Linear";
+
+        const FloatCurveInterpolationMode firstMode = keys.front().interpolationMode;
+        const bool allSameMode = ranges::all_of(
+            keys,
+            [firstMode](const TKey& key)
+            {
+                return key.interpolationMode == firstMode;
+            }
+        );
+        return allSameMode ? Get_InterpolationLabel(firstMode) : "Mixed";
+    }
+
+    template <typename TKey>
+    bool Apply_CurveBulkInterpolationMode(vector<TKey>& keys, FloatCurveInterpolationMode mode)
+    {
+        bool changed = false;
+        for (TKey& key : keys)
+        {
+            if (key.interpolationMode == mode)
+                continue;
+
+            key.interpolationMode = mode;
+            changed = true;
+        }
+        return changed;
     }
 }
 
@@ -519,6 +659,20 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveFloatDistributionData& c
     ranges::sort(curve.keys, {}, &FloatCurveKeyData::time);
     for (FloatCurveKeyData& key : curve.keys)
         key.time = clamp(key.time, 0.f, 1.f);
+
+    for (size_t index = 0; index < curve.keys.size(); ++index)
+    {
+        FloatCurveKeyData& key = curve.keys[index];
+        if (key.interpolationMode != FloatCurveInterpolationMode::CurveAutoClamped)
+            continue;
+
+        const FloatCurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
+        const FloatCurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
+        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
+        const float tangent = dt > 0.f ? (nextKey->value - prevKey->value) / dt : 0.f;
+        key.arriveTangent = tangent;
+        key.leaveTangent = tangent;
+    }
 }
 
 void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector2DistributionData& curve)
@@ -533,6 +687,22 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector2DistributionData&
     ranges::sort(curve.keys, {}, &Vector2CurveKeyData::time);
     for (Vector2CurveKeyData& key : curve.keys)
         key.time = clamp(key.time, 0.f, 1.f);
+
+    for (size_t index = 0; index < curve.keys.size(); ++index)
+    {
+        Vector2CurveKeyData& key = curve.keys[index];
+        if (key.interpolationMode != FloatCurveInterpolationMode::CurveAutoClamped)
+            continue;
+
+        const Vector2CurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
+        const Vector2CurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
+        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
+        const Vec2 tangent = dt > 0.f
+                             ? Vec2{ (nextKey->value.x - prevKey->value.x) / dt, (nextKey->value.y - prevKey->value.y) / dt }
+                             : Vec2{};
+        key.arriveTangent = tangent;
+        key.leaveTangent = tangent;
+    }
 }
 
 void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector3DistributionData& curve)
@@ -547,6 +717,26 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector3DistributionData&
     ranges::sort(curve.keys, {}, &Vector3CurveKeyData::time);
     for (Vector3CurveKeyData& key : curve.keys)
         key.time = clamp(key.time, 0.f, 1.f);
+
+    for (size_t index = 0; index < curve.keys.size(); ++index)
+    {
+        Vector3CurveKeyData& key = curve.keys[index];
+        if (key.interpolationMode != FloatCurveInterpolationMode::CurveAutoClamped)
+            continue;
+
+        const Vector3CurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
+        const Vector3CurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
+        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
+        const Vec3 tangent = dt > 0.f
+                             ? Vec3{
+                                 (nextKey->value.x - prevKey->value.x) / dt,
+                                 (nextKey->value.y - prevKey->value.y) / dt,
+                                 (nextKey->value.z - prevKey->value.z) / dt
+                             }
+                             : Vec3{};
+        key.arriveTangent = tangent;
+        key.leaveTangent = tangent;
+    }
 }
 
 void CurveEditor_View::Normalize_CurveKeys(ConstantCurveColorDistributionData& curve)
@@ -563,6 +753,29 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveColorDistributionData& c
     {
         key.time = clamp(key.time, 0.f, 1.f);
         key.value.w = 1.f;
+        key.arriveTangent.w = 0.f;
+        key.leaveTangent.w = 0.f;
+    }
+
+    for (size_t index = 0; index < curve.keys.size(); ++index)
+    {
+        ColorCurveKeyData& key = curve.keys[index];
+        if (key.interpolationMode != FloatCurveInterpolationMode::CurveAutoClamped)
+            continue;
+
+        const ColorCurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
+        const ColorCurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
+        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
+        const Color tangent = dt > 0.f
+                              ? Color{
+                                  (nextKey->value.x - prevKey->value.x) / dt,
+                                  (nextKey->value.y - prevKey->value.y) / dt,
+                                  (nextKey->value.z - prevKey->value.z) / dt,
+                                  0.f
+                              }
+                              : Color{};
+        key.arriveTangent = tangent;
+        key.leaveTangent = tangent;
     }
 }
 
@@ -583,6 +796,9 @@ float CurveEditor_View::Evaluate_Curve(const ConstantCurveFloatDistributionData&
 
         if (left.interpolationMode == FloatCurveInterpolationMode::Constant)
             return left.value;
+
+        if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
 
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
@@ -609,6 +825,9 @@ Vec2 CurveEditor_View::Evaluate_Curve(const ConstantCurveVector2DistributionData
 
         if (left.interpolationMode == FloatCurveInterpolationMode::Constant)
             return left.value;
+
+        if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
 
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
@@ -638,6 +857,9 @@ Vec3 CurveEditor_View::Evaluate_Curve(const ConstantCurveVector3DistributionData
 
         if (left.interpolationMode == FloatCurveInterpolationMode::Constant)
             return left.value;
+
+        if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
 
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
@@ -669,6 +891,9 @@ Color CurveEditor_View::Evaluate_Curve(const ConstantCurveColorDistributionData&
         if (left.interpolationMode == FloatCurveInterpolationMode::Constant)
             return left.value;
 
+        if (left.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+            return Internal::Evaluate_CurveSegmentAutoClamped(left, right, x);
+
         const float span = max(right.time - left.time, 0.0001f);
         const float ratio = clamp((x - left.time) / span, 0.f, 1.f);
         return Color{
@@ -682,12 +907,27 @@ Color CurveEditor_View::Evaluate_Curve(const ConstantCurveColorDistributionData&
     return curve.keys.back().value;
 }
 
+CurveEditor_View::TargetEditRange CurveEditor_View::Compute_TargetEditRange(const CurveTarget& target)
+{
+    TargetEditRange editRange{};
+    if (target.payloadKind == CurveTargetPayloadKind::Color)
+        editRange = TargetEditRange{ 0.f, 1.f };
+
+    if (const AuthoringValueRange* range = Find_AuthoringValueRange(target.identity.moduleType, target.identity.propertyId))
+    {
+        if (range->hasMin)
+            editRange.minValue = range->minValue;
+        if (range->hasMax)
+            editRange.maxValue = range->maxValue;
+    }
+
+    return editRange;
+}
+
 float CurveEditor_View::Clamp_GraphEditedValue(const CurveTarget& target, float value)
 {
-    if (target.payloadKind == CurveTargetPayloadKind::Color)
-        return clamp(value, 0.f, 1.f);
-
-    return clamp(value, -1000.f, 1000.f);
+    const TargetEditRange editRange = Compute_TargetEditRange(target);
+    return clamp(value, editRange.minValue, editRange.maxValue);
 }
 
 Shared<Emitter_View> CurveEditor_View::Resolve_EmitterView() const
@@ -889,6 +1129,17 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
     case AuthoringModuleType::SpawnPerUnit:
         if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->spawnPerUnit, "spawnPerUnit", "Spawn Per Unit", IM_COL32(245, 205, 95, 255), requireActiveCurve);
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathFollowModuleData>(&module.data))
+        {
+            Add_FloatTarget(targets, emitter, module, data->speed, "speed", "경로 따라가기 속도", IM_COL32(120, 220, 255, 255), requireActiveCurve);
+            Add_FloatTarget(targets, emitter, module, data->startDelay, "startDelay", "경로 따라가기 시작 딜레이", IM_COL32(125, 190, 255, 255), requireActiveCurve);
+        }
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        if (auto* data = get_if<SourceHistorySpriteTrailPathReplayModuleData>(&module.data))
+            Add_FloatTarget(targets, emitter, module, data->drainCurve, "drainCurve", "경로 리플레이 흡수 곡선", IM_COL32(120, 235, 210, 255), requireActiveCurve);
         break;
     case AuthoringModuleType::MaterialScalarModulation:
         if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
@@ -1578,6 +1829,89 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
         return;
     }
 
+    const auto get_bulk_interpolation_label = [&target]() -> const char*
+    {
+        if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
+        {
+            if (const ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
+                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+        }
+        else if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
+        {
+            if (const ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
+                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+        }
+        else if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
+        {
+            if (const ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
+                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+        }
+        else if (const auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
+        {
+            if (const ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution))
+                return Internal::Get_CurveBulkInterpolationLabel(curve->keys);
+        }
+
+        return "Linear";
+    };
+
+    const auto apply_bulk_interpolation = [this, &target](FloatCurveInterpolationMode mode)
+    {
+        Execute_CurveAuthoringEdit(
+            target,
+            "Apply Curve Interpolation To All Keys",
+            [this, &target, mode]
+            {
+                if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
+                {
+                    if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
+                    {
+                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                            return false;
+
+                        Normalize_CurveKeys(*curve);
+                        return true;
+                    }
+                }
+                else if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
+                {
+                    if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
+                    {
+                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                            return false;
+
+                        Normalize_CurveKeys(*curve);
+                        return true;
+                    }
+                }
+                else if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
+                {
+                    if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
+                    {
+                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                            return false;
+
+                        Normalize_CurveKeys(*curve);
+                        return true;
+                    }
+                }
+                else if (const auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
+                {
+                    if (ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution))
+                    {
+                        if (!Internal::Apply_CurveBulkInterpolationMode(curve->keys, mode))
+                            return false;
+
+                        Normalize_CurveKeys(*curve);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        );
+    };
+
     const bool canAddKey = keyCount < Internal::kDistributionCurveMaxKeys;
     if (!canAddKey)
         ImGui::BeginDisabled();
@@ -1608,7 +1942,8 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    curve->keys.push_back(FloatCurveKeyData{ time, Evaluate_Curve(*curve, time), 0.f, 0.f, FloatCurveInterpolationMode::Linear });
+                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    curve->keys.push_back(FloatCurveKeyData{ time, Evaluate_Curve(*curve, time), 0.f, 0.f, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
                     return true;
@@ -1622,7 +1957,8 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    curve->keys.push_back(Vector2CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear });
+                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    curve->keys.push_back(Vector2CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
                     return true;
@@ -1636,7 +1972,8 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    curve->keys.push_back(Vector3CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear });
+                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    curve->keys.push_back(Vector3CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
                     return true;
@@ -1650,7 +1987,8 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
                                        ? clamp(curve->keys[*_selectedKeyIndex].time + 0.1f, 0.f, 1.f)
                                        : 0.5f;
-                    curve->keys.push_back(ColorCurveKeyData{ time, Evaluate_Curve(*curve, time), Color{}, Color{}, FloatCurveInterpolationMode::Linear });
+                    const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                    curve->keys.push_back(ColorCurveKeyData{ time, Evaluate_Curve(*curve, time), Color{}, Color{}, interpolationMode });
                     Normalize_CurveKeys(*curve);
                     select_added_key(curve->keys, time);
                     return true;
@@ -1741,6 +2079,33 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
     }
     if (!canDelete)
         ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::TextUnformatted("All");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(150.f);
+    if (ImGui::BeginCombo("##CurveEditorBulkInterpolation", get_bulk_interpolation_label()))
+    {
+        const auto draw_item = [&](FloatCurveInterpolationMode mode, bool enabled)
+        {
+            if (!enabled)
+                ImGui::BeginDisabled();
+
+            if (ImGui::Selectable(Internal::Get_InterpolationLabel(mode), false) && enabled)
+                apply_bulk_interpolation(mode);
+
+            if (!enabled)
+                ImGui::EndDisabled();
+        };
+
+        draw_item(FloatCurveInterpolationMode::Linear, true);
+        draw_item(FloatCurveInterpolationMode::Constant, true);
+        draw_item(FloatCurveInterpolationMode::CurveAutoClamped, true);
+        draw_item(FloatCurveInterpolationMode::CurveAuto, false);
+        draw_item(FloatCurveInterpolationMode::CurveUser, false);
+        draw_item(FloatCurveInterpolationMode::CurveBreak, false);
+        ImGui::EndCombo();
+    }
 }
 
 void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, CurveTarget& activeTarget)
@@ -2045,7 +2410,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
                     {
-                        curve->keys.push_back(FloatCurveKeyData{ time, value, 0.f, 0.f, FloatCurveInterpolationMode::Linear });
+                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        curve->keys.push_back(FloatCurveKeyData{ time, value, 0.f, 0.f, interpolationMode });
                         Normalize_CurveKeys(*curve);
                         select_added_key(curve->keys, time);
                         return true;
@@ -2055,7 +2421,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
                     {
-                        Vector2CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear };
+                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        Vector2CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, interpolationMode };
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
                         Normalize_CurveKeys(*curve);
@@ -2067,7 +2434,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
                     {
-                        Vector3CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear };
+                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        Vector3CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, interpolationMode };
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
                         Normalize_CurveKeys(*curve);
@@ -2079,7 +2447,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 {
                     if (ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution))
                     {
-                        ColorCurveKeyData key{ time, Evaluate_Curve(*curve, time), Color{}, Color{}, FloatCurveInterpolationMode::Linear };
+                        const FloatCurveInterpolationMode interpolationMode = Internal::Get_SelectedKeyInterpolationMode(curve->keys, _selectedKeyIndex);
+                        ColorCurveKeyData key{ time, Evaluate_Curve(*curve, time), Color{}, Color{}, interpolationMode };
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
                         Normalize_CurveKeys(*curve);
@@ -2174,6 +2543,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
     }
 
     bool changed = false;
+    const TargetEditRange editRange = Compute_TargetEditRange(target);
 
     if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
     {
@@ -2188,7 +2558,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float keyValue = key.value;
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        changed |= ImGui::DragFloat("Value", &keyValue, 0.01f, -1000.f, 1000.f, "%.3f");
+        changed |= ImGui::DragFloat("Value", &keyValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
 
         if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
         {
@@ -2226,7 +2596,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            key.value = keyValue;
+            key.value = Clamp_GraphEditedValue(target, keyValue);
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }
@@ -2247,13 +2617,13 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float activeValue = Get_TargetValue(target, key);
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, -1000.f, 1000.f, "%.3f"))
+        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f"))
             changed = true;
 
         const CurveTargetChannel pairedChannel = target.channel == CurveTargetChannel::Y ? CurveTargetChannel::X : CurveTargetChannel::Y;
         float pairedValue = Read_Vector2Channel(key.value, pairedChannel);
         ImGui::BeginDisabled();
-        ImGui::DragFloat(Get_ChannelLabel(pairedChannel), &pairedValue, 0.01f, -1000.f, 1000.f, "%.3f");
+        ImGui::DragFloat(Get_ChannelLabel(pairedChannel), &pairedValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
         ImGui::EndDisabled();
 
         if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
@@ -2292,7 +2662,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            Set_TargetValue(target, key, activeValue);
+            Set_TargetValue(target, key, Clamp_GraphEditedValue(target, activeValue));
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }
@@ -2313,7 +2683,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float activeValue = Get_TargetValue(target, key);
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, -1000.f, 1000.f, "%.3f"))
+        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f"))
             changed = true;
 
         for (const CurveTargetChannel channel : { CurveTargetChannel::X, CurveTargetChannel::Y, CurveTargetChannel::Z })
@@ -2323,7 +2693,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
 
             float pairedValue = Read_Vector3Channel(key.value, channel);
             ImGui::BeginDisabled();
-            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.01f, -1000.f, 1000.f, "%.3f");
+            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
             ImGui::EndDisabled();
         }
 
@@ -2363,7 +2733,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            Set_TargetValue(target, key, activeValue);
+            Set_TargetValue(target, key, Clamp_GraphEditedValue(target, activeValue));
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }
@@ -2384,7 +2754,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float activeValue = Get_TargetValue(target, key);
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.005f, 0.f, 1.f, "%.3f"))
+        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.005f, editRange.minValue, editRange.maxValue, "%.3f"))
             changed = true;
 
         for (const CurveTargetChannel channel : { CurveTargetChannel::R, CurveTargetChannel::G, CurveTargetChannel::B })
@@ -2394,7 +2764,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
 
             float pairedValue = Read_ColorChannel(key.value, channel);
             ImGui::BeginDisabled();
-            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.005f, 0.f, 1.f, "%.3f");
+            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.005f, editRange.minValue, editRange.maxValue, "%.3f");
             ImGui::EndDisabled();
         }
 
@@ -2434,7 +2804,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            Set_TargetValue(target, key, activeValue);
+            Set_TargetValue(target, key, Clamp_GraphEditedValue(target, activeValue));
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }

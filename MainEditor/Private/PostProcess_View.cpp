@@ -230,7 +230,7 @@ void PostProcess_View::Draw_LightShaftControl(LightShaftCB& params, bool& dirty)
         dirty |= ImGui::DragFloat("Intensity##LightShaft", &params.intensity, 0.01f, 0.f, 8.f, "%.3f");
 
         int sampleCount = static_cast<int>(params.sampleCount);
-        if (ImGui::SliderInt("SampleCount##LightShaft", &sampleCount, 1, 32))
+        if (ImGui::SliderInt("SampleCount##LightShaft", &sampleCount, 1, 64))
         {
             params.sampleCount = static_cast<uint32>(sampleCount);
             dirty = true;

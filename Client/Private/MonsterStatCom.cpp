@@ -25,6 +25,10 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
     PROPERTY_WSTRING("Battle Announce Name", _monsterDesc.battleAnnounceName);
 
+    PROPERTY_FLOAT("criticalRatio", _monsterDesc._criticalRatio, 0.f, 1.f, .1f);
+    PROPERTY_FLOAT("midRatio", _monsterDesc._midRatio, 0.f, 1.f, .1f);
+
+
     return true;
 }
 
@@ -40,6 +44,8 @@ MonsterStatCom::MonsterStatCom(
     : CombatStatCom(Prototype)
     , _monsterDesc(Prototype._monsterDesc)
     , _MRuntimeStat(Prototype._MRuntimeStat)
+    , _skillRuntimeByKey(Prototype._skillRuntimeByKey)
+    , _battleTurnCount(Prototype._battleTurnCount)
 {
 }
 
@@ -101,6 +107,86 @@ void MonsterStatCom::Update(float timeDelta)
 #ifdef _DEBUG
     //GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f));
 #endif
+}
+
+void MonsterStatCom::Rebuild_SkillRuntimeState()
+{
+    _skillRuntimeByKey.clear();
+
+    for (const string& skillKey : _skillKeys)
+    {
+        if (skillKey.empty())
+            continue;
+
+        _skillRuntimeByKey.emplace(skillKey, Skill_Data_Inst{});
+    }
+
+    _battleTurnCount = 0;
+}
+
+Skill_Data_Inst* MonsterStatCom::Find_SkillRuntimeState(const string& skillKey)
+{
+    auto it = _skillRuntimeByKey.find(skillKey);
+    if (it == _skillRuntimeByKey.end())
+        return nullptr;
+
+    return &it->second;
+}
+
+const Skill_Data_Inst* MonsterStatCom::Find_SkillRuntimeState(const string& skillKey) const
+{
+    auto it = _skillRuntimeByKey.find(skillKey);
+    if (it == _skillRuntimeByKey.end())
+        return nullptr;
+
+    return &it->second;
+}
+
+bool MonsterStatCom::Can_UseSkill(const Skill_Data& skill) const
+{
+    if (skill.skillKey.empty())
+        return false;
+
+    if (_battleTurnCount < skill.minTurn)
+        return false;
+
+    const Skill_Data_Inst* inst = Find_SkillRuntimeState(skill.skillKey);
+    if (inst == nullptr)
+        return true;
+
+    if (skill.maxUseCount >= 0 && inst->curUsedCount >= skill.maxUseCount)
+        return false;
+
+    if (inst->curCoolDownTurn > 0)
+        return false;
+
+    return true;
+}
+
+void MonsterStatCom::Notify_SkillUsed(const Skill_Data& skill)
+{
+    if (skill.skillKey.empty())
+        return;
+
+    Skill_Data_Inst* inst = Find_SkillRuntimeState(skill.skillKey);
+    if (inst == nullptr)
+        return;
+
+    inst->curUsedCount++;
+    inst->curCoolDownTurn = max(0, skill.coolDownTurn);
+}
+
+void MonsterStatCom::Advance_SkillCooldownTurn()
+{
+    ++_battleTurnCount;
+
+    for (auto& [skillKey, inst] : _skillRuntimeByKey)
+    {
+        UNREFERENCED_PARAMETER(skillKey);
+
+        if (inst.curCoolDownTurn > 0)
+            --inst.curCoolDownTurn;
+    }
 }
 
 void MonsterStatCom::Set_RuntimeCombatProfile(float maxHp, uint32 maxAp, float physicalAttack, float physicalDefense,

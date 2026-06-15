@@ -8,6 +8,7 @@
 #include "UI_Hierarchy_View.h"
 #include "UI_Inspector.h"
 #include "UI_Prefab_Browser.h"
+#include "UI_Vfx_View.h"
 #include "UI_Viewport_View.h"
 
 namespace UIEditor
@@ -37,6 +38,7 @@ namespace UIEditor
         Add_Window(UI_Viewport_View::Create(*this));
         Add_Window(UI_Inspector::Create(*this));
         Add_Window(UI_Animation_View::Create(*this));
+        Add_Window(UI_Vfx_View::Create(*this));
         Add_Window(UI_Prefab_Browser::Create(*this));
 
         Clear_History();
@@ -188,6 +190,15 @@ namespace UIEditor
         return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, texturePath, maskTextureGuid, maskTexturePath, maskTextureMode);
     }
 
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_FillRatioPreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        float fillRatio,
+        UI_FillOrigin fillOrigin)
+    {
+        return _previewService.Get_FillRatioPreviewSRV(textureGuid, texturePath, fillRatio, fillOrigin);
+    }
+
     ID3D11ShaderResourceView* UI_Editor_Manager::Get_PatternOverlayPreviewSRV(
         const PatternOverlayPreviewDesc& previewDesc)
     {
@@ -247,6 +258,9 @@ namespace UIEditor
 
                 if (ImGui::MenuItem("Button"))
                     Create_UIObject(UI_ObjectType::Button);
+
+                if (ImGui::MenuItem("UI VFX"))
+                    Create_UIObject(UI_ObjectType::UIVfx);
 
                 ImGui::EndMenu();
             }

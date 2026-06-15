@@ -183,6 +183,10 @@ void BattleController::Update(float timeDelta)
 
     if (!_isPendingVictorySlow && _requestEndTurnOnCurrentActorDeath)
     {
+        // CounterReturn 연출 중에는 사망으로 인한 강제 턴 종료를 잠깐 미룬다.
+        if (_reactionController.IsBusy())
+            return;
+
         _requestEndTurnOnCurrentActorDeath = false;
         EndTurn();
         return;
