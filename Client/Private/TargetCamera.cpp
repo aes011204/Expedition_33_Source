@@ -253,7 +253,13 @@ HRESULT TargetCamera::Render()
 
 void TargetCamera::Interpolate_CurrentSettings(float timeDelta)
 {
-    const float t = clamp(timeDelta * _targetSettings.followSpeed, 0.f, 1.f);
+    const float rawT = clamp(timeDelta * _targetSettings.followSpeed, 0.f, 1.f);
+    // TargetCamera는 별도 transitionDuration/easing 상태를 두지 않고,
+    // BATTLE_ENTER일 때만 기존 followSpeed 기반 보간값에 easing을 태워
+    // 최소 수정으로 진입 연출의 감속/가속 느낌만 살린다.
+    const float t = _currentState == TargetCameraMode::BATTLE_ENTER
+        ? Evaluate_TargetFollowT(_targetSettings.targetFollowEasing, rawT)
+        : rawT;
 
     _currentSettings.aimOffset = lerp(_currentSettings.aimOffset, _targetSettings.aimOffset, t);
     _currentSettings.distance = lerp(_currentSettings.distance, _targetSettings.distance, t);
