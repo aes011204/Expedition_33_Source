@@ -732,6 +732,7 @@ void BattleTurnCamera::Debug_PrintClipShakeSample(
     float shakeSampleTime,
     const BattleCameraClipSample& clipSample) const
 {
+#ifdef _DEBUG
     GAME->Print(
         kBattleClipShakeDebugSlot,
         animationTimeSec,
@@ -739,6 +740,7 @@ void BattleTurnCamera::Debug_PrintClipShakeSample(
         shakeSampleTime,
         clipSample.shakeAmplitude,
         duration(0.f));
+#endif
 }
 
 
