@@ -506,7 +506,7 @@ BattleCameraPreview_View::BattleCameraPreview_View()
     : Editor_Window(L"Battle Camera Preview")
 {
     Reset_DefaultFormation();
-    _enemyPrefabNames = { "MB_Bishop", "MB_Lancelier", "MB_Portier", "MB_Volester", "MB_Mime", "MB_Abbest", "MB_PotatoBag"};
+    _enemyPrefabNames = { "MB_Bishop", "MB_Lancelier", "MB_Portier", "MB_Volester", "MB_Mime", "MB_Abbest", "MB_PotatoBag", "MB_Simon" };
     Set_Open(false);
 }
 

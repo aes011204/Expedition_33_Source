@@ -1623,6 +1623,10 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
     EvaluatedPose pose{};
     const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
     Evaluate_CurrentPresetPose(targetPos, _currentPreset, clipSample, yawBase, _pitch, nullptr, pose);
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
+        Refresh_RuntimeDriftFromProfile(*drift, false);
+    Apply_RuntimeDrift(pose, 0.f);
+    Apply_ClipShake(pose, clipSample, _clipShakeTime);
     Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
@@ -1644,7 +1648,12 @@ void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
     if (!Evaluate_EnemyAttackPose(enemyPos, playerPos, _currentPreset, clipSample, pose))
         return;
 
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
+        Refresh_RuntimeDriftFromProfile(*drift, false);
+    Apply_RuntimeDrift(pose, 0.f);
+    Apply_ClipShake(pose, clipSample, _clipShakeTime);
     Apply_EvaluatedPose(pose);
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
 
 float BattleTurnCamera::Evaluate_CameraTransitionT(BattleCameraTransitionEasing easing, float t)

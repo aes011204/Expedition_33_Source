@@ -440,7 +440,6 @@
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
-    <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="..\private\MW_Simon.cpp" />
     <ClCompile Include="Mon_Simon_Weapon.cpp" />
@@ -541,6 +540,9 @@
     </ClCompile>
     <ClCompile Include="..\private\Simon_Combo.cpp" />
     <ClCompile Include="..\private\Simon_Debuff.cpp" />
+    <ClCompile Include="..\private\MB_Simon.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1399,7 +1401,6 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
-    <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="..\public\MW_Simon.h" />
     <ClInclude Include="Battle_Enum.h" />
@@ -1498,6 +1499,9 @@
     </ClInclude>
     <ClInclude Include="..\public\Simon_Combo.h" />
     <ClInclude Include="..\public\Simon_Debuff.h" />
+    <ClInclude Include="..\public\MB_Simon.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
