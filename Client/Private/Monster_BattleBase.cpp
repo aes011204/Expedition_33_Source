@@ -40,6 +40,9 @@ HRESULT Monster_BattleBase::Initialize(void* arg)
 void Monster_BattleBase::BeginPlay()
 {
     Character_BattleBase::BeginPlay();
+
+    if (_combatStat)
+        _combatStat->Rebuild_SkillRuntimeState();
     
     if (auto* body = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
     {
@@ -117,6 +120,8 @@ void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vect
     if (heroes.empty() || _aiCtrl == nullptr)
         return;
 
+    Advance_SkillRuntimeTurn();
+
     const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
     CHECK_NULL(bb);
 
@@ -140,6 +145,24 @@ void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vect
 
         if (bb->Has_Value("ActionType"))
             decision.actionType = static_cast<EBattleContext>(bb->Get_Value<int>("ActionType"));
+    }
+
+    if (decision.skillIndex >= 0 && decision.targetIndex >= 0 && _combatStat)
+    {
+        SkillChoiceContext nextContext = _cachedContext;
+        const vector<string>& skillKeys = _combatStat->Get_SkillKey();
+
+        if (decision.skillIndex < static_cast<int32>(skillKeys.size()))
+        {
+            const string& skillKey = skillKeys[decision.skillIndex];
+            Push_SkillHistory(skillKey);
+            nextContext.lastSkillIndex = skillKey;
+            nextContext.lastTargetIndex = decision.targetIndex;
+            Notify_SkillExecutionSucceeded(skillKey);
+        }
+
+        nextContext.previousPhase = Get_CurPhase();
+        _cachedContext = nextContext;
     }
 
     ActionFromDecision(request, decision, heroes);
@@ -205,9 +228,6 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
 
     //
 
-    if (skill->skillKey == context.lastSkillIndex)
-        score -= 4.f;
-
 
     if (skill->skillKey == context.lastSkillIndex)
         score -= 4.f;
@@ -258,22 +278,42 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
     }
 
     //
-
-
-
-
-
-
     return score;
 }
 
-void Monster_BattleBase::Push_SkillHistory(const int32 skillKey, int32 prevTarget)
+void Monster_BattleBase::Push_SkillHistory(const string& skillKey)
 {
-    context._prevSkillKey[2] = skillKey;
-    context._prevSkillKey[1] = context._prevSkillKey[2];
-    context._prevSkillKey[0] = context._prevSkillKey[1];
+    _cachedContext._prevSkillKey[2] = _cachedContext._prevSkillKey[1];
+    _cachedContext._prevSkillKey[1] = _cachedContext._prevSkillKey[0];
+    _cachedContext._prevSkillKey[0] = skillKey;
 
-    context._prevTarget = prevTarget;
+  
+}
+void Monster_BattleBase::Push_TargetHistory(const int32 prevTarget)
+{
+    _cachedContext._prevTarget[2] = _cachedContext._prevTarget[1];
+    _cachedContext._prevTarget[1] = _cachedContext._prevTarget[0];
+    _cachedContext._prevTarget[0] = prevTarget;
+}
+
+void Monster_BattleBase::Advance_SkillRuntimeTurn()
+{
+    if (_combatStat == nullptr)
+        return;
+
+    _combatStat->Advance_SkillCooldownTurn();
+}
+
+void Monster_BattleBase::Notify_SkillExecutionSucceeded(const string& skillKey)
+{
+    if (_combatStat == nullptr || skillKey.empty())
+        return;
+
+    const Skill_Data* skill = CLIENT->Get_Skill(skillKey);
+    if (skill == nullptr)
+        return;
+
+    _combatStat->Notify_SkillUsed(*skill);
 }
 
 Monster_BattleBase::SkillChoiceContext Monster_BattleBase::Build_SkillChoiceContext(
@@ -283,6 +323,9 @@ Monster_BattleBase::SkillChoiceContext Monster_BattleBase::Build_SkillChoiceCont
     SkillChoiceContext context{};
     context.hpRatio = Get_HpRatio();
     context.phase = Get_CurPhase();
+    context.previousPhase = _cachedContext.previousPhase;
+    context.lastSkillIndex = _cachedContext._prevSkillKey[0];
+    context.lastTargetIndex = _cachedContext._prevTarget[0];
 
     for (const BattleChar& hero : heroes)
     {
@@ -306,17 +349,124 @@ Monster_BattleBase::SkillChoiceContext Monster_BattleBase::Build_SkillChoiceCont
             targetIndex = *typedValue;
     }
 
-    Push_SkillHistory(skillIndex, targetIndex);
+    BattlePhase curPhase = Get_CurPhase();
 
-
-
-
-    //context.phaseJustChanged = _phaseJustChanged;
-    //context.previousPhase = _previousPhase;
+    context.phaseJustChanged = false;
+    if(context.previousPhase != curPhase)
+    {
+        context.phaseJustChanged = true;
+    }
 
     return context;
 }
 
+
+float Monster_BattleBase::Score_Target(
+    const Skill_Data* skill,
+    const BattleChar& target,
+    int32 targetIndex
+    )
+{
+    UNREFERENCED_PARAMETER(skill);
+
+    if (skill == nullptr || target.statCom == nullptr)
+        return -100000.f;
+
+    if (target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+        return -100000.f;
+
+    float score = 0.f;
+
+    const float maxHp = max(target.statCom->Get_StatInfo().maxHp, 1.f);
+    const float hpRatio = clamp(target.statCom->Get_CurHp() / maxHp, 0.f, 1.f);
+
+    // setSkill에서 context 다 만들어놔서 캐싱된 것 이용
+    for (int i = 0; i < 3; ++i)
+    {
+        if (targetIndex != _cachedContext._prevTarget[i])
+            continue;
+
+        if (i == 0) score -= 4.f;
+        else if (i == 1) score -= 2.f;
+        else if (i == 2) score -= 1.f;
+    }
+
+    switch (skill->targetStyle)
+    {
+    case AITargetStyle::Single:
+        score += (1.f - hpRatio) * 8.f;
+        break;
+
+    case AITargetStyle::SingleAoE:
+    case AITargetStyle::ComboAoE:
+        score += (1.f - hpRatio) * 4.f;
+        break;
+
+    case AITargetStyle::Mix:
+        score += (1.f - hpRatio) * 5.f;
+        score += static_cast<float>(target.statCom->Get_CurAP()) * 0.5f;
+        break;
+
+    case AITargetStyle::RandomEnemy:
+        score += Math::RandNum(0.f, 2.f);
+        break;
+
+    default:
+        score += (1.f - hpRatio) * 3.f;
+        break;
+    }
+
+    const float estimatedDamage = Estimate_SkillDamage(skill, target);
+    const float effectiveHp =
+        target.statCom->Get_CurHp() +
+        static_cast<float>(target.statCom->Get_CurrentShield());
+
+    if (estimatedDamage >= effectiveHp)
+        score += 8.f;
+
+    return score;
+}
+float Monster_BattleBase::Estimate_SkillDamage(const Skill_Data* skill, const BattleChar& target)
+{
+    if (_combatStat == nullptr || skill == nullptr || target.statCom == nullptr)
+        return 0.f;
+
+    const float attackerAtk = _combatStat->Get_RuntimeStat().physicalAttack;
+    const float targetDef = target.statCom->Get_RuntimeStat().physicalDefense;
+
+    float damageScale = 1.f;
+
+    switch (skill->targetStyle)
+    {
+    case AITargetStyle::Single:
+        damageScale = 1.0f;
+        break;
+
+    case AITargetStyle::Combo:
+        damageScale = 1.2f;
+        break;
+
+    case AITargetStyle::SingleAoE:
+        damageScale = 0.9f;
+        break;
+
+    case AITargetStyle::ComboAoE:
+        damageScale = 1.1f;
+        break;
+
+    case AITargetStyle::Mix:
+        damageScale = 1.15f;
+        break;
+
+    case AITargetStyle::ETC:
+    default:
+        damageScale = 1.0f;
+        break;
+    }
+
+    const float rawDamage = attackerAtk * damageScale;
+    return max(rawDamage - targetDef, 1.f);
+}
 void Monster_BattleBase::Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes)
 {
     if (heroes.empty())

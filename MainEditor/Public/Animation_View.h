@@ -200,6 +200,7 @@ private:
     void Delete_SelectedNotifyStateTrack();
     void Handle_ClipboardShortcuts();
     void Move_SelectedNotifiesByFrame(int32 frameDelta);
+    void Move_SelectedStateByFrame(int32 frameDelta);
     void Copy_SelectedNotify();
     void Copy_SelectedState();
     void Paste_CopiedNotify();

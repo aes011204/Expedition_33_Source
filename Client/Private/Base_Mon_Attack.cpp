@@ -2,6 +2,7 @@
 #include "Base_Mon_Attack.h"
 
 #include "DamageSystem.h"
+
 #include "ClientInstance.h"
 
 NS_BEGIN(Client)
@@ -14,15 +15,17 @@ void Base_Mon_Attack::Execute(const Skill_Data& skill, const BattleAction& actio
 {
     UNREFERENCED_PARAMETER(attackType);
 
-    const float Damage = 50;
+    //const float Damage = 50;
 
     if(CurIndex >= skill.targetingType.size())
     {
         LOG_ERROR("ERROR_Base_Mon_Attack_ OutofRange");
         return;
     }
+    const BattleChar& attacker = action.Get_CurChar();
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
 
-    DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
+    DamageSystem::ApplyDamage(damage, action.GetCurStepTarget(), attackType);
 
        /* if (skill.targetingType[CurIndex] == TargetType::AllEnemies)
         {
