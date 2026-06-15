@@ -295,17 +295,25 @@ HRESULT MapEditorApp::Render()
 
     if (!_scene._hideInstancedMesh)
     {
+        BoundingFrustum frustum;
+        BoundingFrustum::CreateFromMatrix(frustum, _camera->GetProj());
+        frustum.Transform(frustum, XMMatrixInverse(nullptr, _camera->GetView()));
+
         for (auto& obj : _scene._instancedMeshes)
         {
-            if (!obj->_instancedRenderHandle)
+            for (size_t ci = 0; ci < obj->_instancedChunkHandles.size(); ++ci)
             {
-                continue;
-            }
+                if (!obj->_instancedChunkAABBs[ci].Intersects(frustum))
+                {
+                    continue;
+                }
 
-            obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
-            obj->_instancedRenderHandle->Late_Update(0.f);
+                obj->_instancedChunkHandles[ci]->Set_CameraFar(_camera->GetFar());
+                obj->_instancedChunkHandles[ci]->Late_Update(0.f);
+            }
         }
     }
+
 
     // test
     if (_terrain)
@@ -313,6 +321,7 @@ HRESULT MapEditorApp::Render()
         _terrain->Set_CameraFar(_camera->GetFar());
         _terrain->Late_Update(0.f);
     }
+    //
 
     for (auto& landscape : _scene._landscapes)
     {
@@ -422,39 +431,67 @@ void MapEditorApp::Update_InstancedMeshHandles()
         }
 
         obj->_instancedParamsDirty = false;
-
-        if (!obj->_instancedRenderHandle)
-        {
-            obj->_instancedRenderHandle = static_pointer_cast<MEInstancedMeshActor>(
-                GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
-
-            if (!obj->_instancedRenderHandle)
-            {
-                continue;
-            }
-
-            obj->_instancedRenderHandle->Set_CullShader(_instanceCullShader);
-        }
+        obj->_instancedChunkHandles.clear();
+        obj->_instancedChunkAABBs.clear();
 
         if (obj->_instancedModelPath.empty())
         {
             continue;
         }
 
-        obj->_instancedRenderHandle->UpdateInstances(
-            obj->_instancedModelPath, obj->_instancedTransforms, _modelManager.get());
-
-        auto model = obj->_instancedRenderHandle->GetModel();
-        if (!model)
+        map<pair<int32, int32>, vector<InstanceTransform>> chunkMap;
+        for (const auto& t : obj->_instancedTransforms)
         {
-            continue;
+            int32 cx = static_cast<int32>(floorf(t._position.x / CHUNK_SIZE));
+            int32 cz = static_cast<int32>(floorf(t._position.z / CHUNK_SIZE));
+            chunkMap[{cx, cz}].push_back(t);
         }
 
-        const string bundleKey = _materialApplicator->Resolve_BundleKey(obj->_instancedModelPath);
-        _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
+        for (auto& [key, transforms] : chunkMap)
+        {
+            auto actor = static_pointer_cast<MEInstancedMeshActor>(
+                GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
+            if (!actor)
+            {
+                continue;
+            }
 
-        const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
-        _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
+            actor->Set_CullShader(_instanceCullShader);
+            if (FAILED(actor->UpdateInstances(obj->_instancedModelPath, transforms, _modelManager.get())))
+            {
+                continue;
+            }
+
+            Vec3 chunkMin(FLT_MAX, FLT_MAX, FLT_MAX);
+            Vec3 chunkMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+            for (const auto& t : transforms)
+            {
+                float pad = max({ t._scale.x, t._scale.y, t._scale.z }) * 10.f;
+                chunkMin.x = min(chunkMin.x, t._position.x - pad);
+                chunkMin.y = min(chunkMin.y, t._position.y - pad);
+                chunkMin.z = min(chunkMin.z, t._position.z - pad);
+                chunkMax.x = max(chunkMax.x, t._position.x + pad);
+                chunkMax.y = max(chunkMax.y, t._position.y + pad);
+                chunkMax.z = max(chunkMax.z, t._position.z + pad);
+            }
+
+            BoundingBox aabb;
+            BoundingBox::CreateFromPoints(aabb,
+                XMVectorSet(chunkMin.x, chunkMin.y, chunkMin.z, 0.f),
+                XMVectorSet(chunkMax.x, chunkMax.y, chunkMax.z, 0.f));
+
+            auto model = actor->GetModel();
+            if (model)
+            {
+                const string bundleKey = _materialApplicator->Resolve_BundleKey(obj->_instancedModelPath);
+                _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
+                const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
+                _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
+            }
+
+            obj->_instancedChunkHandles.push_back(actor);
+            obj->_instancedChunkAABBs.push_back(aabb);
+        }
     }
 }
 

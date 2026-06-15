@@ -51,7 +51,10 @@ struct EditorObject
     wstring _instancedModelPath = {};
     vector<InstanceTransform> _instancedTransforms;
 
-    Shared<MEInstancedMeshActor> _instancedRenderHandle;
+    //Shared<MEInstancedMeshActor> _instancedRenderHandle;
+    vector<Shared<MEInstancedMeshActor>> _instancedChunkHandles;
+    vector<BoundingBox> _instancedChunkAABBs;
+
     bool _instancedParamsDirty = true;
     bool _instancedHasCollision = false;
     int32 _selectedInstanceIdx = -1;

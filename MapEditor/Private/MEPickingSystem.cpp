@@ -53,13 +53,16 @@ uint32 MEPickingSystem::SampleID(const SceneContext& scene, const ImVec2& mouseP
     for (uint32 i = 0; i < instancedCount; ++i)
     {
         auto& obj = scene._instancedMeshes[i];
-        if (!obj->_instancedRenderHandle)
+        if (obj->_instancedChunkHandles.empty())
         {
             continue;
         }
 
         uint32 baseID = 0x800000u | ((i & 0xFFu) << 15);
-        obj->_instancedRenderHandle->RenderPickingID(baseID);
+        for (auto& chunk : obj->_instancedChunkHandles)
+        {
+            chunk->RenderPickingID(baseID);
+        }
     }
 
     GAME->Bind_BackBuffer();

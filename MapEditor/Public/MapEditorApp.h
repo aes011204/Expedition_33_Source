@@ -27,6 +27,9 @@ class METerrainActor;
 
 class MapEditorApp final : public Base
 {
+private:
+    static constexpr float CHUNK_SIZE = 100.f;
+
 public:
     MapEditorApp() = default;
     virtual ~MapEditorApp();

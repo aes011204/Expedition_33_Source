@@ -354,20 +354,6 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             }
 
             ImGui::Checkbox("Has Collision", &obj->_instancedHasCollision);
-
-            //int instanceCount = static_cast<int>(obj->_instancedTransforms.size());
-            //ImGui::LabelText("Instance Count", "%d", instanceCount);
-
-            //if (!obj->_instancedTransforms.empty())
-            //{
-            //    const auto& t = obj->_instancedTransforms[0];
-            //    ImGui::TextDisabled("Instance[0] Pos: (%.2f, %.2f, %.2f)", t._position.x, t._position.y, t._position.z);
-
-            //    if (ImGui::Button("Focus Instance[0]"))
-            //    {
-            //        _camera->FocusOn(t._position);
-            //    }
-            //}
         }
 
         if (ImGui::CollapsingHeader("Scatter Zone"))
@@ -393,10 +379,35 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             }
         }
 
+        if (ImGui::CollapsingHeader("Erase Zone"))
+        {
+            ImGui::DragFloat("Radius##erase", &_eraseRadius, 0.5f, 0.5f, 500.f);
+
+            if (ImGui::Button("Use Cursor as Center##erase"))
+            {
+                _eraseCenter = _ctx->_cursorPos;
+            }
+            ImGui::SameLine();
+            ImGui::Text("(%.1f, %.1f, %.1f)", _eraseCenter.x, _eraseCenter.y, _eraseCenter.z);
+
+            if (ImGui::Button("Erase"))
+            {
+                _ctx->EraseAt(obj.get(), _eraseRadius, _eraseCenter);
+            }
+        }
+
         if (ImGui::CollapsingHeader("Instances"))
         {
             int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
             ImGui::LabelText("Count", "%d", instSize);
+
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear All") && !obj->_instancedTransforms.empty())
+            {
+                obj->_instancedTransforms.clear();
+                obj->_instancedParamsDirty = true;
+                obj->_selectedInstanceIdx = -1;
+            }
 
             if (obj->_selectedInstanceIdx >= 0 && obj->_selectedInstanceIdx < instSize)
             {
