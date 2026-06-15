@@ -166,6 +166,17 @@ void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vect
     }
 
     ActionFromDecision(request, decision, heroes);
+
+    if (!request.skillKey.empty())
+    {
+        LOG_INFO(
+            "[MonsterAI] selected skill. monster={}, skillKey={}, skillIndex={}, targetIndex={}, actionType={}",
+            Get_SourcePrefabName().c_str(),
+            request.skillKey.c_str(),
+            decision.skillIndex,
+            decision.targetIndex,
+            magic_enum::enum_name(request.type));
+    }
 }
 
 bool Monster_BattleBase::Try_Consume_FreeAimWeakPoint()

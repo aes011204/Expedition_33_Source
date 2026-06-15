@@ -539,6 +539,8 @@
     <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\Simon_Combo.cpp" />
+    <ClCompile Include="..\private\Simon_Debuff.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1494,6 +1496,8 @@
     <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\Simon_Combo.h" />
+    <ClInclude Include="..\public\Simon_Debuff.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
