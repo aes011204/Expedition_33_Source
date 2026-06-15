@@ -18,6 +18,13 @@ HRESULT Channel::Initialize(const ModelChannelData& channelData)
 	_numKeyFrames = channelData.numKeyframes;
 
 	KEYFRAME* pKeyframes = static_cast<KEYFRAME*>(channelData.keyframes);
+	if (_numKeyFrames == 0 || pKeyframes == nullptr)
+	{
+		_keyFrames.clear();
+		_numKeyFrames = 0;
+		return E_FAIL;
+	}
+
 	_keyFrames.assign(pKeyframes, pKeyframes + _numKeyFrames);
 
 	return S_OK;
@@ -25,6 +32,22 @@ HRESULT Channel::Initialize(const ModelChannelData& channelData)
 
 void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, float duration, bool isLoop, RootMotionFrame& outTransform)
 {
+	UNREFERENCED_PARAMETER(duration);
+	UNREFERENCED_PARAMETER(isLoop);
+
+	if (_keyFrames.empty())
+	{
+		outTransform.scale = Vec3::One;
+		outTransform.rotation = Quat::Identity;
+		outTransform.position = Vec3::Zero;
+		return;
+	}
+
+	if (keyFrameIndex >= _keyFrames.size())
+	{
+		keyFrameIndex = 0;
+	}
+
 	if (trackPosition < _keyFrames[keyFrameIndex].trackPosition)
 		keyFrameIndex = 0;
 
@@ -33,7 +56,7 @@ void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, f
 	Vec3 scale, translation;
     Quat rotation;
 
-	if (trackPosition >= lastKeyFrame.trackPosition)
+	if (_keyFrames.size() == 1 || trackPosition >= lastKeyFrame.trackPosition)
 	{
 		scale = lastKeyFrame.scale;
 		rotation = lastKeyFrame.rotation;

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "ChainModifier.h"
+#include "PoseFollowChainModifier.h"
 #include "Client_Enum.h"
 
 NS_BEGIN(Client)
@@ -32,6 +33,11 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Coat");
 
+    static void BuildPoseFollowCoatDesc(
+        PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"PoseFollow_Coat");
 
 };
 

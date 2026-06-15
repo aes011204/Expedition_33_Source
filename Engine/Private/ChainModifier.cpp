@@ -8,11 +8,17 @@
 #include "GameInstance.h"
 #include "Engine_Macro.h"
 #include <algorithm>
+#include <cmath>
 
 NS_BEGIN(Engine)
 
 namespace
 {
+	Matrix BuildTranslationMatrix(const Vec3 &translation)
+	{
+		return Matrix::CreateTranslation(translation);
+	}
+
 	Quaternion BuildRootOffsetQuaternion(const Vec3 &rotationOffsetDegrees)
 	{
 		return Quaternion::CreateFromYawPitchRoll(
@@ -27,6 +33,49 @@ namespace
 			&& rootBoneName.find("Collar") == string::npos;
 	}
 
+	float GetChainNodeRatio(size_t nodeIndex, size_t nodeCount)
+	{
+		if (nodeCount <= 1)
+		{
+			return 0.f;
+		}
+
+		return std::clamp(static_cast<float>(nodeIndex) / static_cast<float>(nodeCount - 1), 0.f, 1.f);
+	}
+
+	float SampleFloatCurve(const vector<ChainModifier::FloatCurveKey> &keys, float ratio, float fallbackValue)
+	{
+		if (keys.empty())
+		{
+			return fallbackValue;
+		}
+
+		ratio = std::clamp(ratio, 0.f, 1.f);
+		if (ratio <= keys.front().time)
+		{
+			return keys.front().value;
+		}
+
+		for (size_t i = 1; i < keys.size(); ++i)
+		{
+			const auto &prevKey = keys[i - 1];
+			const auto &nextKey = keys[i];
+			if (ratio <= nextKey.time)
+			{
+				const float segmentLength = nextKey.time - prevKey.time;
+				if (segmentLength <= 0.0001f)
+				{
+					return nextKey.value;
+				}
+
+				const float alpha = (ratio - prevKey.time) / segmentLength;
+				return std::lerp(prevKey.value, nextKey.value, alpha);
+			}
+		}
+
+		return keys.back().value;
+	}
+
 	float GetWindNodeWeight(const ChainModifier::BoneChain &chain, size_t nodeIndex, size_t nodeCount)
 	{
 		if (nodeCount <= 1)
@@ -34,23 +83,17 @@ namespace
 			return 0.f;
 		}
 
-		const float ratio = static_cast<float>(nodeIndex) / static_cast<float>(nodeCount - 1);
+		const float ratio = GetChainNodeRatio(nodeIndex, nodeCount);
 		const bool isCoatChain = IsCoatSurfaceChain(chain.rootBoneName);
-		const float startRatio = isCoatChain ? 0.72f : 0.4f;
+		const float startRatio = isCoatChain ? 0.28f : 0.4f;
 		const float tipRatio = Math::NormalizeSegment(ratio, startRatio, 1.f);
-		const float weightScale = isCoatChain ? 0.08f : 0.65f;
+		const float weightScale = isCoatChain ? 0.24f : 0.65f;
 		return Math::GetSmoothStepRatio(tipRatio) * weightScale;
 	}
 
 	float GetChainTipRatio(size_t nodeIndex, size_t nodeCount)
 	{
-		if (nodeCount <= 1)
-		{
-			return 0.f;
-		}
-
-		const float ratio = static_cast<float>(nodeIndex) / static_cast<float>(nodeCount - 1);
-		return Math::GetSmoothStepRatio(std::clamp(ratio, 0.f, 1.f));
+		return Math::GetSmoothStepRatio(GetChainNodeRatio(nodeIndex, nodeCount));
 	}
 
 	float BlendTipScale(float rootValue, float tipScale, float tipRatio)
@@ -101,7 +144,7 @@ namespace
 
 		lateralWind.Normalize();
 		lateralAmount = Math::GetSmoothStepRatio(std::clamp(lateralAmount, 0.f, 1.f));
-		return lateralWind * (desc.runtime.windScale * node.length * nodeWeight * lateralAmount);
+		return lateralWind * (desc.runtime.windScale * chain.windMul * node.length * nodeWeight * lateralAmount);
 	}
 }
 
@@ -120,9 +163,30 @@ HRESULT ChainModifier::Initialize(AnimationModifierDesc *desc)
 
 	_desc = *chainDesc;
 
-	if (!_desc.collision.physicsAssetPath.empty())
+	if (!_desc.collision.overrideCapsules.empty())
+	{
+		_colliders = _desc.collision.overrideCapsules;
+	}
+	else if (!_desc.collision.physicsAssetPath.empty())
 	{
 		_colliders = ModelPhysicsParser::LoadCapsulesFromJSON(_desc.collision.physicsAssetPath);
+	}
+
+	if (_desc.modifierTag == L"ClothPhysics_Coat")
+	{
+		LOG_INFO(
+			"[ChainModifier][Init] tag={} groups={} colliders={} overrideCapsules={} stiffness={} tipStiffnessScale={} damping={} windScale={} transportLoc={} transportRot={} transportTipScale={}",
+			String::ToString(_desc.modifierTag),
+			_desc.groups.size(),
+			_colliders.size(),
+			!_desc.collision.overrideCapsules.empty(),
+			_desc.shape.stiffness,
+			_desc.shape.tipStiffnessScale,
+			_desc.motion.damping,
+			_desc.runtime.windScale,
+			_desc.runtime.animatedPoseTransportAlpha,
+			_desc.runtime.animatedPoseTransportRotationAlpha,
+			_desc.runtime.animatedPoseTransportTipScale);
 	}
 
 	return S_OK;
@@ -153,18 +217,31 @@ void ChainModifier::BuildChainRecursive(ModelCom *model, int32 currentBoneIndex,
 		outChain.nodes[parentNodeIndex].childNodeIndices.push_back(thisNodeIndex);
 	}
 
-	if (currentDepth >= maxDepth)
+	bool addedChild = false;
+	if (currentDepth < maxDepth)
 	{
-		return;
+		const uint32 numBones = static_cast<uint32>(model->Get_NumBones());
+		for (uint32 i = 0; i < numBones; ++i)
+		{
+			if (model->Get_BoneParentIndex(i) == currentBoneIndex)
+			{
+				addedChild = true;
+				BuildChainRecursive(model, static_cast<int32>(i), thisNodeIndex, outChain, currentDepth + 1, maxDepth);
+			}
+		}
 	}
 
-	const uint32 numBones = static_cast<uint32>(model->Get_NumBones());
-	for (uint32 i = 0; i < numBones; ++i)
+	if (!addedChild && outChain.dummyEndLength > 0.f)
 	{
-		if (model->Get_BoneParentIndex(i) == currentBoneIndex)
-		{
-			BuildChainRecursive(model, static_cast<int32>(i), thisNodeIndex, outChain, currentDepth + 1, maxDepth);
-		}
+		BoneChainNode tipNode;
+		tipNode.boneIndex = currentBoneIndex;
+		tipNode.parentNodeIndex = thisNodeIndex;
+		tipNode.length = outChain.dummyEndLength;
+		tipNode.isVirtualTip = true;
+
+		const int32 tipNodeIndex = static_cast<int32>(outChain.nodes.size());
+		outChain.nodes.push_back(tipNode);
+		outChain.nodes[thisNodeIndex].childNodeIndices.push_back(tipNodeIndex);
 	}
 }
 
@@ -183,6 +260,27 @@ void ChainModifier::BuildBindLocalDirections(ModelCom *model, BoneChain &chain, 
 			node.bindLocalDir = Vec3::Zero;
 			node.poseLocal = node.bindLocal;
 			node.poseLocalDir = Vec3::Zero;
+			continue;
+		}
+
+		if (node.isVirtualTip)
+		{
+			const Matrix &parentBindWorld = bindWorlds[node.parentNodeIndex];
+			Vec3 localTipDir(0.f, -1.f, 0.f);
+			localTipDir.Normalize();
+			node.bindLocalDir = localTipDir;
+			node.poseLocal = Matrix::Identity;
+			node.poseLocalDir = localTipDir;
+
+			Vec3 worldTipDir = Get_WorldDirection(parentBindWorld, localTipDir);
+			if (worldTipDir.LengthSquared() <= 0.0001f)
+			{
+				worldTipDir = Vec3::UnitY;
+			}
+
+			worldTipDir.Normalize();
+			const Vec3 tipPosition = parentBindWorld.Translation() + worldTipDir * node.length;
+			bindWorlds[i] = BuildTranslationMatrix(tipPosition);
 			continue;
 		}
 
@@ -241,6 +339,8 @@ void ChainModifier::Initialize_Chains(ModelCom *model)
 		newChain.movementInertiaMul = groupDesc.movementInertiaMul;
 		newChain.poseRestoreMul = groupDesc.poseRestoreMul;
 		newChain.maxBendAngleMul = groupDesc.maxBendAngleMul;
+		newChain.windMul = groupDesc.windMul;
+		newChain.dummyEndLength = groupDesc.dummyEndLength;
 
 		int32 realParentBoneIndex = model->Get_BoneParentIndex(rootBoneIndex);
 		if (realParentBoneIndex != -1)
@@ -268,6 +368,17 @@ void ChainModifier::Initialize_Chains(ModelCom *model)
 		if (!newChain.nodes.empty())
 		{
 			BuildBindLocalDirections(model, newChain, ownerWorld);
+
+			if (_desc.modifierTag == L"ClothPhysics_Coat")
+			{
+				LOG_INFO(
+					"[ChainModifier][BuildChain] root={} nodes={} dummyEndLength={} windMul={}",
+					newChain.rootBoneName,
+					newChain.nodes.size(),
+					newChain.dummyEndLength,
+					newChain.windMul);
+			}
+
 			_chains.push_back(std::move(newChain));
 		}
 	}
@@ -329,6 +440,23 @@ void ChainModifier::Capture_ReplacePose(ModelCom *model, BoneChain &chain, const
 			continue;
 		}
 
+		if (node.isVirtualTip)
+		{
+			auto &parentNode = chain.nodes[node.parentNodeIndex];
+			Vec3 localTipDir(0.f, -1.f, 0.f);
+			localTipDir.Normalize();
+			node.poseLocal = Matrix::Identity;
+			Vec3 worldTipDir = Get_WorldDirection(parentNode.originalWorld, localTipDir);
+			if (worldTipDir.LengthSquared() <= 0.0001f)
+			{
+				worldTipDir = Vec3::UnitY;
+			}
+
+			worldTipDir.Normalize();
+			node.originalWorld = BuildTranslationMatrix(parentNode.originalWorld.Translation() + worldTipDir * node.length);
+			continue;
+		}
+
 		node.poseLocal = node.bindLocal;
 		const bool isRootNode = _desc.shape.pinRoot
 			&& node.parentNodeIndex >= 0
@@ -353,6 +481,23 @@ void ChainModifier::Capture_AdditivePose(ModelCom *model, BoneChain &chain, cons
 {
 	for (auto &node : chain.nodes)
 	{
+		if (node.isVirtualTip)
+		{
+			auto &parentNode = chain.nodes[node.parentNodeIndex];
+			Vec3 localTipDir(0.f, -1.f, 0.f);
+			localTipDir.Normalize();
+			node.poseLocal = Matrix::Identity;
+			Vec3 worldTipDir = Get_WorldDirection(parentNode.originalWorld, localTipDir);
+			if (worldTipDir.LengthSquared() <= 0.0001f)
+			{
+				worldTipDir = Vec3::UnitY;
+			}
+
+			worldTipDir.Normalize();
+			node.originalWorld = BuildTranslationMatrix(parentNode.originalWorld.Translation() + worldTipDir * node.length);
+			continue;
+		}
+
 		const Matrix *combinedMat = model->Get_BoneMatrixPtr(node.boneIndex);
 		node.poseLocal = model->Get_BoneLocalMatrix(node.boneIndex);
 		node.originalWorld = combinedMat ? (*combinedMat) * ownerWorld : ownerWorld;
@@ -473,29 +618,70 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 				continue;
 			}
 
+			const float tipRatio = GetChainTipRatio(i, chain.nodes.size());
+
 			if (_desc.runtime.useAnimatedPoseAsRest && _desc.runtime.transportParticlesWithAnimatedPose)
 			{
 				const auto &parentNode = chain.nodes[node.parentNodeIndex];
 				const Vec3 parentMotionDelta = parentNode.originalWorld.Translation() - parentNode.prevOriginalWorld.Translation();
-				if (parentMotionDelta.Length() > _desc.runtime.animatedPoseTransportDeadzone)
+				const float locationAlpha = std::clamp(
+					BlendTipScale(
+						_desc.runtime.animatedPoseTransportAlpha,
+						_desc.runtime.animatedPoseTransportTipScale,
+						tipRatio),
+					0.f,
+					1.f);
+				float rotationAlpha = _desc.runtime.animatedPoseTransportRotationAlpha;
+				if (rotationAlpha < 0.f)
 				{
-					const Matrix prevParentWorldInv = parentNode.prevOriginalWorld.Invert();
+					rotationAlpha = locationAlpha;
+				}
+				rotationAlpha = std::clamp(rotationAlpha, 0.f, 1.f);
 
-					const Vec3 localPosition = Vec3::Transform(node.position, prevParentWorldInv);
-					const Vec3 localPrevPosition = Vec3::Transform(node.prevPosition, prevParentWorldInv);
+				if ((locationAlpha > 0.f || rotationAlpha > 0.f)
+					&& (parentMotionDelta.Length() > _desc.runtime.animatedPoseTransportDeadzone || rotationAlpha > 0.f))
+				{
+					const Vec3 prevParentPosition = parentNode.prevOriginalWorld.Translation();
+					const Matrix parentRotationDeltaMatrix = parentNode.prevOriginalWorld.Invert() * parentNode.originalWorld;
+					const Quaternion parentRotationDelta = Quaternion::CreateFromRotationMatrix(parentRotationDeltaMatrix);
+					const Quaternion partialTransportRotation = Quaternion::Slerp(
+						Quaternion::Identity,
+						parentRotationDelta,
+						rotationAlpha);
+					const Matrix partialTransportRotationMatrix = Matrix::CreateFromQuaternion(partialTransportRotation);
 
-					const Vec3 transportedPosition = Vec3::Transform(localPosition, parentNode.originalWorld);
-					const Vec3 transportedPrevPosition = Vec3::Transform(localPrevPosition, parentNode.originalWorld);
+					const Vec3 rotatedPositionOffset = Vec3::TransformNormal(
+						node.position - prevParentPosition,
+						partialTransportRotationMatrix);
+					const Vec3 rotatedPrevPositionOffset = Vec3::TransformNormal(
+						node.prevPosition - prevParentPosition,
+						partialTransportRotationMatrix);
 
-					const float transportAlpha = std::clamp(_desc.runtime.animatedPoseTransportAlpha, 0.f, 1.f);
-					node.position = Vec3::Lerp(node.position, transportedPosition, transportAlpha);
-					node.prevPosition = Vec3::Lerp(node.prevPosition, transportedPrevPosition, transportAlpha);
+					const Vec3 transportedPosition = prevParentPosition
+						+ rotatedPositionOffset
+						+ parentMotionDelta * locationAlpha;
+					const Vec3 transportedPrevPosition = prevParentPosition
+						+ rotatedPrevPositionOffset
+						+ parentMotionDelta * locationAlpha;
+
+					node.position = transportedPosition;
+					node.prevPosition = transportedPrevPosition;
 				}
 			}
 
-			const float tipRatio = GetChainTipRatio(i, chain.nodes.size());
+			const float nodeRatio = GetChainNodeRatio(i, chain.nodes.size());
 			const float nodeShapeStiffness = std::clamp(
-				BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio),
+				SampleFloatCurve(
+					_desc.shape.stiffnessCurve.keys,
+					nodeRatio,
+					BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio)),
+				0.f,
+				1.f);
+			const float nodeDamping = std::clamp(
+				SampleFloatCurve(
+					_desc.motion.dampingCurve.keys,
+					nodeRatio,
+					BlendTipScale(curDamping, _desc.motion.tipDampingScale, tipRatio)),
 				0.f,
 				1.f);
 			const float nodeMovementInertiaScale = BlendTipScale(
@@ -503,33 +689,39 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 				_desc.motion.tipMovementInertiaScale,
 				tipRatio);
 
-			Vec3 movementOffset = Vec3::Zero;
+			float windTimeScale = 1.f;
+			if (_desc.runtime.targetFrameRate > 1.f)
+			{
+				windTimeScale = std::clamp(delta * _desc.runtime.targetFrameRate, 0.f, 4.f);
+			}
+
+			Vec3 externalOffset = ComputeWindOffset(_desc, chain, node, i) * windTimeScale;
 			if (nodeMovementInertiaScale > 0.f)
 			{
 				if (_desc.runtime.useChainRootMotionInertia)
 				{
-					movementOffset = -chainRootMotionDelta * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
+					externalOffset += -chainRootMotionDelta * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
 				}
 				else if (_desc.runtime.useOwnerMotionInertia)
 				{
-					movementOffset = -ownerMotionDelta * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
+					externalOffset += -ownerMotionDelta * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
 				}
 				else
 				{
-					movementOffset = -(node.originalWorld.Translation() - node.prevOriginalPosition) * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
+					externalOffset += -(node.originalWorld.Translation() - node.prevOriginalPosition) * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
 				}
 			}
 
-			const float movementOffsetLength = movementOffset.Length();
+			const float movementOffsetLength = externalOffset.Length();
 			const float maxMovementOffset = _desc.motion.maxMovementOffset * movementWeight;
 			if (movementOffsetLength > maxMovementOffset && movementOffsetLength > 0.0001f)
 			{
-				movementOffset /= movementOffsetLength;
-				movementOffset *= maxMovementOffset;
+				externalOffset /= movementOffsetLength;
+				externalOffset *= maxMovementOffset;
 			}
 
-			Vec3 nextPosition = Math::SolveVerlet(node.position, node.prevPosition, curGravity, curDamping, delta);
-			nextPosition += movementOffset;
+			Vec3 nextPosition = Math::SolveVerlet(node.position, node.prevPosition, curGravity, nodeDamping, delta);
+			nextPosition += externalOffset;
 
 			node.prevPosition = node.position;
 			node.position = nextPosition;
@@ -545,8 +737,7 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 				const Vec3 poseWorldDir = Get_WorldDirection(parentBasisWorld, node.poseLocalDir);
 				if (poseWorldDir.LengthSquared() > 0.0001f)
 				{
-					const Vec3 windOffset = ComputeWindOffset(_desc, chain, node, i);
-					const Vec3 restTarget = chain.nodes[node.parentNodeIndex].position + poseWorldDir * node.length + windOffset;
+					const Vec3 restTarget = chain.nodes[node.parentNodeIndex].position + poseWorldDir * node.length;
 					node.position = Vec3::Lerp(node.position, restTarget, restoreAlpha);
 				}
 			}
@@ -596,8 +787,12 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 			}
 
 			const float tipRatio = GetChainTipRatio(i, chain.nodes.size());
+			const float nodeRatio = GetChainNodeRatio(i, chain.nodes.size());
 			const float nodeShapeStiffness = std::clamp(
-				BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio),
+				SampleFloatCurve(
+					_desc.shape.stiffnessCurve.keys,
+					nodeRatio,
+					BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio)),
 				0.f,
 				1.f);
 			const float nodeMaxBendAngleDegree = BlendTipScale(
@@ -631,6 +826,97 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 	}
 
 	Solve_SurfaceConstraints(worldCapsules);
+
+	// Surface constraint가 좌우 체인을 벌린 뒤에는 세그먼트 길이/꺾임이 다시 틀어질 수 있어서
+	// 코트가 종이처럼 접힌 모양으로 남지 않도록 한 번 더 안정화한다.
+	for (auto &chain : _chains)
+	{
+		const float shapeStiffness = std::clamp(_desc.shape.stiffness * chain.stiffnessMul, 0.f, 1.f);
+		const auto isPinnedNode = [this, &chain](const BoneChainNode &node)
+			{
+				if (node.parentNodeIndex == -1 || node.isVirtualAnchor)
+				{
+					return true;
+				}
+
+				return _desc.shape.pinRoot && chain.nodes[node.parentNodeIndex].isVirtualAnchor;
+			};
+
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto &node = chain.nodes[i];
+			if (isPinnedNode(node))
+			{
+				continue;
+			}
+
+			auto &parentNode = chain.nodes[node.parentNodeIndex];
+			Vec3 parentToNode = node.position - parentNode.position;
+			const float currentDist = parentToNode.Length();
+			if (currentDist > 0.0001f)
+			{
+				node.position = parentNode.position + (parentToNode / currentDist) * node.length;
+			}
+
+			if (_desc.collision.enableCollision)
+			{
+				node.position = Compute_WorldCapsule(node, worldCapsules, node.position);
+			}
+		}
+
+		for (size_t i = 0; i < chain.nodes.size(); ++i)
+		{
+			auto &node = chain.nodes[i];
+			if (isPinnedNode(node))
+			{
+				continue;
+			}
+
+			auto &parentNode = chain.nodes[node.parentNodeIndex];
+			Vec3 simulatedDir = node.position - parentNode.position;
+			if (node.poseLocalDir.LengthSquared() <= 0.0001f || simulatedDir.LengthSquared() <= 0.0001f)
+			{
+				continue;
+			}
+
+			const float tipRatio = GetChainTipRatio(i, chain.nodes.size());
+			const float nodeRatio = GetChainNodeRatio(i, chain.nodes.size());
+			const float nodeShapeStiffness = std::clamp(
+				SampleFloatCurve(
+					_desc.shape.stiffnessCurve.keys,
+					nodeRatio,
+					BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio)),
+				0.f,
+				1.f);
+			const float nodeMaxBendAngleDegree = BlendTipScale(
+				_desc.shape.maxBendAngleDegree,
+				_desc.shape.tipMaxBendAngleScale,
+				tipRatio) * chain.maxBendAngleMul;
+
+			simulatedDir.Normalize();
+			const Vec3 simulatedLocalDir = Get_LocalDirection(parentNode.originalWorld, simulatedDir);
+			if (simulatedLocalDir.LengthSquared() <= 0.0001f)
+			{
+				continue;
+			}
+
+			const Vec3 limitedLocalDir = Limit_LocalDirectionByAngle(
+				node.poseLocalDir,
+				simulatedLocalDir,
+				nodeMaxBendAngleDegree);
+			const Vec3 limitedWorldDir = Get_WorldDirection(parentNode.originalWorld, limitedLocalDir);
+			if (limitedWorldDir.LengthSquared() > 0.0001f)
+			{
+				const Vec3 limitedTarget = parentNode.position + limitedWorldDir * node.length;
+				node.position = Vec3::Lerp(node.position, limitedTarget, nodeShapeStiffness);
+			}
+
+			if (_desc.collision.enableCollision)
+			{
+				node.position = Compute_WorldCapsule(node, worldCapsules, node.position);
+			}
+		}
+	}
 }
 
 void ChainModifier::Solve_SurfaceConstraints(const vector<WorldCapsule> &worldCapsules)
@@ -919,9 +1205,14 @@ void ChainModifier::Write_BackChain(ModelCom *model, BoneChain &chain)
 			continue;
 		}
 
-		const float tipRatio = GetChainTipRatio(static_cast<size_t>(node.childNodeIndices.front()), chain.nodes.size());
+		const size_t childNodeIndex = static_cast<size_t>(node.childNodeIndices.front());
+		const float tipRatio = GetChainTipRatio(childNodeIndex, chain.nodes.size());
+		const float nodeRatio = GetChainNodeRatio(childNodeIndex, chain.nodes.size());
 		const float nodeShapeStiffness = std::clamp(
-			BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio),
+			SampleFloatCurve(
+				_desc.shape.stiffnessCurve.keys,
+				nodeRatio,
+				BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio)),
 			0.f,
 			1.f);
 		const float nodeMaxBendAngleDegree = BlendTipScale(
@@ -945,7 +1236,7 @@ void ChainModifier::Write_BackChain(ModelCom *model, BoneChain &chain)
 	for (size_t i = 0; i < chain.nodes.size(); ++i)
 	{
 		auto &node = chain.nodes[i];
-		if (node.isVirtualAnchor || node.parentNodeIndex < 0 || isRootNode(node))
+		if (node.isVirtualAnchor || node.isVirtualTip || node.parentNodeIndex < 0 || isRootNode(node))
 		{
 			continue;
 		}
@@ -971,8 +1262,12 @@ void ChainModifier::Write_BackChain(ModelCom *model, BoneChain &chain)
 		}
 
 		const float tipRatio = GetChainTipRatio(i, chain.nodes.size());
+		const float nodeRatio = GetChainNodeRatio(i, chain.nodes.size());
 		const float nodeShapeStiffness = std::clamp(
-			BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio),
+			SampleFloatCurve(
+				_desc.shape.stiffnessCurve.keys,
+				nodeRatio,
+				BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio)),
 			0.f,
 			1.f);
 		const float nodeMaxBendAngleDegree = BlendTipScale(
@@ -1067,7 +1362,9 @@ Vec3 ChainModifier::Compute_WorldCapsule(BoneChainNode &currentNode, const vecto
 		Vec3 toNode = computePos - closestPoint;
 		float distSq = toNode.LengthSquared();
 
-		const float minCollisionDist = wc.radius + _desc.collision.collisionRadiusPadding;
+		const float minCollisionDist = wc.radius
+			+ _desc.collision.particleCollisionRadius
+			+ _desc.collision.collisionRadiusPadding;
 		if (distSq >= minCollisionDist * minCollisionDist)
 		{
 			continue;
@@ -1162,7 +1459,13 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 
 	Capture_CurrentPose(model, ownerWorld);
 
-	const uint32 solverIterations = std::max<uint32>(_desc.motion.solverIterations, 1);
+	uint32 solverIterations = std::max<uint32>(_desc.motion.solverIterations, 1);
+	if (_desc.runtime.targetFrameRate > 1.f)
+	{
+		const float maxSubstepDelta = 1.f / _desc.runtime.targetFrameRate;
+		const uint32 targetIterations = static_cast<uint32>(std::ceil(std::max(timeDelta, 0.f) / maxSubstepDelta));
+		solverIterations = std::max(solverIterations, std::max<uint32>(targetIterations, 1));
+	}
 	const float solverTimeDelta = timeDelta / static_cast<float>(solverIterations);
 	const float movementWeight = 1.f / static_cast<float>(solverIterations);
 

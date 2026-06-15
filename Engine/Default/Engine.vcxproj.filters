@@ -486,6 +486,9 @@
     <ClInclude Include="..\Public\ChainModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PoseFollowChainModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ModelPhysicsParser.h">
       <Filter>01.Utility\04.Component\Model\Animation\ModelPhysicsParse</Filter>
     </ClInclude>
@@ -1116,6 +1119,9 @@
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ChainModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PoseFollowChainModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModelPhysicsParser.cpp">

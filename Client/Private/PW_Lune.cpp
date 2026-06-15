@@ -174,13 +174,13 @@ HRESULT PW_Lune::Ready_BodyModifiers(Body_Player* body)
             body->Get_Model()->Add_AnimModifier(modifier);
         }
 
-        ChainModifier::ChainModifierDesc coatDesc{};
-        ChainModifierPreset::BuildCoatDesc(
+        PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+        ChainModifierPreset::BuildPoseFollowCoatDesc(
             coatDesc,
             Get_Transform().get(),
             PlayerCharacterType::Lune);
 
-        if (auto modifier = ChainModifier::Create(&coatDesc))
+        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
         {
             body->Get_Model()->Add_AnimModifier(modifier);
         }

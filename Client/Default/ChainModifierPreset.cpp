@@ -11,6 +11,71 @@ namespace
     constexpr float kArmbandWindIntensity{ 0.12f };
     constexpr float kCoatWindIntensity{ 0.08f };
 
+    Vec3 ConvertUePointToEngine(const Vec3& uePoint)
+    {
+        return Vec3(uePoint.x, uePoint.z, -uePoint.y);
+    }
+
+    Quaternion ConvertUeRotationToEngine(const Vec3& ueRotationDegrees)
+    {
+        const Quaternion ueRotation = Quaternion::CreateFromYawPitchRoll(
+            XMConvertToRadians(ueRotationDegrees.y),
+            XMConvertToRadians(ueRotationDegrees.x),
+            XMConvertToRadians(ueRotationDegrees.z));
+
+        const Matrix basisToEngine = Matrix::CreateRotationX(-XM_PIDIV2);
+        const Matrix basisToUe = Matrix::CreateRotationX(XM_PIDIV2);
+        const Matrix ueRotationMatrix = Matrix::CreateFromQuaternion(ueRotation);
+        const Matrix engineRotationMatrix = basisToEngine * ueRotationMatrix * basisToUe;
+
+        Vec3 scale = Vec3::One;
+        Quaternion rotation = Quaternion::Identity;
+        Vec3 translation = Vec3::Zero;
+        Matrix temp = engineRotationMatrix;
+        temp.Decompose(scale, rotation, translation);
+        return rotation;
+    }
+
+    ChainModifier::CapsuleColliderDesc MakeSourceCapsule(
+        const char* boneName,
+        const Vec3& ueOffsetLocation,
+        const Vec3& ueOffsetRotationDegrees,
+        float radius,
+        float length)
+    {
+        ChainModifier::CapsuleColliderDesc desc{};
+        desc.boneName = boneName;
+        desc.center = ConvertUePointToEngine(ueOffsetLocation);
+        desc.rotationQuat = ConvertUeRotationToEngine(ueOffsetRotationDegrees);
+        desc.radius = radius;
+        desc.halfLength = std::max(0.f, length * 0.5f - radius);
+        return desc;
+    }
+
+    ChainModifier::CapsuleColliderDesc MakeSourceSphere(
+        const char* boneName,
+        const Vec3& ueOffsetLocation,
+        float radius)
+    {
+        ChainModifier::CapsuleColliderDesc desc{};
+        desc.boneName = boneName;
+        desc.center = ConvertUePointToEngine(ueOffsetLocation);
+        desc.rotationQuat = Quaternion::Identity;
+        desc.radius = radius;
+        desc.halfLength = 0.f;
+        return desc;
+    }
+
+    ChainModifier::FloatCurveDesc MakeLinearCurve(float startValue, float endValue)
+    {
+        ChainModifier::FloatCurveDesc curve{};
+        curve.keys = {
+            { 0.f, startValue },
+            { 1.f, endValue }
+        };
+        return curve;
+    }
+
     wstring GetPhysicsAssetPath(PlayerCharacterType characterType)
     {
         switch (characterType)
@@ -50,13 +115,12 @@ namespace
     {
         if (characterType == PlayerCharacterType::Gustave)
         {
-            return { "pelvis", "thigh_l", "thigh_r", "calf_r", "calf_l" };
+            return { "thigh_l", "thigh_r", "calf_r", "calf_l" };
         }
 
         if (characterType == PlayerCharacterType::Lune)
         {
             return {
-                "pelvis",
                 "thigh_l", "thigh_r", "calf_r", "calf_l",
                 "hand_r", "hand_l",
                 "lowerarm_r", "lowerarm_l",
@@ -70,6 +134,53 @@ namespace
         }
 
         return {};
+    }
+
+    vector<ChainModifier::CapsuleColliderDesc> GetSourceCoatCapsules(PlayerCharacterType characterType)
+    {
+        switch (characterType)
+        {
+        case PlayerCharacterType::Gustave:
+            return {
+                MakeSourceSphere("thigh_r", Vec3(0.f, 0.f, 0.f), 5.f),
+                MakeSourceCapsule("thigh_r", Vec3(0.f, 0.f, 0.f), Vec3(0.f, 0.f, 0.f), 5.f, 11.25f),
+                MakeSourceCapsule("thigh_r", Vec3(0.f, 0.f, 0.f), Vec3(0.f, 0.f, 0.f), 5.f, 10.f),
+                MakeSourceCapsule("thigh_l", Vec3(0.f, 0.f, 0.f), Vec3(0.f, 0.f, 0.f), 5.f, 10.f),
+                MakeSourceCapsule("thigh_r", Vec3(0.f, 0.f, 0.f), Vec3(0.f, 0.f, 0.f), 6.3217564f, 6.376228f),
+                MakeSourceCapsule("thigh_l", Vec3(-28.69498f, 0.f, -0.4f), Vec3(-271.f, 0.f, 0.f), 10.5f, 40.150112f),
+                MakeSourceCapsule("thigh_r", Vec3(28.105162f, 0.f, 0.4f), Vec3(-271.f, 0.f, 0.f), 10.5f, 40.150112f),
+                MakeSourceCapsule("calf_r", Vec3(24.592226f, 0.f, 0.f), Vec3(-266.34155f, 0.f, 0.f), 9.091599f, 31.18919f),
+                MakeSourceCapsule("calf_l", Vec3(-24.664698f, 0.f, 0.f), Vec3(-266.34155f, 0.f, 0.f), 9.091599f, 31.18919f)
+            };
+
+        case PlayerCharacterType::Lune:
+            return {
+                MakeSourceCapsule("thigh_l", Vec3(-15.542742f, -3.f, 0.63393074f), Vec3(79.84995f, -180.f, -180.f), 9.5f, 40.150112f),
+                MakeSourceCapsule("thigh_r", Vec3(15.892315f, 3.f, -0.6635702f), Vec3(80.155045f, 179.99998f, 180.f), 9.5f, 40.150112f),
+                MakeSourceCapsule("calf_r", Vec3(24.592226f, 0.f, 0.f), Vec3(-266.34155f, 0.f, 0.f), 9.091599f, 31.18919f),
+                MakeSourceCapsule("calf_l", Vec3(-24.664698f, 0.f, 0.f), Vec3(-266.34155f, 0.f, 0.f), 9.091599f, 31.18919f),
+                MakeSourceCapsule("hand_r", Vec3(-5.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 3.5f, 10.f),
+                MakeSourceCapsule("hand_l", Vec3(5.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 3.5f, 10.f),
+                MakeSourceCapsule("lowerarm_r", Vec3(-8.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 3.f, 20.f),
+                MakeSourceCapsule("lowerarm_l", Vec3(8.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 3.f, 20.f),
+                MakeSourceCapsule("upperarm_r", Vec3(-10.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 3.f, 20.f),
+                MakeSourceCapsule("upperarm_l", Vec3(10.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 3.f, 20.f)
+            };
+
+        case PlayerCharacterType::Maelle:
+            return {
+                MakeSourceCapsule("spine_05", Vec3(-2.f, 0.f, 0.f), Vec3(0.f, 0.f, 0.f), 10.f, 12.f),
+                MakeSourceCapsule("upperarm_r", Vec3(-10.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 4.3f, 20.f),
+                MakeSourceCapsule("pelvis", Vec3(-4.f, 0.f, 0.f), Vec3(0.f, 0.f, 0.f), 11.f, 10.f),
+                MakeSourceCapsule("thigh_r", Vec3(10.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 7.f, 20.f),
+                MakeSourceCapsule("thigh_l", Vec3(-20.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 7.f, 25.f),
+                MakeSourceCapsule("calf_l", Vec3(-20.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 7.f, 40.f),
+                MakeSourceCapsule("hand_l", Vec3(5.f, 0.f, 0.f), Vec3(90.f, 0.f, 0.f), 1.f, 10.f)
+            };
+
+        default:
+            return {};
+        }
     }
 }
 
@@ -92,7 +203,7 @@ void ChainModifierPreset::BuildScarfDesc(
     desc.motion.gravity = Vec3::Zero;
     desc.motion.movementInertiaScale = 0.f;
     desc.motion.maxMovementOffset = 0.f;
-    desc.motion.solverIterations = 2;
+    desc.motion.solverIterations = 4;
 
     desc.collision.collisionRadiusPadding = 0.f;
     desc.collision.enableCollision = true;
@@ -255,35 +366,52 @@ void ChainModifierPreset::BuildCoatDesc(
     desc.modifierTag = modifierTag;
     desc.strengthAlpha = 0.96f;
 
-    desc.shape.stiffness = 0.84f;
-    desc.shape.tipStiffnessScale = 0.84f;
-    desc.shape.poseRestoreStrength = 0.58f;
-    desc.shape.tipPoseRestoreScale = 0.82f;
-    desc.shape.maxBendAngleDegree = 7.f;
-    desc.shape.tipMaxBendAngleScale = 1.24f;
-    desc.shape.surfaceConstraintStrength = 0.24f;
+    desc.shape.stiffness = 0.5f;
+    desc.shape.tipStiffnessScale = 0.35f;
+    desc.shape.poseRestoreStrength = 0.06f;
+    desc.shape.tipPoseRestoreScale = 0.75f;
+    desc.shape.maxBendAngleDegree = 20.f;
+    desc.shape.tipMaxBendAngleScale = 1.0f;
+    desc.shape.surfaceConstraintStrength = 0.34f;
     desc.shape.pinRoot = true;
 
-    desc.motion.damping = 0.42f;
-    desc.motion.gravity = Vec3(0.f, -120.f, 0.f);
-    desc.motion.movementInertiaScale = 0.0f;
-    desc.motion.tipMovementInertiaScale = 0.14f;
-    desc.motion.maxMovementOffset = 0.006f;
-    desc.motion.solverIterations = 2;
+    desc.motion.damping = 0.65f;
+    desc.motion.tipDampingScale = 1.1538461f;
+    desc.motion.dampingCurve = MakeLinearCurve(0.65f, 0.75f);
+    desc.motion.gravity = Vec3::Zero;
+    // 우리 구현은 animated-pose transport와 별개로 관성 오프셋을 또 더하므로
+    // 코트에서는 값을 낮춰야 "끝만 뒤로 끌려가는" 현상이 줄어든다.
+    desc.motion.movementInertiaScale = 0.012f;
+    desc.motion.tipMovementInertiaScale = 1.0f;
+    desc.motion.maxMovementOffset = 0.01f;
+    desc.motion.solverIterations = 4;
 
     desc.collision.enableCollision = true;
-    desc.collision.collisionRadiusPadding = 0.14f;
+    desc.collision.particleCollisionRadius = 3.0f;
+    desc.collision.collisionRadiusPadding = 0.08f;
     desc.collision.physicsAssetPath = GetPhysicsAssetPath(characterType);
     desc.collision.includedBones = GetCoatCollisionBones(characterType);
+    desc.collision.overrideCapsules = GetSourceCoatCapsules(characterType);
     desc.collision.debugDrawCapsules = false;
 
+    if (!desc.collision.overrideCapsules.empty())
+    {
+        desc.collision.physicsAssetPath.clear();
+        desc.collision.includedBones.clear();
+    }
+
     desc.runtime.ownerTransform = ownerTransform;
+    desc.runtime.targetFrameRate = 60.f;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = 0.f;
+    desc.runtime.windScale = 0.018f;
     desc.runtime.useOwnerMotionInertia = false;
     desc.runtime.useChainRootMotionInertia = false;
     desc.runtime.transportParticlesWithAnimatedPose = true;
-    desc.runtime.animatedPoseTransportAlpha = 0.88f;
+    // Kawaii의 WorldDampingLocation/Rotation은 "얼마나 월드 변화 영향을 약하게 받을지"에 가까워서,
+    // 우리 transport alpha로 옮길 때는 거의 반대로 해석해야 애니메이션 원형이 무너지지 않는다.
+    desc.runtime.animatedPoseTransportAlpha = 0.2f;
+    desc.runtime.animatedPoseTransportRotationAlpha = 1.f;
+    desc.runtime.animatedPoseTransportTipScale = 0.8f;
     desc.runtime.animatedPoseTransportDeadzone = 0.025f;
     desc.runtime.useAnimatedPoseAsRest = true;
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
@@ -291,28 +419,128 @@ void ChainModifierPreset::BuildCoatDesc(
     if (characterType == PlayerCharacterType::Maelle)
     {
         desc.groups = {
-            { "Maelle_V2_Coat_01_01"},
-            { "Maelle_V2_Coat_02_01"},
-            { "Maelle_V2_Coat_03_01"}
+            { "Maelle_V2_Coat_01_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 5.f },
+            { "Maelle_V2_Coat_02_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Maelle_V2_Coat_03_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f }
         };
         return;
     }
 
     if (characterType == PlayerCharacterType::Lune)
     {
-        desc.collision.collisionRadiusPadding = 0.18f;
-        desc.motion.solverIterations = 2;
+        desc.collision.collisionRadiusPadding = 0.12f;
+        desc.motion.solverIterations = 5;
         desc.groups = {
-            { "Lune_V3_Coat_01_01"},
-            { "Lune_V3_Coat_02_01"},
-            { "Lune_V3_Coat_03_01"},
-            { "Lune_V3_Coat_04_01"},
-            { "Lune_V3_Coat_05_01", 0.94f, 1.05f, 1.f, 1.18f, 0.96f, 1.02f },
-            { "Lune_V3_Coat_06_01", 0.94f, 1.05f, 1.f, 1.18f, 0.96f, 1.02f },
-            { "Lune_V3_Coat_07_01", 0.94f, 1.05f, 1.f, 1.18f, 0.96f, 1.02f },
-            { "Lune_CoatCollar_r_A_01", 1.08f, 0.88f, 1.f, 0.2f, 1.12f, 0.68f },
-            { "Lune_CoatCollar_r_B_01", 1.08f, 0.88f, 1.f, 0.2f, 1.12f, 0.68f },
-            { "Lune_CoatCollar_l_01", 1.08f, 0.88f, 1.f, 0.2f, 1.12f, 0.68f }
+            { "Lune_V3_Coat_01_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 5.f },
+            { "Lune_V3_Coat_02_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Lune_V3_Coat_03_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Lune_V3_Coat_04_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Lune_V3_Coat_05_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Lune_V3_Coat_06_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Lune_V3_Coat_07_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f }
+        };
+        return;
+    }
+
+    if (characterType == PlayerCharacterType::Gustave)
+    {
+        desc.collision.collisionRadiusPadding = 0.08f;
+        desc.groups = {
+            { "Noah_V2Coat_00_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 1.0f, 5.f },
+            { "Noah_V2Coat_01_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Noah_V2Coat_02_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Noah_V2Coat_03_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Noah_V2Coat_04_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Noah_V2Coat_05_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Noah_V2Coat_06_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Noah_V2Coat_07_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f },
+            { "Noah_V2Coat_08_01", 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 0xffffffffu, 0.5f, 10.f }
+        };
+    }
+
+    return;
+}
+
+void ChainModifierPreset::BuildPoseFollowCoatDesc(
+    PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    PlayerCharacterType characterType,
+    const wstring& modifierTag)
+{
+    auto& desc = outDesc;
+    desc = {};
+    desc.modifierTag = modifierTag;
+    desc.strengthAlpha = 1.f;
+    desc.ownerTransform = ownerTransform;
+
+    desc.enableCollision = true;
+    desc.debugDrawCapsules = false;
+    desc.physicsAssetPath = GetPhysicsAssetPath(characterType);
+    desc.includedCollisionBones = GetCoatCollisionBones(characterType);
+    desc.overrideCapsules = GetSourceCoatCapsules(characterType);
+    if (!desc.overrideCapsules.empty())
+    {
+        desc.physicsAssetPath.clear();
+        desc.includedCollisionBones.clear();
+    }
+
+    desc.particleCollisionRadius = 2.6f;
+    desc.collisionRadiusPadding = 0.08f;
+    desc.windDirection = kCommonWindDirection;
+    desc.windScale = 0.f;
+    desc.ownerMotionScale = 0.005f;
+    desc.animatedMotionScale = 0.13f;
+    desc.ownerMotionDeadzone = 0.02f;
+    desc.animatedMotionDeadzone = 0.08f;
+    desc.maxExternalOffset = 1.05f;
+
+    desc.damping = 0.66f;
+    desc.tipDampingScale = 1.05f;
+    desc.poseFollowStrength = 0.68f;
+    desc.tipFollowScale = 0.34f;
+    desc.maxBendAngleDegree = 14.f;
+    desc.tipBendAngleScale = 1.85f;
+    desc.bendLimitStrength = 0.9f;
+    desc.surfaceConstraintStrength = 0.24f;
+    desc.rootOutputAlpha = 0.f;
+    desc.tipOutputAlpha = 0.68f;
+    desc.outputSmoothAlpha = 0.42f;
+    desc.idleOutputSmoothAlpha = 0.88f;
+    desc.outputDeadzoneDegree = 1.35f;
+    desc.idleSettleStrength = 0.92f;
+    desc.sleepVelocityThreshold = 0.025f;
+    desc.sleepPoseDistance = 0.18f;
+    desc.solverIterations = 4;
+    desc.targetFrameRate = 60.f;
+    desc.resetDistance = 3.f;
+    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+
+    if (characterType == PlayerCharacterType::Maelle)
+    {
+        desc.groups = {
+            { "Maelle_V2_Coat_01_01", 0xffffffffu, 0.34f, 0.68f, 1.05f },
+            { "Maelle_V2_Coat_02_01", 0xffffffffu, 0.34f, 0.68f, 1.05f },
+            { "Maelle_V2_Coat_03_01", 0xffffffffu, 0.34f, 0.68f, 1.05f }
+        };
+        return;
+    }
+
+    if (characterType == PlayerCharacterType::Lune)
+    {
+        desc.collisionRadiusPadding = 0.12f;
+        desc.particleCollisionRadius = 3.0f;
+        desc.poseFollowStrength = 0.72f;
+        desc.tipFollowScale = 0.36f;
+        desc.maxBendAngleDegree = 14.f;
+        desc.solverIterations = 5;
+        desc.groups = {
+            { "Lune_V3_Coat_01_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_02_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_03_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_04_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_05_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_06_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_07_01", 0xffffffffu, 0.34f, 0.64f, 1.05f }
         };
         return;
     }
@@ -320,19 +548,17 @@ void ChainModifierPreset::BuildCoatDesc(
     if (characterType == PlayerCharacterType::Gustave)
     {
         desc.groups = {
-            { "Noah_V2Coat_00_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f },
-            { "Noah_V2Coat_01_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f },
-            { "Noah_V2Coat_02_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f },
-            { "Noah_V2Coat_03_04", 0.98f, 1.02f, 1.f, 1.02f, 0.98f, 0.92f },
-            { "Noah_V2Coat_04_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f },
-            { "Noah_V2Coat_05_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f },
-            { "Noah_V2Coat_06_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f },
-            { "Noah_V2Coat_07_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f },
-            { "Noah_V2Coat_08_03", 0.94f, 1.05f, 1.f, 1.14f, 0.96f, 1.02f }
+            { "Noah_V2Coat_00_01", 0xffffffffu, 0.48f, 0.62f, 1.08f },
+            { "Noah_V2Coat_01_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Noah_V2Coat_02_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Noah_V2Coat_03_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Noah_V2Coat_04_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Noah_V2Coat_05_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Noah_V2Coat_06_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Noah_V2Coat_07_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
+            { "Noah_V2Coat_08_01", 0xffffffffu, 0.34f, 0.64f, 1.05f }
         };
     }
-
-    return;
 }
 
 NS_END
