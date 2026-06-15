@@ -11,14 +11,20 @@
 #include "ModelCom.h"
 #include "ClientInstance.h"
 #include "GameplayUI.h"
+#include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
 #include "MapStaticMesh.h"
 #include "Monster_WorldBase.h"
 #include "Reflection_Types.h"
+#include "Shadow.h"
 #include "TransformCom.h"
 #include "UI_Base.h"
 #include "UI_RuntimePanelBase.h"
 #include "UI_Transform.h"
+#include "Renderer_Define.h"
+
+#include <iomanip>
+#include <sstream>
 
 const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
 vector<Inspector::FGameObjectClassPickerEntry> Inspector::_gameObjectClassPickerEntries{};
@@ -27,6 +33,37 @@ char Inspector::_spawnActorClassSearchBuffer[256]{};
 namespace
 {
 constexpr float CascadePresetLabelWidth = 110.f;
+
+const char* Get_RuntimeWorldPlacementHeroLabel(Client::HeroId heroId)
+{
+    switch (heroId)
+    {
+    case Client::HeroId::Gustave:
+        return "Gustave";
+    case Client::HeroId::Lune:
+        return "Lune";
+    case Client::HeroId::Maelle:
+        return "Maelle";
+    case Client::HeroId::END:
+    default:
+        return "Gustave";
+    }
+}
+
+Client::HeroId Get_RuntimeWorldPlacementHeroByIndex(int index)
+{
+    switch (index)
+    {
+    case 0:
+        return Client::HeroId::Gustave;
+    case 1:
+        return Client::HeroId::Lune;
+    case 2:
+        return Client::HeroId::Maelle;
+    default:
+        return Client::HeroId::Gustave;
+    }
+}
 
 const char* Get_CascadeLevelLabel(Engine::CascadeLevel level)
 {
@@ -339,6 +376,14 @@ void Inspector::Render()
         {
             Draw_Components(selectedObject);
         }
+        else if (Client::IRuntimeWorldUI_EditorTarget* selectedRuntimeWorldUI = EDITOR->Selected_RuntimeWorldUI();
+            selectedRuntimeWorldUI != nullptr)
+        {
+            Draw_RuntimeWorldUIPlacementInspector(
+                selectedRuntimeWorldUI,
+                EDITOR->Selected_RuntimeWorldUIGroup(),
+                EDITOR->Selected_RuntimeWorldUIDisplayName());
+        }
         else if (Shared<UI_Base> selectedUI = EDITOR->Selected_UI(); selectedUI != nullptr)
         {
             Draw_UIInspector(
@@ -370,6 +415,7 @@ void Inspector::Set_PrimaryShadowLightTarget(bool enabled)
     {
         EDITOR->Clear_SelectedObject();
         EDITOR->Clear_SelectedUI();
+        EDITOR->Clear_SelectedRuntimeWorldUI();
     }
 }
 
@@ -444,6 +490,79 @@ void Inspector::Draw_UIInspector(
     float rotationRadians = transform->Get_RotationRadians();
     if (Draw_UIFloatRow("Rotation", "##UIRotation", rotationRadians, 0.01f))
         transform->Set_RotationRadians(rotationRadians);
+}
+
+void Inspector::Draw_RuntimeWorldUIPlacementInspector(
+    Client::IRuntimeWorldUI_EditorTarget* target,
+    const string& groupName,
+    const string& displayName)
+{
+    if (target == nullptr)
+    {
+        ImGui::TextDisabled("Runtime world UI selection is no longer valid");
+        return;
+    }
+
+    const string resolvedName = displayName.empty() ? "RuntimeWorldUI" : displayName;
+
+    ImGui::Text("이름: %s", resolvedName.c_str());
+    ImGui::TextDisabled("그룹: %s", groupName.empty() ? "UI" : groupName.c_str());
+    ImGui::TextDisabled("종류: World Placement");
+    ImGui::Separator();
+
+    Client::HeroId selectedHeroId = target->Get_EditorWorldPlacementHeroId();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Character");
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::BeginCombo("##RuntimeWorldPlacementCharacter", Get_RuntimeWorldPlacementHeroLabel(selectedHeroId)))
+    {
+        for (int heroIndex = 0; heroIndex < 3; ++heroIndex)
+        {
+            const Client::HeroId heroId = Get_RuntimeWorldPlacementHeroByIndex(heroIndex);
+            const bool selected = selectedHeroId == heroId;
+            if (ImGui::Selectable(Get_RuntimeWorldPlacementHeroLabel(heroId), selected))
+            {
+                target->Set_EditorWorldPlacementHeroId(heroId);
+                selectedHeroId = heroId;
+            }
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    Client::RuntimeWorldUIPlacementTuning tuning = target->Get_EditorWorldPlacementTuning();
+    bool changed = false;
+
+    changed |= Draw_UIVec3Row("Screen Position", "##RuntimeWorldScreenPosition", tuning.screenPosition, 0.01f);
+    changed |= Draw_UIVec3Row("Base Offset", "##RuntimeWorldBaseOffset", tuning.baseOffset, 0.01f);
+    changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
+    changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
+    changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    changed |= Draw_UIVec2Row("World Size", "##RuntimeWorldSize", tuning.worldSize, 0.01f);
+    changed |= Draw_UIFloatRow("Visual Scale", "##RuntimeWorldVisualScale", tuning.visualScale, 0.01f);
+    changed |= Draw_UIFloatRow("Pitch", "##RuntimeWorldPitch", tuning.pitchDegrees, 0.1f);
+    changed |= Draw_UIFloatRow("Roll", "##RuntimeWorldRoll", tuning.rollDegrees, 0.1f);
+    changed |= Draw_UIFloatRow("Yaw Offset", "##RuntimeWorldYawOffset", tuning.yawOffsetDegrees, 0.1f);
+
+    if (changed)
+    {
+        tuning.worldSize.x = max(0.01f, tuning.worldSize.x);
+        tuning.worldSize.y = max(0.01f, tuning.worldSize.y);
+        tuning.visualScale = max(0.01f, tuning.visualScale);
+        target->Set_EditorWorldPlacementTuning(tuning, true);
+    }
+
+    ImGui::Spacing();
+    if (ImGui::Button("Reload"))
+        target->Reload_EditorWorldPlacementTuning();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Reset Defaults"))
+        target->Reset_EditorWorldPlacementTuning();
 }
 
 void Inspector::Draw_RuntimeUITestOffsetSection(const Shared<UI_Base>& ui)
@@ -526,6 +645,17 @@ void Inspector::Draw_RuntimeUIOwnerReflectionSection(const Shared<UI_Base>& ui)
     runtimePanel->Apply_EditorReflectionRuntimeTuning();
 }
 
+bool Inspector::Draw_UIVec3Row(const char* label, const string& id, Vec3& value, float speed)
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(InspectorLabelWidth);
+
+    PropertyInfo property{};
+    property.dragSpeed = speed;
+    return Draw_Vec3PropertyRow(id, property, value);
+}
+
 bool Inspector::Draw_UIVec2Row(const char* label, const string& id, Vec2& value, float speed)
 {
     ImGui::AlignTextToFramePadding();
@@ -545,6 +675,23 @@ bool Inspector::Draw_UIFloatRow(const char* label, const string& id, float& valu
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     return ImGui::DragFloat(id.c_str(), &value, speed);
 }
+
+#ifdef _DEBUG
+void Inspector::Draw_ShadowDebugRTToggleRow(const wchar_t* targetTag, const char* label)
+{
+    const auto& rtStates = GAME->Get_RTs();
+    const auto iter = rtStates.find(targetTag);
+    if (iter == rtStates.end())
+        return;
+
+    bool isDisplayed = iter->second;
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(InspectorLabelWidth);
+    if (ImGui::Checkbox((string("##") + label).c_str(), &isDisplayed))
+        GAME->Display_RT(targetTag, isDisplayed);
+}
+#endif
 
 void Inspector::Draw_PrimaryShadowLightInspector()
 {
@@ -720,6 +867,84 @@ void Inspector::Draw_PrimaryShadowLightInspector()
             cascadePresetChanged |= Draw_CascadePresetControls("Normal", "ShadowCascadeNormal", cascadePresets.normal);
             cascadePresetChanged |= Draw_CascadePresetControls("Far", "ShadowCascadeFar", cascadePresets.farRange);
         }
+
+#ifdef _DEBUG
+        ImGui::Separator();
+        ImGui::TextDisabled("Shadow Debug RTV");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug0, "Cascade 0");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug1, "Cascade 1");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug2, "Cascade 2");
+        Draw_ShadowDebugRTToggleRow(Engine::RT::LightDepthDebug3, "Cascade 3");
+
+        if (const ShadowCascadeDebugInfo* cascadeDebugInfos = GAME->Get_ShadowCascadeDebugInfos())
+        {
+            ImGui::Separator();
+            ImGui::TextDisabled("Shadow Cascade Bounds");
+            ImGui::SameLine();
+            if (ImGui::Button("Copy Cascade Debug"))
+            {
+                std::ostringstream stream;
+                stream << std::fixed << std::setprecision(3);
+                stream << "activeCascadeLevel=" << Get_CascadeLevelLabel(activeCascadeLevel)
+                       << " cascadeCount=" << GAME->Get_ShadowCascadeCount() << '\n';
+
+                const uint32 cascadeCount = GAME->Get_ShadowCascadeCount();
+                for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+                {
+                    const ShadowCascadeDebugInfo& debugInfo = cascadeDebugInfos[cascadeIndex];
+                    stream << "C" << cascadeIndex
+                           << " near/far " << debugInfo.expandedNear
+                           << " / " << debugInfo.expandedFar << '\n';
+                    stream << "    centerWS(" << debugInfo.centerWS.x << ", " << debugInfo.centerWS.y << ", " << debugInfo.centerWS.z
+                           << ") eyeWS(" << debugInfo.eyeWS.x << ", " << debugInfo.eyeWS.y << ", " << debugInfo.eyeWS.z << ")\n";
+                    stream << "    centerLS(" << debugInfo.centerLS.x << ", " << debugInfo.centerLS.y << ", " << debugInfo.centerLS.z
+                           << ") stableRadius(" << debugInfo.stableRadius << ")\n";
+                    stream << "    minLS(" << debugInfo.minLS.x << ", " << debugInfo.minLS.y << ", " << debugInfo.minLS.z
+                           << ") maxLS(" << debugInfo.maxLS.x << ", " << debugInfo.maxLS.y << ", " << debugInfo.maxLS.z << ")\n";
+                    stream << "    influence minLS(" << debugInfo.influenceMinLS.x << ", " << debugInfo.influenceMinLS.y << ", " << debugInfo.influenceMinLS.z
+                           << ") maxLS(" << debugInfo.influenceMaxLS.x << ", " << debugInfo.influenceMaxLS.y << ", " << debugInfo.influenceMaxLS.z << ")\n";
+                }
+
+                ImGui::SetClipboardText(stream.str().c_str());
+            }
+            bool drawCascadeSliceDebug = GAME->Is_ShadowCascadeSliceDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Slice", &drawCascadeSliceDebug))
+                GAME->Set_ShadowCascadeSliceDebugEnabled(drawCascadeSliceDebug);
+            bool drawCascadeProjectionDebug = GAME->Is_ShadowCascadeProjectionDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Projection", &drawCascadeProjectionDebug))
+                GAME->Set_ShadowCascadeProjectionDebugEnabled(drawCascadeProjectionDebug);
+            bool drawCascadeInfluenceDebug = GAME->Is_ShadowCascadeInfluenceDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Influence", &drawCascadeInfluenceDebug))
+                GAME->Set_ShadowCascadeInfluenceDebugEnabled(drawCascadeInfluenceDebug);
+
+            const uint32 cascadeCount = GAME->Get_ShadowCascadeCount();
+            for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+            {
+                const ShadowCascadeDebugInfo& debugInfo = cascadeDebugInfos[cascadeIndex];
+                ImGui::Text(
+                    "C%u near/far %.2f / %.2f",
+                    cascadeIndex,
+                    debugInfo.expandedNear,
+                    debugInfo.expandedFar);
+                ImGui::Text(
+                    "    centerWS(%.2f, %.2f, %.2f) eyeWS(%.2f, %.2f, %.2f)",
+                    debugInfo.centerWS.x, debugInfo.centerWS.y, debugInfo.centerWS.z,
+                    debugInfo.eyeWS.x, debugInfo.eyeWS.y, debugInfo.eyeWS.z);
+                ImGui::Text(
+                    "    centerLS(%.2f, %.2f, %.2f) stableRadius(%.2f)",
+                    debugInfo.centerLS.x, debugInfo.centerLS.y, debugInfo.centerLS.z,
+                    debugInfo.stableRadius);
+                ImGui::Text(
+                    "    minLS(%.2f, %.2f, %.2f) maxLS(%.2f, %.2f, %.2f)",
+                    debugInfo.minLS.x, debugInfo.minLS.y, debugInfo.minLS.z,
+                    debugInfo.maxLS.x, debugInfo.maxLS.y, debugInfo.maxLS.z);
+                ImGui::Text(
+                    "    influence minLS(%.2f, %.2f, %.2f) maxLS(%.2f, %.2f, %.2f)",
+                    debugInfo.influenceMinLS.x, debugInfo.influenceMinLS.y, debugInfo.influenceMinLS.z,
+                    debugInfo.influenceMaxLS.x, debugInfo.influenceMaxLS.y, debugInfo.influenceMaxLS.z);
+            }
+        }
+#endif
     }
 
     if (lightChanged)

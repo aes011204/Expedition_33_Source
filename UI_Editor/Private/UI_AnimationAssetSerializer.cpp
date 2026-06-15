@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kAnimationAssetJsonVersion = 6;
+        constexpr int32 kAnimationAssetJsonVersion = 7;
         constexpr int32 kStateAnimationAssetJsonVersion = 1;
 
         string Read_String(const json& item, const char* key, const string& defaultValue)
@@ -189,7 +189,10 @@ namespace UIEditor
             }
             else if (Is_AnimationKeyframeTrackVec2Value(trackType))
             {
-                key.valueVec2 = Clamp_AnimationKeyframeTrackVec2Value(trackType, Read_Vec2(item, "value", ImVec2(0.f, 0.f)));
+                const ImVec2 defaultValue = trackType == UI_AnimationKeyframeTrackType::PatternUvScale
+                    ? ImVec2(1.f, 1.f)
+                    : ImVec2(0.f, 0.f);
+                key.valueVec2 = Clamp_AnimationKeyframeTrackVec2Value(trackType, Read_Vec2(item, "value", defaultValue));
             }
             else
             {

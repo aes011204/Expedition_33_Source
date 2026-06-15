@@ -29,9 +29,13 @@ echo  6. Extract Terrain
 echo     Scans Heightmap_*.png from OriginJson/_Generated_/
 echo     and saves terrain tile config to SaveJson/[Level]_terrain.json.
 echo.
+echo  7. Batch Instancing
+echo     Reads SaveJson and merges repeated StaticMeshes (same model)
+echo     into InstancedMeshes. Outputs a new _Batched.json file.
+echo.
 echo =============================================
 echo.
-set /p CHOICE="Select [1-6]: "
+set /p CHOICE="Select [1-7]: "
 echo.
 
 if "%CHOICE%"=="1" goto step1
@@ -40,6 +44,7 @@ if "%CHOICE%"=="3" goto step3
 if "%CHOICE%"=="4" goto step4
 if "%CHOICE%"=="5" goto step_all
 if "%CHOICE%"=="6" goto step6
+if "%CHOICE%"=="7" goto step7
 
 echo Invalid choice. Please enter 1-6.
 pause
@@ -106,6 +111,21 @@ echo and saves terrain tile config to SaveJson/[Level]_terrain.json.
 echo.
 echo Usage  : python extract_terrain.py [LevelName]
 echo Example: python extract_terrain.py Level_SpringMeadows_Main_V2
+echo.
+cd /d "%~dp0"
+set /p CMD=">> "
+%CMD%
+goto done
+
+:step7
+echo [Step 7] Batch Instancing
+echo.
+echo Reads a SaveJson and groups repeated StaticMeshes into InstancedMeshes.
+echo Output : SaveJson\[filename]_Batched.json  (원본 파일 유지)
+echo.
+echo Usage  : python batch_instancing.py [filename] [--threshold 5] [--out 출력파일명]
+echo Example: python batch_instancing.py Level_Main_GestralVillage_V2.json
+echo Example: python batch_instancing.py Level_Main_GestralVillage_V2.json --threshold 3
 echo.
 cd /d "%~dp0"
 set /p CMD=">> "

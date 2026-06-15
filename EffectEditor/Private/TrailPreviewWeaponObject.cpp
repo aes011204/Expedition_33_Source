@@ -41,6 +41,7 @@ void TrailPreviewWeaponObject::Update(float)
         _weaponWorldMatrix = Matrix::Identity;
         _trailBaseWorldPosition = {};
         _trailTipWorldPosition = {};
+        _sourcePointWorldPosition = {};
         _hasTrailSample = false;
         return;
     }
@@ -89,6 +90,15 @@ bool TrailPreviewWeaponObject::Try_GetTrailSample(EffectTrailSample& outSample) 
 
     outSample.baseWorldPosition = _trailBaseWorldPosition;
     outSample.tipWorldPosition = _trailTipWorldPosition;
+    return true;
+}
+
+bool TrailPreviewWeaponObject::Try_GetSourcePointSample(EffectSourcePointSample& outSample) const
+{
+    if (!Has_TrailSample())
+        return false;
+
+    outSample.worldPosition = _sourcePointWorldPosition;
     return true;
 }
 
@@ -241,14 +251,17 @@ void TrailPreviewWeaponObject::Update_TrailPoints()
     {
         _trailBaseWorldPosition = {};
         _trailTipWorldPosition = {};
+        _sourcePointWorldPosition = {};
         _hasTrailSample = false;
         return;
     }
 
     const Vec3 baseLocal = EDITOR->Get_TrailPreviewBaseLocalOffset();
     const Vec3 tipLocal = EDITOR->Get_TrailPreviewTipLocalOffset();
+    const Vec3 sourceLocal = EDITOR->Get_SourceHistorySpriteTrailPreviewSourceLocalOffset();
     _trailBaseWorldPosition = Vec3::Transform(baseLocal, _weaponWorldMatrix);
     _trailTipWorldPosition = Vec3::Transform(tipLocal, _weaponWorldMatrix);
+    _sourcePointWorldPosition = Vec3::Transform(sourceLocal, _weaponWorldMatrix);
     _hasTrailSample = true;
 }
 
@@ -262,6 +275,7 @@ void TrailPreviewWeaponObject::Draw_TrailAnchorMarkers() const
 
     Draw_TrailAnchorMarker(_trailBaseWorldPosition, Color(0.2f, 0.9f, 1.f, 1.f));
     Draw_TrailAnchorMarker(_trailTipWorldPosition, Color(1.f, 0.72f, 0.18f, 1.f));
+    Draw_TrailAnchorMarker(_sourcePointWorldPosition, Color(0.95f, 0.3f, 1.f, 1.f));
 
     DebugLineDesc lineDesc{};
     lineDesc.start = _trailBaseWorldPosition;

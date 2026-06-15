@@ -13,6 +13,11 @@ struct ClassReflectionInfo;
 struct PropertyInfo;
 NS_END
 
+namespace Client
+{
+    class IRuntimeWorldUI_EditorTarget;
+}
+
 NS_BEGIN(MainEditor)
 
 class Inspector final : public Editor_Window
@@ -49,13 +54,19 @@ private:
 
 private:
     void Draw_PrimaryShadowLightInspector();
+
     static void Draw_UIInspector(
         const Shared<Engine::UI_Base>& ui,
         const string& groupName,
         const string& displayName,
         bool positionDrivenByCode);
+    static void Draw_RuntimeWorldUIPlacementInspector(
+        Client::IRuntimeWorldUI_EditorTarget* target,
+        const string& groupName,
+        const string& displayName);
     static void Draw_RuntimeUITestOffsetSection(const Shared<Engine::UI_Base>& ui); // Battle UI에만 강제 테스트 오프셋 편집 섹션을 노출한다.
     static void Draw_RuntimeUIOwnerReflectionSection(const Shared<Engine::UI_Base>& ui);
+    static bool Draw_UIVec3Row(const char* label, const string& id, Vec3& value, float speed = 0.01f);
     static bool Draw_UIVec2Row(const char* label, const string& id, Vec2& value, float speed = 1.f);
     static bool Draw_UIFloatRow(const char* label, const string& id, float& value, float speed = 0.01f);
 
@@ -76,7 +87,9 @@ private:
     static bool Matches_GameObjectClassPickerSearch(const FGameObjectClassPickerEntry& entry, const string& searchText);
 
     static bool Draw_VecAxis(const char* axisLabel, const ImVec4& color, float& value, float speed, const string& uniqueId, float width);
-
+#ifdef _DEBUG
+    void Draw_ShadowDebugRTToggleRow(const wchar_t* targetTag, const char* label);
+#endif
 private:
     static constexpr float InspectorLabelWidth = 110.f;
     static const vector<Engine::BTBlackboardKeyView>* _btBlackboardKeys;

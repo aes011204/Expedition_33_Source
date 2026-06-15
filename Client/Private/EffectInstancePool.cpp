@@ -292,7 +292,8 @@ HRESULT EffectInstancePool::Acquire_Instance(
             String::ToString(desc.layerTag),
             activeCount,
             idleCount,
-            static_cast<const void*>(outInstance.get()));
+            static_cast<const void*>(outInstance.get())
+        );
 
         return S_OK;
     }
@@ -302,7 +303,8 @@ HRESULT EffectInstancePool::Acquire_Instance(
         "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
         String::ToString(desc.effectName),
         desc.layerLevelIndex,
-        String::ToString(desc.layerTag));
+        String::ToString(desc.layerTag)
+    );
 
     const HRESULT spawnResult = Spawn_NewInstance(desc, outDefinition, outInstance);
     if (FAILED(spawnResult))
@@ -312,7 +314,8 @@ HRESULT EffectInstancePool::Acquire_Instance(
             spawnResult,
             String::ToString(desc.effectName),
             desc.layerLevelIndex,
-            String::ToString(desc.layerTag));
+            String::ToString(desc.layerTag)
+        );
         return E_FAIL;
     }
 
@@ -336,7 +339,8 @@ HRESULT EffectInstancePool::Acquire_Instance(
         desc.layerLevelIndex,
         String::ToString(desc.layerTag),
         _entries.size(),
-        static_cast<const void*>(outInstance.get()));
+        static_cast<const void*>(outInstance.get())
+    );
 
     return S_OK;
 }
@@ -361,7 +365,8 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
         desc.layerLevelIndex,
         desc.layerTag,
         spawnedObject,
-        &instanceDesc);
+        &instanceDesc
+    );
     if (FAILED(addResult))
     {
         LOG_WARN(
@@ -369,7 +374,8 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
             addResult,
             String::ToString(desc.effectName),
             desc.layerLevelIndex,
-            String::ToString(desc.layerTag));
+            String::ToString(desc.layerTag)
+        );
         return E_FAIL;
     }
 
@@ -379,7 +385,8 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
         LOG_WARN(
             "[EffectPool] spawned object is not EffectInstance: effect={}, object={}",
             String::ToString(desc.effectName),
-            static_cast<const void*>(spawnedObject.get()));
+            static_cast<const void*>(spawnedObject.get())
+        );
         return E_FAIL;
     }
 
@@ -393,6 +400,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
 {
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider);
+    instance->Bind_SourcePointSampleProvider(desc.sourcePointSampleProvider);
     instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();
@@ -424,7 +432,9 @@ void EffectInstancePool::Populate_Handle(
         if (!emitter.enabled)
             continue;
 
-        if (emitter.kind == EffectEmitterKind::ComputeTrail)
+        if (emitter.kind == EffectEmitterKind::Trail ||
+            emitter.kind == EffectEmitterKind::Ribbon ||
+            emitter.kind == EffectEmitterKind::SourceHistorySpriteTrail)
         {
             outHandle.requiresManualRelease = true;
             return;

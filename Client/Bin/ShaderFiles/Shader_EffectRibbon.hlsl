@@ -252,7 +252,7 @@ GS_OUT Build_RibbonVertex(
     Out.texCoord = texCoord;
     Out.lifeTime = input.lifeTime;
     Out.edgeCoord = edgeCoord;
-    Out.color = lerp(input.startColor, input.endColor, saturate(input.segmentParams.x));
+    Out.color = lerp(input.startColor, input.endColor, saturate(edgeCoord.x));
     Out.segmentParams = input.segmentParams;
     return Out;
 }

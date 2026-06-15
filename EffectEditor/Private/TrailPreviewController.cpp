@@ -60,6 +60,29 @@ void TrailPreviewController::Update(float)
 {
 }
 
+bool TrailPreviewController::Try_GetAttackAnimationRatio(float& outRatio) const
+{
+    outRatio = 0.f;
+
+    if (!_animationInitialized || _currentMode != PreviewAnimationMode::Attack)
+        return false;
+
+    const Shared<ModelCom> bodyModel = Get_BodyModel();
+    if (bodyModel == nullptr)
+        return false;
+
+    const char* currentAnimationName = bodyModel->Get_AnimationName(bodyModel->Get_CurrentAnimationIndex());
+    if (currentAnimationName == nullptr || strcmp(currentAnimationName, kAttackAnimationName) != 0)
+        return false;
+
+    const float durationSec = bodyModel->Get_CurrentAnimationDurationSec();
+    if (durationSec <= 0.f)
+        return false;
+
+    outRatio = clamp(bodyModel->Get_CurrentAnimationTimeSec() / durationSec, 0.f, 1.f);
+    return true;
+}
+
 void TrailPreviewController::Set_PlayerVisible(bool visible)
 {
     const Shared<TrailPreviewPlayerObject> player = _player.lock();

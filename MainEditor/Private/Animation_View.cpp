@@ -15,6 +15,7 @@
 #include "ModelCom.h"
 #include "Prefab_View.h"
 #include "PartObject.h"
+#include "PlayableParts.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
 #include "AnimNotify.h"
@@ -34,6 +35,72 @@ namespace
             return entry.name;
 
         return entry.displayName;
+    }
+
+    float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
+    {
+        constexpr float fallbackDuration = 0.25f;
+        if (definition == nullptr)
+            return fallbackDuration;
+
+        float duration = fallbackDuration;
+        for (const EffectEmitterDefinition& emitter : definition->emitters)
+        {
+            if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
+                continue;
+
+            const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+            if (trailDesc == nullptr)
+                continue;
+
+            duration = max(duration, trailDesc->segmentLifetime);
+        }
+
+        return max(0.001f, duration);
+    }
+
+    float Resolve_SourceHistoryDrainDuration(const Shared<const EffectDefinition>& definition)
+    {
+        constexpr float fallbackDuration = 0.5f;
+        if (definition == nullptr)
+            return fallbackDuration;
+
+        float duration = fallbackDuration;
+        for (const EffectEmitterDefinition& emitter : definition->emitters)
+        {
+            if (!emitter.enabled)
+                continue;
+
+            if (emitter.kind == EffectEmitterKind::Ribbon)
+            {
+                const ComputeRibbonEmitterDesc* ribbonDesc = get_if<ComputeRibbonEmitterDesc>(&emitter.concreteDesc);
+                if (ribbonDesc == nullptr || ribbonDesc->sourceMode != EffectSourceHistoryRibbonSourceMode::SelfRoot)
+                    continue;
+
+                duration = max(duration, ribbonDesc->sampleLifetime);
+                continue;
+            }
+
+            if (emitter.kind == EffectEmitterKind::SourceHistorySpriteTrail)
+            {
+                const ComputeSourceHistorySpriteTrailEmitterDesc* spriteTrailDesc =
+                    get_if<ComputeSourceHistorySpriteTrailEmitterDesc>(&emitter.concreteDesc);
+                if (spriteTrailDesc == nullptr || spriteTrailDesc->sourceMode != EffectSourceHistoryRibbonSourceMode::SelfRoot)
+                    continue;
+
+                float spriteDuration = spriteTrailDesc->sampleLifetime + spriteTrailDesc->stampLifetime;
+                if (spriteTrailDesc->pathReplay.enabled)
+                {
+                    spriteDuration +=
+                        spriteTrailDesc->pathReplay.delayTime +
+                        spriteTrailDesc->pathReplay.drainDuration;
+                }
+
+                duration = max(duration, spriteDuration);
+            }
+        }
+
+        return max(0.001f, duration + 0.1f);
     }
 
     AnimNotifyData* Find_OrNormalize_NotifyAnimation(
@@ -249,6 +316,7 @@ void Animation_View::Pre_Render()
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
+        Update_PreviewSourceHistoryEffect(dt);
         Update_PreviewTrailEffect(dt);
     }
     else
@@ -260,6 +328,12 @@ void Animation_View::Pre_Render()
     {
         if (runtime.effect && runtime.isPlaying)
             runtime.effect->Late_Update(dt); // preview에서도 활성 trail runtime마다 Late_Update를 따로 돌린다.
+    }
+
+    for (PreviewSourceHistoryRuntime& runtime : _previewSourceHistoryRuntimes)
+    {
+        if (runtime.effect && runtime.isPlaying)
+            runtime.effect->Late_Update(dt);
     }
 
     GAME->Draw_RendererOnly();
@@ -395,6 +469,7 @@ void Animation_View::Render()
     {
         Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
+        Reset_PreviewSourceHistoryEffect();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
     }
@@ -414,6 +489,7 @@ void Animation_View::Save()
 void Animation_View::Open_FromAsset(const wstring& modelPath, const string& modelGuid, const string& preferredAnimationName, uint32 preferredDockId)
 {
     Reset_PreviewTrailEffect();
+    Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
@@ -448,6 +524,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     const wstring sourceModelPath = modelCom ? modelCom->Get_SourceModelPath() : wstring{};
 
     Reset_PreviewTrailEffect();
+    Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
@@ -496,6 +573,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     }
 
     Reset_PreviewTrailEffect();
+    Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
@@ -550,6 +628,7 @@ void Animation_View::Reset_PreviewClone()
 {
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewSourceHistoryEffect();
     _previewRootObject.reset();
     _previewModelCom.reset();
     _previewOwnerObjectKey.clear();
@@ -566,6 +645,7 @@ int32 Animation_View::Get_CurrentAnimationFps() const
 void Animation_View::Refresh_PreviewTrailAnchorAsset()
 {
     Reset_PreviewTrailEffect(); // 현재 활성 runtime들을 비우면 다음 preview frame에 각 trail이 자기 partTag 기준으로 다시 생성된다.
+    Reset_PreviewSourceHistoryEffect();
 }
 
 float Animation_View::Get_CurrentAnimationLengthSec() const
@@ -741,6 +821,44 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
     Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
+    if (weaponPart == nullptr)
+        return false;
+
+    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    if (weaponModel == nullptr)
+        return false;
+
+    const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
+    if (sourceModelPath.empty())
+        return false;
+
+    outRuntime.modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+    if (outRuntime.modelGuid.empty())
+        return false;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(outRuntime.modelGuid);
+    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), outRuntime.trailAnchorAsset);
+
+    if (outRuntime.trailAnchorAsset.modelGuid.empty())
+        outRuntime.trailAnchorAsset.modelGuid = outRuntime.modelGuid;
+
+    return !outRuntime.trailAnchorAsset.modelGuid.empty();
+}
+
+bool Animation_View::Load_PreviewSourceHistoryAnchorAsset(
+    const string& partTag,
+    PreviewSourceHistoryRuntime& outRuntime)
+{
+    outRuntime.trailAnchorAsset = {};
+    outRuntime.modelGuid.clear();
+
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    const wstring previewPartTag = String::ToWString(partTag);
+    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
     if (weaponPart == nullptr)
         return false;
 
@@ -2203,6 +2321,19 @@ bool Animation_View::Try_GetTrailSample(EffectTrailSample& outSample) const
     return false;
 }
 
+bool Animation_View::Try_GetSourcePointSample(EffectSourcePointSample& outSample) const
+{
+    for (const PreviewSourceHistoryRuntime& runtime : _previewSourceHistoryRuntimes)
+    {
+        if (runtime.stateId != _previewSourceHistoryProviderStateId)
+            continue;
+
+        return Try_GetSourcePointSampleForRuntime(runtime, outSample);
+    }
+
+    return false;
+}
+
 Weapon* Animation_View::Resolve_PreviewWeapon(const wstring& partTag) const
 {
     const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
@@ -2227,6 +2358,38 @@ bool Animation_View::Try_GetTrailSampleForRuntime(
     outSample.baseWorldPosition = baseWorld;
     outSample.tipWorldPosition = tipWorld;
     return true;
+}
+
+bool Animation_View::Try_GetSourcePointSampleForRuntime(
+    const PreviewSourceHistoryRuntime& runtime,
+    EffectSourcePointSample& outSample) const
+{
+    if (runtime.sourceBindingMode == 1)
+    {
+        return Try_ResolvePreviewSocketWorldPosition(runtime.partTag, runtime.socketName, outSample.worldPosition);
+    }
+
+    PreviewTrailRuntime trailRuntime{};
+    trailRuntime.partTag = runtime.partTag;
+    trailRuntime.trailAnchorAsset = runtime.trailAnchorAsset;
+
+    EffectTrailSample trailSample{};
+    if (!Try_GetTrailSampleForRuntime(trailRuntime, trailSample))
+        return false;
+
+    switch (runtime.sourcePointPolicy)
+    {
+    case 1:
+        outSample.worldPosition = trailSample.baseWorldPosition;
+        return true;
+    case 2:
+        outSample.worldPosition = (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f;
+        return true;
+    case 0:
+    default:
+        outSample.worldPosition = trailSample.tipWorldPosition;
+        return true;
+    }
 }
 
 void Animation_View::Update_PreviewWeaponRotateStates(float timeDelta)
@@ -2927,6 +3090,8 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
 
     if (timeAdvanced)
     {
+        const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
         for (const AnimNotifyEventEntry& entry : animationData->notifies)
         {
             if (entry.notify == nullptr)
@@ -2937,7 +3102,11 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
             if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped))
                 continue;
 
-            entry.notify->Execute(context);
+            AnimNotifyContext notifyContext = context;
+            if (typeName == "AN_PlayEffect" && previewRootObject != nullptr)
+                notifyContext.owner = previewRootObject.get();
+
+            entry.notify->Execute(notifyContext);
         }
     }
 
@@ -3045,12 +3214,313 @@ void Animation_View::Reset_PreviewPlayEffectStates()
     _previewPlayEffectStateRuntimes.clear();
 }
 
+void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
+{
+    const vector<const AnimNotifyStateEntry*> activeStates = Find_ActivePreviewSourceHistoryStates();
+    if (activeStates.empty())
+    {
+        _previewSourceHistoryProviderStateId = -1;
+
+        for (PreviewSourceHistoryRuntime& runtime : _previewSourceHistoryRuntimes)
+            Begin_PreviewSourceHistoryDrain(runtime);
+
+        for (int32 runtimeIndex = static_cast<int32>(_previewSourceHistoryRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+        {
+            if (Tick_PreviewSourceHistoryDrain(_previewSourceHistoryRuntimes[runtimeIndex], timeDelta))
+                _previewSourceHistoryRuntimes.erase(_previewSourceHistoryRuntimes.begin() + runtimeIndex);
+        }
+
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    const float currentTimeSec = playbackModel ? playbackModel->Get_CurrentAnimationTimeSec() : 0.f;
+    vector<int32> activeStateIds{};
+    activeStateIds.reserve(activeStates.size());
+
+    for (const AnimNotifyStateEntry* activeState : activeStates)
+    {
+        if (activeState == nullptr || activeState->notifyState == nullptr)
+            continue;
+
+        activeStateIds.push_back(activeState->id);
+
+        const json payload = activeState->notifyState->To_Json();
+        const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
+        const string effectNameValue = payload.value("_effectName", string{});
+        const int32 sourceBindingMode = payload.value("_sourceBindingMode", 0);
+        const string socketName = payload.value("_socketName", string{});
+        const int32 sourcePointPolicy = payload.value("_sourcePointPolicy", 0);
+        if (effectNameValue.empty())
+            continue;
+
+        const wstring resolvedEffectName = String::ToWString(effectNameValue);
+
+        PreviewSourceHistoryRuntime* runtime = nullptr;
+        for (PreviewSourceHistoryRuntime& entry : _previewSourceHistoryRuntimes)
+        {
+            if (entry.stateId == activeState->id)
+            {
+                runtime = &entry;
+                break;
+            }
+        }
+
+        if (runtime == nullptr)
+        {
+            PreviewSourceHistoryRuntime newRuntime{};
+            newRuntime.stateId = activeState->id;
+            newRuntime.partTag = partTag;
+            newRuntime.sourceBindingMode = sourceBindingMode;
+            newRuntime.socketName = socketName;
+            newRuntime.sourcePointPolicy = sourcePointPolicy;
+            _previewSourceHistoryRuntimes.push_back(std::move(newRuntime));
+            runtime = &_previewSourceHistoryRuntimes.back();
+
+            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
+                continue;
+        }
+
+        if (runtime->isDraining)
+        {
+            if (runtime->effect)
+                runtime->effect->Stop();
+
+            runtime->effect.reset();
+            runtime->effectName.clear();
+            runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
+            runtime->lastTimeSec = -1.f;
+        }
+
+        if (runtime->partTag != partTag ||
+            runtime->sourceBindingMode != sourceBindingMode ||
+            runtime->socketName != socketName ||
+            runtime->sourcePointPolicy != sourcePointPolicy)
+        {
+            if (runtime->effect)
+                runtime->effect->Stop();
+
+            runtime->partTag = partTag;
+            runtime->sourceBindingMode = sourceBindingMode;
+            runtime->socketName = socketName;
+            runtime->sourcePointPolicy = sourcePointPolicy;
+            runtime->effect.reset();
+            runtime->effectName.clear();
+            runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
+            runtime->lastTimeSec = -1.f;
+
+            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
+                continue;
+        }
+
+        if (runtime->sourceBindingMode == 0 && runtime->trailAnchorAsset.modelGuid.empty())
+            continue;
+
+        if (!Ensure_PreviewSourceHistoryEffect(*runtime, resolvedEffectName))
+            continue;
+
+        const bool timeMovedBackward =
+            runtime->lastTimeSec >= 0.f &&
+            currentTimeSec + 1e-4f < runtime->lastTimeSec;
+        if (timeMovedBackward)
+        {
+            runtime->effect->Stop();
+            runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
+        }
+
+        EffectSourcePointSample sourceSample{};
+        if (!Try_GetSourcePointSampleForRuntime(*runtime, sourceSample))
+        {
+            if (runtime->effect && runtime->isPlaying)
+                Begin_PreviewSourceHistoryDrain(*runtime);
+            continue;
+        }
+
+        if (!runtime->isPlaying)
+        {
+            runtime->effect->Bind_SourcePointSampleProvider(static_pointer_cast<IEffectSourcePointSampleProvider>(GetSharedPtr<Animation_View>()));
+            if (FAILED(runtime->effect->Reset()))
+                continue;
+
+            const Shared<TransformCom> effectTransform = runtime->effect->Get_Transform();
+            if (effectTransform == nullptr)
+                continue;
+
+            effectTransform->Set_WorldPosition(sourceSample.worldPosition);
+
+            if (FAILED(runtime->effect->Play()))
+                continue;
+
+            runtime->isPlaying = true;
+        }
+
+        const Shared<TransformCom> effectTransform = runtime->effect->Get_Transform();
+        if (effectTransform == nullptr)
+            continue;
+
+        effectTransform->Set_WorldPosition(sourceSample.worldPosition);
+        _previewSourceHistoryProviderStateId = runtime->stateId;
+        runtime->effect->Priority_Update(timeDelta);
+        runtime->effect->Update(timeDelta);
+        runtime->lastTimeSec = currentTimeSec;
+    }
+
+    _previewSourceHistoryProviderStateId = -1;
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewSourceHistoryRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewSourceHistoryRuntimes[runtimeIndex].stateId;
+        const bool stillActive =
+            std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+
+        if (stillActive)
+            continue;
+
+        Begin_PreviewSourceHistoryDrain(_previewSourceHistoryRuntimes[runtimeIndex]);
+        if (Tick_PreviewSourceHistoryDrain(_previewSourceHistoryRuntimes[runtimeIndex], timeDelta))
+            _previewSourceHistoryRuntimes.erase(_previewSourceHistoryRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewSourceHistoryEffect()
+{
+    for (PreviewSourceHistoryRuntime& runtime : _previewSourceHistoryRuntimes)
+    {
+        if (runtime.effect)
+            runtime.effect->Stop();
+    }
+
+    _previewSourceHistoryRuntimes.clear();
+    _previewSourceHistoryProviderStateId = -1;
+}
+
+void Animation_View::Begin_PreviewSourceHistoryDrain(PreviewSourceHistoryRuntime& runtime)
+{
+    if (runtime.effect == nullptr || runtime.isDraining)
+        return;
+
+    runtime.isDraining = true;
+    runtime.drainElapsed = 0.f;
+    runtime.isPlaying = true;
+}
+
+bool Animation_View::Tick_PreviewSourceHistoryDrain(PreviewSourceHistoryRuntime& runtime, float timeDelta)
+{
+    if (runtime.effect == nullptr)
+        return true;
+
+    if (!runtime.isDraining)
+        return false;
+
+    runtime.drainElapsed += max(0.f, timeDelta);
+    if (runtime.drainElapsed < runtime.drainDuration)
+    {
+        runtime.effect->Priority_Update(timeDelta);
+        runtime.effect->Update(timeDelta);
+        runtime.effect->Late_Update(timeDelta);
+        return false;
+    }
+
+    runtime.effect->Stop();
+    return true;
+}
+
+vector<const AnimNotifyStateEntry*> Animation_View::Find_ActivePreviewSourceHistoryStates() const
+{
+    vector<const AnimNotifyStateEntry*> activeStates{};
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (_sourceMode != SourceMode::LiveModel || playbackModel == nullptr)
+        return activeStates;
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+        return activeStates;
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_SourceHistoryEffect")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStates.push_back(&entry);
+    }
+
+    return activeStates;
+}
+
+bool Animation_View::Ensure_PreviewSourceHistoryEffect(PreviewSourceHistoryRuntime& runtime, const wstring& effectName)
+{
+    if (runtime.effect && runtime.effectName == effectName)
+        return true;
+
+    if (runtime.effect)
+        runtime.effect->Stop();
+
+    runtime.effect.reset();
+    runtime.effectName.clear();
+    runtime.isPlaying = false;
+    runtime.isDraining = false;
+    runtime.drainElapsed = 0.f;
+    runtime.lastTimeSec = -1.f;
+
+    const Shared<const EffectDefinition> definition = EffectAssetRuntimeLoader::Load_DefinitionByName(effectName);
+    if (definition == nullptr)
+    {
+        LOG_WARN("Preview SourceHistory effect definition load failed. effect={}", String::ToString(effectName));
+        return false;
+    }
+
+    runtime.drainDuration = Resolve_SourceHistoryDrainDuration(definition);
+
+    const Shared<EffectInstance> prototype = EffectInstance::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (prototype == nullptr)
+        return false;
+
+    EffectInstanceDesc effectDesc{};
+    effectDesc.definition = definition;
+
+    const Shared<GameObject> previewEffectObject = prototype->Clone(&effectDesc);
+    runtime.effect = dynamic_pointer_cast<EffectInstance>(previewEffectObject);
+    if (runtime.effect == nullptr)
+        return false;
+
+    runtime.effect->Bind_SourcePointSampleProvider(static_pointer_cast<IEffectSourcePointSampleProvider>(GetSharedPtr<Animation_View>()));
+    CHECK_FAILED(runtime.effect->Try_BeginPlay(), false);
+    CHECK_FAILED(runtime.effect->Reset(), false);
+
+    runtime.effectName = effectName;
+    return true;
+}
+
 void Animation_View::Update_PreviewTrailEffect(float timeDelta)
 {
     const vector<const AnimNotifyStateEntry*> activeTrailStates = Find_ActivePreviewTrailStates();
     if (activeTrailStates.empty())
     {
-        Reset_PreviewTrailEffect();
+        _previewTrailProviderStateId = -1;
+
+        for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
+            Begin_PreviewTrailDrain(runtime);
+
+        for (int32 runtimeIndex = static_cast<int32>(_previewTrailRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+        {
+            if (Tick_PreviewTrailDrain(_previewTrailRuntimes[runtimeIndex], timeDelta))
+                _previewTrailRuntimes.erase(_previewTrailRuntimes.begin() + runtimeIndex);
+        }
+
         return;
     }
 
@@ -3095,6 +3565,19 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
                 continue;
         }
 
+        if (runtime->isDraining)
+        {
+            if (runtime->effect)
+                runtime->effect->Stop();
+
+            runtime->effect.reset();
+            runtime->effectName.clear();
+            runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
+            runtime->lastTimeSec = -1.f;
+        }
+
         if (runtime->partTag != partTag)
         {
             if (runtime->effect)
@@ -3104,6 +3587,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
             runtime->effect.reset();
             runtime->effectName.clear();
             runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
 
             if (!Load_PreviewTrailAnchorAsset(runtime->partTag, *runtime))
@@ -3123,6 +3608,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         {
             runtime->effect->Stop(); // scrub나 seek으로 시간이 뒤로 가면 해당 runtime history만 버리고 다시 시작한다.
             runtime->isPlaying = false;
+            runtime->isDraining = false;
+            runtime->drainElapsed = 0.f;
         }
 
         EffectTrailSample trailSample{};
@@ -3130,8 +3617,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         {
             if (runtime->effect && runtime->isPlaying)
             {
-                runtime->effect->Stop();
-                runtime->isPlaying = false;
+                Begin_PreviewTrailDrain(*runtime);
             }
             continue;
         }
@@ -3176,10 +3662,9 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         if (stillActive)
             continue;
 
-        if (_previewTrailRuntimes[runtimeIndex].effect)
-            _previewTrailRuntimes[runtimeIndex].effect->Stop();
-
-        _previewTrailRuntimes.erase(_previewTrailRuntimes.begin() + runtimeIndex);
+        Begin_PreviewTrailDrain(_previewTrailRuntimes[runtimeIndex]);
+        if (Tick_PreviewTrailDrain(_previewTrailRuntimes[runtimeIndex], timeDelta))
+            _previewTrailRuntimes.erase(_previewTrailRuntimes.begin() + runtimeIndex);
     }
 }
 
@@ -3193,6 +3678,37 @@ void Animation_View::Reset_PreviewTrailEffect()
 
     _previewTrailRuntimes.clear();
     _previewTrailProviderStateId = -1;
+}
+
+void Animation_View::Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime)
+{
+    if (runtime.effect == nullptr || runtime.isDraining)
+        return;
+
+    runtime.isDraining = true;
+    runtime.drainElapsed = 0.f;
+    runtime.isPlaying = true;
+}
+
+bool Animation_View::Tick_PreviewTrailDrain(PreviewTrailRuntime& runtime, float timeDelta)
+{
+    if (runtime.effect == nullptr)
+        return true;
+
+    if (!runtime.isDraining)
+        return false;
+
+    runtime.drainElapsed += max(0.f, timeDelta);
+    if (runtime.drainElapsed < runtime.drainDuration)
+    {
+        runtime.effect->Priority_Update(timeDelta);
+        runtime.effect->Update(timeDelta);
+        runtime.effect->Late_Update(timeDelta);
+        return false;
+    }
+
+    runtime.effect->Stop();
+    return true;
 }
 
 vector<const AnimNotifyStateEntry*> Animation_View::Find_ActivePreviewTrailStates() const
@@ -3236,11 +3752,15 @@ bool Animation_View::Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, con
     runtime.effect.reset();
     runtime.effectName.clear();
     runtime.isPlaying = false;
+    runtime.isDraining = false;
+    runtime.drainElapsed = 0.f;
     runtime.lastTimeSec = -1.f;
 
     const Shared<const EffectDefinition> definition = EffectAssetRuntimeLoader::Load_DefinitionByName(effectName);
     if (definition == nullptr)
         return false;
+
+    runtime.drainDuration = Resolve_TrailDrainDuration(definition);
 
     const Shared<EffectInstance> prototype = EffectInstance::Create(GAME->Get_Device(), GAME->Get_Context());
     if (prototype == nullptr)
@@ -3363,6 +3883,49 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
     const Matrix anchorWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
+}
+
+bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
+    const string& partTag,
+    const string& socketName,
+    Vec3& outWorldPosition) const
+{
+    if (socketName.empty())
+        return false;
+
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    const wstring previewPartTag = String::ToWString(partTag);
+    PartObject* partObject = ownerContainer->Get_PartObject(previewPartTag);
+    if (partObject == nullptr)
+        return false;
+
+    if (const auto* playablePart = dynamic_cast<PlayableParts*>(partObject))
+    {
+        const Matrix* socketMatrix = playablePart->Get_SocketBoneMatrixPtr(socketName);
+        if (socketMatrix == nullptr)
+            return false;
+
+        const Matrix socketWorldMatrix = *socketMatrix * playablePart->Get_CombinedWorldMatrix();
+        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        return true;
+    }
+
+    if (const auto* weaponPart = dynamic_cast<Weapon*>(partObject))
+    {
+        const Matrix* socketMatrix = weaponPart->Get_SocketBoneMatrixPtr(socketName);
+        if (socketMatrix == nullptr)
+            return false;
+
+        const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
+        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        return true;
+    }
+
+    return false;
 }
 
 void Animation_View::Validate_SelectedBoneSelection()

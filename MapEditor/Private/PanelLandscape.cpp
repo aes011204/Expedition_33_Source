@@ -426,7 +426,7 @@ void PanelLandscape::Render_PaintTools()
         }
         ImGui::SameLine();
 
-        string layerFile = String::ToString(actor->Get_LayerPath(i));
+        string layerFile = fs::path(actor->Get_LayerPath(i)).filename().string();
         ImGui::TextDisabled("(%s)", layerFile.c_str());
         if (i > 0)
         {
@@ -459,8 +459,8 @@ void PanelLandscape::Render_PaintTools()
         string roughLabel = "Roughness x##" + to_string(i);
         string metallicLabel = "Metallic##" + to_string(i);
 
-        float tiling = actor->Get_LayerTiling(i);
-        if (ImGui::DragFloat(tilingLabel.c_str(), &tiling, 0.01f, 0.1f, 50.f, "%.2f"))
+        Vec2 tiling = actor->Get_LayerTiling(i);
+        if (ImGui::DragFloat2(tilingLabel.c_str(), reinterpret_cast<float*>(&tiling), 0.01f, 0.1f, 50.f, "%.2f"))
         {
             actor->Set_LayerTiling(i, tiling);
         }

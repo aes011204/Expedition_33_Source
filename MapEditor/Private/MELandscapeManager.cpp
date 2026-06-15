@@ -3,6 +3,44 @@
 #include "MECamera.h"
 #include "NoiseUtil.h"
 
+#include <cstring>
+
+namespace
+{
+    constexpr char LANDSCAPE_HMAP_MAGIC[8] = { 'L', 'X', 'Y', 'T', 'I', 'L', 'E', '1' };
+    constexpr uint32 LANDSCAPE_HMAP_VERSION = 1;
+
+    bool Try_ReadLandscapeLayerFormatHeader(FILE* file, bool& outIsNewFormat)
+    {
+        outIsNewFormat = false;
+
+        char magic[sizeof(LANDSCAPE_HMAP_MAGIC)] = {};
+        const size_t readBytes = fread(magic, 1, sizeof(magic), file);
+        if (readBytes != sizeof(magic))
+        {
+            if (readBytes > 0)
+                fseek(file, -static_cast<long>(readBytes), SEEK_CUR);
+            return true;
+        }
+
+        if (memcmp(magic, LANDSCAPE_HMAP_MAGIC, sizeof(magic)) != 0)
+        {
+            fseek(file, -static_cast<long>(sizeof(magic)), SEEK_CUR);
+            return true;
+        }
+
+        uint32 version = 0;
+        if (fread(&version, sizeof(uint32), 1, file) != 1)
+            return false;
+
+        if (version != LANDSCAPE_HMAP_VERSION)
+            return false;
+
+        outIsNewFormat = true;
+        return true;
+    }
+}
+
 HRESULT MELandscapeManager::Initialize(const LandMG_Desc& desc)
 {
     _device = desc.device;
@@ -90,16 +128,23 @@ void MELandscapeManager::Save_Landscape(int32 idx, const WCHAR* path)
     uint32 layerCount = _scene->_landscapes[idx]->Get_LayerCount();
     fwrite(&layerCount, sizeof(uint32), 1, f);
 
+    if (layerCount > 0)
+    {
+        fwrite(LANDSCAPE_HMAP_MAGIC, sizeof(LANDSCAPE_HMAP_MAGIC), 1, f);
+        const uint32 version = LANDSCAPE_HMAP_VERSION;
+        fwrite(&version, sizeof(uint32), 1, f);
+    }
+
     for (uint32 i = 0; i < layerCount; ++i)
     {
         // Albedo
-        const wstring& name = _scene->_landscapes[idx]->Get_LayerPath(i);
+        wstring name = fs::relative(_scene->_landscapes[idx]->Get_LayerPath(i), _resourceRoot).wstring();
         uint32 nameLen = static_cast<uint32>(name.size());
         fwrite(&nameLen, sizeof(uint32), 1, f);
         fwrite(name.c_str(), sizeof(wchar_t), nameLen, f);
 
         // Normal
-        const wstring& normalName = _scene->_landscapes[idx]->Get_NormalPath(i);
+        wstring normalName = fs::relative(_scene->_landscapes[idx]->Get_NormalPath(i), _resourceRoot).wstring();
         uint32 normalLen = static_cast<uint32>(normalName.size());
         fwrite(&normalLen, sizeof(uint32), 1, f);
         if (normalLen > 0)
@@ -108,7 +153,7 @@ void MELandscapeManager::Save_Landscape(int32 idx, const WCHAR* path)
         }
 
         // Roughness
-        const wstring& roughName = _scene->_landscapes[idx]->Get_RoughnessPath(i);
+        wstring roughName = fs::relative(_scene->_landscapes[idx]->Get_RoughnessPath(i), _resourceRoot).wstring();
         uint32 roughLen = static_cast<uint32>(roughName.size());
         fwrite(&roughLen, sizeof(uint32), 1, f);
         if (roughLen > 0)
@@ -117,10 +162,10 @@ void MELandscapeManager::Save_Landscape(int32 idx, const WCHAR* path)
         }
 
         // LayerParams
-        float tiling = _scene->_landscapes[idx]->Get_LayerTiling(i);
+        Vec2 tiling = _scene->_landscapes[idx]->Get_LayerTiling(i);
         Vec4 tint = _scene->_landscapes[idx]->Get_LayerGroundTint(i);
         Vec4 control = _scene->_landscapes[idx]->Get_LayerControl(i);
-        fwrite(&tiling, sizeof(float), 1, f);
+        fwrite(&tiling, sizeof(Vec2), 1, f);
         fwrite(&tint, sizeof(Vec4), 1, f);
         fwrite(&control, sizeof(Vec4), 1, f);
         Vec4 albedo = _scene->_landscapes[idx]->Get_AlbedoControl(i);
@@ -193,6 +238,13 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
     uint32 layerCount = 0;
     if (fread(&layerCount, sizeof(uint32), 1, f) == 1 && layerCount > 0)
     {
+        bool isNewLayerFormat = false;
+        if (!Try_ReadLandscapeLayerFormatHeader(f, isNewLayerFormat))
+        {
+            fclose(f);
+            return;
+        }
+
         _scene->_landscapes[idx]->Clear_Layers();
         vb->Set_LayerCount(layerCount);
         for (uint32 i = 0; i < layerCount; ++i)
@@ -222,11 +274,21 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
             }
 
             // LayerParams
-            float tiling = 3.f;
+            Vec2 tiling = { 3.f, 3.f };
             Vec4 tint = { 1, 1, 1, 1 };
             Vec4 control = { 1, 1, 0, 0 };
 
-            fread(&tiling, sizeof(float), 1, f);
+            if (isNewLayerFormat)
+            {
+                fread(&tiling, sizeof(Vec2), 1, f);
+            }
+            else
+            {
+                float legacyTiling = 3.f;
+                fread(&legacyTiling, sizeof(float), 1, f);
+                tiling = Vec2(legacyTiling, legacyTiling);
+            }
+
             fread(&tint, sizeof(Vec4), 1, f);
             fread(&control, sizeof(Vec4), 1, f);
             Vec4 albedo{};
@@ -236,10 +298,9 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
             auto& weights = vb->Get_WeightMap(i);
             fread(weights.data(), sizeof(float), expected, f);
 
-            const wstring root = (fs::path(_resourceRoot) / L"Map" / L"LandscapeTextures").wstring();
-            wstring albedoPath = (fs::path(root) / name).wstring();
-            wstring normalPath = normalLen > 0 ? (fs::path(root) / normalName).wstring() : L"";
-            wstring roughPath = roughLen > 0 ? (fs::path(root) / roughName).wstring() : L"";
+            wstring albedoPath = (fs::path(_resourceRoot) / name).wstring();
+            wstring normalPath = normalLen > 0 ? (fs::path(_resourceRoot) / normalName).wstring() : L"";
+            wstring roughPath = roughLen > 0 ? (fs::path(_resourceRoot) / roughName).wstring() : L"";
 
             auto& land = _scene->_landscapes[idx];
             land->Add_LayerTexture(albedoPath, normalPath, roughPath);

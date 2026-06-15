@@ -52,6 +52,11 @@ public:
         const string& maskTextureGuid,
         const string& maskTexturePath,
         UI_MaskTextureMode maskTextureMode);
+    ID3D11ShaderResourceView* Get_FillRatioPreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        float fillRatio,
+        UI_FillOrigin fillOrigin);
     ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
         const PatternOverlayPreviewDesc& previewDesc);
     bool New_Document();
@@ -91,6 +96,13 @@ public:
     bool Set_UIObjectPatternUvOffset(ObjectId objectId, const ImVec2& patternUvOffset);
     bool Set_UIObjectPatternUvScale(ObjectId objectId, const ImVec2& patternUvScale);
     bool Set_UIObjectPatternUv(ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale);
+    bool Set_UIObjectUseFillRatio(ObjectId objectId, bool useFillRatio);
+    bool Set_UIObjectFillRatio(ObjectId objectId, float fillRatio);
+    bool Set_UIObjectFillOrigin(ObjectId objectId, UI_FillOrigin fillOrigin);
+    bool Set_UIObjectVfxPath(ObjectId objectId, const string& vfxPath);
+    bool Set_UIObjectVfxPlayOnOpen(ObjectId objectId, bool playOnOpen);
+    bool Set_UIObjectVfxLoop(ObjectId objectId, bool loop);
+    bool Set_UIObjectVfxStopOnClose(ObjectId objectId, bool stopOnClose);
     bool Set_UIObjectText(ObjectId objectId, const string& text);
     bool Set_UIObjectFontSize(ObjectId objectId, float fontSize);
     bool Set_UIObjectTextAlign(ObjectId objectId, UI_TextAlign textAlign);

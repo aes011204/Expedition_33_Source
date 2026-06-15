@@ -148,6 +148,28 @@ namespace UIEditor
                         Render_StateAnimationPicker(*selectedObject);
                     }
                 }
+                else if (selectedObject->type == UI_ObjectType::UIVfx)
+                {
+                    ImGui::Separator();
+                    ImGui::TextUnformatted("UI Sprite VFX");
+
+                    char vfxPathBuffer[512] = {};
+                    strncpy_s(vfxPathBuffer, selectedObject->vfxPath.c_str(), _TRUNCATE);
+                    if (ImGui::InputText("VFX Path", vfxPathBuffer, size(vfxPathBuffer)))
+                        _editorManager.Set_UIObjectVfxPath(selectedObject->id, vfxPathBuffer);
+
+                    bool playOnOpen = selectedObject->vfxPlayOnOpen;
+                    if (ImGui::Checkbox("Play On Open", &playOnOpen))
+                        _editorManager.Set_UIObjectVfxPlayOnOpen(selectedObject->id, playOnOpen);
+
+                    bool loop = selectedObject->vfxLoop;
+                    if (ImGui::Checkbox("Loop Override", &loop))
+                        _editorManager.Set_UIObjectVfxLoop(selectedObject->id, loop);
+
+                    bool stopOnClose = selectedObject->vfxStopOnClose;
+                    if (ImGui::Checkbox("Stop On Close", &stopOnClose))
+                        _editorManager.Set_UIObjectVfxStopOnClose(selectedObject->id, stopOnClose);
+                }
 
                 if (selectedObject->type == UI_ObjectType::Text)
                 {
