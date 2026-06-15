@@ -57,6 +57,7 @@ public:
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
     void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant = false);
     void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId = "");
+    void Reload_BattleCameraAuthoringData();
     void Set_ClipScrubPreviewEnabled(bool enabled) { _isClipPreview = enabled; }
     void Apply_PreviewPreset(const BattleCameraPreset& preset);
     void Apply_ShotRequest(const BattleShotRequest& request);
@@ -194,7 +195,9 @@ private:
     void Refresh_RuntimeDriftFromProfile(const BattleCameraDriftProfile& profile, bool resetElapsed = false);
     void Start_RuntimeShake(const EvtBattleCameraShake& event);
     void Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta);
+    void Apply_ClipShake(EvaluatedPose& pose, const BattleCameraClipSample& clipSample, float clipShakeTime) const;
     void Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta);
+    void Debug_PrintClipShakeSample(float animationTimeSec, float sampleTime, float shakeSampleTime, const BattleCameraClipSample& clipSample) const;
 
 private:
     void Update_EnemyAttackMode(float timeDelta);

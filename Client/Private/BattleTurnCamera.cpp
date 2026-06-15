@@ -12,11 +12,15 @@
 #include "Event_Bus.h"
 #include "Battle_Event.h"
 #include "Character_BattleBase.h"
+#include "Helper_String.h"
 #include <chrono>
 #include <cmath>
 
 namespace
 {
+constexpr wchar_t kBattleClipShakeDebugSlot[] =
+    L"[BattleClipShake] anim={:.3f} sample={:.3f} shakeT={:.3f} amp={:.3f}";
+
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
     return cameraMode == BattleCameraMode::BATTLEINTRO ||
@@ -608,7 +612,7 @@ void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 
 void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
+   UNREFERENCED_PARAMETER(timeDelta);
 
    if(!_runtimeShake.active)
       return;
@@ -678,6 +682,63 @@ void BattleTurnCamera::Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta)
     pose.cameraPos += driftOffset;
     pose.lookTarget += driftOffset * 0.6f;
     pose.rollOffset += roll;
+}
+
+void BattleTurnCamera::Apply_ClipShake(
+    EvaluatedPose& pose,
+    const BattleCameraClipSample& clipSample,
+    float clipShakeTime) const
+{
+    // clip shake도 drift 이후의 최종 pose에 additive로 얹어야
+    // notify shake와 비슷한 화면 체감을 내고 다른 보정에 덜 묻힌다.
+
+    if (clipSample.shakeAmplitude <= 0.f)
+        return;
+
+    Vec3 forward = pose.lookTarget - pose.cameraPos;
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
+
+    forward.Normalize();
+
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.0001f)
+        return;
+
+    right.Normalize();
+
+    Vec3 up = forward.Cross(right);
+    up.Normalize();
+
+    const Vec3 shakeOffset = Sample_BattleCameraShakeOffset(
+        clipSample.shakeAmplitude,
+        clipSample.shakeVerticalRatio,
+        clipSample.shakeStrengthScale,
+        clipSample.shakeFrequencyX,
+        clipSample.shakeFrequencyY,
+        clipSample.shakeDecayRateX,
+        clipSample.shakeDecayRate,
+        clipShakeTime,
+        right,
+        up);
+
+    pose.cameraPos += shakeOffset;
+    pose.lookTarget += shakeOffset;
+}
+
+void BattleTurnCamera::Debug_PrintClipShakeSample(
+    float animationTimeSec,
+    float sampleTime,
+    float shakeSampleTime,
+    const BattleCameraClipSample& clipSample) const
+{
+    GAME->Print(
+        kBattleClipShakeDebugSlot,
+        animationTimeSec,
+        sampleTime,
+        shakeSampleTime,
+        clipSample.shakeAmplitude,
+        duration(0.f));
 }
 
 
@@ -869,7 +930,7 @@ float BattleTurnCamera::Resolve_BattlePlaneYaw() const
 }
 
 float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const
-{
+{ 
     switch (request.mode)
     {
     case BattleCameraMode::PLAYERFOCUS:
@@ -878,6 +939,7 @@ float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& re
     case BattleCameraMode::SELECTITEM:
     case BattleCameraMode::SELECTSKILL:
     case BattleCameraMode::PARRY:
+    case BattleCameraMode::BATTLEINTRO:  
         return Resolve_BattlePlaneYaw();
 
     default:
@@ -1010,6 +1072,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, transitionTargetPose.rollOffset, easedT);
 
     Apply_RuntimeDrift(blended, timeDelta);
+    Apply_ClipShake(blended, clipSample, _clipShakeTime);
     Apply_RuntimeShake(blended, timeDelta);
     Apply_EvaluatedPose(blended);
 
@@ -1113,8 +1176,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if (wasAim && !willAim)
     {
-        // Free aim rotates the runtime yaw/pitch bases directly, so reset them
-        // before resolving the next authored preset pose.
         _yaw = 0.f;
         _pitch = 0.f;
     }
@@ -1338,6 +1399,7 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     if (!Evaluate_EnemyAttackPose(enemyPos, playerPos, _currentPreset, clip, pose))
         return;
     Apply_RuntimeDrift(pose, timeDelta);
+    Apply_ClipShake(pose, clip, _clipShakeTime);
     Apply_RuntimeShake(pose,timeDelta);
     Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
@@ -1362,6 +1424,7 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
     Evaluate_CurrentPresetPose(_smoothedTargetPos, _currentPreset, clip, yawBase, _pitch, &_smoothedTargetPos, pose);
     Apply_RuntimeDrift(pose, timeDelta);
+    Apply_ClipShake(pose, clip, _clipShakeTime);
     Apply_RuntimeShake(pose,timeDelta);
     Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
@@ -1476,6 +1539,12 @@ void BattleTurnCamera::Set_Clip(BattleCameraMode mode, const BattleCameraClip& c
         const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + clipId;
         _clipsById[cacheKey] = clip;
     }
+}
+
+void BattleTurnCamera::Reload_BattleCameraAuthoringData()
+{
+    _presetsById.clear();
+    _clipsById.clear();
 }
 
 void BattleTurnCamera::Apply_PreviewPreset(const BattleCameraPreset& preset)
@@ -1620,7 +1689,10 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
     BattleCameraClipSample sample{};
 
     if(_activeClip == nullptr)
+    {
+        GAME->Clear_Print(kBattleClipShakeDebugSlot);
         return sample;
+    }
 
     _clipShakeTime += std::max(0.f, GAME->Get_UnscaledTimeDelta());
 
@@ -1670,6 +1742,15 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 
         sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
 
+        // shake 외의 트랙은 애니메이션 진행률에 계속 맞추고 shake 트랙만 unscaled 시간 기준으로 다시 샘플링함
+        // 런타임에서 월드 시간이나 애니메이션 배속이 바뀌어도 툴에서 편집한 shake의 리듬과 감쇠 느낌을 최대한 그대로 유지하기 위함
+      
+        const float shakeSampleTime = syncDurationSec > 0.f
+            ? clamp(_clipShakeTime / syncDurationSec, 0.f, 1.f)
+            : 0.f;
+        Apply_BattleCameraClipShakeSample(*_activeClip, shakeSampleTime, sample);
+        Debug_PrintClipShakeSample(currentAnimationTimeSec, sampleTime, shakeSampleTime, sample);
+
         if (sampleTime >= 1.f)
         {
             _activeClip = nullptr;
@@ -1684,6 +1765,7 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
     _clipTime = sampleTime;
 
     sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
+    Debug_PrintClipShakeSample(_clipTime, sampleTime, sampleTime, sample);
 
     if(sampleTime >= _activeClip->duration)
     {
@@ -1704,6 +1786,7 @@ void BattleTurnCamera::Reset_ClipPlaybackState()
     _clipSyncAnimationName.clear();
     _clipDebugSampleLogCount = 0;
     _clipDebugLoggedShake = false;
+    GAME->Clear_Print(kBattleClipShakeDebugSlot);
 }
 
 Shared<BattleTurnCamera> BattleTurnCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

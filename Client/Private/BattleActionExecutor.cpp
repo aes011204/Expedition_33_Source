@@ -1,9 +1,11 @@
 ﻿#include "BattleActionExecutor.h"
 
 #include "BattleAnimutils.h"
+#include "Battle_Event.h"
 #include "Character.h"
 #include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
+#include "Event_Bus.h"
 
 void BattleActionExecutor::BeginAction(BattleAction& action)
 {
@@ -77,6 +79,7 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
         }
 
         _isFinished = true;
+        _hasTriggeredCloseApproachShot = false;
         action.SetPhaseReachedGoal(true);
         return;
     }
@@ -321,6 +324,28 @@ void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const
         FinishCurrentPhaseAtGoal(action);
         return;
     }
+
+    const Skill_Data& skillData = action.GetSkillData();
+    const uint32 curPhaseIndex = action.GetCurAnimIndex();
+
+    if(!_hasTriggeredCloseApproachShot &&
+        skillData.skillKey == "Abbest_Knife"&&
+        curPhaseIndex == 0 &&
+        remain <= 4.5f)
+    {
+        EvtBattlePresentation event{};
+        event.cameraMode = BattleCameraMode::ENEMYATTACK;
+        event.subject = action.Get_CurChar().actor;
+        event.opponent = action.GetInitTarget().actor;
+        event.useClip = true;
+        event.restartClip = true;
+        event.presetId = "Abbest_DashIn";
+        event.clipId = "Abbest_DashIn";
+
+        GAME->Get_EventBus().Publish(event);
+        _hasTriggeredCloseApproachShot = true;
+    }
+
 
     Vec3 goalDir = toGoal;
     goalDir.Normalize();
