@@ -1,6 +1,7 @@
 ﻿#include "MB_Simon.h"
 
 #include "Mon_Simon_Body.h"
+#include "Mon_Simon_Hair.h"
 #include "Mon_Simon_Weapon.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
@@ -75,9 +76,20 @@ HRESULT MB_Simon::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_Simon_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
+    Mon_Simon_Hair::HEAD_DESC headDesc{};
+    headDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    headDesc.modelType = ModelType::Anim;
+    headDesc.modelTag = L"Model_Simon_Hair";
+    headDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("headSocket");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Hair"), TEXT("Part_Hair"), &headDesc), E_FAIL);
+
+    _hair = dynamic_pointer_cast<Mon_Simon_Hair>(_partObjects[TEXT("Part_Hair")]);
+    CHECK_NULL(_hair, E_FAIL);
+
     Mon_Simon_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = ModelType::NonAnim;
+    weaponDesc.modelType = ModelType::Anim;
     weaponDesc.modelTag = L"Model_Simon_Weapon";
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
