@@ -442,6 +442,7 @@
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
     <ClCompile Include="..\private\MW_Simon.cpp" />
     <ClCompile Include="Mon_Simon_Weapon.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp">
@@ -1401,6 +1402,7 @@
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
+    <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
     <ClInclude Include="..\public\MW_Simon.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Mon_Simon_Weapon.h" />

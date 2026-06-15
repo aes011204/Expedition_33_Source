@@ -280,6 +280,7 @@
     <ClInclude Include="..\Public\Mon_PotatoBag_Shield.h" />
     <ClInclude Include="..\Public\Mon_PotatoBag_Weapon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
+    <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
     <ClInclude Include="..\public\Mon_Volester_Body.h" />
     <ClInclude Include="..\Public\MW_Abbest.h" />
     <ClInclude Include="..\public\MW_Bishop.h" />
@@ -611,6 +612,7 @@
     <ClCompile Include="..\Private\Mon_PotatoBag_Shield.cpp" />
     <ClCompile Include="..\Private\Mon_PotatoBag_Weapon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
     <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
     <ClCompile Include="..\Private\MW_Abbest.cpp" />
     <ClCompile Include="..\private\MW_Bishop.cpp" />

@@ -13,6 +13,7 @@
 #include "EffectCom.h"
 #include "Mon_WeakPoint.h"
 #include "BlackBoard.h"
+#include "DamageSystem.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -442,41 +443,16 @@ float Monster_BattleBase::Estimate_SkillDamage(const Skill_Data* skill, const Ba
     if (_combatStat == nullptr || skill == nullptr || target.statCom == nullptr)
         return 0.f;
 
-    const float attackerAtk = _combatStat->Get_RuntimeStat().physicalAttack;
-    const float targetDef = target.statCom->Get_RuntimeStat().physicalDefense;
+    
+    BattleChar attacker{};
+    attacker.statCom = _combatStat;
 
-    float damageScale = 1.f;
+    const int32 hitCount = max(1, static_cast<int32>(skill->targetingType.size()));
+    const float oneHitDamage =
+        DamageSystem::CalculatePlayerAttackDamage(attacker, skill->powerMultiplier);
 
-    switch (skill->targetStyle)
-    {
-    case AITargetStyle::Single:
-        damageScale = 1.0f;
-        break;
-
-    case AITargetStyle::Combo:
-        damageScale = 1.2f;
-        break;
-
-    case AITargetStyle::SingleAoE:
-        damageScale = 0.9f;
-        break;
-
-    case AITargetStyle::ComboAoE:
-        damageScale = 1.1f;
-        break;
-
-    case AITargetStyle::Mix:
-        damageScale = 1.15f;
-        break;
-
-    case AITargetStyle::ETC:
-    default:
-        damageScale = 1.0f;
-        break;
-    }
-
-    const float rawDamage = attackerAtk * damageScale;
-    return max(rawDamage - targetDef, 1.f);
+    const float totalExpectedDamage = oneHitDamage * static_cast<float>(hitCount);
+    return max(totalExpectedDamage, 1.f);
 }
 void Monster_BattleBase::Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes)
 {
