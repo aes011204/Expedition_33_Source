@@ -6,6 +6,12 @@
 
 namespace
 {
+    bool StartsWith(const string& value, const string& prefix)
+    {
+        return value.size() >= prefix.size() &&
+            equal(prefix.begin(), prefix.end(), value.begin());
+    }
+
     bool ReadBoolFlexible(const json& item, const char* key, bool defaultValue)
     {
         if (!item.contains(key) || item[key].is_null())
@@ -35,6 +41,43 @@ namespace
 
         LOG_WARN("[GameDataTable] invalid bool field: key={}, valueType={}", key, value.type_name());
         return defaultValue;
+    }
+
+    wstring Resolve_WeaponPortraitTexturePath(const string& portraitName)
+    {
+        if (portraitName.empty())
+            return L"";
+
+        string normalizedPath = portraitName;
+        replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+
+        if (fs::path(String::ToWString(normalizedPath)).extension().empty())
+            normalizedPath += ".png";
+
+
+        const fs::path inputPath = fs::path(String::ToWString(normalizedPath));
+        if (inputPath.is_absolute())
+            return inputPath.lexically_normal().wstring();
+
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
+            return fs::absolute(inputPath).lexically_normal().wstring();
+
+        const string loweredPath = String::ToLowerCopy(normalizedPath);
+        string resourceRelativePath = normalizedPath;
+
+        constexpr const char* resourcePrefix = "../bin/resources/";
+        constexpr const char* binResourcePrefix = "bin/resources/";
+        constexpr const char* resourcesPrefix = "resources/";
+
+        if (StartsWith(loweredPath, resourcePrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(resourcePrefix));
+        else if (StartsWith(loweredPath, binResourcePrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(binResourcePrefix));
+        else if (StartsWith(loweredPath, resourcesPrefix))
+            resourceRelativePath = normalizedPath.substr(strlen(resourcesPrefix));
+
+        return (fs::path(assetRoot) / fs::path(String::ToWString(resourceRelativePath))).lexically_normal().wstring();
     }
 }
 
@@ -700,6 +743,8 @@ HRESULT GameDataTable::Load_Weapon(const wstring& jsonRootPath)
         desc.characterId = characterId;
         desc.weaponId = weaponId;
         desc.weaponName = String::ToWString(item.value("Weapon Name", ""));
+        desc.portraitTexturePath = Resolve_WeaponPortraitTexturePath(
+            item.value("Portrait", item.value("Portriat", "")));
 
         desc.weaponPrefabName = item.value("Weapon Prefab", "");
         desc.subWeaponPrefabName = item.value("Sub Weapon Prefab", "");

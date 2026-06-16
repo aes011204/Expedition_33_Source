@@ -101,6 +101,22 @@ namespace Client::Constants::UI
 
 #pragma endregion
 
+#pragma region 플레이어 스테이터스. 탭눌렀을 때
+    inline constexpr wchar_t UI_Character_Progression_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Character_Progression.json";
+
+    inline constexpr wchar_t UI_ChangeSkill_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_ChangeSkill.json";
+
+    inline constexpr wchar_t UI_Available_Skill_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Available_Skill.json";
+
+    inline constexpr wchar_t UI_Wardrobe_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Wardrobe.json";
+
+#pragma endregion
+
+
 }
 
 namespace Client::Constants::UI_Anim

@@ -1,5 +1,6 @@
 ﻿#include "GameplayUI_World.h"
 
+#include "ChangeSkill_Panel.h"
 #include "CharacterStatus_Panel.h"
 #include "GameInstance.h"
 #include "SkillTree_Panel.h"
@@ -10,6 +11,7 @@
 #include "Player_FreeAim.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
+#include "Wardrobe_Panel.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
@@ -36,6 +38,15 @@ namespace
 
 HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 {
+    _characterProgressionPanel = CharacterProgression_Panel::Create(levelIndex);
+    CHECK_NULL(_characterProgressionPanel, E_FAIL);
+
+    _changeSkillPanel = ChangeSkill_Panel::Create(levelIndex);
+    CHECK_NULL(_changeSkillPanel, E_FAIL);
+
+    _wardrobePanel = Wardrobe_Panel::Create(levelIndex);
+    CHECK_NULL(_wardrobePanel, E_FAIL);
+
     _characterStatusPanel = CharacterStatus_Panel::Create(levelIndex);
     CHECK_NULL(_characterStatusPanel, E_FAIL);
 
@@ -59,6 +70,18 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 
 void GameplayUI_World::Update(float timeDelta)
 {
+    if (_characterProgressionPanel)
+        _characterProgressionPanel->Update(timeDelta);
+
+    if (_changeSkillPanel)
+        _changeSkillPanel->Update(timeDelta);
+
+    if (_wardrobePanel)
+        _wardrobePanel->Update(timeDelta);
+
+    if (_changeWeaponPanel)
+        _changeWeaponPanel->Update(timeDelta);
+
     if (_savePointPanel)
         _savePointPanel->Update(timeDelta);
 
@@ -68,21 +91,18 @@ void GameplayUI_World::Update(float timeDelta)
     if (_skillTreePanel)
         _skillTreePanel->Update(timeDelta);
 
-    if (_changeWeaponPanel)
-        _changeWeaponPanel->Update(timeDelta);
-
     if (_expeditionStatPanel)
         _expeditionStatPanel->Update(timeDelta);
 
     Update_CrossHair(timeDelta);
 
-    if (!CLIENT->Is_FadeTransitionPlaying() &&
-        _savePointPanel &&
-        _savePointPanel->Is_Open() &&
-        !_savePointPanel->Is_ClosingWithOutro())
+    if (!CLIENT->Is_FadeTransitionPlaying())
     {
-        const SavePoint_Panel::SavePointAction action = _savePointPanel->Consume_LastAction();
-        Handle_SavePointAction(action);
+        if (_savePointPanel && _savePointPanel->Is_Open() && !_savePointPanel->Is_ClosingWithOutro())
+            Handle_SavePointAction(_savePointPanel->Consume_LastAction());
+
+        if (_characterProgressionPanel && _characterProgressionPanel->Is_Open())
+            Handle_CharacterProgressionAction(_characterProgressionPanel->Consume_LastAction());
     }
 }
 
@@ -94,7 +114,8 @@ void GameplayUI_World::Update_Input()
     if (_savePointPanel && _savePointPanel->Is_ClosingWithOutro())
         return;
 
-    Handle_TabInput(); // Tab은 root 메뉴인 SavePoint 진입/종료만 담당
+    Handle_SavePointInput();
+    Handle_TabInput();
     Handle_BackInput();
     Handle_ExpeditionStat();
 }
@@ -102,8 +123,11 @@ void GameplayUI_World::Update_Input()
 vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 {
     vector<RuntimeUIEntry> entries{};
-    entries.reserve(6);
+    entries.reserve(9);
 
+    Append_RuntimePanelEntry(entries, "World", "CharacterProgressionPanel", _characterProgressionPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "ChangeSkillPanel", _changeSkillPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "WardrobePanel", _wardrobePanel.get());
     Append_RuntimePanelEntry(entries, "World", "SavePointPanel", _savePointPanel.get());
     Append_RuntimePanelEntry(entries, "World", "CharacterStatusPanel", _characterStatusPanel.get());
     Append_RuntimePanelEntry(entries, "World", "SkillTreePanel", _skillTreePanel.get());
@@ -163,25 +187,43 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
     }
 }
 
+void GameplayUI_World::Handle_SavePointInput()
+{
+    if (!GAME->KeyDown(KEY_TYPE::E))
+        return;
+
+    if (_savePointPanel == nullptr)
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return; // 다른 월드 메뉴가 열려 있으면 SavePoint 중복 진입을 막는다.
+
+    Push_Menu(GameplayMenu::SavePoint);
+}
+
 void GameplayUI_World::Handle_TabInput()
 {
     if (!GAME->KeyDown(KEY_TYPE::TAB))
         return;
 
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
     const GameplayMenu currentMenu = Get_CurrentMenu();
 
-    if (currentMenu == GameplayMenu::None)
+    if (Is_CharacterProgressionFlowMenu(currentMenu))
     {
-        Push_Menu(GameplayMenu::SavePoint);
+        Close_CharacterProgressionFlow();
         return;
     }
 
-    if (currentMenu == GameplayMenu::SavePoint)
-    {
-        // SavePoint에서 Tab은 전체 종료 -> 나중에는 깃발에서 E누르면 켜지는거로 변경 예정
-        Close_AllMenus();
+    if (currentMenu != GameplayMenu::None)
         return;
-    }
+
+    Open_CharacterProgressionFlow();
 }
 
 void GameplayUI_World::Handle_ExpeditionStat()
@@ -212,7 +254,164 @@ void GameplayUI_World::Handle_BackInput()
     if (_menuStack.empty())
         return;
 
-    Pop_Menu();
+    const GameplayMenu currentMenu = _menuStack.back();
+    if (Is_CharacterProgressionFlowMenu(currentMenu) && currentMenu == GameplayMenu::CharacterProgression)
+    {
+        Close_CharacterProgressionFlow(); // 루트에서 Esc는 전체 종료
+        return;
+    }
+
+    if (_menuStack.size() == 1)
+    {
+        const auto applyMenuChange = [this, currentMenu]()
+            {
+                Close_Menu(currentMenu, true); // 단독 루트 메뉴 종료이므로 월드 입력을 복구한다.
+                _menuStack.pop_back();
+            };
+
+        _menuFade.Request_MenuTransition(currentMenu, GameplayMenu::None, applyMenuChange);
+        return;
+    }
+
+    Pop_Menu(); // 하위 메뉴에서 Esc는 이전 메뉴 복귀
+}
+
+void GameplayUI_World::Handle_CharacterProgressionAction(CharacterProgression_Panel::Action action)
+{
+    switch (action)
+    {
+    case CharacterProgression_Panel::Action::OpenChangeWeapon:
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Set_SelectedHeroId(_characterProgressionPanel->Get_SelectedHeroId());
+        Push_Menu(GameplayMenu::WeaponUpgrade);
+        break;
+
+    case CharacterProgression_Panel::Action::OpenChangeSkill:
+        if (_changeSkillPanel)
+            _changeSkillPanel->Set_SelectedHeroId(_characterProgressionPanel->Get_SelectedHeroId());
+        Push_Menu(GameplayMenu::ChangeSkill);
+        break;
+
+    case CharacterProgression_Panel::Action::OpenWardrobe:
+        if (_wardrobePanel)
+            _wardrobePanel->Set_SelectedHeroId(_characterProgressionPanel->Get_SelectedHeroId());
+        Push_Menu(GameplayMenu::Wardrobe);
+        break;
+
+    case CharacterProgression_Panel::Action::None:
+    default:
+        break;
+    }
+}
+
+void GameplayUI_World::Open_CharacterProgressionFlow()
+{
+    HeroId selectedHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
+    if (_characterProgressionPanel)
+    {
+        _characterProgressionPanel->Set_SelectedHeroId(selectedHeroId);
+    }
+
+    Push_Menu(GameplayMenu::CharacterProgression);
+}
+
+void GameplayUI_World::Close_CharacterProgressionFlow()
+{
+    if (_menuStack.empty())
+        return;
+
+    const GameplayMenu currentMenu = _menuStack.back();
+    if (!Is_CharacterProgressionFlowMenu(currentMenu))
+        return;
+
+    const auto applyMenuChange = [this, currentMenu]()
+        {
+            Close_Menu(currentMenu, true); // 현재 보이는 top panel만 월드 입력 복구
+            while (!_menuStack.empty() && Is_CharacterProgressionFlowMenu(_menuStack.back()))
+                _menuStack.pop_back();
+        };
+
+    _menuFade.Request_MenuTransition(currentMenu, GameplayMenu::None, applyMenuChange);
+}
+
+bool GameplayUI_World::Is_CharacterProgressionFlowMenu(GameplayMenu menu) const
+{
+    return menu == GameplayMenu::CharacterProgression ||
+        menu == GameplayMenu::WeaponUpgrade ||
+        menu == GameplayMenu::ChangeSkill ||
+        menu == GameplayMenu::Wardrobe;
+}
+
+void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
+{
+    switch (menu)
+    {
+    case GameplayMenu::CharacterProgression:
+        if (_characterProgressionPanel)
+        {
+            if (restoreWorldControl)
+                _characterProgressionPanel->Close();
+            else
+                _characterProgressionPanel->Close_ForMenuTransition();
+        }
+        break;
+
+    case GameplayMenu::ChangeSkill:
+        if (_changeSkillPanel)
+        {
+            if (restoreWorldControl)
+                _changeSkillPanel->Close();
+            else
+                _changeSkillPanel->Close_ForMenuTransition();
+        }
+        break;
+
+    case GameplayMenu::Wardrobe:
+        if (_wardrobePanel)
+        {
+            if (restoreWorldControl)
+                _wardrobePanel->Close();
+            else
+                _wardrobePanel->Close_ForMenuTransition();
+        }
+        break;
+
+    case GameplayMenu::WeaponUpgrade:
+        if (_changeWeaponPanel)
+        {
+            if (restoreWorldControl)
+                _changeWeaponPanel->Close(); // 최종 종료이므로 월드 입력 복구
+            else
+                _changeWeaponPanel->Close_ForMenuTransition(); // Character Progression으로 복귀하는 전환
+        }
+        break;
+
+    case GameplayMenu::SavePoint:
+        if (_savePointPanel)
+        {
+            if (restoreWorldControl)
+                _savePointPanel->Close(); // SavePoint 자체 종료
+            else
+                _savePointPanel->Close_ForMenuTransition();
+        }
+        break;
+
+    case GameplayMenu::CharacterStatus:
+        if (_characterStatusPanel)
+            _characterStatusPanel->Close();
+        break;
+
+    case GameplayMenu::SkillTree:
+        if (_skillTreePanel)
+            _skillTreePanel->Close();
+        break;
+
+    case GameplayMenu::None:
+    default:
+        break;
+    }
+
+
 }
 
 void GameplayUI_World::Update_CrossHair(float timeDelta)
@@ -259,23 +458,22 @@ void GameplayUI_World::Push_Menu(GameplayMenu menu)
         return;
 
     const GameplayMenu currentMenu = Get_CurrentMenu();
-
     if (currentMenu == menu)
-        return; // 같은 메뉴 중복 방지
+        return;
 
     const auto applyMenuChange = [this, currentMenu, menu]()
-    {
-        if (currentMenu != GameplayMenu::None)
         {
-            if (currentMenu == GameplayMenu::SavePoint && _savePointPanel)
-                _savePointPanel->Close_ForMenuTransition();
-            else
-                Close_Menu(currentMenu);
-        }
+            if (currentMenu != GameplayMenu::None)
+            {
+                if (currentMenu == GameplayMenu::SavePoint && _savePointPanel)
+                    _savePointPanel->Close_ForMenuTransition();
+                else
+                    Close_Menu(currentMenu, false); // 같은 메뉴 흐름 안 이동은 월드 입력 유지
+            }
 
-        _menuStack.push_back(menu);
-        Open_Menu(menu);
-    };
+            _menuStack.push_back(menu);
+            Open_Menu(menu);
+        };
 
     _menuFade.Request_MenuTransition(currentMenu, menu, applyMenuChange);
 }
@@ -289,15 +487,15 @@ void GameplayUI_World::Pop_Menu()
     const GameplayMenu previousMenu = _menuStack.size() >= 2 ? _menuStack[_menuStack.size() - 2] : GameplayMenu::None;
 
     const auto applyMenuChange = [this, currentMenu]()
-    {
-        Close_Menu(currentMenu); // 현재 top 메뉴 종료
-        _menuStack.pop_back();
+        {
+            Close_Menu(currentMenu, false); // 뒤에 다시 열 메뉴가 있으므로 월드 입력 복구 금지
+            _menuStack.pop_back();
 
-        if (_menuStack.empty())
-            return;
+            if (_menuStack.empty())
+                return;
 
-        Open_Menu(_menuStack.back());
-    };
+            Open_Menu(_menuStack.back());
+        };
 
     _menuFade.Request_MenuTransition(currentMenu, previousMenu, applyMenuChange);
 }
@@ -310,8 +508,16 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
 
         if (immediate && menu == GameplayMenu::SavePoint && _savePointPanel)
             _savePointPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::CharacterProgression && _characterProgressionPanel)
+            _characterProgressionPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::ChangeSkill && _changeSkillPanel)
+            _changeSkillPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::Wardrobe && _wardrobePanel)
+            _wardrobePanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::WeaponUpgrade && _changeWeaponPanel)
+            _changeWeaponPanel->Close_Immediately();
         else
-            Close_Menu(menu);
+            Close_Menu(menu, true);
 
         _menuStack.pop_back();
     }
@@ -324,13 +530,38 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
     }
 
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
-        _expeditionStatPanel->Close_Immediately(); 
+        _expeditionStatPanel->Close_Immediately();
 }
 
 void GameplayUI_World::Open_Menu(GameplayMenu menu)
 {
     switch (menu)
     {
+    case GameplayMenu::CharacterProgression:
+        if (_characterProgressionPanel)
+            _characterProgressionPanel->Open();
+        break;
+
+    case GameplayMenu::ChangeSkill:
+        if (_changeSkillPanel)
+            _changeSkillPanel->Open();
+        break;
+
+    case GameplayMenu::Wardrobe:
+        if (_wardrobePanel)
+            _wardrobePanel->Open();
+        break;
+
+
+    case GameplayMenu::WeaponUpgrade:
+        if (_characterProgressionPanel)
+            _characterProgressionPanel->Close_ForMenuTransition(); // Weapon 화면에서는 Progression의 기술/시트/픽토스 UI를 모두 숨긴다.
+        if (_changeSkillPanel)
+            _changeSkillPanel->Close_ForMenuTransition(); // ChangeSkill에서 넘어온 경우 Available/Current Skill UI를 정리한다.
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Open();
+        break;
+
     case GameplayMenu::SavePoint:
         if (_savePointPanel)
             _savePointPanel->Open();
@@ -344,41 +575,6 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
     case GameplayMenu::SkillTree:
         if (_skillTreePanel)
             _skillTreePanel->Open();
-        break;
-
-    case GameplayMenu::WeaponUpgrade:
-        if (_changeWeaponPanel)
-            _changeWeaponPanel->Open();
-        break;
-
-    case GameplayMenu::None:
-    default:
-        break;
-    }
-}
-
-void GameplayUI_World::Close_Menu(GameplayMenu menu)
-{
-    switch (menu)
-    {
-    case GameplayMenu::SavePoint:
-        if (_savePointPanel)
-            _savePointPanel->Close();
-        break;
-
-    case GameplayMenu::CharacterStatus:
-        if (_characterStatusPanel)
-            _characterStatusPanel->Close();
-        break;
-
-    case GameplayMenu::SkillTree:
-        if (_skillTreePanel)
-            _skillTreePanel->Close();
-        break;
-
-    case GameplayMenu::WeaponUpgrade:
-        if (_changeWeaponPanel)
-            _changeWeaponPanel->Close();
         break;
 
     case GameplayMenu::None:
@@ -441,7 +637,10 @@ void GameplayUI_World::Free()
         };
 
     Release_Panel(_crossHair);
+    Release_Panel(_characterProgressionPanel);
+    Release_Panel(_changeSkillPanel);
     Release_Panel(_savePointPanel);
+    Release_Panel(_wardrobePanel);
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
     Release_Panel(_changeWeaponPanel);

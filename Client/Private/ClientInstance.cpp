@@ -274,6 +274,11 @@ void ClientInstance::Show_Preview(HeroId heroId, PreviewShotPanel panel)
 
 void ClientInstance::Hide_Preview()
 {
+    if (_previewManager == nullptr)
+    {
+        return;
+    }
+
     return _previewManager->Hide_Preview();
 }
 

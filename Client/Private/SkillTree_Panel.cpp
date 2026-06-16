@@ -19,6 +19,8 @@
 #include "UI_Utils.h"
 #include "PreviewRimFeature.h"
 
+#include <algorithm>
+
 using namespace UI_Utils;
 
 namespace
@@ -403,14 +405,22 @@ HRESULT SkillTree_Panel::Bind_Status_UI()
 
         _viewByPlayerId[static_cast<HeroId>(i)].curExpText= Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Current_EXP");
         _viewByPlayerId[static_cast<HeroId>(i)].maxExpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Max_EXP");
+        _viewByPlayerId[static_cast<HeroId>(i)].expGaugeImage = Find_TypedUI<UI_Image>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_EXP_Gauge");
         _viewByPlayerId[static_cast<HeroId>(i)].curHpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Current_HP");
         _viewByPlayerId[static_cast<HeroId>(i)].maxHpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Max_HP");
+        _viewByPlayerId[static_cast<HeroId>(i)].hpGaugeImage = Find_TypedUI<UI_Image>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_HP_Gauge");
 
         _viewByPlayerId[static_cast<HeroId>(i)].hpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatHP");
         _viewByPlayerId[static_cast<HeroId>(i)].attackText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatAttack");
         _viewByPlayerId[static_cast<HeroId>(i)].speedText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatSpeed");
         _viewByPlayerId[static_cast<HeroId>(i)].defenseValueText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatDefense");
         _viewByPlayerId[static_cast<HeroId>(i)].criticalRateText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatCriticalPercent");
+
+        if (_viewByPlayerId[static_cast<HeroId>(i)].expGaugeImage)
+            _viewByPlayerId[static_cast<HeroId>(i)].expGaugeImage->Set_UseFillRatio(true); // SkillTree character sheet도 UV crop 방식으로 경험치 바를 채운다.
+
+        if (_viewByPlayerId[static_cast<HeroId>(i)].hpGaugeImage)
+            _viewByPlayerId[static_cast<HeroId>(i)].hpGaugeImage->Set_UseFillRatio(true);  // HP 바도 같은 방식으로 채운다.
     }
 
     return S_OK;
@@ -690,6 +700,15 @@ void SkillTree_Panel::Refresh_CombatStats()
     CHECK_NULL(playerStat);
 
     const PlayerStatCom:: PRuntimeCombatStat& statInfo = playerStat->Get_PlayerRuntimeStat();
+    const uint32 maxExp = statInfo.CurMaxExp > 0 ? statInfo.CurMaxExp : max(1u, statInfo.nextExp);
+    const float expRatio = std::clamp(
+        maxExp > 0 ? static_cast<float>(statInfo.CurExp) / static_cast<float>(maxExp) : 0.f,
+        0.f,
+        1.f);
+    const float hpRatio = std::clamp(
+        statInfo.CurMaxHp > 0 ? static_cast<float>(statInfo.CurHp) / static_cast<float>(statInfo.CurMaxHp) : 0.f,
+        0.f,
+        1.f);
 
     Set_UIntText(_currentView->levelText, statInfo.CurLevel);
 
@@ -700,9 +719,15 @@ void SkillTree_Panel::Refresh_CombatStats()
     Set_IntText(_currentView->luckText, statInfo.CurLuck);
 
     Set_IntText(_currentView->curExpText, statInfo.CurExp);
-    Set_IntText(_currentView->maxExpText, statInfo.CurMaxExp);
+    Set_UIntText(_currentView->maxExpText, maxExp);
     Set_IntText(_currentView->curHpText, static_cast<int32>(statInfo.CurHp));
     Set_IntText(_currentView->maxHpText, static_cast<int32>(statInfo.CurMaxHp));
+
+    if (_currentView->expGaugeImage)
+        _currentView->expGaugeImage->Set_FillRatio(expRatio); // 현재 경험치 / 다음 레벨 필요 경험치 비율
+
+    if (_currentView->hpGaugeImage)
+        _currentView->hpGaugeImage->Set_FillRatio(hpRatio);   // 현재 HP / 최대 HP 비율
 
     Set_HpText(_currentView->hpText, statInfo.CurHp);
     Set_IntText(_currentView->attackText, static_cast<int32>(statInfo.CurPhysicalAttack));

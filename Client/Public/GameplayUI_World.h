@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "CharacterProgression_Panel.h"
 #include "GamePlayMenuFade.h"
 #include "GameplayUI_Types.h"
 #include "SavePoint_Panel.h"
@@ -9,9 +10,12 @@ NS_BEGIN(Client)
 
 class SkillTree_Panel;
 class CharacterStatus_Panel;
-class ChangeWeapon_Panel;
 class ExpeditionStat_Panel;
 class UI_CrossHair;
+
+class ChangeSkill_Panel;
+class ChangeWeapon_Panel;
+class Wardrobe_Panel;
 
 class GameplayUI_World final : public Base
 {
@@ -32,9 +36,11 @@ public:
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
+    void    Handle_SavePointInput();
     void    Handle_TabInput();
     void    Handle_ExpeditionStat();
     void    Handle_BackInput();            // Esc로 현재 메뉴 닫고 이전 메뉴 복귀
+    void    Handle_CharacterProgressionAction(CharacterProgression_Panel::Action action);
 
     void    Update_CrossHair(float timeDelta);
 
@@ -44,9 +50,13 @@ private:
     void    Close_AllMenus(bool immediate = false); // 전체 메뉴 종료
 
     void    Open_Menu(GameplayMenu menu);  // 메뉴 enum -> 실제 panel open
-    void    Close_Menu(GameplayMenu menu); // 메뉴 enum -> 실제 panel close
+    void    Close_Menu(GameplayMenu menu, bool restoreWorldControl);
+
+    void    Open_CharacterProgressionFlow();
+    void    Close_CharacterProgressionFlow();
 
     bool    Is_WorldFreeAimActive() const;
+    bool    Is_CharacterProgressionFlowMenu(GameplayMenu menu) const;
 
 private:
     Unique<SavePoint_Panel>       _savePointPanel;
@@ -55,6 +65,10 @@ private:
     Unique<ChangeWeapon_Panel>    _changeWeaponPanel;
     Unique<ExpeditionStat_Panel>  _expeditionStatPanel;
     Unique<UI_CrossHair>          _crossHair;
+
+    Unique<CharacterProgression_Panel> _characterProgressionPanel;
+    Unique<ChangeSkill_Panel>          _changeSkillPanel;
+    Unique<Wardrobe_Panel>             _wardrobePanel;
 
     vector<GameplayMenu>          _menuStack{};
     GamePlayMenuFade              _menuFade{};

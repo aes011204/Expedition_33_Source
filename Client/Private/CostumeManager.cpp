@@ -109,8 +109,63 @@ CostumePreset CostumeManager::Make_Preset(const CostumePresetDesc& desc)
 
 void CostumeManager::Apply_DefaultPartPlacement(CostumePreset& preset)
 {
+    const auto ApplyHairTransform = [&preset](const Vec3& position, const Vec3& rotation)
+    {
+        preset.parts.hairTransform.enabled = true;
+        preset.parts.hairTransform.position = position;
+        preset.parts.hairTransform.rotation = rotation;
+        preset.parts.hairTransform.scale = Vec3(1.f, 1.f, 1.f);
+    };
+
+    const auto ApplyBeardTransform = [&preset](const Vec3& position, const Vec3& rotation, const Vec3& scale)
+    {
+        preset.parts.beardTransform.enabled = true;
+        preset.parts.beardTransform.position = position;
+        preset.parts.beardTransform.rotation = rotation;
+        preset.parts.beardTransform.scale = scale;
+    };
+
+    const auto ApplyMustacheTransform = [&preset](const Vec3& position, const Vec3& rotation, const Vec3& scale)
+    {
+        preset.parts.mustacheTransform.enabled = true;
+        preset.parts.mustacheTransform.position = position;
+        preset.parts.mustacheTransform.rotation = rotation;
+        preset.parts.mustacheTransform.scale = scale;
+    };
+
+    if (preset.heroId == HeroId::Gustave && preset.presetId == "Default")
+    {
+        ApplyHairTransform(
+            Vec3(20.41f, -0.17f, 0.f),
+            Vec3(-90.f, 0.f, -90.f));
+
+        ApplyBeardTransform(
+            Vec3(-155.9f, 0.8f, 0.f),
+            Vec3(-90.f, 0.f, -90.f),
+            Vec3(1.f, 1.f, 0.9999997f));
+
+        ApplyMustacheTransform(
+            Vec3(-156.f, 1.f, 0.f),
+            Vec3(-90.f, 0.f, -90.f),
+            Vec3(1.f, 1.f, 1.f));
+    }
+
     if (preset.heroId == HeroId::Gustave && preset.presetId == "Baguette")
     {
+        ApplyHairTransform(
+            Vec3(20.41f, -0.17f, 0.f),
+            Vec3(-90.f, 0.f, -90.f));
+
+        ApplyBeardTransform(
+            Vec3(-155.9f, 0.8f, 0.f),
+            Vec3(-90.f, 0.f, -90.f),
+            Vec3(1.f, 1.f, 0.9999997f));
+
+        ApplyMustacheTransform(
+            Vec3(-156.f, 1.f, 0.f),
+            Vec3(-90.f, 0.f, -90.f),
+            Vec3(1.f, 1.f, 1.f));
+
         preset.parts.glassesTransform.enabled = true;
         preset.parts.glassesTransform.position = Vec3(1.41f, 1.0f, 0.f);
         preset.parts.glassesTransform.rotation = Vec3(0.f, 0.f, 0.f);
@@ -128,6 +183,27 @@ void CostumeManager::Apply_DefaultPartPlacement(CostumePreset& preset)
         preset.parts.glassesTransform.position = Vec3(5.49f, 1.06f, -0.04f);
         preset.parts.glassesTransform.rotation = Vec3(0.f, -90.f, 0.f);
         preset.parts.glassesTransform.scale = Vec3(1.f, 1.f, 1.f);
+    }
+
+    if (preset.heroId == HeroId::Lune && preset.presetId == "Default")
+    {
+        ApplyHairTransform(
+            Vec3(18.31f, -2.37f, 0.f),
+            Vec3(-90.f, 0.f, -90.f));
+    }
+
+    if (preset.heroId == HeroId::Maelle && preset.presetId == "Default")
+    {
+        ApplyHairTransform(
+            Vec3(6.31f, 3.64f, 0.f),
+            Vec3(-90.f, 0.f, -90.f));
+    }
+
+    if (preset.heroId == HeroId::Maelle && preset.presetId == "Baguette")
+    {
+        ApplyHairTransform(
+            Vec3(6.31f, 3.64f, 0.f),
+            Vec3(-90.f, 0.f, -90.f));
     }
 }
 
@@ -171,6 +247,15 @@ const CostumePreset* CostumeManager::Get_Costume(HeroId heroId, const string& pr
     }
 
     return nullptr;
+}
+
+const vector<CostumePreset>* CostumeManager::Get_Costumes(HeroId heroId) const
+{
+    const auto iter = _costumesByHero.find(heroId);
+    if (iter == _costumesByHero.end())
+        return nullptr;
+
+    return &iter->second;
 }
 
 const CostumePreset* CostumeManager::Set_CurrentCostume(HeroId heroId, const string& presetId)

@@ -105,6 +105,7 @@ public:
         string  characterId;
         string  weaponId;
         wstring weaponName;
+        wstring portraitTexturePath;
 
         string  weaponPrefabName;       // 기본 무기
         string  subWeaponPrefabName;    // 구스타브 총

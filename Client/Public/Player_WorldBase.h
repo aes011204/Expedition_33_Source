@@ -21,6 +21,7 @@ class PlayerControllerCom;
 class PlayerStateMachineCom;
 class EffectCom;
 class Head_Player;
+class FaceAccessory_Player;
 
 class Body_Player;
 class Head_Player;
@@ -89,6 +90,30 @@ private:
 
     using CostumePartTransformMap = umap<wstring, CostumePartTransform>;
 
+    struct CostumeVariantParts
+    {
+        Shared<Body_Player> body{};
+        Shared<Head_Player> head{};
+        Shared<Hair_Player> hair{};
+        Shared<FaceAccessory_Player> beard{};
+        Shared<FaceAccessory_Player> mustache{};
+        Shared<FaceAccessory_Player> glasses{};
+        CostumePartTransformMap baseTransforms{};
+        CostumePartTransformMap presetTransforms{};
+    };
+
+    HRESULT Warmup_CostumeVariants();
+    HRESULT Ensure_CostumeVariantBuilt(const CostumePreset& preset);
+    HRESULT Activate_CostumeVariant(const CostumePreset& preset);
+    void Rebind_ActiveCostumeVariant(const string& presetId);
+    void Capture_DefaultCostumePartTransformsIfNeeded();
+    void Clear_AllCostumeVariants();
+    CostumePartTransformMap Capture_CostumeVariantPartTransforms(const CostumeVariantParts& parts) const;
+    CostumePartTransformMap Build_CostumePresetTransforms(
+        const CostumePreset& preset,
+        const CostumePartTransformMap& baseTransforms) const;
+    void Apply_CostumePartTransforms(const CostumePartTransformMap& partTransforms);
+
     HRESULT Rebuild_CostumeParts(const CostumePreset& preset);
     void Clear_CostumeParts();
     CostumePartTransformMap Capture_CostumePartTransforms() const;
@@ -98,6 +123,11 @@ private:
         const CostumePartLocalTransform& fallbackTransform);
     void Reapply_CostumePartBaseMaterial(const wstring& partTag);
     void Reapply_CostumeBaseMaterials();
+
+    Shared<Body_Player> Create_CostumeBodyVariant(const wstring& modelTag);
+    Shared<Head_Player> Create_CostumeHeadVariant(const wstring& modelTag, const Body_Player* body);
+    Shared<Hair_Player> Create_CostumeHairVariant(const wstring& modelTag, const Head_Player* head);
+    Shared<FaceAccessory_Player> Create_CostumeFaceAccessoryVariant(const wstring& modelTag, const Head_Player* head);
 
     Body_Player* Add_CostumeBody(const wstring& modelTag);
     Head_Player* Add_CostumeHead(const wstring& modelTag, const Body_Player* body);
@@ -113,6 +143,8 @@ protected:
     Shared<PlayerStatCom>           _combatStatCom;
     Shared<EffectCom>               _effectCom;
     CostumePartTransformMap         _defaultCostumePartTransforms{};
+    umap<string, CostumeVariantParts> _costumeVariantsByPreset{};
+    string                          _activeCostumePresetId{};
     float                           _fallStateEnterAcc = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
 
 private:
@@ -128,4 +160,3 @@ public:
 };
 
 NS_END
-
