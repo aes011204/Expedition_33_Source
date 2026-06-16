@@ -35,6 +35,7 @@ public:
 		float ownerMotionScale{ 0.012f };
 		float animatedMotionScale{ 0.2f };
 		float ownerMotionDeadzone{ 0.02f };
+		float ownerRotationDeadzoneDegree{ 0.4f };
 		float animatedMotionDeadzone{ 0.04f };
 		float maxExternalOffset{ 0.012f };
 
@@ -49,6 +50,7 @@ public:
 
 		float rootOutputAlpha{ 0.28f };
 		float tipOutputAlpha{ 0.68f };
+		float idleOutputAlphaScale{ 0.25f };
 		float outputSmoothAlpha{ 0.36f };
 		float idleOutputSmoothAlpha{ 0.72f };
 		float outputDeadzoneDegree{ 0.85f };
@@ -108,10 +110,10 @@ private:
 	void Initialize_Chains(ModelCom* model);
 	void BuildChainRecursive(ModelCom* model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain& outChain, uint32 currentDepth, uint32 maxDepth);
 	void Capture_CurrentPose(ModelCom* model, const Matrix& ownerWorld);
-	void Solve(ModelCom* model, float timeDelta, const Matrix& ownerWorld, const Vec3& ownerMotionDelta, float movementWeight);
+	void Solve(ModelCom* model, float timeDelta, const Matrix& ownerWorld, const Vec3& ownerMotionDelta, float movementWeight, bool isOwnerIdle);
 	void Solve_SurfaceConstraints(const vector<WorldCapsule>& worldCapsules);
-	void Write_BackToModel(ModelCom* model, const Matrix& ownerWorld);
-	void Write_BackChain(ModelCom* model, BoneChain& chain, const Matrix& ownerWorld);
+	void Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle);
+	void Write_BackChain(ModelCom* model, BoneChain& chain, const Matrix& ownerWorld, bool isOwnerIdle);
 
 	vector<WorldCapsule> Update_WorldCapsules(const ModelCom* model, const Matrix& ownerWorld) const;
 	Vec3 Resolve_Collision(BoneChainNode& node, const vector<WorldCapsule>& capsules, const Vec3& position, bool movePrevPosition);
@@ -131,6 +133,7 @@ private:
 	bool _isFirstUpdate{ true };
 	bool _chainsInitialized{ false };
 	Vec3 _prevOwnerPos{ Vec3::Zero };
+	Vec3 _prevOwnerForward{ Vec3::UnitZ };
 
 public:
 	static Shared<PoseFollowChainModifier> Create(const PoseFollowChainModifierDesc* desc);

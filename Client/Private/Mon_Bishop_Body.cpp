@@ -1,6 +1,8 @@
-﻿#include "Mon_Bishop_Body.h"
+#include "Mon_Bishop_Body.h"
 
 #include "ModelCom.h"
+#include "ChainModifierPreset.h"
+#include "ChainModifier.h"
 
 NS_BEGIN(Client)
 
@@ -26,6 +28,17 @@ HRESULT Mon_Bishop_Body::Initialize(void* arg)
 
     _rootIndex = _model->Get_BoneIndex("root");
     _model->Set_LocalRootNode(_rootIndex);
+
+    ChainModifier::ChainModifierDesc clothDesc{};
+    ChainModifierPreset::BuildEvequeClothDesc(
+        clothDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+
+    if (auto modifier = ChainModifier::Create(&clothDesc))
+    {
+        _model->Add_AnimModifier(modifier);
+    }
 
     return S_OK;
 }

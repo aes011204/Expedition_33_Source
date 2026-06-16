@@ -152,13 +152,13 @@ HRESULT PW_Lune::Ready_BodyModifiers(Body_Player* body)
         }
         else return E_FAIL;
 
-        ChainModifier::ChainModifierDesc scarfDesc{};
-        ChainModifierPreset::BuildScarfDesc(
+        PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
+        ChainModifierPreset::BuildPoseFollowScarfDesc(
             scarfDesc,
             Get_Transform().get(),
             PlayerCharacterType::Lune);
 
-        if (auto modifier = ChainModifier::Create(&scarfDesc))
+        if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
         {
             body->Get_Model()->Add_AnimModifier(modifier);
         }

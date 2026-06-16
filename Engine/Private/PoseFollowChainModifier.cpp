@@ -245,7 +245,7 @@ void PoseFollowChainModifier::ResetPose(ModelCom* model)
 	}
 }
 
-void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matrix& ownerWorld, const Vec3& ownerMotionDelta, float movementWeight)
+void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matrix& ownerWorld, const Vec3& ownerMotionDelta, float movementWeight, bool isOwnerIdle)
 {
 	UNREFERENCED_PARAMETER(model);
 
@@ -269,9 +269,6 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 			GAME->Draw_DebugCapsule(debugDesc);
 		}
 	}
-
-	const float ownerMotionLength = ownerMotionDelta.Length();
-	const bool isOwnerIdle = ownerMotionLength <= _desc.ownerMotionDeadzone;
 
 	Vec3 windDir = _desc.windDirection;
 	if (windDir.LengthSquared() > 0.0001f)
@@ -335,6 +332,9 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 
 			const Vec3 animatedDelta = node.originalWorld.Translation() - node.prevOriginalWorld.Translation();
 			const float animatedMotionLength = animatedDelta.Length();
+			const float animatedMotionDeadzone = (isOwnerIdle && _desc.windScale <= 0.f)
+				? std::max(_desc.animatedMotionDeadzone, _desc.sleepPoseDistance)
+				: _desc.animatedMotionDeadzone;
 			const float motionWeightByTip = SmoothStep(std::clamp((Get_NodeRatio(i, chain.nodes.size()) - 0.08f) / 0.92f, 0.f, 1.f));
 			Vec3 externalOffset = Vec3::Zero;
 			if (!isOwnerIdle)
@@ -342,7 +342,7 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 				externalOffset -= ownerMotionDelta
 					* (_desc.ownerMotionScale * chain.motionMul * motionWeightByTip * movementWeight * windTimeScale);
 			}
-			if (animatedMotionLength > _desc.animatedMotionDeadzone)
+			if (animatedMotionLength > animatedMotionDeadzone)
 			{
 				externalOffset -= animatedDelta
 					* (_desc.animatedMotionScale * chain.motionMul * motionWeightByTip * movementWeight * windTimeScale);
@@ -374,7 +374,7 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 				nextPosition = Vec3::Lerp(nextPosition, poseTarget, followAlpha);
 			}
 
-			const bool isNodeIdle = animatedMotionLength <= _desc.animatedMotionDeadzone;
+			const bool isNodeIdle = animatedMotionLength <= animatedMotionDeadzone;
 			if (isOwnerIdle && isNodeIdle)
 			{
 				const float settleAlpha = std::clamp(_desc.idleSettleStrength, 0.f, 1.f);
@@ -516,7 +516,7 @@ void PoseFollowChainModifier::Solve_SurfaceConstraints(const vector<WorldCapsule
 	}
 }
 
-void PoseFollowChainModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorld)
+void PoseFollowChainModifier::Write_BackToModel(ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle)
 {
 	if (!model)
 	{
@@ -525,11 +525,11 @@ void PoseFollowChainModifier::Write_BackToModel(ModelCom* model, const Matrix& o
 
 	for (auto& chain : _chains)
 	{
-		Write_BackChain(model, chain, ownerWorld);
+		Write_BackChain(model, chain, ownerWorld, isOwnerIdle);
 	}
 }
 
-void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain, const Matrix& ownerWorld)
+void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain, const Matrix& ownerWorld, bool isOwnerIdle)
 {
 	const float outputAlpha = std::clamp(_strengthAlpha, 0.f, 1.f);
 	const auto isRootNode = [&chain](const BoneChainNode& node)
@@ -624,7 +624,15 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 			? 1.f
 			: static_cast<float>(drivenOrdinal) / static_cast<float>(drivenNodeIndices.size() - 1);
 		const float tipRatio = SmoothStep(std::clamp((rawDrivenRatio - 0.18f) / 0.82f, 0.f, 1.f));
-		const float writeAlpha = outputAlpha * BlendTip(_desc.rootOutputAlpha, _desc.tipOutputAlpha, tipRatio);
+		const float animatedMotionDeadzone = (isOwnerIdle && _desc.windScale <= 0.f)
+			? std::max(_desc.animatedMotionDeadzone, _desc.sleepPoseDistance)
+			: _desc.animatedMotionDeadzone;
+		const bool idleAnimatedPose =
+			Vec3::Distance(node.originalWorld.Translation(), node.prevOriginalWorld.Translation()) <= animatedMotionDeadzone;
+		const bool idleNoWindPose = isOwnerIdle && idleAnimatedPose && _desc.windScale <= 0.f;
+		const float writeAlpha = outputAlpha
+			* BlendTip(_desc.rootOutputAlpha, _desc.tipOutputAlpha, tipRatio)
+			* (idleNoWindPose ? std::clamp(_desc.idleOutputAlphaScale, 0.f, 1.f) : 1.f);
 		Vec3 targetLocalDir = Vec3::Lerp(node.poseLocalDir, simulatedLocalDir, writeAlpha);
 		if (targetLocalDir.LengthSquared() <= 0.0001f)
 		{
@@ -635,13 +643,14 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 			targetLocalDir.Normalize();
 		}
 
-		if (GetAngleDegree(node.poseLocalDir, targetLocalDir) <= _desc.outputDeadzoneDegree)
+		const float outputDeadzoneDegree = idleNoWindPose
+			? _desc.outputDeadzoneDegree * std::clamp(_desc.idleOutputAlphaScale, 0.f, 1.f)
+			: _desc.outputDeadzoneDegree;
+		if (GetAngleDegree(node.poseLocalDir, targetLocalDir) <= outputDeadzoneDegree)
 		{
 			targetLocalDir = node.poseLocalDir;
 		}
 
-		const bool idleAnimatedPose =
-			Vec3::Distance(node.originalWorld.Translation(), node.prevOriginalWorld.Translation()) <= _desc.animatedMotionDeadzone;
 		const float smoothAlpha = std::clamp(
 			idleAnimatedPose ? _desc.idleOutputSmoothAlpha : _desc.outputSmoothAlpha,
 			0.f,
@@ -665,7 +674,7 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 			}
 		}
 
-		if (GetAngleDegree(node.poseLocalDir, node.smoothedLocalDir) <= _desc.outputDeadzoneDegree)
+		if (GetAngleDegree(node.poseLocalDir, node.smoothedLocalDir) <= outputDeadzoneDegree)
 		{
 			node.smoothedLocalDir = node.poseLocalDir;
 		}
@@ -964,22 +973,35 @@ void PoseFollowChainModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
 
 	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
 	const Vec3 currentOwnerPos = ownerWorld.Translation();
+	Vec3 currentOwnerForward = Get_WorldDirection(ownerWorld, Vec3::UnitZ);
+	if (currentOwnerForward.LengthSquared() <= 0.0001f)
+	{
+		currentOwnerForward = Vec3::UnitZ;
+	}
 
 	if (_isFirstUpdate)
 	{
 		_prevOwnerPos = currentOwnerPos;
+		_prevOwnerForward = currentOwnerForward;
 		ResetPose(model);
 		_isFirstUpdate = false;
 		return;
 	}
 
 	Vec3 ownerMotionDelta = currentOwnerPos - _prevOwnerPos;
-	if (ownerMotionDelta.Length() > _desc.resetDistance)
+	float ownerMotionLength = ownerMotionDelta.Length();
+	const float ownerRotationDeltaDegree = GetAngleDegree(_prevOwnerForward, currentOwnerForward);
+	if (ownerMotionLength > _desc.resetDistance)
 	{
 		ResetPose(model);
 		ownerMotionDelta = Vec3::Zero;
+		ownerMotionLength = 0.f;
+		_prevOwnerForward = currentOwnerForward;
 	}
+	const bool isOwnerIdle = ownerMotionLength <= _desc.ownerMotionDeadzone
+		&& ownerRotationDeltaDegree <= _desc.ownerRotationDeadzoneDegree;
 	_prevOwnerPos = currentOwnerPos;
+	_prevOwnerForward = currentOwnerForward;
 
 	Capture_CurrentPose(model, ownerWorld);
 
@@ -995,10 +1017,10 @@ void PoseFollowChainModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
 	const float movementWeight = 1.f / static_cast<float>(solverIterations);
 	for (uint32 i = 0; i < solverIterations; ++i)
 	{
-		Solve(model, solverTimeDelta, ownerWorld, ownerMotionDelta, movementWeight);
+		Solve(model, solverTimeDelta, ownerWorld, ownerMotionDelta, movementWeight, isOwnerIdle);
 	}
 
-	Write_BackToModel(model, ownerWorld);
+	Write_BackToModel(model, ownerWorld, isOwnerIdle);
 	model->Rebuild_BoneCombinedMatrices();
 }
 

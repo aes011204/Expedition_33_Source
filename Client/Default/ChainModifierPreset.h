@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Base.h"
 #include "ChainModifier.h"
 #include "PoseFollowChainModifier.h"
@@ -15,11 +15,29 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Scarf");
 
+    static void BuildPoseFollowScarfDesc(
+        PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"PoseFollow_Scarf");
+
     static void BuildArmbandDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Armband");
+
+    static void BuildAbbestClothDesc(
+        ChainModifier::ChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"ClothPhysics_Abbest");
+
+    static void BuildEvequeClothDesc(
+        ChainModifier::ChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"ClothPhysics_Eveque");
 
     static void BuildBackpackBandDesc(
         ChainModifier::ChainModifierDesc& outDesc,

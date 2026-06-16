@@ -154,14 +154,14 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 		}
 		else return E_FAIL;
 
-		// --- ChainModifier for Scarf ---
-		ChainModifier::ChainModifierDesc chainDesc{};
-		ChainModifierPreset::BuildScarfDesc(
-			chainDesc,
+		// --- PoseFollowChainModifier for Scarf ---
+		PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
+		ChainModifierPreset::BuildPoseFollowScarfDesc(
+			scarfDesc,
 			Get_Transform().get(),
 			PlayerCharacterType::Maelle);
 
-		if (auto modifier = ChainModifier::Create(&chainDesc))
+		if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
 		{
 			body->Get_Model()->Add_AnimModifier(modifier);
 		}

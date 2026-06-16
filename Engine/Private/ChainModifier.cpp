@@ -1293,6 +1293,7 @@ vector<ChainModifier::WorldCapsule> ChainModifier::Update_WorldCapsule(const Mod
 {
 	vector<WorldCapsule> worldCapsules;
 	worldCapsules.reserve(_colliders.size());
+	bool loggedDebugCapsule = false;
 
 	for (const auto &col : _colliders)
 	{
@@ -1317,10 +1318,11 @@ vector<ChainModifier::WorldCapsule> ChainModifier::Update_WorldCapsule(const Mod
 		Matrix boneWorld = (*boneCombined) * (*ownerWorld);
 
 		Vec3 localAxis = Vec3::Transform(Vec3::UnitY, col.rotationQuat);
+		if (localAxis.LengthSquared() <= 0.0001f)
+		{
+			localAxis = Vec3::UnitY;
+		}
 		localAxis.Normalize();
-
-		Vec3 worldCenter = Vec3::Transform(col.center, boneWorld);
-		Vec3 worldAxis = Vec3::TransformNormal(localAxis, boneWorld);
 
 		Vec3 worldScale = Vec3::One;
 		Quaternion worldRotation = Quaternion::Identity;
@@ -1328,14 +1330,53 @@ vector<ChainModifier::WorldCapsule> ChainModifier::Update_WorldCapsule(const Mod
 		Matrix decomposedBoneWorld = boneWorld;
 		decomposedBoneWorld.Decompose(worldScale, worldRotation, worldTranslation);
 
+		const Matrix boneRotationWorld = Matrix::CreateFromQuaternion(worldRotation);
+		Vec3 worldAxis = Vec3::TransformNormal(localAxis, boneRotationWorld);
+		if (worldAxis.LengthSquared() <= 0.0001f)
+		{
+			worldAxis = Vec3::UnitY;
+		}
 		worldAxis.Normalize();
 
+		Vec3 scaledLocalAxis{
+			localAxis.x * fabsf(worldScale.x),
+			localAxis.y * fabsf(worldScale.y),
+			localAxis.z * fabsf(worldScale.z)
+		};
+		float lengthScale = scaledLocalAxis.Length();
+		if (lengthScale <= 0.0001f)
+		{
+			lengthScale = 1.f;
+		}
+
+		const Vec3 worldCenter = Vec3::Transform(col.center, boneWorld);
+		const float radiusScale = std::max(std::max(fabsf(worldScale.x), fabsf(worldScale.y)), fabsf(worldScale.z));
+
 		WorldCapsule capsule{};
-		capsule.radius = col.radius * std::max(fabsf(worldScale.x), fabsf(worldScale.z));
-		float scaledHalfLength = col.halfLength * fabsf(worldScale.y);
+		capsule.radius = col.radius * radiusScale;
+		float scaledHalfLength = col.halfLength * lengthScale;
 
 		capsule.startPoint = worldCenter + worldAxis * scaledHalfLength;
 		capsule.endPoint = worldCenter - worldAxis * scaledHalfLength;
+
+		if (_desc.collision.debugDrawCapsules && !loggedDebugCapsule)
+		{
+			LOG_INFO_THROTTLED(
+				120,
+				"[ChainModifier][Capsule] tag={} bone={} center=({:.2f},{:.2f},{:.2f}) axis=({:.2f},{:.2f},{:.2f}) half={:.2f} radius={:.2f}",
+				String::ToString(_desc.modifierTag),
+				col.boneName,
+				worldCenter.x,
+				worldCenter.y,
+				worldCenter.z,
+				worldAxis.x,
+				worldAxis.y,
+				worldAxis.z,
+				scaledHalfLength,
+				capsule.radius);
+			loggedDebugCapsule = true;
+		}
+
 		worldCapsules.push_back(capsule);
 	}
 
@@ -1415,6 +1456,8 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 	{
 		return;
 	}
+
+	model->Rebuild_BoneCombinedMatrices();
 
 	if (_desc.modifierTag == L"ClothPhysics_Coat")
 	{
