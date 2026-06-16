@@ -178,6 +178,43 @@ namespace Internal
         return duration > 0.f ? duration : 0.25f;
     }
 
+    Weak<IEffectSourcePointSampleProvider> Resolve_PreviewSourcePointProvider(
+        const Shared<const EffectDefinition>& definition,
+        const Shared<IEffectSourcePointSampleProvider>& ribbonProvider,
+        const Shared<IEffectSourcePointSampleProvider>& spriteTrailProvider)
+    {
+        if (nullptr == definition)
+            return {};
+
+        bool needsRibbonProvider = false;
+        bool needsSpriteTrailProvider = false;
+        for (const EffectEmitterDefinition& emitter : definition->emitters)
+        {
+            if (!emitter.enabled)
+                continue;
+
+            if (emitter.kind == EffectEmitterKind::Ribbon)
+            {
+                const auto* ribbonDesc = get_if<ComputeRibbonEmitterDesc>(&emitter.concreteDesc);
+                if (ribbonDesc != nullptr && ribbonDesc->sourceMode == EffectSourceHistoryRibbonSourceMode::SelfRoot)
+                    needsRibbonProvider = true;
+            }
+            else if (emitter.kind == EffectEmitterKind::SourceHistorySpriteTrail)
+            {
+                const auto* spriteTrailDesc = get_if<ComputeSourceHistorySpriteTrailEmitterDesc>(&emitter.concreteDesc);
+                if (spriteTrailDesc != nullptr && spriteTrailDesc->sourceMode == EffectSourceHistoryRibbonSourceMode::SelfRoot)
+                    needsSpriteTrailProvider = true;
+            }
+        }
+
+        if (needsRibbonProvider)
+            return ribbonProvider;
+        if (needsSpriteTrailProvider)
+            return spriteTrailProvider;
+
+        return {};
+    }
+
     uint32 Resolve_RibbonAutoHistoryCount(
         uint32 authoredCount,
         float sampleLifetime,
@@ -1665,7 +1702,12 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = kPreviewLayerTag;
     acquireDesc.trailSampleProvider = _trailPreviewSampleProvider;
-    acquireDesc.sourcePointSampleProvider = _sourceHistorySpriteTrailPreviewSampleProvider;
+    acquireDesc.sourcePointSampleProvider = Internal::Resolve_PreviewSourcePointProvider(
+        previewDefinition,
+        _sourceHistoryPreviewSampleProvider,
+        _sourceHistorySpriteTrailPreviewSampleProvider
+    );
+    acquireDesc.autoReleaseOnFinished = false;
 
     if (nullptr != _previewPoolHandle.effectObject)
     {
@@ -3575,6 +3617,7 @@ HRESULT Level_EffectEditor::Start_PreviewTrailStroke()
         acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
         acquireDesc.layerTag = kPreviewLayerTag;
         acquireDesc.trailSampleProvider = runtime.sampleProvider;
+        acquireDesc.autoReleaseOnFinished = false;
 
         CHECK_FAILED(effectPool->Acquire(acquireDesc, runtime.poolHandle), E_FAIL);
         _previewTrailStrokes.push_back(std::move(runtime));
@@ -3587,6 +3630,7 @@ HRESULT Level_EffectEditor::Start_PreviewTrailStroke()
     acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
     acquireDesc.layerTag = kPreviewLayerTag;
     acquireDesc.trailSampleProvider = runtime.sampleProvider;
+    acquireDesc.autoReleaseOnFinished = false;
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, runtime.poolHandle), E_FAIL);
     _previewTrailStrokes.push_back(std::move(runtime));

@@ -467,14 +467,9 @@ void ComputeSourceHistoryRibbonEmitter::Advance_Playback(float timeDelta)
         return;
     }
 
-    if (Has_NextLoop())
-    {
-        Start_NextLoop();
-        return;
-    }
-
+    // Source-driven ribbons keep their active history alive across phase wraps.
+    Wrap_PlaybackLoop();
     _playbackState = PlaybackState::Emitting;
-    _finishEmissionAfterHistoryUpdate = true;
 }
 
 bool ComputeSourceHistoryRibbonEmitter::Is_UpdatingHistory() const
@@ -556,6 +551,8 @@ void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
             _selfRootPreviousSourcePosition = sourcePosition;
             _hasSelfRootPreviousSourcePosition = true;
         }
+        else
+            _finishEmissionAfterHistoryUpdate = true;
     }
 
     Prune_History(_history);
@@ -591,6 +588,9 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
         vector<EffectFollowerSourcePoint> sourcePoints{};
         if (sourceEmitter != nullptr && _desc.followerLaneCount > 0u)
             sourceEmitter->Collect_FollowerSourcePoints(sourcePoints, _desc.followerLaneCount);
+
+        if (sourceEmitter == nullptr || sourceEmitter->Is_EffectFinished())
+            _finishEmissionAfterHistoryUpdate = true;
 
         for (const EffectFollowerSourcePoint& sourcePoint : sourcePoints)
         {
@@ -1490,6 +1490,26 @@ uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxLaneRenderSegmentCount() co
 {
     const uint32 maxRawSegments = max(1u, _desc.maxSampleCount);
     return maxRawSegments * max(1u, min(_desc.curveSubdivision, kMaxCurveSubdivision));
+}
+
+void ComputeSourceHistoryRibbonEmitter::Wrap_PlaybackLoop()
+{
+    ++_loopIndex;
+
+    const float delay = Resolve_CurrentLoopDelay();
+    const float duration = Resolve_Duration();
+    const float loopSpan = delay + duration;
+    if (loopSpan <= 0.f)
+    {
+        _loopElapsedTime = 0.f;
+        return;
+    }
+
+    _loopElapsedTime = fmodf(_loopElapsedTime, loopSpan);
+    if (_loopElapsedTime < 0.f)
+        _loopElapsedTime = 0.f;
+
+    Resample_RandomSubUVFrameIndex();
 }
 
 void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()

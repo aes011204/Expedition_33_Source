@@ -247,6 +247,11 @@ Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName
     return _editorManager->Find_Window(windowName);
 }
 
+HWND EffectEditorInstance::Get_WindowHandle() const
+{
+    return _editorDesc.hWnd;
+}
+
 bool EffectEditorInstance::Is_SceneFocusModeActive() const
 {
     if (nullptr == _editorManager)
@@ -261,11 +266,6 @@ uint32 EffectEditorInstance::Get_ActiveDockSpaceId() const
         return 0;
 
     return _editorManager->Get_CurrentDockSpaceId();
-}
-
-HWND EffectEditorInstance::Get_WindowHandle() const
-{
-    return _editorDesc.hWnd;
 }
 
 bool EffectEditorInstance::IsPlaying() const
@@ -511,10 +511,19 @@ void EffectEditorInstance::Set_AutoReplayPreviewEnabled(bool enabled)
 
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
-    if (visible && !_isTrailPreviewVisible)
+    const bool becameVisible = visible && !_isTrailPreviewVisible;
+    if (becameVisible)
         Reset_TrailPreviewGate();
 
     _isTrailPreviewVisible = visible;
+
+    if (!becameVisible)
+        return;
+
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    if (effectEditorLevel != nullptr && FAILED(effectEditorLevel->Reset_PreviewRuntime()))
+        LOG_ERROR("Failed to reset EffectEditor preview runtime after enabling trail preview.");
 }
 
 void EffectEditorInstance::Set_PreviewPlaneVisible(bool visible)
