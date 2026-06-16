@@ -861,29 +861,72 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
         }
 
-        Shared<GameObject> spawnedObject = nullptr;
+        //    Shared<GameObject> spawnedObject = nullptr;
+
+        //    const auto instancedAddBegin = chrono::steady_clock::now();
+        //    const HRESULT addResult = GAME->Add_GameObject(
+        //        ETOI(LevelType::Static),
+        //        TEXT("GameObject_MapInstancedMesh"),
+        //        session.levelIndex,
+        //        session.layerTag,
+        //        spawnedObject,
+        //        &desc);
+        //    const auto instancedAddMs =
+        //        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
+        //    session.instancedAddDuration += instancedAddMs;
+        //    ++session.instancedAddCount;
+
+        //    if (FAILED(addResult))
+        //    {
+        //        continue;
+        //    }
+        //    if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+        //    {
+        //        session.spawnedObjects->push_back(spawnedObject);
+        //    }
+
+        //    ++processedCount;
+        //}
+
+        static constexpr float CHUNK_SIZE = 100.f;
+
+        map<pair<int32, int32>, vector<InstanceTransform>> chunkMap;
+        for (const auto& t : desc.transforms)
+        {
+            int32 cx = static_cast<int32>(floorf(t._position.x / CHUNK_SIZE));
+            int32 cz = static_cast<int32>(floorf(t._position.z / CHUNK_SIZE));
+            chunkMap[{cx, cz}].push_back(t);
+        }
 
         const auto instancedAddBegin = chrono::steady_clock::now();
-        const HRESULT addResult = GAME->Add_GameObject(
-            ETOI(LevelType::Static),
-            TEXT("GameObject_MapInstancedMesh"),
-            session.levelIndex,
-            session.layerTag,
-            spawnedObject,
-            &desc);
+        for (auto& [key, chunkTransforms] : chunkMap)
+        {
+            MapInstancedMesh::MAPINSTANCEDMESH_DESC chunkDesc{};
+            chunkDesc.modelPath = desc.modelPath;
+            chunkDesc.model = desc.model;
+            chunkDesc.collisionData = desc.collisionData;
+            chunkDesc.transforms = chunkTransforms;
+
+            Shared<GameObject> spawnedObject = nullptr;
+            const HRESULT addResult = GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_MapInstancedMesh"),
+                session.levelIndex,
+                session.layerTag,
+                spawnedObject,
+                &chunkDesc);
+
+            if (FAILED(addResult))
+                continue;
+
+            if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+                session.spawnedObjects->push_back(spawnedObject);
+
+            ++session.instancedAddCount;
+        }
         const auto instancedAddMs =
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
         session.instancedAddDuration += instancedAddMs;
-        ++session.instancedAddCount;
-
-        if (FAILED(addResult))
-        {
-            continue;
-        }
-        if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
-        {
-            session.spawnedObjects->push_back(spawnedObject);
-        }
 
         ++processedCount;
     }
