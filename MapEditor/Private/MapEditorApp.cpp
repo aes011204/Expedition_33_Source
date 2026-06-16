@@ -436,22 +436,35 @@ void MapEditorApp::Update_InstancedMeshHandles()
         obj->_instancedParamsDirty = false;
         obj->_instancedChunkHandles.clear();
         obj->_instancedChunkAABBs.clear();
+        obj->_instancedChunkGlobalIndices.clear();
 
         if (obj->_instancedModelPath.empty())
         {
             continue;
         }
 
-        map<pair<int32, int32>, vector<InstanceTransform>> chunkMap;
-        for (const auto& t : obj->_instancedTransforms)
+        map<pair<int32, int32>, vector<pair<InstanceTransform, uint32>>> chunkMap;
+        uint32 instTransSize = static_cast<uint32>(obj->_instancedTransforms.size());
+        for (uint32 i = 0; i < instTransSize; ++i)
         {
+            const auto& t = obj->_instancedTransforms[i];
             int32 cx = static_cast<int32>(floorf(t._position.x / CHUNK_SIZE));
             int32 cz = static_cast<int32>(floorf(t._position.z / CHUNK_SIZE));
-            chunkMap[{cx, cz}].push_back(t);
+            chunkMap[{cx, cz}].push_back({ t, i });
         }
 
-        for (auto& [key, transforms] : chunkMap)
+        for (auto& [key, transformPairs] : chunkMap)
         {
+            vector<InstanceTransform> transforms;
+            vector<uint32> globalIndices;
+            transforms.reserve(transformPairs.size());
+            globalIndices.reserve(transformPairs.size());
+            for (auto& [t, idx] : transformPairs)
+            {
+                transforms.push_back(t);
+                globalIndices.push_back(idx);
+            }
+
             auto actor = static_pointer_cast<MEInstancedMeshActor>(
                 GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
             if (!actor)
@@ -494,6 +507,7 @@ void MapEditorApp::Update_InstancedMeshHandles()
 
             obj->_instancedChunkHandles.push_back(actor);
             obj->_instancedChunkAABBs.push_back(aabb);
+            obj->_instancedChunkGlobalIndices.push_back(move(globalIndices));
         }
     }
 }

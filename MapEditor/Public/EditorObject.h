@@ -64,6 +64,7 @@ struct EditorObject
     //Shared<MEInstancedMeshActor> _instancedRenderHandle;
     vector<Shared<MEInstancedMeshActor>> _instancedChunkHandles;
     vector<BoundingBox> _instancedChunkAABBs;
+    vector<vector<uint32>> _instancedChunkGlobalIndices;
 
     bool _instancedParamsDirty = true;
     bool _instancedHasCollision = false;
