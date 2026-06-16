@@ -1301,7 +1301,7 @@ bool MeshDataPreview_View::Render_MaterialInstanceSection(const AuthoringEmitter
         meshData.assignedMaterial,
         outRestartPreview,
         EffectMaterialTwoSidedDisplayMode::EditableImplemented,
-        true,
+        EffectMaterialDistortionShapeControlMode::MeshUnsupported,
         &renderPolicyBinding
     );
 }

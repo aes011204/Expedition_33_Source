@@ -1236,6 +1236,13 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_MaterialResources()
 
 HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
 {
+    CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
+
+    if (nullptr != _maskTexture)
+        CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
     else
@@ -1251,6 +1258,42 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
         nullptr != _flowTexture ? 1.f : 0.f,
         _materialElapsedTime
     );
+    const Vec4 effectBeamAlphaParams = Vec4(
+        clamp(_desc.material.alphaCutoff, 0.f, 1.f),
+        clamp(_desc.material.alphaErosion, 0.f, 1.f),
+        nullptr != _maskTexture ? 1.f : 0.f,
+        max(_desc.material.opacityPower, 0.0001f)
+    );
+    const Vec4 effectBeamMainUVParams = Vec4(
+        _desc.material.mainUVScale.x,
+        _desc.material.mainUVScale.y,
+        _desc.material.mainUVScrollSpeed.x,
+        _desc.material.mainUVScrollSpeed.y
+    );
+    const Vec4 effectBeamMaskUVParams = Vec4(
+        _desc.material.maskUVScale.x,
+        _desc.material.maskUVScale.y,
+        _desc.material.maskUVScrollSpeed.x,
+        _desc.material.maskUVScrollSpeed.y
+    );
+    const Vec4 effectBeamUVOffsetParams = Vec4(
+        _desc.material.mainUVOffset.x,
+        _desc.material.mainUVOffset.y,
+        _desc.material.maskUVOffset.x,
+        _desc.material.maskUVOffset.y
+    );
+    const Vec4 effectBeamUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.vPolicy))
+    );
+    const Vec4 effectBeamSourceParams = Vec4(
+        static_cast<float>(Resolve_OpacitySourceIndex()),
+        static_cast<float>(EffectBeamRuntime::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
+        _desc.material.maskInvert ? 1.f : 0.f,
+        0.f
+    );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(_desc.material.flowUVTilingMode));
     const Vec2 flowUVPolicyParams(
@@ -1259,6 +1302,12 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
     );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamAlphaParams", &effectBeamAlphaParams, sizeof(effectBeamAlphaParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMainUVParams", &effectBeamMainUVParams, sizeof(effectBeamMainUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMaskUVParams", &effectBeamMaskUVParams, sizeof(effectBeamMaskUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamUVOffsetParams", &effectBeamUVOffsetParams, sizeof(effectBeamUVOffsetParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamUVAxisPolicyParams", &effectBeamUVAxisPolicyParams, sizeof(effectBeamUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamSourceParams", &effectBeamSourceParams, sizeof(effectBeamSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &_desc.material.flowUVScale, sizeof(_desc.material.flowUVScale)), E_FAIL);

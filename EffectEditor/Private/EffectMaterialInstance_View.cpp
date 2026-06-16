@@ -1110,6 +1110,10 @@ void EffectMaterialInstance_View::Render()
                       || emitter->typeData.kind == AuthoringTypeDataKind::Ribbon
                       ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
                       : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
+                const EffectMaterialDistortionShapeControlMode distortionShapeControlMode =
+                    emitter->typeData.kind == AuthoringTypeDataKind::Beam
+                    ? EffectMaterialDistortionShapeControlMode::BeamUnsupported
+                    : EffectMaterialDistortionShapeControlMode::Editable;
 
                 if (useSideBySideLayout)
                 {
@@ -1138,7 +1142,8 @@ void EffectMaterialInstance_View::Render()
                             _textureThumbnailCache,
                             requiredData->material,
                             &restartPreview,
-                            twoSidedDisplayMode
+                            twoSidedDisplayMode,
+                            distortionShapeControlMode
                         );
                     }
                     ImGui::EndChild();
@@ -1160,7 +1165,8 @@ void EffectMaterialInstance_View::Render()
                         _textureThumbnailCache,
                         requiredData->material,
                         &restartPreview,
-                        twoSidedDisplayMode
+                        twoSidedDisplayMode,
+                        distortionShapeControlMode
                     );
                 }
 
@@ -1188,7 +1194,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     EffectMaterialInstanceData& material,
     bool* outRestartPreview,
     EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode,
-    bool disableMeshDistortionShapeControls,
+    EffectMaterialDistortionShapeControlMode distortionShapeControlMode,
     const EffectMaterialRenderPolicyBinding* renderPolicyBinding)
 {
     const EffectMaterialInstanceData defaultData{};
@@ -1408,12 +1414,16 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);
             changed |= detailPropertyContext.Draw_FloatProperty("Refraction Intensity", material.refractionIntensity, defaultData.refractionIntensity);
             changed |= detailPropertyContext.Draw_FloatProperty("Refraction Presence", material.refractionPresence, defaultData.refractionPresence);
-            if (disableMeshDistortionShapeControls)
+            if (distortionShapeControlMode != EffectMaterialDistortionShapeControlMode::Editable)
             {
+                const char* unsupportedLabel =
+                    distortionShapeControlMode == EffectMaterialDistortionShapeControlMode::BeamUnsupported
+                    ? "Beam Distortion에서는 Shape 미지원"
+                    : "Mesh Distortion v0에서는 Shape 미지원";
                 Internal::Draw_ReadOnlyTextProperty(
                     detailPropertyContext,
                     "Shape Mode",
-                    "Mesh Distortion v0에서는 Shape 미지원"
+                    unsupportedLabel
                 );
                 detailPropertyContext.End_PropertyTable();
             }

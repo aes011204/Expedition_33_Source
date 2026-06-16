@@ -25,6 +25,7 @@ public:
     HRESULT Restart_PreviewFromAuthoring();
     // 마지막으로 빌드된 preview definition으로 runtime preview만 initial 상태로 되돌린다.
     HRESULT Reset_PreviewRuntime();
+    bool Is_PreviewFinished() const;
 
 private:
     static constexpr auto kPreviewLayerTag{ L"Layer_Preview" };

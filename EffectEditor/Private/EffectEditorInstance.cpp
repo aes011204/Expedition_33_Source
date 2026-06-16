@@ -109,6 +109,8 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
+    _autoReplayPreviewEnabled = false;
+    _autoReplayPreviewElapsedTime = 0.f;
     _isTrailPreviewVisible = false;
     _isPreviewPlaneVisible = false;
     _trailPreviewAnimationSpeed = kDefaultTrailPreviewAnimationSpeed;
@@ -175,6 +177,8 @@ void EffectEditorInstance::Release_Editor()
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
+    _autoReplayPreviewEnabled = false;
+    _autoReplayPreviewElapsedTime = 0.f;
     _isTrailPreviewVisible = false;
     _postProcessOptions = Get_DefaultPostProcessOptions();
     _hasClientPostProcessSnapshot = false;
@@ -198,6 +202,7 @@ void EffectEditorInstance::Update_Editor(float timeDelta)
 {
     Sync_PreviewViewportMode();
     Apply_PendingPreviewViewportSize();
+    Tick_AutoReplayPreview(timeDelta);
 
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
@@ -354,6 +359,7 @@ void EffectEditorInstance::Play()
     if (EffectEditorRuntimeState::Edit == _runtimeState)
         Reset_TrailPreviewGate();
 
+    _autoReplayPreviewElapsedTime = 0.f;
     _runtimeState = EffectEditorRuntimeState::Play;
     Activate_TargetCamera();
 
@@ -386,6 +392,7 @@ void EffectEditorInstance::Stop()
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     Reset_TrailPreviewGate();
+    _autoReplayPreviewElapsedTime = 0.f;
 
     const Shared<Level> currentLevel = GAME->Current_LevelType();
     const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
@@ -454,6 +461,30 @@ void EffectEditorInstance::Request_RestartPreview()
     }
 
     Reset_TrailPreviewGate();
+    _autoReplayPreviewElapsedTime = 0.f;
+}
+
+void EffectEditorInstance::Tick_AutoReplayPreview(float timeDelta)
+{
+    if (!_autoReplayPreviewEnabled || EffectEditorRuntimeState::Play != _runtimeState)
+    {
+        _autoReplayPreviewElapsedTime = 0.f;
+        return;
+    }
+
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    if (effectEditorLevel == nullptr || !effectEditorLevel->Is_PreviewFinished())
+    {
+        _autoReplayPreviewElapsedTime = 0.f;
+        return;
+    }
+
+    _autoReplayPreviewElapsedTime += max(0.f, timeDelta);
+    if (_autoReplayPreviewElapsedTime < kAutoReplayPreviewDelay)
+        return;
+
+    Request_RestartPreview();
 }
 
 void EffectEditorInstance::Tick_TrailPreviewGate(float timeDelta)
@@ -467,6 +498,15 @@ void EffectEditorInstance::Tick_TrailPreviewGate(float timeDelta)
 void EffectEditorInstance::Reset_TrailPreviewGate()
 {
     _trailPreviewGateElapsedTime = 0.f;
+}
+
+void EffectEditorInstance::Set_AutoReplayPreviewEnabled(bool enabled)
+{
+    if (_autoReplayPreviewEnabled == enabled)
+        return;
+
+    _autoReplayPreviewEnabled = enabled;
+    _autoReplayPreviewElapsedTime = 0.f;
 }
 
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)

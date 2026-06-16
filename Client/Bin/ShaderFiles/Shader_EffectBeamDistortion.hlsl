@@ -3,6 +3,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_EffectMaterial.hlsl"
 #include "Shader_EffectDistortionCommon.hlsli"
 
 cbuffer cbEffectBeamDistortion : register(b2)
@@ -11,6 +12,12 @@ cbuffer cbEffectBeamDistortion : register(b2)
     float4 g_EffectBeamAxisParams = { 0.f, 1.f, 0.f, 0.f }; // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
     float4 g_EffectBeamFallbackAxis = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f }; // x: intensity, y: presence, z: useFlow, w: material time
+    float4 g_EffectBeamAlphaParams = { 0.f, 0.f, 0.f, 1.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: opacityPower
+    float4 g_EffectBeamMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectBeamMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
+    float4 g_EffectBeamUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: mask offset
+    float4 g_EffectBeamUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main U/V policy, zw: mask U/V policy
+    float4 g_EffectBeamSourceParams = { 0.f, 0.f, 0.f, 0.f }; // x: opacity source, y: mask source, z: mask invert, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
     float2 g_FlowUVPolicyParams = { 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };
@@ -20,6 +27,8 @@ cbuffer cbEffectBeamDistortion : register(b2)
     float g_BeamDistortionPadding = 0.f;
 };
 
+Texture2D g_MainTexture : register(t0);
+Texture2D g_MaskTexture : register(t2);
 Texture2D g_FlowTexture : register(t3);
 
 static const int BEAM_RENDER_AXIS_CAMERA_UP = 0;
@@ -80,6 +89,48 @@ float3 Resolve_BeamSide(float3 currentPosition, float3 tangent)
         side = NormalizeOrFallback(cross(Resolve_ViewUpAxis(), tangent), fallbackAxis);
 
     return side;
+}
+
+float Resolve_BeamAxisUV(float rawValue, float transformedValue, float policy)
+{
+    return policy >= 2.5f ? rawValue : transformedValue;
+}
+
+float2 Apply_BeamMaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
+{
+    return uv * uvParams.xy + uvOffset + uvParams.zw * g_EffectDistortionParams.w;
+}
+
+float2 Build_BeamMaterialUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy)
+{
+    const float2 transformedUV = Apply_BeamMaterialUV(rawUV, uvParams, uvOffset);
+    return float2(
+        Resolve_BeamAxisUV(rawUV.x, transformedUV.x, policy.x),
+        Resolve_BeamAxisUV(rawUV.y, transformedUV.y, policy.y)
+    );
+}
+
+float Apply_BeamAxisAddress(float value, float policy)
+{
+    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
+}
+
+float2 Apply_BeamAxisAddress(float2 uv, float2 policy)
+{
+    return float2(
+        Apply_BeamAxisAddress(uv.x, policy.x),
+        Apply_BeamAxisAddress(uv.y, policy.y)
+    );
+}
+
+float4 Sample_BeamMainTexture(float2 uv, float2 policy)
+{
+    return g_MainTexture.Sample(LinearClampSampler, Apply_BeamAxisAddress(uv, policy));
+}
+
+float4 Sample_BeamMaskTexture(float2 uv, float2 policy)
+{
+    return g_MaskTexture.Sample(LinearClampSampler, Apply_BeamAxisAddress(uv, policy));
 }
 
 float2 Build_FlowUV(float2 rawUV)
@@ -245,10 +296,35 @@ PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
 
+    const float2 mainUVPolicy = g_EffectBeamUVAxisPolicyParams.xy;
+    const float2 maskUVPolicy = g_EffectBeamUVAxisPolicyParams.zw;
+    const float2 mainUV = Build_BeamMaterialUV(In.texCoord, g_EffectBeamMainUVParams, g_EffectBeamUVOffsetParams.xy, mainUVPolicy);
+    const float2 maskUV = Build_BeamMaterialUV(In.texCoord, g_EffectBeamMaskUVParams, g_EffectBeamUVOffsetParams.zw, maskUVPolicy);
+    const float4 mainTexel = Sample_BeamMainTexture(mainUV, mainUVPolicy);
+    const float selectedOpacity = Effect_SelectOpacity(mainTexel, (int)g_EffectBeamSourceParams.x);
+    const float alphaCutoff = saturate(g_EffectBeamAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectBeamAlphaParams.y);
+    const float opacityPower = max(g_EffectBeamAlphaParams.w, 0.0001f);
+    float maskAlpha = 1.f;
+
+    if (0 != g_EffectBeamAlphaParams.z)
+    {
+        const float4 maskTexel = Sample_BeamMaskTexture(maskUV, maskUVPolicy);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectBeamSourceParams.y),
+            g_EffectBeamSourceParams.z
+        );
+    }
+
+    const float opacityCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskAlpha, 1.f, 1.f);
+    const float materialCoverage = Effect_ApplyAlphaErosion(opacityCoverage, maskAlpha, alphaErosion);
+    if (materialCoverage < max(alphaCutoff, 0.01f))
+        discard;
+
     const float sideAlpha =
         smoothstep(0.0f, kBeamEdgeFade, In.edgeCoord.y) *
         smoothstep(0.0f, kBeamEdgeFade, 1.0f - In.edgeCoord.y);
-    const float beamCoverage = saturate(In.color.a * g_Tint.a * saturate(In.segmentParams.w) * sideAlpha);
+    const float beamCoverage = saturate(materialCoverage * In.color.a * g_Tint.a * saturate(In.segmentParams.w) * sideAlpha);
     const float2 flowUV = Build_FlowUV(In.texCoord);
     const float2 flow = 0 != g_EffectDistortionParams.z
                         ? Sample_FlowTexture(flowUV) * 2.f - 1.f

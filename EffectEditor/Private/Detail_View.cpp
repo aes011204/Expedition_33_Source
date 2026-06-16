@@ -1197,18 +1197,20 @@ void Detail_View::Render_EffectAuthoringDetail()
 
 void Detail_View::Render_ParticleSystemDetail(
     const Shared<Emitter_View>& emitterView,
-    const EffectAuthoringSelection& selection,
-    ParticleSystemAuthoringData& data)
+    const EffectAuthoringSelection&,
+    ParticleSystemAuthoringData&)
 {
     ImGui::TextUnformatted("파티클 시스템");
     ImGui::Separator();
 
-    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
-    const ParticleSystemAuthoringData defaultData{};
-    bool changed = false;
     if (_detailPropertyContext.Begin_PropertyTable("ParticleSystem"))
     {
-        changed |= _detailPropertyContext.Draw_BoolProperty("자동 비활성화", data.autoDeactivate, defaultData.autoDeactivate);
+        if (EDITOR != nullptr)
+        {
+            bool autoReplayPreviewEnabled = EDITOR->Is_AutoReplayPreviewEnabled();
+            if (_detailPropertyContext.Draw_BoolProperty("자동 재생 (프리뷰)", autoReplayPreviewEnabled, false))
+                EDITOR->Set_AutoReplayPreviewEnabled(autoReplayPreviewEnabled);
+        }
         if (EDITOR != nullptr)
         {
             bool previewPlaneVisible = EDITOR->Is_PreviewPlaneVisible();
@@ -1216,12 +1218,6 @@ void Detail_View::Render_ParticleSystemDetail(
                 EDITOR->Set_PreviewPlaneVisible(previewPlaneVisible);
         }
         _detailPropertyContext.End_PropertyTable();
-    }
-    if (changed)
-    {
-        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Particle System Detail");
-        emitterView->MarkDirty();
-        MarkDirty();
     }
 
     Render_TrailPreviewDetail();

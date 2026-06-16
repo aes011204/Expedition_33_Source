@@ -7,6 +7,7 @@
 #include "EffectEditorPreviewPlane.h"
 #include "EffectEditorSceneGrid.h"
 #include "EffectEditorSkybox.h"
+#include "EffectInstance.h"
 #include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterialPresetReader.h"
 #include "EffectRuntime_Lowering.h"
@@ -1642,6 +1643,13 @@ HRESULT Level_EffectEditor::Reset_PreviewRuntime()
     _lastTrailPreviewSourceRatio = 0.f;
     _hasTrailPreviewSourceRatio = false;
     return Restart_PreviewFromDefinition(_currentPreviewDefinition);
+}
+
+bool Level_EffectEditor::Is_PreviewFinished() const
+{
+    const Shared<EffectInstance> previewInstance =
+        dynamic_pointer_cast<EffectInstance>(_previewPoolHandle.effectObject);
+    return previewInstance != nullptr && previewInstance->Is_Finished();
 }
 
 HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const EffectDefinition>& previewDefinition)
