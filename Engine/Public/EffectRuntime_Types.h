@@ -458,7 +458,7 @@ struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
-    bool usePerStripSubUVVariation{ true };                                                         // Beam strip별 SubUV RandomFrame/FPS phase variation을 적용한다.
+    bool usePerStripSubUVVariation{ false };                                                        // Legacy Beam strip별 SubUV RandomFrame variation compatibility flag다.
 
     EffectBeamEndpointMode endpointMode{ EffectBeamEndpointMode::StartEnd };  // local path 작성 방식을 고른다.
     Vec3 localStart{ 0.f, 2.f, 0.f };                                         // effect/emitter local 기준 beam 시작점이다.

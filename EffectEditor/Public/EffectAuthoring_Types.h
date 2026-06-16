@@ -1018,8 +1018,9 @@ struct SubUVFrameOverLifeModuleData
     bool loop{ false };
     SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };
     float framesPerSecond{ 12.f };
+    bool randomStartPhase{ false };
     DistributionRandomSeedData randomSeed{};
-    bool perStripSubUVVariation{ true }; // Beam multi-strip에서 RandomFrame/FPS strip variation을 적용할지 결정한다.
+    bool perStripSubUVVariation{ false }; // Legacy Beam multi-strip SubUV variation field다.
 };
 
 struct SizeByLifeModuleData

@@ -54,6 +54,8 @@ void TrailPreviewController::Priority_Update(float)
         Ensure_AnimationMode(PreviewAnimationMode::Attack);
     else if (!EDITOR->IsPaused())
         Ensure_AnimationMode(PreviewAnimationMode::Rest);
+
+    Apply_AnimationSpeed(Get_BodyModel());
 }
 
 void TrailPreviewController::Update(float)
@@ -135,12 +137,20 @@ void TrailPreviewController::Ensure_AnimationMode(PreviewAnimationMode mode)
     }
 
     bodyModel->Set_Animation(animationName, mode == PreviewAnimationMode::Attack, 0.f);
-    bodyModel->Set_FrameSpeed(1.f);
+    Apply_AnimationSpeed(bodyModel);
     bodyModel->Set_CurrentAnimationTimeSec(0.f);
     bodyModel->Refresh_CurrentAnimationPose();
 
     _animationInitialized = true;
     _currentMode = mode;
+}
+
+void TrailPreviewController::Apply_AnimationSpeed(const Shared<ModelCom>& bodyModel) const
+{
+    if (nullptr == bodyModel || nullptr == EDITOR)
+        return;
+
+    bodyModel->Set_FrameSpeed(EDITOR->Get_TrailPreviewAnimationSpeed());
 }
 
 bool TrailPreviewController::Has_Animation(const Shared<ModelCom>& model, const char* animationName) const

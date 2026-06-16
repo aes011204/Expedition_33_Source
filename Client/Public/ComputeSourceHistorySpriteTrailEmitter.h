@@ -233,7 +233,7 @@ private:
     Vec3 Evaluate_AccelerationByLife(const Stamp& stamp, float lifeProgress) const;
     float Evaluate_PathReplayDrainCurve(float progress) const;
     uint32 Evaluate_SubUVFrameIndex(const Stamp& stamp) const;
-    uint32 Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 rangeCount) const;
+    uint32 Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 frameCount, uint32 rangeCount) const;
     Vec4 Resolve_SubUVRect(uint32 frameIndex) const;
     float Evaluate_CompactCurve(
         float lifeProgress,
@@ -241,6 +241,20 @@ private:
         const Vec4& timesBlock1,
         const Vec4& values,
         const Vec4& valuesBlock1,
+        uint32 keyCount,
+        float fallbackValue) const;
+    float Evaluate_CompactCurve(
+        float lifeProgress,
+        const Vec4& times,
+        const Vec4& timesBlock1,
+        const Vec4& values,
+        const Vec4& valuesBlock1,
+        const Vec4& arriveTangents,
+        const Vec4& arriveTangentsBlock1,
+        const Vec4& leaveTangents,
+        const Vec4& leaveTangentsBlock1,
+        const Vec4& modes,
+        const Vec4& modesBlock1,
         uint32 keyCount,
         float fallbackValue) const;
 

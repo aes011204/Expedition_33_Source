@@ -40,11 +40,11 @@ namespace Internal
 
         bool Try_GetTrailSample(EffectTrailSample& outSample) const override
         {
-            if (_sampleEnabled == nullptr || !*_sampleEnabled)
+            if (nullptr == _sampleEnabled || !*_sampleEnabled)
                 return false;
 
             const Shared<IEffectTrailSampleProvider> sourceProvider = _sourceProvider.lock();
-            if (sourceProvider == nullptr)
+            if (nullptr == sourceProvider)
                 return false;
 
             return sourceProvider->Try_GetTrailSample(outSample);
@@ -70,7 +70,7 @@ namespace Internal
 
         bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override
         {
-            if (EDITOR == nullptr ||
+            if (nullptr == EDITOR ||
                 !EDITOR->Is_TrailPreviewVisible())
                 return false;
 
@@ -80,7 +80,7 @@ namespace Internal
                 if (EDITOR->Get_SourceHistorySpriteTrailPreviewGateMode() == TrailPreviewGateMode::Window)
                 {
                     const Shared<TrailPreviewController> previewController = _previewController.lock();
-                    if (previewController == nullptr ||
+                    if (nullptr == previewController ||
                         !previewController->Try_GetAttackAnimationRatio(sourceRatio))
                         return false;
                 }
@@ -90,7 +90,7 @@ namespace Internal
             }
 
             const Shared<IEffectSourcePointSampleProvider> sourceProvider = _sourceProvider.lock();
-            if (sourceProvider == nullptr)
+            if (nullptr == sourceProvider)
                 return false;
 
             return sourceProvider->Try_GetSourcePointSample(outSample);
@@ -124,7 +124,7 @@ namespace Internal
     float Resolve_RequiredDuration(const AuthoringEmitter& emitter)
     {
         const RequiredModuleData* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
-        if (required == nullptr)
+        if (nullptr == required)
             return 0.f;
 
         if (required->useDurationRange)
@@ -158,7 +158,7 @@ namespace Internal
 
     float Resolve_TrailStrokeDrainDuration(const Shared<const EffectDefinition>& definition)
     {
-        if (definition == nullptr)
+        if (nullptr == definition)
             return 0.25f;
 
         float duration = 0.f;
@@ -168,7 +168,7 @@ namespace Internal
                 continue;
 
             const auto* desc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
-            if (desc == nullptr)
+            if (nullptr == desc)
                 continue;
 
             duration = max(duration, desc->segmentLifetime);
@@ -325,7 +325,7 @@ namespace Internal
 
     fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
-        if (GAME == nullptr)
+        if (nullptr == GAME)
             return fs::path(String::ToWString(path));
 
         if (!guid.empty())
@@ -810,11 +810,18 @@ namespace Internal
         Set_SubUVFrameCurveComponent(valuesBlock1, index - 4u, value);
     }
 
-    void Fill_SizeByLifeCurveComponent(PointParticleSizeByLifeDesc& desc, uint32 index, float time, const Vec2& value)
+    float To_RuntimeCurveInterpolationMode(FloatCurveInterpolationMode mode);
+
+    void Fill_SizeByLifeCurveComponent(PointParticleSizeByLifeDesc& desc, uint32 index, const Vector2CurveKeyData& key)
     {
-        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(time, 0.f, 1.f));
-        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
-        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
+        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, key.value.x);
+        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, key.value.y);
+        Set_CurveComponent(desc.curveKeyArriveTangentsX, desc.curveKeyArriveTangentsXBlock1, index, key.arriveTangent.x);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsX, desc.curveKeyLeaveTangentsXBlock1, index, key.leaveTangent.x);
+        Set_CurveComponent(desc.curveKeyArriveTangentsY, desc.curveKeyArriveTangentsYBlock1, index, key.arriveTangent.y);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsY, desc.curveKeyLeaveTangentsYBlock1, index, key.leaveTangent.y);
+        Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
     void Fill_RotationOverLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, float time, float value)
@@ -879,7 +886,7 @@ namespace Internal
         desc.curveKeyModesBlock1 = Vec4{};
 
         const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload);
-        if (curve == nullptr)
+        if (nullptr == curve)
             return;
 
         vector<FloatCurveKeyData> keys = curve->keys;
@@ -1101,6 +1108,16 @@ namespace Internal
         desc.curveKeyValuesXBlock1 = Vec4{};
         desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
         desc.curveKeyValuesYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&data.scaleOverLife.payload))
         {
@@ -1118,8 +1135,18 @@ namespace Internal
             desc.curveKeyValuesXBlock1 = Vec4{};
             desc.curveKeyValuesY = Vec4{};
             desc.curveKeyValuesYBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsX = Vec4{};
+            desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsX = Vec4{};
+            desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsY = Vec4{};
+            desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsY = Vec4{};
+            desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+            desc.curveKeyModes = Vec4{};
+            desc.curveKeyModesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
-                Fill_SizeByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+                Fill_SizeByLifeCurveComponent(desc, index, keys[index]);
         }
     }
 
@@ -1362,7 +1389,7 @@ namespace Internal
         desc.accelerationCurveValuesZBlock1 = Vec4{};
 
         const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload);
-        if (curve == nullptr)
+        if (nullptr == curve)
             return;
 
         vector<Vector3CurveKeyData> keys = curve->keys;
@@ -1607,7 +1634,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
 
 HRESULT Level_EffectEditor::Reset_PreviewRuntime()
 {
-    if (_currentPreviewDefinition == nullptr)
+    if (nullptr == _currentPreviewDefinition)
         return S_OK;
 
     Clear_PreviewTrailStrokes();
@@ -1632,7 +1659,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
     acquireDesc.trailSampleProvider = _trailPreviewSampleProvider;
     acquireDesc.sourcePointSampleProvider = _sourceHistorySpriteTrailPreviewSampleProvider;
 
-    if (_previewPoolHandle.effectObject != nullptr)
+    if (nullptr != _previewPoolHandle.effectObject)
     {
         if (SUCCEEDED(effectPool->Reload_Attached(acquireDesc, _previewPoolHandle)))
             return S_OK;
@@ -1913,8 +1940,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         desc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         desc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        desc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
             desc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -2359,8 +2387,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
         emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        emitterDesc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
             emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -2574,8 +2603,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
         emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        emitterDesc.subUVFrameOverLife.randomStartPhase = subUvFrameOverLife->randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || subUvFrameOverLife->randomStartPhase)
             emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -2598,7 +2628,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
         AuthoringModuleType::SourceHistorySpriteTrailPathReplay
     );
 
-    if (pathReplay != nullptr)
+    if (nullptr != pathReplay)
     {
         emitterDesc.pathReplay.enabled = true;
         emitterDesc.pathReplay.delayTime = max(0.f, pathReplay->delayTime);
@@ -2610,7 +2640,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistorySpriteTrai
         emitterDesc.pathReplay.arrivalMode = Internal::Resolve_SourceHistorySpriteTrailArrivalMode(pathReplay->arrivalMode);
     }
 
-    if (pathReplay == nullptr)
+    if (nullptr == pathReplay)
     {
         if (const auto* pathFollow = Internal::Find_ModuleData<SourceHistorySpriteTrailPathFollowModuleData>(
             emitter,
@@ -2747,7 +2777,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
 
     const BeamTypeData* beamData = get_if<BeamTypeData>(&emitter.typeData.payload);
     const BeamTypeData defaultBeamData{};
-    const BeamTypeData& beamPolicy = beamData != nullptr ? *beamData : defaultBeamData;
+    const BeamTypeData& beamPolicy = nullptr != beamData ? *beamData : defaultBeamData;
 
     emitterDesc.endpointMode = beamPolicy.endpointMode == BeamEndpointMode::DirectionLength
                                ? EffectBeamEndpointMode::DirectionLength
@@ -2901,10 +2931,11 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(c
         emitterDesc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
         emitterDesc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
         emitterDesc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
-        emitterDesc.usePerStripSubUVVariation = subUvFrameOverLife->perStripSubUVVariation;
+        const bool randomStartPhase = subUvFrameOverLife->randomStartPhase || subUvFrameOverLife->perStripSubUVVariation;
+        emitterDesc.subUVFrameOverLife.randomStartPhase = randomStartPhase;
+        emitterDesc.usePerStripSubUVVariation = randomStartPhase;
         Internal::Fill_SubUVFrameCurvePayload(emitterDesc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
-        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame ||
-            (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::FramesPerSecond && subUvFrameOverLife->perStripSubUVVariation))
+        if (subUvFrameOverLife->playbackMode == SubUVFramePlaybackMode::RandomFrame || randomStartPhase)
             emitterDesc.subUVRandomFrameSeed = Internal::Build_RandomSeedDesc(subUvFrameOverLife->randomSeed);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -2947,7 +2978,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
     }
 
     const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
-    if (required != nullptr)
+    if (nullptr != required)
     {
         EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
 
@@ -2997,7 +3028,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         }
     }
 
-    if (required != nullptr)
+    if (nullptr != required)
     {
         emitterDesc.material.blendMode = required->material.blendMode;
         emitterDesc.material.alphaCutoff = required->material.alphaCutoff;
@@ -3417,7 +3448,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewPlayer), E_FAIL);
 
     const Shared<TrailPreviewWeaponObject> trailPreviewWeapon = trailPreviewPlayer->Get_PreviewWeapon();
-    if (trailPreviewWeapon == nullptr)
+    if (nullptr == trailPreviewWeapon)
     {
         LOG_ERROR("[TrailPreview] TrailPreviewPlayerObject did not create Part_Weapon.");
         return E_FAIL;
@@ -3446,7 +3477,7 @@ void Level_EffectEditor::Update_PreviewTrailStrokes(float timeDelta)
 {
     if (EDITOR->Get_TrailPreviewGateMode() != TrailPreviewGateMode::Window ||
         !EDITOR->Is_TrailPreviewVisible() ||
-        _currentPreviewTrailDefinition == nullptr)
+        nullptr == _currentPreviewTrailDefinition)
     {
         Clear_PreviewTrailStrokes();
         _wasTrailPreviewGateOpen = false;
@@ -3465,7 +3496,7 @@ void Level_EffectEditor::Update_PreviewTrailStrokes(float timeDelta)
         float sourceRatio = 0.f;
         const Shared<TrailPreviewController> trailPreviewController = _trailPreviewController.lock();
         const bool hasSourceRatio =
-            trailPreviewController != nullptr &&
+            nullptr != trailPreviewController &&
             trailPreviewController->Try_GetAttackAnimationRatio(sourceRatio);
 
         if (!hasSourceRatio)
@@ -3503,7 +3534,7 @@ void Level_EffectEditor::Update_PreviewTrailStrokes(float timeDelta)
             continue;
 
         EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
-        if (effectPool != nullptr)
+        if (nullptr != effectPool)
             effectPool->Release(runtime.poolHandle);
 
         _previewTrailStrokes.erase(_previewTrailStrokes.begin() + runtimeIndex);
@@ -3559,7 +3590,7 @@ void Level_EffectEditor::Begin_PreviewTrailStrokeDrain(PreviewTrailStrokeRuntime
     if (runtime.isDraining)
         return;
 
-    if (runtime.sampleEnabled != nullptr)
+    if (nullptr != runtime.sampleEnabled)
         *runtime.sampleEnabled = false;
 
     runtime.isDraining = true;
@@ -3576,7 +3607,7 @@ void Level_EffectEditor::Clear_PreviewTrailStrokes()
 {
     EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
 
-    if (effectPool != nullptr)
+    if (nullptr != effectPool)
     {
         for (const PreviewTrailStrokeRuntime& runtime : _previewTrailStrokes)
             effectPool->Release(runtime.poolHandle);

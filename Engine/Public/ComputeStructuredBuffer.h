@@ -53,7 +53,7 @@ private: //## Data::Resource
 private: //## Data::Layout
     uint32 _elementSize{ 0 };  // D3D11 StructureByteStride와 동일한 값.
     uint32 _elementCount{ 0 }; // SRV/UAV NumElements와 동일한 값.
-    uint32 _extraBindFlags { 0 };
+    uint32 _extraBindFlags{ 0 };
 
 private: //## Helper::Setup
     HRESULT Ready_Views(); // 현재 buffer desc 기준으로 SRV/UAV를 만든다.

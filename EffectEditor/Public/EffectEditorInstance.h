@@ -71,6 +71,8 @@ public: //## Accessor::Window
     Shared<Editor_Window> Get_Window(const wstring& windowName) const;
     HWND Get_WindowHandle() const;
     Editor_Context* Get_EditorContext() const { return _editorContext.get(); }
+    bool Is_SceneFocusModeActive() const;
+    uint32 Get_ActiveDockSpaceId() const;
 
 public: //## Accessor::Notification
     Notification_Manager* Get_Notification() { return _notificationManager.get(); }
@@ -102,6 +104,10 @@ public: //## Accessor::PreviewOption
     bool Is_SourceHistorySpriteTrailPreviewGateOpen(float sourceRatio) const;
     // Trail preview anchor marker/line 표시 여부다.
     bool Is_TrailPreviewDebugRenderEnabled() const { return _isTrailPreviewDebugRenderEnabled; }
+    // Trail preview player animation의 editor-session 배속이다.
+    float Get_TrailPreviewAnimationSpeed() const { return _trailPreviewAnimationSpeed; }
+    // Trail preview player animation 배속 reset 기준값이다.
+    float Get_DefaultTrailPreviewAnimationSpeed() const { return kDefaultTrailPreviewAnimationSpeed; }
     // Effect shader 기준 influence 범위 외곽선 표시 여부다.
     bool Is_EffectInfluenceOutlineEnabled() const { return _isEffectInfluenceOutlineEnabled; }
     // Trail preview weapon-local base marker의 editor-session offset이다.
@@ -169,6 +175,8 @@ public: //## Behavior::PreviewOption
     void Set_SourceHistorySpriteTrailPreviewGateWindow(float startRatio, float endRatio);
     // Trail preview anchor marker/line 표시 여부만 바꾼다.
     void Set_TrailPreviewDebugRenderEnabled(bool enabled);
+    // Trail preview player animation 배속을 현재 editor session에만 반영한다.
+    void Set_TrailPreviewAnimationSpeed(float speed);
     // EffectEditor 세션 전용 influence outline debug 표시를 켜고 끈다.
     void Set_EffectInfluenceOutlineEnabled(bool enabled);
     // Detail_View의 Trail Preview 조정값을 현재 editor session에만 반영한다.
@@ -248,6 +256,9 @@ private: //## Static Values
     static constexpr float kDefaultSourceHistorySpriteTrailPreviewGateStartRatio{ 0.f };
     static constexpr float kDefaultSourceHistorySpriteTrailPreviewGateEndRatio{ 0.4f };
     static constexpr float kDefaultTrailPreviewGateDuration{ 1.f };
+    static constexpr float kDefaultTrailPreviewAnimationSpeed{ 1.f };
+    static constexpr float kMinTrailPreviewAnimationSpeed{ 0.01f };
+    static constexpr float kMaxTrailPreviewAnimationSpeed{ 10.f };
 
 private: //## Data::Core
     ComPtr<Device> _device{};
@@ -293,6 +304,7 @@ private: //## Data::PreviewOption
     float _sourceHistorySpriteTrailPreviewGateStartRatio{ kDefaultSourceHistorySpriteTrailPreviewGateStartRatio };
     float _sourceHistorySpriteTrailPreviewGateEndRatio{ kDefaultSourceHistorySpriteTrailPreviewGateEndRatio };
     bool _isTrailPreviewDebugRenderEnabled{ true };
+    float _trailPreviewAnimationSpeed{ kDefaultTrailPreviewAnimationSpeed };
     bool _isEffectInfluenceOutlineEnabled{ false };
     Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
     Vec3 _trailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };

@@ -111,6 +111,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
     _isPreviewPlaneVisible = false;
+    _trailPreviewAnimationSpeed = kDefaultTrailPreviewAnimationSpeed;
     _isEffectInfluenceOutlineEnabled = false;
     ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(false);
     _hasClientPostProcessSnapshot = false;
@@ -239,6 +240,22 @@ Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName
         return nullptr;
 
     return _editorManager->Find_Window(windowName);
+}
+
+bool EffectEditorInstance::Is_SceneFocusModeActive() const
+{
+    if (nullptr == _editorManager)
+        return false;
+
+    return _editorManager->Is_SceneFocusModeActive();
+}
+
+uint32 EffectEditorInstance::Get_ActiveDockSpaceId() const
+{
+    if (nullptr == _editorManager)
+        return 0;
+
+    return _editorManager->Get_CurrentDockSpaceId();
 }
 
 HWND EffectEditorInstance::Get_WindowHandle() const
@@ -503,6 +520,15 @@ void EffectEditorInstance::Set_SourceHistorySpriteTrailPreviewGateWindow(float s
 void EffectEditorInstance::Set_TrailPreviewDebugRenderEnabled(bool enabled)
 {
     _isTrailPreviewDebugRenderEnabled = enabled;
+}
+
+void EffectEditorInstance::Set_TrailPreviewAnimationSpeed(float speed)
+{
+    _trailPreviewAnimationSpeed = clamp(
+        speed,
+        kMinTrailPreviewAnimationSpeed,
+        kMaxTrailPreviewAnimationSpeed
+    );
 }
 
 void EffectEditorInstance::Set_EffectInfluenceOutlineEnabled(bool enabled)
