@@ -694,7 +694,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl">
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>

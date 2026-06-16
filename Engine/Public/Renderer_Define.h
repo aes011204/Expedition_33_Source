@@ -25,6 +25,7 @@ namespace RT
     inline constexpr const wchar_t* LightDepthDebug1 = L"Target_LightDepth_Debug1";
     inline constexpr const wchar_t* LightDepthDebug2 = L"Target_LightDepth_Debug2";
     inline constexpr const wchar_t* LightDepthDebug3 = L"Target_LightDepth_Debug3";
+    inline constexpr const wchar_t* FroxelDebug = L"Target_FroxelDebug";
 #endif
 
     inline constexpr const wchar_t* HDRColor = L"Target_HDRColor";
@@ -63,6 +64,9 @@ namespace MRT
     inline constexpr const wchar_t* BloomQuarterB = L"MRT_BloomQuarterB";
     inline constexpr const wchar_t* BloomEighthA = L"MRT_BloomEighthA";
     inline constexpr const wchar_t* BloomEighthB = L"MRT_BloomEighthB";
+#ifdef _DEBUG
+    inline constexpr const wchar_t* FroxelDebug = L"MRT_FroxelDebug";
+#endif
 }
 
 

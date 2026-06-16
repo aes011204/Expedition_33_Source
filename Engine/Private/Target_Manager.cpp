@@ -62,6 +62,9 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     CHECK_FAILED(Add_RenderTarget(RT::LightDepthDebug3,
         _shadowMapWidth, _shadowMapHeight,
         DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::FroxelDebug,
+        width, height,
+        DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 #endif
 
     // MRT_PostProcess
@@ -141,6 +144,7 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     CHECK_FAILED(Add_MRT(MRT::BloomEighthB, RT::BloomEighthB), E_FAIL);
 
 #ifdef _DEBUG
+    CHECK_FAILED(Add_MRT(MRT::FroxelDebug, RT::FroxelDebug), E_FAIL);
     // 전체 뷰포트의 1/4만 사용하여 디버그 렌더
     Initialize_Debug(width * 0.5f, height * 0.5f);
 #endif

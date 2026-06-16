@@ -24,6 +24,7 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view FogZone      = "FogZoneBuffer";
     inline constexpr ::string_view Water        = "WaterBuffer";
     inline constexpr ::string_view PlayerRender = "PlayerRenderBuffer";
+    inline constexpr ::string_view FroxelDebug = "FroxelDebugBuffer";
 
     inline constexpr ::array<::string_view, ETOI(ConstantBuffer::END)> Names =
     {
@@ -42,7 +43,8 @@ namespace Engine::ShaderCB
         FogZone,
         Water,
         LightShaft,
-        PlayerRender
+        PlayerRender,
+        FroxelDebug
     };
 }
 

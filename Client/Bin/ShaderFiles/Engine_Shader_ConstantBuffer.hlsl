@@ -307,4 +307,12 @@ cbuffer PlayerRenderBuffer
     // x: enabled, y: camera-space clip distance
 }
 
+cbuffer FroxelDebugBuffer
+{
+    uint g_FroxelDebugWidth;
+    uint g_FroxelDebugHeight;
+    uint g_FroxelDebugDepth;
+    uint g_FroxelDebugSlice;
+};
+
 #endif

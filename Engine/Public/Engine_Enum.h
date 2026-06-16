@@ -94,7 +94,8 @@ namespace Engine
         CombinedPreview = 5, // Preview에서는 그림자 계산 X
         SSAO,
         SSAOBlur,
-        Fog
+        Fog,
+        FroxelDebug
     };
 
     enum class PostProcessPass : uint8
@@ -154,6 +155,7 @@ namespace Engine
         Water           = 13,
         LightShaft      = 14,
         PlayerRender    = 15,
+        FroxelDebug     = 16,
 
         END
     };

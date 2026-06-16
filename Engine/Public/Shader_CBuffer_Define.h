@@ -387,6 +387,34 @@ struct alignas(16) PlayerRenderCB
     Vec4 nearClipParams{ 0.f, 0.f, 0.f, 0.f };
 };
 
+/* ------------------------------------------ */
+/*              Froxel CBuffer                */
+/* ------------------------------------------ */
+struct alignas(16) FroxelCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::FroxelDebug;
+
+    uint32_t froxelWidth;
+    uint32_t froxelHeight;
+    uint32_t froxelDepth;
+    float froxelNear;
+
+    float froxelFar;
+    Vec3 froxelPadding;
+
+    Matrix inverseProjection;
+};
+
+struct alignas(16) FroxelDebugCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::FroxelDebug;
+
+    uint32_t froxelDebugWidth;
+    uint32_t froxelDebugHeight;
+    uint32_t froxelDebugDepth;
+    uint32_t froxelDebugSlice;
+};
+
 // 패딩이 제대로 됐나 마지막 확인용 
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(HairCB) % 16 == 0);
@@ -404,6 +432,8 @@ static_assert(sizeof(ScreenFxCB) % 16 == 0);
 static_assert(sizeof(FogZoneCB) % 16 == 0);
 static_assert(sizeof(WaterCB) % 16 == 0);
 static_assert(sizeof(PlayerRenderCB) % 16 == 0);
+static_assert(sizeof(FroxelCB) % 16 == 0);
+static_assert(sizeof(FroxelDebugCB) % 16 == 0);
 
 NS_END
 

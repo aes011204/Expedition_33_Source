@@ -1939,10 +1939,6 @@ void Renderer::Add_DebugRenderGroup(Shared<Component> debugComponent)
 
 void Renderer::Render_Debug()
 {
-    // TODO : Component 에 해당 함수 추가 후 작성
-    //for (auto& debugCom : _debugComponents)
-    //    debugCom->Render_Debug();
-
     if (GAME->Get_ActiveCamera() == nullptr)
         return;
 
@@ -1961,7 +1957,52 @@ void Renderer::Render_Debug()
         CHECK_FAILED(Bind_ScreenSpaceCB(_deferredShader));
     }
 
+    if (_lightingPipeline)
+    {
+        const auto& rtStates = GAME->Get_RTs();
+        const auto froxelDebugIter = rtStates.find(RT::FroxelDebug);
+        const bool showFroxelDebug = froxelDebugIter != rtStates.end() && froxelDebugIter->second;
+        
+        // 3D 텍스쳐인 froxel debug는 별도 처리
+        if (showFroxelDebug && _deferredShader && _viBuffer)
+        {
+            FroxelCB froxelCB{};
+            froxelCB.froxelWidth = _lightingPipeline->Get_DebugFroxelWidth();
+            froxelCB.froxelHeight = _lightingPipeline->Get_DebugFroxelHeight();
+            froxelCB.froxelDepth = _lightingPipeline->Get_DebugFroxelDepth();
+            froxelCB.froxelPadding = 0.f;
+
+            CHECK_FAILED(_lightingPipeline->Update_Froxel(froxelCB));
+            CHECK_FAILED(_lightingPipeline->Dispatch_Froxel());
+
+            CHECK_FAILED(GAME->Begin_MRT(MRT::FroxelDebug, NotUseDSV, ClearRTV));
+
+            const FroxelDebugCB froxelDebugCB
+            {
+                _lightingPipeline->Get_DebugFroxelWidth(),
+                _lightingPipeline->Get_DebugFroxelHeight(),
+                _lightingPipeline->Get_DebugFroxelDepth(),
+                _lightingPipeline->Get_DebugFroxelSlice()
+            };
+
+            if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)) ||
+                FAILED(Bind_ScreenSpaceCB(_deferredShader)) ||
+                FAILED(_deferredShader->Bind_CBufferData(froxelDebugCB)) ||
+                FAILED(_deferredShader->Bind_SRV("g_FroxelTexture", _lightingPipeline->Get_DebugFroxelSRV())) ||
+                FAILED(_viBuffer->Bind_Resources()) ||
+                FAILED(_deferredShader->Begin(ETOI(DeferredPass::FroxelDebug))) || /* 별도의 디버그 패스 */
+                FAILED(_viBuffer->Render()))
+            {
+                GAME->End_MRT();
+                return;
+            }
+
+            CHECK_FAILED(GAME->End_MRT());
+        }
+    }
+
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
+
     Add_RenderCall();
 }
 
