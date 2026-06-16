@@ -307,7 +307,8 @@ void MEManager::RenderDockSpace()
                             string mapName = entry.path().filename().string();
                             if (ImGui::MenuItem(mapName.c_str()))
                             {
-                                _ctx->Import_MapInstance(mapName);
+                                _pendingImportMapName = mapName;
+                                _confirmImportOpen = true;
                             }
                         }
                     }
@@ -378,6 +379,29 @@ void MEManager::RenderDockSpace()
         ImGui::EndPopup();
     }
 
+    if (_confirmImportOpen)
+    {
+        ImGui::OpenPopup("맵 인스턴스 불러오기");
+    }
+
+    if (ImGui::BeginPopupModal("맵 인스턴스 불러오기", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("\"%s\" 을(를) 불러옵니다. 현재 작업 중인 내용은 저장하지 않으면 사라질 수 있습니다.", _pendingImportMapName.c_str());
+        ImGui::Separator();
+        if (ImGui::Button("불러오기", ImVec2(120, 0)))
+        {
+            _ctx->Import_MapInstance(_pendingImportMapName);
+            _confirmImportOpen = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("취소", ImVec2(120, 0)))
+        {
+            _confirmImportOpen = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 
     ImGui::End();
 }

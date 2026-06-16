@@ -40,6 +40,9 @@ private:
     bool _exportPopupOpen = false;
     char _exportNameBuf[256] = {};
 
+    bool _confirmImportOpen = false;
+    string _pendingImportMapName;
+
 public:
     void AddWindow(Shared<MEWindow> w);
 

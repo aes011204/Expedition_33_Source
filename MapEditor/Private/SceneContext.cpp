@@ -1708,6 +1708,30 @@ void SceneContext::ScatterAt(EditorObject* obj, const ScatterZone& zone)
     _dirtyRenderHandles = true;
 }
 
+void SceneContext::EraseAt(EditorObject* obj, float radius, const Vec3& center)
+{
+    if (!obj || obj->_type != EObjectType::InstancedMesh)
+    {
+        return;
+    }
+
+    const float radiusSq = radius * radius;
+
+    auto& transforms = obj->_instancedTransforms;
+    transforms.erase(
+        remove_if(transforms.begin(), transforms.end(),
+            [&](const InstanceTransform& t)
+            {
+                float dx = t._position.x - center.x;
+                float dz = t._position.z - center.z;
+                return (dx * dx + dz * dz) <= radiusSq;
+            }),
+        transforms.end());
+
+    obj->_instancedParamsDirty = true;
+    _dirtyRenderHandles = true;
+}
+
 void SceneContext::Export_MapInstance(const string& mapName)
 {
     if (mapName.empty() || mapName == "MapInstance")
@@ -1817,7 +1841,7 @@ void SceneContext::Export_MapInstance(const string& mapName)
         if (obj->_instancedHasCollision && !obj->_instancedModelPath.empty())
         {
             instancedCollisionModels[obj->_instancedModelPath] =
-                obj->_instancedRenderHandle ? obj->_instancedRenderHandle->GetModel() : nullptr;
+                obj->_instancedChunkHandles.empty() ? nullptr : obj->_instancedChunkHandles[0]->GetModel();
         }
     }
     Ensure_StaticModelCollisionBinaries(instancedCollisionModels);
@@ -1833,7 +1857,7 @@ void SceneContext::Export_MapInstance(const string& mapName)
         }
         else if (obj->_type == EObjectType::InstancedMesh && !obj->_instancedModelPath.empty())
         {
-            uniqueModels[obj->_instancedModelPath] = obj->_instancedRenderHandle ? obj->_instancedRenderHandle->GetModel() : nullptr;
+            uniqueModels[obj->_instancedModelPath] = obj->_instancedChunkHandles.empty() ? nullptr : obj->_instancedChunkHandles[0]->GetModel();
         }
     }
 

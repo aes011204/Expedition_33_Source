@@ -23,6 +23,7 @@ public:
 public:
     Shared<ModelCom> GetModel() const { return _lodModels[0]; }
     Shared<ModelCom> GetLodModel(int lod) const { return _lodModels[lod]; }
+    uint32 Get_InstanceCount() const { return _instanceCount; }
 
     void Set_CameraFar(float camfar) { _cameraFar = camfar; }
     void Set_CullShader(Shared<ComputeShaderCom> shader) { _cullShader = shader; }

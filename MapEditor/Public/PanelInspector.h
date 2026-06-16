@@ -34,6 +34,8 @@ private:
     Shared<EditorObject> _editTarget;
 
     ScatterZone _pendingZone = {};
+    float _eraseRadius = 10.f;
+    Vec3 _eraseCenter = {};
 
 private:
     void DrawTransform(Shared<EditorObject>& obj);

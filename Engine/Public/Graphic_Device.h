@@ -28,7 +28,6 @@ public:
 
     ComPtr<IDXGISwapChain> Get_SwapChain() const { return _swapChain; }
 
-
 private:
 	ComPtr<Device>              _device = nullptr;
 	ComPtr<Context>             _deviceContext = nullptr;
