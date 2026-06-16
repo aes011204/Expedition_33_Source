@@ -182,7 +182,9 @@ void Renderer::Draw()
 
     // fog
     Render_Fog();
-    //
+
+    // 하 짜증나죽겠네ㅐ 진짜 좀 
+    Render_VolumetricLightShaft();
 
     // ========================================= //
     Render_NonLight();
@@ -753,6 +755,39 @@ void Renderer::Render_Fog()
 
     GAME->End_MRT();
     Add_RenderCall();
+}
+
+void Renderer::Render_VolumetricLightShaft()
+{
+    if (!_lightingPipeline)
+        return ;
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const Matrix* inverseProjection = GAME->Get_Transform_Inverse(D3DTS::Proj);
+
+    if (activeCamera == nullptr || inverseProjection == nullptr)
+        return ;
+
+    FroxelCB froxelCB{};
+    froxelCB.froxelWidth = _lightingPipeline->Get_DebugFroxelWidth();
+    froxelCB.froxelHeight = _lightingPipeline->Get_DebugFroxelHeight();
+    froxelCB.froxelDepth = _lightingPipeline->Get_DebugFroxelDepth();
+    froxelCB.froxelNear = activeCamera->Get_Near();
+    froxelCB.froxelFar = 100.f;
+    froxelCB.inverseProjection = *inverseProjection;
+    froxelCB.froxelPadding = Vec3(0.f, 0.f, 0.f);
+
+    if(FAILED(_lightingPipeline->Update_Froxel(froxelCB)))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Update_Froxel");
+        return;
+    }
+
+    if(FAILED(_lightingPipeline->Dispatch_Froxel()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_Froxel");
+        return;
+    }
 }
 
 void Renderer::Render_NonLight()
@@ -1957,24 +1992,15 @@ void Renderer::Render_Debug()
         CHECK_FAILED(Bind_ScreenSpaceCB(_deferredShader));
     }
 
-    if (_lightingPipeline)
+    if (_lightingPipeline && _deferredShader && _viBuffer)
     {
         const auto& rtStates = GAME->Get_RTs();
         const auto froxelDebugIter = rtStates.find(RT::FroxelDebug);
         const bool showFroxelDebug = froxelDebugIter != rtStates.end() && froxelDebugIter->second;
-        
+
         // 3D 텍스쳐인 froxel debug는 별도 처리
-        if (showFroxelDebug && _deferredShader && _viBuffer)
+        if (showFroxelDebug)
         {
-            FroxelCB froxelCB{};
-            froxelCB.froxelWidth = _lightingPipeline->Get_DebugFroxelWidth();
-            froxelCB.froxelHeight = _lightingPipeline->Get_DebugFroxelHeight();
-            froxelCB.froxelDepth = _lightingPipeline->Get_DebugFroxelDepth();
-            froxelCB.froxelPadding = 0.f;
-
-            CHECK_FAILED(_lightingPipeline->Update_Froxel(froxelCB));
-            CHECK_FAILED(_lightingPipeline->Dispatch_Froxel());
-
             CHECK_FAILED(GAME->Begin_MRT(MRT::FroxelDebug, NotUseDSV, ClearRTV));
 
             const FroxelDebugCB froxelDebugCB
@@ -1998,6 +2024,7 @@ void Renderer::Render_Debug()
             }
 
             CHECK_FAILED(GAME->End_MRT());
+            CHECK_FAILED(_deferredShader->Bind_SRV("g_FroxelTexture", nullptr));
         }
     }
 

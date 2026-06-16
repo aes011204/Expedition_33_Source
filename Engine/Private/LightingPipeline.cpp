@@ -191,7 +191,6 @@ HRESULT LightingPipeline::Ready_FroxelBuffer()
     return S_OK;
 }
 
-#ifdef _DEBUG
 void LightingPipeline::Set_DebugFroxelSlice(uint32 debugSlice)
 {
     _froxelDebugSlice = min(debugSlice, _froxelDepth > 0u ? (_froxelDepth - 1u) : 0u);
@@ -201,7 +200,6 @@ uint32 LightingPipeline::Get_DebugFroxelSlice() const
 {
     return _froxelDebugSlice;
 }
-#endif
 
 Shared<LightingPipeline> LightingPipeline::Create(ComPtr<Device> device, ComPtr<Context> context)
 {

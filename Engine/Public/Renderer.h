@@ -82,6 +82,7 @@ private:
 
     void Render_CombinedHDR();
     void Render_Fog();
+    void Render_VolumetricLightShaft();
     void Render_PostProcess();
     
 

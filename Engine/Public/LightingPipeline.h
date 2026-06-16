@@ -39,11 +39,8 @@ public:
     uint32 Get_DebugFroxelWidth() const;
     uint32 Get_DebugFroxelHeight() const;
     uint32 Get_DebugFroxelDepth() const;
-
-#ifdef _DEBUG
     void Set_DebugFroxelSlice(uint32 debugSlice);
     uint32 Get_DebugFroxelSlice() const;
-#endif
 
 private :
     HRESULT Ready_FroxelTexture();
@@ -68,9 +65,7 @@ private:
 
     ComPtr<ID3D11Buffer>                _froxelBuffer;
 
-#ifdef _DEBUG
     uint32                              _froxelDebugSlice = 0;
-#endif
 
 public:
     static Shared<LightingPipeline> Create(ComPtr<Device> device, ComPtr<Context> context);
