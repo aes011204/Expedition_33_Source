@@ -75,6 +75,8 @@ Emitter View에서 주로 하는 작업은 다음과 같다.
 
 새 Emitter, TypeData, Module 추가는 Emitter View의 우클릭 메뉴에서 진입한다. Emitter column의 header나 빈 tail 영역을 우클릭하면 Emitter 단위 메뉴가 열리고, 여기서 `파티클 시스템`, `타입 데이터`, `모듈` 하위 메뉴를 사용할 수 있다. `타입 데이터` row를 우클릭하면 TypeData 추가/초기화/제거 메뉴가 바로 열리고, `모듈 > 새 모듈`을 선택하면 Module picker가 열린다.
 
+복사/붙여넣기는 선택한 row에 따라 의미가 다르다. Emitter header에서는 Emitter 단위 붙여넣기를 사용하고, Module row에서는 `모듈 붙여넣기`와 `값 붙여넣기`를 구분한다. `모듈 붙여넣기`는 새 Module row를 추가하는 동작이고, `값 붙여넣기`는 같은 타입 Module의 payload를 현재 row에 덮어쓰는 동작이다.
+
 새 Emitter는 비어 있는 board 영역이나 Emitter View의 관련 메뉴에서 추가한다.
 
 ![새 Emitter 메뉴](UserGuide_Img/emitter_view_new_emitter_menu.png)
@@ -360,6 +362,8 @@ Source History Ribbon은 다음 source mode를 중심으로 이해한다.
 UI나 이전 저장 데이터에는 legacy 의미의 SourceEmitter 표현이 남아 있을 수 있지만, 현재 Save/Open 흐름에서는 SelfRoot 또는 ParticleEmitter로 정리해서 보는 것이 좋다.
 
 ParticleEmitter source를 쓸 때는 source Emitter가 실제 particle 위치 history를 제공할 수 있어야 한다. source가 없거나 disabled 상태라면 ribbon이 기대한 위치를 따라가지 않을 수 있다.
+
+Source History Ribbon의 history는 source가 계속 제공되는 동안 이어지는 흐름으로 이해한다. `Required.duration`은 material/SubUV 같은 반복 phase의 기준이 될 수 있지만, source가 살아 있는 ribbon history를 주기적으로 끊는 기준으로 보지 않는다. source가 끊기면 새 sample 공급만 멈추고, 남아 있는 history는 sample lifetime과 tail 정책에 따라 자연스럽게 사라진다.
 
 `고급`의 `곡선 품질`은 source history path를 얼마나 촘촘하고 부드럽게 render sample로 재구성할지 정한다. `고품질`은 꺾인 source path를 더 부드럽게 만들지만 follower 수가 많으면 preview 비용이 늘 수 있다.
 
@@ -1045,12 +1049,14 @@ Detail View의 `트레일 프리뷰` 영역에서는 다음 값을 조정한다.
 
 - `트레일 프리뷰`: preview object 표시 여부.
 - `디버그 렌더`: base/tip marker와 보조 line 표시 여부.
+- `프리뷰 속도`: editor preview fixture의 재생 속도.
 - `Base 로컬`: Trail base sample의 weapon-local offset.
 - `Tip 로컬`: Trail tip sample의 weapon-local offset.
+- `Source 로컬`: Source History Sprite Trail source sample의 local offset.
 - `활성 방식`: sample을 항상 받을지, Play 타임라인 구간에서만 받을지.
 - `시작 비율` / `종료 비율`: Window 방식일 때 sample을 받는 구간.
 
-이 값들은 Trail authoring을 위한 editor session 상태다. Trail TypeData의 저장 schema나 gameplay trail runtime contract와 혼동하지 않는다.
+Trail과 Source History Sprite Trail은 같은 preview fixture를 보지만 sample gate는 따로 조정할 수 있다. 이 값들은 Trail authoring을 위한 editor session 상태다. Trail TypeData의 저장 schema나 gameplay trail runtime contract와 혼동하지 않는다.
 
 ### 9.2 Preview Plane
 
@@ -1199,6 +1205,8 @@ Preview playback은 다음 용도로 사용한다.
 - SubUV playback 확인.
 - Trail sample이 쌓이는 타이밍 확인.
 - Beam/Ribbon strip 변화 확인.
+
+Scene View의 viewport 크기 모드는 preview 관측용이다. `Manual`을 누르면 수동 viewport 크기 입력으로 전환되며 기본값은 1600 x 900이다. 이 값은 화면에서 effect framing을 확인하기 위한 editor setting이고 saved effect asset에 포함되지 않는다.
 
 ### 11.2 Restart Preview
 

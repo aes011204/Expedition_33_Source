@@ -1138,7 +1138,7 @@ void MeshDataPreview_View::Render_Inspector(Emitter_View& emitterView, Authoring
     const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView.Capture_AuthoringSnapshot();
 
     ImGui::TextUnformatted("MeshData");
-    ImGui::TextDisabled("Model asset and assigned material instance are stored in this MeshData.");
+    ImGui::TextDisabled("Model asset reference and embedded material copy are stored in this MeshData.");
     ImGui::Separator();
 
     changed |= Render_ModelAssetSection(meshData);
@@ -1165,7 +1165,10 @@ bool MeshDataPreview_View::Render_ModelAssetSection(MeshTypeData& meshData)
     {
         if (_detailPropertyContext.Begin_PropertyTable("MeshDataPreviewModelAsset"))
         {
-            _detailPropertyContext.Draw_PropertyLabel("Model Asset");
+            _detailPropertyContext.Draw_PropertyLabel(
+                "Model Asset",
+                "이 MeshData가 참조하는 model asset 정본입니다. preview와 runtime mesh emitter가 이 모델을 기준으로 그립니다."
+            );
             changed |= Internal::Draw_AssetDropSlot(
                 "MeshModelSlot",
                 "Model Asset",
@@ -1206,7 +1209,10 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
     {
         if (_detailPropertyContext.Begin_PropertyTable("MeshDataPreviewMaterialAsset"))
         {
-            _detailPropertyContext.Draw_PropertyLabel("Source Material");
+            _detailPropertyContext.Draw_PropertyLabel(
+                "Source Material",
+                "Embedded material copy를 만들 때 읽어오는 .effectmaterial 원본 preset입니다. 이후 세부 편집은 MeshData 내부 copy에 저장됩니다."
+            );
             changed |= Internal::Draw_AssetDropSlot(
                 "MeshAssignedMaterialSlot",
                 "Source Material",
@@ -1237,7 +1243,7 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
             _detailPropertyContext.End_PropertyTable();
         }
 
-        ImGui::TextDisabled("Embedded material copy");
+        ImGui::TextDisabled("Embedded material copy: emitter-local material instance stored inside this MeshData.");
         if (ImGui::Button("Reset Copy From Source"))
         {
             const fs::path materialPath = Resolve_AuthoredAssetPath(
@@ -1249,7 +1255,7 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
                 meshData.hasAssignedMaterialInstance = true;
         }
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("원본 .effectmaterial 파일을 다시 읽어 MeshData 내부 material copy를 덮어씁니다.");
+            ImGui::SetTooltip("Source Material 파일을 다시 읽어 MeshData 내부 material copy를 덮어씁니다. 기존 embedded 편집값은 사라집니다.");
 
         if (!meshData.hasAssignedMaterialInstance)
             ImGui::TextDisabled("No embedded material copy yet. Assign or reset from source to edit values.");
@@ -1265,12 +1271,19 @@ bool MeshDataPreview_View::Render_TransformSection(MeshTypeData& meshData)
         const MeshTypeData defaultData{};
         if (_detailPropertyContext.Begin_PropertyTable("MeshDataPreviewTransform"))
         {
-            changed |= _detailPropertyContext.Draw_Vec3Property("Preview Scale", meshData.previewScale, defaultData.previewScale);
+            changed |= _detailPropertyContext.Draw_Vec3Property(
+                "Preview Scale",
+                meshData.previewScale,
+                defaultData.previewScale,
+                0.01f,
+                nullptr,
+                "MeshData Preview 표시와 mesh emitter 기준 크기에 쓰는 저장 authoring 값입니다. 모델 파일 자체의 transform을 수정하지 않습니다."
+            );
             changed |= _detailPropertyContext.Draw_BoolProperty(
                 "Use Model Materials",
                 meshData.useModelMaterials,
                 defaultData.useModelMaterials,
-                "Debug fallback입니다. 기본 authoring은 MeshData material copy를 model material slot에 override합니다."
+                "Debug fallback입니다. 켜면 model 원본 material을 우선 확인하고, 기본 authoring은 MeshData material copy를 slot override로 사용합니다."
             );
             _detailPropertyContext.End_PropertyTable();
         }
@@ -1317,7 +1330,7 @@ void MeshDataPreview_View::Render_ValidationSummary(const MeshTypeData& meshData
     else if (String::ToLowerCopy(modelPath.extension().string()) != ".model")
         ImGui::TextColored(ImVec4{ 1.f, 0.35f, 0.35f, 1.f }, "Unsupported model extension.");
     else
-        ImGui::TextColored(ImVec4{ 0.45f, 0.9f, 0.55f, 1.f }, "Model asset is valid for static preview.");
+        ImGui::TextColored(ImVec4{ 0.45f, 0.9f, 0.55f, 1.f }, "Model asset is valid for static preview and MeshData authoring.");
 
     const fs::path materialPath = Resolve_AuthoredAssetPath(
         meshData.assignedEffectMaterialGuid,
@@ -1328,7 +1341,7 @@ void MeshDataPreview_View::Render_ValidationSummary(const MeshTypeData& meshData
     else if (!fs::exists(materialPath))
         ImGui::TextColored(ImVec4{ 1.f, 0.55f, 0.25f, 1.f }, "Material missing: %s", Internal::To_DisplayPath(materialPath).c_str());
     else
-        ImGui::TextColored(ImVec4{ 0.45f, 0.9f, 0.55f, 1.f }, "Assigned effect material source is readable.");
+        ImGui::TextColored(ImVec4{ 0.45f, 0.9f, 0.55f, 1.f }, "Assigned effect material source is readable for copy/reset.");
 
     if (meshData.hasAssignedMaterialInstance)
         ImGui::TextColored(ImVec4{ 0.45f, 0.9f, 0.55f, 1.f }, "MeshData material instance copy is editable.");
