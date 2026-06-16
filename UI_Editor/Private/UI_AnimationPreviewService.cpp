@@ -524,6 +524,9 @@ namespace UIEditor
         sample.color = object.color;
         sample.alphaMultiplier = object.alphaMultiplier;
         sample.fontSize = object.fontSize;
+        sample.patternUvOffset = object.patternUvOffset;
+        sample.patternUvScale = object.patternUvScale;
+        sample.fillRatio = object.fillRatio;
 
         bool hasSampledTrack = false;
         const bool useRelativeTracks = Is_PublicAnimation(asset);
@@ -555,6 +558,28 @@ namespace UIEditor
                 sample.size = useRelativeTracks
                     ? ImVec2(object.size.x + value.x, object.size.y + value.y)
                     : value;
+                hasSampledTrack = true;
+                continue;
+            }
+
+            if (track.type == UI_AnimationKeyframeTrackType::PatternUvOffset ||
+                track.type == UI_AnimationKeyframeTrackType::PatternUvScale)
+            {
+                bool hasVec2Value = false;
+                const ImVec2 value = Evaluate_Vec2Keyframes(track, frame, hasVec2Value);
+                if (!hasVec2Value)
+                    continue;
+
+                if (track.type == UI_AnimationKeyframeTrackType::PatternUvOffset)
+                {
+                    sample.hasPatternUvOffset = true;
+                    sample.patternUvOffset = value;
+                }
+                else
+                {
+                    sample.hasPatternUvScale = true;
+                    sample.patternUvScale = value;
+                }
                 hasSampledTrack = true;
                 continue;
             }
@@ -592,6 +617,10 @@ namespace UIEditor
             case UI_AnimationKeyframeTrackType::FontSize:
                 sample.hasFontSize = true;
                 sample.fontSize = value;
+                break;
+            case UI_AnimationKeyframeTrackType::FillRatio:
+                sample.hasFillRatio = true;
+                sample.fillRatio = value;
                 break;
             default:
                 break;

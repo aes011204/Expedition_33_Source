@@ -813,6 +813,10 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_MeshSizeByLifeModule();
     case AuthoringModuleType::SpawnPerUnit:
         return Make_SpawnPerUnitModule();
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        return Make_SourceHistorySpriteTrailPathFollowModule();
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        return Make_SourceHistorySpriteTrailPathReplayModule();
     case AuthoringModuleType::MaterialScalarModulation:
         return Make_MaterialScalarModulationModule();
     }
@@ -1161,6 +1165,28 @@ AuthoringModule Emitter_View::Make_SpawnPerUnitModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_SourceHistorySpriteTrailPathFollowModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SourceHistorySpriteTrailPathFollow;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SourceHistorySpriteTrailPathFollowModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SourceHistorySpriteTrailPathReplayModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SourceHistorySpriteTrailPathReplay;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SourceHistorySpriteTrailPathReplayModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_MaterialScalarModulationModule()
 {
     AuthoringModule module{};
@@ -1185,7 +1211,7 @@ bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModu
 
 bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const
 {
-    if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
+    if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
     {
         switch (type)
         {
@@ -1201,6 +1227,40 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
             return false;
         }
     }
+
+    if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+    {
+        switch (type)
+        {
+        case AuthoringModuleType::Required:
+        case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialSize:
+        case AuthoringModuleType::InitialVelocity:
+        case AuthoringModuleType::InitialRadialVelocity:
+        case AuthoringModuleType::VelocityCone:
+        case AuthoringModuleType::Acceleration:
+        case AuthoringModuleType::Drag:
+        case AuthoringModuleType::VelocityOverLife:
+        case AuthoringModuleType::InitialRotation:
+        case AuthoringModuleType::RotationOverLife:
+        case AuthoringModuleType::InitialRotationRate:
+        case AuthoringModuleType::RotationRateScaleByLife:
+        case AuthoringModuleType::InitialColor:
+        case AuthoringModuleType::ColorOverLife:
+        case AuthoringModuleType::SubUVFrameOverLife:
+        case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        case AuthoringModuleType::MaterialScalarModulation:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    const AuthoringModuleMetadata& metadata = Get_AuthoringModuleMetadata(type);
+    if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
+        return metadata.supportsBeam;
 
     if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
     {
@@ -1220,6 +1280,9 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
 
     switch (type)
     {
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        return emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
@@ -1232,7 +1295,6 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         break;
     }
 
-    const AuthoringModuleMetadata& metadata = Get_AuthoringModuleMetadata(type);
     if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
         return metadata.supportsTrail;
 
@@ -1276,7 +1338,15 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SizeByLife:
     case AuthoringModuleType::MeshSizeByLife:
     case AuthoringModuleType::SpawnPerUnit:
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
     case AuthoringModuleType::MaterialScalarModulation:
+        if (type == AuthoringModuleType::SourceHistorySpriteTrailPathFollow &&
+            Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay))
+            return false;
+        if (type == AuthoringModuleType::SourceHistorySpriteTrailPathReplay &&
+            Has_ModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathFollow))
+            return false;
         return Is_ModuleCompatibleWithEmitter(emitter, type) && !Has_ModuleType(emitter, type);
 
     default:
@@ -1382,6 +1452,12 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SpawnPerUnit:
         module = Make_SpawnPerUnitModule();
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        module = Make_SourceHistorySpriteTrailPathFollowModule();
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        module = Make_SourceHistorySpriteTrailPathReplayModule();
         break;
     case AuthoringModuleType::MaterialScalarModulation:
         module = Make_MaterialScalarModulationModule();
@@ -1537,10 +1613,9 @@ bool Emitter_View::Can_PasteModuleValues(size_t emitterIndex, size_t moduleIndex
         return false;
     }
 
-    if (targetModule.type == AuthoringModuleType::Required ||
-        targetModule.type == AuthoringModuleType::Spawn)
+    if (targetModule.type == AuthoringModuleType::Spawn)
     {
-        set_reason("이 모듈 값 붙여넣기는 이번 v1 범위에서 지원하지 않습니다.");
+        set_reason("Spawn 모듈 값 붙여넣기는 이번 범위에서 지원하지 않습니다.");
         return false;
     }
 
@@ -1598,6 +1673,7 @@ void Emitter_View::Paste_ModuleValues(size_t emitterIndex, size_t moduleIndex)
     AuthoringEmitter& emitter = _emitters[emitterIndex];
     AuthoringModule& targetModule = emitter.modules[moduleIndex];
     targetModule.data = _clipboardModule.value().data;
+    Sync_EmitterMirror(emitter);
     emitter.previewDirty = true;
     _selectedEmitterIndex = emitterIndex;
     _selectedTypeData = false;
@@ -1642,6 +1718,45 @@ void Emitter_View::Handle_Shortcuts()
         else
             Notify_ClipboardStatus("이미터 또는 모듈을 선택한 상태에서 복사할 수 있습니다.", true);
 
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+    {
+        if (!_selectedEmitterIndex.has_value())
+        {
+            Notify_ClipboardStatus("삭제할 이미터, 타입 데이터 또는 모듈을 선택해야 합니다.", true);
+            return;
+        }
+
+        const size_t emitterIndex = _selectedEmitterIndex.value();
+        if (_selectedTypeData)
+        {
+            Queue_TypeDataAction(PendingTypeDataAction::Remove, emitterIndex);
+            return;
+        }
+
+        if (_selectedModuleIndex.has_value())
+        {
+            const size_t moduleIndex = _selectedModuleIndex.value();
+            if (emitterIndex >= _emitters.size() || moduleIndex >= _emitters[emitterIndex].modules.size())
+            {
+                Notify_ClipboardStatus("삭제할 모듈 선택이 유효하지 않습니다.", true);
+                return;
+            }
+
+            const AuthoringModule& module = _emitters[emitterIndex].modules[moduleIndex];
+            if (!module.removable)
+            {
+                Notify_ClipboardStatus("이 모듈은 삭제할 수 없습니다.", true);
+                return;
+            }
+
+            Queue_ModuleAction(PendingModuleAction::Delete, emitterIndex, moduleIndex);
+            return;
+        }
+
+        Queue_EmitterAction(PendingEmitterAction::Delete, emitterIndex);
         return;
     }
 
@@ -2276,6 +2391,12 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     case AuthoringModuleType::SpawnPerUnit:
         module.data = SpawnPerUnitModuleData{};
         break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
+        module.data = SourceHistorySpriteTrailPathFollowModuleData{};
+        break;
+    case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
+        module.data = SourceHistorySpriteTrailPathReplayModuleData{};
+        break;
     case AuthoringModuleType::MaterialScalarModulation:
         module.data = MaterialScalarModulationModuleData{};
         break;
@@ -2298,32 +2419,58 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
     switch (action)
     {
     case PendingTypeDataAction::AddTrail:
+    {
         emitter.typeData.kind = AuthoringTypeDataKind::Trail;
         emitter.typeData.payload = TrailTypeData{};
         break;
+    }
     case PendingTypeDataAction::AddMesh:
+    {
         emitter.typeData.kind = AuthoringTypeDataKind::Mesh;
         emitter.typeData.payload = MeshTypeData{};
         break;
-    case PendingTypeDataAction::AddSourceHistoryRibbon:
-        emitter.typeData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
-        emitter.typeData.payload = SourceHistoryRibbonTypeData{};
+    }
+    case PendingTypeDataAction::AddRibbon:
+    {
+        emitter.typeData.kind = AuthoringTypeDataKind::Ribbon;
+        emitter.typeData.payload = RibbonTypeData{};
         break;
+    }
+    case PendingTypeDataAction::AddSourceHistorySpriteTrail:
+    {
+        emitter.typeData.kind = AuthoringTypeDataKind::SourceHistorySpriteTrail;
+        emitter.typeData.payload = SourceHistorySpriteTrailTypeData{};
+        break;
+    }
+    case PendingTypeDataAction::AddBeam:
+    {
+        emitter.typeData.kind = AuthoringTypeDataKind::Beam;
+        emitter.typeData.payload = BeamTypeData{};
+        break;
+    }
     case PendingTypeDataAction::ResetData:
+    {
         if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             emitter.typeData.payload = MeshTypeData{};
-        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
-            emitter.typeData.payload = SourceHistoryRibbonTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+            emitter.typeData.payload = RibbonTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            emitter.typeData.payload = SourceHistorySpriteTrailTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
+            emitter.typeData.payload = BeamTypeData{};
         else
         {
             emitter.typeData.kind = AuthoringTypeDataKind::Trail;
             emitter.typeData.payload = TrailTypeData{};
         }
         break;
+    }
     case PendingTypeDataAction::Remove:
+    {
         emitter.typeData.kind = AuthoringTypeDataKind::None;
         emitter.typeData.payload = EmptyTypeData{};
         break;
+    }
     case PendingTypeDataAction::None:
     default:
         return;
@@ -2348,18 +2495,31 @@ void Emitter_View::Process_PendingTypeDataAction()
     case PendingTypeDataAction::AddTrail:
         description = "Add Trail TypeData";
         break;
+
     case PendingTypeDataAction::AddMesh:
         description = "Add Mesh TypeData";
         break;
-    case PendingTypeDataAction::AddSourceHistoryRibbon:
+
+    case PendingTypeDataAction::AddRibbon:
         description = "Add Ribbon TypeData";
         break;
+
+    case PendingTypeDataAction::AddSourceHistorySpriteTrail:
+        description = "Add Source History Sprite Trail TypeData";
+        break;
+
+    case PendingTypeDataAction::AddBeam:
+        description = "Add Beam TypeData";
+        break;
+
     case PendingTypeDataAction::ResetData:
         description = "Reset TypeData";
         break;
+
     case PendingTypeDataAction::Remove:
         description = "Remove TypeData";
         break;
+
     case PendingTypeDataAction::None:
     default:
         break;
@@ -2420,24 +2580,27 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         AuthoringModuleType moduleType,
         bool implemented,
         bool canAdd,
-        string disabledReason)
+        string incompatibleText)
     {
         ModulePickerEntry entry{};
         entry.moduleType = moduleType;
         entry.displayName = Get_AuthoringModuleMetadata(moduleType).displayName;
-        entry.disabledReason = std::move(disabledReason);
         entry.implemented = implemented;
         entry.compatible = Is_ModuleCompatibleWithEmitter(emitter, moduleType);
+        entry.alreadyAdded = Has_ModuleType(emitter, moduleType);
         entry.canAdd = canAdd;
 
-        if (!entry.compatible)
-            entry.stateText = disabledReason == "이미 장착됨" ? "현재 TypeData와 비호환" : disabledReason;
-        else if (canAdd)
-            entry.stateText = "추가 가능";
-        else if (implemented)
+        if (!entry.implemented)
+            entry.stateText = "미구현";
+        else if (!entry.compatible)
+        {
+            entry.stateText = incompatibleText.empty() ? "현재 TypeData와 비호환" : std::move(incompatibleText);
+            entry.tooltipText = "현재 emitter TypeData에서는 이 모듈이 preview/runtime 입력으로 소비되지 않습니다.";
+        }
+        else if (entry.alreadyAdded)
             entry.stateText = "이미 장착됨";
         else
-            entry.stateText = "미구현";
+            entry.stateText = "추가 가능";
 
         return entry;
     };
@@ -2448,7 +2611,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::Lifetime,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Lifetime),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2456,7 +2619,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialSize,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2472,7 +2635,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialLocation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialLocation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2480,7 +2643,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SphereLocation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SphereLocation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2488,7 +2651,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::PlaneRadialLocation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::PlaneRadialLocation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2496,7 +2659,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialVelocity,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2504,7 +2667,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRadialVelocity,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2512,7 +2675,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::VelocityCone,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityCone),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2520,7 +2683,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::Acceleration,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Acceleration),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2528,7 +2691,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::Drag,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Drag),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2536,7 +2699,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::VelocityOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2544,7 +2707,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::OrbitOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::OrbitOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2552,7 +2715,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRotation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2560,7 +2723,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SphereRadialOrientation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SphereRadialOrientation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2568,7 +2731,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::PlaneRadialOrientation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::PlaneRadialOrientation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2576,7 +2739,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::RotationOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2584,7 +2747,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRotationRate,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotationRate),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2592,7 +2755,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::RotationRateScaleByLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationRateScaleByLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2632,7 +2795,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialColor,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialColor),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2640,7 +2803,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::ColorOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::ColorOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2648,7 +2811,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SubUVFrameOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2656,7 +2819,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SizeByLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2672,7 +2835,23 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SpawnPerUnit,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SpawnPerUnit),
-            "이미 장착됨"
+            ""
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SourceHistorySpriteTrailPathFollow,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathFollow),
+            "Sprite Trail TypeData 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SourceHistorySpriteTrailPathReplay,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SourceHistorySpriteTrailPathReplay),
+            "Sprite Trail TypeData 전용"
         )
     );
     entries.push_back(
@@ -2680,7 +2859,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::MaterialScalarModulation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::MaterialScalarModulation),
-            "이미 장착됨"
+            ""
         )
     );
 
@@ -2760,23 +2939,23 @@ void Emitter_View::Draw_ModulePickerPopup()
                 if (!entry.canAdd)
                     ImGui::BeginDisabled();
 
-                const bool useUnsupportedPickerColor = !entry.compatible && entry.canAdd;
+                const bool useUnsupportedPickerColor = !entry.compatible;
                 if (useUnsupportedPickerColor)
                     ImGui::PushStyleColor(ImGuiCol_Text, To_ImVec4(kEmitterUnsupportedModuleTextColor));
 
                 const bool picked = ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_SpanAllColumns);
-                const bool isModuleNameHovered = ImGui::IsItemHovered();
+                const bool isModuleNameHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
                 if (useUnsupportedPickerColor)
                     ImGui::PopStyleColor();
 
-                if (isModuleNameHovered && !entry.compatible)
-                    ImGui::SetTooltip("현재 emitter 타입에서는 이 모듈이 preview에 반영되지 않습니다.");
+                if (isModuleNameHovered && !entry.tooltipText.empty())
+                    ImGui::SetTooltip("%s", entry.tooltipText.c_str());
 
                 if (!entry.canAdd)
                     ImGui::EndDisabled();
 
                 ImGui::TableSetColumnIndex(1);
-                ImGui::TextDisabled("%s", entry.canAdd ? entry.stateText.c_str() : entry.disabledReason.c_str());
+                ImGui::TextDisabled("%s", entry.stateText.c_str());
 
                 if (!picked || !entry.canAdd || !entry.moduleType.has_value())
                     continue;
@@ -2912,8 +3091,12 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
             Queue_TypeDataAction(PendingTypeDataAction::AddTrail, emitterIndex);
         if (ImGui::MenuItem("Mesh TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
-        if (ImGui::MenuItem("리본 TypeData 추가"))
-            Queue_TypeDataAction(PendingTypeDataAction::AddSourceHistoryRibbon, emitterIndex);
+        if (ImGui::MenuItem("Ribbon TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddRibbon, emitterIndex);
+        if (ImGui::MenuItem("Sprite Trail TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddSourceHistorySpriteTrail, emitterIndex);
+        if (ImGui::MenuItem("Beam TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddBeam, emitterIndex);
         return;
     }
 
@@ -3199,12 +3382,23 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
         case AuthoringTypeDataKind::Trail:
             ImGui::TextUnformatted("트레일 데이터");
             break;
+
         case AuthoringTypeDataKind::Mesh:
             ImGui::TextUnformatted("메시 데이터");
             break;
-        case AuthoringTypeDataKind::SourceHistoryRibbon:
+
+        case AuthoringTypeDataKind::Ribbon:
             ImGui::TextUnformatted("리본 데이터");
             break;
+
+        case AuthoringTypeDataKind::SourceHistorySpriteTrail:
+            ImGui::TextUnformatted("스프라이트 트레일 데이터");
+            break;
+
+        case AuthoringTypeDataKind::Beam:
+            ImGui::TextUnformatted("빔 데이터");
+            break;
+
         case AuthoringTypeDataKind::None:
         default:
             ImGui::TextUnformatted("타입 데이터");

@@ -340,7 +340,11 @@ void EffectEditor_Manager::Render_DockSpace()
     dockSpaceSize.y = max(1.f, dockSpaceSize.y);
 
     const ImGuiID dockSpaceId = ImGui::GetID("EffectEditorDockSpaceId");
-    Build_DefaultDockLayout(dockSpaceId, dockSpaceSize);
+    _currentDockSpaceId = dockSpaceId;
+    if (_isSceneFocusModeActive)
+        Build_SceneFocusDockLayout(dockSpaceId, dockSpaceSize);
+    else
+        Build_DefaultDockLayout(dockSpaceId, dockSpaceSize);
     ImGui::DockSpace(dockSpaceId, ImVec2(0.f, 0.f), ImGuiDockNodeFlags_PassthruCentralNode);
 
     ImGui::End();
@@ -382,6 +386,23 @@ void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 d
     ImGui::DockBuilderFinish(dockSpaceId);
 }
 
+void EffectEditor_Manager::Build_SceneFocusDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize)
+{
+    if (_sceneFocusDockLayoutBuilt)
+        return;
+
+    _sceneFocusDockLayoutBuilt = true;
+    const Shared<Editor_Window> sceneWindow = Find_Window(L"Scene");
+    const char* sceneWindowName =
+        sceneWindow != nullptr ? sceneWindow->Get_ImGuiWindowName().c_str() : "Scene";
+
+    ImGui::DockBuilderRemoveNode(dockSpaceId);
+    ImGui::DockBuilderAddNode(dockSpaceId, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockSpaceId, dockSpaceSize);
+    ImGui::DockBuilderDockWindow(sceneWindowName, dockSpaceId);
+    ImGui::DockBuilderFinish(dockSpaceId);
+}
+
 void EffectEditor_Manager::Handle_Shortcuts()
 {
     const ImGuiIO& io = ImGui::GetIO();
@@ -402,7 +423,13 @@ void EffectEditor_Manager::Handle_Shortcuts()
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
-        Toggle_WindowPair(L"Console", L"Content Browser");
+        Toggle_SceneFocusMode();
+        return;
+    }
+
+    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_R, false))
+    {
+        EDITOR->Request_RestartPreview();
         return;
     }
 
@@ -493,6 +520,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
 
             draw_section_row("Playback / Runtime");
             draw_shortcut_row("F5", "Play / Resume");
+            draw_shortcut_row("R", "Restart Preview");
             draw_shortcut_row("F9", "Pause");
             draw_shortcut_row("Esc", "Stop");
             draw_shortcut_row("Shift +", "Time Scale Up");
@@ -502,7 +530,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Ctrl + O", "Open Effect");
             draw_shortcut_row("F8", "Switch Camera");
             draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
-            draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
+            draw_shortcut_row("Ctrl + Space", "Scene Focus Mode");
 
             draw_section_row("Hierarchy");
             draw_shortcut_row("Ctrl + C / V", "Copy / Paste Selected Object");
@@ -512,9 +540,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_section_row("이미터 편집");
             draw_shortcut_row("Ctrl + C", "선택한 이미터 또는 모듈 복사");
             draw_shortcut_row("Ctrl + V", "선택한 이미터 위치에 클립보드 붙여넣기");
-
-            draw_section_row("Scene Gizmo");
-            draw_shortcut_row("W E R", "Gizmo Mode");
+            draw_shortcut_row("Delete", "선택한 이미터, 타입 데이터 또는 모듈 삭제");
 
             draw_section_row("Camera");
             draw_shortcut_row("F", "Home Preview Camera");
@@ -598,6 +624,95 @@ void EffectEditor_Manager::Toggle_Window(const wstring& windowName)
         return;
 
     window->Set_Open(!window->Is_Open());
+}
+
+void EffectEditor_Manager::Toggle_SceneFocusMode()
+{
+    if (_isSceneFocusModeActive)
+    {
+        Exit_SceneFocusMode();
+        return;
+    }
+
+    Enter_SceneFocusMode();
+}
+
+void EffectEditor_Manager::Enter_SceneFocusMode()
+{
+    _sceneFocusWindowOpenSnapshot.clear();
+    for (const auto& [windowName, window] : _windows)
+    {
+        if (window == nullptr)
+            continue;
+
+        _sceneFocusWindowOpenSnapshot[windowName] = window->Is_Open();
+    }
+
+    size_t dockSettingsSize = 0;
+    const char* dockSettingsData = ImGui::SaveIniSettingsToMemory(&dockSettingsSize);
+    if (dockSettingsData != nullptr && dockSettingsSize > 0)
+        _sceneFocusDockSettingsSnapshot.assign(dockSettingsData, dockSettingsSize);
+    else
+        _sceneFocusDockSettingsSnapshot.clear();
+
+    _sceneFocusPreviewViewportSnapshot.mode = EDITOR->Get_PreviewViewportMode();
+    _sceneFocusPreviewViewportSnapshot.width = max(1u, GAME->Get_ViewportWidth());
+    _sceneFocusPreviewViewportSnapshot.height = max(1u, GAME->Get_ViewportHeight());
+
+    for (const auto& [windowName, window] : _windows)
+    {
+        if (window == nullptr)
+            continue;
+
+        window->Set_Open(windowName == L"Scene");
+    }
+
+    static constexpr uint32 kSceneFocusPreviewViewportWidth = 1600;
+    static constexpr uint32 kSceneFocusPreviewViewportHeight = 900;
+
+    EDITOR->Set_ManualPreviewViewportSize(
+        kSceneFocusPreviewViewportWidth,
+        kSceneFocusPreviewViewportHeight
+    );
+    EDITOR->Request_WindowFocus(EditorViewportTarget::Scene);
+    _sceneFocusDockLayoutBuilt = false;
+    _isSceneFocusModeActive = true;
+}
+
+void EffectEditor_Manager::Exit_SceneFocusMode()
+{
+    if (!_sceneFocusDockSettingsSnapshot.empty())
+        ImGui::LoadIniSettingsFromMemory(_sceneFocusDockSettingsSnapshot.c_str(), _sceneFocusDockSettingsSnapshot.size());
+
+    for (const auto& [windowName, wasOpen] : _sceneFocusWindowOpenSnapshot)
+    {
+        const Shared<Editor_Window> window = Find_Window(windowName);
+        if (window == nullptr)
+            continue;
+
+        window->Set_Open(wasOpen);
+    }
+
+    if (_sceneFocusPreviewViewportSnapshot.mode == PreviewViewportMode::Auto)
+    {
+        EDITOR->Enable_AutoPreviewViewport();
+        EDITOR->Request_PreviewViewportSize(
+            _sceneFocusPreviewViewportSnapshot.width,
+            _sceneFocusPreviewViewportSnapshot.height
+        );
+    }
+    else
+    {
+        EDITOR->Set_ManualPreviewViewportSize(
+            _sceneFocusPreviewViewportSnapshot.width,
+            _sceneFocusPreviewViewportSnapshot.height
+        );
+    }
+
+    _sceneFocusDockLayoutBuilt = false;
+    _sceneFocusDockSettingsSnapshot.clear();
+    _sceneFocusWindowOpenSnapshot.clear();
+    _isSceneFocusModeActive = false;
 }
 
 void EffectEditor_Manager::Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName)

@@ -11,6 +11,7 @@ NS_BEGIN(Client)
 inline float Evaluate_BattleCameraClipInterpolation(InterpolationMode interpolation, float t)
 {
     const float clampedT = std::clamp(t, 0.f, 1.f);
+    constexpr float kBackOvershoot = 1.70158f;
 
     switch (interpolation)
     {
@@ -24,6 +25,30 @@ inline float Evaluate_BattleCameraClipInterpolation(InterpolationMode interpolat
     {
         const float invT = 1.f - clampedT;
         return 1.f - invT * invT;
+    }
+    case InterpolationMode::EaseInStrong:
+        return clampedT * clampedT * clampedT;
+    case InterpolationMode::EaseOutStrong:
+    {
+        const float invT = 1.f - clampedT;
+        return 1.f - invT * invT * invT;
+    }
+    case InterpolationMode::EaseInOutStrong:
+        return clampedT < 0.5f
+            ? 4.f * clampedT * clampedT * clampedT
+            : 1.f - powf(-2.f * clampedT + 2.f, 3.f) * 0.5f;
+    case InterpolationMode::EaseInCubic:
+        return clampedT * clampedT * clampedT;
+    case InterpolationMode::EaseOutCubic:
+        return 1.f - powf(1.f - clampedT, 3.f);
+    case InterpolationMode::EaseInExpo:
+        return clampedT <= 0.f ? 0.f : powf(2.f, 10.f * clampedT - 10.f);
+    case InterpolationMode::EaseOutExpo:
+        return clampedT >= 1.f ? 1.f : 1.f - powf(2.f, -10.f * clampedT);
+    case InterpolationMode::EaseOutBack:
+    {
+        const float x = clampedT - 1.f;
+        return 1.f + (kBackOvershoot + 1.f) * x * x * x + kBackOvershoot * x * x;
     }
     case InterpolationMode::EaseInOut:
     default:
@@ -126,9 +151,10 @@ inline Vec3 Sample_CameraModifierShakeOffset(
     const float decayY = modifierSample.shakeDecayRate > 0.f
         ? expf(-time * modifierSample.shakeDecayRate)
         : 1.f;
+    constexpr float kTau = 6.28318530718f;
 
-    const float x = sinf(time * modifierSample.shakeFrequencyX) * scaledAmplitude * decayX;
-    const float y = cosf(time * modifierSample.shakeFrequencyY) * scaledAmplitude * modifierSample.shakeVerticalRatio * decayY;
+    const float x = sinf(time * modifierSample.shakeFrequencyX * kTau) * scaledAmplitude * decayX;
+    const float y = cosf(time * modifierSample.shakeFrequencyY * kTau) * scaledAmplitude * modifierSample.shakeVerticalRatio * decayY;
     return right * x + up * y;
 }
 
@@ -161,6 +187,24 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     sample.shakeStrengthScale = modifierSample.shakeStrengthScale;
 
     return sample;
+}
+
+inline void Apply_BattleCameraClipShakeSample(
+    const BattleCameraClip& clip,
+    float time,
+    BattleCameraClipSample& inOutSample)
+{
+    const float sampleTime = std::clamp(time, 0.f, std::max(clip.duration, 0.f));
+    const CameraModifierSample modifierSample =
+        Sample_CameraModifierClip(Extract_CameraModifierClip(clip), sampleTime);
+
+    inOutSample.shakeAmplitude = modifierSample.shakeAmplitude;
+    inOutSample.shakeFrequencyX = modifierSample.shakeFrequencyX;
+    inOutSample.shakeFrequencyY = modifierSample.shakeFrequencyY;
+    inOutSample.shakeDecayRateX = modifierSample.shakeDecayRateX;
+    inOutSample.shakeDecayRate = modifierSample.shakeDecayRate;
+    inOutSample.shakeVerticalRatio = modifierSample.shakeVerticalRatio;
+    inOutSample.shakeStrengthScale = modifierSample.shakeStrengthScale;
 }
 
 inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float verticalRatio, float strengthScale, float frequencyX, float frequencyY, float decayRateX, float decayRateY, float time, const Vec3& right, const Vec3& up)

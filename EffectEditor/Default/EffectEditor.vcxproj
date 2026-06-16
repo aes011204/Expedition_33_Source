@@ -190,6 +190,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\CurveEditor_View.cpp" />
     <ClCompile Include="..\Private\Editor_Context.cpp" />
     <ClCompile Include="..\Private\Emitter_View.cpp" />
+    <ClCompile Include="..\Private\EffectAuthoringValueRange.cpp" />
     <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp" />
     <ClCompile Include="..\Private\EffectAuthoringJsonSerializer.cpp" />
     <ClCompile Include="..\Private\EffectEditorCamera.cpp" />
@@ -236,6 +237,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Emitter_View.h" />
     <ClInclude Include="..\Public\EffectEditorCamera.h" />
     <ClInclude Include="..\Public\EffectAuthoring_Types.h" />
+    <ClInclude Include="..\Public\EffectAuthoringValueRange.h" />
     <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h" />
     <ClInclude Include="..\Public\EffectAuthoringJsonSerializer.h" />
     <ClInclude Include="..\Public\EffectMaterialAuthoring_Types.h" />

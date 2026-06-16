@@ -210,6 +210,18 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         skill.buffDurationTurn = item.value("BuffTurn", 0);
        
         skill.targetingType = ParseTargetTypes(item.value("targetingType", ""));
+        skill.targetStyle =
+            magic_enum::enum_cast<AITargetStyle>(item.value("targetStyle", "Single"))
+            .value_or(AITargetStyle::Single);
+        skill.openingBias = item.value("openingBias", 0.f);
+        skill.midBias = item.value("midBias", 0.f);
+        skill.criticalBias = item.value("criticalBias", 0.f);
+        skill.powerMultiplier = item.value("powerMultiplier", 1.f);
+        skill.forceOnPhaseEnter = ReadBoolFlexible(item, "forceOnPhaseEnter", false);
+        skill.forceOnPhaseCritical = ReadBoolFlexible(item, "forceOnPhaseCritical", false);
+        skill.minTurn = item.value("minTurn", 0);
+        skill.maxUseCount = item.value("maxUseCount", -1);
+        skill.coolDownTurn = item.value("coolDownTurn", 0);
 
         const size_t index = _skillDefs.size();
         _skillDefs.push_back(skill);
@@ -692,6 +704,10 @@ HRESULT GameDataTable::Load_Weapon(const wstring& jsonRootPath)
         desc.characterId = characterId;
         desc.weaponId = weaponId;
         desc.weaponName = String::ToWString(item.value("Weapon Name", ""));
+
+        desc.weaponPrefabName = item.value("Weapon Prefab", "");
+        desc.subWeaponPrefabName = item.value("Sub Weapon Prefab", "");
+
         desc.level = item.value("Level", 1u);
         desc.power = item.value("Power", 0u);
 

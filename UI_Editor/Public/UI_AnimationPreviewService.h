@@ -15,6 +15,12 @@ struct UI_AnimationPreviewSample
     float alphaMultiplier = 1.f;
     bool hasFontSize = false;
     float fontSize = 32.f;
+    bool hasPatternUvOffset = false;
+    ImVec2 patternUvOffset = ImVec2(0.f, 0.f);
+    bool hasPatternUvScale = false;
+    ImVec2 patternUvScale = ImVec2(1.f, 1.f);
+    bool hasFillRatio = false;
+    float fillRatio = 1.f;
 };
 
 class UI_AnimationPreviewService final

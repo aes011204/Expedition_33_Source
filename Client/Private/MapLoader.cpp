@@ -87,14 +87,25 @@ namespace
     void Apply_PostProcessVolumes(const vector<json>& postProcessVolumes)
     {
         FogZoneCB fogCB{};
+        bool hasGroundFogGlobals = false;
         for (const auto& e : postProcessVolumes)
         {
-            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
-                break;
-
             float density = e.value("FogDensity", 0.f);
             if (density <= 0.f)
                 continue;
+
+            if (!hasGroundFogGlobals)
+            {
+                fogCB.groundFogMaxDistance = e.value("GroundFogMaxDistance", 100.f);
+                fogCB.groundFogMinAccumulationDistance = e.value("GroundFogMinAccumulationDistance", 10.f);
+                fogCB.groundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
+                fogCB.groundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
+                fogCB.groundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
+                hasGroundFogGlobals = true;
+            }
+
+            if (fogCB.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
+                break;
 
             FogZoneEntry entry{};
             if (e.contains("FogColor"))
@@ -104,7 +115,18 @@ namespace
             }
 
             entry.fogDensity = density;
-            entry.fogStart = e.value("FogStart", 0.f);
+            entry.baseHeight = e.value("BaseHeight", 0.f);
+            entry.topFadeStart = e.value("TopFadeStart", 0.4f);
+            entry.topHeight = e.value("TopHeight", 0.9f);
+            entry.edgeFade = e.value("EdgeFade", 1.f);
+            entry.noiseScale = e.value("NoiseScale", 0.0025f);
+            if (e.contains("NoiseSpeed"))
+            {
+                auto& speed = e["NoiseSpeed"];
+                entry.noiseSpeed = Vec2(speed[0], speed[1]);
+            }
+            entry.noiseStrength = e.value("NoiseStrength", 0.9f);
+            entry.noiseMin = e.value("NoiseMin", 0.38f);
 
             Vec3 position{};
             if (e.contains("Position"))
@@ -113,25 +135,16 @@ namespace
                 position = Vec3(p[0], p[1], p[2]);
             }
 
-            int zoneType = e.value("FogZoneType", 0);
-            if (zoneType == 0)
+            Vec3 extent{ 5.f, 5.f, 5.f };
+            if (e.contains("Extent"))
             {
-                Vec3 extent{ 5.f, 5.f, 5.f };
-                if (e.contains("Extent"))
-                {
-                    auto& ex = e["Extent"];
-                    extent = Vec3(ex[0], ex[1], ex[2]);
-                }
-                entry.zoneMin = position - extent;
-                entry.zoneMax = position + extent;
-                fogCB.zones[fogCB.aabbCount++] = entry;
+                auto& ex = e["Extent"];
+                extent = Vec3(ex[0], ex[1], ex[2]);
             }
-            else
-            {
-                entry.zoneMin = position;
-                entry.zoneRadius = e.value("FogRadius", 10.f);
-                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
-            }
+
+            entry.zoneMin = position - extent;
+            entry.zoneMax = position + extent;
+            fogCB.zones[fogCB.aabbCount++] = entry;
         }
 
         GAME->Set_FogZones(fogCB);
@@ -848,29 +861,72 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
         }
 
-        Shared<GameObject> spawnedObject = nullptr;
+        //    Shared<GameObject> spawnedObject = nullptr;
+
+        //    const auto instancedAddBegin = chrono::steady_clock::now();
+        //    const HRESULT addResult = GAME->Add_GameObject(
+        //        ETOI(LevelType::Static),
+        //        TEXT("GameObject_MapInstancedMesh"),
+        //        session.levelIndex,
+        //        session.layerTag,
+        //        spawnedObject,
+        //        &desc);
+        //    const auto instancedAddMs =
+        //        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
+        //    session.instancedAddDuration += instancedAddMs;
+        //    ++session.instancedAddCount;
+
+        //    if (FAILED(addResult))
+        //    {
+        //        continue;
+        //    }
+        //    if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+        //    {
+        //        session.spawnedObjects->push_back(spawnedObject);
+        //    }
+
+        //    ++processedCount;
+        //}
+
+        static constexpr float CHUNK_SIZE = 100.f;
+
+        map<pair<int32, int32>, vector<InstanceTransform>> chunkMap;
+        for (const auto& t : desc.transforms)
+        {
+            int32 cx = static_cast<int32>(floorf(t._position.x / CHUNK_SIZE));
+            int32 cz = static_cast<int32>(floorf(t._position.z / CHUNK_SIZE));
+            chunkMap[{cx, cz}].push_back(t);
+        }
 
         const auto instancedAddBegin = chrono::steady_clock::now();
-        const HRESULT addResult = GAME->Add_GameObject(
-            ETOI(LevelType::Static),
-            TEXT("GameObject_MapInstancedMesh"),
-            session.levelIndex,
-            session.layerTag,
-            spawnedObject,
-            &desc);
+        for (auto& [key, chunkTransforms] : chunkMap)
+        {
+            MapInstancedMesh::MAPINSTANCEDMESH_DESC chunkDesc{};
+            chunkDesc.modelPath = desc.modelPath;
+            chunkDesc.model = desc.model;
+            chunkDesc.collisionData = desc.collisionData;
+            chunkDesc.transforms = chunkTransforms;
+
+            Shared<GameObject> spawnedObject = nullptr;
+            const HRESULT addResult = GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_MapInstancedMesh"),
+                session.levelIndex,
+                session.layerTag,
+                spawnedObject,
+                &chunkDesc);
+
+            if (FAILED(addResult))
+                continue;
+
+            if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+                session.spawnedObjects->push_back(spawnedObject);
+
+            ++session.instancedAddCount;
+        }
         const auto instancedAddMs =
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
         session.instancedAddDuration += instancedAddMs;
-        ++session.instancedAddCount;
-
-        if (FAILED(addResult))
-        {
-            continue;
-        }
-        if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
-        {
-            session.spawnedObjects->push_back(spawnedObject);
-        }
 
         ++processedCount;
     }

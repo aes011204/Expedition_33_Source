@@ -32,6 +32,7 @@ public:
         Vec3 scale{ Vec3::One };                                // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
         Vec3 worldRotation = Vec3::Zero;                        // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
+        Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{}; // source history emitter가 단일 source sample을 얻는 provider다.
     };
 
     /**

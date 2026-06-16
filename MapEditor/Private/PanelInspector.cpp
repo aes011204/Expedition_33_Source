@@ -179,7 +179,16 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
     }
 
     int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
-    if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
+    const bool forceBoxShape = (obj->_type == EObjectType::PostProcessVolume);
+    if (forceBoxShape)
+    {
+        obj->_zoneShape = EZoneShape::Box;
+        shapeIdx = 0;
+        ImGui::BeginDisabled();
+        ImGui::Combo("Shape", &shapeIdx, _shapes, 1);
+        ImGui::EndDisabled();
+    }
+    else if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
     {
         obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
     }
@@ -252,15 +261,26 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             ImGui::DragFloat("Exposure Min", &obj->_ppExposureMin, 0.01f, -10.f, 10.f);
             ImGui::DragFloat("Exposure Max", &obj->_ppExposureMax, 0.01f, -10.f, 10.f);
             ImGui::DragFloat("Fog Density", &obj->_ppFogDensity, 0.001f, 0.f, 1.f);
-            ImGui::DragFloat("Fog Start", &obj->_ppFogStart, 0.1f, 0.f, 1000.f);
+            ImGui::DragFloat("Base Height", &obj->_ppFogBaseHeight, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Top Fade Start", &obj->_ppFogTopFadeStart, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Top Height", &obj->_ppFogTopHeight, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Edge Fade", &obj->_ppFogEdgeFade, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Noise Scale", &obj->_ppFogNoiseScale, 0.0001f, 0.f, 10.f, "%.4f");
 
-            const char* zoneTypes[] = { "AABB", "Sphere" };
-            ImGui::Combo("Zone Type", &obj->_ppFogZoneType, zoneTypes, 2);
-
-            if (obj->_ppFogZoneType == 1)
+            float noiseSpeed[2] = { obj->_ppFogNoiseSpeed.x, obj->_ppFogNoiseSpeed.y };
+            if (ImGui::DragFloat2("Noise Speed", noiseSpeed, 0.0001f, -10.f, 10.f, "%.4f"))
             {
-                ImGui::DragFloat("Fog Radius", &obj->_ppFogRadius, 0.1f, 0.f, 1000.f);
+                obj->_ppFogNoiseSpeed = { noiseSpeed[0], noiseSpeed[1] };
             }
+
+            ImGui::DragFloat("Noise Strength", &obj->_ppFogNoiseStrength, 0.01f, 0.f, 1.f);
+            ImGui::DragFloat("Noise Min", &obj->_ppFogNoiseMin, 0.01f, 0.f, 1.f);
+            ImGui::SeparatorText("Global Ground Fog");
+            ImGui::DragFloat("Max Distance", &obj->_ppGroundFogMaxDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Min Accum Distance", &obj->_ppGroundFogMinAccumulationDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Distance Influence", &obj->_ppGroundFogDistanceInfluence, 0.01f, 0.f, 1.f);
+            ImGui::DragFloat("Near Fade Distance", &obj->_ppGroundFogNearFadeDistance, 0.1f, 0.f, 10000.f);
+            ImGui::DragFloat("Near Min Factor", &obj->_ppGroundFogNearMinFactor, 0.01f, 0.f, 1.f);
 
             float fogColor[3] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
             if (ImGui::ColorEdit3("Fog Color", fogColor))
@@ -354,20 +374,6 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             }
 
             ImGui::Checkbox("Has Collision", &obj->_instancedHasCollision);
-
-            //int instanceCount = static_cast<int>(obj->_instancedTransforms.size());
-            //ImGui::LabelText("Instance Count", "%d", instanceCount);
-
-            //if (!obj->_instancedTransforms.empty())
-            //{
-            //    const auto& t = obj->_instancedTransforms[0];
-            //    ImGui::TextDisabled("Instance[0] Pos: (%.2f, %.2f, %.2f)", t._position.x, t._position.y, t._position.z);
-
-            //    if (ImGui::Button("Focus Instance[0]"))
-            //    {
-            //        _camera->FocusOn(t._position);
-            //    }
-            //}
         }
 
         if (ImGui::CollapsingHeader("Scatter Zone"))
@@ -393,10 +399,35 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             }
         }
 
+        if (ImGui::CollapsingHeader("Erase Zone"))
+        {
+            ImGui::DragFloat("Radius##erase", &_eraseRadius, 0.5f, 0.5f, 500.f);
+
+            if (ImGui::Button("Use Cursor as Center##erase"))
+            {
+                _eraseCenter = _ctx->_cursorPos;
+            }
+            ImGui::SameLine();
+            ImGui::Text("(%.1f, %.1f, %.1f)", _eraseCenter.x, _eraseCenter.y, _eraseCenter.z);
+
+            if (ImGui::Button("Erase"))
+            {
+                _ctx->EraseAt(obj.get(), _eraseRadius, _eraseCenter);
+            }
+        }
+
         if (ImGui::CollapsingHeader("Instances"))
         {
             int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
             ImGui::LabelText("Count", "%d", instSize);
+
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear All") && !obj->_instancedTransforms.empty())
+            {
+                obj->_instancedTransforms.clear();
+                obj->_instancedParamsDirty = true;
+                obj->_selectedInstanceIdx = -1;
+            }
 
             if (obj->_selectedInstanceIdx >= 0 && obj->_selectedInstanceIdx < instSize)
             {

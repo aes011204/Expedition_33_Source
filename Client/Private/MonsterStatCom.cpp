@@ -15,14 +15,19 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("Base Attack", _monsterDesc.physicalAttack, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Base Defense", _monsterDesc.physicalDefense, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Base Speed", _monsterDesc.speed, 0.f, 999999.f, 1.f);
+    PROPERTY_FLOAT("Battle Run Move Speed", _monsterDesc.battleRunMoveSpeed, 0.f, 30.f, 0.1f);
 
     PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
     PROPERTY_INT("Reward Chroma", _monsterDesc.chroma, 0.f, 9999999.f, 1.f);
 
-    PROPERTY_BOOL("Is Boss", _monsterDesc.isBoss);
+    PROPERTY_ENUM("Enemy Class", _monsterDesc.enemyClass, EEnemyClass);
     PROPERTY_INT("Shield Points At Spawn", _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn, 0.f, 99.f, 1.f);
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
     PROPERTY_WSTRING("Battle Announce Name", _monsterDesc.battleAnnounceName);
+
+    PROPERTY_FLOAT("criticalRatio", _monsterDesc._criticalRatio, 0.f, 1.f, .1f);
+    PROPERTY_FLOAT("midRatio", _monsterDesc._midRatio, 0.f, 1.f, .1f);
+
 
     return true;
 }
@@ -39,6 +44,8 @@ MonsterStatCom::MonsterStatCom(
     : CombatStatCom(Prototype)
     , _monsterDesc(Prototype._monsterDesc)
     , _MRuntimeStat(Prototype._MRuntimeStat)
+    , _skillRuntimeByKey(Prototype._skillRuntimeByKey)
+    , _battleTurnCount(Prototype._battleTurnCount)
 {
 }
 
@@ -78,6 +85,14 @@ void MonsterStatCom::From_Json(const json& data)
 {
     CombatStatCom::From_Json(data);
 
+    if (!data.contains("_monsterDesc.enemyClass") &&
+        data.contains("_monsterDesc.isBoss") &&
+        data["_monsterDesc.isBoss"].is_boolean() &&
+        data["_monsterDesc.isBoss"].get<bool>())
+    {
+        _monsterDesc.enemyClass = EEnemyClass::Boss;
+    }
+
     _MRuntimeStat.CurHp = _monsterDesc.maxHp;
     _MRuntimeStat.CurAp = _monsterDesc.maxAp;
     _MRuntimeStat.CurShield = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
@@ -92,6 +107,86 @@ void MonsterStatCom::Update(float timeDelta)
 #ifdef _DEBUG
     //GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f));
 #endif
+}
+
+void MonsterStatCom::Rebuild_SkillRuntimeState()
+{
+    _skillRuntimeByKey.clear();
+
+    for (const string& skillKey : _skillKeys)
+    {
+        if (skillKey.empty())
+            continue;
+
+        _skillRuntimeByKey.emplace(skillKey, Skill_Data_Inst{});
+    }
+
+    _battleTurnCount = 0;
+}
+
+Skill_Data_Inst* MonsterStatCom::Find_SkillRuntimeState(const string& skillKey)
+{
+    auto it = _skillRuntimeByKey.find(skillKey);
+    if (it == _skillRuntimeByKey.end())
+        return nullptr;
+
+    return &it->second;
+}
+
+const Skill_Data_Inst* MonsterStatCom::Find_SkillRuntimeState(const string& skillKey) const
+{
+    auto it = _skillRuntimeByKey.find(skillKey);
+    if (it == _skillRuntimeByKey.end())
+        return nullptr;
+
+    return &it->second;
+}
+
+bool MonsterStatCom::Can_UseSkill(const Skill_Data& skill) const
+{
+    if (skill.skillKey.empty())
+        return false;
+
+    if (_battleTurnCount < skill.minTurn)
+        return false;
+
+    const Skill_Data_Inst* inst = Find_SkillRuntimeState(skill.skillKey);
+    if (inst == nullptr)
+        return true;
+
+    if (skill.maxUseCount >= 0 && inst->curUsedCount >= skill.maxUseCount)
+        return false;
+
+    if (inst->curCoolDownTurn > 0)
+        return false;
+
+    return true;
+}
+
+void MonsterStatCom::Notify_SkillUsed(const Skill_Data& skill)
+{
+    if (skill.skillKey.empty())
+        return;
+
+    Skill_Data_Inst* inst = Find_SkillRuntimeState(skill.skillKey);
+    if (inst == nullptr)
+        return;
+
+    inst->curUsedCount++;
+    inst->curCoolDownTurn = max(0, skill.coolDownTurn);
+}
+
+void MonsterStatCom::Advance_SkillCooldownTurn()
+{
+    ++_battleTurnCount;
+
+    for (auto& [skillKey, inst] : _skillRuntimeByKey)
+    {
+        UNREFERENCED_PARAMETER(skillKey);
+
+        if (inst.curCoolDownTurn > 0)
+            --inst.curCoolDownTurn;
+    }
 }
 
 void MonsterStatCom::Set_RuntimeCombatProfile(float maxHp, uint32 maxAp, float physicalAttack, float physicalDefense,
@@ -123,11 +218,12 @@ BattleMonsterStatSnapshot MonsterStatCom::Create_BattleSyncSnapshot() const
     snapshot.physicalAttack = _monsterDesc.physicalAttack;
     snapshot.physicalDefense = _monsterDesc.physicalDefense;
     snapshot.speed = _monsterDesc.speed;
+    snapshot.battleRunMoveSpeed = _monsterDesc.battleRunMoveSpeed;
 
     snapshot.shieldPointsAtSpawn = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
     snapshot.exp = _monsterDesc.exp;
     snapshot.chroma = _monsterDesc.chroma;
-    snapshot.isBoss = _monsterDesc.isBoss;
+    snapshot.enemyClass = _monsterDesc.enemyClass;
     snapshot.battleAnnounceName = _monsterDesc.battleAnnounceName;
 
     return snapshot;
@@ -143,11 +239,12 @@ void MonsterStatCom::Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& s
     _monsterDesc.physicalAttack = snapshot.physicalAttack;
     _monsterDesc.physicalDefense = snapshot.physicalDefense;
     _monsterDesc.speed = snapshot.speed;
+    _monsterDesc.battleRunMoveSpeed = snapshot.battleRunMoveSpeed;
 
     _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn = snapshot.shieldPointsAtSpawn;
     _monsterDesc.exp = snapshot.exp;
     _monsterDesc.chroma = snapshot.chroma;
-    _monsterDesc.isBoss = snapshot.isBoss;
+    _monsterDesc.enemyClass = snapshot.enemyClass;
     _monsterDesc.battleAnnounceName = snapshot.battleAnnounceName;
 
     // 전투 진입 직후 적용이므로 runtime도 새 desc 기준으로 다시 맞춘다.

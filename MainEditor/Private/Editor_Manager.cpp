@@ -354,6 +354,15 @@ void Editor_Manager::Handle_Shortcuts()
         return;
     }
 
+    // Ctrl + - : 배속 1x 복귀
+    if (io.KeyCtrl &&
+        (ImGui::IsKeyPressed(ImGuiKey_Minus, false) ||
+            ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract, false)))
+    {
+        EDITOR->Reset_RuntimeTimeScale();
+        return;
+    }
+
     // Shift +, - :배속 증가, 감소
     constexpr float timeScaleStep = 0.25f;
     if (io.KeyShift &&
@@ -410,6 +419,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
+            DrawShortcutRow("Ctrl -", "배속 1x 복귀");
             DrawShortcutRow("Alt + Enter", "Fullscreen Toggle");
             DrawShortcutRow("Ctrl + Space", "Focus Scene/Game/Profile/Camera Tool");
 

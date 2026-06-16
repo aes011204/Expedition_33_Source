@@ -234,10 +234,12 @@ namespace Client::Constants::Map
     inline constexpr wchar_t SpringChunk_04_03_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_03.json";
 
     // multiface
-    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Copy.json";
+    //inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Copy.json";
+    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
     inline constexpr wchar_t LandscapeTextures_Dir[] = L"../../../Client/Bin/Resources/Map/LandscapeTextures/";
+    inline constexpr wchar_t ResourceRoot_Dir[] = L"../../../Client/Bin/Resources/";
     inline constexpr wchar_t MF_Zone_Boss_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Boss.hmap";
-    inline constexpr wchar_t MF_Zone_Main_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Main.hmap";
+    inline constexpr wchar_t MF_Zone_Main_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/Test_LS_MF_Zone.hmap";
     inline constexpr wchar_t MF_Zone_Stair_1_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_1.hmap";
     inline constexpr wchar_t MF_Zone_Stair_2_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_2.hmap";
     inline constexpr wchar_t MF_Zone_Stair_3_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_3.hmap";
@@ -283,10 +285,21 @@ namespace Client::Constants::Prefab
 #pragma endregion
 
 #pragma region 무기
-    inline constexpr char Gustave_Lanceram[]    = "WP_Gustave_Lanceram";
+    // 구
+    inline constexpr char Gustave_Lanceram[]        = "WP_Gustave_Lanceram";
     inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
-    inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
-    inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
+    inline constexpr char Gustave_Baguette[]        = "WP_Gustave_Baguette";
+    inline constexpr char Gustave_Baguette_Gun[]    = "WP_Gustave_Baguette_Gun";
+
+    // 루
+    inline constexpr char Lune_Colim[]              = "WP_Lune_Colim";
+    inline constexpr char Lune_Baguette[]           = "WP_Lune_Baguette";
+
+    // 마
+    inline constexpr char Maelle_Medalum[]          = "WP_Maelle_Medalum";
+    inline constexpr char Maelle_Baguette[]         = "WP_Maelle_Baguette";
+
+
 #pragma endregion
 
     inline constexpr char Eye_Target[]      = "ETC/EyeTarget";

@@ -25,9 +25,10 @@ public:
         Patrol,
         Chase,
         Stun,
+        Jump,
         Hit
     };
-
+   
 public:
     Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Monster_WorldBase(const Monster_WorldBase& prototype);

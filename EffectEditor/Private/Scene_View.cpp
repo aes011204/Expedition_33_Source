@@ -212,6 +212,12 @@ void Scene_View::Render()
 
     bool isOpen = Is_Open();
     const string& windowName = Get_ImGuiWindowName();
+    if (EDITOR->Is_SceneFocusModeActive())
+    {
+        const uint32 dockSpaceId = EDITOR->Get_ActiveDockSpaceId();
+        if (dockSpaceId != 0)
+            ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_Always);
+    }
 
     if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Scene))
         ImGui::SetNextWindowFocus();
@@ -274,12 +280,6 @@ void Scene_View::Handle_GizmoShortcut()
     if (ImGui::IsKeyPressed(ImGuiKey_E, false))
     {
         _gizmoOperation = ImGuizmo::ROTATE;
-        return;
-    }
-
-    if (ImGui::IsKeyPressed(ImGuiKey_R, false))
-    {
-        _gizmoOperation = ImGuizmo::SCALE;
         return;
     }
 
@@ -647,6 +647,12 @@ void Scene_View::Render_PreviewViewportOverlay()
     {
         EDITOR->Enable_ManualPreviewViewport();
         Sync_PreviewViewportInput();
+        static constexpr uint32 defaultManualPreviewViewportWidth = 1600;
+        static constexpr uint32 defaultManualPreviewViewportHeight = 900;
+
+        EDITOR->Set_ManualPreviewViewportSize(defaultManualPreviewViewportWidth, defaultManualPreviewViewportHeight);
+        _pendingPreviewViewportWidth = static_cast<int>(defaultManualPreviewViewportWidth);
+        _pendingPreviewViewportHeight = static_cast<int>(defaultManualPreviewViewportHeight);
     }
 
     ImGui::SameLine(0.f, 8.f);

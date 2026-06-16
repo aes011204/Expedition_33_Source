@@ -29,6 +29,9 @@ public:
     void Priority_Update(float timeDelta) override;
     void Update(float timeDelta) override;
 
+public:
+    bool Try_GetAttackAnimationRatio(float& outRatio) const;
+
 private:
     enum class PreviewAnimationMode
     {
@@ -50,6 +53,7 @@ private:
     void Reset_PreviewPose();
     Shared<ModelCom> Get_BodyModel() const;
     void Ensure_AnimationMode(PreviewAnimationMode mode);
+    void Apply_AnimationSpeed(const Shared<ModelCom>& bodyModel) const;
     bool Has_Animation(const Shared<ModelCom>& model, const char* animationName) const;
 
 public:

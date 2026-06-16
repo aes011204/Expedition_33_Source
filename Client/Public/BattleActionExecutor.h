@@ -31,7 +31,7 @@ private:
     void Update_ActionMovement(float timeDelta, BattleAction& action);
 
     void Update_BasicMovement(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
-    void Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
+    void Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos, float timeDelta);
     void Update_RatioMoveTo(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
 
     void FinishCurrentPhaseAtGoal(BattleAction& action);
@@ -46,10 +46,11 @@ private:
 
 private:
     bool _isFinished = {true};
+    bool _hasTriggeredCloseApproachShot = false;
     float _testPrevRatio = {};
 
     Shared<ModelCom> _activePhaseModel{};
-
+    
 public:
     static Shared<BattleActionExecutor> Create();
     void Free() override;

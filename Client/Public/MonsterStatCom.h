@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Battle_Enum.h"
 #include "CombatStatCom.h"
+#include <unordered_map>
 
 NS_BEGIN(Client)
 
@@ -21,10 +22,12 @@ public:
 
         wstring battleAnnounceName = L"";
 
-        bool isBoss = false;
+
         bool isAir = false;
 
         EEnemyClass enemyClass = EEnemyClass::Normal;
+
+        float battleRunMoveSpeed = 0.f;
 
         float breakBarHPPercent = 120.f;
         float breakBarStunDuration = 1.f;
@@ -33,6 +36,9 @@ public:
         vector<FLootData> possibleLoot = {};
 
         vector<string> _skillKeys;
+
+        float _criticalRatio = {};
+        float _midRatio = {};
     };
 
     // UI, 전투 데미지 계산, 디버그 출력이 읽는 값
@@ -63,9 +69,14 @@ public:
     MRuntimeCombatStat& Get_MonsterRuntimeStat() { return _MRuntimeStat; }
     const vector<Shared<Buff>>& Get_Buffs() const { return _buff; }
 
+    float Get_CriticalRatio() const { return _monsterDesc._criticalRatio; }
+    float Get_MidRatio() const { return _monsterDesc._midRatio; }
+    float Get_BattleRunMoveSpeed() const { return _monsterDesc.battleRunMoveSpeed; }
+    void Set_BattleRunMoveSpeed(float value) { _monsterDesc.battleRunMoveSpeed = (value < 0.f) ? 0.f : value; }
+
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
-    bool Is_Boss() const { return _monsterDesc.isBoss; }
+    bool Is_Boss() const { return _monsterDesc.enemyClass == EEnemyClass::Boss; }
 
     void Set_RuntimeCombatProfile(
         float maxHp,
@@ -81,10 +92,22 @@ public:
 
     BattleMonsterStatSnapshot Create_BattleSyncSnapshot() const;
     void Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& snapshot);
+    void Rebuild_SkillRuntimeState();
+
+    Skill_Data_Inst* Find_SkillRuntimeState(const string& skillKey);
+    const Skill_Data_Inst* Find_SkillRuntimeState(const string& skillKey) const;
+
+    bool Can_UseSkill(const Skill_Data& skill) const;
+    void Notify_SkillUsed(const Skill_Data& skill);
+    void Advance_SkillCooldownTurn();
+
+    int32 Get_BattleTurnCount() const { return _battleTurnCount; }
 
 private:
     MonsterCombatStatDesc _monsterDesc;
     MRuntimeCombatStat _MRuntimeStat;
+    unordered_map<string, Skill_Data_Inst> _skillRuntimeByKey;
+    int32 _battleTurnCount = 0;
 public:
     static Shared<MonsterStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;

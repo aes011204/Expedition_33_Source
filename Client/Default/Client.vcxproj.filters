@@ -154,12 +154,6 @@
     <Filter Include="02.GameObject\Effect\Emitters">
       <UniqueIdentifier>{8bae37aa-aacf-470c-ac67-0f3a2cc238c7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\ComputePointParticle">
-      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\Emitter Registration">
-      <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Player\00. World">
       <UniqueIdentifier>{99061e95-9355-4714-95af-917916e25c88}</UniqueIdentifier>
     </Filter>
@@ -217,18 +211,10 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail" />
-    <Filter Include="02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon" />
     <Filter Include="02.GameObject\Effect\Emitters\Mesh" />
     <Filter Include="90.EditorSupport" />
     <Filter Include="02.GameObject\Camera\BattleCamera">
       <UniqueIdentifier>{a140d5ff-7aa8-44da-b19f-d406017bc23e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="06. Pool">
-      <UniqueIdentifier>{8f34c89c-d6ca-43eb-90fc-7d07306b013f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="06. Pool\Effect Pool">
-      <UniqueIdentifier>{c1313e91-9b45-46ca-9845-0762d62c53ba}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapLandscape">
       <UniqueIdentifier>{34ac92ad-0d2f-498a-bb00-886921a6ae55}</UniqueIdentifier>
@@ -239,8 +225,43 @@
     <Filter Include="02.GameObject\Map\MapWater">
       <UniqueIdentifier>{dfc611f8-c2e2-475c-aa73-008ab9a996bc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\Beam">
+      <UniqueIdentifier>{de5e6bcb-9cd0-42e0-bf67-30e19911db5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\Sprite">
+      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\Ribbon" />
+    <Filter Include="02.GameObject\Effect\Emitters\Trail" />
+    <Filter Include="06. Effect System">
+      <UniqueIdentifier>{ef9cc526-7014-44ac-a006-3259f9833716}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Effect System\Runtime Loader">
+      <UniqueIdentifier>{10bcbe02-9ad1-45c5-9399-2e3693cfbf55}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Effect System\Trail Support">
+      <UniqueIdentifier>{bbdbf177-7950-4d36-84a0-e517b9d13ef3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Effect System\Material Runtime">
+      <UniqueIdentifier>{069a1e3e-84c0-476c-bac9-0dad64bb0602}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Effect System\Emitter Registration">
+      <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Effect System\Pool">
+      <UniqueIdentifier>{c1313e91-9b45-46ca-9845-0762d62c53ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Effect System\Component Bridge">
+      <UniqueIdentifier>{5bc76e9d-605f-4b64-bf08-407abc40728d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Effect System\Runtime Loader\Support">
+      <UniqueIdentifier>{07fc2861-0bd5-4d40-a61e-87a0c6ed500e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\EyeTarget">
       <UniqueIdentifier>{da7262d2-5cd4-4324-b7d0-b8d45f6e54ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\Sprite Trail">
+      <UniqueIdentifier>{32e72e43-5d50-467a-8bd0-84129ff62a91}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\ModifierPreset">
       <UniqueIdentifier>{c6888c1b-89f3-4e18-8210-91cb8f4646b0}</UniqueIdentifier>
@@ -250,7 +271,10 @@
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\Private\Player_FreeAim.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp">
-      <Filter>02.GameObject\Effect</Filter>
+      <Filter>06. Effect System\Trail Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp">
+      <Filter>06. Effect System\Trail Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleTurnCamera.cpp">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
@@ -261,9 +285,8 @@
     <ClCompile Include="..\Private\ANS_QTE.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp">
-      <Filter>06. Pool\Effect Pool</Filter>
+      <Filter>06. Effect System\Pool</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Level_GameEntry.cpp">
       <Filter>01.Levels\Logo</Filter>
@@ -271,9 +294,10 @@
     <ClCompile Include="..\Private\MainTitleMenuSound.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
-    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
+    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp">
+      <Filter>06. Effect System\Trail Support</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\Private\WeaponPrefabLoader.cpp" />
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
@@ -288,6 +312,9 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ANS_Trail.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\private\AN_Attack.cpp">
@@ -415,12 +442,7 @@
     <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
-    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
-    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
-    <ClCompile Include="..\private\BT_IsStun.cpp" />
-    <ClCompile Include="..\private\BT_Stun.cpp" />
-    <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="..\private\MW_Simon.cpp" />
@@ -431,7 +453,6 @@
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_QTE.cpp" />
-    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\BattleQTEController.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -447,14 +468,18 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
-    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
-    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp">
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\Beam</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectCom.cpp">
+      <Filter>06. Effect System\Component Bridge</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\CinematicCamera.cpp" />
     <ClCompile Include="..\Private\EyeTarget.cpp">
       <Filter>02.GameObject\EyeTarget</Filter>
@@ -476,6 +501,48 @@
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />
     <ClCompile Include="ChainModifierPreset.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Emitters.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Json.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
+    <ClCompile Include="..\Private\AN_CounterReturnAll.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_IsStun.cpp" />
+    <ClCompile Include="..\private\BT_LookRange.cpp" />
+    <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\private\BT_Stun.cpp" />
+    <ClCompile Include="..\private\BT_Set_TargetAI.cpp" />
+    <ClCompile Include="..\Private\BT_SetSkillAI.cpp">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -619,7 +686,19 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
@@ -675,10 +754,10 @@
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ComputeTrailEmitter.h">
-      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+      <Filter>02.GameObject\Effect\Emitters\Trail</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h">
-      <Filter>02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon</Filter>
+      <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
       <Filter>BattleState</Filter>
@@ -686,10 +765,31 @@
     <ClInclude Include="..\Public\GameplayUI_Battle.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\GameplayUI_World.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MB_Abbest.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\MB_Bishop.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MB_Mime.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MB_PotatoBag.h">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClInclude>
     <ClInclude Include="..\public\MB_Portier.h">
@@ -698,13 +798,40 @@
     <ClInclude Include="..\public\MB_Volester.h">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Mon_Abbest_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\Mon_Bishop_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_Mime_Bagutte.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_Mime_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_PotatoBag_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_PotatoBag_Shield.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_PotatoBag_Weapon.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Mon_Volester_Body.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MW_Abbest.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\MW_Bishop.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MW_Mime.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MW_PotatoBag.h">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClInclude>
     <ClInclude Include="..\public\MW_Portier.h">
@@ -822,19 +949,19 @@
       <Filter>03. Component\CombatStat</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ComputeSpriteEmitter.h">
-      <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
+      <Filter>02.GameObject\Effect\Emitters\Sprite</Filter>
     </ClInclude>
     <ClInclude Include="..\public\DamageSystem.h">
       <Filter>05. BattleSystem</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h">
-      <Filter>02.GameObject\Effect</Filter>
+      <Filter>06. Effect System\Runtime Loader</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialScalarModulationRuntime.h">
-      <Filter>02.GameObject\Effect</Filter>
+      <Filter>06. Effect System\Material Runtime</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEmitterRegistration.h">
-      <Filter>02.GameObject\Effect\Emitter Registration</Filter>
+      <Filter>06. Effect System\Emitter Registration</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\GameDataTable.h">
       <Filter>96. Manager</Filter>
@@ -1016,6 +1143,12 @@
     <ClInclude Include="..\Public\UI_RuntimeLoader.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_SpriteVfx.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Vfx.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SavePoint_Panel.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1107,12 +1240,14 @@
     <ClInclude Include="..\Public\BattleCameraClipUtils.h">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h">
-      <Filter>06. Pool\Effect Pool</Filter>
+      <Filter>06. Effect System\Pool</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h">
-      <Filter>02.GameObject\Effect</Filter>
+      <Filter>06. Effect System\Trail Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h">
+      <Filter>06. Effect System\Trail Support</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Level_GameEntry.h">
       <Filter>01.Levels\Logo</Filter>
@@ -1120,9 +1255,10 @@
     <ClInclude Include="..\Public\MainTitleMenuSound.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
-    <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
+    <ClInclude Include="..\Public\TrailAnchor_Asset.h">
+      <Filter>06. Effect System\Trail Support</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\Public\WeaponPrefabLoader.h" />
     <ClInclude Include="..\Public\FaceAccessory_Player.h" />
@@ -1137,6 +1273,9 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Trail.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\public\AN_Attack.h">
@@ -1264,12 +1403,7 @@
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
-    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
-    <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
-    <ClInclude Include="..\public\BT_IsStun.h" />
-    <ClInclude Include="..\public\BT_Stun.h" />
-    <ClInclude Include="..\public\BT_Patrol.h" />
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="..\public\MW_Simon.h" />
@@ -1304,14 +1438,18 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SkyBoxFlow.h" />
-    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
     <ClInclude Include="..\Public\SkyCloudCard.h" />
-    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
     <ClInclude Include="..\Public\MapWater.h">
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\Public\ComputeGeneratedBeamEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\Beam</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectCom.h">
+      <Filter>06. Effect System\Component Bridge</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\CinematicCamera.h" />
     <ClInclude Include="..\Public\EyeTarget.h">
       <Filter>02.GameObject\EyeTarget</Filter>
@@ -1334,6 +1472,36 @@
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
     <ClInclude Include="..\Public\CostumeManager.h" />
     <ClInclude Include="ChainModifierPreset.h" />
+    <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
+    <ClInclude Include="..\Public\AN_CounterReturnAll.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_Visible_Parts.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_IsStun.h" />
+    <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\public\BT_Patrol.h" />
+    <ClInclude Include="..\public\BT_Stun.h" />
+    <ClInclude Include="..\public\BT_Set_TargetAI.h" />
+    <ClInclude Include="..\Public\BT_SetSkillAI.h">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1373,10 +1541,10 @@
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp">
-      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+      <Filter>02.GameObject\Effect\Emitters\Trail</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp">
-      <Filter>02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon</Filter>
+      <Filter>02.GameObject\Effect\Emitters\Ribbon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">
       <Filter>BattleState</Filter>
@@ -1387,10 +1555,31 @@
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\GameplayUI_World.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MB_Abbest.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\MB_Bishop.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MB_Mime.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MB_PotatoBag.cpp">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MB_Portier.cpp">
@@ -1399,13 +1588,40 @@
     <ClCompile Include="..\private\MB_Volester.cpp">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Mon_Abbest_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\Mon_Bishop_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_Mime_Bagutte.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_Mime_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_PotatoBag_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_PotatoBag_Shield.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_PotatoBag_Weapon.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Mon_Volester_Body.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MW_Abbest.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\MW_Bishop.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MW_Mime.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MW_PotatoBag.cpp">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MW_Portier.cpp">
@@ -1502,16 +1718,16 @@
       <Filter>03. Component\CombatStat</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp">
-      <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
+      <Filter>02.GameObject\Effect\Emitters\Sprite</Filter>
     </ClCompile>
     <ClCompile Include="..\private\DamageSystem.cpp">
       <Filter>05. BattleSystem</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp">
-      <Filter>02.GameObject\Effect</Filter>
+      <Filter>06. Effect System\Runtime Loader</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp">
-      <Filter>02.GameObject\Effect\Emitter Registration</Filter>
+      <Filter>06. Effect System\Emitter Registration</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\GameDataTable.cpp">
       <Filter>96. Manager</Filter>
@@ -1701,6 +1917,12 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp">
       <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_SpriteVfx.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Vfx.cpp">
+      <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SavePoint_Panel.cpp">
       <Filter>02.GameObject\UI</Filter>

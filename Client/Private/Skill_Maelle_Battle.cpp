@@ -13,7 +13,8 @@ void Skill_Maelle_OffensiveSwitch::Execute(const Skill_Data& skill, const Battle
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.1f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Offensive);
@@ -35,7 +36,8 @@ void Skill_Maelle_Percee::Execute(const Skill_Data& skill, const BattleAction& a
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(40.f, attacker, target, attackType);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 2.f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Defensive);
@@ -57,8 +59,9 @@ void Skill_Maelle_FireRise::Execute(const Skill_Data& skill, const BattleAction&
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(13.f, attacker, target, attackType);
-
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.3f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+    
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);
 }
@@ -78,8 +81,9 @@ void Skill_Maelle_FleureFury::Execute(const Skill_Data& skill, const BattleActio
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(13.f, attacker, target, attackType);
-
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.2f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+    
     // 임시로 명인태세
     if (attacker.mechanismCom != nullptr)
         attacker.mechanismCom->Set_MaelleStance(BattleMechanismCom::MaelleStance::Virtuose);

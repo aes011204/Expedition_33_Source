@@ -6,20 +6,20 @@ NS_BEGIN(Client)
 
 struct EffectMaterialScalarModulationShaderPayload
 {
-    static constexpr uint32 kMaxModulators{ EffectMaterialScalarModulationRuntimeDesc::kMaxModulators };
+    static constexpr uint32 maxModulators{ EffectMaterialScalarModulationRuntimeDesc::kMaxModulators };
 
-    Vec4 params{};                      // x: count, y: emitter phase, zw: reserved.
-    array<Vec4, kMaxModulators> meta{}; // x: enabled, y: target, z: time source, w: key count.
-    array<Vec4, kMaxModulators> keyTimes{};
-    array<Vec4, kMaxModulators> keyTimesBlock1{};
-    array<Vec4, kMaxModulators> keyValues{};
-    array<Vec4, kMaxModulators> keyValuesBlock1{};
-    array<Vec4, kMaxModulators> keyArriveTangents{};
-    array<Vec4, kMaxModulators> keyArriveTangentsBlock1{};
-    array<Vec4, kMaxModulators> keyLeaveTangents{};
-    array<Vec4, kMaxModulators> keyLeaveTangentsBlock1{};
-    array<Vec4, kMaxModulators> keyModes{};
-    array<Vec4, kMaxModulators> keyModesBlock1{};
+    Vec4 params{};                     // x: count, y: emitter phase, zw: reserved.
+    array<Vec4, maxModulators> meta{}; // x: enabled, y: target, z: time source, w: key count.
+    array<Vec4, maxModulators> keyTimes{};
+    array<Vec4, maxModulators> keyTimesBlock1{};
+    array<Vec4, maxModulators> keyValues{};
+    array<Vec4, maxModulators> keyValuesBlock1{};
+    array<Vec4, maxModulators> keyArriveTangents{};
+    array<Vec4, maxModulators> keyArriveTangentsBlock1{};
+    array<Vec4, maxModulators> keyLeaveTangents{};
+    array<Vec4, maxModulators> keyLeaveTangentsBlock1{};
+    array<Vec4, maxModulators> keyModes{};
+    array<Vec4, maxModulators> keyModesBlock1{};
 };
 
 inline float Compute_MaterialScalarModulationPhase(float elapsedTime, float duration)
@@ -61,7 +61,7 @@ inline float Evaluate_MaterialScalarModulationCurve(
     if (!curve.enabled || curve.keyCount == 0)
         return fallbackValue;
 
-    const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, curve.keyCount);
+    const uint32 keyCount = min(kEffectDistributionCurveMaxKeys, curve.keyCount);
     if (keyCount == 1)
         return Read_MaterialScalarModulationComponent(curve.keyValues, curve.keyValuesBlock1, 0);
 
@@ -115,7 +115,7 @@ inline float Evaluate_CoreColorRgbModulationComponent(
     if (!curve.enabled || curve.keyCount == 0)
         return fallbackValue;
 
-    const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, curve.keyCount);
+    const uint32 keyCount = min(kEffectDistributionCurveMaxKeys, curve.keyCount);
     if (keyCount == 1)
         return Read_MaterialScalarModulationComponent(keyValues, keyValuesBlock1, 0);
 
@@ -280,14 +280,14 @@ inline EffectMaterialScalarModulationShaderPayload Build_MaterialScalarModulatio
     float emitterPhase)
 {
     EffectMaterialScalarModulationShaderPayload payload{};
-    const uint32 count = min(EffectMaterialScalarModulationShaderPayload::kMaxModulators, modulation.count);
+    const uint32 count = min(EffectMaterialScalarModulationShaderPayload::maxModulators, modulation.count);
     payload.params = Vec4(static_cast<float>(count), emitterPhase, 0.f, 0.f);
 
     for (uint32 index = 0; index < count; ++index)
     {
         const EffectMaterialScalarModulatorRuntimeDesc& modulator = modulation.modulators[index];
         const EffectMaterialScalarModulationCurveDesc& curve = modulator.curve;
-        const uint32 keyCount = curve.enabled ? min(::Engine::kEffectDistributionCurveMaxKeys, curve.keyCount) : 0u;
+        const uint32 keyCount = curve.enabled ? min(kEffectDistributionCurveMaxKeys, curve.keyCount) : 0u;
 
         payload.meta[index] = Vec4(
             modulator.enabled ? 1.f : 0.f,

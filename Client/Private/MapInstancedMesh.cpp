@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "StaticCollisionData.h"
 #include "Collision_Define.h"
+#include "ShaderPassFinder.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -93,7 +94,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         }
     }
 
-    Set_ShadowCasterType(ShadowCasterType::Static);
+    Set_ShadowCasterType(ShadowCasterType::Dynamic);
 
     return S_OK;
 }
@@ -115,11 +116,15 @@ void MapInstancedMesh::Late_Update(float timeDelta)
 
     if (!GAME->IsVisible(_groupBounds))
     {
+        if (Casts_DynamicShadow())
+            GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
         return;
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapInstancedMesh::Render()
@@ -219,7 +224,7 @@ HRESULT MapInstancedMesh::RenderPickingID(uint32 id)
     const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (FAILED(_shader->Begin(5)))
+        if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::IDPass)))
         {
             return E_FAIL;
         }
@@ -520,6 +525,15 @@ HRESULT MapInstancedMesh::Render_Shadow()
     }
 
     return S_OK;
+}
+
+bool MapInstancedMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const
+{
+    if (_instanceCount == 0)
+        return false;
+
+    outWorldBounds = _groupBounds;
+    return true;
 }
 
 void MapInstancedMesh::DispatchCull()

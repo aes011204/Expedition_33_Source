@@ -45,6 +45,12 @@ namespace UIEditor
                 previewObject.alphaMultiplier = sample.alphaMultiplier;
             if (sample.hasFontSize)
                 previewObject.fontSize = sample.fontSize;
+            if (sample.hasPatternUvOffset)
+                previewObject.patternUvOffset = sample.patternUvOffset;
+            if (sample.hasPatternUvScale)
+                previewObject.patternUvScale = sample.patternUvScale;
+            if (sample.hasFillRatio)
+                previewObject.fillRatio = sample.fillRatio;
         }
 
         _previewObjectCache[object.id] = previewObject;

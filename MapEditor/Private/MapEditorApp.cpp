@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "MapEditorApp.h"
 #include "GameInstance.h"
+#include "PostProcessPipeline.h"
 #include "RenderTarget.h"
 
 #include "MEPickingSystem.h"
@@ -139,6 +140,8 @@ HRESULT MapEditorApp::Initialize()
 
 
     CHECK_FAILED(Ready_Light(), E_FAIL);
+    Apply_DefaultPostProcessSettings();
+    Apply_DefaultShadowSettings();
 
     return S_OK;
 }
@@ -295,17 +298,25 @@ HRESULT MapEditorApp::Render()
 
     if (!_scene._hideInstancedMesh)
     {
+        BoundingFrustum frustum;
+        BoundingFrustum::CreateFromMatrix(frustum, _camera->GetProj());
+        frustum.Transform(frustum, XMMatrixInverse(nullptr, _camera->GetView()));
+
         for (auto& obj : _scene._instancedMeshes)
         {
-            if (!obj->_instancedRenderHandle)
+            for (size_t ci = 0; ci < obj->_instancedChunkHandles.size(); ++ci)
             {
-                continue;
-            }
+                if (!obj->_instancedChunkAABBs[ci].Intersects(frustum))
+                {
+                    continue;
+                }
 
-            obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
-            obj->_instancedRenderHandle->Late_Update(0.f);
+                obj->_instancedChunkHandles[ci]->Set_CameraFar(_camera->GetFar());
+                obj->_instancedChunkHandles[ci]->Late_Update(0.f);
+            }
         }
     }
+
 
     // test
     if (_terrain)
@@ -313,6 +324,7 @@ HRESULT MapEditorApp::Render()
         _terrain->Set_CameraFar(_camera->GetFar());
         _terrain->Late_Update(0.f);
     }
+    //
 
     for (auto& landscape : _scene._landscapes)
     {
@@ -422,39 +434,81 @@ void MapEditorApp::Update_InstancedMeshHandles()
         }
 
         obj->_instancedParamsDirty = false;
-
-        if (!obj->_instancedRenderHandle)
-        {
-            obj->_instancedRenderHandle = static_pointer_cast<MEInstancedMeshActor>(
-                GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
-
-            if (!obj->_instancedRenderHandle)
-            {
-                continue;
-            }
-
-            obj->_instancedRenderHandle->Set_CullShader(_instanceCullShader);
-        }
+        obj->_instancedChunkHandles.clear();
+        obj->_instancedChunkAABBs.clear();
+        obj->_instancedChunkGlobalIndices.clear();
 
         if (obj->_instancedModelPath.empty())
         {
             continue;
         }
 
-        obj->_instancedRenderHandle->UpdateInstances(
-            obj->_instancedModelPath, obj->_instancedTransforms, _modelManager.get());
-
-        auto model = obj->_instancedRenderHandle->GetModel();
-        if (!model)
+        map<pair<int32, int32>, vector<pair<InstanceTransform, uint32>>> chunkMap;
+        uint32 instTransSize = static_cast<uint32>(obj->_instancedTransforms.size());
+        for (uint32 i = 0; i < instTransSize; ++i)
         {
-            continue;
+            const auto& t = obj->_instancedTransforms[i];
+            int32 cx = static_cast<int32>(floorf(t._position.x / CHUNK_SIZE));
+            int32 cz = static_cast<int32>(floorf(t._position.z / CHUNK_SIZE));
+            chunkMap[{cx, cz}].push_back({ t, i });
         }
 
-        const string bundleKey = _materialApplicator->Resolve_BundleKey(obj->_instancedModelPath);
-        _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
+        for (auto& [key, transformPairs] : chunkMap)
+        {
+            vector<InstanceTransform> transforms;
+            vector<uint32> globalIndices;
+            transforms.reserve(transformPairs.size());
+            globalIndices.reserve(transformPairs.size());
+            for (auto& [t, idx] : transformPairs)
+            {
+                transforms.push_back(t);
+                globalIndices.push_back(idx);
+            }
 
-        const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
-        _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
+            auto actor = static_pointer_cast<MEInstancedMeshActor>(
+                GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
+            if (!actor)
+            {
+                continue;
+            }
+
+            actor->Set_CullShader(_instanceCullShader);
+            if (FAILED(actor->UpdateInstances(obj->_instancedModelPath, transforms, _modelManager.get())))
+            {
+                continue;
+            }
+
+            Vec3 chunkMin(FLT_MAX, FLT_MAX, FLT_MAX);
+            Vec3 chunkMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+            for (const auto& t : transforms)
+            {
+                float pad = max({ t._scale.x, t._scale.y, t._scale.z }) * 10.f;
+                chunkMin.x = min(chunkMin.x, t._position.x - pad);
+                chunkMin.y = min(chunkMin.y, t._position.y - pad);
+                chunkMin.z = min(chunkMin.z, t._position.z - pad);
+                chunkMax.x = max(chunkMax.x, t._position.x + pad);
+                chunkMax.y = max(chunkMax.y, t._position.y + pad);
+                chunkMax.z = max(chunkMax.z, t._position.z + pad);
+            }
+
+            BoundingBox aabb;
+            BoundingBox::CreateFromPoints(aabb,
+                XMVectorSet(chunkMin.x, chunkMin.y, chunkMin.z, 0.f),
+                XMVectorSet(chunkMax.x, chunkMax.y, chunkMax.z, 0.f));
+
+            auto model = actor->GetModel();
+            if (model)
+            {
+                const string bundleKey = _materialApplicator->Resolve_BundleKey(obj->_instancedModelPath);
+                _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
+                const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
+                _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
+            }
+
+            obj->_instancedChunkHandles.push_back(actor);
+            obj->_instancedChunkAABBs.push_back(aabb);
+            obj->_instancedChunkGlobalIndices.push_back(move(globalIndices));
+        }
     }
 }
 
@@ -607,6 +661,9 @@ void MapEditorApp::SyncSceneLights()
 
     GAME->Clear_Lights();
 
+    bool hasPrimaryDirectional = false;
+    LIGHT_DESC primaryDirectionalDesc{};
+
     for (const auto& obj : _scene._lights)
     {
         LIGHT_DESC desc{};
@@ -618,12 +675,26 @@ void MapEditorApp::SyncSceneLights()
         desc.ambient = obj->_lightAmbient;
         desc.specular = obj->_lightSpecular;
         GAME->Add_Light(desc);
+
+        if (!hasPrimaryDirectional && desc.type == LightType::Directional)
+        {
+            primaryDirectionalDesc = desc;
+            primaryDirectionalDesc.castShadow = true;
+            hasPrimaryDirectional = true;
+        }
+    }
+
+    if (hasPrimaryDirectional)
+    {
+        GAME->Update_PrimaryShadowLightDesc(primaryDirectionalDesc);
+        Apply_DefaultShadowSettings();
     }
 }
 
 void MapEditorApp::SyncFogZones()
 {
     FogZoneCB cb{};
+    bool hasGroundFogGlobals = false;
 
     for (const auto& obj : _scene._postProcessVolumes)
     {
@@ -632,34 +703,36 @@ void MapEditorApp::SyncFogZones()
             continue;
         }
 
+        if (!hasGroundFogGlobals)
+        {
+            cb.groundFogMaxDistance = obj->_ppGroundFogMaxDistance;
+            cb.groundFogMinAccumulationDistance = obj->_ppGroundFogMinAccumulationDistance;
+            cb.groundFogDistanceInfluence = obj->_ppGroundFogDistanceInfluence;
+            cb.groundFogNearFadeDistance = obj->_ppGroundFogNearFadeDistance;
+            cb.groundFogNearMinFactor = obj->_ppGroundFogNearMinFactor;
+            hasGroundFogGlobals = true;
+        }
+
         FogZoneEntry entry{};
         entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
         entry.fogDensity = obj->_ppFogDensity;
-        entry.fogStart = obj->_ppFogStart;
+        entry.baseHeight = obj->_ppFogBaseHeight;
+        entry.topFadeStart = obj->_ppFogTopFadeStart;
+        entry.topHeight = obj->_ppFogTopHeight;
+        entry.edgeFade = obj->_ppFogEdgeFade;
+        entry.noiseScale = obj->_ppFogNoiseScale;
+        entry.noiseSpeed = obj->_ppFogNoiseSpeed;
+        entry.noiseStrength = obj->_ppFogNoiseStrength;
+        entry.noiseMin = obj->_ppFogNoiseMin;
 
-        if (obj->_ppFogZoneType == 0) // AABB
+        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
         {
-            if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                continue;
-            }
-
-            entry.zoneMin = obj->_position - obj->_zoneExtent;
-            entry.zoneMax = obj->_position + obj->_zoneExtent;
-            cb.zones[cb.aabbCount++] = entry;
+            continue;
         }
 
-        else
-        {
-            if (cb.aabbCount + cb.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                continue;
-            }
-
-            entry.zoneMin = obj->_position;
-            entry.zoneRadius = obj->_ppFogRadius;
-            cb.zones[cb.aabbCount + cb.sphereCount++] = entry;
-        }
+        entry.zoneMin = obj->_position - obj->_zoneExtent;
+        entry.zoneMax = obj->_position + obj->_zoneExtent;
+        cb.zones[cb.aabbCount++] = entry;
     }
 
     GAME->Set_FogZones(cb);
@@ -676,6 +749,73 @@ HRESULT MapEditorApp::Ready_Light()
     obj->_isDefaultLight = true;
     _scene.Add(obj);
     return S_OK;
+}
+
+void MapEditorApp::Apply_DefaultPostProcessSettings()
+{
+    const Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
+    if (!pipeline)
+    {
+        return;
+    }
+
+    pipeline->Set_PostProcessFeatures(
+        PostProcessFeature::HDR |
+        PostProcessFeature::Exposure |
+        PostProcessFeature::ToneMapping |
+        PostProcessFeature::Bloom |
+        PostProcessFeature::Gamma |
+        PostProcessFeature::LightShaft);
+
+    pipeline->Set_PostProcessParams(pipeline->Get_PostProcessParams());
+    pipeline->Set_LightShaftParams(pipeline->Get_LightShaftParams());
+}
+
+void MapEditorApp::Apply_DefaultShadowSettings()
+{
+    ShadowLightDesc shadowDesc{};
+
+    shadowDesc.eye = Vec3(0.f, 15.f, -7.f);
+    shadowDesc.at = Vec3(0.f, 0.f, 0.f);
+
+    // Camera 따라다니게
+    shadowDesc.followCameraFrustum = true;
+    shadowDesc.focusNear = 0.1f;
+    shadowDesc.focusFar = 110.f;
+    shadowDesc.lightDistancePadding = 30.f;
+    // 그림자용 ortho projection 범위 여유 값
+    shadowDesc.xyPadding = 2.f;
+    shadowDesc.zPadding = 40.f;
+
+    // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
+    shadowDesc.shadowMapWidth = 4096;
+    shadowDesc.shadowMapHeight = 4096;
+
+    shadowDesc.cascadeSplitLambda = 0.8f;
+    shadowDesc.bias = 0.0002f;
+    shadowDesc.intensity = 0.45f;
+
+    GAME->Update_ShadowLight(shadowDesc);
+
+    // 카메라 close/normal/far 모드에 따라서 그림자 구간을 동적 조절하기 위한 프리셋 설정
+    ShadowCascadePresetSet cascadePresets{};
+    cascadePresets.close.focusNear = 0.1f;
+    cascadePresets.close.focusFar = 28.f;
+    cascadePresets.close.cascadeSplitLambda = 0.95f;
+    cascadePresets.close.cascadeBlendDistance = 0.8f;
+
+    cascadePresets.normal.focusNear = 0.1f;
+    cascadePresets.normal.focusFar = 110.f;
+    cascadePresets.normal.cascadeSplitLambda = 0.8f;
+    cascadePresets.normal.cascadeBlendDistance = 1.7f;
+
+    cascadePresets.farRange.focusNear = 0.1f;
+    cascadePresets.farRange.focusFar = 180.f;
+    cascadePresets.farRange.cascadeSplitLambda = 0.55f;
+    cascadePresets.farRange.cascadeBlendDistance = 3.f;
+
+    GAME->Set_ShadowCascadePresets(cascadePresets);
+    GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal);
 }
 
 wstring MapEditorApp::Get_ClientResourceRoot() const

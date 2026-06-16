@@ -21,6 +21,16 @@ namespace
     
         return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
+
+    string Build_BattleDriftFilePath(BattleCameraMode cameraMode, bool isBossVariant)
+    {
+        const string modeName = string(magic_enum::enum_name(cameraMode));
+        string fileName = "BattleDrift_" + modeName;
+        if (cameraMode == BattleCameraMode::ENEMYATTACK && isBossVariant)
+            fileName += "_Boss";
+
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
+    }
 }
 
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)
@@ -102,6 +112,30 @@ bool CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode cameraMode, Targe
         break;
     case static_cast<int>(BattleCameraTransitionEasing::EaseOut):
         preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOut;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInStrong):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutStrong):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInOutStrong):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInOutStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInCubic):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInCubic;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutCubic):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutCubic;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInExpo):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInExpo;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutExpo):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutExpo;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutBack):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutBack;
         break;
     case static_cast<int>(BattleCameraTransitionEasing::EaseInOut):
     default:
@@ -243,7 +277,7 @@ bool CameraPresetIO:: LoadBattlePresetFromFile(BattleCameraMode cameraMode, Batt
     file >> jsonData;
 
     BattleCameraPreset preset {};
-    const int transitionEasing = jsonData.value("transitionEasing", static_cast<int>(BattleCameraTransitionEasing::EaseInOut));
+    const int transitionEasing = jsonData.value("transitionEasing", static_cast<int>(BattleCameraTransitionEasing::EaseOut));
 
     preset.snapOnEnter = jsonData.value("snapOnEnter", false);
     switch (transitionEasing)
@@ -256,6 +290,30 @@ bool CameraPresetIO:: LoadBattlePresetFromFile(BattleCameraMode cameraMode, Batt
         break;
     case static_cast<int>(BattleCameraTransitionEasing::EaseOut):
         preset.transitionEasing = BattleCameraTransitionEasing::EaseOut;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInStrong):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseInStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutStrong):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseOutStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInOutStrong):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseInOutStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInCubic):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseInCubic;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutCubic):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseOutCubic;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInExpo):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseInExpo;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutExpo):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseOutExpo;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutBack):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseOutBack;
         break;
     case static_cast<int>(BattleCameraTransitionEasing::EaseInOut):
     default:
@@ -287,4 +345,61 @@ bool CameraPresetIO:: LoadBattlePresetFromFile(BattleCameraMode cameraMode, Batt
 
     return true;
     
+}
+
+void CameraPresetIO::SaveBattleDriftToFile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool isBossVariant)
+{
+    json jsonData{};
+
+    jsonData["enabled"] = profile.enabled;
+    jsonData["lateralAmplitude"] = profile.lateralAmplitude;
+    jsonData["verticalAmplitude"] = profile.verticalAmplitude;
+    jsonData["depthAmplitude"] = profile.depthAmplitude;
+    jsonData["rollAmplitude"] = profile.rollAmplitude;
+    jsonData["lateralFrequency"] = profile.lateralFrequency;
+    jsonData["verticalFrequency"] = profile.verticalFrequency;
+    jsonData["depthFrequency"] = profile.depthFrequency;
+    jsonData["rollFrequency"] = profile.rollFrequency;
+
+    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant);
+
+    const fs::path savePath = filePath;
+    if (!fs::exists(savePath.parent_path()))
+        fs::create_directories(savePath.parent_path());
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        MSG_BOX("Failed to open battle drift save file.");
+        return;
+    }
+
+    file << jsonData.dump(4);
+}
+
+bool CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode mode, BattleCameraDriftProfile& outProfile, bool isBossVariant)
+{
+    const string filePath = Build_BattleDriftFilePath(mode, isBossVariant);
+
+    ifstream file(filePath);
+    if (!file.is_open())
+        return false;
+
+    json jsonData{};
+    file >> jsonData;
+
+    BattleCameraDriftProfile profile{};
+
+    profile.enabled = jsonData.value("enabled", profile.enabled);
+    profile.lateralAmplitude = jsonData.value("lateralAmplitude", profile.lateralAmplitude);
+    profile.verticalAmplitude = jsonData.value("verticalAmplitude", profile.verticalAmplitude);
+    profile.depthAmplitude = jsonData.value("depthAmplitude", profile.depthAmplitude);
+    profile.rollAmplitude = jsonData.value("rollAmplitude", profile.rollAmplitude);
+    profile.lateralFrequency = jsonData.value("lateralFrequency", profile.lateralFrequency);
+    profile.verticalFrequency = jsonData.value("verticalFrequency", profile.verticalFrequency);
+    profile.depthFrequency = jsonData.value("depthFrequency", profile.depthFrequency);
+    profile.rollFrequency = jsonData.value("rollFrequency", profile.rollFrequency);
+
+    outProfile = profile;
+    return true;
 }

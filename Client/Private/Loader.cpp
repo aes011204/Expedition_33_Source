@@ -49,13 +49,13 @@ auto Loader::Find_LandscapeDesc() const -> const LevelLandscapeDesc*
             LevelType::GamePlay,
             {
                 Constants::Map::MF_Zone_Boss_HMap,
-                Constants::Map::MF_Zone_Main_HMap,
-                Constants::Map::MF_Zone_Stair_1_HMap,
-                Constants::Map::MF_Zone_Stair_2_HMap,
-                Constants::Map::MF_Zone_Stair_3_HMap,
+                Constants::Map::MF_Zone_Main_HMap
+                //, Constants::Map::MF_Zone_Stair_1_HMap,
+                //Constants::Map::MF_Zone_Stair_2_HMap,
+                //Constants::Map::MF_Zone_Stair_3_HMap,
             },
-            5,
-            Constants::Map::LandscapeTextures_Dir,
+            2,
+            Constants::Map::ResourceRoot_Dir,
             L"Layer_BackGround"
         },
     };

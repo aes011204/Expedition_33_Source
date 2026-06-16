@@ -32,6 +32,28 @@ namespace
         return value;
     }
 
+    string ToRelativePath(const string& path)
+    {
+        if (path.empty())
+        {
+            return path;
+        }
+
+        error_code ec;
+        const fs::path abs = fs::weakly_canonical(fs::path(path), ec);
+        const fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
+        if (!ec && !cwd.empty())
+        {
+            const fs::path rel = abs.lexically_relative(cwd);
+            if (!rel.empty())
+            {
+                return rel.generic_string();
+            }
+        }
+
+        return path;
+    }
+
     string GetMapName(const MapEditor::SceneContext* ctx)
     {
         if (!ctx || ctx->_mapName.empty())
@@ -83,7 +105,7 @@ namespace
             out.modelPath = String::ToString(out.object->_instancedModelPath);
             out.filename = fs::path(out.modelPath).filename().string();
             out.shaderType = ShaderType::VtxInstanceMeshExact;
-            out.model = out.object->_instancedRenderHandle ? out.object->_instancedRenderHandle->GetModel() : nullptr;
+            out.model = out.object->_instancedChunkHandles.empty() ? nullptr : out.object->_instancedChunkHandles[0]->GetModel();
             return !out.filename.empty();
         }
 
@@ -100,6 +122,10 @@ namespace
             return "normal";
         case MaterialTextureSlot::ORM:
             return "orm";
+        case MaterialTextureSlot::ORM2:
+            return "orm2";
+        case MaterialTextureSlot::ORM3:
+            return "orm3";
         case MaterialTextureSlot::Emissive:
             return "emissive";
         case MaterialTextureSlot::OpacityMask:
@@ -127,6 +153,10 @@ namespace
             return "normal";
         case MaterialTextureSlot::ORM:
             return "orm";
+        case MaterialTextureSlot::ORM2:
+            return "orm2";
+        case MaterialTextureSlot::ORM3:
+            return "orm3";
         case MaterialTextureSlot::Emissive:
             return "emissive";
         case MaterialTextureSlot::OpacityMask:
@@ -246,6 +276,17 @@ namespace
         }
 
         return {};
+    }
+
+    string BuildTextureDisplayName(const string& texturePath)
+    {
+        if (texturePath.empty())
+        {
+            return {};
+        }
+
+        const string filename = fs::path(texturePath).filename().string();
+        return filename.empty() ? texturePath : filename;
     }
 
     void SetTextureOverrideFromFile(json& instJson, const char* key, const string& texturePath, const string& textureGuid)
@@ -855,6 +896,8 @@ namespace
             MaterialTextureSlot::BaseColor,
             MaterialTextureSlot::Normal,
             MaterialTextureSlot::ORM,
+            MaterialTextureSlot::ORM2,
+            MaterialTextureSlot::ORM3,
             MaterialTextureSlot::Emissive,
             MaterialTextureSlot::OpacityMask,
             MaterialTextureSlot::HairDepth,
@@ -903,11 +946,16 @@ namespace
             ImGui::SameLine();
 
             string texPath = ReadTextureOverrideDisplayPath(instJson, key);
+            const string texDisplayName = BuildTextureDisplayName(texPath);
             char pathBuffer[MAX_PATH] = {};
-            strncpy_s(pathBuffer, texPath.c_str(), sizeof(pathBuffer) - 1);
+            strncpy_s(pathBuffer, texDisplayName.c_str(), sizeof(pathBuffer) - 1);
 
             ImGui::SetNextItemWidth(300.f);
             ImGui::InputText("##tex_path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_ReadOnly);
+            if (!texPath.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            {
+                ImGui::SetTooltip("%s", texPath.c_str());
+            }
             ImGui::SameLine();
 
             if (ImGui::SmallButton("Browse"))
@@ -1700,6 +1748,8 @@ namespace MapEditor
                 MaterialTextureSlot::BaseColor,
                 MaterialTextureSlot::Normal,
                 MaterialTextureSlot::ORM,
+                MaterialTextureSlot::ORM2,
+                MaterialTextureSlot::ORM3,
                 MaterialTextureSlot::Emissive,
                 MaterialTextureSlot::OpacityMask,
                 MaterialTextureSlot::HairDepth,
@@ -1809,7 +1859,7 @@ namespace MapEditor
         root["schema_version"] = 2;
         root["map_name"] = mapName;
         root["map_object_kind"] = MapMaterialObjectKindName(materialObjectKind);
-        root["editor_modelPath"] = modelPath;
+        root["editor_modelPath"] = ToRelativePath(modelPath);
         root["editor_modelStem"] = fs::path(modelPath).stem().string();
         root["editor_shaderType"] = static_cast<int>(shaderType);
 
@@ -1890,7 +1940,7 @@ namespace MapEditor
         string assetName = modelName + "_Inst";
         instJson["assetName"] = assetName;
         
-        instJson["editor_modelPath"] = modelPath; 
+        instJson["editor_modelPath"] = ToRelativePath(modelPath);
         instJson["editor_shaderType"] = static_cast<int>(shaderType);
         instJson["map_object_kind"] = MapMaterialObjectKindName(materialObjectKind);
 

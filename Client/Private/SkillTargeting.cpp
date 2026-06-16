@@ -80,7 +80,7 @@ void SkillTargeting::Update(float timeDelta)
         owner->Clear_TargetPreview();
 
         EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.cameraMode = BattleCameraMode::SELECTSKILL;
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 

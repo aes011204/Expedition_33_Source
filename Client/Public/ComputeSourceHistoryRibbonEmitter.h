@@ -31,6 +31,7 @@ public:
 public:
     HRESULT Reset_ForEffectReplay() override;
     bool Is_EffectFinished() const override;
+    void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider) override;
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
     EffectSortPolicy Get_BlendSortPolicy() const override;
     int32 Get_BlendSortLayer() const override;
@@ -40,7 +41,8 @@ private:
     enum class PlaybackState : uint8
     {
         Delayed,
-        Playing,
+        Emitting,
+        Draining,
         Completed,
     };
 
@@ -57,13 +59,37 @@ private:
         float distanceFromHead{};
     };
 
-    struct SamplePayload
+    struct SegmentPayload
     {
-        Vec4 currentWorldPosition{};
-        Vec4 sampleParams{}; // x: age, y: lifetime, z: distance, w: widthScale.
+        Vec4 previousPosition{};
+        Vec4 currentPosition{};
+        Vec4 nextPosition{};
+        Vec4 nextNextPosition{};
+        Vec4 currentSampleParams{}; // x: age, y: lifetime, z: distance, w: widthScale.
+        Vec4 nextSampleParams{};    // x: age, y: lifetime, z: distance, w: widthScale.
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
+    };
+
+    struct HistoryLane
+    {
+        uint32 sourceIndex{};
+        Vec3 currentSourcePosition{};
+        Vec3 previousSourcePosition{};
+        vector<HistorySample> history{};
+        float sampleIntervalAccumulator{};
+        float collapseLength{ -1.f };
+        float age{};
+        float missingTime{};
+        bool activeThisFrame{};
+        bool hasPreviousSourcePosition{};
+    };
+
+    struct RetiredLoopStroke
+    {
+        vector<HistorySample> history{};
+        float widthMultiplier{ 1.f };
     };
 
     struct RibbonComputeParams
@@ -105,15 +131,26 @@ private:
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };
     static constexpr uint32 kThreadCountX{ 64 };
-    static constexpr uint32 kMaxDistanceTessellationSubdivision{ 8 };
+    static constexpr uint32 kMaxCurveSubdivision{ 32 };
+    static constexpr uint32 kMaxRetiredLoopStrokeCount{ 4 };
+    static constexpr float kSmoothSampleSideWeight{ 0.25f };
+    static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
+    static constexpr float kMinRenderableRibbonLength{ 0.0001f };
 
 private:
-    ComputeSourceHistoryRibbonEmitterDesc _desc{};
+    ComputeRibbonEmitterDesc _desc{};
     PlaybackState _playbackState{ PlaybackState::Delayed };
+    bool _finishEmissionAfterHistoryUpdate{};
     float _loopElapsedTime{};
     uint32 _loopIndex{};
     vector<HistorySample> _history{};
     float _sampleIntervalAccumulator{};
+    float _selfRootCollapseLength{ -1.f };
+    Vec3 _selfRootSourcePosition{};
+    Vec3 _selfRootPreviousSourcePosition{};
+    bool _hasSelfRootPreviousSourcePosition{};
+    vector<HistoryLane> _sourceLanes{};
+    vector<RetiredLoopStroke> _retiredLoopStrokes{};
     float _materialElapsedTime{};
     float _visibleRibbonLength{ 1.f };
     uint32 _drawSegmentCount{};
@@ -137,11 +174,31 @@ private:
 private:
     void Reset_PlaybackRuntime();
     void Advance_Playback(float timeDelta);
+    bool Is_UpdatingHistory() const;
+    bool Is_EmittingSourceSamples() const;
     void Update_History(float timeDelta);
-    bool Should_InsertSample(const Vec3& sourcePosition, float timeDelta) const;
-    void Insert_HistorySample(const Vec3& sourcePosition);
-    void Prune_History();
+    void Update_SelfRootHistory(float timeDelta);
+    void Update_ParticleFollowerHistory(float timeDelta);
+    void Insert_HistorySample(vector<HistorySample>& history, float& sampleIntervalAccumulator, const Vec3& sourcePosition);
+    void Prune_History(vector<HistorySample>& history);
     void Build_RenderSamples(vector<RenderSample>& outSamples) const;
+    void Build_RenderSamples(
+        const vector<HistorySample>& history,
+        vector<RenderSample>& outSamples,
+        const Vec3* currentSourcePosition = nullptr,
+        const float* visibleLengthLimit = nullptr) const;
+    HRESULT Append_SegmentPayloads(
+        const vector<RenderSample>& renderSamples,
+        vector<SegmentPayload>& outPayloads,
+        float widthMultiplier = 1.f) const;
+    bool Has_RenderableHistory() const;
+    bool Has_RenderableHistory(const vector<HistorySample>& history, const Vec3* currentSourcePosition = nullptr) const;
+    HistoryLane* Find_HistoryLane(uint32 sourceIndex);
+    void Clear_ParticleFollowerHistory();
+    void Retire_ActiveLoopStrokes();
+    void Retire_HistoryStroke(vector<HistorySample> history, const Vec3* currentSourcePosition, float widthMultiplier);
+    void Update_RetiredLoopStrokes(float timeDelta);
+    void Refresh_VisibleRibbonLengthFromRetired();
 
     HRESULT Ready_Components();
     HRESULT Ready_Texture();
@@ -159,6 +216,7 @@ private:
     HRESULT Bind_MaterialResources();
     HRESULT Bind_DistortionResources();
     bool Can_SubmitRender() const;
+    uint32 Compute_MaxLaneRenderSegmentCount() const;
     uint32 Compute_MaxRenderSegmentCount() const;
 
     void Start_NextLoop();
@@ -170,12 +228,13 @@ private:
     const wchar_t* Resolve_ShaderId() const;
     uint32 Resolve_ShaderPassIndex() const;
     int Resolve_OpacitySourceIndex() const;
+    bool Try_Resolve_SourcePosition(Vec3& outPosition) const;
     Vec3 Resolve_SourcePosition() const;
-    Vec3 Resolve_PreviewMotionOffset() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;
     float Evaluate_WidthScaleByLife(float lifeProgress) const;
     uint32 Evaluate_SubUVFrameIndex() const;
     Vec4 Resolve_SubUVRect(uint32 frameIndex) const;
+    void Resample_SampleLifetime();
     void Resample_RandomSubUVFrameIndex();
     float Evaluate_CompactCurve(
         float lifeProgress,
@@ -183,6 +242,20 @@ private:
         const Vec4& timesBlock1,
         const Vec4& values,
         const Vec4& valuesBlock1,
+        uint32 keyCount,
+        float fallbackValue) const;
+    float Evaluate_CompactCurve(
+        float lifeProgress,
+        const Vec4& times,
+        const Vec4& timesBlock1,
+        const Vec4& values,
+        const Vec4& valuesBlock1,
+        const Vec4& arriveTangents,
+        const Vec4& arriveTangentsBlock1,
+        const Vec4& leaveTangents,
+        const Vec4& leaveTangentsBlock1,
+        const Vec4& modes,
+        const Vec4& modesBlock1,
         uint32 keyCount,
         float fallbackValue) const;
 

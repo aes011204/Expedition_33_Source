@@ -21,7 +21,7 @@ NS_END
 NS_BEGIN(MainEditor)
 
 class AnimSequencerAdapter;
-class Animation_View final : public Editor_Window, public Engine::IEffectTrailSampleProvider
+class Animation_View final : public Editor_Window, public Engine::IEffectTrailSampleProvider, public Engine::IEffectSourcePointSampleProvider
 {
     friend class AnimSequencerAdapter;
 
@@ -55,6 +55,7 @@ public:
     const string& Get_ModelGuid() const { return _modelGuid; }
     const string& Get_CurrentAnimationName() const { return _currentAnimationName; }
     bool Try_GetTrailSample(EffectTrailSample& outSample) const override;
+    bool Try_GetSourcePointSample(EffectSourcePointSample& outSample) const override;
     void Refresh_PreviewTrailAnchorAsset();
 
     int32 Get_CurrentAnimationFps() const;
@@ -113,6 +114,28 @@ private:
         Shared<EffectInstance> effect{};
         wstring effectName{};
         bool isPlaying = false;
+        bool isDraining = false;
+        float drainElapsed = 0.f;
+        float drainDuration = 0.25f;
+    };
+
+    struct PreviewSourceHistoryRuntime
+    {
+        int32 stateId = -1;
+        string partTag = "Part_Weapon";
+        int32 sourceBindingMode = 0;
+        string socketName{};
+        int32 sourcePointPolicy = 0;
+        string modelGuid{};
+        float lastTimeSec = -1.f;
+
+        Client::TrailAnchorAsset trailAnchorAsset{};
+        Shared<EffectInstance> effect{};
+        wstring effectName{};
+        bool isPlaying = false;
+        bool isDraining = false;
+        float drainElapsed = 0.f;
+        float drainDuration = 0.5f;
     };
 
     struct PreviewWeaponRotateRuntime
@@ -123,6 +146,13 @@ private:
     };
 
     struct PreviewPlayEffectStateRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
+    struct PreviewAnimSpeedStateRuntime
     {
         int32 stateId = -1;
         Shared<AnimNotifyState> notifyState{};
@@ -170,6 +200,7 @@ private:
     void Delete_SelectedNotifyStateTrack();
     void Handle_ClipboardShortcuts();
     void Move_SelectedNotifiesByFrame(int32 frameDelta);
+    void Move_SelectedStateByFrame(int32 frameDelta);
     void Copy_SelectedNotify();
     void Copy_SelectedState();
     void Paste_CopiedNotify();
@@ -189,14 +220,24 @@ private:
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
     void Draw_TrailAnchorPreview() const;
+    void Update_PreviewAnimSpeedStates(float timeDelta);
+    void Reset_PreviewAnimSpeedStates();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
     void Update_PreviewTrailEffect(float timeDelta);
     void Reset_PreviewTrailEffect();
+    void Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime);
+    bool Tick_PreviewTrailDrain(PreviewTrailRuntime& runtime, float timeDelta);
     vector<const AnimNotifyStateEntry*> Find_ActivePreviewTrailStates() const;
     bool Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, const wstring& effectName);
+    void Update_PreviewSourceHistoryEffect(float timeDelta);
+    void Reset_PreviewSourceHistoryEffect();
+    void Begin_PreviewSourceHistoryDrain(PreviewSourceHistoryRuntime& runtime);
+    bool Tick_PreviewSourceHistoryDrain(PreviewSourceHistoryRuntime& runtime, float timeDelta);
+    vector<const AnimNotifyStateEntry*> Find_ActivePreviewSourceHistoryStates() const;
+    bool Ensure_PreviewSourceHistoryEffect(PreviewSourceHistoryRuntime& runtime, const wstring& effectName);
     bool Try_ResolvePreviewTrailEffectName(
         const string& effectNameOverride,
         const string& partTag,
@@ -211,13 +252,23 @@ private:
     bool Try_GetTrailSampleForRuntime(
         const PreviewTrailRuntime& runtime,
         EffectTrailSample& outSample) const;
+    bool Try_GetSourcePointSampleForRuntime(
+        const PreviewSourceHistoryRuntime& runtime,
+        EffectSourcePointSample& outSample) const;
     bool Try_ResolvePreviewTrailAnchorWorldPosition(
         const string& partTag,
         const Client::TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
+    bool Try_ResolvePreviewSocketWorldPosition(
+        const string& partTag,
+        const string& socketName,
+        Vec3& outWorldPosition) const;
     bool Load_PreviewTrailAnchorAsset(
         const string& partTag,
         PreviewTrailRuntime& outRuntime);
+    bool Load_PreviewSourceHistoryAnchorAsset(
+        const string& partTag,
+        PreviewSourceHistoryRuntime& outRuntime);
     Weapon* Resolve_PreviewWeapon(const wstring& partTag) const;
 
     AnimNotifyData* Get_CurrentAnimation();
@@ -264,9 +315,12 @@ private:
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
+    vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
+    vector<PreviewSourceHistoryRuntime> _previewSourceHistoryRuntimes{};
     mutable int32 _previewTrailProviderStateId = -1; // preview effect가 지금 sample을 요청 중인 runtime state id다.
+    mutable int32 _previewSourceHistoryProviderStateId = -1;
     bool _isDirty = false;
     int32 _selectedBoneIndex = -1;
 

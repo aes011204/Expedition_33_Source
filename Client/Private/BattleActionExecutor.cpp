@@ -1,9 +1,11 @@
 ﻿#include "BattleActionExecutor.h"
 
 #include "BattleAnimutils.h"
+#include "Battle_Event.h"
 #include "Character.h"
 #include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
+#include "Event_Bus.h"
 
 void BattleActionExecutor::BeginAction(BattleAction& action)
 {
@@ -34,15 +36,18 @@ void BattleActionExecutor::Update(float timeDelta, BattleAction& action)
 void BattleActionExecutor::OnActionEndNotify(BattleAction& action)
 {
     const auto& phases = action.GetSkillData().AnimPhases;
-    if (action.GetCurAnimIndex() >= phases.size() )
+    if (action.GetCurAnimIndex() >= phases.size())
         return;
 
     const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
 
-    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget )//||
-        //phase.movementPolicy == BattleMovementPolicy::MoveToTarget )//||
-       // phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
+    {
+        // EndAnim notify fallback은 위치를 스냅하지 않고 phase만 넘긴다.
+        // RootMotion 도중 목표점으로 뚝 보정되는 움직임을 막기 위함이다.
+        Complete_CurPhase(action);
         return;
+    }
 
     //if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
     //    phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
@@ -74,6 +79,7 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
         }
 
         _isFinished = true;
+        _hasTriggeredCloseApproachShot = false;
         action.SetPhaseReachedGoal(true);
         return;
     }
@@ -121,11 +127,11 @@ Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, Ba
             return action.GetInitTarget().actor->Get_Transform()->Get_Position();
         break;
 
-    case BattleTargetAnchor::TargetCenter: // TODO:: 나중에 팀의 중심 값가져오기
+    case BattleTargetAnchor::TargetCenter:  // TODO:: 나중에 팀의 중심 값가져오기
         if (action.GetInitTarget().actor)
             return action.GetInitTarget().actor->Get_Transform()->Get_Position();
         break;
-    case BattleTargetAnchor::Origin: // TODO:: 나중에 팀의 중심 값가져오기
+    case BattleTargetAnchor::Origin:        // TODO:: 나중에 팀의 중심 값가져오기
             return action.GetOriginPos();
         break;
     default:
@@ -274,7 +280,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
         return;
 
     case BattleMovementPolicy::RootMotionToTarget:
-        Update_RootMotionToTarget(action, transform, currentPos);
+        Update_RootMotionToTarget(action, transform, currentPos, timeDelta);
         return;
 
     case BattleMovementPolicy::MoveToTarget:
@@ -306,7 +312,7 @@ void BattleActionExecutor::Update_BasicMovement(BattleAction& action, const Shar
     //transform->Set_Position(currentPos + worldDelta);
 }
 
-void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
+void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos, float timeDelta)
 {
     //RootMotionToTarget
     Vec3 toGoal = action.GetPhaseGoalPos() - currentPos;
@@ -319,35 +325,71 @@ void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const
         return;
     }
 
-    const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
-    Vec3 localDelta = rm.position * 0.01f;
-    localDelta.y = 0.f;
+    const Skill_Data& skillData = action.GetSkillData();
+    const uint32 curPhaseIndex = action.GetCurAnimIndex();
 
-    if (localDelta.LengthSquared() <= 0.0001f)
-        return;
+    if(!_hasTriggeredCloseApproachShot &&
+        skillData.skillKey == "Abbest_Knife"&&
+        curPhaseIndex == 0 &&
+        remain <= 4.5f)
+    {
+        EvtBattlePresentation event{};
+        event.cameraMode = BattleCameraMode::ENEMYATTACK;
+        event.subject = action.Get_CurChar().actor;
+        event.opponent = action.GetInitTarget().actor;
+        event.useClip = true;
+        event.restartClip = true;
+        event.presetId = "Abbest_DashIn";
+        event.clipId = "Abbest_DashIn";
 
-    const Vec3 rotDeg = transform->Get_RotationEuler();
-    const Vec3 rotRad(
-        XMConvertToRadians(rotDeg.x),
-        XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z)
-    );
+        GAME->Get_EventBus().Publish(event);
+        _hasTriggeredCloseApproachShot = true;
+    }
 
-    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
-    Vec3 worldDelta = Vec3::TransformNormal(localDelta, rotMat);
-    worldDelta.y = 0.f;
-
-    if (worldDelta.LengthSquared() <= 0.0001f)
-        return;
 
     Vec3 goalDir = toGoal;
     goalDir.Normalize();
 
-    const float forwardAmount = worldDelta.Dot(goalDir);
-    if (forwardAmount <= 0.f)
+    const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
+    Vec3 localDelta = rm.position * 0.01f;
+    localDelta.y = 0.f;
+
+    Vec3 moveDelta = Vec3::Zero;
+
+    if (localDelta.LengthSquared() > 0.0001f)
+    {
+        const Vec3 rotDeg = transform->Get_RotationEuler();
+        const Vec3 rotRad(
+            XMConvertToRadians(rotDeg.x),
+            XMConvertToRadians(rotDeg.y),
+            XMConvertToRadians(rotDeg.z)
+        );
+
+        const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+        Vec3 worldDelta = Vec3::TransformNormal(localDelta, rotMat);
+        worldDelta.y = 0.f;
+
+        if (worldDelta.LengthSquared() > 0.0001f)
+        {
+            const float forwardAmount = worldDelta.Dot(goalDir);
+            if (forwardAmount > 0.f)
+                moveDelta = goalDir * forwardAmount;
+        }
+    }
+    else
+    {
+        const float fallbackSpeed = transform->Get_SpeedPerSec();
+        if (fallbackSpeed > 0.f)
+            moveDelta = goalDir * fallbackSpeed * timeDelta;
+    }
+
+    if (moveDelta.LengthSquared() <= 0.0001f)
         return;
 
-    const Vec3 moveDelta = goalDir * forwardAmount;
+    //const float forwardAmount = worldDelta.Dot(goalDir);
+    //if (forwardAmount <= 0.f)
+    //    return;
+
     if (moveDelta.Length() >= remain)
     {
         FinishCurrentPhaseAtGoal(action);

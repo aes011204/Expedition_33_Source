@@ -230,6 +230,7 @@ void EditorInstance::Play()
         Capture_ActiveCameraPose(_playStartCameraPose);
 
     GAME->Get_DelegateHub().OnEditorPlayRuntime.Broadcast();
+    GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -267,6 +268,7 @@ void EditorInstance::Stop()
             gameplayUI->Handle_EditorStopRuntime();
 
         GAME->Stop_AllSounds(0.f);
+        GAME->Set_SoundGlobalPitch(1.f, false);
 
         Restore_PlayStartMonsterSnapshots(); // F4 Stop은 큰 맵 JSON을 다시 읽지 않고 Play 시작 몬스터만 되돌린다.
         CLIENT->Restore_PartyFormationAfterEditorStop();
@@ -296,6 +298,7 @@ void EditorInstance::Resume()
     Restore_PreviousCameraOrTarget();
 
     GAME->Get_DelegateHub().OnEditorResumeRuntime.Broadcast();
+    GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -336,6 +339,8 @@ void EditorInstance::Enter_EditAfterLoading()
     GAME->Unlock_Mouse();
     _runtimeGameFocusRecoveryFrames = 0;
 
+    GAME->Set_SoundGlobalPitch(1.f, false);
+
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
 
@@ -352,11 +357,17 @@ bool EditorInstance::IsPaused() const
 void EditorInstance::Set_RuntimeTimeScale(float timeScale)
 {
     _runtimeTimeScale = ::clamp(timeScale, 0.01f, 8.f);
+
+    if (IsPlaying() || IsPaused())
+        GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 }
 
 void EditorInstance::Reset_RuntimeTimeScale()
 {
     _runtimeTimeScale = 1.f;
+
+    if (IsPlaying() || IsPaused())
+        GAME->Set_SoundGlobalPitch(_runtimeTimeScale, false);
 }
 
 float EditorInstance::Get_RuntimeTimeScale() const
@@ -408,6 +419,21 @@ bool EditorInstance::Selected_UIPositionDrivenByCode() const
     return _editorContext->Get_Selection().selectedUIPositionDrivenByCode;
 }
 
+Client::IRuntimeWorldUI_EditorTarget* EditorInstance::Selected_RuntimeWorldUI() const
+{
+    return _editorContext->Get_Selection().selectedRuntimeWorldUITarget;
+}
+
+string EditorInstance::Selected_RuntimeWorldUIGroup() const
+{
+    return _editorContext->Get_Selection().selectedRuntimeWorldUIGroup;
+}
+
+string EditorInstance::Selected_RuntimeWorldUIDisplayName() const
+{
+    return _editorContext->Get_Selection().selectedRuntimeWorldUIDisplayName;
+}
+
 void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
 {
     return _editorContext->Set_SelectObject(gameObject);
@@ -422,6 +448,14 @@ void EditorInstance::Select_UI(
     return _editorContext->Set_SelectUI(ui, groupName, displayName, positionDrivenByCode);
 }
 
+void EditorInstance::Select_RuntimeWorldUI(
+    Client::IRuntimeWorldUI_EditorTarget* target,
+    const string& groupName,
+    const string& displayName)
+{
+    return _editorContext->Set_SelectRuntimeWorldUI(target, groupName, displayName);
+}
+
 void EditorInstance::Clear_SelectedObject()
 {
     return _editorContext->Clear_SelectedObject();
@@ -430,6 +464,11 @@ void EditorInstance::Clear_SelectedObject()
 void EditorInstance::Clear_SelectedUI()
 {
     return _editorContext->Clear_SelectedUI();
+}
+
+void EditorInstance::Clear_SelectedRuntimeWorldUI()
+{
+    return _editorContext->Clear_SelectedRuntimeWorldUI();
 }
 
 uint32 EditorInstance::Selection_Revision() const
@@ -635,6 +674,8 @@ void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, c
                 transform->Set_Scale(scale);
             }
         });
+
+    Refresh_PlayStartMonsterSnapshotsForPrefab(prefabName, prefabRoot);
 }
 
 Shared<Component_Inspector> EditorInstance::Find_Inspector(const string& key) const
@@ -1060,6 +1101,55 @@ void EditorInstance::Capture_PlayStartMonsterSnapshots()
             snapshot.originalObject = gameObject;
             _playStartMonsterSnapshots.emplace_back(snapshot);
         });
+}
+
+void EditorInstance::Refresh_PlayStartMonsterSnapshotsForPrefab(const string& prefabName, const json& prefabRoot)
+{
+    if (!_hasPlayStartMonsterSnapshots || prefabName.empty())
+        return;
+
+    if (prefabRoot.is_null() || !prefabRoot.is_object())
+        return;
+
+    for (EditorWorldObjectSnapshot& snapshot : _playStartMonsterSnapshots)
+    {
+        if (!snapshot.objectJson.is_object())
+            continue;
+
+        if (snapshot.objectJson.value("source_prefab", string{}) != prefabName)
+            continue;
+
+        Shared<GameObject> snapshotObject = GAME->Instantiate_GameObjectJson(snapshot.objectJson);
+        if (snapshotObject == nullptr)
+            continue;
+
+        Shared<TransformCom> transform = snapshotObject->Get_Transform();
+
+        Vec3 worldPosition{};
+        Vec3 worldRotation{};
+        Vec3 scale{ 1.f, 1.f, 1.f };
+
+        if (transform != nullptr)
+        {
+            worldPosition = transform->Get_WorldPosition();
+            worldRotation = transform->Get_WorldRotationEuler();
+            scale = transform->Get_Scale();
+        }
+
+        snapshotObject->From_Json(prefabRoot);
+        snapshotObject->Set_SourcePrefabName(prefabName);
+        snapshotObject->Set_RuntimeAuthoringLoaded(true);
+        Refresh_PlayerBodyAnimMapping(snapshotObject);
+
+        if (transform != nullptr)
+        {
+            transform->Set_WorldPosition(worldPosition);
+            transform->Set_WorldRotationEuler(worldRotation);
+            transform->Set_Scale(scale);
+        }
+
+        snapshot.objectJson = snapshotObject->To_Json();
+    }
 }
 
 void EditorInstance::Restore_PlayStartMonsterSnapshots()
