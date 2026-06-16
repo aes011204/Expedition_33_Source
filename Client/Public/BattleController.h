@@ -221,12 +221,12 @@ private:
     bool    Update_BattleTutorialGate(float timeDelta);
 
 private:
-    // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
-    // TODO : 나중에는 실제 장착되는 스킬 세팅되게 해줄거같은데. 그러면 그 때 수정
+    // World의 SkillTree 상태를 읽어서 battle에서 사용할 스킬 세팅
     void Configure_BattlePlayerSkills(
         HeroId heroId,
         const Shared<CombatStatCom>& battleStat,
-        const Shared<SkillTreeCom>& worldSkillTreeCom);
+        const Shared<SkillTreeCom>& worldSkillTreeCom,
+        const vector<string>& equippedSkillKeys);
 
     // Q/W/E가 소비할 기본 스킬 일단은 고정.
     vector<string> Get_DefaultBattleSkillKeys(HeroId heroId);

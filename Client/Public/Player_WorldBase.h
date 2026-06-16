@@ -56,6 +56,7 @@ public:
     void    Start_SwitchDissolve(float durationSec, const string& noiseName);
 
     HRESULT Apply_CostumePreset(const CostumePreset& preset);
+    HRESULT Prewarm_CostumeVariants(); // 옷장 첫 교체 프레임 전에 모든 costume variant를 미리 만든다.
 
 protected:
     HRESULT Ready_Components();
@@ -103,6 +104,7 @@ private:
     };
 
     HRESULT Warmup_CostumeVariants();
+    HRESULT Warmup_CostumeVariantParts(CostumeVariantParts& parts);
     HRESULT Ensure_CostumeVariantBuilt(const CostumePreset& preset);
     HRESULT Activate_CostumeVariant(const CostumePreset& preset);
     void Rebind_ActiveCostumeVariant(const string& presetId);

@@ -3,8 +3,6 @@
 #include "DamageSystem.h"
 #include "ClientInstance.h"
 
-// TODO : 프로토타입 이후, 데미지 계산식 제대로
-
 /* 뤼미에르 */
 void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
@@ -85,4 +83,45 @@ void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleAct
 Shared<Skill_Gustave_MarkingShot> Skill_Gustave_MarkingShot::Create()
 {
     return make_shared<Skill_Gustave_MarkingShot>();
+}
+
+/* 산산조각 */
+void Skill_Gustave_Shatter::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
+        return;
+
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+}
+
+Shared<Skill_Gustave_Shatter> Skill_Gustave_Shatter::Create()
+{
+    return make_shared<Skill_Gustave_Shatter>();
+}
+
+/* 빛의 소유자 */
+void Skill_Gustave_LightHolder::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
+        return;
+
+    const BattleChar& target = curTargets.front();
+
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.1f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_GustaveCharge(1);
+}
+
+Shared<Skill_Gustave_LightHolder> Skill_Gustave_LightHolder::Create()
+{
+    return make_shared<Skill_Gustave_LightHolder>();
 }

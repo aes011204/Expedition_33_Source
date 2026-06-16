@@ -252,8 +252,8 @@ void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noi
 HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
 {
     if (preset.parts.bodyModelTag.empty() ||
-        preset.parts.headModelTag.empty() ||
-        preset.parts.hairModelTag.empty())
+        preset.parts.headModelTag.empty())
+        //|| preset.parts.hairModelTag.empty()) 대머리 때문에 일단 이거 제외해보기
     {
         return E_FAIL;
     }
@@ -262,7 +262,14 @@ HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
 
     CHECK_FAILED(Ensure_CostumeVariantBuilt(preset), E_FAIL);
     CHECK_FAILED(Activate_CostumeVariant(preset), E_FAIL);
+
     return S_OK;
+}
+
+HRESULT Player_WorldBase::Prewarm_CostumeVariants()
+{
+    // Ready_PartObjects 이후에도 옷장/preview 준비 경로에서 명시적으로 다시 부를 수 있게 둔다.
+    return Warmup_CostumeVariants();
 }
 
 HRESULT Player_WorldBase::Warmup_CostumeVariants()
@@ -276,7 +283,13 @@ HRESULT Player_WorldBase::Warmup_CostumeVariants()
         return S_OK;
 
     for (const CostumePreset& preset : *presets)
+    {
         CHECK_FAILED(Ensure_CostumeVariantBuilt(preset), E_FAIL);
+
+        const auto iter = _costumeVariantsByPreset.find(preset.presetId);
+        if (iter != _costumeVariantsByPreset.end())
+            CHECK_FAILED(Warmup_CostumeVariantParts(iter->second), E_FAIL);
+    }
 
     return S_OK;
 }
@@ -420,6 +433,30 @@ void Player_WorldBase::Rebind_ActiveCostumeVariant(const string& presetId)
     RebindOne(TEXT("Part_Mustache"), static_pointer_cast<PartObject>(parts.mustache));
     RebindOne(TEXT("Part_Hair"), static_pointer_cast<PartObject>(parts.hair));
     RebindOne(TEXT("Part_Glasses"), static_pointer_cast<PartObject>(parts.glasses));
+}
+
+HRESULT Player_WorldBase::Warmup_CostumeVariantParts(CostumeVariantParts& parts)
+{
+    if (!_hasBegunPlay)
+        return S_OK;
+
+    const auto WarmupOne = [](const Shared<PartObject>& partObject) -> HRESULT
+    {
+        if (partObject == nullptr)
+            return S_OK;
+
+        CHECK_FAILED(partObject->Try_BeginPlay(), E_FAIL);
+        return S_OK;
+    };
+
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.body)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.head)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.beard)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.mustache)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.hair)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.glasses)), E_FAIL);
+
+    return S_OK;
 }
 
 void Player_WorldBase::Capture_DefaultCostumePartTransformsIfNeeded()

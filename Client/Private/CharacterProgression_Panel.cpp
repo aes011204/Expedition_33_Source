@@ -1,6 +1,8 @@
 ﻿#include "CharacterProgression_Panel.h"
 
 #include "Battle_Enum.h"
+#include "ChangeSkill_Panel.h"
+#include "ChangeWeapon_Panel.h"
 #include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "EffectCom.h"
@@ -20,9 +22,14 @@
 #include "UIPreviewManager.h"
 #include "UI_AbilityPentagon.h"
 #include "SkillTreeCom.h"
+#include "Wardrobe_Panel.h"
+#include "Pictos_Panel.h"
+#include "GameDataTable.h"
 
 #include <algorithm>
 #include <filesystem>
+
+#include "PreviewPlayer.h"
 
 using namespace UI_Utils;
 
@@ -51,19 +58,26 @@ namespace
         }
     }
 
-    vector<UIPreviewManager::PreviewSlotDesc> Build_CharacterProgressionPreviewLayout()
+    // Overview일 때 마엘만 반대로 회전되게
+    vector<UIPreviewManager::PreviewSlotDesc> Build_CharacterProgressionPreviewLayout(
+        CharacterProgression_Panel::ContentTab tab)
     {
+        const Vec3 maelleRotation =
+            (tab == CharacterProgression_Panel::ContentTab::Overview)
+                ? Vec3(0.f, -90.f, -0.1f)
+                : Vec3(0.f, 0.f, -0.1f);
+
         return
         {
             { HeroId::Lune,    Vec3(1.1f,  0.f, -0.1f), Vec3(0.f, 0.f, -0.1f) },
             { HeroId::Gustave, Vec3(0.0f,  0.f,  0.f), Vec3(0.f, 0.f,  0.f) },
-            { HeroId::Maelle,  Vec3(-1.1f, 0.f, -0.1f), Vec3(0.f, 0.f, -0.1f) },
+            { HeroId::Maelle,  Vec3(-1.1f, 0.f, -0.1f), maelleRotation },
         };
     }
 
-    void Show_CharacterProgressionPreview(HeroId heroId)
+    void Show_CharacterProgressionPreview(HeroId heroId, CharacterProgression_Panel::ContentTab tab)
     {
-        const auto previewLayout = Build_CharacterProgressionPreviewLayout();
+        const auto previewLayout = Build_CharacterProgressionPreviewLayout(tab);
         CLIENT->Apply_PreviewLayout(previewLayout);
         CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
     }
@@ -102,9 +116,34 @@ void CharacterProgression_Panel::Update(float timeDelta)
 
     Handle_SelectionInput(); // Q/E 입력으로 현재 보는 영웅을 바꾼다.
     Handle_ButtonInput();
+
+    if (_activeContentTab != ContentTab::Overview)
+    {
+        const Shared<PlayerStatCom> statCom = Resolve_SelectedPlayerStat();
+        if (statCom)
+        {
+            Refresh_CharacterSheet(statCom);
+            Refresh_CombatStats(statCom);
+            Refresh_AbilityStats(statCom); // 내부 탭에서도 장비/픽토스 변경 스탯을 즉시 표시한다.
+        }
+    }
 }
 
 void CharacterProgression_Panel::Open()
+{
+    Open(ContentTab::Overview);
+}
+
+HRESULT CharacterProgression_Panel::Prepare_OpenResources()
+{
+    if (_abilityPentagonFill != nullptr)
+        return S_OK;
+
+    // preview 캐릭터와 달리 UI 안에서만 쓰는 작은 런타임 도형이라 미리 만들어도 메뉴 흐름을 바꾸지 않는다.
+    return Ensure_AbilityPentagonUI();
+}
+
+void CharacterProgression_Panel::Open(ContentTab initialTab)
 {
     if (_root == nullptr)
         return;
@@ -113,24 +152,32 @@ void CharacterProgression_Panel::Open()
         return;
 
     UI_RuntimePanelBase::Open();
+    Close_ActiveContentPanel(); // 이전 TAB 종료 때 남은 내부 탭 UI가 있으면 새 루트 진입 전에 정리한다.
     Set_UIMapOpenState(_uiByName, true);
 
     if (_selectedHeroId == HeroId::END)
         _selectedHeroId = Get_DefaultSelectedHeroId();
 
-    if (_abilityPentagonFill == nullptr)
-    {
-        // 맵 로딩 중에는 런타임 pentagon clone을 만들지 않고,
-        // 실제 Tab 메뉴를 열 때 최초 1회만 생성해서 MapTest 진입을 막지 않게 한다.
-        if (FAILED(Ensure_AbilityPentagonUI()))
-            LOG_WARN("CharacterProgression_Panel: failed to create runtime ability pentagon on open");
-    }
+    if (FAILED(Prepare_OpenResources()))
+        LOG_WARN("CharacterProgression_Panel: failed to prepare runtime open resources");
 
     _lastAction = Action::None;
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree); // SkillTree와 같은 preview shot을 그대로 쓴다.
-    Show_CharacterProgressionPreview(_selectedHeroId);
+    _activeContentTab = ContentTab::Overview;
+
+    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
+    Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab);
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
+
+    if (initialTab != ContentTab::Overview)
+    {
+        Switch_ContentTab(initialTab);
+    }
+    else
+    {
+        Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+    }
+
     Refresh_All();
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
@@ -146,6 +193,8 @@ void CharacterProgression_Panel::Close()
 void CharacterProgression_Panel::Close_Immediately(bool restoreWorldControl)
 {
     _lastAction = Action::None;
+    Close_ActiveContentPanel();
+    _activeContentTab = ContentTab::Overview;
     _isShowingAvailableSkills = false;
     Set_SkillAreaVisible(false); // 닫는 중에는 Progression의 기술 영역을 다시 열지 않는다.
     UI_RuntimePanelBase::Close();
@@ -164,16 +213,184 @@ void CharacterProgression_Panel::Close_ForMenuTransition()
     Close_Immediately(false);
 }
 
+void CharacterProgression_Panel::Bind_ContentPanels(
+    ChangeWeapon_Panel* changeWeaponPanel,
+    ChangeSkill_Panel* changeSkillPanel,
+    Wardrobe_Panel* wardrobePanel,
+    Pictos_Panel* pictosPanel)
+{
+    _changeWeaponPanel = changeWeaponPanel;
+    _changeSkillPanel = changeSkillPanel;
+    _wardrobePanel = wardrobePanel;
+    _picktosPanel = pictosPanel;
+}
+
+void CharacterProgression_Panel::Switch_ContentTab(ContentTab nextTab)
+{
+    if (_activeContentTab == nextTab)
+        return;
+
+    _lastAction = Action::None;
+
+    Close_ActiveContentPanel();
+    _activeContentTab = nextTab;
+
+    Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab);
+    Update_PreviewHeroVisibility();
+    Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+
+    if (_activeContentTab == ContentTab::Overview)
+    {
+        Set_OverviewVisible(true);
+        Refresh_All();
+        return;
+    }
+
+    Set_OverviewVisible(false);
+    Open_ActiveContentPanel();
+}
+
+void CharacterProgression_Panel::Close_ActiveContentPanel()
+{
+    if (_changeWeaponPanel)
+        _changeWeaponPanel->Close_AsProgressionContent();
+
+    if (_changeSkillPanel)
+        _changeSkillPanel->Close_AsProgressionContent();
+
+    if (_wardrobePanel)
+        _wardrobePanel->Close_AsProgressionContent();
+
+    if (_picktosPanel)
+        _picktosPanel->Close_AsProgressionContent();
+}
+
+void CharacterProgression_Panel::Open_ActiveContentPanel()
+{
+    const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+
+    switch (_activeContentTab)
+    {
+    case ContentTab::Weapon:
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Open_AsProgressionContent(heroId);
+        break;
+
+    case ContentTab::Skill:
+        if (_changeSkillPanel)
+            _changeSkillPanel->Open_AsProgressionContent(heroId);
+        break;
+
+    case ContentTab::Wardrobe:
+        if (_wardrobePanel)
+            _wardrobePanel->Open_AsProgressionContent(heroId);
+        break;
+
+    case ContentTab::Pictos:
+        if (_picktosPanel)
+            _picktosPanel->Open_AsProgressionContent(heroId, _pendingPictosSlotIndex); // Overview에서 누른 슬롯 번호를 그대로 넘겨 같은 장착 칸을 편집한다.
+        break;
+
+    case ContentTab::Overview:
+    default:
+        break;
+    }
+}
+
+void CharacterProgression_Panel::Refresh_ActiveContentPanel()
+{
+    const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+
+    switch (_activeContentTab)
+    {
+    case ContentTab::Weapon:
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Refresh_ForSelectedHero(heroId);
+        break;
+
+    case ContentTab::Skill:
+        if (_changeSkillPanel)
+            _changeSkillPanel->Refresh_ForSelectedHero(heroId);
+        break;
+
+    case ContentTab::Wardrobe:
+        if (_wardrobePanel)
+            _wardrobePanel->Refresh_ForSelectedHero(heroId);
+        break;
+
+    case ContentTab::Pictos:
+        if (_picktosPanel)
+        {
+            _picktosPanel->Set_SelectedEquipSlotIndex(_pendingPictosSlotIndex); // Character Progression 쪽 현재 선택 슬롯을 Pictos 패널에도 동기화한다.
+            _picktosPanel->Refresh_ForSelectedHero(heroId);
+        }
+        break;
+
+    case ContentTab::Overview:
+    default:
+        break;
+    }
+}
+
+void CharacterProgression_Panel::Set_OverviewVisible(bool isVisible)
+{
+    if (_currentWeaponPanelRoot)
+    {
+        if (isVisible)
+            _currentWeaponPanelRoot->Open();
+        else
+            _currentWeaponPanelRoot->Close();
+    }
+
+    if (_currentPictosPanelRoot)
+    {
+        if (isVisible)
+            _currentPictosPanelRoot->Open();
+        else
+            _currentPictosPanelRoot->Close();
+    }
+
+    if (_wardrobePanelRoot)
+    {
+        if (isVisible)
+            _wardrobePanelRoot->Open();
+        else
+            _wardrobePanelRoot->Close();
+    }
+
+    if (_tintPanelRoot)
+    {
+        if (isVisible)
+            _tintPanelRoot->Open();
+        else
+            _tintPanelRoot->Close();
+    }
+
+    if (isVisible)
+    {
+        Set_SkillAreaVisible(true);
+        Show_EquippedSkillSlots(true);
+    }
+    else
+    {
+        Set_SkillAreaVisible(false);
+    }
+}
+
 void CharacterProgression_Panel::Set_SelectedHeroId(HeroId heroId)
 {
     _selectedHeroId = (heroId == HeroId::END) ? Get_DefaultSelectedHeroId() : heroId;
 
     if (Is_Open())
     {
-        Show_CharacterProgressionPreview(_selectedHeroId);
+        Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab);
         Update_PreviewHeroVisibility();
         Apply_PreviewOverrides();
+        Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
         Refresh_All();
+
+        if (_activeContentTab != ContentTab::Overview)
+            Refresh_ActiveContentPanel();
     }
 }
 
@@ -183,6 +400,24 @@ CharacterProgression_Panel::Action CharacterProgression_Panel::Consume_LastActio
     _lastAction = Action::None;
 
     return action;
+}
+
+void CharacterProgression_Panel::Append_RuntimeUIEntries(
+    vector<RuntimeUIEntry>& outEntries,
+    const string& category,
+    const string& rootName) const
+{
+    if (_root == nullptr)
+        return;
+
+    RuntimeUIEntry rootEntry{};
+    rootEntry.category = category;
+    rootEntry.name = rootName;
+    rootEntry.ui = _root;
+    rootEntry.editorTarget = const_cast<CharacterProgression_Panel*>(this);
+    outEntries.push_back(rootEntry);
+
+    Append_RuntimeUIMapEntries(outEntries, category, _uiByName, _root, const_cast<CharacterProgression_Panel*>(this));
 }
 
 void CharacterProgression_Panel::Handle_SelectionInput()
@@ -222,15 +457,26 @@ void CharacterProgression_Panel::Handle_SelectionInput()
     if (_selectedHeroId != previousHeroId)
     {
         GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
-        Show_CharacterProgressionPreview(_selectedHeroId); // Q/E로 선택 영웅이 바뀌면 preview target도 즉시 교체한다.
+        Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab); // Q/E로 선택 영웅이 바뀌면 preview target도 즉시 교체한다.
         Update_PreviewHeroVisibility();
         Apply_PreviewOverrides();
+
+        Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+
         Refresh_All();
+
+        if (_activeContentTab != ContentTab::Overview)
+            Refresh_ActiveContentPanel();
     }
 }
 
 void CharacterProgression_Panel::Handle_ButtonInput()
 {
+    if (_activeContentTab != ContentTab::Overview)
+    {
+        return;
+    }
+
     // 장착 무기
     if (_currentWeaponButton && _currentWeaponButton->Was_Clicked())
     {
@@ -253,8 +499,7 @@ void CharacterProgression_Panel::Handle_ButtonInput()
 	if (_availableSkillButton && _availableSkillButton->Was_Clicked())
 	{
 		GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
-		_isShowingAvailableSkills = true;
-		Refresh_UnlockedSkills();
+		_lastAction = Action::OpenChangeSkill;
 		return;
 	}
 
@@ -277,21 +522,24 @@ void CharacterProgression_Panel::Handle_ButtonInput()
     // 픽토스
     if ((_firstPictosButton && _firstPictosButton->Was_Clicked()) ||
         (_secondPictosButton && _secondPictosButton->Was_Clicked()) ||
-        (_thirdPictosButton && _thirdPictosButton->Was_Clicked()) ||
-        (_wardrobeButton && _wardrobeButton->Was_Clicked()))
+        (_thirdPictosButton && _thirdPictosButton->Was_Clicked()))
     {
         GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
-        LOG_DEBUG("CharacterProgression_Panel: clicked unimplemented button");
+        if (_firstPictosButton && _firstPictosButton->Was_Clicked())
+            _pendingPictosSlotIndex = 0; // 첫 번째 픽토스 슬롯 편집 진입
+        else if (_secondPictosButton && _secondPictosButton->Was_Clicked())
+            _pendingPictosSlotIndex = 1; // 두 번째 픽토스 슬롯 편집 진입
+        else
+            _pendingPictosSlotIndex = 2; // 세 번째 픽토스 슬롯 편집 진입
+
+        _lastAction = Action::OpenPictos;
+        return;
     }
 }
 
 void CharacterProgression_Panel::Refresh_All()
 {
     const Shared<PlayerStatCom> statCom = Resolve_SelectedPlayerStat();
-
-    _isShowingAvailableSkills = false;
-    Set_SkillAreaVisible(true);
-    Show_EquippedSkillSlots(true);
 
     Refresh_CharacterSelectUI();
 
@@ -310,10 +558,20 @@ void CharacterProgression_Panel::Refresh_All()
         Set_Text(_currentStatSpeedText, L"0");
         Set_Text(_currentStatCriticalPercentText, L"0");
 
-        Set_Text(_currentWeaponText.weaponNameText, L"-");
-        Set_Text(_currentWeaponText.levelText, L"0");
-        Refresh_CurrentWeaponThumbnail("");
-        Refresh_CurrentSkills(nullptr);
+        if (_activeContentTab == ContentTab::Overview)
+        {
+            _isShowingAvailableSkills = false;
+            Set_OverviewVisible(true);
+            Set_Text(_currentWeaponText.weaponNameText, L"-");
+            Set_Text(_currentWeaponText.levelText, L"0");
+            Refresh_CurrentWeaponThumbnail("");
+            Refresh_CurrentSkills(nullptr);
+            Refresh_CurrentPictos(nullptr);
+        }
+        else
+        {
+            Set_OverviewVisible(false);
+        }
 
         if (_expGaugeImage)
             _expGaugeImage->Set_FillRatio(0.f);
@@ -326,8 +584,19 @@ void CharacterProgression_Panel::Refresh_All()
     Refresh_CharacterSheet(statCom);
     Refresh_CombatStats(statCom);
     Refresh_AbilityStats(statCom);
-    Refresh_CurrentWeapon(statCom);
-    Refresh_CurrentSkills(statCom);
+
+    if (_activeContentTab == ContentTab::Overview)
+    {
+        _isShowingAvailableSkills = false;
+        Set_OverviewVisible(true);
+        Refresh_CurrentWeapon(statCom);
+        Refresh_CurrentSkills(statCom);
+        Refresh_CurrentPictos(statCom);
+    }
+    else
+    {
+        Set_OverviewVisible(false);
+    }
 }
 
 void CharacterProgression_Panel::Refresh_CharacterSheet(const Shared<PlayerStatCom>& statCom)
@@ -379,7 +648,10 @@ void CharacterProgression_Panel::Refresh_CurrentWeapon(const Shared<PlayerStatCo
     if (statCom == nullptr)
         return;
 
-    const string characterId = Get_CharacterId(_selectedHeroId);
+    const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+    CLIENT->Ensure_DefaultEquippedWeapon(heroId); // 기본 디폴트 무기 확정
+
+    const string characterId = Get_CharacterId(heroId);
     const string equippedWeaponId = statCom->Get_PlayerRuntimeStat().CurEquippedWeaponId;
     const GameDataTable::WeaponDesc* equippedWeapon = CLIENT->Get_WeaponDesc(characterId, equippedWeaponId);
 
@@ -481,7 +753,7 @@ void CharacterProgression_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCo
         const Shared<SkillTreeCom> skillTreeCom = Resolve_SelectedSkillTree();
         if (skillTreeCom != nullptr && !skillTreeCom->Get_UnlockedSkillIds().empty())
         {
-            skillKeys = skillTreeCom->Get_UnlockedSkillIds(); // 장착 슬롯 데이터가 아직 없으면 해금 스킬을 Progression/Weapon 하단 표시 데이터로 쓴다.
+            skillKeys = skillTreeCom->Get_UnlockedSkillIds(); // 장착 슬롯 데이터가 아직 없으면 해금 스킬을 Progression 하단 표시 데이터로 쓴다.
         }
         else
         {
@@ -517,29 +789,51 @@ void CharacterProgression_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCo
             _currentSkillEmptyLines[i]->Close(); // 스킬 이름이 들어간 슬롯에서는 앞 '-' 작대기를 숨긴다.
     }
 
-    if (skillKeys.size() > _currentSkillNameTexts.size())
+    // 6번째 슬롯은 일반 스킬 overflow가 아니라 추후 Gradient 스킬 전용 슬롯으로 비워 둔다.
+}
+
+void CharacterProgression_Panel::Refresh_CurrentPictos(const Shared<PlayerStatCom>& statCom)
+{
+    for (size_t slotIndex = 0; slotIndex < _currentPictosNameTexts.size(); ++slotIndex)
     {
-        const string& gradientSkillKey = skillKeys[_currentSkillNameTexts.size()];
-        const GameDataTable::SkillTreeDesc* skillTreeDesc = CLIENT->Get_SkillTreeDesc(gradientSkillKey);
-        const Skill_Data* skillData = CLIENT->Get_Skill(gradientSkillKey);
-
-        Set_Text(_gradientText, skillTreeDesc ? skillTreeDesc->skillName : String::ToWString(gradientSkillKey));
-        Set_IntText(_gradientGpText, skillData ? skillData->apCost : 0);
-        Set_IntText(_gradientGpBgText, skillData ? skillData->apCost : 0);
-
-        const wstring portraitPath = Resolve_SkillPortraitTexturePath(_selectedHeroId, skillTreeDesc);
-        if (_gradientIconImage && !portraitPath.empty())
+        if (_currentPictosNameTexts[slotIndex])
         {
-            _gradientIconImage->Set_TexturePath(portraitPath);
-            _gradientIconImage->Open();
-        }
-        else if (_gradientIconImage)
-        {
-            _gradientIconImage->Close();
+            _currentPictosNameTexts[slotIndex]->Set_Text(L"");
+            _currentPictosNameTexts[slotIndex]->Close();
         }
 
-        if (_gradientEmptyLine)
-            _gradientEmptyLine->Close();
+        if (_currentPictosMarkImages[slotIndex])
+            _currentPictosMarkImages[slotIndex]->Close(); // 장착된 슬롯만 체크 마크를 보여준다.
+
+        if (_currentPictosEmptyImages[slotIndex])
+            _currentPictosEmptyImages[slotIndex]->Open(); // 비어 있는 슬롯은 authoring된 empty 이미지를 그대로 쓴다.
+    }
+
+    if (statCom == nullptr)
+        return;
+
+    const array<string, PlayerStatCom::EquippedPictosSlotCount>& equippedPictosIds = statCom->Get_EquippedPictosIds();
+    for (size_t slotIndex = 0; slotIndex < equippedPictosIds.size(); ++slotIndex)
+    {
+        const string& pictosId = equippedPictosIds[slotIndex];
+        if (pictosId.empty())
+            continue;
+
+        wstring pictosName = String::ToWString(pictosId);
+        if (const auto* pictosDesc = CLIENT->Get_PictosDesc(pictosId))
+            pictosName = pictosDesc->name;
+
+        if (_currentPictosNameTexts[slotIndex])
+        {
+            _currentPictosNameTexts[slotIndex]->Set_Text(pictosName); // 장착된 슬롯만 실제 이름을 넣는다.
+            _currentPictosNameTexts[slotIndex]->Open();               // 이름을 넣은 슬롯만 다시 노출한다.
+        }
+
+        if (_currentPictosMarkImages[slotIndex])
+            _currentPictosMarkImages[slotIndex]->Open();
+
+        if (_currentPictosEmptyImages[slotIndex])
+            _currentPictosEmptyImages[slotIndex]->Close();
     }
 }
 
@@ -1102,6 +1396,33 @@ wstring CharacterProgression_Panel::Resolve_SkillPortraitTexturePath(HeroId hero
 	return ResourceLoader::Resolve_RuntimePath(path);
 }
 
+pair<PreviewAnimState, PreviewAnimState> CharacterProgression_Panel::Resolve_PreviewAnimationForTab(
+    ContentTab tab) const
+{
+    switch (tab)
+    {
+    case ContentTab::Weapon:
+        return { PreviewAnimState::Weapon_Intro, PreviewAnimState::Weapon_Idle };
+    case ContentTab::Skill:
+        return { PreviewAnimState::Skill_Intro, PreviewAnimState::Skill_Idle };
+    case ContentTab::Wardrobe:
+        return { PreviewAnimState::Wardrobe_Intro, PreviewAnimState::Wardrobe_Idle };
+    case ContentTab::Pictos:
+        return { PreviewAnimState::Pictos_Intro, PreviewAnimState::Pictos_Idle };
+    case ContentTab::Overview:
+    default:
+        return { PreviewAnimState::Overview_Intro, PreviewAnimState::Overview_Idle };
+    }
+}
+
+void CharacterProgression_Panel::Play_SelectedHeroPreviewAnimationForTab(ContentTab tab)
+{
+    const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+    const auto [introAnim, idleAnim] = Resolve_PreviewAnimationForTab(tab);
+
+    CLIENT->Play_PreviewAnimation(heroId, introAnim, idleAnim);
+}
+
 HRESULT CharacterProgression_Panel::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
@@ -1144,6 +1465,15 @@ HRESULT CharacterProgression_Panel::Bind_UI()
     _secondPictosButton = Find_TypedUI<UI_Button>(_uiByName, L"Button_Current_Second_Pictos", "CharacterProgression");
     _thirdPictosButton = Find_TypedUI<UI_Button>(_uiByName, L"Button_Current_Third_Pictos", "CharacterProgression");
     _wardrobeButton = Find_TypedUI<UI_Button>(_uiByName, L"Button_Wardrobe", "CharacterProgression");
+    _currentPictosNameTexts[0] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_First_Pictos", "CharacterProgression");
+    _currentPictosNameTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Second_Pictos", "CharacterProgression");
+    _currentPictosNameTexts[2] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Third_Pictos", "CharacterProgression");
+    _currentPictosMarkImages[0] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_First_Pictos_Mark", "CharacterProgression");
+    _currentPictosMarkImages[1] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_Second_Pictos_Mark", "CharacterProgression");
+    _currentPictosMarkImages[2] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_Third_Pictos_Mark", "CharacterProgression");
+    _currentPictosEmptyImages[0] = Find_UI(_uiByName, L"Image_Current_First_Pictos_Empty");
+    _currentPictosEmptyImages[1] = Find_UI(_uiByName, L"Image_Current_Second_Pictos_Empty");
+    _currentPictosEmptyImages[2] = Find_UI(_uiByName, L"Image_Current_Third_Pictos_Empty");
 
     _characterNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Name", "CharacterProgression");
     _currentLevelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentLevel", "CharacterProgression");
@@ -1162,6 +1492,10 @@ HRESULT CharacterProgression_Panel::Bind_UI()
 
     _currentWeaponText.weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Weapon", "CharacterProgression");
     _currentWeaponText.levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Weapon_Level_Value", "CharacterProgression");
+    _currentWeaponPanelRoot = Find_UI(_uiByName, L"Panel_Current_Weapon");
+    _currentPictosPanelRoot = Find_UI(_uiByName, L"Panel_Current_Pictos");
+    _wardrobePanelRoot = Find_UI(_uiByName, L"Panel_Wardrobe");
+    _tintPanelRoot = Find_UI(_uiByName, L"Panel_Tint");
     _colimThumbnailPanel = Find_UI(_uiByName, L"Panel_Colim_Thumnail");
     _snowimThumbnailPanel = Find_UI(_uiByName, L"Panel_Snowim_Thumnail");
     _baguetteThumbnailPanel = Find_UI(_uiByName, L"Panel_Baguette_Thumnail");
@@ -1230,11 +1564,28 @@ HRESULT CharacterProgression_Panel::Bind_UI()
     CHECK_NULL(_characterButtons[1], E_FAIL);
     CHECK_NULL(_characterButtons[2], E_FAIL);
     CHECK_NULL(_currentWeaponButton, E_FAIL);
+    CHECK_NULL(_firstPictosButton, E_FAIL);
+    CHECK_NULL(_secondPictosButton, E_FAIL);
+    CHECK_NULL(_thirdPictosButton, E_FAIL);
+    CHECK_NULL(_wardrobeButton, E_FAIL);
+    CHECK_NULL(_currentPictosNameTexts[0], E_FAIL);
+    CHECK_NULL(_currentPictosNameTexts[1], E_FAIL);
+    CHECK_NULL(_currentPictosNameTexts[2], E_FAIL);
+    CHECK_NULL(_currentPictosMarkImages[0], E_FAIL);
+    CHECK_NULL(_currentPictosMarkImages[1], E_FAIL);
+    CHECK_NULL(_currentPictosMarkImages[2], E_FAIL);
+    CHECK_NULL(_currentPictosEmptyImages[0], E_FAIL);
+    CHECK_NULL(_currentPictosEmptyImages[1], E_FAIL);
+    CHECK_NULL(_currentPictosEmptyImages[2], E_FAIL);
     CHECK_NULL(_characterNameText, E_FAIL);
     CHECK_NULL(_currentLevelText, E_FAIL);
     CHECK_NULL(_expGaugeImage, E_FAIL);
     CHECK_NULL(_hpGaugeImage, E_FAIL);
     CHECK_NULL(_currentWeaponText.weaponNameText, E_FAIL);
+    CHECK_NULL(_currentWeaponPanelRoot, E_FAIL);
+    CHECK_NULL(_currentPictosPanelRoot, E_FAIL);
+    CHECK_NULL(_wardrobePanelRoot, E_FAIL);
+    CHECK_NULL(_tintPanelRoot, E_FAIL);
     CHECK_NULL(_colimThumbnailPanel, E_FAIL);
     CHECK_NULL(_snowimThumbnailPanel, E_FAIL);
     CHECK_NULL(_baguetteThumbnailPanel, E_FAIL);
@@ -1300,12 +1651,22 @@ void CharacterProgression_Panel::Free()
         line.reset();
 
     _currentWeaponButton.reset();
+    _currentWeaponPanelRoot.reset();
+    _currentPictosPanelRoot.reset();
+    _wardrobePanelRoot.reset();
+    _tintPanelRoot.reset();
     _skillTreeButton.reset();
     _availableSkillButton.reset();
     _firstPictosButton.reset();
     _secondPictosButton.reset();
     _thirdPictosButton.reset();
     _wardrobeButton.reset();
+    for (auto& text : _currentPictosNameTexts)
+        text.reset();
+    for (auto& image : _currentPictosMarkImages)
+        image.reset();
+    for (auto& image : _currentPictosEmptyImages)
+        image.reset();
 
     _characterNameText.reset();
     _currentLevelText.reset();
@@ -1348,6 +1709,12 @@ void CharacterProgression_Panel::Free()
         slotRoot.reset();
     _availableSkillSlots.clear();
     _isShowingAvailableSkills = false;
+    _changeWeaponPanel = nullptr;
+    _changeSkillPanel = nullptr;
+    _wardrobePanel = nullptr;
+    _picktosPanel = nullptr;
+    _pendingPictosSlotIndex = 0;
+    _activeContentTab = ContentTab::Overview;
 
     UI_RuntimePanelBase::Free();
 }

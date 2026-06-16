@@ -8,6 +8,7 @@
 #include "LightingPipeline.h"
 #include "Player_WorldBase.h"
 #include "PostProcessPipeline.h"
+#include "PreviewPlayer.h"
 #include "PreviewRimFeature.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
@@ -34,9 +35,9 @@ namespace
 
     constexpr std::array<const char*, 3> kWardrobePresetIds =
     {
-        "Default",   // First 카드
-        "Baguette",  // Second 카드
-        nullptr,     // Third 카드 = 슬픔, 아직 미구현
+        "Default",   // 기본
+        "Baguette",  // 바게트
+        "Potato",    // 감자
     };
 
     constexpr Vec3 kPreviewLightDirection = Vec3(-0.42f, -0.78f, 0.46f);
@@ -129,7 +130,9 @@ void Wardrobe_Panel::Update(float timeDelta)
     if (!Is_Open())
         return;
 
-    Handle_SelectionInput();
+    if (!_isProgressionContentMode)
+        Handle_SelectionInput();
+
     Handle_WardrobeInput();
 }
 
@@ -147,9 +150,14 @@ void Wardrobe_Panel::Open()
     if (_selectedHeroId == HeroId::END)
         _selectedHeroId = Resolve_DefaultHeroId();
 
+    if (FAILED(Prepare_OpenResources()))
+        LOG_WARN("Wardrobe_Panel: failed to prepare wardrobe resources");
+
     CLIENT->Begin_Preview(PreviewShotPanel::SkillTree); // Wardrobe도 기존 preview 플레이어를 그대로 사용한다.
     Sync_CurrentCostumeToPreviewHeroes();               // preview가 새로 스폰된 직후 current costume 상태를 먼저 맞춘다.
     Show_WardrobePreview(_selectedHeroId);
+    CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Wardrobe_Intro, PreviewAnimState::Wardrobe_Idle);
+
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
     Refresh_VisibleWardrobeCards();
@@ -166,6 +174,7 @@ void Wardrobe_Panel::Close()
 
 void Wardrobe_Panel::Close_Immediately(bool restoreWorldControl)
 {
+    _isProgressionContentMode = false;
     UI_RuntimePanelBase::Close();
     Set_UIMapOpenState(_uiByName, false);
     Restore_PreviewOverrides();
@@ -183,6 +192,56 @@ void Wardrobe_Panel::Close_ForMenuTransition()
     Close_Immediately(false);
 }
 
+HRESULT Wardrobe_Panel::Prepare_OpenResources()
+{
+    for (const HeroPartyEntry& entry : CLIENT->Get_HeroEntries())
+    {
+        if (entry.hero == nullptr)
+            continue;
+
+        CHECK_FAILED(entry.hero->Prewarm_CostumeVariants(), E_FAIL); // 월드 hero의 첫 의상 교체 비용을 TAB/클릭 전에 당겨둔다.
+    }
+
+    return S_OK;
+}
+
+void Wardrobe_Panel::Open_AsProgressionContent(HeroId selectedHeroId)
+{
+    if (_root == nullptr)
+        return;
+
+    _isProgressionContentMode = true;
+    _selectedHeroId = (selectedHeroId == HeroId::END) ? Resolve_DefaultHeroId() : selectedHeroId;
+
+    if (!Is_Open())
+        UI_RuntimePanelBase::Open();
+
+    if (FAILED(Prepare_OpenResources()))
+        LOG_WARN("Wardrobe_Panel: failed to prepare progression wardrobe resources");
+
+    Set_UIMapOpenState(_uiByName, true);
+    Refresh_ForSelectedHero(_selectedHeroId);
+    Hide_DuplicateProgressionCommonUI();
+}
+
+void Wardrobe_Panel::Close_AsProgressionContent()
+{
+    if (!_isProgressionContentMode && !Is_Open())
+        return;
+
+    _isProgressionContentMode = false;
+    UI_RuntimePanelBase::Close();
+    Set_UIMapOpenState(_uiByName, false);
+}
+
+void Wardrobe_Panel::Refresh_ForSelectedHero(HeroId selectedHeroId)
+{
+    _selectedHeroId = (selectedHeroId == HeroId::END) ? Resolve_DefaultHeroId() : selectedHeroId;
+    Sync_CurrentCostumeToPreviewHero(_selectedHeroId);
+    Refresh_VisibleWardrobeCards();
+    Hide_DuplicateProgressionCommonUI();
+}
+
 void Wardrobe_Panel::Set_SelectedHeroId(HeroId heroId)
 {
     _selectedHeroId = (heroId == HeroId::END) ? Resolve_DefaultHeroId() : heroId;
@@ -190,11 +249,33 @@ void Wardrobe_Panel::Set_SelectedHeroId(HeroId heroId)
     if (Is_Open())
     {
         Sync_CurrentCostumeToPreviewHero(_selectedHeroId); // 선택 hero preview가 항상 현재 장착 상태를 보게 맞춘다.
-        Show_WardrobePreview(_selectedHeroId);
-        Update_PreviewHeroVisibility();
-        Apply_PreviewOverrides();
+        if (!_isProgressionContentMode)
+        {
+            Show_WardrobePreview(_selectedHeroId);
+            Update_PreviewHeroVisibility();
+            Apply_PreviewOverrides();
+        }
+
         Refresh_VisibleWardrobeCards();
     }
+}
+
+void Wardrobe_Panel::Append_RuntimeUIEntries(
+    vector<RuntimeUIEntry>& outEntries,
+    const string& category,
+    const string& rootName) const
+{
+    if (_root == nullptr)
+        return;
+
+    RuntimeUIEntry rootEntry{};
+    rootEntry.category = category;
+    rootEntry.name = rootName;
+    rootEntry.ui = _root;
+    rootEntry.editorTarget = const_cast<Wardrobe_Panel*>(this);
+    outEntries.push_back(rootEntry);
+
+    Append_RuntimeUIMapEntries(outEntries, category, _uiByName, _root, const_cast<Wardrobe_Panel*>(this));
 }
 
 void Wardrobe_Panel::Handle_SelectionInput()
@@ -251,19 +332,24 @@ void Wardrobe_Panel::Handle_SelectionInput()
     GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
 
     Sync_CurrentCostumeToPreviewHero(_selectedHeroId); // 선택이 바뀌면 그 hero preview 파츠를 먼저 맞춘다.
-    Show_WardrobePreview(_selectedHeroId);
-    Update_PreviewHeroVisibility();
-    Apply_PreviewOverrides();
+    if (!_isProgressionContentMode)
+    {
+        Show_WardrobePreview(_selectedHeroId);
+        Update_PreviewHeroVisibility();
+        Apply_PreviewOverrides();
+    }
+
     Refresh_VisibleWardrobeCards();
 }
 
 void Wardrobe_Panel::Handle_WardrobeInput()
 {
     const int32 heroIndex = To_HeroIndex(_selectedHeroId);
-    if (heroIndex < 0)
+    if (heroIndex >= _heroWardrobeUI.size())
         return;
 
     HeroWardrobeUI& currentHeroWardrobe = _heroWardrobeUI[heroIndex];
+
     for (size_t slotIndex = 0; slotIndex < currentHeroWardrobe.buttons.size(); ++slotIndex)
     {
         const Shared<UI_Button>& button = currentHeroWardrobe.buttons[slotIndex];
@@ -271,12 +357,6 @@ void Wardrobe_Panel::Handle_WardrobeInput()
             continue;
 
         GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
-
-        if (slotIndex == 2)
-        {
-            LOG_DEBUG("Wardrobe_Panel: clicked sorrow costume card. hero={}", To_HeroDebugName(_selectedHeroId)); // 슬픔은 아직 장착하지 않고 로그만 남긴다.
-            return;
-        }
 
         const char* presetId = kWardrobePresetIds[slotIndex];
         if (!Try_EquipPreset(presetId))
@@ -374,10 +454,18 @@ bool Wardrobe_Panel::Try_EquipPreset(const char* presetId)
 
     Sync_CurrentCostumeToPreviewHero(_selectedHeroId);   // 같은 preset을 preview hero에도 즉시 반영
     Show_WardrobePreview(_selectedHeroId);
+
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
 
     return true;
+}
+
+void Wardrobe_Panel::Hide_DuplicateProgressionCommonUI()
+{
+    const Shared<UI_Base> characterSelectRoot = Find_UI(_uiByName, L"Panel_CharacterSelect");
+    if (characterSelectRoot)
+        characterSelectRoot->Close();
 }
 
 void Wardrobe_Panel::Apply_PreviewOverrides()
@@ -661,6 +749,8 @@ void Wardrobe_Panel::Free()
 {
     if (Is_Open())
         Close_Immediately(false);
+
+    _isProgressionContentMode = false;
 
     for (Shared<UI_Button>& button : _characterButtons)
         button.reset();

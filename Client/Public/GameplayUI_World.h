@@ -16,6 +16,7 @@ class UI_CrossHair;
 class ChangeSkill_Panel;
 class ChangeWeapon_Panel;
 class Wardrobe_Panel;
+class Pictos_Panel;
 
 class GameplayUI_World final : public Base
 {
@@ -53,6 +54,7 @@ private:
     void    Close_Menu(GameplayMenu menu, bool restoreWorldControl);
 
     void    Open_CharacterProgressionFlow();
+    void    Open_CharacterProgressionFlow(CharacterProgression_Panel::ContentTab initialTab);
     void    Close_CharacterProgressionFlow();
 
     bool    Is_WorldFreeAimActive() const;
@@ -69,6 +71,7 @@ private:
     Unique<CharacterProgression_Panel> _characterProgressionPanel;
     Unique<ChangeSkill_Panel>          _changeSkillPanel;
     Unique<Wardrobe_Panel>             _wardrobePanel;
+    Unique<Pictos_Panel>               _pictosPanel;
 
     vector<GameplayMenu>          _menuStack{};
     GamePlayMenuFade              _menuFade{};

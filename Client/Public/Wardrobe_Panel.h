@@ -28,10 +28,19 @@ public:
     void    Close_Immediately(bool restoreWorldControl = true);
     void    Close_ForMenuTransition();
 
+    void    Open_AsProgressionContent(HeroId selectedHeroId);
+    void    Close_AsProgressionContent();
+    void    Refresh_ForSelectedHero(HeroId selectedHeroId);
+    HRESULT Prepare_OpenResources(); // 옷장 첫 선택 전에 preview/costume variant를 미리 준비한다.
+
     void    Set_SelectedHeroId(HeroId heroId);
     HeroId  Get_SelectedHeroId() const { return _selectedHeroId; }
 
     Shared<UI_Base> Get_RootUI() const { return _root; }
+    void    Append_RuntimeUIEntries(
+        vector<RuntimeUIEntry>& outEntries,
+        const string& category,
+        const string& rootName) const override;
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -44,6 +53,7 @@ private:
     void    Sync_CurrentCostumeToPreviewHeroes();         // open 직후 preview spawn 결과를 현재 costume 상태와 맞춘다.
     void    Sync_CurrentCostumeToPreviewHero(HeroId heroId);
     bool    Try_EquipPreset(const char* presetId);        // Default/Baguette 클릭 시 manager + world + preview를 같이 갱신한다.
+    void    Hide_DuplicateProgressionCommonUI();
 
     void    Apply_PreviewOverrides();
     void    Restore_PreviewOverrides();
@@ -78,6 +88,7 @@ private:
 
 private:
     HeroId _selectedHeroId = HeroId::END;
+    bool _isProgressionContentMode = false;
 
     Shared<UI_Base> _root{};
     umap<wstring, Shared<UI_Base>> _uiByName{};

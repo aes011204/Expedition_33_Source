@@ -2588,6 +2588,15 @@ bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()
     return Ensure_AnimStateAssetLoaded("");
 }
 
+bool ModelCom::Load_AnimStateMappingFromFile(const wstring& animMapPath)
+{
+    return AnimState_Parser::Load_StateAnimations_FromFile(
+        animMapPath,
+        _animations,
+        _stateAnimIndices,
+        &_animEnumType);
+}
+
 void ModelCom::Reset_ModelData()
 {
     Stop_AllNotifyStates(false);

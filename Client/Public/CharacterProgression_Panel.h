@@ -18,12 +18,26 @@ class PlayerStatCom;
 class SkillTreeCom;
 class UI_AbilityPentagon;
 
+class ChangeWeapon_Panel;
+class ChangeSkill_Panel;
+class Wardrobe_Panel;
+class Pictos_Panel;
+
 class CharacterProgression_Panel : public UI_RuntimePanelBase
 {
 public:
     enum class Action
     {
-        None, OpenChangeWeapon, OpenChangeSkill, OpenWardrobe, /* TODO : 픽토스 */ END
+        None, OpenChangeWeapon, OpenChangeSkill, OpenWardrobe, OpenPictos, END
+    };
+
+    enum class ContentTab
+    {
+        Overview,
+        Weapon,
+        Skill,
+        Wardrobe,
+        Pictos,
     };
 
     struct AvailableSkillSlotUI
@@ -48,27 +62,42 @@ public:
 
 public:
     void    Open() override;
+    void    Open(ContentTab initialTab);
+    HRESULT Prepare_OpenResources(); // TAB 입력 프레임 전에 생성 가능한 런타임 UI만 선준비한다.
     void    Close() override;
 
     void    Close_Immediately(bool restoreWorldControl = true);
     void    Close_ForMenuTransition();
 
+    void    Bind_ContentPanels(
+        ChangeWeapon_Panel* changeWeaponPanel,
+        ChangeSkill_Panel* changeSkillPanel,
+        Wardrobe_Panel* wardrobePanel,
+		Pictos_Panel* pictosPanel);
+
+    void    Switch_ContentTab(ContentTab nextTab);
+    ContentTab Get_ActiveContentTab() const { return _activeContentTab; }
 
     void    Set_SelectedHeroId(HeroId heroId);
     HeroId  Get_SelectedHeroId() const { return _selectedHeroId; }
 
     Action  Consume_LastAction();
     Shared<UI_Base> Get_RootUI() const { return _root; }
+    void    Append_RuntimeUIEntries(
+        vector<RuntimeUIEntry>& outEntries,
+        const string& category,
+        const string& rootName) const override;
 
-    void    Handle_SelectionInput();   // Q/E 입력으로 선택 영웅 변경
-    void    Handle_ButtonInput();      // 무기/스킬/미구현 버튼 클릭 감지
+    void    Handle_SelectionInput();
+    void    Handle_ButtonInput();
 
-    void    Refresh_All();             // 현재 선택 영웅 기준 UI 전체 갱신
+    void    Refresh_All();
     void    Refresh_CharacterSheet(const Shared<PlayerStatCom>& statCom);
     void    Refresh_CombatStats(const Shared<PlayerStatCom>& statCom);
     void    Refresh_CurrentWeapon(const Shared<PlayerStatCom>& statCom);
     void    Refresh_CurrentWeaponThumbnail(const string& weaponId);
     void    Refresh_CurrentSkills(const Shared<PlayerStatCom>& statCom);
+	void	Refresh_CurrentPictos(const Shared<PlayerStatCom>& statCom);
     void    Refresh_CharacterSelectUI();
     void    Refresh_UnlockedSkills();
 
@@ -80,8 +109,8 @@ public:
     static string  Get_CharacterId(HeroId heroId);
     static void    Set_Text(const Shared<Engine::UI_Text>& text, const wstring& value);
 
-    void    Refresh_AbilityStats(const Shared<PlayerStatCom>& statCom); 
-    HRESULT Ensure_AbilityPentagonUI();   
+    void    Refresh_AbilityStats(const Shared<PlayerStatCom>& statCom);
+    HRESULT Ensure_AbilityPentagonUI();
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -94,6 +123,12 @@ private:
     void    Update_PreviewHeroVisibility();
 
 private:
+    void    Close_ActiveContentPanel();
+    void    Open_ActiveContentPanel();
+    void    Refresh_ActiveContentPanel();
+    void    Set_OverviewVisible(bool isVisible);
+
+private:
     HRESULT Ensure_AvailableSkillSlotCount(size_t slotCount);
     void    Apply_AvailableSkillSlot(size_t slotIndex, const string& skillId);
     void    Set_SkillAreaVisible(bool isVisible);
@@ -101,6 +136,9 @@ private:
     void    Show_AvailableSkillSlots(bool isVisible);
     static Vec2 Get_AvailableSkillSlotPosition(size_t slotIndex);
     static wstring Resolve_SkillPortraitTexturePath(HeroId heroId, const GameDataTable::SkillTreeDesc* skillTreeDesc);
+
+    pair<PreviewAnimState, PreviewAnimState> Resolve_PreviewAnimationForTab(ContentTab tab) const;
+    void Play_SelectedHeroPreviewAnimationForTab(ContentTab tab);
 
 private:
     struct PreviewOverrideState
@@ -120,18 +158,26 @@ private:
     };
 
 private:
+	Shared<UI_Base>					_root{};
+    umap<wstring, Shared<UI_Base>>	_uiByName{};
+
     Action _lastAction = Action::None;
     HeroId _selectedHeroId = HeroId::END;
+    ContentTab _activeContentTab = ContentTab::Overview;
 
-    Shared<UI_Base> _root{};
-    umap<wstring, Shared<UI_Base>> _uiByName{};
+    // GameplayUI_World가 lifetime을 소유하고, Progression은 현재 탭 콘텐츠 열기/닫기에만 참조한다.
+    ChangeWeapon_Panel* _changeWeaponPanel = nullptr;
+    ChangeSkill_Panel*  _changeSkillPanel = nullptr;
+    Wardrobe_Panel*		_wardrobePanel = nullptr;
+	Pictos_Panel*		_picktosPanel = nullptr;
+	size_t				_pendingPictosSlotIndex = 0;
 
     array<Shared<UI_Button>, 3> _characterButtons{};
     array<Shared<UI_Image>, 3> _characterStains{};
 
-    Shared<UI_Base> _abilityPanelRoot{};         // Panel_Character_Ability
-    Shared<UI_Image> _abilityPentagonFrame{};    // 큰 오각형 outline 크기/위치를 따라간다.
-    Shared<UI_Image> _abilityPentagonAnchor{};   // 기존 json의 작은 중심 pentagon. 색상만 참고하고 실제 크기 anchor로는 쓰지 않는다.
+    Shared<UI_Base> _abilityPanelRoot{};
+    Shared<UI_Image> _abilityPentagonFrame{};
+    Shared<UI_Image> _abilityPentagonAnchor{};
     Shared<UI_Text> _currentVitalityText{};
     Shared<UI_Text> _currentMightText{};
     Shared<UI_Text> _currentAgilityText{};
@@ -139,8 +185,13 @@ private:
     Shared<UI_Text> _currentLuckText{};
     Shared<UI_AbilityPentagon> _abilityPentagonFill{};
 
+    Shared<UI_Base> _currentWeaponPanelRoot{};
+    Shared<UI_Base> _currentPictosPanelRoot{};
+    Shared<UI_Base> _wardrobePanelRoot{};
+    Shared<UI_Base> _tintPanelRoot{};
+
     Shared<UI_Button> _currentWeaponButton{};
-    array<Shared<UI_Button>, 6> _skillButtons{}; // 스킬 5개 + Gradient
+    array<Shared<UI_Button>, 6> _skillButtons{};
     Shared<UI_Button> _skillTreeButton{};
     Shared<UI_Button> _availableSkillButton{};
 
@@ -148,6 +199,9 @@ private:
     Shared<UI_Button> _secondPictosButton{};
     Shared<UI_Button> _thirdPictosButton{};
     Shared<UI_Button> _wardrobeButton{};
+    array<Shared<UI_Text>, 3> _currentPictosNameTexts{};
+    array<Shared<UI_Image>, 3> _currentPictosMarkImages{};
+    array<Shared<UI_Base>, 3> _currentPictosEmptyImages{};
 
     Shared<UI_Text> _characterNameText{};
     Shared<UI_Text> _currentLevelText{};
@@ -172,6 +226,7 @@ private:
     Shared<UI_Base> _candyThumbnailPanel{};
     Shared<UI_Base> _medalumThumbnailPanel{};
     Shared<UI_Base> _sekarumThumbnailPanel{};
+
     array<Shared<UI_Text>, 5> _currentSkillNameTexts{};
     array<Shared<UI_Text>, 5> _currentSkillApTexts{};
     array<Shared<UI_Text>, 5> _currentSkillApBgTexts{};
@@ -182,9 +237,9 @@ private:
     Shared<UI_Text> _gradientGpBgText{};
     Shared<UI_Image> _gradientIconImage{};
     Shared<UI_Base> _gradientEmptyLine{};
+
     PreviewOverrideState _previewOverrideState{};
 
-    // 스킬
     Shared<UI_Base> _skillPanelRoot{};
     Shared<UI_Base> _skillTitleRoot{};
     array<Shared<UI_Base>, 6> _equippedSkillSlotRoots{};
@@ -194,7 +249,6 @@ private:
 public:
     static Unique<CharacterProgression_Panel> Create(uint32 levelIndex);
     void Free() override;
-
 };
 
 NS_END

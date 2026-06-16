@@ -104,7 +104,7 @@ void Player_BattleBase::From_Json(const json& data)
         _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
     }
 
-     Apply_CurrentCostumePartTransforms();
+    Apply_CurrentCostumePartTransforms();
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()
@@ -123,7 +123,12 @@ HRESULT Player_BattleBase::Ready_PartObjects()
         // preset 태그가 비어 있으면 기존 캐릭터 기본 태그를 유지한다.
         bodyModelTag = Select_CostumeModelTag(costumePreset->parts.bodyModelTag, bodyModelTag);
         headModelTag = Select_CostumeModelTag(costumePreset->parts.headModelTag, headModelTag);
-        hairModelTag = Select_CostumeModelTag(costumePreset->parts.hairModelTag, hairModelTag);
+
+        if (costumePreset->parts.hairModelTag.empty())
+            hairModelTag = nullptr;
+        else
+            hairModelTag = costumePreset->parts.hairModelTag.c_str();
+
         beardModelTag = Select_CostumeModelTag(costumePreset->parts.beardModelTag, beardModelTag);
         mustacheModelTag = Select_CostumeModelTag(costumePreset->parts.mustacheModelTag, mustacheModelTag);
         glassesModelTag = Select_CostumeModelTag(costumePreset->parts.glassesModelTag, nullptr);
@@ -155,14 +160,21 @@ HRESULT Player_BattleBase::Ready_PartObjects()
     CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Beard"), beardModelTag, bodyDesc.parentMatrix, head), E_FAIL);
     CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Mustache"), mustacheModelTag, bodyDesc.parentMatrix, head), E_FAIL);
 
-    Hair_Player::HAIR_PLAYER_DESC hairDesc{};
-    hairDesc.parentMatrix = bodyDesc.parentMatrix;
-    hairDesc.modelType = ModelType::Anim;
-    hairDesc.modelTag = hairModelTag;
-    hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-    hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+    if (hairModelTag != nullptr && hairModelTag[0] != L'\0')
+    {
+        Hair_Player::HAIR_PLAYER_DESC hairDesc{};
+        hairDesc.parentMatrix = bodyDesc.parentMatrix;
+        hairDesc.modelType = ModelType::Anim;
+        hairDesc.modelTag = hairModelTag;
+        hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+        hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
+        CHECK_FAILED(Add_PartObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_Hair_Player"),
+            TEXT("Part_Hair"),
+            &hairDesc), E_FAIL);
+    }
 
     CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Glasses"), glassesModelTag, bodyDesc.parentMatrix, head), E_FAIL);
 
@@ -264,7 +276,7 @@ HRESULT Player_BattleBase::Add_BattleFaceAccessory(const wstring& partTag, const
     accessoryDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(Add_PartObject(ETOI
-        (LevelType::Static),TEXT("GameObject_FaceAccessory_Player"), partTag.c_str(), &accessoryDesc), E_FAIL);
+    (LevelType::Static), TEXT("GameObject_FaceAccessory_Player"), partTag.c_str(), &accessoryDesc), E_FAIL);
 
     return S_OK;
 }

@@ -21,6 +21,8 @@
 
 #include <algorithm>
 
+#include "PreviewPlayer.h"
+
 using namespace UI_Utils;
 
 namespace

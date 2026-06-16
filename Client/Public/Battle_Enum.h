@@ -351,6 +351,8 @@ namespace Client
         BattleChar InitTarget = {};
         string skillKey = "";
         BattleItemType itemType = BattleItemType::Invalid;
+
+        uint32 skillPage = 0; // Choose Skill에서 스킬 패널이 왼쪽 오른쪽인지 페이즈 구별용
     };
 
     //

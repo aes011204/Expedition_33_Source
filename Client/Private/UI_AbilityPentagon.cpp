@@ -189,20 +189,6 @@ void UI_AbilityPentagon::Set_StatValues(const array<int32, 5>& statValues)
             : 0.f;
     }
 
-    LOG_DEBUG(
-        "UI_AbilityPentagon stat values = [{}, {}, {}, {}, {}], ratios = [{:.3f}, {:.3f}, {:.3f}, {:.3f}, {:.3f}], maxStatValue={:.3f}",
-        statValues[0],
-        statValues[1],
-        statValues[2],
-        statValues[3],
-        statValues[4],
-        ratios[0],
-        ratios[1],
-        ratios[2],
-        ratios[3],
-        ratios[4],
-        _maxStatValue);
-
     Set_NormalizedRatios(ratios);
 }
 

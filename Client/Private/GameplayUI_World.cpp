@@ -12,6 +12,7 @@
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
 #include "Wardrobe_Panel.h"
+#include "Pictos_Panel.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
@@ -47,6 +48,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _wardrobePanel = Wardrobe_Panel::Create(levelIndex);
     CHECK_NULL(_wardrobePanel, E_FAIL);
 
+    _pictosPanel = Pictos_Panel::Create(levelIndex);
+    CHECK_NULL(_pictosPanel, E_FAIL);
+
     _characterStatusPanel = CharacterStatus_Panel::Create(levelIndex);
     CHECK_NULL(_characterStatusPanel, E_FAIL);
 
@@ -58,6 +62,24 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 
     _changeWeaponPanel = ChangeWeapon_Panel::Create(levelIndex);
     CHECK_NULL(_changeWeaponPanel, E_FAIL);
+
+    _characterProgressionPanel->Bind_ContentPanels(
+        _changeWeaponPanel.get(),
+        _changeSkillPanel.get(),
+        _wardrobePanel.get(),
+        _pictosPanel.get());
+
+    if (FAILED(_characterProgressionPanel->Prepare_OpenResources()))
+        LOG_WARN("GameplayUI_World: failed to prewarm CharacterProgression open resources");
+
+    if (FAILED(_wardrobePanel->Prepare_OpenResources()))
+        LOG_WARN("GameplayUI_World: failed to prewarm Wardrobe open resources");
+
+    if (const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager())
+    {
+        if (FAILED(previewManager->Prepare_PreviewResources()))
+            LOG_WARN("GameplayUI_World: failed to prepare preview resources");
+    }
 
     _expeditionStatPanel = ExpeditionStat_Panel::Create(levelIndex);
     CHECK_NULL(_expeditionStatPanel, E_FAIL);
@@ -78,6 +100,9 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (_wardrobePanel)
         _wardrobePanel->Update(timeDelta);
+
+    if (_pictosPanel)
+        _pictosPanel->Update(timeDelta);
 
     if (_changeWeaponPanel)
         _changeWeaponPanel->Update(timeDelta);
@@ -123,16 +148,25 @@ void GameplayUI_World::Update_Input()
 vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 {
     vector<RuntimeUIEntry> entries{};
-    entries.reserve(9);
+    entries.reserve(64);
 
-    Append_RuntimePanelEntry(entries, "World", "CharacterProgressionPanel", _characterProgressionPanel.get());
-    Append_RuntimePanelEntry(entries, "World", "ChangeSkillPanel", _changeSkillPanel.get());
-    Append_RuntimePanelEntry(entries, "World", "WardrobePanel", _wardrobePanel.get());
-    Append_RuntimePanelEntry(entries, "World", "SavePointPanel", _savePointPanel.get());
-    Append_RuntimePanelEntry(entries, "World", "CharacterStatusPanel", _characterStatusPanel.get());
+    if (_characterProgressionPanel)
+        _characterProgressionPanel->Append_RuntimeUIEntries(entries, "World", "CharacterProgressionPanel");
+    if (_changeSkillPanel)
+        _changeSkillPanel->Append_RuntimeUIEntries(entries, "World", "ChangeSkillPanel");
+    if (_wardrobePanel)
+        _wardrobePanel->Append_RuntimeUIEntries(entries, "World", "WardrobePanel");
+    if (_pictosPanel)
+        _pictosPanel->Append_RuntimeUIEntries(entries, "World", "PictosPanel");
+    if (_savePointPanel)
+        _savePointPanel->Append_RuntimeUIEntries(entries, "World", "SavePointPanel");
+    if (_characterStatusPanel)
+        _characterStatusPanel->Append_RuntimeUIEntries(entries, "World", "CharacterStatusPanel");
     Append_RuntimePanelEntry(entries, "World", "SkillTreePanel", _skillTreePanel.get());
-    Append_RuntimePanelEntry(entries, "World", "ChangeWeaponPanel", _changeWeaponPanel.get());
-    Append_RuntimePanelEntry(entries, "World", "ExpeditionStatPanel", _expeditionStatPanel.get());
+    if (_changeWeaponPanel)
+        _changeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "ChangeWeaponPanel");
+    if (_expeditionStatPanel)
+        _expeditionStatPanel->Append_RuntimeUIEntries(entries, "World", "ExpeditionStatPanel");
     Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
 
     return entries;
@@ -178,7 +212,7 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
         break;
 
     case SavePoint_Panel::SavePointAction::UpgradeWeapon:
-        Push_Menu(GameplayMenu::WeaponUpgrade);
+        Open_CharacterProgressionFlow(CharacterProgression_Panel::ContentTab::Weapon);
         break;
 
     case SavePoint_Panel::SavePointAction::None:
@@ -257,6 +291,13 @@ void GameplayUI_World::Handle_BackInput()
     const GameplayMenu currentMenu = _menuStack.back();
     if (Is_CharacterProgressionFlowMenu(currentMenu) && currentMenu == GameplayMenu::CharacterProgression)
     {
+        if (_characterProgressionPanel &&
+            _characterProgressionPanel->Get_ActiveContentTab() != CharacterProgression_Panel::ContentTab::Overview)
+        {
+            _characterProgressionPanel->Switch_ContentTab(CharacterProgression_Panel::ContentTab::Overview);
+            return;
+        }
+
         Close_CharacterProgressionFlow(); // 루트에서 Esc는 전체 종료
         return;
     }
@@ -281,21 +322,23 @@ void GameplayUI_World::Handle_CharacterProgressionAction(CharacterProgression_Pa
     switch (action)
     {
     case CharacterProgression_Panel::Action::OpenChangeWeapon:
-        if (_changeWeaponPanel)
-            _changeWeaponPanel->Set_SelectedHeroId(_characterProgressionPanel->Get_SelectedHeroId());
-        Push_Menu(GameplayMenu::WeaponUpgrade);
+        if (_characterProgressionPanel)
+            _characterProgressionPanel->Switch_ContentTab(CharacterProgression_Panel::ContentTab::Weapon);
         break;
 
     case CharacterProgression_Panel::Action::OpenChangeSkill:
-        if (_changeSkillPanel)
-            _changeSkillPanel->Set_SelectedHeroId(_characterProgressionPanel->Get_SelectedHeroId());
-        Push_Menu(GameplayMenu::ChangeSkill);
+        if (_characterProgressionPanel)
+            _characterProgressionPanel->Switch_ContentTab(CharacterProgression_Panel::ContentTab::Skill);
         break;
 
     case CharacterProgression_Panel::Action::OpenWardrobe:
-        if (_wardrobePanel)
-            _wardrobePanel->Set_SelectedHeroId(_characterProgressionPanel->Get_SelectedHeroId());
-        Push_Menu(GameplayMenu::Wardrobe);
+        if (_characterProgressionPanel)
+            _characterProgressionPanel->Switch_ContentTab(CharacterProgression_Panel::ContentTab::Wardrobe);
+        break;
+
+    case CharacterProgression_Panel::Action::OpenPictos:
+        if (_characterProgressionPanel)
+            _characterProgressionPanel->Switch_ContentTab(CharacterProgression_Panel::ContentTab::Pictos);
         break;
 
     case CharacterProgression_Panel::Action::None:
@@ -306,13 +349,45 @@ void GameplayUI_World::Handle_CharacterProgressionAction(CharacterProgression_Pa
 
 void GameplayUI_World::Open_CharacterProgressionFlow()
 {
+    Open_CharacterProgressionFlow(CharacterProgression_Panel::ContentTab::Overview);
+}
+
+void GameplayUI_World::Open_CharacterProgressionFlow(CharacterProgression_Panel::ContentTab initialTab)
+{
     HeroId selectedHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
     if (_characterProgressionPanel)
     {
         _characterProgressionPanel->Set_SelectedHeroId(selectedHeroId);
     }
 
-    Push_Menu(GameplayMenu::CharacterProgression);
+    const GameplayMenu currentMenu = Get_CurrentMenu();
+    if (currentMenu == GameplayMenu::CharacterProgression)
+    {
+        if (_characterProgressionPanel)
+            _characterProgressionPanel->Switch_ContentTab(initialTab);
+        return;
+    }
+
+    const auto applyMenuChange = [this, currentMenu, initialTab]()
+        {
+            if (currentMenu != GameplayMenu::None)
+            {
+                if (currentMenu == GameplayMenu::SavePoint && _savePointPanel)
+                    _savePointPanel->Close_ForMenuTransition();
+                else
+                    Close_Menu(currentMenu, false);
+
+                if (!_menuStack.empty())
+                    _menuStack.pop_back();
+            }
+
+            _menuStack.push_back(GameplayMenu::CharacterProgression);
+
+            if (_characterProgressionPanel)
+                _characterProgressionPanel->Open(initialTab);
+        };
+
+    _menuFade.Request_MenuTransition(currentMenu, GameplayMenu::CharacterProgression, applyMenuChange);
 }
 
 void GameplayUI_World::Close_CharacterProgressionFlow()
@@ -641,6 +716,7 @@ void GameplayUI_World::Free()
     Release_Panel(_changeSkillPanel);
     Release_Panel(_savePointPanel);
     Release_Panel(_wardrobePanel);
+    Release_Panel(_pictosPanel);
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
     Release_Panel(_changeWeaponPanel);

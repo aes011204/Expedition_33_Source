@@ -16,6 +16,14 @@ static constexpr CostumePresetDesc kDefaultCostumeDescs[] =
         L"Model_GustaveBeard", L"Model_GustaveMustache",
         L"Model_Gustave_Baguette_Glasses2"
     },
+    {
+        HeroId::Gustave, "Potato", L"포테이토",
+        L"Model_Gustave_Body_Potato",
+        L"Model_Gustave_Head_Potato",
+        nullptr, // 대머리 프리셋이므로 hair 파츠를 만들지 않는다.
+        L"Model_GustaveBeard", L"Model_GustaveMustache",
+        nullptr
+    },
     // 루네
     {
         HeroId::Lune, "Default", L"기본",
@@ -30,6 +38,14 @@ static constexpr CostumePresetDesc kDefaultCostumeDescs[] =
         nullptr, nullptr,
         L"Model_Lune_Baguette_Glasses"
     },
+    {
+        HeroId::Lune, "Potato", L"포테이토",
+        L"Model_Lune_Body_Potato",
+        L"Model_Lune_Head_Potato",
+        nullptr, // 대머리 프리셋
+        nullptr, nullptr,
+        nullptr
+    },
     // 마엘
     {
         HeroId::Maelle, "Default", L"기본",
@@ -41,6 +57,14 @@ static constexpr CostumePresetDesc kDefaultCostumeDescs[] =
         HeroId::Maelle, "Baguette", L"빠게트",
         L"Model_Maelle_Baguette_Body",
         L"Model_MaelleHead", L"Model_Maelle_Baguette_Hat",
+        nullptr, nullptr,
+        nullptr
+    },
+    {
+        HeroId::Maelle, "Potato", L"포테이토",
+        L"Model_Maelle_Body_Potato",
+        L"Model_Maelle_Head_Potato",
+        nullptr, // 대머리 프리셋
         nullptr, nullptr,
         nullptr
     },
@@ -170,6 +194,19 @@ void CostumeManager::Apply_DefaultPartPlacement(CostumePreset& preset)
         preset.parts.glassesTransform.position = Vec3(1.41f, 1.0f, 0.f);
         preset.parts.glassesTransform.rotation = Vec3(0.f, 0.f, 0.f);
         preset.parts.glassesTransform.scale = Vec3(1.f, 1.f, 1.f);
+    }
+
+    if (preset.heroId == HeroId::Gustave && preset.presetId == "Potato")
+    {
+        ApplyBeardTransform(
+            Vec3(-155.9f, 0.8f, 0.f),
+            Vec3(-90.f, 0.f, -90.f),
+            Vec3(1.f, 1.f, 0.9999997f));
+
+        ApplyMustacheTransform(
+            Vec3(-156.f, 1.f, 0.f),
+            Vec3(-90.f, 0.f, -90.f),
+            Vec3(1.f, 1.f, 1.f));
     }
 
     if (preset.heroId == HeroId::Lune && preset.presetId == "Baguette")

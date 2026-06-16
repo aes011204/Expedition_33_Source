@@ -23,16 +23,27 @@
 #include <algorithm>
 #include <filesystem>
 
+#include "PreviewPlayer.h"
+
 using namespace UI_Utils;
 
 namespace
 {
-    constexpr std::array<HeroId, 3> kHeroOrder =
+    // 이건 일단 디폴트 슬롯. 임시? 뭐 끝까지 쓸거같기도 하고
+    vector<string> Get_DefaultProgressionSkillKeys(HeroId heroId)
     {
-        HeroId::Lune,
-        HeroId::Gustave,
-        HeroId::Maelle,
-    };
+        switch (heroId)
+        {
+        case HeroId::Gustave:
+            return { "LumiereAssault", "UnleashedCharge", "MarkingShot" };
+        case HeroId::Lune:
+            return { "Immolation", "IceGust", "Thunderfall" };
+        case HeroId::Maelle:
+            return { "OffensiveSwitch", "Percee", "FleureFury" };
+        default:
+            return {};
+        }
+    }
 
     void Set_UIMapOpenState(const umap<wstring, Shared<UI_Base>>& uiByName, bool isOpen)
     {
@@ -66,6 +77,10 @@ namespace
         CLIENT->Apply_PreviewLayout(previewLayout);
         CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
     }
+
+    // 스킬 장착 틴트 색
+    constexpr Vec4 kAvailableSkillFrameDefaultTint{ 1.f, 1.f, 1.f, 1.f };
+    constexpr Vec4 kAvailableSkillFrameEquippedTint{ 0.78f, 0.36f, 0.58f, 1.f };
 }
 
 HRESULT ChangeSkill_Panel::Initialize(uint32 levelIndex)
@@ -85,8 +100,7 @@ void ChangeSkill_Panel::Update(float timeDelta)
     if (!Is_Open())
         return;
 
-    Handle_SelectionInput(); // Q/E 입력으로 현재 보는 영웅을 바꾼다.
-    Handle_ButtonInput();    // 내부 버튼 클릭은 아직 로그만 남긴다.
+    Handle_ButtonInput();    // Current/Available Skill 입력은 전부 버튼 기준으로 처리한다.
 }
 
 void ChangeSkill_Panel::Open()
@@ -105,6 +119,8 @@ void ChangeSkill_Panel::Open()
 
     CLIENT->Begin_Preview(PreviewShotPanel::SkillTree); // Character Progression 하위 메뉴도 같은 preview shot을 이어서 쓴다.
     Show_ChangeSkillPreview(_selectedHeroId);
+    CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Skill_Intro, PreviewAnimState::Skill_Idle);
+
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
     Refresh_All();
@@ -121,6 +137,9 @@ void ChangeSkill_Panel::Close()
 
 void ChangeSkill_Panel::Close_Immediately(bool restoreWorldControl)
 {
+    _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
+    Refresh_CurrentSkillButtonFocus();
+    _isProgressionContentMode = false;
     Show_AvailableSkillSlots(false);
     UI_RuntimePanelBase::Close();
     Set_UIMapOpenState(_uiByName, false);
@@ -139,16 +158,82 @@ void ChangeSkill_Panel::Close_ForMenuTransition()
     Close_Immediately(false);
 }
 
+void ChangeSkill_Panel::Open_AsProgressionContent(HeroId selectedHeroId)
+{
+    if (_root == nullptr)
+        return;
+
+    _isProgressionContentMode = true;
+    _selectedHeroId = (selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : selectedHeroId;
+
+    if (!Is_Open())
+        UI_RuntimePanelBase::Open();
+
+    Set_UIMapOpenState(_uiByName, true);
+    Refresh_ForSelectedHero(_selectedHeroId);
+}
+
+void ChangeSkill_Panel::Close_AsProgressionContent()
+{
+    if (!_isProgressionContentMode && !Is_Open())
+        return;
+
+    _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
+    Refresh_CurrentSkillButtonFocus();
+    _isProgressionContentMode = false;
+    Show_AvailableSkillSlots(false);
+    UI_RuntimePanelBase::Close();
+    Set_UIMapOpenState(_uiByName, false);
+}
+
+void ChangeSkill_Panel::Refresh_ForSelectedHero(HeroId selectedHeroId)
+{
+    _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
+    _selectedHeroId = (selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : selectedHeroId;
+    Refresh_All();
+}
+
 void ChangeSkill_Panel::Set_SelectedHeroId(HeroId heroId)
 {
+    _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
     _selectedHeroId = (heroId == HeroId::END) ? Get_DefaultSelectedHeroId() : heroId;
 
     if (Is_Open())
     {
-        Show_ChangeSkillPreview(_selectedHeroId);
-        Update_PreviewHeroVisibility();
-        Apply_PreviewOverrides();
+        if (!_isProgressionContentMode)
+        {
+            Show_ChangeSkillPreview(_selectedHeroId);
+            Update_PreviewHeroVisibility();
+            Apply_PreviewOverrides();
+        }
+
         Refresh_All();
+    }
+}
+
+void ChangeSkill_Panel::Append_RuntimeUIEntries(
+    vector<RuntimeUIEntry>& outEntries,
+    const string& category,
+    const string& rootName) const
+{
+    if (_root == nullptr)
+        return;
+
+    RuntimeUIEntry rootEntry{};
+    rootEntry.category = category;
+    rootEntry.name = rootName;
+    rootEntry.ui = _root;
+    rootEntry.editorTarget = const_cast<ChangeSkill_Panel*>(this);
+    outEntries.push_back(rootEntry);
+
+    Append_RuntimeUIMapEntries(outEntries, category, _uiByName, _root, const_cast<ChangeSkill_Panel*>(this));
+
+    for (const AvailableSkillSlotUI& slot : _availableSkillSlots)
+    {
+        if (slot.isOwnedByMainDocument)
+            continue; // 메인 문서에 이미 포함된 슬롯은 중복 등록하지 않는다.
+
+        Append_RuntimeUIMapEntries(outEntries, category, slot.uiByName, nullptr, const_cast<ChangeSkill_Panel*>(this));
     }
 }
 
@@ -170,14 +255,6 @@ HRESULT ChangeSkill_Panel::Load_UI(uint32 levelIndex)
 
 HRESULT ChangeSkill_Panel::Bind_UI()
 {
-    _characterButtons[0] = Find_TypedUI<UI_Button>(_uiByName, L"Button_CharacterSelect_01", "ChangeSkill");
-    _characterButtons[1] = Find_TypedUI<UI_Button>(_uiByName, L"Button_CharacterSelect_02", "ChangeSkill");
-    _characterButtons[2] = Find_TypedUI<UI_Button>(_uiByName, L"Button_CharacterSelect_03", "ChangeSkill");
-
-    _characterStains[0] = Find_TypedUI<UI_Image>(_uiByName, L"Image_CharacterSelectButton_Stain_01", "ChangeSkill");
-    _characterStains[1] = Find_TypedUI<UI_Image>(_uiByName, L"Image_CharacterSelectButton_Stain_02", "ChangeSkill");
-    _characterStains[2] = Find_TypedUI<UI_Image>(_uiByName, L"Image_CharacterSelectButton_Stain_03", "ChangeSkill");
-
     _currentSkillButtons[0] = Find_TypedUI<UI_Button>(_uiByName, L"Button_Current_Skill_1", "ChangeSkill");
     _currentSkillButtons[1] = Find_TypedUI<UI_Button>(_uiByName, L"Button_Current_Skill_2", "ChangeSkill");
     _currentSkillButtons[2] = Find_TypedUI<UI_Button>(_uiByName, L"Button_Current_Skill_3", "ChangeSkill");
@@ -187,19 +264,6 @@ HRESULT ChangeSkill_Panel::Bind_UI()
     _gradientButton = Find_TypedUI<UI_Button>(_uiByName, L"Button_Current_Gradient", "ChangeSkill");
     _availableSkillButton = Find_TypedUI<UI_Button>(_uiByName, L"Button_Available_Skill", "ChangeSkill");
     _skillTreeButton = Find_TypedUI<UI_Button>(_uiByName, L"Button_SkillTree", "ChangeSkill");
-
-    _characterNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Name", "ChangeSkill");
-    _currentLevelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentLevel", "ChangeSkill");
-    _currentExpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Current_EXP", "ChangeSkill");
-    _maxExpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Max_EXP", "ChangeSkill");
-    _currentHpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Current_HP", "ChangeSkill");
-    _maxHpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Max_HP", "ChangeSkill");
-
-    _currentStatHpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatHP", "ChangeSkill");
-    _currentStatAttackText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatAttack", "ChangeSkill");
-    _currentStatDefenseText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatDefense", "ChangeSkill");
-    _currentStatSpeedText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatSpeed", "ChangeSkill");
-    _currentStatCriticalPercentText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatCriticalPercent", "ChangeSkill");
 
     _currentSkillNameTexts[0] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_1", "ChangeSkill");
     _currentSkillNameTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_2", "ChangeSkill");
@@ -220,6 +284,7 @@ HRESULT ChangeSkill_Panel::Bind_UI()
     AvailableSkillSlotUI firstAvailableSlot{};
     firstAvailableSlot.root = Find_UI(_uiByName, L"Panel_Available_Skill");
     firstAvailableSlot.button = _availableSkillButton;
+    firstAvailableSlot.frameImage = Find_TypedUI<UI_Image>(_uiByName, L"Image_Available_Skill_Frame", "ChangeSkill");
     firstAvailableSlot.portraitImage = Find_TypedUI<UI_Image>(_uiByName, L"Image_Available_Skill", "ChangeSkill");
     firstAvailableSlot.nameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Available_Skill", "ChangeSkill");
     firstAvailableSlot.apText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Available_Skill_AP", "ChangeSkill");
@@ -227,14 +292,33 @@ HRESULT ChangeSkill_Panel::Bind_UI()
     firstAvailableSlot.isOwnedByMainDocument = true;
     _availableSkillSlots.push_back(firstAvailableSlot);
 
-    CHECK_NULL(_characterButtons[0], E_FAIL);
-    CHECK_NULL(_characterButtons[1], E_FAIL);
-    CHECK_NULL(_characterButtons[2], E_FAIL);
-    CHECK_NULL(_characterNameText, E_FAIL);
-    CHECK_NULL(_currentLevelText, E_FAIL);
+    _currentSkillApBgTexts[0] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_AP_BG_1", "ChangeSkill");
+    _currentSkillApBgTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_AP_BG_2", "ChangeSkill");
+    _currentSkillApBgTexts[2] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_AP_BG_3", "ChangeSkill");
+    _currentSkillApBgTexts[3] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_AP_BG_4", "ChangeSkill");
+    _currentSkillApBgTexts[4] = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Skill_AP_BG_5", "ChangeSkill");
+
+    _currentSkillIconImages[0] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_Skill_1", "ChangeSkill");
+    _currentSkillIconImages[1] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_Skill_2", "ChangeSkill");
+    _currentSkillIconImages[2] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_Skill_3", "ChangeSkill");
+    _currentSkillIconImages[3] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_Skill_4", "ChangeSkill");
+    _currentSkillIconImages[4] = Find_TypedUI<UI_Image>(_uiByName, L"Image_Current_Skill_5", "ChangeSkill");
+
+    _currentSkillEmptyLines[0] = Find_UI(_uiByName, L"Image_Empty_1");
+    _currentSkillEmptyLines[1] = Find_UI(_uiByName, L"Image_Empty_2");
+    _currentSkillEmptyLines[2] = Find_UI(_uiByName, L"Image_Empty_3");
+    _currentSkillEmptyLines[3] = Find_UI(_uiByName, L"Image_Empty_4");
+    _currentSkillEmptyLines[4] = Find_UI(_uiByName, L"Image_Empty_5");
+
+    _gradientGpBgText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Gradient_GP_BG", "ChangeSkill");
+    _gradientIconImage = Find_TypedUI<UI_Image>(_uiByName, L"Image_Gradient", "ChangeSkill");
+    _gradientEmptyLine = Find_UI(_uiByName, L"Image_Empty_Gradient");
+
+
     CHECK_NULL(_availableSkillListRoot, E_FAIL);
     CHECK_NULL(_availableSkillSlots[0].root, E_FAIL);
     CHECK_NULL(_availableSkillSlots[0].button, E_FAIL);
+    CHECK_NULL(_availableSkillSlots[0].frameImage, E_FAIL);
     CHECK_NULL(_availableSkillSlots[0].portraitImage, E_FAIL);
     CHECK_NULL(_availableSkillSlots[0].nameText, E_FAIL);
     CHECK_NULL(_availableSkillSlots[0].apText, E_FAIL);
@@ -243,57 +327,15 @@ HRESULT ChangeSkill_Panel::Bind_UI()
     return S_OK;
 }
 
-void ChangeSkill_Panel::Handle_SelectionInput()
-{
-    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
-    if (partyEntries.empty())
-        return;
-
-    HeroId previousHeroId = _selectedHeroId;
-    if (previousHeroId == HeroId::END)
-        previousHeroId = partyEntries.front().heroId;
-
-    if (GAME->KeyDown(KEY_TYPE::Q) || GAME->KeyDown(KEY_TYPE::E))
-    {
-        uint32 currentIndex = 0;
-        for (uint32 i = 0; i < static_cast<uint32>(partyEntries.size()); ++i)
-        {
-            if (partyEntries[i].heroId == previousHeroId)
-            {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        if (GAME->KeyDown(KEY_TYPE::Q))
-            currentIndex = (currentIndex + 1) % static_cast<uint32>(partyEntries.size());
-        else
-            currentIndex = (currentIndex + static_cast<uint32>(partyEntries.size()) - 1) % static_cast<uint32>(partyEntries.size());
-            
-
-
-        _selectedHeroId = partyEntries[currentIndex].heroId;
-    }
-
-    if (_selectedHeroId == HeroId::END)
-        _selectedHeroId = previousHeroId;
-
-    if (_selectedHeroId != previousHeroId)
-    {
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
-        Show_ChangeSkillPreview(_selectedHeroId); // Skill 변경 메뉴에서도 Q/E 선택과 preview target을 같이 맞춘다.
-        Update_PreviewHeroVisibility();
-        Apply_PreviewOverrides();
-        Refresh_All();
-    }
-}
-
 void ChangeSkill_Panel::Handle_ButtonInput()
 {
     for (size_t i = 0; i < _currentSkillButtons.size(); ++i)
     {
         if (_currentSkillButtons[i] == nullptr || !_currentSkillButtons[i]->Was_Clicked())
             continue;
+
+        _selectedCurrentSkillSlotIndex = i;
+        Refresh_CurrentSkillButtonFocus();
 
         GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
         LOG_DEBUG("ChangeSkill_Panel: current skill slot clicked. index={}", i);
@@ -307,17 +349,28 @@ void ChangeSkill_Panel::Handle_ButtonInput()
         return;
     }
 
-    if (_availableSkillButton && _availableSkillButton->Was_Clicked())
+    for (size_t i = 0; i < _availableSkillSlots.size(); ++i)
     {
+        AvailableSkillSlotUI& slot = _availableSkillSlots[i];
+        if (slot.button == nullptr || !slot.button->Was_Clicked())
+            continue;
+
+        const bool equipped = Try_EquipAvailableSkillToSelectedSlot(slot.skillId);
         GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
-        Refresh_AvailableSkills();
+
+        if (equipped)
+        {
+            _selectedCurrentSkillSlotIndex = InvalidSkillSlotIndex;
+            Refresh_All();
+            Refresh_CurrentSkillButtonFocus();
+        }
+
         return;
     }
 
     if (_skillTreeButton && _skillTreeButton->Was_Clicked())
     {
         GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
-        LOG_DEBUG("ChangeSkill_Panel: skill tree clicked");
     }
 }
 
@@ -325,23 +378,9 @@ void ChangeSkill_Panel::Refresh_All()
 {
     const Shared<PlayerStatCom> statCom = Resolve_SelectedPlayerStat();
 
-    Refresh_CharacterSelectUI();
-
     if (statCom == nullptr)
     {
         Show_AvailableSkillSlots(false);
-        Set_Text(_characterNameText, Get_DisplayHeroName(_selectedHeroId));
-        Set_Text(_currentLevelText, L"0");
-        Set_Text(_currentExpText, L"0");
-        Set_Text(_maxExpText, L"0");
-        Set_Text(_currentHpText, L"0");
-        Set_Text(_maxHpText, L"0");
-
-        Set_Text(_currentStatHpText, L"0");
-        Set_Text(_currentStatAttackText, L"0");
-        Set_Text(_currentStatDefenseText, L"0");
-        Set_Text(_currentStatSpeedText, L"0");
-        Set_Text(_currentStatCriticalPercentText, L"0");
 
         for (size_t i = 0; i < _currentSkillNameTexts.size(); ++i)
         {
@@ -351,43 +390,13 @@ void ChangeSkill_Panel::Refresh_All()
 
         Set_Text(_gradientText, L"-");
         Set_Text(_gradientGpText, L"0");
+        Refresh_CurrentSkillButtonFocus();
         return;
     }
 
-    Refresh_CharacterSheet(statCom);
-    Refresh_CombatStats(statCom);
     Refresh_CurrentSkills(statCom);
     Refresh_AvailableSkills();
-}
-
-void ChangeSkill_Panel::Refresh_CharacterSheet(const Shared<PlayerStatCom>& statCom)
-{
-    if (statCom == nullptr)
-        return;
-
-    const PlayerStatCom::PRuntimeCombatStat& statInfo = statCom->Get_PlayerRuntimeStat();
-    const uint32 maxExp = statInfo.CurMaxExp > 0 ? statInfo.CurMaxExp : max(1u, statInfo.nextExp);
-
-    Set_Text(_characterNameText, Get_DisplayHeroName(_selectedHeroId));
-    Set_UIntText(_currentLevelText, statInfo.CurLevel);
-    Set_UIntText(_currentExpText, statInfo.CurExp);
-    Set_UIntText(_maxExpText, maxExp);
-    Set_IntText(_currentHpText, static_cast<int32>(statInfo.CurHp));
-    Set_IntText(_maxHpText, static_cast<int32>(statInfo.CurMaxHp));
-}
-
-void ChangeSkill_Panel::Refresh_CombatStats(const Shared<PlayerStatCom>& statCom)
-{
-    if (statCom == nullptr)
-        return;
-
-    const PlayerStatCom::PRuntimeCombatStat& statInfo = statCom->Get_PlayerRuntimeStat();
-
-    Set_IntText(_currentStatHpText, static_cast<int32>(statInfo.CurMaxHp));
-    Set_IntText(_currentStatAttackText, static_cast<int32>(statInfo.CurPhysicalAttack));
-    Set_IntText(_currentStatDefenseText, static_cast<int32>(statInfo.CurPhysicalDefense));
-    Set_IntText(_currentStatSpeedText, static_cast<int32>(statInfo.CurSpeed));
-    Set_IntText(_currentStatCriticalPercentText, static_cast<int32>(statInfo.CurCriticalRate));
+    Refresh_CurrentSkillButtonFocus();
 }
 
 void ChangeSkill_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCom>& statCom)
@@ -396,50 +405,56 @@ void ChangeSkill_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCom>& statC
     {
         Set_Text(_currentSkillNameTexts[i], L"-");
         Set_Text(_currentSkillApTexts[i], L"0");
+        Set_Text(_currentSkillApBgTexts[i], L"0");
+
+        if (_currentSkillIconImages[i])
+            _currentSkillIconImages[i]->Close();
+
+        if (_currentSkillEmptyLines[i])
+            _currentSkillEmptyLines[i]->Open();
     }
 
     Set_Text(_gradientText, L"-");
     Set_Text(_gradientGpText, L"0");
+    Set_Text(_gradientGpBgText, L"0");
+
+    if (_gradientIconImage)
+        _gradientIconImage->Close();
+
+    if (_gradientEmptyLine)
+        _gradientEmptyLine->Open();
 
     if (statCom == nullptr)
         return;
 
-    const vector<string>& skillKeys = statCom->Get_SkillKeys();
+    const vector<string> skillKeys = Build_CurrentNormalSkillKeys(statCom);
     const size_t normalSkillCount = min<size_t>(_currentSkillNameTexts.size(), skillKeys.size());
 
     for (size_t i = 0; i < normalSkillCount; ++i)
     {
         const string& skillKey = skillKeys[i];
+        if (skillKey.empty())
+            continue;
+
         const GameDataTable::SkillTreeDesc* skillTreeDesc = CLIENT->Get_SkillTreeDesc(skillKey);
         const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
 
         Set_Text(_currentSkillNameTexts[i], skillTreeDesc ? skillTreeDesc->skillName : String::ToWString(skillKey));
         Set_IntText(_currentSkillApTexts[i], skillData ? skillData->apCost : 0);
+        Set_IntText(_currentSkillApBgTexts[i], skillData ? skillData->apCost : 0);
+
+        const wstring portraitPath = Resolve_SkillPortraitTexturePath(_selectedHeroId, skillTreeDesc);
+        if (_currentSkillIconImages[i] && !portraitPath.empty())
+        {
+            _currentSkillIconImages[i]->Set_TexturePath(portraitPath);
+            _currentSkillIconImages[i]->Open();
+        }
+
+        if (_currentSkillEmptyLines[i])
+            _currentSkillEmptyLines[i]->Close();
     }
 
-    if (skillKeys.size() > _currentSkillNameTexts.size())
-    {
-        const string& gradientSkillKey = skillKeys[_currentSkillNameTexts.size()];
-        const GameDataTable::SkillTreeDesc* skillTreeDesc = CLIENT->Get_SkillTreeDesc(gradientSkillKey);
-        const Skill_Data* skillData = CLIENT->Get_Skill(gradientSkillKey);
-
-        Set_Text(_gradientText, skillTreeDesc ? skillTreeDesc->skillName : String::ToWString(gradientSkillKey));
-        Set_IntText(_gradientGpText, skillData ? skillData->apCost : 0);
-    }
-}
-
-void ChangeSkill_Panel::Refresh_CharacterSelectUI()
-{
-    for (size_t i = 0; i < kHeroOrder.size(); ++i)
-    {
-        if (_characterStains[i] == nullptr)
-            continue;
-
-        if (kHeroOrder[i] == _selectedHeroId)
-            _characterStains[i]->Open();
-        else
-            _characterStains[i]->Close();
-    }
+    // 6번째 슬롯은 일반 스킬 overflow가 아니라 추후 Gradient 스킬 전용 슬롯으로 비워 둔다.
 }
 
 Shared<PlayerStatCom> ChangeSkill_Panel::Resolve_SelectedPlayerStat() const
@@ -489,22 +504,6 @@ string ChangeSkill_Panel::Get_CharacterId(HeroId heroId)
     }
 }
 
-wstring ChangeSkill_Panel::Get_DisplayHeroName(HeroId heroId)
-{
-    switch (heroId)
-    {
-    case HeroId::Gustave:
-        return L"구스타브";
-    case HeroId::Lune:
-        return L"루네";
-    case HeroId::Maelle:
-        return L"마엘";
-    case HeroId::END:
-    default:
-        return L"-";
-    }
-}
-
 void ChangeSkill_Panel::Set_Text(const Shared<Engine::UI_Text>& text, const wstring& value)
 {
     if (text)
@@ -524,6 +523,13 @@ void ChangeSkill_Panel::Refresh_AvailableSkills()
     if (FAILED(Ensure_AvailableSkillSlotCount(unlockedSkillIds.size())))
         return;
 
+    vector<string> equippedSkillKeys{};
+    const Shared<PlayerStatCom> statCom = Resolve_SelectedPlayerStat();
+    if (statCom)
+    {
+        equippedSkillKeys = Build_CurrentNormalSkillKeys(statCom); // 아래 장착 슬롯에 실제로 표시되는 5개 일반 스킬 기준으로 틴트를 맞춘다.
+    }
+
     for (size_t i = 0; i < _availableSkillSlots.size(); ++i)
     {
         AvailableSkillSlotUI& slot = _availableSkillSlots[i];
@@ -535,7 +541,7 @@ void ChangeSkill_Panel::Refresh_AvailableSkills()
             continue;
         }
 
-        Apply_AvailableSkillSlot(i, unlockedSkillIds[i]);
+        Apply_AvailableSkillSlot(i, unlockedSkillIds[i], equippedSkillKeys);
 
         if (slot.root)
             slot.root->Open();
@@ -562,6 +568,7 @@ HRESULT ChangeSkill_Panel::Ensure_AvailableSkillSlotCount(size_t slotCount)
 
         slot.root = Find_UI(slot.uiByName, L"Panel_Available_Skill");
         slot.button = Find_TypedUI<UI_Button>(slot.uiByName, L"Button_Available_Skill", "ChangeSkillAvailableSkill");
+        slot.frameImage = Find_TypedUI<UI_Image>(slot.uiByName, L"Image_Available_Skill_Frame", "ChangeSkillAvailableSkill");
         slot.portraitImage = Find_TypedUI<UI_Image>(slot.uiByName, L"Image_Available_Skill", "ChangeSkillAvailableSkill");
         slot.nameText = Find_TypedUI<UI_Text>(slot.uiByName, L"Text_Available_Skill", "ChangeSkillAvailableSkill");
         slot.apText = Find_TypedUI<UI_Text>(slot.uiByName, L"Text_Available_Skill_AP", "ChangeSkillAvailableSkill");
@@ -588,7 +595,7 @@ HRESULT ChangeSkill_Panel::Ensure_AvailableSkillSlotCount(size_t slotCount)
     return S_OK;
 }
 
-void ChangeSkill_Panel::Apply_AvailableSkillSlot(size_t slotIndex, const string& skillId)
+void ChangeSkill_Panel::Apply_AvailableSkillSlot(size_t slotIndex, const string& skillId, const vector<string>& equippedSkillKeys)
 {
     if (slotIndex >= _availableSkillSlots.size())
         return;
@@ -598,9 +605,15 @@ void ChangeSkill_Panel::Apply_AvailableSkillSlot(size_t slotIndex, const string&
 
     if (slot.root && slot.root->Get_Transform())
     {
-        slot.root->Get_Transform()->Set_Position(Get_AvailableSkillSlotPosition(slotIndex)); // 해금 순서대로 좌/우 2열 배치
+        slot.root->Get_Transform()->Set_Position(Get_AvailableSkillSlotPosition(slotIndex));
         slot.root->Refresh_OpenBaseTransform();
     }
+
+    const bool isEquipped =
+        find(equippedSkillKeys.begin(), equippedSkillKeys.end(), skillId) != equippedSkillKeys.end();
+
+    if (slot.frameImage)
+        slot.frameImage->Set_Color(isEquipped ? kAvailableSkillFrameEquippedTint : kAvailableSkillFrameDefaultTint);
 
     const GameDataTable::SkillTreeDesc* skillTreeDesc = CLIENT->Get_SkillTreeDesc(skillId);
     const Skill_Data* skillData = CLIENT->Get_Skill(skillId);
@@ -671,6 +684,65 @@ wstring ChangeSkill_Panel::Resolve_SkillPortraitTexturePath(HeroId heroId,
         String::ToWString(portraitName);
 
     return ResourceLoader::Resolve_RuntimePath(path);
+}
+
+vector<string> ChangeSkill_Panel::Build_CurrentNormalSkillKeys(const Shared<PlayerStatCom>& statCom) const
+{
+    vector<string> skillKeys = statCom ? statCom->Get_SkillKeys() : vector<string>{};
+
+    if (skillKeys.empty())
+    {
+        const Shared<SkillTreeCom> skillTreeCom = Resolve_SelectedSkillTree();
+        if (skillTreeCom != nullptr && !skillTreeCom->Get_UnlockedSkillIds().empty())
+        {
+            skillKeys = skillTreeCom->Get_UnlockedSkillIds();
+        }
+        else
+        {
+            const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+            skillKeys = Get_DefaultProgressionSkillKeys(heroId);
+        }
+    }
+
+    if (skillKeys.size() > NormalSkillSlotCount)
+        skillKeys.resize(NormalSkillSlotCount); // 일반 스킬 overflow는 Gradient 슬롯으로 보내지 않는다.
+    else
+        skillKeys.resize(NormalSkillSlotCount);
+
+    return skillKeys;
+}
+
+bool ChangeSkill_Panel::Try_EquipAvailableSkillToSelectedSlot(const string& skillId)
+{
+    if (_selectedCurrentSkillSlotIndex >= NormalSkillSlotCount || skillId.empty())
+        return false;
+
+    const Shared<PlayerStatCom> statCom = Resolve_SelectedPlayerStat();
+    if (statCom == nullptr)
+        return false;
+
+    vector<string> skillKeys = Build_CurrentNormalSkillKeys(statCom);
+
+    const auto existing = find(skillKeys.begin(), skillKeys.end(), skillId);
+    if (existing != skillKeys.end())
+        return false; // 이미 장착된 스킬은 이번 기능에서 슬롯 이동/중복 장착하지 않는다.
+
+    skillKeys[_selectedCurrentSkillSlotIndex] = skillId;
+    statCom->Set_SkillKeys(skillKeys);
+
+    return true;
+}
+
+void ChangeSkill_Panel::Refresh_CurrentSkillButtonFocus()
+{
+    for (size_t i = 0; i < _currentSkillButtons.size(); ++i)
+    {
+        if (_currentSkillButtons[i])
+            _currentSkillButtons[i]->Set_Focused(i == _selectedCurrentSkillSlotIndex);
+    }
+
+    if (_gradientButton)
+        _gradientButton->Set_Focused(false);
 }
 
 void ChangeSkill_Panel::Apply_PreviewOverrides()
@@ -889,33 +961,34 @@ void ChangeSkill_Panel::Free()
 
     _root.reset();
     _uiByName.clear();
+    _isProgressionContentMode = false;
 
-    for (auto& button : _characterButtons)
-        button.reset();
-    for (auto& stain : _characterStains)
-        stain.reset();
     for (auto& button : _currentSkillButtons)
         button.reset();
+
     for (auto& text : _currentSkillNameTexts)
         text.reset();
+
     for (auto& text : _currentSkillApTexts)
         text.reset();
+
+    for (auto& text : _currentSkillApBgTexts)
+        text.reset();
+
+    for (auto& image : _currentSkillIconImages)
+        image.reset();
+
+    for (auto& line : _currentSkillEmptyLines)
+        line.reset();
+
+    _gradientGpBgText.reset();
+    _gradientIconImage.reset();
+    _gradientEmptyLine.reset();
 
     _gradientButton.reset();
     _availableSkillButton.reset();
     _skillTreeButton.reset();
 
-    _characterNameText.reset();
-    _currentLevelText.reset();
-    _currentExpText.reset();
-    _maxExpText.reset();
-    _currentHpText.reset();
-    _maxHpText.reset();
-    _currentStatHpText.reset();
-    _currentStatAttackText.reset();
-    _currentStatDefenseText.reset();
-    _currentStatSpeedText.reset();
-    _currentStatCriticalPercentText.reset();
     _gradientText.reset();
     _gradientGpText.reset();
     _availableSkillListRoot.reset();

@@ -1,7 +1,6 @@
 ﻿#include "GameDataTable.h"
 #include "GameInstance.h"
 
-
 #include <cctype>
 
 namespace
@@ -110,6 +109,7 @@ HRESULT GameDataTable::Load_All()
 
     CHECK_FAILED(Load_Weapon(jsonRootPath), E_FAIL);
     CHECK_FAILED(Load_ItemData(jsonRootPath), E_FAIL);
+    CHECK_FAILED(Load_PictosData(jsonRootPath), E_FAIL);
 
     _isLoaded = true;
 
@@ -120,10 +120,19 @@ void GameDataTable::Clear()
 {
     _nextExpByLevel.clear();
     _weaponDataByCharacter.clear();
+
+    _skillTreeData.clear();
+    _requirementSkills.clear();
+
     _skillDefs.clear();
     _skillIndexById.clear();
+
     _itemDefs.clear();
     _itemIndexById.clear();
+
+    _pictosDefs.clear();
+    _pictosIndexById.clear();
+
     _isLoaded = false;
 }
 
@@ -316,6 +325,62 @@ HRESULT GameDataTable::Load_ItemData(const wstring& jsonRootPath)
     }
 
     LOG_INFO("[GameDataTable] loaded item table: count={}", _itemDefs.size());
+    return S_OK;
+}
+
+HRESULT GameDataTable::Load_PictosData(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_Picktos.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+        if (!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open pictos table: {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse pictos table: {} ({})",
+            String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
+    }
+
+    if (!root.contains("DT_Picktos") || !root["DT_Picktos"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_Picktos array not found: {}", String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+    _pictosDefs.clear();
+    _pictosIndexById.clear();
+
+    for (const json& item : root["DT_Picktos"])
+    {
+        PictosDesc desc{};
+        desc.id = item.value("id", "");
+        if (desc.id.empty())
+            continue;
+
+        desc.name = String::ToWString(item.value("name", ""));
+        desc.hp = item.value("hp", 0);
+        desc.speed = item.value("speed", 0);
+        desc.critical = item.value("critical", 0);
+        desc.buttonUi = item.value("button ui", "");
+        desc.tooltipUi = item.value("tooltip ui", "");
+
+        const size_t index = _pictosDefs.size();
+        _pictosDefs.push_back(desc);
+        _pictosIndexById[desc.id] = index;
+    }
+
+    LOG_INFO("[GameDataTable] loaded pictos table: count={}", _pictosDefs.size());
     return S_OK;
 }
 
@@ -855,6 +920,29 @@ vector<string> GameDataTable::Split_String(const string& value, char delimiter)
     return result;
 }
 
+const GameDataTable::PictosDesc* GameDataTable::Get_PictosDesc(const string& pictosId) const
+{
+    const auto it = _pictosIndexById.find(pictosId);
+    if (it == _pictosIndexById.end())
+        return nullptr;
+
+    const size_t index = it->second;
+    if (index >= _pictosDefs.size())
+        return nullptr;
+
+    return &_pictosDefs[index];
+}
+
+vector<string> GameDataTable::Get_AllPictosIds() const
+{
+    vector<string> pictosIds{};
+    pictosIds.reserve(_pictosDefs.size());
+
+    for (const PictosDesc& desc : _pictosDefs)
+        pictosIds.push_back(desc.id);
+
+    return pictosIds;
+}
 
 Unique<GameDataTable> GameDataTable::Create()
 {

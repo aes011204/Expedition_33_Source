@@ -17,7 +17,7 @@ class GameDataTable final : public Base
 {
 public:
 
-    enum class DamageType { LIGHTNING, PHYSICAL};
+    enum class DamageType { LIGHTNING, PHYSICAL };
     enum class DamageLevel { LOW, NORMAL, HIGH, EXTREME };
     enum class TargetScope { SINGLE, ALL };
     enum class SkillActionTrigger { OnCritical, OnMark };
@@ -49,12 +49,12 @@ public:
 
     struct ApplyMarkAction
     {
-        
+
     };
 
     struct ClearStatusAction
     {
-        
+
     };
 
     struct BuffAction
@@ -114,6 +114,17 @@ public:
         uint32  power = 0;
     };
 
+    struct PictosDesc
+    {
+        string  id{};
+        wstring name{};
+        int32   hp = 0;
+        int32   speed = 0;
+        int32   critical = 0;
+        string  buttonUi{};   // UI_Pictos_EnergisingTurn
+        string  tooltipUi{};  // UI_EnergisingTurn_Pictos_Tooltip
+    };
+
 public:
     GameDataTable() = default;
     ~GameDataTable() override = default;
@@ -133,12 +144,16 @@ public:
     HRESULT Load_SkillPhaseData(const wstring& jsonRootPath);
 public:
     uint32 Get_NextExp(uint32 level) const;
-    SkillTreeDesc*   Get_SkillTreeDesc(const string& skillName);
-    const umap<string, vector<string>>*    Get_SkillTreeRequirementData();
+    SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
+    const umap<string, vector<string>>* Get_SkillTreeRequirementData();
     const WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     vector<string> Get_AllSkillIds() const;
     vector<string> Split_String(const string& value, char delimiter);
+
+    const PictosDesc* Get_PictosDesc(const string& pictosId) const;
+    const vector<PictosDesc>& Get_PictosDescs() const { return _pictosDefs; }
+    vector<string> Get_AllPictosIds() const;
 
 private:
     HRESULT Load_ExpLevel(const wstring& jsonRootPath);
@@ -152,6 +167,9 @@ private:
 
     // 아이템
     HRESULT Load_ItemData(const wstring& jsonRootPath);
+
+    // 픽토스
+    HRESULT Load_PictosData(const wstring& jsonRootPath);
 
 private:
     wstring         Get_DefaultJsonRootPath() const;
@@ -169,8 +187,13 @@ private:
     vector<Skill_Data> _skillDefs;
     unordered_map<string, size_t> _skillIndexById;
 
+    // 아이템 -> 틴트인데.. 이거 쓸모있나
     vector<Item_Data> _itemDefs;
     umap<string, size_t> _itemIndexById;
+
+    // 픽토스
+    vector<PictosDesc> _pictosDefs{};
+    umap<string, size_t> _pictosIndexById{};
 
 public:
     static Unique<GameDataTable> Create();

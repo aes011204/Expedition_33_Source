@@ -94,6 +94,16 @@ HRESULT BattleController::Initialize()
 
 void BattleController::Update(float timeDelta)
 {
+    const bool shouldUpdateBattleRuntime =
+        _isBattleEntering ||
+        _isWaitingBattleTransition ||
+        _isBattleActive ||
+        _isPendingVictorySlow ||
+        _isWaitingVictoryConfirm;
+
+    if (!shouldUpdateBattleRuntime)
+        return; // 월드 상태에서는 전투 튜토리얼/리액션/FSM 업데이트를 아예 돌리지 않는다.
+
     if (Update_BattleTutorialGate(timeDelta))
         return;
 
@@ -608,7 +618,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
         const Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(heroId);
         const Shared<PlayerStatCom> worldStat = worldHero ? worldHero->Get_Component<PlayerStatCom>() : nullptr;
         const Shared<PlayerStatCom> battleStat = character->Get_Component<PlayerStatCom>();
-        const Shared<SkillTreeCom> worldSkillTreeCom = worldHero->Get_Component<SkillTreeCom>();
+        const Shared<SkillTreeCom> worldSkillTreeCom = worldHero ? worldHero->Get_Component<SkillTreeCom>() : nullptr;
 
         if (worldStat && battleStat)
             battleStat->Apply_BattleSyncSnapshot(worldStat->Create_BattleSyncSnapshot());
@@ -630,7 +640,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
 
 
         // World Skill Tree 읽어서 세팅
-        Configure_BattlePlayerSkills(heroId, battleChar.statCom, worldSkillTreeCom);
+        const vector<string> equippedSkillKeys = worldStat ? worldStat->Get_SkillKeys() : vector<string>{};
+        Configure_BattlePlayerSkills(heroId, battleChar.statCom, worldSkillTreeCom, equippedSkillKeys);
 
         PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // body part에 붙은 실제 ModelCom를 사용한다.
@@ -2279,17 +2290,22 @@ bool BattleController::Update_BattleTutorialGate(float timeDelta)
     return false;
 }
 
-
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-    const Shared<SkillTreeCom>& worldSkillTreeCom)
+    const Shared<SkillTreeCom>& worldSkillTreeCom, const vector<string>& equippedSkillKeys)
 {
     if (battleStat == nullptr)
         return;
 
-    battleStat->Clear_Skills();
+    vector<string> battleSkillKeys = equippedSkillKeys.empty()
+        ? Get_DefaultBattleSkillKeys(heroId)
+        : equippedSkillKeys;
 
-    const vector<string> defaultSkillKeys = Get_DefaultBattleSkillKeys(heroId);
-    for (const string& skillKey : defaultSkillKeys)
+    if (battleSkillKeys.size() > 5)
+        battleSkillKeys.resize(5); // 6번째 Gradient 슬롯은 일반 battle skill 입력에 넣지 않는다.
+    else
+        battleSkillKeys.resize(5);
+
+    for (string& skillKey : battleSkillKeys)
     {
         if (skillKey.empty())
             continue;
@@ -2297,17 +2313,22 @@ void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<
         const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
         if (skillData == nullptr)
         {
-            LOG_WARN("스킬 데이터 없음. heroId={}, skillKey={}",
+            LOG_WARN("Battle skill data missing. heroId={}, skillKey={}",
                 magic_enum::enum_name(heroId), skillKey.c_str());
-            continue; // data가 없으면 battle slot에 넣지 않는다.
+            skillKey.clear(); // 슬롯 순서는 유지하고, 해당 칸만 비운다.
+            continue;
         }
 
         if (worldSkillTreeCom && !worldSkillTreeCom->IsUnlocked(skillKey))
+        {
+            LOG_WARN("Battle skill locked. heroId={}, skillKey={}",
+                magic_enum::enum_name(heroId), skillKey.c_str());
+            skillKey.clear(); // 잠긴 스킬도 다른 슬롯을 당기지 않는다.
             continue;
-
-        battleStat->Set_Skill(skillKey);
+        }
     }
 
+    battleStat->Set_SkillKeys(battleSkillKeys);
 }
 
 vector<string> BattleController::Get_DefaultBattleSkillKeys(HeroId heroId)

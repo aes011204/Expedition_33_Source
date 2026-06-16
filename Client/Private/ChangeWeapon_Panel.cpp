@@ -5,9 +5,11 @@
 #include "EffectCom.h"
 #include "GameInstance.h"
 #include "LightingPipeline.h"
+#include "PlayerInventory.h"
 #include "Player_WorldBase.h"
 #include "PlayerStatCom.h"
 #include "PostProcessPipeline.h"
+#include "PreviewPlayer.h"
 #include "PreviewRimFeature.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
@@ -16,8 +18,6 @@
 #include "UI_Text.h"
 #include "UIPreviewManager.h"
 #include "UI_Utils.h"
-
-#include <algorithm>
 
 using namespace UI_Utils;
 
@@ -73,6 +73,9 @@ namespace
 
         return L"";
     }
+
+    constexpr Vec4 kWeaponFrameDefaultTint{ 1.f, 1.f, 1.f, 1.f };
+    constexpr Vec4 kWeaponFrameEquippedTint{ 0.78f, 0.36f, 0.58f, 1.f };
 }
 
 HRESULT ChangeWeapon_Panel::Initialize(uint32 levelIndex)
@@ -94,7 +97,6 @@ void ChangeWeapon_Panel::Update(float timeDelta)
     if (!Is_Open())
         return;
 
-    Handle_SelectionInput();
     Handle_WeaponSelectionInput();
 }
 
@@ -114,6 +116,8 @@ void ChangeWeapon_Panel::Open()
 
     CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
     Show_ChangeWeaponPreview(_selectedHeroId);
+	CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Weapon_Intro, PreviewAnimState::Weapon_Idle);
+
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
     Refresh_WeaponUI();
@@ -131,6 +135,7 @@ void ChangeWeapon_Panel::Close()
 
 void ChangeWeapon_Panel::Close_Immediately(bool restoreWorldControl)
 {
+    _isProgressionContentMode = false;
     UI_RuntimePanelBase::Close();
     Set_UIMapOpenState(_uiByName, false);
     Restore_PreviewOverrides();
@@ -147,6 +152,57 @@ void ChangeWeapon_Panel::Close_ForMenuTransition()
 {
     // 같은 메뉴 스택 안 전환이므로 월드 입력을 복구하지 않는다.
     Close_Immediately(false);
+}
+
+void ChangeWeapon_Panel::Open_AsProgressionContent(HeroId selectedHeroId)
+{
+    if (_root == nullptr)
+        return;
+
+    _isProgressionContentMode = true;
+    _selectedHeroId = (selectedHeroId == HeroId::END) ? HeroId::Lune : selectedHeroId;
+
+    if (!Is_Open())
+        UI_RuntimePanelBase::Open();
+
+    Set_UIMapOpenState(_uiByName, true);
+    Refresh_ForSelectedHero(_selectedHeroId);
+}
+
+void ChangeWeapon_Panel::Close_AsProgressionContent()
+{
+    if (!_isProgressionContentMode && !Is_Open())
+        return;
+
+    _isProgressionContentMode = false;
+    Show_WeaponTooltip(false);
+    UI_RuntimePanelBase::Close();
+    Set_UIMapOpenState(_uiByName, false);
+}
+
+void ChangeWeapon_Panel::Refresh_ForSelectedHero(HeroId selectedHeroId)
+{
+    _selectedHeroId = (selectedHeroId == HeroId::END) ? HeroId::Lune : selectedHeroId;
+    Refresh_WeaponUI();
+    Show_WeaponTooltip(false);
+}
+
+void ChangeWeapon_Panel::Append_RuntimeUIEntries(
+    vector<RuntimeUIEntry>& outEntries,
+    const string& category,
+    const string& rootName) const
+{
+    if (_root == nullptr)
+        return;
+
+    RuntimeUIEntry rootEntry{};
+    rootEntry.category = category;
+    rootEntry.name = rootName;
+    rootEntry.ui = _root;
+    rootEntry.editorTarget = const_cast<ChangeWeapon_Panel*>(this);
+    outEntries.push_back(rootEntry);
+
+    Append_RuntimeUIMapEntries(outEntries, category, _uiByName, _root, const_cast<ChangeWeapon_Panel*>(this));
 }
 
 HRESULT ChangeWeapon_Panel::Load_UI(uint32 levelIndex)
@@ -167,30 +223,9 @@ HRESULT ChangeWeapon_Panel::Load_UI(uint32 levelIndex)
 
 HRESULT ChangeWeapon_Panel::Bind_UI()
 {
-    _characterButtons[0] = Find_TypedUI<UI_Button>(_uiByName, L"Button_CharacterSelect_01");
-    _characterButtons[1] = Find_TypedUI<UI_Button>(_uiByName, L"Button_CharacterSelect_02");
-    _characterButtons[2] = Find_TypedUI<UI_Button>(_uiByName, L"Button_CharacterSelect_03");
-
-    _characterStains[0] = Find_TypedUI<UI_Image>(_uiByName, L"Image_CharacterSelectButton_Stain_01");
-    _characterStains[1] = Find_TypedUI<UI_Image>(_uiByName, L"Image_CharacterSelectButton_Stain_02");
-    _characterStains[2] = Find_TypedUI<UI_Image>(_uiByName, L"Image_CharacterSelectButton_Stain_03");
-
     _tooltipText.weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponName");
     _tooltipText.levelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentWeaponLevel");
     _tooltipText.powerText = Find_TypedUI<UI_Text>(_uiByName, L"Text_WeaponTooltip_PowerValue");
-    _characterNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Name");
-    _currentLevelText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentLevel");
-    _currentExpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Current_EXP");
-    _maxExpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Max_EXP");
-    _currentHpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Current_HP");
-    _maxHpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Character_Max_HP");
-    _currentStatHpText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatHP");
-    _currentStatAttackText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatAttack");
-    _currentStatDefenseText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatDefense");
-    _currentStatSpeedText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatSpeed");
-    _currentStatCriticalPercentText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatCriticalPercent");
-    _expGaugeImage = Find_TypedUI<UI_Image>(_uiByName, L"Text_Character_EXP_Gauge");
-    _hpGaugeImage = Find_TypedUI<UI_Image>(_uiByName, L"Text_Character_HP_Gauge");
     _weaponTooltipRoot = Find_UI(_uiByName, L"Panel_WeaponTooltip");
 
     _weaponRows[0].button = Find_TypedUI<UI_Button>(_uiByName, L"Button_Lune_Baguette");
@@ -222,28 +257,9 @@ HRESULT ChangeWeapon_Panel::Bind_UI()
     _tooltipDetailUI.descriptionTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WaeponTooltip_Description_001");
     _tooltipDetailUI.descriptionTexts[2] = Find_TypedUI<UI_Text>(_uiByName, L"Text_WaeponTooltip_Description_002");
 
-    CHECK_NULL(_characterButtons[0], E_FAIL);
-    CHECK_NULL(_characterButtons[1], E_FAIL);
-    CHECK_NULL(_characterButtons[2], E_FAIL);
-    CHECK_NULL(_characterStains[0], E_FAIL);
-    CHECK_NULL(_characterStains[1], E_FAIL);
-    CHECK_NULL(_characterStains[2], E_FAIL);
     CHECK_NULL(_tooltipText.weaponNameText, E_FAIL);
     CHECK_NULL(_tooltipText.levelText, E_FAIL);
     CHECK_NULL(_tooltipText.powerText, E_FAIL);
-    CHECK_NULL(_characterNameText, E_FAIL);
-    CHECK_NULL(_currentLevelText, E_FAIL);
-    CHECK_NULL(_currentExpText, E_FAIL);
-    CHECK_NULL(_maxExpText, E_FAIL);
-    CHECK_NULL(_currentHpText, E_FAIL);
-    CHECK_NULL(_maxHpText, E_FAIL);
-    CHECK_NULL(_currentStatHpText, E_FAIL);
-    CHECK_NULL(_currentStatAttackText, E_FAIL);
-    CHECK_NULL(_currentStatDefenseText, E_FAIL);
-    CHECK_NULL(_currentStatSpeedText, E_FAIL);
-    CHECK_NULL(_currentStatCriticalPercentText, E_FAIL);
-    CHECK_NULL(_expGaugeImage, E_FAIL);
-    CHECK_NULL(_hpGaugeImage, E_FAIL);
     CHECK_NULL(_weaponTooltipRoot, E_FAIL);
 
     CHECK_NULL(_tooltipDetailUI.abilityValueText1, E_FAIL);
@@ -266,54 +282,7 @@ HRESULT ChangeWeapon_Panel::Bind_UI()
         CHECK_NULL(_weaponRows[i].levelText, E_FAIL);
     }
 
-    _expGaugeImage->Set_UseFillRatio(true); // 경험치 바는 UV crop 방식으로 채운다.
-    _hpGaugeImage->Set_UseFillRatio(true);  // HP 바도 같은 방식으로 채운다.
-
     return S_OK;
-}
-
-void ChangeWeapon_Panel::Handle_SelectionInput()
-{
-    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
-    if (partyEntries.empty())
-        return;
-
-    HeroId previousHeroId = (_selectedHeroId == HeroId::END) ? partyEntries.front().heroId : _selectedHeroId;
-
-    if (GAME->KeyDown(KEY_TYPE::Q) || GAME->KeyDown(KEY_TYPE::E))
-    {
-        uint32 currentIndex = 0;
-        for (uint32 i = 0; i < static_cast<uint32>(partyEntries.size()); ++i)
-        {
-            if (partyEntries[i].heroId == previousHeroId)
-            {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        if (GAME->KeyDown(KEY_TYPE::Q))
-            currentIndex = (currentIndex + 1) % static_cast<uint32>(partyEntries.size());
-        else
-            currentIndex = (currentIndex + static_cast<uint32>(partyEntries.size()) - 1) % static_cast<uint32>(partyEntries.size());
-
-
-        _selectedHeroId = partyEntries[currentIndex].heroId;
-    }
-
-    if (_selectedHeroId == HeroId::END)
-        _selectedHeroId = previousHeroId;
-
-    if (_selectedHeroId != previousHeroId)
-    {
-        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
-
-        Show_ChangeWeaponPreview(_selectedHeroId);
-        Update_PreviewHeroVisibility();
-        Apply_PreviewOverrides();
-
-        Refresh_WeaponUI(); // hero가 바뀌면 row visible / tooltip / stain을 같이 갱신한다.
-    }
 }
 
 void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
@@ -335,8 +304,23 @@ void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
 
         _selectedWeaponIndex = i;
 
-        Refresh_Tooltip((*weapons)[_selectedWeaponIndex]);
-        Refresh_TooltipDetails((*weapons)[_selectedWeaponIndex]); // 설명/등급/능력치도 같이 갱신
+        const GameDataTable::WeaponDesc& selectedWeapon = (*weapons)[_selectedWeaponIndex];
+        const auto inventory = CLIENT->Get_PlayerInventory();
+        if (inventory && !inventory->Is_WeaponUnlocked(characterId, selectedWeapon.weaponId))
+            continue; // 숨겨진/미소유 무기가 클릭되어도 장착 소비 위치에서 한 번 더 막는다.
+
+        const auto hero = CLIENT->Find_Hero(heroId);
+        const auto statCom = hero ? hero->Get_Component<PlayerStatCom>() : nullptr;
+        if (statCom)
+        {
+            statCom->Set_EquippedWeapon(selectedWeapon.weaponId, selectedWeapon.power);
+        }
+
+        CLIENT->Sync_PreviewHeroRuntimeData(heroId);
+        Refresh_WeaponUI(); // 장착 row 보라색 표시와 selected index를 새 장착값 기준으로 다시 맞춘다.
+
+        Refresh_Tooltip(selectedWeapon);
+        Refresh_TooltipDetails(selectedWeapon); // 설명/등급/능력치도 같이 갱신
         Show_WeaponTooltip(true);
 
         GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_SelectAlly);
@@ -344,98 +328,18 @@ void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
     }
 }
 
-void ChangeWeapon_Panel::Refresh_CharacterSelectUI()
-{
-    static constexpr array<HeroId, 3> kHeroOrder =
-    {
-        HeroId::Lune,
-        HeroId::Gustave,
-        HeroId::Maelle,
-    };
-
-    for (size_t i = 0; i < kHeroOrder.size(); ++i)
-    {
-        if (_characterStains[i] == nullptr)
-            continue;
-
-        if (kHeroOrder[i] == _selectedHeroId)
-            _characterStains[i]->Open(); // 현재 선택 hero만 stain을 켠다.
-        else
-            _characterStains[i]->Close();
-    }
-}
-
-void ChangeWeapon_Panel::Refresh_CharacterInfo(const Shared<PlayerStatCom>& statCom)
-{
-    if (_characterNameText)
-        _characterNameText->Set_Text(Get_DisplayHeroName(_selectedHeroId));
-
-    if (statCom == nullptr)
-    {
-        if (_currentLevelText) _currentLevelText->Set_Text(L"0");
-        if (_currentExpText) _currentExpText->Set_Text(L"0");
-        if (_maxExpText) _maxExpText->Set_Text(L"0");
-        if (_currentHpText) _currentHpText->Set_Text(L"0");
-        if (_maxHpText) _maxHpText->Set_Text(L"0");
-        if (_currentStatHpText) _currentStatHpText->Set_Text(L"0");
-        if (_currentStatAttackText) _currentStatAttackText->Set_Text(L"0");
-        if (_currentStatDefenseText) _currentStatDefenseText->Set_Text(L"0");
-        if (_currentStatSpeedText) _currentStatSpeedText->Set_Text(L"0");
-        if (_currentStatCriticalPercentText) _currentStatCriticalPercentText->Set_Text(L"0");
-
-        if (_expGaugeImage)
-            _expGaugeImage->Set_FillRatio(0.f);
-
-        if (_hpGaugeImage)
-            _hpGaugeImage->Set_FillRatio(0.f);
-
-        return;
-    }
-
-    const PlayerStatCom::PRuntimeCombatStat& statInfo = statCom->Get_PlayerRuntimeStat();
-    const uint32 maxExp = statInfo.CurMaxExp > 0 ? statInfo.CurMaxExp : max(1u, statInfo.nextExp);
-    const float expRatio = std::clamp(
-        maxExp > 0 ? static_cast<float>(statInfo.CurExp) / static_cast<float>(maxExp) : 0.f,
-        0.f,
-        1.f);
-    const float hpRatio = std::clamp(
-        statInfo.CurMaxHp > 0 ? static_cast<float>(statInfo.CurHp) / static_cast<float>(statInfo.CurMaxHp) : 0.f,
-        0.f,
-        1.f);
-
-    Set_UIntText(_currentLevelText, statInfo.CurLevel);
-    Set_UIntText(_currentExpText, statInfo.CurExp);
-    Set_UIntText(_maxExpText, maxExp);
-    Set_IntText(_currentHpText, static_cast<int32>(statInfo.CurHp));
-    Set_IntText(_maxHpText, static_cast<int32>(statInfo.CurMaxHp));
-    Set_IntText(_currentStatHpText, static_cast<int32>(statInfo.CurMaxHp));
-    Set_IntText(_currentStatAttackText, static_cast<int32>(statInfo.CurPhysicalAttack));
-    Set_IntText(_currentStatDefenseText, static_cast<int32>(statInfo.CurPhysicalDefense));
-    Set_IntText(_currentStatSpeedText, static_cast<int32>(statInfo.CurSpeed));
-    Set_IntText(_currentStatCriticalPercentText, static_cast<int32>(statInfo.CurCriticalRate));
-
-    if (_expGaugeImage)
-        _expGaugeImage->Set_FillRatio(expRatio); // 현재 경험치 / 다음 레벨 필요 경험치 비율
-
-    if (_hpGaugeImage)
-        _hpGaugeImage->Set_FillRatio(hpRatio);   // 현재 HP / 최대 HP 비율
-}
-
 void ChangeWeapon_Panel::Refresh_WeaponUI()
 {
     const HeroId heroId = (_selectedHeroId == HeroId::END) ? HeroId::Lune : _selectedHeroId;
-    if (Is_Open())
+    if (Is_Open() && !_isProgressionContentMode)
     {
-        Show_ChangeWeaponPreview(heroId); // 무기 UI 갱신 시점과 preview target을 항상 같은 hero로 묶는다.
+        Show_ChangeWeaponPreview(heroId);
         Update_PreviewHeroVisibility();
         Apply_PreviewOverrides();
     }
 
-    Refresh_CharacterSelectUI(); // 현재 선택 hero stain을 여기서 같이 맞춘다.
-
     const Shared<Player_WorldBase> hero = CLIENT->Find_Hero(heroId);
     const Shared<PlayerStatCom> statCom = hero ? hero->Get_Component<PlayerStatCom>() : nullptr;
-    Refresh_CharacterInfo(statCom); // 우측 캐릭터 패널은 무기 데이터 유무와 무관하게 항상 갱신한다.
 
     const string characterId = Get_CharacterId(heroId);
     const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
@@ -452,6 +356,10 @@ void ChangeWeapon_Panel::Refresh_WeaponUI()
 
         return;
     }
+
+    const bool defaultEquipped = CLIENT->Ensure_DefaultEquippedWeapon(heroId);
+    if (defaultEquipped)
+        CLIENT->Sync_PreviewHeroRuntimeData(heroId); // 기본 장착이 새로 생긴 경우 preview 무기도 즉시 맞춘다.
 
     const string equippedWeaponId = statCom ? statCom->Get_PlayerRuntimeStat().CurEquippedWeaponId : "";
 
@@ -470,7 +378,7 @@ void ChangeWeapon_Panel::Refresh_WeaponUI()
 
     Refresh_Tooltip((*weapons)[_selectedWeaponIndex]);
     Refresh_TooltipDetails((*weapons)[_selectedWeaponIndex]);
-    Refresh_WeaponRows(*weapons);
+    Refresh_WeaponRows(*weapons, equippedWeaponId);
 }
 
 void ChangeWeapon_Panel::Refresh_Tooltip(const GameDataTable::WeaponDesc& weapon)
@@ -497,8 +405,11 @@ void ChangeWeapon_Panel::Show_WeaponTooltip(bool isVisible)
         _weaponTooltipRoot->Close();
 }
 
-void ChangeWeapon_Panel::Refresh_WeaponRows(const vector<GameDataTable::WeaponDesc>& weapons)
+void ChangeWeapon_Panel::Refresh_WeaponRows(const vector<GameDataTable::WeaponDesc>& weapons, const string& equippedWeaponId)
 {
+    const auto inventory = CLIENT->Get_PlayerInventory();
+    const string characterId = Get_CharacterId((_selectedHeroId == HeroId::END) ? HeroId::Lune : _selectedHeroId);
+
     for (size_t i = 0; i < WeaponSlotCount; ++i)
     {
         WeaponRowUI& row = _weaponRows[i];
@@ -507,24 +418,38 @@ void ChangeWeapon_Panel::Refresh_WeaponRows(const vector<GameDataTable::WeaponDe
 
         if (i >= weapons.size())
         {
-            row.button->Close(); // 실제 무기가 없는 row는 버튼 루트째 닫아서 하위 UI를 같이 숨긴다.
+            row.button->Close();
             continue;
         }
 
-        row.button->Open(); // 현재 hero가 가진 row만 다시 연다.
+        const GameDataTable::WeaponDesc& weapon = weapons[i];
+        const bool isOwned = inventory == nullptr || inventory->Is_WeaponUnlocked(characterId, weapon.weaponId);
+        if (!isOwned)
+        {
+            row.button->Close(); // 아직 소유하지 않은 무기는 ChangeWeapon 선택 목록에서 숨긴다.
+            continue;
+        }
 
-        if (row.icon && !weapons[i].portraitTexturePath.empty())
-            row.icon->Set_TexturePath(weapons[i].portraitTexturePath); // DT_Weapon portrait를 row 아이콘 source of truth로 쓴다.
+        row.button->Open();
 
-        const wstring backgroundTexturePath = Resolve_WeaponBackgroundTexturePath(weapons[i].weaponId);
-        if (row.background && !backgroundTexturePath.empty())
-            row.background->Set_TexturePath(backgroundTexturePath);
+        if (row.icon && !weapon.portraitTexturePath.empty())
+            row.icon->Set_TexturePath(weapon.portraitTexturePath);
+
+        const wstring backgroundTexturePath = Resolve_WeaponBackgroundTexturePath(weapon.weaponId);
+        if (row.background)
+        {
+            if (!backgroundTexturePath.empty())
+                row.background->Set_TexturePath(backgroundTexturePath);
+
+            const bool isEquipped = weapon.weaponId == equippedWeaponId;
+            row.background->Set_Color(isEquipped ? kWeaponFrameEquippedTint : kWeaponFrameDefaultTint); // ChangeSkill처럼 장착된 row를 보라색으로 표시한다.
+        }
 
         if (row.weaponNameText)
-            row.weaponNameText->Set_Text(weapons[i].weaponName);
+            row.weaponNameText->Set_Text(weapon.weaponName);
 
         if (row.levelText)
-            row.levelText->Set_Text(to_wstring(weapons[i].level));
+            row.levelText->Set_Text(to_wstring(weapon.level));
     }
 }
 
@@ -544,22 +469,6 @@ string ChangeWeapon_Panel::Get_CharacterId(HeroId heroId)
     case HeroId::END:
     default:
         return "Lune";
-    }
-}
-
-wstring ChangeWeapon_Panel::Get_DisplayHeroName(HeroId heroId)
-{
-    switch (heroId)
-    {
-    case HeroId::Gustave:
-        return L"구스타브";
-    case HeroId::Lune:
-        return L"루네";
-    case HeroId::Maelle:
-        return L"마엘";
-    case HeroId::END:
-    default:
-        return L"-";
     }
 }
 
@@ -778,22 +687,8 @@ void ChangeWeapon_Panel::Free()
         Close_Immediately(false);
 
     _tooltipText = {};
-    _characterButtons = {};
-    _characterStains = {};
+    _isProgressionContentMode = false;
     _weaponRows = {};
-    _characterNameText.reset();
-    _currentLevelText.reset();
-    _currentExpText.reset();
-    _maxExpText.reset();
-    _currentHpText.reset();
-    _maxHpText.reset();
-    _currentStatHpText.reset();
-    _currentStatAttackText.reset();
-    _currentStatDefenseText.reset();
-    _currentStatSpeedText.reset();
-    _currentStatCriticalPercentText.reset();
-    _expGaugeImage.reset();
-    _hpGaugeImage.reset();
     _weaponTooltipRoot.reset();
 
     _root.reset();
