@@ -376,6 +376,21 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lig
             }
         }
 
+        if (ImGui::Button("Reload Froxel Compute"))
+        {
+            const HRESULT hr = GAME->Reload_LightingPipelineShaders();
+            if (hr == S_OK)
+            {
+                _reloadFroxelComputeStatusText = "Reloaded Shader_Compute_Froxel.hlsl";
+                _reloadFroxelComputeStatusIsError = false;
+            }
+            else
+            {
+                _reloadFroxelComputeStatusText = "Froxel compute reload failed; previous shader kept";
+                _reloadFroxelComputeStatusIsError = true;
+            }
+        }
+
         if (ImGui::Button("Reload ShaderComs"))
         {
             const HRESULT hr = GAME->Reload_ShaderComs();
@@ -410,6 +425,14 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lig
                 ? ImVec4(0.95f, 0.8f, 0.35f, 1.f)
                 : ImVec4(0.35f, 0.9f, 0.45f, 1.f);
             ImGui::TextColored(statusColor, "%s", _reloadShaderComStatusText.c_str());
+        }
+
+        if (!_reloadFroxelComputeStatusText.empty())
+        {
+            const ImVec4 statusColor = _reloadFroxelComputeStatusIsError
+                ? ImVec4(0.95f, 0.8f, 0.35f, 1.f)
+                : ImVec4(0.35f, 0.9f, 0.45f, 1.f);
+            ImGui::TextColored(statusColor, "%s", _reloadFroxelComputeStatusText.c_str());
         }
     }
 

@@ -315,4 +315,46 @@ cbuffer FroxelDebugBuffer
     uint g_FroxelDebugSlice;
 };
 
+struct VolumetricLightShaftZoneEntry
+{
+    row_major float4x4 worldToLocal;
+
+    float3 halfExtents;
+    float density;
+
+    float4 lightColor;
+
+    float edgeFade;
+    float intensity;
+    float2 padding;
+};
+
+// 카메라/Froxel/광원 공통 데이터
+cbuffer FroxelBuffer : register(b0)
+{
+    uint g_FroxelWidth;
+    uint g_FroxelHeight;
+    uint g_FroxelDepth;
+    float g_FroxelNear;
+
+    float g_FroxelFar;
+    float3 froxelPadding;
+
+    row_major float4x4 g_FroxelInvView;
+    row_major float4x4 g_FroxelInvProjection;
+
+    float4 g_FroxelLightDirection;
+    float4 g_FroxelLightColor;
+    float4 g_FroxelCamPosition;
+}
+
+// 카메라/Froxel/광원 공통 데이터
+cbuffer VolumetricLightShaftZoneBuffer : register(b1)
+{
+    VolumetricLightShaftZoneEntry g_LightShaftZones[8];
+
+    uint g_LightShaftZoneCount;
+    float3 g_LightShaftZonePadding;
+}
+
 #endif

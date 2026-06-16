@@ -1,18 +1,8 @@
+#include "../Engine_Shader_ConstantBuffer.hlsl"
+
 RWTexture3D<float4> g_FroxelVolumeUAV : register(u0);
 Texture3D<float4> g_FroxelTexture : register(t0);
 
-cbuffer FroxelBuffer : register(b0)
-{
-    uint g_FroxelWidth;
-    uint g_FroxelHeight;
-    uint g_FroxelDepth;
-    float g_FroxelNear;
-
-    float g_FroxelFar;
-    float3 froxelPadding;
-
-    Matrix g_FroxelInvProjection;
-}
 
 // 카메라 시야 공간을 3D 격자로 나눠 놓고, 현재는 Z 방향으로만 그라데이션
 [numthreads(8, 8, 1)]
@@ -42,8 +32,43 @@ void InJectFroxelBuffer(uint3 dispatchThreadID : SV_DispatchThreadID)
     float3 viewRay = viewPosition.xyz / max(viewPosition.z, 0.0001f);
 
     float3 froxelPositionVS = viewRay * viewDepth;
+    float3 froxelPositionWS = mul(float4(froxelPositionVS, 1.f), g_FroxelInvView).xyz;
 
-    float3 debugColor = abs(froxelPositionVS) / g_FroxelFar;
+    float3 accumulatedScattering = 0.f;
 
-    g_FroxelVolumeUAV[dispatchThreadID] = float4(saturate(debugColor), 1.f);
+    float r = 0.f;
+    [loop]
+    for (uint zoneIndex = 0u; zoneIndex < min(g_LightShaftZoneCount, 8u); ++zoneIndex)
+    {
+        VolumetricLightShaftZoneEntry zone = g_LightShaftZones[zoneIndex];
+
+        // froxel 을 빛기둥 로컬 스페이스로 변환 
+        float3 localPosition = mul(float4(froxelPositionWS, 1.f), zone.worldToLocal).xyz;
+
+        // 로컬 박스 중심으로부터 각 축의 거리
+        float3 distanceToEdge = zone.halfExtents - abs(localPosition);
+
+        // 한 축이라도 음수면 박스 바깥
+        float insideVolume = step(0.f, distanceToEdge.x) * step(0.f, distanceToEdge.y) * step(0.f, distanceToEdge.z);
+        if (insideVolume <= 0.f)
+            continue;
+
+        // 박스 경계에 가까울수록 부드럽게 약해짐
+        float nearestEdgeDistance = min(distanceToEdge.x, min(distanceToEdge.y, distanceToEdge.z));
+
+        float edgeFactor = smoothstep(0.f, max(zone.edgeFade, 0.0001f), nearestEdgeDistance);
+        float3 viewDirectionWS = normalize(g_FroxelCamPosition.xyz - froxelPositionWS);
+        float3 lightTravelDirectionWS = normalize(g_FroxelLightDirection.xyz);
+
+        float scatteringAmount = dot(viewDirectionWS, lightTravelDirectionWS) * 0.5f + 0.5f;
+        scatteringAmount = saturate(scatteringAmount);
+
+        float zoneScattering = insideVolume * edgeFactor * zone.density * zone.intensity * scatteringAmount;
+
+        accumulatedScattering += zone.lightColor.rgb * zoneScattering;
+        r = 1.f;
+
+    }
+
+    g_FroxelVolumeUAV[dispatchThreadID] = float4(accumulatedScattering, 1.f);
 }

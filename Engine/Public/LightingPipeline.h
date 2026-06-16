@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 #include "Shader_CBuffer_Define.h"
@@ -32,8 +32,10 @@ public:
     bool Is_IBLEnabled() const;
 
     // Froxel
+    HRESULT Update_FroxelZone(const VolumetricLightShaftZoneCB& vlsz);
     HRESULT Update_Froxel(const FroxelCB& forxel);
     HRESULT Dispatch_Froxel();
+    HRESULT Reload_FroxelComputeShader();
 
     ID3D11ShaderResourceView* Get_DebugFroxelSRV() const;
     uint32 Get_DebugFroxelWidth() const;
@@ -45,6 +47,7 @@ public:
 private :
     HRESULT Ready_FroxelTexture();
     HRESULT Ready_FroxelBuffer();
+    HRESULT Ready_FroxelComputeShader();
 
 private:
     ComPtr<Device>  _device;
@@ -63,6 +66,7 @@ private:
     ComPtr<ID3D11UnorderedAccessView>   _froxelUAV;
     ComPtr<ID3D11ShaderResourceView>    _froxelSRV;
 
+    ComPtr<ID3D11Buffer>                _froxelZoneBuffer;
     ComPtr<ID3D11Buffer>                _froxelBuffer;
 
     uint32                              _froxelDebugSlice = 0;

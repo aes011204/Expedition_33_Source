@@ -79,7 +79,7 @@ HRESULT Renderer::Initialize()
 
     _lightingPipeline = LightingPipeline::Create(_device, _context);
     CHECK_NULL(_lightingPipeline, E_FAIL);
-
+    
 	return S_OK;
 }
 
@@ -763,10 +763,17 @@ void Renderer::Render_VolumetricLightShaft()
         return ;
 
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+
+    const Matrix* inverseView = GAME->Get_Transform_Inverse(D3DTS::View);
     const Matrix* inverseProjection = GAME->Get_Transform_Inverse(D3DTS::Proj);
 
-    if (activeCamera == nullptr || inverseProjection == nullptr)
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
         return ;
+
+    const Vec4* camPosition = GAME->Get_CamPosition();
+    if (activeCamera == nullptr || inverseView == nullptr || inverseProjection == nullptr || camPosition == nullptr)
+        return;
 
     FroxelCB froxelCB{};
     froxelCB.froxelWidth = _lightingPipeline->Get_DebugFroxelWidth();
@@ -774,8 +781,21 @@ void Renderer::Render_VolumetricLightShaft()
     froxelCB.froxelDepth = _lightingPipeline->Get_DebugFroxelDepth();
     froxelCB.froxelNear = activeCamera->Get_Near();
     froxelCB.froxelFar = 100.f;
+
+    froxelCB.inverseView = *inverseView;
     froxelCB.inverseProjection = *inverseProjection;
     froxelCB.froxelPadding = Vec3(0.f, 0.f, 0.f);
+
+    froxelCB.lightDirection = lightDesc->direction;
+    froxelCB.lightColor = lightDesc->diffuse;
+
+    froxelCB.camPosition = *GAME->Get_CamPosition();
+
+    if(FAILED(_lightingPipeline->Update_FroxelZone(_lightShaftZoneCB)))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Update_FroxelZone");
+        return;
+    }
 
     if(FAILED(_lightingPipeline->Update_Froxel(froxelCB)))
     {
@@ -1360,6 +1380,12 @@ HRESULT Renderer::Reload_RendererShaders()
         return S_FALSE;
 
     return E_FAIL;
+}
+
+HRESULT Renderer::Reload_LightingPipelineShaders()
+{
+    CHECK_NULL(_lightingPipeline, E_FAIL);
+    return _lightingPipeline->Reload_FroxelComputeShader();
 }
 
 void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)

@@ -156,6 +156,7 @@ namespace Engine
         LightShaft      = 14,
         PlayerRender    = 15,
         FroxelDebug     = 16,
+        VolumetricLightShaftZone = 17,
 
         END
     };

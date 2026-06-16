@@ -52,12 +52,17 @@ public:
         return _lightingPipeline;
     }
     HRESULT Reload_RendererShaders();
+    HRESULT Reload_LightingPipelineShaders();
     RenderGroup Get_CurrentGroup() const
     {
         return _currentGroup;
     }
 
     void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
+    void Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
+    {
+        _lightShaftZoneCB = lightShaftZoneCB;
+    }
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
@@ -133,6 +138,7 @@ private:
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
     FogZoneCB                       _fogZoneCB{};
+    VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
 
     bool                            _shadowEnabled = true;
 

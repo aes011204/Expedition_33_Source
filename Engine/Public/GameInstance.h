@@ -234,12 +234,14 @@ public: /* For.Renderer */
     const Shared<LightingPipeline>      Get_LightingPipeline() const;
     Shared<LightingPipeline>            Get_LightingPipeline();
     HRESULT                             Reload_RendererShaders();
+    HRESULT                             Reload_LightingPipelineShaders();
     HRESULT                             Reload_ShaderComs();
     ScreenFx_Manager*                   Get_ScreenFxManager();
     ShaderCom_Controller*               Get_ShaderComController();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
+    void                                Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB);
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);

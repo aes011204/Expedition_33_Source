@@ -346,6 +346,30 @@ struct alignas(16) FogZoneCB
     float _pad0[3]{};
 };
 
+struct alignas(16) VolumetricLightShaftZoneEntry
+{
+    Matrix worldToLocal;                                    // 월드 위치를 빛기둥의 로컬 공간으로 변환하는 행렬. 회전된 박스 형태의 빛기둥을 만들기 위해 사용
+    Vec3 halfExtents{ 2.f, 10.f, 2.f };             // 로컬 공간에서 빛기둥 박스 크기의 절반
+    float density{ 1.f };
+    Vec4 lightColor{ 1.f, 0.95f, 0.8f, 1.f };   // 빛기둥 색상
+    float edgeFade{ 0.5f };                                 // 경계가 부드럽게 사라지는 거리
+    float intensity{ 1.f };                                 // 최종 산란 세기
+
+    float _pad0[2]{};
+};
+
+struct alignas(16) VolumetricLightShaftZoneCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::VolumetricLightShaftZone;
+
+    static constexpr uint32 MAX_LIGHT_SHAFT_ZONES = 8;
+
+    VolumetricLightShaftZoneEntry zones[MAX_LIGHT_SHAFT_ZONES]{};
+
+    uint32 zoneCount{ 0 };
+    float _pad0[3]{};
+};
+
 // ------------------------------------------
 //              Water CBuffer                
 // ------------------------------------------
@@ -402,7 +426,12 @@ struct alignas(16) FroxelCB
     float froxelFar;
     Vec3 froxelPadding;
 
+    Matrix inverseView;
     Matrix inverseProjection;
+
+    Vec4 lightDirection;
+    Vec4 lightColor;
+    Vec4 camPosition;
 };
 
 struct alignas(16) FroxelDebugCB
@@ -434,6 +463,8 @@ static_assert(sizeof(WaterCB) % 16 == 0);
 static_assert(sizeof(PlayerRenderCB) % 16 == 0);
 static_assert(sizeof(FroxelCB) % 16 == 0);
 static_assert(sizeof(FroxelDebugCB) % 16 == 0);
+static_assert(sizeof(VolumetricLightShaftZoneEntry) % 16 == 0);
+static_assert(sizeof(VolumetricLightShaftZoneCB) % 16 == 0);
 
 NS_END
 

@@ -25,6 +25,7 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view Water        = "WaterBuffer";
     inline constexpr ::string_view PlayerRender = "PlayerRenderBuffer";
     inline constexpr ::string_view FroxelDebug = "FroxelDebugBuffer";
+    inline constexpr ::string_view VolumetricLightShaftZone = "VolumetricLightShaftZoneBuffer";
 
     inline constexpr ::array<::string_view, ETOI(ConstantBuffer::END)> Names =
     {
@@ -44,7 +45,8 @@ namespace Engine::ShaderCB
         Water,
         LightShaft,
         PlayerRender,
-        FroxelDebug
+        FroxelDebug,
+        VolumetricLightShaftZone
     };
 }
 
