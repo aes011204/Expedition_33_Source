@@ -9,6 +9,7 @@ namespace
     const Vec3 kCommonWindDirection{ Vec3{1.f, 0.f, 1.f} };
     constexpr float kScarfWindIntensity{ 0.45f };
     constexpr float kArmbandWindIntensity{ 0.12f };
+    constexpr float kMonsterClothWindIntensity{ 0.07f };
     constexpr float kCoatWindIntensity{ 0.08f };
 
     Vec3 ConvertUePointToEngine(const Vec3& uePoint)
@@ -399,7 +400,9 @@ void ChainModifierPreset::BuildArmbandDesc(
     desc.collision.debugDrawCapsules = false;
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = kArmbandWindIntensity;
+    desc.runtime.windScale = kMonsterClothWindIntensity;
+    desc.runtime.windStartRatio = 0.05f;
+    desc.runtime.windWeightScale = 0.9f;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
@@ -423,14 +426,20 @@ void ChainModifierPreset::BuildAbbestClothDesc(
     };
 
     desc.shape.stiffness = 1.0f;
-    desc.shape.poseRestoreStrength = 0.08f;
-    desc.shape.maxBendAngleDegree = 60.f;
+    desc.shape.tipStiffnessScale = 0.62f;
+    desc.shape.poseRestoreStrength = 0.006f;
+    desc.shape.tipPoseRestoreScale = 0.28f;
+    desc.shape.maxBendAngleDegree = 105.f;
+    desc.shape.tipMaxBendAngleScale = 1.22f;
+    desc.shape.pinRoot = false;
     desc.shape.rootRotationOffsetDegrees = Vec3(-30.f, 0.f, 0.f);
 
-    desc.motion.damping = 0.98f;
+    desc.motion.damping = 0.965f;
+    desc.motion.tipDampingScale = 1.08f;
     desc.motion.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 0.09f;
-    desc.motion.maxMovementOffset = 0.025f;
+    desc.motion.movementInertiaScale = 0.145f;
+    desc.motion.tipMovementInertiaScale = 1.34f;
+    desc.motion.maxMovementOffset = 0.042f;
     desc.motion.solverIterations = 5;
 
     desc.collision.enableCollision = false;
@@ -440,7 +449,9 @@ void ChainModifierPreset::BuildAbbestClothDesc(
 
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = kArmbandWindIntensity;
+    desc.runtime.windScale = kMonsterClothWindIntensity;
+    desc.runtime.windStartRatio = 0.05f;
+    desc.runtime.windWeightScale = 0.9f;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
@@ -459,34 +470,29 @@ void ChainModifierPreset::BuildEvequeClothDesc(
     desc.groups = {
         { "Eveque_Leg_Cloth_F_01" },
         
-        { "Eveque_Top_Cloth_BL_01_01" },
-        { "Eveque_Top_Cloth_BL_02_01" },
-        { "Eveque_Top_Cloth_FL_01_01" },
-        { "Eveque_Top_Cloth_FL_02_01" },
+        { "Eveque_Top_Cloth_root_l" },
         
-        { "Eveque_Top_Cloth_BR_01_01" },
-        { "Eveque_Top_Cloth_BR_02_01" },
-        { "Eveque_Top_Cloth_FR_01_01" },
-        { "Eveque_Top_Cloth_FR_02_01" },
+        { "Eveque_Top_Cloth_root_r" },
         
-        { "Eveque_Leg_Cloth_L_01_01" },
-        { "Eveque_Leg_Cloth_L_02_01" },
-        { "Eveque_Leg_Cloth_L_03_01" },
+        { "Eveque_Leg_Cloth_root_l" },
         
-        { "Eveque_Leg_Cloth_r_01_01" },
-        { "Eveque_Leg_Cloth_r_02_01" },
-        { "Eveque_Leg_Cloth_r_03_01" }
+        { "Eveque_Leg_Cloth_root_r" }
     };
 
     desc.shape.stiffness = 1.0f;
-    desc.shape.poseRestoreStrength = 0.08f;
-    desc.shape.maxBendAngleDegree = 60.f;
+    desc.shape.tipStiffnessScale = 0.62f;
+    desc.shape.poseRestoreStrength = 0.006f;
+    desc.shape.tipPoseRestoreScale = 0.28f;
+    desc.shape.maxBendAngleDegree = 105.f;
+    desc.shape.tipMaxBendAngleScale = 1.22f;
     desc.shape.rootRotationOffsetDegrees = Vec3(-30.f, 0.f, 0.f);
 
-    desc.motion.damping = 0.98f;
+    desc.motion.damping = 0.965f;
+    desc.motion.tipDampingScale = 1.08f;
     desc.motion.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 0.09f;
-    desc.motion.maxMovementOffset = 0.025f;
+    desc.motion.movementInertiaScale = 0.145f;
+    desc.motion.tipMovementInertiaScale = 1.34f;
+    desc.motion.maxMovementOffset = 0.042f;
     desc.motion.solverIterations = 5;
 
     desc.collision.enableCollision = false;
@@ -496,7 +502,7 @@ void ChainModifierPreset::BuildEvequeClothDesc(
 
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = kArmbandWindIntensity;
+    desc.runtime.windScale = kMonsterClothWindIntensity;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
@@ -744,23 +750,24 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
 
     if (characterType == PlayerCharacterType::Gustave)
     {
-        desc.damping = 0.64f;
-        desc.tipDampingScale = 0.92f;
-        desc.poseFollowStrength = 0.62f;
-        desc.tipFollowScale = 0.52f;
-        desc.tipBendAngleScale = 1.85f;
-        desc.rootOutputAlpha = 0.045f;
-        desc.tipOutputAlpha = 0.76f;
+        desc.damping = 0.68f;
+        desc.tipDampingScale = 1.16f;
+        desc.poseFollowStrength = 0.59f;
+        desc.tipFollowScale = 0.44f;
+        desc.tipBendAngleScale = 1.92f;
+        desc.rootOutputAlpha = 0.09f;
+        desc.tipOutputAlpha = 0.86f;
+        desc.outputSmoothAlpha = 0.36f;
         desc.groups = {
-            { "Noah_V2Coat_00_01", 0xffffffffu, 0.34f, 0.98f, 0.96f },
-            { "Noah_V2Coat_01_01", 0xffffffffu, 0.34f, 0.94f, 0.98f },
-            { "Noah_V2Coat_02_01", 0xffffffffu, 0.34f, 0.94f, 0.98f },
-            { "Noah_V2Coat_03_01", 0xffffffffu, 0.34f, 0.94f, 0.98f },
-            { "Noah_V2Coat_04_01", 0xffffffffu, 0.34f, 0.94f, 0.98f },
-            { "Noah_V2Coat_05_01", 0xffffffffu, 0.34f, 0.94f, 0.98f },
-            { "Noah_V2Coat_06_01", 0xffffffffu, 0.34f, 0.94f, 0.98f },
-            { "Noah_V2Coat_07_01", 0xffffffffu, 0.34f, 0.94f, 0.98f },
-            { "Noah_V2Coat_08_01", 0xffffffffu, 0.34f, 0.94f, 0.98f }
+            { "Noah_V2Coat_00_01", 0xffffffffu, 0.34f, 1.04f, 0.93f },
+            { "Noah_V2Coat_01_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_02_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_03_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_04_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_05_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_06_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_07_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_08_01", 0xffffffffu, 0.34f, 1.03f, 0.94f }
         };
     }
 }

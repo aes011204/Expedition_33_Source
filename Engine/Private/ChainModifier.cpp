@@ -115,7 +115,20 @@ namespace
 		Vec3 windDir = desc.runtime.windDirection;
 		windDir.Normalize();
 
-		const float nodeWeight = GetWindNodeWeight(chain, nodeIndex, chain.nodes.size());
+		float nodeWeight = GetWindNodeWeight(chain, nodeIndex, chain.nodes.size());
+		if (desc.runtime.windStartRatio >= 0.f || desc.runtime.windWeightScale >= 0.f)
+		{
+			const float ratio = GetChainNodeRatio(nodeIndex, chain.nodes.size());
+			const bool isCoatChain = IsCoatSurfaceChain(chain.rootBoneName);
+			const float startRatio = desc.runtime.windStartRatio >= 0.f
+				? desc.runtime.windStartRatio
+				: (isCoatChain ? 0.28f : 0.4f);
+			const float weightScale = desc.runtime.windWeightScale >= 0.f
+				? desc.runtime.windWeightScale
+				: (isCoatChain ? 0.24f : 0.65f);
+			const float tipRatio = Math::NormalizeSegment(ratio, startRatio, 1.f);
+			nodeWeight = Math::GetSmoothStepRatio(tipRatio) * weightScale;
+		}
 		if (nodeWeight <= 0.f)
 		{
 			return Vec3::Zero;

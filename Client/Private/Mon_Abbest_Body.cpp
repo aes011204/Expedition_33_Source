@@ -1,5 +1,9 @@
 #include "Mon_Abbest_Body.h"
 
+#include "ModelCom.h"
+#include "ChainModifierPreset.h"
+#include "ChainModifier.h"
+
 NS_BEGIN(Client)
 
 Mon_Abbest_Body::Mon_Abbest_Body(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -19,10 +23,22 @@ HRESULT Mon_Abbest_Body::Initialize_Prototype()
 
 HRESULT Mon_Abbest_Body::Initialize(void* arg)
 {
-    Monster_Part::Initialize(arg);
+    if (FAILED(Monster_Part::Initialize(arg)))
+        return E_FAIL;
 
     _rootIndex = _model->Get_BoneIndex("root");
     _model->Set_LocalRootNode(_rootIndex);
+
+    ChainModifier::ChainModifierDesc clothDesc{};
+    ChainModifierPreset::BuildAbbestClothDesc(
+        clothDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+
+    if (auto modifier = ChainModifier::Create(&clothDesc))
+    {
+        _model->Add_AnimModifier(modifier);
+    }
 
     return S_OK;
 }

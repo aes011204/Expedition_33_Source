@@ -1,4 +1,4 @@
-﻿#include "Channel.h"
+#include "Channel.h"
 
 #include "Bone.h"
 
@@ -35,6 +35,7 @@ void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, f
 	UNREFERENCED_PARAMETER(duration);
 	UNREFERENCED_PARAMETER(isLoop);
 
+	// 1. 키프레임이 없는 경우의 기본값 반환
 	if (_keyFrames.empty())
 	{
 		outTransform.scale = Vec3::One;
@@ -43,67 +44,49 @@ void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, f
 		return;
 	}
 
-	if (keyFrameIndex >= _keyFrames.size())
+	// 2. 키프레임이 1개이거나, 재생 시간이 첫 프레임보다 이전인 경우 (첫 프레임 고정)
+	if (_keyFrames.size() == 1 || trackPosition <= _keyFrames.front().trackPosition)
+	{
+		const KEYFRAME& key = _keyFrames.front();
+		outTransform.scale = key.scale;
+		outTransform.rotation = key.rotation;
+		outTransform.position = key.translation;
+		keyFrameIndex = 0;
+		return;
+	}
+
+	// 3. 재생 시간이 마지막 프레임보다 이후인 경우 (마지막 프레임 고정)
+	if (trackPosition >= _keyFrames.back().trackPosition)
+	{
+		const KEYFRAME& key = _keyFrames.back();
+		outTransform.scale = key.scale;
+		outTransform.rotation = key.rotation;
+		outTransform.position = key.translation;
+		keyFrameIndex = static_cast<uint32>(_keyFrames.size() - 1);
+		return;
+	}
+
+	// 4. 인덱스 유효성 검사 (아웃오브바운드 방지 및 애니메이션 루프/초기화 시 0으로 되돌리기)
+	if (keyFrameIndex >= _numKeyFrames - 1 || trackPosition < _keyFrames[keyFrameIndex].trackPosition)
 	{
 		keyFrameIndex = 0;
 	}
 
-    if (_keyFrames.empty())
-        return;
-
-    if (_keyFrames.size() == 1)
-    {
-        const KEYFRAME& key = _keyFrames.front();
-        outTransform.scale = key.scale;
-        outTransform.rotation = key.rotation;
-        outTransform.position = key.translation;
-        keyFrameIndex = 0;
-        return;
-    }
-
-    if (keyFrameIndex >= _keyFrames.size() - 1)
-        keyFrameIndex = 0;
-
-    if (trackPosition <= _keyFrames.front().trackPosition)
-    {
-        const KEYFRAME& key = _keyFrames.front();
-        outTransform.scale = key.scale;
-        outTransform.rotation = key.rotation;
-        outTransform.position = key.translation;
-        keyFrameIndex = 0;
-        return;
-    }
-
-	if (trackPosition < _keyFrames[keyFrameIndex].trackPosition)
-		keyFrameIndex = 0;
-
-	KEYFRAME lastKeyFrame = _keyFrames.back();
-
-	Vec3 scale, translation;
-    Quat rotation;
-
-	if (_keyFrames.size() == 1 || trackPosition >= lastKeyFrame.trackPosition)
+	// 5. 현재 trackPosition이 속한 구간(Index) 찾기 (이전 인덱스부터 순차 탐색)
+	while (keyFrameIndex + 1 < _numKeyFrames && trackPosition >= _keyFrames[keyFrameIndex + 1].trackPosition)
 	{
-		scale = lastKeyFrame.scale;
-		rotation = lastKeyFrame.rotation;
-		translation = lastKeyFrame.translation;
-	}
-	else
-	{
-		while (keyFrameIndex + 1 < _numKeyFrames && trackPosition >= _keyFrames[keyFrameIndex + 1].trackPosition)
-			++keyFrameIndex;
-
-		float ratio = (trackPosition - _keyFrames[keyFrameIndex].trackPosition) /
-			(_keyFrames[keyFrameIndex + 1].trackPosition - _keyFrames[keyFrameIndex].trackPosition);
-
-        scale = Vec3::Lerp(_keyFrames[keyFrameIndex].scale, _keyFrames[keyFrameIndex + 1].scale, ratio);
-		rotation = Quat::Slerp(_keyFrames[keyFrameIndex].rotation, _keyFrames[keyFrameIndex + 1].rotation, ratio);
-        translation = Vec3::Lerp(_keyFrames[keyFrameIndex].translation, _keyFrames[keyFrameIndex + 1].translation, ratio);
+		++keyFrameIndex;
 	}
 
-    outTransform.scale = scale;
-	outTransform.rotation = rotation;
-	outTransform.position = translation;
+	// 6. 보간(Interpolation) 수행
+	const KEYFRAME& currentKey = _keyFrames[keyFrameIndex];
+	const KEYFRAME& nextKey = _keyFrames[keyFrameIndex + 1];
+
+	float ratio = (trackPosition - currentKey.trackPosition) / (nextKey.trackPosition - currentKey.trackPosition);
+
+	outTransform.scale = Vec3::Lerp(currentKey.scale, nextKey.scale, ratio);
+	outTransform.rotation = Quat::Slerp(currentKey.rotation, nextKey.rotation, ratio);
+	outTransform.position = Vec3::Lerp(currentKey.translation, nextKey.translation, ratio);
 }
 
 void Channel::Update_Velocity(const RootMotionFrame& curTransform, float trackPosition)

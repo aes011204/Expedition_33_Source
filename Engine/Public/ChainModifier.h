@@ -124,6 +124,8 @@ public:
 			float targetFrameRate{ 0.f };                   // 0보다 크면 이 FPS 기준으로 최대 서브스텝 델타를 맞추도록 solver iteration을 보정
 			Vec3 windDirection{ Vec3::Zero };
 			float windScale{ 1.f };
+			float windStartRatio{ -1.f };                  // 0 이상이면 체인 앞쪽 몇 %부터 바람을 적용할지 직접 지정
+			float windWeightScale{ -1.f };                 // 0 이상이면 바람 가중치 세기를 직접 지정
 			bool useOwnerMotionInertia{ false };           // 체인 관성을 각 본 애니메이션 델타 대신 owner 이동량 기준으로 계산할지 여부
 			bool useChainRootMotionInertia{ false };       // 체인 전체 관성을 체인 루트 본의 애니메이션 이동량 기준으로 계산할지 여부
 			bool transportParticlesWithAnimatedPose{ true }; // animated rest 사용 시 부모 본 변화에 맞춰 기존 particle 위치도 함께 운반할지 여부
