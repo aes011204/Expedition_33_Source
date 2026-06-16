@@ -38,12 +38,14 @@ HRESULT MB_PotatoBag::Initialize(void* arg)
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
 
-    _combatStat->Set_Skill("PotatoBag_AttShield");
+    //_combatStat->Set_Skill("PotatoBag_AttShield");
     _combatStat->Set_Skill("PotatoBag_AttWeapon");
-    _combatStat->Set_Skill("PotatoBag_AttAoE");
-    _combatStat->Set_Skill("PotatoBag_AttShieldGun");
-    _combatStat->Set_Skill("PotatoBag_Lighting");
-  //  _combatStat->Set_Skill("PotatoBag_DefenseMod");
+    //_combatStat->Set_Skill("PotatoBag_AttAoE");
+    //_combatStat->Set_Skill("PotatoBag_AttShieldGun");
+    //_combatStat->Set_Skill("PotatoBag_Lighting");
+
+
+    //  _combatStat->Set_Skill("PotatoBag_DefenseMod");
 
 	Get_Transform()->Set_SpeedPerSec(4.f);
 

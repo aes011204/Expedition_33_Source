@@ -126,6 +126,8 @@ public:
 private:
     bool _isDodgeOpen = false;
     bool _isParryOpen = false;
+    bool _isJumpOpen = false;
+    bool _isJumpCounterOpen = false;
 
     bool _isConsumed = false; // 몬스터 애니메이션의 AN_Attack에서 아직 소비되지 않은 상태
     BattleReactionType _result = BattleReactionType::None;

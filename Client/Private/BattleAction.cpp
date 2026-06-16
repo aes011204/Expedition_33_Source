@@ -104,7 +104,8 @@ void BattleAction::SetupStep()
     else
         charter = CLIENT->Get_BattleController()->Get_AliveHeroes();
 
-    if (step.targetType == TargetType::Primary)
+    if (step.targetType == TargetType::Primary ||
+        step.targetType == TargetType::PrimaryJump)
     {
         step.targets.push_back(_InitTarget);
     }
@@ -119,7 +120,8 @@ void BattleAction::SetupStep()
 
         step.targets.push_back(charter[num]);
     }
-    else if (step.targetType == TargetType::AllEnemies)
+    else if (step.targetType == TargetType::AllEnemies ||
+        step.targetType == TargetType::AllEnemiesJump)
     {
 
         step.targets = charter;

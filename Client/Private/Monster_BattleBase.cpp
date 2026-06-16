@@ -232,13 +232,11 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
            continue;
 
            if (i == 0) repeatPenalty -= 6.f;
-           else if (i == 1) repeatPenalty -= 3.f;
-           else if (i == 2) repeatPenalty -= 1.f;
+           else if (i == 1) repeatPenalty -= 4.f;
+           else if (i == 2) repeatPenalty -= 2.f;
    }
 
     score += repeatPenalty;
-
-    //
 
 
     if (skill->skillKey == context.lastSkillIndex)
@@ -265,11 +263,11 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
         {
         case AITargetStyle::ComboAoE:
         case AITargetStyle::SingleAoE:
-            score += 2.f;
+            score += 1.f;
             break;
 
-        case AITargetStyle::Single:
-            score -= 2.f;
+        //case AITargetStyle::Single:
+        //    score -= 1.f;
             break;
         }
 
@@ -278,13 +276,13 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
     {
         switch (skill->targetStyle)
         {
-        case AITargetStyle::ComboAoE:
-        case AITargetStyle::SingleAoE:
-            score -= 2.f;
+        //case AITargetStyle::ComboAoE:
+        //case AITargetStyle::SingleAoE:
+        //    score -= 1.f;
             break;
 
         case AITargetStyle::Single:
-            score += 2.f;
+            score += 1.f;
             break;
         }
     }
@@ -403,30 +401,30 @@ float Monster_BattleBase::Score_Target(
         else if (i == 2) score -= 1.f;
     }
 
-    switch (skill->targetStyle)
-    {
-    case AITargetStyle::Single:
-        score += (1.f - hpRatio) * 8.f;
-        break;
+    //switch (skill->targetStyle)
+    //{
+    //case AITargetStyle::Single:
+    //    score += (1.f - hpRatio) * 8.f;
+    //    break;
 
-    case AITargetStyle::SingleAoE:
-    case AITargetStyle::ComboAoE:
-        score += (1.f - hpRatio) * 4.f;
-        break;
+    //case AITargetStyle::SingleAoE:
+    //case AITargetStyle::ComboAoE:
+    //    score += (1.f - hpRatio) * 4.f;
+    //    break;
 
-    case AITargetStyle::Mix:
-        score += (1.f - hpRatio) * 5.f;
-        score += static_cast<float>(target.statCom->Get_CurAP()) * 0.5f;
-        break;
+    //case AITargetStyle::Mix:
+    //    score += (1.f - hpRatio) * 5.f;
+    //    score += static_cast<float>(target.statCom->Get_CurAP()) * 0.5f;
+    //    break;
 
-    case AITargetStyle::RandomEnemy:
-        score += Math::RandNum(0.f, 2.f);
-        break;
+    //case AITargetStyle::RandomEnemy:
+    //    score += Math::RandNum(0.f, 2.f);
+    //    break;
 
-    default:
-        score += (1.f - hpRatio) * 3.f;
-        break;
-    }
+    //default:
+    //    score += (1.f - hpRatio) * 3.f;
+    //    break;
+    //}
 
     const float estimatedDamage = Estimate_SkillDamage(skill, target);
     const float effectiveHp =

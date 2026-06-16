@@ -341,6 +341,9 @@
     <ClCompile Include="..\Private\AN_SpawnActor.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_StartCounter.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -710,6 +713,12 @@
     <ClInclude Include="..\public\ANS_Dodge.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\ANS_Jump.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ANS_JumpCounter.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\ANS_Parry.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
@@ -797,6 +806,15 @@
     <ClInclude Include="..\Public\Mon_Abbest_Body.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\Mon_Bishop_Body.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
@@ -819,6 +837,9 @@
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MW_Abbest.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MW_Dualliste.h">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClInclude>
     <ClInclude Include="..\public\MW_Bishop.h">
@@ -1301,6 +1322,9 @@
     <ClInclude Include="..\Public\AN_SpawnActor.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AN_JumpCounterStart.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AN_StartCounter.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
@@ -1505,6 +1529,12 @@
     <ClCompile Include="..\private\ANS_Dodge.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\ANS_Jump.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ANS_JumpCounter.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\ANS_Parry.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -1589,6 +1619,15 @@
     <ClCompile Include="..\Private\Mon_Abbest_Body.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\Mon_Bishop_Body.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
@@ -1611,6 +1650,9 @@
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MW_Abbest.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MW_Dualliste.cpp">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MW_Bishop.cpp">

@@ -159,6 +159,8 @@
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
     <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\public\ANS_Jump.h" />
+    <ClInclude Include="..\public\ANS_JumpCounter.h" />
     <ClInclude Include="..\public\ANS_Emissive.h" />
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
@@ -183,6 +185,7 @@
     <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
+    <ClInclude Include="..\Public\AN_JumpCounterStart.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
@@ -273,6 +276,9 @@
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\MB_Volester.h" />
     <ClInclude Include="..\Public\Mon_Abbest_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\public\Mon_Bishop_Body.h" />
     <ClInclude Include="..\Public\Mon_Mime_Bagutte.h" />
     <ClInclude Include="..\Public\Mon_Mime_Body.h" />
@@ -283,6 +289,7 @@
     <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
     <ClInclude Include="..\public\Mon_Volester_Body.h" />
     <ClInclude Include="..\Public\MW_Abbest.h" />
+    <ClInclude Include="..\Public\MW_Dualliste.h" />
     <ClInclude Include="..\public\MW_Bishop.h" />
     <ClInclude Include="..\Public\MW_Mime.h" />
     <ClInclude Include="..\Public\MW_PotatoBag.h" />
@@ -499,6 +506,8 @@
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\private\ANS_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
     <ClCompile Include="..\private\ANS_Emissive.cpp" />
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
@@ -524,6 +533,7 @@
     <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
+    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
@@ -605,6 +615,9 @@
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\MB_Volester.cpp" />
     <ClCompile Include="..\Private\Mon_Abbest_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
     <ClCompile Include="..\private\Mon_Bishop_Body.cpp" />
     <ClCompile Include="..\Private\Mon_Mime_Bagutte.cpp" />
     <ClCompile Include="..\Private\Mon_Mime_Body.cpp" />
@@ -615,6 +628,7 @@
     <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
     <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
     <ClCompile Include="..\Private\MW_Abbest.cpp" />
+    <ClCompile Include="..\Private\MW_Dualliste.cpp" />
     <ClCompile Include="..\private\MW_Bishop.cpp" />
     <ClCompile Include="..\Private\MW_Mime.cpp" />
     <ClCompile Include="..\Private\MW_PotatoBag.cpp" />
