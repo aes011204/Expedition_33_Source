@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Base.h"
 #include "ChainModifier.h"
 #include "PoseFollowChainModifier.h"
@@ -33,7 +33,7 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Abbest");
 
-    static void BuildEvequeClothDesc(
+    static void BuildBishopClothDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,

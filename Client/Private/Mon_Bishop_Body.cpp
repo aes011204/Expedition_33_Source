@@ -1,4 +1,4 @@
-#include "Mon_Bishop_Body.h"
+﻿#include "Mon_Bishop_Body.h"
 
 #include "ModelCom.h"
 #include "ChainModifierPreset.h"
@@ -30,7 +30,7 @@ HRESULT Mon_Bishop_Body::Initialize(void* arg)
     _model->Set_LocalRootNode(_rootIndex);
 
     ChainModifier::ChainModifierDesc clothDesc{};
-    ChainModifierPreset::BuildEvequeClothDesc(
+    ChainModifierPreset::BuildBishopClothDesc(
         clothDesc,
         _transformCom.get(),
         PlayerCharacterType::None);

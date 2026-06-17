@@ -9,7 +9,7 @@ namespace
     const Vec3 kCommonWindDirection{ Vec3{1.f, 0.f, 1.f} };
     constexpr float kScarfWindIntensity{ 0.45f };
     constexpr float kArmbandWindIntensity{ 0.12f };
-    constexpr float kMonsterClothWindIntensity{ 0.07f };
+    constexpr float kMonsterClothWindIntensity{ 0.00075f };
     constexpr float kCoatWindIntensity{ 0.08f };
 
     Vec3 ConvertUePointToEngine(const Vec3& uePoint)
@@ -385,13 +385,14 @@ void ChainModifierPreset::BuildArmbandDesc(
 
     desc.shape.stiffness = 1.0f;
     desc.shape.poseRestoreStrength = 0.00005f;
-    desc.shape.maxBendAngleDegree = 120.f;
-    desc.shape.rootRotationOffsetDegrees = Vec3(-30.f, 0.f, 0.f);
+    desc.shape.maxBendAngleDegree = 75.f;
+    desc.shape.rootRotationOffsetDegrees = Vec3(75.f, 0.f, 0.f);
 
     desc.motion.damping = 0.98f;
     desc.motion.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 0.18f;
-    desc.motion.maxMovementOffset = 0.05f;
+    desc.motion.movementInertiaScale = 0.24f;
+    desc.motion.tipMovementInertiaScale = 1.25f;
+    desc.motion.maxMovementOffset = 0.075f;
     desc.motion.solverIterations = 5;
 
     desc.collision.enableCollision = false;
@@ -400,8 +401,10 @@ void ChainModifierPreset::BuildArmbandDesc(
     desc.collision.debugDrawCapsules = false;
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = kMonsterClothWindIntensity;
-    desc.runtime.windStartRatio = 0.05f;
+    desc.runtime.windScale = 0.0001f;
+    desc.runtime.windStartRatio = 0.45f;
+    desc.runtime.windWeightScale = 0.15f;
+    desc.runtime.windStartRatio = 0.0005f;
     desc.runtime.windWeightScale = 0.9f;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
@@ -432,8 +435,7 @@ void ChainModifierPreset::BuildAbbestClothDesc(
     desc.shape.maxBendAngleDegree = 105.f;
     desc.shape.tipMaxBendAngleScale = 1.22f;
     desc.shape.pinRoot = false;
-    desc.shape.rootRotationOffsetDegrees = Vec3(-30.f, 0.f, 0.f);
-
+    desc.shape.rootRotationOffsetDegrees = Vec3::Zero;
     desc.motion.damping = 0.965f;
     desc.motion.tipDampingScale = 1.08f;
     desc.motion.gravity = kCommonGravity;
@@ -457,7 +459,7 @@ void ChainModifierPreset::BuildAbbestClothDesc(
     return;
 }
 
-void ChainModifierPreset::BuildEvequeClothDesc(
+void ChainModifierPreset::BuildBishopClothDesc(
     ChainModifier::ChainModifierDesc& outDesc,
     TransformCom* ownerTransform,
     PlayerCharacterType characterType,
@@ -468,31 +470,39 @@ void ChainModifierPreset::BuildEvequeClothDesc(
     desc.modifierTag = modifierTag;
 
     desc.groups = {
+        { "Eveque_Top_Cloth_BL_01_01" },
+        { "Eveque_Top_Cloth_BL_02_01" },
+        { "Eveque_Top_Cloth_FL_01_01" },
+        { "Eveque_Top_Cloth_FL_02_01" },
+        
+        { "Eveque_Top_Cloth_BR_01_01" },
+        { "Eveque_Top_Cloth_BR_02_01" },
+        { "Eveque_Top_Cloth_FR_01_01" },
+        { "Eveque_Top_Cloth_FR_02_01" },
+        
         { "Eveque_Leg_Cloth_F_01" },
+
+        { "Eveque_Leg_Cloth_l_01_01" },
+        { "Eveque_Leg_Cloth_l_02_01" },
+        { "Eveque_Leg_Cloth_l_03_01" },
         
-        { "Eveque_Top_Cloth_root_l" },
-        
-        { "Eveque_Top_Cloth_root_r" },
-        
-        { "Eveque_Leg_Cloth_root_l" },
-        
-        { "Eveque_Leg_Cloth_root_r" }
+        { "Eveque_Leg_Cloth_r_01_01" },
+        { "Eveque_Leg_Cloth_r_02_01" },
+        { "Eveque_Leg_Cloth_r_03_01" }
     };
 
     desc.shape.stiffness = 1.0f;
-    desc.shape.tipStiffnessScale = 0.62f;
-    desc.shape.poseRestoreStrength = 0.006f;
-    desc.shape.tipPoseRestoreScale = 0.28f;
-    desc.shape.maxBendAngleDegree = 105.f;
-    desc.shape.tipMaxBendAngleScale = 1.22f;
-    desc.shape.rootRotationOffsetDegrees = Vec3(-30.f, 0.f, 0.f);
+    desc.shape.poseRestoreStrength = 0.00005f;
+    desc.shape.maxBendAngleDegree = 120.f;
+    desc.shape.pinRoot = true;
+    desc.shape.rootRotationOffsetDegrees = Vec3::Zero;
 
-    desc.motion.damping = 0.965f;
-    desc.motion.tipDampingScale = 1.08f;
+    desc.motion.damping = 0.98f;
+    desc.motion.tipDampingScale = 1.f;
     desc.motion.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 0.145f;
-    desc.motion.tipMovementInertiaScale = 1.34f;
-    desc.motion.maxMovementOffset = 0.042f;
+    desc.motion.movementInertiaScale = 1.75f;
+    desc.motion.tipMovementInertiaScale = 1.25f;
+    desc.motion.maxMovementOffset = 0.16f;
     desc.motion.solverIterations = 5;
 
     desc.collision.enableCollision = false;
@@ -502,7 +512,7 @@ void ChainModifierPreset::BuildEvequeClothDesc(
 
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = kMonsterClothWindIntensity;
+    desc.runtime.windScale = 0.0001f;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
