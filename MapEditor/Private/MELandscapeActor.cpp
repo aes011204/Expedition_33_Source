@@ -255,7 +255,10 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstr
     ComPtr<ID3D11ShaderResourceView> srv;
     HRESULT hr = (lstrcmp(ext, L".dds") == 0)
         ? CreateDDSTextureFromFile(_device.Get(), resolvedAlbedoPath.c_str(), nullptr, srv.GetAddressOf())
-        : CreateWICTextureFromFile(_device.Get(), resolvedAlbedoPath.c_str(), nullptr, srv.GetAddressOf());
+        //: CreateWICTextureFromFile(_device.Get(), resolvedAlbedoPath.c_str(), nullptr, srv.GetAddressOf());
+        : CreateWICTextureFromFileEx(_device.Get(), resolvedAlbedoPath.c_str(), 0,
+            D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0,
+            WIC_LOADER_IGNORE_SRGB, nullptr, srv.GetAddressOf());
 
     if (FAILED(hr))
     {

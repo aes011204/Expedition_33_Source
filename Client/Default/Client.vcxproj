@@ -248,6 +248,7 @@
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\Level_GestralVillage.h" />
     <ClInclude Include="..\Public\MapAdapter.h" />
     <ClInclude Include="..\Public\MapCollisionAdapter.h" />
     <ClInclude Include="..\Public\PlayerInventory.h" />
@@ -580,6 +581,7 @@
     <ClCompile Include="..\private\CinematicCamera.cpp" />
     <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
     <ClCompile Include="..\Private\EyeTarget.cpp" />
+    <ClCompile Include="..\Private\Level_GestralVillage.cpp" />
     <ClCompile Include="..\Private\MapAdapter.cpp" />
     <ClCompile Include="..\Private\MapCollisionAdapter.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />
@@ -846,7 +848,7 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
