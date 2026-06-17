@@ -2,11 +2,14 @@
 
 #include "Body_Player.h"
 #include "Bounding_OBB.h"
+#include "ClientInstance.h"
+#include "CostumeManager.h"
 #include "EffectCom.h"
 #include "MovementCom.h"
 #include "ColliderCom.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
+#include "PartObject.h"
 
 REGISTER_GLOBAL_ENUM(Client::SL_Maelle::SoulLikeAnim, "SL_MaelleAnim")
 
@@ -142,10 +145,27 @@ HRESULT SL_Maelle::Ready_Components()
 
 HRESULT SL_Maelle::Ready_PartObjects()
 {
+    const CostumePreset* costumePreset = Get_CurrentSoulLikeCostume();
+
+    const wchar_t* bodyModelTag = L"Model_MaelleBody";
+    const wchar_t* headModelTag = L"Model_MaelleHead";
+    const wchar_t* hairModelTag = L"Model_MaelleHair";
+
+    if (costumePreset != nullptr)
+    {
+        bodyModelTag = Select_CostumeModelTag(costumePreset->parts.bodyModelTag, bodyModelTag);
+        headModelTag = Select_CostumeModelTag(costumePreset->parts.headModelTag, headModelTag);
+
+        // 빈 hair 태그는 Potato처럼 hair 파츠가 없는 코스튬으로 취급한다.
+        hairModelTag = costumePreset->parts.hairModelTag.empty()
+            ? nullptr
+            : costumePreset->parts.hairModelTag.c_str();
+    }
+
     Body_Player::BODY_PLAYER_DESC bodyDesc{};
     bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     bodyDesc.modelType = ModelType::Anim;
-    bodyDesc.modelTag = L"Model_MaelleBody";
+    bodyDesc.modelTag = bodyModelTag;
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
@@ -158,7 +178,7 @@ HRESULT SL_Maelle::Ready_PartObjects()
     Head_Player::HEAD_PLAYER_DESC headDesc{};
     headDesc.parentMatrix = bodyDesc.parentMatrix;
     headDesc.modelType = ModelType::Anim;
-    headDesc.modelTag = L"Model_MaelleHead";
+    headDesc.modelTag = headModelTag;
     headDesc.socketMatrixPointer = nullptr;
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"), TEXT("Part_Head"), &headDesc), E_FAIL);
@@ -167,18 +187,59 @@ HRESULT SL_Maelle::Ready_PartObjects()
     CHECK_NULL(_head, E_FAIL);
     _head->Set_LeaderPoseComponent(_body.get());
 
-    Hair_Player::HAIR_PLAYER_DESC hairDesc{};
-    hairDesc.parentMatrix = bodyDesc.parentMatrix;
-    hairDesc.modelType = ModelType::Anim;
-    hairDesc.modelTag = L"Model_MaelleHair";
-    hairDesc.socketMatrixPointer = _head->Get_SocketBoneMatrixPtr("head");
+    if (hairModelTag != nullptr && hairModelTag[0] != L'\0')
+    {
+        Hair_Player::HAIR_PLAYER_DESC hairDesc{};
+        hairDesc.parentMatrix = bodyDesc.parentMatrix;
+        hairDesc.modelType = ModelType::Anim;
+        hairDesc.modelTag = hairModelTag;
+        hairDesc.socketMatrixPointer = _head->Get_SocketBoneMatrixPtr("head");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
+        CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
 
-    _hair = dynamic_pointer_cast<Hair_Player>(_partObjects[TEXT("Part_Hair")]);
-    CHECK_NULL(_hair, E_FAIL);
+        _hair = dynamic_pointer_cast<Hair_Player>(_partObjects[TEXT("Part_Hair")]);
+        CHECK_NULL(_hair, E_FAIL);
+    }
+
+    if (costumePreset != nullptr)
+    {
+        Apply_CostumePartTransform(TEXT("Part_Body"), costumePreset->parts.bodyTransform);
+        Apply_CostumePartTransform(TEXT("Part_Head"), costumePreset->parts.headTransform);
+        Apply_CostumePartTransform(TEXT("Part_Hair"), costumePreset->parts.hairTransform);
+    }
 
     return S_OK;
+}
+
+const CostumePreset* SL_Maelle::Get_CurrentSoulLikeCostume() const
+{
+    CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
+    if (costumeManager == nullptr)
+        return nullptr;
+
+    return costumeManager->Get_CurrentCostume(HeroId::Maelle);
+}
+
+const wchar_t* SL_Maelle::Select_CostumeModelTag(const wstring& costumeModelTag, const wchar_t* defaultModelTag) const
+{
+    if (!costumeModelTag.empty())
+        return costumeModelTag.c_str();
+
+    return defaultModelTag;
+}
+
+void SL_Maelle::Apply_CostumePartTransform(const wstring& partTag, const CostumePartLocalTransform& fallbackTransform)
+{
+    if (!fallbackTransform.enabled)
+        return;
+
+    PartObject* partObject = Get_PartObject(partTag);
+    if (partObject == nullptr || partObject->Get_Transform() == nullptr)
+        return;
+
+    partObject->Get_Transform()->Set_Position(fallbackTransform.position);
+    partObject->Get_Transform()->Set_RotationEuler(fallbackTransform.rotation);
+    partObject->Get_Transform()->Set_Scale(fallbackTransform.scale);
 }
 
 void SL_Maelle::Apply_MoveInput(const Vec3& worldDir, bool sprint, float timeDelta)

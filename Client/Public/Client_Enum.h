@@ -4,19 +4,19 @@ namespace Client
 {
     enum class PlayerState
     {
-        Idle, 
+        Idle,
         Move,
         Jump,
-        WorldAction, 
+        WorldAction,
         GameMenu,
         FreeAim,
 
         Climb,
         RopeAction,
-        End, 
+        End,
     };
 
-   
+
     enum class StatType
     {
         Vitality,   // 활력
@@ -50,7 +50,7 @@ namespace Client
 
     enum class ERuntimeBattleStatType
     {
-        
+
         CurrentHP,
         CurrentAP,
         CurrentHPPercentage,
@@ -112,6 +112,30 @@ namespace Client
 
         Pictos_Intro,
         Pictos_Idle,
+    };
+
+    enum class SoulLikePlayerState
+    {
+        Idle,
+        Move,
+        BasicAttack,
+        Dodge,
+        Skill,
+        Hit,
+        Dead,
+        End
+    };
+
+    enum class SoulLikeAnim
+    {
+        Idle,
+        Move,
+        Attack_1,
+        Attack_2,
+        Attack_3,
+        Dodge,
+        Hit,
+        Dead,
     };
 
 }

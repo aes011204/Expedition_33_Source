@@ -336,6 +336,7 @@ namespace Client::Constants::Prefab
 #pragma endregion
 
     inline constexpr char Eye_Target[]      = "ETC/EyeTarget";
+    inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
 
 }
 

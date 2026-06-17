@@ -27,6 +27,7 @@
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
 #include "PlayerStatCom.h"
+#include "SoulLikeController.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -870,6 +871,21 @@ void ClientInstance::Play_PreviewAnimation(HeroId heroId, PreviewAnimState intro
     _previewManager->Play_PreviewAnimation(heroId, introAnim, idleAnim);
 }
 
+void ClientInstance::Set_SoulLikeController(const Shared<SoulLikeController>& controller)
+{
+    _soulLikeController = controller;
+}
+
+bool ClientInstance::Is_SoulLikeBattleActive() const
+{
+    return _soulLikeController != nullptr && _soulLikeController->Is_BattleActive();
+}
+
+bool ClientInstance::Is_WorldControlSuspended() const
+{
+    return Is_BattleActive() || Is_SoulLikeBattleActive();
+}
+
 HRESULT ClientInstance::Ready_ResourceLoader()
 {
     _resourceLoader = ResourceLoader::Create(_device, _context);
@@ -916,6 +932,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);
+    ReleaseManager(_soulLikeController);
 
     _context.Reset();
     _device.Reset();

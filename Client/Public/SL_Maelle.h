@@ -12,21 +12,12 @@ class Body_Player;
 class Head_Player;
 class Hair_Player;
 class EffectCom;
+struct CostumePartLocalTransform;
+struct CostumePreset;
 
 class SL_Maelle final : public Character_WorldBase
 {
     GENERATED_GAMEOBJECT(SL_Maelle, ObjectType::Player)
-
-public:
-    enum class SoulLikeAnim
-    {
-        Idle,
-        Move,
-        Attack,
-        Dodge,
-        Hit,
-        Dead,
-    };
 
 public:
     SL_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -69,6 +60,9 @@ public:
 private:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
+    const CostumePreset* Get_CurrentSoulLikeCostume() const;
+    const wchar_t* Select_CostumeModelTag(const wstring& costumeModelTag, const wchar_t* defaultModelTag) const;
+    void Apply_CostumePartTransform(const wstring& partTag, const CostumePartLocalTransform& fallbackTransform);
 
 private:
     Shared<MovementCom> _movementCom{};

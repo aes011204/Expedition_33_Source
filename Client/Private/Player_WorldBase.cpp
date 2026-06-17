@@ -76,7 +76,7 @@ void Player_WorldBase::BeginPlay()
 
 void Player_WorldBase::Priority_Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return;
 
     __super::Priority_Update(timeDelta);

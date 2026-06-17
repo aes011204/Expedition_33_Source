@@ -82,7 +82,7 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
 void Hero_Manager::Update_HeroManager(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return; // 배틀 중에서는 월드 플레이어 입력 제한
 
     if (_heroes.empty())

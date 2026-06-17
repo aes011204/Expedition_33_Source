@@ -101,10 +101,10 @@ HRESULT Loader::Initialize(LevelType eNextLevelID)
             const HRESULT hr = Loading();
 
             if (FAILED(hr))
-            {
                 _hasFailed.store(true);
-                _workerDone.store(true);
-            }
+
+            // 리소스 job 목록 생성뿐 아니라 맵 프리로드까지 끝난 뒤에만 완료로 공개한다.
+            _workerDone.store(true);
         }
     );
 
@@ -321,7 +321,6 @@ HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
             return E_FAIL;
     }
 
-    _workerDone.store(true);
     return S_OK;
 }
 

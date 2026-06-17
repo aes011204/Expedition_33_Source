@@ -552,8 +552,10 @@
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
-    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
-    <ClCompile Include="..\Private\Mon_Dualiste_Sword.cpp" />
+    <ClCompile Include="..\Private\SoulLikeController.cpp" />
+    <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\SL_State.cpp" />
+    <ClCompile Include="..\Private\SL_Idle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -710,13 +712,10 @@
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl">
-          <Filter>97.ShaderFiles\Compute</Filter>
+      <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
       <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1528,8 +1527,10 @@
     <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
     <ClInclude Include="..\Public\SL_Maelle.h" />
-    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
-    <ClInclude Include="..\Public\Mon_Dualiste_Sword.h" />
+    <ClInclude Include="..\Public\SoulLikeController.h" />
+    <ClInclude Include="..\Public\SL_StateMachineCom.h" />
+    <ClInclude Include="..\Public\SL_State.h" />
+    <ClInclude Include="..\Public\SL_Idle.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

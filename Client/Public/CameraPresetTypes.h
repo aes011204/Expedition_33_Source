@@ -7,7 +7,7 @@ enum class PreviewShotPanel
     CharacterProgression,
 };
 
-enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER };
+enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER, SOULLIKE, };
 enum class BattleCameraMode
 { WIDE,
   BATTLEINTRO,
