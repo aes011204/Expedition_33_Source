@@ -46,6 +46,14 @@ void PanelInspector::Render()
                 _boxRestoreTarget = _prevSelectedShared;
                 ImGui::OpenPopup("BoxTargetChangedWarning");
             }
+
+            if (curSelected &&
+                curSelected->_type == EObjectType::InstancedMesh &&
+                !curSelected->_instancedTransforms.empty())
+            {
+                curSelected->_selectedInstanceIdx = 0;
+            }
+
             _prevSelectedShared = _ctx->_selected;
         }
 
@@ -112,6 +120,92 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
 {
     if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        return;
+    }
+
+    if (obj->_type == EObjectType::InstancedMesh)
+    {
+        int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
+        ImGui::Text("Instance Count: %d", instSize);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear All") && !obj->_instancedTransforms.empty())
+        {
+            obj->_instancedTransforms.clear();
+            obj->_instancedParamsDirty = true;
+            obj->_selectedInstanceIdx = -1;
+        }
+
+        if (obj->_selectedInstanceIdx < 0 || obj->_selectedInstanceIdx >= instSize)
+        {
+            ImGui::TextDisabled("(Click instance mesh from viewport)");
+            return;
+        }
+
+        auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+        ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Del"))
+        {
+            obj->_instancedTransforms.erase(
+                obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);
+            obj->_instancedParamsDirty = true;
+            obj->_selectedInstanceIdx = -1;
+            return;
+        }
+
+        float pos[3] = { t._position.x, t._position.y, t._position.z };
+        if (ImGui::DragFloat3("Position", pos, 0.1f))
+        {
+            t._position = Vec3(pos[0], pos[1], pos[2]);
+            _ctx->UpdateSingleInstance(obj.get(), obj->_selectedInstanceIdx);
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit())
+        {
+            obj->_instancedParamsDirty = true;
+            _ctx->_dirtyRenderHandles  = true;
+        }
+
+        Quat q(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w);
+        Matrix rotMat = Matrix::CreateFromQuaternion(q);
+        float pitch = asinf(clamp(-rotMat._32, -1.f, 1.f));
+        float yaw = {}, roll = {};
+        if (cosf(pitch) > 1e-6f)
+        {
+            yaw = atan2f(rotMat._31, rotMat._33);
+            roll = atan2f(rotMat._12, rotMat._22);
+        }
+        else
+        {
+            yaw = atan2f(-rotMat._13, rotMat._11);
+        }
+        float euler[3] = { XMConvertToDegrees(pitch), XMConvertToDegrees(yaw), XMConvertToDegrees(roll) };
+        if (ImGui::DragFloat3("Rotation", euler, 0.5f))
+        {
+            Quat newQ = Quat::CreateFromYawPitchRoll(
+                XMConvertToRadians(euler[1]),
+                XMConvertToRadians(euler[0]),
+                XMConvertToRadians(euler[2]));
+            t._rotation = Vec4(newQ.x, newQ.y, newQ.z, newQ.w);
+            _ctx->UpdateSingleInstance(obj.get(), obj->_selectedInstanceIdx);
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit())
+        {
+            obj->_instancedParamsDirty = true;
+            _ctx->_dirtyRenderHandles  = true;
+        }
+
+        float scl[3] = { t._scale.x, t._scale.y, t._scale.z };
+        if (ImGui::DragFloat3("Scale", scl, 0.01f))
+        {
+            t._scale = Vec3(scl[0], scl[1], scl[2]);
+            _ctx->UpdateSingleInstance(obj.get(), obj->_selectedInstanceIdx);
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit())
+        {
+            obj->_instancedParamsDirty = true;
+            _ctx->_dirtyRenderHandles  = true;
+        }
+
         return;
     }
 
@@ -549,79 +643,6 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             if (ImGui::Button("Erase"))
             {
                 _ctx->EraseAt(obj.get(), _eraseRadius, _eraseCenter);
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Instances"))
-        {
-            int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
-            ImGui::LabelText("Count", "%d", instSize);
-
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Clear All") && !obj->_instancedTransforms.empty())
-            {
-                obj->_instancedTransforms.clear();
-                obj->_instancedParamsDirty = true;
-                obj->_selectedInstanceIdx = -1;
-            }
-
-            if (obj->_selectedInstanceIdx >= 0 && obj->_selectedInstanceIdx < instSize)
-            {
-                auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
-                ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
-
-                ImGui::SameLine();
-                if (ImGui::SmallButton("Del"))
-                {
-                    obj->_instancedTransforms.erase(
-                        obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);
-                    obj->_instancedParamsDirty = true;
-                    obj->_selectedInstanceIdx = -1;
-                }
-                else
-                {
-                    float pos[3] = { t._position.x, t._position.y, t._position.z };
-                    if (ImGui::DragFloat3("Inst Pos", pos, 0.1f))
-                    {
-                        t._position = Vec3(pos[0], pos[1], pos[2]);
-                        obj->_instancedParamsDirty = true;
-                    }
-
-                    Quat q(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w);
-                    Matrix rotMat = Matrix::CreateFromQuaternion(q);
-                    float pitch = asinf(clamp(-rotMat._32, -1.f, 1.f));
-                    float yaw = {}, roll = {};
-                    if (cosf(pitch) > 1e-6f)
-                    {
-                        yaw = atan2f(rotMat._31, rotMat._33);
-                        roll = atan2f(rotMat._12, rotMat._22);
-                    }
-                    else
-                    {
-                        yaw = atan2f(-rotMat._13, rotMat._11);
-                    }
-                    float euler[3] = { XMConvertToDegrees(pitch), XMConvertToDegrees(yaw), XMConvertToDegrees(roll) };
-                    if (ImGui::DragFloat3("Inst Rot", euler, 0.5f))
-                    {
-                        Quat newQ = Quat::CreateFromYawPitchRoll(
-                            XMConvertToRadians(euler[1]),
-                            XMConvertToRadians(euler[0]),
-                            XMConvertToRadians(euler[2]));
-                        t._rotation = Vec4(newQ.x, newQ.y, newQ.z, newQ.w);
-                        obj->_instancedParamsDirty = true;
-                    }
-
-                    float scl[3] = { t._scale.x, t._scale.y, t._scale.z };
-                    if (ImGui::DragFloat3("Inst Scale", scl, 0.01f))
-                    {
-                        t._scale = Vec3(scl[0], scl[1], scl[2]);
-                        obj->_instancedParamsDirty = true;
-                    }
-                }
-            }
-            else
-            {
-                ImGui::TextDisabled("(Click instance mesh from viewport)");
             }
         }
 

@@ -86,6 +86,8 @@ struct SceneContext
     int _pendingBoxCount = {};
     vector<Vec2> _pendingBoxLocalXZ = {};
 
+    void UpdateSingleInstance(EditorObject* obj, int32 instanceIdx);
+
 public: // Minor 테스트 맵 인스턴스 분할
     void Export_MapInstance(const string& mapName);
     void Import_MapInstance(const string& mapName);

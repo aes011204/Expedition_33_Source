@@ -1859,6 +1859,39 @@ void SceneContext::DeleteBoxScatter(EditorObject* obj)
     _dirtyRenderHandles = true;
 }
 
+void SceneContext::UpdateSingleInstance(EditorObject* obj, int32 instanceIdx)
+{
+    if (!obj || instanceIdx < 0 || instanceIdx >= static_cast<int32>(obj->_instancedTransforms.size()))
+    {
+        return;
+    }
+
+    for (int32 ci = 0; ci < static_cast<int32>(obj->_instancedChunkGlobalIndices.size()); ++ci)
+    {
+        auto& globalIndices = obj->_instancedChunkGlobalIndices[ci];
+        auto it = find(globalIndices.begin(), globalIndices.end(), static_cast<uint32>(instanceIdx));
+        if (it == globalIndices.end())
+        {
+            continue;
+        }
+
+        vector<InstanceTransform> chunkTransforms;
+        chunkTransforms.reserve(globalIndices.size());
+        for (uint32 gIdx : globalIndices)
+        {
+            chunkTransforms.push_back(obj->_instancedTransforms[gIdx]);
+        }
+
+        auto& actor = obj->_instancedChunkHandles[ci];
+        if (actor)
+        {
+            actor->UpdateInstances(obj->_instancedModelPath, chunkTransforms, nullptr);
+        }
+
+        return;
+    }
+}
+
 void SceneContext::Export_MapInstance(const string& mapName)
 {
     if (mapName.empty() || mapName == "MapInstance")

@@ -163,15 +163,15 @@ void PanelViewport::Render()
 
                 if (ImGui::IsWindowHovered())
                 {
-                    if (ImGui::IsKeyPressed(ImGuiKey_W))
+                    if (ImGui::IsKeyPressed(ImGuiKey_I))
                     {
                         _gizmoOp = ImGuizmo::TRANSLATE;
                     }
-                    if (ImGui::IsKeyPressed(ImGuiKey_E))
+                    if (ImGui::IsKeyPressed(ImGuiKey_O))
                     {
                         _gizmoOp = ImGuizmo::ROTATE;
                     }
-                    if (ImGui::IsKeyPressed(ImGuiKey_R))
+                    if (ImGui::IsKeyPressed(ImGuiKey_P))
                     {
                         _gizmoOp = ImGuizmo::SCALE;
                     }
@@ -180,8 +180,28 @@ void PanelViewport::Render()
                 float view[16] = {}, proj[16] = {};
                 memcpy(view, &_camera->GetView(), sizeof(float) * 16);
                 memcpy(proj, &_camera->GetProj(), sizeof(float) * 16);
+
+                auto& obj = _ctx->_selected;
+                const int32 instSize = static_cast<int32>(obj->_instancedTransforms.size());
+                const bool isInst = obj->_type == EObjectType::InstancedMesh &&
+                    obj->_selectedInstanceIdx >= 0 &&
+                    obj->_selectedInstanceIdx < instSize;
+
                 float mat[16] = {};
-                memcpy(mat, &_ctx->_selected->_worldMatrix, sizeof(float) * 16);
+
+                if (isInst)
+                {
+                    auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+                    Quat q(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w);
+                    Matrix instMat = Matrix::CreateScale(t._scale)
+                        * Matrix::CreateFromQuaternion(q)
+                        * Matrix::CreateTranslation(t._position);
+                    memcpy(mat, &instMat, sizeof(float) * 16);
+                }
+                else
+                {
+                    memcpy(mat, &obj->_worldMatrix, sizeof(float) * 16);
+                }
 
                 const bool ctrlHeld = ImGui::GetIO().KeyCtrl && _snapSettings;
                 float snapValues[3] = {};
@@ -205,28 +225,52 @@ void PanelViewport::Render()
                 bool gizmoUsing = ImGuizmo::IsUsing();
                 if (gizmoUsing && !_gizmoWasUsing)
                 {
-                    _gizmoPrevPos = _ctx->_selected->_position;
-                    _gizmoPrevRot = _ctx->_selected->_rotation;
-                    _gizmoPrevScale = _ctx->_selected->_scale;
+                    _gizmoPrevPos = isInst ? obj->_instancedTransforms[obj->_selectedInstanceIdx]._position : obj->_position;
+                    _gizmoPrevRot = isInst ? Quat(obj->_instancedTransforms[obj->_selectedInstanceIdx]._rotation.x,
+                        obj->_instancedTransforms[obj->_selectedInstanceIdx]._rotation.y,
+                        obj->_instancedTransforms[obj->_selectedInstanceIdx]._rotation.z,
+                        obj->_instancedTransforms[obj->_selectedInstanceIdx]._rotation.w) : obj->_rotation;
+                    _gizmoPrevScale = isInst ? obj->_instancedTransforms[obj->_selectedInstanceIdx]._scale : obj->_scale;
                 }
 
                 const bool manipulated = ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat,
                     nullptr, ctrlHeld ? snapValues : nullptr);
                 if (manipulated)
                 {
-                    memcpy(&_ctx->_selected->_worldMatrix, mat, sizeof(float) * 16);
-                    _ctx->_selected->_worldMatrix.Decompose(
-                        _ctx->_selected->_scale,
-                        _ctx->_selected->_rotation,
-                        _ctx->_selected->_position);
+                    Matrix result;
+                    memcpy(&result, mat, sizeof(float) * 16);
+
+                    if (isInst)
+                    {
+                        auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+                        Vec3 scale; Quat rot; Vec3 pos;
+                        result.Decompose(scale, rot, pos);
+                        t._position = pos;
+                        t._rotation = Vec4(rot.x, rot.y, rot.z, rot.w);
+                        t._scale = scale;
+                        _ctx->UpdateSingleInstance(obj.get(), obj->_selectedInstanceIdx);
+                    }
+                    else
+                    {
+                        memcpy(&obj->_worldMatrix, mat, sizeof(float) * 16);
+                        obj->_worldMatrix.Decompose(obj->_scale, obj->_rotation, obj->_position);
+                    }
                 }
 
                 if (!gizmoUsing && _gizmoWasUsing)
                 {
-                    _ctx->PushCommand(CmdTransformObject::Create(
-                        _ctx->_selected,
-                        _gizmoPrevPos, _gizmoPrevRot, _gizmoPrevScale,
-                        _ctx->_selected->_position, _ctx->_selected->_rotation, _ctx->_selected->_scale));
+                    if (isInst)
+                    {
+                        obj->_instancedParamsDirty = true;
+                        _ctx->_dirtyRenderHandles  = true;
+                    }
+                    else
+                    {
+                        _ctx->PushCommand(CmdTransformObject::Create(
+                            _ctx->_selected,
+                            _gizmoPrevPos, _gizmoPrevRot, _gizmoPrevScale,
+                            _ctx->_selected->_position, _ctx->_selected->_rotation, _ctx->_selected->_scale));
+                    }
                 }
 
                 _gizmoWasUsing = gizmoUsing;
