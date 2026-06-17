@@ -20,8 +20,22 @@ bool GamePlayMenuFade::Request_MenuTransition(
 
 bool GamePlayMenuFade::Should_UseFade(GameplayMenu From, GameplayMenu To) const
 {
+    const auto isCharacterProgressionFlow = [](GameplayMenu menu)
+    {
+        return menu == GameplayMenu::CharacterProgression ||
+               menu == GameplayMenu::WeaponUpgrade ||
+               menu == GameplayMenu::ChangeSkill ||
+               menu == GameplayMenu::Wardrobe;
+    };
+
+    if (isCharacterProgressionFlow(From) && isCharacterProgressionFlow(To))
+        return false; // Progression 내부 탭 이동은 화면 fade 없이 즉시 바꾼다.
+
+    if (isCharacterProgressionFlow(From) || isCharacterProgressionFlow(To))
+        return true;
+
     if (From == GameplayMenu::SavePoint &&
-        (To == GameplayMenu::SkillTree || To == GameplayMenu::WeaponUpgrade || To == GameplayMenu::CharacterStatus ))
+        (To == GameplayMenu::SkillTree || To == GameplayMenu::WeaponUpgrade || To == GameplayMenu::CharacterStatus))
     {
         return true;
     }

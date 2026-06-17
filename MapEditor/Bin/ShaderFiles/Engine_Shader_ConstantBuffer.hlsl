@@ -167,7 +167,22 @@ cbuffer PostProcessBuffer
     float4 g_PP_Padding2;              // 48 ~ 63
 
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
-}; // 80 bytes
+
+    float g_PP_DOFFocusDistance;       // 80 ~ 83
+    float g_PP_DOFFocusRange;          // 84 ~ 87
+    float g_PP_DOFNearMaxRadius;       // 88 ~ 91
+    float g_PP_DOFFarMaxRadius;        // 92 ~ 95
+
+    float g_PP_DOFBokehThreshold;      //  96 ~  99
+    float g_PP_DOFBokehIntensity;      // 100 ~ 103
+    float g_PP_DOFDepthSharpness;      // 104 ~ 107
+    float g_PP_DOFCoCEpsilon;          // 108 ~ 111
+
+    float g_PP_DOFNearIntensity;       // 112 ~ 115
+    float g_PP_DOFFarIntensity;        // 116 ~ 119
+    uint g_PP_DOFSampleCount;          // 120 ~ 123
+    uint g_PP_DOFDebugMode;            // 124 ~ 127
+}; // 128 bytes
 
 cbuffer LightShaftBuffer
 {
@@ -305,6 +320,56 @@ cbuffer PlayerRenderBuffer
 {
     float4 g_PlayerNearClipParams;
     // x: enabled, y: camera-space clip distance
+}
+
+cbuffer FroxelDebugBuffer
+{
+    uint g_FroxelDebugWidth;
+    uint g_FroxelDebugHeight;
+    uint g_FroxelDebugDepth;
+    uint g_FroxelDebugSlice;
+};
+
+struct VolumetricLightShaftZoneEntry
+{
+    row_major float4x4 worldToLocal;
+
+    float3 halfExtents;
+    float density;
+
+    float4 lightColor;
+
+    float edgeFade;
+    float intensity;
+    float2 padding;
+};
+
+// 카메라/Froxel/광원 공통 데이터
+cbuffer FroxelBuffer : register(b0)
+{
+    uint g_FroxelWidth;
+    uint g_FroxelHeight;
+    uint g_FroxelDepth;
+    float g_FroxelNear;
+
+    float g_FroxelFar;
+    float3 froxelPadding;
+
+    row_major float4x4 g_FroxelInvView;
+    row_major float4x4 g_FroxelInvProjection;
+
+    float4 g_FroxelLightDirection;
+    float4 g_FroxelLightColor;
+    float4 g_FroxelCamPosition;
+}
+
+// 카메라/Froxel/광원 공통 데이터
+cbuffer VolumetricLightShaftZoneBuffer : register(b1)
+{
+    VolumetricLightShaftZoneEntry g_LightShaftZones[8];
+
+    uint g_LightShaftZoneCount;
+    float3 g_LightShaftZonePadding;
 }
 
 #endif

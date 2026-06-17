@@ -79,7 +79,7 @@ HRESULT Renderer::Initialize()
 
     _lightingPipeline = LightingPipeline::Create(_device, _context);
     CHECK_NULL(_lightingPipeline, E_FAIL);
-
+    
 	return S_OK;
 }
 
@@ -100,6 +100,9 @@ void Renderer::Draw()
     // ======================================================================================================
 
     _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
+
+    if (_ppPipeline)
+        _ppPipeline->Update(GAME->Get_WorldTimeDelta());
 
     Change_ViewportDesc(_screenSize.width, _screenSize.height);
     Reset_RenderCall();
@@ -182,7 +185,9 @@ void Renderer::Draw()
 
     // fog
     Render_Fog();
-    //
+
+    // 하 짜증나죽겠네ㅐ 진짜 좀 
+    Render_VolumetricLightShaft();
 
     // ========================================= //
     Render_NonLight();
@@ -755,6 +760,59 @@ void Renderer::Render_Fog()
     Add_RenderCall();
 }
 
+void Renderer::Render_VolumetricLightShaft()
+{
+    if (!_lightingPipeline)
+        return ;
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+
+    const Matrix* inverseView = GAME->Get_Transform_Inverse(D3DTS::View);
+    const Matrix* inverseProjection = GAME->Get_Transform_Inverse(D3DTS::Proj);
+
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
+        return ;
+
+    const Vec4* camPosition = GAME->Get_CamPosition();
+    if (activeCamera == nullptr || inverseView == nullptr || inverseProjection == nullptr || camPosition == nullptr)
+        return;
+
+    FroxelCB froxelCB{};
+    froxelCB.froxelWidth = _lightingPipeline->Get_DebugFroxelWidth();
+    froxelCB.froxelHeight = _lightingPipeline->Get_DebugFroxelHeight();
+    froxelCB.froxelDepth = _lightingPipeline->Get_DebugFroxelDepth();
+    froxelCB.froxelNear = activeCamera->Get_Near();
+    froxelCB.froxelFar = 100.f;
+
+    froxelCB.inverseView = *inverseView;
+    froxelCB.inverseProjection = *inverseProjection;
+    froxelCB.froxelPadding = Vec3(0.f, 0.f, 0.f);
+
+    froxelCB.lightDirection = lightDesc->direction;
+    froxelCB.lightColor = lightDesc->diffuse;
+
+    froxelCB.camPosition = *GAME->Get_CamPosition();
+
+    if(FAILED(_lightingPipeline->Update_FroxelZone(_lightShaftZoneCB)))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Update_FroxelZone");
+        return;
+    }
+
+    if(FAILED(_lightingPipeline->Update_Froxel(froxelCB)))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Update_Froxel");
+        return;
+    }
+
+    if(FAILED(_lightingPipeline->Dispatch_Froxel()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_Froxel");
+        return;
+    }
+}
+
 void Renderer::Render_NonLight()
 {
     RETURN_LOG_IF_FAILED(
@@ -1061,6 +1119,54 @@ void Renderer::Render_PostProcess()
             L"Render_PostProcess:FAIL Render_LightShaftCompositePass");
     }
 
+    const bool useDOF = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::DOF);
+    if (useDOF)
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Render::DOF");
+
+        const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
+
+        RETURN_LOG_IF_FAILED(
+            _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
+            L"Render_PostProcess:FAIL Bind_CBufferData(DOF)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFPreFilter)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFPreFilterPass(),
+            L"Render_PostProcess:FAIL Render_DOFPreFilterPass");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFBlurNear)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFBlurPass(MRT::DOFNearHalfB, "g_DOFSourceTexture", RT::DOFNearHalfA, PostProcessPass::DOFBlurNearHalf),
+            L"Render_PostProcess:FAIL Render_DOFBlurPass(Near)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFBlurFar)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFBlurPass(MRT::DOFFarHalfB, "g_DOFSourceTexture", RT::DOFFarHalfA, PostProcessPass::DOFBlurFarHalf),
+            L"Render_PostProcess:FAIL Render_DOFBlurPass(Far)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+            L"Render_PostProcess:FAIL Copy_RTV(HDRColor -> DistortionSource:DOF)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFCompositePass(),
+            L"Render_PostProcess:FAIL Render_DOFCompositePass");
+    }
+
     // Bloom Mip Chain 구조. 해상도를 낮춰서 샘플링 횟수를 줄인다.
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
     if (useBloom)
@@ -1327,6 +1433,42 @@ HRESULT Renderer::Reload_RendererShaders()
     return E_FAIL;
 }
 
+HRESULT Renderer::Reload_LightingPipelineShaders()
+{
+    CHECK_NULL(_lightingPipeline, E_FAIL);
+    return _lightingPipeline->Reload_FroxelComputeShader();
+}
+
+HRESULT Renderer::Begin_DOFOverrideScope(const string& ownerTag)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Begin_DOFOverrideScope(ownerTag);
+}
+
+HRESULT Renderer::Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Set_DOFOverridePreset(ownerTag, preset, transition);
+}
+
+HRESULT Renderer::Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Set_DOFOverrideFocus(ownerTag, focusDistance, focusRange);
+}
+
+HRESULT Renderer::Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Clear_DOFOverrideToBaseline(ownerTag, transition);
+}
+
+HRESULT Renderer::End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->End_DOFOverrideScope(ownerTag, transition);
+}
+
 void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)
 {
     width = max(1u, width);
@@ -1533,6 +1675,127 @@ HRESULT Renderer::Render_LightShaftCompositePass()
     RETURN_FAIL_LOG_IF_FAILED(
         GAME->End_MRT(),
         L"Render_PostProcess:FAIL End_MRT(HDR,LightShaftComposite)");
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DOFPreFilterPass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::DOFPreFilterHalf, NotUseDSV, ClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(DOFPreFilterHalf)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_HDRTexture-DOFPreFilter)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DepthTexture", RT::Depth),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DepthTexture-DOFPreFilter)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::DOFPreFilterHalf)),
+        L"Render_PostProcess:FAIL ShaderBegin(DOFPreFilterHalf)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PostProcess:FAIL RenderRect(DOFPreFilterHalf)");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(DOFPreFilterHalf)");
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DOFBlurPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass)
+{
+    const wchar_t* passName = L"DOFUnknown";
+    switch (pass)
+    {
+    case PostProcessPass::DOFBlurNearHalf: passName = L"DOFBlurNearHalf"; break;
+    case PostProcessPass::DOFBlurFarHalf:  passName = L"DOFBlurFarHalf"; break;
+    default: break;
+    }
+
+    const wstring beginLog = wstring(L"Render_PostProcess:FAIL Begin_MRT(") + dstMrt + L"," + passName + L")";
+    const wstring srcBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(") + std::wstring(srcRt) + L"," + passName + L")";
+    const wstring cocBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(DOFCoCHalf,") + passName + L")";
+    const wstring depthBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(Depth,") + passName + L")";
+    const wstring shaderLog = wstring(L"Render_PostProcess:FAIL ShaderBegin(") + passName + L")";
+    const wstring renderLog = wstring(L"Render_PostProcess:FAIL RenderRect(") + passName + L")";
+    const wstring endLog = wstring(L"Render_PostProcess:FAIL End_MRT(") + dstMrt + L"," + passName + L")";
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+        beginLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, srcResourceName, srcRt),
+        srcBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFCoCTexture", RT::DOFCoCHalf),
+        cocBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DepthTexture", RT::Depth),
+        depthBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(pass)),
+        shaderLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        renderLog.c_str());
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DOFCompositePass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(HDR,DOFComposite)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DistortionSourceTexture-DOF)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFCoCTexture", RT::DOFCoCHalf),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFCoCTexture-DOF)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFNearTexture", RT::DOFNearHalfB),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFNearTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFFarTexture", RT::DOFFarHalfB),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFFarTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::DOFCompositeHDR)),
+        L"Render_PostProcess:FAIL ShaderBegin(DOFCompositeHDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PostProcess:FAIL RenderRect(DOFCompositeHDR)");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(HDR,DOFComposite)");
 
     Add_RenderCall();
 
@@ -1939,10 +2202,6 @@ void Renderer::Add_DebugRenderGroup(Shared<Component> debugComponent)
 
 void Renderer::Render_Debug()
 {
-    // TODO : Component 에 해당 함수 추가 후 작성
-    //for (auto& debugCom : _debugComponents)
-    //    debugCom->Render_Debug();
-
     if (GAME->Get_ActiveCamera() == nullptr)
         return;
 
@@ -1961,7 +2220,44 @@ void Renderer::Render_Debug()
         CHECK_FAILED(Bind_ScreenSpaceCB(_deferredShader));
     }
 
+    if (_lightingPipeline && _deferredShader && _viBuffer)
+    {
+        const auto& rtStates = GAME->Get_RTs();
+        const auto froxelDebugIter = rtStates.find(RT::FroxelDebug);
+        const bool showFroxelDebug = froxelDebugIter != rtStates.end() && froxelDebugIter->second;
+
+        // 3D 텍스쳐인 froxel debug는 별도 처리
+        if (showFroxelDebug)
+        {
+            CHECK_FAILED(GAME->Begin_MRT(MRT::FroxelDebug, NotUseDSV, ClearRTV));
+
+            const FroxelDebugCB froxelDebugCB
+            {
+                _lightingPipeline->Get_DebugFroxelWidth(),
+                _lightingPipeline->Get_DebugFroxelHeight(),
+                _lightingPipeline->Get_DebugFroxelDepth(),
+                _lightingPipeline->Get_DebugFroxelSlice()
+            };
+
+            if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)) ||
+                FAILED(Bind_ScreenSpaceCB(_deferredShader)) ||
+                FAILED(_deferredShader->Bind_CBufferData(froxelDebugCB)) ||
+                FAILED(_deferredShader->Bind_SRV("g_FroxelTexture", _lightingPipeline->Get_DebugFroxelSRV())) ||
+                FAILED(_viBuffer->Bind_Resources()) ||
+                FAILED(_deferredShader->Begin(ETOI(DeferredPass::FroxelDebug))) || /* 별도의 디버그 패스 */
+                FAILED(_viBuffer->Render()))
+            {
+                GAME->End_MRT();
+                return;
+            }
+
+            CHECK_FAILED(GAME->End_MRT());
+            CHECK_FAILED(_deferredShader->Bind_SRV("g_FroxelTexture", nullptr));
+        }
+    }
+
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
+
     Add_RenderCall();
 }
 

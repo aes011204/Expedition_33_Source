@@ -25,6 +25,7 @@ public:
         // 각 무기별 크기, 위치는 프리펩에서 조절하십쇼
         bool            useBodyFollow{ false };
         Vec3            bodyFollowOffset{ Vec3::Zero };
+        bool            applyAttachScaleCompensation{ false }; // WP prefab 단독 보기에서는 0.1 유지, 장착 runtime에서만 x10 보정
 
     }WEAPON_DESC;
 
@@ -61,6 +62,10 @@ private:
     HRESULT Ready_DefaultComponents(); // desc 없이 생성
     HRESULT Bind_ShaderResources();
     HRESULT Ensure_RuntimeComponentsFromJson(const json& data);
+
+    // 프리펩에서 Scale을 1로하면 너무 커서, 0.1로 하고 런타임 도중에 보정
+    void    Apply_AttachScale();
+
     bool    Is_LuneHoverWeapon() const;
     float   Get_LuneHoverOffsetY() const;
 
@@ -72,6 +77,7 @@ private:
     const Matrix*       _socketMatrix = { nullptr };
     bool                _useBodyFollow = false;
     Vec3                _bodyFollowOffset = Vec3::Zero;
+    bool                _applyAttachScaleCompensation = false;
 
     wstring             _trailEffectName = L""; // 무기 프리펩이 들고 있는 기본 Trail 이펙트 이름
 

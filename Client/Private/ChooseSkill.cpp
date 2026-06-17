@@ -37,6 +37,7 @@ bool ChooseSkill::EnterInvoke()
 
     auto& request = owner->Get_TurnActionRequest();
     request.skillKey.clear(); // 스킬 메뉴 재진입 시 이전 선택값 제거
+    request.skillPage = 0;    // 기본 스킬 페이즈는 항상 0
 
     const BattleChar& actor = request.actor;
     if (actor.ModelCom)
@@ -73,6 +74,7 @@ void ChooseSkill::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         request.skillKey.clear(); // 스킬 메뉴 취소
+        request.skillPage = 0;
         BattleAnimUtils::Play_BattleIdle(request.actor, 0.3f);
 
         EvtBattlePresentation event;
@@ -80,26 +82,37 @@ void ChooseSkill::Update(float timeDelta)
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 
-
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
     }
 
+    if (GAME->KeyDown(KEY_TYPE::R))
+    {
+        request.skillPage = (request.skillPage == 0) ? 1 : 0;
+        return;
+    }
+
     uint32 slotIndex = 0;
-    if (GAME->KeyDown(KEY_TYPE::Q))
+    if (request.skillPage == 0)
     {
-        slotIndex = 0; // Q는 첫 번째 battle skill slot
-    }
-    else if (GAME->KeyDown(KEY_TYPE::W))
-    {
-        slotIndex = 1; // W는 두 번째 battle skill slot
-    }
-    else if (GAME->KeyDown(KEY_TYPE::E))
-    {
-        slotIndex = 2; // E는 세 번째 battle skill slot
+        if (GAME->KeyDown(KEY_TYPE::Q))
+            slotIndex = 0;
+        else if (GAME->KeyDown(KEY_TYPE::W))
+            slotIndex = 1;
+        else if (GAME->KeyDown(KEY_TYPE::E))
+            slotIndex = 2;
+        else
+            return;
     }
     else
-        return;
+    {
+        if (GAME->KeyDown(KEY_TYPE::Q))
+            slotIndex = 3;
+        else if (GAME->KeyDown(KEY_TYPE::W))
+            slotIndex = 4;
+        else
+            return; // TODO : 그래디언트 추가하기.
+    }
 
     string skillKey{};
     if (!request.actor.statCom->Try_GetSkillKeyBySlot(slotIndex, skillKey))

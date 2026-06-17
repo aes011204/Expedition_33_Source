@@ -92,5 +92,27 @@ namespace Client
         END
     };
 
+    // 프리뷰 애니메이션 타입
+    enum class PreviewAnimState
+    {
+        Overview_Intro,
+        Overview_Idle,
+
+        Skill_Intro,
+        Skill_Idle,
+
+        SkillTree_Intro,
+        SkillTree_Idle,
+
+        Weapon_Intro,
+        Weapon_Idle,
+
+        Wardrobe_Intro,
+        Wardrobe_Idle,
+
+        Pictos_Intro,
+        Pictos_Idle,
+    };
+
 }
 

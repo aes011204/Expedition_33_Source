@@ -121,7 +121,7 @@ HRESULT Level_GamePlay::Ready_Lights()
 
         ShadowDesc.cascadeSplitLambda = 0.8f;
         ShadowDesc.bias = 0.0002f;
-        ShadowDesc.intensity = 0.45f;
+        ShadowDesc.intensity = 0.6f;
 
         if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
             return E_FAIL;

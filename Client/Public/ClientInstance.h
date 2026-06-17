@@ -45,6 +45,7 @@ public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
     HRESULT Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update_Client(float timeDelta);
+    void    Update_UIPreviewOnly(float timeDelta);
 	void    Release_Client();
 
 	/* 레벨 진입 전에 공용/정적 클라 리소스를 준비할 때 호출한다. */
@@ -76,6 +77,10 @@ public: /* For.GameData Table */
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);
     bool              Consume_Item(BattleItemType itemType);
+
+    const GameDataTable::PictosDesc* Get_PictosDesc(const string& pictosId) const;
+    const vector<GameDataTable::PictosDesc>& Get_PictosDescs() const;
+    const vector<string> Get_AllPictosIds() const;
 
 public:
     void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
@@ -109,6 +114,9 @@ public: /* For.Hero Manager */
     Shared<Player_WorldBase>  Find_Hero(HeroId heroId) const;
 
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
+
+    // 장착 무기 비어있으면 디폴트 세팅
+    bool Ensure_DefaultEquippedWeapon(HeroId heroId); 
 
     void Reset_AllHeroesToIdle();
     void Restore_PartyFormationAfterEditorStop();
@@ -201,6 +209,9 @@ public: /* Player Inventory */
 
 public: /* Costume Manager */
     CostumeManager* Get_CostumeManager() const { return _costumeManager.get(); }
+
+    void    Sync_PreviewHeroRuntimeData(HeroId heroId);
+    void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim);
 
 private:
 	HRESULT Ready_ResourceLoader();

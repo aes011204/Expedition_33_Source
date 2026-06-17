@@ -75,6 +75,7 @@ private:
     HRESULT Loading_For_GamePlayLevel();
     HRESULT Loading_For_MapTestLevel();
     HRESULT Loading_For_Stage01Level();
+    HRESULT Loading_For_GestralVillageLevel();
 
 private:
     void Accumulate_LoadJobStats(ELoadJobType jobType, chrono::milliseconds duration);
