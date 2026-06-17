@@ -61,6 +61,8 @@ class ShaderCom_Controller;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
 class ScreenFx_Instance;
+struct DOFPreset;
+struct DOFTransitionDesc;
 NS_END
 #pragma endregion
 
@@ -231,6 +233,11 @@ public: /* For.Renderer */
     uint32 Get_RenderCall() const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
+    HRESULT Begin_DOFOverrideScope(const string& ownerTag);
+    HRESULT Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition);
+    HRESULT Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange);
+    HRESULT Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition);
+    HRESULT End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition);
     const Shared<LightingPipeline>      Get_LightingPipeline() const;
     Shared<LightingPipeline>            Get_LightingPipeline();
     HRESULT                             Reload_RendererShaders();

@@ -1481,6 +1481,36 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
+HRESULT GameInstance::Begin_DOFOverrideScope(const string& ownerTag)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Begin_DOFOverrideScope(ownerTag);
+}
+
+HRESULT GameInstance::Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Set_DOFOverridePreset(ownerTag, preset, transition);
+}
+
+HRESULT GameInstance::Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Set_DOFOverrideFocus(ownerTag, focusDistance, focusRange);
+}
+
+HRESULT GameInstance::Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Clear_DOFOverrideToBaseline(ownerTag, transition);
+}
+
+HRESULT GameInstance::End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->End_DOFOverrideScope(ownerTag, transition);
+}
+
 const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();

@@ -205,6 +205,11 @@ public:
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
+
+    // DOF_MODIFY 
+    void    Begin_BattleDOFOverride();
+    void    End_BattleDOFOverride();
+    Engine::DOFTransitionDesc Build_BattleDOFRestoreTransition();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
     void    Push_TurnEntry(const BattleChar& actor, float nextTime);

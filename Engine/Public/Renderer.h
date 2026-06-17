@@ -15,6 +15,8 @@ class PostProcessPipeline;
 class LightingPipeline;
 class LightPipeline;
 class Texture;
+struct DOFPreset;
+struct DOFTransitionDesc;
 
 class Renderer final : public Base
 {
@@ -53,6 +55,11 @@ public:
     }
     HRESULT Reload_RendererShaders();
     HRESULT Reload_LightingPipelineShaders();
+    HRESULT Begin_DOFOverrideScope(const string& ownerTag);
+    HRESULT Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition);
+    HRESULT Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange);
+    HRESULT Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition);
+    HRESULT End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition);
     RenderGroup Get_CurrentGroup() const
     {
         return _currentGroup;

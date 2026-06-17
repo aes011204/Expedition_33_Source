@@ -86,7 +86,8 @@ float3 SampleBloomUpsampleAdd(float2 uv)
 
 float GetDOFViewZ(float2 uv)
 {
-    return g_DepthTexture.Sample(PointClampSampler, uv).y * g_DeferredFar;
+    const float viewZ = g_DepthTexture.Sample(PointClampSampler, uv).y * g_DeferredFar;
+    return (viewZ <= EPSILON) ? g_DeferredFar : viewZ;
 }
 
 float2 ComputeDOFCoC(float viewZ)
@@ -175,10 +176,9 @@ float4 SampleDOFBlur(float2 uv, bool nearBlur)
         }
         else
         {
-            const float foregroundDelta = centerDepth - sampleDepth;
-            depthWeight = (foregroundDelta > 0.f)
-                ? exp(-foregroundDelta * sharpness * 0.25f)
-                : 1.f;
+            const float foregroundDelta = max(centerDepth - sampleDepth, 0.f);
+            const float relativeForegroundDelta = foregroundDelta / max(centerDepth, 1.f);
+            depthWeight = exp(-relativeForegroundDelta / sharpness);
         }
 
         const float cocSoftness = lerp(0.35f, 1.f, ComputeDOFBlendSoftness(sampleWeightCoC));

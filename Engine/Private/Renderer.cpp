@@ -101,6 +101,9 @@ void Renderer::Draw()
 
     _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
 
+    if (_ppPipeline)
+        _ppPipeline->Update(GAME->Get_WorldTimeDelta());
+
     Change_ViewportDesc(_screenSize.width, _screenSize.height);
     Reset_RenderCall();
 
@@ -1122,7 +1125,6 @@ void Renderer::Render_PostProcess()
         ENGINE_PROFILE_SCOPE_DETAIL("Render::DOF");
 
         const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
-        const ViewportSize quarter = { max(1u, viewportWidth / 4u), max(1u, viewportHeight / 4u) };
 
         RETURN_LOG_IF_FAILED(
             _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
@@ -1149,15 +1151,7 @@ void Renderer::Render_PostProcess()
             L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFBlurFar)");
 
         RETURN_LOG_IF_FAILED(
-            Render_BloomPass(MRT::DOFFarQuarterA, RT::DOFFarHalfA, PostProcessPass::BloomDownsample),
-            L"Render_PostProcess:FAIL Render_BloomPass(DOFFarQuarterA)");
-
-        RETURN_LOG_IF_FAILED(
-            Bind_ScreenSpaceCB(_postprocessShader, quarter.width, quarter.height),
-            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFBlurFarQuarter)");
-
-        RETURN_LOG_IF_FAILED(
-            Render_DOFBlurPass(MRT::DOFFarQuarterB, "g_DOFSourceTexture", RT::DOFFarQuarterA, PostProcessPass::DOFBlurFarHalf),
+            Render_DOFBlurPass(MRT::DOFFarHalfB, "g_DOFSourceTexture", RT::DOFFarHalfA, PostProcessPass::DOFBlurFarHalf),
             L"Render_PostProcess:FAIL Render_DOFBlurPass(Far)");
 
         RETURN_LOG_IF_FAILED(
@@ -1443,6 +1437,36 @@ HRESULT Renderer::Reload_LightingPipelineShaders()
 {
     CHECK_NULL(_lightingPipeline, E_FAIL);
     return _lightingPipeline->Reload_FroxelComputeShader();
+}
+
+HRESULT Renderer::Begin_DOFOverrideScope(const string& ownerTag)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Begin_DOFOverrideScope(ownerTag);
+}
+
+HRESULT Renderer::Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Set_DOFOverridePreset(ownerTag, preset, transition);
+}
+
+HRESULT Renderer::Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Set_DOFOverrideFocus(ownerTag, focusDistance, focusRange);
+}
+
+HRESULT Renderer::Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->Clear_DOFOverrideToBaseline(ownerTag, transition);
+}
+
+HRESULT Renderer::End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_ppPipeline, E_FAIL);
+    return _ppPipeline->End_DOFOverrideScope(ownerTag, transition);
 }
 
 void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)
@@ -1758,7 +1782,7 @@ HRESULT Renderer::Render_DOFCompositePass()
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFNearTexture)");
 
     ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFFarTexture", RT::DOFFarQuarterB),
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFFarTexture", RT::DOFFarHalfB),
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFFarTexture)");
 
     ENDMRT_RETURN_FAIL_LOG_IF_FAILED(

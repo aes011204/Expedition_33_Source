@@ -194,7 +194,7 @@ struct alignas(16) PostProcessCB
     Vec4 backgroundFallbackColor{ 0.f, 0.f, 0.f, 1.f }; // fallback 배경색
 
     float dofFocusDistance = 3.f;
-    float dofFocusRange = 20.f;
+    float dofFocusRange = 40.f;
     float dofNearMaxRadius = 0.55f;
     float dofFarMaxRadius = 0.85f;
 
@@ -204,7 +204,7 @@ struct alignas(16) PostProcessCB
     float dofCoCEpsilon = 0.01f;
 
     float dofNearIntensity = 0.85f;
-    float dofFarIntensity = 2.f;
+    float dofFarIntensity = 0.48f;
     uint32 dofSampleCount = 12;
     uint32 dofDebugMode = 0;
     float _pad3[2]{};
