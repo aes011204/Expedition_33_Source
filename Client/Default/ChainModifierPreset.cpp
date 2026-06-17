@@ -67,16 +67,6 @@ namespace
         return desc;
     }
 
-    ChainModifier::FloatCurveDesc MakeLinearCurve(float startValue, float endValue)
-    {
-        ChainModifier::FloatCurveDesc curve{};
-        curve.keys = {
-            { 0.f, startValue },
-            { 1.f, endValue }
-        };
-        return curve;
-    }
-
     wstring GetPhysicsAssetPath(PlayerCharacterType characterType)
     {
         switch (characterType)
@@ -206,7 +196,7 @@ void ChainModifierPreset::BuildScarfDesc(
     desc.shape.pinRoot = true;
 
     desc.motion.damping = 0.35f;
-    desc.motion.gravity = Vec3::Zero;
+    desc.runtime.gravity = Vec3::Zero;
     desc.motion.movementInertiaScale = 0.f;
     desc.motion.maxMovementOffset = 0.f;
     desc.motion.solverIterations = 4;
@@ -220,8 +210,6 @@ void ChainModifierPreset::BuildScarfDesc(
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = kScarfWindIntensity;
-    desc.runtime.useAnimatedPoseAsRest = true;
-
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
 
     if (characterType == PlayerCharacterType::Maelle)
@@ -386,24 +374,26 @@ void ChainModifierPreset::BuildArmbandDesc(
     desc.shape.stiffness = 1.0f;
     desc.shape.poseRestoreStrength = 0.00005f;
     desc.shape.maxBendAngleDegree = 75.f;
-    desc.shape.rootRotationOffsetDegrees = Vec3(75.f, 0.f, 0.f);
+    for (auto& group : desc.groups)
+    {
+        group.rootRotationOffsetDegrees = Vec3(75.f, 0.f, 0.f);
+    }
 
     desc.motion.damping = 0.98f;
-    desc.motion.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 0.24f;
-    desc.motion.tipMovementInertiaScale = 1.25f;
+    desc.motion.movementInertiaScale = 0.48f;
+    desc.motion.tipMovementInertiaScale = 2.5f;
     desc.motion.maxMovementOffset = 0.075f;
-    desc.motion.solverIterations = 5;
+    desc.motion.solverIterations = 2;
 
     desc.collision.enableCollision = false;
     desc.collision.collisionRadiusPadding = 0.15f;
     desc.collision.physicsAssetPath = GetPhysicsAssetPath(characterType);
     desc.collision.debugDrawCapsules = false;
+
+    desc.runtime.gravity = kCommonGravity;
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = 0.0001f;
-    desc.runtime.windStartRatio = 0.45f;
-    desc.runtime.windWeightScale = 0.15f;
     desc.runtime.windStartRatio = 0.0005f;
     desc.runtime.windWeightScale = 0.9f;
 
@@ -434,13 +424,12 @@ void ChainModifierPreset::BuildAbbestClothDesc(
     desc.shape.tipPoseRestoreScale = 0.28f;
     desc.shape.maxBendAngleDegree = 105.f;
     desc.shape.tipMaxBendAngleScale = 1.22f;
-    desc.shape.pinRoot = false;
-    desc.shape.rootRotationOffsetDegrees = Vec3::Zero;
+    desc.shape.pinRoot = true;
     desc.motion.damping = 0.965f;
     desc.motion.tipDampingScale = 1.08f;
-    desc.motion.gravity = kCommonGravity;
+    desc.runtime.gravity = Vec3::Zero;
     desc.motion.movementInertiaScale = 0.145f;
-    desc.motion.tipMovementInertiaScale = 1.34f;
+    desc.motion.tipMovementInertiaScale = 2.8f;
     desc.motion.maxMovementOffset = 0.042f;
     desc.motion.solverIterations = 5;
 
@@ -478,14 +467,48 @@ void ChainModifierPreset::BuildBishopClothDesc(
         { "Eveque_Top_Cloth_BR_01_01" },
         { "Eveque_Top_Cloth_BR_02_01" },
         { "Eveque_Top_Cloth_FR_01_01" },
-        { "Eveque_Top_Cloth_FR_02_01" },
-        
+        { "Eveque_Top_Cloth_FR_02_01" }
+    };
+
+    desc.shape.stiffness = 1.0f;
+    desc.shape.poseRestoreStrength = 0.00005f;
+    desc.shape.maxBendAngleDegree = 120.f;
+    desc.shape.pinRoot = false;
+
+    desc.motion.damping = 0.98f;
+    desc.motion.tipDampingScale = 1.f;
+    desc.runtime.gravity = kCommonGravity;
+    desc.motion.movementInertiaScale = 0.55f;
+    desc.motion.tipMovementInertiaScale = 2.8f;
+    desc.motion.maxMovementOffset = 0.075f;
+    desc.motion.solverIterations = 2;
+
+    desc.runtime.ownerTransform = ownerTransform;
+    desc.runtime.windDirection = kCommonWindDirection;
+    desc.runtime.windScale = 0.0012f;
+    desc.runtime.constraintDeadzone = 0.025f;
+
+    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+    return;
+}
+
+void ChainModifierPreset::BuildBishopLegClothDesc(
+    ChainModifier::ChainModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    PlayerCharacterType characterType,
+    const wstring& modifierTag)
+{
+    auto& desc = outDesc;
+    desc = {};
+    desc.modifierTag = modifierTag;
+
+    desc.groups = {
         { "Eveque_Leg_Cloth_F_01" },
 
         { "Eveque_Leg_Cloth_l_01_01" },
         { "Eveque_Leg_Cloth_l_02_01" },
         { "Eveque_Leg_Cloth_l_03_01" },
-        
+
         { "Eveque_Leg_Cloth_r_01_01" },
         { "Eveque_Leg_Cloth_r_02_01" },
         { "Eveque_Leg_Cloth_r_03_01" }
@@ -494,25 +517,20 @@ void ChainModifierPreset::BuildBishopClothDesc(
     desc.shape.stiffness = 1.0f;
     desc.shape.poseRestoreStrength = 0.00005f;
     desc.shape.maxBendAngleDegree = 120.f;
-    desc.shape.pinRoot = true;
-    desc.shape.rootRotationOffsetDegrees = Vec3::Zero;
+    desc.shape.pinRoot = false;
 
     desc.motion.damping = 0.98f;
     desc.motion.tipDampingScale = 1.f;
-    desc.motion.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 1.75f;
-    desc.motion.tipMovementInertiaScale = 1.25f;
-    desc.motion.maxMovementOffset = 0.16f;
+    desc.runtime.gravity = kCommonGravity;
+    desc.motion.movementInertiaScale = 0.9f;
+    desc.motion.tipMovementInertiaScale = 2.8f;
+    desc.motion.maxMovementOffset = 0.075f;
     desc.motion.solverIterations = 5;
-
-    desc.collision.enableCollision = false;
-    desc.collision.collisionRadiusPadding = 0.15f;
-    desc.collision.physicsAssetPath = GetPhysicsAssetPath(characterType);
-    desc.collision.debugDrawCapsules = false;
 
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = 0.0001f;
+    desc.runtime.windScale = 0.0012f;
+    desc.runtime.constraintDeadzone = 0.025f;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
@@ -545,10 +563,9 @@ void ChainModifierPreset::BuildBackpackBandDesc(
     desc.shape.maxBendAngleDegree = 18.f;
     desc.shape.tipMaxBendAngleScale = 1.25f;
     desc.shape.pinRoot = true;
-    desc.shape.rootRotationOffsetDegrees = Vec3::Zero;
 
     desc.motion.damping = 0.62f;
-    desc.motion.gravity = kCommonGravity;
+    desc.runtime.gravity = kCommonGravity;
     desc.motion.movementInertiaScale = 0.08f;
     desc.motion.tipMovementInertiaScale = 1.35f;
     desc.motion.maxMovementOffset = 0.035f;
@@ -562,11 +579,6 @@ void ChainModifierPreset::BuildBackpackBandDesc(
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = kArmbandWindIntensity;
-    desc.runtime.useOwnerMotionInertia = true;
-    desc.runtime.transportParticlesWithAnimatedPose = true;
-    desc.runtime.animatedPoseTransportAlpha = 0.45f;
-    desc.runtime.animatedPoseTransportDeadzone = 0.025f;
-    desc.runtime.useAnimatedPoseAsRest = true;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
 }
@@ -593,8 +605,7 @@ void ChainModifierPreset::BuildCoatDesc(
 
     desc.motion.damping = 0.65f;
     desc.motion.tipDampingScale = 1.1538461f;
-    desc.motion.dampingCurve = MakeLinearCurve(0.65f, 0.75f);
-    desc.motion.gravity = Vec3::Zero;
+    desc.runtime.gravity = Vec3::Zero;
     // 우리 구현은 animated-pose transport와 별개로 관성 오프셋을 또 더하므로
     // 코트에서는 값을 낮춰야 "끝만 뒤로 끌려가는" 현상이 줄어든다.
     desc.motion.movementInertiaScale = 0.012f;
@@ -620,16 +631,8 @@ void ChainModifierPreset::BuildCoatDesc(
     desc.runtime.targetFrameRate = 60.f;
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = 0.018f;
-    desc.runtime.useOwnerMotionInertia = false;
-    desc.runtime.useChainRootMotionInertia = false;
-    desc.runtime.transportParticlesWithAnimatedPose = true;
-    // Kawaii의 WorldDampingLocation/Rotation은 "얼마나 월드 변화 영향을 약하게 받을지"에 가까워서,
-    // 우리 transport alpha로 옮길 때는 거의 반대로 해석해야 애니메이션 원형이 무너지지 않는다.
-    desc.runtime.animatedPoseTransportAlpha = 0.2f;
-    desc.runtime.animatedPoseTransportRotationAlpha = 1.f;
-    desc.runtime.animatedPoseTransportTipScale = 0.8f;
-    desc.runtime.animatedPoseTransportDeadzone = 0.025f;
-    desc.runtime.useAnimatedPoseAsRest = true;
+    desc.runtime.windStartRatio = 0.28f;
+    desc.runtime.windWeightScale = 0.24f;
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
 
     if (characterType == PlayerCharacterType::Maelle)

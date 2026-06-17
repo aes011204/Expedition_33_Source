@@ -39,6 +39,12 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Eveque");
 
+    static void BuildBishopLegClothDesc(
+        ChainModifier::ChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"ClothPhysics_Eveque_Leg");
+
     static void BuildBackpackBandDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,

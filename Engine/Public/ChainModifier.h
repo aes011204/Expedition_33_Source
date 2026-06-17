@@ -19,6 +19,7 @@ public:
 		uint32 maxDepth{ 0xffffffffu };     // (선택) 시뮬레이션을 적용할 본의 최대 깊이 제한
 		float windMul{ 1.f };               // 체인 그룹별 바람 영향 배율
 		float dummyEndLength{ 0.f };        // (선택) Kawaii DummyBoneLength와 비슷하게 끝단 뒤에 둘 가상 팁 길이
+		Vec3 rootRotationOffsetDegrees{ Vec3::Zero }; // 이 그룹 첫 본에 적용할 로컬 회전 오프셋 (도 단위)
 	};
 
 	struct BoneChainNode
@@ -53,6 +54,7 @@ public:
 		float maxBendAngleMul{ 1.f };
 		float windMul{ 1.f };
 		float dummyEndLength{ 0.f };
+		Vec3 rootRotationOffsetDegrees{ Vec3::Zero };
 	};
 
 	struct CapsuleColliderDesc
@@ -64,18 +66,6 @@ public:
 		float halfLength{ 0.f };
 	};
 
-public:
-	struct FloatCurveKey
-	{
-		float time{ 0.f };
-		float value{ 0.f };
-	};
-
-	struct FloatCurveDesc
-	{
-		vector<FloatCurveKey> keys{};
-	};
-
 	struct ChainModifierDesc : public AnimationModifierDesc
 	{
 		vector<BoneChainGroupDesc> groups{};
@@ -84,22 +74,18 @@ public:
 		{
 			float stiffness{ 0.04f }; 	                    // 전체 형태 유지 강도 (복원력, 꺾임 제한 등에 영향을 줌)
 			float tipStiffnessScale{ 1.f };                 // 끝단으로 갈수록 적용할 형태 유지 강도 배율
-			FloatCurveDesc stiffnessCurve{};                // 비어 있지 않으면 체인 0..1 구간에서 선형 샘플링한 stiffness 값을 사용
 			float poseRestoreStrength{ 0.35f };             // 바인드 포즈(기본 방향)로 되돌아가려는 복원력 강도
 			float tipPoseRestoreScale{ 1.f };               // 끝단으로 갈수록 적용할 포즈 복원력 배율
 			float maxBendAngleDegree{ 13.f };               // 바인드 포즈를 기준으로 허용되는 최대 꺾임 각도 (도 단위)
 			float tipMaxBendAngleScale{ 1.f };              // 끝단으로 갈수록 적용할 최대 꺾임 각도 배율
 			float surfaceConstraintStrength{ 0.f };         // 인접한 옷 체인끼리 원래 폭을 유지하는 가로 제약 강도
 			bool pinRoot{ true };                           // 첫 번째 시뮬레이션 본의 위치를 부모 본에 핀(Pin)처럼 고정할지 여부
-			Vec3 rootRotationOffsetDegrees{ Vec3::Zero }; // (선택) 고정된 루트 본에 적용할 로컬 회전 오프셋 (도 단위)
 		} shape{};
 
 		struct MotionSettings
 		{
 			float damping{ 0.55f };                         // 속도 유지 비율 (Verlet 적분에서 사용, 1에 가까울수록 속도 유지, 0에 가까울수록 감쇠)
 			float tipDampingScale{ 1.f };                   // 끝단으로 갈수록 적용할 속도 유지 비율 배율
-			FloatCurveDesc dampingCurve{};                  // 비어 있지 않으면 체인 0..1 구간에서 선형 샘플링한 damping 값을 사용
-			Vec3 gravity{ 0.f, -0.25f, 0.f };      // 매 서브스텝마다 적용되는 월드 공간 기준 중력
 			float movementInertiaScale{ 0.06f };            // 캐릭터의 이동 속도가 체인의 움직임(관성)에 미치는 영향력
 			float tipMovementInertiaScale{ 1.f };           // 끝단으로 갈수록 적용할 이동 관성 배율
 			float maxMovementOffset{ 0.02f };               // 외부 요인에 의해 한 번에 이동할 수 있는 최대 거리 제한
@@ -122,18 +108,12 @@ public:
 			float resetDistance{ 3.f };                     // 1프레임 내에 이 거리 이상 이동(텔레포트)하면 시뮬레이션을 초기화함
 			TransformCom *ownerTransform{ nullptr };        // 월드 공간 물리 시뮬레이션의 기준이 되는 소유자의 Transform 정보 (보통 캐릭터 Transform)
 			float targetFrameRate{ 0.f };                   // 0보다 크면 이 FPS 기준으로 최대 서브스텝 델타를 맞추도록 solver iteration을 보정
+			Vec3 gravity{ 0.f, -0.25f, 0.f };               // 매 서브스텝마다 적용되는 월드 공간 기준 중력
 			Vec3 windDirection{ Vec3::Zero };
 			float windScale{ 1.f };
 			float windStartRatio{ -1.f };                  // 0 이상이면 체인 앞쪽 몇 %부터 바람을 적용할지 직접 지정
 			float windWeightScale{ -1.f };                 // 0 이상이면 바람 가중치 세기를 직접 지정
-			bool useOwnerMotionInertia{ false };           // 체인 관성을 각 본 애니메이션 델타 대신 owner 이동량 기준으로 계산할지 여부
-			bool useChainRootMotionInertia{ false };       // 체인 전체 관성을 체인 루트 본의 애니메이션 이동량 기준으로 계산할지 여부
-			bool transportParticlesWithAnimatedPose{ true }; // animated rest 사용 시 부모 본 변화에 맞춰 기존 particle 위치도 함께 운반할지 여부
-			float animatedPoseTransportAlpha{ 1.f };       // animated pose의 위치 변화(Location)를 particle이 얼마나 따라갈지 (0=미적용, 1=완전 추종)
-			float animatedPoseTransportRotationAlpha{ -1.f }; // animated pose의 회전 변화(Rotation)를 얼마나 따라갈지 (-1이면 animatedPoseTransportAlpha와 동일)
-			float animatedPoseTransportTipScale{ 1.f };    // transport alpha를 체인 끝으로 갈수록 얼마나 줄이거나 늘릴지 (1=동일, 0.5=tip은 절반)
-			float animatedPoseTransportDeadzone{ 0.f };    // 이 값 이하의 부모 본 미세 이동은 particle transport에서 무시
-			bool useAnimatedPoseAsRest{ false };           // 실제 애니메이션 포즈를 rest 기준으로 캡처할지 여부. 최종 write-back 모드와는 별개로 사용됨
+			float constraintDeadzone{ 0.f };               // constraint 보정 미세 떨림을 무시할 거리
 		} runtime{};
 	};
 
@@ -158,7 +138,7 @@ private:
 	void Capture_ReplacePose(ModelCom *model, BoneChain &chain, const Matrix &ownerWorld);
 	void Capture_AdditivePose(ModelCom *model, BoneChain &chain, const Matrix &ownerWorld);
 	void Update_PoseLocalDirections(BoneChain &chain);
-	void Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, const Vec3 &ownerMotionDelta, float movementWeight);
+	void Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, float movementWeight);
 	void Solve_SurfaceConstraints(const vector<WorldCapsule> &worldCapsules);
 	void Write_BackToModel(ModelCom *model, const Matrix &ownerWorld);
 	void Write_BackChain(ModelCom *model, BoneChain &chain);
@@ -174,6 +154,17 @@ private:
 
 public:
 	void Evaluate_Modifier(ModelCom *model, float timeDelta) override;
+	const ClassReflectionInfo* Get_RuntimeReflectionInfo() const override;
+	void* Get_RuntimeReflectionTarget() override { return &_desc; }
+	void On_RuntimeReflectionChanged(ModelCom* model, const PropertyInfo& property) override;
+	bool Can_RuntimeResetPose() const override { return true; }
+	void RuntimeResetPose(ModelCom* model) override { ResetPose(model); }
+	bool Can_RuntimeRebuild() const override { return true; }
+	void RuntimeRebuild(ModelCom* model) override;
+	size_t Get_RuntimeGroupCount() const { return _desc.groups.size(); }
+	string Get_RuntimeGroupRootBoneName(size_t groupIndex) const;
+	Vec3 Get_RuntimeGroupRootRotationOffset(size_t groupIndex) const;
+	void Set_RuntimeGroupRootRotationOffset(size_t groupIndex, const Vec3& offsetDegrees);
 
 public:
 	void ResetPose(ModelCom *model);

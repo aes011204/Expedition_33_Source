@@ -40,6 +40,17 @@ HRESULT Mon_Bishop_Body::Initialize(void* arg)
         _model->Add_AnimModifier(modifier);
     }
 
+    ChainModifier::ChainModifierDesc legClothDesc{};
+    ChainModifierPreset::BuildBishopLegClothDesc(
+        legClothDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+
+    if (auto modifier = ChainModifier::Create(&legClothDesc))
+    {
+        _model->Add_AnimModifier(modifier);
+    }
+
     return S_OK;
 }
 

@@ -35,10 +35,10 @@ public:
 
 public:
     static bool Draw_ComponentOverride(const Shared<Component>& component);
-    static void Draw_ReflectionSection(const string& headerId, void* instance, const ClassReflectionInfo& info);
+    static bool Draw_ReflectionSection(const string& headerId, void* instance, const ClassReflectionInfo& info);
 
-    static void Draw_ReflectionProperties(void* instance, const ClassReflectionInfo& info);
-    static void Draw_ReflectionProperty(const string& idPrefix, void* instance, const PropertyInfo& property);
+    static bool Draw_ReflectionProperties(void* instance, const ClassReflectionInfo& info);
+    static bool Draw_ReflectionProperty(const string& idPrefix, void* instance, const PropertyInfo& property);
 
 
     static void Set_BTBlackboardKeys(const vector<Engine::BTBlackboardKeyView>* keys);

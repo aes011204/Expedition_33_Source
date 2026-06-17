@@ -104,6 +104,13 @@ protected:
 
 public:
 	void Evaluate_Modifier(ModelCom* model, float timeDelta) override;
+	const ClassReflectionInfo* Get_RuntimeReflectionInfo() const override;
+	void* Get_RuntimeReflectionTarget() override { return &_desc; }
+	void On_RuntimeReflectionChanged(ModelCom* model, const PropertyInfo& property) override;
+	bool Can_RuntimeResetPose() const override { return true; }
+	void RuntimeResetPose(ModelCom* model) override { ResetPose(model); }
+	bool Can_RuntimeRebuild() const override { return true; }
+	void RuntimeRebuild(ModelCom* model) override;
 	void ResetPose(ModelCom* model);
 
 private:

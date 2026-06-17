@@ -3,6 +3,8 @@
 
 NS_BEGIN(Engine)
 
+struct ClassReflectionInfo;
+struct PropertyInfo;
 class ModelCom;
 
 class ENGINE_DLL AnimationModifier : public Base
@@ -28,6 +30,14 @@ public:
     virtual ~AnimationModifier() override = default;
 
     virtual void Evaluate_Modifier(ModelCom* model, float timeDelta) PURE;
+
+    virtual const ClassReflectionInfo* Get_RuntimeReflectionInfo() const { return nullptr; }
+    virtual void* Get_RuntimeReflectionTarget() { return nullptr; }
+    virtual void On_RuntimeReflectionChanged(ModelCom* model, const PropertyInfo& property) { UNREFERENCED_PARAMETER(model); UNREFERENCED_PARAMETER(property); }
+    virtual bool Can_RuntimeResetPose() const { return false; }
+    virtual void RuntimeResetPose(ModelCom* model) { UNREFERENCED_PARAMETER(model); }
+    virtual bool Can_RuntimeRebuild() const { return false; }
+    virtual void RuntimeRebuild(ModelCom* model) { UNREFERENCED_PARAMETER(model); }
 
     void Set_Active(bool isActive);
     bool Is_Active() const { return _isActive; }

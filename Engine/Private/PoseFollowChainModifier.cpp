@@ -1,6 +1,7 @@
 #include "PoseFollowChainModifier.h"
 #include "ModelCom.h"
 #include "ModelPhysicsParser.h"
+#include "Reflection_Types.h"
 #include "GameInstance.h"
 #include "Engine_Macro.h"
 #include <algorithm>
@@ -10,6 +11,36 @@ NS_BEGIN(Engine)
 
 namespace
 {
+	template<typename Member>
+	size_t PoseFollowOffset(Member PoseFollowChainModifier::PoseFollowChainModifierDesc::* member)
+	{
+		PoseFollowChainModifier::PoseFollowChainModifierDesc desc{};
+		const auto* base = reinterpret_cast<const char*>(&desc);
+		const auto* field = reinterpret_cast<const char*>(&(desc.*member));
+		return static_cast<size_t>(field - base);
+	}
+
+	void AddRuntimeProperty(
+		vector<PropertyInfo>& properties,
+		PropertyType type,
+		const string& name,
+		const string& displayName,
+		size_t offset,
+		float dragSpeed = 0.01f,
+		float minVal = 0.f,
+		float maxVal = 0.f)
+	{
+		PropertyInfo property{};
+		property.name = name;
+		property.displayName = displayName;
+		property.type = type;
+		property.offset = offset;
+		property.dragSpeed = dragSpeed;
+		property.minVal = minVal;
+		property.maxVal = maxVal;
+		properties.push_back(std::move(property));
+	}
+
 	float SmoothStep(float value)
 	{
 		value = std::clamp(value, 0.f, 1.f);
@@ -243,6 +274,78 @@ void PoseFollowChainModifier::ResetPose(ModelCom* model)
 			node.hasSmoothedLocalDir = node.poseLocalDir.LengthSquared() > 0.0001f;
 		}
 	}
+}
+
+const ClassReflectionInfo* PoseFollowChainModifier::Get_RuntimeReflectionInfo() const
+{
+	static ClassReflectionInfo info = []()
+		{
+			ClassReflectionInfo result{};
+			result.className = "PoseFollowChainModifierRuntime";
+			result.displayName = "Pose Follow Chain Runtime";
+			result.category = "Animation";
+			result.type = RegisteredType::None;
+
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableCollision", "Collision", PoseFollowOffset(&PoseFollowChainModifierDesc::enableCollision));
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "debugDrawCapsules", "Debug Col", PoseFollowOffset(&PoseFollowChainModifierDesc::debugDrawCapsules));
+			AddRuntimeProperty(result.properties, PropertyType::Float, "particleCollisionRadius", "Col Radius", PoseFollowOffset(&PoseFollowChainModifierDesc::particleCollisionRadius), 0.01f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionRadiusPadding", "Col Pad", PoseFollowOffset(&PoseFollowChainModifierDesc::collisionRadiusPadding), 0.01f, 0.f, 100.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Vec3, "windDirection", "Wind Dir", PoseFollowOffset(&PoseFollowChainModifierDesc::windDirection), 0.01f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "windScale", "Wind", PoseFollowOffset(&PoseFollowChainModifierDesc::windScale), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "ownerMotionScale", "Owner Move", PoseFollowOffset(&PoseFollowChainModifierDesc::ownerMotionScale), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "animatedMotionScale", "Anim Move", PoseFollowOffset(&PoseFollowChainModifierDesc::animatedMotionScale), 0.005f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "ownerMotionDeadzone", "Owner Dead", PoseFollowOffset(&PoseFollowChainModifierDesc::ownerMotionDeadzone), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "ownerRotationDeadzoneDegree", "Rot Dead", PoseFollowOffset(&PoseFollowChainModifierDesc::ownerRotationDeadzoneDegree), 0.05f, 0.f, 180.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "animatedMotionDeadzone", "Anim Dead", PoseFollowOffset(&PoseFollowChainModifierDesc::animatedMotionDeadzone), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "maxExternalOffset", "Move Limit", PoseFollowOffset(&PoseFollowChainModifierDesc::maxExternalOffset), 0.001f, 0.f, 100.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Float, "damping", "Damping", PoseFollowOffset(&PoseFollowChainModifierDesc::damping), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "tipDampingScale", "Tip Damp", PoseFollowOffset(&PoseFollowChainModifierDesc::tipDampingScale), 0.01f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "poseFollowStrength", "Follow", PoseFollowOffset(&PoseFollowChainModifierDesc::poseFollowStrength), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "tipFollowScale", "Tip Follow", PoseFollowOffset(&PoseFollowChainModifierDesc::tipFollowScale), 0.01f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "maxBendAngleDegree", "Max Bend", PoseFollowOffset(&PoseFollowChainModifierDesc::maxBendAngleDegree), 0.25f, 0.f, 180.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "tipBendAngleScale", "Tip Bend", PoseFollowOffset(&PoseFollowChainModifierDesc::tipBendAngleScale), 0.01f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "bendLimitStrength", "Bend Limit", PoseFollowOffset(&PoseFollowChainModifierDesc::bendLimitStrength), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "surfaceConstraintStrength", "Surface", PoseFollowOffset(&PoseFollowChainModifierDesc::surfaceConstraintStrength), 0.005f, 0.f, 1.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Float, "rootOutputAlpha", "Root Out", PoseFollowOffset(&PoseFollowChainModifierDesc::rootOutputAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "tipOutputAlpha", "Tip Out", PoseFollowOffset(&PoseFollowChainModifierDesc::tipOutputAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "idleOutputAlphaScale", "Idle Out", PoseFollowOffset(&PoseFollowChainModifierDesc::idleOutputAlphaScale), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "outputSmoothAlpha", "Smooth", PoseFollowOffset(&PoseFollowChainModifierDesc::outputSmoothAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "idleOutputSmoothAlpha", "Idle Smooth", PoseFollowOffset(&PoseFollowChainModifierDesc::idleOutputSmoothAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "outputDeadzoneDegree", "Out Dead", PoseFollowOffset(&PoseFollowChainModifierDesc::outputDeadzoneDegree), 0.05f, 0.f, 180.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "idleSettleStrength", "Idle Settle", PoseFollowOffset(&PoseFollowChainModifierDesc::idleSettleStrength), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "sleepVelocityThreshold", "Sleep Vel", PoseFollowOffset(&PoseFollowChainModifierDesc::sleepVelocityThreshold), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "sleepPoseDistance", "Sleep Dist", PoseFollowOffset(&PoseFollowChainModifierDesc::sleepPoseDistance), 0.001f, 0.f, 10.f);
+
+			AddRuntimeProperty(result.properties, PropertyType::Float, "targetFrameRate", "Target FPS", PoseFollowOffset(&PoseFollowChainModifierDesc::targetFrameRate), 1.f, 0.f, 240.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "resetDistance", "Reset Dist", PoseFollowOffset(&PoseFollowChainModifierDesc::resetDistance), 0.05f, 0.f, 100.f);
+
+			return result;
+		}();
+
+	return &info;
+}
+
+void PoseFollowChainModifier::On_RuntimeReflectionChanged(ModelCom* model, const PropertyInfo& property)
+{
+	UNREFERENCED_PARAMETER(model);
+	UNREFERENCED_PARAMETER(property);
+}
+
+void PoseFollowChainModifier::RuntimeRebuild(ModelCom* model)
+{
+	if (!model)
+	{
+		return;
+	}
+
+	_chains.clear();
+	_chainsInitialized = false;
+	Initialize_Chains(model);
+	_isFirstUpdate = true;
+	ResetPose(model);
 }
 
 void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matrix& ownerWorld, const Vec3& ownerMotionDelta, float movementWeight, bool isOwnerIdle)
@@ -960,6 +1063,8 @@ void PoseFollowChainModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
 	{
 		return;
 	}
+
+	model->Rebuild_BoneCombinedMatrices();
 
 	if (!_chainsInitialized)
 	{
