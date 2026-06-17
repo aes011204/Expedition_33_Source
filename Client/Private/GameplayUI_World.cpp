@@ -401,9 +401,12 @@ void GameplayUI_World::Close_CharacterProgressionFlow()
 
     const auto applyMenuChange = [this, currentMenu]()
         {
-            Close_Menu(currentMenu, true); // 현재 보이는 top panel만 월드 입력 복구
             while (!_menuStack.empty() && Is_CharacterProgressionFlowMenu(_menuStack.back()))
+            {
+                const GameplayMenu flowMenu = _menuStack.back();
+                Close_Menu(flowMenu, flowMenu == currentMenu); // top 메뉴만 월드 입력을 복구하고, 아래 Progression 루트도 실제로 닫는다.
                 _menuStack.pop_back();
+            }
         };
 
     _menuFade.Request_MenuTransition(currentMenu, GameplayMenu::None, applyMenuChange);

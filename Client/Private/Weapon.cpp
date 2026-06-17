@@ -41,6 +41,7 @@ HRESULT Weapon::Initialize(void* arg)
     _socketMatrix = (desc != nullptr) ? desc->socketMatrix : nullptr;
     _useBodyFollow = (desc != nullptr) ? desc->useBodyFollow : false;
     _bodyFollowOffset = (desc != nullptr) ? desc->bodyFollowOffset : Vec3::Zero;
+    _applyAttachScaleCompensation = (desc != nullptr) ? desc->applyAttachScaleCompensation : false;
     _hoverTimeSec = 0.f;
 
     CHECK_FAILED(PartObject::Initialize(arg), E_FAIL);
@@ -225,6 +226,9 @@ void Weapon::From_Json(const json& data)
         return;
 
     PartObject::From_Json(data);
+
+    if (_applyAttachScaleCompensation)
+        Apply_AttachScale(); // Battle/ChangeWeapon 장착 runtime에서만 WP prefab authoring scale 0.1을 x10 보정한다.
 }
 
 const Matrix* Weapon::Get_SocketBoneMatrixPtr(const string& boneName) const
@@ -302,6 +306,7 @@ HRESULT Weapon::Ready_DefaultComponents()
     defaultDesc.socketMatrix = _socketMatrix;
     defaultDesc.useBodyFollow = _useBodyFollow;
     defaultDesc.bodyFollowOffset = _bodyFollowOffset;
+    defaultDesc.applyAttachScaleCompensation = _applyAttachScaleCompensation;
 
     return Ready_Components(defaultDesc);
 }
@@ -393,6 +398,15 @@ HRESULT Weapon::Ensure_RuntimeComponentsFromJson(const json& data)
     }
 
     return S_OK;
+}
+
+void Weapon::Apply_AttachScale()
+{
+    if (_transformCom == nullptr)
+        return;
+
+    const Vec3 scale = _transformCom->Get_Scale();
+    _transformCom->Set_Scale(scale * 10.f);
 }
 
 Shared<Weapon> Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

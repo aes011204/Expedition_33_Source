@@ -480,11 +480,11 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     if (outHandle != nullptr)
         *outHandle = handle;
 
-    if (attached.poolHandle.effectObject && attached.poolHandle.effectObject->Get_Transform())
-    {
-        const Vec3 pos = attached.poolHandle.effectObject->Get_Transform()->Get_WorldPosition();
-        LOG_WARN("Attached effect spawned at: {}, {}, {}", pos.x, pos.y, pos.z);
-    }
+    //if (attached.poolHandle.effectObject && attached.poolHandle.effectObject->Get_Transform())
+    //{
+    //    const Vec3 pos = attached.poolHandle.effectObject->Get_Transform()->Get_WorldPosition();
+    //    LOG_WARN("Attached effect spawned at: {}, {}, {}", pos.x, pos.y, pos.z);
+    //}
 
     return S_OK;
 }

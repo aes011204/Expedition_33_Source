@@ -879,6 +879,7 @@ bool EditorInstance::Apply_CameraPoseToCameraType(ObjectType objectType, const C
         transform->Set_WorldRotationEuler(pose.rotation);
         camera->Set_Yaw(pose.yaw);
         camera->Set_Pitch(pose.pitch);
+        camera->Apply_View(); // F9 Pause 전환 직후 복사된 FreeCamera pose가 Scene View 렌더 행렬에도 즉시 반영되게 한다.
         return true;
     }
 

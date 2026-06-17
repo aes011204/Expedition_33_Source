@@ -16,6 +16,7 @@
 #include "ResourceLoader.h"
 #include "Spawn_Prefab.h"
 #include "Weapon.h"
+#include "WeaponPrefabLoader.h"
 
 REGISTER_GLOBAL_ENUM(Client::PreviewAnimState, "PreviewAnimState")
 
@@ -218,7 +219,7 @@ HRESULT PreviewPlayer::Sync_FromRuntimeData()
             CHECK_FAILED(Apply_CostumePreset(*preset), E_FAIL);
     }
 
-    CHECK_FAILED(Apply_EquippedWeaponFromRuntimeData(), E_FAIL);
+    Clear_WeaponPreview(); // ChangeWeapon 외 preview 패널에서는 장착 무기가 남아 보이면 안 된다.
     return S_OK;
 }
 
@@ -494,6 +495,10 @@ HRESULT PreviewPlayer::Attach_WeaponPreview(const wstring& partTag, const string
     Body_Player* body = dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body")));
     CHECK_NULL(body, E_FAIL);
 
+    WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
+    if (!WeaponPrefabLoader::Load(prefabName, loadedPrefab))
+        return E_FAIL;
+
     const Matrix* socketMatrix = nullptr;
     if (!socketName.empty())
     {
@@ -504,15 +509,15 @@ HRESULT PreviewPlayer::Attach_WeaponPreview(const wstring& partTag, const string
     Weapon::WEAPON_DESC desc{};
     desc.parentMatrix = &_transformCom->Get_WorldMatrix();
     desc.socketMatrix = socketMatrix;
-    desc.modelType = ModelType::NonAnim;
+    desc.modelType = loadedPrefab.modelType;
+    desc.modelTag = loadedPrefab.modelTag.c_str();
+    desc.applyAttachScaleCompensation = true; // ChangeWeapon preview 장착 weapon도 Battle과 같은 크기 보정을 쓴다.
 
     Shared<Weapon> weapon = dynamic_pointer_cast<Weapon>(
         GAME->Clone_Prototype(Prototype::GameObject, ETOI(LevelType::Static), TEXT("GameObject_Weapon"), &desc));
     CHECK_NULL(weapon, E_FAIL);
 
-    const fs::path prefabPath = Spawn_Prefab::Resolve_PrefabPath(prefabName);
-    const json prefabJson = GAME->Load_JsonFile(prefabPath);
-    weapon->From_Json(prefabJson);
+    weapon->From_Json(loadedPrefab.rootJson);
     weapon->Set_SourcePrefabName(prefabName);
     weapon->Set_Owner(GetSharedPtr<GameObject>());
 
@@ -564,7 +569,6 @@ void PreviewPlayer::Rebind_ActiveCostumeVariant(const string& presetId)
     _weapon.reset();
     _subWeapon.reset();
     _activeWeaponId.clear();
-    CHECK_FAILED(Apply_EquippedWeaponFromRuntimeData());
 }
 
 HRESULT PreviewPlayer::Warmup_CostumeVariantParts(CostumeVariantParts& parts)

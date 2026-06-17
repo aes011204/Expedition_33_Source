@@ -693,19 +693,12 @@ vector<string> ChangeSkill_Panel::Build_CurrentNormalSkillKeys(const Shared<Play
     if (skillKeys.empty())
     {
         const Shared<SkillTreeCom> skillTreeCom = Resolve_SelectedSkillTree();
-        if (skillTreeCom != nullptr && !skillTreeCom->Get_UnlockedSkillIds().empty())
-        {
-            skillKeys = skillTreeCom->Get_UnlockedSkillIds();
-        }
-        else
-        {
-            const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
-            skillKeys = Get_DefaultProgressionSkillKeys(heroId);
-        }
+        if (skillTreeCom != nullptr)
+            skillKeys = skillTreeCom->Get_UnlockedSkillIds(); // UI 표시와 전투 초기 장착 기준을 같은 데이터로 맞춘다.
     }
 
     if (skillKeys.size() > NormalSkillSlotCount)
-        skillKeys.resize(NormalSkillSlotCount); // 일반 스킬 overflow는 Gradient 슬롯으로 보내지 않는다.
+        skillKeys.resize(NormalSkillSlotCount);
     else
         skillKeys.resize(NormalSkillSlotCount);
 

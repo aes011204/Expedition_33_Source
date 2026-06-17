@@ -59,6 +59,24 @@ namespace
         CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
     }
 
+    void Apply_ChangeWeaponPreviewWeapon(HeroId heroId)
+    {
+        const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+        if (previewManager == nullptr)
+            return;
+
+        const auto& previewHeroes = previewManager->Get_PreviewHeroes();
+        const int32 heroIndex = static_cast<int32>(heroId);
+        if (heroIndex < 0 || heroIndex >= static_cast<int32>(previewHeroes.size()))
+            return;
+
+        const Shared<PreviewPlayer>& previewPlayer = previewHeroes[heroIndex].player;
+        if (previewPlayer == nullptr)
+            return;
+
+        CHECK_FAILED(previewPlayer->Apply_EquippedWeaponFromRuntimeData()); // ChangeWeapon 화면에서만 실제 장착 무기를 preview에 붙인다.
+    }
+
     wstring Resolve_WeaponBackgroundTexturePath(const string& weaponId)
     {
         if (weaponId == "Colim" || weaponId == "Esquim")
@@ -317,6 +335,7 @@ void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
         }
 
         CLIENT->Sync_PreviewHeroRuntimeData(heroId);
+        Apply_ChangeWeaponPreviewWeapon(heroId);
         Refresh_WeaponUI(); // 장착 row 보라색 표시와 selected index를 새 장착값 기준으로 다시 맞춘다.
 
         Refresh_Tooltip(selectedWeapon);
@@ -360,6 +379,8 @@ void ChangeWeapon_Panel::Refresh_WeaponUI()
     const bool defaultEquipped = CLIENT->Ensure_DefaultEquippedWeapon(heroId);
     if (defaultEquipped)
         CLIENT->Sync_PreviewHeroRuntimeData(heroId); // 기본 장착이 새로 생긴 경우 preview 무기도 즉시 맞춘다.
+
+    Apply_ChangeWeaponPreviewWeapon(heroId);
 
     const string equippedWeaponId = statCom ? statCom->Get_PlayerRuntimeStat().CurEquippedWeaponId : "";
 

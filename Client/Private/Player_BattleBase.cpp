@@ -82,6 +82,9 @@ json Player_BattleBase::To_Json() const
         if (partObject == nullptr)
             continue;
 
+        if (partTag.starts_with(TEXT("Part_Weapon")))
+            continue;
+
         json partJson = json::object();
         partJson["part_tag"] = String::ToString(partTag);
         partJson["object"] = partObject->To_Json();
@@ -105,6 +108,28 @@ void Player_BattleBase::From_Json(const json& data)
     }
 
     Apply_CurrentCostumePartTransforms();
+}
+
+HRESULT Player_BattleBase::Rebuild_WeaponPartsFromCurrentStat()
+{
+    Body_Player* body = dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body")));
+    CHECK_NULL(body, E_FAIL);
+
+    vector<wstring> weaponPartTags{};
+    for (const auto& [partTag, partObject] : _partObjects)
+    {
+        UNREFERENCED_PARAMETER(partObject);
+
+        if (partTag.starts_with(TEXT("Part_Weapon")))
+            weaponPartTags.push_back(partTag);
+    }
+
+    for (const wstring& partTag : weaponPartTags)
+        Remove_PartObject(partTag);
+
+    // 현재 장착 weaponId 기준으로 WP_* prefab transform을 최종 적용한다.
+    CHECK_FAILED(Ready_WeaponParts(body), E_FAIL);
+    return S_OK;
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()
@@ -209,6 +234,7 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
         weaponDesc.socketMatrix = nullptr;
         weaponDesc.useBodyFollow = attachDesc.useBodyFollow;
         weaponDesc.bodyFollowOffset = attachDesc.bodyFollowOffset;
+        weaponDesc.applyAttachScaleCompensation = true; // Battle 장착 weapon은 WP prefab scale 0.1을 실제 크기로 x10 보정한다.
 
         if (attachDesc.useBodyFollow)
         {
@@ -240,6 +266,14 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
     }
 
     return S_OK;
+}
+
+bool Player_BattleBase::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    UNREFERENCED_PARAMETER(partObjectJson);
+
+    // 프리펩에서 저장한 값이 아니라 PlayerStatCom -> DT Weapon -> WP_* prefab에서 세팅한 값으로 들어가게
+    return !partTag.starts_with(TEXT("Part_Weapon"));
 }
 
 const CostumePreset* Player_BattleBase::Get_CurrentBattleCostume() const

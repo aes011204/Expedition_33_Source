@@ -26,9 +26,6 @@
 #include "Pictos_Panel.h"
 #include "GameDataTable.h"
 
-#include <algorithm>
-#include <filesystem>
-
 #include "PreviewPlayer.h"
 
 using namespace UI_Utils;
@@ -80,22 +77,6 @@ namespace
         const auto previewLayout = Build_CharacterProgressionPreviewLayout(tab);
         CLIENT->Apply_PreviewLayout(previewLayout);
         CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
-    }
-
-    vector<string> Get_DefaultProgressionSkillKeys(HeroId heroId)
-    {
-        // 아직 별도 장착 스킬 저장소가 없어서 BattleController의 임시 기본 슬롯과 같은 기준으로 표시한다.
-        switch (heroId)
-        {
-        case HeroId::Gustave:
-            return { "LumiereAssault", "UnleashedCharge", "MarkingShot" };
-        case HeroId::Lune:
-            return { "Immolation", "IceGust", "Thunderfall" };
-        case HeroId::Maelle:
-            return { "OffensiveSwitch", "Percee", "FleureFury" };
-        default:
-            return {};
-        }
     }
 }
 
@@ -386,7 +367,10 @@ void CharacterProgression_Panel::Set_SelectedHeroId(HeroId heroId)
         Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab);
         Update_PreviewHeroVisibility();
         Apply_PreviewOverrides();
-        Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+        if (_activeContentTab == ContentTab::Weapon)
+            Play_SelectedHeroPreviewAnimationForTab(_activeContentTab); // Weapon 탭은 캐릭터 전환 때도 무기 장착 Intro를 다시 보여준다.
+        else
+            Play_SelectedHeroProgressionIdle();
         Refresh_All();
 
         if (_activeContentTab != ContentTab::Overview)
@@ -461,7 +445,10 @@ void CharacterProgression_Panel::Handle_SelectionInput()
         Update_PreviewHeroVisibility();
         Apply_PreviewOverrides();
 
-        Play_SelectedHeroPreviewAnimationForTab(_activeContentTab);
+        if (_activeContentTab == ContentTab::Weapon)
+            Play_SelectedHeroPreviewAnimationForTab(_activeContentTab); // Weapon 탭은 Q/E 전환 때 Weapon_Intro -> Weapon_Idle을 유지한다.
+        else
+            Play_SelectedHeroProgressionIdle();
 
         Refresh_All();
 
@@ -580,6 +567,9 @@ void CharacterProgression_Panel::Refresh_All()
             _hpGaugeImage->Set_FillRatio(0.f);
         return;
     }
+
+    const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+    CLIENT->Ensure_DefaultEquippedWeapon(heroId); // 전투 스탯 표시 전에 기본 무기 공격력을 먼저 확정한다.
 
     Refresh_CharacterSheet(statCom);
     Refresh_CombatStats(statCom);
@@ -729,15 +719,16 @@ void CharacterProgression_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCo
         Set_Text(_currentSkillApBgTexts[i], L"0");
 
         if (_currentSkillIconImages[i])
-            _currentSkillIconImages[i]->Close(); // 장착 스킬이 없는 슬롯은 JSON 기본 썸네일을 숨긴다.
+            _currentSkillIconImages[i]->Close(); // 장착 스킬이 없는 슬롯은 Json 기본 이미지 숨기기
 
         if (_currentSkillEmptyLines[i])
-            _currentSkillEmptyLines[i]->Open(); // 빈 슬롯일 때만 JSON의 '-' 라인을 보여준다.
+            _currentSkillEmptyLines[i]->Open(); // 빈 슬롯일 때만 JSON의 '-' 표시
     }
 
     Set_Text(_gradientText, L"-");
     Set_Text(_gradientGpText, L"0");
     Set_Text(_gradientGpBgText, L"0");
+
     if (_gradientIconImage)
         _gradientIconImage->Close();
 
@@ -752,21 +743,20 @@ void CharacterProgression_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCo
     {
         const Shared<SkillTreeCom> skillTreeCom = Resolve_SelectedSkillTree();
         if (skillTreeCom != nullptr && !skillTreeCom->Get_UnlockedSkillIds().empty())
-        {
-            skillKeys = skillTreeCom->Get_UnlockedSkillIds(); // 장착 슬롯 데이터가 아직 없으면 해금 스킬을 Progression 하단 표시 데이터로 쓴다.
-        }
-        else
-        {
-            const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
-            skillKeys = Get_DefaultProgressionSkillKeys(heroId); // 테스트/초기 상태에서도 이름/썸네일이 비지 않게 기본 후보를 표시한다.
-        }
+            skillKeys = skillTreeCom->Get_UnlockedSkillIds(); // 장착값이 아직 없으면 해금 스킬 순서를 초기 5칸 표시 기준으로 쓴다.
     }
 
-    const size_t normalSkillCount = min<size_t>(_currentSkillNameTexts.size(), skillKeys.size());
+    if (skillKeys.size() > 5)
+        skillKeys.resize(5); // 6번째 Gradient 슬롯은 일반 스킬 표시에서 제외한다.
+    else
+        skillKeys.resize(5);
 
-    for (size_t i = 0; i < normalSkillCount; ++i)
+    for (size_t i = 0; i < skillKeys.size(); ++i)
     {
         const string& skillKey = skillKeys[i];
+        if (skillKey.empty())
+            continue;
+
         const GameDataTable::SkillTreeDesc* skillTreeDesc = CLIENT->Get_SkillTreeDesc(skillKey);
         const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
 
@@ -1421,6 +1411,16 @@ void CharacterProgression_Panel::Play_SelectedHeroPreviewAnimationForTab(Content
     const auto [introAnim, idleAnim] = Resolve_PreviewAnimationForTab(tab);
 
     CLIENT->Play_PreviewAnimation(heroId, introAnim, idleAnim);
+}
+
+void CharacterProgression_Panel::Play_SelectedHeroProgressionIdle()
+{
+    const HeroId heroId = (_selectedHeroId == HeroId::END) ? Get_DefaultSelectedHeroId() : _selectedHeroId;
+
+    CLIENT->Play_PreviewAnimation(
+        heroId,
+        PreviewAnimState::Overview_Intro,
+        PreviewAnimState::Overview_Idle); // 하위 탭 유지 중 캐릭터만 바뀌면 기본 Progression 자세로 되돌린다.
 }
 
 HRESULT CharacterProgression_Panel::Load_UI(uint32 levelIndex)

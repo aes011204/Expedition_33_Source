@@ -68,19 +68,35 @@ public:
     void Free() override { SkillScript::Free(); }
 };
 
-class Skill_Gustave_LightHolder : public SkillScript
+class Skill_Gustave_PerfectBreak : public SkillScript
 {
-    GENERATED_SKILLSCRIPT(Skill_Gustave_LightHolder)
+    GENERATED_SKILLSCRIPT(Skill_Gustave_PerfectBreak)
 
 public:
-    Skill_Gustave_LightHolder() = default;
-    ~Skill_Gustave_LightHolder() override = default;
+    Skill_Gustave_PerfectBreak() = default;
+    ~Skill_Gustave_PerfectBreak() override = default;
 
 public:
     void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
 
 public:
-    static Shared<Skill_Gustave_LightHolder> Create();
+    static Shared<Skill_Gustave_PerfectBreak> Create();
+    void Free() override { SkillScript::Free(); }
+};
+
+class Skill_Gustave_AnglesEye : public SkillScript
+{
+    GENERATED_SKILLSCRIPT(Skill_Gustave_AnglesEye)
+
+public:
+    Skill_Gustave_AnglesEye() = default;
+    ~Skill_Gustave_AnglesEye() override = default;
+
+public:
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+
+public:
+    static Shared<Skill_Gustave_AnglesEye> Create();
     void Free() override { SkillScript::Free(); }
 };
 

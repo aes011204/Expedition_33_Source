@@ -139,6 +139,7 @@ private:
 
     pair<PreviewAnimState, PreviewAnimState> Resolve_PreviewAnimationForTab(ContentTab tab) const;
     void Play_SelectedHeroPreviewAnimationForTab(ContentTab tab);
+    void Play_SelectedHeroProgressionIdle();
 
 private:
     struct PreviewOverrideState

@@ -76,12 +76,12 @@ public:
     HRESULT Sync_FromRuntimeData();
     HRESULT Apply_CostumePreset(const CostumePreset& preset);
     HRESULT Prewarm_CostumeVariants();
+    HRESULT Apply_EquippedWeaponFromRuntimeData();
 
 private:
     HRESULT Ready_DefaultCostumeParts();
     HRESULT Ensure_CostumeVariantBuilt(const CostumePreset& preset);
     HRESULT Activate_CostumeVariant(const CostumePreset& preset);
-    HRESULT Apply_EquippedWeaponFromRuntimeData();
     HRESULT Attach_WeaponPreview(const wstring& partTag, const string& prefabName, const string& socketName);
 
     void    Rebind_ActiveCostumeVariant(const string& presetId);

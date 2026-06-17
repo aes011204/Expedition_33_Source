@@ -132,9 +132,14 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     // 무기 세팅
     _playerInventory->Ensure_DefaultUnlockedWeapons(
-        {{ "Gustave", "Lanceram", 1, 0 },
+        {
+            { "Gustave", "Lanceram", 1, 0 },
+            { "Gustave", "Baguette", 11, 0 },
         { "Lune",    "Colim",    1, 0 },
-        { "Maelle",  "Medalum",  1, 0 },});
+        { "Lune",    "Baguette",    1, 0 },
+        { "Maelle",  "Medalum",  1, 0 },
+        { "Maelle",  "Baguette",  1, 0 },
+        });
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
@@ -197,6 +202,12 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if(_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta);
+}
+
+void ClientInstance::Update_UIPreviewOnly(float timeDelta)
+{
+    if (_previewManager)
+        _previewManager->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()

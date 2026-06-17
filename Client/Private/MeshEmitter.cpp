@@ -300,7 +300,7 @@ HRESULT MeshEmitter::Initialize(void* arg)
         _desc = *static_cast<MeshEmitterDesc*>(arg);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
-    Log_DescPayload("initialize");
+    //Log_DescPayload("initialize");
     Reset_PlaybackRuntime();
 
     if (FAILED(Ready_Components()))
@@ -447,13 +447,13 @@ HRESULT MeshEmitter::Reload_Definition(const EffectEmitterDefinition& emitterDef
     CHECK_FAILED(Apply_DescForReload(*desc), E_FAIL);
     Sync_FromEffectOwner();
 
-    LOG_INFO(
-        "MeshEmitter reused for definition reload. emitter='{}', modelGuid='{}', modelPath='{}', capacity={}",
-        _emitterName,
-        _desc.modelGuid,
-        _desc.modelPath,
-        _instanceCapacity
-    );
+    //LOG_INFO(
+    //    "MeshEmitter reused for definition reload. emitter='{}', modelGuid='{}', modelPath='{}', capacity={}",
+    //    _emitterName,
+    //    _desc.modelGuid,
+    //    _desc.modelPath,
+    //    _instanceCapacity
+    //);
     return S_OK;
 }
 
@@ -579,6 +579,12 @@ void MeshEmitter::Log_InitializeTiming(
     double bufferMs,
     double totalMs) const
 {
+    (void)shaderMs;
+    (void)resolveModelMs;
+    (void)modelMs;
+    (void)materialMs;
+    (void)bufferMs;
+
     const bool isReloadReuse = std::strcmp(context, "reload_reuse") == 0;
     const double infoThresholdMs = isReloadReuse
                                    ? Internal::kMeshEmitterReloadReuseInfoThresholdMs
@@ -586,35 +592,35 @@ void MeshEmitter::Log_InitializeTiming(
 
     if (totalMs >= infoThresholdMs)
     {
-        LOG_INFO(
-            "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
-            context,
-            _emitterName,
-            shaderMs,
-            resolveModelMs,
-            modelMs,
-            materialMs,
-            bufferMs,
-            totalMs,
-            _desc.modelGuid,
-            _desc.modelPath
-        );
+        //LOG_INFO(
+        //    "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
+        //    context,
+        //    _emitterName,
+        //    shaderMs,
+        //    resolveModelMs,
+        //    modelMs,
+        //    materialMs,
+        //    bufferMs,
+        //    totalMs,
+        //    _desc.modelGuid,
+        //    _desc.modelPath
+        //);
     }
     else
     {
-        LOG_DEBUG(
-            "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
-            context,
-            _emitterName,
-            shaderMs,
-            resolveModelMs,
-            modelMs,
-            materialMs,
-            bufferMs,
-            totalMs,
-            _desc.modelGuid,
-            _desc.modelPath
-        );
+        //LOG_DEBUG(
+        //    "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
+        //    context,
+        //    _emitterName,
+        //    shaderMs,
+        //    resolveModelMs,
+        //    modelMs,
+        //    materialMs,
+        //    bufferMs,
+        //    totalMs,
+        //    _desc.modelGuid,
+        //    _desc.modelPath
+        //);
     }
 }
 

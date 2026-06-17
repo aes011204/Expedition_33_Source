@@ -625,15 +625,21 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
 
         if (battleStat)
         {
-            const string characterId = string(magic_enum::enum_name(heroId));
-            const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
-
-            if (weapons != nullptr && !weapons->empty())
+            if (battleStat->Get_PlayerRuntimeStat().CurEquippedWeaponId.empty())
             {
-                // 일단은 기본 무기 장착
-                const GameDataTable::WeaponDesc& defaultWeapon = weapons->front();
-                battleStat->Set_EquippedWeapon(defaultWeapon.weaponId, defaultWeapon.power);
+                const string characterId = string(magic_enum::enum_name(heroId));
+                const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
+
+                if (weapons != nullptr && !weapons->empty())
+                {
+                    // 장착 무기없을 때에만 기본값
+                    const GameDataTable::WeaponDesc& defaultWeapon = weapons->front();
+                    battleStat->Set_EquippedWeapon(defaultWeapon.weaponId, defaultWeapon.power);
+                }
             }
+
+            if (const auto battlePlayer = dynamic_pointer_cast<Player_BattleBase>(character))
+                CHECK_FAILED(battlePlayer->Rebuild_WeaponPartsFromCurrentStat());
 
             battleStat->Set_BattleStartAp();
         }
@@ -2296,9 +2302,10 @@ void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<
     if (battleStat == nullptr)
         return;
 
-    vector<string> battleSkillKeys = equippedSkillKeys.empty()
-        ? Get_DefaultBattleSkillKeys(heroId)
-        : equippedSkillKeys;
+    vector<string> battleSkillKeys = equippedSkillKeys;
+
+    if (battleSkillKeys.empty() && worldSkillTreeCom)
+        battleSkillKeys = worldSkillTreeCom->Get_UnlockedSkillIds(); // 장착값이 아직 없으면 해금 순서를 초기 5칸으로 사용한다.
 
     if (battleSkillKeys.size() > 5)
         battleSkillKeys.resize(5); // 6번째 Gradient 슬롯은 일반 battle skill 입력에 넣지 않는다.
@@ -2329,23 +2336,6 @@ void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<
     }
 
     battleStat->Set_SkillKeys(battleSkillKeys);
-}
-
-vector<string> BattleController::Get_DefaultBattleSkillKeys(HeroId heroId)
-{
-    // TODO : TEMP TEMP TEMP TEMP TEMP
-    // 나중에, 해금된 스킬에 EquipSkillCom? 뭐 이런거 만들어서 장착된 스킬 기준으로 가져오기
-    switch (heroId)
-    {
-    case HeroId::Gustave:
-        return { "LumiereAssault", "UnleashedCharge", "MarkingShot" };
-    case HeroId::Lune:
-        return { "Immolation", "IceGust", "Thunderfall" };
-    case HeroId::Maelle:
-        return { "OffensiveSwitch", "Percee", "FleureFury" };
-    default:
-        return {};
-    }
 }
 
 PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)
@@ -2404,6 +2394,27 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
 
     if (actor.statCom->Is_Player())
     {
+#ifdef _DEBUG
+        wstring skillDebugText = L"Player Turn Skills: ";
+
+        const vector<string>& skillKeys = actor.statCom->Get_SkillKeys();
+        for (size_t i = 0; i < 5; ++i)
+        {
+            if (i > 0)
+                skillDebugText += L" / ";
+
+            skillDebugText += to_wstring(i + 1);
+            skillDebugText += L":";
+
+            if (i < skillKeys.size() && !skillKeys[i].empty())
+                skillDebugText += wstring(skillKeys[i].begin(), skillKeys[i].end());
+            else
+                skillDebugText += L"-";
+        }
+
+        GAME->Print(L"{}", skillDebugText, duration(0.f));
+#endif
+
         const uint32 beforeAp = actor.statCom->Get_CurAP();
 
         actor.statCom->Add_AP(1);
@@ -2434,18 +2445,18 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         for (const BattleChar& hero : _heroes)
         {
             if (hero.actor == nullptr || hero.actor == _currentTurnActor.actor)
-            continue;
-        
-        if (hero.ModelCom == nullptr || hero.statCom == nullptr)
-        continue;
-    
-    if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-    continue;
+                continue;
 
-BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
-}
+            if (hero.ModelCom == nullptr || hero.statCom == nullptr)
+                continue;
 
-        EvtBattlePresentation event {};
+            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+                continue;
+
+            BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
+        }
+
+        EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         GAME->Get_EventBus().Publish(event);

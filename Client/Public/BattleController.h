@@ -228,9 +228,6 @@ private:
         const Shared<SkillTreeCom>& worldSkillTreeCom,
         const vector<string>& equippedSkillKeys);
 
-    // Q/W/E가 소비할 기본 스킬 일단은 고정.
-    vector<string> Get_DefaultBattleSkillKeys(HeroId heroId);
-
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
     bool Try_BeginTurnStartStatusAnnounce();

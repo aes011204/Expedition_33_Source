@@ -45,6 +45,7 @@ public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
     HRESULT Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update_Client(float timeDelta);
+    void    Update_UIPreviewOnly(float timeDelta);
 	void    Release_Client();
 
 	/* 레벨 진입 전에 공용/정적 클라 리소스를 준비할 때 호출한다. */

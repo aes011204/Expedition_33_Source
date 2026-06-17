@@ -103,8 +103,8 @@ Shared<Skill_Gustave_Shatter> Skill_Gustave_Shatter::Create()
     return make_shared<Skill_Gustave_Shatter>();
 }
 
-/* 빛의 소유자 */
-void Skill_Gustave_LightHolder::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+/* 완벽한 파괴 */
+void Skill_Gustave_PerfectBreak::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
     const BattleChar& attacker = action.Get_CurChar();
 
@@ -121,7 +121,30 @@ void Skill_Gustave_LightHolder::Execute(const Skill_Data& skill, const BattleAct
         attacker.mechanismCom->Add_GustaveCharge(1);
 }
 
-Shared<Skill_Gustave_LightHolder> Skill_Gustave_LightHolder::Create()
+Shared<Skill_Gustave_PerfectBreak> Skill_Gustave_PerfectBreak::Create()
 {
-    return make_shared<Skill_Gustave_LightHolder>();
+    return make_shared<Skill_Gustave_PerfectBreak>();
+}
+
+/* 천사의 눈 */
+void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
+        return;
+
+    const BattleChar& target = curTargets.front();
+
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.1f);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
+
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_GustaveCharge(1);
+}
+
+Shared<Skill_Gustave_AnglesEye> Skill_Gustave_AnglesEye::Create()
+{
+    return make_shared<Skill_Gustave_AnglesEye>();
 }
