@@ -6,7 +6,6 @@
 #include "CmdDeleteObject.h"
 #include "MEWaterActor.h"
 
-
 PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }, _camera{ camera }
 {
@@ -35,6 +34,49 @@ void PanelInspector::Render()
         }
 
         auto& obj = _ctx->_selected;
+
+        EditorObject* curSelected = _ctx->_selected.get();
+        if (curSelected != _prevSelectedShared.get())
+        {
+            if (_ctx->_boxScatterMode &&
+                _ctx->_pendingBoxCount > 0 &&
+                _ctx->_pendingBoxTarget != nullptr &&
+                _ctx->_pendingBoxTarget != curSelected)
+            {
+                _boxRestoreTarget = _prevSelectedShared;
+                ImGui::OpenPopup("BoxTargetChangedWarning");
+            }
+            _prevSelectedShared = _ctx->_selected;
+        }
+
+        if (ImGui::BeginPopupModal("BoxTargetChangedWarning", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("다른 오브젝트를 선택했습니다.\n대기 중인 인스턴스 %d개를 어떻게 처리할까요?", _ctx->_pendingBoxCount);
+            ImGui::Separator();
+
+            if (ImGui::Button("Apply", ImVec2(100, 0)))
+            {
+                _ctx->ApplyBoxScatter();
+                _ctx->_boxScatterMode = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Delete Object", ImVec2(100, 0)))
+            {
+                _ctx->DeleteBoxScatter(_ctx->_pendingBoxTarget);
+                _ctx->_boxScatterMode = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("취소", ImVec2(100, 0)))
+            {
+                _ctx->_selected = _boxRestoreTarget;
+                _prevSelectedShared = _boxRestoreTarget;
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
 
         if (ImGui::Button("Focus"))
         {
@@ -378,24 +420,118 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
         if (ImGui::CollapsingHeader("Scatter Zone"))
         {
-            ImGui::DragFloat("Radius", &_pendingZone.radius, 0.5f, 0.5f, 200.f);
-            ImGui::DragFloat("Min Spacing", &_pendingZone.minSpacing, 0.1f, 0.f, 50.f);
-            ImGui::DragInt("Count", &_pendingZone.count, 1, 1, 500);
-            ImGui::DragInt("Seed", &_pendingZone.seed, 1, 0, 99999);
-            ImGui::DragFloat("Scale Min", &_pendingZone.scaleMin, 0.01f, 0.01f, 10.f);
-            ImGui::DragFloat("Scale Max", &_pendingZone.scaleMax, 0.01f, 0.01f, 10.f);
-            ImGui::DragFloat("Y Rot Max", &_pendingZone.yRotMax, 1.f, 0.f, 360.f);
+            bool boxModeChanged = ImGui::Checkbox("Box Mode", &_ctx->_boxScatterMode);
 
-            if (ImGui::Button("Use Cursor as Center"))
+            if (boxModeChanged && _ctx->_boxScatterMode)
             {
-                _pendingZone.center = _ctx->_cursorPos;
+                _pendingBoxZone = {};
+                _pendingBoxZone.center = _ctx->_cursorPos;
+                _ctx->_pendingBox = {};
+                _ctx->_pendingBox.center = _ctx->_cursorPos;
             }
-            ImGui::SameLine();
-            ImGui::Text("(%.1f, %.1f, %1.f)", _pendingZone.center.x, _pendingZone.center.y, _pendingZone.center.z);
 
-            if (ImGui::Button("Generate"))
+            if (boxModeChanged && !_ctx->_boxScatterMode)
             {
-                _ctx->ScatterAt(obj.get(), _pendingZone);
+                if (_ctx->_pendingBoxCount > 0 && _ctx->_pendingBoxTarget == obj.get())
+                {
+                    ImGui::OpenPopup("BoxModeOffWarning");
+                    _ctx->_boxScatterMode = true;
+                }
+            }
+
+            if (ImGui::BeginPopupModal("BoxModeOffWarning", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::Text("대기 중인 인스턴스 %d개가 삭제됩니다.\n계속하시겠습니까?", _ctx->_pendingBoxCount);
+                ImGui::Separator();
+
+                if (ImGui::Button("확인", ImVec2(100, 0)))
+                {
+                    _ctx->DeleteBoxScatter(obj.get());
+                    _ctx->_boxScatterMode = false;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("취소", ImVec2(100, 0)))
+                {
+                    _ctx->_boxScatterMode = true;
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            }
+            ImGui::Separator();
+
+            if (!_ctx->_boxScatterMode)
+            {
+                ImGui::DragFloat("Radius", &_pendingZone.radius, 0.5f, 0.5f, 200.f);
+                ImGui::DragFloat("Min Spacing", &_pendingZone.minSpacing, 0.1f, 0.f, 50.f);
+                ImGui::DragInt("Count", &_pendingZone.count, 1, 1, 500);
+                ImGui::DragInt("Seed", &_pendingZone.seed, 1, 0, 99999);
+                ImGui::DragFloat("Scale Min", &_pendingZone.scaleMin, 0.01f, 0.01f, 10.f);
+                ImGui::DragFloat("Scale Max", &_pendingZone.scaleMax, 0.01f, 0.01f, 10.f);
+                ImGui::DragFloat("Y Rot Max", &_pendingZone.yRotMax, 1.f, 0.f, 360.f);
+
+                if (ImGui::Button("Use Cursor as Center"))
+                {
+                    _pendingZone.center = _ctx->_cursorPos;
+                }
+                ImGui::SameLine();
+                ImGui::Text("(%.1f, %.1f, %1.f)", _pendingZone.center.x, _pendingZone.center.y, _pendingZone.center.z);
+
+                if (ImGui::Button("Generate"))
+                {
+                    _ctx->ScatterAt(obj.get(), _pendingZone);
+                }
+            }
+
+            else
+            {
+                _pendingBoxZone.center = _ctx->_pendingBox.center;
+                _ctx->_pendingBox.halfExtentX = _pendingBoxZone.halfExtentX;
+                _ctx->_pendingBox.halfExtentZ = _pendingBoxZone.halfExtentZ;
+
+                ImGui::DragFloat("Half Extent X", &_pendingBoxZone.halfExtentX, 0.5f, 0.5f, 500.f);
+                ImGui::DragFloat("Half Extent Z", &_pendingBoxZone.halfExtentZ, 0.5f, 0.5f, 500.f);
+                ImGui::DragFloat("Min Spacing", &_pendingBoxZone.minSpacing, 0.1f, 0.f, 50.f);
+                ImGui::DragInt("Count", &_pendingBoxZone.count, 1, 1, 500);
+                ImGui::DragInt("Seed", &_pendingBoxZone.seed, 1, 0, 99999);
+                ImGui::DragFloat("Scale Min", &_pendingBoxZone.scaleMin, 0.01f, 0.01f, 10.f);
+                ImGui::DragFloat("Scale Max", &_pendingBoxZone.scaleMax, 0.01f, 0.01f, 10.f);
+                ImGui::DragFloat("Y Rot Max", &_pendingBoxZone.yRotMax, 1.f, 0.f, 360.f);
+
+                if (ImGui::Button("Use Cursor as Center"))
+                {
+                    _pendingBoxZone.center = _ctx->_cursorPos;
+                    if (_ctx->_pendingBoxCount > 0 && _ctx->_pendingBoxTarget == obj.get())
+                    {
+                        _ctx->_pendingBox.center = _pendingBoxZone.center;
+                        _ctx->SyncBoxScatter(obj.get());
+                    }
+                }
+                ImGui::SameLine();
+                ImGui::Text("(%.1f, %.1f, %.1f)", _pendingBoxZone.center.x, _pendingBoxZone.center.y, _pendingBoxZone.center.z);
+
+                if (ImGui::Button("Generate"))
+                {
+                    _ctx->ScatterAtBox(obj.get(), _pendingBoxZone);
+                }
+
+                if (_ctx->_pendingBoxCount > 0 && _ctx->_pendingBoxTarget == obj.get())
+                {
+                    ImGui::SameLine();
+                    if (ImGui::Button("Apply"))
+                    {
+                        _ctx->ApplyBoxScatter();
+                        _ctx->_boxScatterMode = false;
+                    }
+
+                    ImGui::SameLine();
+                    if (ImGui::Button("Clear##box"))
+                    {
+                        _ctx->DeleteBoxScatter(obj.get());
+                    }
+                }
+
             }
         }
 

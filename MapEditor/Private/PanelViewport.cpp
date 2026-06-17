@@ -153,7 +153,7 @@ void PanelViewport::Render()
                 }
             }
 
-            if (_camera && _ctx && _ctx->_selected)
+            if (_camera && _ctx && _ctx->_selected && !_ctx->_boxScatterMode)
             {
                 const ImVec2 winPos = ImGui::GetWindowPos();
                 const ImVec2 winSize = ImGui::GetWindowSize();
@@ -267,6 +267,81 @@ void PanelViewport::Render()
 
                         ImDrawList* dl = ImGui::GetWindowDrawList();
                         dl->AddCircle(center, max(2.f, screenRadius), IM_COL32(255, 220, 0, 220), 64, 2.f);
+                    }
+                }
+            }
+
+            if (_ctx->_boxScatterMode && _camera)
+            {
+                const auto& box = _ctx->_pendingBox;
+
+                Vec3 corners[4] =
+                {
+                    Vec3(box.center.x - box.halfExtentX, box.center.y, box.center.z - box.halfExtentZ),
+                    Vec3(box.center.x + box.halfExtentX, box.center.y, box.center.z - box.halfExtentZ),
+                    Vec3(box.center.x + box.halfExtentX, box.center.y, box.center.z + box.halfExtentZ),
+                    Vec3(box.center.x - box.halfExtentX, box.center.y, box.center.z + box.halfExtentZ),
+                };
+
+                const ImVec2 bvpMin  = ImGui::GetItemRectMin();
+                const ImVec2 bvpMax  = ImGui::GetItemRectMax();
+                const ImVec2 bvpSize = ImVec2(bvpMax.x - bvpMin.x, bvpMax.y - bvpMin.y);
+                Matrix bViewProj = Matrix(_camera->GetView()) * Matrix(_camera->GetProj());
+
+                auto BoxWorldToScreen = [&](Vec3 wp, ImVec2& out) -> bool
+                {
+                    Vec4 clip = Vec4::Transform(Vec4(wp.x, wp.y, wp.z, 1.f), bViewProj);
+                    if (clip.w <= 0.f) return false;
+                    out.x = bvpMin.x + ((clip.x / clip.w) + 1.f) * 0.5f * bvpSize.x;
+                    out.y = bvpMin.y + (1.f - (clip.y / clip.w)) * 0.5f * bvpSize.y;
+                    return true;
+                };
+
+                ImVec2 sc[4];
+                bool valid[4] = {};
+                for (int i = 0; i < 4; ++i)
+                {
+                    valid[i] = BoxWorldToScreen(corners[i], sc[i]);
+                }
+
+                ImDrawList* dl = ImGui::GetWindowDrawList();
+                const ImU32 col = IM_COL32(100, 220, 255, 200);
+                for (int i = 0; i < 4; ++i)
+                {
+                    int next = (i + 1) % 4;
+                    if (valid[i] && valid[next])
+                    {
+                        dl->AddLine(sc[i], sc[next], col, 2.f);
+                    }
+                }
+
+                const ImVec2 winPos = ImGui::GetWindowPos();
+                const ImVec2 winSize = ImGui::GetWindowSize();
+
+                ImGuizmo::SetDrawlist();
+                ImGuizmo::SetRect(winPos.x, winPos.y, winSize.x, winSize.y);
+
+                float view[16] = {}, proj[16] = {};
+                memcpy(view, &_camera->GetView(), sizeof(float) * 16);
+                memcpy(proj, &_camera->GetProj(), sizeof(float) * 16);
+
+                Matrix boxMat = Matrix::CreateTranslation(_ctx->_pendingBox.center);
+                float  mat[16] = {};
+                memcpy(mat, &boxMat, sizeof(float) * 16);
+
+                if (ImGuizmo::Manipulate(view, proj, ImGuizmo::TRANSLATE, ImGuizmo::WORLD, mat))
+                {
+                    Matrix result;
+                    memcpy(&result, mat, sizeof(float) * 16);
+
+                    Vec3 scale, newCenter;
+                    Quaternion rot;
+                    result.Decompose(scale, rot, newCenter);
+
+                    _ctx->_pendingBox.center = newCenter;
+                    if (_ctx->_pendingBoxCount > 0)
+                    {
+                        _ctx->SyncBoxScatter(_ctx->_pendingBoxTarget);
                     }
                 }
             }
