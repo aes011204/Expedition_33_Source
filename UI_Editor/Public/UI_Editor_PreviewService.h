@@ -26,6 +26,24 @@ namespace UIEditor
         UI_FillOrigin fillOrigin = UI_FillOrigin::LeftToRight;
     };
 
+    struct MaterialVfxPreviewDesc
+    {
+        string textureGuid = "";
+        string texturePath = "";
+        string maskTextureGuid = "";
+        string maskTexturePath = "";
+        UI_MaterialVfxDesc materialVfx = Get_DefaultMaterialVfxDesc();
+    };
+
+    struct ButtonSheenPreviewDesc
+    {
+        string textureGuid = "";
+        string texturePath = "";
+        string maskTextureGuid = "";
+        string maskTexturePath = "";
+        UI_ButtonSheenDesc buttonSheen = Get_DefaultButtonSheenDesc();
+    };
+
     class UI_Editor_PreviewService final
     {
     public:
@@ -52,6 +70,10 @@ namespace UIEditor
             UI_FillOrigin fillOrigin);
         ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
             const PatternOverlayPreviewDesc& previewDesc);
+        ID3D11ShaderResourceView* Get_MaterialVfxPreviewSRV(
+            const MaterialVfxPreviewDesc& previewDesc);
+        ID3D11ShaderResourceView* Get_ButtonSheenPreviewSRV(
+            const ButtonSheenPreviewDesc& previewDesc);
 
         bool Queue_FontPreview(
             const string& fontGuid,
@@ -103,6 +125,12 @@ namespace UIEditor
             bool useFillRatio,
             float fillRatio,
             UI_FillOrigin fillOrigin,
+            const UI_MaterialVfxDesc* materialVfx,
+            float materialVfxTime,
+            bool materialVfxUseBaseMask,
+            bool materialVfxHasNoise,
+            const UI_ButtonSheenDesc* buttonSheen,
+            float buttonSheenTime,
             unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
             unordered_set<string>& failedKeys);
 
@@ -120,6 +148,12 @@ namespace UIEditor
         unordered_set<string> _fillRatioPreviewFailedKeys = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _patternOverlayPreviewCache = {};
         unordered_set<string> _patternOverlayPreviewFailedKeys = {};
+        unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _materialVfxPreviewCache = {};
+        unordered_set<string> _materialVfxPreviewFailedKeys = {};
+        float _materialVfxPreviewTime = 0.f;
+        unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _buttonSheenPreviewCache = {};
+        unordered_set<string> _buttonSheenPreviewFailedKeys = {};
+        float _buttonSheenPreviewTime = 0.f;
         Shared<ShaderCom> _imagePreviewShader = nullptr;
         Shared<VIBuffer_Rect> _imagePreviewVIBuffer = nullptr;
         Unique<SpriteBatch> _fontPreviewSpriteBatch = nullptr;

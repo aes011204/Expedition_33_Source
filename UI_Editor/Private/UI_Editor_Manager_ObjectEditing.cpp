@@ -200,6 +200,22 @@ namespace UIEditor
             [&]() { return _objectEditService.Set_ObjectFillOrigin(_document, objectId, fillOrigin); });
     }
 
+    bool UI_Editor_Manager::Set_UIObjectMaterialVfx(ObjectId objectId, const UI_MaterialVfxDesc& materialVfx)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectMaterialVfx(_document, objectId, materialVfx); },
+            [&]() { return _objectEditService.Set_ObjectMaterialVfx(_document, objectId, materialVfx); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectButtonSheen(ObjectId objectId, const UI_ButtonSheenDesc& buttonSheen)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectButtonSheen(_document, objectId, buttonSheen); },
+            [&]() { return _objectEditService.Set_ObjectButtonSheen(_document, objectId, buttonSheen); });
+    }
+
     bool UI_Editor_Manager::Set_UIObjectVfxPath(ObjectId objectId, const string& vfxPath)
     {
         return Apply_UIObjectEdit(
