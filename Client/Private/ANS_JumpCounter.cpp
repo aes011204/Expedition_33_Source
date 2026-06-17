@@ -23,24 +23,31 @@ void ANS_JumpCounter::On_Begin(const AnimNotifyContext& context)
     if (battle == nullptr)
         return;
 
-    battle->Get_ReactionController().OpenWindow(BattleReactionType::JumpCounter);
+    _startedCounter = false;
+    battle->Get_ReactionController().NotifyJumpCounterWindowBegin();
 }
 
 void ANS_JumpCounter::On_Tick(const AnimNotifyContext& context)
 {
-    UNREFERENCED_PARAMETER(context);
-
     LOG_INFO("JUMPCOUNTER");
+
+    auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
+
+    if (_startedCounter)
+        return;
+
+    _startedCounter = battle->Get_ReactionController().TryStartQueuedJumpCounter(context.model);
 }
 
 void ANS_JumpCounter::On_End(const AnimNotifyContext& context)
 {
     UNREFERENCED_PARAMETER(context);
 
-      auto battle = CLIENT->Get_BattleController();
+    auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;
-    battle->Get_ReactionController().CloseWindow(BattleReactionType::JumpCounter);
+    battle->Get_ReactionController().NotifyJumpCounterWindowEnd();
 
-  //  GAME->Set_WorldTimeScale(1.f);
 }

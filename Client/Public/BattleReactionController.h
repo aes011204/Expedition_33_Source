@@ -38,6 +38,15 @@ private:
         END
     };
 
+    enum class JumpCounterState
+    {
+        None,
+        JumpSucceeded,
+        CounterWindowOpen,
+        CounterSucceeded,
+        Started
+    };
+
 public:
     struct BattleReactionInputResult
     {
@@ -95,6 +104,9 @@ public:
 
     void StartCounter(ModelCom* sourceModel);
     void ApplyCounterDamage(ModelCom* sourceModel);
+    void NotifyJumpCounterWindowBegin();
+    void NotifyJumpCounterWindowEnd();
+    bool TryStartQueuedJumpCounter(ModelCom* sourceModel);
 
     void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
     void EndCounterTimeSection(ModelCom* sourceModel);
@@ -103,6 +115,7 @@ public:
     bool Is_GroupParryActive() const;
 
 private:
+    void ResetJumpCounterSequence();
     bool CanReceiveInput(const BattleChar& target) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
     void PlayReactionAnimation(
@@ -144,6 +157,10 @@ private:
     float _reactionAnimElapsed = 0.f;
 
     const Skill_Data* _curSkillData = {};
+    JumpCounterState _jumpCounterState = JumpCounterState::None;
+    uint32 _jumpCounterStepIndex = UINT32_MAX;
+    BattleChar _jumpCounterTarget = {};
+    bool _jumpCounterStarted = false;
 
     // 카운터
     bool _isCounterTimeSectionActive = false;

@@ -19,6 +19,7 @@ public:
 
 private:
     float _testValue = 1.f;
+    bool _startedCounter = false;
 };
 
 NS_END
