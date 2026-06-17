@@ -1,4 +1,5 @@
-#include "LightingPipeline.h"
+﻿#include "LightingPipeline.h"
+#include "ComputeShaderCom.h"
 
 NS_BEGIN(Engine)
 
@@ -12,6 +13,16 @@ HRESULT LightingPipeline::Initialize()
 {
     _ssaoCB = SSAOCB{};
     _deferredLightingCB = DeferredLightingCB{};
+
+    if (FAILED(Ready_FroxelTexture()))
+        return E_FAIL;
+
+    if (FAILED(Ready_FroxelBuffer()))
+        return E_FAIL;
+
+    if (FAILED(Ready_FroxelComputeShader()))
+        return E_FAIL;
+
     return S_OK;
 }
 
@@ -65,6 +76,181 @@ bool LightingPipeline::Is_IBLEnabled() const
     return _deferredLightingCB.iblEnabled != 0u;
 }
 
+HRESULT LightingPipeline::Update_FroxelZone(const VolumetricLightShaftZoneCB& vlsz)
+{
+    CHECK_NULL(_froxelZoneBuffer, E_FAIL);
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+
+    if (FAILED(_context->Map(_froxelZoneBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return E_FAIL;
+
+    *reinterpret_cast<VolumetricLightShaftZoneCB*>(mapped.pData) = vlsz;
+
+    _context->Unmap(_froxelZoneBuffer.Get(), 0);
+
+    return S_OK;
+}
+
+HRESULT LightingPipeline::Update_Froxel(const FroxelCB& forxel)
+{
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+
+    if (FAILED(_context->Map(_froxelBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return E_FAIL;
+
+    auto* bufferData = reinterpret_cast<FroxelCB*>(mapped.pData);
+    *bufferData = forxel;
+
+    _context->Unmap(_froxelBuffer.Get(), 0);
+
+    return S_OK;
+}
+
+HRESULT LightingPipeline::Dispatch_Froxel()
+{
+    CHECK_NULL(_froxelComputeShader, E_FAIL);
+    CHECK_NULL(_froxelBuffer, E_FAIL);
+    CHECK_NULL(_froxelZoneBuffer, E_FAIL);
+    CHECK_NULL(_froxelUAV, E_FAIL);
+
+    // 프레임 공통 Froxel 정보 -> b0
+    CHECK_FAILED(_froxelComputeShader->Bind_ConstantBuffer(0, _froxelBuffer.Get()), E_FAIL);
+
+    // 월드에 설치된 빛 기둥 정보 -> b1
+    CHECK_FAILED(_froxelComputeShader->Bind_ConstantBuffer(1, _froxelZoneBuffer.Get()), E_FAIL);
+
+    // 결과를 기록할 Texture3D → HLSL u0
+    CHECK_FAILED(_froxelComputeShader->Bind_UAV(0, _froxelUAV.Get()), E_FAIL);
+
+    const uint32 groupX = (_froxelWidth + 7u) / 8u;
+    const uint32 groupY = (_froxelHeight + 7u) / 8u;
+    const uint32 groupZ = _froxelDepth;
+
+    // 컴퓨트 셰이더는 draw 콜이 아니라 디스패치로 실행한다.
+    CHECK_FAILED(_froxelComputeShader->Dispatch(groupX, groupY, groupZ), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT LightingPipeline::Reload_FroxelComputeShader()
+{
+    if (FAILED(Ready_FroxelComputeShader()))
+        return E_FAIL;
+
+    return S_OK;
+}
+
+ID3D11ShaderResourceView* LightingPipeline::Get_DebugFroxelSRV() const
+{
+    return _froxelSRV.Get();
+}
+
+uint32 LightingPipeline::Get_DebugFroxelWidth() const
+{
+    return _froxelWidth;
+}
+
+uint32 LightingPipeline::Get_DebugFroxelHeight() const
+{
+    return _froxelHeight;
+}
+
+uint32 LightingPipeline::Get_DebugFroxelDepth() const
+{
+    return _froxelDepth;
+}
+
+HRESULT LightingPipeline::Ready_FroxelTexture()
+{
+    _froxelSRV.Reset();
+    _froxelUAV.Reset();
+    _froxelTexture.Reset();
+
+    D3D11_TEXTURE3D_DESC desc{};
+    desc.Width = _froxelWidth;
+    desc.Height = _froxelHeight;
+    desc.Depth = _froxelDepth;
+    desc.MipLevels = 1;
+    desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+
+    if (FAILED(_device->CreateTexture3D(&desc, nullptr, _froxelTexture.GetAddressOf())))
+        return E_FAIL;
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+    uavDesc.Format = desc.Format;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
+    uavDesc.Texture3D.MipSlice = 0;
+    uavDesc.Texture3D.FirstWSlice = 0;
+    uavDesc.Texture3D.WSize = _froxelDepth;
+
+    if (FAILED(_device->CreateUnorderedAccessView(_froxelTexture.Get(), &uavDesc, _froxelUAV.GetAddressOf())))
+        return E_FAIL;
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.Format = desc.Format;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+    srvDesc.Texture3D.MostDetailedMip = 0;
+    srvDesc.Texture3D.MipLevels = 1;
+
+    if (FAILED(_device->CreateShaderResourceView(_froxelTexture.Get(), &srvDesc, _froxelSRV.GetAddressOf())))
+        return E_FAIL;
+
+    return S_OK;
+}
+
+HRESULT LightingPipeline::Ready_FroxelBuffer()
+{
+    D3D11_BUFFER_DESC froxelDesc{};
+    froxelDesc.ByteWidth = sizeof(FroxelCB);
+    froxelDesc.Usage = D3D11_USAGE_DYNAMIC;
+    froxelDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    froxelDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+    if (FAILED(_device->CreateBuffer(&froxelDesc, nullptr, _froxelBuffer.GetAddressOf())))
+        return E_FAIL;
+
+    D3D11_BUFFER_DESC froxelZoneDesc{};
+    froxelZoneDesc.ByteWidth = sizeof(VolumetricLightShaftZoneCB);
+    froxelZoneDesc.Usage = D3D11_USAGE_DYNAMIC;
+    froxelZoneDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    froxelZoneDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+    if (FAILED(_device->CreateBuffer(&froxelZoneDesc, nullptr, _froxelZoneBuffer.GetAddressOf())))
+        return E_FAIL;
+
+    return S_OK;
+}
+
+HRESULT LightingPipeline::Ready_FroxelComputeShader()
+{
+    Shared<ComputeShaderCom> froxelComputeShader = ComputeShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_Froxel.hlsl",
+        "InJectFroxelBuffer");
+    if (nullptr == froxelComputeShader)
+        return E_FAIL;
+
+    _froxelComputeShader = std::move(froxelComputeShader);
+
+    CHECK_NULL(_froxelComputeShader, E_FAIL);
+
+    return S_OK;
+}
+
+void LightingPipeline::Set_DebugFroxelSlice(uint32 debugSlice)
+{
+    _froxelDebugSlice = min(debugSlice, _froxelDepth > 0u ? (_froxelDepth - 1u) : 0u);
+}
+
+uint32 LightingPipeline::Get_DebugFroxelSlice() const
+{
+    return _froxelDebugSlice;
+}
+
 Shared<LightingPipeline> LightingPipeline::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
     Shared<LightingPipeline> instance = make_shared<LightingPipeline>(device, context);
@@ -82,4 +268,3 @@ void LightingPipeline::Free()
 }
 
 NS_END
-

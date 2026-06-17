@@ -359,6 +359,26 @@ PS_OUT_BACKBUFFER PS_SSAOBlur(PS_IN In)
     return Out;
 }
 
+PS_OUT_BACKBUFFER PS_FroxelDebug(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    if (g_FroxelDebugWidth == 0u || g_FroxelDebugHeight == 0u || g_FroxelDebugDepth == 0u)
+    {
+        Out.Color = float4(1.f, 0.f, 0.f, 1.f);
+        return Out;
+    }
+
+    const uint sliceIndex = min(g_FroxelDebugSlice, g_FroxelDebugDepth - 1u);
+    const float sliceW = (sliceIndex + 0.5f) / max((float)g_FroxelDebugDepth, 1.f);
+    const float3 froxelUVW = float3(saturate(In.Texcoord), sliceW);
+    const float3 value = saturate(g_FroxelTexture.Sample(PointClampSampler, froxelUVW).rgb);
+
+    Out.Color = float4(value, 1.f);
+
+    return Out;
+}
+
 // ===================================================================
 
 // 카메라 ~ 현재 픽셀까지의 거리를 받아서 안개의 세기를 반환한다.
@@ -616,5 +636,6 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(CombinedPreview,   RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_PREVIEW)   // 5
     PASS_RS_DS_BS_VP(SSAO,              RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAO)                    // 6
     PASS_RS_DS_BS_VP(SSAOBlur,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAOBlur)                // 7
-    PASS_RS_DS_BS_VP(Fog, RS_Default,   DSS_None,                   BS_AlphaBlend, VS_MAIN, PS_Fog)                     // 8
+    PASS_RS_DS_BS_VP(Fog,               RS_Default, DSS_None,       BS_AlphaBlend, VS_MAIN,        PS_Fog)             // 8
+    PASS_RS_DS_BS_VP(FroxelDebug,       RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_FroxelDebug)     // 9
 }

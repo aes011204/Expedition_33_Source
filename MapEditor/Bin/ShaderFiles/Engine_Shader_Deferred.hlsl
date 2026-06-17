@@ -30,6 +30,7 @@ Texture2D g_MaterialTexture;
 Texture2D g_EmissiveTexture;
 Texture2D g_SSAOTexture;
 Texture2D g_SSAOBlurTexture;
+Texture3D g_FroxelTexture;
 TextureCube g_IrradianceMap;
 TextureCube g_PrefilterMap;
 Texture2D g_BRDFLUT;
