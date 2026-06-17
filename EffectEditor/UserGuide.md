@@ -870,23 +870,23 @@ Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 Type
 
 ### 6.17 머티리얼 변조
 
-`머티리얼 변조`는 Material scalar parameter나 core color RGB를 시간에 따라 바꾸는 Module이다.
+`머티리얼 변조`는 Material parameter를 시간에 따라 바꾸는 Module이다. 현재는 scalar target, `Core Color RGB` color target, UV offset Vec2 target, UV Scroll Speed Scale target을 다룬다.
 
 ![Material scalar modulation module](UserGuide_Img/detail_material_scalar_modulation_module.png)
 
-주로 쓰는 TypeData: Sprite, Mesh, Trail, Ribbon, Beam. 다만 `ParticleLife` 시간 축은 Sprite material scalar에서만 선택 가능하고, 다른 타입이나 core color RGB row에서는 비활성화될 수 있다.
+주로 쓰는 TypeData: Sprite, Mesh, Trail, Ribbon, Beam. 다만 `ParticleLife` 시간 축은 기존 Sprite material scalar target 중심으로 지원한다. `Refraction Intensity`, `Core Color RGB`, Vec2 UV offset target, UV Scroll Speed Scale target은 `EmitterTime` 기준으로 쓰는 것이 현재 구현과 맞다.
 
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
-| `+ 변조 추가` | scalar modulator row를 추가한다. | 최대 scalar/core color row 수 제한이 있다. | editor action | row가 늘어나면 각 row header로 접고 펼친다. |
+| `+ 변조 추가` | 기본 scalar row를 추가한다. | 처음에는 Intensity target으로 생성된다. | float 분포 / EmitterTime | 다른 target 종류는 row 내부 `대상` 콤보에서 바꾼다. |
 | `변조 사용` | 해당 modulator 적용 여부다. | 꺼진 row는 변조하지 않는다. | bool | Module row enabled와 별개다. |
-| `대상` | 변조할 material field다. | Intensity, OpacityPower, NoiseStrength, AlphaErosion, AlphaCutoff, CoreIntensity, OuterIntensity, CoreColor, Core Color RGB 중 선택한다. | combo | Core Color RGB를 선택하면 Vec3 분포 row로 전환된다. |
+| `대상` | 변조할 material field다. | scalar, `Core Color RGB`, Main/Noise/Mask/Flow UV Offset, Main/Noise/Mask/Flow UV Scroll Speed Scale 중 선택한다. | combo | category를 바꾸면 row 종류가 바뀌고 분포 값은 새 기본값으로 초기화된다. |
 | `연산` | scalar 값을 material 값에 적용하는 방식이다. | 현재 UI는 label만 표시하고 reset할 수 있다. | read-only/action | 확정 동작은 runtime material lowering 기준으로 확인한다. |
-| `시간 축` | 변조 분포를 평가할 시간 기준이다. | `EmitterTime` 또는 `ParticleLife`다. | combo | `ParticleLife`는 Sprite material scalar에서만 지원된다. |
-| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 Vec3이다. | float/Vec3 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
+| `시간 축` | 변조 분포를 평가할 시간 기준이다. | `EmitterTime` 또는 지원되는 경우 `ParticleLife`다. | combo | `ParticleLife`는 Sprite material scalar에서만 지원된다. Scroll Speed Scale은 EmitterTime으로 보정된다. |
+| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 Vec3, Vec2 row는 X/Y channel이다. | float/Vec3/Vec2 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
 | `삭제` | 해당 modulator row를 제거한다. | row 구조를 바꾼다. | editor action | 삭제 후 같은 parameter 변조가 사라진다. |
 
-Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다.
+Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다. UV Offset target은 base offset에 Vec2 값을 더하고, UV Scroll Speed Scale target은 Material Instance의 base scroll speed에 scalar 값을 곱한다. Scroll Speed Scale은 `1.0`이면 원래 속도, `0.0`이면 정지, `-1.0`이면 반대 방향이며, shader가 `scrollSpeed * materialTime`으로 UV를 만들기 때문에 급격한 scale 변화는 누적 감속이 아니라 phase jump처럼 보일 수 있다.
 
 ### 6.18 Type 호환성 메모
 
@@ -902,7 +902,7 @@ Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조
 
 ## 7. Material Editing
 
-Material 편집은 Required Module, Material Instance View, Material Scalar Modulation을 구분해서 봐야 한다.
+Material 편집은 Required Module, Material Instance View, `머티리얼 변조`를 구분해서 봐야 한다.
 
 ### 7.1 Required Module Material
 
@@ -983,11 +983,11 @@ Color Picker popup은 color field를 직접 선택할 때 사용한다.
 
 색상은 RGB와 alpha를 구분해서 봐야 한다. `초기 컬러`와 `수명에 따른 색상`은 색상 변화와 alpha fade를 함께 다룰 수 있으므로, effect가 너무 진하거나 보이지 않을 때 alpha 값도 같이 확인한다.
 
-### 7.4 Material Scalar Modulation
+### 7.4 머티리얼 변조
 
-Material Scalar Modulation은 material parameter 값을 시간에 따라 움직이게 하는 Module이다.
+`머티리얼 변조`는 material parameter 값을 시간에 따라 움직이게 하는 Module이다.
 
-예를 들어 Material Instance View에서 `DissolveAmount`의 기본값을 정하고, `머티리얼 변조` Module에서 같은 parameter를 lifetime 또는 emitter time 기준으로 움직이게 할 수 있다. 이때 Material Instance View는 기본 상태를 정하고, Module은 시간 변화 규칙을 정한다고 이해하면 된다.
+예를 들어 Material Instance View에서 `Alpha Erosion`, `Refraction Intensity`, UV Offset, UV Scroll Speed 같은 기본값을 정하고, `머티리얼 변조` Module에서 같은 parameter를 emitter time 기준으로 움직이게 할 수 있다. 이때 Material Instance View는 기본 상태를 정하고, Module은 시간 변화 규칙을 정한다고 이해하면 된다.
 
 ## 8. Mesh Data Preview
 

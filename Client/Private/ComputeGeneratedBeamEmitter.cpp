@@ -1125,7 +1125,7 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        EffectBeamRuntime::Resolve_EmitterTimeCoreColorRgbModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
 
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
@@ -1236,6 +1236,10 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_MaterialResources()
 
 HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
 {
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
     if (nullptr != _maskTexture)
@@ -1253,52 +1257,52 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams(
-        _desc.material.refractionIntensity,
-        max(0.f, _desc.material.refractionPresence),
+        material.refractionIntensity,
+        max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _materialElapsedTime
     );
     const Vec4 effectBeamAlphaParams = Vec4(
-        clamp(_desc.material.alphaCutoff, 0.f, 1.f),
-        clamp(_desc.material.alphaErosion, 0.f, 1.f),
+        clamp(material.alphaCutoff, 0.f, 1.f),
+        clamp(material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
-        max(_desc.material.opacityPower, 0.0001f)
+        max(material.opacityPower, 0.0001f)
     );
     const Vec4 effectBeamMainUVParams = Vec4(
-        _desc.material.mainUVScale.x,
-        _desc.material.mainUVScale.y,
-        _desc.material.mainUVScrollSpeed.x,
-        _desc.material.mainUVScrollSpeed.y
+        material.mainUVScale.x,
+        material.mainUVScale.y,
+        material.mainUVScrollSpeed.x,
+        material.mainUVScrollSpeed.y
     );
     const Vec4 effectBeamMaskUVParams = Vec4(
-        _desc.material.maskUVScale.x,
-        _desc.material.maskUVScale.y,
-        _desc.material.maskUVScrollSpeed.x,
-        _desc.material.maskUVScrollSpeed.y
+        material.maskUVScale.x,
+        material.maskUVScale.y,
+        material.maskUVScrollSpeed.x,
+        material.maskUVScrollSpeed.y
     );
     const Vec4 effectBeamUVOffsetParams = Vec4(
-        _desc.material.mainUVOffset.x,
-        _desc.material.mainUVOffset.y,
-        _desc.material.maskUVOffset.x,
-        _desc.material.maskUVOffset.y
+        material.mainUVOffset.x,
+        material.mainUVOffset.y,
+        material.maskUVOffset.x,
+        material.maskUVOffset.y
     );
     const Vec4 effectBeamUVAxisPolicyParams = Vec4(
-        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.vPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.vPolicy))
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy))
     );
     const Vec4 effectBeamSourceParams = Vec4(
         static_cast<float>(Resolve_OpacitySourceIndex()),
-        static_cast<float>(EffectBeamRuntime::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
-        _desc.material.maskInvert ? 1.f : 0.f,
+        static_cast<float>(EffectBeamRuntime::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.maskInvert ? 1.f : 0.f,
         0.f
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
-    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(_desc.material.flowUVTilingMode));
+    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
     const Vec2 flowUVPolicyParams(
-        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.vPolicy))
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
     );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
@@ -1310,9 +1314,9 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamSourceParams", &effectBeamSourceParams, sizeof(effectBeamSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &_desc.material.flowUVScale, sizeof(_desc.material.flowUVScale)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &_desc.material.flowUVOffset, sizeof(_desc.material.flowUVOffset)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &_desc.material.flowUVScrollSpeed, sizeof(_desc.material.flowUVScrollSpeed)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     return S_OK;
 }

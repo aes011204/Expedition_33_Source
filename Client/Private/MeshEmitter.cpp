@@ -40,7 +40,7 @@ float Evaluate_FloatCurve(const PointParticleFloatCurveRuntimeDesc& curve, float
     if (!curve.enabled)
         return fallbackValue;
 
-    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.curveKeyCount));
+    const uint32 keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, curve.curveKeyCount));
     const float clampedPhase = clamp(phase, 0.f, 1.f);
     if (keyCount == 1u || clampedPhase <= Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, 0u))
         return Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, 0u);
@@ -863,9 +863,9 @@ HRESULT MeshEmitter::Ready_OptionalTexture(const string& textureGuid, const stri
 
 HRESULT MeshEmitter::Bind_EffectMaterialResources()
 {
-    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Client::Resolve_EmitterTimeMaterialScalarModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase);
 
     CHECK_NULL(_texture, E_FAIL);
 
@@ -1046,7 +1046,9 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
 
 HRESULT MeshEmitter::Bind_DistortionResources()
 {
-    const EffectRequiredMaterialRuntimeDesc& material = _desc.material;
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialParameterModulation(_desc.material, emitterPhase);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED_THROTTLED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), 60, E_FAIL);
@@ -1139,9 +1141,8 @@ void MeshEmitter::Update_InstanceBuffer()
     if (cameraPosition4 != nullptr && hasLocalBounds)
     {
         const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
-        stable_sort(
-            sortedParticles.begin(),
-            sortedParticles.end(),
+        ranges::stable_sort(
+            sortedParticles,
             [&](const MeshParticleState* lhs, const MeshParticleState* rhs)
             {
                 const auto compute_particle_depth_sq = [&](const MeshParticleState& particle) -> float
@@ -2081,7 +2082,7 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
     if (!_desc.motion.accelerationCurveEnabled)
         return particle.acceleration;
 
-    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount));
+    const uint32 keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount));
     const Vec3 acceleration{
         Evaluate_CompactCurve(
             lifeProgress,
@@ -2203,7 +2204,7 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
     const PointParticleColorOverLifeCurveDesc& curve = _desc.colorOverLife.curve;
     if (curve.colorCurveEnabled)
     {
-        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.colorCurveKeyCount));
+        const uint32 keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, curve.colorCurveKeyCount));
         color.x = Evaluate_CompactCurve(
             lifeProgress,
             curve.colorCurveTimes,
@@ -2253,7 +2254,7 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
 
     if (curve.alphaCurveEnabled)
     {
-        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.alphaCurveKeyCount));
+        const uint32 keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, curve.alphaCurveKeyCount));
         color.w = Evaluate_CompactCurve(
             lifeProgress,
             curve.alphaCurveTimes,
@@ -2284,7 +2285,7 @@ float MeshEmitter::Evaluate_CompactCurve(
     uint32 keyCount,
     float fallbackValue) const
 {
-    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    const uint32 clampedKeyCount = max(1u, min(kEffectDistributionCurveMaxKeys, keyCount));
     if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
         return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
 
@@ -2323,7 +2324,7 @@ float MeshEmitter::Evaluate_CompactCurve(
     uint32 keyCount,
     float fallbackValue) const
 {
-    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    const uint32 clampedKeyCount = max(1u, min(kEffectDistributionCurveMaxKeys, keyCount));
     if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
         return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
 

@@ -11,6 +11,7 @@ class Texture;
 class VIBuffer_Rect;
 struct EffectMaterialScalarModulationRuntimeDesc;
 struct EffectMaterialCoreColorRgbModulationRuntimeDesc;
+struct EffectMaterialVec2ModulationRuntimeDesc;
 NS_END
 
 NS_BEGIN(EffectEditor)
@@ -34,6 +35,7 @@ public:
     void Render_Material(
         const EffectMaterialInstanceData& material,
         const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
+        const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
         const EffectMaterialScalarModulationRuntimeDesc& modulation,
         float previewDuration,
         bool evaluateParticleLife);

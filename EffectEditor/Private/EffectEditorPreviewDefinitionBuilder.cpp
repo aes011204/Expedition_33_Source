@@ -1544,6 +1544,8 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         desc.required.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+        desc.required.material.vec2Modulation =
+            Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
@@ -1875,6 +1877,8 @@ EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitt
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         emitterDesc.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.vec2Modulation =
+            Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -2045,6 +2049,8 @@ EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const 
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         emitterDesc.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.vec2Modulation =
+            Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -2250,6 +2256,8 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         emitterDesc.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.vec2Modulation =
+            Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
@@ -2612,6 +2620,8 @@ EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitte
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         emitterDesc.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.vec2Modulation =
+            Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -2764,6 +2774,8 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
         emitterDesc.material.coreColorRgbModulation =
             Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.vec2Modulation =
+            Build_MaterialVec2ModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* meshData = get_if<MeshTypeData>(&emitter.typeData.payload))

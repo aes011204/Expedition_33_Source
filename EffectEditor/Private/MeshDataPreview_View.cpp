@@ -386,6 +386,7 @@ struct MeshDataPreview_View::PreviewRenderer
                 Evaluate_MaterialScalarModulationPreview(
                     effectMaterial,
                     Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+                    Build_MaterialVec2ModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
                     Compute_MaterialScalarPreviewPhase(materialElapsedTime, previewDuration),
                     false

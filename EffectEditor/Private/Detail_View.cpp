@@ -1283,8 +1283,22 @@ void Detail_View::Render_TrailPreviewDetail()
         bool trailLocalChanged = false;
         if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewTrail"))
         {
-            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f, nullptr, "Trail preview helper의 base 기준점입니다. editor preview 전용 값입니다.");
-            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f, nullptr, "Trail preview helper의 tip 기준점입니다. editor preview 전용 값입니다.");
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property(
+                "Base 로컬",
+                baseLocalOffset,
+                defaultBaseLocalOffset,
+                0.005f,
+                nullptr,
+                "Trail preview helper의 base 기준점입니다. editor preview 전용 값입니다."
+            );
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property(
+                "Tip 로컬",
+                tipLocalOffset,
+                defaultTipLocalOffset,
+                0.005f,
+                nullptr,
+                "Trail preview helper의 tip 기준점입니다. editor preview 전용 값입니다."
+            );
             if (Internal::Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window, "TrailPreviewTrailGateMode"))
                 EDITOR->Set_TrailPreviewGateMode(gateMode);
             if (gateMode == TrailPreviewGateMode::Window)
@@ -1323,7 +1337,14 @@ void Detail_View::Render_TrailPreviewDetail()
         bool sourceLocalChanged = false;
         if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewSourceHistorySpriteTrail"))
         {
-            sourceLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Source 로컬", sourceLocalOffset, defaultSourceLocalOffset, 0.005f, nullptr, "Ribbon/SourceHistorySpriteTrail preview source 위치입니다. editor preview 전용 값입니다.");
+            sourceLocalChanged |= _detailPropertyContext.Draw_Vec3Property(
+                "Source 로컬",
+                sourceLocalOffset,
+                defaultSourceLocalOffset,
+                0.005f,
+                nullptr,
+                "Ribbon/SourceHistorySpriteTrail preview source 위치입니다. editor preview 전용 값입니다."
+            );
             if (Internal::Draw_TrailPreviewGateModeProperty(
                 _detailPropertyContext,
                 spriteTrailGateMode,
@@ -1413,14 +1434,56 @@ void Detail_View::Render_PostProcessShaderDetail()
     bool paramsChanged = false;
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessParams"))
     {
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Exposure", params.exposure, defaultOptions.params.exposure, 0.01f, "프리뷰 화면 밝기를 조절하는 exposure 값입니다.");
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Inv White Point", params.invWhitePoint, defaultOptions.params.invWhitePoint, 0.01f, "tone mapping에서 흰색 기준점을 보정하는 역 white point 값입니다.");
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Exposure",
+            params.exposure,
+            defaultOptions.params.exposure,
+            0.01f,
+            "프리뷰 화면 밝기를 조절하는 exposure 값입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Inv White Point",
+            params.invWhitePoint,
+            defaultOptions.params.invWhitePoint,
+            0.01f,
+            "tone mapping에서 흰색 기준점을 보정하는 역 white point 값입니다."
+        );
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Gamma", params.gamma, defaultOptions.params.gamma, 0.01f, "프리뷰 출력 gamma 보정 값입니다.");
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Radius", params.bloomRadius, defaultOptions.params.bloomRadius, 0.01f, "Bloom blur가 퍼지는 반경입니다.");
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Threshold", params.bloomThreshold, defaultOptions.params.bloomThreshold, 0.01f, "Bloom 후보가 되는 밝기 임계값입니다.");
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity, 0.01f, "Bloom 결과를 최종 화면에 더하는 강도입니다.");
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee, 0.01f, "Threshold 근처 Bloom 전환을 부드럽게 만드는 값입니다.");
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f, "Bloom 입력 밝기의 상한을 제한합니다.");
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Radius",
+            params.bloomRadius,
+            defaultOptions.params.bloomRadius,
+            0.01f,
+            "Bloom blur가 퍼지는 반경입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Threshold",
+            params.bloomThreshold,
+            defaultOptions.params.bloomThreshold,
+            0.01f,
+            "Bloom 후보가 되는 밝기 임계값입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Intensity",
+            params.bloomIntensity,
+            defaultOptions.params.bloomIntensity,
+            0.01f,
+            "Bloom 결과를 최종 화면에 더하는 강도입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Soft Knee",
+            params.bloomSoftKnee,
+            defaultOptions.params.bloomSoftKnee,
+            0.01f,
+            "Threshold 근처 Bloom 전환을 부드럽게 만드는 값입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Clamp",
+            params.bloomClamp,
+            defaultOptions.params.bloomClamp,
+            0.05f,
+            "Bloom 입력 밝기의 상한을 제한합니다."
+        );
         paramsChanged |= Internal::Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
         _detailPropertyContext.End_PropertyTable();
     }

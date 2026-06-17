@@ -930,9 +930,7 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
     {
         if (history.empty() ||
             (history.front().position - *currentSourcePosition).Length() > kMinRenderableRibbonLength)
-        {
             history.insert(history.begin(), HistorySample{ .position = *currentSourcePosition, .age = 0.f });
-        }
         else
         {
             history.front().position = *currentSourcePosition;
@@ -951,7 +949,9 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
     );
 
     while (_retiredLoopStrokes.size() > kMaxRetiredLoopStrokeCount)
+    {
         _retiredLoopStrokes.erase(_retiredLoopStrokes.begin());
+    }
 }
 
 void ComputeSourceHistoryRibbonEmitter::Update_RetiredLoopStrokes(float timeDelta)
@@ -1324,7 +1324,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        EffectAssetRuntimeLoad::Resolve_EmitterTimeCoreColorRgbModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
 
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
@@ -1439,6 +1439,10 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
 
 HRESULT ComputeSourceHistoryRibbonEmitter::Bind_DistortionResources()
 {
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
     else
@@ -1449,24 +1453,24 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams(
-        _desc.material.refractionIntensity,
-        max(0.f, _desc.material.refractionPresence),
+        material.refractionIntensity,
+        max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _materialElapsedTime
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
-    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(_desc.material.flowUVTilingMode));
+    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
     const Vec2 flowUVPolicyParams(
-        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.vPolicy))
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
     );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &_desc.material.flowUVScale, sizeof(_desc.material.flowUVScale)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &_desc.material.flowUVOffset, sizeof(_desc.material.flowUVOffset)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &_desc.material.flowUVScrollSpeed, sizeof(_desc.material.flowUVScrollSpeed)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     return S_OK;
 }
@@ -1748,9 +1752,13 @@ uint32 ComputeSourceHistoryRibbonEmitter::Evaluate_SubUVFrameIndex() const
         const uint32 phaseOffset =
             _desc.subUVFrameOverLife.randomStartPhase
             ? min(
-                  static_cast<uint32>(floorf(EffectAssetRuntimeLoad::Hash01((_loopIndex + 1u) * 9781u + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 3919u) * static_cast<float>(frameRange.rangeCount))),
-                  frameRange.rangeCount - 1u
-              )
+                static_cast<uint32>(floorf(
+                    EffectAssetRuntimeLoad::Hash01(
+                        (_loopIndex + 1u) * 9781u + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 3919u
+                    ) * static_cast<float>(frameRange.rangeCount)
+                )),
+                frameRange.rangeCount - 1u
+            )
             : 0u;
         return EffectAssetRuntimeLoad::Resolve_SubUVFrameInRange(
             frameRange,

@@ -3481,7 +3481,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         const ImVec2 rowMax = ImGui::GetItemRectMax();
         drawList->AddRectFilled(
             rowMin,
-            ImVec2{ rowMin.x + 4.f, rowMax.y },
+            ImVec2{ rowMin.x + 6.f, rowMax.y },
             Internal::kCurveEditorFocusBarColor
         );
     }
