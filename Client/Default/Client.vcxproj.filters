@@ -1507,6 +1507,9 @@
     <ClInclude Include="..\public\MB_Simon.h">
       <Filter>02.GameObject\Monster\01. Battle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleTurnCameraPoseUtils.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
