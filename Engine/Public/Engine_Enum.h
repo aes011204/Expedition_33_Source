@@ -111,6 +111,10 @@ namespace Engine
         LightShaftMaskHalf,
         LightShaftRadialBlurHalf,
         LightShaftCompositeHDR,
+        DOFPreFilterHalf,
+        DOFBlurNearHalf,
+        DOFBlurFarHalf,
+        DOFCompositeHDR,
 
         END
     };
@@ -197,8 +201,9 @@ namespace Engine
         Bloom       = 1 << 3,
         Gamma       = 1 << 4,
         LightShaft  = 1 << 5,
+        DOF         = 1 << 6,
 
-        All = (1 << 6) - 1
+        All = (1 << 7) - 1
     };
 
     enum class GameplayInputMode

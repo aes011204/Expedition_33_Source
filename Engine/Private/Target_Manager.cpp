@@ -87,6 +87,20 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::BloomEighthB,
         bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DOFCoCHalf,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DOFNearHalfA,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DOFNearHalfB,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DOFFarHalfA,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DOFFarHalfB,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DOFFarQuarterA,
+        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DOFFarQuarterB,
+        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(Add_RenderTarget(RT::HDRColor,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
@@ -142,6 +156,13 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     CHECK_FAILED(Add_MRT(MRT::BloomQuarterB, RT::BloomQuarterB), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::BloomEighthA, RT::BloomEighthA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::BloomEighthB, RT::BloomEighthB), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DOFPreFilterHalf, RT::DOFCoCHalf), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DOFPreFilterHalf, RT::DOFNearHalfA), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DOFPreFilterHalf, RT::DOFFarHalfA), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DOFNearHalfB, RT::DOFNearHalfB), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DOFFarHalfB, RT::DOFFarHalfB), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DOFFarQuarterA, RT::DOFFarQuarterA), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DOFFarQuarterB, RT::DOFFarQuarterB), E_FAIL);
 
 #ifdef _DEBUG
     CHECK_FAILED(Add_MRT(MRT::FroxelDebug, RT::FroxelDebug), E_FAIL);

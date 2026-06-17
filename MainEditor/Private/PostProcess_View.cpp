@@ -136,7 +136,7 @@ void PostProcess_View::Draw_StatusBadge()
 
 void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline, bool& dirty)
 {
-    if (ImGui::BeginChild("##FeatureControl", ImVec2(0.f, 130.f), true))
+    if (ImGui::BeginChild("##FeatureControl", ImVec2(0.f, 155.f), true))
     {
         ImGui::Text("Feature Flags");
 
@@ -146,6 +146,7 @@ void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline,
         bool useBloom = pipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
         bool useGamma = pipeline->Has_PostProcessFeature(PostProcessFeature::Gamma);
         bool useLightShaft = pipeline->Has_PostProcessFeature(PostProcessFeature::LightShaft);
+        bool useDOF = pipeline->Has_PostProcessFeature(PostProcessFeature::DOF);
 
         if (ImGui::Checkbox("HDR", &useHDR))
         {
@@ -182,6 +183,12 @@ void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline,
             pipeline->Set_PostProcessFeature(PostProcessFeature::LightShaft, useLightShaft);
             dirty = true;
         }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("DOF", &useDOF))
+        {
+            pipeline->Set_PostProcessFeature(PostProcessFeature::DOF, useDOF);
+            dirty = true;
+        }
     }
 
     ImGui::EndChild();
@@ -189,7 +196,7 @@ void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline,
 
 void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
 {
-    if (ImGui::BeginChild("##ParamControl", ImVec2(0.f, 260.f), true))
+    if (ImGui::BeginChild("##ParamControl", ImVec2(0.f, 430.f), true))
     {
         ImGui::Text("PostProcess Params");
 
@@ -203,6 +210,40 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
         dirty |= ImGui::DragFloat("BloomSoftKnee", &params.bloomSoftKnee, 0.01f, 0.f, 1.f, "%.2f");
         dirty |= ImGui::DragFloat("BloomClamp", &params.bloomClamp, 0.05f, 0.f, 50.f, "%.2f");
         dirty |= ImGui::DragFloat("BloomScatter", &params.bloomScatter, 0.01f, 0.f, 1.f, "%.2f");
+
+        ImGui::Separator();
+        ImGui::Text("DOF Params");
+
+        dirty |= ImGui::DragFloat("FocusDistance##DOF", &params.dofFocusDistance, 0.1f, 0.01f, 500.f, "%.2f");
+        dirty |= ImGui::DragFloat("FocusRange##DOF", &params.dofFocusRange, 0.05f, 0.01f, 100.f, "%.2f");
+        dirty |= ImGui::DragFloat("NearMaxRadius##DOF", &params.dofNearMaxRadius, 0.05f, 0.f, 24.f, "%.2f");
+        dirty |= ImGui::DragFloat("FarMaxRadius##DOF", &params.dofFarMaxRadius, 0.05f, 0.f, 24.f, "%.2f");
+        dirty |= ImGui::DragFloat("Near Blend Intensity##DOF", &params.dofNearIntensity, 0.01f, 0.f, 2.f, "%.2f");
+        dirty |= ImGui::DragFloat("Far Blend Intensity##DOF", &params.dofFarIntensity, 0.01f, 0.f, 2.f, "%.2f");
+
+        dirty |= ImGui::DragFloat("BokehThreshold##DOF", &params.dofBokehThreshold, 0.01f, 0.f, 20.f, "%.2f");
+        dirty |= ImGui::DragFloat("BokehIntensity##DOF", &params.dofBokehIntensity, 0.01f, 0.f, 10.f, "%.2f");
+        dirty |= ImGui::DragFloat("DepthSharpness##DOF", &params.dofDepthSharpness, 0.01f, 0.f, 20.f, "%.2f");
+        dirty |= ImGui::DragFloat("CoCEpsilon##DOF", &params.dofCoCEpsilon, 0.001f, 0.f, 0.25f, "%.3f");
+
+        int dofSampleCount = static_cast<int>(params.dofSampleCount);
+        if (ImGui::SliderInt("SampleCount##DOF", &dofSampleCount, 1, 12))
+        {
+            params.dofSampleCount = static_cast<uint32>(dofSampleCount);
+            dirty = true;
+        }
+
+        int dofDebugMode = static_cast<int>(params.dofDebugMode);
+        const char* dofDebugItems[] = { "Off", "CoC Combined", "Near CoC", "Far CoC" };
+        if (ImGui::Combo("DebugMode##DOF", &dofDebugMode, dofDebugItems, IM_ARRAYSIZE(dofDebugItems)))
+        {
+            if (dofDebugMode < 0)
+                dofDebugMode = 0;
+            if (dofDebugMode >= static_cast<int>(IM_ARRAYSIZE(dofDebugItems)))
+                dofDebugMode = static_cast<int>(IM_ARRAYSIZE(dofDebugItems)) - 1;
+            params.dofDebugMode = static_cast<uint32>(dofDebugMode);
+            dirty = true;
+        }
 
         int toneMapMode = static_cast<int>(params.toneMapMode);
         const char* toneMapItems[] = { "Reinhard", "ACES", "Uncharted2" };

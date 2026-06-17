@@ -55,6 +55,13 @@ struct PS_OUT_BACKBUFFER
     vector Color : SV_TARGET0;
 };
 
+struct PS_OUT_DOF_PREFILTER
+{
+    vector CoC      : SV_TARGET0;
+    vector NearBlur : SV_TARGET1;
+    vector FarBlur  : SV_TARGET2;
+};
+
 PS_OUT_COLOR PS_Debug(PS_IN In)
 {
     PS_OUT_COLOR Out;
@@ -302,6 +309,107 @@ PS_OUT_COLOR PS_DistortionResolve(PS_IN In)
     return Out;
 }
 
+PS_OUT_DOF_PREFILTER PS_DOFPreFilterHalf(PS_IN In)
+{
+    PS_OUT_DOF_PREFILTER Out;
+
+    const float2 sourceTexel = max(g_TexelSize * 0.5f, float2(EPSILON, EPSILON));
+    const float2 offsets[4] =
+    {
+        float2(-sourceTexel.x, -sourceTexel.y),
+        float2(sourceTexel.x, -sourceTexel.y),
+        float2(-sourceTexel.x, sourceTexel.y),
+        float2(sourceTexel.x, sourceTexel.y)
+    };
+
+    float3 colorAccum = 0.f;
+    float weightSum = 0.f;
+    float nearMax = 0.f;
+    float farMax = 0.f;
+
+    [unroll]
+    for (uint i = 0u; i < 4u; ++i)
+    {
+        const float2 sampleUV = saturate(In.Texcoord + offsets[i]);
+        const float4 hdr = g_HDRTexture.Sample(LinearClampSampler, sampleUV);
+        const float viewZ = GetDOFViewZ(sampleUV);
+        const float2 coc = ComputeDOFCoC(viewZ);
+        const float cocMax = max(coc.r, coc.g);
+        const float weight = 1.f + cocMax * 2.f + ApplyDOFBokeh(hdr.rgb) * 0.25f;
+
+        colorAccum += hdr.rgb * weight;
+        weightSum += weight;
+        nearMax = max(nearMax, coc.r);
+        farMax = max(farMax, coc.g);
+    }
+
+    const float3 prefilteredColor = (weightSum > EPSILON) ? (colorAccum / weightSum) : 0.f;
+
+    Out.CoC = float4(nearMax, farMax, max(nearMax, farMax), 1.f);
+    Out.NearBlur = float4(prefilteredColor, nearMax);
+    Out.FarBlur = float4(prefilteredColor, farMax);
+
+    return Out;
+}
+
+PS_OUT_COLOR PS_DOFBlurNearHalf(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+    Out.Color = SampleDOFBlur(In.Texcoord, true);
+    return Out;
+}
+
+PS_OUT_COLOR PS_DOFBlurFarHalf(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+    Out.Color = SampleDOFBlur(In.Texcoord, false);
+    return Out;
+}
+
+PS_OUT_COLOR PS_DOFCompositeHDR(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float4 baseColor = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float2 coc = g_DOFCoCTexture.Sample(LinearClampSampler, In.Texcoord).rg;
+
+    if (g_PP_DOFDebugMode == 1u)
+    {
+        Out.Color = float4(coc.r, coc.g, max(coc.r, coc.g), 1.f);
+        return Out;
+    }
+    if (g_PP_DOFDebugMode == 2u)
+    {
+        Out.Color = float4(coc.r.xxx, 1.f);
+        return Out;
+    }
+    if (g_PP_DOFDebugMode == 3u)
+    {
+        Out.Color = float4(coc.g.xxx, 1.f);
+        return Out;
+    }
+
+    const float4 nearBlur = g_DOFNearTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float4 farBlur = g_DOFFarTexture.Sample(LinearClampSampler, In.Texcoord);
+
+    const float farBlendRaw = saturate(coc.g * g_PP_DOFFarIntensity);
+    const float nearBlendRaw = saturate(max(coc.r, nearBlur.a) * g_PP_DOFNearIntensity);
+    const float farBlend = ComputeDOFBlendSoftness(farBlendRaw);
+    const float nearBlend = ComputeDOFBlendSoftness(nearBlendRaw);
+
+    const float blurWeightSum = farBlend + nearBlend;
+    const float3 blurColor = (blurWeightSum > EPSILON)
+        ? ((farBlur.rgb * farBlend) + (nearBlur.rgb * nearBlend)) / blurWeightSum
+        : baseColor.rgb;
+
+    const float blurAmount = saturate(max(farBlend, nearBlend));
+    const float sharpPreserve = (1.f - blurAmount) * (1.f - blurAmount);
+    const float3 color = lerp(blurColor, baseColor.rgb, sharpPreserve);
+
+    Out.Color = float4(color, baseColor.a);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(HDRDebug,          RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 0
@@ -315,4 +423,8 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(LightShaftMaskHalf, RS_Default, DSS_None,  BS_Default, VS_MAIN,    PS_LightShaftMaskHalf)      // 8
     PASS_RS_DS_BS_VP(LightShaftRadialBlurHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftRadialBlurHalf) // 9
     PASS_RS_DS_BS_VP(LightShaftCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftCompositeHDR)  // 10
+    PASS_RS_DS_BS_VP(DOFPreFilterHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFPreFilterHalf)              // 11
+    PASS_RS_DS_BS_VP(DOFBlurNearHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurNearHalf)                // 12
+    PASS_RS_DS_BS_VP(DOFBlurFarHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurFarHalf)                  // 13
+    PASS_RS_DS_BS_VP(DOFCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFCompositeHDR)                // 14
 }

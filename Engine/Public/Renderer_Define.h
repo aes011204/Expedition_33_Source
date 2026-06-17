@@ -43,6 +43,13 @@ namespace RT
     inline constexpr const wchar_t* BloomQuarterB = L"Target_BloomQuarterB";
     inline constexpr const wchar_t* BloomEighthA = L"Target_BloomEighthA";
     inline constexpr const wchar_t* BloomEighthB = L"Target_BloomEighthB";
+    inline constexpr const wchar_t* DOFCoCHalf = L"Target_DOFCoCHalf";
+    inline constexpr const wchar_t* DOFNearHalfA = L"Target_DOFNearHalfA";
+    inline constexpr const wchar_t* DOFNearHalfB = L"Target_DOFNearHalfB";
+    inline constexpr const wchar_t* DOFFarHalfA = L"Target_DOFFarHalfA";
+    inline constexpr const wchar_t* DOFFarHalfB = L"Target_DOFFarHalfB";
+    inline constexpr const wchar_t* DOFFarQuarterA = L"Target_DOFFarQuarterA";
+    inline constexpr const wchar_t* DOFFarQuarterB = L"Target_DOFFarQuarterB";
 }
 
 namespace MRT
@@ -64,6 +71,11 @@ namespace MRT
     inline constexpr const wchar_t* BloomQuarterB = L"MRT_BloomQuarterB";
     inline constexpr const wchar_t* BloomEighthA = L"MRT_BloomEighthA";
     inline constexpr const wchar_t* BloomEighthB = L"MRT_BloomEighthB";
+    inline constexpr const wchar_t* DOFPreFilterHalf = L"MRT_DOFPreFilterHalf";
+    inline constexpr const wchar_t* DOFNearHalfB = L"MRT_DOFNearHalfB";
+    inline constexpr const wchar_t* DOFFarHalfB = L"MRT_DOFFarHalfB";
+    inline constexpr const wchar_t* DOFFarQuarterA = L"MRT_DOFFarQuarterA";
+    inline constexpr const wchar_t* DOFFarQuarterB = L"MRT_DOFFarQuarterB";
 #ifdef _DEBUG
     inline constexpr const wchar_t* FroxelDebug = L"MRT_FroxelDebug";
 #endif

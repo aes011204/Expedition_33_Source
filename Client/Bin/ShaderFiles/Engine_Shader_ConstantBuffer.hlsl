@@ -167,7 +167,22 @@ cbuffer PostProcessBuffer
     float4 g_PP_Padding2;              // 48 ~ 63
 
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
-}; // 80 bytes
+
+    float g_PP_DOFFocusDistance;       // 80 ~ 83
+    float g_PP_DOFFocusRange;          // 84 ~ 87
+    float g_PP_DOFNearMaxRadius;       // 88 ~ 91
+    float g_PP_DOFFarMaxRadius;        // 92 ~ 95
+
+    float g_PP_DOFBokehThreshold;      //  96 ~  99
+    float g_PP_DOFBokehIntensity;      // 100 ~ 103
+    float g_PP_DOFDepthSharpness;      // 104 ~ 107
+    float g_PP_DOFCoCEpsilon;          // 108 ~ 111
+
+    float g_PP_DOFNearIntensity;       // 112 ~ 115
+    float g_PP_DOFFarIntensity;        // 116 ~ 119
+    uint g_PP_DOFSampleCount;          // 120 ~ 123
+    uint g_PP_DOFDebugMode;            // 124 ~ 127
+}; // 128 bytes
 
 cbuffer LightShaftBuffer
 {

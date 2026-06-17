@@ -19,6 +19,10 @@ Texture2D g_DistortionSourceTexture;
 Texture2D g_DistortionFieldTexture;
 Texture2D g_LightShaftMaskTexture;
 Texture2D g_LightShaftSourceTexture;
+Texture2D g_DOFCoCTexture;
+Texture2D g_DOFSourceTexture;
+Texture2D g_DOFNearTexture;
+Texture2D g_DOFFarTexture;
 
 // Bloom Extract 용도
 static const float3 REC_709 = float3(0.2126f, 0.7152f, 0.0722f);
@@ -78,6 +82,124 @@ float3 SampleBloomUpsampleAdd(float2 uv)
     float3 upsampled = g_BloomTexture.Sample(LinearClampSampler, uv).rgb;
     float3 baseColor = g_BloomBaseTexture.Sample(LinearClampSampler, uv).rgb;
     return min(baseColor + upsampled, g_PP_BloomClamp);
+}
+
+float GetDOFViewZ(float2 uv)
+{
+    return g_DepthTexture.Sample(PointClampSampler, uv).y * g_DeferredFar;
+}
+
+float2 ComputeDOFCoC(float viewZ)
+{
+    if (viewZ <= EPSILON)
+        return float2(0.f, 1.f);
+
+    const float focusDistance = max(g_PP_DOFFocusDistance, EPSILON);
+    const float focusRange = max(g_PP_DOFFocusRange, EPSILON);
+    const float nearStart = max(focusDistance - focusRange, EPSILON);
+    const float farStart = focusDistance + focusRange;
+
+    const float nearCoC = saturate((nearStart - viewZ) / max(focusRange, EPSILON));
+    const float farCoC = saturate((viewZ - farStart) / max(focusRange, EPSILON));
+
+    return float2(nearCoC, farCoC);
+}
+
+float ApplyDOFBokeh(float3 color)
+{
+    const float luminance = dot(color, REC_709);
+    return saturate((luminance - g_PP_DOFBokehThreshold) * g_PP_DOFBokehIntensity);
+}
+
+float ComputeDOFBlendSoftness(float coc)
+{
+    const float softened = saturate(coc);
+    return softened * softened * (3.f - 2.f * softened);
+}
+
+static const float2 DOFPoissonDisk[12] =
+{
+    float2(0.000f, 0.000f),
+    float2(0.527f, 0.086f),
+    float2(-0.416f, 0.311f),
+    float2(0.178f, -0.497f),
+    float2(-0.660f, -0.190f),
+    float2(0.771f, -0.379f),
+    float2(-0.219f, 0.753f),
+    float2(0.458f, 0.633f),
+    float2(-0.858f, 0.349f),
+    float2(0.057f, -0.889f),
+    float2(0.930f, 0.203f),
+    float2(-0.565f, -0.704f)
+};
+
+float4 SampleDOFBlur(float2 uv, bool nearBlur)
+{
+    const float2 coc = g_DOFCoCTexture.Sample(LinearClampSampler, uv).rg;
+    const float centerCoC = nearBlur ? coc.r : coc.g;
+
+    if (centerCoC <= g_PP_DOFCoCEpsilon)
+        return float4(0.f, 0.f, 0.f, 0.f);
+
+    const float centerDepth = GetDOFViewZ(uv);
+    const float maxRadius = nearBlur ? g_PP_DOFNearMaxRadius : g_PP_DOFFarMaxRadius;
+    const float radius = lerp(maxRadius * 0.35f, maxRadius, sqrt(saturate(centerCoC)));
+    const uint sampleCount = min(max(g_PP_DOFSampleCount, 1u), 12u);
+    const float2 texel = max(g_TexelSize, float2(EPSILON, EPSILON));
+
+    float3 accum = float3(0.f, 0.f, 0.f);
+    float coverageAccum = 0.f;
+    float weightSum = 0.f;
+
+    [loop]
+    for (uint i = 0u; i < sampleCount; ++i)
+    {
+        const float2 sampleUV = saturate(uv + DOFPoissonDisk[i] * texel * radius);
+        const float4 sampleBlur = g_DOFSourceTexture.Sample(LinearClampSampler, sampleUV);
+        const float2 sampleCoC = g_DOFCoCTexture.Sample(LinearClampSampler, sampleUV).rg;
+        const float sampleWeightCoC = nearBlur ? max(sampleBlur.a, centerCoC) : max(sampleCoC.g, centerCoC);
+
+        if (sampleWeightCoC <= g_PP_DOFCoCEpsilon)
+            continue;
+
+        const float sampleDepth = GetDOFViewZ(sampleUV);
+        float depthWeight = 1.f;
+        const float sharpness = max(g_PP_DOFDepthSharpness, EPSILON);
+
+        if (nearBlur)
+        {
+            const float backgroundDelta = sampleDepth - centerDepth;
+            depthWeight = (backgroundDelta > 0.f)
+                ? exp(-backgroundDelta * sharpness * 0.15f)
+                : 1.f;
+        }
+        else
+        {
+            const float foregroundDelta = centerDepth - sampleDepth;
+            depthWeight = (foregroundDelta > 0.f)
+                ? exp(-foregroundDelta * sharpness * 0.25f)
+                : 1.f;
+        }
+
+        const float cocSoftness = lerp(0.35f, 1.f, ComputeDOFBlendSoftness(sampleWeightCoC));
+        const float weight = sampleWeightCoC * depthWeight * cocSoftness;
+        float3 sampleColor = sampleBlur.rgb;
+
+        const float bokeh = ApplyDOFBokeh(sampleColor);
+        sampleColor *= 1.f + bokeh * sampleWeightCoC;
+
+        accum += sampleColor * weight;
+        coverageAccum += sampleWeightCoC * weight;
+        weightSum += weight;
+    }
+
+    if (weightSum <= EPSILON)
+        return float4(0.f, 0.f, 0.f, 0.f);
+
+    const float3 blurColor = accum / weightSum;
+    const float blurCoverage = nearBlur ? saturate(max(centerCoC, coverageAccum / weightSum)) : saturate(centerCoC);
+
+    return float4(blurColor, blurCoverage);
 }
 
 // god ray가 화면 가장자리에서 갑자기 켜지거나 꺼지는 popping을 완화.

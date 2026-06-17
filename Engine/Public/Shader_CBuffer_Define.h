@@ -178,10 +178,10 @@ struct alignas(16) PostProcessCB
     float exposure = 1.1f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
     float gamma = 1.05f;                     // 선형 색상을 sRGB에 가깝게 변환함
-    float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
+    float bloomRadius = 0.5f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
-    float bloomThreshold = 0.9f;            // Bloom 추출 기준
-    float bloomIntensity = 0.4f;            // Bloom 의 강도
+    float bloomThreshold = 0.95f;            // Bloom 추출 기준
+    float bloomIntensity = 0.1f;            // Bloom 의 강도
     float bloomSoftKnee = 0.7f;             // Bloom Threshold 경계선을 부드럽게 만드는 값
     float bloomClamp = 10.f;                // Bloom 추출 시 너무 강하지 않게 제한 값
 
@@ -192,6 +192,22 @@ struct alignas(16) PostProcessCB
     uint32 useBackgroundFallback = 0;       // 0이면 비활성, 1이면 빈 픽셀 fallback 색 적용
     float _pad2[4]{};
     Vec4 backgroundFallbackColor{ 0.f, 0.f, 0.f, 1.f }; // fallback 배경색
+
+    float dofFocusDistance = 3.f;
+    float dofFocusRange = 20.f;
+    float dofNearMaxRadius = 0.55f;
+    float dofFarMaxRadius = 0.85f;
+
+    float dofBokehThreshold = 1.5f;
+    float dofBokehIntensity = 4.f;
+    float dofDepthSharpness = 0.01f;
+    float dofCoCEpsilon = 0.01f;
+
+    float dofNearIntensity = 0.85f;
+    float dofFarIntensity = 2.f;
+    uint32 dofSampleCount = 12;
+    uint32 dofDebugMode = 0;
+    float _pad3[2]{};
 };
 
 struct alignas(16) LightShaftCB

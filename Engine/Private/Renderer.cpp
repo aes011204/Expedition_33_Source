@@ -1116,6 +1116,63 @@ void Renderer::Render_PostProcess()
             L"Render_PostProcess:FAIL Render_LightShaftCompositePass");
     }
 
+    const bool useDOF = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::DOF);
+    if (useDOF)
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Render::DOF");
+
+        const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
+        const ViewportSize quarter = { max(1u, viewportWidth / 4u), max(1u, viewportHeight / 4u) };
+
+        RETURN_LOG_IF_FAILED(
+            _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
+            L"Render_PostProcess:FAIL Bind_CBufferData(DOF)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFPreFilter)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFPreFilterPass(),
+            L"Render_PostProcess:FAIL Render_DOFPreFilterPass");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFBlurNear)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFBlurPass(MRT::DOFNearHalfB, "g_DOFSourceTexture", RT::DOFNearHalfA, PostProcessPass::DOFBlurNearHalf),
+            L"Render_PostProcess:FAIL Render_DOFBlurPass(Near)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFBlurFar)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_BloomPass(MRT::DOFFarQuarterA, RT::DOFFarHalfA, PostProcessPass::BloomDownsample),
+            L"Render_PostProcess:FAIL Render_BloomPass(DOFFarQuarterA)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, quarter.width, quarter.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFBlurFarQuarter)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFBlurPass(MRT::DOFFarQuarterB, "g_DOFSourceTexture", RT::DOFFarQuarterA, PostProcessPass::DOFBlurFarHalf),
+            L"Render_PostProcess:FAIL Render_DOFBlurPass(Far)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+            L"Render_PostProcess:FAIL Copy_RTV(HDRColor -> DistortionSource:DOF)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(DOFComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_DOFCompositePass(),
+            L"Render_PostProcess:FAIL Render_DOFCompositePass");
+    }
+
     // Bloom Mip Chain 구조. 해상도를 낮춰서 샘플링 횟수를 줄인다.
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
     if (useBloom)
@@ -1594,6 +1651,127 @@ HRESULT Renderer::Render_LightShaftCompositePass()
     RETURN_FAIL_LOG_IF_FAILED(
         GAME->End_MRT(),
         L"Render_PostProcess:FAIL End_MRT(HDR,LightShaftComposite)");
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DOFPreFilterPass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::DOFPreFilterHalf, NotUseDSV, ClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(DOFPreFilterHalf)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_HDRTexture-DOFPreFilter)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DepthTexture", RT::Depth),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DepthTexture-DOFPreFilter)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::DOFPreFilterHalf)),
+        L"Render_PostProcess:FAIL ShaderBegin(DOFPreFilterHalf)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PostProcess:FAIL RenderRect(DOFPreFilterHalf)");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(DOFPreFilterHalf)");
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DOFBlurPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass)
+{
+    const wchar_t* passName = L"DOFUnknown";
+    switch (pass)
+    {
+    case PostProcessPass::DOFBlurNearHalf: passName = L"DOFBlurNearHalf"; break;
+    case PostProcessPass::DOFBlurFarHalf:  passName = L"DOFBlurFarHalf"; break;
+    default: break;
+    }
+
+    const wstring beginLog = wstring(L"Render_PostProcess:FAIL Begin_MRT(") + dstMrt + L"," + passName + L")";
+    const wstring srcBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(") + std::wstring(srcRt) + L"," + passName + L")";
+    const wstring cocBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(DOFCoCHalf,") + passName + L")";
+    const wstring depthBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(Depth,") + passName + L")";
+    const wstring shaderLog = wstring(L"Render_PostProcess:FAIL ShaderBegin(") + passName + L")";
+    const wstring renderLog = wstring(L"Render_PostProcess:FAIL RenderRect(") + passName + L")";
+    const wstring endLog = wstring(L"Render_PostProcess:FAIL End_MRT(") + dstMrt + L"," + passName + L")";
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+        beginLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, srcResourceName, srcRt),
+        srcBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFCoCTexture", RT::DOFCoCHalf),
+        cocBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DepthTexture", RT::Depth),
+        depthBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(pass)),
+        shaderLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        renderLog.c_str());
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DOFCompositePass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(HDR,DOFComposite)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DistortionSourceTexture-DOF)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFCoCTexture", RT::DOFCoCHalf),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFCoCTexture-DOF)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFNearTexture", RT::DOFNearHalfB),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFNearTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DOFFarTexture", RT::DOFFarQuarterB),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DOFFarTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::DOFCompositeHDR)),
+        L"Render_PostProcess:FAIL ShaderBegin(DOFCompositeHDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PostProcess:FAIL RenderRect(DOFCompositeHDR)");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(HDR,DOFComposite)");
 
     Add_RenderCall();
 
