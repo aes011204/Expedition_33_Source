@@ -217,6 +217,20 @@ namespace MapEditor
         float minSpacing = 1.f;
     };
 
+    struct ScatterBoxZone
+    {
+        Vec3 center = Vec3::Zero;
+        // Y는 보류 — 인스턴스는 center.y 높이에 배치
+        float halfExtentX = 5.f;
+        float halfExtentZ = 5.f;
+        int count = 20;
+        int seed = 0;
+        float scaleMin = 0.8f;
+        float scaleMax = 1.2f;
+        float yRotMax = 180.f;
+        float minSpacing = 1.f;
+    };
+
     struct CameraBookmark
     {
         Vec3 position = {};
