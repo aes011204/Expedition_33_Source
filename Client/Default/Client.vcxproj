@@ -237,6 +237,7 @@
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\Level_GestralVillage.h" />
     <ClInclude Include="..\Public\MapAdapter.h" />
     <ClInclude Include="..\Public\MapCollisionAdapter.h" />
     <ClInclude Include="..\Public\PlayerInventory.h" />
@@ -556,6 +557,7 @@
     <ClCompile Include="..\private\CinematicCamera.cpp" />
     <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
     <ClCompile Include="..\Private\EyeTarget.cpp" />
+    <ClCompile Include="..\Private\Level_GestralVillage.cpp" />
     <ClCompile Include="..\Private\MapAdapter.cpp" />
     <ClCompile Include="..\Private\MapCollisionAdapter.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />

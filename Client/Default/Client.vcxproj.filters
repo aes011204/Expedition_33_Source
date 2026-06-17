@@ -263,6 +263,9 @@
     <Filter Include="02.GameObject\Effect\Emitters\Sprite Trail">
       <UniqueIdentifier>{32e72e43-5d50-467a-8bd0-84129ff62a91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Levels\Stage\Level_GestralVillage">
+      <UniqueIdentifier>{5ce4bb27-069c-4f90-8e6e-6b4ed1f61c43}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -538,6 +541,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Level_GestralVillage.cpp">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1496,6 +1502,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Level_GestralVillage.h">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

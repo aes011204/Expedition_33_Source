@@ -245,6 +245,10 @@ namespace Client::Constants::Map
     inline constexpr wchar_t MF_Zone_Stair_3_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_3.hmap";
 
     inline constexpr wchar_t WaterPath[] = L"../../../Client/Bin/Resources/Map/Water/";
+
+    // gestral
+    inline constexpr wchar_t GestralVillage_MapInstance_Path[] = L"../../../Client/Bin/Resources/Map/MapInstance/Level_Main_GestralVillage_V2";
+    inline constexpr wchar_t GestralVillage_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/Gestral_Main.hmap";
 }
 
 namespace Client::Constants::Charcter
