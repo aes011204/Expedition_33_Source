@@ -108,7 +108,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SubUVFrameCurveTimesBlock1;
     float4 g_SubUVFrameCurveValues; // SubUV frame curve frame values
     float4 g_SubUVFrameCurveValuesBlock1;
-    float4 g_SubUVFrameCurveParams; // x: key count
+    float4 g_SubUVFrameCurveParams; // x: key count, y: random start phase flag
     uint4 g_SpawnSeedSalts;         // x: Lifetime, y: InitialLocation, z: SphereLocation, w: unused
     uint4 g_SubUVSeedSalts;         // x: SubUV RandomFrame
     uint4 g_AppearanceSeedSalts0;   // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB
@@ -120,6 +120,16 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SizeByLifeCurveValuesXBlock1;
     float4 g_SizeByLifeCurveValuesY; // scaleOverLife Y multipliers
     float4 g_SizeByLifeCurveValuesYBlock1;
+    float4 g_SizeByLifeCurveArriveTangentsX;
+    float4 g_SizeByLifeCurveArriveTangentsXBlock1;
+    float4 g_SizeByLifeCurveLeaveTangentsX;
+    float4 g_SizeByLifeCurveLeaveTangentsXBlock1;
+    float4 g_SizeByLifeCurveArriveTangentsY;
+    float4 g_SizeByLifeCurveArriveTangentsYBlock1;
+    float4 g_SizeByLifeCurveLeaveTangentsY;
+    float4 g_SizeByLifeCurveLeaveTangentsYBlock1;
+    float4 g_SizeByLifeCurveModes;
+    float4 g_SizeByLifeCurveModesBlock1;
     float4 g_SizeByLifeCurveParams; // x: key count, y: multiplyX, z: multiplyY, w: axisLock
     float4 g_MotionFlags;           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
     float4 g_MotionSpaceFlags;      // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode
@@ -470,55 +480,38 @@ float4 EvaluateColorOverLife(float lifeProgress, float4 fallbackColor)
 float2 EvaluateSizeByLifeMultiplier(float lifeProgress)
 {
     const uint keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, (uint)g_SizeByLifeCurveParams.x));
-    float2 multiplier = float2(g_SizeByLifeParams.x, g_SizeByLifeParams.z);
-
-    if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, 0u))
-    {
-        multiplier = float2(
-            ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, 0u),
-            ReadVec4Component(g_SizeByLifeCurveValuesY, g_SizeByLifeCurveValuesYBlock1, 0u)
-        );
-    }
-    else
-    {
-        bool found = false;
-        [loop]
-        for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
-        {
-            if (keyIndex >= keyCount || found)
-                break;
-
-            const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyIndex);
-            if (lifeProgress > rightTime)
-                continue;
-
-            const float leftTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyIndex - 1u);
-            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
-            multiplier = float2(
-                lerp(
-                    ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, keyIndex - 1u),
-                    ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, keyIndex),
-                    ratio
-                ),
-                lerp(
-                    ReadVec4Component(g_SizeByLifeCurveValuesY, g_SizeByLifeCurveValuesYBlock1, keyIndex - 1u),
-                    ReadVec4Component(g_SizeByLifeCurveValuesY, g_SizeByLifeCurveValuesYBlock1, keyIndex),
-                    ratio
-                )
-            );
-            found = true;
-            break;
-        }
-
-        const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyCount - 1u);
-        if (!found && lifeProgress > lastTime)
-        {
-            multiplier = float2(
-                ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, keyCount - 1u),
-                ReadVec4Component(g_SizeByLifeCurveValuesY, g_SizeByLifeCurveValuesYBlock1, keyCount - 1u)
-            );
-        }
-    }
+    float2 multiplier = float2(
+        EvaluateCompactCurve(
+            lifeProgress,
+            keyCount,
+            g_SizeByLifeCurveTimes,
+            g_SizeByLifeCurveTimesBlock1,
+            g_SizeByLifeCurveValuesX,
+            g_SizeByLifeCurveValuesXBlock1,
+            g_SizeByLifeCurveArriveTangentsX,
+            g_SizeByLifeCurveArriveTangentsXBlock1,
+            g_SizeByLifeCurveLeaveTangentsX,
+            g_SizeByLifeCurveLeaveTangentsXBlock1,
+            g_SizeByLifeCurveModes,
+            g_SizeByLifeCurveModesBlock1,
+            g_SizeByLifeParams.x
+        ),
+        EvaluateCompactCurve(
+            lifeProgress,
+            keyCount,
+            g_SizeByLifeCurveTimes,
+            g_SizeByLifeCurveTimesBlock1,
+            g_SizeByLifeCurveValuesY,
+            g_SizeByLifeCurveValuesYBlock1,
+            g_SizeByLifeCurveArriveTangentsY,
+            g_SizeByLifeCurveArriveTangentsYBlock1,
+            g_SizeByLifeCurveLeaveTangentsY,
+            g_SizeByLifeCurveLeaveTangentsYBlock1,
+            g_SizeByLifeCurveModes,
+            g_SizeByLifeCurveModesBlock1,
+            g_SizeByLifeParams.z
+        )
+    );
 
     if ((uint)g_SizeByLifeCurveParams.w == 1u)
         multiplier.y = multiplier.x;
@@ -1338,13 +1331,11 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         const uint lastFrame = frameCount - 1u;
         const uint startFrame = min((uint)g_SubUVFrameParams.x, lastFrame);
-        uint endFrame = min((uint)g_SubUVFrameParams.y, lastFrame);
-
-        if (endFrame < startFrame)
-            endFrame = startFrame;
-
-        const uint span = endFrame - startFrame;
-        const uint rangeCount = span + 1u;
+        const uint endFrame = min((uint)g_SubUVFrameParams.y, lastFrame);
+        const uint rangeCount =
+            endFrame >= startFrame
+            ? endFrame - startFrame + 1u
+            : frameCount - startFrame + endFrame + 1u;
 
         if ((uint)g_SubUVParams.z == 0u)
             frameIndex = startFrame;
@@ -1354,15 +1345,20 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                 (uint)floor(saturate(lifeProgress) * (float)rangeCount),
                 rangeCount - 1u
             );
-            frameIndex = startFrame + frameOffset;
+            frameIndex = (startFrame + frameOffset) % frameCount;
         }
         else if ((uint)g_SubUVParams.z == 2u)
         {
             const uint frameOffset = (uint)floor(lifeAge * max(0.0f, g_SubUVParams.w));
-            if (g_SubUVFrameParams.z != 0.0f && rangeCount > 0u)
-                frameIndex = startFrame + frameOffset % rangeCount;
-            else
-                frameIndex = startFrame + min(frameOffset, span);
+            const uint phaseOffset =
+                g_SubUVFrameCurveParams.y != 0.0f
+                ? min((uint)floor(Hash01(subUVRandomFrameSeed + 3919u) * (float)rangeCount), rangeCount - 1u)
+                : 0u;
+            const uint playbackOffset =
+                g_SubUVFrameParams.z != 0.0f
+                ? (frameOffset + phaseOffset) % rangeCount
+                : min(frameOffset + phaseOffset, rangeCount - 1u);
+            frameIndex = (startFrame + playbackOffset) % frameCount;
         }
         else if ((uint)g_SubUVParams.z == 3u)
         {
@@ -1370,7 +1366,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                 (uint)floor(Hash01(subUVRandomFrameSeed + 1201u) * (float)rangeCount),
                 rangeCount - 1u
             );
-            frameIndex = startFrame + frameOffset;
+            frameIndex = (startFrame + frameOffset) % frameCount;
         }
     }
 

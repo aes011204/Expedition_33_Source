@@ -7,6 +7,28 @@
 #include "MEInstancedMeshActor.h"
 #include "Renderer_Define.h"
 
+static int32 ResolveGlobalInstanceIdx(const Shared<EditorObject>& obj, uint32 offsetInGroup)
+{
+    uint32 remaining = offsetInGroup;
+    size_t instHandleSize = obj->_instancedChunkHandles.size();
+    for (size_t i = 0; i < instHandleSize; ++i)
+    {
+        uint32 count = obj->_instancedChunkHandles[i]->Get_InstanceCount();
+        if (remaining < count)
+        {
+            if (i < obj->_instancedChunkGlobalIndices.size() && remaining < obj->_instancedChunkGlobalIndices[i].size())
+            {
+                return static_cast<int32>(obj->_instancedChunkGlobalIndices[i][remaining]);
+            }
+            return -1;
+        }
+        remaining -= count;
+    }
+
+    return -1;
+}
+
+
 HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> context, uint32 w, uint32 h)
 {
     _device = device;
@@ -53,13 +75,18 @@ uint32 MEPickingSystem::SampleID(const SceneContext& scene, const ImVec2& mouseP
     for (uint32 i = 0; i < instancedCount; ++i)
     {
         auto& obj = scene._instancedMeshes[i];
-        if (!obj->_instancedRenderHandle)
+        if (obj->_instancedChunkHandles.empty())
         {
             continue;
         }
 
         uint32 baseID = 0x800000u | ((i & 0xFFu) << 15);
-        obj->_instancedRenderHandle->RenderPickingID(baseID);
+        uint32 chunkOffset = 0;
+        for (auto& chunk : obj->_instancedChunkHandles)
+        {
+            chunk->RenderPickingID(baseID + chunkOffset);
+            chunkOffset += chunk->Get_InstanceCount();
+        }
     }
 
     GAME->Bind_BackBuffer();
@@ -139,20 +166,22 @@ void MEPickingSystem::DoPickAt(SceneContext& scene, const ImVec2& mousePos, cons
     {
         scene._selected = nullptr;
     }
+
     else if (id & 0x800000u)
     {
         uint32 groupIdx = (id >> 15) & 0xFFu;
-        uint32 instanceIdx = id & 0x7FFFu;
+        uint32 offsetInGroup = id & 0x7FFFu;
         if (groupIdx < static_cast<uint32>(scene._instancedMeshes.size()))
         {
             scene._selected = scene._instancedMeshes[groupIdx];
-            scene._selected->_selectedInstanceIdx = static_cast<int>(instanceIdx);
+            scene._selected->_selectedInstanceIdx = ResolveGlobalInstanceIdx(scene._selected, offsetInGroup);
         }
         else
         {
             scene._selected = nullptr;
         }
     }
+
     else if (id <= staticCount)
     {
         scene._selected = scene._staticMeshes[id - 1];

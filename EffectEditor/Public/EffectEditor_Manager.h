@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "EffectEditor_Enum.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -20,10 +21,25 @@ public:
 
     void Add_Window(const Shared<Editor_Window>& window);
     Shared<Editor_Window> Find_Window(const wstring& windowName) const;
+    bool Is_SceneFocusModeActive() const { return _isSceneFocusModeActive; }
+    uint32 Get_CurrentDockSpaceId() const { return _currentDockSpaceId; }
 
 private:
+    struct PreviewViewportSnapshot
+    {
+        PreviewViewportMode mode{ PreviewViewportMode::Auto };
+        uint32 width{ 0 };
+        uint32 height{ 0 };
+    };
+
     map<wstring, Shared<Editor_Window>> _windows{};
     bool _defaultDockLayoutBuilt{ false };
+    bool _isSceneFocusModeActive{ false };
+    bool _sceneFocusDockLayoutBuilt{ false };
+    uint32 _currentDockSpaceId{ 0 };
+    map<wstring, bool> _sceneFocusWindowOpenSnapshot{};
+    PreviewViewportSnapshot _sceneFocusPreviewViewportSnapshot{};
+    string _sceneFocusDockSettingsSnapshot{};
 
 private:
     // 등록된 editor window들의 초기화 hook을 한 번씩 실행한다.
@@ -33,6 +49,7 @@ private:
     void Render_RuntimeToolbar();
     void Render_DockSpace();
     void Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize);
+    void Build_SceneFocusDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize);
     void Handle_Shortcuts();
     void Render_ShortcutHelp();
 
@@ -50,6 +67,9 @@ private:
     bool CanAdd_EffectEmitters() const;
     // Add 툴바가 공유하는 외부 effect emitter 추가 진입점이다.
     bool Add_EffectEmitters();
+    void Toggle_SceneFocusMode();
+    void Enter_SceneFocusMode();
+    void Exit_SceneFocusMode();
 
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);

@@ -44,6 +44,37 @@ static float Hash01(uint32 seed)
     return static_cast<float>(MixSeed(seed) & 0x00FFFFFFu) / 16777215.f;
 }
 
+struct SubUVFrameRange
+{
+    uint32 startFrame{};
+    uint32 frameCount{ 1u };
+    uint32 rangeCount{ 1u };
+};
+
+static SubUVFrameRange Resolve_SubUVFrameRange(uint32 startFrame, uint32 endFrame, uint32 frameCount)
+{
+    const uint32 safeFrameCount = max(1u, frameCount);
+    const uint32 lastFrame = safeFrameCount - 1u;
+    const uint32 clampedStart = min(startFrame, lastFrame);
+    const uint32 clampedEnd = min(endFrame, lastFrame);
+    const uint32 rangeCount =
+        clampedEnd >= clampedStart
+        ? clampedEnd - clampedStart + 1u
+        : safeFrameCount - clampedStart + clampedEnd + 1u;
+    return SubUVFrameRange{ clampedStart, safeFrameCount, max(1u, rangeCount) };
+}
+
+static uint32 Resolve_SubUVFrameInRange(const SubUVFrameRange& range, uint32 frameOffset)
+{
+    return (range.startFrame + min(frameOffset, range.rangeCount - 1u)) % range.frameCount;
+}
+
+static uint32 Resolve_SubUVPlaybackOffset(const SubUVFrameRange& range, uint32 frameOffset, uint32 phaseOffset, bool loop)
+{
+    const uint32 offset = frameOffset + phaseOffset;
+    return loop ? offset % range.rangeCount : min(offset, range.rangeCount - 1u);
+}
+
 static void Resolve_PerpendicularAxes(const Vec3& tangent, Vec3& outRight, Vec3& outUp)
 {
     const Vec3 upAxis = fabsf(tangent.y) < 0.99f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
@@ -1394,6 +1425,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesR,
             curve.colorCurveValuesRBlock1,
+            curve.colorCurveArriveR,
+            curve.colorCurveArriveRBlock1,
+            curve.colorCurveLeaveR,
+            curve.colorCurveLeaveRBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.x
         );
@@ -1403,6 +1440,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesG,
             curve.colorCurveValuesGBlock1,
+            curve.colorCurveArriveG,
+            curve.colorCurveArriveGBlock1,
+            curve.colorCurveLeaveG,
+            curve.colorCurveLeaveGBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.y
         );
@@ -1412,6 +1455,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesB,
             curve.colorCurveValuesBBlock1,
+            curve.colorCurveArriveB,
+            curve.colorCurveArriveBBlock1,
+            curve.colorCurveLeaveB,
+            curve.colorCurveLeaveBBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.z
         );
@@ -1426,6 +1475,12 @@ Vec4 ComputeGeneratedBeamEmitter::Evaluate_ColorOverLife(float lifeProgress) con
             curve.alphaCurveTimesBlock1,
             curve.alphaCurveValues,
             curve.alphaCurveValuesBlock1,
+            curve.alphaCurveArrive,
+            curve.alphaCurveArriveBlock1,
+            curve.alphaCurveLeave,
+            curve.alphaCurveLeaveBlock1,
+            curve.alphaCurveModes,
+            curve.alphaCurveModesBlock1,
             keyCount,
             color.w
         );
@@ -1447,6 +1502,12 @@ float ComputeGeneratedBeamEmitter::Evaluate_WidthScaleByLife(float lifeProgress)
         _desc.sizeByLife.curveKeyTimesBlock1,
         _desc.sizeByLife.curveKeyValuesX,
         _desc.sizeByLife.curveKeyValuesXBlock1,
+        _desc.sizeByLife.curveKeyArriveTangentsX,
+        _desc.sizeByLife.curveKeyArriveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyLeaveTangentsX,
+        _desc.sizeByLife.curveKeyLeaveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyModes,
+        _desc.sizeByLife.curveKeyModesBlock1,
         _desc.sizeByLife.curveKeyCount,
         fallbackScale
     );
@@ -1461,14 +1522,11 @@ uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex(uint32 stripIndex) 
     if (!_desc.subUVFrameOverLife.enabled)
         return 0u;
 
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 span = endFrame - startFrame;
-    const uint32 rangeCount = span + 1u;
+    const EffectBeamRuntime::SubUVFrameRange frameRange = EffectBeamRuntime::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const float activeElapsedTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
     switch (_desc.subUVFrameOverLife.playbackMode)
     {
@@ -1476,27 +1534,30 @@ uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex(uint32 stripIndex) 
     {
         const float lifeProgress = clamp(activeElapsedTime / Resolve_VisualLife(), 0.f, 1.f);
         const uint32 frameOffset = min(
-            static_cast<uint32>(floorf(lifeProgress * static_cast<float>(rangeCount))),
-            rangeCount - 1u
+            static_cast<uint32>(floorf(lifeProgress * static_cast<float>(frameRange.rangeCount))),
+            frameRange.rangeCount - 1u
         );
-        return startFrame + frameOffset;
+        return EffectBeamRuntime::Resolve_SubUVFrameInRange(frameRange, frameOffset);
     }
     case SubUVFramePlaybackMode::FramesPerSecond:
     {
         const uint32 frameOffset = static_cast<uint32>(floorf(activeElapsedTime * max(0.f, _desc.subUVFrameOverLife.framesPerSecond)));
-        if (!_desc.subUVFrameOverLife.loop)
-            return startFrame + min(frameOffset, span);
-
-        const uint32 phaseOffset = Resolve_FpsSubUVFramePhaseOffset(stripIndex, rangeCount);
-        return startFrame + (frameOffset + phaseOffset) % rangeCount;
+        const uint32 phaseOffset =
+            _desc.subUVFrameOverLife.randomStartPhase
+            ? Resolve_FpsSubUVFramePhaseOffset(stripIndex, frameRange.rangeCount)
+            : 0u;
+        return EffectBeamRuntime::Resolve_SubUVFrameInRange(
+            frameRange,
+            EffectBeamRuntime::Resolve_SubUVPlaybackOffset(frameRange, frameOffset, phaseOffset, _desc.subUVFrameOverLife.loop)
+        );
     }
     case SubUVFramePlaybackMode::RandomFrame:
         return !_desc.usePerStripSubUVVariation || stripIndex == 0u
-               ? min(_randomSubUVFrameIndex, lastFrame)
+               ? min(_randomSubUVFrameIndex, frameRange.frameCount - 1u)
                : Resolve_RandomSubUVFrameIndex(stripIndex);
     case SubUVFramePlaybackMode::FixedFrame:
     default:
-        return startFrame;
+        return frameRange.startFrame;
     }
 }
 
@@ -1519,26 +1580,25 @@ uint32 ComputeGeneratedBeamEmitter::Resolve_RandomSubUVFrameIndex(uint32 stripIn
     const uint32 rows = max(1u, _desc.material.subUVRows);
     const uint32 cols = max(1u, _desc.material.subUVCols);
     const uint32 frameCount = max(1u, rows * cols);
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 rangeCount = endFrame - startFrame + 1u;
+    const EffectBeamRuntime::SubUVFrameRange frameRange = EffectBeamRuntime::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const uint32 stripSeedSalt = stripIndex * 15641u;
     const uint32 seed =
         (_loopIndex + 1u) * 9781u +
         EffectBeamRuntime::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) +
         stripSeedSalt +
         1201u;
-    const uint32 frameOffset = min(static_cast<uint32>(floorf(EffectBeamRuntime::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
-    return startFrame + frameOffset;
+    const uint32 frameOffset =
+        min(static_cast<uint32>(floorf(EffectBeamRuntime::Hash01(seed) * static_cast<float>(frameRange.rangeCount))), frameRange.rangeCount - 1u);
+    return EffectBeamRuntime::Resolve_SubUVFrameInRange(frameRange, frameOffset);
 }
 
 uint32 ComputeGeneratedBeamEmitter::Resolve_FpsSubUVFramePhaseOffset(uint32 stripIndex, uint32 rangeCount) const
 {
-    if (!_desc.usePerStripSubUVVariation ||
+    if (!_desc.subUVFrameOverLife.randomStartPhase ||
         _desc.stripCount <= 1u ||
         stripIndex == 0u ||
         rangeCount <= 1u)
@@ -1583,6 +1643,62 @@ float ComputeGeneratedBeamEmitter::Evaluate_CompactCurve(
             EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, index),
             ratio
         );
+    }
+
+    return lifeProgress > EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+           : fallbackValue;
+}
+
+float ComputeGeneratedBeamEmitter::Evaluate_CompactCurve(
+    float lifeProgress,
+    const Vec4& times,
+    const Vec4& timesBlock1,
+    const Vec4& values,
+    const Vec4& valuesBlock1,
+    const Vec4& arriveTangents,
+    const Vec4& arriveTangentsBlock1,
+    const Vec4& leaveTangents,
+    const Vec4& leaveTangentsBlock1,
+    const Vec4& modes,
+    const Vec4& modesBlock1,
+    uint32 keyCount,
+    float fallbackValue) const
+{
+    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    if (clampedKeyCount == 1u || lifeProgress <= EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, 0u))
+        return EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < clampedKeyCount; ++index)
+    {
+        const float rightTime = EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, index);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftValue = EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, index - 1u);
+        const float rightValue = EffectBeamRuntime::Read_Vec4Component(values, valuesBlock1, index);
+        const float mode = EffectBeamRuntime::Read_Vec4Component(modes, modesBlock1, index - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((lifeProgress - leftTime) / width, 0.f, 1.f);
+
+        if (mode < 0.5f)
+            return leftValue;
+
+        if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = EffectBeamRuntime::Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = EffectBeamRuntime::Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
+            return
+                (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
+                (t3 - 2.f * t2 + ratio) * leftLeave +
+                (-2.f * t3 + 3.f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+
+        return lerp(leftValue, rightValue, ratio);
     }
 
     return lifeProgress > EffectBeamRuntime::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)

@@ -795,6 +795,16 @@ namespace EffectAssetRuntimeLoad::Curves
             desc.curveKeyValuesXBlock1 = Vec4{};
             desc.curveKeyValuesY = Vec4{ desc.multiplyYStart, desc.multiplyYEnd, 0.f, 0.f };
             desc.curveKeyValuesYBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsX = Vec4{};
+            desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsX = Vec4{};
+            desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsY = Vec4{};
+            desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsY = Vec4{};
+            desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+            desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+            desc.curveKeyModesBlock1 = Vec4{};
             return;
         }
 
@@ -811,6 +821,16 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.curveKeyValuesXBlock1 = Vec4{};
         desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
         desc.curveKeyValuesYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
         if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
@@ -820,7 +840,13 @@ namespace EffectAssetRuntimeLoad::Curves
         if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
             return;
 
-        const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+        vector<const json*> keys{};
+        keys.reserve(keysIter->size());
+        for (const json& key : *keysIter)
+            keys.push_back(&key);
+        ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+        const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
         desc.curveKeyCount = keyCount;
         desc.curveKeyTimes = Vec4{};
         desc.curveKeyTimesBlock1 = Vec4{};
@@ -828,17 +854,38 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.curveKeyValuesXBlock1 = Vec4{};
         desc.curveKeyValuesY = Vec4{};
         desc.curveKeyValuesYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
-            const json& key = (*keysIter)[index];
+            const json& key = *keys[index];
             Vec2 value{ 1.f, 1.f };
             if (const auto valueIter = key.find("value"); valueIter != key.end())
                 Read_Vec2(*valueIter, value);
+            Vec2 arriveTangent{};
+            Vec2 leaveTangent{};
+            if (const auto tangentIter = key.find("arriveTangent"); tangentIter != key.end())
+                Read_Vec2(*tangentIter, arriveTangent);
+            if (const auto tangentIter = key.find("leaveTangent"); tangentIter != key.end())
+                Read_Vec2(*tangentIter, leaveTangent);
 
             Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
             Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
             Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
+            Set_CurveComponent(desc.curveKeyArriveTangentsX, desc.curveKeyArriveTangentsXBlock1, index, arriveTangent.x);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsX, desc.curveKeyLeaveTangentsXBlock1, index, leaveTangent.x);
+            Set_CurveComponent(desc.curveKeyArriveTangentsY, desc.curveKeyArriveTangentsYBlock1, index, arriveTangent.y);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsY, desc.curveKeyLeaveTangentsYBlock1, index, leaveTangent.y);
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, Resolve_CurveInterpolationMode(key));
         }
     }
 
