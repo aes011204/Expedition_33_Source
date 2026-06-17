@@ -291,9 +291,6 @@ void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
 
     _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
 
-
-
-
     Update_TransformMatrices();
 }
 
