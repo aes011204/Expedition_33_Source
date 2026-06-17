@@ -723,8 +723,9 @@ void Editor_Manager::Render_SaveCheckpointPopup()
             ImGuiCond_Appearing,
             ImVec2(0.5f, 0.5f));
     }
+    ImGui::SetNextWindowSize(ImVec2(420.f, 0.f), ImGuiCond_Appearing);
 
-    if (!ImGui::BeginPopupModal("Save Demo Checkpoint", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    if (!ImGui::BeginPopupModal("Save Demo Checkpoint", nullptr, ImGuiWindowFlags_NoResize))
         return;
 
     ImGui::TextUnformatted("Checkpoint Name");
@@ -736,7 +737,9 @@ void Editor_Manager::Render_SaveCheckpointPopup()
         ImGuiInputTextFlags_EnterReturnsTrue);
 
     const fs::path previewPath = Resolve_CheckpointPathFromName(_checkpointSaveNameBuffer);
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
     ImGui::TextDisabled("%s", String::ToString(previewPath.wstring()).c_str());
+    ImGui::PopTextWrapPos();
 
     ImGui::Separator();
 

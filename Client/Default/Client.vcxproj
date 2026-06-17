@@ -228,6 +228,8 @@
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
+    <ClInclude Include="..\Public\Mon_Dualiste_Sword.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
     <ClInclude Include="..\Public\PictosBattleSystem.h" />
     <ClInclude Include="..\Public\Pictos_Panel.h" />
     <ClInclude Include="..\Public\PreviewPlayer.h" />
@@ -565,6 +567,8 @@
     <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualiste_Sword.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
     <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
     <ClCompile Include="..\Private\Pictos_Panel.cpp" />
     <ClCompile Include="..\Private\PreviewPlayer.cpp" />

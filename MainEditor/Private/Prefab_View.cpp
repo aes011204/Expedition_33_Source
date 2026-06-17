@@ -17,6 +17,8 @@
 #include "Monster_WorldBase.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
+#include "SkyBoxFlow.h"
+#include "SkyCloudCard.h"
 #include "Spawn_Prefab.h"
 #include "Transform_Inspector.h"
 #include "Weapon.h"
@@ -28,6 +30,8 @@
 
 namespace
 {
+const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
+
 ImGuizmo::MODE Resolve_GizmoModeFromTransformSpace()
 {
     return MainEditor::Transform_Inspector::Get_Space() == MainEditor::Transform_Inspector::ETransformSpace::World
@@ -190,7 +194,13 @@ void Prefab_View::Pre_Render()
     if (_previewObject == nullptr || _previewCamera == nullptr)
         return;
 
+    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
+    if (_previewRenderTarget == nullptr)
+        return;
+
     Ensure_PreviewGridResources();
+    if (_showPreviewSkyBackdrop)
+        Ensure_PreviewSkyBackdrop();
 
     if (!_previewHasBegunPlay)
     {
@@ -249,11 +259,17 @@ void Prefab_View::Pre_Render()
     const float dt = ImGui::GetIO().DeltaTime;
     GAME->Set_PlayerInputBlocked(true);
 
+    if (_showPreviewSkyBackdrop)
+        Update_PreviewSkyBackdrop(dt);
+
     if (!_previewHasBegunPlay)
     {
         PreviewObjectHelpers::Prime_PreviewObject(_previewObject);
         _previewHasBegunPlay = true;
     }
+
+    if (_showPreviewSkyBackdrop)
+        Render_PreviewSkyBackdrop();
 
     GAME->Backup_RenderGroup();
     PreviewObjectHelpers::Update_PreviewObject(_previewObject, dt);
@@ -294,7 +310,7 @@ void Prefab_View::Pre_Render()
     Draw_PreviewGrid();
     Draw_MonsterBattleSpawnPreview();
     Draw_SelectedWeaponTrailAnchorPreview();
-    EDITOR->Capture_BackBuffer_ToPreview();
+    EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
 
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
@@ -580,6 +596,8 @@ void Prefab_View::Close_Prefab()
     _previewObject = nullptr;
     _previewCamera = nullptr;
     _previewRenderTarget = nullptr;
+    _previewSkyBox = nullptr;
+    _previewSkyCloudCards.clear();
     _previewGridBatch.reset();
     _previewGridEffect.reset();
     _previewGridInputLayout.Reset();
@@ -589,6 +607,7 @@ void Prefab_View::Close_Prefab()
     _previewWidth = 512;
     _previewHeight = 512;
     _previewHasBegunPlay = false;
+    _previewSkyBackdropBegunPlay = false;
     _requestResetPreviewCamera = false;
     _isPreviewHovered = false;
     _isPreviewActive = false;
@@ -786,6 +805,10 @@ void Prefab_View::Draw_Header()
     ImGui::Checkbox("Show Grid", &_showPreviewGrid);
 
     ImGui::SameLine();
+
+    ImGui::Checkbox("Show SkyBox", &_showPreviewSkyBackdrop);
+
+    ImGui::SameLine();
     ImGui::SetNextItemWidth(190.f);
     if (ImGui::InputText("Default Spawn Layer", _defaultSpawnLayerTagBuffer, IM_ARRAYSIZE(_defaultSpawnLayerTagBuffer)))
     {
@@ -865,7 +888,8 @@ void Prefab_View::Draw_PreviewPanel()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
+    ID3D11ShaderResourceView* previewSRV =
+        _previewRenderTarget != nullptr ? _previewRenderTarget->Get_SRV() : nullptr;
     if (previewSRV != nullptr)
     {
         ImTextureID textureId =
@@ -1725,7 +1749,7 @@ Editor_Camera_Free::EDITOR_CAMERA_DESC Prefab_View::Build_PreviewCameraDesc(cons
     desc.at = XMFLOAT4(0.25f, 1.0f, 0.f, 1.f);
     desc.fovy = XM_PIDIV4;
     desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
+    desc.farPlane = 500.f;
     desc.yaw = 0.f;
     desc.pitch = 0.f;
     desc.mouseSensor = 0.15f;
@@ -1873,6 +1897,104 @@ void Prefab_View::Ensure_PreviewGridResources()
         _previewGridInputLayout.Reset();
         _previewGridDepthState.Reset();
         _previewOverlayDepthState.Reset();
+    }
+}
+
+void Prefab_View::Ensure_PreviewSkyBackdrop()
+{
+    if (_previewSkyBox != nullptr)
+        return;
+
+    Shared<Client::SkyBoxFlow> skyBoxPrototype = Client::SkyBoxFlow::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyBoxPrototype == nullptr)
+        return;
+
+    Client::SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    _previewSkyBox = dynamic_pointer_cast<Client::SkyBoxFlow>(skyBoxPrototype->Clone(&skyBoxDesc));
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Set_Visible(true);
+
+    _previewSkyCloudCards.clear();
+
+    Shared<Client::SkyCloudCard> skyCloudPrototype = Client::SkyCloudCard::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyCloudPrototype == nullptr)
+        return;
+
+    Client::SkyCloudCard::SKYCLOUDCARD_DESC cloudDesc{};
+    cloudDesc.modelTag = TEXT("Model_Cloud_Mesh");
+    cloudDesc.shaderTag = TEXT("Shader_SkyCloudCard");
+    cloudDesc.cloudTextureTag = TEXT("Texture_T_Cloud_13_H");
+    cloudDesc.position = kPreviewSkyCloudLocalOffset;
+    cloudDesc.rotation = Vec3(-4.763f, -119.267f, -349.155f);
+    cloudDesc.scale = Vec3(1.5f, 0.9f, 0.9f);
+
+    Shared<Client::SkyCloudCard> skyCloudCard =
+        dynamic_pointer_cast<Client::SkyCloudCard>(skyCloudPrototype->Clone(&cloudDesc));
+    if (skyCloudCard != nullptr)
+    {
+        skyCloudCard->Set_Visible(true);
+        _previewSkyCloudCards.push_back(skyCloudCard);
+    }
+}
+
+void Prefab_View::Update_PreviewSkyBackdrop(float timeDelta)
+{
+    if (_previewSkyBox == nullptr)
+        return;
+
+    if (_previewCamera != nullptr)
+    {
+        Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
+        if (cameraTransform != nullptr)
+        {
+            const Vec3 cameraPos = cameraTransform->Get_WorldPosition();
+            for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+            {
+                if (skyCloudCard == nullptr)
+                    continue;
+
+                Shared<TransformCom> cloudTransform = skyCloudCard->Get_Transform();
+                if (cloudTransform != nullptr)
+                    cloudTransform->Set_WorldPosition(cameraPos + kPreviewSkyCloudLocalOffset);
+            }
+        }
+    }
+
+    if (!_previewSkyBackdropBegunPlay)
+    {
+        _previewSkyBox->Try_BeginPlay();
+        for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+        {
+            if (skyCloudCard != nullptr)
+                skyCloudCard->Try_BeginPlay();
+        }
+        _previewSkyBackdropBegunPlay = true;
+    }
+
+    _previewSkyBox->Set_Visible(true);
+    _previewSkyBox->Priority_Update(timeDelta);
+    _previewSkyBox->Update(timeDelta);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard == nullptr)
+            continue;
+
+        skyCloudCard->Set_Visible(true);
+        skyCloudCard->Priority_Update(timeDelta);
+        skyCloudCard->Update(timeDelta);
+    }
+}
+
+void Prefab_View::Render_PreviewSkyBackdrop() const
+{
+    if (_previewSkyBox != nullptr)
+        (void)_previewSkyBox->Render();
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard != nullptr)
+            (void)skyCloudCard->Render();
     }
 }
 

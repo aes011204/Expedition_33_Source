@@ -546,6 +546,8 @@
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualiste_Sword.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1514,6 +1516,8 @@
     <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
     <ClInclude Include="..\Public\SL_Maelle.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualiste_Sword.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

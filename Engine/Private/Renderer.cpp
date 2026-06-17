@@ -181,7 +181,8 @@ void Renderer::Draw()
 #endif
 
     // fog
-    Render_Fog();
+    if (!_renderOnlyPreviewMode)
+        Render_Fog(); // 에디터 프리뷰는 현재 월드의 fog volume을 상속하지 않는다.
     //
 
     // ========================================= //

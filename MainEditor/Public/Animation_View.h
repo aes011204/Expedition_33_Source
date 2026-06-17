@@ -15,6 +15,8 @@ class EffectInstance;
 NS_END
 
 NS_BEGIN(Client)
+class SkyBoxFlow;
+class SkyCloudCard;
 class Weapon;
 NS_END
 
@@ -215,6 +217,9 @@ private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Ensure_PreviewGridResources();
+    void Ensure_PreviewSkyBackdrop();
+    void Update_PreviewSkyBackdrop(float timeDelta);
+    void Render_PreviewSkyBackdrop() const;
     Shared<GameObject> Get_PreviewRenderObject() const;
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
@@ -300,6 +305,8 @@ private:
     Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
+    Shared<Client::SkyBoxFlow> _previewSkyBox{};
+    vector<Shared<Client::SkyCloudCard>> _previewSkyCloudCards{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
@@ -340,6 +347,8 @@ private:
     bool _isPreviewHovered = false;
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;
+    bool _showPreviewSkyBackdrop = true;
+    bool _previewSkyBackdropBegunPlay = false;
     float _topSectionHeight = 500.f;
     wstring _previewOwnerObjectKey{};
     
