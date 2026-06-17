@@ -305,6 +305,49 @@ const CostumePreset* CostumeManager::Set_CurrentCostume(HeroId heroId, const str
     return preset;
 }
 
+json CostumeManager::Create_CurrentCostumeSaveJson() const
+{
+    json root = json::object();
+    root["current"] = json::array();
+
+    for (const auto& [heroId, presetId] : _currentCostumeByHero)
+    {
+        json entry = json::object();
+        entry["hero_id"] = string(magic_enum::enum_name(heroId));
+        entry["preset_id"] = presetId;
+        root["current"].emplace_back(entry);
+    }
+
+    return root;
+}
+
+bool CostumeManager::Apply_CurrentCostumeSaveJson(const json& data)
+{
+    if (!data.is_object())
+        return false;
+
+    auto current = data.find("current");
+    if (current == data.end() || !current->is_array())
+        return false;
+
+    bool appliedAny = false;
+    for (const json& entry : *current)
+    {
+        if (!entry.is_object())
+            continue;
+
+        const auto heroId = magic_enum::enum_cast<HeroId>(entry.value("hero_id", string{}));
+        if (!heroId.has_value())
+            continue;
+
+        const string presetId = entry.value("preset_id", string{});
+        if (Set_CurrentCostume(heroId.value(), presetId) != nullptr)
+            appliedAny = true;
+    }
+
+    return appliedAny;
+}
+
 const CostumePreset* CostumeManager::Toggle_NextCostume(HeroId heroId)
 {
     const auto costumeIter = _costumesByHero.find(heroId);

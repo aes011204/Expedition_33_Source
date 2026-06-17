@@ -26,6 +26,8 @@
 #include <fstream>
 #include "ClientInstance.h"
 #include "GameplayUI.h"
+#include "RuntimeCheckpointIO.h"
+#include "RuntimeCheckpointService.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -632,6 +634,35 @@ HRESULT EditorInstance::Load_CurrentLevelSnapShot(const fs::path& path)
 
     const int32 selectedIndex = root.value("selected_index", -1);
     return Restore_CurrentLevelObjects(snapshots, selectedIndex);
+}
+
+bool EditorInstance::Capture_DemoCheckpoint(const fs::path& path) const
+{
+    Client::RuntimeCheckpointIO::Checkpoint checkpoint{};
+    if (!Client::RuntimeCheckpointService::Capture_Current(checkpoint))
+        return false;
+
+    return Client::RuntimeCheckpointIO::Save_Msgpack(path, checkpoint);
+}
+
+bool EditorInstance::Load_DemoCheckpointInEditor(const fs::path& path)
+{
+    Client::RuntimeCheckpointIO::Checkpoint checkpoint{};
+    if (!Client::RuntimeCheckpointIO::Load_Msgpack(path, checkpoint))
+        return false;
+
+    if (checkpoint.levelType != static_cast<LevelType>(GAME->Current_LevelIndex()))
+    {
+        LOG_WARN("[EditorInstance] checkpoint level mismatch. current={}, checkpoint={}",
+            GAME->Current_LevelIndex(), magic_enum::enum_name(checkpoint.levelType));
+        return false;
+    }
+
+    if (IsPlaying() || IsPaused())
+        Stop();
+
+    Clear_SelectedObject();
+    return Client::RuntimeCheckpointService::Apply_ToCurrentLevel(checkpoint);
 }
 
 void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath)

@@ -100,6 +100,7 @@ public: /* For.Hero Manager */
     // 컨트롤중인 플레이어
     Shared<Player_WorldBase>  Get_ActiveHero() const;
     HeroPartySlot   Get_ActiveHeroSlot() const;
+    void            Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot);
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;

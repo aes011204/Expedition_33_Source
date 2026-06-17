@@ -174,6 +174,24 @@ HeroPartySlot Hero_Manager::Get_ActiveHeroSlot() const
     return static_cast<HeroPartySlot>(_activeIndex);
 }
 
+void Hero_Manager::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
+{
+    const uint32 index = ETOI(slot);
+    if (index >= _heroes.size())
+        return;
+
+    _activeIndex = index;
+    Apply_ControlRoles();
+
+    for (FollowerRuntime& runtime : _followerRuntime)
+        runtime = {};
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+    Refresh_TargetCamera();
+}
+
 Shared<Player_WorldBase> Hero_Manager::Get_FrontHero() const
 {
     if (_heroes.empty())

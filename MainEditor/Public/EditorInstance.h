@@ -115,6 +115,8 @@ public: /* For.Editor Focus */
 public: /* For.Editor World */
     HRESULT Save_CurrentLevelSnapShot(const fs::path& path) const;
     HRESULT Load_CurrentLevelSnapShot(const fs::path& path);
+    bool    Capture_DemoCheckpoint(const fs::path& path) const;
+    bool    Load_DemoCheckpointInEditor(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
 
 public: /* For.Inspector */

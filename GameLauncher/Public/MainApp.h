@@ -2,6 +2,7 @@
 
 #include "Client_Defines.h"
 #include "Base.h"
+#include "RuntimeCheckpointIO.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -16,7 +17,7 @@ public:
     virtual ~MainApp() = default;
 
 public:
-    HRESULT Initialize();
+    HRESULT Initialize(const wstring& commandLine);
     void Update(float fTimeDelta);
     HRESULT Render();
 
@@ -24,15 +25,21 @@ private:
     HRESULT Ready_Fonts();
     HRESULT Ready_Prototype_For_Static_Level();
     HRESULT Ready_StartLevel(LevelType eStartLevelID);
+    void Parse_CommandLine(const wstring& commandLine);
+    void Try_ApplyStartupCheckpoint();
     wstring Get_ClientResourceRoot() const;
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 
 private:
     ComPtr<Device> _device = nullptr;
     ComPtr<Context> _context = nullptr;
+    fs::path _startupCheckpointPath = {};
+    Client::RuntimeCheckpointIO::Checkpoint _startupCheckpoint = {};
+    bool _hasStartupCheckpoint = false;
+    bool _startupCheckpointApplied = false;
 
 public:
-    static Unique<MainApp> Create();
+    static Unique<MainApp> Create(const wstring& commandLine = L"");
     virtual void Free() override;
 };
 

@@ -401,6 +401,14 @@ HeroPartySlot ClientInstance::Get_ActiveHeroSlot() const
     return _heroManager->Get_ActiveHeroSlot();
 }
 
+void ClientInstance::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
+{
+    if (_heroManager == nullptr)
+        return;
+
+    _heroManager->Set_ActiveHeroSlotForCheckpoint(slot);
+}
+
 void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
 {
     return _heroManager->Set_TargetCamera(camera);

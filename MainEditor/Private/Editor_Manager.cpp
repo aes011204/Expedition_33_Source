@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "Console_View.h"
 #include "EditorInstance.h"
+#include "Notification_Manager.h"
 #include "Scene_View.h"
 #include "Game_View.h"
 #include "Hierarchy_View.h"
@@ -15,8 +16,10 @@
 //#include "BT_Tool.h"
 #include "Level_Tool.h"
 #include "BT_View.h"
+#include <cctype>
 #include <filesystem>
 #include <shellapi.h>
+#include <commdlg.h>
 #include "Prefab_View.h"
 #include "Animation_View.h"
 #include "AnimState_View.h"
@@ -25,6 +28,62 @@
 #include "ScreenFx_View.h"
 
 namespace fs = std::filesystem;
+
+namespace
+{
+    string SanitizeCheckpointName(string name)
+    {
+        for (char& ch : name)
+        {
+            switch (ch)
+            {
+            case '\\':
+            case '/':
+            case ':':
+            case '*':
+            case '?':
+            case '"':
+            case '<':
+            case '>':
+            case '|':
+                ch = '_';
+                break;
+            default:
+                break;
+            }
+        }
+
+        while (!name.empty() && isspace(static_cast<unsigned char>(name.front())))
+            name.erase(name.begin());
+        while (!name.empty() && isspace(static_cast<unsigned char>(name.back())))
+            name.pop_back();
+
+        if (name.empty())
+            name = "Demo";
+
+        return name;
+    }
+
+    bool PickCheckpointFileDialog(const fs::path& initialDir, fs::path& outPath)
+    {
+        wchar_t fileName[MAX_PATH] = {};
+        OPENFILENAMEW ofn{};
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = g_hWnd;
+        ofn.lpstrFilter = L"Checkpoint (*.checkpoint.bin)\0*.checkpoint.bin\0All Files (*.*)\0*.*\0";
+        ofn.lpstrFile = fileName;
+        ofn.nMaxFile = MAX_PATH;
+        ofn.lpstrInitialDir = initialDir.empty() ? nullptr : initialDir.c_str();
+        ofn.lpstrDefExt = L"checkpoint.bin";
+        ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
+        if (!GetOpenFileNameW(&ofn))
+            return false;
+
+        outPath = fs::path(fileName);
+        return true;
+    }
+}
 
 Editor_Manager::Editor_Manager()
 {
@@ -92,6 +151,8 @@ void Editor_Manager::Render()
         if (window && window->Is_Open())
             window->Render();
     }
+
+    Render_SaveCheckpointPopup();
 }
 
 void Editor_Manager::Add_Window(const Shared<Editor_Window>& window)
@@ -154,6 +215,14 @@ void Editor_Manager::Render_MainMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
+        if (ImGui::BeginMenu("Demo Checkpoint"))
+        {
+            Render_CheckpointButtons();
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
         if (ImGui::MenuItem("Exit"))
             Request_Exit();
 
@@ -577,6 +646,180 @@ void Editor_Manager::Render_LauncherButton()
     Render_ReloadDataButton();
 }
 
+void Editor_Manager::Render_CheckpointButtons()
+{
+    Notification_Manager* notification = EDITOR->Get_Notification();
+
+    if (ImGui::MenuItem("Save Checkpoint"))
+    {
+        Open_SaveCheckpointPopup();
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("현재 시연 체크포인트 저장");
+
+    if (ImGui::MenuItem("Open Checkpoint..."))
+    {
+        fs::path path{};
+        if (Pick_CheckpointFile(path))
+        {
+            _selectedCheckpointPath = path;
+            if (EDITOR->Load_DemoCheckpointInEditor(_selectedCheckpointPath))
+            {
+                if (notification)
+                {
+                    notification->Add_Notification_With_Type(
+                        NotifyType::Success,
+                        "Checkpoint loaded: {}",
+                        String::ToString(_selectedCheckpointPath.wstring()));
+                }
+            }
+            else
+            {
+                if (notification)
+                    notification->Add_Notification_With_Type(NotifyType::Error, "Checkpoint load failed.");
+                MSG_BOX("Failed to load checkpoint.");
+            }
+        }
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("체크포인트 파일 선택 후 현재 레벨에 적용");
+
+    if (ImGui::MenuItem("Launch With Checkpoint"))
+    {
+        if (_selectedCheckpointPath.empty())
+            _selectedCheckpointPath = Resolve_DefaultCheckpointPath();
+
+        if (!fs::exists(_selectedCheckpointPath) || !Launch_GameLauncher(&_selectedCheckpointPath))
+        {
+            if (notification)
+                notification->Add_Notification_With_Type(NotifyType::Error, "Checkpoint launch failed.");
+            MSG_BOX("Failed to launch GameLauncher with checkpoint.");
+        }
+        else if (notification)
+        {
+            notification->Add_Notification_With_Type(
+                NotifyType::Success,
+                "Checkpoint launch requested: {}",
+                String::ToString(_selectedCheckpointPath.wstring()));
+        }
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("선택된 체크포인트로 GameLauncher 실행");
+}
+
+void Editor_Manager::Render_SaveCheckpointPopup()
+{
+    if (_openSaveCheckpointPopup)
+    {
+        _openSaveCheckpointPopup = false;
+        ImGui::OpenPopup("Save Demo Checkpoint");
+    }
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    if (viewport != nullptr)
+    {
+        ImGui::SetNextWindowPos(
+            ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
+            ImGuiCond_Appearing,
+            ImVec2(0.5f, 0.5f));
+    }
+
+    if (!ImGui::BeginPopupModal("Save Demo Checkpoint", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    ImGui::TextUnformatted("Checkpoint Name");
+    ImGui::SetNextItemWidth(320.f);
+    const bool enterPressed = ImGui::InputText(
+        "##CheckpointName",
+        _checkpointSaveNameBuffer,
+        IM_ARRAYSIZE(_checkpointSaveNameBuffer),
+        ImGuiInputTextFlags_EnterReturnsTrue);
+
+    const fs::path previewPath = Resolve_CheckpointPathFromName(_checkpointSaveNameBuffer);
+    ImGui::TextDisabled("%s", String::ToString(previewPath.wstring()).c_str());
+
+    ImGui::Separator();
+
+    const bool savePressed = ImGui::Button("Save", ImVec2(90.f, 0.f));
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(90.f, 0.f)))
+        ImGui::CloseCurrentPopup();
+
+    if (savePressed || enterPressed)
+    {
+        if (Save_CheckpointToPath(previewPath))
+            ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+}
+
+void Editor_Manager::Open_SaveCheckpointPopup()
+{
+    string defaultName = "Demo";
+    if (!_selectedCheckpointPath.empty())
+    {
+        defaultName = String::ToString(_selectedCheckpointPath.stem().wstring());
+        if (defaultName.ends_with(".checkpoint"))
+            defaultName = defaultName.substr(0, defaultName.size() - string(".checkpoint").size());
+    }
+
+    strncpy_s(_checkpointSaveNameBuffer, defaultName.c_str(), _TRUNCATE);
+    _openSaveCheckpointPopup = true;
+}
+
+bool Editor_Manager::Save_CheckpointToPath(const fs::path& checkpointPath)
+{
+    _selectedCheckpointPath = checkpointPath;
+
+    Notification_Manager* notification = EDITOR->Get_Notification();
+    if (EDITOR->Capture_DemoCheckpoint(_selectedCheckpointPath))
+    {
+        if (notification)
+        {
+            notification->Add_Notification_With_Type(
+                NotifyType::Success,
+                "Checkpoint saved: {}",
+                String::ToString(_selectedCheckpointPath.wstring()));
+        }
+        return true;
+    }
+
+    if (notification)
+        notification->Add_Notification_With_Type(NotifyType::Error, "Checkpoint save failed.");
+    MSG_BOX("Failed to save checkpoint.");
+    return false;
+}
+
+fs::path Editor_Manager::Resolve_DefaultCheckpointPath() const
+{
+    wchar_t modulePath[MAX_PATH] = {};
+    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+        return {};
+
+    const fs::path editorExeDir = fs::path(modulePath).parent_path();
+    const fs::path repoRoot = editorExeDir.parent_path().parent_path().parent_path();
+    return (repoRoot / L"Client" / L"Bin" / L"Resources" / L"Debug" / L"Checkpoints" / L"Demo.checkpoint.bin").lexically_normal();
+}
+
+fs::path Editor_Manager::Resolve_CheckpointPathFromName(const string& checkpointName) const
+{
+    string fileName = SanitizeCheckpointName(checkpointName);
+    if (!fileName.ends_with(".checkpoint.bin"))
+        fileName += ".checkpoint.bin";
+
+    return Resolve_DefaultCheckpointPath().parent_path() / String::ToWString(fileName);
+}
+
+bool Editor_Manager::Pick_CheckpointFile(fs::path& outPath) const
+{
+    fs::path initialDir = Resolve_DefaultCheckpointPath().parent_path();
+    if (!_selectedCheckpointPath.empty() && _selectedCheckpointPath.has_parent_path())
+        initialDir = _selectedCheckpointPath.parent_path();
+
+    return PickCheckpointFileDialog(initialDir, outPath);
+}
+
 void Editor_Manager::Render_ReloadDataButton()
 {
     if (ImGui::SmallButton("Reload Data"))
@@ -607,7 +850,7 @@ void Editor_Manager::Render_SoundCheck()
     }
 }
 
-bool Editor_Manager::Launch_GameLauncher()
+bool Editor_Manager::Launch_GameLauncher(const fs::path* checkpointPath)
 {
     wchar_t modulePath[MAX_PATH] = {};
     if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
@@ -626,12 +869,17 @@ bool Editor_Manager::Launch_GameLauncher()
     if (!fs::exists(launcherExePath))
         return false;
 
+    wstring parameters{};
+    if (checkpointPath != nullptr && !checkpointPath->empty())
+        parameters = L"--checkpoint \"" + fs::absolute(*checkpointPath).lexically_normal().wstring() + L"\"";
+
     SHELLEXECUTEINFOW execInfo{};
     execInfo.cbSize = sizeof(SHELLEXECUTEINFOW);
     execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
     execInfo.lpVerb = L"open";
     execInfo.lpFile = launcherExePath.c_str();
     execInfo.lpDirectory = launcherExeDir.c_str();
+    execInfo.lpParameters = parameters.empty() ? nullptr : parameters.c_str();
     execInfo.nShow = SW_SHOWNORMAL;
 
     return TRUE == ShellExecuteExW(&execInfo);
