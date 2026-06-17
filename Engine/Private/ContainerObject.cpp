@@ -76,12 +76,16 @@ void ContainerObject::From_Json(const json& data)
 
         const string partTagString = partJson["part_tag"].get<string>();
         const wstring partTag = String::ToWString(partTagString);
+        const json& partObjectJson = partJson["object"];
+
+        if (!Should_ApplySerializedPart(partTag, partObjectJson))
+            continue;
 
         PartObject* partObject = Get_PartObject(partTag);
         if (partObject == nullptr)
             continue;
 
-        partObject->From_Json(partJson["object"]);
+        partObject->From_Json(partObjectJson);
     }
 }
 

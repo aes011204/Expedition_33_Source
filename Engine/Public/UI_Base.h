@@ -6,6 +6,16 @@
 
 NS_BEGIN(Engine)
 
+inline Vec2 Rotate_UIPoint(const Vec2& point, float rotationRadians)
+{
+    const float cosAngle = cosf(rotationRadians);
+    const float sinAngle = sinf(rotationRadians);
+
+    return Vec2(
+        point.x * cosAngle - point.y * sinAngle,
+        point.x * sinAngle + point.y * cosAngle);
+}
+
 class ENGINE_DLL UI_Base abstract : public Base
 {
 public:
@@ -55,6 +65,7 @@ public:
     Vec2 Transform_LocalPointToWorld(const Vec2& localPoint) const;
     Vec2 Get_WorldScale() const;
     float Get_WorldRotationRadians() const;
+    Shared<UI_Base> Get_Parent() const { return _parent.lock(); }
     void Set_Parent(const Shared<UI_Base>& parent);
     void Clear_Parent();
     void Refresh_OpenBaseTransform();

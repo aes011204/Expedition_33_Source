@@ -226,6 +226,7 @@ private:
 
 public:
     bool Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID);
+    bool Load_AnimStateMappingFromFile(const wstring& animMapPath);
     bool Refresh_AnimStateMappingFromOwnerContext();
 
 

@@ -26,8 +26,42 @@
 #include "CinematicSequenceRunner.h"
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
+#include "PlayerStatCom.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
+
+namespace
+{
+    string Get_WeaponCharacterId(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Gustave:
+            return "Gustave";
+        case HeroId::Lune:
+            return "Lune";
+        case HeroId::Maelle:
+            return "Maelle";
+        default:
+            return "";
+        }
+    }
+
+    string Get_DefaultEquippedWeaponId(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Gustave:
+            return "Lanceram";
+        case HeroId::Lune:
+            return "Colim";
+        case HeroId::Maelle:
+            return "Medalum";
+        default:
+            return "";
+        }
+    }
+}
 
 ClientInstance::ClientInstance()
 {
@@ -93,6 +127,20 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
 
+    // 일반 픽토스 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
+    _playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
+
+    // 무기 세팅
+    _playerInventory->Ensure_DefaultUnlockedWeapons(
+        {
+            { "Gustave", "Lanceram", 1, 0 },
+            { "Gustave", "Baguette", 11, 0 },
+        { "Lune",    "Colim",    1, 0 },
+        { "Lune",    "Baguette",    1, 0 },
+        { "Maelle",  "Medalum",  1, 0 },
+        { "Maelle",  "Baguette",  1, 0 },
+        });
+
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
 
@@ -154,6 +202,12 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if(_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta);
+}
+
+void ClientInstance::Update_UIPreviewOnly(float timeDelta)
+{
+    if (_previewManager)
+        _previewManager->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -257,6 +311,31 @@ bool ClientInstance::Consume_Item(BattleItemType itemType)
     return _gameDataTable->Consume_Item(itemType);
 }
 
+const GameDataTable::PictosDesc* ClientInstance::Get_PictosDesc(const string& pictosId) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_PictosDesc(pictosId);
+}
+
+const vector<GameDataTable::PictosDesc>& ClientInstance::Get_PictosDescs() const
+{
+    static const vector<GameDataTable::PictosDesc> empty{};
+    if (_gameDataTable == nullptr)
+        return empty;
+
+    return _gameDataTable->Get_PictosDescs();
+}
+
+const vector<string> ClientInstance::Get_AllPictosIds() const
+{
+    if (_gameDataTable == nullptr)
+        return {};
+
+    return _gameDataTable->Get_AllPictosIds();
+}
+
 void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
 {
     return _previewManager->Apply_Layout(layout);
@@ -274,6 +353,11 @@ void ClientInstance::Show_Preview(HeroId heroId, PreviewShotPanel panel)
 
 void ClientInstance::Hide_Preview()
 {
+    if (_previewManager == nullptr)
+    {
+        return;
+    }
+
     return _previewManager->Hide_Preview();
 }
 
@@ -340,6 +424,33 @@ Shared<Player_WorldBase> ClientInstance::Find_Hero(HeroId heroId) const
 const HeroSpawnDesc* ClientInstance::Find_HeroSpawnDesc(HeroId heroId)
 {
     return _heroManager->Find_HeroSpawnDesc(heroId);
+}
+
+bool ClientInstance::Ensure_DefaultEquippedWeapon(HeroId heroId)
+{
+    const Shared<Player_WorldBase> hero = Find_Hero(heroId);
+    const Shared<PlayerStatCom> statCom = hero ? hero->Get_Component<PlayerStatCom>() : nullptr;
+    if (statCom == nullptr)
+        return false;
+
+    if (!statCom->Get_PlayerRuntimeStat().CurEquippedWeaponId.empty())
+        return false;
+
+    const string characterId = Get_WeaponCharacterId(heroId);
+    const string weaponId = Get_DefaultEquippedWeaponId(heroId);
+    if (characterId.empty() || weaponId.empty())
+        return false;
+
+    const auto inventory = Get_PlayerInventory();
+    if (inventory && !inventory->Is_WeaponUnlocked(characterId, weaponId))
+        return false;
+
+    const GameDataTable::WeaponDesc* weaponDesc = Get_WeaponDesc(characterId, weaponId);
+    if (weaponDesc == nullptr)
+        return false;
+
+    statCom->Set_EquippedWeapon(weaponDesc->weaponId, weaponDesc->power);
+    return true;
 }
 
 void ClientInstance::Reset_AllHeroesToIdle()
@@ -557,7 +668,7 @@ bool ClientInstance::Prewarm_Effect(const wstring& effectName, const wstring& la
     desc.layerLevelIndex = GAME->Current_LevelIndex();
     desc.layerTag = layerTag;
     desc.worldPosition = Vec3::Zero;
-    desc.worldRotation = Vec3::Zero;
+    desc.worldRotation = Quat::Identity;
     desc.scale = Vec3::One;
 
     return SUCCEEDED(_effectInstancePool->Prewarm(desc, count));
@@ -576,7 +687,15 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
         resolvedName += L".effect.json";
 
     Vec3 spawnWorldPosition = desc.worldPosition;
-    Vec3 spawnWorldRotation = desc.localRotation;
+    const Vec3 spawnRotationRad(
+        XMConvertToRadians(desc.localRotation.x),
+        XMConvertToRadians(desc.localRotation.y),
+        XMConvertToRadians(desc.localRotation.z));
+    Quat spawnWorldRotation = Quat::CreateFromYawPitchRoll(
+        spawnRotationRad.y,
+        spawnRotationRad.x,
+        spawnRotationRad.z);
+    spawnWorldRotation.Normalize();
 
     if (desc.spawnBasisTarget)
     {
@@ -605,12 +724,12 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
         if (!tempMat.Decompose(decomposedScale, decomposedRotation, decomposedTranslation))
             return false;
 
-        const Vec3 eulerRad = decomposedRotation.ToEuler();
         spawnWorldPosition = decomposedTranslation;
-        spawnWorldRotation = Vec3(
-            XMConvertToDegrees(eulerRad.x),
-            XMConvertToDegrees(eulerRad.y),
-            XMConvertToDegrees(eulerRad.z));
+        spawnWorldRotation = decomposedRotation;
+        if (spawnWorldRotation.LengthSquared() <= 0.000001f)
+            spawnWorldRotation = Quat::Identity;
+        else
+            spawnWorldRotation.Normalize();
     }
 
     EffectInstancePool::AcquireDesc acquireDesc{};
@@ -725,6 +844,22 @@ HRESULT ClientInstance::Ready_StaticObjects()
 
     _isStaticObjectsSpawned = true;
     return S_OK;
+}
+
+void ClientInstance::Sync_PreviewHeroRuntimeData(HeroId heroId)
+{
+    if (_previewManager == nullptr)
+        return;
+
+    _previewManager->Sync_PreviewHeroRuntimeData(heroId);
+}
+
+void ClientInstance::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim)
+{
+    if (_previewManager == nullptr)
+        return;
+
+    _previewManager->Play_PreviewAnimation(heroId, introAnim, idleAnim);
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

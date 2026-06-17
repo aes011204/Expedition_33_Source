@@ -108,3 +108,81 @@ Shared<Skill_Lune_Thunderfall> Skill_Lune_Thunderfall::Create()
 {
     return make_shared<Skill_Lune_Thunderfall>();
 }
+
+/* 대지 전율 */
+void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
+        return;
+
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+}
+
+Shared<Skill_Lune_TerraQuake> Skill_Lune_TerraQuake::Create()
+{
+    return make_shared<Skill_Lune_TerraQuake>();
+}
+
+/* 억압의 쓰나미 */
+void Skill_Lune_CripplingTsunami::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
+        return;
+
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+}
+
+Shared<Skill_Lune_CripplingTsunami> Skill_Lune_CripplingTsunami::Create()
+{
+    return make_shared<Skill_Lune_CripplingTsunami>();
+}
+
+/* 하늘 파괴 */
+void Skill_Lune_SkyBreak::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
+{
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
+        return;
+
+    const BattleChar& attacker = action.Get_CurChar();
+    const BattleChar& target = curTargets.front();
+
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Lightning, ElementalType::Light });
+
+    const int32 hitCount = skill.AttackCount > 0 ? skill.AttackCount : 6;
+    const float totalDamage = DamageSystem::CalculatePlayerAttackDamage(attacker, 2.f);
+    const float hitDamage = totalDamage / static_cast<float>(hitCount);
+
+    DamageSystem::ApplyDamage(hitDamage, attacker, target, attackType); // 첫 타 호출 시점은 AN_Attack
+
+    const int32 remainingHits = hitCount - 1; // hitCount에서 한대 때렸으니까 -1
+    if (remainingHits <= 0)
+        return;
+
+    auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
+
+    battle->Get_HitSequenceRunner().Begin_RepeatedHit(
+        attacker,
+        target,
+        remainingHits, // 이미 첫 타를 넣었으므로 남은 5타만 예약한다.
+        0.3f,
+        hitDamage,
+        attackType);
+}
+
+Shared<Skill_Lune_SkyBreak> Skill_Lune_SkyBreak::Create()
+{
+    return make_shared<Skill_Lune_SkyBreak>();
+}
+

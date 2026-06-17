@@ -36,7 +36,7 @@ namespace Internal
         const float t2 = ratio * ratio;
 
         return (
-                   (p2 - p0) +
+                   p2 - p0 +
                    (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * (2.f * ratio) +
                    (p1 * 3.f - p0 - p2 * 3.f + p3) * (3.f * t2)
                ) * 0.5f;
@@ -680,7 +680,9 @@ void ComputeSourceHistorySpriteTrailEmitter::Retire_ActiveLoopStrokes()
     }
 
     while (_retiredLoopStrokes.size() > kMaxRetiredLoopStrokeCount)
+    {
         _retiredLoopStrokes.erase(_retiredLoopStrokes.begin());
+    }
 }
 
 void ComputeSourceHistorySpriteTrailEmitter::Update_RetiredLoopStrokes(float timeDelta)
@@ -718,9 +720,7 @@ bool ComputeSourceHistorySpriteTrailEmitter::Has_LiveStamps() const
             return !lane.stamps.empty();
         }
     ))
-    {
         return true;
-    }
 
     return ranges::any_of(
         _retiredLoopStrokes,
@@ -1619,7 +1619,8 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
 
     const float emitterPhase = max(0.f, _materialElapsedTime) / max(0.0001f, _desc.playback.duration);
-    const EffectRequiredMaterialRuntimeDesc material = Internal::Resolve_EmitterTimeCoreColorRgbModulation(_desc.material, emitterPhase - floorf(emitterPhase));
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase - floorf(emitterPhase));
 
     const Vec4 effectSpriteParams = Vec4(
         material.intensity,
@@ -1709,7 +1710,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
     );
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
-    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase - floorf(emitterPhase)), E_FAIL);
+    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase - floorf(emitterPhase)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);

@@ -8,9 +8,13 @@
 #include "PartObject.h"
 #include "ClientInstance.h"
 #include "GameplayUI.h"
+#include "UI_Base.h"
+#include <functional>
 
 namespace
 {
+    using RuntimeUIChildIndexMap = unordered_map<Engine::UI_Base*, vector<size_t>>;
+
     string To_LowerCopy(string value)
     {
         transform(value.begin(), value.end(), value.begin(), [](unsigned char ch)
@@ -508,21 +512,74 @@ void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Cl
         return;
     }
 
-    const Shared<UI_Base> selectedUI = EDITOR->Selected_UI();
+    const Shared<Engine::UI_Base> selectedUI = EDITOR->Selected_UI();
     Client::IRuntimeWorldUI_EditorTarget* selectedRuntimeWorldUI = EDITOR->Selected_RuntimeWorldUI();
-    for (const Client::RuntimeUIEntry& entry : entries)
+    unordered_map<Engine::UI_Base*, size_t> entryIndexByUI{};
+    vector<size_t> rootEntryIndices{};
+    vector<size_t> worldPlacementIndices{};
+    RuntimeUIChildIndexMap childIndicesByParent{};
+
+    for (size_t i = 0; i < entries.size(); ++i)
     {
+        const Client::RuntimeUIEntry& entry = entries[i];
+        if (entry.kind != Client::RuntimeUIEntryKind::UI || entry.ui == nullptr)
+            continue;
+
+        entryIndexByUI[entry.ui.get()] = i;
+    }
+
+    for (size_t i = 0; i < entries.size(); ++i)
+    {
+        const Client::RuntimeUIEntry& entry = entries[i];
+        if (entry.kind == Client::RuntimeUIEntryKind::WorldPlacement)
+        {
+            worldPlacementIndices.push_back(i);
+            continue;
+        }
+
+        if (entry.ui == nullptr)
+        {
+            rootEntryIndices.push_back(i);
+            continue;
+        }
+
+        const Shared<Engine::UI_Base> parentUI = entry.ui->Get_Parent();
+        const auto parentEntryIter = (parentUI != nullptr) ? entryIndexByUI.find(parentUI.get()) : entryIndexByUI.end();
+        if (parentEntryIter == entryIndexByUI.end())
+        {
+            rootEntryIndices.push_back(i); // 런타임 루트나 별도 문서 루트는 최상위로 유지한다.
+            continue;
+        }
+
+        childIndicesByParent[parentUI.get()].push_back(i);
+    }
+
+    std::function<void(size_t)> drawEntryTree = [&](size_t entryIndex)
+    {
+        const Client::RuntimeUIEntry& entry = entries[entryIndex];
         const bool isWorldPlacement = entry.kind == Client::RuntimeUIEntryKind::WorldPlacement;
+        const vector<size_t>* childIndices = nullptr;
+
+        if (!isWorldPlacement && entry.ui != nullptr)
+        {
+            const auto childIter = childIndicesByParent.find(entry.ui.get());
+            if (childIter != childIndicesByParent.end() && !childIter->second.empty())
+                childIndices = &childIter->second;
+        }
+
+        const bool hasChildren = childIndices != nullptr;
         const bool isSelected = isWorldPlacement
             ? (selectedRuntimeWorldUI != nullptr && selectedRuntimeWorldUI == entry.worldPlacementTarget)
             : (selectedUI == entry.ui);
-        ImGuiTreeNodeFlags itemFlags =
-            ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+        ImGuiTreeNodeFlags itemFlags = ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (!hasChildren)
+            itemFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
         if (isSelected)
             itemFlags |= ImGuiTreeNodeFlags_Selected;
 
         ImGui::PushID(isWorldPlacement ? static_cast<void*>(entry.worldPlacementTarget) : static_cast<void*>(entry.ui.get()));
-        ImGui::TreeNodeEx(entry.name.c_str(), itemFlags);
+        const bool isOpen = ImGui::TreeNodeEx(entry.name.c_str(), itemFlags);
         if (ImGui::IsItemClicked())
         {
             _isPrimaryShadowLightSelected = false;
@@ -531,16 +588,33 @@ void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Cl
 
             if (isWorldPlacement)
             {
+                EDITOR->Clear_SelectedUI();
                 if (entry.worldPlacementTarget != nullptr)
                     EDITOR->Select_RuntimeWorldUI(entry.worldPlacementTarget, entry.category, entry.name);
             }
             else if (entry.ui != nullptr)
             {
+                EDITOR->Clear_SelectedRuntimeWorldUI();
                 EDITOR->Select_UI(entry.ui, entry.category, entry.name, entry.positionDrivenByCode);
             }
         }
+
+        if (hasChildren && isOpen)
+        {
+            for (size_t childIndex : *childIndices)
+                drawEntryTree(childIndex);
+
+            ImGui::TreePop();
+        }
+
         ImGui::PopID();
-    }
+    };
+
+    for (size_t rootIndex : rootEntryIndices)
+        drawEntryTree(rootIndex);
+
+    for (size_t worldPlacementIndex : worldPlacementIndices)
+        drawEntryTree(worldPlacementIndex);
 
     ImGui::TreePop();
 }
@@ -549,7 +623,7 @@ void Hierarchy_View::Sync_RuntimeUISelection(
     const vector<Client::RuntimeUIEntry>& worldEntries,
     const vector<Client::RuntimeUIEntry>& battleEntries)
 {
-    const Shared<UI_Base> selectedUI = EDITOR->Selected_UI();
+    const Shared<Engine::UI_Base> selectedUI = EDITOR->Selected_UI();
     if (selectedUI == nullptr)
     {
         if (!EDITOR->Selected_UIGroup().empty() || !EDITOR->Selected_UIDisplayName().empty())

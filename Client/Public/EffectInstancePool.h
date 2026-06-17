@@ -12,7 +12,7 @@ NS_END
 NS_BEGIN(Client)
 
 // TODO: 추가 병목이 확인되면 emitter별 Reset_ForEffectReplay 비용을 더 줄인다.
-// 자동 완료 반환 정책은 stale handle 위험 때문에 현재 consumer별 명시 release 중심으로 유지한다.
+// 자동 완료 반환은 fire-and-forget entry에만 허용하고, owner-tracked entry는 consumer의 명시 release를 정본으로 둔다.
 
 // EffectInstance 전체를 재사용 단위로 관리하는 Client-local pool helper다.
 class EffectInstancePool final : public Base
@@ -30,9 +30,12 @@ public:
         wstring layerTag{};                                     // pool에 재사용 가능한 instance가 없을 때 새 EffectInstance를 등록할 layer tag다.
         Vec3 worldPosition{ Vec3::Zero };                       // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
         Vec3 scale{ Vec3::One };                                // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
-        Vec3 worldRotation = Vec3::Zero;                        // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
+        Quat worldRotation{ Quat::Identity };                   // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
+        [[deprecated("Use worldRotation quaternion instead.")]]
+        Vec3 worldRotationEuler{ Vec3::Zero };                  // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
         Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{}; // source history emitter가 단일 source sample을 얻는 provider다.
+        bool autoReleaseOnFinished{ true };                     // true면 Release_Finished()가 완료된 instance를 자동 반환할 수 있다.
     };
 
     /**
@@ -93,6 +96,7 @@ private:
         uint32 layerLevelIndex{};                    // instance가 올라간 layer index다.
         wstring layerTag{};                          // instance가 실제 소속된 layer tag다.
         bool inUse{ false };                         // 현재 consumer가 빌려 간 상태인지 나타낸다.
+        bool autoReleaseOnFinished{ true };          // 완료 시 전역 자동 반환을 허용하는 fire-and-forget entry인지 기록한다.
     };
 
 private:

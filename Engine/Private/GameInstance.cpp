@@ -1890,6 +1890,17 @@ void GameInstance::Set_SoundChannelPaused(SoundChannel channel, bool paused)
         _soundManager->Set_ChannelPaused(channel, paused);
 }
 
+void GameInstance::Set_AllSoundMuted(bool muted)
+{
+    if (_soundManager)
+        _soundManager->Set_AllSoundMuted(muted);
+}
+
+bool GameInstance::Is_AllSoundMuted() const
+{
+    return _soundManager ? _soundManager->Is_AllSoundMuted() : false;
+}
+
 void GameInstance::Set_SoundGlobalPitch(float pitch, bool includeBGM)
 {
     if (_soundManager)

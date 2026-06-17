@@ -218,7 +218,10 @@ void EditorInstance::Play()
     const bool isStartingFromEdit = _runtimeState == EDITOR_RUNTIME_STATE::Edit;
 
     if (isStartingFromEdit)
+    {
         Capture_PlayStartMonsterSnapshots();
+        Capture_PlayStartHeroStatSnapshots();
+    }
 
     _cameraBeforeFreeCamera.reset();
 
@@ -271,6 +274,7 @@ void EditorInstance::Stop()
         GAME->Set_SoundGlobalPitch(1.f, false);
 
         Restore_PlayStartMonsterSnapshots(); // F4 Stop은 큰 맵 JSON을 다시 읽지 않고 Play 시작 몬스터만 되돌린다.
+        Restore_PlayStartHeroStatSnapshots(); // F4 Stop은 Play 중 깎인 월드 플레이어 체력/AP/실드도 시작 시점으로 되돌린다.
         CLIENT->Restore_PartyFormationAfterEditorStop();
     }
 
@@ -877,6 +881,7 @@ bool EditorInstance::Apply_CameraPoseToCameraType(ObjectType objectType, const C
         transform->Set_WorldRotationEuler(pose.rotation);
         camera->Set_Yaw(pose.yaw);
         camera->Set_Pitch(pose.pitch);
+        camera->Apply_View(); // F9 Pause 전환 직후 복사된 FreeCamera pose가 Scene View 렌더 행렬에도 즉시 반영되게 한다.
         return true;
     }
 
@@ -1198,6 +1203,51 @@ void EditorInstance::Restore_PlayStartMonsterSnapshots()
 
     _playStartMonsterSnapshots.clear();
     _hasPlayStartMonsterSnapshots = false;
+}
+
+void EditorInstance::Capture_PlayStartHeroStatSnapshots()
+{
+    _playStartHeroStatSnapshots.clear();
+    _hasPlayStartHeroStatSnapshots = true;
+
+    for (const HeroPartyEntry& entry : CLIENT->Get_HeroEntries())
+    {
+        if (entry.hero == nullptr)
+            continue;
+
+        Shared<PlayerStatCom> stat = entry.hero->Get_Component<PlayerStatCom>();
+        if (stat == nullptr)
+            continue;
+
+        EditorHeroStatSnapshot snapshot{};
+        snapshot.heroId = entry.heroId;
+        snapshot.statSnapshot = stat->Create_BattleSyncSnapshot();
+        snapshot.aliveStatus = stat->Get_AliveStatus();
+        _playStartHeroStatSnapshots.emplace_back(snapshot);
+    }
+}
+
+void EditorInstance::Restore_PlayStartHeroStatSnapshots()
+{
+    if (!_hasPlayStartHeroStatSnapshots)
+        return;
+
+    for (const EditorHeroStatSnapshot& snapshot : _playStartHeroStatSnapshots)
+    {
+        Shared<Player_WorldBase> hero = CLIENT->Find_Hero(snapshot.heroId);
+        if (hero == nullptr)
+            continue;
+
+        Shared<PlayerStatCom> stat = hero->Get_Component<PlayerStatCom>();
+        if (stat == nullptr)
+            continue;
+
+        stat->Apply_BattleSyncSnapshot(snapshot.statSnapshot);
+        stat->Set_AliveStatus(snapshot.aliveStatus);
+    }
+
+    _playStartHeroStatSnapshots.clear();
+    _hasPlayStartHeroStatSnapshots = false;
 }
 
 bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const

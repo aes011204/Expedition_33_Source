@@ -418,6 +418,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.required.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.required.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.required.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
@@ -750,6 +751,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
@@ -890,6 +892,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
@@ -1058,6 +1061,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* initialSize = Find_ModuleData(emitter, "InitialSize"))
@@ -1417,6 +1421,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
@@ -1574,6 +1579,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (hasAssignedMaterialInstance && assignedMaterialPayload.is_object())

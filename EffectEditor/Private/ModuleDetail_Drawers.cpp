@@ -423,9 +423,67 @@ namespace Internal
             return "OuterIntensity";
         case MaterialScalarModulationTargetField::CoreColor:
             return "CoreColor Multiplier";
+        case MaterialScalarModulationTargetField::RefractionIntensity:
+            return "Refraction Intensity";
+        case MaterialScalarModulationTargetField::MainUVScrollSpeedScale:
+            return "Main UV Scroll Speed Scale";
+        case MaterialScalarModulationTargetField::NoiseUVScrollSpeedScale:
+            return "Noise UV Scroll Speed Scale";
+        case MaterialScalarModulationTargetField::MaskUVScrollSpeedScale:
+            return "Mask UV Scroll Speed Scale";
+        case MaterialScalarModulationTargetField::FlowUVScrollSpeedScale:
+            return "Flow UV Scroll Speed Scale";
         default:
             return "Intensity";
         }
+    }
+
+    static const char* Get_MaterialVec2TargetLabel(MaterialVec2ModulationTargetField target)
+    {
+        switch (target)
+        {
+        case MaterialVec2ModulationTargetField::NoiseUVOffset:
+            return "Noise UV Offset";
+        case MaterialVec2ModulationTargetField::MaskUVOffset:
+            return "Mask UV Offset";
+        case MaterialVec2ModulationTargetField::FlowUVOffset:
+            return "Flow UV Offset";
+        case MaterialVec2ModulationTargetField::MainUVOffset:
+        default:
+            return "Main UV Offset";
+        }
+    }
+
+    enum class MaterialModulationTargetCategory : uint8
+    {
+        Scalar,
+        CoreColorRgb,
+        Vec2,
+    };
+
+    struct MaterialModulationTargetSelection
+    {
+        MaterialModulationTargetCategory category{ MaterialModulationTargetCategory::Scalar };
+        MaterialScalarModulationTargetField scalarTarget{ MaterialScalarModulationTargetField::Intensity };
+        MaterialVec2ModulationTargetField vec2Target{ MaterialVec2ModulationTargetField::MainUVOffset };
+    };
+
+    static bool Is_MaterialScrollSpeedScaleTarget(MaterialScalarModulationTargetField target)
+    {
+        return target == MaterialScalarModulationTargetField::MainUVScrollSpeedScale ||
+               target == MaterialScalarModulationTargetField::NoiseUVScrollSpeedScale ||
+               target == MaterialScalarModulationTargetField::MaskUVScrollSpeedScale ||
+               target == MaterialScalarModulationTargetField::FlowUVScrollSpeedScale;
+    }
+
+    static const char* Get_MaterialModulationTargetLabel(const MaterialModulationTargetSelection& selection)
+    {
+        if (selection.category == MaterialModulationTargetCategory::CoreColorRgb)
+            return "Core Color RGB";
+        if (selection.category == MaterialModulationTargetCategory::Vec2)
+            return Get_MaterialVec2TargetLabel(selection.vec2Target);
+
+        return Get_MaterialScalarTargetLabel(selection.scalarTarget);
     }
 
     static const char* Get_MaterialModulationTargetLabel(bool isCoreColorRgb, MaterialScalarModulationTargetField target)
@@ -472,20 +530,18 @@ namespace Internal
     static bool Draw_MaterialModulationTargetProperty(
         DetailPropertyContext& detailContext,
         const char* label,
-        bool isCoreColorRgb,
-        MaterialScalarModulationTargetField scalarTarget,
-        bool& outNextCoreColorRgb,
-        MaterialScalarModulationTargetField& outNextScalarTarget)
+        const MaterialModulationTargetSelection& current,
+        MaterialModulationTargetSelection& outNext)
     {
         bool changed = false;
-        outNextCoreColorRgb = isCoreColorRgb;
-        outNextScalarTarget = scalarTarget;
+        outNext = current;
 
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, "변조할 material field입니다. Scroll Speed Scale은 base UV scroll speed에 scalar 값을 곱하고, UV Offset은 Vec2 값을 더합니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::BeginCombo("##Value", Get_MaterialModulationTargetLabel(isCoreColorRgb, scalarTarget)))
+        if (ImGui::BeginCombo("##Value", Get_MaterialModulationTargetLabel(current)))
         {
+            ImGui::TextDisabled("Scalar");
             const MaterialScalarModulationTargetField candidates[] = {
                 MaterialScalarModulationTargetField::Intensity,
                 MaterialScalarModulationTargetField::OpacityPower,
@@ -495,15 +551,20 @@ namespace Internal
                 MaterialScalarModulationTargetField::CoreIntensity,
                 MaterialScalarModulationTargetField::OuterIntensity,
                 MaterialScalarModulationTargetField::CoreColor,
+                MaterialScalarModulationTargetField::RefractionIntensity,
+                MaterialScalarModulationTargetField::MainUVScrollSpeedScale,
+                MaterialScalarModulationTargetField::NoiseUVScrollSpeedScale,
+                MaterialScalarModulationTargetField::MaskUVScrollSpeedScale,
+                MaterialScalarModulationTargetField::FlowUVScrollSpeedScale,
             };
 
             for (const MaterialScalarModulationTargetField candidate : candidates)
             {
-                const bool isSelected = !isCoreColorRgb && scalarTarget == candidate;
+                const bool isSelected = current.category == MaterialModulationTargetCategory::Scalar && current.scalarTarget == candidate;
                 if (ImGui::Selectable(Get_MaterialScalarTargetLabel(candidate), isSelected))
                 {
-                    outNextCoreColorRgb = false;
-                    outNextScalarTarget = candidate;
+                    outNext.category = MaterialModulationTargetCategory::Scalar;
+                    outNext.scalarTarget = candidate;
                     changed = true;
                 }
 
@@ -511,25 +572,51 @@ namespace Internal
                     ImGui::SetItemDefaultFocus();
             }
 
-            const bool isRgbSelected = isCoreColorRgb;
+            ImGui::Separator();
+            ImGui::TextDisabled("Color");
+            const bool isRgbSelected = current.category == MaterialModulationTargetCategory::CoreColorRgb;
             if (ImGui::Selectable("Core Color RGB", isRgbSelected))
             {
-                outNextCoreColorRgb = true;
-                outNextScalarTarget = MaterialScalarModulationTargetField::CoreColor;
+                outNext.category = MaterialModulationTargetCategory::CoreColorRgb;
+                outNext.scalarTarget = MaterialScalarModulationTargetField::CoreColor;
                 changed = true;
             }
 
             if (isRgbSelected)
                 ImGui::SetItemDefaultFocus();
 
+            ImGui::Separator();
+            ImGui::TextDisabled("Vec2");
+            const MaterialVec2ModulationTargetField vec2Candidates[] = {
+                MaterialVec2ModulationTargetField::MainUVOffset,
+                MaterialVec2ModulationTargetField::NoiseUVOffset,
+                MaterialVec2ModulationTargetField::MaskUVOffset,
+                MaterialVec2ModulationTargetField::FlowUVOffset,
+            };
+
+            for (const MaterialVec2ModulationTargetField candidate : vec2Candidates)
+            {
+                const bool isSelected = current.category == MaterialModulationTargetCategory::Vec2 && current.vec2Target == candidate;
+                if (ImGui::Selectable(Get_MaterialVec2TargetLabel(candidate), isSelected))
+                {
+                    outNext.category = MaterialModulationTargetCategory::Vec2;
+                    outNext.vec2Target = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
             ImGui::EndCombo();
         }
 
-        const bool canReset = isCoreColorRgb || scalarTarget != MaterialScalarModulationTargetField::Intensity;
+        const bool canReset =
+            current.category != MaterialModulationTargetCategory::Scalar ||
+            current.scalarTarget != MaterialScalarModulationTargetField::Intensity;
         if (detailContext.Draw_ResetButton(canReset))
         {
-            outNextCoreColorRgb = false;
-            outNextScalarTarget = MaterialScalarModulationTargetField::Intensity;
+            outNext = MaterialModulationTargetSelection{};
             changed = true;
         }
         ImGui::PopID();
@@ -547,7 +634,7 @@ namespace Internal
         bool changed = false;
 
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, "ParticleLife는 개별 particle 수명 진행도, EmitterTime은 emitter 재생 시간을 기준으로 분포를 평가합니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_MaterialScalarTimeSourceLabel(value)))
         {
@@ -600,7 +687,7 @@ namespace Internal
         bool changed = false;
 
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, "Volume은 구 내부, Surface는 구 표면에서 spawn 위치를 샘플합니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_SphereLocationSpawnModeLabel(value)))
         {
@@ -645,7 +732,7 @@ namespace Internal
         bool changed = false;
 
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, "Surface 생성에서 표면 위치를 랜덤으로 뽑을지 particle index 기준으로 고르게 배치할지 정합니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (!enabled)
             ImGui::BeginDisabled();
@@ -1523,6 +1610,7 @@ namespace Internal
                 materialSlotPreview->Render_Material(
                     data.material,
                     Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+                    Build_MaterialVec2ModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
                     data.duration,
                     allowScalarParticleLife
@@ -1913,7 +2001,12 @@ bool RequiredModuleDetail::Draw(
         if (detailContext.Begin_PropertyTable("RequiredMaterial"))
         {
             ImGui::PushID("MaterialDropSlot");
-            detailContext.Draw_PropertyLabel("머티리얼");
+            detailContext.Draw_PropertyLabel(
+                "머티리얼",
+                allowRequiredMaterialAuthoring
+                ? "이 emitter의 기본 material instance입니다. Mesh 계열은 Mesh TypeData Assigned Material이 편집 정본입니다."
+                : "Mesh 계열 material은 Mesh TypeData의 Assigned Material에서 편집합니다."
+            );
             changed |= Internal::Draw_MaterialDropSlot(
                 emitter,
                 data,
@@ -1925,7 +2018,7 @@ bool RequiredModuleDetail::Draw(
             ImGui::PopID();
 
             ImGui::PushID("MaterialEdit");
-            detailContext.Draw_PropertyLabel("작업");
+            detailContext.Draw_PropertyLabel("작업", "material instance 편집 창을 열거나 원본 preset을 확인합니다.");
 
             const float spacing = ImGui::GetStyle().ItemSpacing.x;
             const float availableWidth = ImGui::GetContentRegionAvail().x;
@@ -1968,8 +2061,22 @@ bool RequiredModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("RequiredTransform"))
         {
-            changed |= detailContext.Draw_Vec3Property("원점", data.emitterOrigin, defaultData.emitterOrigin);
-            changed |= detailContext.Draw_Vec3Property("회전 (도)", data.emitterRotationDegrees, defaultData.emitterRotationDegrees);
+            changed |= detailContext.Draw_Vec3Property(
+                "원점",
+                data.emitterOrigin,
+                defaultData.emitterOrigin,
+                0.01f,
+                nullptr,
+                "emitter의 authoring 기준 local origin입니다."
+            );
+            changed |= detailContext.Draw_Vec3Property(
+                "회전 (도)",
+                data.emitterRotationDegrees,
+                defaultData.emitterRotationDegrees,
+                0.01f,
+                nullptr,
+                "emitter 기준 local 회전입니다. 단위는 degree입니다."
+            );
             detailContext.End_PropertyTable();
         }
     }
@@ -2024,10 +2131,21 @@ bool RequiredModuleDetail::Draw(
                         Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
                 }
 
-                changed |= detailContext.Draw_FloatProperty("롤 보정 (도)", data.spriteRollOffsetDegrees, defaultData.spriteRollOffsetDegrees, 0.1f);
+                changed |= detailContext.Draw_FloatProperty(
+                    "롤 보정 (도)",
+                    data.spriteRollOffsetDegrees,
+                    defaultData.spriteRollOffsetDegrees,
+                    0.1f,
+                    "정렬된 sprite/card에 추가로 더하는 roll 보정값입니다. 단위는 degree입니다."
+                );
             }
 
-            changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
+            changed |= detailContext.Draw_BoolProperty(
+                "로컬 스페이스 사용",
+                data.useLocalSpace,
+                defaultData.useLocalSpace,
+                "켜면 particle 위치/속도를 emitter local space 기준으로 유지합니다. 끄면 spawn 이후 world 기준으로 움직입니다."
+            );
             detailContext.End_PropertyTable();
         }
 
@@ -2076,13 +2194,13 @@ bool RequiredModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("RequiredTime"))
         {
-            changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
+            changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount, "emitter spawn loop를 반복할 횟수입니다. 0은 무한 반복 의미로 사용됩니다.");
             changed |= detailContext.Draw_FloatProperty(
                 "스폰 활성 시간",
                 data.duration,
                 defaultData.duration,
                 0.01f,
-                nullptr,
+                "새 particle을 만들 수 있는 emitter loop 구간입니다. particle 개별 수명은 Lifetime 모듈에서 정합니다.",
                 Find_AuthoringValueRange(moduleType, "duration")
             );
             changed |= detailContext.Draw_FloatProperty(
@@ -2090,10 +2208,15 @@ bool RequiredModuleDetail::Draw(
                 data.delay,
                 defaultData.delay,
                 0.01f,
-                nullptr,
+                "loop 시작 후 spawn을 시작하기 전까지 기다리는 시간입니다.",
                 Find_AuthoringValueRange(moduleType, "delay")
             );
-            changed |= detailContext.Draw_BoolProperty("첫 루프만 스폰 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
+            changed |= detailContext.Draw_BoolProperty(
+                "첫 루프만 스폰 딜레이",
+                data.delayFirstLoopOnly,
+                defaultData.delayFirstLoopOnly,
+                "켜면 delay를 첫 loop에만 적용하고 이후 반복에서는 바로 spawn합니다."
+            );
             detailContext.End_PropertyTable();
         }
 
@@ -2104,8 +2227,18 @@ bool RequiredModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("RequiredKill"))
         {
-            changed |= detailContext.Draw_BoolProperty("비활성화 시 킬 (외부 비활성화 계약 보류)", data.killOnDeactivate, defaultData.killOnDeactivate);
-            changed |= detailContext.Draw_BoolProperty("완료 시 킬", data.killOnCompleted, defaultData.killOnCompleted);
+            changed |= detailContext.Draw_BoolProperty(
+                "비활성화 시 킬 (외부 비활성화 계약 보류)",
+                data.killOnDeactivate,
+                defaultData.killOnDeactivate,
+                "외부 비활성화 이벤트가 들어왔을 때 active particle을 즉시 종료할지 정합니다. 현재 외부 계약은 보류 상태입니다."
+            );
+            changed |= detailContext.Draw_BoolProperty(
+                "완료 시 킬",
+                data.killOnCompleted,
+                defaultData.killOnCompleted,
+                "emitter spawn loop가 완료될 때 이미 살아 있는 particle도 즉시 종료합니다."
+            );
             detailContext.End_PropertyTable();
         }
 
@@ -2117,8 +2250,13 @@ bool RequiredModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("RequiredRenderLimit"))
         {
-            changed |= detailContext.Draw_BoolProperty("최대 드로우 수 사용", data.useMaxDrawCount, defaultData.useMaxDrawCount);
-            changed |= detailContext.Draw_UintProperty("최대 드로우 수", data.maxDrawCount, defaultData.maxDrawCount);
+            changed |= detailContext.Draw_BoolProperty(
+                "최대 드로우 수 사용",
+                data.useMaxDrawCount,
+                defaultData.useMaxDrawCount,
+                "renderer에 제출할 최대 particle/card 수 제한을 사용할지 정합니다."
+            );
+            changed |= detailContext.Draw_UintProperty("최대 드로우 수", data.maxDrawCount, defaultData.maxDrawCount, "한 frame에 그릴 수 있는 최대 particle/card 수입니다.");
             detailContext.End_PropertyTable();
         }
     }
@@ -2144,7 +2282,12 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
     {
         if (detailContext.Begin_PropertyTable("SpawnRate"))
         {
-            changed |= detailContext.Draw_BoolProperty("연속 스폰 사용", data.processSpawnRate, defaultData.processSpawnRate);
+            changed |= detailContext.Draw_BoolProperty(
+                "연속 스폰 사용",
+                data.processSpawnRate,
+                defaultData.processSpawnRate,
+                "켜면 emitter loop 동안 초당 생성 수 기준으로 계속 particle을 만듭니다."
+            );
             detailContext.End_PropertyTable();
         }
 
@@ -2155,7 +2298,8 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
             0.01f,
             true,
             true,
-            Find_AuthoringValueRange(module.type, "spawnRate")
+            Find_AuthoringValueRange(module.type, "spawnRate"),
+            "emitter loop가 활성인 동안 초당 생성할 particle 수입니다."
         );
         changed |= detailContext.Draw_FloatDistributionGroup(
             "스폰 속도 스케일",
@@ -2164,7 +2308,8 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
             0.01f,
             true,
             true,
-            Find_AuthoringValueRange(module.type, "spawnRateScale")
+            Find_AuthoringValueRange(module.type, "spawnRateScale"),
+            "초당 생성 수에 곱하는 추가 배율입니다. 1이면 원래 spawn rate를 유지합니다."
         );
     }
 
@@ -2172,7 +2317,12 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
     {
         if (detailContext.Begin_PropertyTable("SpawnBurst"))
         {
-            changed |= detailContext.Draw_BoolProperty("버스트 사용", data.processBurstList, defaultData.processBurstList);
+            changed |= detailContext.Draw_BoolProperty(
+                "버스트 사용",
+                data.processBurstList,
+                defaultData.processBurstList,
+                "켜면 loop timeline의 지정 시점에 묶음 particle을 생성합니다."
+            );
             detailContext.End_PropertyTable();
         }
 
@@ -2183,7 +2333,8 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
             0.01f,
             true,
             true,
-            Find_AuthoringValueRange(module.type, "burstScale")
+            Find_AuthoringValueRange(module.type, "burstScale"),
+            "Burst List의 생성 개수에 곱하는 배율입니다."
         );
         changed |= detailContext.Draw_BurstListProperty(data.burstList, defaultData.burstList);
     }
@@ -2192,7 +2343,12 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, S
     {
         if (detailContext.Begin_PropertyTable("SpawnLimit"))
         {
-            changed |= detailContext.Draw_UintProperty("최대 활성 파티클 수", data.maxParticleCount, defaultData.maxParticleCount);
+            changed |= detailContext.Draw_UintProperty(
+                "최대 활성 파티클 수",
+                data.maxParticleCount,
+                defaultData.maxParticleCount,
+                "동시에 살아 있을 수 있는 particle 수 상한입니다. spawn rate와 burst 결과가 이 값을 넘으면 제한됩니다."
+            );
             detailContext.End_PropertyTable();
         }
     }
@@ -2214,7 +2370,8 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
             0.01f,
             true,
             true,
-            Find_AuthoringValueRange(module.type, "lifeTime")
+            Find_AuthoringValueRange(module.type, "lifeTime"),
+            "spawn window가 아니라 태어난 particle 개별 생존 시간입니다."
         );
         ImGui::TextDisabled("이미 생성된 particle 또는 visual life를 생애 중간에 다시 바꾸는 Over Life curve가 아닙니다.");
         if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
@@ -2241,7 +2398,7 @@ bool InitialSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialS
     bool changed = false;
 
     if (ImGui::CollapsingHeader("크기", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector2DistributionGroup("크기", data.size, defaultData.size);
+        changed |= detailContext.Draw_Vector2DistributionGroup("크기", data.size, defaultData.size, 0.01f, true, nullptr, "spawn 시점에 한 번 샘플되는 sprite 초기 크기입니다.");
 
     return changed;
 }
@@ -2252,7 +2409,18 @@ bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     bool changed = false;
 
     if (ImGui::CollapsingHeader("메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("크기 XYZ", data.size, defaultData.size);
+    {
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "크기 XYZ",
+            data.size,
+            defaultData.size,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 한 번 샘플되는 mesh 초기 크기입니다."
+        );
+    }
 
     return changed;
 }
@@ -2263,7 +2431,18 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     bool changed = false;
 
     if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location, 0.01f, false, true);
+    {
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "위치",
+            data.location,
+            defaultData.location,
+            0.01f,
+            false,
+            true,
+            nullptr,
+            "spawn 시점에 한 번 샘플되는 emitter origin 기준 local offset입니다."
+        );
+    }
 
     return changed;
 }
@@ -2277,13 +2456,13 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& 
     {
         if (detailContext.Begin_PropertyTable("SphereLocation"))
         {
-            changed |= detailContext.Draw_Vec3Property("오프셋", data.offset, defaultData.offset);
+            changed |= detailContext.Draw_Vec3Property("오프셋", data.offset, defaultData.offset, 0.01f, nullptr, "구 분포 중심에 더하는 emitter local offset입니다.");
             changed |= detailContext.Draw_FloatProperty(
                 "반지름",
                 data.radius,
                 defaultData.radius,
                 0.01f,
-                nullptr,
+                "구 분포의 반지름입니다. Surface/Volume 생성 방식의 기준 크기입니다.",
                 Find_AuthoringValueRange(module.type, "radius")
             );
             changed |= Internal::Draw_SphereLocationSpawnModeProperty(
@@ -2335,7 +2514,7 @@ bool PlaneRadialLocationModuleDetail::Draw(
                 data.shape,
                 defaultData.shape
             );
-            changed |= detailContext.Draw_Vec3Property("중심 오프셋", data.offset, defaultData.offset);
+            changed |= detailContext.Draw_Vec3Property("중심 오프셋", data.offset, defaultData.offset, 0.01f, nullptr, "평면/방사 분포 중심에 더하는 emitter local offset입니다.");
             changed |= detailContext.Draw_FloatProperty(
                 "두께",
                 data.thickness,
@@ -2348,8 +2527,26 @@ bool PlaneRadialLocationModuleDetail::Draw(
 
         if (data.shape == PlaneRadialLocationShape::Rectangle)
         {
-            changed |= detailContext.Draw_FloatDistributionGroup("U 분포", data.uDistribution, defaultData.uDistribution, 0.01f, true, false);
-            changed |= detailContext.Draw_FloatDistributionGroup("V 분포", data.vDistribution, defaultData.vDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup(
+                "U 분포",
+                data.uDistribution,
+                defaultData.uDistribution,
+                0.01f,
+                true,
+                false,
+                nullptr,
+                "Rectangle 기준 평면의 U축 위치를 spawn 시점에 한 번 샘플합니다."
+            );
+            changed |= detailContext.Draw_FloatDistributionGroup(
+                "V 분포",
+                data.vDistribution,
+                defaultData.vDistribution,
+                0.01f,
+                true,
+                false,
+                nullptr,
+                "Rectangle 기준 평면의 V축 위치를 spawn 시점에 한 번 샘플합니다."
+            );
         }
         else
         {
@@ -2360,7 +2557,8 @@ bool PlaneRadialLocationModuleDetail::Draw(
                 0.01f,
                 true,
                 false,
-                Find_AuthoringValueRange(module.type, "radiusDistribution")
+                Find_AuthoringValueRange(module.type, "radiusDistribution"),
+                "Disc 기준 중심에서 떨어진 반지름을 spawn 시점에 한 번 샘플합니다."
             );
             changed |= detailContext.Draw_FloatDistributionGroup(
                 "각도 분포",
@@ -2368,7 +2566,9 @@ bool PlaneRadialLocationModuleDetail::Draw(
                 defaultData.angleDegreesDistribution,
                 0.01f,
                 true,
-                false
+                false,
+                nullptr,
+                "Disc 기준 평면 안의 각도를 degree 단위로 spawn 시점에 한 번 샘플합니다."
             );
         }
 
@@ -2410,11 +2610,25 @@ bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     {
         if (detailContext.Begin_PropertyTable("InitialVelocity"))
         {
-            changed |= detailContext.Draw_BoolProperty("월드 스페이스", data.inWorldSpace, defaultData.inWorldSpace);
+            changed |= detailContext.Draw_BoolProperty(
+                "월드 스페이스",
+                data.inWorldSpace,
+                defaultData.inWorldSpace,
+                "켜면 초기 속도 벡터를 world 기준으로, 끄면 emitter local 기준으로 해석합니다."
+            );
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_Vector3DistributionGroup("속도", data.velocity, defaultData.velocity);
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "속도",
+            data.velocity,
+            defaultData.velocity,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 한 번 샘플되는 초기 속도 벡터입니다."
+        );
     }
 
     return changed;
@@ -2461,7 +2675,16 @@ bool InitialRadialVelocityModuleDetail::Draw(
                 ImGui::TextDisabled("평면/방사 위치가 없으면 랜덤 상승 방향으로 처리됩니다.");
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "속도",
+            data.speed,
+            defaultData.speed,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "방사 방향에 곱해지는 spawn 시점 초기 속도 크기입니다. 음수는 기준점 쪽으로 향합니다."
+        );
     }
 
     return changed;
@@ -2490,9 +2713,20 @@ bool VelocityConeModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("VelocityCone"))
         {
-            changed |= detailContext.Draw_Vec3Property("축", data.axis, defaultData.axis);
-            changed |= detailContext.Draw_FloatProperty("각도", data.angleDegrees, defaultData.angleDegrees, 0.1f);
-            changed |= detailContext.Draw_BoolProperty("월드 스페이스", data.inWorldSpace, defaultData.inWorldSpace);
+            changed |= detailContext.Draw_Vec3Property("축", data.axis, defaultData.axis, 0.01f, nullptr, "속도 원뿔의 중심축입니다.");
+            changed |= detailContext.Draw_FloatProperty(
+                "각도",
+                data.angleDegrees,
+                defaultData.angleDegrees,
+                0.1f,
+                "중심축 기준 half-angle입니다. 0이면 축 방향, 180이면 전 방향에 가깝습니다."
+            );
+            changed |= detailContext.Draw_BoolProperty(
+                "월드 스페이스",
+                data.inWorldSpace,
+                defaultData.inWorldSpace,
+                "켜면 원뿔 축을 world 기준으로, 끄면 emitter local 기준으로 해석합니다."
+            );
             detailContext.End_PropertyTable();
         }
 
@@ -2503,7 +2737,16 @@ bool VelocityConeModuleDetail::Draw(
             changed = true;
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "속도",
+            data.speed,
+            defaultData.speed,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "원뿔 안에서 뽑은 방향에 곱해지는 spawn 시점 초기 속도 크기입니다."
+        );
     }
 
     return changed;
@@ -2515,7 +2758,18 @@ bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Acceler
     bool changed = false;
 
     if (ImGui::CollapsingHeader("가속", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("가속", data.acceleration, defaultData.acceleration);
+    {
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "가속",
+            data.acceleration,
+            defaultData.acceleration,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "매 frame 현재 속도에 누적되는 가속도 벡터입니다."
+        );
+    }
 
     return changed;
 }
@@ -2534,7 +2788,8 @@ bool DragModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, Dr
             0.01f,
             true,
             true,
-            Find_AuthoringValueRange(module.type, "drag")
+            Find_AuthoringValueRange(module.type, "drag"),
+            "현재 속도를 감쇠시키는 저항 계수입니다. 값이 클수록 더 빨리 느려집니다."
         );
     }
 
@@ -2547,7 +2802,18 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 속도", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "속도 배율",
+            data.scaleOverLife,
+            defaultData.scaleOverLife,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "생존 중 normalized life(0->1) 기준으로 현재 속도에 곱하는 배율입니다."
+        );
+    }
 
     return changed;
 }
@@ -2558,7 +2824,18 @@ bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 회전", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("회전각", data.rotationDegrees, defaultData.rotationDegrees);
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "회전각",
+            data.rotationDegrees,
+            defaultData.rotationDegrees,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "spawn 시점에 한 번 샘플되는 초기 회전각입니다. 단위는 degree입니다."
+        );
+    }
 
     return changed;
 }
@@ -2578,8 +2855,26 @@ bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitO
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("공전 각도", data.angleDegreesOverLife, defaultData.angleDegreesOverLife);
-        changed |= detailContext.Draw_FloatDistributionGroup("반지름 배율", data.radiusScaleOverLife, defaultData.radiusScaleOverLife);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "공전 각도",
+            data.angleDegreesOverLife,
+            defaultData.angleDegreesOverLife,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 emitter origin 주변에 추가로 공전시키는 각도입니다."
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "반지름 배율",
+            data.radiusScaleOverLife,
+            defaultData.radiusScaleOverLife,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "생존 중 기존 offset 반지름에 곱하는 배율입니다."
+        );
     }
 
     return changed;
@@ -2620,8 +2915,20 @@ bool PlaneRadialOrientationModuleDetail::Draw(
                     data.meshUpAxis,
                     defaultData.meshUpAxis
                 );
-                changed |= detailContext.Draw_FloatProperty("기울기", data.tiltDegrees, defaultData.tiltDegrees, 0.1f);
-                changed |= detailContext.Draw_FloatProperty("Roll 오프셋", data.rollOffsetDegrees, defaultData.rollOffsetDegrees, 0.1f);
+                changed |= detailContext.Draw_FloatProperty(
+                    "기울기",
+                    data.tiltDegrees,
+                    defaultData.tiltDegrees,
+                    0.1f,
+                    "radial orientation 결과에 더하는 pitch/tilt 보정입니다. 단위는 degree입니다."
+                );
+                changed |= detailContext.Draw_FloatProperty(
+                    "Roll 오프셋",
+                    data.rollOffsetDegrees,
+                    defaultData.rollOffsetDegrees,
+                    0.1f,
+                    "radial orientation 결과에 더하는 roll 보정입니다. 단위는 degree입니다."
+                );
             }
 
             detailContext.End_PropertyTable();
@@ -2665,8 +2972,20 @@ bool SphereRadialOrientationModuleDetail::Draw(
                 data.meshUpAxis,
                 defaultData.meshUpAxis
             );
-            changed |= detailContext.Draw_FloatProperty("기울기", data.tiltDegrees, defaultData.tiltDegrees, 0.1f);
-            changed |= detailContext.Draw_FloatProperty("Roll 오프셋", data.rollOffsetDegrees, defaultData.rollOffsetDegrees, 0.1f);
+            changed |= detailContext.Draw_FloatProperty(
+                "기울기",
+                data.tiltDegrees,
+                defaultData.tiltDegrees,
+                0.1f,
+                "sphere radial orientation 결과에 더하는 pitch/tilt 보정입니다. 단위는 degree입니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "Roll 오프셋",
+                data.rollOffsetDegrees,
+                defaultData.rollOffsetDegrees,
+                0.1f,
+                "sphere radial orientation 결과에 더하는 roll 보정입니다. 단위는 degree입니다."
+            );
 
             detailContext.End_PropertyTable();
         }
@@ -2687,7 +3006,18 @@ bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Rot
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("추가 회전각", data.rotationOverLife, defaultData.rotationOverLife);
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "추가 회전각",
+            data.rotationOverLife,
+            defaultData.rotationOverLife,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 초기 회전 위에 더하는 추가 회전각입니다."
+        );
+    }
 
     return changed;
 }
@@ -2698,7 +3028,18 @@ bool InitialRotationRateModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, 
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("회전 속도", data.rotationRateDegrees, defaultData.rotationRateDegrees);
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "회전 속도",
+            data.rotationRateDegrees,
+            defaultData.rotationRateDegrees,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "spawn 시점에 한 번 샘플되는 초당 회전 속도입니다. 단위는 degree/sec입니다."
+        );
+    }
 
     return changed;
 }
@@ -2713,7 +3054,18 @@ bool RotationRateScaleByLifeModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("회전 속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "회전 속도 배율",
+            data.scaleOverLife,
+            defaultData.scaleOverLife,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 초기 회전 속도에 곱하는 배율입니다."
+        );
+    }
 
     return changed;
 }
@@ -2728,7 +3080,18 @@ bool InitialMeshRotationModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("회전 XYZ", data.rotationDegrees, defaultData.rotationDegrees);
+    {
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "회전 XYZ",
+            data.rotationDegrees,
+            defaultData.rotationDegrees,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 한 번 샘플되는 mesh 초기 회전입니다. 단위는 degree입니다."
+        );
+    }
 
     return changed;
 }
@@ -2743,7 +3106,18 @@ bool MeshRotationOverLifeModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("추가 회전 XYZ", data.rotationOverLife, defaultData.rotationOverLife);
+    {
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "추가 회전 XYZ",
+            data.rotationOverLife,
+            defaultData.rotationOverLife,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 mesh 초기 회전 위에 더하는 값입니다."
+        );
+    }
 
     return changed;
 }
@@ -2758,7 +3132,18 @@ bool InitialMeshRotationRateModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 XYZ", data.rotationRateDegrees, defaultData.rotationRateDegrees);
+    {
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "회전 속도 XYZ",
+            data.rotationRateDegrees,
+            defaultData.rotationRateDegrees,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "spawn 시점에 한 번 샘플되는 mesh 축별 초당 회전 속도입니다."
+        );
+    }
 
     return changed;
 }
@@ -2773,7 +3158,18 @@ bool MeshRotationRateScaleByLifeModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife);
+    {
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "회전 속도 배율 XYZ",
+            data.scaleOverLife,
+            defaultData.scaleOverLife,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 mesh 회전 속도에 곱하는 축별 배율입니다."
+        );
+    }
 
     return changed;
 }
@@ -2793,7 +3189,8 @@ bool InitialColorModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& mo
             0.01f,
             true,
             true,
-            Find_AuthoringValueRange(module.type, "alpha")
+            Find_AuthoringValueRange(module.type, "alpha"),
+            "spawn 시점에 한 번 샘플되는 초기 alpha입니다. material opacity에 곱해집니다."
         );
     }
 
@@ -2815,7 +3212,8 @@ bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& m
             0.01f,
             true,
             true,
-            Find_AuthoringValueRange(module.type, "alphaOverLife")
+            Find_AuthoringValueRange(module.type, "alphaOverLife"),
+            "생존 중 normalized life(0->1)에 따라 material opacity에 곱해지는 alpha 배율입니다."
         );
     }
 
@@ -2843,16 +3241,32 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
             );
 
             if (data.playbackMode == SubUVFramePlaybackMode::FixedFrame)
-                changed |= detailContext.Draw_UintProperty("프레임", data.startFrame, defaultData.startFrame);
+                changed |= detailContext.Draw_UintProperty("프레임", data.startFrame, defaultData.startFrame, "고정 재생에서 사용할 atlas frame index입니다.");
             else
             {
-                changed |= detailContext.Draw_UintProperty("시작 프레임", data.startFrame, defaultData.startFrame);
-                changed |= detailContext.Draw_UintProperty("종료 프레임", data.endFrame, defaultData.endFrame);
+                changed |= detailContext.Draw_UintProperty(
+                    "시작 프레임",
+                    data.startFrame,
+                    defaultData.startFrame,
+                    "재생 range의 시작 frame입니다. 시작과 종료가 같으면 단일 frame으로 유지됩니다."
+                );
+                changed |= detailContext.Draw_UintProperty(
+                    "종료 프레임",
+                    data.endFrame,
+                    defaultData.endFrame,
+                    "재생 range의 끝 frame입니다. 시작보다 작으면 atlas 끝을 거쳐 wrap 재생합니다."
+                );
 
                 if (data.playbackMode == SubUVFramePlaybackMode::FramesPerSecond)
                 {
-                    changed |= detailContext.Draw_BoolProperty("루프", data.loop, defaultData.loop);
-                    changed |= detailContext.Draw_FloatProperty("FPS", data.framesPerSecond, defaultData.framesPerSecond, 0.1f);
+                    changed |= detailContext.Draw_BoolProperty("루프", data.loop, defaultData.loop, "켜면 start/end로 정한 range 안에서 반복 재생합니다.");
+                    changed |= detailContext.Draw_FloatProperty(
+                        "FPS",
+                        data.framesPerSecond,
+                        defaultData.framesPerSecond,
+                        0.1f,
+                        "초당 넘길 atlas frame 수입니다. LifeProgress 모드와 달리 시간 기반으로 진행합니다."
+                    );
                     changed |= detailContext.Draw_BoolProperty(
                         "개체별 랜덤 시작",
                         data.randomStartPhase,
@@ -2898,8 +3312,8 @@ bool SizeByLifeModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("SizeByLife"))
         {
-            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
-            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
+            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX, "켜면 life 기반 크기 배율을 X축에 적용합니다.");
+            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY, "켜면 life 기반 크기 배율을 Y축에 적용합니다.");
             detailContext.End_PropertyTable();
         }
 
@@ -2919,6 +3333,8 @@ bool SizeByLifeModuleDetail::Draw(
 
         ImGui::PushID("SizeByLifeAxisLock");
         ImGui::TextUnformatted("축 잠금");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            ImGui::SetTooltip("한 축의 life 배율을 다른 축에도 복사해 종횡비를 유지합니다. None이면 축별 값을 따로 사용합니다.");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(160.f);
         if (ImGui::BeginCombo("##AxisLock", axis_lock_label(data.axisLock)))
@@ -2942,7 +3358,15 @@ bool SizeByLifeModuleDetail::Draw(
         }
         ImGui::PopID();
 
-        changed |= detailContext.Draw_Vector2DistributionGroup("수명 배율", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
+        changed |= detailContext.Draw_Vector2DistributionGroup(
+            "수명 배율",
+            data.scaleOverLife,
+            defaultData.scaleOverLife,
+            0.01f,
+            true,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 초기 크기에 곱하는 배율입니다."
+        );
     }
 
     return changed;
@@ -2961,13 +3385,22 @@ bool MeshSizeByLifeModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("MeshSizeByLife"))
         {
-            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
-            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
-            changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ);
+            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX, "켜면 life 기반 mesh 크기 배율을 X축에 적용합니다.");
+            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY, "켜면 life 기반 mesh 크기 배율을 Y축에 적용합니다.");
+            changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ, "켜면 life 기반 mesh 크기 배율을 Z축에 적용합니다.");
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_Vector3DistributionGroup("수명 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
+        changed |= detailContext.Draw_Vector3DistributionGroup(
+            "수명 배율 XYZ",
+            data.scaleOverLife,
+            defaultData.scaleOverLife,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 mesh 초기 크기에 곱하는 축별 배율입니다."
+        );
     }
 
     return changed;
@@ -2984,7 +3417,16 @@ bool SpawnPerUnitModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("거리당 스폰", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        changed |= detailContext.Draw_FloatDistributionGroup("분포", data.spawnPerUnit, defaultData.spawnPerUnit);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "분포",
+            data.spawnPerUnit,
+            defaultData.spawnPerUnit,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "provider 이동 거리당 몇 개를 만들지 정하는 spawn 밀도입니다."
+        );
 
         if (detailContext.Begin_PropertyTable("SpawnPerUnitPolicy"))
         {
@@ -3294,84 +3736,122 @@ bool MaterialScalarModulationModuleDetail::Draw(
     {
         constexpr uint32 kMaxMaterialScalarModulators{ 8 };
         constexpr uint32 kMaxCoreColorRgbModulators{ 8 };
+        constexpr uint32 kMaxMaterialVec2Modulators{ 8 };
         if (ImGui::Button("+ 변조 추가"))
         {
             data.modulators.push_back(MaterialScalarModulatorData{});
             changed = true;
         }
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            ImGui::SetTooltip("material instance parameter를 시간 축에 따라 변조하는 row를 추가합니다. 대상은 row 내부 콤보에서 고릅니다.");
 
         ImGui::SameLine();
         ImGui::TextDisabled(
             "%zu / %u",
-            data.modulators.size() + data.coreColorRgbModulators.size(),
-            kMaxMaterialScalarModulators + kMaxCoreColorRgbModulators
+            data.modulators.size() + data.coreColorRgbModulators.size() + data.vec2Modulators.size(),
+            kMaxMaterialScalarModulators + kMaxCoreColorRgbModulators + kMaxMaterialVec2Modulators
         );
+
+        enum class MaterialModulationUiRowKind : uint8
+        {
+            Scalar,
+            CoreColorRgb,
+            Vec2,
+        };
 
         struct MaterialModulationUiRow
         {
-            bool isCoreColorRgb{};
+            MaterialModulationUiRowKind kind{ MaterialModulationUiRowKind::Scalar };
             size_t index{};
         };
 
         vector<MaterialModulationUiRow> rows{};
-        rows.reserve(data.modulators.size() + data.coreColorRgbModulators.size());
+        rows.reserve(data.modulators.size() + data.coreColorRgbModulators.size() + data.vec2Modulators.size());
         for (size_t index = 0; index < data.modulators.size(); ++index)
-            rows.push_back(MaterialModulationUiRow{ false, index });
+            rows.push_back(MaterialModulationUiRow{ MaterialModulationUiRowKind::Scalar, index });
         for (size_t index = 0; index < data.coreColorRgbModulators.size(); ++index)
-            rows.push_back(MaterialModulationUiRow{ true, index });
+            rows.push_back(MaterialModulationUiRow{ MaterialModulationUiRowKind::CoreColorRgb, index });
+        for (size_t index = 0; index < data.vec2Modulators.size(); ++index)
+            rows.push_back(MaterialModulationUiRow{ MaterialModulationUiRowKind::Vec2, index });
 
         for (size_t rowIndex = 0; rowIndex < rows.size(); ++rowIndex)
         {
             const MaterialModulationUiRow row = rows[rowIndex];
-            ImGui::PushID(row.isCoreColorRgb ? "CoreColorRgb" : "Scalar");
+            ImGui::PushID(
+                row.kind == MaterialModulationUiRowKind::CoreColorRgb ? "CoreColorRgb" : row.kind == MaterialModulationUiRowKind::Vec2 ? "Vec2" : "Scalar"
+            );
             ImGui::PushID(static_cast<int>(row.index));
 
             const MaterialScalarModulationTimeSource timeSource =
-                row.isCoreColorRgb
+                row.kind == MaterialModulationUiRowKind::CoreColorRgb
                 ? data.coreColorRgbModulators[row.index].timeSource
-                : data.modulators[row.index].timeSource;
-            const string header =
-                string("#") + to_string(rowIndex + 1) + " " +
-                Internal::Get_MaterialModulationTargetLabel(
-                    row.isCoreColorRgb,
-                    row.isCoreColorRgb
+                : row.kind == MaterialModulationUiRowKind::Vec2
+                  ? data.vec2Modulators[row.index].timeSource
+                  : data.modulators[row.index].timeSource;
+            const string targetLabel =
+                row.kind == MaterialModulationUiRowKind::Vec2
+                ? Internal::Get_MaterialVec2TargetLabel(data.vec2Modulators[row.index].targetField)
+                : Internal::Get_MaterialModulationTargetLabel(
+                    row.kind == MaterialModulationUiRowKind::CoreColorRgb,
+                    row.kind == MaterialModulationUiRowKind::CoreColorRgb
                     ? MaterialScalarModulationTargetField::CoreColor
                     : data.modulators[row.index].targetField
-                ) + " / " +
+                );
+            const string header =
+                string("#") + to_string(rowIndex + 1) + " " +
+                targetLabel + " / " +
                 Internal::Get_MaterialScalarTimeSourceLabel(timeSource);
             bool structureChanged = false;
 
             if (ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
             {
-                if (row.isCoreColorRgb)
+                if (row.kind == MaterialModulationUiRowKind::CoreColorRgb)
                 {
                     MaterialCoreColorRgbModulatorData& modulator = data.coreColorRgbModulators[row.index];
                     MaterialCoreColorRgbModulatorData defaultData = Internal::Make_CoreColorRgbModulator(emitter);
 
                     if (detailContext.Begin_PropertyTable("MaterialCoreColorRgbModulator"))
                     {
-                        changed |= detailContext.Draw_BoolProperty("변조 사용", modulator.enabled, defaultData.enabled);
+                        changed |= detailContext.Draw_BoolProperty(
+                            "변조 사용",
+                            modulator.enabled,
+                            defaultData.enabled,
+                            "이 변조 row를 runtime preview/export에 반영할지 정합니다."
+                        );
 
-                        bool nextCoreColorRgb = true;
-                        MaterialScalarModulationTargetField nextTarget = MaterialScalarModulationTargetField::CoreColor;
+                        Internal::MaterialModulationTargetSelection currentSelection{};
+                        currentSelection.category = Internal::MaterialModulationTargetCategory::CoreColorRgb;
+                        currentSelection.scalarTarget = MaterialScalarModulationTargetField::CoreColor;
+                        Internal::MaterialModulationTargetSelection nextSelection = currentSelection;
                         if (Internal::Draw_MaterialModulationTargetProperty(
                             detailContext,
                             "대상",
-                            true,
-                            MaterialScalarModulationTargetField::CoreColor,
-                            nextCoreColorRgb,
-                            nextTarget
+                            currentSelection,
+                            nextSelection
                         ))
                         {
                             changed = true;
-                            if (!nextCoreColorRgb)
+                            if (nextSelection.category == Internal::MaterialModulationTargetCategory::Scalar)
                             {
                                 MaterialScalarModulatorData scalarModulator{};
                                 scalarModulator.enabled = modulator.enabled;
                                 scalarModulator.timeSource = modulator.timeSource;
-                                scalarModulator.targetField = nextTarget;
+                                scalarModulator.targetField = nextSelection.scalarTarget;
+                                if (Internal::Is_MaterialScrollSpeedScaleTarget(scalarModulator.targetField))
+                                    scalarModulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
                                 scalarModulator.distribution = FloatDistributionData::Make_Constant(1.f);
                                 data.modulators.push_back(scalarModulator);
+                                data.coreColorRgbModulators.erase(data.coreColorRgbModulators.begin() + static_cast<ptrdiff_t>(row.index));
+                                structureChanged = true;
+                            }
+                            else if (nextSelection.category == Internal::MaterialModulationTargetCategory::Vec2)
+                            {
+                                MaterialVec2ModulatorData vec2Modulator{};
+                                vec2Modulator.enabled = modulator.enabled;
+                                vec2Modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                vec2Modulator.targetField = nextSelection.vec2Target;
+                                vec2Modulator.distribution = Vector2DistributionData::Make_Constant(Vec2{ 0.f, 0.f });
+                                data.vec2Modulators.push_back(vec2Modulator);
                                 data.coreColorRgbModulators.erase(data.coreColorRgbModulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
                             }
@@ -3379,6 +3859,12 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                         if (!structureChanged)
                         {
+                            if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
+                            {
+                                modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                changed = true;
+                            }
+
                             changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
                                 detailContext,
                                 "시간 축",
@@ -3395,12 +3881,102 @@ bool MaterialScalarModulationModuleDetail::Draw(
                         changed |= detailContext.Draw_Vector3DistributionGroup(
                             "분포",
                             modulator.distribution,
-                            defaultData.distribution
+                            defaultData.distribution,
+                            0.01f,
+                            true,
+                            false,
+                            nullptr,
+                            "선택한 시간 축을 입력으로 Core Color RGB에 곱할 값을 평가합니다."
                         );
 
                         if (ImGui::Button("삭제"))
                         {
                             data.coreColorRgbModulators.erase(data.coreColorRgbModulators.begin() + static_cast<ptrdiff_t>(row.index));
+                            changed = true;
+                            structureChanged = true;
+                        }
+                    }
+                }
+                else if (row.kind == MaterialModulationUiRowKind::Vec2)
+                {
+                    MaterialVec2ModulatorData& modulator = data.vec2Modulators[row.index];
+                    const MaterialVec2ModulatorData defaultData{};
+
+                    if (detailContext.Begin_PropertyTable("MaterialVec2Modulator"))
+                    {
+                        changed |= detailContext.Draw_BoolProperty(
+                            "변조 사용",
+                            modulator.enabled,
+                            defaultData.enabled,
+                            "이 Vec2 변조 row를 runtime preview/export에 반영할지 정합니다."
+                        );
+                        Internal::MaterialModulationTargetSelection currentSelection{};
+                        currentSelection.category = Internal::MaterialModulationTargetCategory::Vec2;
+                        currentSelection.vec2Target = modulator.targetField;
+                        Internal::MaterialModulationTargetSelection nextSelection = currentSelection;
+                        if (Internal::Draw_MaterialModulationTargetProperty(
+                            detailContext,
+                            "대상",
+                            currentSelection,
+                            nextSelection
+                        ))
+                        {
+                            changed = true;
+                            if (nextSelection.category == Internal::MaterialModulationTargetCategory::Scalar)
+                            {
+                                MaterialScalarModulatorData scalarModulator{};
+                                scalarModulator.enabled = modulator.enabled;
+                                scalarModulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                scalarModulator.targetField = nextSelection.scalarTarget;
+                                scalarModulator.distribution = FloatDistributionData::Make_Constant(1.f);
+                                data.modulators.push_back(scalarModulator);
+                                data.vec2Modulators.erase(data.vec2Modulators.begin() + static_cast<ptrdiff_t>(row.index));
+                                structureChanged = true;
+                            }
+                            else if (nextSelection.category == Internal::MaterialModulationTargetCategory::CoreColorRgb)
+                            {
+                                MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
+                                coreColorRgbModulator.enabled = modulator.enabled;
+                                coreColorRgbModulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                data.coreColorRgbModulators.push_back(coreColorRgbModulator);
+                                data.vec2Modulators.erase(data.vec2Modulators.begin() + static_cast<ptrdiff_t>(row.index));
+                                structureChanged = true;
+                            }
+                            else
+                            {
+                                modulator.targetField = nextSelection.vec2Target;
+                            }
+                        }
+                        if (!structureChanged)
+                        {
+                            detailContext.Draw_PropertyLabel("연산", "현재 Vec2 modulation은 대상 UV offset에 분포 값을 더하는 Add 연산입니다.");
+                            ImGui::TextUnformatted("Add");
+                            detailContext.Draw_PropertyLabel("시간 축", "Vec2 material modulation은 v1에서 EmitterTime만 지원합니다.");
+                            ImGui::TextUnformatted(Internal::Get_MaterialScalarTimeSourceLabel(modulator.timeSource));
+                            if (detailContext.Draw_ResetButton(modulator.timeSource != defaultData.timeSource))
+                            {
+                                modulator.timeSource = defaultData.timeSource;
+                                changed = true;
+                            }
+                        }
+                        detailContext.End_PropertyTable();
+                    }
+
+                    if (!structureChanged)
+                    {
+                        changed |= detailContext.Draw_Vector2DistributionGroup(
+                            "분포",
+                            modulator.distribution,
+                            defaultData.distribution,
+                            0.01f,
+                            true,
+                            nullptr,
+                            "선택한 시간 축을 입력으로 대상 material UV offset에 더할 X/Y 값을 평가합니다."
+                        );
+
+                        if (ImGui::Button("삭제"))
+                        {
+                            data.vec2Modulators.erase(data.vec2Modulators.begin() + static_cast<ptrdiff_t>(row.index));
                             changed = true;
                             structureChanged = true;
                         }
@@ -3413,36 +3989,67 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
                     if (detailContext.Begin_PropertyTable("MaterialScalarModulator"))
                     {
-                        changed |= detailContext.Draw_BoolProperty("변조 사용", modulator.enabled, defaultData.enabled);
+                        changed |= detailContext.Draw_BoolProperty(
+                            "변조 사용",
+                            modulator.enabled,
+                            defaultData.enabled,
+                            "이 변조 row를 runtime preview/export에 반영할지 정합니다."
+                        );
 
-                        bool nextCoreColorRgb = false;
-                        MaterialScalarModulationTargetField nextTarget = modulator.targetField;
+                        Internal::MaterialModulationTargetSelection currentSelection{};
+                        currentSelection.category = Internal::MaterialModulationTargetCategory::Scalar;
+                        currentSelection.scalarTarget = modulator.targetField;
+                        Internal::MaterialModulationTargetSelection nextSelection = currentSelection;
                         if (Internal::Draw_MaterialModulationTargetProperty(
                             detailContext,
                             "대상",
-                            false,
-                            modulator.targetField,
-                            nextCoreColorRgb,
-                            nextTarget
+                            currentSelection,
+                            nextSelection
                         ))
                         {
                             changed = true;
-                            if (nextCoreColorRgb)
+                            if (nextSelection.category == Internal::MaterialModulationTargetCategory::CoreColorRgb)
                             {
                                 MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
                                 coreColorRgbModulator.enabled = modulator.enabled;
-                                coreColorRgbModulator.timeSource = modulator.timeSource;
+                                coreColorRgbModulator.timeSource =
+                                    modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife
+                                    ? MaterialScalarModulationTimeSource::EmitterTime
+                                    : modulator.timeSource;
                                 data.coreColorRgbModulators.push_back(coreColorRgbModulator);
                                 data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
                                 structureChanged = true;
                             }
+                            else if (nextSelection.category == Internal::MaterialModulationTargetCategory::Vec2)
+                            {
+                                MaterialVec2ModulatorData vec2Modulator{};
+                                vec2Modulator.enabled = modulator.enabled;
+                                vec2Modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                vec2Modulator.targetField = nextSelection.vec2Target;
+                                vec2Modulator.distribution = Vector2DistributionData::Make_Constant(Vec2{ 0.f, 0.f });
+                                data.vec2Modulators.push_back(vec2Modulator);
+                                data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
+                                structureChanged = true;
+                            }
                             else
-                                modulator.targetField = nextTarget;
+                            {
+                                modulator.targetField = nextSelection.scalarTarget;
+                                if (Internal::Is_MaterialScrollSpeedScaleTarget(modulator.targetField) &&
+                                    modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
+                                    modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                            }
                         }
 
                         if (!structureChanged)
                         {
-                            detailContext.Draw_PropertyLabel("연산");
+                            if (Internal::Is_MaterialScrollSpeedScaleTarget(modulator.targetField) &&
+                                modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
+                            {
+                                modulator.timeSource = MaterialScalarModulationTimeSource::EmitterTime;
+                                changed = true;
+                            }
+
+                            detailContext.Draw_PropertyLabel("연산", "현재 scalar modulation은 대상 값에 분포 값을 곱하는 Multiply 연산입니다.");
                             ImGui::TextUnformatted(Internal::Get_MaterialScalarOperationLabel(modulator.operation));
                             if (detailContext.Draw_ResetButton(modulator.operation != defaultData.operation))
                             {
@@ -3454,7 +4061,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 "시간 축",
                                 modulator.timeSource,
                                 defaultData.timeSource,
-                                allowScalarParticleLife
+                                allowScalarParticleLife && !Internal::Is_MaterialScrollSpeedScaleTarget(modulator.targetField)
                             );
                         }
                         detailContext.End_PropertyTable();
@@ -3465,7 +4072,12 @@ bool MaterialScalarModulationModuleDetail::Draw(
                         changed |= detailContext.Draw_FloatDistributionGroup(
                             "분포",
                             modulator.distribution,
-                            defaultData.distribution
+                            defaultData.distribution,
+                            0.01f,
+                            true,
+                            true,
+                            nullptr,
+                            "선택한 시간 축을 입력으로 대상 material scalar에 곱할 값을 평가합니다."
                         );
 
                         if (ImGui::Button("삭제"))

@@ -86,6 +86,7 @@ public: //## Accessor::Runtime
     float Get_RuntimeTimeScale() const;
 
 public: //## Accessor::PreviewOption
+    bool Is_AutoReplayPreviewEnabled() const { return _autoReplayPreviewEnabled; }
     bool Is_TrailPreviewVisible() const { return _isTrailPreviewVisible; }
     bool Is_PreviewPlaneVisible() const { return _isPreviewPlaneVisible; }
     TrailPreviewGateMode Get_TrailPreviewGateMode() const { return _trailPreviewGateMode; }
@@ -160,10 +161,12 @@ public: //## Behavior::RuntimeControl
     void Request_FrameStep();
     bool Consume_FrameStep();
     void Request_RestartPreview();
+    void Tick_AutoReplayPreview(float timeDelta);
     void Tick_TrailPreviewGate(float timeDelta);
     void Reset_TrailPreviewGate();
 
 public: //## Behavior::PreviewOption
+    void Set_AutoReplayPreviewEnabled(bool enabled);
     void Set_TrailPreviewVisible(bool visible);
     void Set_PreviewPlaneVisible(bool visible);
     void Set_TrailPreviewGateMode(TrailPreviewGateMode mode);
@@ -259,6 +262,7 @@ private: //## Static Values
     static constexpr float kDefaultTrailPreviewAnimationSpeed{ 1.f };
     static constexpr float kMinTrailPreviewAnimationSpeed{ 0.01f };
     static constexpr float kMaxTrailPreviewAnimationSpeed{ 10.f };
+    static constexpr float kAutoReplayPreviewDelay{ 1.f };
 
 private: //## Data::Core
     ComPtr<Device> _device{};
@@ -289,6 +293,8 @@ private: //## Data::Runtime
     EffectEditorRuntimeState _runtimeState{ EffectEditorRuntimeState::Edit };
     float _runtimeTimeScale{ 1.f };
     bool _pendingSingleFrameStep{ false };
+    bool _autoReplayPreviewEnabled{ false };
+    float _autoReplayPreviewElapsedTime{ 0.f };
     string _copiedObjectJson{};
     wstring _copiedLayerTag{};
 

@@ -101,6 +101,25 @@ namespace Client::Constants::UI
 
 #pragma endregion
 
+#pragma region 플레이어 스테이터스. 탭눌렀을 때
+    inline constexpr wchar_t UI_Character_Progression_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Character_Progression.json";
+
+    inline constexpr wchar_t UI_ChangeSkill_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_ChangeSkill.json";
+
+    inline constexpr wchar_t UI_Available_Skill_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Available_Skill.json";
+
+    inline constexpr wchar_t UI_Wardrobe_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Wardrobe.json";
+
+    inline constexpr wchar_t UI_Pictos_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Pictos.json";
+
+#pragma endregion
+
+
 }
 
 namespace Client::Constants::UI_Anim
@@ -262,16 +281,26 @@ namespace Client::Constants::Prefab
     inline constexpr wchar_t Player_Dir[] = L"Data/json/Prefabs/Player";
     inline constexpr wchar_t Monster_Dir[] = L"Data/json/Prefabs/Monster";
     inline constexpr wchar_t Weapon_Dir[] = L"Data/json/Prefabs/Weapons";
+
     inline constexpr wchar_t BattleStartSpawner_Dir[] = L"Data/json/Prefabs/BattleStartSpawner";
 
+    inline constexpr wchar_t VictorialFlag_Dir[] = L"Data/json/Prefabs/ETC/VictoriaFlag";
+
 #pragma region 플레이어
+    // 월드
     inline constexpr char PW_Gustave[]  = "PW_Gustave";
     inline constexpr char PW_Lune[]     = "PW_Lune";
     inline constexpr char PW_Maelle[]   = "PW_Maelle";
 
+    // 배틀
     inline constexpr char PB_Gustave[]  = "PB_Gustave";
     inline constexpr char PB_Lune[]     = "PB_Lune";
     inline constexpr char PB_Maelle[]   = "PB_Maelle";
+
+    // 프리뷰
+    inline constexpr char PP_Gustave[]  = "PP_Gustave";
+    inline constexpr char PP_Lune[]     = "PP_Lune";
+    inline constexpr char PP_Maelle[]   = "PP_Maelle";
 #pragma endregion
 
 #pragma region 몬스터

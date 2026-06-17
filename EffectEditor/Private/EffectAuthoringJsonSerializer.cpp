@@ -2766,6 +2766,36 @@ namespace Internal
             From_Json(*distributionIter, outData.distribution);
     }
 
+    json To_Json(const MaterialVec2ModulatorData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["targetField"] = To_EnumToken(data.targetField);
+        root["timeSource"] = To_EnumToken(data.timeSource);
+        root["distribution"] = To_Json(data.distribution);
+        return root;
+    }
+
+    void From_Json(const json& root, MaterialVec2ModulatorData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+
+        const auto targetIter = root.find("targetField");
+        if (targetIter != root.end())
+            Try_ReadEnumToken(*targetIter, outData.targetField);
+
+        const auto timeSourceIter = root.find("timeSource");
+        if (timeSourceIter != root.end())
+            Try_ReadEnumToken(*timeSourceIter, outData.timeSource);
+
+        const auto distributionIter = root.find("distribution");
+        if (distributionIter != root.end())
+            From_Json(*distributionIter, outData.distribution);
+    }
+
     json To_Json(const MaterialScalarModulationModuleData& data)
     {
         json root = json::object();
@@ -2776,6 +2806,10 @@ namespace Internal
         root["coreColorRgbModulators"] = json::array();
         for (const MaterialCoreColorRgbModulatorData& modulator : data.coreColorRgbModulators)
             root["coreColorRgbModulators"].push_back(To_Json(modulator));
+
+        root["vec2Modulators"] = json::array();
+        for (const MaterialVec2ModulatorData& modulator : data.vec2Modulators)
+            root["vec2Modulators"].push_back(To_Json(modulator));
         return root;
     }
 
@@ -2805,6 +2839,18 @@ namespace Internal
                 MaterialCoreColorRgbModulatorData modulator{};
                 From_Json(modulatorNode, modulator);
                 outData.coreColorRgbModulators.push_back(modulator);
+            }
+        }
+
+        const auto vec2ModulatorsIter = root.find("vec2Modulators");
+        if (vec2ModulatorsIter != root.end() && vec2ModulatorsIter->is_array())
+        {
+            outData.vec2Modulators.clear();
+            for (const json& modulatorNode : *vec2ModulatorsIter)
+            {
+                MaterialVec2ModulatorData modulator{};
+                From_Json(modulatorNode, modulator);
+                outData.vec2Modulators.push_back(modulator);
             }
         }
     }

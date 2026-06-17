@@ -1107,6 +1107,19 @@ enum class MaterialScalarModulationTargetField : uint8
     CoreIntensity,
     OuterIntensity,
     CoreColor,
+    RefractionIntensity,
+    MainUVScrollSpeedScale,
+    NoiseUVScrollSpeedScale,
+    MaskUVScrollSpeedScale,
+    FlowUVScrollSpeedScale,
+};
+
+enum class MaterialVec2ModulationTargetField : uint8
+{
+    MainUVOffset,
+    NoiseUVOffset,
+    MaskUVOffset,
+    FlowUVOffset,
 };
 
 enum class MaterialScalarModulationOperation : uint8
@@ -1136,10 +1149,19 @@ struct MaterialCoreColorRgbModulatorData
     Vector3DistributionData distribution{ Vector3DistributionData::Make_Constant(Vec3{ 1.f, 0.85f, 0.45f }) };
 };
 
+struct MaterialVec2ModulatorData
+{
+    bool enabled{ true };
+    MaterialVec2ModulationTargetField targetField{ MaterialVec2ModulationTargetField::MainUVOffset };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::EmitterTime };
+    Vector2DistributionData distribution{ Vector2DistributionData::Make_Constant(Vec2{ 0.f, 0.f }) };
+};
+
 struct MaterialScalarModulationModuleData
 {
     vector<MaterialScalarModulatorData> modulators{};
     vector<MaterialCoreColorRgbModulatorData> coreColorRgbModulators{};
+    vector<MaterialVec2ModulatorData> vec2Modulators{};
 };
 
 using AuthoringModuleData = variant<
