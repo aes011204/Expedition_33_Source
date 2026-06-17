@@ -48,10 +48,17 @@
 #include "Client_Constants.h"
 #include "BattleTutorialController.h"
 #include "PlayerInventory.h"
+#include "PostProcessPipeline.h"
 
 #include "PictosBattleSystem.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
+
+namespace
+{
+    // DOF_MODIFY 
+    constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
+}
 
 BattleController::BattleController()
 {
@@ -395,6 +402,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _isBattleActive = false;
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
 
     //Restore_WorldCamera(); // 카메라 복구
     CLIENT->Restore_PreviousCamera();
@@ -1053,6 +1062,8 @@ void BattleController::Handle_EditorStopRuntime()
     _battleTurnCamera.reset();
 
     Clear_BattleEnterPending();
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
     Restore_WorldCamera();
 
     if (_battleFSM)
@@ -1692,6 +1703,8 @@ void BattleController::Confirm_Victory()
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
 
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
     Restore_WorldCamera();
     Clear_BattleRuntimeState();
 
@@ -2051,6 +2064,26 @@ void BattleController::Activate_BattleTurnCamera()
     CLIENT->Request_BattleTurn();
 }
 
+// DOF_MODIFY 
+void BattleController::Begin_BattleDOFOverride()
+{
+    if (FAILED(GAME->Begin_DOFOverrideScope(kBattleDOFOwnerTag)))
+        LOG_WARN("BattleController: failed to begin battle DOF override scope");
+}
+
+void BattleController::End_BattleDOFOverride()
+{
+    GAME->End_DOFOverrideScope(kBattleDOFOwnerTag, Build_BattleDOFRestoreTransition());
+}
+
+Engine::DOFTransitionDesc BattleController::Build_BattleDOFRestoreTransition()
+{
+    Engine::DOFTransitionDesc transition{};
+    transition.easing = Engine::DOFTransitionEasing::EaseInOut;
+    transition.duration = 0.35f;
+    return transition;
+}
+
 void BattleController::Restore_WorldCamera()
 {
     CLIENT->Restore_PreviousCamera();
@@ -2194,6 +2227,7 @@ void BattleController::Complete_BattleField()
         return;
     }
 
+    Begin_BattleDOFOverride();
     Activate_BattleTurnCamera();
     Clear_BattleEnterPending();
 
