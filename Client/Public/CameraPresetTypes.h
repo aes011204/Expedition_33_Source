@@ -3,7 +3,8 @@
 enum class PreviewShotPanel
 {
     CharacterStatus,
-    SkillTree
+    SkillTree,
+    CharacterProgression,
 };
 
 enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER };

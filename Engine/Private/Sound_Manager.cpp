@@ -76,7 +76,7 @@ void Sound_Manager::Update(float timeDelta)
 
 bool Sound_Manager::Play_Once(const wstring& soundFile, SoundChannel channel, float volume)
 {
-    if (!_system || !Validate_Channel(channel))
+    if (!_system || _allSoundMuted || !Validate_Channel(channel))
         return false;
 
     FMOD_SOUND* fmodSound = Find_Sound(soundFile);
@@ -111,7 +111,7 @@ bool Sound_Manager::Play_Once(const wstring& soundFile, SoundChannel channel, fl
 
 bool Sound_Manager::Play_Once_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
 {
-    if (!_system || !Validate_Channel(channel))
+    if (!_system || _allSoundMuted || !Validate_Channel(channel))
         return false;
 
     FMOD_SOUND* fmodSound = Find_Sound(soundFile);
@@ -146,7 +146,7 @@ bool Sound_Manager::Play_Once_Pitched(const wstring& soundFile, SoundChannel cha
 
 bool Sound_Manager::Play_BGM(const wstring& soundFile, float volume, bool stopPrevBGM, float fadeOutDuration)
 {
-    if (!_system)
+    if (!_system || _allSoundMuted)
         return false;
 
     FMOD_SOUND* fmodSound = Find_Sound(soundFile);
@@ -191,7 +191,7 @@ bool Sound_Manager::Play_BGM(const wstring& soundFile, float volume, bool stopPr
 bool Sound_Manager::Play_Loop(const wstring& soundFile, SoundChannel channel, float volume, bool stopPrevChannel,
     float fadeOutDuration)
 {
-    if (!_system || !Validate_Channel(channel))
+    if (!_system || _allSoundMuted || !Validate_Channel(channel))
         return false;
 
     FMOD_SOUND* fmodSound = Find_Sound(soundFile);
@@ -274,6 +274,21 @@ void Sound_Manager::Set_ChannelPaused(SoundChannel channel, bool paused)
             continue;
 
         FMOD_Channel_SetPaused(fmodChannel, fmodPaused);
+    }
+}
+
+void Sound_Manager::Set_AllSoundMuted(bool muted)
+{
+    _allSoundMuted = muted;
+
+    if (!_system)
+        return;
+
+    const FMOD_BOOL fmodMuted = _allSoundMuted ? TRUE : FALSE;
+    for (uint32 i = 0; i < ETOI(SoundChannel::END); ++i)
+    {
+        if (_channelGroups[i])
+            FMOD_ChannelGroup_SetMute(_channelGroups[i], fmodMuted);
     }
 }
 
@@ -480,7 +495,7 @@ bool Sound_Manager::Try_GetCueDefaultVolumePitch(const wstring& cueId, float& ou
 bool Sound_Manager::Play_Once_3D(const wstring& soundFile, SoundChannel channel, const Vec3& worldPosition,
     float volume, float pitch, float minDistance, float maxDistance)
 {
-    if (!_system || !Validate_Channel(channel))
+    if (!_system || _allSoundMuted || !Validate_Channel(channel))
         return false;
 
     FMOD_SOUND* fmodSound = Find_Sound(soundFile);
@@ -793,6 +808,7 @@ HRESULT Sound_Manager::Create_ChannelGroups()
         }
 
         FMOD_ChannelGroup_SetVolume(_channelGroups[i], _channelVolumes[i]);
+        FMOD_ChannelGroup_SetMute(_channelGroups[i], _allSoundMuted ? TRUE : FALSE);
     }
 
     Set_GlobalPitch(_globalPitch, _globalPitchIncludesBGM);

@@ -617,15 +617,6 @@ bool EffectEditor_Manager::Add_EffectEmitters()
     return true;
 }
 
-void EffectEditor_Manager::Toggle_Window(const wstring& windowName)
-{
-    const Shared<Editor_Window> window = Find_Window(windowName);
-    if (nullptr == window)
-        return;
-
-    window->Set_Open(!window->Is_Open());
-}
-
 void EffectEditor_Manager::Toggle_SceneFocusMode()
 {
     if (_isSceneFocusModeActive)
@@ -713,6 +704,15 @@ void EffectEditor_Manager::Exit_SceneFocusMode()
     _sceneFocusDockSettingsSnapshot.clear();
     _sceneFocusWindowOpenSnapshot.clear();
     _isSceneFocusModeActive = false;
+}
+
+void EffectEditor_Manager::Toggle_Window(const wstring& windowName)
+{
+    const Shared<Editor_Window> window = Find_Window(windowName);
+    if (nullptr == window)
+        return;
+
+    window->Set_Open(!window->Is_Open());
 }
 
 void EffectEditor_Manager::Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName)

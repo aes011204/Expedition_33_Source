@@ -72,6 +72,7 @@ private:
 
     static void Draw_Components(const Shared<GameObject>& target);
     static void Draw_ObjectReflection(const Shared<GameObject>& target);
+    static bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& target);
 
     static bool Draw_Vec2PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec2& value);
     static bool Draw_Vec3PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec3& value);

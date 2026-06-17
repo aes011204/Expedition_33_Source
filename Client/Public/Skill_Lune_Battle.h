@@ -52,4 +52,52 @@ public:
     void Free() override { SkillScript::Free(); }
 };
 
+class Skill_Lune_TerraQuake : public SkillScript
+{
+    GENERATED_SKILLSCRIPT(Skill_Lune_TerraQuake)
+
+public:
+    Skill_Lune_TerraQuake() = default;
+    ~Skill_Lune_TerraQuake() override = default;
+
+public:
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+
+public:
+    static Shared<Skill_Lune_TerraQuake> Create();
+    void Free() override { SkillScript::Free(); }
+};
+
+class Skill_Lune_CripplingTsunami : public SkillScript
+{
+    GENERATED_SKILLSCRIPT(Skill_Lune_CripplingTsunami)
+
+public:
+    Skill_Lune_CripplingTsunami() = default;
+    ~Skill_Lune_CripplingTsunami() override = default;
+
+public:
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+
+public:
+    static Shared<Skill_Lune_CripplingTsunami> Create();
+    void Free() override { SkillScript::Free(); }
+};
+
+class Skill_Lune_SkyBreak : public SkillScript
+{
+    GENERATED_SKILLSCRIPT(Skill_Lune_SkyBreak)
+
+public:
+    Skill_Lune_SkyBreak() = default;
+    ~Skill_Lune_SkyBreak() override = default;
+
+public:
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+
+public:
+    static Shared<Skill_Lune_SkyBreak> Create();
+    void Free() override { SkillScript::Free(); }
+};
+
 NS_END

@@ -8,6 +8,7 @@
 #include "Player_WorldBase.h"
 #include "PlayerStatCom.h"
 #include "PostProcessPipeline.h"
+#include "PreviewPlayer.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"

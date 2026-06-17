@@ -82,6 +82,9 @@ json Player_BattleBase::To_Json() const
         if (partObject == nullptr)
             continue;
 
+        if (partTag.starts_with(TEXT("Part_Weapon")))
+            continue;
+
         json partJson = json::object();
         partJson["part_tag"] = String::ToString(partTag);
         partJson["object"] = partObject->To_Json();
@@ -104,7 +107,29 @@ void Player_BattleBase::From_Json(const json& data)
         _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
     }
 
-     Apply_CurrentCostumePartTransforms();
+    Apply_CurrentCostumePartTransforms();
+}
+
+HRESULT Player_BattleBase::Rebuild_WeaponPartsFromCurrentStat()
+{
+    Body_Player* body = dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body")));
+    CHECK_NULL(body, E_FAIL);
+
+    vector<wstring> weaponPartTags{};
+    for (const auto& [partTag, partObject] : _partObjects)
+    {
+        UNREFERENCED_PARAMETER(partObject);
+
+        if (partTag.starts_with(TEXT("Part_Weapon")))
+            weaponPartTags.push_back(partTag);
+    }
+
+    for (const wstring& partTag : weaponPartTags)
+        Remove_PartObject(partTag);
+
+    // 현재 장착 weaponId 기준으로 WP_* prefab transform을 최종 적용한다.
+    CHECK_FAILED(Ready_WeaponParts(body), E_FAIL);
+    return S_OK;
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()
@@ -123,7 +148,12 @@ HRESULT Player_BattleBase::Ready_PartObjects()
         // preset 태그가 비어 있으면 기존 캐릭터 기본 태그를 유지한다.
         bodyModelTag = Select_CostumeModelTag(costumePreset->parts.bodyModelTag, bodyModelTag);
         headModelTag = Select_CostumeModelTag(costumePreset->parts.headModelTag, headModelTag);
-        hairModelTag = Select_CostumeModelTag(costumePreset->parts.hairModelTag, hairModelTag);
+
+        if (costumePreset->parts.hairModelTag.empty())
+            hairModelTag = nullptr;
+        else
+            hairModelTag = costumePreset->parts.hairModelTag.c_str();
+
         beardModelTag = Select_CostumeModelTag(costumePreset->parts.beardModelTag, beardModelTag);
         mustacheModelTag = Select_CostumeModelTag(costumePreset->parts.mustacheModelTag, mustacheModelTag);
         glassesModelTag = Select_CostumeModelTag(costumePreset->parts.glassesModelTag, nullptr);
@@ -155,14 +185,21 @@ HRESULT Player_BattleBase::Ready_PartObjects()
     CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Beard"), beardModelTag, bodyDesc.parentMatrix, head), E_FAIL);
     CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Mustache"), mustacheModelTag, bodyDesc.parentMatrix, head), E_FAIL);
 
-    Hair_Player::HAIR_PLAYER_DESC hairDesc{};
-    hairDesc.parentMatrix = bodyDesc.parentMatrix;
-    hairDesc.modelType = ModelType::Anim;
-    hairDesc.modelTag = hairModelTag;
-    hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
-    hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+    if (hairModelTag != nullptr && hairModelTag[0] != L'\0')
+    {
+        Hair_Player::HAIR_PLAYER_DESC hairDesc{};
+        hairDesc.parentMatrix = bodyDesc.parentMatrix;
+        hairDesc.modelType = ModelType::Anim;
+        hairDesc.modelTag = hairModelTag;
+        hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+        hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
+        CHECK_FAILED(Add_PartObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_Hair_Player"),
+            TEXT("Part_Hair"),
+            &hairDesc), E_FAIL);
+    }
 
     CHECK_FAILED(Add_BattleFaceAccessory(TEXT("Part_Glasses"), glassesModelTag, bodyDesc.parentMatrix, head), E_FAIL);
 
@@ -197,6 +234,7 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
         weaponDesc.socketMatrix = nullptr;
         weaponDesc.useBodyFollow = attachDesc.useBodyFollow;
         weaponDesc.bodyFollowOffset = attachDesc.bodyFollowOffset;
+        weaponDesc.applyAttachScaleCompensation = true; // Battle 장착 weapon은 WP prefab scale 0.1을 실제 크기로 x10 보정한다.
 
         if (attachDesc.useBodyFollow)
         {
@@ -228,6 +266,14 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
     }
 
     return S_OK;
+}
+
+bool Player_BattleBase::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    UNREFERENCED_PARAMETER(partObjectJson);
+
+    // 프리펩에서 저장한 값이 아니라 PlayerStatCom -> DT Weapon -> WP_* prefab에서 세팅한 값으로 들어가게
+    return !partTag.starts_with(TEXT("Part_Weapon"));
 }
 
 const CostumePreset* Player_BattleBase::Get_CurrentBattleCostume() const
@@ -264,7 +310,7 @@ HRESULT Player_BattleBase::Add_BattleFaceAccessory(const wstring& partTag, const
     accessoryDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(Add_PartObject(ETOI
-        (LevelType::Static),TEXT("GameObject_FaceAccessory_Player"), partTag.c_str(), &accessoryDesc), E_FAIL);
+    (LevelType::Static), TEXT("GameObject_FaceAccessory_Player"), partTag.c_str(), &accessoryDesc), E_FAIL);
 
     return S_OK;
 }

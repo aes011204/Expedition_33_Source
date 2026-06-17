@@ -204,6 +204,8 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp" />
     <ClCompile Include="..\Private\EffectMaterialPresetReader.cpp" />
     <ClCompile Include="..\Private\EffectPreviewOrbitCamera.cpp" />
+    <ClCompile Include="..\Private\EffectEditorPreviewDefinitionBuilder.cpp" />
+    <ClCompile Include="..\Private\EffectEditorPreviewRuntime.cpp" />
     <ClCompile Include="..\Private\Level_EffectEditor.cpp" />
     <ClCompile Include="..\Private\MeshDataPreview_View.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
@@ -247,6 +249,8 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\EffectMaterialInstance_View.h" />
     <ClInclude Include="..\Public\EffectMaterialPresetReader.h" />
     <ClInclude Include="..\Public\EffectPreviewOrbitCamera.h" />
+    <ClInclude Include="..\Public\EffectEditorPreviewDefinitionBuilder.h" />
+    <ClInclude Include="..\Public\EffectEditorPreviewRuntime.h" />
     <ClInclude Include="..\Public\EffectEditorSceneGrid.h" />
     <ClInclude Include="..\Public\EffectEditorSkybox.h" />
     <ClInclude Include="..\Public\EffectEditorPreviewPlane.h" />

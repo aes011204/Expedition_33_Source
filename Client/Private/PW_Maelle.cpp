@@ -37,13 +37,20 @@ HRESULT PW_Maelle::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
-		auto skilltreeCom = Get_Component<SkillTreeCom>();
+	auto skilltreeCom = Get_Component<SkillTreeCom>();
 
-	skilltreeCom->TryUnlock("OffensiveSwitch");
+    // 공격전환 -> 불꽃으로 변경
+	skilltreeCom->TryUnlock("Spark");
 	skilltreeCom->TryUnlock("Percee");
+    skilltreeCom->ForceUnlock("FleureFury");
 
 	//skilltreeCom->ForceUnlock("FireRise");
-    skilltreeCom->ForceUnlock("FleureFury");
+    skilltreeCom->ForceUnlock("Stendhal");
+    skilltreeCom->ForceUnlock("SwordBallet");
+
+    // 열분해는 그래디언트로
+    skilltreeCom->ForceUnlock("Pyrolyse");
+
 
 	CHECK_FAILED(Ready_Modifier(), E_FAIL);
 
