@@ -218,7 +218,10 @@ void EditorInstance::Play()
     const bool isStartingFromEdit = _runtimeState == EDITOR_RUNTIME_STATE::Edit;
 
     if (isStartingFromEdit)
+    {
         Capture_PlayStartMonsterSnapshots();
+        Capture_PlayStartHeroStatSnapshots();
+    }
 
     _cameraBeforeFreeCamera.reset();
 
@@ -271,6 +274,7 @@ void EditorInstance::Stop()
         GAME->Set_SoundGlobalPitch(1.f, false);
 
         Restore_PlayStartMonsterSnapshots(); // F4 Stop은 큰 맵 JSON을 다시 읽지 않고 Play 시작 몬스터만 되돌린다.
+        Restore_PlayStartHeroStatSnapshots(); // F4 Stop은 Play 중 깎인 월드 플레이어 체력/AP/실드도 시작 시점으로 되돌린다.
         CLIENT->Restore_PartyFormationAfterEditorStop();
     }
 
@@ -674,6 +678,8 @@ void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, c
                 transform->Set_Scale(scale);
             }
         });
+
+    Refresh_PlayStartMonsterSnapshotsForPrefab(prefabName, prefabRoot);
 }
 
 Shared<Component_Inspector> EditorInstance::Find_Inspector(const string& key) const
@@ -875,6 +881,7 @@ bool EditorInstance::Apply_CameraPoseToCameraType(ObjectType objectType, const C
         transform->Set_WorldRotationEuler(pose.rotation);
         camera->Set_Yaw(pose.yaw);
         camera->Set_Pitch(pose.pitch);
+        camera->Apply_View(); // F9 Pause 전환 직후 복사된 FreeCamera pose가 Scene View 렌더 행렬에도 즉시 반영되게 한다.
         return true;
     }
 
@@ -1101,6 +1108,55 @@ void EditorInstance::Capture_PlayStartMonsterSnapshots()
         });
 }
 
+void EditorInstance::Refresh_PlayStartMonsterSnapshotsForPrefab(const string& prefabName, const json& prefabRoot)
+{
+    if (!_hasPlayStartMonsterSnapshots || prefabName.empty())
+        return;
+
+    if (prefabRoot.is_null() || !prefabRoot.is_object())
+        return;
+
+    for (EditorWorldObjectSnapshot& snapshot : _playStartMonsterSnapshots)
+    {
+        if (!snapshot.objectJson.is_object())
+            continue;
+
+        if (snapshot.objectJson.value("source_prefab", string{}) != prefabName)
+            continue;
+
+        Shared<GameObject> snapshotObject = GAME->Instantiate_GameObjectJson(snapshot.objectJson);
+        if (snapshotObject == nullptr)
+            continue;
+
+        Shared<TransformCom> transform = snapshotObject->Get_Transform();
+
+        Vec3 worldPosition{};
+        Vec3 worldRotation{};
+        Vec3 scale{ 1.f, 1.f, 1.f };
+
+        if (transform != nullptr)
+        {
+            worldPosition = transform->Get_WorldPosition();
+            worldRotation = transform->Get_WorldRotationEuler();
+            scale = transform->Get_Scale();
+        }
+
+        snapshotObject->From_Json(prefabRoot);
+        snapshotObject->Set_SourcePrefabName(prefabName);
+        snapshotObject->Set_RuntimeAuthoringLoaded(true);
+        Refresh_PlayerBodyAnimMapping(snapshotObject);
+
+        if (transform != nullptr)
+        {
+            transform->Set_WorldPosition(worldPosition);
+            transform->Set_WorldRotationEuler(worldRotation);
+            transform->Set_Scale(scale);
+        }
+
+        snapshot.objectJson = snapshotObject->To_Json();
+    }
+}
+
 void EditorInstance::Restore_PlayStartMonsterSnapshots()
 {
     if (!_hasPlayStartMonsterSnapshots)
@@ -1147,6 +1203,51 @@ void EditorInstance::Restore_PlayStartMonsterSnapshots()
 
     _playStartMonsterSnapshots.clear();
     _hasPlayStartMonsterSnapshots = false;
+}
+
+void EditorInstance::Capture_PlayStartHeroStatSnapshots()
+{
+    _playStartHeroStatSnapshots.clear();
+    _hasPlayStartHeroStatSnapshots = true;
+
+    for (const HeroPartyEntry& entry : CLIENT->Get_HeroEntries())
+    {
+        if (entry.hero == nullptr)
+            continue;
+
+        Shared<PlayerStatCom> stat = entry.hero->Get_Component<PlayerStatCom>();
+        if (stat == nullptr)
+            continue;
+
+        EditorHeroStatSnapshot snapshot{};
+        snapshot.heroId = entry.heroId;
+        snapshot.statSnapshot = stat->Create_BattleSyncSnapshot();
+        snapshot.aliveStatus = stat->Get_AliveStatus();
+        _playStartHeroStatSnapshots.emplace_back(snapshot);
+    }
+}
+
+void EditorInstance::Restore_PlayStartHeroStatSnapshots()
+{
+    if (!_hasPlayStartHeroStatSnapshots)
+        return;
+
+    for (const EditorHeroStatSnapshot& snapshot : _playStartHeroStatSnapshots)
+    {
+        Shared<Player_WorldBase> hero = CLIENT->Find_Hero(snapshot.heroId);
+        if (hero == nullptr)
+            continue;
+
+        Shared<PlayerStatCom> stat = hero->Get_Component<PlayerStatCom>();
+        if (stat == nullptr)
+            continue;
+
+        stat->Apply_BattleSyncSnapshot(snapshot.statSnapshot);
+        stat->Set_AliveStatus(snapshot.aliveStatus);
+    }
+
+    _playStartHeroStatSnapshots.clear();
+    _hasPlayStartHeroStatSnapshots = false;
 }
 
 bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const

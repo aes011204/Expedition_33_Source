@@ -40,6 +40,37 @@ static float Hash01(uint32 seed)
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
 }
 
+struct SubUVFrameRange
+{
+    uint32 startFrame{};
+    uint32 frameCount{ 1u };
+    uint32 rangeCount{ 1u };
+};
+
+static SubUVFrameRange Resolve_SubUVFrameRange(uint32 startFrame, uint32 endFrame, uint32 frameCount)
+{
+    const uint32 safeFrameCount = max(1u, frameCount);
+    const uint32 lastFrame = safeFrameCount - 1u;
+    const uint32 clampedStart = min(startFrame, lastFrame);
+    const uint32 clampedEnd = min(endFrame, lastFrame);
+    const uint32 rangeCount =
+        clampedEnd >= clampedStart
+        ? clampedEnd - clampedStart + 1u
+        : safeFrameCount - clampedStart + clampedEnd + 1u;
+    return SubUVFrameRange{ clampedStart, safeFrameCount, max(1u, rangeCount) };
+}
+
+static uint32 Resolve_SubUVFrameInRange(const SubUVFrameRange& range, uint32 frameOffset)
+{
+    return (range.startFrame + min(frameOffset, range.rangeCount - 1u)) % range.frameCount;
+}
+
+static uint32 Resolve_SubUVPlaybackOffset(const SubUVFrameRange& range, uint32 frameOffset, uint32 phaseOffset, bool loop)
+{
+    const uint32 offset = frameOffset + phaseOffset;
+    return loop ? offset % range.rangeCount : min(offset, range.rangeCount - 1u);
+}
+
 static Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float ratio)
 {
     const float t2 = ratio * ratio;
@@ -436,14 +467,9 @@ void ComputeSourceHistoryRibbonEmitter::Advance_Playback(float timeDelta)
         return;
     }
 
-    if (Has_NextLoop())
-    {
-        Start_NextLoop();
-        return;
-    }
-
+    // Source-driven ribbons keep their active history alive across phase wraps.
+    Wrap_PlaybackLoop();
     _playbackState = PlaybackState::Emitting;
-    _finishEmissionAfterHistoryUpdate = true;
 }
 
 bool ComputeSourceHistoryRibbonEmitter::Is_UpdatingHistory() const
@@ -483,48 +509,50 @@ void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
         _sampleIntervalAccumulator += safeDeltaTime;
 
         Vec3 sourcePosition{};
-        if (!Try_Resolve_SourcePosition(sourcePosition))
-            return;
-
-        _selfRootSourcePosition = sourcePosition;
-        const float frameMovedDistance =
-            _hasSelfRootPreviousSourcePosition
-            ? (sourcePosition - _selfRootPreviousSourcePosition).Length()
-            : _desc.sampleSpacing;
-        const bool isIdle =
-            _hasSelfRootPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
-        const bool movedEnough =
-            _history.empty() || (sourcePosition - _history.front().position).Length() >= _desc.sampleSpacing;
-        const bool intervalReady =
-            _desc.sampleInterval > 0.f && _sampleIntervalAccumulator >= _desc.sampleInterval;
-        const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
-        if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
-            _selfRootCollapseLength = -1.f;
-
-        if (shouldInsertSample)
+        if (Try_Resolve_SourcePosition(sourcePosition))
         {
-            Insert_HistorySample(_history, _sampleIntervalAccumulator, sourcePosition);
-            _selfRootCollapseLength = -1.f;
-        }
-        else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
-        {
-            vector<RenderSample> fullRenderSamples{};
-            Build_RenderSamples(_history, fullRenderSamples, &_selfRootSourcePosition);
-            const float currentLength =
-                _selfRootCollapseLength >= 0.f
-                ? _selfRootCollapseLength
-                : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
-            if (isIdle)
-            {
-                const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
-                _selfRootCollapseLength = max(0.f, currentLength * (1.f - collapseRatio));
-            }
-            else
+            _selfRootSourcePosition = sourcePosition;
+            const float frameMovedDistance =
+                _hasSelfRootPreviousSourcePosition
+                ? (sourcePosition - _selfRootPreviousSourcePosition).Length()
+                : _desc.sampleSpacing;
+            const bool isIdle =
+                _hasSelfRootPreviousSourcePosition && frameMovedDistance <= max(_desc.sampleSpacing * 0.1f, 0.0001f);
+            const bool movedEnough =
+                _history.empty() || (sourcePosition - _history.front().position).Length() >= _desc.sampleSpacing;
+            const bool intervalReady =
+                _desc.sampleInterval > 0.f && _sampleIntervalAccumulator >= _desc.sampleInterval;
+            const bool shouldInsertSample = movedEnough || (!_desc.tailCollapseOnIdle && intervalReady);
+            if (!_desc.tailCollapseOnIdle || _desc.tailCollapseSpeed <= 0.f)
                 _selfRootCollapseLength = -1.f;
-        }
 
-        _selfRootPreviousSourcePosition = sourcePosition;
-        _hasSelfRootPreviousSourcePosition = true;
+            if (shouldInsertSample)
+            {
+                Insert_HistorySample(_history, _sampleIntervalAccumulator, sourcePosition);
+                _selfRootCollapseLength = -1.f;
+            }
+            else if (_desc.tailCollapseOnIdle && _desc.tailCollapseSpeed > 0.f)
+            {
+                vector<RenderSample> fullRenderSamples{};
+                Build_RenderSamples(_history, fullRenderSamples, &_selfRootSourcePosition);
+                const float currentLength =
+                    _selfRootCollapseLength >= 0.f
+                    ? _selfRootCollapseLength
+                    : fullRenderSamples.size() >= 2u ? fullRenderSamples.back().distanceFromHead : 0.f;
+                if (isIdle)
+                {
+                    const float collapseRatio = clamp(_desc.tailCollapseSpeed * safeDeltaTime, 0.f, 1.f);
+                    _selfRootCollapseLength = max(0.f, currentLength * (1.f - collapseRatio));
+                }
+                else
+                    _selfRootCollapseLength = -1.f;
+            }
+
+            _selfRootPreviousSourcePosition = sourcePosition;
+            _hasSelfRootPreviousSourcePosition = true;
+        }
+        else
+            _finishEmissionAfterHistoryUpdate = true;
     }
 
     Prune_History(_history);
@@ -560,6 +588,9 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
         vector<EffectFollowerSourcePoint> sourcePoints{};
         if (sourceEmitter != nullptr && _desc.followerLaneCount > 0u)
             sourceEmitter->Collect_FollowerSourcePoints(sourcePoints, _desc.followerLaneCount);
+
+        if (sourceEmitter == nullptr || sourceEmitter->Is_EffectFinished())
+            _finishEmissionAfterHistoryUpdate = true;
 
         for (const EffectFollowerSourcePoint& sourcePoint : sourcePoints)
         {
@@ -899,9 +930,7 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
     {
         if (history.empty() ||
             (history.front().position - *currentSourcePosition).Length() > kMinRenderableRibbonLength)
-        {
             history.insert(history.begin(), HistorySample{ .position = *currentSourcePosition, .age = 0.f });
-        }
         else
         {
             history.front().position = *currentSourcePosition;
@@ -920,7 +949,9 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
     );
 
     while (_retiredLoopStrokes.size() > kMaxRetiredLoopStrokeCount)
+    {
         _retiredLoopStrokes.erase(_retiredLoopStrokes.begin());
+    }
 }
 
 void ComputeSourceHistoryRibbonEmitter::Update_RetiredLoopStrokes(float timeDelta)
@@ -1293,7 +1324,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        EffectAssetRuntimeLoad::Resolve_EmitterTimeCoreColorRgbModulation(_desc.material, emitterPhase);
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
 
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
@@ -1408,6 +1439,10 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
 
 HRESULT ComputeSourceHistoryRibbonEmitter::Bind_DistortionResources()
 {
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
     else
@@ -1418,24 +1453,24 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams(
-        _desc.material.refractionIntensity,
-        max(0.f, _desc.material.refractionPresence),
+        material.refractionIntensity,
+        max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _materialElapsedTime
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
-    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(_desc.material.flowUVTilingMode));
+    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
     const Vec2 flowUVPolicyParams(
-        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.vPolicy))
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
     );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &_desc.material.flowUVScale, sizeof(_desc.material.flowUVScale)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &_desc.material.flowUVOffset, sizeof(_desc.material.flowUVOffset)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &_desc.material.flowUVScrollSpeed, sizeof(_desc.material.flowUVScrollSpeed)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
     return S_OK;
 }
@@ -1459,6 +1494,26 @@ uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxLaneRenderSegmentCount() co
 {
     const uint32 maxRawSegments = max(1u, _desc.maxSampleCount);
     return maxRawSegments * max(1u, min(_desc.curveSubdivision, kMaxCurveSubdivision));
+}
+
+void ComputeSourceHistoryRibbonEmitter::Wrap_PlaybackLoop()
+{
+    ++_loopIndex;
+
+    const float delay = Resolve_CurrentLoopDelay();
+    const float duration = Resolve_Duration();
+    const float loopSpan = delay + duration;
+    if (loopSpan <= 0.f)
+    {
+        _loopElapsedTime = 0.f;
+        return;
+    }
+
+    _loopElapsedTime = fmodf(_loopElapsedTime, loopSpan);
+    if (_loopElapsedTime < 0.f)
+        _loopElapsedTime = 0.f;
+
+    Resample_RandomSubUVFrameIndex();
 }
 
 void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
@@ -1577,6 +1632,12 @@ Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgres
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesR,
             curve.colorCurveValuesRBlock1,
+            curve.colorCurveArriveR,
+            curve.colorCurveArriveRBlock1,
+            curve.colorCurveLeaveR,
+            curve.colorCurveLeaveRBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.x
         );
@@ -1586,6 +1647,12 @@ Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgres
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesG,
             curve.colorCurveValuesGBlock1,
+            curve.colorCurveArriveG,
+            curve.colorCurveArriveGBlock1,
+            curve.colorCurveLeaveG,
+            curve.colorCurveLeaveGBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.y
         );
@@ -1595,6 +1662,12 @@ Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgres
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesB,
             curve.colorCurveValuesBBlock1,
+            curve.colorCurveArriveB,
+            curve.colorCurveArriveBBlock1,
+            curve.colorCurveLeaveB,
+            curve.colorCurveLeaveBBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.z
         );
@@ -1609,6 +1682,12 @@ Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgres
             curve.alphaCurveTimesBlock1,
             curve.alphaCurveValues,
             curve.alphaCurveValuesBlock1,
+            curve.alphaCurveArrive,
+            curve.alphaCurveArriveBlock1,
+            curve.alphaCurveLeave,
+            curve.alphaCurveLeaveBlock1,
+            curve.alphaCurveModes,
+            curve.alphaCurveModesBlock1,
             keyCount,
             color.w
         );
@@ -1630,6 +1709,12 @@ float ComputeSourceHistoryRibbonEmitter::Evaluate_WidthScaleByLife(float lifePro
         _desc.sizeByLife.curveKeyTimesBlock1,
         _desc.sizeByLife.curveKeyValuesX,
         _desc.sizeByLife.curveKeyValuesXBlock1,
+        _desc.sizeByLife.curveKeyArriveTangentsX,
+        _desc.sizeByLife.curveKeyArriveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyLeaveTangentsX,
+        _desc.sizeByLife.curveKeyLeaveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyModes,
+        _desc.sizeByLife.curveKeyModesBlock1,
         _desc.sizeByLife.curveKeyCount,
         fallbackScale
     );
@@ -1644,14 +1729,11 @@ uint32 ComputeSourceHistoryRibbonEmitter::Evaluate_SubUVFrameIndex() const
     if (!_desc.subUVFrameOverLife.enabled)
         return 0u;
 
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 span = endFrame - startFrame;
-    const uint32 rangeCount = span + 1u;
+    const EffectAssetRuntimeLoad::SubUVFrameRange frameRange = EffectAssetRuntimeLoad::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const float activeElapsedTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
     switch (_desc.subUVFrameOverLife.playbackMode)
     {
@@ -1659,21 +1741,35 @@ uint32 ComputeSourceHistoryRibbonEmitter::Evaluate_SubUVFrameIndex() const
     {
         const float lifeProgress = clamp(activeElapsedTime / Resolve_Duration(), 0.f, 1.f);
         const uint32 frameOffset = min(
-            static_cast<uint32>(floorf(lifeProgress * static_cast<float>(rangeCount))),
-            rangeCount - 1u
+            static_cast<uint32>(floorf(lifeProgress * static_cast<float>(frameRange.rangeCount))),
+            frameRange.rangeCount - 1u
         );
-        return startFrame + frameOffset;
+        return EffectAssetRuntimeLoad::Resolve_SubUVFrameInRange(frameRange, frameOffset);
     }
     case SubUVFramePlaybackMode::FramesPerSecond:
     {
         const uint32 frameOffset = static_cast<uint32>(floorf(activeElapsedTime * max(0.f, _desc.subUVFrameOverLife.framesPerSecond)));
-        return startFrame + (_desc.subUVFrameOverLife.loop ? frameOffset % rangeCount : min(frameOffset, span));
+        const uint32 phaseOffset =
+            _desc.subUVFrameOverLife.randomStartPhase
+            ? min(
+                static_cast<uint32>(floorf(
+                    EffectAssetRuntimeLoad::Hash01(
+                        (_loopIndex + 1u) * 9781u + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 3919u
+                    ) * static_cast<float>(frameRange.rangeCount)
+                )),
+                frameRange.rangeCount - 1u
+            )
+            : 0u;
+        return EffectAssetRuntimeLoad::Resolve_SubUVFrameInRange(
+            frameRange,
+            EffectAssetRuntimeLoad::Resolve_SubUVPlaybackOffset(frameRange, frameOffset, phaseOffset, _desc.subUVFrameOverLife.loop)
+        );
     }
     case SubUVFramePlaybackMode::RandomFrame:
-        return min(_randomSubUVFrameIndex, lastFrame);
+        return min(_randomSubUVFrameIndex, frameRange.frameCount - 1u);
     case SubUVFramePlaybackMode::FixedFrame:
     default:
-        return startFrame;
+        return frameRange.startFrame;
     }
 }
 
@@ -1718,16 +1814,15 @@ void ComputeSourceHistoryRibbonEmitter::Resample_RandomSubUVFrameIndex()
     const uint32 rows = max(1u, _desc.material.subUVRows);
     const uint32 cols = max(1u, _desc.material.subUVCols);
     const uint32 frameCount = max(1u, rows * cols);
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 rangeCount = endFrame - startFrame + 1u;
+    const EffectAssetRuntimeLoad::SubUVFrameRange frameRange = EffectAssetRuntimeLoad::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const uint32 seed = (_loopIndex + 1u) * 9781u + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 1201u;
-    const uint32 frameOffset = min(static_cast<uint32>(floorf(EffectAssetRuntimeLoad::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
-    _randomSubUVFrameIndex = startFrame + frameOffset;
+    const uint32 frameOffset =
+        min(static_cast<uint32>(floorf(EffectAssetRuntimeLoad::Hash01(seed) * static_cast<float>(frameRange.rangeCount))), frameRange.rangeCount - 1u);
+    _randomSubUVFrameIndex = EffectAssetRuntimeLoad::Resolve_SubUVFrameInRange(frameRange, frameOffset);
 }
 
 float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(
@@ -1756,6 +1851,62 @@ float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(
             EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, index),
             ratio
         );
+    }
+
+    return lifeProgress > EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+           : fallbackValue;
+}
+
+float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(
+    float lifeProgress,
+    const Vec4& times,
+    const Vec4& timesBlock1,
+    const Vec4& values,
+    const Vec4& valuesBlock1,
+    const Vec4& arriveTangents,
+    const Vec4& arriveTangentsBlock1,
+    const Vec4& leaveTangents,
+    const Vec4& leaveTangentsBlock1,
+    const Vec4& modes,
+    const Vec4& modesBlock1,
+    uint32 keyCount,
+    float fallbackValue) const
+{
+    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    if (clampedKeyCount == 1u || lifeProgress <= EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, 0u))
+        return EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < clampedKeyCount; ++index)
+    {
+        const float rightTime = EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, index);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftValue = EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, index - 1u);
+        const float rightValue = EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, index);
+        const float mode = EffectAssetRuntimeLoad::Read_Vec4Component(modes, modesBlock1, index - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((lifeProgress - leftTime) / width, 0.f, 1.f);
+
+        if (mode < 0.5f)
+            return leftValue;
+
+        if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = EffectAssetRuntimeLoad::Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = EffectAssetRuntimeLoad::Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
+            return
+                (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
+                (t3 - 2.f * t2 + ratio) * leftLeave +
+                (-2.f * t3 + 3.f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+
+        return lerp(leftValue, rightValue, ratio);
     }
 
     return lifeProgress > EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)

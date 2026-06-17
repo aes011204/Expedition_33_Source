@@ -2,6 +2,7 @@
 
 #include "ClientInstance.h"
 #include "GameDataTable.h"
+#include "PlayerStatCom.h"
 
 IMPLEMENT_REFLECTION(PB_Gustave)
 {
@@ -53,8 +54,17 @@ void PB_Gustave::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
     outDescs.clear();
 
+    const string equippedWeaponId = _combatStatCom
+        ? _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId
+        : "";
+
+    const GameDataTable::WeaponDesc* weapon = equippedWeaponId.empty()
+        ? nullptr
+        : CLIENT->Get_WeaponDesc("Gustave", equippedWeaponId);
+
     const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs("Gustave");
-    const GameDataTable::WeaponDesc* weapon = (weapons != nullptr && !weapons->empty()) ? &weapons->front() : nullptr;
+    if (weapon == nullptr && weapons != nullptr && !weapons->empty())
+        weapon = &weapons->front(); // 장착값이 아직 없을 때만 기본 무기로 fallback 한다.
 
     WeaponAttachDesc rightHandDesc{};
     rightHandDesc.partTag = L"Part_Weapon";
@@ -62,7 +72,6 @@ void PB_Gustave::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
         ? weapon->weaponPrefabName
         : Constants::Prefab::Gustave_Lanceram;
     rightHandDesc.socketName = "Weapon_R";
-
     outDescs.emplace_back(std::move(rightHandDesc));
 
     WeaponAttachDesc leftHandDesc{};
@@ -71,7 +80,6 @@ void PB_Gustave::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
         ? weapon->subWeaponPrefabName
         : Constants::Prefab::Gustave_Lanceram_Gun;
     leftHandDesc.socketName = "Weapon_L";
-
     outDescs.emplace_back(std::move(leftHandDesc));
 }
 

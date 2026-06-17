@@ -280,16 +280,16 @@ void Monster_WorldBase::Update(float timeDelta)
         }
     }
 
-    if (_isStun == true)
-    {
-        _stunTime -= timeDelta;
-
-        if (_stunTime <= 0.f)
-        {
-            _isStun = false;
-
-        }
-    }
+    // if (_isStun == true)
+    // {
+    //     _stunTime -= timeDelta;
+    //
+    //     if (_stunTime <= 0.f)
+    //     {
+    //         _isStun = false;
+    //
+    //     }
+    // }
 
     if (_aiCtrl)
     {
@@ -321,7 +321,7 @@ void Monster_WorldBase::Apply_Stun(float duration)
     if (_isStun == true)
         return;
     _isStun = true;
-    _stunTime = duration > 0.f ? duration : _maxStunTime;
+    _stunTime = 0.f;
 
     if (_aiCtrl)
         _aiCtrl->Stop_Move();
@@ -332,10 +332,9 @@ void Monster_WorldBase::Apply_Stun(float duration)
 
 void Monster_WorldBase::OnHitAnimationFinished()
 {
-    if (_isStun)
-        _currentAction = MonsterWorldAnim::Stun;
-    else
-        _currentAction = _desiredAction;
+    _isStun = false;
+    _stunTime = 0.f;
+    _currentAction = _desiredAction;
 
     _hasAppliedAction = false;
 }
@@ -525,6 +524,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 
     vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
     Set_BattleMonsterSpawnDescs(battleMonsterSpawnDescs);
+
     CLIENT->Get_ScreenFxManager()->Play_BattleInCounterFx();
 
     if (battleMonsterSpawnDescs.empty())

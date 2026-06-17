@@ -1665,8 +1665,6 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
     if (_isAnimationPaused)
         return; // notify 실행 중 튜토리얼 pause가 걸리면 같은 프레임의 state notify도 막는다.
 
-    Stop_NotifyStates_ExceptAnimation(context.animationName, executeNotifies);
-
     for (int32 stateIndex = 0; stateIndex < static_cast<int32>(animationData.notifyStates.size()); ++stateIndex)
     {
         const auto& entry = animationData.notifyStates[stateIndex];
@@ -2145,26 +2143,29 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     const float notifyPreviousTimeSec = animationChangedThisFrame ? 0.f : context.previousTimeSec;
     const bool wrapped = (_isAnimLoop && currentTimeSec < notifyPreviousTimeSec);
 
-    if (!_skipInitialBlendSourceNotify)
+    if (Ensure_AnimNotifyAssetLoaded())
     {
         //Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
 
-        if (Ensure_AnimNotifyAssetLoaded())
+        const char* animationName = Get_AnimationName(_currentAnimIndex);
+        AnimNotifyContext notifyContext{};
+        notifyContext.owner = Get_Owner().get();
+        notifyContext.model = this;
+        notifyContext.modelGuid = _animNotifyAsset.modelGuid;
+        notifyContext.animationName = animationName ? animationName : "";
+        notifyContext.previousTimeSec = notifyPreviousTimeSec; // 전환 프레임에는 새 애니 시작부터 현재 시간까지 검사한다.
+        notifyContext.currentTimeSec = currentTimeSec;
+        notifyContext.deltaTime = context.adjustedTimeDelta;
+        notifyContext.isLooping = _isAnimLoop;
+        notifyContext.wrapped = wrapped;
+        notifyContext.isPreview = !_isAnimNotifyExecutionEnabled;
+
+        Stop_NotifyStates_ExceptAnimation(notifyContext.animationName, _isAnimNotifyExecutionEnabled);
+
+        if (!_skipInitialBlendSourceNotify)
         {
             if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
             {
-                AnimNotifyContext notifyContext{};
-                notifyContext.owner = Get_Owner().get();
-                notifyContext.model = this;
-                notifyContext.modelGuid = _animNotifyAsset.modelGuid;
-                notifyContext.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
-                notifyContext.previousTimeSec = notifyPreviousTimeSec; // 전환 프레임에는 새 애니 시작부터 현재 시간까지 검사한다.
-                notifyContext.currentTimeSec = currentTimeSec;
-                notifyContext.deltaTime = context.adjustedTimeDelta;
-                notifyContext.isLooping = _isAnimLoop;
-                notifyContext.wrapped = wrapped;
-                notifyContext.isPreview = !_isAnimNotifyExecutionEnabled;
-
                 Update_AnimNotifies(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
                 Update_AnimNotifyStates(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
             }
@@ -2586,6 +2587,15 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()
 {
     return Ensure_AnimStateAssetLoaded("");
+}
+
+bool ModelCom::Load_AnimStateMappingFromFile(const wstring& animMapPath)
+{
+    return AnimState_Parser::Load_StateAnimations_FromFile(
+        animMapPath,
+        _animations,
+        _stateAnimIndices,
+        &_animEnumType);
 }
 
 void ModelCom::Reset_ModelData()

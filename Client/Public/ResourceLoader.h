@@ -96,6 +96,7 @@ public:
     // main thread에서만 호출한다.
     // 이미 같은 prototype이 있으면 성공 처리하고 넘어간다.
     HRESULT Commit_LoadJobPrototype(const FLoadJob& loadJob, const Shared<Base>& prototype);
+    static wstring Resolve_RuntimePath(const wstring& path);
 
 private:
     HRESULT Load_Textures(const json& JsonData);
@@ -115,7 +116,6 @@ private:
 
     static uint32  Get_LevelIndex_FromString(const string& strLevel);
     static wstring Get_DefaultJsonRootPath();
-    static wstring Resolve_RuntimePath(const wstring& path);
     static void    Log_LoadJobPrototypeFailure(const FLoadJob& loadJob, string_view reason);
 
 private:

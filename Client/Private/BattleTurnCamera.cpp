@@ -5,17 +5,26 @@
 #include "BattleCameraClipUtils.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
+#include "PostProcessPipeline.h"
 #include "Character.h"
 #include "PartObject.h"
 #include "ModelCom.h"
+#include "MonsterStatCom.h"
 #include "Event_Bus.h"
 #include "Battle_Event.h"
 #include "Character_BattleBase.h"
+#include "Helper_String.h"
 #include <chrono>
 #include <cmath>
 
 namespace
 {
+    // DOF_MODIFY 
+    constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
+
+    constexpr wchar_t kBattleClipShakeDebugSlot[] =
+    L"[BattleClipShake] anim={:.3f} sample={:.3f} shakeT={:.3f} amp={:.3f}";
+
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
     return cameraMode == BattleCameraMode::BATTLEINTRO ||
@@ -74,6 +83,42 @@ bool Is_PlayerNearClipBattleCameraMode(BattleCameraMode mode)
     }
 }
 
+// DOF_MODIFY : DOF 적용 코드할 때 경우에 따라서 프리셋 다르게 주려고 남김
+bool Should_ApplyBattleDOF(BattleCameraMode mode)
+{
+    switch (mode)
+    {
+    case BattleCameraMode::PLAYERFOCUS:
+    case BattleCameraMode::ENEMYFOCUS:
+    case BattleCameraMode::SELECTITEM:
+    case BattleCameraMode::SELECTSKILL:
+    case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::ENEMYATTACK:
+    case BattleCameraMode::PARRY:
+    case BattleCameraMode::SELECTPLAYER:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+DOFPreset Build_BattleDOFPreset()
+{
+    DOFPreset preset{};
+    preset.enableDOF = true;
+    preset.focusRange = 1.5f;
+    return preset;
+}
+
+DOFTransitionDesc Build_BattleDOFTransition()
+{
+    DOFTransitionDesc transition{};
+    transition.easing = DOFTransitionEasing::EaseInOut;
+    transition.duration = 0.35f;
+    return transition;
+}
+
 }
 
 IMPLEMENT_REFLECTION(BattleTurnCamera)
@@ -127,6 +172,8 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackDrift);
+    if (!CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackBossDrift, true))
+        _enemyAttackBossDrift = _enemyAttackDrift;
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTITEM, _selectItemDrift);
     CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTSKILL, _selectSkillDrift);
@@ -143,6 +190,30 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
+
+   // DOF_MODIFY 
+    // DOF 프리셋은 일단 카메라 프리셋과 동일하게 세팅한 뒤, 필요한 모드에만 별도 조정값 적용하는 방식으로 간다.
+    // 각 값 조정은 주석 확인... 
+   _playerFocusDOFProfile.preset = Build_BattleDOFPreset();
+   _playerFocusDOFProfile.preset.focusDistance = 0.01f;
+   _playerFocusDOFProfile.preset.focusRange = 25.61f;
+   _playerFocusDOFProfile.preset.farMaxRadius = 1.25f;
+   _playerFocusDOFProfile.preset.farIntensity = 0.45f;
+
+   _enemyFocusDOFProfile.preset = Build_BattleDOFPreset();
+   _enemyFocusDOFProfile.preset.focusDistance = 2.f;
+   _enemyFocusDOFProfile.preset.focusRange = 15.f;
+   _enemyFocusDOFProfile.preset.farIntensity = 0.65f;
+
+   _selectItemDOFProfile.preset = Build_BattleDOFPreset();
+   _selectItemDOFProfile.preset.focusDistance = 0.f;
+   _selectItemDOFProfile.preset.focusRange = 2.16f;
+   _selectItemDOFProfile.preset.farIntensity = 0.50f;
+
+   _selectSkillDOFProfile.preset = Build_BattleDOFPreset();
+   _selectSkillDOFProfile.preset.focusDistance = 0.f;
+   _selectSkillDOFProfile.preset.focusRange = 5.f;
+   _selectSkillDOFProfile.preset.farIntensity = 0.70f;
 
    _playerAttackDefaultProfile.preset = _playerAttackPreset;
    _playerAttackDefaultProfile.clip = _playerAttackClip;
@@ -215,16 +286,6 @@ void BattleTurnCamera::Update(float timeDelta)
         return;
     }
 
-    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
-
-    LOG_INFO(
-        "[BattleCamTrace] Update mode={} presetId={} clipId={} useClip={} activeClip={}",
-        modeName.c_str(),
-        _currentRequest.presetId.c_str(),
-        _currentRequest.clipId.c_str(),
-        _currentRequest.useClip,
-        _activeClip != nullptr);
-
     switch (_currentRequest.mode)
     {
     case BattleCameraMode::WIDE:
@@ -267,7 +328,7 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
         return;
     Apply_RuntimeDrift(pose, timeDelta);
     Apply_RuntimeShake(pose, timeDelta);
-    Apply_EvaluatedPose(pose);
+    Apply_EvaluatedPoseWithDOF(pose, BattleCameraMode::WIDE);
     _smoothedTargetPos = pose.cameraPos;
 }
 
@@ -369,6 +430,10 @@ void BattleTurnCamera::Reset_RuntimeState()
     _isClipPreview = false;
     _isFirstUpdate = true;
     _isWideMode = false;
+    _battleDOFPresetApplied = false;
+    _battleDOFActiveMode = BattleCameraMode::WIDE;
+    _battleDOFLastAutoFocusDistance = 0.f;
+    _battleDOFLastAppliedFocusDistance = 0.f;
     _runtimeDrift = {};
 }
 
@@ -421,7 +486,7 @@ bool BattleTurnCamera::Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawD
     return true;
 }
 
-BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode)
+BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant)
 {
     switch (cameraMode)
     {
@@ -429,7 +494,7 @@ BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode c
     case BattleCameraMode::BATTLEINTRO: return &_battleIntroDrift;
     case BattleCameraMode::PLAYERFOCUS: return &_playerFocusDrift;
     case BattleCameraMode::ENEMYFOCUS: return &_enemyFocusDrift;
-    case BattleCameraMode::ENEMYATTACK: return &_enemyAttackDrift;
+    case BattleCameraMode::ENEMYATTACK: return enemyAttackBossVariant ? &_enemyAttackBossDrift : &_enemyAttackDrift;
     case BattleCameraMode::PLAYERATTACK: return &_playerAttackDrift;
     case BattleCameraMode::SELECTITEM: return &_selectItemDrift;
     case BattleCameraMode::SELECTSKILL: return &_selectSkillDrift;
@@ -440,9 +505,40 @@ BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode c
     }
 }
 
-const BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode) const
+const BattleCameraDriftProfile* BattleTurnCamera::Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant) const
 {
-    return const_cast<BattleTurnCamera*>(this)->Find_DriftStorage(cameraMode);
+    return const_cast<BattleTurnCamera*>(this)->Find_DriftStorage(cameraMode, enemyAttackBossVariant);
+}
+
+bool BattleTurnCamera::Is_BossEnemyAttackRequest(const BattleShotRequest& request) const
+{
+    if (request.mode != BattleCameraMode::ENEMYATTACK)
+        return false;
+
+    const Shared<CombatStatCom> subjectStatCom =
+        request.subject ? request.subject->Get_Component<CombatStatCom>() : nullptr;
+
+    if (const Shared<MonsterStatCom> directMonsterStat = dynamic_pointer_cast<MonsterStatCom>(subjectStatCom))
+        return directMonsterStat->Is_Boss();
+
+    for (const BattleChar& enemy : _enemies)
+    {
+        const bool isSameActor = enemy.actor.get() == request.subject.get();
+        const bool isSameStatCom = subjectStatCom != nullptr && enemy.statCom.get() == subjectStatCom.get();
+        if ((!isSameActor && !isSameStatCom) || enemy.statCom == nullptr)
+            continue;
+
+        const Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(enemy.statCom);
+        if (monsterStat != nullptr)
+            return monsterStat->Is_Boss();
+    }
+
+    return false;
+}
+
+const BattleCameraDriftProfile* BattleTurnCamera::Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const
+{
+    return Find_DriftStorage(request.mode, Is_BossEnemyAttackRequest(request));
 }
 
 BattleTurnCamera::ResolvedShotAssets BattleTurnCamera::Resolve_ShotAssets(
@@ -535,6 +631,29 @@ const BattleCameraPreset* BattleTurnCamera::Find_PresetStorage(BattleCameraMode 
     }
 }
 
+BattleTurnCamera::BattleDOFProfile* BattleTurnCamera::Find_DOFProfileStorage(BattleCameraMode cameraMode)
+{
+    return const_cast<BattleDOFProfile*>(
+        static_cast<const BattleTurnCamera*>(this)->Find_DOFProfileStorage(cameraMode));
+}
+
+const BattleTurnCamera::BattleDOFProfile* BattleTurnCamera::Find_DOFProfileStorage(BattleCameraMode cameraMode) const
+{
+    switch (cameraMode)
+    {
+    case BattleCameraMode::PLAYERFOCUS:
+        return &_playerFocusDOFProfile;
+    case BattleCameraMode::ENEMYFOCUS:
+        return &_enemyFocusDOFProfile;
+    case BattleCameraMode::SELECTITEM:
+        return &_selectItemDOFProfile;
+    case BattleCameraMode::SELECTSKILL:
+        return &_selectSkillDOFProfile;
+    default:
+        return nullptr;
+    }
+}
+
 BattleCameraClip* BattleTurnCamera::Find_ClipStorage(BattleCameraMode cameraMode)
 {
     return const_cast<BattleCameraClip*>(
@@ -584,10 +703,12 @@ void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 
 void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
 {
+   UNREFERENCED_PARAMETER(timeDelta);
+
    if(!_runtimeShake.active)
       return;
 
-    _runtimeShake.elapsed += timeDelta;
+    _runtimeShake.elapsed += std::max(0.f, GAME->Get_UnscaledTimeDelta());
 
     Vec3 forward = pose.lookTarget - pose.cameraPos;
 
@@ -654,6 +775,65 @@ void BattleTurnCamera::Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta)
     pose.rollOffset += roll;
 }
 
+void BattleTurnCamera::Apply_ClipShake(
+    EvaluatedPose& pose,
+    const BattleCameraClipSample& clipSample,
+    float clipShakeTime) const
+{
+    // clip shake도 drift 이후의 최종 pose에 additive로 얹어야
+    // notify shake와 비슷한 화면 체감을 내고 다른 보정에 덜 묻힌다.
+
+    if (clipSample.shakeAmplitude <= 0.f)
+        return;
+
+    Vec3 forward = pose.lookTarget - pose.cameraPos;
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
+
+    forward.Normalize();
+
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.0001f)
+        return;
+
+    right.Normalize();
+
+    Vec3 up = forward.Cross(right);
+    up.Normalize();
+
+    const Vec3 shakeOffset = Sample_BattleCameraShakeOffset(
+        clipSample.shakeAmplitude,
+        clipSample.shakeVerticalRatio,
+        clipSample.shakeStrengthScale,
+        clipSample.shakeFrequencyX,
+        clipSample.shakeFrequencyY,
+        clipSample.shakeDecayRateX,
+        clipSample.shakeDecayRate,
+        clipShakeTime,
+        right,
+        up);
+
+    pose.cameraPos += shakeOffset;
+    pose.lookTarget += shakeOffset;
+}
+
+void BattleTurnCamera::Debug_PrintClipShakeSample(
+    float animationTimeSec,
+    float sampleTime,
+    float shakeSampleTime,
+    const BattleCameraClipSample& clipSample) const
+{
+#ifdef _DEBUG
+    GAME->Print(
+        kBattleClipShakeDebugSlot,
+        animationTimeSec,
+        sampleTime,
+        shakeSampleTime,
+        clipSample.shakeAmplitude,
+        duration(0.f));
+#endif
+}
+
 
 const BattleCameraPreset* BattleTurnCamera::Resolve_BattleCameraPresetById(BattleCameraMode mode, const string& presetId) const
 {
@@ -705,6 +885,62 @@ void BattleTurnCamera::Apply_EvaluatedPose(const EvaluatedPose& pose)
     Apply_LookAt(pose.cameraPos, pose.lookTarget);
     _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, pose.rollOffset));
     Update_TransformMatrices();
+}
+
+// DOF 적용 코드(카메라 전환에 따른 초점 조절 코드)
+void BattleTurnCamera::Apply_EvaluatedPoseWithDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode)
+{
+    Apply_EvaluatedPose(pose);
+    Sync_BattleDOF(pose, cameraMode);
+}
+
+void BattleTurnCamera::Sync_BattleDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode)
+{
+    const DOFTransitionDesc transition = Build_BattleDOFTransition();
+
+    if (!Should_ApplyBattleDOF(cameraMode))
+    {
+        _battleDOFPresetApplied = false;
+        _battleDOFActiveMode = BattleCameraMode::WIDE;
+        _battleDOFLastAutoFocusDistance = 0.f;
+        _battleDOFLastAppliedFocusDistance = 0.f;
+        GAME->Clear_DOFOverrideToBaseline(kBattleDOFOwnerTag, transition);
+        return;
+    }
+
+    const BattleDOFProfile* dofProfile = Find_DOFProfileStorage(cameraMode);
+    const bool presetModeChanged = !_battleDOFPresetApplied || _battleDOFActiveMode != cameraMode;
+    const float autoFocusDistance = max(0.f, (pose.lookTarget - pose.cameraPos).Length());
+    DOFPreset preset = dofProfile ? dofProfile->preset : Build_BattleDOFPreset();
+    float focusDistance = max(0.f, autoFocusDistance + preset.focusDistance);
+    float focusRange = preset.focusRange;
+
+    if (Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline())
+    {
+        const PostProcessCB& params = pipeline->Get_PostProcessParams();
+        if (!presetModeChanged)
+            focusRange = max(0.01f, params.dofFocusRange);
+
+        if (!presetModeChanged)
+        {
+            const float userFocusDistanceDelta = params.dofFocusDistance - _battleDOFLastAppliedFocusDistance;
+            focusDistance = max(0.f, focusDistance + userFocusDistanceDelta);
+        }
+    }
+
+    preset.focusDistance = focusDistance;
+    preset.focusRange = focusRange;
+
+    if (presetModeChanged)
+    {
+        GAME->Set_DOFOverridePreset(kBattleDOFOwnerTag, preset, transition);
+        _battleDOFPresetApplied = true;
+        _battleDOFActiveMode = cameraMode;
+    }
+
+    GAME->Set_DOFOverrideFocus(kBattleDOFOwnerTag, preset.focusDistance, preset.focusRange);
+    _battleDOFLastAutoFocusDistance = autoFocusDistance;
+    _battleDOFLastAppliedFocusDistance = preset.focusDistance;
 }
 
 BattleTurnCamera::EvaluatedPose BattleTurnCamera::Capture_CurrentPose()
@@ -843,7 +1079,7 @@ float BattleTurnCamera::Resolve_BattlePlaneYaw() const
 }
 
 float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const
-{
+{ 
     switch (request.mode)
     {
     case BattleCameraMode::PLAYERFOCUS:
@@ -852,6 +1088,7 @@ float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& re
     case BattleCameraMode::SELECTITEM:
     case BattleCameraMode::SELECTSKILL:
     case BattleCameraMode::PARRY:
+    case BattleCameraMode::BATTLEINTRO:  
         return Resolve_BattlePlaneYaw();
 
     default:
@@ -874,6 +1111,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     const BattleShotRequest& request,
     const BattleCameraPreset& preset,
     BattleCameraClip* activeClip,
+    bool shouldRestartClipPlayback,
     const Vec3& targetSmoothedTargetPos,
     const Vec3& targetPrevTargetPos)
 {
@@ -914,8 +1152,11 @@ bool BattleTurnCamera::Start_PoseTransition(
         return false;
     }
 
-    _activeClip = activeClip;
-    Reset_ClipPlaybackState();
+    if (shouldRestartClipPlayback || _activeClip != activeClip)
+    {
+        _activeClip = activeClip;
+        Reset_ClipPlaybackState();
+    }
 
     _poseTransition.active = true;
         _poseTransition.elapsed = 0.f;
@@ -942,12 +1183,6 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     const float t = std::clamp(_poseTransition.elapsed / duration, 0.f, 1.f);
 
     float  easedT = Evaluate_CameraTransitionT(_poseTransition.easing, t);
-    EvaluatedPose blended{};
-
-    blended.cameraPos = Vec3::Lerp(_poseTransition.fromPose.cameraPos, _poseTransition.toPose.cameraPos, easedT);
-    blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, _poseTransition.toPose.lookTarget, easedT);
-    blended.fovY = lerp(_poseTransition.fromPose.fovY, _poseTransition.toPose.fovY, easedT);
-    blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, _poseTransition.toPose.rollOffset, easedT);
     EvaluatedPose clippedTargetPose{};
     bool hasClippedTargetPose = false;
     if (_poseTransition.targetRequest.freezeSubjectDuringTransition &&
@@ -971,23 +1206,24 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
             _poseTransition.targetPreset,
             &_poseTransition.targetSmoothedTargetPos,
             clipSample,
-            _clipTime,
+            _clipShakeTime,
             clippedTargetPose);
     }
 
-    if (hasClippedTargetPose)
-    {
-        float targetCorrectionWeight  = 0.05f;
+    const EvaluatedPose& transitionTargetPose = hasClippedTargetPose
+        ? clippedTargetPose
+        : _poseTransition.toPose;
 
-        blended.cameraPos += (clippedTargetPose.cameraPos - _poseTransition.toPose.cameraPos) * targetCorrectionWeight;
-        blended.lookTarget += (clippedTargetPose.lookTarget - _poseTransition.toPose.lookTarget) * targetCorrectionWeight;
-        blended.fovY += (clippedTargetPose.fovY - _poseTransition.toPose.fovY) * targetCorrectionWeight;
-        blended.rollOffset += (clippedTargetPose.rollOffset - _poseTransition.toPose.rollOffset) * targetCorrectionWeight;
-    }
+    EvaluatedPose blended{};
+    blended.cameraPos = Vec3::Lerp(_poseTransition.fromPose.cameraPos, transitionTargetPose.cameraPos, easedT);
+    blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, transitionTargetPose.lookTarget, easedT);
+    blended.fovY = lerp(_poseTransition.fromPose.fovY, transitionTargetPose.fovY, easedT);
+    blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, transitionTargetPose.rollOffset, easedT);
 
     Apply_RuntimeDrift(blended, timeDelta);
+    Apply_ClipShake(blended, clipSample, _clipShakeTime);
     Apply_RuntimeShake(blended, timeDelta);
-    Apply_EvaluatedPose(blended);
+    Apply_EvaluatedPoseWithDOF(blended, _poseTransition.targetRequest.mode);
 
     if (t < 1.f)
         return;
@@ -997,7 +1233,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     _currentRequest = _poseTransition.targetRequest;
     _currentPreset = _poseTransition.targetPreset;
     _targetPreset = _poseTransition.targetPreset;
-    if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
         Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
     _targetTransform = _currentRequest.subject ? _currentRequest.subject->Get_Transform() : nullptr;
     _smoothedTargetPos = _poseTransition.targetSmoothedTargetPos;
@@ -1021,7 +1257,7 @@ bool BattleTurnCamera::Evaluate_CurrentPresetPose(
         yawBase,
         pitchBase,
         smoothedTargetPos,
-        _clipTime,
+        _clipShakeTime,
         outPose);
 }
 
@@ -1037,7 +1273,7 @@ bool BattleTurnCamera::Evaluate_EnemyAttackPose(
         opponentPos,
         preset,
         clipSample,
-        _clipTime,
+        _clipShakeTime,
         outPose);
 }
 
@@ -1052,17 +1288,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     const string incomingModeName = string(magic_enum::enum_name(request.mode));
     const string previousModeName = string(magic_enum::enum_name(_currentRequest.mode));
-    LOG_INFO(
-        "[BattleCamTrace] ApplyShot seq={} elapsedMs={} requestMode={} currentMode={} presetId={} clipId={} useClip={} subject={} opponent={}",
-        requestId,
-        elapsedMs,
-        incomingModeName.c_str(),
-        previousModeName.c_str(),
-        request.presetId.c_str(),
-        request.clipId.c_str(),
-        request.useClip,
-        request.subject != nullptr,
-        request.opponent != nullptr);
 
     const bool isSameRequest =
         _currentRequest.mode == request.mode &&
@@ -1100,8 +1325,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if (wasAim && !willAim)
     {
-        // Free aim rotates the runtime yaw/pitch bases directly, so reset them
-        // before resolving the next authored preset pose.
         _yaw = 0.f;
         _pitch = 0.f;
     }
@@ -1215,22 +1438,28 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _targetTransform = nextTargetTransform;
         _targetPreset = nextPreset;
         _currentPreset = _targetPreset;
-        if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+        if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
             Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
         _smoothedTargetPos = targetSmoothedTargetPos;
         _prevTargetPos = targetPrevTargetPos;
 
         EvaluatedPose toPose {};
 
-        if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipTime, toPose ))
-        Apply_EvaluatedPose(toPose);
+        if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
+        Apply_EvaluatedPoseWithDOF(toPose, _currentRequest.mode);
 
         return;
     }
 
     if ((Should_StartPoseTransition(request)&&!isSamePreset)|| shouldReAnchored)
     {
-        if (Start_PoseTransition(request, nextPreset, nextActiveClip, targetSmoothedTargetPos, targetPrevTargetPos))
+        if (Start_PoseTransition(
+            request,
+            nextPreset,
+            nextActiveClip,
+            shouldRestartClip,
+            targetSmoothedTargetPos,
+            targetPrevTargetPos))
             return;
     }
 
@@ -1257,7 +1486,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _targetTransform = nextTargetTransform;
     _targetPreset = nextPreset;
     _currentPreset = _targetPreset;
-    if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
         Refresh_RuntimeDriftFromProfile(*drift, previousMode != _currentRequest.mode);
     _smoothedTargetPos = targetSmoothedTargetPos;
     _prevTargetPos = targetPrevTargetPos;
@@ -1289,7 +1518,7 @@ void BattleTurnCamera::Update_LiveEditContext(BattleCameraMode mode, const Share
     {
         _currentPreset = *preset;
         _targetPreset = *preset;
-        if (const BattleCameraDriftProfile* drift = Find_DriftStorage(_currentRequest.mode))
+        if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
             Refresh_RuntimeDriftFromProfile(*drift, false);
     }
 }
@@ -1319,8 +1548,9 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     if (!Evaluate_EnemyAttackPose(enemyPos, playerPos, _currentPreset, clip, pose))
         return;
     Apply_RuntimeDrift(pose, timeDelta);
+    Apply_ClipShake(pose, clip, _clipShakeTime);
     Apply_RuntimeShake(pose,timeDelta);
-    Apply_EvaluatedPose(pose);
+    Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _smoothedTargetPos = enemyPos;
@@ -1343,8 +1573,9 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
     Evaluate_CurrentPresetPose(_smoothedTargetPos, _currentPreset, clip, yawBase, _pitch, &_smoothedTargetPos, pose);
     Apply_RuntimeDrift(pose, timeDelta);
+    Apply_ClipShake(pose, clip, _clipShakeTime);
     Apply_RuntimeShake(pose,timeDelta);
-    Apply_EvaluatedPose(pose);
+    Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = _smoothedTargetPos;
@@ -1405,9 +1636,9 @@ const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) co
     return _wideModePreset;
 }
 
-const BattleCameraDriftProfile& BattleTurnCamera::Get_DriftProfile(BattleCameraMode mode) const
+const BattleCameraDriftProfile& BattleTurnCamera::Get_DriftProfile(BattleCameraMode mode, bool enemyAttackBossVariant) const
 {
-    if (const BattleCameraDriftProfile* profile = Find_DriftStorage(mode))
+    if (const BattleCameraDriftProfile* profile = Find_DriftStorage(mode, enemyAttackBossVariant))
         return *profile;
 
     return _wideModeDrift;
@@ -1431,14 +1662,14 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
         _playerAttackDefaultProfile.preset = preset;
 }
 
-void BattleTurnCamera::Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile)
+void BattleTurnCamera::Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant)
 {
-    BattleCameraDriftProfile* targetProfile = Find_DriftStorage(mode);
+    BattleCameraDriftProfile* targetProfile = Find_DriftStorage(mode, enemyAttackBossVariant);
     if (targetProfile == nullptr)
         return;
 
     *targetProfile = profile;
-    if (mode == _currentRequest.mode)
+    if (mode == _currentRequest.mode && Is_BossEnemyAttackRequest(_currentRequest) == enemyAttackBossVariant)
         Refresh_RuntimeDriftFromProfile(*targetProfile, false);
 }
 
@@ -1457,6 +1688,12 @@ void BattleTurnCamera::Set_Clip(BattleCameraMode mode, const BattleCameraClip& c
         const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + clipId;
         _clipsById[cacheKey] = clip;
     }
+}
+
+void BattleTurnCamera::Reload_BattleCameraAuthoringData()
+{
+    _presetsById.clear();
+    _clipsById.clear();
 }
 
 void BattleTurnCamera::Apply_PreviewPreset(const BattleCameraPreset& preset)
@@ -1509,6 +1746,8 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
     if (_currentRequest.subject == nullptr)
         return;
 
+    _clipShakeTime = time;
+
     BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
     const BattleCameraClipSample clipSample = clip ? Sample_BattleCameraClip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
 
@@ -1517,7 +1756,7 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
     EvaluatedPose pose{};
     const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
     Evaluate_CurrentPresetPose(targetPos, _currentPreset, clipSample, yawBase, _pitch, nullptr, pose);
-    Apply_EvaluatedPose(pose);
+    Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
 
@@ -1525,6 +1764,8 @@ void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
 {
     if (_currentRequest.subject == nullptr || _currentRequest.opponent == nullptr)
         return;
+
+    _clipShakeTime = time;
 
     BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
     const BattleCameraClipSample clipSample = clip ? Sample_BattleCameraClip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
@@ -1536,7 +1777,7 @@ void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
     if (!Evaluate_EnemyAttackPose(enemyPos, playerPos, _currentPreset, clipSample, pose))
         return;
 
-    Apply_EvaluatedPose(pose);
+    Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
 }
 
 float BattleTurnCamera::Evaluate_CameraTransitionT(BattleCameraTransitionEasing easing, float t)
@@ -1597,7 +1838,12 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
     BattleCameraClipSample sample{};
 
     if(_activeClip == nullptr)
+    {
+        GAME->Clear_Print(kBattleClipShakeDebugSlot);
         return sample;
+    }
+
+    _clipShakeTime += std::max(0.f, GAME->Get_UnscaledTimeDelta());
 
     if (_activeClip->timeMode == BattleCameraClipTimeMode::AnimationSync)
     {
@@ -1645,6 +1891,15 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 
         sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
 
+        // shake 외의 트랙은 애니메이션 진행률에 계속 맞추고 shake 트랙만 unscaled 시간 기준으로 다시 샘플링함
+        // 런타임에서 월드 시간이나 애니메이션 배속이 바뀌어도 툴에서 편집한 shake의 리듬과 감쇠 느낌을 최대한 그대로 유지하기 위함
+      
+        const float shakeSampleTime = syncDurationSec > 0.f
+            ? clamp(_clipShakeTime / syncDurationSec, 0.f, 1.f)
+            : 0.f;
+        Apply_BattleCameraClipShakeSample(*_activeClip, shakeSampleTime, sample);
+        Debug_PrintClipShakeSample(currentAnimationTimeSec, sampleTime, shakeSampleTime, sample);
+
         if (sampleTime >= 1.f)
         {
             _activeClip = nullptr;
@@ -1659,6 +1914,7 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
     _clipTime = sampleTime;
 
     sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
+    Debug_PrintClipShakeSample(_clipTime, sampleTime, sampleTime, sample);
 
     if(sampleTime >= _activeClip->duration)
     {
@@ -1672,12 +1928,14 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 void BattleTurnCamera::Reset_ClipPlaybackState()
 {
     _clipTime = 0.f;
+    _clipShakeTime = 0.f;
     _clipSyncBaseTime = 0.f;
     _clipSyncPrevAnimationTime = 0.f;
     _clipSyncAnimationDuration = 0.f;
     _clipSyncAnimationName.clear();
     _clipDebugSampleLogCount = 0;
     _clipDebugLoggedShake = false;
+    GAME->Clear_Print(kBattleClipShakeDebugSlot);
 }
 
 Shared<BattleTurnCamera> BattleTurnCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

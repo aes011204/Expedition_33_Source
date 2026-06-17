@@ -64,9 +64,11 @@ public:
 
         Shared<UI_Text>                curExpText{};
         Shared<UI_Text>                maxExpText{};
+        Shared<UI_Image>               expGaugeImage{};
 
         Shared<UI_Text>                curHpText{};
         Shared<UI_Text>                maxHpText{};
+        Shared<UI_Image>               hpGaugeImage{};
 
         Shared<UI_Text>                hpText{};
         Shared<UI_Text>                attackText{}; 

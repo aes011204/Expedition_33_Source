@@ -355,12 +355,10 @@ void Content_Browser::Render()
                     ImGui::SetTooltip("새로고침");
 
                 ImGui::Spacing();
-                ImGui::TextDisabled("검색");
+                ImGui::TextDisabled("검색 "); ImGui::SameLine();
                 ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                 ImGui::InputTextWithHint("##AssetNameSearch", "Search files...", _assetSearchBuffer, IM_ARRAYSIZE(_assetSearchBuffer));
 
-                ImGui::Separator();
-                ImGui::TextDisabled("목록");
                 ImGui::Separator();
 
                 ImGui::BeginChild("AssetViewScroll", ImVec2(0, 0), false);

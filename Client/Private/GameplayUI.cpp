@@ -72,16 +72,32 @@ vector<RuntimeUIEntry> GameplayUI::Get_BattleRuntimeUIEntries() const
 
 IRuntimeUI_EditorTarget* GameplayUI::Find_RuntimeUIEditorTarget(const Shared<Engine::UI_Base>& rootUI) const
 {
-    if (rootUI == nullptr || _battleUI == nullptr)
-        return nullptr; // 이번 오프셋 파이프라인은 Battle UI에만 연결한다.
+    if (rootUI == nullptr)
+        return nullptr;
 
-    const vector<RuntimeUIEntry> entries = _battleUI->Get_RuntimeUIEntries();
-    for (const RuntimeUIEntry& entry : entries)
+    const auto findInEntries = [rootUI](const vector<RuntimeUIEntry>& entries) -> IRuntimeUI_EditorTarget*
     {
-        if (entry.ui != rootUI)
-            continue;
+        for (const RuntimeUIEntry& entry : entries)
+        {
+            if (entry.ui != rootUI)
+                continue;
 
-        return entry.editorTarget; // 선택된 루트 UI와 연결된 실제 오프셋 소유자를 반환한다.
+            return entry.editorTarget; // 선택된 루트 UI와 연결된 실제 오프셋 소유자를 반환한다.
+        }
+
+        return nullptr;
+    };
+
+    if (_worldUI)
+    {
+        if (IRuntimeUI_EditorTarget* worldTarget = findInEntries(_worldUI->Get_RuntimeUIEntries()))
+            return worldTarget; // CharacterProgression, Pictos 같은 월드 메뉴 패널도 인스펙터 리플렉션을 노출한다.
+    }
+
+    if (_battleUI)
+    {
+        if (IRuntimeUI_EditorTarget* battleTarget = findInEntries(_battleUI->Get_RuntimeUIEntries()))
+            return battleTarget;
     }
 
     return nullptr;

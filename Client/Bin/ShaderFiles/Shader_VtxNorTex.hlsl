@@ -130,9 +130,10 @@ PS_OUT PS_Layer(PS_IN In)
 {
     PS_OUT Out;
 
-    float3 ddxP = ddx(In.WorldPos.xyz);
-    float3 ddyP = ddy(In.WorldPos.xyz);
-    float3x3 TBN = float3x3(normalize(ddxP), normalize(ddyP), normalize(In.Normal.xyz));
+    float3 N = normalize(In.Normal.xyz);
+    float3 T = normalize(float3(1.f, 0.f, 0.f) - dot(float3(1.f, 0.f, 0.f), N) * N);
+    float3 B = cross(N, T);
+    float3x3 TBN = float3x3(T, B, N);
 
     float w[7];
     w[0] = g_Weight0.Sample(LinearClampSampler, In.Texcoord).r;
@@ -153,7 +154,7 @@ PS_OUT PS_Layer(PS_IN In)
     float2 uv0 = In.Texcoord * g_Tiling[0].xy;
     float4 col0 = g_Layer0.Sample(LinearWrapSampler, uv0);
     col0.rgb = ApplyAlbedoControl(col0.rgb, g_AlbedoControl[0]);
-    blendedColor += col0 * g_GroundTint[0];// * w[0];
+    blendedColor += col0 * g_GroundTint[0] * w[0];
     blendedNormal += SampleLandscapeWorldNormal(g_Normal0, uv0, g_LayerControl[0].x, TBN) * w[0];
     blendedRough += g_Roughness0.Sample(LinearWrapSampler, uv0).r * g_LayerControl[0].y * w[0];
     blendedMetallic += g_LayerControl[0].w * w[0];

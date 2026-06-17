@@ -514,8 +514,34 @@ static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetF
         return "OuterIntensity";
     case MaterialScalarModulationTargetField::CoreColor:
         return "CoreColor";
+    case MaterialScalarModulationTargetField::RefractionIntensity:
+        return "Refraction Intensity";
+    case MaterialScalarModulationTargetField::MainUVScrollSpeedScale:
+        return "Main UV Scroll Speed Scale";
+    case MaterialScalarModulationTargetField::NoiseUVScrollSpeedScale:
+        return "Noise UV Scroll Speed Scale";
+    case MaterialScalarModulationTargetField::MaskUVScrollSpeedScale:
+        return "Mask UV Scroll Speed Scale";
+    case MaterialScalarModulationTargetField::FlowUVScrollSpeedScale:
+        return "Flow UV Scroll Speed Scale";
     default:
         return "Intensity";
+    }
+}
+
+static const char* Get_MaterialVec2TargetLabel(MaterialVec2ModulationTargetField target)
+{
+    switch (target)
+    {
+    case MaterialVec2ModulationTargetField::NoiseUVOffset:
+        return "Noise UV Offset";
+    case MaterialVec2ModulationTargetField::MaskUVOffset:
+        return "Mask UV Offset";
+    case MaterialVec2ModulationTargetField::FlowUVOffset:
+        return "Flow UV Offset";
+    case MaterialVec2ModulationTargetField::MainUVOffset:
+    default:
+        return "Main UV Offset";
     }
 }
 
@@ -1170,6 +1196,22 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
                     "coreColorRgbModulator" + to_string(index) + ".distribution",
                     "#" + to_string(data->modulators.size() + index + 1) + " Core Color RGB",
                     true,
+                    requireActiveCurve
+                );
+            }
+
+            for (size_t index = 0; index < data->vec2Modulators.size(); ++index)
+            {
+                MaterialVec2ModulatorData& modulator = data->vec2Modulators[index];
+                Add_Vector2Target(
+                    targets,
+                    emitter,
+                    module,
+                    modulator.distribution,
+                    "vec2Modulator" + to_string(index) + ".distribution",
+                    "#" + to_string(data->modulators.size() + data->coreColorRgbModulators.size() + index + 1) + " " + Get_MaterialVec2TargetLabel(
+                        modulator.targetField
+                    ),
                     requireActiveCurve
                 );
             }

@@ -107,7 +107,7 @@ protected:
     vector<Vec3>                 _PatrolPoints;
     vector<Vec3>                 _defaultPatrolPoints;
 
-    bool _isStun = {false};
+    bool _isStun = { false };
     float _maxStunTime = {3.f};
     float _stunTime = {};
 

@@ -12,12 +12,11 @@
 
 NS_BEGIN(Client)
 
-
 class GameDataTable final : public Base
 {
 public:
 
-    enum class DamageType { LIGHTNING, PHYSICAL};
+    enum class DamageType  { LIGHTNING, PHYSICAL };
     enum class DamageLevel { LOW, NORMAL, HIGH, EXTREME };
     enum class TargetScope { SINGLE, ALL };
     enum class SkillActionTrigger { OnCritical, OnMark };
@@ -49,12 +48,12 @@ public:
 
     struct ApplyMarkAction
     {
-        
+
     };
 
     struct ClearStatusAction
     {
-        
+
     };
 
     struct BuffAction
@@ -92,8 +91,12 @@ public:
 
     struct SkillTreeDesc
     {
-       // string      requiredSkillId; //해금시 필요한 선행 스킬
-        uint32      unlockCost; //해금시 필요한 스킬 포인트
+        // string      requiredSkillId; //해금시 필요한 선행 스킬
+        uint32 unlockCost; //해금시 필요한 스킬 포인트
+        string  portraitTextureName{};   // 스킬 텍스처
+        string  descUiName{};            // desc ui
+        wstring skillName{};             // 스킬트리/툴팁 표시명
+
     };
 
     struct WeaponDesc
@@ -101,12 +104,38 @@ public:
         string  characterId;
         string  weaponId;
         wstring weaponName;
+        wstring portraitTexturePath;
 
         string  weaponPrefabName;       // 기본 무기
         string  subWeaponPrefabName;    // 구스타브 총
 
         uint32  level = 1;
         uint32  power = 0;
+    };
+
+    enum class PictosEffectType
+    {
+        None,
+        EnergisingTurn,     // 자기 턴 시작 AP 추가 회복
+        GlassCannon,        // 주는 피해/받는 피해 증가
+        WarmingUp,          // 자기 턴마다 주는 피해 누적 증가
+        Roulette,           // 자기 턴마다 50% 또는 150% 피해 배율 결정
+        AugmentedAttack,    // 기본 공격 피해 증가
+        AugmentedAim,       // 자유 조준 피해 증가
+    };
+
+    struct PictosDesc
+    {
+        string  id{};
+        wstring name{};
+        int32   hp = 0;
+        int32   speed = 0;
+        int32   critical = 0;
+        string  buttonUi{};   // UI_Pictos_EnergisingTurn
+        string  tooltipUi{};  // UI_EnergisingTurn_Pictos_Tooltip
+
+        PictosEffectType effectType = PictosEffectType::None;
+        float effectValue = 0.f;
     };
 
 public:
@@ -128,12 +157,16 @@ public:
     HRESULT Load_SkillPhaseData(const wstring& jsonRootPath);
 public:
     uint32 Get_NextExp(uint32 level) const;
-    SkillTreeDesc*   Get_SkillTreeDesc(const string& skillName);
-    const umap<string, vector<string>>*    Get_SkillTreeRequirementData();
+    SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
+    const umap<string, vector<string>>* Get_SkillTreeRequirementData();
     const WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     vector<string> Get_AllSkillIds() const;
     vector<string> Split_String(const string& value, char delimiter);
+
+    const PictosDesc* Get_PictosDesc(const string& pictosId) const;
+    const vector<PictosDesc>& Get_PictosDescs() const { return _pictosDefs; }
+    vector<string> Get_AllPictosIds() const;
 
 private:
     HRESULT Load_ExpLevel(const wstring& jsonRootPath);
@@ -147,6 +180,9 @@ private:
 
     // 아이템
     HRESULT Load_ItemData(const wstring& jsonRootPath);
+
+    // 픽토스
+    HRESULT Load_PictosData(const wstring& jsonRootPath);
 
 private:
     wstring         Get_DefaultJsonRootPath() const;
@@ -164,8 +200,13 @@ private:
     vector<Skill_Data> _skillDefs;
     unordered_map<string, size_t> _skillIndexById;
 
+    // 아이템 -> 틴트인데.. 이거 쓸모있나
     vector<Item_Data> _itemDefs;
     umap<string, size_t> _itemIndexById;
+
+    // 픽토스
+    vector<PictosDesc> _pictosDefs{};
+    umap<string, size_t> _pictosIndexById{};
 
 public:
     static Unique<GameDataTable> Create();

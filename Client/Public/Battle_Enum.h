@@ -293,16 +293,19 @@ namespace Client
         uint32 prevShield = 0;
         uint32 currentShield = 0;
     };
+
     enum class AITargetStyle
     {
         Single,
         SingleAoE,
         ComboAoE,
+        Combo,
         Mix,
         Self,
         RandomEnemy,
         ETC
     };
+
     struct Skill_Data
     {
         string characterId = "";
@@ -329,11 +332,19 @@ namespace Client
         float openingBias = {};
         float midBias = {};
         float criticalBias = {};
+        float powerMultiplier = 1.f;
         bool forceOnPhaseEnter = {};
         bool forceOnPhaseCritical = {};
-        float minTurn = {};
-        float maxUseCount = {};
-        float coolDownTurn = {};
+        int32 minTurn = 0;
+        int32 maxUseCount = -1;
+        int32 coolDownTurn = 0;
+
+    };
+
+    struct Skill_Data_Inst
+    {
+        int32 curCoolDownTurn = 0;
+        int32 curUsedCount = 0;
     };
 
     struct SkillCandidate
@@ -351,6 +362,8 @@ namespace Client
         BattleChar InitTarget = {};
         string skillKey = "";
         BattleItemType itemType = BattleItemType::Invalid;
+
+        uint32 skillPage = 0; // Choose Skill에서 스킬 패널이 왼쪽 오른쪽인지 페이즈 구별용
     };
 
     //

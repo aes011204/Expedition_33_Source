@@ -7,6 +7,7 @@
 #include "CameraPresetTypes.h"
 #include "BattleCameraClipTypes.h"
 #include "BattleCameraProfileTypes.h"
+#include "PostProcessPipeline.h"
 
 namespace Engine
 {
@@ -53,10 +54,11 @@ public:
 public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta);
     const BattleCameraPreset& Get_Preset(BattleCameraMode mode) const;
-    const BattleCameraDriftProfile& Get_DriftProfile(BattleCameraMode mode) const;
+    const BattleCameraDriftProfile& Get_DriftProfile(BattleCameraMode mode, bool enemyAttackBossVariant = false) const;
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
-    void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile);
+    void Set_DriftProfile(BattleCameraMode mode, const BattleCameraDriftProfile& profile, bool enemyAttackBossVariant = false);
     void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId = "");
+    void Reload_BattleCameraAuthoringData();
     void Set_ClipScrubPreviewEnabled(bool enabled) { _isClipPreview = enabled; }
     void Apply_PreviewPreset(const BattleCameraPreset& preset);
     void Apply_ShotRequest(const BattleShotRequest& request);
@@ -85,6 +87,13 @@ public:
     float Get_PlayerNearClipDistance() const { return _playerNearClipDistance; }
 
 private:
+    // DOF_MODIFY     
+    struct BattleDOFProfile
+    {
+        DOFPreset preset{};
+        float focusDistanceOffset = 0.f;
+    };
+
     struct ResolvedShotAssets
     {
         BattleCameraPreset preset{};
@@ -148,6 +157,9 @@ private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();
     void Apply_EvaluatedPose(const EvaluatedPose& pose);
+    // DOF_MODIFY 
+    void Apply_EvaluatedPoseWithDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode);
+    void Sync_BattleDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode);
     EvaluatedPose Capture_CurrentPose();
     bool Evaluate_ShotRequestPose(
         const BattleShotRequest& request,
@@ -162,6 +174,7 @@ private:
         const BattleShotRequest& request,
         const BattleCameraPreset& preset,
         BattleCameraClip* activeClip,
+        bool shouldRestartClipPlayback,
         const Vec3& targetSmoothedTargetPos,
         const Vec3& targetPrevTargetPos);
     void Update_PoseTransition(float timeDelta);
@@ -184,14 +197,22 @@ private:
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
     const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
-    BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode);
-    const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode) const;
+
+    // DOF_MODIFY 
+    BattleDOFProfile* Find_DOFProfileStorage(BattleCameraMode cameraMode);
+    const BattleDOFProfile* Find_DOFProfileStorage(BattleCameraMode cameraMode) const;
+    BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false);
+    const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false) const;
+    const BattleCameraDriftProfile* Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const;
+    bool Is_BossEnemyAttackRequest(const BattleShotRequest& request) const;
     BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode);
     const BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode) const;
     void Refresh_RuntimeDriftFromProfile(const BattleCameraDriftProfile& profile, bool resetElapsed = false);
     void Start_RuntimeShake(const EvtBattleCameraShake& event);
     void Apply_RuntimeDrift(EvaluatedPose& pose, float timeDelta);
+    void Apply_ClipShake(EvaluatedPose& pose, const BattleCameraClipSample& clipSample, float clipShakeTime) const;
     void Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta);
+    void Debug_PrintClipShakeSample(float animationTimeSec, float sampleTime, float shakeSampleTime, const BattleCameraClipSample& clipSample) const;
 
 private:
     void Update_EnemyAttackMode(float timeDelta);
@@ -227,12 +248,19 @@ private:
     BattleCameraDriftProfile _playerFocusDrift{};
     BattleCameraDriftProfile _enemyFocusDrift{};
     BattleCameraDriftProfile _enemyAttackDrift{};
+    BattleCameraDriftProfile _enemyAttackBossDrift{};
     BattleCameraDriftProfile _playerAttackDrift{};
     BattleCameraDriftProfile _selectItemDrift{};
     BattleCameraDriftProfile _selectSkillDrift{};
     BattleCameraDriftProfile _parryDrift{};
     BattleCameraDriftProfile _aimDrift{};
     BattleCameraDriftProfile _selectPlayerDrift{};
+
+    // DOF_MODIFY 
+    BattleDOFProfile     _playerFocusDOFProfile{};
+    BattleDOFProfile     _enemyFocusDOFProfile{};
+    BattleDOFProfile     _selectItemDOFProfile{};
+    BattleDOFProfile     _selectSkillDOFProfile{};
     Shared<TransformCom> _targetTransform{};
     Vec3                 _smoothedTargetPos = Vec3::Zero;
     Vec3                 _prevTargetPos = Vec3::Zero;
@@ -242,6 +270,12 @@ private:
     bool                 _isWideMode = false;
     bool                 _hasWideAnchor = false;
     bool                 _isFirstUpdate = true;
+
+    // DOF_MODIFY 
+    bool                 _battleDOFPresetApplied = false;
+    BattleCameraMode     _battleDOFActiveMode = BattleCameraMode::WIDE;
+    float                _battleDOFLastAutoFocusDistance = 0.f;
+    float                _battleDOFLastAppliedFocusDistance = 0.f;
     vector<BattleChar>   _heroes;
     vector<BattleChar>   _enemies;
     vector<BattleMonsterSpawnDesc> _enemySpawnDescs;
@@ -259,6 +293,7 @@ private:
     BattleCameraClip      _enemyFocusClip{};
     BattleCameraClip* _activeClip{};
     float                _clipTime{};
+    float                _clipShakeTime{};
     float                _clipSyncBaseTime = 0.f;
     float                _clipSyncPrevAnimationTime = 0.f;
     float                _clipSyncAnimationDuration = 0.f;

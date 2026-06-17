@@ -124,6 +124,12 @@
     <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp">
       <Filter>07. Authoring Support\Module Metadata</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorPreviewDefinitionBuilder.cpp">
+      <Filter>01. Manager\06. Preview Runtime\Preview Definition Builder</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorPreviewRuntime.cpp">
+      <Filter>01. Manager\06. Preview Runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -276,6 +282,12 @@
     <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h">
       <Filter>07. Authoring Support\Module Metadata</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorPreviewDefinitionBuilder.h">
+      <Filter>01. Manager\06. Preview Runtime\Preview Definition Builder</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorPreviewRuntime.h">
+      <Filter>01. Manager\06. Preview Runtime</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -406,6 +418,12 @@
     </Filter>
     <Filter Include="07. Authoring Support\Value Range">
       <UniqueIdentifier>{ce4df0ed-a569-487d-bc47-493a44a1a46d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\06. Preview Runtime">
+      <UniqueIdentifier>{69d946ef-0844-4769-8d2c-6eb2b9454249}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\06. Preview Runtime\Preview Definition Builder">
+      <UniqueIdentifier>{7094ca24-1c81-43c9-8313-446c3cd00036}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

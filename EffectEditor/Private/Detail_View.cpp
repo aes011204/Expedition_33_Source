@@ -915,7 +915,7 @@ namespace Internal
         const EffectEditorPostProcessPreset currentPreset = EDITOR->Get_PostProcessPreset();
 
         ImGui::PushID("PostProcessPreset");
-        detailContext.Draw_PropertyLabel("Preset");
+        detailContext.Draw_PropertyLabel("Preset", "프리뷰 후처리 설정 묶음입니다. editor preview 전용이며 effect asset에는 저장되지 않습니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_PostProcessPresetLabel(currentPreset)))
         {
@@ -948,7 +948,7 @@ namespace Internal
         static constexpr uint32 kToneMapModes[] = { 0u, 1u, 2u };
 
         ImGui::PushID("ToneMapMode");
-        detailContext.Draw_PropertyLabel("ToneMap Mode");
+        detailContext.Draw_PropertyLabel("ToneMap Mode", "HDR 색을 LDR 화면 범위로 눌러 담는 tone mapping 곡선입니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
 
         bool changed = false;
@@ -1197,31 +1197,37 @@ void Detail_View::Render_EffectAuthoringDetail()
 
 void Detail_View::Render_ParticleSystemDetail(
     const Shared<Emitter_View>& emitterView,
-    const EffectAuthoringSelection& selection,
-    ParticleSystemAuthoringData& data)
+    const EffectAuthoringSelection&,
+    ParticleSystemAuthoringData&)
 {
     ImGui::TextUnformatted("파티클 시스템");
     ImGui::Separator();
 
-    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
-    const ParticleSystemAuthoringData defaultData{};
-    bool changed = false;
     if (_detailPropertyContext.Begin_PropertyTable("ParticleSystem"))
     {
-        changed |= _detailPropertyContext.Draw_BoolProperty("자동 비활성화", data.autoDeactivate, defaultData.autoDeactivate);
+        if (EDITOR != nullptr)
+        {
+            bool autoReplayPreviewEnabled = EDITOR->Is_AutoReplayPreviewEnabled();
+            if (_detailPropertyContext.Draw_BoolProperty(
+                "자동 재생 (프리뷰)",
+                autoReplayPreviewEnabled,
+                false,
+                "에디터 프리뷰 전용 상태입니다. 켜면 authoring 값을 바꿀 때 preview 재생을 자동으로 다시 시작합니다."
+            ))
+                EDITOR->Set_AutoReplayPreviewEnabled(autoReplayPreviewEnabled);
+        }
         if (EDITOR != nullptr)
         {
             bool previewPlaneVisible = EDITOR->Is_PreviewPlaneVisible();
-            if (_detailPropertyContext.Draw_BoolProperty("Preview Plane", previewPlaneVisible, false))
+            if (_detailPropertyContext.Draw_BoolProperty(
+                "Preview Plane",
+                previewPlaneVisible,
+                false,
+                "에디터 프리뷰 전용 바닥/기준면 표시입니다. effect asset에는 저장되지 않습니다."
+            ))
                 EDITOR->Set_PreviewPlaneVisible(previewPlaneVisible);
         }
         _detailPropertyContext.End_PropertyTable();
-    }
-    if (changed)
-    {
-        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Particle System Detail");
-        emitterView->MarkDirty();
-        MarkDirty();
     }
 
     Render_TrailPreviewDetail();
@@ -1245,6 +1251,7 @@ void Detail_View::Render_TrailPreviewDetail()
     const Vec3 defaultSourceLocalOffset = EDITOR->Get_DefaultSourceHistorySpriteTrailPreviewSourceLocalOffset();
     bool visible = EDITOR->Is_TrailPreviewVisible();
     bool debugRenderEnabled = EDITOR->Is_TrailPreviewDebugRenderEnabled();
+    float animationSpeed = EDITOR->Get_TrailPreviewAnimationSpeed();
     TrailPreviewGateMode gateMode = EDITOR->Get_TrailPreviewGateMode();
     float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
     float gateEndRatio = EDITOR->Get_TrailPreviewGateEndRatio();
@@ -1254,10 +1261,20 @@ void Detail_View::Render_TrailPreviewDetail()
 
     if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewCommon"))
     {
-        if (_detailPropertyContext.Draw_BoolProperty("트레일 프리뷰", visible, false))
+        if (_detailPropertyContext.Draw_BoolProperty("트레일 프리뷰", visible, false, "에디터 프리뷰 helper를 표시합니다. effect asset의 저장 데이터가 아닙니다."))
             EDITOR->Set_TrailPreviewVisible(visible);
-        if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true))
+        if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true, "프리뷰 helper의 기준점과 샘플 흐름을 확인하기 위한 editor-only 표시입니다."))
             EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
+        static constexpr AuthoringValueRange kAnimationSpeedRange{ true, true, 0.01f, 10.f };
+        if (_detailPropertyContext.Draw_FloatProperty(
+            "애니메이션 배속",
+            animationSpeed,
+            EDITOR->Get_DefaultTrailPreviewAnimationSpeed(),
+            0.01f,
+            "Trail Preview 플레이어 애니메이션 재생 배속입니다.",
+            &kAnimationSpeedRange
+        ))
+            EDITOR->Set_TrailPreviewAnimationSpeed(animationSpeed);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -1266,8 +1283,22 @@ void Detail_View::Render_TrailPreviewDetail()
         bool trailLocalChanged = false;
         if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewTrail"))
         {
-            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f);
-            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f);
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property(
+                "Base 로컬",
+                baseLocalOffset,
+                defaultBaseLocalOffset,
+                0.005f,
+                nullptr,
+                "Trail preview helper의 base 기준점입니다. editor preview 전용 값입니다."
+            );
+            trailLocalChanged |= _detailPropertyContext.Draw_Vec3Property(
+                "Tip 로컬",
+                tipLocalOffset,
+                defaultTipLocalOffset,
+                0.005f,
+                nullptr,
+                "Trail preview helper의 tip 기준점입니다. editor preview 전용 값입니다."
+            );
             if (Internal::Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window, "TrailPreviewTrailGateMode"))
                 EDITOR->Set_TrailPreviewGateMode(gateMode);
             if (gateMode == TrailPreviewGateMode::Window)
@@ -1306,7 +1337,14 @@ void Detail_View::Render_TrailPreviewDetail()
         bool sourceLocalChanged = false;
         if (_detailPropertyContext.Begin_PropertyTable("TrailPreviewSourceHistorySpriteTrail"))
         {
-            sourceLocalChanged |= _detailPropertyContext.Draw_Vec3Property("Source 로컬", sourceLocalOffset, defaultSourceLocalOffset, 0.005f);
+            sourceLocalChanged |= _detailPropertyContext.Draw_Vec3Property(
+                "Source 로컬",
+                sourceLocalOffset,
+                defaultSourceLocalOffset,
+                0.005f,
+                nullptr,
+                "Ribbon/SourceHistorySpriteTrail preview source 위치입니다. editor preview 전용 값입니다."
+            );
             if (Internal::Draw_TrailPreviewGateModeProperty(
                 _detailPropertyContext,
                 spriteTrailGateMode,
@@ -1379,15 +1417,15 @@ void Detail_View::Render_PostProcessShaderDetail()
 
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessFeatures"))
     {
-        if (_detailPropertyContext.Draw_BoolProperty("HDR", hdr, defaultHdr))
+        if (_detailPropertyContext.Draw_BoolProperty("HDR", hdr, defaultHdr, "에디터 프리뷰 후처리 전용 토글입니다. HDR render target 경로를 사용합니다."))
             EDITOR->Set_PostProcessFeature(PostProcessFeature::HDR, hdr);
-        if (_detailPropertyContext.Draw_BoolProperty("Exposure", exposure, defaultExposure))
+        if (_detailPropertyContext.Draw_BoolProperty("Exposure", exposure, defaultExposure, "프리뷰 후처리에서 exposure 보정을 적용할지 정합니다."))
             EDITOR->Set_PostProcessFeature(PostProcessFeature::Exposure, exposure);
-        if (_detailPropertyContext.Draw_BoolProperty("ToneMapping", toneMapping, defaultToneMapping))
+        if (_detailPropertyContext.Draw_BoolProperty("ToneMapping", toneMapping, defaultToneMapping, "프리뷰 후처리에서 HDR 색을 화면 출력 범위로 매핑합니다."))
             EDITOR->Set_PostProcessFeature(PostProcessFeature::ToneMapping, toneMapping);
-        if (_detailPropertyContext.Draw_BoolProperty("Bloom", bloom, defaultBloom))
+        if (_detailPropertyContext.Draw_BoolProperty("Bloom", bloom, defaultBloom, "프리뷰 후처리에서 밝은 영역 번짐을 적용합니다."))
             EDITOR->Set_PostProcessFeature(PostProcessFeature::Bloom, bloom);
-        if (_detailPropertyContext.Draw_BoolProperty("Gamma", gamma, defaultGamma))
+        if (_detailPropertyContext.Draw_BoolProperty("Gamma", gamma, defaultGamma, "프리뷰 후처리에서 gamma 보정을 적용합니다."))
             EDITOR->Set_PostProcessFeature(PostProcessFeature::Gamma, gamma);
         _detailPropertyContext.End_PropertyTable();
     }
@@ -1396,14 +1434,56 @@ void Detail_View::Render_PostProcessShaderDetail()
     bool paramsChanged = false;
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessParams"))
     {
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Exposure", params.exposure, defaultOptions.params.exposure);
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Inv White Point", params.invWhitePoint, defaultOptions.params.invWhitePoint);
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Gamma", params.gamma, defaultOptions.params.gamma);
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Radius", params.bloomRadius, defaultOptions.params.bloomRadius);
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Threshold", params.bloomThreshold, defaultOptions.params.bloomThreshold);
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity);
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee);
-        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Exposure",
+            params.exposure,
+            defaultOptions.params.exposure,
+            0.01f,
+            "프리뷰 화면 밝기를 조절하는 exposure 값입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Inv White Point",
+            params.invWhitePoint,
+            defaultOptions.params.invWhitePoint,
+            0.01f,
+            "tone mapping에서 흰색 기준점을 보정하는 역 white point 값입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Gamma", params.gamma, defaultOptions.params.gamma, 0.01f, "프리뷰 출력 gamma 보정 값입니다.");
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Radius",
+            params.bloomRadius,
+            defaultOptions.params.bloomRadius,
+            0.01f,
+            "Bloom blur가 퍼지는 반경입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Threshold",
+            params.bloomThreshold,
+            defaultOptions.params.bloomThreshold,
+            0.01f,
+            "Bloom 후보가 되는 밝기 임계값입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Intensity",
+            params.bloomIntensity,
+            defaultOptions.params.bloomIntensity,
+            0.01f,
+            "Bloom 결과를 최종 화면에 더하는 강도입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Soft Knee",
+            params.bloomSoftKnee,
+            defaultOptions.params.bloomSoftKnee,
+            0.01f,
+            "Threshold 근처 Bloom 전환을 부드럽게 만드는 값입니다."
+        );
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty(
+            "Bloom Clamp",
+            params.bloomClamp,
+            defaultOptions.params.bloomClamp,
+            0.05f,
+            "Bloom 입력 밝기의 상한을 제한합니다."
+        );
         paramsChanged |= Internal::Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
         _detailPropertyContext.End_PropertyTable();
     }
@@ -2035,7 +2115,9 @@ void Detail_View::Render_TypeDataDetail(
                         "로컬 시작점",
                         data->localStart,
                         defaultData.localStart,
-                        0.01f
+                        0.01f,
+                        nullptr,
+                        "Beam 시작점을 emitter local space 기준으로 지정합니다."
                     );
                     if (data->endpointMode == BeamEndpointMode::StartEnd)
                     {
@@ -2043,7 +2125,9 @@ void Detail_View::Render_TypeDataDetail(
                             "로컬 끝점",
                             data->localEnd,
                             defaultData.localEnd,
-                            0.01f
+                            0.01f,
+                            nullptr,
+                            "시작/끝 방식에서 Beam 끝점을 emitter local space 기준으로 지정합니다."
                         );
                     }
                     else
@@ -2052,7 +2136,9 @@ void Detail_View::Render_TypeDataDetail(
                             "로컬 방향",
                             data->localDirection,
                             defaultData.localDirection,
-                            0.01f
+                            0.01f,
+                            nullptr,
+                            "방향/길이 방식에서 Beam이 뻗을 emitter local 방향입니다."
                         );
                         changed |= _detailPropertyContext.Draw_FloatProperty(
                             "길이",

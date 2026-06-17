@@ -18,6 +18,8 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
+    float4 g_EffectSpriteMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
     float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
     float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
@@ -54,36 +56,46 @@ Texture2D g_FlowTexture : register(t3);
 
 static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
 
-bool Use_EffectSpriteClampSampler(float mode)
+float Resolve_EffectSpriteAxisUV(float rawValue, float transformedValue, float policy)
 {
-    return mode >= 0.5f && mode < 2.5f;
+    return policy >= 2.5f ? rawValue : transformedValue;
 }
 
-float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float mode)
+float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float2 policy)
 {
     const float2 transformedUV = baseUV * uvParams.xy + uvOffset + uvParams.zw * g_EffectSpriteMaterialTime;
-    return mode >= 2.5f ? baseUV : transformedUV;
+    return float2(
+        Resolve_EffectSpriteAxisUV(baseUV.x, transformedUV.x, policy.x),
+        Resolve_EffectSpriteAxisUV(baseUV.y, transformedUV.y, policy.y)
+    );
 }
 
-float4 Sample_EffectSpriteMainTexture(float2 uv, float mode)
+float Apply_EffectSpriteAxisAddress(float value, float policy)
 {
-    return Use_EffectSpriteClampSampler(mode)
-           ? g_Texture.Sample(LinearClampSampler, uv)
-           : g_Texture.Sample(LinearWrapSampler, uv);
+    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
 }
 
-float4 Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
+float2 Apply_EffectSpriteAxisAddress(float2 uv, float2 policy)
 {
-    return Use_EffectSpriteClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
+    return float2(
+        Apply_EffectSpriteAxisAddress(uv.x, policy.x),
+        Apply_EffectSpriteAxisAddress(uv.y, policy.y)
+    );
 }
 
-float4 Sample_EffectSpriteMaskTexture(float2 uv, float mode)
+float4 Sample_EffectSpriteMainTexture(float2 uv, float2 policy)
 {
-    return Use_EffectSpriteClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv)
-           : g_MaskTexture.Sample(LinearWrapSampler, uv);
+    return g_Texture.Sample(LinearClampSampler, Apply_EffectSpriteAxisAddress(uv, policy));
+}
+
+float4 Sample_EffectSpriteNoiseTexture(float2 uv, float2 policy)
+{
+    return g_NoiseTexture.Sample(LinearClampSampler, Apply_EffectSpriteAxisAddress(uv, policy));
+}
+
+float4 Sample_EffectSpriteMaskTexture(float2 uv, float2 policy)
+{
+    return g_MaskTexture.Sample(LinearClampSampler, Apply_EffectSpriteAxisAddress(uv, policy));
 }
 
 float2 Build_EffectSpriteFlowUV(float2 rawUV)
@@ -415,10 +427,13 @@ PS_OUT PS_MAIN(PS_IN In)
     const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
     const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
-    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, g_EffectSpriteUVModeParams.x);
-    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
-    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
-    const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
+    const float2 mainUVPolicy = g_EffectSpriteUVAxisPolicyParams.xy;
+    const float2 noiseUVPolicy = g_EffectSpriteUVAxisPolicyParams.zw;
+    const float2 maskUVPolicy = g_EffectSpriteMaskUVAxisPolicyParams.xy;
+    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, mainUVPolicy);
+    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, noiseUVPolicy);
+    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, maskUVPolicy);
+    const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, mainUVPolicy);
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     const float resolvedOpacityPower = g_EffectSpriteParams.y
                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
@@ -436,7 +451,7 @@ PS_OUT PS_MAIN(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, noiseUVPolicy);
         const float noise = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
             g_EffectSpriteSourceParams.z
@@ -446,7 +461,7 @@ PS_OUT PS_MAIN(PS_IN In)
 
     if (0 != g_EffectSpriteAlphaParams.z)
     {
-        const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+        const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, maskUVPolicy);
         maskAlpha = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
             g_EffectSpriteSourceParams.w

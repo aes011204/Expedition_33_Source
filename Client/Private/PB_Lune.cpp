@@ -2,6 +2,7 @@
 
 #include "ClientInstance.h"
 #include "GameDataTable.h"
+#include "PlayerStatCom.h"
 
 IMPLEMENT_REFLECTION(PB_Lune)
 {
@@ -47,15 +48,23 @@ void PB_Lune::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
     outDescs.clear();
 
+    const string equippedWeaponId = _combatStatCom
+        ? _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId
+        : "";
+
+    const GameDataTable::WeaponDesc* weapon = equippedWeaponId.empty()
+        ? nullptr
+        : CLIENT->Get_WeaponDesc("Lune", equippedWeaponId);
+
     const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs("Lune");
-    const GameDataTable::WeaponDesc* weapon = (weapons != nullptr && !weapons->empty()) ? &weapons->front() : nullptr;
+    if (weapon == nullptr && weapons != nullptr && !weapons->empty())
+        weapon = &weapons->front();
 
     WeaponAttachDesc desc{};
     desc.partTag = L"Part_Weapon";
     desc.weaponPrefabName = (weapon != nullptr && !weapon->weaponPrefabName.empty())
         ? weapon->weaponPrefabName
-        : Constants::Prefab::Lune_Colim; // fallback
-
+        : Constants::Prefab::Lune_Colim;
     desc.useBodyFollow = false;
     desc.bodyFollowOffset = Vec3::Zero;
     desc.socketName = nullptr;

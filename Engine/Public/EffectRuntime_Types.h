@@ -104,6 +104,26 @@ enum class EffectMaterialScalarModulationTarget : uint32
     CoreIntensity = 5,
     OuterIntensity = 6,
     CoreColor = 7,
+    RefractionIntensity = 8,
+    MainUVScrollSpeedScale = 9,
+    NoiseUVScrollSpeedScale = 10,
+    MaskUVScrollSpeedScale = 11,
+    FlowUVScrollSpeedScale = 12,
+};
+
+// Material parameter modulation이 조절할 Vec2 material field다.
+enum class EffectMaterialVec2ModulationTarget : uint32
+{
+    MainUVOffset = 0,
+    NoiseUVOffset = 1,
+    MaskUVOffset = 2,
+    FlowUVOffset = 3,
+};
+
+// Material Vec2 modulation의 base value 적용 방식이다.
+enum class EffectMaterialVec2ModulationOperation : uint32
+{
+    Add = 0,
 };
 
 // Material scalar modulation의 base value 적용 방식이다.
@@ -199,6 +219,47 @@ struct EffectMaterialCoreColorRgbModulationRuntimeDesc
     std::array<EffectMaterialCoreColorRgbModulatorRuntimeDesc, kMaxModulators> modulators{};
 };
 
+// Material parameter modulation의 Vec2 curve payload다.
+struct EffectMaterialVec2ModulationCurveDesc
+{
+    bool enabled{ false };
+    uint32 keyCount{ 2 };
+    Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 keyTimesBlock1{};
+    Vec4 keyValuesX{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 keyValuesXBlock1{};
+    Vec4 keyValuesY{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 keyValuesYBlock1{};
+    Vec4 keyArriveTangentsX{};
+    Vec4 keyArriveTangentsXBlock1{};
+    Vec4 keyArriveTangentsY{};
+    Vec4 keyArriveTangentsYBlock1{};
+    Vec4 keyLeaveTangentsX{};
+    Vec4 keyLeaveTangentsXBlock1{};
+    Vec4 keyLeaveTangentsY{};
+    Vec4 keyLeaveTangentsYBlock1{};
+    Vec4 keyModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 keyModesBlock1{};
+};
+
+struct EffectMaterialVec2ModulatorRuntimeDesc
+{
+    bool enabled{ true };
+    EffectMaterialVec2ModulationTarget targetField{ EffectMaterialVec2ModulationTarget::MainUVOffset };
+    EffectMaterialVec2ModulationOperation operation{ EffectMaterialVec2ModulationOperation::Add };
+    EffectMaterialScalarModulationTimeSource timeSource{ EffectMaterialScalarModulationTimeSource::EmitterTime };
+    EffectMaterialVec2ModulationCurveDesc curve{};
+};
+
+// Material parameter modulation module에서 renderer가 CPU로 평가할 Vec2 compact payload다.
+struct EffectMaterialVec2ModulationRuntimeDesc
+{
+    static constexpr uint32 kMaxModulators{ 8 };
+
+    uint32 count{ 0 };
+    std::array<EffectMaterialVec2ModulatorRuntimeDesc, kMaxModulators> modulators{};
+};
+
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredMaterialRuntimeDesc
 {
@@ -261,6 +322,7 @@ struct EffectRequiredMaterialRuntimeDesc
     uint32 subUVRows{ 1 };                                                            // flipbook row 수다.
     uint32 subUVCols{ 1 };                                                            // flipbook column 수다.
     EffectMaterialCoreColorRgbModulationRuntimeDesc coreColorRgbModulation{};         // coreColor.rgb emitter-time distribution payload다.
+    EffectMaterialVec2ModulationRuntimeDesc vec2Modulation{};                         // material Vec2 emitter-time distribution payload다.
     EffectMaterialScalarModulationRuntimeDesc scalarModulation{};                     // material scalar modulation compact payload다.
 };
 
@@ -458,7 +520,7 @@ struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
-    bool usePerStripSubUVVariation{ true };                                                         // Beam strip별 SubUV RandomFrame/FPS phase variation을 적용한다.
+    bool usePerStripSubUVVariation{ false };                                                        // Legacy Beam strip별 SubUV RandomFrame variation compatibility flag다.
 
     EffectBeamEndpointMode endpointMode{ EffectBeamEndpointMode::StartEnd };  // local path 작성 방식을 고른다.
     Vec3 localStart{ 0.f, 2.f, 0.f };                                         // effect/emitter local 기준 beam 시작점이다.
