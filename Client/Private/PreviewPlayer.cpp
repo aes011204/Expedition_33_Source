@@ -250,11 +250,26 @@ HRESULT PreviewPlayer::Prewarm_CostumeVariants()
 
     for (const CostumePreset& preset : *presets)
     {
-        CHECK_FAILED(Ensure_CostumeVariantBuilt(preset), E_FAIL);
+        if (FAILED(Ensure_CostumeVariantBuilt(preset)))
+        {
+            LOG_WARN(
+                "PreviewPlayer: skip costume prewarm. hero={}, preset={}",
+                static_cast<int32>(_heroId),
+                preset.presetId);
+            continue; // preview 선로딩 실패는 패널 오픈 자체를 막지 않는다.
+        }
 
         const auto iter = _costumeVariantsByPreset.find(preset.presetId);
         if (iter != _costumeVariantsByPreset.end())
-            CHECK_FAILED(Warmup_CostumeVariantParts(iter->second), E_FAIL);
+        {
+            if (FAILED(Warmup_CostumeVariantParts(iter->second)))
+            {
+                LOG_WARN(
+                    "PreviewPlayer: skip costume part warmup. hero={}, preset={}",
+                    static_cast<int32>(_heroId),
+                    preset.presetId);
+            }
+        }
     }
 
     return S_OK;
