@@ -69,11 +69,24 @@ struct SceneContext
     int32 _activeLandscapeIdx = -1;
 
     bool _objectBBoxMode = false;
+    bool _boxScatterMode = false;
     bool _hideInstancedMesh = false;
 
     bool SampleTerrainY(float worldX, float worldZ, float& outY) const;
     void ScatterAt(EditorObject* obj, const ScatterZone& zone);
     void EraseAt(EditorObject* obj, float radius, const Vec3& center);
+
+    void ScatterAtBox(EditorObject* obj, const ScatterBoxZone& box);
+    void SyncBoxScatter(EditorObject* obj);
+    void ApplyBoxScatter();
+    void DeleteBoxScatter(EditorObject* obj);
+
+    ScatterBoxZone _pendingBox = {};
+    EditorObject* _pendingBoxTarget = {};
+    int _pendingBoxCount = {};
+    vector<Vec2> _pendingBoxLocalXZ = {};
+
+    void UpdateSingleInstance(EditorObject* obj, int32 instanceIdx);
 
 public: // Minor 테스트 맵 인스턴스 분할
     void Export_MapInstance(const string& mapName);
