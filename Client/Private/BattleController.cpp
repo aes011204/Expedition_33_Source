@@ -49,6 +49,8 @@
 #include "BattleTutorialController.h"
 #include "PlayerInventory.h"
 
+#include "PictosBattleSystem.h"
+
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
 BattleController::BattleController()
@@ -86,6 +88,9 @@ HRESULT BattleController::Initialize()
 
     _battleResultRecoder = BattleResultRecoder::Create();
     CHECK_NULL(_battleResultRecoder, E_FAIL);
+
+    _pictosBattleSystem = PictosBattleSystem::Create();
+    CHECK_NULL(_pictosBattleSystem, E_FAIL);
 
     //    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
@@ -2080,6 +2085,9 @@ void BattleController::Clear_BattleRuntimeState()
     _isActionExecuting = false;
     _hitSequenceRunner.Clear();
 
+    if (_pictosBattleSystem)
+        _pictosBattleSystem->Clear_RuntimeState();
+
     _pendingTurnStartStatusBuff = Buffs::None;
     _pendingTurnStartStatusActor = {};
 
@@ -2419,9 +2427,17 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         GAME->Print(L"{}", skillDebugText, duration(0.f));
 #endif
 
+        uint32 turnStartApGain = 1u; // 기본 턴 시작 AP 회복량
+
+        if (_pictosBattleSystem)
+        {
+            _pictosBattleSystem->ProcessTurnStart(actor); // 예열, 룰렛 처리
+            turnStartApGain += _pictosBattleSystem->Resolve_TurnStartApBonus(actor); // 활력의 턴 + 1
+        }
+
         const uint32 beforeAp = actor.statCom->Get_CurAP();
 
-        actor.statCom->Add_AP(1);
+        actor.statCom->Add_AP(turnStartApGain);
 
         const uint32 afterAp = actor.statCom->Get_CurAP();
         const uint32 gainedAp = afterAp - beforeAp;
@@ -2654,6 +2670,7 @@ void BattleController::Free()
     ReleaseCtrl(_buffSystem);
     ReleaseCtrl(_battleTutorialController);
     ReleaseCtrl(_battleResultRecoder);
+    ReleaseCtrl(_pictosBattleSystem);
 
     Base::Free();
 }

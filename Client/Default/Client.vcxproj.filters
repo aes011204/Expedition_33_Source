@@ -542,6 +542,7 @@
     <ClCompile Include="..\Private\Wardrobe_Panel.cpp" />
     <ClCompile Include="..\Private\Pictos_Panel.cpp" />
     <ClCompile Include="..\Private\PreviewPlayer.cpp" />
+    <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1506,6 +1507,7 @@
     <ClInclude Include="..\Public\Wardrobe_Panel.h" />
     <ClInclude Include="..\Public\Pictos_Panel.h" />
     <ClInclude Include="..\Public\PreviewPlayer.h" />
+    <ClInclude Include="..\Public\PictosBattleSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

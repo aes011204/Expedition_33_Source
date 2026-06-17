@@ -228,6 +228,7 @@
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
+    <ClInclude Include="..\Public\PictosBattleSystem.h" />
     <ClInclude Include="..\Public\Pictos_Panel.h" />
     <ClInclude Include="..\Public\PreviewPlayer.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
@@ -561,6 +562,7 @@
     <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
+    <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
     <ClCompile Include="..\Private\Pictos_Panel.cpp" />
     <ClCompile Include="..\Private\PreviewPlayer.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
