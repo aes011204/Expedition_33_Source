@@ -394,10 +394,19 @@ void AnimNotify_Parser::Sort_And_Clamp(AnimNotifyData& animationData, float anim
 {
     Ensure_DefaultTracks(animationData);
 
+    std::unordered_set<int32> usedNotifyIds{};
+    int32 nextNotifyId = max(animationData.nextNotifyId, Compute_NextNotifyId(animationData));
     for (auto& entry : animationData.notifies)
     {
-        if (entry.id <= 0)
-            entry.id = animationData.nextNotifyId++;
+        if (entry.id <= 0 || usedNotifyIds.find(entry.id) != usedNotifyIds.end())
+        {
+            while (usedNotifyIds.find(nextNotifyId) != usedNotifyIds.end())
+                ++nextNotifyId;
+
+            entry.id = nextNotifyId++;
+        }
+
+        usedNotifyIds.insert(entry.id);
 
         if (animationData.notifyTracks.empty())
             entry.trackIndex = 0;
@@ -407,10 +416,19 @@ void AnimNotify_Parser::Sort_And_Clamp(AnimNotifyData& animationData, float anim
         entry.timeSec = Clamp_TimeSec(entry.timeSec, animationLengthSec);
     }
 
+    std::unordered_set<int32> usedStateIds{};
+    int32 nextStateId = max(animationData.nextStateId, Compute_NextStateId(animationData));
     for (auto& entry : animationData.notifyStates)
     {
-        if (entry.id <= 0)
-            entry.id = animationData.nextStateId++;
+        if (entry.id <= 0 || usedStateIds.find(entry.id) != usedStateIds.end())
+        {
+            while (usedStateIds.find(nextStateId) != usedStateIds.end())
+                ++nextStateId;
+
+            entry.id = nextStateId++;
+        }
+
+        usedStateIds.insert(entry.id);
 
         if (animationData.notifyStateTracks.empty())
             entry.trackIndex = 0;

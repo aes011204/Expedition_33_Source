@@ -6,16 +6,6 @@
 
 namespace
 {
-    Vec2 Rotate_Point(const Vec2& point, float rotationRadians)
-    {
-        const float cosAngle = cosf(rotationRadians);
-        const float sinAngle = sinf(rotationRadians);
-
-        return Vec2(
-            point.x * cosAngle - point.y * sinAngle,
-            point.x * sinAngle + point.y * cosAngle);
-    }
-
     Vec2 Transform_PointByParent(const Vec2& point, const UI_Base& parent)
     {
         const UI_Transform* parentTransform = parent.Get_Transform();
@@ -34,7 +24,7 @@ namespace
         const Vec2 scaledOffset(
             (point.x - pivotOffset.x) * parentScale.x,
             (point.y - pivotOffset.y) * parentScale.y);
-        const Vec2 rotatedOffset = Rotate_Point(scaledOffset, parentTransform->Get_RotationRadians());
+        const Vec2 rotatedOffset = Rotate_UIPoint(scaledOffset, parentTransform->Get_RotationRadians());
 
         return Vec2(
             parentPivotPosition.x + rotatedOffset.x,
@@ -286,7 +276,7 @@ Vec2 UI_Base::Get_WorldPosition() const
     const Vec2 scaledTopLeftOffset(
         -pivotOffset.x * localScale.x,
         -pivotOffset.y * localScale.y);
-    const Vec2 rotatedTopLeftOffset = Rotate_Point(scaledTopLeftOffset, _transform->Get_RotationRadians());
+    const Vec2 rotatedTopLeftOffset = Rotate_UIPoint(scaledTopLeftOffset, _transform->Get_RotationRadians());
 
     return Transform_LocalPointToWorld(Vec2(
         localPosition.x + rotatedTopLeftOffset.x,
@@ -365,7 +355,7 @@ Vec2 UI_Base::Get_ScaledLocalCenter(const Vec2& localScale) const
     const Vec2 scaledCenterOffset(
         (baseCenterOffset.x - pivotOffset.x) * localScale.x,
         (baseCenterOffset.y - pivotOffset.y) * localScale.y);
-    const Vec2 rotatedCenterOffset = Rotate_Point(scaledCenterOffset, rotationRadians);
+    const Vec2 rotatedCenterOffset = Rotate_UIPoint(scaledCenterOffset, rotationRadians);
 
     return Vec2(
         localPosition.x + rotatedCenterOffset.x,

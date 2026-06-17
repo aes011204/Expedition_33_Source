@@ -456,10 +456,11 @@ namespace Internal
         string& textureGuid,
         string& texturePath,
         const string& defaultGuid,
-        const string& defaultPath)
+        const string& defaultPath,
+        const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
 
         constexpr ImVec2 thumbnailSize{ 44.f, 44.f };
         Draw_TextureThumbnail(textureCache, textureGuid, texturePath, thumbnailSize);
@@ -490,10 +491,11 @@ namespace Internal
         string& value,
         const string& defaultValue,
         const char* const* options,
-        size_t optionCount)
+        size_t optionCount,
+        const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
 
         const char* preview = value.empty() ? "(none)" : value.c_str();
         for (size_t i = 0; i < optionCount; ++i)
@@ -556,7 +558,8 @@ namespace Internal
     bool Draw_BlendModeProperty(
         DetailPropertyContext& detailContext,
         EffectMaterialBlendMode& value,
-        EffectMaterialBlendMode defaultValue)
+        EffectMaterialBlendMode defaultValue,
+        const char* tooltip = nullptr)
     {
         static constexpr EffectMaterialBlendMode kModes[]{
             EffectMaterialBlendMode::AlphaBlend,
@@ -566,7 +569,7 @@ namespace Internal
         };
 
         ImGui::PushID("Blend Mode");
-        detailContext.Draw_PropertyLabel("Blend Mode");
+        detailContext.Draw_PropertyLabel("Blend Mode", tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = false;
 
@@ -669,10 +672,11 @@ namespace Internal
         EnumType defaultValue,
         const EnumType* options,
         size_t optionCount,
-        const char* (*getLabel)(EnumType))
+        const char* (*getLabel)(EnumType),
+        const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = false;
 
@@ -865,7 +869,8 @@ namespace Internal
         DetailPropertyContext& detailContext,
         const char* label,
         EffectTextureUVTilingMode& value,
-        EffectTextureUVTilingMode defaultValue)
+        EffectTextureUVTilingMode defaultValue,
+        const char* tooltip = nullptr)
     {
         static constexpr EffectTextureUVTilingMode kModes[]{
             EffectTextureUVTilingMode::Wrap,
@@ -875,7 +880,7 @@ namespace Internal
         };
 
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = false;
 
@@ -919,11 +924,13 @@ namespace Internal
         const char* vLabel,
         EffectMaterialUVAxisPolicy& policy,
         EffectMaterialUVAxisPolicy defaultPolicy,
-        EffectTextureUVTilingMode& compatibleMode)
+        EffectTextureUVTilingMode& compatibleMode,
+        const char* uTooltip = nullptr,
+        const char* vTooltip = nullptr)
     {
         bool changed = false;
-        changed |= Draw_UVTilingModeProperty(detailContext, uLabel, policy.uPolicy, defaultPolicy.uPolicy);
-        changed |= Draw_UVTilingModeProperty(detailContext, vLabel, policy.vPolicy, defaultPolicy.vPolicy);
+        changed |= Draw_UVTilingModeProperty(detailContext, uLabel, policy.uPolicy, defaultPolicy.uPolicy, uTooltip);
+        changed |= Draw_UVTilingModeProperty(detailContext, vLabel, policy.vPolicy, defaultPolicy.vPolicy, vTooltip);
 
         if (changed)
             compatibleMode = Resolve_CompatibleUVTilingModeForView(policy);
@@ -980,22 +987,23 @@ namespace Internal
             defaultValue,
             kModes,
             size(kModes),
-            Get_DistortionShapeModeLabel
+            Get_DistortionShapeModeLabel,
+            "굴절이 적용될 화면상의 기본 shape mask입니다. None이면 texture/flow 입력 전체를 사용합니다."
         );
     }
 
-    void Draw_ReadOnlyTextProperty(DetailPropertyContext& detailContext, const char* label, const char* value)
+    void Draw_ReadOnlyTextProperty(DetailPropertyContext& detailContext, const char* label, const char* value, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
         ImGui::TextDisabled("%s", value);
         ImGui::PopID();
     }
 
-    void Draw_ReadOnlyFloatProperty(DetailPropertyContext& detailContext, const char* label, float value)
+    void Draw_ReadOnlyFloatProperty(DetailPropertyContext& detailContext, const char* label, float value, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        detailContext.Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
         ImGui::TextDisabled("%.3f", value);
         ImGui::PopID();
     }
@@ -1049,6 +1057,7 @@ void EffectMaterialInstance_View::Pre_Render()
         _previewRenderer->Render_Material(
             requiredData->material,
             Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+            Build_MaterialVec2ModulationRuntimeDesc(*modulation),
             Build_MaterialScalarModulationRuntimeDesc(*modulation),
             requiredData->duration,
             evaluateParticleLife
@@ -1110,6 +1119,10 @@ void EffectMaterialInstance_View::Render()
                       || emitter->typeData.kind == AuthoringTypeDataKind::Ribbon
                       ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
                       : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
+                const EffectMaterialDistortionShapeControlMode distortionShapeControlMode =
+                    emitter->typeData.kind == AuthoringTypeDataKind::Beam
+                    ? EffectMaterialDistortionShapeControlMode::BeamUnsupported
+                    : EffectMaterialDistortionShapeControlMode::Editable;
 
                 if (useSideBySideLayout)
                 {
@@ -1138,7 +1151,8 @@ void EffectMaterialInstance_View::Render()
                             _textureThumbnailCache,
                             requiredData->material,
                             &restartPreview,
-                            twoSidedDisplayMode
+                            twoSidedDisplayMode,
+                            distortionShapeControlMode
                         );
                     }
                     ImGui::EndChild();
@@ -1160,7 +1174,8 @@ void EffectMaterialInstance_View::Render()
                         _textureThumbnailCache,
                         requiredData->material,
                         &restartPreview,
-                        twoSidedDisplayMode
+                        twoSidedDisplayMode,
+                        distortionShapeControlMode
                     );
                 }
 
@@ -1188,7 +1203,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     EffectMaterialInstanceData& material,
     bool* outRestartPreview,
     EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode,
-    bool disableMeshDistortionShapeControls,
+    EffectMaterialDistortionShapeControlMode distortionShapeControlMode,
     const EffectMaterialRenderPolicyBinding* renderPolicyBinding)
 {
     const EffectMaterialInstanceData defaultData{};
@@ -1210,7 +1225,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.mainTextureGuid,
                 material.mainTexturePath,
                 defaultData.mainTextureGuid,
-                defaultData.mainTexturePath
+                defaultData.mainTexturePath,
+                "최종 색과 opacity의 기본 texture입니다. 비워두면 material shader의 fallback 입력을 사용합니다."
             );
             changed |= Internal::Draw_StringComboProperty(
                 detailPropertyContext,
@@ -1218,16 +1234,29 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.opacitySource,
                 defaultData.opacitySource,
                 sourceOptions,
-                std::size(sourceOptions)
+                std::size(sourceOptions),
+                "Main Texture에서 opacity로 읽을 채널입니다. Alpha/Red/Luminance 중 효과 texture packing에 맞춰 고릅니다."
             );
-            changed |= detailPropertyContext.Draw_ColorProperty("Tint", material.tint, defaultData.tint);
-            changed |= detailPropertyContext.Draw_FloatProperty("Intensity", material.intensity, defaultData.intensity);
-            changed |= detailPropertyContext.Draw_FloatProperty("Opacity Power", material.opacityPower, defaultData.opacityPower);
+            changed |= detailPropertyContext.Draw_ColorProperty(
+                "Tint",
+                material.tint,
+                defaultData.tint,
+                "Main RGB에 곱해지는 material tint입니다. emitter color/life color와 추가로 곱해집니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty("Intensity", material.intensity, defaultData.intensity, 0.01f, "최종 색 밝기에 곱하는 기본 강도입니다.");
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Opacity Power",
+                material.opacityPower,
+                defaultData.opacityPower,
+                0.01f,
+                "선택한 opacity 채널에 적용하는 power 보정입니다. 값이 커질수록 낮은 alpha가 더 빨리 줄어듭니다."
+            );
             const bool mainModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Main UV Tiling Mode",
                 material.mainUVTilingMode,
-                defaultData.mainUVTilingMode
+                defaultData.mainUVTilingMode,
+                "Main texture의 U/V 반복 정책을 한 번에 맞추는 legacy 편의값입니다. 축별 정책을 바꾸면 그 값이 우선합니다."
             );
             changed |= mainModeChanged;
             restartPreview |= mainModeChanged;
@@ -1242,13 +1271,36 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 "Main V Policy",
                 material.mainUVPolicy,
                 defaultData.mainUVPolicy,
-                material.mainUVTilingMode
+                material.mainUVTilingMode,
+                "Main texture U축의 반복/늘림/클램프 정책입니다.",
+                "Main texture V축의 반복/늘림/클램프 정책입니다."
             );
             changed |= mainAxisPolicyChanged;
             restartPreview |= mainAxisPolicyChanged;
-            changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
-            changed |= detailPropertyContext.Draw_Vec2Property("Main UV Offset", material.mainUVOffset, defaultData.mainUVOffset);
-            changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Main UV Scale",
+                material.mainUVScale,
+                defaultData.mainUVScale,
+                0.01f,
+                nullptr,
+                "Main texture UV에 곱하는 타일 배율입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Main UV Offset",
+                material.mainUVOffset,
+                defaultData.mainUVOffset,
+                0.01f,
+                nullptr,
+                "Main texture UV에 더하는 정적 오프셋입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Main UV Scroll Speed",
+                material.mainUVScrollSpeed,
+                defaultData.mainUVScrollSpeed,
+                0.01f,
+                nullptr,
+                "초당 Main texture UV를 이동시키는 속도입니다."
+            );
             detailPropertyContext.End_PropertyTable();
         }
 
@@ -1267,7 +1319,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.noiseTextureGuid,
                 material.noiseTexturePath,
                 defaultData.noiseTextureGuid,
-                defaultData.noiseTexturePath
+                defaultData.noiseTexturePath,
+                "opacity나 breakup에 섞을 noise texture입니다. Strength가 0이면 시각 영향이 거의 없습니다."
             );
             changed |= Internal::Draw_StringComboProperty(
                 detailPropertyContext,
@@ -1275,15 +1328,28 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.noiseSource,
                 defaultData.noiseSource,
                 sourceOptions,
-                std::size(sourceOptions)
+                std::size(sourceOptions),
+                "Noise Texture에서 modulation 값으로 읽을 채널입니다."
             );
-            changed |= detailPropertyContext.Draw_BoolProperty("Noise Invert", material.noiseInvert, defaultData.noiseInvert);
-            changed |= detailPropertyContext.Draw_FloatProperty("Noise Strength", material.noiseStrength, defaultData.noiseStrength);
+            changed |= detailPropertyContext.Draw_BoolProperty(
+                "Noise Invert",
+                material.noiseInvert,
+                defaultData.noiseInvert,
+                "Noise 값을 뒤집어 밝은 영역과 어두운 영역의 역할을 바꿉니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Noise Strength",
+                material.noiseStrength,
+                defaultData.noiseStrength,
+                0.01f,
+                "Noise가 opacity/coverage에 주는 영향 강도입니다."
+            );
             const bool noiseModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Noise UV Tiling Mode",
                 material.noiseUVTilingMode,
-                defaultData.noiseUVTilingMode
+                defaultData.noiseUVTilingMode,
+                "Noise texture의 U/V 반복 정책을 한 번에 맞추는 legacy 편의값입니다."
             );
             changed |= noiseModeChanged;
             restartPreview |= noiseModeChanged;
@@ -1298,13 +1364,36 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 "Noise V Policy",
                 material.noiseUVPolicy,
                 defaultData.noiseUVPolicy,
-                material.noiseUVTilingMode
+                material.noiseUVTilingMode,
+                "Noise texture U축의 반복/늘림/클램프 정책입니다.",
+                "Noise texture V축의 반복/늘림/클램프 정책입니다."
             );
             changed |= noiseAxisPolicyChanged;
             restartPreview |= noiseAxisPolicyChanged;
-            changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
-            changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Offset", material.noiseUVOffset, defaultData.noiseUVOffset);
-            changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Noise UV Scale",
+                material.noiseUVScale,
+                defaultData.noiseUVScale,
+                0.01f,
+                nullptr,
+                "Noise texture UV에 곱하는 타일 배율입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Noise UV Offset",
+                material.noiseUVOffset,
+                defaultData.noiseUVOffset,
+                0.01f,
+                nullptr,
+                "Noise texture UV에 더하는 정적 오프셋입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Noise UV Scroll Speed",
+                material.noiseUVScrollSpeed,
+                defaultData.noiseUVScrollSpeed,
+                0.01f,
+                nullptr,
+                "초당 Noise texture UV를 이동시키는 속도입니다."
+            );
             detailPropertyContext.End_PropertyTable();
         }
     }
@@ -1320,7 +1409,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.maskTextureGuid,
                 material.maskTexturePath,
                 defaultData.maskTextureGuid,
-                defaultData.maskTexturePath
+                defaultData.maskTexturePath,
+                "coverage를 자르거나 erosion에 사용할 mask texture입니다."
             );
             changed |= Internal::Draw_StringComboProperty(
                 detailPropertyContext,
@@ -1328,19 +1418,42 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.maskSource,
                 defaultData.maskSource,
                 sourceOptions,
-                std::size(sourceOptions)
+                std::size(sourceOptions),
+                "Mask Texture에서 coverage 값으로 읽을 채널입니다."
             );
-            changed |= detailPropertyContext.Draw_BoolProperty("Mask Invert", material.maskInvert, defaultData.maskInvert);
+            changed |= detailPropertyContext.Draw_BoolProperty("Mask Invert", material.maskInvert, defaultData.maskInvert, "Mask 값을 뒤집어 남는 영역과 지워지는 영역을 바꿉니다.");
             if (renderPolicyBinding != nullptr)
-                Internal::Draw_ReadOnlyFloatProperty(detailPropertyContext, "Alpha Cutoff", renderPolicyBinding->alphaCutoff);
+            {
+                Internal::Draw_ReadOnlyFloatProperty(
+                    detailPropertyContext,
+                    "Alpha Cutoff",
+                    renderPolicyBinding->alphaCutoff,
+                    "현재 cutoff 정본은 Render Policy Source가 가리키는 Required 또는 Assigned Material 값입니다."
+                );
+            }
             else
-                changed |= detailPropertyContext.Draw_FloatProperty("Alpha Cutoff", material.alphaCutoff, defaultData.alphaCutoff);
-            changed |= detailPropertyContext.Draw_FloatProperty("Alpha Erosion", material.alphaErosion, defaultData.alphaErosion);
+            {
+                changed |= detailPropertyContext.Draw_FloatProperty(
+                    "Alpha Cutoff",
+                    material.alphaCutoff,
+                    defaultData.alphaCutoff,
+                    0.01f,
+                    "Masked blend에서 버릴 opacity 임계값입니다."
+                );
+            }
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Alpha Erosion",
+                material.alphaErosion,
+                defaultData.alphaErosion,
+                0.01f,
+                "Mask/opacity coverage를 안쪽으로 깎아내는 erosion 강도입니다."
+            );
             const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Mask UV Tiling Mode",
                 material.maskUVTilingMode,
-                defaultData.maskUVTilingMode
+                defaultData.maskUVTilingMode,
+                "Mask texture의 U/V 반복 정책을 한 번에 맞추는 legacy 편의값입니다."
             );
             changed |= maskModeChanged;
             restartPreview |= maskModeChanged;
@@ -1355,13 +1468,36 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 "Mask V Policy",
                 material.maskUVPolicy,
                 defaultData.maskUVPolicy,
-                material.maskUVTilingMode
+                material.maskUVTilingMode,
+                "Mask texture U축의 반복/늘림/클램프 정책입니다.",
+                "Mask texture V축의 반복/늘림/클램프 정책입니다."
             );
             changed |= maskAxisPolicyChanged;
             restartPreview |= maskAxisPolicyChanged;
-            changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUVScale, defaultData.maskUVScale);
-            changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Offset", material.maskUVOffset, defaultData.maskUVOffset);
-            changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Mask UV Scale",
+                material.maskUVScale,
+                defaultData.maskUVScale,
+                0.01f,
+                nullptr,
+                "Mask texture UV에 곱하는 타일 배율입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Mask UV Offset",
+                material.maskUVOffset,
+                defaultData.maskUVOffset,
+                0.01f,
+                nullptr,
+                "Mask texture UV에 더하는 정적 오프셋입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Mask UV Scroll Speed",
+                material.maskUVScrollSpeed,
+                defaultData.maskUVScrollSpeed,
+                0.01f,
+                nullptr,
+                "초당 Mask texture UV를 이동시키는 속도입니다."
+            );
             detailPropertyContext.End_PropertyTable();
         }
     }
@@ -1378,13 +1514,15 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.flowTextureGuid,
                 material.flowTexturePath,
                 defaultData.flowTextureGuid,
-                defaultData.flowTexturePath
+                defaultData.flowTexturePath,
+                "SpriteDistortion에서 화면 굴절 방향과 세기를 읽는 flow texture입니다."
             );
             const bool flowModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Flow UV Tiling Mode",
                 material.flowUVTilingMode,
-                defaultData.flowUVTilingMode
+                defaultData.flowUVTilingMode,
+                "Flow texture의 U/V 반복 정책을 한 번에 맞추는 legacy 편의값입니다."
             );
             changed |= flowModeChanged;
             restartPreview |= flowModeChanged;
@@ -1399,21 +1537,61 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 "Flow V Policy",
                 material.flowUVPolicy,
                 defaultData.flowUVPolicy,
-                material.flowUVTilingMode
+                material.flowUVTilingMode,
+                "Flow texture U축의 반복/늘림/클램프 정책입니다.",
+                "Flow texture V축의 반복/늘림/클램프 정책입니다."
             );
             changed |= flowAxisPolicyChanged;
             restartPreview |= flowAxisPolicyChanged;
-            changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scale", material.flowUVScale, defaultData.flowUVScale);
-            changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Offset", material.flowUVOffset, defaultData.flowUVOffset);
-            changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);
-            changed |= detailPropertyContext.Draw_FloatProperty("Refraction Intensity", material.refractionIntensity, defaultData.refractionIntensity);
-            changed |= detailPropertyContext.Draw_FloatProperty("Refraction Presence", material.refractionPresence, defaultData.refractionPresence);
-            if (disableMeshDistortionShapeControls)
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Flow UV Scale",
+                material.flowUVScale,
+                defaultData.flowUVScale,
+                0.01f,
+                nullptr,
+                "Flow texture UV에 곱하는 타일 배율입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Flow UV Offset",
+                material.flowUVOffset,
+                defaultData.flowUVOffset,
+                0.01f,
+                nullptr,
+                "Flow texture UV에 더하는 정적 오프셋입니다."
+            );
+            changed |= detailPropertyContext.Draw_Vec2Property(
+                "Flow UV Scroll Speed",
+                material.flowUVScrollSpeed,
+                defaultData.flowUVScrollSpeed,
+                0.01f,
+                nullptr,
+                "초당 Flow texture UV를 이동시키는 속도입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Refraction Intensity",
+                material.refractionIntensity,
+                defaultData.refractionIntensity,
+                0.01f,
+                "flow vector가 화면 샘플을 얼마나 밀어낼지 정하는 굴절 강도입니다."
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Refraction Presence",
+                material.refractionPresence,
+                defaultData.refractionPresence,
+                0.01f,
+                "굴절 효과가 나타나는 기본 존재감/coverage입니다."
+            );
+            if (distortionShapeControlMode != EffectMaterialDistortionShapeControlMode::Editable)
             {
+                const char* unsupportedLabel =
+                    distortionShapeControlMode == EffectMaterialDistortionShapeControlMode::BeamUnsupported
+                    ? "Beam Distortion에서는 Shape 미지원"
+                    : "Mesh Distortion v0에서는 Shape 미지원";
                 Internal::Draw_ReadOnlyTextProperty(
                     detailPropertyContext,
                     "Shape Mode",
-                    "Mesh Distortion v0에서는 Shape 미지원"
+                    unsupportedLabel,
+                    "현재 renderer 조합에서는 distortion shape mask를 개별 authoring하지 않습니다."
                 );
                 detailPropertyContext.End_PropertyTable();
             }
@@ -1439,20 +1617,26 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                     changed |= detailPropertyContext.Draw_FloatProperty(
                         "Shape Radius",
                         material.distortionShapeRadius,
-                        defaultData.distortionShapeRadius
+                        defaultData.distortionShapeRadius,
+                        0.01f,
+                        "Radial/Ring shape가 영향을 주는 중심 반경입니다."
                     );
                     if (material.distortionShapeMode == EffectDistortionShapeMode::Ring)
                     {
                         changed |= detailPropertyContext.Draw_FloatProperty(
                             "Shape Thickness",
                             material.distortionShapeThickness,
-                            defaultData.distortionShapeThickness
+                            defaultData.distortionShapeThickness,
+                            0.01f,
+                            "Ring shape의 굴절 띠 두께입니다."
                         );
                     }
                     changed |= detailPropertyContext.Draw_FloatProperty(
                         "Shape Softness",
                         material.distortionShapeSoftness,
-                        defaultData.distortionShapeSoftness
+                        defaultData.distortionShapeSoftness,
+                        0.01f,
+                        "shape 경계가 부드럽게 사라지는 폭입니다."
                     );
                 }
                 else if (material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
@@ -1460,12 +1644,16 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                     changed |= detailPropertyContext.Draw_FloatProperty(
                         "Shape Thickness (px)",
                         material.distortionShapeThickness,
-                        defaultData.distortionShapeThickness
+                        defaultData.distortionShapeThickness,
+                        0.01f,
+                        "Shockwave ring의 화면 픽셀 기준 띠 두께입니다."
                     );
                     changed |= detailPropertyContext.Draw_FloatProperty(
                         "Shape Softness (px)",
                         material.distortionShapeSoftness,
-                        defaultData.distortionShapeSoftness
+                        defaultData.distortionShapeSoftness,
+                        0.01f,
+                        "Shockwave ring 경계가 화면 픽셀 기준으로 부드러워지는 폭입니다."
                     );
                 }
                 detailPropertyContext.End_PropertyTable();
@@ -1482,27 +1670,37 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             Internal::Draw_ReadOnlyTextProperty(
                 detailPropertyContext,
                 "Family",
-                Internal::Get_MaterialFamilyLabel(material.materialFamily)
+                Internal::Get_MaterialFamilyLabel(material.materialFamily),
+                "이 material instance가 쓰는 shader/render family입니다."
             );
             if (renderPolicyBinding != nullptr)
             {
                 Internal::Draw_ReadOnlyTextProperty(
                     detailPropertyContext,
                     "Render Policy Source",
-                    renderPolicyBinding->sourceLabel
+                    renderPolicyBinding->sourceLabel,
+                    "Blend Mode와 Alpha Cutoff의 현재 정본 위치입니다. MeshData에서는 Required가 override할 수 있습니다."
                 );
                 Internal::Draw_ReadOnlyTextProperty(
                     detailPropertyContext,
                     "Blend Mode",
-                    Internal::Get_BlendModeLabel(renderPolicyBinding->blendMode)
+                    Internal::Get_BlendModeLabel(renderPolicyBinding->blendMode),
+                    "현재 blend mode는 Render Policy Source가 가리키는 값에서 옵니다."
                 );
             }
             else
-                changed |= Internal::Draw_BlendModeProperty(detailPropertyContext, material.blendMode, defaultData.blendMode);
+            {
+                changed |= Internal::Draw_BlendModeProperty(
+                    detailPropertyContext,
+                    material.blendMode,
+                    defaultData.blendMode,
+                    "투명/가산/마스크 렌더 경로를 고르는 material render 정책입니다."
+                );
+            }
             switch (twoSidedDisplayMode)
             {
             case EffectMaterialTwoSidedDisplayMode::EditableImplemented:
-                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
+                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided, "Mesh material을 양면 렌더할지 정합니다.");
                 break;
 
             case EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly:
@@ -1516,11 +1714,16 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
 
             case EffectMaterialTwoSidedDisplayMode::EditableUnimplemented:
             default:
-                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided (미구현)", material.twoSided, defaultData.twoSided);
+                changed |= detailPropertyContext.Draw_BoolProperty(
+                    "Two Sided (미구현)",
+                    material.twoSided,
+                    defaultData.twoSided,
+                    "현재 renderer에서는 저장만 되고 실제 양면 제어는 아직 적용되지 않습니다."
+                );
                 break;
             }
-            changed |= detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
-            changed |= detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
+            changed |= detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols, "SubUV atlas의 가로 frame 개수입니다.");
+            changed |= detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows, "SubUV atlas의 세로 frame 개수입니다.");
             detailPropertyContext.End_PropertyTable();
         }
 
@@ -1538,32 +1741,42 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             changed |= detailPropertyContext.Draw_BoolProperty(
                 "Enabled",
                 material.coreEmissive.enabled,
-                defaultData.coreEmissive.enabled
+                defaultData.coreEmissive.enabled,
+                "중심부와 외곽 emissive 보정을 추가로 적용합니다."
             );
             changed |= detailPropertyContext.Draw_ColorRgbProperty(
                 "Core Color",
                 material.coreEmissive.coreColor,
-                defaultData.coreEmissive.coreColor
+                defaultData.coreEmissive.coreColor,
+                "중심 emissive에 사용할 RGB 색입니다."
             );
             changed |= detailPropertyContext.Draw_FloatProperty(
                 "Core Power",
                 material.coreEmissive.corePower,
-                defaultData.coreEmissive.corePower
+                defaultData.coreEmissive.corePower,
+                0.01f,
+                "중심부 falloff 곡선의 날카로움입니다."
             );
             changed |= detailPropertyContext.Draw_FloatProperty(
                 "Core Intensity",
                 material.coreEmissive.coreIntensity,
-                defaultData.coreEmissive.coreIntensity
+                defaultData.coreEmissive.coreIntensity,
+                0.01f,
+                "중심 emissive 밝기 배율입니다."
             );
             changed |= detailPropertyContext.Draw_FloatProperty(
                 "Outer Power",
                 material.coreEmissive.outerPower,
-                defaultData.coreEmissive.outerPower
+                defaultData.coreEmissive.outerPower,
+                0.01f,
+                "외곽 emissive falloff 곡선의 날카로움입니다."
             );
             changed |= detailPropertyContext.Draw_FloatProperty(
                 "Outer Intensity",
                 material.coreEmissive.outerIntensity,
-                defaultData.coreEmissive.outerIntensity
+                defaultData.coreEmissive.outerIntensity,
+                0.01f,
+                "외곽 emissive 밝기 배율입니다."
             );
             detailPropertyContext.End_PropertyTable();
         }

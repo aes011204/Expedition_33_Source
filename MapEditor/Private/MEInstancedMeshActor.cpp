@@ -233,6 +233,7 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
 
             BoundingSphere sphere;
             BoundingSphere::CreateFromBoundingBox(sphere, worldBox);
+
             spheres.push_back({ sphere.Center.x, sphere.Center.y, sphere.Center.z, sphere.Radius });
         }
         else
@@ -356,6 +357,7 @@ void MEInstancedMeshActor::DispatchCull()
     {
         params.planes[i] = planes[i];
     }
+
     params.totalCount = _instanceCount;
 
     params.maxDist = 300.f;
@@ -383,6 +385,7 @@ void MEInstancedMeshActor::DispatchCull()
 
     _cullShader->Bind_SRV(0, _instanceSrcBuffer->Get_SRV());
     _cullShader->Bind_SRV(1, _sphereBuffer->Get_SRV());
+
     _cullShader->Bind_ConstantBuffer(0, _cullCB.Get());
 
     const uint32 groups = (_instanceCount + 63) / 64;
@@ -399,6 +402,9 @@ void MEInstancedMeshActor::DispatchCull()
             _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV[lod].Get());
         }
     }
+
+    ID3D11ShaderResourceView* nullSRVs[3] = {};
+    _context->CSSetShaderResources(0, 3, nullSRVs);
 }
 
 array<Vec4, 6> MEInstancedMeshActor::ExtractFrustumPlanes(const Matrix& vp)

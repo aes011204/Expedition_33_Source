@@ -224,12 +224,12 @@ void MEMaterialApplicator::Apply_PassOverrides()
 
     for (auto& obj : _scene->_instancedMeshes)
     {
-        if (!obj->_instancedRenderHandle)
+        if (obj->_instancedChunkHandles.empty())
         {
             continue;
         }
 
-        auto model = obj->_instancedRenderHandle->GetModel();
+        auto model = obj->_instancedChunkHandles[0]->GetModel();
         if (!model)
         {
             continue;

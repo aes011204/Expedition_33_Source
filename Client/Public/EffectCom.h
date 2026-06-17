@@ -267,7 +267,7 @@ private:
         const Vec3& scale,
         const EffectTransformInheritance& transformInheritance,
         Vec3& outWorldPosition,
-        Vec3& outWorldRotation,
+        Quat& outWorldRotation,
         Vec3& outWorldScale) const;
 
     bool Try_ResolveTrailEffectName(

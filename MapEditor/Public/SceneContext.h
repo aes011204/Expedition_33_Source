@@ -73,6 +73,7 @@ struct SceneContext
 
     bool SampleTerrainY(float worldX, float worldZ, float& outY) const;
     void ScatterAt(EditorObject* obj, const ScatterZone& zone);
+    void EraseAt(EditorObject* obj, float radius, const Vec3& center);
 
 public: // Minor 테스트 맵 인스턴스 분할
     void Export_MapInstance(const string& mapName);

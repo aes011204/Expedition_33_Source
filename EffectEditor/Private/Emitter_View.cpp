@@ -1721,6 +1721,45 @@ void Emitter_View::Handle_Shortcuts()
         return;
     }
 
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+    {
+        if (!_selectedEmitterIndex.has_value())
+        {
+            Notify_ClipboardStatus("삭제할 이미터, 타입 데이터 또는 모듈을 선택해야 합니다.", true);
+            return;
+        }
+
+        const size_t emitterIndex = _selectedEmitterIndex.value();
+        if (_selectedTypeData)
+        {
+            Queue_TypeDataAction(PendingTypeDataAction::Remove, emitterIndex);
+            return;
+        }
+
+        if (_selectedModuleIndex.has_value())
+        {
+            const size_t moduleIndex = _selectedModuleIndex.value();
+            if (emitterIndex >= _emitters.size() || moduleIndex >= _emitters[emitterIndex].modules.size())
+            {
+                Notify_ClipboardStatus("삭제할 모듈 선택이 유효하지 않습니다.", true);
+                return;
+            }
+
+            const AuthoringModule& module = _emitters[emitterIndex].modules[moduleIndex];
+            if (!module.removable)
+            {
+                Notify_ClipboardStatus("이 모듈은 삭제할 수 없습니다.", true);
+                return;
+            }
+
+            Queue_ModuleAction(PendingModuleAction::Delete, emitterIndex, moduleIndex);
+            return;
+        }
+
+        Queue_EmitterAction(PendingEmitterAction::Delete, emitterIndex);
+        return;
+    }
+
     if (!io.KeyCtrl || !ImGui::IsKeyPressed(ImGuiKey_V, false))
         return;
 
@@ -3442,7 +3481,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         const ImVec2 rowMax = ImGui::GetItemRectMax();
         drawList->AddRectFilled(
             rowMin,
-            ImVec2{ rowMin.x + 4.f, rowMax.y },
+            ImVec2{ rowMin.x + 6.f, rowMax.y },
             Internal::kCurveEditorFocusBarColor
         );
     }

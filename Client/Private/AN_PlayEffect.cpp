@@ -47,5 +47,12 @@ void AN_PlayEffect::Execute(const AnimNotifyContext& context)
     desc.transformInheritance.inheritScale = _inheritScale;
     desc.followTarget = false; // AN은 시작 transform만 계산하고 attach하지 않는다.
 
+    if (context.isPreview)
+    {
+        EffectInstancePool::AttachedHandle handle{};
+        effectCom->Play_Effect(desc, &handle);
+        return;
+    }
+
     effectCom->Play_Effect(desc);
 }

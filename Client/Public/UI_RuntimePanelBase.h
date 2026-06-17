@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
 #include "Reflection_Types.h"
 
@@ -32,6 +33,10 @@ public:
     virtual void Open();
     virtual void Close();
     virtual void Toggle();
+    virtual void Append_RuntimeUIEntries(
+        vector<RuntimeUIEntry>& outEntries,
+        const string& category,
+        const string& rootName) const;
 
     bool Is_Open() const { return _isOpen; }
     Shared<UI_Base> Get_RootUI() const { return _root; }
@@ -48,6 +53,12 @@ public: // IRuntimeUIEditorTarget
 protected:
     void Capture_EditorDesignPositionIfNeeded();
     void Reset_EditorDesignPositionCache(); // 루트 UI가 바뀌면 이전 루트 위치 캐시를 버린다.
+    static void Append_RuntimeUIMapEntries(
+        vector<RuntimeUIEntry>& outEntries,
+        const string& category,
+        const umap<wstring, Shared<UI_Base>>& uiByName,
+        const Shared<UI_Base>& rootToSkip = nullptr,
+        IRuntimeUI_EditorTarget* editorTarget = nullptr);
 
     void Apply_EditorOffsets(Vec2& inOutPosition) const;
     void Set_EditorPositionDrivenByCode(bool enabled) { _editorPositionDrivenByCode = enabled; }

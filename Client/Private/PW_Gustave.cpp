@@ -43,6 +43,13 @@ HRESULT PW_Gustave::Initialize(void* arg)
     skillTreeCom->TryUnlock("UnleashedCharge");
     skillTreeCom->TryUnlock("MarkingShot");
 
+    skillTreeCom->ForceUnlock("Shatter");
+    skillTreeCom->ForceUnlock("PerfectBreak");
+    skillTreeCom->ForceUnlock("AngelsEye"); // 나중에 그래디언트
+    skillTreeCom->ForceUnlock("FromFire");
+    skillTreeCom->ForceUnlock("StrikeStorm");
+    skillTreeCom->ForceUnlock("PerfectRecovery");
+
     CHECK_FAILED(Ready_Modifier(), E_FAIL);
 
     return S_OK; 

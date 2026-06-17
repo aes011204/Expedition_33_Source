@@ -88,7 +88,7 @@ struct ComputePointParticleParams
     Vec4 subUVFrameCurveTimesBlock1{};
     Vec4 subUVFrameCurveValues{};                    // SubUV frame curve frame values.
     Vec4 subUVFrameCurveValuesBlock1{};
-    Vec4 subUVFrameCurveParams{};                    // x: key count, y/z/w: unused.
+    Vec4 subUVFrameCurveParams{};                    // x: key count, y: random start phase flag, z/w: unused.
     XMUINT4 spawnSeedSalts{};                        // x: Lifetime, y: InitialLocation, z: SphereLocation, w: PlaneRadialLocation.
     XMUINT4 subUVSeedSalts{};                        // x: SubUV RandomFrame, y/z/w: unused.
     XMUINT4 appearanceSeedSalts0{};                  // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB.
@@ -100,6 +100,16 @@ struct ComputePointParticleParams
     Vec4 sizeByLifeCurveValuesXBlock1{};
     Vec4 sizeByLifeCurveValuesY{};                   // SizeByLife Y multiplier key values.
     Vec4 sizeByLifeCurveValuesYBlock1{};
+    Vec4 sizeByLifeCurveArriveTangentsX{};           // SizeByLife X arrive tangents.
+    Vec4 sizeByLifeCurveArriveTangentsXBlock1{};
+    Vec4 sizeByLifeCurveLeaveTangentsX{};            // SizeByLife X leave tangents.
+    Vec4 sizeByLifeCurveLeaveTangentsXBlock1{};
+    Vec4 sizeByLifeCurveArriveTangentsY{};           // SizeByLife Y arrive tangents.
+    Vec4 sizeByLifeCurveArriveTangentsYBlock1{};
+    Vec4 sizeByLifeCurveLeaveTangentsY{};            // SizeByLife Y leave tangents.
+    Vec4 sizeByLifeCurveLeaveTangentsYBlock1{};
+    Vec4 sizeByLifeCurveModes{};                     // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 sizeByLifeCurveModesBlock1{};
     Vec4 sizeByLifeCurveParams{};                    // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
     Vec4 motionFlags{};                              // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
     Vec4 motionSpaceFlags{};                         // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode.
@@ -710,7 +720,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .subUVFrameCurveValuesBlock1 = _desc.subUvFrameOverLife.frameCurveValuesBlock1,
         .subUVFrameCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.subUvFrameOverLife.frameCurveKeyCount))),
-            0.f,
+            _desc.subUvFrameOverLife.randomStartPhase ? 1.f : 0.f,
             0.f,
             0.f
         },
@@ -750,6 +760,16 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .sizeByLifeCurveValuesXBlock1 = _desc.sizeByLife.curveKeyValuesXBlock1,
         .sizeByLifeCurveValuesY = _desc.sizeByLife.curveKeyValuesY,
         .sizeByLifeCurveValuesYBlock1 = _desc.sizeByLife.curveKeyValuesYBlock1,
+        .sizeByLifeCurveArriveTangentsX = _desc.sizeByLife.curveKeyArriveTangentsX,
+        .sizeByLifeCurveArriveTangentsXBlock1 = _desc.sizeByLife.curveKeyArriveTangentsXBlock1,
+        .sizeByLifeCurveLeaveTangentsX = _desc.sizeByLife.curveKeyLeaveTangentsX,
+        .sizeByLifeCurveLeaveTangentsXBlock1 = _desc.sizeByLife.curveKeyLeaveTangentsXBlock1,
+        .sizeByLifeCurveArriveTangentsY = _desc.sizeByLife.curveKeyArriveTangentsY,
+        .sizeByLifeCurveArriveTangentsYBlock1 = _desc.sizeByLife.curveKeyArriveTangentsYBlock1,
+        .sizeByLifeCurveLeaveTangentsY = _desc.sizeByLife.curveKeyLeaveTangentsY,
+        .sizeByLifeCurveLeaveTangentsYBlock1 = _desc.sizeByLife.curveKeyLeaveTangentsYBlock1,
+        .sizeByLifeCurveModes = _desc.sizeByLife.curveKeyModes,
+        .sizeByLifeCurveModesBlock1 = _desc.sizeByLife.curveKeyModesBlock1,
         .sizeByLifeCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.sizeByLife.curveKeyCount))),
             _desc.sizeByLife.multiplyX ? 1.f : 0.f,

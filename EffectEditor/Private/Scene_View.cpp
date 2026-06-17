@@ -212,6 +212,12 @@ void Scene_View::Render()
 
     bool isOpen = Is_Open();
     const string& windowName = Get_ImGuiWindowName();
+    if (EDITOR->Is_SceneFocusModeActive())
+    {
+        const uint32 dockSpaceId = EDITOR->Get_ActiveDockSpaceId();
+        if (dockSpaceId != 0)
+            ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_Always);
+    }
 
     if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Scene))
         ImGui::SetNextWindowFocus();

@@ -173,6 +173,7 @@ struct PointParticleSubUVFrameOverLifeDesc
     bool loop{ false };                                                        // FPS 재생에서 frame range를 반복할지 나타낸다.
     SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame }; // 고정 선택, 수명 맞춤, FPS 재생, 랜덤 선택 중 하나를 결정한다.
     float framesPerSecond{ 12.f };                                             // FPS 재생 모드에서 초당 넘길 frame 수다.
+    bool randomStartPhase{ false };                                            // FPS 재생에서 particle/stamp/strip별 시작 phase를 다르게 할지 나타낸다.
     uint32 frameCurveKeyCount{ 1 };                                            // 후속 Curve Editor 이관 후보인 compact frame curve key 수다.
     Vec4 frameCurveTimes{};                                                    // 후속 Curve Editor용 key time 0..1 값이다.
     Vec4 frameCurveTimesBlock1{};                                              // compact curve key 4..7 time 값이다.
@@ -222,6 +223,16 @@ struct PointParticleSizeByLifeDesc
     Vec4 curveKeyValuesXBlock1{};               // scaleOverLife key 4..7 X multiplier 값이다.
     Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f }; // scaleOverLife Y multiplier 값이다.
     Vec4 curveKeyValuesYBlock1{};               // scaleOverLife key 4..7 Y multiplier 값이다.
+    Vec4 curveKeyArriveTangentsX{};             // scaleOverLife X key별 arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsXBlock1{};       // scaleOverLife key 4..7 X arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangentsX{};              // scaleOverLife X key별 leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsXBlock1{};        // scaleOverLife key 4..7 X leave tangent 값이다.
+    Vec4 curveKeyArriveTangentsY{};             // scaleOverLife Y key별 arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsYBlock1{};       // scaleOverLife key 4..7 Y arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangentsY{};              // scaleOverLife Y key별 leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsYBlock1{};        // scaleOverLife key 4..7 Y leave tangent 값이다.
+    Vec4 curveKeyModes{ 1.f, 1.f, 0.f, 0.f };   // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 curveKeyModesBlock1{};                 // scaleOverLife key 4..7 interpolation mode 값이다.
 };
 
 // ColorOverLife 모듈의 ConstantCurve payload를 compute shader가 평가할 수 있게 압축한 desc다.
