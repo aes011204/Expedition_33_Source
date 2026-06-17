@@ -219,6 +219,7 @@ private:
     uint32 Compute_MaxLaneRenderSegmentCount() const;
     uint32 Compute_MaxRenderSegmentCount() const;
 
+    void Wrap_PlaybackLoop();
     void Start_NextLoop();
     float Resolve_CurrentLoopDelay() const;
     float Resolve_Duration() const;
