@@ -36,7 +36,7 @@ namespace Internal
         const float t2 = ratio * ratio;
 
         return (
-                   (p2 - p0) +
+                   p2 - p0 +
                    (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * (2.f * ratio) +
                    (p1 * 3.f - p0 - p2 * 3.f + p3) * (3.f * t2)
                ) * 0.5f;
@@ -58,6 +58,37 @@ namespace Internal
         if (seed.useInstanceSeed)
             salt += effectPlaybackSeed;
         return salt;
+    }
+
+    struct SubUVFrameRange
+    {
+        uint32 startFrame{};
+        uint32 frameCount{ 1u };
+        uint32 rangeCount{ 1u };
+    };
+
+    SubUVFrameRange Resolve_SubUVFrameRange(uint32 startFrame, uint32 endFrame, uint32 frameCount)
+    {
+        const uint32 safeFrameCount = max(1u, frameCount);
+        const uint32 lastFrame = safeFrameCount - 1u;
+        const uint32 clampedStart = min(startFrame, lastFrame);
+        const uint32 clampedEnd = min(endFrame, lastFrame);
+        const uint32 rangeCount =
+            clampedEnd >= clampedStart
+            ? clampedEnd - clampedStart + 1u
+            : safeFrameCount - clampedStart + clampedEnd + 1u;
+        return SubUVFrameRange{ clampedStart, safeFrameCount, max(1u, rangeCount) };
+    }
+
+    uint32 Resolve_SubUVFrameInRange(const SubUVFrameRange& range, uint32 frameOffset)
+    {
+        return (range.startFrame + min(frameOffset, range.rangeCount - 1u)) % range.frameCount;
+    }
+
+    uint32 Resolve_SubUVPlaybackOffset(const SubUVFrameRange& range, uint32 frameOffset, uint32 phaseOffset, bool loop)
+    {
+        const uint32 offset = frameOffset + phaseOffset;
+        return loop ? offset % range.rangeCount : min(offset, range.rangeCount - 1u);
     }
 
     int Resolve_MaterialSourceIndex(const string& source)
@@ -649,7 +680,9 @@ void ComputeSourceHistorySpriteTrailEmitter::Retire_ActiveLoopStrokes()
     }
 
     while (_retiredLoopStrokes.size() > kMaxRetiredLoopStrokeCount)
+    {
         _retiredLoopStrokes.erase(_retiredLoopStrokes.begin());
+    }
 }
 
 void ComputeSourceHistorySpriteTrailEmitter::Update_RetiredLoopStrokes(float timeDelta)
@@ -687,9 +720,7 @@ bool ComputeSourceHistorySpriteTrailEmitter::Has_LiveStamps() const
             return !lane.stamps.empty();
         }
     ))
-    {
         return true;
-    }
 
     return ranges::any_of(
         _retiredLoopStrokes,
@@ -1588,7 +1619,8 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
 
     const float emitterPhase = max(0.f, _materialElapsedTime) / max(0.0001f, _desc.playback.duration);
-    const EffectRequiredMaterialRuntimeDesc material = Internal::Resolve_EmitterTimeCoreColorRgbModulation(_desc.material, emitterPhase - floorf(emitterPhase));
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase - floorf(emitterPhase));
 
     const Vec4 effectSpriteParams = Vec4(
         material.intensity,
@@ -1678,7 +1710,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
     );
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
-    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase - floorf(emitterPhase)), E_FAIL);
+    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase - floorf(emitterPhase)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
@@ -2065,6 +2097,12 @@ Vec4 ComputeSourceHistorySpriteTrailEmitter::Evaluate_ColorOverLife(const Stamp&
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesR,
             curve.colorCurveValuesRBlock1,
+            curve.colorCurveArriveR,
+            curve.colorCurveArriveRBlock1,
+            curve.colorCurveLeaveR,
+            curve.colorCurveLeaveRBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.x
         );
@@ -2074,6 +2112,12 @@ Vec4 ComputeSourceHistorySpriteTrailEmitter::Evaluate_ColorOverLife(const Stamp&
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesG,
             curve.colorCurveValuesGBlock1,
+            curve.colorCurveArriveG,
+            curve.colorCurveArriveGBlock1,
+            curve.colorCurveLeaveG,
+            curve.colorCurveLeaveGBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.y
         );
@@ -2083,6 +2127,12 @@ Vec4 ComputeSourceHistorySpriteTrailEmitter::Evaluate_ColorOverLife(const Stamp&
             curve.colorCurveTimesBlock1,
             curve.colorCurveValuesB,
             curve.colorCurveValuesBBlock1,
+            curve.colorCurveArriveB,
+            curve.colorCurveArriveBBlock1,
+            curve.colorCurveLeaveB,
+            curve.colorCurveLeaveBBlock1,
+            curve.colorCurveModes,
+            curve.colorCurveModesBlock1,
             keyCount,
             color.z
         );
@@ -2097,6 +2147,12 @@ Vec4 ComputeSourceHistorySpriteTrailEmitter::Evaluate_ColorOverLife(const Stamp&
             curve.alphaCurveTimesBlock1,
             curve.alphaCurveValues,
             curve.alphaCurveValuesBlock1,
+            curve.alphaCurveArrive,
+            curve.alphaCurveArriveBlock1,
+            curve.alphaCurveLeave,
+            curve.alphaCurveLeaveBlock1,
+            curve.alphaCurveModes,
+            curve.alphaCurveModesBlock1,
             keyCount,
             color.w
         );
@@ -2118,6 +2174,12 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_WidthScaleByLife(float li
         _desc.sizeByLife.curveKeyTimesBlock1,
         _desc.sizeByLife.curveKeyValuesX,
         _desc.sizeByLife.curveKeyValuesXBlock1,
+        _desc.sizeByLife.curveKeyArriveTangentsX,
+        _desc.sizeByLife.curveKeyArriveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyLeaveTangentsX,
+        _desc.sizeByLife.curveKeyLeaveTangentsXBlock1,
+        _desc.sizeByLife.curveKeyModes,
+        _desc.sizeByLife.curveKeyModesBlock1,
         _desc.sizeByLife.curveKeyCount,
         fallbackScale
     );
@@ -2136,6 +2198,12 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_LengthScaleByLife(float l
         _desc.sizeByLife.curveKeyTimesBlock1,
         _desc.sizeByLife.curveKeyValuesY,
         _desc.sizeByLife.curveKeyValuesYBlock1,
+        _desc.sizeByLife.curveKeyArriveTangentsY,
+        _desc.sizeByLife.curveKeyArriveTangentsYBlock1,
+        _desc.sizeByLife.curveKeyLeaveTangentsY,
+        _desc.sizeByLife.curveKeyLeaveTangentsYBlock1,
+        _desc.sizeByLife.curveKeyModes,
+        _desc.sizeByLife.curveKeyModesBlock1,
         _desc.sizeByLife.curveKeyCount,
         fallbackScale
     );
@@ -2263,43 +2331,49 @@ uint32 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SubUVFrameIndex(const St
     if (!_desc.subUVFrameOverLife.enabled)
         return 0u;
 
-    const uint32 lastFrame = frameCount - 1u;
-    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
-    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
-    if (endFrame < startFrame)
-        endFrame = startFrame;
-
-    const uint32 span = endFrame - startFrame;
-    const uint32 rangeCount = span + 1u;
+    const Internal::SubUVFrameRange frameRange = Internal::Resolve_SubUVFrameRange(
+        _desc.subUVFrameOverLife.startFrame,
+        _desc.subUVFrameOverLife.endFrame,
+        frameCount
+    );
     const float stampLifeProgress = clamp(stamp.age / max(0.0001f, stamp.lifetime), 0.f, 1.f);
     switch (_desc.subUVFrameOverLife.playbackMode)
     {
     case SubUVFramePlaybackMode::LifeProgress:
     {
-        const uint32 frameOffset = min(static_cast<uint32>(floorf(stampLifeProgress * static_cast<float>(rangeCount))), rangeCount - 1u);
-        return startFrame + frameOffset;
+        const uint32 frameOffset =
+            min(static_cast<uint32>(floorf(stampLifeProgress * static_cast<float>(frameRange.rangeCount))), frameRange.rangeCount - 1u);
+        return Internal::Resolve_SubUVFrameInRange(frameRange, frameOffset);
     }
     case SubUVFramePlaybackMode::FramesPerSecond:
     {
         const uint32 frameOffset = static_cast<uint32>(floorf(stamp.age * max(0.f, _desc.subUVFrameOverLife.framesPerSecond)));
-        return startFrame + (_desc.subUVFrameOverLife.loop ? frameOffset % rangeCount : min(frameOffset, span));
+        const uint32 phaseOffset =
+            _desc.subUVFrameOverLife.randomStartPhase
+            ? Sample_RandomSubUVFrameIndex(stamp.serial, 0u, frameRange.rangeCount, frameRange.rangeCount)
+            : 0u;
+        return Internal::Resolve_SubUVFrameInRange(
+            frameRange,
+            Internal::Resolve_SubUVPlaybackOffset(frameRange, frameOffset, phaseOffset, _desc.subUVFrameOverLife.loop)
+        );
     }
     case SubUVFramePlaybackMode::RandomFrame:
-        return Sample_RandomSubUVFrameIndex(stamp.serial, startFrame, rangeCount);
+        return Sample_RandomSubUVFrameIndex(stamp.serial, frameRange.startFrame, frameRange.frameCount, frameRange.rangeCount);
     case SubUVFramePlaybackMode::FixedFrame:
     default:
-        return startFrame;
+        return frameRange.startFrame;
     }
 }
 
-uint32 ComputeSourceHistorySpriteTrailEmitter::Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 rangeCount) const
+uint32 ComputeSourceHistorySpriteTrailEmitter::Sample_RandomSubUVFrameIndex(uint32 stampSerial, uint32 startFrame, uint32 frameCount, uint32 rangeCount) const
 {
     const uint32 seed =
         Internal::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) +
         stampSerial * 7919u +
         1201u;
-    const uint32 frameOffset = min(static_cast<uint32>(floorf(Internal::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
-    return startFrame + frameOffset;
+    const uint32 safeRangeCount = max(1u, rangeCount);
+    const uint32 frameOffset = min(static_cast<uint32>(floorf(Internal::Hash01(seed) * static_cast<float>(safeRangeCount))), safeRangeCount - 1u);
+    return (startFrame + frameOffset) % max(1u, frameCount);
 }
 
 Vec4 ComputeSourceHistorySpriteTrailEmitter::Resolve_SubUVRect(uint32 frameIndex) const
@@ -2342,6 +2416,62 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_CompactCurve(
             Internal::Read_Vec4Component(values, valuesBlock1, index),
             ratio
         );
+    }
+
+    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+           : fallbackValue;
+}
+
+float ComputeSourceHistorySpriteTrailEmitter::Evaluate_CompactCurve(
+    float lifeProgress,
+    const Vec4& times,
+    const Vec4& timesBlock1,
+    const Vec4& values,
+    const Vec4& valuesBlock1,
+    const Vec4& arriveTangents,
+    const Vec4& arriveTangentsBlock1,
+    const Vec4& leaveTangents,
+    const Vec4& leaveTangentsBlock1,
+    const Vec4& modes,
+    const Vec4& modesBlock1,
+    uint32 keyCount,
+    float fallbackValue) const
+{
+    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
+        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < clampedKeyCount; ++index)
+    {
+        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftValue = Internal::Read_Vec4Component(values, valuesBlock1, index - 1u);
+        const float rightValue = Internal::Read_Vec4Component(values, valuesBlock1, index);
+        const float mode = Internal::Read_Vec4Component(modes, modesBlock1, index - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((lifeProgress - leftTime) / width, 0.f, 1.f);
+
+        if (mode < 0.5f)
+            return leftValue;
+
+        if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = Internal::Read_Vec4Component(leaveTangents, leaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = Internal::Read_Vec4Component(arriveTangents, arriveTangentsBlock1, index) * width;
+            return
+                (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
+                (t3 - 2.f * t2 + ratio) * leftLeave +
+                (-2.f * t3 + 3.f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+
+        return lerp(leftValue, rightValue, ratio);
     }
 
     return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)

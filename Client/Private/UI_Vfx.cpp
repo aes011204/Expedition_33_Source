@@ -119,7 +119,10 @@ void UI_Vfx::Play_Vfx()
     acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
     acquireDesc.layerTag = L"Layer_UI_Effect";
     acquireDesc.worldPosition = Resolve_EffectWorldPosition();
-    acquireDesc.worldRotation = Resolve_EffectWorldRotation();
+    acquireDesc.worldRotation = Quat::CreateFromYawPitchRoll(
+        0.f,
+        0.f,
+        XMConvertToRadians(Resolve_EffectWorldRotation().z));
     acquireDesc.scale = Resolve_EffectWorldScale();
 
     if (FAILED(effectPool->Acquire(acquireDesc, _effectHandle)))
@@ -155,7 +158,10 @@ void UI_Vfx::Update_VfxTransform()
         return;
 
     transform->Set_WorldPosition(Resolve_EffectWorldPosition());
-    transform->Set_WorldRotationEuler(Resolve_EffectWorldRotation());
+    transform->Set_WorldRotationQuaternion(Quat::CreateFromYawPitchRoll(
+        0.f,
+        0.f,
+        XMConvertToRadians(Resolve_EffectWorldRotation().z)));
     transform->Set_Scale(Resolve_EffectWorldScale());
 }
 

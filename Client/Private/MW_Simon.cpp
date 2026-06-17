@@ -2,6 +2,7 @@
 #include "ClientInstance.h"
 #include "Mon_Simon_Body.h"
 #include "Mon_Simon_Weapon.h"
+#include "MonsterStatCom.h"
 
 IMPLEMENT_REFLECTION(MW_Simon)
 {
@@ -33,6 +34,15 @@ HRESULT MW_Simon::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+
+    _combatStat->Set_Skill("Simon_SwordGround");
+    _combatStat->Set_Skill("Simon_Debuff");
+    _combatStat->Set_Skill("Simon_Strong_Combo");
+    _combatStat->Set_Skill("Simon_Long_Combo");
+    _combatStat->Set_Skill("Simon_Short_Combo");
+    _combatStat->Set_Skill("Simon_Berserk");
+    _combatStat->Set_Skill("Simon_LightSpeed");
+    _combatStat->Set_Skill("Simon_Sword_Att");
 
     return S_OK;
 }

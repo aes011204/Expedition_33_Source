@@ -139,6 +139,7 @@ private:
     ReactionAnimPhase _animPhase = ReactionAnimPhase::None;
     bool _isCounterPending = false;
     bool _isCounterDamageApplied = false;
+    float _reactionAnimElapsed = 0.f;
 
     const Skill_Data* _curSkillData = {};
 

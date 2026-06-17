@@ -1045,47 +1045,51 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     else
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
 
-    CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
+    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
+
+    CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(Vec4)), E_FAIL);
 
     const Vec4 effectTrailParams = Vec4(
-        _desc.material.intensity,
-        max(_desc.material.opacityPower, 0.0001f),
-        _desc.material.noiseStrength,
+        material.intensity,
+        max(material.opacityPower, 0.0001f),
+        material.noiseStrength,
         nullptr != _noiseTexture ? 1.f : 0.f
     );
     const Vec4 effectTrailAlphaParams = Vec4(
-        clamp(_desc.material.alphaCutoff, 0.f, 1.f),
-        clamp(_desc.material.alphaErosion, 0.f, 1.f),
+        clamp(material.alphaCutoff, 0.f, 1.f),
+        clamp(material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
         0.f
     );
     const Vec4 effectTrailMainUVParams = Vec4(
-        _desc.material.mainUVScale.x,
-        _desc.material.mainUVScale.y,
-        _desc.material.mainUVScrollSpeed.x,
-        _desc.material.mainUVScrollSpeed.y
+        material.mainUVScale.x,
+        material.mainUVScale.y,
+        material.mainUVScrollSpeed.x,
+        material.mainUVScrollSpeed.y
     );
     const Vec4 effectTrailNoiseUVParams = Vec4(
-        _desc.material.noiseUVScale.x,
-        _desc.material.noiseUVScale.y,
-        _desc.material.noiseUVScrollSpeed.x,
-        _desc.material.noiseUVScrollSpeed.y
+        material.noiseUVScale.x,
+        material.noiseUVScale.y,
+        material.noiseUVScrollSpeed.x,
+        material.noiseUVScrollSpeed.y
     );
     const Vec4 effectTrailMaskUVParams = Vec4(
-        _desc.material.maskUVScale.x,
-        _desc.material.maskUVScale.y,
-        _desc.material.maskUVScrollSpeed.x,
-        _desc.material.maskUVScrollSpeed.y
+        material.maskUVScale.x,
+        material.maskUVScale.y,
+        material.maskUVScrollSpeed.x,
+        material.maskUVScrollSpeed.y
     );
     const Vec4 effectTrailUVOffsetParams = Vec4(
-        _desc.material.mainUVOffset.x,
-        _desc.material.mainUVOffset.y,
-        _desc.material.noiseUVOffset.x,
-        _desc.material.noiseUVOffset.y
+        material.mainUVOffset.x,
+        material.mainUVOffset.y,
+        material.noiseUVOffset.x,
+        material.noiseUVOffset.y
     );
     const Vec4 effectTrailMaskUVOffsetParams = Vec4(
-        _desc.material.maskUVOffset.x,
-        _desc.material.maskUVOffset.y,
+        material.maskUVOffset.x,
+        material.maskUVOffset.y,
         0.f,
         0.f
     );
@@ -1096,28 +1100,28 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         0.f
     );
     const Vec4 effectTrailUVModeParams = Vec4(
-        static_cast<float>(static_cast<uint32>(_desc.material.mainUVTilingMode)),
-        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVTilingMode)),
-        static_cast<float>(static_cast<uint32>(_desc.material.maskUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
     const Vec4 effectTrailUVAxisPolicyParams = Vec4(
-        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.vPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVPolicy.vPolicy))
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.vPolicy))
     );
     const Vec4 effectTrailMaskUVAxisPolicyParams = Vec4(
-        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.uPolicy)),
-        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy)),
         0.f,
         0.f
     );
     const Vec4 effectTrailSourceParams = Vec4(
-        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(_desc.material.noiseSource)),
-        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
-        _desc.material.noiseInvert ? 1.f : 0.f,
-        _desc.material.maskInvert ? 1.f : 0.f
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.noiseInvert ? 1.f : 0.f,
+        material.maskInvert ? 1.f : 0.f
     );
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
@@ -1136,9 +1140,8 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     );
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailSourceParams", &effectTrailSourceParams, sizeof(effectTrailSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
-    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     CHECK_FAILED(
-        EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase),
+        EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
         E_FAIL
     );
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
@@ -1175,7 +1178,9 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 
 HRESULT ComputeTrailEmitter::Bind_DistortionResources()
 {
-    const auto& material = _desc.material;
+    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Resolve_EmitterTimeMaterialUniformParameterModulation(_desc.material, emitterPhase);
 
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);

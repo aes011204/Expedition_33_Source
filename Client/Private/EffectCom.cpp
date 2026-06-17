@@ -406,7 +406,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     }
 
     Vec3 spawnWorldPosition{};
-    Vec3 spawnWorldRotation{};
+    Quat spawnWorldRotation{ Quat::Identity };
     Vec3 spawnWorldScale{};
     if (!Try_ResolveEffectWorldTransform(
         desc.target,
@@ -441,6 +441,12 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     acquireDesc.worldRotation = spawnWorldRotation;
     acquireDesc.scale = spawnWorldScale;
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
+    const bool shouldTrackAttached =
+        outHandle != nullptr ||
+        desc.followTarget ||
+        desc.requiresManualRelease ||
+        !desc.trailSampleProvider.expired();
+    acquireDesc.autoReleaseOnFinished = !shouldTrackAttached;
 
     EffectInstancePool::AttachedHandle handle{};
     const HRESULT acquireResult = effectPool->Acquire(acquireDesc, handle);
@@ -461,6 +467,9 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     if (desc.requiresManualRelease)
         handle.requiresManualRelease = true;
 
+    if (!shouldTrackAttached)
+        return S_OK;
+
     AttachedEffect attached{};
     attached.poolHandle = handle;
     attached.effectName = desc.effectName;
@@ -479,12 +488,6 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
 
     if (outHandle != nullptr)
         *outHandle = handle;
-
-    //if (attached.poolHandle.effectObject && attached.poolHandle.effectObject->Get_Transform())
-    //{
-    //    const Vec3 pos = attached.poolHandle.effectObject->Get_Transform()->Get_WorldPosition();
-    //    LOG_WARN("Attached effect spawned at: {}, {}, {}", pos.x, pos.y, pos.z);
-    //}
 
     return S_OK;
 }
@@ -550,7 +553,7 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     const Vec3& scale,
     const EffectTransformInheritance& transformInheritance,
     Vec3& outWorldPosition,
-    Vec3& outWorldRotation,
+    Quat& outWorldRotation,
     Vec3& outWorldScale) const
 {
     Matrix baseWorldMatrix = Matrix::Identity;
@@ -632,14 +635,12 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     if (!finalWorldMatrix.Decompose(decomposedScale, decomposedRotation, decomposedTranslation))
         return false;
 
-    const Vec3 eulerRad = decomposedRotation.ToEuler();
-
     outWorldPosition = decomposedTranslation;
-    outWorldRotation = Vec3(
-        XMConvertToDegrees(eulerRad.x),
-        XMConvertToDegrees(eulerRad.y),
-        XMConvertToDegrees(eulerRad.z)
-    );
+    outWorldRotation = decomposedRotation;
+    if (outWorldRotation.LengthSquared() <= 0.000001f)
+        outWorldRotation = Quat::Identity;
+    else
+        outWorldRotation.Normalize();
     outWorldScale = scale;
     if (transformInheritance.inheritScale)
     {
@@ -775,9 +776,11 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
 
     EffectInstancePool::AcquireDesc acquireDesc{};
     acquireDesc.effectName = resolvedEffectName;
+    acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.baseWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
+    acquireDesc.autoReleaseOnFinished = false;
 
     attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
 
@@ -958,9 +961,11 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
 
     EffectInstancePool::AcquireDesc acquireDesc{};
     acquireDesc.effectName = resolvedEffectName;
+    acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.worldPosition;
     acquireDesc.sourcePointSampleProvider = attached.sourcePointSampleProvider;
+    acquireDesc.autoReleaseOnFinished = false;
 
     attached.sourceHistoryDrainDuration =
         Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
@@ -982,17 +987,6 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     }
 
     _attachedEffects.push_back(attached);
-
-    LOG_WARN(
-        "[EffectCom] Play_SourceHistoryEffect spawned. effect={}, part={}, layer={}, manualRelease={}, pos=({:.3f},{:.3f},{:.3f})",
-        String::ToString(resolvedEffectName),
-        String::ToString(partTag),
-        String::ToString(layerTag),
-        attached.poolHandle.requiresManualRelease,
-        initialSample.worldPosition.x,
-        initialSample.worldPosition.y,
-        initialSample.worldPosition.z
-    );
 
     return S_OK;
 }
@@ -1111,7 +1105,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
             continue; // AN 단발 이펙트는 시작 위치만 맞추고 더 이상 이동시키지 않는다.
 
         Vec3 targetWorldPosition{};
-        Vec3 targetWorldRotation{};
+        Quat targetWorldRotation{ Quat::Identity };
         Vec3 targetWorldScale{};
         if (!Try_ResolveEffectWorldTransform(
             attached.target,
@@ -1131,7 +1125,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
         CHECK_NULL(effectTransform);
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
-        effectTransform->Set_WorldRotationEuler(targetWorldRotation);
+        effectTransform->Set_WorldRotationQuaternion(targetWorldRotation);
         effectTransform->Set_Scale(targetWorldScale);
     }
 

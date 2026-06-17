@@ -668,7 +668,7 @@ bool ClientInstance::Prewarm_Effect(const wstring& effectName, const wstring& la
     desc.layerLevelIndex = GAME->Current_LevelIndex();
     desc.layerTag = layerTag;
     desc.worldPosition = Vec3::Zero;
-    desc.worldRotation = Vec3::Zero;
+    desc.worldRotation = Quat::Identity;
     desc.scale = Vec3::One;
 
     return SUCCEEDED(_effectInstancePool->Prewarm(desc, count));
@@ -687,7 +687,15 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
         resolvedName += L".effect.json";
 
     Vec3 spawnWorldPosition = desc.worldPosition;
-    Vec3 spawnWorldRotation = desc.localRotation;
+    const Vec3 spawnRotationRad(
+        XMConvertToRadians(desc.localRotation.x),
+        XMConvertToRadians(desc.localRotation.y),
+        XMConvertToRadians(desc.localRotation.z));
+    Quat spawnWorldRotation = Quat::CreateFromYawPitchRoll(
+        spawnRotationRad.y,
+        spawnRotationRad.x,
+        spawnRotationRad.z);
+    spawnWorldRotation.Normalize();
 
     if (desc.spawnBasisTarget)
     {
@@ -716,12 +724,12 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
         if (!tempMat.Decompose(decomposedScale, decomposedRotation, decomposedTranslation))
             return false;
 
-        const Vec3 eulerRad = decomposedRotation.ToEuler();
         spawnWorldPosition = decomposedTranslation;
-        spawnWorldRotation = Vec3(
-            XMConvertToDegrees(eulerRad.x),
-            XMConvertToDegrees(eulerRad.y),
-            XMConvertToDegrees(eulerRad.z));
+        spawnWorldRotation = decomposedRotation;
+        if (spawnWorldRotation.LengthSquared() <= 0.000001f)
+            spawnWorldRotation = Quat::Identity;
+        else
+            spawnWorldRotation.Normalize();
     }
 
     EffectInstancePool::AcquireDesc acquireDesc{};

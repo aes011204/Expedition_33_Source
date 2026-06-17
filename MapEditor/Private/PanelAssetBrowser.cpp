@@ -2,6 +2,23 @@
 #include "PanelAssetBrowser.h"
 #include "SceneContext.h"
 
+namespace
+{
+    bool ContainsInsensitive(const string& value, const string& needle)
+    {
+        if (needle.empty())
+        {
+            return true;
+        }
+
+        string lowerValue = value;
+        string lowerNeedle = needle;
+        transform(lowerValue.begin(), lowerValue.end(), lowerValue.begin(), [](unsigned char c) { return static_cast<char>(tolower(c)); });
+        transform(lowerNeedle.begin(), lowerNeedle.end(), lowerNeedle.begin(), [](unsigned char c) { return static_cast<char>(tolower(c)); });
+        return lowerValue.find(lowerNeedle) != string::npos;
+    }
+}
+
 PanelAssetBrowser::PanelAssetBrowser(SceneContext* ctx)
     : MEWindow{ L"Asset Browser" }, _ctx{ ctx }
 {
@@ -48,6 +65,15 @@ void PanelAssetBrowser::Render()
             ScanCurrentPath();
         }
 
+        char searchBuffer[256] = {};
+        strncpy_s(searchBuffer, _searchText.c_str(), _TRUNCATE);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(220.f);
+        if (ImGui::InputTextWithHint("##AssetBrowserSearch", "Search current folder...", searchBuffer, sizeof(searchBuffer)))
+        {
+            _searchText = searchBuffer;
+        }
+
         ImGui::SameLine();
         ImGui::TextDisabled(" | Map:");
         ImGui::SameLine();
@@ -65,6 +91,11 @@ void PanelAssetBrowser::Render()
 
         for (auto& dir : _dirs)
         {
+            if (!MatchesSearch(dir))
+            {
+                continue;
+            }
+
             string label = "[Dir] " + dir.filename().string();
             ImGui::Selectable(label.c_str());
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
@@ -75,6 +106,11 @@ void PanelAssetBrowser::Render()
 
         for (auto& file : _files)
         {
+            if (!MatchesSearch(file))
+            {
+                continue;
+            }
+
             string filename = file.filename().string();
             string ext = file.extension().string();
 
@@ -122,6 +158,11 @@ void PanelAssetBrowser::Render()
     }
     ImGui::End();
     SetOpen(open);
+}
+
+bool PanelAssetBrowser::MatchesSearch(const fs::path& path) const
+{
+    return ContainsInsensitive(path.filename().string(), _searchText);
 }
 
 void PanelAssetBrowser::ScanCurrentPath()

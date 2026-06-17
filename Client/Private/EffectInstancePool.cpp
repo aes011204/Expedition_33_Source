@@ -84,6 +84,7 @@ HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHan
     entry->layerLevelIndex = desc.layerLevelIndex;
     entry->layerTag = desc.layerTag;
     entry->inUse = true;
+    entry->autoReleaseOnFinished = desc.autoReleaseOnFinished;
 
     CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, entry->instance), E_FAIL);
     Populate_Handle(desc, definition, entry->instance, handle);
@@ -136,6 +137,8 @@ void EffectInstancePool::Release_Finished()
     for (PooledInstance& entry : _entries)
     {
         if (!entry.inUse || nullptr == entry.instance)
+            continue;
+        if (!entry.autoReleaseOnFinished)
             continue;
 
         if (!entry.instance->Is_Finished())
@@ -268,43 +271,44 @@ HRESULT EffectInstancePool::Acquire_Instance(
     if (PooledInstance* entry = Find_AvailableEntry(desc, outDefinition))
     {
         entry->inUse = true;
+        entry->autoReleaseOnFinished = desc.autoReleaseOnFinished;
         outInstance = entry->instance;
 
-        //uint32 activeCount = 0;
-        //uint32 idleCount = 0;
-        //for (const PooledInstance& pooledEntry : _entries)
-        //{
-        //    if (pooledEntry.inUse)
-        //        ++activeCount;
-        //    else
-        //        ++idleCount;
-        //}
+        uint32 activeCount = 0;
+        uint32 idleCount = 0;
+        for (const PooledInstance& pooledEntry : _entries)
+        {
+            if (pooledEntry.inUse)
+                ++activeCount;
+            else
+                ++idleCount;
+        }
 
         //LOG_INFO(
         //    "[EffectPool] acquire hit. key={}, active={}, idle={}",
         //    String::ToString(desc.effectName),
         //    activeCount,
         //    idleCount);
-        //LOG_WARN(
-        //    "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
-        //    String::ToString(desc.effectName),
-        //    desc.layerLevelIndex,
-        //    String::ToString(desc.layerTag),
-        //    activeCount,
-        //    idleCount,
-        //    static_cast<const void*>(outInstance.get())
-        //);
+        LOG_DEBUG(
+            "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
+            String::ToString(desc.effectName),
+            desc.layerLevelIndex,
+            String::ToString(desc.layerTag),
+            activeCount,
+            idleCount,
+            static_cast<const void*>(outInstance.get())
+        );
 
         return S_OK;
     }
 
     //LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
-    //LOG_WARN(
-    //    "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
-    //    String::ToString(desc.effectName),
-    //    desc.layerLevelIndex,
-    //    String::ToString(desc.layerTag)
-    //);
+    LOG_DEBUG(
+        "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
+        String::ToString(desc.effectName),
+        desc.layerLevelIndex,
+        String::ToString(desc.layerTag)
+    );
 
     const HRESULT spawnResult = Spawn_NewInstance(desc, outDefinition, outInstance);
     if (FAILED(spawnResult))
@@ -326,6 +330,7 @@ HRESULT EffectInstancePool::Acquire_Instance(
     newEntry.layerLevelIndex = desc.layerLevelIndex;
     newEntry.layerTag = desc.layerTag;
     newEntry.inUse = true;
+    newEntry.autoReleaseOnFinished = desc.autoReleaseOnFinished;
     _entries.push_back(newEntry);
 
     //LOG_INFO(
@@ -333,14 +338,14 @@ HRESULT EffectInstancePool::Acquire_Instance(
     //    String::ToString(desc.effectName),
     //    String::ToString(desc.layerTag),
     //    _entries.size());
-    //LOG_WARN(
-    //    "[EffectPool] spawned new instance: effect={}, level={}, layer={}, entries={}, object={}",
-    //    String::ToString(desc.effectName),
-    //    desc.layerLevelIndex,
-    //    String::ToString(desc.layerTag),
-    //    _entries.size(),
-    //    static_cast<const void*>(outInstance.get())
-    //);
+    LOG_DEBUG(
+        "[EffectPool] spawned new instance: effect={}, level={}, layer={}, entries={}, object={}",
+        String::ToString(desc.effectName),
+        desc.layerLevelIndex,
+        String::ToString(desc.layerTag),
+        _entries.size(),
+        static_cast<const void*>(outInstance.get())
+    );
 
     return S_OK;
 }
@@ -354,9 +359,6 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
     instanceDesc.definition = definition;
     instanceDesc.position = desc.worldPosition;
     instanceDesc.scale = desc.scale;
-    instanceDesc.pitch = desc.worldRotation.x;
-    instanceDesc.yaw = desc.worldRotation.y;
-    instanceDesc.roll = desc.worldRotation.z;
 
     Shared<GameObject> spawnedObject{};
     const HRESULT addResult = GAME->Add_GameObject(
@@ -406,7 +408,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     const Shared<TransformCom> transform = instance->Get_Transform();
     CHECK_NULL(transform, E_FAIL);
     transform->Set_WorldPosition(desc.worldPosition);
-    transform->Set_WorldRotationEuler(desc.worldRotation);
+    transform->Set_WorldRotationQuaternion(desc.worldRotation);
     transform->Set_Scale(desc.scale);
 
     CHECK_FAILED(instance->Reset(), E_FAIL);

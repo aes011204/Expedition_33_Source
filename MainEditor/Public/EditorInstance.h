@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Editor_Defines.h"
-#include "PlayerStatCom.h"
 
 NS_BEGIN(Engine)
 class RenderTarget;
@@ -116,6 +115,7 @@ public: /* For.Editor World */
     HRESULT Save_CurrentLevelSnapShot(const fs::path& path) const;
     HRESULT Load_CurrentLevelSnapShot(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
+    void    Capture_PlayStartMonsterSnapshots();
 
 public: /* For.Inspector */
     Shared<Component_Inspector> Find_Inspector(const string& key) const;
@@ -206,13 +206,6 @@ private: /* 저장 */
         Weak<GameObject> originalObject = {};
     };
 
-    struct EditorHeroStatSnapshot
-    {
-        HeroId heroId = HeroId::END;
-        Client::PlayerStatCom::BattleSyncSnapshot statSnapshot = {};
-        EAliveStatus aliveStatus = EAliveStatus::Alive;
-    };
-
     struct PendingPickRequest
     {
         bool pending = false;
@@ -222,10 +215,8 @@ private: /* 저장 */
     };
     PendingPickRequest _pendingPick = {};
 
-    void Capture_PlayStartMonsterSnapshots();
     void Restore_PlayStartMonsterSnapshots();
-    void Capture_PlayStartHeroStatSnapshots();
-    void Restore_PlayStartHeroStatSnapshots();
+    void Refresh_PlayStartMonsterSnapshotsForPrefab(const string& prefabName, const json& prefabRoot);
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
@@ -280,8 +271,6 @@ private: /* Runtime Data */
 
     vector<EditorWorldObjectSnapshot> _playStartMonsterSnapshots = {};
     bool _hasPlayStartMonsterSnapshots = false;
-    vector<EditorHeroStatSnapshot> _playStartHeroStatSnapshots = {};
-    bool _hasPlayStartHeroStatSnapshots = false;
     CameraPoseSnapshot _playStartCameraPose = {};
     Weak<Camera> _cameraBeforeFreeCamera = {};
 

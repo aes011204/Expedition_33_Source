@@ -53,6 +53,7 @@ private:
     void Reset_PreviewPose();
     Shared<ModelCom> Get_BodyModel() const;
     void Ensure_AnimationMode(PreviewAnimationMode mode);
+    void Apply_AnimationSpeed(const Shared<ModelCom>& bodyModel) const;
     bool Has_Animation(const Shared<ModelCom>& model, const char* animationName) const;
 
 public:

@@ -3,6 +3,7 @@
 #include "Mon_PotatoBag_Weapon.h"
 #include "Mon_PotatoBag_Shield.h"
 #include "Mon_WeakPoint.h"
+#include "MonsterStatCom.h"
 
 IMPLEMENT_REFLECTION(MB_PotatoBag)
 {
@@ -35,6 +36,15 @@ HRESULT MB_PotatoBag::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+
+
+    _combatStat->Set_Skill("PotatoBag_AttShield");
+    _combatStat->Set_Skill("PotatoBag_AttWeapon");
+    _combatStat->Set_Skill("PotatoBag_AttAoE");
+    _combatStat->Set_Skill("PotatoBag_AttShieldGun");
+    _combatStat->Set_Skill("PotatoBag_Lighting");
+
+	Get_Transform()->Set_SpeedPerSec(4.f);
 
     return S_OK;
 }
