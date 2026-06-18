@@ -1,6 +1,6 @@
 ﻿#include "UIPreviewManager.h"
 #include "PreviewCamera.h"
-#include "Player_WorldBase.h"
+#include "PreviewPlayer.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Camera.h"
@@ -11,16 +11,15 @@ static const char* Get_HeroPrefabName(HeroId heroId)
     switch (heroId)
     {
     case HeroId::Gustave:
-        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
+        return Constants::Prefab::PP_Gustave;
     case HeroId::Lune:
-        return Constants::Prefab::PW_Lune; // UI 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
+        return Constants::Prefab::PP_Lune;
     case HeroId::Maelle:
-        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
+        return Constants::Prefab::PP_Maelle;
     default:
         return "";
     }
 }
-
 
 UIPreviewManager::UIPreviewManager()
 {
@@ -33,28 +32,25 @@ UIPreviewManager::~UIPreviewManager()
 HRESULT UIPreviewManager::Initialize()
 {
     _isActive = false;
+    _pendingPreviewReveal = false;
 
     return S_OK;
 }
 
 void UIPreviewManager::Update(float timeDelta)
 {
-    if(!_isActive)
+    if (!_isActive)
         return;
 
-    if(_previewCamera)
+    if (_previewCamera)
         _previewCamera->Update(timeDelta);
 
-    if(!_previewHeroes.empty())
+    for (PreviewHeroEntry& entry : _previewHeroes)
     {
-        for (PreviewHeroEntry& entry : _previewHeroes)
-        {
-            if (entry.player)
-            {
-                entry.player->Update_StatusPreview(timeDelta);
-                entry.player->Update_GameMenuFacialPreview(timeDelta, _shownHeroId != HeroId::END);
-            }
-        }
+        if (entry.player == nullptr)
+            continue;
+
+        entry.player->Update_Preview(timeDelta, _shownHeroId != HeroId::END);
     }
 }
 
@@ -68,8 +64,6 @@ void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
     if (FAILED(Ensure_PreviewCamera()) || FAILED(Ensure_PreviewCharacters()))
         return;
 
- //   _previousCamera = GAME->Get_ActiveCamera();
-
     for (PreviewHeroEntry& entry : _previewHeroes)
     {
         if (entry.player)
@@ -80,6 +74,7 @@ void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
     CLIENT->Request_Preview();
 
     _isActive = true;
+    _pendingPreviewReveal = false;
 }
 
 void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotPanel panel)
@@ -101,10 +96,11 @@ void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotPanel panel)
     if (entry.player == nullptr || entry.player->Get_Transform() == nullptr)
         return;
 
+    entry.player->Sync_FromRuntimeData();
+
     const auto preset = CLIENT->Get_Preset(heroId, panel);
     _previewCamera->Set_Preset(preset);
     _previewCamera->Set_TargetTransform(entry.player->Get_Transform());
-
 }
 
 void UIPreviewManager::Hide_Preview()
@@ -114,8 +110,11 @@ void UIPreviewManager::Hide_Preview()
 
     for (PreviewHeroEntry& entry : _previewHeroes)
     {
-        if (entry.player)
-            entry.player->Update_GameMenuFacialPreview(0.f, false);
+        if (entry.player == nullptr)
+            continue;
+
+        entry.player->Update_GameMenuFacialPreview(0.f, false);
+        entry.player->Set_Visible(false); // PreviewPlayer는 월드 입력/이동 컴포넌트가 없어서 숨겨서 재사용해도 안전하다.
     }
 
     CLIENT->Restore_PreviousCamera();
@@ -123,9 +122,8 @@ void UIPreviewManager::Hide_Preview()
     if (_previewCamera)
         _previewCamera->Set_TargetTransform(nullptr);
 
-    Clear_StatusPreviewHeroes();
-
     _isActive = false;
+    _pendingPreviewReveal = false;
     _shownHeroId = HeroId::END;
 }
 
@@ -147,6 +145,51 @@ void UIPreviewManager::Apply_Layout(const vector<PreviewSlotDesc>& layout)
         entry.player->Get_Transform()->Set_WorldPosition(slot.position);
         entry.player->Get_Transform()->Set_WorldRotationEuler(slot.rotation);
     }
+}
+
+HRESULT UIPreviewManager::Prepare_PreviewResources()
+{
+    CHECK_FAILED(Ensure_PreviewCamera(), E_FAIL);
+    CHECK_FAILED(Ensure_PreviewCharacters(), E_FAIL);
+
+    for (PreviewHeroEntry& entry : _previewHeroes)
+    {
+        if (entry.player == nullptr)
+            continue;
+
+        CHECK_FAILED(entry.player->Sync_FromRuntimeData(), E_FAIL);
+        CHECK_FAILED(entry.player->Prewarm_CostumeVariants(), E_FAIL);
+        entry.player->Set_Visible(false);
+    }
+
+    _pendingPreviewReveal = true;
+    return S_OK;
+}
+
+void UIPreviewManager::Sync_PreviewHeroRuntimeData(HeroId heroId)
+{
+    const int32 heroIndex = static_cast<int32>(heroId);
+    if (heroIndex < 0 || heroIndex >= static_cast<int32>(_previewHeroes.size()))
+        return;
+
+    PreviewHeroEntry& entry = _previewHeroes[heroIndex];
+    if (entry.player == nullptr)
+        return;
+
+    entry.player->Sync_FromRuntimeData();
+}
+
+void UIPreviewManager::Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim)
+{
+    const int32 heroIndex = static_cast<int32>(heroId);
+    if (heroIndex < 0 || heroIndex >= static_cast<int32>(_previewHeroes.size()))
+        return;
+
+    PreviewHeroEntry& entry = _previewHeroes[heroIndex];
+    if (entry.player == nullptr)
+        return;
+
+    entry.player->Play_PreviewAnimation(introAnim, idleAnim);
 }
 
 HRESULT UIPreviewManager::Ensure_PreviewCamera()
@@ -174,22 +217,11 @@ HRESULT UIPreviewManager::Spawn_PreviewCamera()
     desc.eye = Vec4(0.f, 1.45f, 16.f, 1.f);
     desc.at = Vec4(0.f, 1.05f, 0.f, 1.f);
     desc.fovy = XMConvertToRadians(30.f);
-   desc.nearPlane = 0.1f;
-   desc.farPlane = 100.f;
-   desc.lookOffset = Vec3(0.f, 2.f, 0.f);
-   desc.distance = 5.f;
-   desc.followSpeed = 3.f;
-   
-   // desc.eye = Vec4(0.f, 1.9f, 10.f, 1.f);
-   // desc.at = Vec4(0.f, 1.3f, 0.f, 1.f);
-   // desc.fovy = XMConvertToRadians(20.f);
-   // desc.nearPlane = 0.1f;
-   // desc.farPlane = 100.f;
-   // desc.mouseSensor = 0.f;
-   // desc.mouseSensitivity = 0.f;
-   // desc.distance = 2.8f;
-   // desc.followSpeed = 2.f;
-   // desc.lookOffset = Vec3(0.f, 2.0f, 0.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 100.f;
+    desc.lookOffset = Vec3(0.f, 2.f, 0.f);
+    desc.distance = 5.f;
+    desc.followSpeed = 3.f;
 
     Shared<GameObject> cameraObject = nullptr;
 
@@ -220,43 +252,38 @@ HRESULT UIPreviewManager::Spawn_PreviewCharacter()
     _previewHeroes.clear();
     _previewHeroes.resize(static_cast<size_t>(HeroId::END));
 
-    const uint32 count = min<uint32>(static_cast<uint32>(HeroId::END), static_cast<uint32>(partyEntries.size()));
+    const uint32 count = min<uint32>(
+        static_cast<uint32>(HeroId::END),
+        static_cast<uint32>(partyEntries.size()));
 
     for (uint32 i = 0; i < count; ++i)
     {
-        const HeroPartyEntry& entry = partyEntries[i];
+        const HeroPartyEntry& partyEntry = partyEntries[i];
+        const char* prefabName = Get_HeroPrefabName(partyEntry.heroId);
 
-        string prefabName = entry.hero ? entry.hero->Get_SourcePrefabName() : string{};
-
-        if (prefabName.empty())
-            prefabName = Get_HeroPrefabName(entry.heroId);
+        if (prefabName == nullptr || prefabName[0] == '\0')
+            continue;
 
         auto object = Spawn_Prefab::Prefab(prefabName)
             .AtLevel(ETOI(LevelType::Static))
             .InLayer(_previewLayerTag)
             .Spawn();
 
-        auto previewPlayer = dynamic_pointer_cast<Player_WorldBase>(object);
+        auto previewPlayer = dynamic_pointer_cast<PreviewPlayer>(object);
         CHECK_NULL(previewPlayer, E_FAIL);
 
         previewPlayer->Set_Visible(false);
+        CHECK_FAILED(previewPlayer->Sync_FromRuntimeData(), E_FAIL);
+
         PreviewHeroEntry previewEntry{};
-        previewEntry.heroId = entry.heroId;
+        previewEntry.heroId = partyEntry.heroId;
         previewEntry.player = previewPlayer;
-        _previewHeroes[static_cast<int32>(entry.heroId)] = move(previewEntry);
+
+        _previewHeroes[static_cast<int32>(partyEntry.heroId)] = move(previewEntry);
     }
 
     return S_OK;
 }
-
-//void UIPreviewManager::Restore_PreviousCamera()
-//{
-//    if (_previousCamera == nullptr)
-//        return;
-//
-//    GAME->Change_ActiveCamera(_previousCamera);
-//    _previousCamera.reset();
-//}
 
 void UIPreviewManager::Clear_StatusPreviewHeroes()
 {
@@ -294,6 +321,5 @@ void UIPreviewManager::Free()
         _previewCamera.reset();
     }
 
-  //  _previousCamera.reset();
     Base::Free();
 }

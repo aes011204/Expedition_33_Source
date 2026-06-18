@@ -43,6 +43,8 @@ protected:
 
     PartObject* Find_PartObject(const wstring& partTag);
 
+    virtual bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const { return true; }
+
     bool Remove_PartObject(const wstring& partTag);
 
 protected:

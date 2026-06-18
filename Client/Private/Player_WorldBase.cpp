@@ -252,13 +252,320 @@ void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noi
 HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
 {
     if (preset.parts.bodyModelTag.empty() ||
-        preset.parts.headModelTag.empty() ||
-        preset.parts.hairModelTag.empty())
+        preset.parts.headModelTag.empty())
+        //|| preset.parts.hairModelTag.empty()) 대머리 때문에 일단 이거 제외해보기
     {
         return E_FAIL;
     }
 
-    return Rebuild_CostumeParts(preset);
+    Capture_DefaultCostumePartTransformsIfNeeded();
+
+    CHECK_FAILED(Ensure_CostumeVariantBuilt(preset), E_FAIL);
+    CHECK_FAILED(Activate_CostumeVariant(preset), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Player_WorldBase::Prewarm_CostumeVariants()
+{
+    // Ready_PartObjects 이후에도 옷장/preview 준비 경로에서 명시적으로 다시 부를 수 있게 둔다.
+    return Warmup_CostumeVariants();
+}
+
+HRESULT Player_WorldBase::Warmup_CostumeVariants()
+{
+    CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
+    if (costumeManager == nullptr)
+        return S_OK;
+
+    const vector<CostumePreset>* presets = costumeManager->Get_Costumes(Get_HeroId());
+    if (presets == nullptr)
+        return S_OK;
+
+    for (const CostumePreset& preset : *presets)
+    {
+        if (FAILED(Ensure_CostumeVariantBuilt(preset)))
+        {
+            LOG_WARN(
+                "Player_WorldBase: skip costume prewarm. hero={}, preset={}",
+                static_cast<int32>(Get_HeroId()),
+                preset.presetId);
+            continue; // 선택 전 선로딩 실패는 world hero 초기화까지 막지 않는다.
+        }
+
+        const auto iter = _costumeVariantsByPreset.find(preset.presetId);
+        if (iter != _costumeVariantsByPreset.end())
+        {
+            if (FAILED(Warmup_CostumeVariantParts(iter->second)))
+            {
+                LOG_WARN(
+                    "Player_WorldBase: skip costume part warmup. hero={}, preset={}",
+                    static_cast<int32>(Get_HeroId()),
+                    preset.presetId);
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT Player_WorldBase::Ensure_CostumeVariantBuilt(const CostumePreset& preset)
+{
+    if (_costumeVariantsByPreset.contains(preset.presetId))
+        return S_OK;
+
+    CostumeVariantParts variant{};
+    variant.body = Create_CostumeBodyVariant(preset.parts.bodyModelTag);
+    CHECK_NULL(variant.body, E_FAIL);
+
+    variant.head = Create_CostumeHeadVariant(preset.parts.headModelTag, variant.body.get());
+    CHECK_NULL(variant.head, E_FAIL);
+
+    variant.beard = Create_CostumeFaceAccessoryVariant(preset.parts.beardModelTag, variant.head.get());
+    variant.mustache = Create_CostumeFaceAccessoryVariant(preset.parts.mustacheModelTag, variant.head.get());
+
+    variant.hair = Create_CostumeHairVariant(preset.parts.hairModelTag, variant.head.get());
+    if (!preset.parts.hairModelTag.empty())
+        CHECK_NULL(variant.hair, E_FAIL);
+
+    variant.glasses = Create_CostumeFaceAccessoryVariant(preset.parts.glassesModelTag, variant.head.get());
+    variant.baseTransforms = Capture_CostumeVariantPartTransforms(variant); // 각 모델이 clone 직후 가진 자기 로컬 기준을 저장
+    variant.presetTransforms = Build_CostumePresetTransforms(preset, variant.baseTransforms); // preset override는 그 모델 고유 기준 위에만 덮는다.
+
+    const auto ApplyDirectTransform = [&variant](const wstring& partTag, PartObject* partObject)
+    {
+        if (partObject == nullptr || partObject->Get_Transform() == nullptr)
+            return;
+
+        const auto iter = variant.presetTransforms.find(partTag);
+        if (iter == variant.presetTransforms.end())
+            return;
+
+        partObject->Get_Transform()->Set_Position(iter->second.position);
+        partObject->Get_Transform()->Set_RotationEuler(iter->second.rotation);
+        partObject->Get_Transform()->Set_Scale(iter->second.scale);
+    };
+
+    ApplyDirectTransform(TEXT("Part_Body"), variant.body.get());
+    ApplyDirectTransform(TEXT("Part_Head"), variant.head.get());
+    ApplyDirectTransform(TEXT("Part_Beard"), variant.beard.get());
+    ApplyDirectTransform(TEXT("Part_Mustache"), variant.mustache.get());
+    ApplyDirectTransform(TEXT("Part_Hair"), variant.hair.get());
+    ApplyDirectTransform(TEXT("Part_Glasses"), variant.glasses.get());
+
+    if (variant.body)
+        variant.body->Set_Visible(false);
+    if (variant.head)
+        variant.head->Set_Visible(false);
+    if (variant.hair)
+        variant.hair->Set_Visible(false);
+    if (variant.beard)
+        variant.beard->Set_Visible(false);
+    if (variant.mustache)
+        variant.mustache->Set_Visible(false);
+    if (variant.glasses)
+        variant.glasses->Set_Visible(false);
+
+    _costumeVariantsByPreset.emplace(preset.presetId, std::move(variant));
+    return S_OK;
+}
+
+HRESULT Player_WorldBase::Activate_CostumeVariant(const CostumePreset& preset)
+{
+    const auto iter = _costumeVariantsByPreset.find(preset.presetId);
+    if (iter == _costumeVariantsByPreset.end())
+        return E_FAIL;
+
+    for (auto& [cachedPresetId, parts] : _costumeVariantsByPreset)
+    {
+        const bool isTarget = (cachedPresetId == preset.presetId);
+
+        if (parts.body)
+            parts.body->Set_Visible(isTarget);
+        if (parts.head)
+            parts.head->Set_Visible(isTarget);
+        if (parts.hair)
+            parts.hair->Set_Visible(isTarget);
+        if (parts.beard)
+            parts.beard->Set_Visible(isTarget);
+        if (parts.mustache)
+            parts.mustache->Set_Visible(isTarget);
+        if (parts.glasses)
+            parts.glasses->Set_Visible(isTarget);
+    }
+
+    if (_activeCostumePresetId != preset.presetId)
+    {
+        _activeCostumePresetId = preset.presetId;
+        Rebind_ActiveCostumeVariant(_activeCostumePresetId);
+    }
+
+    Apply_CostumePartTransforms(iter->second.presetTransforms); // preset별 최종 오프셋을 매번 다시 얹어야 preview 재오픈 후에도 안 깨진다.
+    Reapply_CostumeBaseMaterials();
+
+    if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body"))))
+    {
+        if (Shared<ModelCom> model = body->Get_Model())
+            model->Refresh_AnimStateMappingFromOwnerContext();
+    }
+
+    if (_playerStateMachineCom)
+    {
+        _playerStateMachineCom->Refresh_BodyPlayerForStates();
+        _playerStateMachineCom->Reenter_CurrentState();
+    }
+
+    return S_OK;
+}
+
+void Player_WorldBase::Rebind_ActiveCostumeVariant(const string& presetId)
+{
+    const auto iter = _costumeVariantsByPreset.find(presetId);
+    if (iter == _costumeVariantsByPreset.end())
+        return;
+
+    const CostumeVariantParts& parts = iter->second;
+
+    _partObjects.clear();
+    _partObjectUpdateOrder.clear();
+
+    const auto RebindOne = [this](const wstring& partTag, const Shared<PartObject>& partObject)
+    {
+        if (partObject == nullptr)
+            return;
+
+        partObject->Set_Owner(GetSharedPtr<GameObject>());
+        _partObjects.emplace(partTag, partObject);
+        _partObjectUpdateOrder.push_back(partObject);
+
+        if (_hasBegunPlay)
+            CHECK_FAILED(partObject->Try_BeginPlay());
+    };
+
+    RebindOne(TEXT("Part_Body"), static_pointer_cast<PartObject>(parts.body));
+    RebindOne(TEXT("Part_Head"), static_pointer_cast<PartObject>(parts.head));
+    RebindOne(TEXT("Part_Beard"), static_pointer_cast<PartObject>(parts.beard));
+    RebindOne(TEXT("Part_Mustache"), static_pointer_cast<PartObject>(parts.mustache));
+    RebindOne(TEXT("Part_Hair"), static_pointer_cast<PartObject>(parts.hair));
+    RebindOne(TEXT("Part_Glasses"), static_pointer_cast<PartObject>(parts.glasses));
+}
+
+HRESULT Player_WorldBase::Warmup_CostumeVariantParts(CostumeVariantParts& parts)
+{
+    if (!_hasBegunPlay)
+        return S_OK;
+
+    const auto WarmupOne = [](const Shared<PartObject>& partObject) -> HRESULT
+    {
+        if (partObject == nullptr)
+            return S_OK;
+
+        CHECK_FAILED(partObject->Try_BeginPlay(), E_FAIL);
+        return S_OK;
+    };
+
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.body)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.head)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.beard)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.mustache)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.hair)), E_FAIL);
+    CHECK_FAILED(WarmupOne(static_pointer_cast<PartObject>(parts.glasses)), E_FAIL);
+
+    return S_OK;
+}
+
+void Player_WorldBase::Capture_DefaultCostumePartTransformsIfNeeded()
+{
+    if (_defaultCostumePartTransforms.empty())
+        _defaultCostumePartTransforms = Capture_CostumePartTransforms();
+}
+
+void Player_WorldBase::Clear_AllCostumeVariants()
+{
+    for (auto& [presetId, parts] : _costumeVariantsByPreset)
+    {
+        if (parts.glasses)
+            parts.glasses->Free();
+        if (parts.hair)
+            parts.hair->Free();
+        if (parts.mustache)
+            parts.mustache->Free();
+        if (parts.beard)
+            parts.beard->Free();
+        if (parts.head)
+            parts.head->Free();
+        if (parts.body)
+            parts.body->Free();
+    }
+
+    _costumeVariantsByPreset.clear();
+    _activeCostumePresetId.clear();
+    _partObjects.clear();
+    _partObjectUpdateOrder.clear();
+}
+
+Player_WorldBase::CostumePartTransformMap Player_WorldBase::Capture_CostumeVariantPartTransforms(const CostumeVariantParts& parts) const
+{
+    CostumePartTransformMap transforms{};
+
+    const auto CaptureOne = [&transforms](const wstring& partTag, PartObject* partObject)
+    {
+        if (partObject == nullptr || partObject->Get_Transform() == nullptr)
+            return;
+
+        CostumePartTransform transform{};
+        transform.position = partObject->Get_Transform()->Get_Position();
+        transform.rotation = partObject->Get_Transform()->Get_RotationEuler();
+        transform.scale = partObject->Get_Transform()->Get_Scale();
+        transforms.emplace(partTag, transform);
+    };
+
+    CaptureOne(TEXT("Part_Body"), parts.body.get());
+    CaptureOne(TEXT("Part_Head"), parts.head.get());
+    CaptureOne(TEXT("Part_Beard"), parts.beard.get());
+    CaptureOne(TEXT("Part_Mustache"), parts.mustache.get());
+    CaptureOne(TEXT("Part_Hair"), parts.hair.get());
+    CaptureOne(TEXT("Part_Glasses"), parts.glasses.get());
+
+    return transforms;
+}
+
+Player_WorldBase::CostumePartTransformMap Player_WorldBase::Build_CostumePresetTransforms(
+    const CostumePreset& preset,
+    const CostumePartTransformMap& baseTransforms) const
+{
+    CostumePartTransformMap transforms = baseTransforms;
+
+    const auto ApplyOverride = [&transforms](const wstring& partTag, const CostumePartLocalTransform& fallbackTransform)
+    {
+        if (!fallbackTransform.enabled)
+            return;
+
+        CostumePartTransform transform{};
+        transform.position = fallbackTransform.position;
+        transform.rotation = fallbackTransform.rotation;
+        transform.scale = fallbackTransform.scale;
+        transforms[partTag] = transform;
+    };
+
+    ApplyOverride(TEXT("Part_Body"), preset.parts.bodyTransform);
+    ApplyOverride(TEXT("Part_Head"), preset.parts.headTransform);
+    ApplyOverride(TEXT("Part_Beard"), preset.parts.beardTransform);
+    ApplyOverride(TEXT("Part_Mustache"), preset.parts.mustacheTransform);
+    ApplyOverride(TEXT("Part_Hair"), preset.parts.hairTransform);
+    ApplyOverride(TEXT("Part_Glasses"), preset.parts.glassesTransform);
+
+    return transforms;
+}
+
+void Player_WorldBase::Apply_CostumePartTransforms(const CostumePartTransformMap& partTransforms)
+{
+    Apply_CostumePartTransform(TEXT("Part_Body"), partTransforms);
+    Apply_CostumePartTransform(TEXT("Part_Head"), partTransforms);
+    Apply_CostumePartTransform(TEXT("Part_Beard"), partTransforms);
+    Apply_CostumePartTransform(TEXT("Part_Mustache"), partTransforms);
+    Apply_CostumePartTransform(TEXT("Part_Hair"), partTransforms);
+    Apply_CostumePartTransform(TEXT("Part_Glasses"), partTransforms);
 }
 
 HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
@@ -417,6 +724,104 @@ void Player_WorldBase::Reapply_CostumeBaseMaterials()
     Reapply_CostumePartBaseMaterial(TEXT("Part_Mustache"));
     Reapply_CostumePartBaseMaterial(TEXT("Part_Hair"));
     Reapply_CostumePartBaseMaterial(TEXT("Part_Glasses"));
+}
+
+Shared<Body_Player> Player_WorldBase::Create_CostumeBodyVariant(const wstring& modelTag)
+{
+    if (modelTag.empty())
+        return nullptr;
+
+    Body_Player::BODY_PLAYER_DESC bodyDesc{};
+    bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    bodyDesc.modelType = ModelType::Anim;
+    bodyDesc.modelTag = modelTag;
+
+    Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
+        GAME->Clone_Prototype(Prototype::GameObject, ETOI(LevelType::Static), TEXT("GameObject_Body_Player"), &bodyDesc));
+    Shared<Body_Player> body = dynamic_pointer_cast<Body_Player>(clonedPart);
+    if (body == nullptr)
+        return nullptr;
+
+    body->Set_Owner(GetSharedPtr<GameObject>());
+
+    if (Shared<ModelCom> model = body->Get_Model())
+    {
+        model->Refresh_AnimStateMappingFromOwnerContext();
+        model->Apply_BaseMaterialFromBundle_AllSlots();
+        (void)model->Normalize_OwnerComponentTagAndBindings();
+    }
+
+    return body;
+}
+
+Shared<Head_Player> Player_WorldBase::Create_CostumeHeadVariant(const wstring& modelTag, const Body_Player* body)
+{
+    if (modelTag.empty() || body == nullptr)
+        return nullptr;
+
+    Head_Player::HEAD_PLAYER_DESC headDesc{};
+    headDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    headDesc.modelType = ModelType::Anim;
+    headDesc.modelTag = modelTag;
+    headDesc.socketMatrixPointer = nullptr;
+
+    Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
+        GAME->Clone_Prototype(Prototype::GameObject, ETOI(LevelType::Static), TEXT("GameObject_Head_Player"), &headDesc));
+    Shared<Head_Player> head = dynamic_pointer_cast<Head_Player>(clonedPart);
+    if (head == nullptr)
+        return nullptr;
+
+    head->Set_Owner(GetSharedPtr<GameObject>());
+    head->Set_LeaderPoseComponent(body);
+    return head;
+}
+
+Shared<Hair_Player> Player_WorldBase::Create_CostumeHairVariant(const wstring& modelTag, const Head_Player* head)
+{
+    if (modelTag.empty())
+        return nullptr;
+
+    CHECK_NULL(head, nullptr);
+
+    Hair_Player::HAIR_PLAYER_DESC hairDesc{};
+    hairDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    hairDesc.modelType = ModelType::Anim;
+    hairDesc.modelTag = modelTag;
+    hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+    Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
+        GAME->Clone_Prototype(Prototype::GameObject, ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), &hairDesc));
+    Shared<Hair_Player> hair = dynamic_pointer_cast<Hair_Player>(clonedPart);
+    if (hair == nullptr)
+        return nullptr;
+
+    hair->Set_Owner(GetSharedPtr<GameObject>());
+    return hair;
+}
+
+Shared<FaceAccessory_Player> Player_WorldBase::Create_CostumeFaceAccessoryVariant(const wstring& modelTag,
+    const Head_Player* head)
+{
+    if (modelTag.empty())
+        return nullptr;
+
+    CHECK_NULL(head, nullptr);
+
+    FaceAccessory_Player::FACE_ACCESSORY_DESC accessoryDesc{};
+    accessoryDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    accessoryDesc.modelType = ModelType::NonAnim;
+    accessoryDesc.modelTag = modelTag.c_str();
+    accessoryDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+    Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
+        GAME->Clone_Prototype(Prototype::GameObject, ETOI(LevelType::Static), TEXT("GameObject_FaceAccessory_Player"), &accessoryDesc));
+    Shared<FaceAccessory_Player> accessory = dynamic_pointer_cast<FaceAccessory_Player>(clonedPart);
+    if (accessory == nullptr)
+        return nullptr;
+
+    accessory->Set_Owner(GetSharedPtr<GameObject>());
+    return accessory;
 }
 
 Body_Player* Player_WorldBase::Add_CostumeBody(const wstring& modelTag)
@@ -647,6 +1052,38 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     ))
         return E_FAIL;
 
+    Capture_DefaultCostumePartTransformsIfNeeded();
+
+    CostumeVariantParts defaultParts{};
+    defaultParts.body = dynamic_pointer_cast<Body_Player>(_partObjects[TEXT("Part_Body")]);
+    defaultParts.head = dynamic_pointer_cast<Head_Player>(_partObjects[TEXT("Part_Head")]);
+    if (const auto beardIter = _partObjects.find(TEXT("Part_Beard")); beardIter != _partObjects.end())
+        defaultParts.beard = dynamic_pointer_cast<FaceAccessory_Player>(beardIter->second);
+    if (const auto mustacheIter = _partObjects.find(TEXT("Part_Mustache")); mustacheIter != _partObjects.end())
+        defaultParts.mustache = dynamic_pointer_cast<FaceAccessory_Player>(mustacheIter->second);
+    defaultParts.hair = dynamic_pointer_cast<Hair_Player>(_partObjects[TEXT("Part_Hair")]);
+    if (const auto glassesIter = _partObjects.find(TEXT("Part_Glasses")); glassesIter != _partObjects.end())
+        defaultParts.glasses = dynamic_pointer_cast<FaceAccessory_Player>(glassesIter->second);
+    defaultParts.baseTransforms = _defaultCostumePartTransforms;
+    defaultParts.presetTransforms = _defaultCostumePartTransforms;
+
+    if (CostumeManager* costumeManager = CLIENT->Get_CostumeManager())
+    {
+        if (const CostumePreset* defaultPreset = costumeManager->Get_Costume(Get_HeroId(), "Default"))
+            defaultParts.presetTransforms = Build_CostumePresetTransforms(*defaultPreset, defaultParts.baseTransforms);
+    }
+
+    _costumeVariantsByPreset["Default"] = defaultParts;
+    _activeCostumePresetId = "Default";
+
+    if (CostumeManager* costumeManager = CLIENT->Get_CostumeManager())
+    {
+        if (const CostumePreset* currentPreset = costumeManager->Get_CurrentCostume(Get_HeroId()))
+            CHECK_FAILED(Apply_CostumePreset(*currentPreset), E_FAIL);
+    }
+
+    CHECK_FAILED(Warmup_CostumeVariants(), E_FAIL);
+
     return S_OK;
 }
 
@@ -676,5 +1113,6 @@ Shared<GameObject> Player_WorldBase::Clone(void* arg)
 
 void Player_WorldBase::Free()
 {
+    Clear_AllCostumeVariants();
     __super::Free();
 }

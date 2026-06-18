@@ -1622,27 +1622,33 @@ void SceneContext::LoadTerrainConfig(const string& filePath)
 
 bool SceneContext::SampleTerrainY(float worldX, float worldZ, float& outY) const
 {
-    if (_activeLandscapeIdx < 0 || _activeLandscapeIdx >= static_cast<int32>(_landscapes.size()))
+    for (auto& actor : _landscapes)
     {
-        return false;
+        auto vb = actor->Get_VIBuffer();
+        if (!vb)
+        {
+            continue;
+        }
+
+        Vec3 pos = actor->Get_Transform()->Get_Position();
+        Vec3 scale = actor->Get_Transform()->Get_Scale();
+
+        float localX = (worldX - pos.x) / scale.x;
+        float localZ = (worldZ - pos.z) / scale.z;
+
+        float totalSizeX = vb->Get_SizeX() * static_cast<float>(vb->Get_CountX());
+        float totalSizeZ = vb->Get_SizeZ() * static_cast<float>(vb->Get_CountZ());
+
+        if (localX < 0.f || localX > totalSizeX || localZ < 0.f || localZ > totalSizeZ)
+        {
+            continue;
+        }
+
+        outY = vb->Sample_Height(localX, localZ) * scale.y + pos.y;
+        return true;
     }
 
-    auto& actor = _landscapes[_activeLandscapeIdx];
-    auto vb = actor->Get_VIBuffer();
-    if (!vb)
-    {
-        return false;
-    }
-
-    Vec3 landscapePos = actor->Get_Transform()->Get_Position();
-    Vec3 landscapeScale = actor->Get_Transform()->Get_Scale();
-
-    outY = vb->Sample_Height(
-        (worldX - landscapePos.x) / landscapeScale.x,
-        (worldZ - landscapePos.z) / landscapeScale.z)
-        * landscapeScale.y + landscapePos.y;
-
-    return true;
+    return false;
 }
 
 void SceneContext::ScatterAt(EditorObject* obj, const ScatterZone& zone)
@@ -1730,6 +1736,160 @@ void SceneContext::EraseAt(EditorObject* obj, float radius, const Vec3& center)
 
     obj->_instancedParamsDirty = true;
     _dirtyRenderHandles = true;
+}
+
+void SceneContext::ScatterAtBox(EditorObject* obj, const ScatterBoxZone& box)
+{
+    if (!obj || obj->_type != EObjectType::InstancedMesh)
+    {
+        return;
+    }
+
+    if (_pendingBoxCount > 0 && _pendingBoxTarget == obj)
+    {
+        DeleteBoxScatter(obj);
+    }
+
+    _pendingBox = box;
+    _pendingBoxTarget = obj;
+    _pendingBoxLocalXZ.clear();
+
+    mt19937 rng(static_cast<uint32>(box.seed));
+    int placed = 0;
+    int attempts = 0;
+    const int maxAttempts = box.count * 20;
+
+    while (placed < box.count && attempts < maxAttempts)
+    {
+        ++attempts;
+
+        float localX = Math::RandNum(-box.halfExtentX, box.halfExtentX, rng);
+        float localZ = Math::RandNum(-box.halfExtentZ, box.halfExtentZ, rng);
+
+        if (box.minSpacing > 0.f)
+        {
+            bool tooClose = false;
+            for (auto& off : _pendingBoxLocalXZ)
+            {
+                float dx = off.x - localX;
+                float dz = off.y - localZ;
+                if (sqrtf(dx * dx + dz * dz) < box.minSpacing)
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (tooClose)
+            {
+                continue;
+            }
+        }
+
+        float scale = Math::RandNum(box.scaleMin, box.scaleMax, rng);
+        float yRot = Math::RandNum(0.f, box.yRotMax * (XM_PI / 180.f), rng);
+
+        InstanceTransform t{};
+        t._position = Vec3(box.center.x + localX, box.center.y, box.center.z + localZ);
+        t._scale = Vec3(scale, scale, scale);
+        t._rotation = Vec4(0.f, sinf(yRot * 0.5f), 0.f, cosf(yRot * 0.5f));
+
+        obj->_instancedTransforms.push_back(t);
+        _pendingBoxLocalXZ.push_back(Vec2(localX, localZ));
+        ++placed;
+    }
+
+    _pendingBoxCount = placed;
+    obj->_instancedParamsDirty = true;
+    _dirtyRenderHandles = true;
+}
+
+void SceneContext::SyncBoxScatter(EditorObject* obj)
+{
+    if (!obj || _pendingBoxCount == 0 || _pendingBoxTarget != obj)
+    {
+        return;
+    }
+
+    int base = static_cast<int>(obj->_instancedTransforms.size()) - _pendingBoxCount;
+    if (base < 0)
+    {
+        return;
+    }
+
+    for (int i = 0; i < _pendingBoxCount; ++i)
+    {
+        auto& t = obj->_instancedTransforms[base + i];
+        auto& off = _pendingBoxLocalXZ[i];
+        t._position.x = _pendingBox.center.x + off.x;
+        t._position.y = _pendingBox.center.y;
+        t._position.z = _pendingBox.center.z + off.y;
+    }
+
+    obj->_instancedParamsDirty = true;
+    _dirtyRenderHandles = true;
+}
+
+void SceneContext::ApplyBoxScatter()
+{
+    _pendingBoxCount = 0;
+    _pendingBoxTarget = nullptr;
+    _pendingBoxLocalXZ.clear();
+}
+
+void SceneContext::DeleteBoxScatter(EditorObject* obj)
+{
+    if (!obj || _pendingBoxCount == 0 || _pendingBoxTarget != obj)
+    {
+        return;
+    }
+
+    int base = static_cast<int>(obj->_instancedTransforms.size()) - _pendingBoxCount;
+    if (base >= 0)
+    {
+        obj->_instancedTransforms.erase(
+            obj->_instancedTransforms.begin() + base,
+            obj->_instancedTransforms.end());
+    }
+
+    _pendingBoxCount = 0;
+    _pendingBoxTarget = nullptr;
+    _pendingBoxLocalXZ.clear();
+
+    obj->_instancedParamsDirty = true;
+    _dirtyRenderHandles = true;
+}
+
+void SceneContext::UpdateSingleInstance(EditorObject* obj, int32 instanceIdx)
+{
+    if (!obj || instanceIdx < 0 || instanceIdx >= static_cast<int32>(obj->_instancedTransforms.size()))
+    {
+        return;
+    }
+
+    for (int32 ci = 0; ci < static_cast<int32>(obj->_instancedChunkGlobalIndices.size()); ++ci)
+    {
+        auto& globalIndices = obj->_instancedChunkGlobalIndices[ci];
+        auto it = find(globalIndices.begin(), globalIndices.end(), static_cast<uint32>(instanceIdx));
+        if (it == globalIndices.end())
+        {
+            continue;
+        }
+
+        vector<InstanceTransform> chunkTransforms;
+        chunkTransforms.reserve(globalIndices.size());
+        for (uint32 gIdx : globalIndices)
+        {
+            chunkTransforms.push_back(obj->_instancedTransforms[gIdx]);
+        }
+
+        auto& actor = obj->_instancedChunkHandles[ci];
+        if (actor)
+        {
+            actor->UpdateInstances(obj->_instancedModelPath, chunkTransforms, nullptr);
+        }
+
+        return;
+    }
 }
 
 void SceneContext::Export_MapInstance(const string& mapName)

@@ -75,6 +75,8 @@ Emitter View에서 주로 하는 작업은 다음과 같다.
 
 새 Emitter, TypeData, Module 추가는 Emitter View의 우클릭 메뉴에서 진입한다. Emitter column의 header나 빈 tail 영역을 우클릭하면 Emitter 단위 메뉴가 열리고, 여기서 `파티클 시스템`, `타입 데이터`, `모듈` 하위 메뉴를 사용할 수 있다. `타입 데이터` row를 우클릭하면 TypeData 추가/초기화/제거 메뉴가 바로 열리고, `모듈 > 새 모듈`을 선택하면 Module picker가 열린다.
 
+복사/붙여넣기는 선택한 row에 따라 의미가 다르다. Emitter header에서는 Emitter 단위 붙여넣기를 사용하고, Module row에서는 `모듈 붙여넣기`와 `값 붙여넣기`를 구분한다. `모듈 붙여넣기`는 새 Module row를 추가하는 동작이고, `값 붙여넣기`는 같은 타입 Module의 payload를 현재 row에 덮어쓰는 동작이다.
+
 새 Emitter는 비어 있는 board 영역이나 Emitter View의 관련 메뉴에서 추가한다.
 
 ![새 Emitter 메뉴](UserGuide_Img/emitter_view_new_emitter_menu.png)
@@ -361,6 +363,8 @@ UI나 이전 저장 데이터에는 legacy 의미의 SourceEmitter 표현이 남
 
 ParticleEmitter source를 쓸 때는 source Emitter가 실제 particle 위치 history를 제공할 수 있어야 한다. source가 없거나 disabled 상태라면 ribbon이 기대한 위치를 따라가지 않을 수 있다.
 
+Source History Ribbon의 history는 source가 계속 제공되는 동안 이어지는 흐름으로 이해한다. `Required.duration`은 material/SubUV 같은 반복 phase의 기준이 될 수 있지만, source가 살아 있는 ribbon history를 주기적으로 끊는 기준으로 보지 않는다. source가 끊기면 새 sample 공급만 멈추고, 남아 있는 history는 sample lifetime과 tail 정책에 따라 자연스럽게 사라진다.
+
 `고급`의 `곡선 품질`은 source history path를 얼마나 촘촘하고 부드럽게 render sample로 재구성할지 정한다. `고품질`은 꺾인 source path를 더 부드럽게 만들지만 follower 수가 많으면 preview 비용이 늘 수 있다.
 
 Detail View의 `Preview Motion (에디터 tail 검증용 수치. 저장 X)` 섹션은 Source History Ribbon의 tail 움직임을 EffectEditor 안에서 확인하기 위한 preview 검증 입력이다. effect asset에 저장되는 authoring 값이 아니라 preview lowering에서만 소비되는 editor-only 값으로 본다.
@@ -559,6 +563,15 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | `최대 드로우 수` | 그릴 최대 요소 수다. | runtime draw 제한 수로 읽는다. | uint 고정값 | 너무 낮으면 일부 요소가 보이지 않는다. |
 
 Sprite Trail에서는 방향 정렬 옵션에 따라 `정렬할 텍스처 축` 대신 `카드 길이 축`이 표시될 수 있다. 이 값은 texture X/Y 중 어느 축을 stamp card의 긴 방향으로 맞출지 정하는 보정값이며, source path 자체를 바꾸는 값은 아니다.
+
+Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, stamp center/tangent를 이미 source history에서 받은 뒤 card basis만 고르는 의미로 해석한다.
+
+| Sprite Trail 화면 정렬 | 해석 |
+| --- | --- |
+| `Facing Camera Position` | stamp 위치는 path 위에 유지하고, 각 card가 자기 위치에서 카메라 위치를 바라본다. Path tangent는 회전 기준으로 쓰지 않는다. |
+| `Rectangle` | card 세로축을 World Up으로 유지하고, 가로축은 카메라 가시성을 유지하는 방향으로 잡는다. `카드 길이 축`은 texture X/Y 중 어느 축을 길이로 볼지만 정한다. |
+| `Square` | 카메라 화면 평면 기준 card에서 더 큰 축으로 정사각형을 만든다. |
+| `Velocity` | SourceHistorySpriteTrail에서는 실제 velocity가 아니라 path tangent를 기준 방향으로 사용한다. `방향 정렬 방식`과 `카드 길이 축`으로 tangent를 look 또는 texture 축에 맞춘다. |
 
 ### 6.6 스폰
 
@@ -866,23 +879,23 @@ Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 Type
 
 ### 6.17 머티리얼 변조
 
-`머티리얼 변조`는 Material scalar parameter나 core color RGB를 시간에 따라 바꾸는 Module이다.
+`머티리얼 변조`는 Material parameter를 시간에 따라 바꾸는 Module이다. 현재는 scalar target, `Core Color RGB` color target, UV offset Vec2 target, UV Scroll Speed Scale target을 다룬다.
 
 ![Material scalar modulation module](UserGuide_Img/detail_material_scalar_modulation_module.png)
 
-주로 쓰는 TypeData: Sprite, Mesh, Trail, Ribbon, Beam. 다만 `ParticleLife` 시간 축은 Sprite material scalar에서만 선택 가능하고, 다른 타입이나 core color RGB row에서는 비활성화될 수 있다.
+주로 쓰는 TypeData: Sprite, Mesh, Trail, Ribbon, Beam. 다만 `ParticleLife` 시간 축은 기존 Sprite material scalar target 중심으로 지원한다. `Refraction Intensity`, `Core Color RGB`, Vec2 UV offset target, UV Scroll Speed Scale target은 `EmitterTime` 기준으로 쓰는 것이 현재 구현과 맞다.
 
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
-| `+ 변조 추가` | scalar modulator row를 추가한다. | 최대 scalar/core color row 수 제한이 있다. | editor action | row가 늘어나면 각 row header로 접고 펼친다. |
+| `+ 변조 추가` | 기본 scalar row를 추가한다. | 처음에는 Intensity target으로 생성된다. | float 분포 / EmitterTime | 다른 target 종류는 row 내부 `대상` 콤보에서 바꾼다. |
 | `변조 사용` | 해당 modulator 적용 여부다. | 꺼진 row는 변조하지 않는다. | bool | Module row enabled와 별개다. |
-| `대상` | 변조할 material field다. | Intensity, OpacityPower, NoiseStrength, AlphaErosion, AlphaCutoff, CoreIntensity, OuterIntensity, CoreColor, Core Color RGB 중 선택한다. | combo | Core Color RGB를 선택하면 Vec3 분포 row로 전환된다. |
+| `대상` | 변조할 material field다. | scalar, `Core Color RGB`, Main/Noise/Mask/Flow UV Offset, Main/Noise/Mask/Flow UV Scroll Speed Scale 중 선택한다. | combo | category를 바꾸면 row 종류가 바뀌고 분포 값은 새 기본값으로 초기화된다. |
 | `연산` | scalar 값을 material 값에 적용하는 방식이다. | 현재 UI는 label만 표시하고 reset할 수 있다. | read-only/action | 확정 동작은 runtime material lowering 기준으로 확인한다. |
-| `시간 축` | 변조 분포를 평가할 시간 기준이다. | `EmitterTime` 또는 `ParticleLife`다. | combo | `ParticleLife`는 Sprite material scalar에서만 지원된다. |
-| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 Vec3이다. | float/Vec3 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
+| `시간 축` | 변조 분포를 평가할 시간 기준이다. | `EmitterTime` 또는 지원되는 경우 `ParticleLife`다. | combo | `ParticleLife`는 Sprite material scalar에서만 지원된다. Scroll Speed Scale은 EmitterTime으로 보정된다. |
+| `분포` | 시간에 따른 변조 값이다. | scalar row는 float, Core Color RGB row는 Vec3, Vec2 row는 X/Y channel이다. | float/Vec3/Vec2 분포 | Beam은 EmitterTime 기준으로 보는 것이 안전하다. |
 | `삭제` | 해당 modulator row를 제거한다. | row 구조를 바꾼다. | editor action | 삭제 후 같은 parameter 변조가 사라진다. |
 
-Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다.
+Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다. UV Offset target은 base offset에 Vec2 값을 더하고, UV Scroll Speed Scale target은 Material Instance의 base scroll speed에 scalar 값을 곱한다. Scroll Speed Scale은 `1.0`이면 원래 속도, `0.0`이면 정지, `-1.0`이면 반대 방향이며, shader가 `scrollSpeed * materialTime`으로 UV를 만들기 때문에 급격한 scale 변화는 누적 감속이 아니라 phase jump처럼 보일 수 있다.
 
 ### 6.18 Type 호환성 메모
 
@@ -898,7 +911,7 @@ Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조
 
 ## 7. Material Editing
 
-Material 편집은 Required Module, Material Instance View, Material Scalar Modulation을 구분해서 봐야 한다.
+Material 편집은 Required Module, Material Instance View, `머티리얼 변조`를 구분해서 봐야 한다.
 
 ### 7.1 Required Module Material
 
@@ -979,11 +992,11 @@ Color Picker popup은 color field를 직접 선택할 때 사용한다.
 
 색상은 RGB와 alpha를 구분해서 봐야 한다. `초기 컬러`와 `수명에 따른 색상`은 색상 변화와 alpha fade를 함께 다룰 수 있으므로, effect가 너무 진하거나 보이지 않을 때 alpha 값도 같이 확인한다.
 
-### 7.4 Material Scalar Modulation
+### 7.4 머티리얼 변조
 
-Material Scalar Modulation은 material parameter 값을 시간에 따라 움직이게 하는 Module이다.
+`머티리얼 변조`는 material parameter 값을 시간에 따라 움직이게 하는 Module이다.
 
-예를 들어 Material Instance View에서 `DissolveAmount`의 기본값을 정하고, `머티리얼 변조` Module에서 같은 parameter를 lifetime 또는 emitter time 기준으로 움직이게 할 수 있다. 이때 Material Instance View는 기본 상태를 정하고, Module은 시간 변화 규칙을 정한다고 이해하면 된다.
+예를 들어 Material Instance View에서 `Alpha Erosion`, `Refraction Intensity`, UV Offset, UV Scroll Speed 같은 기본값을 정하고, `머티리얼 변조` Module에서 같은 parameter를 emitter time 기준으로 움직이게 할 수 있다. 이때 Material Instance View는 기본 상태를 정하고, Module은 시간 변화 규칙을 정한다고 이해하면 된다.
 
 ## 8. Mesh Data Preview
 
@@ -1045,12 +1058,14 @@ Detail View의 `트레일 프리뷰` 영역에서는 다음 값을 조정한다.
 
 - `트레일 프리뷰`: preview object 표시 여부.
 - `디버그 렌더`: base/tip marker와 보조 line 표시 여부.
+- `프리뷰 속도`: editor preview fixture의 재생 속도.
 - `Base 로컬`: Trail base sample의 weapon-local offset.
 - `Tip 로컬`: Trail tip sample의 weapon-local offset.
+- `Source 로컬`: Source History Sprite Trail source sample의 local offset.
 - `활성 방식`: sample을 항상 받을지, Play 타임라인 구간에서만 받을지.
 - `시작 비율` / `종료 비율`: Window 방식일 때 sample을 받는 구간.
 
-이 값들은 Trail authoring을 위한 editor session 상태다. Trail TypeData의 저장 schema나 gameplay trail runtime contract와 혼동하지 않는다.
+Trail과 Source History Sprite Trail은 같은 preview fixture를 보지만 sample gate는 따로 조정할 수 있다. 이 값들은 Trail authoring을 위한 editor session 상태다. Trail TypeData의 저장 schema나 gameplay trail runtime contract와 혼동하지 않는다.
 
 ### 9.2 Preview Plane
 
@@ -1199,6 +1214,8 @@ Preview playback은 다음 용도로 사용한다.
 - SubUV playback 확인.
 - Trail sample이 쌓이는 타이밍 확인.
 - Beam/Ribbon strip 변화 확인.
+
+Scene View의 viewport 크기 모드는 preview 관측용이다. `Manual`을 누르면 수동 viewport 크기 입력으로 전환되며 기본값은 1600 x 900이다. 이 값은 화면에서 effect framing을 확인하기 위한 editor setting이고 saved effect asset에 포함되지 않는다.
 
 ### 11.2 Restart Preview
 

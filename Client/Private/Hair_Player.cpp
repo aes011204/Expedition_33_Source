@@ -61,9 +61,9 @@ HRESULT Hair_Player::Initialize(void* arg)
     _offsetMatrix = Matrix::Identity;
 
     //Vec3 hairOffset = Vec3(17.61f, 0.0f, -2.765f);
-    Vec3 hairOffset = Vec3(17.61f, -2.765f, 0.f);
+    //Vec3 hairOffset = Vec3(17.61f, -2.765f, 0.f);
 
-    _transformCom->Set_Position(hairOffset);
+    //_transformCom->Set_Position(hairOffset);
 
     return S_OK;
 }

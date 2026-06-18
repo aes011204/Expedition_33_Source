@@ -48,8 +48,17 @@
 #include "Client_Constants.h"
 #include "BattleTutorialController.h"
 #include "PlayerInventory.h"
+#include "PostProcessPipeline.h"
+
+#include "PictosBattleSystem.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
+
+namespace
+{
+    // DOF_MODIFY 
+    constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
+}
 
 BattleController::BattleController()
 {
@@ -87,6 +96,9 @@ HRESULT BattleController::Initialize()
     _battleResultRecoder = BattleResultRecoder::Create();
     CHECK_NULL(_battleResultRecoder, E_FAIL);
 
+    _pictosBattleSystem = PictosBattleSystem::Create();
+    CHECK_NULL(_pictosBattleSystem, E_FAIL);
+
     //    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
     return S_OK;
@@ -94,6 +106,16 @@ HRESULT BattleController::Initialize()
 
 void BattleController::Update(float timeDelta)
 {
+    const bool shouldUpdateBattleRuntime =
+        _isBattleEntering ||
+        _isWaitingBattleTransition ||
+        _isBattleActive ||
+        _isPendingVictorySlow ||
+        _isWaitingVictoryConfirm;
+
+    if (!shouldUpdateBattleRuntime)
+        return; // 월드 상태에서는 전투 튜토리얼/리액션/FSM 업데이트를 아예 돌리지 않는다.
+
     if (Update_BattleTutorialGate(timeDelta))
         return;
 
@@ -380,6 +402,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _isBattleActive = false;
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
 
     //Restore_WorldCamera(); // 카메라 복구
     CLIENT->Restore_PreviousCamera();
@@ -612,29 +636,36 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
         const Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(heroId);
         const Shared<PlayerStatCom> worldStat = worldHero ? worldHero->Get_Component<PlayerStatCom>() : nullptr;
         const Shared<PlayerStatCom> battleStat = character->Get_Component<PlayerStatCom>();
-        const Shared<SkillTreeCom> worldSkillTreeCom = worldHero->Get_Component<SkillTreeCom>();
+        const Shared<SkillTreeCom> worldSkillTreeCom = worldHero ? worldHero->Get_Component<SkillTreeCom>() : nullptr;
 
         if (worldStat && battleStat)
             battleStat->Apply_BattleSyncSnapshot(worldStat->Create_BattleSyncSnapshot());
 
         if (battleStat)
         {
-            const string characterId = string(magic_enum::enum_name(heroId));
-            const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
-
-            if (weapons != nullptr && !weapons->empty())
+            if (battleStat->Get_PlayerRuntimeStat().CurEquippedWeaponId.empty())
             {
-                // 일단은 기본 무기 장착
-                const GameDataTable::WeaponDesc& defaultWeapon = weapons->front();
-                battleStat->Set_EquippedWeapon(defaultWeapon.weaponId, defaultWeapon.power);
+                const string characterId = string(magic_enum::enum_name(heroId));
+                const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
+
+                if (weapons != nullptr && !weapons->empty())
+                {
+                    // 장착 무기없을 때에만 기본값
+                    const GameDataTable::WeaponDesc& defaultWeapon = weapons->front();
+                    battleStat->Set_EquippedWeapon(defaultWeapon.weaponId, defaultWeapon.power);
+                }
             }
+
+            if (const auto battlePlayer = dynamic_pointer_cast<Player_BattleBase>(character))
+                CHECK_FAILED(battlePlayer->Rebuild_WeaponPartsFromCurrentStat());
 
             battleStat->Set_BattleStartAp();
         }
 
 
         // World Skill Tree 읽어서 세팅
-        Configure_BattlePlayerSkills(heroId, battleChar.statCom, worldSkillTreeCom);
+        const vector<string> equippedSkillKeys = worldStat ? worldStat->Get_SkillKeys() : vector<string>{};
+        Configure_BattlePlayerSkills(heroId, battleChar.statCom, worldSkillTreeCom, equippedSkillKeys);
 
         PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // body part에 붙은 실제 ModelCom를 사용한다.
@@ -1031,6 +1062,8 @@ void BattleController::Handle_EditorStopRuntime()
     _battleTurnCamera.reset();
 
     Clear_BattleEnterPending();
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
     Restore_WorldCamera();
 
     if (_battleFSM)
@@ -1670,6 +1703,8 @@ void BattleController::Confirm_Victory()
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
 
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
     Restore_WorldCamera();
     Clear_BattleRuntimeState();
 
@@ -2029,6 +2064,26 @@ void BattleController::Activate_BattleTurnCamera()
     CLIENT->Request_BattleTurn();
 }
 
+// DOF_MODIFY 
+void BattleController::Begin_BattleDOFOverride()
+{
+    if (FAILED(GAME->Begin_DOFOverrideScope(kBattleDOFOwnerTag)))
+        LOG_WARN("BattleController: failed to begin battle DOF override scope");
+}
+
+void BattleController::End_BattleDOFOverride()
+{
+    GAME->End_DOFOverrideScope(kBattleDOFOwnerTag, Build_BattleDOFRestoreTransition());
+}
+
+Engine::DOFTransitionDesc BattleController::Build_BattleDOFRestoreTransition()
+{
+    Engine::DOFTransitionDesc transition{};
+    transition.easing = Engine::DOFTransitionEasing::EaseInOut;
+    transition.duration = 0.35f;
+    return transition;
+}
+
 void BattleController::Restore_WorldCamera()
 {
     CLIENT->Restore_PreviousCamera();
@@ -2062,6 +2117,9 @@ void BattleController::Clear_BattleRuntimeState()
     _flag = false;
     _isActionExecuting = false;
     _hitSequenceRunner.Clear();
+
+    if (_pictosBattleSystem)
+        _pictosBattleSystem->Clear_RuntimeState();
 
     _pendingTurnStartStatusBuff = Buffs::None;
     _pendingTurnStartStatusActor = {};
@@ -2169,6 +2227,7 @@ void BattleController::Complete_BattleField()
         return;
     }
 
+    Begin_BattleDOFOverride();
     Activate_BattleTurnCamera();
     Clear_BattleEnterPending();
 
@@ -2283,17 +2342,23 @@ bool BattleController::Update_BattleTutorialGate(float timeDelta)
     return false;
 }
 
-
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-    const Shared<SkillTreeCom>& worldSkillTreeCom)
+    const Shared<SkillTreeCom>& worldSkillTreeCom, const vector<string>& equippedSkillKeys)
 {
     if (battleStat == nullptr)
         return;
 
-    battleStat->Clear_Skills();
+    vector<string> battleSkillKeys = equippedSkillKeys;
 
-    const vector<string> defaultSkillKeys = Get_DefaultBattleSkillKeys(heroId);
-    for (const string& skillKey : defaultSkillKeys)
+    if (battleSkillKeys.empty() && worldSkillTreeCom)
+        battleSkillKeys = worldSkillTreeCom->Get_UnlockedSkillIds(); // 장착값이 아직 없으면 해금 순서를 초기 5칸으로 사용한다.
+
+    if (battleSkillKeys.size() > 5)
+        battleSkillKeys.resize(5); // 6번째 Gradient 슬롯은 일반 battle skill 입력에 넣지 않는다.
+    else
+        battleSkillKeys.resize(5);
+
+    for (string& skillKey : battleSkillKeys)
     {
         if (skillKey.empty())
             continue;
@@ -2301,34 +2366,22 @@ void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<
         const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
         if (skillData == nullptr)
         {
-            LOG_WARN("스킬 데이터 없음. heroId={}, skillKey={}",
+            LOG_WARN("Battle skill data missing. heroId={}, skillKey={}",
                 magic_enum::enum_name(heroId), skillKey.c_str());
-            continue; // data가 없으면 battle slot에 넣지 않는다.
+            skillKey.clear(); // 슬롯 순서는 유지하고, 해당 칸만 비운다.
+            continue;
         }
 
         if (worldSkillTreeCom && !worldSkillTreeCom->IsUnlocked(skillKey))
+        {
+            LOG_WARN("Battle skill locked. heroId={}, skillKey={}",
+                magic_enum::enum_name(heroId), skillKey.c_str());
+            skillKey.clear(); // 잠긴 스킬도 다른 슬롯을 당기지 않는다.
             continue;
-
-        battleStat->Set_Skill(skillKey);
+        }
     }
 
-}
-
-vector<string> BattleController::Get_DefaultBattleSkillKeys(HeroId heroId)
-{
-    // TODO : TEMP TEMP TEMP TEMP TEMP
-    // 나중에, 해금된 스킬에 EquipSkillCom? 뭐 이런거 만들어서 장착된 스킬 기준으로 가져오기
-    switch (heroId)
-    {
-    case HeroId::Gustave:
-        return { "LumiereAssault", "UnleashedCharge", "MarkingShot" };
-    case HeroId::Lune:
-        return { "Immolation", "IceGust", "Thunderfall" };
-    case HeroId::Maelle:
-        return { "OffensiveSwitch", "Percee", "FleureFury" };
-    default:
-        return {};
-    }
+    battleStat->Set_SkillKeys(battleSkillKeys);
 }
 
 PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)
@@ -2387,9 +2440,38 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
 
     if (actor.statCom->Is_Player())
     {
+#ifdef _DEBUG
+        wstring skillDebugText = L"Player Turn Skills: ";
+
+        const vector<string>& skillKeys = actor.statCom->Get_SkillKeys();
+        for (size_t i = 0; i < 5; ++i)
+        {
+            if (i > 0)
+                skillDebugText += L" / ";
+
+            skillDebugText += to_wstring(i + 1);
+            skillDebugText += L":";
+
+            if (i < skillKeys.size() && !skillKeys[i].empty())
+                skillDebugText += wstring(skillKeys[i].begin(), skillKeys[i].end());
+            else
+                skillDebugText += L"-";
+        }
+
+        GAME->Print(L"{}", skillDebugText, duration(0.f));
+#endif
+
+        uint32 turnStartApGain = 1u; // 기본 턴 시작 AP 회복량
+
+        if (_pictosBattleSystem)
+        {
+            _pictosBattleSystem->ProcessTurnStart(actor); // 예열, 룰렛 처리
+            turnStartApGain += _pictosBattleSystem->Resolve_TurnStartApBonus(actor); // 활력의 턴 + 1
+        }
+
         const uint32 beforeAp = actor.statCom->Get_CurAP();
 
-        actor.statCom->Add_AP(1);
+        actor.statCom->Add_AP(turnStartApGain);
 
         const uint32 afterAp = actor.statCom->Get_CurAP();
         const uint32 gainedAp = afterAp - beforeAp;
@@ -2417,18 +2499,18 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         for (const BattleChar& hero : _heroes)
         {
             if (hero.actor == nullptr || hero.actor == _currentTurnActor.actor)
-            continue;
-        
-        if (hero.ModelCom == nullptr || hero.statCom == nullptr)
-        continue;
-    
-    if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
-    continue;
+                continue;
 
-BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
-}
+            if (hero.ModelCom == nullptr || hero.statCom == nullptr)
+                continue;
 
-        EvtBattlePresentation event {};
+            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+                continue;
+
+            BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
+        }
+
+        EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
         GAME->Get_EventBus().Publish(event);
@@ -2622,6 +2704,7 @@ void BattleController::Free()
     ReleaseCtrl(_buffSystem);
     ReleaseCtrl(_battleTutorialController);
     ReleaseCtrl(_battleResultRecoder);
+    ReleaseCtrl(_pictosBattleSystem);
 
     Base::Free();
 }

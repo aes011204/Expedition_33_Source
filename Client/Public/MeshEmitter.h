@@ -115,7 +115,7 @@ private: //## Static Values
     // main texture luminance를 opacity로 사용한다.
     static constexpr int kOpacitySourceLuminance{ 2 };
 
-private:                                 //## Data::Components
+private: //## Data::Components
     Shared<ModelCom> _model{};           // instanced draw에 사용할 non-anim model component다.
     Shared<ShaderCom> _shader{};         // mesh effect material shader component다.
     wstring _loadedShaderPrototypeTag{}; // 현재 material family에 맞춰 선택된 shader prototype tag다.
@@ -125,28 +125,28 @@ private:                                 //## Data::Components
     Shared<Texture> _flowTexture{};      // 선택 distortion flow texture. 없으면 distortion offset을 0으로 처리한다.
     ComPtr<Buffer> _instanceBuffer{};    // MeshInstanceVertex payload를 GPU에 제출하는 dynamic instance buffer다.
 
-private:                                                              //## Data::Desc
+private: //## Data::Desc
     MeshEmitterDesc _desc{};                                          // clone 생성 시 전달받은 mesh emitter runtime 규칙이다.
     int _opacitySourceIndex{ kOpacitySourceAlpha };                   // shader opacity source selector다.
     bool _isReady{ false };                                           // model/shader/buffer가 모두 준비돼 render 가능한지 나타낸다.
     mutable bool _sphereRadialMeshOrientationFallbackLogged{ false }; // sphere radial mesh axis fallback warning을 emitter당 한 번만 남긴다.
     mutable bool _planeRadialMeshOrientationFallbackLogged{ false };  // mesh axis fallback warning을 emitter당 한 번만 남긴다.
 
-private:                                           //## Data::ParticleRuntime
+private: //## Data::ParticleRuntime
     vector<MeshParticleState> _particles{};        // active/inactive mesh particle slot 배열이다.
     vector<MeshInstanceVertex> _instancePayload{}; // draw 직전 GPU instance buffer에 복사할 CPU payload다.
     uint32 _activeInstanceCount{};                 // 이번 frame에 실제로 그릴 active instance 수다.
     uint32 _nextSpawnCursor{};                     // ring-style slot 재사용을 위한 다음 spawn 시작 index다.
     uint32 _instanceCapacity{};                    // 현재 instance buffer와 particle 배열 capacity다.
 
-private:                           //## Data::SpawnRuntime
+private: //## Data::SpawnRuntime
     vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
     float _emitterElapsedTime{};   // spawn/material time 평가에 사용할 emitter-local 누적 시간이다.
     float _spawnAccumulator{};     // fractional spawn rate를 프레임 사이에 보존한다.
     float _sampledSpawnRate{ 10.f };
     float _sampledSpawnRateScale{ 1.f };
 
-private:                                                    //## Data::PlaybackRuntime
+private: //## Data::PlaybackRuntime
     PlaybackState _playbackState{ PlaybackState::Delayed }; // delay/playing/completed 중 현재 emitter 재생 상태다.
     float _loopElapsedTime{};                               // 현재 loop 안에서 delay를 포함해 흐른 시간이다.
     uint32 _loopIndex{};                                    // 0부터 시작하는 현재 loop index다.
@@ -199,7 +199,7 @@ private:                                                                  //## H
     uint32 Resolve_ShaderPassIndex() const;  // 현재 shader에서 사용할 mesh effect pass index를 반환한다.
     int Resolve_OpacitySourceIndex() const;  // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
 
-private:                                    //## Helper::PlaybackRuntime
+private: //## Helper::PlaybackRuntime
     void Reset_PlaybackRuntime();           // emitter timing/burst/playback runtime state를 초기화한다.
     void Advance_Playback(float timeDelta); // delay/duration/loop 정책을 진행하고 particle simulation을 갱신한다.
     void Start_NextLoop();                  // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.

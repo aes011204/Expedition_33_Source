@@ -1,6 +1,8 @@
 ﻿#include "StaticMesh.h"
 #include "ShaderCom.h"
 
+#include <string>
+
 
 NS_BEGIN(Engine)
 
@@ -29,12 +31,22 @@ HRESULT StaticMesh::Initialize_Prototype(const ModelMeshData& meshData, const Ma
     /* Vertex Buffer */
     VTXMESH* verticesData = static_cast<VTXMESH*>(meshData.vertices);
     VTXMESH* vertices = new VTXMESH[_numVertices];
+    const bool preserveTangentPayload =
+        meshData.name.find("_VATUV") != std::string::npos ||
+        meshData.name.find("SM_Flag_VAT") != std::string::npos;
 
     for (uint32 i = 0; i < _numVertices; ++i)
     {
         vertices[i].position= XMVector3TransformCoord(XMLoadFloat3(&verticesData[i].position), preTransformMatrix);
         vertices[i].normal = XMVector3Normalize(XMVector3TransformNormal(XMLoadFloat3(&verticesData[i].normal), preTransformMatrix));
-        vertices[i].tangent = XMVector3Normalize(XMVector3TransformNormal(XMLoadFloat3(&verticesData[i].tangent), preTransformMatrix));
+        if (preserveTangentPayload)
+        {
+            vertices[i].tangent = verticesData[i].tangent;
+        }
+        else
+        {
+            vertices[i].tangent = XMVector3Normalize(XMVector3TransformNormal(XMLoadFloat3(&verticesData[i].tangent), preTransformMatrix));
+        }
         vertices[i].binormal = XMVector3Normalize(XMVector3TransformNormal(XMLoadFloat3(&verticesData[i].binormal), preTransformMatrix));
         vertices[i].texcoord = verticesData[i].texcoord;
     }

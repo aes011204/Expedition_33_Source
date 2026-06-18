@@ -69,9 +69,10 @@ public:
 
     const CostumePreset* Get_CurrentCostume(HeroId heroId) const;
     const CostumePreset* Get_Costume(HeroId heroId, const string& presetId) const;
+    const vector<CostumePreset>* Get_Costumes(HeroId heroId) const;
     const CostumePreset* Set_CurrentCostume(HeroId heroId, const string& presetId);
 
-    // TEMP. 일단 임시로 Hero Manager에서 변경 예정ㄴ
+    // TEMP. 일단 임시로 Hero Manager에서 변경 예정
     const CostumePreset* Toggle_NextCostume(HeroId heroId);
 
 private:

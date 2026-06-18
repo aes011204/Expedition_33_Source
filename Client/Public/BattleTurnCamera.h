@@ -7,6 +7,7 @@
 #include "CameraPresetTypes.h"
 #include "BattleCameraClipTypes.h"
 #include "BattleCameraProfileTypes.h"
+#include "PostProcessPipeline.h"
 
 namespace Engine
 {
@@ -86,6 +87,13 @@ public:
     float Get_PlayerNearClipDistance() const { return _playerNearClipDistance; }
 
 private:
+    // DOF_MODIFY     
+    struct BattleDOFProfile
+    {
+        DOFPreset preset{};
+        float focusDistanceOffset = 0.f;
+    };
+
     struct ResolvedShotAssets
     {
         BattleCameraPreset preset{};
@@ -149,6 +157,9 @@ private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();
     void Apply_EvaluatedPose(const EvaluatedPose& pose);
+    // DOF_MODIFY 
+    void Apply_EvaluatedPoseWithDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode);
+    void Sync_BattleDOF(const EvaluatedPose& pose, BattleCameraMode cameraMode);
     EvaluatedPose Capture_CurrentPose();
     bool Evaluate_ShotRequestPose(
         const BattleShotRequest& request,
@@ -186,6 +197,10 @@ private:
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
     const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
+
+    // DOF_MODIFY 
+    BattleDOFProfile* Find_DOFProfileStorage(BattleCameraMode cameraMode);
+    const BattleDOFProfile* Find_DOFProfileStorage(BattleCameraMode cameraMode) const;
     BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false);
     const BattleCameraDriftProfile* Find_DriftStorage(BattleCameraMode cameraMode, bool enemyAttackBossVariant = false) const;
     const BattleCameraDriftProfile* Resolve_RuntimeDriftProfile(const BattleShotRequest& request) const;
@@ -240,6 +255,12 @@ private:
     BattleCameraDriftProfile _parryDrift{};
     BattleCameraDriftProfile _aimDrift{};
     BattleCameraDriftProfile _selectPlayerDrift{};
+
+    // DOF_MODIFY 
+    BattleDOFProfile     _playerFocusDOFProfile{};
+    BattleDOFProfile     _enemyFocusDOFProfile{};
+    BattleDOFProfile     _selectItemDOFProfile{};
+    BattleDOFProfile     _selectSkillDOFProfile{};
     Shared<TransformCom> _targetTransform{};
     Vec3                 _smoothedTargetPos = Vec3::Zero;
     Vec3                 _prevTargetPos = Vec3::Zero;
@@ -249,6 +270,12 @@ private:
     bool                 _isWideMode = false;
     bool                 _hasWideAnchor = false;
     bool                 _isFirstUpdate = true;
+
+    // DOF_MODIFY 
+    bool                 _battleDOFPresetApplied = false;
+    BattleCameraMode     _battleDOFActiveMode = BattleCameraMode::WIDE;
+    float                _battleDOFLastAutoFocusDistance = 0.f;
+    float                _battleDOFLastAppliedFocusDistance = 0.f;
     vector<BattleChar>   _heroes;
     vector<BattleChar>   _enemies;
     vector<BattleMonsterSpawnDesc> _enemySpawnDescs;

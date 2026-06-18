@@ -2,6 +2,7 @@
 #include "Component.h"
 
 NS_BEGIN(Client)
+
 class SkillTreeCom : public Component
 {
     GENERATED_COMPONENT(SkillTreeCom)
@@ -22,6 +23,8 @@ public:
 
     // TEMP : 테스트용 강제해금
     void ForceUnlock(const string& skillId);
+
+    const vector<string>& Get_UnlockedSkillIds() const { return _unlockedSkillId; } // Character Progression이 해금 스킬 목록을 표시할 때만 읽는다.
 
 private:
     vector<string> _unlockedSkillId;

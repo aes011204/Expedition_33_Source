@@ -45,6 +45,9 @@ public:
     json    To_Json() const override;
     void    From_Json(const json& data) override;
 
+    // BattleController에서 실제 장착 무기로 재생성
+    HRESULT Rebuild_WeaponPartsFromCurrentStat();
+
     float   Get_BattleGroundOffsetY() const { return _battleGroundOffsetY; }
     void    Set_BattleGroundOffsetY(float value) { _battleGroundOffsetY = value; }
 
@@ -69,6 +72,8 @@ protected:
 
     // body가 만들어진 뒤, 캐릭터별 추가 파트
     virtual HRESULT Ready_WeaponParts(Body_Player* body);
+
+    bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
 
 private:
     const CostumePreset* Get_CurrentBattleCostume() const;

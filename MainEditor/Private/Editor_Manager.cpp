@@ -188,11 +188,14 @@ void Editor_Manager::Render_RuntimeToolbar()
     const bool paused = EDITOR->IsPaused();
 
     constexpr float toolbarHeight = 34.f;
-    constexpr float toolbarControlWidth = 640.f;
+    constexpr float toolbarControlWidth = 760.f;
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
     ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.f, 4.f));
+
+    Render_SoundCheck();
+    ImGui::SameLine(0.f, 10.f);
 
     if (playing)
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.42f, 0.72f, 1.f));
@@ -386,7 +389,7 @@ void Editor_Manager::Handle_Shortcuts()
 
 void Editor_Manager::Render_ShortcutHelp()
 {
-    if (ImGui::SmallButton("Shortcuts"))
+    if (ImGui::SmallButton("단축키 모음"))
     {
     }
 
@@ -586,6 +589,20 @@ void Editor_Manager::Render_ReloadDataButton()
     {
         ImGui::BeginTooltip();
         ImGui::Text("Json 데이터 재로드");
+        ImGui::EndTooltip();
+    }
+}
+
+void Editor_Manager::Render_SoundCheck()
+{
+    bool muted = GAME->Is_AllSoundMuted();
+    if (ImGui::Checkbox("사운드 차단", &muted))
+        GAME->Set_AllSoundMuted(muted);
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("체크 시 모든 사운드 재생을 차단합니다.");
         ImGui::EndTooltip();
     }
 }

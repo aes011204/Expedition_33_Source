@@ -137,6 +137,27 @@ namespace Internal
         }
     }
 
+    const char* Get_SourceHistorySpriteTrailScreenAlignmentTooltip(EmitterScreenAlignment value)
+    {
+        switch (value)
+        {
+        case EmitterScreenAlignment::FacingCameraPosition:
+            return "Stamp 위치는 path 위에 유지하고, 카드는 각 위치에서 카메라 위치를 바라봅니다.";
+
+        case EmitterScreenAlignment::Rectangle:
+            return "카드 세로축은 World Up으로 유지하고, 카드 길이 축은 texture X/Y 중 어느 축을 길이로 볼지만 정합니다.";
+
+        case EmitterScreenAlignment::Square:
+            return "카메라 화면 평면 기준이며 더 큰 축으로 정사각형 stamp card를 만듭니다.";
+
+        case EmitterScreenAlignment::Velocity:
+            return "SourceHistorySpriteTrail에서는 실제 속도 대신 path tangent를 기준 방향으로 사용합니다.";
+
+        default:
+            return Get_ScreenAlignmentTooltip(value);
+        }
+    }
+
     EmitterScreenAlignment Resolve_ScreenAlignmentFallback(EmitterScreenAlignment value)
     {
         const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
@@ -240,14 +261,14 @@ public: //## Table / Basic Controls
         return canReset && clicked;
     }
 
-    bool Draw_StringProperty(const char* label, string& value, const string& defaultValue)
+    bool Draw_StringProperty(const char* label, string& value, const string& defaultValue, const char* tooltip = nullptr)
     {
         char buffer[256]{};
         const size_t copyLength = min(value.size(), sizeof(buffer) - 1);
         memcpy(buffer, value.c_str(), copyLength);
 
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         const bool inputChanged = ImGui::InputText("##Value", buffer, sizeof(buffer));
         bool changed = inputChanged;
@@ -302,10 +323,10 @@ public: //## Table / Basic Controls
         return changed;
     }
 
-    bool Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue)
+    bool Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = ImGui::ColorEdit4(
             "##Value",
@@ -323,10 +344,10 @@ public: //## Table / Basic Controls
         return changed;
     }
 
-    bool Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue)
+    bool Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         float rgb[3]{ value.R(), value.G(), value.B() };
         bool changed = ImGui::ColorEdit3(
@@ -378,10 +399,11 @@ public: //## Table / Basic Controls
         Vec2& value,
         const Vec2& defaultValue,
         float speed = 0.01f,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = ImGui::DragFloat2("##Value", &value.x, speed);
         if (Draw_ResetButton(!Is_DefaultValue(value, defaultValue)))
@@ -400,10 +422,11 @@ public: //## Table / Basic Controls
         Vec3& value,
         const Vec3& defaultValue,
         float speed = 0.01f,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = ImGui::DragFloat3("##Value", &value.x, speed);
         if (Draw_ResetButton(!Is_DefaultValue(value, defaultValue)))
@@ -590,7 +613,7 @@ public: //## Table / Basic Controls
                         supported
                         ? "%s"
                         : "SourceHistorySpriteTrail에서는 이 화면 정렬을 사용하지 않습니다.",
-                        Internal::Get_ScreenAlignmentTooltip(candidate)
+                        Internal::Get_SourceHistorySpriteTrailScreenAlignmentTooltip(candidate)
                     );
                 }
 
@@ -770,7 +793,8 @@ public: //## Distribution Controls
         float speed = 0.01f,
         bool allowUniform = true,
         bool allowConstantCurve = true,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         bool changed = false;
 
@@ -780,7 +804,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform, allowConstantCurve, range);
+                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform, allowConstantCurve, range, tooltip);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -797,7 +821,8 @@ public: //## Distribution Controls
         const Vector2DistributionData& defaultValue,
         float speed = 0.01f,
         bool allowConstantCurve = true,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         bool changed = false;
 
@@ -807,7 +832,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed, allowConstantCurve, range);
+                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed, allowConstantCurve, range, tooltip);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -825,7 +850,8 @@ public: //## Distribution Controls
         float speed = 0.01f,
         bool allowConstantCurve = true,
         bool showConstantCurveAsUnimplemented = false,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         bool changed = false;
 
@@ -842,7 +868,8 @@ public: //## Distribution Controls
                     speed,
                     allowConstantCurve,
                     showConstantCurveAsUnimplemented,
-                    range
+                    range,
+                    tooltip
                 );
                 _basicDrawer.End_PropertyTable();
             }
@@ -1967,14 +1994,15 @@ private: //## Label Helpers
         float speed = 0.01f,
         bool allowUniform = true,
         bool allowConstantCurve = true,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         bool changed = false;
 
         ImGui::PushID(label);
         DistributionMode nextMode = value.mode;
         ImGui::PushID("DistributionModeRow");
-        _basicDrawer.Draw_PropertyLabel(label);
+        _basicDrawer.Draw_PropertyLabel(label, tooltip);
         bool modeChanged = false;
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_DistributionModeLabel(DistributionValueKind::Float, nextMode)))
@@ -2077,14 +2105,15 @@ private: //## Label Helpers
         const Vector2DistributionData& defaultValue,
         float speed = 0.01f,
         bool allowConstantCurve = true,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         bool changed = false;
 
         ImGui::PushID(label);
         DistributionMode nextMode = value.mode;
         ImGui::PushID("DistributionModeRow");
-        _basicDrawer.Draw_PropertyLabel(label);
+        _basicDrawer.Draw_PropertyLabel(label, tooltip);
         bool modeChanged = false;
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_DistributionModeLabel(DistributionValueKind::Vec2, nextMode)))
@@ -2180,14 +2209,15 @@ private: //## Label Helpers
         float speed = 0.01f,
         bool allowConstantCurve = true,
         bool showConstantCurveAsUnimplemented = false,
-        const AuthoringValueRange* range = nullptr)
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr)
     {
         bool changed = false;
 
         ImGui::PushID(label);
         DistributionMode nextMode = value.mode;
         ImGui::PushID("DistributionModeRow");
-        _basicDrawer.Draw_PropertyLabel(label);
+        _basicDrawer.Draw_PropertyLabel(label, tooltip);
         bool modeChanged = false;
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_Vector3DistributionModeLabel(nextMode, showConstantCurveAsUnimplemented)))
@@ -2901,9 +2931,9 @@ bool DetailPropertyContext::Draw_ResetButton(bool canReset)
     return _basicDrawer->Draw_ResetButton(canReset);
 }
 
-bool DetailPropertyContext::Draw_StringProperty(const char* label, string& value, const string& defaultValue)
+bool DetailPropertyContext::Draw_StringProperty(const char* label, string& value, const string& defaultValue, const char* tooltip)
 {
-    return _basicDrawer->Draw_StringProperty(label, value, defaultValue);
+    return _basicDrawer->Draw_StringProperty(label, value, defaultValue, tooltip);
 }
 
 bool DetailPropertyContext::Draw_BoolProperty(const char* label, bool& value, bool defaultValue, const char* tooltip)
@@ -2922,14 +2952,14 @@ bool DetailPropertyContext::Draw_FloatProperty(
     return _basicDrawer->Draw_FloatProperty(label, value, defaultValue, speed, tooltip, range);
 }
 
-bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue)
+bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue, const char* tooltip)
 {
-    return _basicDrawer->Draw_ColorProperty(label, value, defaultValue);
+    return _basicDrawer->Draw_ColorProperty(label, value, defaultValue, tooltip);
 }
 
-bool DetailPropertyContext::Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue)
+bool DetailPropertyContext::Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue, const char* tooltip)
 {
-    return _basicDrawer->Draw_ColorRgbProperty(label, value, defaultValue);
+    return _basicDrawer->Draw_ColorRgbProperty(label, value, defaultValue, tooltip);
 }
 
 bool DetailPropertyContext::Draw_FloatDistributionGroup(
@@ -2939,9 +2969,10 @@ bool DetailPropertyContext::Draw_FloatDistributionGroup(
     float speed,
     bool allowUniform,
     bool allowConstantCurve,
-    const AuthoringValueRange* range)
+    const AuthoringValueRange* range,
+    const char* tooltip)
 {
-    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform, allowConstantCurve, range);
+    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform, allowConstantCurve, range, tooltip);
 }
 
 bool DetailPropertyContext::Draw_Vector2DistributionGroup(
@@ -2950,9 +2981,10 @@ bool DetailPropertyContext::Draw_Vector2DistributionGroup(
     const Vector2DistributionData& defaultValue,
     float speed,
     bool allowConstantCurve,
-    const AuthoringValueRange* range)
+    const AuthoringValueRange* range,
+    const char* tooltip)
 {
-    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed, allowConstantCurve, range);
+    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed, allowConstantCurve, range, tooltip);
 }
 
 bool DetailPropertyContext::Draw_Vector3DistributionGroup(
@@ -2962,7 +2994,8 @@ bool DetailPropertyContext::Draw_Vector3DistributionGroup(
     float speed,
     bool allowConstantCurve,
     bool showConstantCurveAsUnimplemented,
-    const AuthoringValueRange* range)
+    const AuthoringValueRange* range,
+    const char* tooltip)
 {
     return _distributionDrawer->Draw_Vector3DistributionGroup(
         label,
@@ -2971,7 +3004,8 @@ bool DetailPropertyContext::Draw_Vector3DistributionGroup(
         speed,
         allowConstantCurve,
         showConstantCurveAsUnimplemented,
-        range
+        range,
+        tooltip
     );
 }
 
@@ -3144,9 +3178,10 @@ bool DetailPropertyContext::Draw_Vec2Property(
     Vec2& value,
     const Vec2& defaultValue,
     float speed,
-    const AuthoringValueRange* range)
+    const AuthoringValueRange* range,
+    const char* tooltip)
 {
-    return _basicDrawer->Draw_Vec2Property(label, value, defaultValue, speed, range);
+    return _basicDrawer->Draw_Vec2Property(label, value, defaultValue, speed, range, tooltip);
 }
 
 bool DetailPropertyContext::Draw_Vec3Property(
@@ -3154,9 +3189,10 @@ bool DetailPropertyContext::Draw_Vec3Property(
     Vec3& value,
     const Vec3& defaultValue,
     float speed,
-    const AuthoringValueRange* range)
+    const AuthoringValueRange* range,
+    const char* tooltip)
 {
-    return _basicDrawer->Draw_Vec3Property(label, value, defaultValue, speed, range);
+    return _basicDrawer->Draw_Vec3Property(label, value, defaultValue, speed, range, tooltip);
 }
 
 NS_END

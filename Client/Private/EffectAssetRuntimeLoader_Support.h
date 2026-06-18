@@ -108,6 +108,7 @@ namespace EffectAssetRuntimeLoad
         void Apply_MaterialPayload(const json& material, EffectRequiredMaterialRuntimeDesc& materialDesc);
         void Fill_MaterialScalarModulationPayload(EffectMaterialScalarModulationRuntimeDesc& desc, const json& materialScalarModulation);
         void Fill_CoreColorRgbModulationPayload(EffectMaterialCoreColorRgbModulationRuntimeDesc& desc, const json& materialScalarModulation);
+        void Fill_MaterialVec2ModulationPayload(EffectMaterialVec2ModulationRuntimeDesc& desc, const json& materialScalarModulation);
     }
 
     namespace Emitters

@@ -61,6 +61,8 @@ class ShaderCom_Controller;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
 class ScreenFx_Instance;
+struct DOFPreset;
+struct DOFTransitionDesc;
 NS_END
 #pragma endregion
 
@@ -231,15 +233,22 @@ public: /* For.Renderer */
     uint32 Get_RenderCall() const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
+    HRESULT Begin_DOFOverrideScope(const string& ownerTag);
+    HRESULT Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition);
+    HRESULT Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange);
+    HRESULT Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition);
+    HRESULT End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition);
     const Shared<LightingPipeline>      Get_LightingPipeline() const;
     Shared<LightingPipeline>            Get_LightingPipeline();
     HRESULT                             Reload_RendererShaders();
+    HRESULT                             Reload_LightingPipelineShaders();
     HRESULT                             Reload_ShaderComs();
     ScreenFx_Manager*                   Get_ScreenFxManager();
     ShaderCom_Controller*               Get_ShaderComController();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
+    void                                Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB);
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -348,6 +357,8 @@ public: /* For.Sound_Manager */
     void Set_SoundChannelVolume(SoundChannel channel, float volume);
     float Get_SoundChannelVolume(SoundChannel channel) const;
     void Set_SoundChannelPaused(SoundChannel channel, bool paused);
+    void Set_AllSoundMuted(bool muted);
+    bool Is_AllSoundMuted() const;
     void Set_SoundGlobalPitch(float pitch, bool includeBGM = false);
     bool Has_Sound(const wstring& soundFile) const;
     const wstring& Get_CurrentBGM() const;

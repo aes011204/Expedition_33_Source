@@ -81,9 +81,43 @@ namespace
             return EffectMaterialScalarModulationTarget::OuterIntensity;
         case MaterialScalarModulationTargetField::CoreColor:
             return EffectMaterialScalarModulationTarget::CoreColor;
+        case MaterialScalarModulationTargetField::RefractionIntensity:
+            return EffectMaterialScalarModulationTarget::RefractionIntensity;
+        case MaterialScalarModulationTargetField::MainUVScrollSpeedScale:
+            return EffectMaterialScalarModulationTarget::MainUVScrollSpeedScale;
+        case MaterialScalarModulationTargetField::NoiseUVScrollSpeedScale:
+            return EffectMaterialScalarModulationTarget::NoiseUVScrollSpeedScale;
+        case MaterialScalarModulationTargetField::MaskUVScrollSpeedScale:
+            return EffectMaterialScalarModulationTarget::MaskUVScrollSpeedScale;
+        case MaterialScalarModulationTargetField::FlowUVScrollSpeedScale:
+            return EffectMaterialScalarModulationTarget::FlowUVScrollSpeedScale;
         case MaterialScalarModulationTargetField::Intensity:
         default:
             return EffectMaterialScalarModulationTarget::Intensity;
+        }
+    }
+
+    bool Is_ScrollSpeedScaleTarget(MaterialScalarModulationTargetField target)
+    {
+        return target == MaterialScalarModulationTargetField::MainUVScrollSpeedScale ||
+               target == MaterialScalarModulationTargetField::NoiseUVScrollSpeedScale ||
+               target == MaterialScalarModulationTargetField::MaskUVScrollSpeedScale ||
+               target == MaterialScalarModulationTargetField::FlowUVScrollSpeedScale;
+    }
+
+    EffectMaterialVec2ModulationTarget To_RuntimeTarget(MaterialVec2ModulationTargetField target)
+    {
+        switch (target)
+        {
+        case MaterialVec2ModulationTargetField::NoiseUVOffset:
+            return EffectMaterialVec2ModulationTarget::NoiseUVOffset;
+        case MaterialVec2ModulationTargetField::MaskUVOffset:
+            return EffectMaterialVec2ModulationTarget::MaskUVOffset;
+        case MaterialVec2ModulationTargetField::FlowUVOffset:
+            return EffectMaterialVec2ModulationTarget::FlowUVOffset;
+        case MaterialVec2ModulationTargetField::MainUVOffset:
+        default:
+            return EffectMaterialVec2ModulationTarget::MainUVOffset;
         }
     }
 
@@ -140,6 +174,21 @@ namespace
         Set_Component(desc.keyLeaveTangentsR, desc.keyLeaveTangentsRBlock1, index, key.leaveTangent.x);
         Set_Component(desc.keyLeaveTangentsG, desc.keyLeaveTangentsGBlock1, index, key.leaveTangent.y);
         Set_Component(desc.keyLeaveTangentsB, desc.keyLeaveTangentsBBlock1, index, key.leaveTangent.z);
+        Set_Component(desc.keyModes, desc.keyModesBlock1, index, To_RuntimeCurveMode(key.interpolationMode));
+    }
+
+    void Fill_Vec2CurveComponent(
+        EffectMaterialVec2ModulationCurveDesc& desc,
+        uint32 index,
+        const Vector2CurveKeyData& key)
+    {
+        Set_Component(desc.keyTimes, desc.keyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_Component(desc.keyValuesX, desc.keyValuesXBlock1, index, key.value.x);
+        Set_Component(desc.keyValuesY, desc.keyValuesYBlock1, index, key.value.y);
+        Set_Component(desc.keyArriveTangentsX, desc.keyArriveTangentsXBlock1, index, key.arriveTangent.x);
+        Set_Component(desc.keyArriveTangentsY, desc.keyArriveTangentsYBlock1, index, key.arriveTangent.y);
+        Set_Component(desc.keyLeaveTangentsX, desc.keyLeaveTangentsXBlock1, index, key.leaveTangent.x);
+        Set_Component(desc.keyLeaveTangentsY, desc.keyLeaveTangentsYBlock1, index, key.leaveTangent.y);
         Set_Component(desc.keyModes, desc.keyModesBlock1, index, To_RuntimeCurveMode(key.interpolationMode));
     }
 
@@ -234,6 +283,53 @@ namespace
         desc.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
         desc.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
         desc.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
+        return desc;
+    }
+
+    EffectMaterialVec2ModulationCurveDesc Build_Vec2CurveDesc(const Vector2DistributionData& distribution)
+    {
+        constexpr uint32 kMaxCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+        EffectMaterialVec2ModulationCurveDesc desc{};
+
+        if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&distribution.payload);
+            distribution.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+        {
+            const uint32 keyCount = min(kMaxCurveKeys, static_cast<uint32>(curve->keys.size()));
+            desc.enabled = true;
+            desc.keyCount = keyCount;
+            desc.keyTimes = Vec4{};
+            desc.keyTimesBlock1 = Vec4{};
+            desc.keyValuesX = Vec4{};
+            desc.keyValuesXBlock1 = Vec4{};
+            desc.keyValuesY = Vec4{};
+            desc.keyValuesYBlock1 = Vec4{};
+            desc.keyArriveTangentsX = Vec4{};
+            desc.keyArriveTangentsXBlock1 = Vec4{};
+            desc.keyArriveTangentsY = Vec4{};
+            desc.keyArriveTangentsYBlock1 = Vec4{};
+            desc.keyLeaveTangentsX = Vec4{};
+            desc.keyLeaveTangentsXBlock1 = Vec4{};
+            desc.keyLeaveTangentsY = Vec4{};
+            desc.keyLeaveTangentsYBlock1 = Vec4{};
+            desc.keyModes = Vec4{};
+            desc.keyModesBlock1 = Vec4{};
+
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_Vec2CurveComponent(desc, index, curve->keys[index]);
+
+            return desc;
+        }
+
+        Vec2 value{ 0.f, 0.f };
+        if (const auto* constant = get_if<ConstantVector2DistributionData>(&distribution.payload))
+            value = constant->value;
+        else if (const auto* uniform = get_if<UniformVector2DistributionData>(&distribution.payload))
+            value = (uniform->minValue + uniform->maxValue) * 0.5f;
+
+        desc.enabled = true;
+        desc.keyCount = 2;
+        desc.keyValuesX = Vec4{ value.x, value.x, 0.f, 0.f };
+        desc.keyValuesY = Vec4{ value.y, value.y, 0.f, 0.f };
         return desc;
     }
 
@@ -421,6 +517,44 @@ namespace
         };
     }
 
+    Vec2 Evaluate_Vec2Curve(const EffectMaterialVec2ModulationCurveDesc& curve, float x, const Vec2& fallbackValue)
+    {
+        return Vec2{
+            Evaluate_CurveComponents(
+                curve.keyTimes,
+                curve.keyTimesBlock1,
+                curve.keyValuesX,
+                curve.keyValuesXBlock1,
+                curve.keyArriveTangentsX,
+                curve.keyArriveTangentsXBlock1,
+                curve.keyLeaveTangentsX,
+                curve.keyLeaveTangentsXBlock1,
+                curve.keyModes,
+                curve.keyModesBlock1,
+                curve.keyCount,
+                curve.enabled,
+                x,
+                fallbackValue.x
+            ),
+            Evaluate_CurveComponents(
+                curve.keyTimes,
+                curve.keyTimesBlock1,
+                curve.keyValuesY,
+                curve.keyValuesYBlock1,
+                curve.keyArriveTangentsY,
+                curve.keyArriveTangentsYBlock1,
+                curve.keyLeaveTangentsY,
+                curve.keyLeaveTangentsYBlock1,
+                curve.keyModes,
+                curve.keyModesBlock1,
+                curve.keyCount,
+                curve.enabled,
+                x,
+                fallbackValue.y
+            )
+        };
+    }
+
     void Apply_Multiplier(
         EffectMaterialInstanceData& material,
         EffectMaterialScalarModulationTarget target,
@@ -451,9 +585,55 @@ namespace
             material.coreEmissive.coreColor.y *= multiplier;
             material.coreEmissive.coreColor.z *= multiplier;
             break;
+        case EffectMaterialScalarModulationTarget::RefractionIntensity:
+            material.refractionIntensity *= multiplier;
+            break;
+        case EffectMaterialScalarModulationTarget::MainUVScrollSpeedScale:
+            material.mainUVScrollSpeed.x *= multiplier;
+            material.mainUVScrollSpeed.y *= multiplier;
+            break;
+        case EffectMaterialScalarModulationTarget::NoiseUVScrollSpeedScale:
+            material.noiseUVScrollSpeed.x *= multiplier;
+            material.noiseUVScrollSpeed.y *= multiplier;
+            break;
+        case EffectMaterialScalarModulationTarget::MaskUVScrollSpeedScale:
+            material.maskUVScrollSpeed.x *= multiplier;
+            material.maskUVScrollSpeed.y *= multiplier;
+            break;
+        case EffectMaterialScalarModulationTarget::FlowUVScrollSpeedScale:
+            material.flowUVScrollSpeed.x *= multiplier;
+            material.flowUVScrollSpeed.y *= multiplier;
+            break;
         case EffectMaterialScalarModulationTarget::Intensity:
         default:
             material.intensity *= multiplier;
+            break;
+        }
+    }
+
+    void Apply_Vec2Add(
+        EffectMaterialInstanceData& material,
+        EffectMaterialVec2ModulationTarget target,
+        const Vec2& value)
+    {
+        switch (target)
+        {
+        case EffectMaterialVec2ModulationTarget::NoiseUVOffset:
+            material.noiseUVOffset.x += value.x;
+            material.noiseUVOffset.y += value.y;
+            break;
+        case EffectMaterialVec2ModulationTarget::MaskUVOffset:
+            material.maskUVOffset.x += value.x;
+            material.maskUVOffset.y += value.y;
+            break;
+        case EffectMaterialVec2ModulationTarget::FlowUVOffset:
+            material.flowUVOffset.x += value.x;
+            material.flowUVOffset.y += value.y;
+            break;
+        case EffectMaterialVec2ModulationTarget::MainUVOffset:
+        default:
+            material.mainUVOffset.x += value.x;
+            material.mainUVOffset.y += value.y;
             break;
         }
     }
@@ -502,6 +682,8 @@ EffectMaterialScalarModulationRuntimeDesc Build_MaterialScalarModulationRuntimeD
         target.targetField = To_RuntimeTarget(source.targetField);
         target.operation = EffectMaterialScalarModulationOperation::Multiply;
         target.timeSource = To_RuntimeTimeSource(source.timeSource);
+        if (Is_ScrollSpeedScaleTarget(source.targetField))
+            target.timeSource = EffectMaterialScalarModulationTimeSource::EmitterTime;
         target.curve = Build_CurveDesc(source.distribution);
     }
 
@@ -529,6 +711,29 @@ EffectMaterialCoreColorRgbModulationRuntimeDesc Build_CoreColorRgbModulationRunt
     return desc;
 }
 
+EffectMaterialVec2ModulationRuntimeDesc Build_MaterialVec2ModulationRuntimeDesc(const MaterialScalarModulationModuleData& data)
+{
+    EffectMaterialVec2ModulationRuntimeDesc desc{};
+    const uint32 count = min(
+        EffectMaterialVec2ModulationRuntimeDesc::kMaxModulators,
+        static_cast<uint32>(data.vec2Modulators.size())
+    );
+    desc.count = count;
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const MaterialVec2ModulatorData& source = data.vec2Modulators[index];
+        EffectMaterialVec2ModulatorRuntimeDesc& target = desc.modulators[index];
+        target.enabled = source.enabled;
+        target.targetField = To_RuntimeTarget(source.targetField);
+        target.operation = EffectMaterialVec2ModulationOperation::Add;
+        target.timeSource = To_RuntimeTimeSource(source.timeSource);
+        target.curve = Build_Vec2CurveDesc(source.distribution);
+    }
+
+    return desc;
+}
+
 float Compute_MaterialScalarPreviewPhase(float elapsedTime, float duration)
 {
     const float safeDuration = max(duration, 0.0001f);
@@ -536,9 +741,10 @@ float Compute_MaterialScalarPreviewPhase(float elapsedTime, float duration)
     return normalizedTime - std::floor(normalizedTime);
 }
 
-MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
+MaterialParameterModulationPreviewResult Evaluate_MaterialParameterModulationPreview(
     const EffectMaterialInstanceData& baseMaterial,
     const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
+    const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewPhase,
     bool evaluateParticleLife)
@@ -572,6 +778,24 @@ MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
         result.applied = true;
     }
 
+    const uint32 vec2Count = min(EffectMaterialVec2ModulationRuntimeDesc::kMaxModulators, vec2Modulation.count);
+    for (uint32 index = 0; index < vec2Count; ++index)
+    {
+        const EffectMaterialVec2ModulatorRuntimeDesc& modulator = vec2Modulation.modulators[index];
+        if (!modulator.enabled)
+            continue;
+
+        if (modulator.timeSource == EffectMaterialScalarModulationTimeSource::ParticleLife)
+        {
+            result.skippedParticleLife = true;
+            continue;
+        }
+
+        const Vec2 value = Evaluate_Vec2Curve(modulator.curve, previewPhase, Vec2{ 0.f, 0.f });
+        Apply_Vec2Add(result.material, modulator.targetField, value);
+        result.applied = true;
+    }
+
     const uint32 count = min(EffectMaterialScalarModulationRuntimeDesc::kMaxModulators, modulation.count);
     for (uint32 index = 0; index < count; ++index)
     {
@@ -591,6 +815,24 @@ MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
     }
 
     return result;
+}
+
+MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
+    const EffectMaterialInstanceData& baseMaterial,
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
+    const EffectMaterialVec2ModulationRuntimeDesc& vec2Modulation,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float previewPhase,
+    bool evaluateParticleLife)
+{
+    return Evaluate_MaterialParameterModulationPreview(
+        baseMaterial,
+        coreColorRgbModulation,
+        vec2Modulation,
+        modulation,
+        previewPhase,
+        evaluateParticleLife
+    );
 }
 
 NS_END

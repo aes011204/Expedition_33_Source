@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -263,6 +263,9 @@
     <Filter Include="02.GameObject\Effect\Emitters\Sprite Trail">
       <UniqueIdentifier>{32e72e43-5d50-467a-8bd0-84129ff62a91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Levels\Stage\Level_GestralVillage">
+      <UniqueIdentifier>{5ce4bb27-069c-4f90-8e6e-6b4ed1f61c43}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\ModifierPreset">
       <UniqueIdentifier>{c6888c1b-89f3-4e18-8210-91cb8f4646b0}</UniqueIdentifier>
     </Filter>
@@ -271,9 +274,6 @@
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\Private\Player_FreeAim.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp">
-      <Filter>06. Effect System\Trail Support</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp">
       <Filter>06. Effect System\Trail Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleTurnCamera.cpp">
@@ -312,9 +312,6 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ANS_Trail.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\private\AN_Attack.cpp">
@@ -543,6 +540,19 @@
     <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Level_GestralVillage.cpp">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp" />
+    <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
+    <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
+    <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
+    <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp" />
+    <ClCompile Include="..\Private\VictoriaFlag.cpp" />
+    <ClCompile Include="..\Private\Wardrobe_Panel.cpp" />
+    <ClCompile Include="..\Private\Pictos_Panel.cpp" />
+    <ClCompile Include="..\Private\PreviewPlayer.cpp" />
+    <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -697,6 +707,12 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl">
+          <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
+      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
@@ -1246,9 +1262,6 @@
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h">
       <Filter>06. Effect System\Trail Support</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h">
-      <Filter>06. Effect System\Trail Support</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Level_GameEntry.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
@@ -1273,9 +1286,6 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Trail.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\public\AN_Attack.h">
@@ -1502,6 +1512,19 @@
     <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Level_GestralVillage.h">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h" />
+    <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
+    <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
+    <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
+    <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h" />
+    <ClInclude Include="..\Public\VictoriaFlag.h" />
+    <ClInclude Include="..\Public\Wardrobe_Panel.h" />
+    <ClInclude Include="..\Public\Pictos_Panel.h" />
+    <ClInclude Include="..\Public\PreviewPlayer.h" />
+    <ClInclude Include="..\Public\PictosBattleSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

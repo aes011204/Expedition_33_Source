@@ -15,6 +15,8 @@ class PostProcessPipeline;
 class LightingPipeline;
 class LightPipeline;
 class Texture;
+struct DOFPreset;
+struct DOFTransitionDesc;
 
 class Renderer final : public Base
 {
@@ -52,12 +54,22 @@ public:
         return _lightingPipeline;
     }
     HRESULT Reload_RendererShaders();
+    HRESULT Reload_LightingPipelineShaders();
+    HRESULT Begin_DOFOverrideScope(const string& ownerTag);
+    HRESULT Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition);
+    HRESULT Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange);
+    HRESULT Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition);
+    HRESULT End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition);
     RenderGroup Get_CurrentGroup() const
     {
         return _currentGroup;
     }
 
     void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
+    void Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
+    {
+        _lightShaftZoneCB = lightShaftZoneCB;
+    }
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
@@ -82,6 +94,7 @@ private:
 
     void Render_CombinedHDR();
     void Render_Fog();
+    void Render_VolumetricLightShaft();
     void Render_PostProcess();
     
 
@@ -95,6 +108,9 @@ private :
     HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
     HRESULT Render_LightShaftPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_LightShaftCompositePass();
+    HRESULT Render_DOFPreFilterPass();
+    HRESULT Render_DOFBlurPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
+    HRESULT Render_DOFCompositePass();
     bool Try_BuildLightShaftParams(LightShaftCB& outParams) const;
     HRESULT Render_DistortionResolve();
 
@@ -132,6 +148,7 @@ private:
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
     FogZoneCB                       _fogZoneCB{};
+    VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
 
     bool                            _shadowEnabled = true;
 

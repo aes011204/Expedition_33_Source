@@ -2,6 +2,7 @@
 
 #include "UI_Base.h"
 #include "GameInstance.h"
+#include "UI_Text.h"
 
 namespace Client::UI_Utils
 {
@@ -75,6 +76,19 @@ namespace Client::UI_Utils
         const float safeFps = static_cast<float>(max(1, asset.fps));
         return max(0.f, static_cast<float>(asset.endFrame - asset.startFrame)) / safeFps;
     }
+
+    inline void Set_IntText(const Shared<UI_Text>& text, int32 value)
+    {
+        if (text)
+            text->Set_Text(to_wstring(value));
+    }
+
+    inline void Set_UIntText(const Shared<UI_Text>& text, uint32 value)
+    {
+        if (text)
+            text->Set_Text(to_wstring(value));
+    }
+
 
 }
 

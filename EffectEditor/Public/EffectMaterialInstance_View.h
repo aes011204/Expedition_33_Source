@@ -21,6 +21,13 @@ enum class EffectMaterialTwoSidedDisplayMode : uint8
     ForcedEnabledReadOnly,
 };
 
+enum class EffectMaterialDistortionShapeControlMode : uint8
+{
+    Editable,
+    MeshUnsupported,
+    BeamUnsupported,
+};
+
 struct EffectMaterialRenderPolicyBinding
 {
     EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend };
@@ -38,14 +45,14 @@ public:
     void Update(float timeDelta) override; // material instance preview UV motion 시간을 갱신한다.
     void Pre_Render() override;
     void Render() override;
-    // MeshData에서 지원하지 않는 distortion shape 편집을 막는다.
+    // 현재 consumer가 지원하지 않는 distortion shape 편집을 막는다.
     static bool Draw_InstanceProperties(
         DetailPropertyContext& detailPropertyContext,
         map<string, Shared<Texture>>& textureThumbnailCache,
         EffectMaterialInstanceData& material,
         bool* outRestartPreview,
         EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode = EffectMaterialTwoSidedDisplayMode::EditableImplemented,
-        bool disableMeshDistortionShapeControls = false,
+        EffectMaterialDistortionShapeControlMode distortionShapeControlMode = EffectMaterialDistortionShapeControlMode::Editable,
         const EffectMaterialRenderPolicyBinding* renderPolicyBinding = nullptr);
 
 public: //## Behavior::Selection
