@@ -37,6 +37,10 @@ private:
     float _eraseRadius = 10.f;
     Vec3 _eraseCenter = {};
 
+    ScatterBoxZone _pendingBoxZone = {};
+    Shared<EditorObject> _prevSelectedShared;
+    Shared<EditorObject> _boxRestoreTarget;
+
 private:
     void DrawTransform(Shared<EditorObject>& obj);
     void DrawZoneShape(Shared<EditorObject>& obj);
