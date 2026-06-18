@@ -266,6 +266,9 @@
     <Filter Include="01.Levels\Stage\Level_GestralVillage">
       <UniqueIdentifier>{5ce4bb27-069c-4f90-8e6e-6b4ed1f61c43}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\ModifierPreset">
+      <UniqueIdentifier>{c6888c1b-89f3-4e18-8210-91cb8f4646b0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -494,6 +497,7 @@
     <ClCompile Include="..\Private\PlayerInventory.cpp" />
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />
+    <ClCompile Include="ChainModifierPreset.cpp" />
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp">
       <Filter>06. Effect System\Runtime Loader\Support</Filter>
     </ClCompile>
@@ -1477,6 +1481,7 @@
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
     <ClInclude Include="..\Public\CostumeManager.h" />
+    <ClInclude Include="ChainModifierPreset.h" />
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
       <Filter>06. Effect System\Runtime Loader\Support</Filter>
     </ClInclude>

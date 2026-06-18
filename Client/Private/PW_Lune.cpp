@@ -9,6 +9,10 @@
 #include "PlayableParts.h"
 #include "SkillTreeCom.h"
 #include "PlayerStatCom.h"
+#include "ChainModifierPreset.h"
+#include "ChainModifier.h"
+#include "MovementCom.h"
+#include "TransformCom.h"
 
 IMPLEMENT_REFLECTION(PW_Lune)
 {
@@ -62,8 +66,16 @@ void PW_Lune::BeginPlay()
 
 HRESULT PW_Lune::Ready_Modifier()
 {
-    if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-    {
+    auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
+    CHECK_NULL(body, E_FAIL);
+
+    return Ready_BodyModifiers(body);
+}
+
+HRESULT PW_Lune::Ready_BodyModifiers(Body_Player* body)
+{
+    CHECK_NULL(body, E_FAIL);
+
         OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
         aimOffsetDesc.baseModelCom = body->Get_Model().get();
         aimOffsetDesc.animName = "Lune_IdleFreeAim_LoopingWorld_Sweep";
@@ -145,9 +157,39 @@ HRESULT PW_Lune::Ready_Modifier()
             aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
         }
         else return E_FAIL;
-    }
-    else
-        return E_FAIL;
+
+        PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
+        ChainModifierPreset::BuildPoseFollowScarfDesc(
+            scarfDesc,
+            Get_Transform().get(),
+            PlayerCharacterType::Lune);
+
+        if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
+        {
+            body->Get_Model()->Add_AnimModifier(modifier);
+        }
+
+        ChainModifier::ChainModifierDesc armbandDesc{};
+        ChainModifierPreset::BuildArmbandDesc(
+            armbandDesc,
+            Get_Transform().get(),
+            PlayerCharacterType::Lune);
+
+        if (auto modifier = ChainModifier::Create(&armbandDesc))
+        {
+            body->Get_Model()->Add_AnimModifier(modifier);
+        }
+
+        PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+        ChainModifierPreset::BuildPoseFollowCoatDesc(
+            coatDesc,
+            Get_Transform().get(),
+            PlayerCharacterType::Lune);
+
+        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
+        {
+            body->Get_Model()->Add_AnimModifier(modifier);
+        }
 
     return S_OK;
 }
