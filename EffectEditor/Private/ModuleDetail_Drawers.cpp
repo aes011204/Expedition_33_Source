@@ -3,10 +3,10 @@
 #include "EffectEditorInstance.h"
 #include "EffectEditor_Macro.h"
 #include "EffectMaterialInstance_View.h"
+#include "EffectMaterialPresetReader.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterial_View.h"
-#include "EffectMaterialPresetReader.h"
 #include "Helper_EffectAuthoring.h"
 #include "Notification_Manager.h"
 
@@ -2363,13 +2363,16 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
 
     if (ImGui::CollapsingHeader("파티클 생존 시간", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        const bool supportsLifetimeConstantCurve =
+            emitter.typeData.kind != AuthoringTypeDataKind::Trail &&
+            emitter.typeData.kind != AuthoringTypeDataKind::Ribbon;
         changed |= detailContext.Draw_FloatDistributionGroup(
             "파티클 생존 시간",
             data.lifeTime,
             defaultData.lifeTime,
             0.01f,
             true,
-            true,
+            supportsLifetimeConstantCurve,
             Find_AuthoringValueRange(module.type, "lifeTime"),
             "spawn window가 아니라 태어난 particle 개별 생존 시간입니다."
         );
@@ -2381,10 +2384,12 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
         }
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             ImGui::TextDisabled("Mesh ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
-        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
-                 emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
-                 emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
-            ImGui::TextDisabled("Trail/Ribbon/SourceHistorySpriteTrail ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Sprite Trail ConstantCurve: stamp 생성 시점의 현재 loop 진행률로 stamp lifetime을 한 번 샘플합니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+            ImGui::TextDisabled("Trail ConstantCurve: segment별 lifetime 저장이 없어 아직 비지원입니다. Constant/Uniform 수명은 계속 지원됩니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+            ImGui::TextDisabled("Ribbon ConstantCurve: sample별 lifetime 저장이 없어 아직 비지원입니다. Constant/Uniform 수명은 계속 지원됩니다.");
         else
             ImGui::TextDisabled("Sprite ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
     }
@@ -3943,9 +3948,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 structureChanged = true;
                             }
                             else
-                            {
                                 modulator.targetField = nextSelection.vec2Target;
-                            }
                         }
                         if (!structureChanged)
                         {

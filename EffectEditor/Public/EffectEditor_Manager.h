@@ -40,6 +40,8 @@ private:
     map<wstring, bool> _sceneFocusWindowOpenSnapshot{};
     PreviewViewportSnapshot _sceneFocusPreviewViewportSnapshot{};
     string _sceneFocusDockSettingsSnapshot{};
+    bool _sceneFocusHadIniFilenameSnapshot{ false };
+    string _sceneFocusIniFilenameSnapshot{};
 
 private:
     // 등록된 editor window들의 초기화 hook을 한 번씩 실행한다.

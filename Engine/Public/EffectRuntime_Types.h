@@ -509,18 +509,18 @@ enum class EffectBeamBranchPreset : uint8
 struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{};                                                   // beam 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{};                                                           // beam presentation life 기준 값이다.
-    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime visual life random sample seed salt다.
-    bool useLifetimeVisualLife{ false };                                                            // true면 Lifetime 모듈을 visual cutoff/over-life 기준으로 소비한다.
-    EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 Blend 정렬 규칙으로 소비한다.
-    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 beam 시작 색으로 소비한다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 beam 색/알파로 소비한다.
-    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
-    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
-    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
-    bool usePerStripSubUVVariation{ false };                                                        // Legacy Beam strip별 SubUV RandomFrame variation compatibility flag다.
+    EffectRequiredMaterialRuntimeDesc material{}; // beam 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{}; // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{}; // beam presentation life 기준 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{}; // Lifetime visual life random sample seed salt다.
+    bool useLifetimeVisualLife{ false }; // true면 Lifetime 모듈을 visual cutoff/over-life 기준으로 소비한다.
+    EffectRequiredSortRuntimeDesc sort{}; // Required 모듈에서 Blend 정렬 규칙으로 소비한다.
+    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 beam 시작 색으로 소비한다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 beam 색/알파로 소비한다.
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{}; // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{}; // SubUV RandomFrame replay 단위 seed salt다.
+    bool usePerStripSubUVVariation{ false }; // Legacy Beam strip별 SubUV RandomFrame variation compatibility flag다.
 
     EffectBeamEndpointMode endpointMode{ EffectBeamEndpointMode::StartEnd };  // local path 작성 방식을 고른다.
     Vec3 localStart{ 0.f, 2.f, 0.f };                                         // effect/emitter local 기준 beam 시작점이다.
@@ -742,18 +742,21 @@ struct MeshTransformRuntimeDesc
 {
     EffectScreenAlignment alignment{ EffectScreenAlignment::FacingCameraPosition }; // mesh instance의 기본 plane/facing 정렬 기준이다.
 
-    bool initialScaleEnabled{ false };           // InitialMeshSize Vec3 payload 연결 여부다.
-    Vec3 initialScaleMin{ 0.12f, 0.12f, 0.12f }; // spawn 시 mesh scale 하한이다.
-    Vec3 initialScaleMax{ 0.28f, 0.28f, 0.28f }; // spawn 시 mesh scale 상한이다.
-    MeshVector3CurveRuntimeDesc scaleByLife{};   // MeshSizeByLife Vec3 multiplier다.
+    bool initialScaleEnabled{ false };                     // InitialMeshSize Vec3 payload 연결 여부다.
+    Vec3 initialScaleMin{ 0.12f, 0.12f, 0.12f };           // spawn 시 mesh scale 하한이다.
+    Vec3 initialScaleMax{ 0.28f, 0.28f, 0.28f };           // spawn 시 mesh scale 상한이다.
+    PointParticleRandomSeedRuntimeDesc initialScaleSeed{}; // InitialMeshSize random sample seed salt다.
+    MeshVector3CurveRuntimeDesc scaleByLife{};             // MeshSizeByLife Vec3 multiplier다.
 
-    bool rotationEnabled{ false };                            // rotation 계열 모듈 연결 여부다.
-    Vec3 initialRotationDegreesMin{ 0.f, 0.f, 0.f };          // spawn 시 Euler rotation 하한이다.
-    Vec3 initialRotationDegreesMax{ 0.f, 0.f, 0.f };          // spawn 시 Euler rotation 상한이다.
-    MeshVector3CurveRuntimeDesc rotationByLife{};             // lifeProgress 기준 추가 Euler degree다.
-    Vec3 initialAngularVelocityDegreesMin{ 0.f, 0.f, 0.f };   // 초당 Euler angular velocity 하한이다.
-    Vec3 initialAngularVelocityDegreesMax{ 0.f, 0.f, 0.f };   // 초당 Euler angular velocity 상한이다.
-    MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{}; // angular velocity Vec3 배율이다.
+    bool rotationEnabled{ false };                                   // rotation 계열 모듈 연결 여부다.
+    Vec3 initialRotationDegreesMin{ 0.f, 0.f, 0.f };                 // spawn 시 Euler rotation 하한이다.
+    Vec3 initialRotationDegreesMax{ 0.f, 0.f, 0.f };                 // spawn 시 Euler rotation 상한이다.
+    PointParticleRandomSeedRuntimeDesc initialRotationSeed{};        // InitialMeshRotation random sample seed salt다.
+    MeshVector3CurveRuntimeDesc rotationByLife{};                    // lifeProgress 기준 추가 Euler degree다.
+    Vec3 initialAngularVelocityDegreesMin{ 0.f, 0.f, 0.f };          // 초당 Euler angular velocity 하한이다.
+    Vec3 initialAngularVelocityDegreesMax{ 0.f, 0.f, 0.f };          // 초당 Euler angular velocity 상한이다.
+    PointParticleRandomSeedRuntimeDesc initialAngularVelocitySeed{}; // InitialMeshRotationRate random sample seed salt다.
+    MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{};        // angular velocity Vec3 배율이다.
 };
 
 // mesh emitter가 clone 시점에 받는 model/instance draw용 runtime payload다.
@@ -772,11 +775,13 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectRequiredSortRuntimeDesc sort{};                               // Required 모듈에서 mesh emitter가 소비하는 Blend 정렬 규칙이다.
     EffectSpawnRuntimeDesc spawn{};                                     // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
     EffectLifetimeRuntimeDesc lifetime{};                               // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                  // Lifetime random sample seed salt다.
     EffectInitialColorRuntimeDesc initialColor{};                       // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
     EffectColorOverLifeRuntimeDesc colorOverLife{};                     // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
     PointParticleMotionDesc motion{};                                   // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
     EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                     // OrbitOverLife 모듈에서 mesh particle center 위치 공전으로 소비하는 payload다.
     PointParticleInitialLocationDesc initialLocation{};                 // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleRandomSeedRuntimeDesc initialLocationSeed{};           // InitialLocation random sample seed salt다.
     PointParticleSphereLocationDesc sphereLocation{};                   // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};            // SphereLocation random sample seed salt다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};         // PlaneRadialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.

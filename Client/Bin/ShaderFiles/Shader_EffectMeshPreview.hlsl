@@ -25,6 +25,7 @@ cbuffer cbEffectMeshMaterial : register(b2)
     float4 g_EffectMeshAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };
     float4 g_EffectMeshCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f };
+    float4 g_EffectMeshPreviewScreenSize = { 512.f, 512.f, 0.f, 0.f };
     int g_OpacitySource = 0;
     float g_EffectMeshMaterialTime = 0.f;
     float2 g_EffectMeshPadding;
@@ -33,32 +34,6 @@ cbuffer cbEffectMeshMaterial : register(b2)
 Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
-
-BlendState BS_EffectMeshPreviewAlphaBlend
-{
-    BlendEnable[0] = true;
-
-    SrcBlend = Src_Alpha;
-    DestBlend = Inv_Src_Alpha;
-    BlendOp = Add;
-
-    SrcBlendAlpha = One;
-    DestBlendAlpha = Inv_Src_Alpha;
-    BlendOpAlpha = Add;
-};
-
-BlendState BS_EffectMeshPreviewAdditive
-{
-    BlendEnable[0] = true;
-
-    SrcBlend = One;
-    DestBlend = One;
-    BlendOp = Add;
-
-    SrcBlendAlpha = One;
-    DestBlendAlpha = Inv_Src_Alpha;
-    BlendOpAlpha = Add;
-};
 
 float Resolve_EffectMeshAxisUV(float rawValue, float transformedValue, float policy)
 {
@@ -100,6 +75,14 @@ float4 Sample_EffectMeshNoiseTexture(float2 uv, float2 policy)
 float4 Sample_EffectMeshMaskTexture(float2 uv, float2 policy)
 {
     return g_MaskTexture.Sample(LinearClampSampler, Apply_EffectMeshAxisAddress(uv, policy));
+}
+
+float3 Sample_EffectMeshPreviewChecker(float2 pixelPosition)
+{
+    const float2 clampedPixelPosition = clamp(pixelPosition, float2(0.f, 0.f), max(g_EffectMeshPreviewScreenSize.xy - 1.f, float2(0.f, 0.f)));
+    const float2 cell = floor(clampedPixelPosition / 54.f);
+    const bool lightCell = fmod(cell.x + cell.y, 2.f) < 1.f;
+    return lightCell ? float3(0.412f, 0.471f, 0.549f) : float3(0.216f, 0.251f, 0.306f);
 }
 
 struct VS_IN
@@ -194,7 +177,17 @@ PS_OUT PS_ALPHA(VS_OUT In)
 {
     PS_OUT Out = (PS_OUT)0;
     const EffectMaterialSurface surface = Resolve_EffectMeshSurface(In);
-    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectMeshParams.x);
+    const float4 materialColor = Effect_ComposeAlphaBlend(surface, g_EffectMeshParams.x);
+    const float3 checkerColor = Sample_EffectMeshPreviewChecker(In.vPosition.xy);
+    Out.color = float4(lerp(checkerColor, materialColor.rgb, saturate(materialColor.a)), 1.f);
+    return Out;
+}
+
+PS_OUT PS_MASKED(VS_OUT In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMeshSurface(In);
+    Out.color = float4(surface.color * max(g_EffectMeshParams.x, 0.f), 1.f);
     return Out;
 }
 
@@ -262,15 +255,17 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
     );
     const float additiveEnergyScalar = max(g_EffectMeshParams.x, 0.f) * max(g_EffectMeshAdditiveParams.w, 0.f);
     const float3 contribution = shapedMaterialColor * noiseFactor * policyAmount * additiveEnergyScalar * blackGate * coverageBase;
-    const float contributionAlpha = saturate(max(max(contribution.r, contribution.g), contribution.b));
-    Out.color = float4(contribution, contributionAlpha);
+    const float3 checkerColor = Sample_EffectMeshPreviewChecker(In.vPosition.xy);
+    Out.color = float4(checkerColor + contribution, 1.f);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(AlphaBlendPass, RS_Default, DSS_DepthRead, BS_EffectMeshPreviewAlphaBlend, VS_MAIN, PS_ALPHA)          // 0
-    PASS_RS_DS_BS_VP(AdditivePass, RS_Default, DSS_DepthRead, BS_EffectMeshPreviewAdditive, VS_MAIN, PS_ADDITIVE)           // 1
-    PASS_RS_DS_BS_VP(AlphaBlendTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_EffectMeshPreviewAlphaBlend, VS_MAIN, PS_ALPHA) // 2
-    PASS_RS_DS_BS_VP(AdditiveTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_EffectMeshPreviewAdditive, VS_MAIN, PS_ADDITIVE)  // 3
+    PASS_RS_DS_BS_VP(AlphaBlendPass, RS_Default, DSS_DepthRead, BS_Default, VS_MAIN, PS_ALPHA)          // 0
+    PASS_RS_DS_BS_VP(AdditivePass, RS_Default, DSS_DepthRead, BS_Default, VS_MAIN, PS_ADDITIVE)         // 1
+    PASS_RS_DS_BS_VP(AlphaBlendTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_Default, VS_MAIN, PS_ALPHA) // 2
+    PASS_RS_DS_BS_VP(AdditiveTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_Default, VS_MAIN, PS_ADDITIVE) // 3
+    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_MASKED)               // 4
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_MASKED)      // 5
 }

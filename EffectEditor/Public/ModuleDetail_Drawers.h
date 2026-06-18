@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "EffectAuthoring_Types.h"
 #include "DetailPropertyContext.h"
+#include "EffectAuthoring_Types.h"
 #include "EffectMaterialPreviewRenderer.h"
 
 NS_BEGIN(EffectEditor)

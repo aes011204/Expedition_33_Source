@@ -1831,6 +1831,23 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_Lifetime(uint32 stampSerial
 
     const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    if (_desc.lifetime.lifeTimeCurve.enabled)
+    {
+        const float spawnPhase = clamp(_loopElapsedTime / Resolve_Duration(), 0.f, 1.f);
+        return max(
+            0.0001f,
+            Evaluate_CompactCurve(
+                spawnPhase,
+                _desc.lifetime.lifeTimeCurve.curveKeyTimes,
+                _desc.lifetime.lifeTimeCurve.curveKeyTimesBlock1,
+                _desc.lifetime.lifeTimeCurve.curveKeyValues,
+                _desc.lifetime.lifeTimeCurve.curveKeyValuesBlock1,
+                _desc.lifetime.lifeTimeCurve.curveKeyCount,
+                lifeMax
+            )
+        );
+    }
+
     if (lifeMin == lifeMax)
         return lifeMin;
 

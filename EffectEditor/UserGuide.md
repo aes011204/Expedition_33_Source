@@ -610,7 +610,8 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 - Sprite: ConstantCurve는 particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플한다.
 - Mesh: ConstantCurve는 particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플한다.
 - Beam: ConstantCurve는 전체 반복 순서 진행률로 각 loop의 visual life를 한 번 샘플한다. 무한 반복에서는 반복 번호를 curve 구간에 순환 적용한다.
-- Trail/Ribbon/Sprite Trail: ConstantCurve sampling axis는 현재 Sprite/Mesh/Beam 구현 범위 밖으로 표시된다.
+- Sprite Trail: ConstantCurve는 stamp 생성 시점의 현재 loop 진행률로 stamp lifetime을 한 번 샘플한다.
+- Trail/Ribbon: Constant/Uniform 수명은 지원하지만, ConstantCurve는 segment/sample별 lifetime 저장 구조가 없어 현재 비지원으로 표시된다.
 
 ### 6.8 위치 Module
 

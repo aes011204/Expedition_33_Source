@@ -2853,6 +2853,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinSize.y, meshMaxSize.y),
             max(meshMinSize.z, meshMaxSize.z)
         };
+        emitterDesc.meshTransform.initialScaleSeed = Internal::Build_RandomSeedDesc(initialMeshSize->size);
     }
 
     if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
@@ -2870,6 +2871,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(minOffset.y, maxOffset.y),
             max(minOffset.z, maxOffset.z)
         };
+        emitterDesc.initialLocationSeed = Internal::Build_RandomSeedDesc(initialLocation->location);
     }
 
     if (const auto* sphereLocation = Internal::Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
@@ -2894,6 +2896,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
         Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
     if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
@@ -2929,6 +2932,8 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
 
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
@@ -2966,6 +2971,8 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
         Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
@@ -3008,6 +3015,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, emitterDesc.motion.initialVelocityMin);
         emitterDesc.motion.initialVelocityMax =
             Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, emitterDesc.motion.initialVelocityMax);
+        emitterDesc.motion.initialVelocitySeed = Internal::Build_RandomSeedDesc(initialVelocity->velocity);
     }
 
     if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
@@ -3025,10 +3033,14 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
             Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)
         };
+        emitterDesc.motion.initialRadialVelocitySeed = Internal::Build_RandomSeedDesc(initialRadialVelocity->speed);
     }
 
     if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+    {
         Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
+        emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
@@ -3038,6 +3050,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.motion.accelerationMax =
             Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
+        emitterDesc.motion.accelerationSeed = Internal::Build_RandomSeedDesc(acceleration->acceleration);
     }
 
     if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
@@ -3047,6 +3060,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(0.f, Internal::Evaluate_FloatDistributionMin(drag->drag, emitterDesc.motion.drag.x)),
             max(0.f, Internal::Evaluate_FloatDistributionMax(drag->drag, emitterDesc.motion.drag.y))
         };
+        emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
     if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
@@ -3073,6 +3087,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinRotation.y, meshMaxRotation.y),
             max(meshMinRotation.z, meshMaxRotation.z)
         };
+        emitterDesc.meshTransform.initialRotationSeed = Internal::Build_RandomSeedDesc(initialMeshRotation->rotationDegrees);
     }
 
     if (const auto* sphereRadialOrientation = Internal::Find_ModuleData<SphereRadialOrientationModuleData>(
@@ -3107,6 +3122,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinRate.y, meshMaxRate.y),
             max(meshMinRate.z, meshMaxRate.z)
         };
+        emitterDesc.meshTransform.initialAngularVelocitySeed = Internal::Build_RandomSeedDesc(initialMeshRotationRate->rotationRateDegrees);
     }
 
     if (const auto* meshRotationRateScaleByLife = Internal::Find_ModuleData<MeshRotationRateScaleByLifeModuleData>(

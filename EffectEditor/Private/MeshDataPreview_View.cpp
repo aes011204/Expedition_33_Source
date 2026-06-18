@@ -755,6 +755,12 @@ struct MeshDataPreview_View::PreviewRenderer
             coreEmissive.outerIntensity
         );
         const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+        const Vec4 effectMeshPreviewScreenSize(
+            static_cast<float>(max(1u, width)),
+            static_cast<float>(max(1u, height)),
+            0.f,
+            0.f
+        );
         const Vec4 effectMeshSourceParams = Vec4(
             static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
             static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -790,6 +796,10 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), E_FAIL);
+        CHECK_FAILED(
+            shader->Bind_RawValue("g_EffectMeshPreviewScreenSize", &effectMeshPreviewScreenSize, sizeof(effectMeshPreviewScreenSize)),
+            E_FAIL
+        );
         CHECK_FAILED(shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
         return S_OK;
     }
@@ -800,9 +810,12 @@ struct MeshDataPreview_View::PreviewRenderer
             return 0u;
 
         const bool additive = material.blendMode == EffectMaterialBlendMode::Additive;
+        const bool masked = material.blendMode == EffectMaterialBlendMode::Masked;
         const bool twoSided = material.twoSided;
         if (additive)
             return twoSided ? 3u : 1u;
+        if (masked)
+            return twoSided ? 5u : 4u;
         return twoSided ? 2u : 0u;
     }
 

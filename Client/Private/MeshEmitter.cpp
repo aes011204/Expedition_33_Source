@@ -1478,9 +1478,10 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.active = true;
     particle.age = 0.f;
     const float spawnPhase = clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f);
+    const uint32 lifetimeSeed = seed + Internal::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed);
     particle.lifeMax = _desc.lifetime.lifeTimeCurve.enabled
                        ? max(0.0001f, Internal::Evaluate_FloatCurve(_desc.lifetime.lifeTimeCurve, spawnPhase, lifeMax))
-                       : RandomRange(lifeMin, lifeMax, seed + 11u);
+                       : RandomRange(lifeMin, lifeMax, lifetimeSeed + 11u);
     particle.position = spawnPosition;
     particle.spawnOffset = spawnOffset;
     particle.spawnPosition = spawnPosition;
@@ -1493,8 +1494,20 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
         particle.spawnOrientation = Build_PlaneRadialMeshOrientation(planeRadialSample, particle.spawnOrientationEnabled);
     particle.rotationRadians = Sample_InitialRotation(seed + 41u);
     particle.angularVelocityRadians = Sample_InitialAngularVelocity(seed + 43u);
-    particle.startColor = Sample_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax, seed + 47u);
-    particle.endColor = Sample_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax, seed + 53u);
+    particle.startColor = Sample_Color(
+        _desc.initialColor.startColorMin,
+        _desc.initialColor.startColorMax,
+        _desc.initialColor.colorSeed,
+        _desc.initialColor.alphaSeed,
+        seed + 47u
+    );
+    particle.endColor = Sample_Color(
+        _desc.colorOverLife.endColorMin,
+        _desc.colorOverLife.endColorMax,
+        _desc.colorOverLife.colorSeed,
+        _desc.colorOverLife.alphaSeed,
+        seed + 53u
+    );
     particle.seed = seed;
 }
 
@@ -1655,10 +1668,11 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
     if (_desc.initialLocation.enabled)
     {
+        const uint32 initialLocationSeed = seed + Internal::Resolve_SeedSalt(_desc.initialLocationSeed, _effectPlaybackSeed);
         offset += Vec3{
-            RandomRange(_desc.initialLocation.minOffset.x, _desc.initialLocation.maxOffset.x, seed + 1u),
-            RandomRange(_desc.initialLocation.minOffset.y, _desc.initialLocation.maxOffset.y, seed + 2u),
-            RandomRange(_desc.initialLocation.minOffset.z, _desc.initialLocation.maxOffset.z, seed + 3u)
+            RandomRange(_desc.initialLocation.minOffset.x, _desc.initialLocation.maxOffset.x, initialLocationSeed + 1u),
+            RandomRange(_desc.initialLocation.minOffset.y, _desc.initialLocation.maxOffset.y, initialLocationSeed + 2u),
+            RandomRange(_desc.initialLocation.minOffset.z, _desc.initialLocation.maxOffset.z, initialLocationSeed + 3u)
         };
     }
 
@@ -2016,13 +2030,20 @@ float MeshEmitter::Sample_Drag(uint32 seed) const
     return max(0.f, RandomRange(minDrag, maxDrag, dragSeed));
 }
 
-Vec4 MeshEmitter::Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint32 seed) const
+Vec4 MeshEmitter::Sample_Color(
+    const Vec4& minColor,
+    const Vec4& maxColor,
+    const PointParticleRandomSeedRuntimeDesc& colorSeed,
+    const PointParticleRandomSeedRuntimeDesc& alphaSeed,
+    uint32 seed) const
 {
+    const uint32 rgbSeed = seed + Internal::Resolve_SeedSalt(colorSeed, _effectPlaybackSeed);
+    const uint32 resolvedAlphaSeed = seed + Internal::Resolve_SeedSalt(alphaSeed, _effectPlaybackSeed);
     return Vec4{
-        RandomRange(min(minColor.x, maxColor.x), max(minColor.x, maxColor.x), seed + 1u),
-        RandomRange(min(minColor.y, maxColor.y), max(minColor.y, maxColor.y), seed + 2u),
-        RandomRange(min(minColor.z, maxColor.z), max(minColor.z, maxColor.z), seed + 3u),
-        RandomRange(min(minColor.w, maxColor.w), max(minColor.w, maxColor.w), seed + 4u)
+        RandomRange(min(minColor.x, maxColor.x), max(minColor.x, maxColor.x), rgbSeed + 1u),
+        RandomRange(min(minColor.y, maxColor.y), max(minColor.y, maxColor.y), rgbSeed + 2u),
+        RandomRange(min(minColor.z, maxColor.z), max(minColor.z, maxColor.z), rgbSeed + 3u),
+        RandomRange(min(minColor.w, maxColor.w), max(minColor.w, maxColor.w), resolvedAlphaSeed + 4u)
     };
 }
 
@@ -2031,10 +2052,11 @@ Vec3 MeshEmitter::Sample_InitialScale(uint32 seed) const
     if (!_desc.meshTransform.initialScaleEnabled)
         return Vec3{ 1.f, 1.f, 1.f };
 
+    const uint32 initialScaleSeed = seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialScaleSeed, _effectPlaybackSeed);
     return Vec3{
-        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.x, _desc.meshTransform.initialScaleMax.x, seed + 1u)),
-        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.y, _desc.meshTransform.initialScaleMax.y, seed + 2u)),
-        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.z, _desc.meshTransform.initialScaleMax.z, seed + 3u))
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.x, _desc.meshTransform.initialScaleMax.x, initialScaleSeed + 1u)),
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.y, _desc.meshTransform.initialScaleMax.y, initialScaleSeed + 2u)),
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.z, _desc.meshTransform.initialScaleMax.z, initialScaleSeed + 3u))
     };
 }
 
@@ -2043,10 +2065,11 @@ Vec3 MeshEmitter::Sample_InitialRotation(uint32 seed) const
     if (!_desc.meshTransform.rotationEnabled)
         return Vec3{};
 
+    const uint32 initialRotationSeed = seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialRotationSeed, _effectPlaybackSeed);
     return Vec3{
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, seed + 1u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.y, _desc.meshTransform.initialRotationDegreesMax.y, seed + 2u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.z, _desc.meshTransform.initialRotationDegreesMax.z, seed + 3u))
+        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, initialRotationSeed + 1u)),
+        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.y, _desc.meshTransform.initialRotationDegreesMax.y, initialRotationSeed + 2u)),
+        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.z, _desc.meshTransform.initialRotationDegreesMax.z, initialRotationSeed + 3u))
     };
 }
 
@@ -2055,15 +2078,29 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
     if (!_desc.meshTransform.rotationEnabled)
         return Vec3{};
 
+    const uint32 initialAngularVelocitySeed =
+        seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialAngularVelocitySeed, _effectPlaybackSeed);
     return Vec3{
         XMConvertToRadians(
-            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.x, _desc.meshTransform.initialAngularVelocityDegreesMax.x, seed + 1u)
+            RandomRange(
+                _desc.meshTransform.initialAngularVelocityDegreesMin.x,
+                _desc.meshTransform.initialAngularVelocityDegreesMax.x,
+                initialAngularVelocitySeed + 1u
+            )
         ),
         XMConvertToRadians(
-            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.y, _desc.meshTransform.initialAngularVelocityDegreesMax.y, seed + 2u)
+            RandomRange(
+                _desc.meshTransform.initialAngularVelocityDegreesMin.y,
+                _desc.meshTransform.initialAngularVelocityDegreesMax.y,
+                initialAngularVelocitySeed + 2u
+            )
         ),
         XMConvertToRadians(
-            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.z, _desc.meshTransform.initialAngularVelocityDegreesMax.z, seed + 3u)
+            RandomRange(
+                _desc.meshTransform.initialAngularVelocityDegreesMin.z,
+                _desc.meshTransform.initialAngularVelocityDegreesMax.z,
+                initialAngularVelocitySeed + 3u
+            )
         )
     };
 }
