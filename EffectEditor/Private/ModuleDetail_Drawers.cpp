@@ -2757,7 +2757,7 @@ bool VelocityConeModuleDetail::Draw(
     return changed;
 }
 
-bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
+bool AccelerationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
 {
     const AccelerationModuleData defaultData{};
     bool changed = false;
@@ -2774,6 +2774,8 @@ bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Acceler
             nullptr,
             "매 frame 현재 속도에 누적되는 가속도 벡터입니다."
         );
+        if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Sprite Trail에서 Path Follow/Replay가 켜지면 path module이 stamp 중심 위치를 소유합니다.");
     }
 
     return changed;

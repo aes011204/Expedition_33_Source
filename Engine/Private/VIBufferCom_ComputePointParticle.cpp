@@ -129,12 +129,32 @@ struct ComputePointParticleParams
     Vec4 accelerationCurveValuesYBlock1{};
     Vec4 accelerationCurveValuesZ{};                 // Acceleration Z key values.
     Vec4 accelerationCurveValuesZBlock1{};
+    Vec4 accelerationCurveArriveTangentsX{};         // Acceleration X arrive tangents.
+    Vec4 accelerationCurveArriveTangentsXBlock1{};
+    Vec4 accelerationCurveLeaveTangentsX{};          // Acceleration X leave tangents.
+    Vec4 accelerationCurveLeaveTangentsXBlock1{};
+    Vec4 accelerationCurveArriveTangentsY{};         // Acceleration Y arrive tangents.
+    Vec4 accelerationCurveArriveTangentsYBlock1{};
+    Vec4 accelerationCurveLeaveTangentsY{};          // Acceleration Y leave tangents.
+    Vec4 accelerationCurveLeaveTangentsYBlock1{};
+    Vec4 accelerationCurveArriveTangentsZ{};         // Acceleration Z arrive tangents.
+    Vec4 accelerationCurveArriveTangentsZBlock1{};
+    Vec4 accelerationCurveLeaveTangentsZ{};          // Acceleration Z leave tangents.
+    Vec4 accelerationCurveLeaveTangentsZBlock1{};
+    Vec4 accelerationCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 accelerationCurveModesBlock1{};
     Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z/w: unused.
     Vec4 velocityScaleByLife{};                      // x/y: scale start/end, z/w: unused.
     Vec4 velocityScaleByLifeCurveTimes{};            // VelocityOverLife key times.
     Vec4 velocityScaleByLifeCurveTimesBlock1{};
     Vec4 velocityScaleByLifeCurveValues{};           // VelocityOverLife multiplier values.
     Vec4 velocityScaleByLifeCurveValuesBlock1{};
+    Vec4 velocityScaleByLifeCurveArriveTangents{};   // VelocityOverLife arrive tangents.
+    Vec4 velocityScaleByLifeCurveArriveTangentsBlock1{};
+    Vec4 velocityScaleByLifeCurveLeaveTangents{};    // VelocityOverLife leave tangents.
+    Vec4 velocityScaleByLifeCurveLeaveTangentsBlock1{};
+    Vec4 velocityScaleByLifeCurveModes{};            // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 velocityScaleByLifeCurveModesBlock1{};
     Vec4 velocityScaleByLifeCurveParams{};           // x: key count, y/z/w: unused.
     Vec4 orbitParams{};                              // x: enabled, y: plane, z/w: unused.
     Vec4 orbitAngleRange{};                          // x/y: angle start/end degrees, z/w: unused.
@@ -142,12 +162,24 @@ struct ComputePointParticleParams
     Vec4 orbitAngleCurveTimesBlock1{};
     Vec4 orbitAngleCurveValues{};                    // OrbitOverLife angle degree key values.
     Vec4 orbitAngleCurveValuesBlock1{};
+    Vec4 orbitAngleCurveArriveTangents{};            // OrbitOverLife angle arrive tangents.
+    Vec4 orbitAngleCurveArriveTangentsBlock1{};
+    Vec4 orbitAngleCurveLeaveTangents{};             // OrbitOverLife angle leave tangents.
+    Vec4 orbitAngleCurveLeaveTangentsBlock1{};
+    Vec4 orbitAngleCurveModes{};                     // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 orbitAngleCurveModesBlock1{};
     Vec4 orbitAngleCurveParams{};                    // x: key count, y/z/w: unused.
     Vec4 orbitRadiusRange{};                         // x/y: radius scale start/end, z/w: unused.
     Vec4 orbitRadiusCurveTimes{};                    // OrbitOverLife radius scale key times.
     Vec4 orbitRadiusCurveTimesBlock1{};
     Vec4 orbitRadiusCurveValues{};                   // OrbitOverLife radius scale key values.
     Vec4 orbitRadiusCurveValuesBlock1{};
+    Vec4 orbitRadiusCurveArriveTangents{};           // OrbitOverLife radius scale arrive tangents.
+    Vec4 orbitRadiusCurveArriveTangentsBlock1{};
+    Vec4 orbitRadiusCurveLeaveTangents{};            // OrbitOverLife radius scale leave tangents.
+    Vec4 orbitRadiusCurveLeaveTangentsBlock1{};
+    Vec4 orbitRadiusCurveModes{};                    // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 orbitRadiusCurveModesBlock1{};
     Vec4 orbitRadiusCurveParams{};                   // x: key count, y/z/w: unused.
     XMUINT4 motionSeedSalts0{};                      // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration.
     XMUINT4 motionSeedSalts1{};                      // x: Drag, y/z/w: unused.
@@ -157,11 +189,23 @@ struct ComputePointParticleParams
     Vec4 rotationOverLifeCurveTimesBlock1{};
     Vec4 rotationOverLifeCurveValues{};              // RotationOverLife degree key values.
     Vec4 rotationOverLifeCurveValuesBlock1{};
+    Vec4 rotationOverLifeCurveArriveTangents{};      // RotationOverLife arrive tangents.
+    Vec4 rotationOverLifeCurveArriveTangentsBlock1{};
+    Vec4 rotationOverLifeCurveLeaveTangents{};       // RotationOverLife leave tangents.
+    Vec4 rotationOverLifeCurveLeaveTangentsBlock1{};
+    Vec4 rotationOverLifeCurveModes{};               // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 rotationOverLifeCurveModesBlock1{};
     Vec4 rotationOverLifeCurveParams{};              // x: key count, y/z/w: unused.
     Vec4 rotationRateScaleByLifeCurveTimes{};        // RotationRateScaleByLife key times.
     Vec4 rotationRateScaleByLifeCurveTimesBlock1{};
     Vec4 rotationRateScaleByLifeCurveValues{};       // RotationRateScaleByLife multiplier values.
     Vec4 rotationRateScaleByLifeCurveValuesBlock1{};
+    Vec4 rotationRateScaleByLifeCurveArriveTangents{}; // RotationRateScaleByLife arrive tangents.
+    Vec4 rotationRateScaleByLifeCurveArriveTangentsBlock1{};
+    Vec4 rotationRateScaleByLifeCurveLeaveTangents{};  // RotationRateScaleByLife leave tangents.
+    Vec4 rotationRateScaleByLifeCurveLeaveTangentsBlock1{};
+    Vec4 rotationRateScaleByLifeCurveModes{};          // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 rotationRateScaleByLifeCurveModesBlock1{};
     Vec4 rotationRateScaleByLifeCurveParams{};       // x: key count, y/z/w: unused.
     XMUINT4 rotationSeedSalts{};                     // x: InitialRotation, y: InitialRotationRate, z/w: unused.
     Vec4 planeRadialCameraFacingRight{};             // xyz: camera right axis in emitter-local sampling space.
@@ -844,6 +888,20 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .accelerationCurveValuesYBlock1 = _desc.motion.accelerationCurveValuesYBlock1,
         .accelerationCurveValuesZ = _desc.motion.accelerationCurveValuesZ,
         .accelerationCurveValuesZBlock1 = _desc.motion.accelerationCurveValuesZBlock1,
+        .accelerationCurveArriveTangentsX = _desc.motion.accelerationCurveArriveTangentsX,
+        .accelerationCurveArriveTangentsXBlock1 = _desc.motion.accelerationCurveArriveTangentsXBlock1,
+        .accelerationCurveLeaveTangentsX = _desc.motion.accelerationCurveLeaveTangentsX,
+        .accelerationCurveLeaveTangentsXBlock1 = _desc.motion.accelerationCurveLeaveTangentsXBlock1,
+        .accelerationCurveArriveTangentsY = _desc.motion.accelerationCurveArriveTangentsY,
+        .accelerationCurveArriveTangentsYBlock1 = _desc.motion.accelerationCurveArriveTangentsYBlock1,
+        .accelerationCurveLeaveTangentsY = _desc.motion.accelerationCurveLeaveTangentsY,
+        .accelerationCurveLeaveTangentsYBlock1 = _desc.motion.accelerationCurveLeaveTangentsYBlock1,
+        .accelerationCurveArriveTangentsZ = _desc.motion.accelerationCurveArriveTangentsZ,
+        .accelerationCurveArriveTangentsZBlock1 = _desc.motion.accelerationCurveArriveTangentsZBlock1,
+        .accelerationCurveLeaveTangentsZ = _desc.motion.accelerationCurveLeaveTangentsZ,
+        .accelerationCurveLeaveTangentsZBlock1 = _desc.motion.accelerationCurveLeaveTangentsZBlock1,
+        .accelerationCurveModes = _desc.motion.accelerationCurveModes,
+        .accelerationCurveModesBlock1 = _desc.motion.accelerationCurveModesBlock1,
         .accelerationCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount))),
             _desc.motion.accelerationCurveEnabled ? 1.f : 0.f,
@@ -855,6 +913,12 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .velocityScaleByLifeCurveTimesBlock1 = _desc.motion.velocityScaleByLifeCurveTimesBlock1,
         .velocityScaleByLifeCurveValues = _desc.motion.velocityScaleByLifeCurveValues,
         .velocityScaleByLifeCurveValuesBlock1 = _desc.motion.velocityScaleByLifeCurveValuesBlock1,
+        .velocityScaleByLifeCurveArriveTangents = _desc.motion.velocityScaleByLifeCurveArriveTangents,
+        .velocityScaleByLifeCurveArriveTangentsBlock1 = _desc.motion.velocityScaleByLifeCurveArriveTangentsBlock1,
+        .velocityScaleByLifeCurveLeaveTangents = _desc.motion.velocityScaleByLifeCurveLeaveTangents,
+        .velocityScaleByLifeCurveLeaveTangentsBlock1 = _desc.motion.velocityScaleByLifeCurveLeaveTangentsBlock1,
+        .velocityScaleByLifeCurveModes = _desc.motion.velocityScaleByLifeCurveModes,
+        .velocityScaleByLifeCurveModesBlock1 = _desc.motion.velocityScaleByLifeCurveModesBlock1,
         .velocityScaleByLifeCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.velocityScaleByLifeCurveKeyCount))),
             0.f,
@@ -872,6 +936,12 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .orbitAngleCurveTimesBlock1 = _desc.orbitOverLife.angleCurveTimesBlock1,
         .orbitAngleCurveValues = _desc.orbitOverLife.angleCurveValues,
         .orbitAngleCurveValuesBlock1 = _desc.orbitOverLife.angleCurveValuesBlock1,
+        .orbitAngleCurveArriveTangents = _desc.orbitOverLife.angleCurveArriveTangents,
+        .orbitAngleCurveArriveTangentsBlock1 = _desc.orbitOverLife.angleCurveArriveTangentsBlock1,
+        .orbitAngleCurveLeaveTangents = _desc.orbitOverLife.angleCurveLeaveTangents,
+        .orbitAngleCurveLeaveTangentsBlock1 = _desc.orbitOverLife.angleCurveLeaveTangentsBlock1,
+        .orbitAngleCurveModes = _desc.orbitOverLife.angleCurveModes,
+        .orbitAngleCurveModesBlock1 = _desc.orbitOverLife.angleCurveModesBlock1,
         .orbitAngleCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.orbitOverLife.angleCurveKeyCount))),
             0.f,
@@ -883,6 +953,12 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .orbitRadiusCurveTimesBlock1 = _desc.orbitOverLife.radiusScaleCurveTimesBlock1,
         .orbitRadiusCurveValues = _desc.orbitOverLife.radiusScaleCurveValues,
         .orbitRadiusCurveValuesBlock1 = _desc.orbitOverLife.radiusScaleCurveValuesBlock1,
+        .orbitRadiusCurveArriveTangents = _desc.orbitOverLife.radiusScaleCurveArriveTangents,
+        .orbitRadiusCurveArriveTangentsBlock1 = _desc.orbitOverLife.radiusScaleCurveArriveTangentsBlock1,
+        .orbitRadiusCurveLeaveTangents = _desc.orbitOverLife.radiusScaleCurveLeaveTangents,
+        .orbitRadiusCurveLeaveTangentsBlock1 = _desc.orbitOverLife.radiusScaleCurveLeaveTangentsBlock1,
+        .orbitRadiusCurveModes = _desc.orbitOverLife.radiusScaleCurveModes,
+        .orbitRadiusCurveModesBlock1 = _desc.orbitOverLife.radiusScaleCurveModesBlock1,
         .orbitRadiusCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.orbitOverLife.radiusScaleCurveKeyCount))),
             0.f,
@@ -917,6 +993,12 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .rotationOverLifeCurveTimesBlock1 = _desc.rotation.rotationOverLifeCurveTimesBlock1,
         .rotationOverLifeCurveValues = _desc.rotation.rotationOverLifeCurveValues,
         .rotationOverLifeCurveValuesBlock1 = _desc.rotation.rotationOverLifeCurveValuesBlock1,
+        .rotationOverLifeCurveArriveTangents = _desc.rotation.rotationOverLifeCurveArriveTangents,
+        .rotationOverLifeCurveArriveTangentsBlock1 = _desc.rotation.rotationOverLifeCurveArriveTangentsBlock1,
+        .rotationOverLifeCurveLeaveTangents = _desc.rotation.rotationOverLifeCurveLeaveTangents,
+        .rotationOverLifeCurveLeaveTangentsBlock1 = _desc.rotation.rotationOverLifeCurveLeaveTangentsBlock1,
+        .rotationOverLifeCurveModes = _desc.rotation.rotationOverLifeCurveModes,
+        .rotationOverLifeCurveModesBlock1 = _desc.rotation.rotationOverLifeCurveModesBlock1,
         .rotationOverLifeCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.rotation.rotationOverLifeCurveKeyCount))),
             0.f,
@@ -927,6 +1009,12 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .rotationRateScaleByLifeCurveTimesBlock1 = _desc.rotation.rotationRateScaleByLifeCurveTimesBlock1,
         .rotationRateScaleByLifeCurveValues = _desc.rotation.rotationRateScaleByLifeCurveValues,
         .rotationRateScaleByLifeCurveValuesBlock1 = _desc.rotation.rotationRateScaleByLifeCurveValuesBlock1,
+        .rotationRateScaleByLifeCurveArriveTangents = _desc.rotation.rotationRateScaleByLifeCurveArriveTangents,
+        .rotationRateScaleByLifeCurveArriveTangentsBlock1 = _desc.rotation.rotationRateScaleByLifeCurveArriveTangentsBlock1,
+        .rotationRateScaleByLifeCurveLeaveTangents = _desc.rotation.rotationRateScaleByLifeCurveLeaveTangents,
+        .rotationRateScaleByLifeCurveLeaveTangentsBlock1 = _desc.rotation.rotationRateScaleByLifeCurveLeaveTangentsBlock1,
+        .rotationRateScaleByLifeCurveModes = _desc.rotation.rotationRateScaleByLifeCurveModes,
+        .rotationRateScaleByLifeCurveModesBlock1 = _desc.rotation.rotationRateScaleByLifeCurveModesBlock1,
         .rotationRateScaleByLifeCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.rotation.rotationRateScaleByLifeCurveKeyCount))),
             0.f,

@@ -1465,44 +1465,7 @@ private: //## Label Helpers
         if (keys.empty())
             return 0.f;
 
-        if (keys.size() == 1)
-            return keys.front().time < 0.5f ? 1.f : 0.f;
-
-        vector<float> times{};
-        times.reserve(keys.size());
-        for (const TKey& key : keys)
-            times.push_back(clamp(key.time, 0.f, 1.f));
-
-        ranges::sort(times);
-
-        float bestLeft = 0.f;
-        float bestRight = times.front();
-        float bestGap = bestRight - bestLeft;
-        for (size_t index = 1; index < times.size(); ++index)
-        {
-            const float left = times[index - 1];
-            const float right = times[index];
-            const float gap = right - left;
-            if (gap > bestGap)
-            {
-                bestLeft = left;
-                bestRight = right;
-                bestGap = gap;
-            }
-        }
-
-        const float tailGap = 1.f - times.back();
-        if (tailGap > bestGap)
-        {
-            bestLeft = times.back();
-            bestRight = 1.f;
-            bestGap = tailGap;
-        }
-
-        if (bestGap <= 0.f)
-            return clamp(keys.back().time, 0.f, 1.f);
-
-        return clamp((bestLeft + bestRight) * 0.5f, 0.f, 1.f);
+        return 1.f;
     }
 
     CurveKeyHeaderAction Draw_CurveKeyHeaderActions(size_t index, size_t keyCount)

@@ -104,6 +104,12 @@ private:
         Vec4 sizeByLifeCurveTimesBlock1{};
         Vec4 sizeByLifeCurveValuesX{}; // SizeByLife scaleOverLife X multiplier 값이다.
         Vec4 sizeByLifeCurveValuesXBlock1{};
+        Vec4 sizeByLifeCurveArriveTangentsX{};
+        Vec4 sizeByLifeCurveArriveTangentsXBlock1{};
+        Vec4 sizeByLifeCurveLeaveTangentsX{};
+        Vec4 sizeByLifeCurveLeaveTangentsXBlock1{};
+        Vec4 sizeByLifeCurveModes{};
+        Vec4 sizeByLifeCurveModesBlock1{};
         Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, zw: reserved.
         Vec4 lengthParams{};          // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved.
     };

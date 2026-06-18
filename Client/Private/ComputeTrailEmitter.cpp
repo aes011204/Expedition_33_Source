@@ -985,6 +985,12 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.sizeByLifeCurveTimesBlock1 = _desc.sizeByLife.curveKeyTimesBlock1;
     params.sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX;
     params.sizeByLifeCurveValuesXBlock1 = _desc.sizeByLife.curveKeyValuesXBlock1;
+    params.sizeByLifeCurveArriveTangentsX = _desc.sizeByLife.curveKeyArriveTangentsX;
+    params.sizeByLifeCurveArriveTangentsXBlock1 = _desc.sizeByLife.curveKeyArriveTangentsXBlock1;
+    params.sizeByLifeCurveLeaveTangentsX = _desc.sizeByLife.curveKeyLeaveTangentsX;
+    params.sizeByLifeCurveLeaveTangentsXBlock1 = _desc.sizeByLife.curveKeyLeaveTangentsXBlock1;
+    params.sizeByLifeCurveModes = _desc.sizeByLife.curveKeyModes;
+    params.sizeByLifeCurveModesBlock1 = _desc.sizeByLife.curveKeyModesBlock1;
     params.sizeByLifeCurveParams = Vec4{
         static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.sizeByLife.curveKeyCount))),
         _desc.sizeByLife.multiplyX ? 1.f : 0.f,

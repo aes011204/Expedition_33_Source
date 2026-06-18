@@ -323,6 +323,20 @@ struct PointParticleMotionDesc
     Vec4 accelerationCurveValuesYBlock1{};                          // Acceleration key 4..7 Y 값이다.
     Vec4 accelerationCurveValuesZ{ 0.f, 0.f, 0.f, 0.f };            // Acceleration key별 Z 값이다.
     Vec4 accelerationCurveValuesZBlock1{};                          // Acceleration key 4..7 Z 값이다.
+    Vec4 accelerationCurveArriveTangentsX{};                        // Acceleration key별 X arrive tangent 값이다.
+    Vec4 accelerationCurveArriveTangentsXBlock1{};                  // Acceleration key 4..7 X arrive tangent 값이다.
+    Vec4 accelerationCurveLeaveTangentsX{};                         // Acceleration key별 X leave tangent 값이다.
+    Vec4 accelerationCurveLeaveTangentsXBlock1{};                   // Acceleration key 4..7 X leave tangent 값이다.
+    Vec4 accelerationCurveArriveTangentsY{};                        // Acceleration key별 Y arrive tangent 값이다.
+    Vec4 accelerationCurveArriveTangentsYBlock1{};                  // Acceleration key 4..7 Y arrive tangent 값이다.
+    Vec4 accelerationCurveLeaveTangentsY{};                         // Acceleration key별 Y leave tangent 값이다.
+    Vec4 accelerationCurveLeaveTangentsYBlock1{};                   // Acceleration key 4..7 Y leave tangent 값이다.
+    Vec4 accelerationCurveArriveTangentsZ{};                        // Acceleration key별 Z arrive tangent 값이다.
+    Vec4 accelerationCurveArriveTangentsZBlock1{};                  // Acceleration key 4..7 Z arrive tangent 값이다.
+    Vec4 accelerationCurveLeaveTangentsZ{};                         // Acceleration key별 Z leave tangent 값이다.
+    Vec4 accelerationCurveLeaveTangentsZBlock1{};                   // Acceleration key 4..7 Z leave tangent 값이다.
+    Vec4 accelerationCurveModes{ 1.f, 1.f, 0.f, 0.f };              // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 accelerationCurveModesBlock1{};                            // Acceleration key 4..7 interpolation mode 값이다.
     Vec2 drag{ 0.f, 0.f };                                          // Drag 분포의 min/max 감쇠값이다.
     Vec2 velocityScaleByLife{ 1.f, 1.f };                           // VelocityOverLife의 시작/종료 fallback 배율이다.
     uint32 velocityScaleByLifeCurveKeyCount{ 2 };                   // VelocityOverLife compact curve key 수다.
@@ -330,6 +344,12 @@ struct PointParticleMotionDesc
     Vec4 velocityScaleByLifeCurveTimesBlock1{};                     // VelocityOverLife key 4..7 time 값이다.
     Vec4 velocityScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f };      // VelocityOverLife key별 속도 배율 값이다.
     Vec4 velocityScaleByLifeCurveValuesBlock1{};                    // VelocityOverLife key 4..7 속도 배율 값이다.
+    Vec4 velocityScaleByLifeCurveArriveTangents{};                  // VelocityOverLife key별 arrive tangent 값이다.
+    Vec4 velocityScaleByLifeCurveArriveTangentsBlock1{};            // VelocityOverLife key 4..7 arrive tangent 값이다.
+    Vec4 velocityScaleByLifeCurveLeaveTangents{};                   // VelocityOverLife key별 leave tangent 값이다.
+    Vec4 velocityScaleByLifeCurveLeaveTangentsBlock1{};             // VelocityOverLife key 4..7 leave tangent 값이다.
+    Vec4 velocityScaleByLifeCurveModes{ 1.f, 1.f, 0.f, 0.f };       // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 velocityScaleByLifeCurveModesBlock1{};                     // VelocityOverLife key 4..7 interpolation mode 값이다.
     PointParticleRandomSeedRuntimeDesc initialVelocitySeed{};       // InitialVelocity random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc initialRadialVelocitySeed{}; // InitialRadialVelocity random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc velocityConeSeed{};          // VelocityCone random sample seed salt다.
@@ -350,11 +370,23 @@ struct PointParticleRotationDesc
     Vec4 rotationOverLifeCurveTimesBlock1{};                       // RotationOverLife key 4..7 time 값이다.
     Vec4 rotationOverLifeCurveValues{ 0.f, 0.f, 0.f, 0.f };        // RotationOverLife key별 추가 회전각 degree 값이다.
     Vec4 rotationOverLifeCurveValuesBlock1{};                      // RotationOverLife key 4..7 추가 회전각 degree 값이다.
+    Vec4 rotationOverLifeCurveArriveTangents{};                    // RotationOverLife key별 arrive tangent 값이다.
+    Vec4 rotationOverLifeCurveArriveTangentsBlock1{};              // RotationOverLife key 4..7 arrive tangent 값이다.
+    Vec4 rotationOverLifeCurveLeaveTangents{};                     // RotationOverLife key별 leave tangent 값이다.
+    Vec4 rotationOverLifeCurveLeaveTangentsBlock1{};               // RotationOverLife key 4..7 leave tangent 값이다.
+    Vec4 rotationOverLifeCurveModes{ 1.f, 1.f, 0.f, 0.f };         // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 rotationOverLifeCurveModesBlock1{};                       // RotationOverLife key 4..7 interpolation mode 값이다.
     uint32 rotationRateScaleByLifeCurveKeyCount{ 2 };              // RotationRateScaleByLife compact curve key 수다.
     Vec4 rotationRateScaleByLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };  // RotationRateScaleByLife key time 0..1 값이다.
     Vec4 rotationRateScaleByLifeCurveTimesBlock1{};                // RotationRateScaleByLife key 4..7 time 값이다.
     Vec4 rotationRateScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f }; // RotationRateScaleByLife key별 배율 값이다.
     Vec4 rotationRateScaleByLifeCurveValuesBlock1{};               // RotationRateScaleByLife key 4..7 배율 값이다.
+    Vec4 rotationRateScaleByLifeCurveArriveTangents{};             // RotationRateScaleByLife key별 arrive tangent 값이다.
+    Vec4 rotationRateScaleByLifeCurveArriveTangentsBlock1{};       // RotationRateScaleByLife key 4..7 arrive tangent 값이다.
+    Vec4 rotationRateScaleByLifeCurveLeaveTangents{};              // RotationRateScaleByLife key별 leave tangent 값이다.
+    Vec4 rotationRateScaleByLifeCurveLeaveTangentsBlock1{};        // RotationRateScaleByLife key 4..7 leave tangent 값이다.
+    Vec4 rotationRateScaleByLifeCurveModes{ 1.f, 1.f, 0.f, 0.f };  // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 rotationRateScaleByLifeCurveModesBlock1{};                // RotationRateScaleByLife key 4..7 interpolation mode 값이다.
     PointParticleRandomSeedRuntimeDesc initialRotationSeed{};      // InitialRotation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc initialRotationRateSeed{};  // InitialRotationRate random sample seed salt다.
 };
@@ -540,12 +572,24 @@ struct EffectOrbitOverLifeRuntimeDesc
     Vec4 angleCurveTimesBlock1{};
     Vec4 angleCurveValues{ 0.f, 0.f, 0.f, 0.f };
     Vec4 angleCurveValuesBlock1{};
+    Vec4 angleCurveArriveTangents{};
+    Vec4 angleCurveArriveTangentsBlock1{};
+    Vec4 angleCurveLeaveTangents{};
+    Vec4 angleCurveLeaveTangentsBlock1{};
+    Vec4 angleCurveModes{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 angleCurveModesBlock1{};
     Vec2 radiusScaleOverLife{ 1.f, 1.f };
     uint32 radiusScaleCurveKeyCount{ 2 };
     Vec4 radiusScaleCurveTimes{ 0.f, 1.f, 0.f, 0.f };
     Vec4 radiusScaleCurveTimesBlock1{};
     Vec4 radiusScaleCurveValues{ 1.f, 1.f, 0.f, 0.f };
     Vec4 radiusScaleCurveValuesBlock1{};
+    Vec4 radiusScaleCurveArriveTangents{};
+    Vec4 radiusScaleCurveArriveTangentsBlock1{};
+    Vec4 radiusScaleCurveLeaveTangents{};
+    Vec4 radiusScaleCurveLeaveTangentsBlock1{};
+    Vec4 radiusScaleCurveModes{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 radiusScaleCurveModesBlock1{};
 };
 
 // 인스턴스 생성에 공통으로 필요한 spawn 규칙.
