@@ -51,7 +51,10 @@ void PanelInspector::Render()
                 curSelected->_type == EObjectType::InstancedMesh &&
                 !curSelected->_instancedTransforms.empty())
             {
-                curSelected->_selectedInstanceIdx = 0;
+                if (curSelected->_selectedInstanceIdx < 0)
+                {
+                    curSelected->_selectedInstanceIdx = 0;
+                }
             }
 
             _prevSelectedShared = _ctx->_selected;

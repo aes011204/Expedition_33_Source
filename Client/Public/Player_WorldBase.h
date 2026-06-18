@@ -61,6 +61,11 @@ public:
 protected:
     HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
+    virtual HRESULT Ready_BodyModifiers(Body_Player* body)
+    {
+        UNREFERENCED_PARAMETER(body);
+        return S_OK;
+    }
 
     virtual HeroId Get_HeroId() const { return HeroId::END; }
 

@@ -151,6 +151,59 @@ void Debug_Manager::Draw_Sphere(const DebugSphereDesc& desc)
         _overlaySpheres.push_back(entry);
 }
 
+void Debug_Manager::Draw_Capsule(const DebugCapsuleDesc& desc)
+{
+    if (desc.radius <= 0.f)
+        return;
+
+    DebugLineDesc lineDesc{};
+    lineDesc.style = desc.style;
+    lineDesc.style.color = desc.style.color;
+
+    lineDesc.start = desc.start;
+    lineDesc.end = desc.end;
+    Draw_Line(lineDesc);
+
+    DebugSphereDesc sphereDesc{};
+    sphereDesc.radius = desc.radius;
+    sphereDesc.style = desc.style;
+    sphereDesc.style.color = desc.style.color;
+
+    sphereDesc.center = desc.start;
+    Draw_Sphere(sphereDesc);
+
+    sphereDesc.center = desc.end;
+    Draw_Sphere(sphereDesc);
+
+    Vec3 axis = desc.end - desc.start;
+    if (axis.LengthSquared() <= FLT_EPSILON)
+        return;
+
+    axis.Normalize();
+    Vec3 right = axis.Cross(Vec3::UnitY);
+    if (right.LengthSquared() <= FLT_EPSILON)
+        right = axis.Cross(Vec3::UnitX);
+    right.Normalize();
+
+    Vec3 up = right.Cross(axis);
+    up.Normalize();
+
+    const Vec3 offsets[] =
+    {
+        right * desc.radius,
+        -right * desc.radius,
+        up * desc.radius,
+        -up * desc.radius,
+    };
+
+    for (const Vec3& offset : offsets)
+    {
+        lineDesc.start = desc.start + offset;
+        lineDesc.end = desc.end + offset;
+        Draw_Line(lineDesc);
+    }
+}
+
 void Debug_Manager::Draw_Line(const DebugLineDesc& desc)
 {
     DebugLineEntry entry{};

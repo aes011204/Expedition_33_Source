@@ -29,6 +29,15 @@ namespace Engine
         DebugRenderStyle style;                 // 구 공통 렌더 옵션
     };
 
+    // Capsule
+    struct ENGINE_DLL DebugCapsuleDesc
+    {
+        Vec3 start = Vec3::Zero;                // 월드 기준 캡슐 선분 시작점
+        Vec3 end = Vec3::Zero;                  // 월드 기준 캡슐 선분 끝점
+        float radius = 0.5f;                    // 월드 기준 캡슐 반지름
+        DebugRenderStyle style;                 // 캡슐 공통 렌더 옵션
+    };
+
     // Line
     struct ENGINE_DLL DebugLineDesc
     {

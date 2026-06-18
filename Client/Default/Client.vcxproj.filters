@@ -265,6 +265,9 @@
     <Filter Include="01.Levels\Stage\Level_GestralVillage">
       <UniqueIdentifier>{5ce4bb27-069c-4f90-8e6e-6b4ed1f61c43}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\ModifierPreset">
+      <UniqueIdentifier>{c6888c1b-89f3-4e18-8210-91cb8f4646b0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -306,6 +309,7 @@
     <ClCompile Include="..\Private\ANS_WeaponRotate.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\ANS_WorldTimeScale.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -946,9 +950,7 @@
     <ClCompile Include="..\Private\StateMachineCom.cpp">
       <Filter>03. Component\StateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\StreamingLevel.cpp">
-      <Filter>01.Levels</Filter>
-    </ClCompile>
+    <ClCompile Include="..\Private\StreamingLevel.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp">
       <Filter>02.GameObject\Camera\Target</Filter>
     </ClCompile>
@@ -1090,6 +1092,7 @@
     <ClCompile Include="..\private\WeaponUI_Common.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
+    <ClCompile Include="ChainModifierPreset.cpp" />
     <ClCompile Include="Mon_Simon_Weapon.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
@@ -1138,7 +1141,6 @@
     <ClCompile Include="..\Private\Weapon.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\ANS_WorldTimeScale.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1180,6 +1182,7 @@
     <ClInclude Include="..\Public\ANS_WeaponRotate.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\ANS_WorldTimeScale.h" />
     <ClInclude Include="..\public\AN_Attack.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
@@ -2012,6 +2015,7 @@
     <ClInclude Include="Battle_Enum.h">
       <Filter>05. BattleSystem</Filter>
     </ClInclude>
+    <ClInclude Include="ChainModifierPreset.h" />
     <ClInclude Include="Mon_Simon_Weapon.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
@@ -2066,7 +2070,6 @@
     <ClInclude Include="..\Public\Weapon.h">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\ANS_WorldTimeScale.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
