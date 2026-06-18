@@ -198,7 +198,7 @@ void Monster_BattleBase::Reset_FreeAimWeakPoint()
         weakPoint->Reset_BattleWeakPoint();
 }
 
-float Monster_BattleBase::Get_HpRatio()
+float Monster_BattleBase::Get_HpRatio() const
 {
 
     if (_combatStat == nullptr) return 1.f;
@@ -208,7 +208,7 @@ float Monster_BattleBase::Get_HpRatio()
 
 }
 
-Monster_BattleBase::BattlePhase Monster_BattleBase::Get_CurPhase()
+Monster_BattleBase::BattlePhase Monster_BattleBase::Get_CurPhase() const
 {
     float hpRatio = Get_HpRatio();
 

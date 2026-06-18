@@ -106,6 +106,7 @@ public:
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AllEnemies() { return _enemies; };
     vector<BattleChar> Get_AliveHeroes();
+    bool Will_NextScheduledTurnBePlayer(const BattleChar& currentActor) const;
 
     BattleReactionController& Get_ReactionController() { return _reactionController; }
     const BattleReactionController& Get_ReactionController() const { return _reactionController; }

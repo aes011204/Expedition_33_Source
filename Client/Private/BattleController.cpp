@@ -262,7 +262,24 @@ void BattleController::Update(float timeDelta)
         if (_reactionController.IsBusy())
             return;
 
+        const BattleChar actor = _turnAction.Get_CurChar();
+        const bool isMonsterFreeTurnSkill =
+            actor.actor != nullptr &&
+            actor.statCom != nullptr &&
+            !actor.statCom->Is_Player() &&
+            _turnAction.GetType() == EBattleContext::Skill &&
+            _turnAction.GetSkillData().apCost < 0;
+
         _isActionExecuting = false;
+
+        if (isMonsterFreeTurnSkill)
+        {
+            // 몬스터 전용 free-turn 스킬은 턴을 유지한 채 다음 스킬 선택으로 다시 진입한다.
+            Play_EnemyTargetedEnd();
+            Run_EnemyTurn();
+            return;
+        }
+
         EndTurn();
         return;
     }
@@ -998,6 +1015,40 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
             alive.push_back(_heroes[i]);
     }
     return alive;
+}
+
+bool BattleController::Will_NextScheduledTurnBePlayer(const BattleChar& currentActor) const
+{
+    auto queueCopy = _turnQueue;
+    uint64 previewNextTurnEntrySeq = _nextTurnEntrySeq;
+
+    if (currentActor.actor != nullptr &&
+        currentActor.statCom != nullptr &&
+        currentActor.statCom->Get_CurAliveState() == EAliveStatus::Alive)
+    {
+        TurnEntry nextEntry{};
+        nextEntry.hero = currentActor;
+        nextEntry.nextTime =
+            _battleTime + 100.f / max(currentActor.statCom->Get_Speed(), 1.f);
+        nextEntry.orderSeq = previewNextTurnEntrySeq++;
+        queueCopy.push(nextEntry);
+    }
+
+    while (!queueCopy.empty())
+    {
+        const TurnEntry entry = queueCopy.top();
+        queueCopy.pop();
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.statCom->Get_CurAliveState() != EAliveStatus::Alive)
+            continue;
+
+        return entry.hero.statCom->Is_Player();
+    }
+
+    return false;
 }
 
 void BattleController::Handle_EditorStopRuntime()

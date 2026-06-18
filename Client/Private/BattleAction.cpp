@@ -3,6 +3,7 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
+#include "Monster_BattleBase.h"
 NS_BEGIN(Client)
 
 void BattleAction::Set_BattleActionFromRequest(const ActionRequest& request)
@@ -19,6 +20,28 @@ void BattleAction::Set_BattleActionFromRequest(const ActionRequest& request)
             _selected_SkillKey = *skillData;
         else
             LOG_WARN("BuildActionFromRequest: skill data not found. skillKey={}", request.skillKey.c_str());
+    }
+
+    if (type == EBattleContext::Skill && request.actor.actor != nullptr)
+    {
+        if (const Shared<Monster_BattleBase> monster =
+            dynamic_pointer_cast<Monster_BattleBase>(request.actor.actor))
+        {
+            if (monster->Should_AppendPreTurnEndPhase(request))
+            {
+                const string preTurnEndSkillKey = monster->Get_PreTurnEndSkillKey();
+                if (const Skill_Data* preTurnEndSkill = CLIENT->Get_Skill(preTurnEndSkillKey))
+                {
+                    if (!preTurnEndSkill->AnimPhases.empty())
+                    {
+                        BattleActionPhase preTurnEndPhase = preTurnEndSkill->AnimPhases[0];
+                        preTurnEndPhase.phaseIndex =
+                            static_cast<uint32>(_selected_SkillKey.AnimPhases.size());
+                        _selected_SkillKey.AnimPhases.push_back(preTurnEndPhase);
+                    }
+                }
+            }
+        }
     }
 
     if (request.itemType != BattleItemType::Invalid)
