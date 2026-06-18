@@ -30,6 +30,7 @@ class BattleSpawnRegistry;
 class SkillTreeCom;
 class BattleTutorialController;
 class BattleResultRecoder;
+class PictosBattleSystem;
 
 class BattleController : public Base
 {
@@ -97,6 +98,9 @@ public:
     const BattleAction& Get_TurnAction() const { return _turnAction; }
     ActionRequest& Get_TurnActionRequest() { return _turnActionRequest; }
     const ActionRequest& Get_TurnActionRequest() const { return _turnActionRequest; }
+
+    Shared<PictosBattleSystem> Get_PictosBattleSystem() const { return _pictosBattleSystem; }
+
     // Action& Get_TurnAction() { return _turnAction; }
     void    Request_WidePresentationMode();
 
@@ -205,6 +209,11 @@ public:
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
+
+    // DOF_MODIFY 
+    void    Begin_BattleDOFOverride();
+    void    End_BattleDOFOverride();
+    Engine::DOFTransitionDesc Build_BattleDOFRestoreTransition();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
     void    Push_TurnEntry(const BattleChar& actor, float nextTime);
@@ -232,6 +241,8 @@ private:
 
     bool Try_BeginTurnStartStatusAnnounce();
     void Continue_StartTurnAfterStatusEffects();
+
+
 
 private:
     using BattleReactionInputResult = BattleReactionController::BattleReactionInputResult;
@@ -323,6 +334,8 @@ private:
     BattleReactionController     _reactionController{};
     BattleHitSequenceRunner      _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
     Shared<BattleResultRecoder>  _battleResultRecoder{};
+
+    Shared<PictosBattleSystem>   _pictosBattleSystem{};  // 픽토스
 
     bool _firstAnimflag = { false };
     int  _firstAnimCount = { 0 };

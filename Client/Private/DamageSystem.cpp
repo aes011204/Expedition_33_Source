@@ -4,6 +4,10 @@
 #include "Battle_Enum.h"
 #include "CombatStatCom.h"
 
+#include "BattleController.h"
+#include "ClientInstance.h"
+#include "PictosBattleSystem.h"
+
 FOnDamageApplied        DamageSystem::OnDamageApplied{};
 FOnDamageCalculating    DamageSystem::OnDamageCalculating{};
 FOnHealApplied          DamageSystem::OnHealApplied{};
@@ -60,6 +64,17 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
     }
 
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        return;
+
+    if (const auto battleController = CLIENT->Get_BattleController())
+    {
+        if (const auto pictosSystem = battleController->Get_PictosBattleSystem())
+        {
+            damage *= pictosSystem->Resolve_DamageMultiplier(attacker, target, attackType);
+        }
+    }
+
+    if (damage <= 0.f)
         return;
 
     OnDamageCalculating.Broadcast(attacker, target, damage, attackType);

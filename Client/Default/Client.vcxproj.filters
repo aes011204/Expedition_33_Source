@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -47,6 +47,7 @@
       <UniqueIdentifier>{85583d48-d80e-4783-96a6-3a64b4a29fcc}</UniqueIdentifier>
     </Filter>
     <Filter Include="90.EditorSupport">
+      <UniqueIdentifier>{10adffe7-54e9-35ac-ba6b-2fb202cde260}</UniqueIdentifier>
     </Filter>
     <Filter Include="97. ShaderFeatures">
       <UniqueIdentifier>{51d474c4-dc3f-4ff0-a92b-cafcb3632978}</UniqueIdentifier>
@@ -55,142 +56,214 @@
       <UniqueIdentifier>{ef9cc526-7014-44ac-a006-3259f9833716}</UniqueIdentifier>
     </Filter>
     <Filter Include="95. AnimNotify\01. NotifyStates">
+      <UniqueIdentifier>{2b390c4f-df5e-4934-77ee-75f8d6ed088e}</UniqueIdentifier>
     </Filter>
     <Filter Include="95. AnimNotify\00. Notifies">
+      <UniqueIdentifier>{55e12631-8bee-0997-61d5-df53cd0bcd96}</UniqueIdentifier>
     </Filter>
     <Filter Include="BattleState\Battle">
+      <UniqueIdentifier>{271f4f77-d48e-e3b5-765b-3bd276589124}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera">
+      <UniqueIdentifier>{31878c4f-80bf-37c4-9e26-cbecf4852ad3}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera\BattleCamera">
+      <UniqueIdentifier>{03aaf411-2df2-f725-f212-c2903894ee69}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\UI">
+      <UniqueIdentifier>{dc040a6b-36ed-fb31-6c3c-fb63eebcc9d8}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\UI\ScreenFx">
+      <UniqueIdentifier>{7bad786f-fb45-f03e-3d79-f94300e29e53}</UniqueIdentifier>
     </Filter>
     <Filter Include="BehavoirTree\battle">
+      <UniqueIdentifier>{83ee60df-2be8-8b7f-611a-4c975ec5d22f}</UniqueIdentifier>
     </Filter>
     <Filter Include="BehavoirTree\world">
+      <UniqueIdentifier>{41f6d22e-169d-afc8-a44a-aec087434d4d}</UniqueIdentifier>
     </Filter>
     <Filter Include="04. GamePlayUI\Weapon">
+      <UniqueIdentifier>{32ece566-7e83-c1b6-ec6d-3465f724cf5b}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera\Preview">
+      <UniqueIdentifier>{7fac03ce-a046-cd46-4e8d-cf965d855da0}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera\Cinematic">
+      <UniqueIdentifier>{1a0eb9ee-9543-3061-4431-04c3791022fd}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\EyeTarget">
+      <UniqueIdentifier>{8b816668-ca52-327c-556d-39666782facc}</UniqueIdentifier>
     </Filter>
     <Filter Include="06. Effect System\Component Bridge">
+      <UniqueIdentifier>{6a049335-fd8a-7777-1cdd-741e3e281c1c}</UniqueIdentifier>
     </Filter>
     <Filter Include="06. Effect System\Pool">
+      <UniqueIdentifier>{dffd9139-67a6-4230-5304-59826c80f1b4}</UniqueIdentifier>
     </Filter>
     <Filter Include="06. Effect System\Runtime Loader">
+      <UniqueIdentifier>{8031c4f5-39f9-f77e-118c-35f9d0e7ba8e}</UniqueIdentifier>
     </Filter>
     <Filter Include="06. Effect System\Runtime Loader\Support">
+      <UniqueIdentifier>{45928d06-9a31-5dd7-ef27-fc799973f125}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect">
+      <UniqueIdentifier>{f2ebf022-77e8-7b28-2f94-f515d3b66b5e}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters">
+      <UniqueIdentifier>{5a84d424-1582-a5db-6e45-506e41ee2456}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\Trail">
+      <UniqueIdentifier>{e5644e15-42f9-d5f8-656c-3eb889d7109c}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map">
+      <UniqueIdentifier>{d73da43a-2a25-12eb-ebf3-7f439d680fe5}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapLoader">
+      <UniqueIdentifier>{deef53d6-6765-06ba-7e7a-cb17409be9ea}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\Ribbon">
+      <UniqueIdentifier>{c29a6db5-bc23-6203-6d2a-f6d328ff87f2}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\Sprite Trail">
+      <UniqueIdentifier>{16edb2c1-be4e-48f9-2647-bf5437ffca2c}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\Beam">
+      <UniqueIdentifier>{61065e73-3224-4bcc-f436-1b9e603f302d}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapWater">
+      <UniqueIdentifier>{946ee52b-dda6-01e9-1028-9b574146063c}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Monster">
+      <UniqueIdentifier>{893d6235-f839-7005-135c-305361b79b63}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Sky">
+      <UniqueIdentifier>{33cbccc5-56d9-2bd3-f3f5-71daa4020c01}</UniqueIdentifier>
     </Filter>
     <Filter Include="06. Effect System\Trail Support">
+      <UniqueIdentifier>{2b147383-47bb-3050-3930-9852e175fd5e}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player">
+      <UniqueIdentifier>{e85b7fda-74f1-d777-8a11-c70c81a79bb8}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\PlayerParts">
+      <UniqueIdentifier>{b7e9ba95-10ed-bbad-fd45-d17289acd713}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapLandscape">
+      <UniqueIdentifier>{4a61ee04-4587-9807-7a8f-d227f39a1749}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels\Logo">
+      <UniqueIdentifier>{02f9d033-d433-53fe-f0ee-b877cf2f7d07}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Monster\01. Battle">
+      <UniqueIdentifier>{30ea98f5-6f8f-1ad0-562b-9934a959ae0a}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Monster\00. World">
+      <UniqueIdentifier>{662afaa6-ac1f-56e8-5f4f-5267b414d96d}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\01. Battle">
+      <UniqueIdentifier>{3a698290-4281-767a-3c60-d124073e2a04}</UniqueIdentifier>
     </Filter>
     <Filter Include="BattleState\Battle\BattleController">
+      <UniqueIdentifier>{6172ac21-5bad-744a-3843-7c4f3a8970cf}</UniqueIdentifier>
     </Filter>
     <Filter Include="03. Component\CombatStat">
+      <UniqueIdentifier>{eeca779c-74dd-6787-0b2b-7ee16d00360e}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\Sprite">
+      <UniqueIdentifier>{fb44160d-98c9-43eb-c761-9e5e55187f80}</UniqueIdentifier>
     </Filter>
     <Filter Include="06. Effect System\Emitter Registration">
+      <UniqueIdentifier>{3d798e93-940f-c15c-f88b-83422b4efffc}</UniqueIdentifier>
     </Filter>
     <Filter Include="06. Effect System\Material Runtime">
+      <UniqueIdentifier>{58375152-4206-8ee6-c666-4c9b668ad63e}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\PlayerParts\Hair">
+      <UniqueIdentifier>{b0f5065f-1a4b-f860-aee1-5f4a04a458d0}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\PlayerParts\Head">
+      <UniqueIdentifier>{d6a24364-d75f-21a6-48c5-dbe62acbf459}</UniqueIdentifier>
     </Filter>
     <Filter Include="03. Component\Input">
+      <UniqueIdentifier>{ef898800-f88a-3a0d-77d3-06ac475a623e}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels\MapTest">
+      <UniqueIdentifier>{ffe6f505-edb6-1c21-2863-d2835e8fc250}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels\Stage">
+      <UniqueIdentifier>{6c6c9e7b-c726-4c89-7ba3-3b0215a0b007}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels\Stage\Stage01">
+      <UniqueIdentifier>{28a8b5e4-b89c-b4d1-dd37-a5cd29f52dad}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapInstancedMesh">
+      <UniqueIdentifier>{aca6f020-f839-e8f7-9fae-8ffd4fc478b1}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapStaticMesh">
+      <UniqueIdentifier>{6949c8b2-2979-a096-7833-b03f8db36edb}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\Mesh">
+      <UniqueIdentifier>{d60972c8-ce56-8b8f-1221-63894d5c4fba}</UniqueIdentifier>
     </Filter>
     <Filter Include="03. Component\PlayerController">
+      <UniqueIdentifier>{2f432579-7be2-0715-dd53-df6b10409a6e}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\PlayerStateMachine">
+      <UniqueIdentifier>{3dc314a4-9658-b434-7742-60007a97404f}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
+      <UniqueIdentifier>{c19c48f9-9c94-d358-8d8c-f1232eef3af3}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\00. World">
+      <UniqueIdentifier>{85b42e37-0e48-3c18-5efc-42f75eacb329}</UniqueIdentifier>
     </Filter>
     <Filter Include="99.Defines\Helper">
+      <UniqueIdentifier>{c9b26d72-23a7-230f-88a1-2e755801490e}</UniqueIdentifier>
     </Filter>
     <Filter Include="03. Component\StateMachine">
+      <UniqueIdentifier>{b9cc34ec-9f52-cee2-0403-a83800b63555}</UniqueIdentifier>
     </Filter>
     <Filter Include="03. Component\StateMachine\State">
+      <UniqueIdentifier>{d602f836-bce0-99b0-3ec4-b9f9bf0353b3}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera\Target">
+      <UniqueIdentifier>{4f50e6c4-8a32-e1e3-dbcc-77c36ab2f96c}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Terrain">
+      <UniqueIdentifier>{8ce69493-3877-ab42-581e-d086d476cbac}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera\Preview\Manager">
+      <UniqueIdentifier>{e7ce0e97-1f2b-95ef-a9cb-63ec4185b70d}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\UI\BackGround">
+      <UniqueIdentifier>{68c74a10-afea-788d-937a-bfa5e63cc7ff}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\PlayerParts\Body">
+      <UniqueIdentifier>{d086cec8-67f5-07c8-72a9-f0cd33b1ba62}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera\Free">
+      <UniqueIdentifier>{5152815c-0613-64ba-3d93-936811a41d6d}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels\GamePlay">
+      <UniqueIdentifier>{77ad754b-6b5c-4102-a9b2-a6935eaa24f5}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels\Loading">
+      <UniqueIdentifier>{b1dc4948-3af3-2996-52cc-18a5268c997d}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels\Loading\Loader">
+      <UniqueIdentifier>{7682a13c-2398-85cd-401c-b8e74ebc56aa}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\PlayerParts\Weapon">
+      <UniqueIdentifier>{7fa37227-afe7-4618-2043-4c4c21cdcb55}</UniqueIdentifier>
     </Filter>
     <Filter Include="97.ShaderFiles\Compute">
+      <UniqueIdentifier>{cdc5a797-7373-18d0-620c-feca8ce38851}</UniqueIdentifier>
     </Filter>
     <Filter Include="97.ShaderFiles\Effect">
+      <UniqueIdentifier>{fe29c99b-09af-dab8-4cb1-718444d1e6cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Levels\Stage\Level_GestralVillage">
+      <UniqueIdentifier>{5ce4bb27-069c-4f90-8e6e-6b4ed1f61c43}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -377,6 +450,7 @@
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp">
       <Filter>04. GamePlayUI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
     <ClCompile Include="..\Private\Pictos_Panel.cpp">
       <Filter>04. GamePlayUI</Filter>
     </ClCompile>
@@ -397,6 +471,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\EyeTarget.cpp">
       <Filter>02.GameObject\EyeTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Level_GestralVillage.cpp">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapAdapter.cpp">
       <Filter>02.GameObject\Map\MapLoader</Filter>
@@ -1282,6 +1359,7 @@
     <ClInclude Include="..\Public\CharacterProgression_Panel.h">
       <Filter>04. GamePlayUI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PictosBattleSystem.h" />
     <ClInclude Include="..\Public\Pictos_Panel.h">
       <Filter>04. GamePlayUI</Filter>
     </ClInclude>
@@ -1323,6 +1401,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\ComputeTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Trail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Level_GestralVillage.h">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MapAdapter.h">
       <Filter>02.GameObject\Map\MapLoader</Filter>
@@ -1989,7 +2070,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_VolumetricFog.hlsl">
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl">
@@ -2131,5 +2212,3 @@
     </None>
   </ItemGroup>
 </Project>
-
-

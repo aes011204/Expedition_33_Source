@@ -48,8 +48,17 @@
 #include "Client_Constants.h"
 #include "BattleTutorialController.h"
 #include "PlayerInventory.h"
+#include "PostProcessPipeline.h"
+
+#include "PictosBattleSystem.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
+
+namespace
+{
+    // DOF_MODIFY 
+    constexpr char kBattleDOFOwnerTag[] = "BattleTurn";
+}
 
 BattleController::BattleController()
 {
@@ -86,6 +95,9 @@ HRESULT BattleController::Initialize()
 
     _battleResultRecoder = BattleResultRecoder::Create();
     CHECK_NULL(_battleResultRecoder, E_FAIL);
+
+    _pictosBattleSystem = PictosBattleSystem::Create();
+    CHECK_NULL(_pictosBattleSystem, E_FAIL);
 
     //    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
@@ -390,6 +402,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _isBattleActive = false;
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
 
     //Restore_WorldCamera(); // 카메라 복구
     CLIENT->Restore_PreviousCamera();
@@ -1048,6 +1062,8 @@ void BattleController::Handle_EditorStopRuntime()
     _battleTurnCamera.reset();
 
     Clear_BattleEnterPending();
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
     Restore_WorldCamera();
 
     if (_battleFSM)
@@ -1687,6 +1703,8 @@ void BattleController::Confirm_Victory()
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
 
+    // DOF_MODIFY 
+    End_BattleDOFOverride();
     Restore_WorldCamera();
     Clear_BattleRuntimeState();
 
@@ -2046,6 +2064,26 @@ void BattleController::Activate_BattleTurnCamera()
     CLIENT->Request_BattleTurn();
 }
 
+// DOF_MODIFY 
+void BattleController::Begin_BattleDOFOverride()
+{
+    if (FAILED(GAME->Begin_DOFOverrideScope(kBattleDOFOwnerTag)))
+        LOG_WARN("BattleController: failed to begin battle DOF override scope");
+}
+
+void BattleController::End_BattleDOFOverride()
+{
+    GAME->End_DOFOverrideScope(kBattleDOFOwnerTag, Build_BattleDOFRestoreTransition());
+}
+
+Engine::DOFTransitionDesc BattleController::Build_BattleDOFRestoreTransition()
+{
+    Engine::DOFTransitionDesc transition{};
+    transition.easing = Engine::DOFTransitionEasing::EaseInOut;
+    transition.duration = 0.35f;
+    return transition;
+}
+
 void BattleController::Restore_WorldCamera()
 {
     CLIENT->Restore_PreviousCamera();
@@ -2079,6 +2117,9 @@ void BattleController::Clear_BattleRuntimeState()
     _flag = false;
     _isActionExecuting = false;
     _hitSequenceRunner.Clear();
+
+    if (_pictosBattleSystem)
+        _pictosBattleSystem->Clear_RuntimeState();
 
     _pendingTurnStartStatusBuff = Buffs::None;
     _pendingTurnStartStatusActor = {};
@@ -2186,6 +2227,7 @@ void BattleController::Complete_BattleField()
         return;
     }
 
+    Begin_BattleDOFOverride();
     Activate_BattleTurnCamera();
     Clear_BattleEnterPending();
 
@@ -2419,9 +2461,17 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         GAME->Print(L"{}", skillDebugText, duration(0.f));
 #endif
 
+        uint32 turnStartApGain = 1u; // 기본 턴 시작 AP 회복량
+
+        if (_pictosBattleSystem)
+        {
+            _pictosBattleSystem->ProcessTurnStart(actor); // 예열, 룰렛 처리
+            turnStartApGain += _pictosBattleSystem->Resolve_TurnStartApBonus(actor); // 활력의 턴 + 1
+        }
+
         const uint32 beforeAp = actor.statCom->Get_CurAP();
 
-        actor.statCom->Add_AP(1);
+        actor.statCom->Add_AP(turnStartApGain);
 
         const uint32 afterAp = actor.statCom->Get_CurAP();
         const uint32 gainedAp = afterAp - beforeAp;
@@ -2655,6 +2705,7 @@ void BattleController::Free()
     ReleaseCtrl(_buffSystem);
     ReleaseCtrl(_battleTutorialController);
     ReleaseCtrl(_battleResultRecoder);
+    ReleaseCtrl(_pictosBattleSystem);
 
     Base::Free();
 }

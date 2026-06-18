@@ -12,12 +12,11 @@
 
 NS_BEGIN(Client)
 
-
 class GameDataTable final : public Base
 {
 public:
 
-    enum class DamageType { LIGHTNING, PHYSICAL };
+    enum class DamageType  { LIGHTNING, PHYSICAL };
     enum class DamageLevel { LOW, NORMAL, HIGH, EXTREME };
     enum class TargetScope { SINGLE, ALL };
     enum class SkillActionTrigger { OnCritical, OnMark };
@@ -114,6 +113,17 @@ public:
         uint32  power = 0;
     };
 
+    enum class PictosEffectType
+    {
+        None,
+        EnergisingTurn,     // 자기 턴 시작 AP 추가 회복
+        GlassCannon,        // 주는 피해/받는 피해 증가
+        WarmingUp,          // 자기 턴마다 주는 피해 누적 증가
+        Roulette,           // 자기 턴마다 50% 또는 150% 피해 배율 결정
+        AugmentedAttack,    // 기본 공격 피해 증가
+        AugmentedAim,       // 자유 조준 피해 증가
+    };
+
     struct PictosDesc
     {
         string  id{};
@@ -123,6 +133,9 @@ public:
         int32   critical = 0;
         string  buttonUi{};   // UI_Pictos_EnergisingTurn
         string  tooltipUi{};  // UI_EnergisingTurn_Pictos_Tooltip
+
+        PictosEffectType effectType = PictosEffectType::None;
+        float effectValue = 0.f;
     };
 
 public:

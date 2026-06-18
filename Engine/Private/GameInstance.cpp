@@ -473,6 +473,20 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     CHECK_NULL(_printManager, E_FAIL);
 #endif
 
+    VolumetricLightShaftZoneCB lightShaftZoneCB{};
+    lightShaftZoneCB.zoneCount = 1;
+
+    Matrix lightShaftWorld = Matrix::CreateScale(2.f) * Matrix::CreateTranslation(Vec3(0.f, 19.f, 0.f));
+
+    lightShaftZoneCB.zones[0].worldToLocal = lightShaftWorld.Invert();
+    lightShaftZoneCB.zones[0].halfExtents = Vec3(3.f, 10.f, 3.f);
+    lightShaftZoneCB.zones[0].density = 1.f;
+    lightShaftZoneCB.zones[0].lightColor = Vec4(1.f, 0.95f, 0.8f, 1.f);
+    lightShaftZoneCB.zones[0].edgeFade = 1.f;
+    lightShaftZoneCB.zones[0].intensity = 1.f;
+
+    GAME->Set_VolumetricLightShaftZones(lightShaftZoneCB);
+
     return S_OK;
 }
 
@@ -1467,6 +1481,36 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
+HRESULT GameInstance::Begin_DOFOverrideScope(const string& ownerTag)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Begin_DOFOverrideScope(ownerTag);
+}
+
+HRESULT GameInstance::Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Set_DOFOverridePreset(ownerTag, preset, transition);
+}
+
+HRESULT GameInstance::Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Set_DOFOverrideFocus(ownerTag, focusDistance, focusRange);
+}
+
+HRESULT GameInstance::Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Clear_DOFOverrideToBaseline(ownerTag, transition);
+}
+
+HRESULT GameInstance::End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->End_DOFOverrideScope(ownerTag, transition);
+}
+
 const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();
@@ -1481,6 +1525,12 @@ HRESULT GameInstance::Reload_RendererShaders()
 {
     CHECK_NULL(_renderer, E_FAIL);
     return _renderer->Reload_RendererShaders();
+}
+
+HRESULT GameInstance::Reload_LightingPipelineShaders()
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Reload_LightingPipelineShaders();
 }
 
 HRESULT GameInstance::Reload_ShaderComs()
@@ -1514,6 +1564,14 @@ void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
     if (_renderer)
     {
         _renderer->Set_FogZones(fogZoneCB);
+    }
+}
+
+void GameInstance::Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
+{
+    if (_renderer)
+    {
+        _renderer->Set_VolumetricLightShaftZones(lightShaftZoneCB);
     }
 }
 

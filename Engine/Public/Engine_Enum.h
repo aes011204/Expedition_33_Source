@@ -94,7 +94,8 @@ namespace Engine
         CombinedPreview = 5, // Preview에서는 그림자 계산 X
         SSAO,
         SSAOBlur,
-        Fog
+        Fog,
+        FroxelDebug
     };
 
     enum class PostProcessPass : uint8
@@ -110,6 +111,10 @@ namespace Engine
         LightShaftMaskHalf,
         LightShaftRadialBlurHalf,
         LightShaftCompositeHDR,
+        DOFPreFilterHalf,
+        DOFBlurNearHalf,
+        DOFBlurFarHalf,
+        DOFCompositeHDR,
 
         END
     };
@@ -154,6 +159,8 @@ namespace Engine
         Water           = 13,
         LightShaft      = 14,
         PlayerRender    = 15,
+        FroxelDebug     = 16,
+        VolumetricLightShaftZone = 17,
 
         END
     };
@@ -194,8 +201,9 @@ namespace Engine
         Bloom       = 1 << 3,
         Gamma       = 1 << 4,
         LightShaft  = 1 << 5,
+        DOF         = 1 << 6,
 
-        All = (1 << 6) - 1
+        All = (1 << 7) - 1
     };
 
     enum class GameplayInputMode

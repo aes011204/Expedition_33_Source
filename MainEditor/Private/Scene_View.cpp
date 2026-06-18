@@ -11,6 +11,7 @@
 #include "Client_Defines.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
+#include "LightingPipeline.h"
 #include "Spawn_Prefab.h"
 
 //add
@@ -585,6 +586,15 @@ void Scene_View::Render_MRTDebugPopup()
         _mrtDebugDrawArea.x = max(_mrtDebugDrawArea.x, 1.f);
         _mrtDebugDrawArea.y = max(_mrtDebugDrawArea.y, 1.f);
         GAME->Resize_DrawArea(_mrtDebugDrawArea.x, _mrtDebugDrawArea.y);
+    }
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline)
+    {
+        int froxelSlice = static_cast<int>(lightingPipeline->Get_DebugFroxelSlice());
+        const int maxFroxelSlice = static_cast<int>(max(1u, lightingPipeline->Get_DebugFroxelDepth()) - 1u);
+        if (ImGui::SliderInt("Froxel Slice", &froxelSlice, 0, maxFroxelSlice))
+            lightingPipeline->Set_DebugFroxelSlice(static_cast<uint32>(max(0, froxelSlice)));
     }
 
     ImGui::Separator();

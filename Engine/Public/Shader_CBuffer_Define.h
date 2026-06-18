@@ -178,10 +178,10 @@ struct alignas(16) PostProcessCB
     float exposure = 1.1f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
     float gamma = 1.05f;                     // 선형 색상을 sRGB에 가깝게 변환함
-    float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
+    float bloomRadius = 0.5f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
-    float bloomThreshold = 0.9f;            // Bloom 추출 기준
-    float bloomIntensity = 0.4f;            // Bloom 의 강도
+    float bloomThreshold = 0.95f;            // Bloom 추출 기준
+    float bloomIntensity = 0.13f;            // Bloom 의 강도
     float bloomSoftKnee = 0.7f;             // Bloom Threshold 경계선을 부드럽게 만드는 값
     float bloomClamp = 10.f;                // Bloom 추출 시 너무 강하지 않게 제한 값
 
@@ -192,6 +192,22 @@ struct alignas(16) PostProcessCB
     uint32 useBackgroundFallback = 0;       // 0이면 비활성, 1이면 빈 픽셀 fallback 색 적용
     float _pad2[4]{};
     Vec4 backgroundFallbackColor{ 0.f, 0.f, 0.f, 1.f }; // fallback 배경색
+
+    float dofFocusDistance = 3.f;
+    float dofFocusRange = 40.f;
+    float dofNearMaxRadius = 0.55f;
+    float dofFarMaxRadius = 0.85f;
+
+    float dofBokehThreshold = 1.5f;
+    float dofBokehIntensity = 4.f;
+    float dofDepthSharpness = 0.01f;
+    float dofCoCEpsilon = 0.01f;
+
+    float dofNearIntensity = 0.85f;
+    float dofFarIntensity = 0.48f;
+    uint32 dofSampleCount = 12;
+    uint32 dofDebugMode = 0;
+    float _pad3[2]{};
 };
 
 struct alignas(16) LightShaftCB
@@ -346,6 +362,30 @@ struct alignas(16) FogZoneCB
     float _pad0[3]{};
 };
 
+struct alignas(16) VolumetricLightShaftZoneEntry
+{
+    Matrix worldToLocal;                                    // 월드 위치를 빛기둥의 로컬 공간으로 변환하는 행렬. 회전된 박스 형태의 빛기둥을 만들기 위해 사용
+    Vec3 halfExtents{ 2.f, 10.f, 2.f };             // 로컬 공간에서 빛기둥 박스 크기의 절반
+    float density{ 1.f };
+    Vec4 lightColor{ 1.f, 0.95f, 0.8f, 1.f };   // 빛기둥 색상
+    float edgeFade{ 0.5f };                                 // 경계가 부드럽게 사라지는 거리
+    float intensity{ 1.f };                                 // 최종 산란 세기
+
+    float _pad0[2]{};
+};
+
+struct alignas(16) VolumetricLightShaftZoneCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::VolumetricLightShaftZone;
+
+    static constexpr uint32 MAX_LIGHT_SHAFT_ZONES = 8;
+
+    VolumetricLightShaftZoneEntry zones[MAX_LIGHT_SHAFT_ZONES]{};
+
+    uint32 zoneCount{ 0 };
+    float _pad0[3]{};
+};
+
 // ------------------------------------------
 //              Water CBuffer                
 // ------------------------------------------
@@ -387,6 +427,39 @@ struct alignas(16) PlayerRenderCB
     Vec4 nearClipParams{ 0.f, 0.f, 0.f, 0.f };
 };
 
+/* ------------------------------------------ */
+/*              Froxel CBuffer                */
+/* ------------------------------------------ */
+struct alignas(16) FroxelCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::FroxelDebug;
+
+    uint32_t froxelWidth;
+    uint32_t froxelHeight;
+    uint32_t froxelDepth;
+    float froxelNear;
+
+    float froxelFar;
+    Vec3 froxelPadding;
+
+    Matrix inverseView;
+    Matrix inverseProjection;
+
+    Vec4 lightDirection;
+    Vec4 lightColor;
+    Vec4 camPosition;
+};
+
+struct alignas(16) FroxelDebugCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::FroxelDebug;
+
+    uint32_t froxelDebugWidth;
+    uint32_t froxelDebugHeight;
+    uint32_t froxelDebugDepth;
+    uint32_t froxelDebugSlice;
+};
+
 // 패딩이 제대로 됐나 마지막 확인용 
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(HairCB) % 16 == 0);
@@ -404,6 +477,10 @@ static_assert(sizeof(ScreenFxCB) % 16 == 0);
 static_assert(sizeof(FogZoneCB) % 16 == 0);
 static_assert(sizeof(WaterCB) % 16 == 0);
 static_assert(sizeof(PlayerRenderCB) % 16 == 0);
+static_assert(sizeof(FroxelCB) % 16 == 0);
+static_assert(sizeof(FroxelDebugCB) % 16 == 0);
+static_assert(sizeof(VolumetricLightShaftZoneEntry) % 16 == 0);
+static_assert(sizeof(VolumetricLightShaftZoneCB) % 16 == 0);
 
 NS_END
 

@@ -163,16 +163,36 @@ bool TryResolveTextureAxisBasis(float3 axisDir, float3 center, out float3 rightD
     return resolved;
 }
 
+void ResolveWorldUpRectangleBasis(float3 center, out float3 rightDir, out float3 upDir)
+{
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
+    const float3 worldUp = float3(0.f, 1.f, 0.f);
+    float3 cameraLook = float3(0.f, 0.f, 0.f);
+    if (!TryNormalize(g_CamPosition.xyz - center, cameraLook))
+        return;
+
+    float3 worldRight = float3(0.f, 0.f, 0.f);
+    if (!TryNormalize(cross(worldUp, cameraLook), worldRight))
+        return;
+
+    rightDir = worldRight;
+    upDir = worldUp;
+}
+
 void ResolveTrailBasis(float3 center, float3 tangent, out float3 rightDir, out float3 upDir)
 {
     ResolveCameraPlaneBasis(rightDir, upDir);
 
     const int screenAlignment = (int)g_SourceHistorySpriteTrailParams.x;
     const float3 pathAxis = NormalizeOrFallback(tangent, float3(0.f, 1.f, 0.f));
-    if (screenAlignment == 0 || screenAlignment == 1)
+    if (screenAlignment == 0)
     {
-        if (!TryResolveTextureAxisBasis(pathAxis, center, rightDir, upDir))
-            ResolveCameraPlaneBasis(rightDir, upDir);
+        ResolveLookAlignedBasis(ResolveFacingLookDirection(center), rightDir, upDir);
+    }
+    else if (screenAlignment == 1)
+    {
+        ResolveWorldUpRectangleBasis(center, rightDir, upDir);
     }
     else if (screenAlignment == 4)
     {
