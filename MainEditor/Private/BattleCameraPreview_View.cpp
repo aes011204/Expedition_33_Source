@@ -3050,13 +3050,6 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
 
     if (previewMode == BattleCameraMode::WIDE)
     {
-        const PreviewSlot* yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 1);
-        if (yawBaseSlot == nullptr)
-            yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 0);
-
-        if (yawBaseSlot == nullptr)
-            return;
-
         Vec3 heroCenter = Vec3::Zero;
         uint32 heroCount = 0;
         for (int i = 0; i < static_cast<int>(_previewFormation.heroes.size()); ++i)
@@ -3073,7 +3066,7 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         Client::BattleTurnCameraEvaluatedPose pose{};
         if (Client::Evaluate_BattleTurnWidePose(
             heroCenter,
-            yawBaseSlot->rotation.y,
+            Get_PreviewBattlePlaneYaw(),
             preset.camera.fovy,
             0.f,
             0.f,
@@ -3104,7 +3097,7 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
             subjectPos,
             preset,
             previewClipSample,
-            0.f,
+            Get_PreviewBattlePlaneYaw(),
             0.f,
             &_previewSmoothedTargetPos,
             previewClipTimeSec,
@@ -4504,13 +4497,9 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
 
         heroCenter /= static_cast<float>(heroCount);
 
-        const PreviewSlot* yawBaseSlot = &_previewFormation.heroes[std::min(1, static_cast<int>(_previewFormation.heroes.size()) - 1)];
-        if (yawBaseSlot == nullptr)
-            return false;
-
         return Client::Evaluate_BattleTurnWidePose(
             heroCenter,
-            yawBaseSlot->rotation.y,
+            Get_PreviewBattlePlaneYaw(),
             preset.camera.fovy,
             0.f,
             0.f,
@@ -4594,7 +4583,15 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
         return Client::Evaluate_BattleTurnEnemyAttackPose(subjectPos, opponentPos, preset, clipSample, previewTimeSec, outPose);
     }
 
-    return Client::Evaluate_BattleTurnPresetPose(subjectPos, preset, clipSample, 0.f, 0.f, nullptr, previewTimeSec, outPose);
+    return Client::Evaluate_BattleTurnPresetPose(
+        subjectPos,
+        preset,
+        clipSample,
+        Get_PreviewBattlePlaneYaw(),
+        0.f,
+        nullptr,
+        previewTimeSec,
+        outPose);
 }
 
 void BattleCameraPreview_View::Apply_PreviewEvaluatedPose(const Client::BattleTurnCameraEvaluatedPose& pose)
@@ -4988,6 +4985,18 @@ Vec3 BattleCameraPreview_View::Get_PreviewSlotWorldPosition(PreviewSlotSide side
         return _previewFormation.origin;
 
     return _previewFormation.origin + slot->offset;
+}
+
+float BattleCameraPreview_View::Get_PreviewBattlePlaneYaw() const
+{
+    const PreviewSlot* yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 1);
+    if (yawBaseSlot == nullptr)
+        yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 0);
+
+    if (yawBaseSlot == nullptr)
+        return 0.f;
+
+    return yawBaseSlot->rotation.y;
 }
 
 string BattleCameraPreview_View::Get_SelectedHeroPrefabName() const
