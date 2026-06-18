@@ -8,6 +8,14 @@ namespace EffectAssetRuntimeLoad::Material
     using namespace Curves;
     using namespace Json;
 
+    bool Is_ScrollSpeedScaleTarget(EffectMaterialScalarModulationTarget target)
+    {
+        return target == EffectMaterialScalarModulationTarget::MainUVScrollSpeedScale ||
+               target == EffectMaterialScalarModulationTarget::NoiseUVScrollSpeedScale ||
+               target == EffectMaterialScalarModulationTarget::MaskUVScrollSpeedScale ||
+               target == EffectMaterialScalarModulationTarget::FlowUVScrollSpeedScale;
+    }
+
     void Apply_MaterialPayload(
         const json& material,
         EffectRequiredMaterialRuntimeDesc& materialDesc)
@@ -159,6 +167,8 @@ namespace EffectAssetRuntimeLoad::Material
             Read_Enum(source, "targetField", target.targetField);
             Read_Enum(source, "operation", target.operation);
             Read_Enum(source, "timeSource", target.timeSource);
+            if (Is_ScrollSpeedScaleTarget(target.targetField))
+                target.timeSource = EffectMaterialScalarModulationTimeSource::EmitterTime;
 
             const auto distributionIter = source.find("distribution");
             if (distributionIter == source.end() || !distributionIter->is_object())
@@ -327,6 +337,113 @@ namespace EffectAssetRuntimeLoad::Material
             target.curve.keyValuesGBlock1 = Vec4{};
             target.curve.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
             target.curve.keyValuesBBlock1 = Vec4{};
+        }
+    }
+
+    void Fill_MaterialVec2ModulationPayload(
+        EffectMaterialVec2ModulationRuntimeDesc& desc,
+        const json& materialScalarModulation)
+    {
+        desc = EffectMaterialVec2ModulationRuntimeDesc{};
+
+        const auto modulatorsIter = materialScalarModulation.find("vec2Modulators");
+        if (modulatorsIter == materialScalarModulation.end() || !modulatorsIter->is_array())
+            return;
+
+        const uint32 count = min(
+            EffectMaterialVec2ModulationRuntimeDesc::kMaxModulators,
+            static_cast<uint32>(modulatorsIter->size())
+        );
+        desc.count = count;
+
+        for (uint32 index = 0; index < count; ++index)
+        {
+            const json& source = (*modulatorsIter)[index];
+            EffectMaterialVec2ModulatorRuntimeDesc& target = desc.modulators[index];
+            target.enabled = Read_Bool(source, "enabled", target.enabled);
+            Read_Enum(source, "targetField", target.targetField);
+            Read_Enum(source, "timeSource", target.timeSource);
+            target.operation = EffectMaterialVec2ModulationOperation::Add;
+
+            const auto distributionIter = source.find("distribution");
+            if (distributionIter == source.end() || !distributionIter->is_object())
+                continue;
+
+            target.curve = EffectMaterialVec2ModulationCurveDesc{};
+            target.curve.enabled = true;
+
+            const string mode = Read_String(*distributionIter, "mode");
+            const json* payload = Find_DistributionPayload(*distributionIter);
+            if (payload != nullptr && mode == "ConstantCurve")
+            {
+                const auto keysIter = payload->find("keys");
+                if (keysIter != payload->end() && keysIter->is_array() && !keysIter->empty())
+                {
+                    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+                    target.curve.keyCount = keyCount;
+                    target.curve.keyTimes = Vec4{};
+                    target.curve.keyTimesBlock1 = Vec4{};
+                    target.curve.keyValuesX = Vec4{};
+                    target.curve.keyValuesXBlock1 = Vec4{};
+                    target.curve.keyValuesY = Vec4{};
+                    target.curve.keyValuesYBlock1 = Vec4{};
+                    target.curve.keyArriveTangentsX = Vec4{};
+                    target.curve.keyArriveTangentsXBlock1 = Vec4{};
+                    target.curve.keyArriveTangentsY = Vec4{};
+                    target.curve.keyArriveTangentsYBlock1 = Vec4{};
+                    target.curve.keyLeaveTangentsX = Vec4{};
+                    target.curve.keyLeaveTangentsXBlock1 = Vec4{};
+                    target.curve.keyLeaveTangentsY = Vec4{};
+                    target.curve.keyLeaveTangentsYBlock1 = Vec4{};
+                    target.curve.keyModes = Vec4{};
+                    target.curve.keyModesBlock1 = Vec4{};
+
+                    for (uint32 keyIndex = 0; keyIndex < keyCount; ++keyIndex)
+                    {
+                        const json& key = (*keysIter)[keyIndex];
+                        Vec2 value{};
+                        Vec2 arriveTangent{};
+                        Vec2 leaveTangent{};
+                        if (const auto valueIter = key.find("value"); valueIter != key.end())
+                            Read_Vec2(*valueIter, value);
+                        if (const auto arriveIter = key.find("arriveTangent"); arriveIter != key.end())
+                            Read_Vec2(*arriveIter, arriveTangent);
+                        if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
+                            Read_Vec2(*leaveIter, leaveTangent);
+
+                        Set_CurveComponent(target.curve.keyTimes, target.curve.keyTimesBlock1, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                        Set_CurveComponent(target.curve.keyValuesX, target.curve.keyValuesXBlock1, keyIndex, value.x);
+                        Set_CurveComponent(target.curve.keyValuesY, target.curve.keyValuesYBlock1, keyIndex, value.y);
+                        Set_CurveComponent(target.curve.keyArriveTangentsX, target.curve.keyArriveTangentsXBlock1, keyIndex, arriveTangent.x);
+                        Set_CurveComponent(target.curve.keyArriveTangentsY, target.curve.keyArriveTangentsYBlock1, keyIndex, arriveTangent.y);
+                        Set_CurveComponent(target.curve.keyLeaveTangentsX, target.curve.keyLeaveTangentsXBlock1, keyIndex, leaveTangent.x);
+                        Set_CurveComponent(target.curve.keyLeaveTangentsY, target.curve.keyLeaveTangentsYBlock1, keyIndex, leaveTangent.y);
+                        Set_CurveComponent(target.curve.keyModes, target.curve.keyModesBlock1, keyIndex, Resolve_CurveInterpolationMode(key));
+                    }
+                    continue;
+                }
+            }
+
+            Vec2 value{};
+            if (payload != nullptr && mode == "Constant")
+            {
+                if (const auto valueIter = payload->find("value"); valueIter != payload->end())
+                    Read_Vec2(*valueIter, value);
+            }
+            else if (payload != nullptr && mode == "Uniform")
+            {
+                Vec2 minValue{};
+                Vec2 maxValue{};
+                if (const auto minIter = payload->find("minValue"); minIter != payload->end())
+                    Read_Vec2(*minIter, minValue);
+                if (const auto maxIter = payload->find("maxValue"); maxIter != payload->end())
+                    Read_Vec2(*maxIter, maxValue);
+                value = (minValue + maxValue) * 0.5f;
+            }
+
+            target.curve.keyCount = 2;
+            target.curve.keyValuesX = Vec4{ value.x, value.x, 0.f, 0.f };
+            target.curve.keyValuesY = Vec4{ value.y, value.y, 0.f, 0.f };
         }
     }
 }

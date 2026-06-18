@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -263,14 +263,14 @@
     <Filter Include="02.GameObject\Effect\Emitters\Sprite Trail">
       <UniqueIdentifier>{32e72e43-5d50-467a-8bd0-84129ff62a91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Levels\Stage\Level_GestralVillage">
+      <UniqueIdentifier>{5ce4bb27-069c-4f90-8e6e-6b4ed1f61c43}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\Private\Player_FreeAim.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp">
-      <Filter>06. Effect System\Trail Support</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp">
       <Filter>06. Effect System\Trail Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleTurnCamera.cpp">
@@ -311,9 +311,6 @@
     <ClCompile Include="..\Private\ANS_Trail.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\AN_Attack.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -339,9 +336,6 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_SpawnActor.cpp">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_StartCounter.cpp">
@@ -445,7 +439,6 @@
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
-    <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
     <ClCompile Include="..\private\MW_Simon.cpp" />
     <ClCompile Include="Mon_Simon_Weapon.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp">
@@ -543,8 +536,37 @@
     <ClCompile Include="..\Private\ComputeSourceHistorySpriteTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Simon_Combo.cpp" />
-    <ClCompile Include="..\private\Simon_Debuff.cpp" />
+    <ClCompile Include="..\Private\Level_GestralVillage.cpp">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp" />
+    <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
+    <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
+    <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
+    <ClCompile Include="..\Private\SourcePointSampleProvider_ByPart.cpp" />
+    <ClCompile Include="..\Private\VictoriaFlag.cpp" />
+    <ClCompile Include="..\Private\Wardrobe_Panel.cpp" />
+    <ClCompile Include="..\Private\Pictos_Panel.cpp" />
+    <ClCompile Include="..\Private\PreviewPlayer.cpp" />
+    <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
+    <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
+    <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Maelle.cpp" />
+    <ClCompile Include="..\Private\SoulLikeController.cpp" />
+    <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\SL_State.cpp" />
+    <ClCompile Include="..\Private\SL_Idle.cpp" />
+    <ClCompile Include="..\Private\SL_TargetCom.cpp" />
+    <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
+    <ClCompile Include="..\Private\SL_Move.cpp" />
+    <ClCompile Include="..\Private\SL_Hit.cpp" />
+    <ClCompile Include="..\Private\SL_Dodge.cpp" />
+    <ClCompile Include="..\Private\SL_Dead.cpp" />
+    <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
+    <ClCompile Include="..\Private\SL_Skill.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -700,6 +722,12 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
@@ -711,12 +739,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_Jump.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_JumpCounter.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ANS_Parry.h">
@@ -806,15 +828,6 @@
     <ClInclude Include="..\Public\Mon_Abbest_Body.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Mon_Dualliste_Body.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Mon_Bishop_Body.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
@@ -837,9 +850,6 @@
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MW_Abbest.h">
-      <Filter>02.GameObject\Monster\00. World</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MW_Dualliste.h">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClInclude>
     <ClInclude Include="..\public\MW_Bishop.h">
@@ -1263,9 +1273,6 @@
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h">
       <Filter>06. Effect System\Trail Support</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h">
-      <Filter>06. Effect System\Trail Support</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Level_GameEntry.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
@@ -1290,9 +1297,6 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Trail.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\public\AN_Attack.h">
@@ -1320,9 +1324,6 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_SpawnActor.h">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\AN_JumpCounterStart.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_StartCounter.h">
@@ -1426,7 +1427,6 @@
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
-    <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
     <ClInclude Include="..\public\MW_Simon.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Mon_Simon_Weapon.h" />
@@ -1522,17 +1522,41 @@
     <ClInclude Include="..\Public\ComputeSourceHistorySpriteTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Sprite Trail</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Simon_Combo.h" />
-    <ClInclude Include="..\public\Simon_Debuff.h" />
+    <ClInclude Include="..\Public\Level_GestralVillage.h">
+      <Filter>01.Levels\Stage\Level_GestralVillage</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h" />
+    <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
+    <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
+    <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
+    <ClInclude Include="..\Public\SourcePointSampleProvider_ByPart.h" />
+    <ClInclude Include="..\Public\VictoriaFlag.h" />
+    <ClInclude Include="..\Public\Wardrobe_Panel.h" />
+    <ClInclude Include="..\Public\Pictos_Panel.h" />
+    <ClInclude Include="..\Public\PreviewPlayer.h" />
+    <ClInclude Include="..\Public\PictosBattleSystem.h" />
+    <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
+    <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
+    <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Maelle.h" />
+    <ClInclude Include="..\Public\SoulLikeController.h" />
+    <ClInclude Include="..\Public\SL_StateMachineCom.h" />
+    <ClInclude Include="..\Public\SL_State.h" />
+    <ClInclude Include="..\Public\SL_Idle.h" />
+    <ClInclude Include="..\Public\SL_TargetCom.h" />
+    <ClInclude Include="..\Public\GamePlayUI_SL.h" />
+    <ClInclude Include="..\Public\SL_Move.h" />
+    <ClInclude Include="..\Public\SL_Hit.h" />
+    <ClInclude Include="..\Public\SL_Dodge.h" />
+    <ClInclude Include="..\Public\SL_Dead.h" />
+    <ClInclude Include="..\Public\SL_BasicAttack.h" />
+    <ClInclude Include="..\Public\SL_Types.h" />
+    <ClInclude Include="..\Public\SL_Skill.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ANS_Jump.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ANS_JumpCounter.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\private\ANS_Parry.cpp">
@@ -1619,15 +1643,6 @@
     <ClCompile Include="..\Private\Mon_Abbest_Body.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Mon_Bishop_Body.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
@@ -1650,9 +1665,6 @@
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MW_Abbest.cpp">
-      <Filter>02.GameObject\Monster\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MW_Dualliste.cpp">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MW_Bishop.cpp">

@@ -99,6 +99,11 @@ public:
     vector<string> Get_SkillKey() { return _skillKeys; }
     const vector<string>& Get_SkillKeys() const { return _skillKeys; }
 
+    void Set_SkillKeys(const vector<string>& skillKeys)
+    {
+        _skillKeys = skillKeys;
+    }
+
     // TEMP : 전투 진입 시 world 해금 상태 기준으로 스킬 슬롯 채우기
     void Clear_Skills() { _skillKeys.clear(); }
 

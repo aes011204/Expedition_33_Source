@@ -521,27 +521,43 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
     }
 
     // 2.5. 정적 콜리전 데이터 백그라운드 사전 빌드 (백그라운드 스레드)
-    for (const auto& e : vector<json>{})
-    {
-        const string modelPathStr = e.value("ModelPath", string{});
-        if (modelPathStr.empty())
-            continue;
+    vector<string> collisionModelPaths;
+    auto AppendCollisionModelPath = [&collisionModelPaths](const json& e)
+        {
+            Append_UniqueString(collisionModelPaths, e.value("ModelPath", string{}));
+        };
 
+    for (const json& e : outSession.staticMeshes)
+        AppendCollisionModelPath(e);
+
+    for (const json& e : outSession.instancedMeshes)
+        AppendCollisionModelPath(e);
+
+    auto collisionContext = MakeCollisionRuntimeContext(outSession);
+    for (const string& modelPathStr : collisionModelPaths)
+    {
         if (outSession.preloadedCollisionCache.find(modelPathStr) != outSession.preloadedCollisionCache.end())
             continue;
 
         auto it = outSession.preloadedModelCache.find(modelPathStr);
-        if (it != outSession.preloadedModelCache.end() && it->second != nullptr)
+        if (it == outSession.preloadedModelCache.end() || it->second == nullptr)
         {
-            // 전역 캐시 및 안전 빌드 헬퍼 활용
-            const auto collisionContext = MakeCollisionRuntimeContext(outSession);
-            Shared<StaticCollisionData> collisionData = MapCollisionAdapter::BuildStaticCollision(
-                it->second,
+            auto model = GetOrLoadModel(
+                outSession.device,
+                outSession.context,
+                outSession.modelFolder,
                 modelPathStr,
-                collisionContext.globalCacheMutex,
-                collisionContext.globalCollisionCache);
-            outSession.preloadedCollisionCache[modelPathStr] = collisionData;
+                outSession.modelOverrides);
+
+            if (!model)
+                continue;
+
+            outSession.preloadedModelCache[modelPathStr] = model;
+            it = outSession.preloadedModelCache.find(modelPathStr);
         }
+
+        // 저장된 cooked/proxy collision이 있으면 재사용하고, 없을 때만 모델 기반 collision을 빌드한다.
+        MapCollisionAdapter::GetOrCreateStaticCollision(collisionContext, it->second, modelPathStr);
 
         // 다른 스레드(특히 메인 스레드)에 CPU 사용권 양보
         this_thread::yield();
@@ -861,29 +877,72 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
         }
 
-        Shared<GameObject> spawnedObject = nullptr;
+        //    Shared<GameObject> spawnedObject = nullptr;
+
+        //    const auto instancedAddBegin = chrono::steady_clock::now();
+        //    const HRESULT addResult = GAME->Add_GameObject(
+        //        ETOI(LevelType::Static),
+        //        TEXT("GameObject_MapInstancedMesh"),
+        //        session.levelIndex,
+        //        session.layerTag,
+        //        spawnedObject,
+        //        &desc);
+        //    const auto instancedAddMs =
+        //        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
+        //    session.instancedAddDuration += instancedAddMs;
+        //    ++session.instancedAddCount;
+
+        //    if (FAILED(addResult))
+        //    {
+        //        continue;
+        //    }
+        //    if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+        //    {
+        //        session.spawnedObjects->push_back(spawnedObject);
+        //    }
+
+        //    ++processedCount;
+        //}
+
+        static constexpr float CHUNK_SIZE = 100.f;
+
+        map<pair<int32, int32>, vector<InstanceTransform>> chunkMap;
+        for (const auto& t : desc.transforms)
+        {
+            int32 cx = static_cast<int32>(floorf(t._position.x / CHUNK_SIZE));
+            int32 cz = static_cast<int32>(floorf(t._position.z / CHUNK_SIZE));
+            chunkMap[{cx, cz}].push_back(t);
+        }
 
         const auto instancedAddBegin = chrono::steady_clock::now();
-        const HRESULT addResult = GAME->Add_GameObject(
-            ETOI(LevelType::Static),
-            TEXT("GameObject_MapInstancedMesh"),
-            session.levelIndex,
-            session.layerTag,
-            spawnedObject,
-            &desc);
+        for (auto& [key, chunkTransforms] : chunkMap)
+        {
+            MapInstancedMesh::MAPINSTANCEDMESH_DESC chunkDesc{};
+            chunkDesc.modelPath = desc.modelPath;
+            chunkDesc.model = desc.model;
+            chunkDesc.collisionData = desc.collisionData;
+            chunkDesc.transforms = chunkTransforms;
+
+            Shared<GameObject> spawnedObject = nullptr;
+            const HRESULT addResult = GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_MapInstancedMesh"),
+                session.levelIndex,
+                session.layerTag,
+                spawnedObject,
+                &chunkDesc);
+
+            if (FAILED(addResult))
+                continue;
+
+            if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+                session.spawnedObjects->push_back(spawnedObject);
+
+            ++session.instancedAddCount;
+        }
         const auto instancedAddMs =
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
         session.instancedAddDuration += instancedAddMs;
-        ++session.instancedAddCount;
-
-        if (FAILED(addResult))
-        {
-            continue;
-        }
-        if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
-        {
-            session.spawnedObjects->push_back(spawnedObject);
-        }
 
         ++processedCount;
     }

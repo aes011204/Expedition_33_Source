@@ -219,6 +219,7 @@ private:
     uint32 Compute_MaxLaneRenderSegmentCount() const;
     uint32 Compute_MaxRenderSegmentCount() const;
 
+    void Wrap_PlaybackLoop();
     void Start_NextLoop();
     float Resolve_CurrentLoopDelay() const;
     float Resolve_Duration() const;
@@ -242,6 +243,20 @@ private:
         const Vec4& timesBlock1,
         const Vec4& values,
         const Vec4& valuesBlock1,
+        uint32 keyCount,
+        float fallbackValue) const;
+    float Evaluate_CompactCurve(
+        float lifeProgress,
+        const Vec4& times,
+        const Vec4& timesBlock1,
+        const Vec4& values,
+        const Vec4& valuesBlock1,
+        const Vec4& arriveTangents,
+        const Vec4& arriveTangentsBlock1,
+        const Vec4& leaveTangents,
+        const Vec4& leaveTangentsBlock1,
+        const Vec4& modes,
+        const Vec4& modesBlock1,
         uint32 keyCount,
         float fallbackValue) const;
 

@@ -105,7 +105,7 @@ namespace
             out.modelPath = String::ToString(out.object->_instancedModelPath);
             out.filename = fs::path(out.modelPath).filename().string();
             out.shaderType = ShaderType::VtxInstanceMeshExact;
-            out.model = out.object->_instancedRenderHandle ? out.object->_instancedRenderHandle->GetModel() : nullptr;
+            out.model = out.object->_instancedChunkHandles.empty() ? nullptr : out.object->_instancedChunkHandles[0]->GetModel();
             return !out.filename.empty();
         }
 

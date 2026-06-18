@@ -4,19 +4,6 @@
 
 #include "GameInstance.h"
 
-namespace
-{
-    Vec2 Rotate_Point(const Vec2& point, float rotationRadians)
-    {
-        const float cosAngle = cosf(rotationRadians);
-        const float sinAngle = sinf(rotationRadians);
-
-        return Vec2(
-            point.x * cosAngle - point.y * sinAngle,
-            point.x * sinAngle + point.y * cosAngle);
-    }
-}
-
 UI_Button::UI_Button()
 {
 }
@@ -188,7 +175,7 @@ bool UI_Button::Hit_TestMouse() const
     const Vec2 mouseOffset(
         static_cast<float>(mousePosition.x) - center.x,
         static_cast<float>(mousePosition.y) - center.y);
-    const Vec2 localMouseOffset = Rotate_Point(mouseOffset, -Get_WorldRotationRadians());
+    const Vec2 localMouseOffset = Rotate_UIPoint(mouseOffset, -Get_WorldRotationRadians());
 
     return
         fabsf(localMouseOffset.x) <= width * 0.5f &&

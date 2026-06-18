@@ -1,8 +1,13 @@
-#include "Mon_Dualliste_Body.h"
+﻿#include "Mon_Dualliste_Body.h"
 
-#include "ModelCom.h"
+IMPLEMENT_REFLECTION(Mon_Dualliste_Body)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
 
-NS_BEGIN(Client)
+    
+    return true;
+}
 
 Mon_Dualliste_Body::Mon_Dualliste_Body(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Monster_Part(device, context)
@@ -21,11 +26,13 @@ HRESULT Mon_Dualliste_Body::Initialize_Prototype()
 
 HRESULT Mon_Dualliste_Body::Initialize(void* arg)
 {
-    if (FAILED(Monster_Part::Initialize(arg)))
-        return E_FAIL;
+     CHECK_FAILED(Monster_Part::Initialize(arg), E_FAIL);
 
-    _rootIndex = _model->Get_BoneIndex("root");
-    _model->Set_LocalRootNode(_rootIndex);
+    _rootIndex = _model ? _model->Get_BoneIndex("root") : -1;
+     if (_model && _rootIndex >= 0)
+     {
+         _model->Set_LocalRootNode(_rootIndex);
+     }
 
     return S_OK;
 }
@@ -60,7 +67,10 @@ Shared<Mon_Dualliste_Body> Mon_Dualliste_Body::Create(const ComPtr<Device>& devi
     auto instance = make_shared<Mon_Dualliste_Body>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
+    {
+        LOG_ERROR("Failed to Created : Mon_Dualliste_Body");
         return nullptr;
+    }
 
     return instance;
 }
@@ -70,7 +80,10 @@ Shared<GameObject> Mon_Dualliste_Body::Clone(void* arg)
     auto clone = make_shared<Mon_Dualliste_Body>(*this);
 
     if (FAILED(clone->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : Mon_Dualliste_Body");
         return nullptr;
+    }
 
     return clone;
 }
@@ -79,5 +92,3 @@ void Mon_Dualliste_Body::Free()
 {
     Monster_Part::Free();
 }
-
-NS_END

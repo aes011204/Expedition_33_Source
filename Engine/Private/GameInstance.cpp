@@ -23,6 +23,8 @@
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Renderer_Define.h"
+#include "LightingPipeline.h"
+#include "PostProcessPipeline.h"
 #include "ScreenFx_Manager.h"
 #include "ShaderCom_Controller.h"
 #include "Timer_Manager.h"
@@ -473,6 +475,20 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     CHECK_NULL(_printManager, E_FAIL);
 #endif
 
+    VolumetricLightShaftZoneCB lightShaftZoneCB{};
+    lightShaftZoneCB.zoneCount = 1;
+
+    Matrix lightShaftWorld = Matrix::CreateScale(2.f) * Matrix::CreateTranslation(Vec3(0.f, 19.f, 0.f));
+
+    lightShaftZoneCB.zones[0].worldToLocal = lightShaftWorld.Invert();
+    lightShaftZoneCB.zones[0].halfExtents = Vec3(3.f, 10.f, 3.f);
+    lightShaftZoneCB.zones[0].density = 1.f;
+    lightShaftZoneCB.zones[0].lightColor = Vec4(1.f, 0.95f, 0.8f, 1.f);
+    lightShaftZoneCB.zones[0].edgeFade = 1.f;
+    lightShaftZoneCB.zones[0].intensity = 1.f;
+
+    GAME->Set_VolumetricLightShaftZones(lightShaftZoneCB);
+
     return S_OK;
 }
 
@@ -782,7 +798,57 @@ HRESULT GameInstance::Draw()
 
 HRESULT GameInstance::Draw_RendererOnly()
 {
+    const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
+    const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
+    const bool savedScreenFxActivated = (_screenFxManager != nullptr) && _screenFxManager->Is_ScreenFXActivated();
+    Shared<PostProcessPipeline> postProcessPipeline = _renderer->Get_PostProcessPipeline();
+    Shared<LightingPipeline> lightingPipeline = _renderer->Get_LightingPipeline();
+
+    PostProcessFeature savedPostProcessFeatures = PostProcessFeature::None;
+    SSAOCB savedSSAO{};
+    DeferredLightingCB savedDeferredLighting{};
+    const bool hasPostProcessPipeline = (postProcessPipeline != nullptr);
+    const bool hasLightingPipeline = (lightingPipeline != nullptr);
+
+    if (hasPostProcessPipeline)
+    {
+        savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+        postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::None); // 프리뷰 캡처는 현재 레벨의 HDR/후처리 상태를 상속하지 않는다.
+    }
+
+    if (hasLightingPipeline)
+    {
+        savedSSAO = lightingPipeline->Get_Params();
+        savedDeferredLighting = lightingPipeline->Get_DeferredLightingParams();
+        DeferredLightingCB previewDeferredLighting = savedDeferredLighting;
+        previewDeferredLighting.iblEnabled = 1u;
+        previewDeferredLighting.iblIntensity = 1.25f;
+        previewDeferredLighting.iblDiffuseIntensity = 1.18f;
+        previewDeferredLighting.iblSpecularIntensity = 0.45f;
+        lightingPipeline->Set_Enabled(false); // Level_GamePlay의 SSAO만 프리뷰에서 분리한다.
+        lightingPipeline->Set_DeferredLightingParams(previewDeferredLighting); // 프리뷰는 그림자 대신 IBL diffuse로 어두운 면을 살린다.
+    }
+
+    _renderer->Set_ShadowEnabled(false); // 에디터 프리뷰 렌더는 현재 월드의 dynamic shadow 상태를 쓰지 않는다.
+    _renderer->Set_RenderOnlyPreviewMode(true); // 프리뷰 렌더는 현재 월드의 fog만 상속하지 않는다.
+    if (_screenFxManager != nullptr)
+        _screenFxManager->Set_ScreenFxActivated(false); // 런타임 화면 효과가 프리뷰 캡처 위를 덮지 않게 한다.
+
     _renderer->Draw();
+
+    if (_screenFxManager != nullptr)
+        _screenFxManager->Set_ScreenFxActivated(savedScreenFxActivated);
+    _renderer->Set_RenderOnlyPreviewMode(savedRenderOnlyPreviewMode);
+    _renderer->Set_ShadowEnabled(savedShadowEnabled);
+
+    if (hasLightingPipeline)
+    {
+        lightingPipeline->Set_Params(savedSSAO);
+        lightingPipeline->Set_DeferredLightingParams(savedDeferredLighting);
+    }
+
+    if (hasPostProcessPipeline)
+        postProcessPipeline->Set_PostProcessFeatures(savedPostProcessFeatures);
 
     return S_OK;
 }
@@ -1467,6 +1533,36 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
+HRESULT GameInstance::Begin_DOFOverrideScope(const string& ownerTag)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Begin_DOFOverrideScope(ownerTag);
+}
+
+HRESULT GameInstance::Set_DOFOverridePreset(const string& ownerTag, const DOFPreset& preset, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Set_DOFOverridePreset(ownerTag, preset, transition);
+}
+
+HRESULT GameInstance::Set_DOFOverrideFocus(const string& ownerTag, float focusDistance, float focusRange)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Set_DOFOverrideFocus(ownerTag, focusDistance, focusRange);
+}
+
+HRESULT GameInstance::Clear_DOFOverrideToBaseline(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Clear_DOFOverrideToBaseline(ownerTag, transition);
+}
+
+HRESULT GameInstance::End_DOFOverrideScope(const string& ownerTag, const DOFTransitionDesc& transition)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->End_DOFOverrideScope(ownerTag, transition);
+}
+
 const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();
@@ -1481,6 +1577,12 @@ HRESULT GameInstance::Reload_RendererShaders()
 {
     CHECK_NULL(_renderer, E_FAIL);
     return _renderer->Reload_RendererShaders();
+}
+
+HRESULT GameInstance::Reload_LightingPipelineShaders()
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Reload_LightingPipelineShaders();
 }
 
 HRESULT GameInstance::Reload_ShaderComs()
@@ -1514,6 +1616,14 @@ void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
     if (_renderer)
     {
         _renderer->Set_FogZones(fogZoneCB);
+    }
+}
+
+void GameInstance::Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
+{
+    if (_renderer)
+    {
+        _renderer->Set_VolumetricLightShaftZones(lightShaftZoneCB);
     }
 }
 
@@ -1888,6 +1998,17 @@ void GameInstance::Set_SoundChannelPaused(SoundChannel channel, bool paused)
 {
     if (_soundManager)
         _soundManager->Set_ChannelPaused(channel, paused);
+}
+
+void GameInstance::Set_AllSoundMuted(bool muted)
+{
+    if (_soundManager)
+        _soundManager->Set_AllSoundMuted(muted);
+}
+
+bool GameInstance::Is_AllSoundMuted() const
+{
+    return _soundManager ? _soundManager->Is_AllSoundMuted() : false;
 }
 
 void GameInstance::Set_SoundGlobalPitch(float pitch, bool includeBGM)

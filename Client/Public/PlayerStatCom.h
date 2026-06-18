@@ -9,6 +9,9 @@ class PlayerStatCom :
     GENERATED_COMPONENT(PlayerStatCom)
 
 public:
+    static constexpr size_t EquippedPictosSlotCount = 3; // 픽토스 최대 장착 수
+
+public:
     // 초기 세팅 값
     struct PlayerCombatStatDesc : CombatStatCom::CombatStatDesc
     {
@@ -26,6 +29,8 @@ public:
 
         string equippedWeaponId = "";
         uint32 equippedWeaponPower = 0;
+
+        array<string, EquippedPictosSlotCount> equippedPictosIds{};
     };
 
     // UI, 전투 데미지 계산, 디버그 출력이 읽는 값
@@ -153,6 +158,15 @@ public:
     // 전투 결과 반영
     BattleSyncSnapshot Create_BattleSyncSnapshot() const;
     void Apply_BattleSyncSnapshot(const BattleSyncSnapshot& snapshot);
+    json Create_SaveJson() const;
+    bool Apply_SaveJson(const json& data);
+
+    const array<string, EquippedPictosSlotCount>& Get_EquippedPictosIds() const
+    {
+        return _playerDesc.equippedPictosIds;
+    }
+
+    void Set_EquippedPictos(size_t slotIndex, const string& pictosId);
 
 private:
     int32* Find_StatValue(StatType type);

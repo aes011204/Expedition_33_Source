@@ -42,8 +42,16 @@ private:
 
     // GameLauncher 실행
     void Render_LauncherButton();
-    bool Launch_GameLauncher();
+    void Render_CheckpointButtons();
+    void Render_SaveCheckpointPopup();
+    void Open_SaveCheckpointPopup();
+    bool Save_CheckpointToPath(const fs::path& checkpointPath);
+    fs::path Resolve_DefaultCheckpointPath() const;
+    fs::path Resolve_CheckpointPathFromName(const string& checkpointName) const;
+    bool Pick_CheckpointFile(fs::path& outPath) const;
+    bool Launch_GameLauncher(const fs::path* checkpointPath = nullptr);
     void Render_ReloadDataButton();
+    void Render_SoundCheck();
 
 private:
     /* 창 이름을 키로 보관하는 에디터 뷰 목록. */
@@ -51,6 +59,9 @@ private:
     map<wstring, bool> _focusModeWindowStates = {};
     bool _isFocusMode = false;
     LauncherConfig _launcherConfig = LauncherConfig::Debug;
+    fs::path _selectedCheckpointPath = {};
+    bool _openSaveCheckpointPopup = false;
+    char _checkpointSaveNameBuffer[128] = "Demo";
 
 public:
 	static Unique<Editor_Manager> Create();

@@ -9,8 +9,15 @@
 #include "PartObject.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
+#include "SkyBoxFlow.h"
+#include "SkyCloudCard.h"
 #include "TransformCom.h"
 #include "AnimState_Parser.h"
+
+namespace
+{
+const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
+}
 
 AnimState_View::AnimState_View()
     : Editor_Window(L"AnimState")
@@ -71,6 +78,13 @@ void AnimState_View::Pre_Render()
     if (_previewCamera == nullptr)
         return;
 
+    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
+    if (_previewRenderTarget == nullptr)
+        return;
+
+    if (_showPreviewSkyBackdrop)
+        Ensure_PreviewSkyBackdrop();
+
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
     const Shared<Camera> savedActiveCamera = GAME->Get_ActiveCamera();
@@ -126,6 +140,12 @@ void AnimState_View::Pre_Render()
     GAME->Set_PlayerInputBlocked(true);
 
     const float dt = ImGui::GetIO().DeltaTime;
+    if (_showPreviewSkyBackdrop)
+        Update_PreviewSkyBackdrop(dt);
+
+    if (_showPreviewSkyBackdrop)
+        Render_PreviewSkyBackdrop();
+
     GAME->Backup_RenderGroup();
     PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
 
@@ -134,7 +154,7 @@ void AnimState_View::Pre_Render()
 
     Ensure_PreviewGridResources();
     Draw_PreviewGrid();
-    EDITOR->Capture_BackBuffer_ToPreview();
+    EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
 
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
@@ -506,6 +526,11 @@ void AnimState_View::Draw_PreviewPanel()
 {
     ImGui::BeginChild("AnimStatePreviewPanel", ImVec2(0.f, 0.f), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
+    ImGui::TextUnformatted("Preview");
+    ImGui::SameLine();
+    ImGui::Checkbox("SkyBox", &_showPreviewSkyBackdrop);
+    ImGui::Separator();
+
     const ImVec2 panelPos = ImGui::GetCursorScreenPos();
     const ImVec2 avail = ImGui::GetContentRegionAvail();
     const float toolbarHeight = 0.f;
@@ -520,7 +545,8 @@ void AnimState_View::Draw_PreviewPanel()
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
 
-    ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
+    ID3D11ShaderResourceView* previewSRV =
+        _previewRenderTarget != nullptr ? _previewRenderTarget->Get_SRV() : nullptr;
     if (previewRenderObject != nullptr && playbackModel != nullptr && previewSRV != nullptr)
     {
         ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
@@ -653,6 +679,104 @@ void AnimState_View::Ensure_PreviewCamera()
 
     _previewCamera->Apply_EditorDesc(desc);
     Apply_PreviewCameraTransform(_previewCamera);
+}
+
+void AnimState_View::Ensure_PreviewSkyBackdrop()
+{
+    if (_previewSkyBox != nullptr)
+        return;
+
+    Shared<Client::SkyBoxFlow> skyBoxPrototype = Client::SkyBoxFlow::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyBoxPrototype == nullptr)
+        return;
+
+    Client::SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    _previewSkyBox = dynamic_pointer_cast<Client::SkyBoxFlow>(skyBoxPrototype->Clone(&skyBoxDesc));
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Set_Visible(true);
+
+    _previewSkyCloudCards.clear();
+
+    Shared<Client::SkyCloudCard> skyCloudPrototype = Client::SkyCloudCard::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyCloudPrototype == nullptr)
+        return;
+
+    Client::SkyCloudCard::SKYCLOUDCARD_DESC cloudDesc{};
+    cloudDesc.modelTag = TEXT("Model_Cloud_Mesh");
+    cloudDesc.shaderTag = TEXT("Shader_SkyCloudCard");
+    cloudDesc.cloudTextureTag = TEXT("Texture_T_Cloud_13_H");
+    cloudDesc.position = kPreviewSkyCloudLocalOffset;
+    cloudDesc.rotation = Vec3(-4.763f, -119.267f, -349.155f);
+    cloudDesc.scale = Vec3(1.5f, 0.9f, 0.9f);
+
+    Shared<Client::SkyCloudCard> skyCloudCard =
+        dynamic_pointer_cast<Client::SkyCloudCard>(skyCloudPrototype->Clone(&cloudDesc));
+    if (skyCloudCard != nullptr)
+    {
+        skyCloudCard->Set_Visible(true);
+        _previewSkyCloudCards.push_back(skyCloudCard);
+    }
+}
+
+void AnimState_View::Update_PreviewSkyBackdrop(float timeDelta)
+{
+    if (_previewSkyBox == nullptr)
+        return;
+
+    if (_previewCamera != nullptr)
+    {
+        Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
+        if (cameraTransform != nullptr)
+        {
+            const Vec3 cameraPos = cameraTransform->Get_WorldPosition();
+            for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+            {
+                if (skyCloudCard == nullptr)
+                    continue;
+
+                Shared<TransformCom> cloudTransform = skyCloudCard->Get_Transform();
+                if (cloudTransform != nullptr)
+                    cloudTransform->Set_WorldPosition(cameraPos + kPreviewSkyCloudLocalOffset);
+            }
+        }
+    }
+
+    if (!_previewSkyBackdropBegunPlay)
+    {
+        _previewSkyBox->Try_BeginPlay();
+        for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+        {
+            if (skyCloudCard != nullptr)
+                skyCloudCard->Try_BeginPlay();
+        }
+        _previewSkyBackdropBegunPlay = true;
+    }
+
+    _previewSkyBox->Set_Visible(true);
+    _previewSkyBox->Priority_Update(timeDelta);
+    _previewSkyBox->Update(timeDelta);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard == nullptr)
+            continue;
+
+        skyCloudCard->Set_Visible(true);
+        skyCloudCard->Priority_Update(timeDelta);
+        skyCloudCard->Update(timeDelta);
+    }
+}
+
+void AnimState_View::Render_PreviewSkyBackdrop() const
+{
+    if (_previewSkyBox != nullptr)
+        (void)_previewSkyBox->Render();
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard != nullptr)
+            (void)skyCloudCard->Render();
+    }
 }
 
 void AnimState_View::Ensure_PreviewGridResources()
@@ -906,6 +1030,9 @@ void AnimState_View::Save_Mapping(const string &fileName)
 	{
 		return;
 	}
+
+    Refresh_BoundEnumBeforeSave();
+
 	fs::path rootPath = GAME->Get_AssetRoot();
 	fs::path modelDir = rootPath / fs::path(_sourceModelPath).parent_path();
 	fs::path savePath = modelDir / (fileName + ".animmap.json");
@@ -915,15 +1042,11 @@ void AnimState_View::Save_Mapping(const string &fileName)
 	if (_liveModelCom != nullptr && _liveModelCom->Get_Owner() != nullptr)
 	{
 		auto owner = _liveModelCom->Get_Owner();
-		if (!owner->Get_SourcePrefabName().empty())
-		{
-			prefabName = owner->Get_SourcePrefabName();
-		}
-		else if (auto containerOwner = owner->Get_Owner())
+		if (auto containerOwner = owner->Get_Owner())
 		{
 			if (!containerOwner->Get_SourcePrefabName().empty())
 			{
-				prefabName = containerOwner->Get_SourcePrefabName();
+				prefabName = containerOwner->Get_SourcePrefabName(); // Body_Player에 남은 PB_*보다 루트 프리팹 이름을 우선 저장한다.
 			}
 			else
 			{
@@ -939,6 +1062,10 @@ void AnimState_View::Save_Mapping(const string &fileName)
 					containerOwner->Set_SourcePrefabName(prefabName);
 				}
 			}
+		}
+		else if (!owner->Get_SourcePrefabName().empty())
+		{
+			prefabName = owner->Get_SourcePrefabName();
 		}
 		else
 		{
@@ -1219,7 +1346,7 @@ Editor_Camera_Free::EDITOR_CAMERA_DESC AnimState_View::Build_PreviewCameraDesc(c
     desc.at = XMFLOAT4(0.25f, 1.0f, 0.f, 1.f);
     desc.fovy = XM_PIDIV4;
     desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
+    desc.farPlane = 500.f;
     desc.yaw = 0.f;
     desc.pitch = 0.f;
     desc.mouseSensor = 0.15f;
@@ -1331,6 +1458,80 @@ void AnimState_View::Apply_EnumFromProperty(
 		}
 		strncpy_s(_mappingSaveLoadBuffer, defaultName.c_str(), _TRUNCATE);
 	}
+}
+
+bool AnimState_View::Refresh_BoundEnumBeforeSave()
+{
+    if (_enumTypeName.empty())
+        return false;
+
+    EnumSearchResult matchedResult{};
+    bool found = false;
+
+    GAME->Visit_GameObjectTypes([&](const Engine::TypeRegistry::GameObjectTypeInfo& typeInfo)
+    {
+        if (found || typeInfo.reflectionInfo == nullptr)
+            return;
+
+        for (const auto& prop : typeInfo.reflectionInfo->properties)
+        {
+            if (prop.type != Engine::PropertyType::Enum || prop.enumNames.empty())
+                continue;
+
+            const string label = typeInfo.className + "::" + prop.displayName;
+            if (label != _enumTypeName)
+                continue;
+
+            matchedResult.ownerClassName = typeInfo.className;
+            matchedResult.propertyDisplayName = prop.displayName;
+            matchedResult.enumNames = prop.enumNames;
+            matchedResult.enumValues = prop.enumValues;
+            found = true;
+            return;
+        }
+    });
+
+    if (!found)
+    {
+        GAME->Visit_GlobalEnums([&](const Engine::TypeRegistry::GlobalEnumInfo& info)
+        {
+            if (found || info.enumNames.empty())
+                return;
+
+            const string label = string("GlobalEnum::") + info.displayName;
+            if (label != _enumTypeName)
+                return;
+
+            matchedResult.ownerClassName = "GlobalEnum";
+            matchedResult.propertyDisplayName = info.displayName;
+            matchedResult.enumNames = info.enumNames;
+            matchedResult.enumValues = info.enumValues;
+            found = true;
+        });
+    }
+
+    if (!found)
+        return false;
+
+    map<string, string> previousMapping = _animationMapping;
+
+    _stateNames.clear();
+    _stateIndices.clear();
+    _animationMapping.clear();
+
+    for (size_t i = 0; i < matchedResult.enumNames.size(); ++i)
+    {
+        const string& stateName = matchedResult.enumNames[i];
+        _stateNames.push_back(stateName);
+        _stateIndices.push_back(i < matchedResult.enumValues.size() ? matchedResult.enumValues[i] : static_cast<int32>(i));
+
+        // enum 값이 추가/이동되어도 기존 애니 매핑은 State 이름 기준으로 유지한다.
+        auto mapped = previousMapping.find(stateName);
+        if (mapped != previousMapping.end())
+            _animationMapping[stateName] = mapped->second;
+    }
+
+    return true;
 }
 
 Shared<AnimState_View> AnimState_View::Create()

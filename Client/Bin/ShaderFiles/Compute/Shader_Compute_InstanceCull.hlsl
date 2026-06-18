@@ -27,7 +27,6 @@ void CS_Main(uint3 id : SV_DispatchThreadID)
     float radius = sphere.w;
 
     float visible = 1.f;
-
     [unroll]
     for (int i = 0; i < 6; ++i)
         visible *= step(0.f, dot(g_FrustumPlanes[i].xyz, center) + g_FrustumPlanes[i].w + radius);

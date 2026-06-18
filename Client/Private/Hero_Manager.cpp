@@ -13,6 +13,7 @@
 #include "CostumeManager.h"
 #include "PhysX_Types.h"
 #include "MovementCom.h"
+#include "PlayerStatCom.h"
 
 static const HeroSpawnDesc heroSpawnDescs[] =
 {
@@ -67,7 +68,7 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
         if (auto movement = hero->Get_Component<MovementCom>())
             movement->Sync_RuntimePositionToTransform();
 
-        _heroes.push_back(HeroPartyEntry { desc.heroId, hero });
+        _heroes.push_back(HeroPartyEntry{ desc.heroId, hero });
     }
 
     Apply_ControlRoles();
@@ -81,7 +82,7 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
 void Hero_Manager::Update_HeroManager(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return; // 배틀 중에서는 월드 플레이어 입력 제한
 
     if (_heroes.empty())
@@ -98,7 +99,8 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
 
         Switch_NextHero();
 
-        Toggle_CostumeForTest();
+        // 이제는, 탭눌러서 옷장에서 바꾸세요
+        //Toggle_CostumeForTest();
     }
 
     Set_ActiveTrail(timeDelta);
@@ -115,7 +117,7 @@ Shared<Player_WorldBase> Hero_Manager::Get_ActiveHero() const
 
 void Hero_Manager::Set_TargetCamera(const Shared<TargetCamera>& camera)
 {
-     _targetCamera = camera;
+    _targetCamera = camera;
     Refresh_TargetCamera();
 }
 
@@ -172,6 +174,24 @@ HeroPartySlot Hero_Manager::Get_ActiveHeroSlot() const
     return static_cast<HeroPartySlot>(_activeIndex);
 }
 
+void Hero_Manager::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
+{
+    const uint32 index = ETOI(slot);
+    if (index >= _heroes.size())
+        return;
+
+    _activeIndex = index;
+    Apply_ControlRoles();
+
+    for (FollowerRuntime& runtime : _followerRuntime)
+        runtime = {};
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+    Refresh_TargetCamera();
+}
+
 Shared<Player_WorldBase> Hero_Manager::Get_FrontHero() const
 {
     if (_heroes.empty())
@@ -193,7 +213,7 @@ Shared<Player_WorldBase> Hero_Manager::Find_Hero(HeroId heroId) const
 
 const HeroSpawnDesc* Hero_Manager::Find_HeroSpawnDesc(HeroId heroId)
 {
-     for (const HeroSpawnDesc& desc : heroSpawnDescs)
+    for (const HeroSpawnDesc& desc : heroSpawnDescs)
     {
         if (desc.heroId == heroId)
             return &desc;
@@ -204,7 +224,7 @@ const HeroSpawnDesc* Hero_Manager::Find_HeroSpawnDesc(HeroId heroId)
 
 void Hero_Manager::Switch_NextHero()
 {
-     if (_heroes.size() < 2)
+    if (_heroes.size() < 2)
         return;
 
     const uint32 newIndex =
@@ -351,7 +371,7 @@ Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, co
     {
         const auto& moveDesc = movement->Get_MoveDesc();
 
-        skinWidth = moveDesc.sweep.skinWidth;         
+        skinWidth = moveDesc.sweep.skinWidth;
         groundSnapUp = moveDesc.sweep.groundSnapUp;       // 위에서부터 바닥 probe 시작
         groundSnapDown = moveDesc.sweep.groundSnapDown;   // 아래로 탐색할 거리
     }
@@ -374,11 +394,11 @@ Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, co
 
         PhysXQueryHit hit{};
         const bool blocked = GAME->Sweep_Collider(
-                collider.get(),
-                sweepWorld,
-                sweepDir,
-                sweepDistance,
-                hit);
+            collider.get(),
+            sweepWorld,
+            sweepDir,
+            sweepDistance,
+            hit);
 
         if (blocked)
         {
@@ -708,7 +728,7 @@ HRESULT Hero_Manager::Ready_Delegates()
     _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
         [this]()
         {
-           Handle_EditorStopRuntime(); 
+            Handle_EditorStopRuntime();
         });
 
     return S_OK;
@@ -753,9 +773,9 @@ void Hero_Manager::Reset_AllHeroesToIdle()
         auto movement = hero->Get_Component<MovementCom>();
         if (movement)
         {
-            movement->Clear_FollowMoveCommand(); 
-            movement->Apply_Input({});           
-            movement->Stop_HorizontalMovement(); 
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+            movement->Stop_HorizontalMovement();
         }
 
         auto state = hero->Get_Component<PlayerStateMachineCom>();

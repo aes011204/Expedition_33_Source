@@ -48,6 +48,7 @@ HRESULT Distortion_ScreenFx::Initialize(ScreenFxDesc* desc)
 void Distortion_ScreenFx::Update_ScreenFx(float timeDelta)
 {
     _timeAcc += timeDelta;
+    _elapsedTime = _timeAcc;
     _duration = _originalDesc.duration + _originalDesc.delayTime; // Update in case properties changed in editor
     
     if (_timeAcc < _originalDesc.delayTime)

@@ -31,6 +31,8 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
         { LevelType::MapTest,  { Constants::Map::TestMap_Path }, 1, L"Layer_MapStaticMesh" },
 
         { LevelType::Stage01,  { Constants::Map::SmallLevel_SimonArea_Remake_Path }, 1, L"Layer_MapStaticMesh" },
+
+        { LevelType::GestralVillage, { Constants::Map::GestralVillage_MapInstance_Path }, 1, L"Layer_MapStaticMesh" }
     };
 
     for (const LevelMapLoadDesc& desc : mapLoadDescs)
@@ -50,12 +52,22 @@ auto Loader::Find_LandscapeDesc() const -> const LevelLandscapeDesc*
             LevelType::GamePlay,
             {
                 Constants::Map::MF_Zone_Boss_HMap,
-                Constants::Map::MF_Zone_Main_HMap,
-                Constants::Map::MF_Zone_Stair_1_HMap,
-                Constants::Map::MF_Zone_Stair_2_HMap,
-                Constants::Map::MF_Zone_Stair_3_HMap,
+                Constants::Map::MF_Zone_Main_HMap
+                //, Constants::Map::MF_Zone_Stair_1_HMap,
+                //Constants::Map::MF_Zone_Stair_2_HMap,
+                //Constants::Map::MF_Zone_Stair_3_HMap,
             },
-            5,
+            2,
+            Constants::Map::ResourceRoot_Dir,
+            L"Layer_BackGround"
+        },
+
+        {
+            LevelType::GestralVillage,
+            {
+                Constants::Map::GestralVillage_HMap
+            },
+            1,
             Constants::Map::ResourceRoot_Dir,
             L"Layer_BackGround"
         },
@@ -90,10 +102,10 @@ HRESULT Loader::Initialize(LevelType eNextLevelID)
             const HRESULT hr = Loading();
 
             if (FAILED(hr))
-            {
                 _hasFailed.store(true);
-                _workerDone.store(true);
-            }
+
+            // 리소스 job 목록 생성뿐 아니라 맵 프리로드까지 끝난 뒤에만 완료로 공개한다.
+            _workerDone.store(true);
         }
     );
 
@@ -137,6 +149,10 @@ HRESULT Loader::Loading()
 
     case LevelType::Stage01:
         hr = Loading_For_Stage01Level();
+        break;
+
+    case LevelType::GestralVillage:
+        hr = Loading_For_GestralVillageLevel();
         break;
 
     default:
@@ -306,7 +322,6 @@ HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
             return E_FAIL;
     }
 
-    _workerDone.store(true);
     return S_OK;
 }
 
@@ -384,6 +399,19 @@ HRESULT Loader::Loading_For_Stage01Level()
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : MainTitle");
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+HRESULT Loader::Loading_For_GestralVillageLevel()
+{
+    lstrcpy(_loadingText, TEXT("GestralVillage 로딩 중..."));
+
+    if (FAILED(Load_ResourceJobsForNextLevel()))
+    {
+        MSG_BOX("Faild to Load Resource Tables : GestralVillage");
         return E_FAIL;
     }
 

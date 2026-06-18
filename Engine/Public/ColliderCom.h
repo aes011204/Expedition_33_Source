@@ -28,6 +28,11 @@ public:
     bool                    Intersect(Shared<ColliderCom> target);
 
 public:
+    const set<Weak<ColliderCom>, owner_less<Weak<ColliderCom>>>& Get_OverlapSet() const
+    {
+        return _overlapSet;
+    }
+
     void                    Add_Overlap(Shared<ColliderCom> other);
     void                    Remove_Overlap(Shared<ColliderCom> other);
     bool                    Is_Overlapping(Shared<ColliderCom> other) const;

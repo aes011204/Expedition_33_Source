@@ -10,6 +10,11 @@ class ModelCom;
 class RenderTarget;
 NS_END
 
+NS_BEGIN(Client)
+class SkyBoxFlow;
+class SkyCloudCard;
+NS_END
+
 NS_BEGIN(MainEditor)
 
 class Prefab_View : public Editor_Window
@@ -64,6 +69,9 @@ private:
 private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewGridResources();
+    void Ensure_PreviewSkyBackdrop();
+    void Update_PreviewSkyBackdrop(float timeDelta);
+    void Render_PreviewSkyBackdrop() const;
 
     void Reset_PreviewCameraPose();
     void Lock_PreviewObjectToOrigin();
@@ -105,6 +113,8 @@ private:
     Shared<GameObject>  _previewObject{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
+    Shared<Client::SkyBoxFlow> _previewSkyBox{};
+    vector<Shared<Client::SkyCloudCard>> _previewSkyCloudCards{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
@@ -131,6 +141,7 @@ private:
     uint32              _previewWidth = 512;
     uint32              _previewHeight = 512;
     bool                _previewHasBegunPlay = false;
+    bool                _previewSkyBackdropBegunPlay = false;
     bool                _requestResetPreviewCamera = false;
     ImVec2              _previewCanvasMin = {};
     ImVec2              _previewCanvasMax = {};
@@ -140,6 +151,7 @@ private:
     SelectionType       _selectionType = SelectionType::None;
     bool                _showPrefabCollider = false;
     bool                _showPreviewGrid = true;
+    bool                _showPreviewSkyBackdrop = true;
 
     wstring _selectedObjectKey{};
     wstring _selectedComponentKey{};

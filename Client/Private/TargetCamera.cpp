@@ -9,73 +9,75 @@
 
 namespace
 {
-const char* To_TargetCameraModeName(TargetCameraMode mode)
-{
-    switch (mode)
+    const char* To_TargetCameraModeName(TargetCameraMode mode)
     {
-    case TargetCameraMode::NORMAL:
-        return "NORMAL";
-    case TargetCameraMode::AIM:
-        return "AIM";
-    case TargetCameraMode::BATTLE_ENTER:
-        return "BATTLE_ENTER";
-    default:
-        return "UNKNOWN";
-    }
-}
-
-float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
-{
-    t = clamp(t, 0.f, 1.f);
-    constexpr float kBackOvershoot = 1.70158f;
-
-    switch (easing)
-    {
-    case BattleCameraTransitionEasing::Linear:
-        return t;
-
-    case BattleCameraTransitionEasing::EaseIn:
-        return t * t;
-
-    case BattleCameraTransitionEasing::EaseOut:
-        return 1.f - (1.f - t) * (1.f - t);
-
-    case BattleCameraTransitionEasing::EaseInStrong:
-        return t * t * t;
-
-    case BattleCameraTransitionEasing::EaseOutStrong:
-        return 1.f - powf(1.f - t, 3.f);
-
-    case BattleCameraTransitionEasing::EaseInOutStrong:
-        return t < 0.5f
-            ? 4.f * t * t * t
-            : 1.f - powf(-2.f * t + 2.f, 3.f) * 0.5f;
-
-    case BattleCameraTransitionEasing::EaseInCubic:
-        return t * t * t;
-
-    case BattleCameraTransitionEasing::EaseOutCubic:
-        return 1.f - powf(1.f - t, 3.f);
-
-    case BattleCameraTransitionEasing::EaseInExpo:
-        return t <= 0.f ? 0.f : powf(2.f, 10.f * t - 10.f);
-
-    case BattleCameraTransitionEasing::EaseOutExpo:
-        return t >= 1.f ? 1.f : 1.f - powf(2.f, -10.f * t);
-
-    case BattleCameraTransitionEasing::EaseOutBack:
-    {
-        const float x = t - 1.f;
-        return 1.f + (kBackOvershoot + 1.f) * x * x * x + kBackOvershoot * x * x;
+        switch (mode)
+        {
+        case TargetCameraMode::NORMAL:
+            return "NORMAL";
+        case TargetCameraMode::AIM:
+            return "AIM";
+        case TargetCameraMode::BATTLE_ENTER:
+            return "BATTLE_ENTER";
+        case TargetCameraMode::SOULLIKE:
+            return "SOULLIKE";
+        default:
+            return "UNKNOWN";
+        }
     }
 
-    case BattleCameraTransitionEasing::EaseInOut:
-        return t * t * (3.f - 2.f * t);
+    float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
+    {
+        t = clamp(t, 0.f, 1.f);
+        constexpr float kBackOvershoot = 1.70158f;
 
-    default:
-        return t;
+        switch (easing)
+        {
+        case BattleCameraTransitionEasing::Linear:
+            return t;
+
+        case BattleCameraTransitionEasing::EaseIn:
+            return t * t;
+
+        case BattleCameraTransitionEasing::EaseOut:
+            return 1.f - (1.f - t) * (1.f - t);
+
+        case BattleCameraTransitionEasing::EaseInStrong:
+            return t * t * t;
+
+        case BattleCameraTransitionEasing::EaseOutStrong:
+            return 1.f - powf(1.f - t, 3.f);
+
+        case BattleCameraTransitionEasing::EaseInOutStrong:
+            return t < 0.5f
+                ? 4.f * t * t * t
+                : 1.f - powf(-2.f * t + 2.f, 3.f) * 0.5f;
+
+        case BattleCameraTransitionEasing::EaseInCubic:
+            return t * t * t;
+
+        case BattleCameraTransitionEasing::EaseOutCubic:
+            return 1.f - powf(1.f - t, 3.f);
+
+        case BattleCameraTransitionEasing::EaseInExpo:
+            return t <= 0.f ? 0.f : powf(2.f, 10.f * t - 10.f);
+
+        case BattleCameraTransitionEasing::EaseOutExpo:
+            return t >= 1.f ? 1.f : 1.f - powf(2.f, -10.f * t);
+
+        case BattleCameraTransitionEasing::EaseOutBack:
+        {
+            const float x = t - 1.f;
+            return 1.f + (kBackOvershoot + 1.f) * x * x * x + kBackOvershoot * x * x;
+        }
+
+        case BattleCameraTransitionEasing::EaseInOut:
+            return t * t * (3.f - 2.f * t);
+
+        default:
+            return t;
+        }
     }
-}
 }
 
 TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) : Camera{ device, context }
@@ -132,6 +134,7 @@ HRESULT TargetCamera::Initialize(void* arg)
     CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, _normalPreset);
     CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, _aimPreset);
     CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, _battleEnterPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, _soulLikePreset);
 
     _currentState = TargetCameraMode::NORMAL;
     _currentSettings = _normalPreset;
@@ -187,6 +190,9 @@ void TargetCamera::Priority_Update(float timeDelta)
         return;
     }
 
+    if (_currentState == TargetCameraMode::SOULLIKE)
+        return;
+
     if (GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
         Change_Mode(TargetCameraMode::AIM);
@@ -231,6 +237,10 @@ void TargetCamera::Update(float timeDelta)
 
     case TargetCameraMode::BATTLE_ENTER:
         Update_BattleEnterState(timeDelta);
+        break;
+
+    case TargetCameraMode::SOULLIKE:
+        Update_NormalState(timeDelta);
         break;
     }
 
@@ -573,6 +583,12 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
         _targetSettings = _battleEnterPreset;
         _currentSettings.followSpeed = _battleEnterPreset.followSpeed;
         break;
+
+    case TargetCameraMode::SOULLIKE:
+        _targetSettings = _soulLikePreset;
+        _currentSettings.followSpeed = _soulLikePreset.followSpeed;
+        break;
+
     }
 
     if (_targetSettings.snapOnEnter)
@@ -637,6 +653,9 @@ const TargetCameraPreset& TargetCamera::Get_Preset(TargetCameraMode mode) const
 
     case TargetCameraMode::BATTLE_ENTER:
         return _battleEnterPreset;
+
+    case TargetCameraMode::SOULLIKE:
+        return _soulLikePreset;
     }
 
     LOG_DEBUG("Unknown Camera State");
@@ -657,6 +676,10 @@ void TargetCamera::Set_Preset(TargetCameraMode mode, const TargetCameraPreset& p
 
     case TargetCameraMode::BATTLE_ENTER:
         _battleEnterPreset = preset;
+
+    case TargetCameraMode::SOULLIKE:
+        _soulLikePreset = preset;
+        break;
 
     default:
         LOG_DEBUG("Unknown Camera State");

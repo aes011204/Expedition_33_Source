@@ -124,6 +124,7 @@ private:
     TargetCameraPreset  _normalPreset;
     TargetCameraPreset  _aimPreset;
     TargetCameraPreset  _battleEnterPreset;
+    TargetCameraPreset  _soulLikePreset;
 
     float               _battleEnterDuration = 3.f;
     float               _battleEnterAcc = { 0.f };

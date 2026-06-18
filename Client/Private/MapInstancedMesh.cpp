@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "StaticCollisionData.h"
 #include "Collision_Define.h"
+#include "ShaderPassFinder.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -223,7 +224,7 @@ HRESULT MapInstancedMesh::RenderPickingID(uint32 id)
     const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (FAILED(_shader->Begin(5)))
+        if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::IDPass)))
         {
             return E_FAIL;
         }

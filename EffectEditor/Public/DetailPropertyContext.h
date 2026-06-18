@@ -17,7 +17,7 @@ public:
 
     void Draw_PropertyLabel(const char* label, const char* tooltip = nullptr);
     bool Draw_ResetButton(bool canReset);
-    bool Draw_StringProperty(const char* label, string& value, const string& defaultValue);
+    bool Draw_StringProperty(const char* label, string& value, const string& defaultValue, const char* tooltip = nullptr);
     bool Draw_BoolProperty(const char* label, bool& value, bool defaultValue, const char* tooltip = nullptr);
     bool Draw_FloatProperty(
         const char* label,
@@ -26,8 +26,8 @@ public:
         float speed = 0.01f,
         const char* tooltip = nullptr,
         const AuthoringValueRange* range = nullptr);
-    bool Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue);
-    bool Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue);
+    bool Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue, const char* tooltip = nullptr);
+    bool Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue, const char* tooltip = nullptr);
     bool Draw_FloatDistributionGroup(
         const char* label,
         FloatDistributionData& value,
@@ -35,14 +35,16 @@ public:
         float speed = 0.01f,
         bool allowUniform = true,
         bool allowConstantCurve = true,
-        const AuthoringValueRange* range = nullptr);
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr);
     bool Draw_Vector2DistributionGroup(
         const char* label,
         Vector2DistributionData& value,
         const Vector2DistributionData& defaultValue,
         float speed = 0.01f,
         bool allowConstantCurve = true,
-        const AuthoringValueRange* range = nullptr);
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr);
     bool Draw_Vector3DistributionGroup(
         const char* label,
         Vector3DistributionData& value,
@@ -50,7 +52,8 @@ public:
         float speed = 0.01f,
         bool allowConstantCurve = true,
         bool showConstantCurveAsUnimplemented = false,
-        const AuthoringValueRange* range = nullptr);
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr);
     bool Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
     bool Draw_ColorRgbDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
     bool Draw_BurstListProperty(vector<SpawnModuleData::ParticleBurstData>& burstList, const vector<SpawnModuleData::ParticleBurstData>& defaultValue);
@@ -71,13 +74,15 @@ public:
         Vec2& value,
         const Vec2& defaultValue,
         float speed = 0.01f,
-        const AuthoringValueRange* range = nullptr);
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr);
     bool Draw_Vec3Property(
         const char* label,
         Vec3& value,
         const Vec3& defaultValue,
         float speed = 0.01f,
-        const AuthoringValueRange* range = nullptr);
+        const AuthoringValueRange* range = nullptr,
+        const char* tooltip = nullptr);
 
 private:
     class BasicDetailPropertyDrawer;

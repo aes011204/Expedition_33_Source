@@ -338,6 +338,98 @@ void PlayerStatCom::Apply_BattleSyncSnapshot(const BattleSyncSnapshot& snapshot)
     _PRuntimeStat.CurShield = snapshot.curShield;
 }
 
+json PlayerStatCom::Create_SaveJson() const
+{
+    const BattleSyncSnapshot snapshot = Create_BattleSyncSnapshot();
+
+    json root = json::object();
+    root["level"] = snapshot.desc.level;
+    root["exp"] = snapshot.desc.exp;
+    root["stat_point"] = snapshot.curStatPoint;
+    root["skill_point"] = snapshot.curSkillPoint;
+    root["respec_count"] = snapshot.curRespecCount;
+    root["vitality"] = snapshot.curVitality;
+    root["might"] = snapshot.curMight;
+    root["agility"] = snapshot.curAgility;
+    root["defense"] = snapshot.curDefense;
+    root["luck"] = snapshot.curLuck;
+    root["hp"] = snapshot.curHp;
+    root["ap"] = snapshot.curAp;
+    root["shield"] = snapshot.curShield;
+    root["equipped_weapon_id"] = snapshot.desc.equippedWeaponId;
+    root["equipped_weapon_power"] = snapshot.desc.equippedWeaponPower;
+    root["equipped_pictos_ids"] = snapshot.desc.equippedPictosIds;
+    root["alive_status"] = string(magic_enum::enum_name(const_cast<PlayerStatCom*>(this)->Get_AliveStatus()));
+
+    return root;
+}
+
+bool PlayerStatCom::Apply_SaveJson(const json& data)
+{
+    if (!data.is_object())
+        return false;
+
+    BattleSyncSnapshot snapshot = Create_BattleSyncSnapshot();
+
+    snapshot.desc.level = data.value("level", snapshot.desc.level);
+    snapshot.desc.exp = data.value("exp", snapshot.desc.exp);
+
+    snapshot.curStatPoint = data.value("stat_point", snapshot.curStatPoint);
+    snapshot.curSkillPoint = data.value("skill_point", snapshot.curSkillPoint);
+    snapshot.curRespecCount = data.value("respec_count", snapshot.curRespecCount);
+
+    snapshot.curVitality = data.value("vitality", snapshot.curVitality);
+    snapshot.curMight = data.value("might", snapshot.curMight);
+    snapshot.curAgility = data.value("agility", snapshot.curAgility);
+    snapshot.curDefense = data.value("defense", snapshot.curDefense);
+    snapshot.curLuck = data.value("luck", snapshot.curLuck);
+
+    snapshot.desc.statPoint = snapshot.curStatPoint;       // desc/runtime 양쪽을 같은 진행 상태로 맞춘다.
+    snapshot.desc.skillPoint = snapshot.curSkillPoint;
+    snapshot.desc.respecCount = snapshot.curRespecCount;
+    snapshot.desc.vitality = snapshot.curVitality;
+    snapshot.desc.might = snapshot.curMight;
+    snapshot.desc.agility = snapshot.curAgility;
+    snapshot.desc.defense = snapshot.curDefense;
+    snapshot.desc.luck = snapshot.curLuck;
+
+    snapshot.curHp = data.value("hp", snapshot.curHp);
+    snapshot.curAp = data.value("ap", snapshot.curAp);
+    snapshot.curShield = data.value("shield", snapshot.curShield);
+
+    snapshot.desc.equippedWeaponId = data.value("equipped_weapon_id", snapshot.desc.equippedWeaponId);
+    snapshot.desc.equippedWeaponPower = data.value("equipped_weapon_power", snapshot.desc.equippedWeaponPower);
+
+    if (auto pictosIds = data.find("equipped_pictos_ids"); pictosIds != data.end() && pictosIds->is_array())
+    {
+        for (size_t i = 0; i < EquippedPictosSlotCount && i < pictosIds->size(); ++i)
+        {
+            if ((*pictosIds)[i].is_string())
+                snapshot.desc.equippedPictosIds[i] = (*pictosIds)[i].get<string>();
+        }
+    }
+
+    Apply_BattleSyncSnapshot(snapshot);
+
+    if (const auto aliveStatus = magic_enum::enum_cast<EAliveStatus>(data.value("alive_status", string{})))
+        Set_AliveStatus(aliveStatus.value());
+
+    return true;
+}
+
+void PlayerStatCom::Set_EquippedPictos(size_t slotIndex, const string& pictosId)
+{
+    if (slotIndex >= EquippedPictosSlotCount)
+        return;
+
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
+
+    _playerDesc.equippedPictosIds[slotIndex] = pictosId;
+    Recalculate_Stats();
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate; // HP 픽토스 장착/해제 시 현재 체력 비율을 즉시 유지한다.
+    Update_StatInfo();
+}
+
 int32* PlayerStatCom::Find_StatValue(StatType type)
 {
     switch (type)
@@ -367,12 +459,30 @@ void PlayerStatCom::Recalculate_Stats()
 
     const float weaponAttack = static_cast<float>(_playerDesc.equippedWeaponPower);
 
-    // 33 원정대 데이터 공식 일단 유지해서 해봄
-    _playerDesc.maxHp = preview.maxHp;
-    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack; // 기본 스탯 공격력 + 무기 공격력
+    int32 resultHp = 0;
+    int32 resultSpeed = 0;
+    int32 resultCritical = 0;
+
+    for (const string& pictosId : _playerDesc.equippedPictosIds)
+    {
+        if (pictosId.empty())
+            continue;
+
+        const GameDataTable::PictosDesc* pictosDesc = CLIENT->Get_PictosDesc(pictosId);
+        if (!pictosDesc)
+            continue;
+
+        // 픽토스 데이터 연동, 증가
+        resultHp += pictosDesc->hp;
+        resultSpeed += pictosDesc->speed;
+        resultCritical += pictosDesc->critical;
+    }
+
+    _playerDesc.maxHp = preview.maxHp + static_cast<float>(resultHp);
+    _playerDesc.physicalAttack = preview.physicalAttack + weaponAttack;
     _playerDesc.physicalDefense = preview.physicalDefense;
-    _playerDesc.speed = preview.speed;
-    _playerDesc.criticalRate = preview.criticalRate;
+    _playerDesc.speed = preview.speed + static_cast<float>(resultSpeed);
+    _playerDesc.criticalRate = preview.criticalRate + static_cast<float>(resultCritical);
 
     _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
 }

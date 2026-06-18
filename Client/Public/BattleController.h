@@ -30,6 +30,7 @@ class BattleSpawnRegistry;
 class SkillTreeCom;
 class BattleTutorialController;
 class BattleResultRecoder;
+class PictosBattleSystem;
 
 class BattleController : public Base
 {
@@ -97,6 +98,9 @@ public:
     const BattleAction& Get_TurnAction() const { return _turnAction; }
     ActionRequest& Get_TurnActionRequest() { return _turnActionRequest; }
     const ActionRequest& Get_TurnActionRequest() const { return _turnActionRequest; }
+
+    Shared<PictosBattleSystem> Get_PictosBattleSystem() const { return _pictosBattleSystem; }
+
     // Action& Get_TurnAction() { return _turnAction; }
     void    Request_WidePresentationMode();
 
@@ -206,6 +210,11 @@ public:
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
+
+    // DOF_MODIFY 
+    void    Begin_BattleDOFOverride();
+    void    End_BattleDOFOverride();
+    Engine::DOFTransitionDesc Build_BattleDOFRestoreTransition();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
     void    Push_TurnEntry(const BattleChar& actor, float nextTime);
@@ -222,20 +231,19 @@ private:
     bool    Update_BattleTutorialGate(float timeDelta);
 
 private:
-    // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
-    // TODO : 나중에는 실제 장착되는 스킬 세팅되게 해줄거같은데. 그러면 그 때 수정
+    // World의 SkillTree 상태를 읽어서 battle에서 사용할 스킬 세팅
     void Configure_BattlePlayerSkills(
         HeroId heroId,
         const Shared<CombatStatCom>& battleStat,
-        const Shared<SkillTreeCom>& worldSkillTreeCom);
-
-    // Q/W/E가 소비할 기본 스킬 일단은 고정.
-    vector<string> Get_DefaultBattleSkillKeys(HeroId heroId);
+        const Shared<SkillTreeCom>& worldSkillTreeCom,
+        const vector<string>& equippedSkillKeys);
 
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
     bool Try_BeginTurnStartStatusAnnounce();
     void Continue_StartTurnAfterStatusEffects();
+
+
 
 private:
     using BattleReactionInputResult = BattleReactionController::BattleReactionInputResult;
@@ -327,6 +335,8 @@ private:
     BattleReactionController     _reactionController{};
     BattleHitSequenceRunner      _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
     Shared<BattleResultRecoder>  _battleResultRecoder{};
+
+    Shared<PictosBattleSystem>   _pictosBattleSystem{};  // 픽토스
 
     bool _firstAnimflag = { false };
     int  _firstAnimCount = { 0 };

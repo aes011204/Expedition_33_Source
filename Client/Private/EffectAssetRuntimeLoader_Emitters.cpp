@@ -418,6 +418,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.required.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.required.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.required.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
@@ -547,11 +548,14 @@ namespace EffectAssetRuntimeLoad::Emitters
             Read_Enum(*subUvFrameOverLife, "playbackMode", desc.subUVFrameOverLife.playbackMode);
             desc.subUVFrameOverLife.framesPerSecond =
                 max(0.f, Read_Float(*subUvFrameOverLife, "framesPerSecond", desc.subUVFrameOverLife.framesPerSecond));
+            desc.subUVFrameOverLife.randomStartPhase =
+                Read_Bool(*subUvFrameOverLife, "randomStartPhase", desc.subUVFrameOverLife.randomStartPhase);
 
             const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
             if (frameIndexIter != subUvFrameOverLife->end())
                 Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
-            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+                desc.subUVFrameOverLife.randomStartPhase)
                 desc.subUVRandomFrameSeed = Read_RandomSeedDesc(*subUvFrameOverLife);
 
             const uint32 frameCount = max(1u, desc.required.material.subUVRows * desc.required.material.subUVCols);
@@ -747,6 +751,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
@@ -887,6 +892,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
@@ -960,11 +966,14 @@ namespace EffectAssetRuntimeLoad::Emitters
             Read_Enum(*subUvFrameOverLife, "playbackMode", desc.subUVFrameOverLife.playbackMode);
             desc.subUVFrameOverLife.framesPerSecond =
                 max(0.f, Read_Float(*subUvFrameOverLife, "framesPerSecond", desc.subUVFrameOverLife.framesPerSecond));
+            desc.subUVFrameOverLife.randomStartPhase =
+                Read_Bool(*subUvFrameOverLife, "randomStartPhase", desc.subUVFrameOverLife.randomStartPhase);
 
             const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
             if (frameIndexIter != subUvFrameOverLife->end())
                 Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
-            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+                desc.subUVFrameOverLife.randomStartPhase)
                 desc.subUVRandomFrameSeed = Read_RandomSeedDesc(*subUvFrameOverLife);
 
             const uint32 frameCount = max(1u, desc.material.subUVRows * desc.material.subUVCols);
@@ -1052,6 +1061,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* initialSize = Find_ModuleData(emitter, "InitialSize"))
@@ -1138,11 +1148,14 @@ namespace EffectAssetRuntimeLoad::Emitters
             Read_Enum(*subUvFrameOverLife, "playbackMode", desc.subUVFrameOverLife.playbackMode);
             desc.subUVFrameOverLife.framesPerSecond =
                 max(0.f, Read_Float(*subUvFrameOverLife, "framesPerSecond", desc.subUVFrameOverLife.framesPerSecond));
+            desc.subUVFrameOverLife.randomStartPhase =
+                Read_Bool(*subUvFrameOverLife, "randomStartPhase", desc.subUVFrameOverLife.randomStartPhase);
 
             const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
             if (frameIndexIter != subUvFrameOverLife->end())
                 Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
-            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame ||
+                desc.subUVFrameOverLife.randomStartPhase)
                 desc.subUVRandomFrameSeed = Read_RandomSeedDesc(*subUvFrameOverLife);
 
             const uint32 frameCount = max(1u, desc.material.subUVRows * desc.material.subUVCols);
@@ -1408,6 +1421,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
@@ -1483,14 +1497,19 @@ namespace EffectAssetRuntimeLoad::Emitters
             Read_Enum(*subUvFrameOverLife, "playbackMode", desc.subUVFrameOverLife.playbackMode);
             desc.subUVFrameOverLife.framesPerSecond =
                 max(0.f, Read_Float(*subUvFrameOverLife, "framesPerSecond", desc.subUVFrameOverLife.framesPerSecond));
-            desc.usePerStripSubUVVariation =
-                Read_Bool(*subUvFrameOverLife, "perStripSubUVVariation", desc.usePerStripSubUVVariation);
+            const bool hasRandomStartPhase = subUvFrameOverLife->find("randomStartPhase") != subUvFrameOverLife->end();
+            desc.subUVFrameOverLife.randomStartPhase =
+                Read_Bool(*subUvFrameOverLife, "randomStartPhase", desc.subUVFrameOverLife.randomStartPhase);
+            if (!hasRandomStartPhase)
+                desc.subUVFrameOverLife.randomStartPhase =
+                    Read_Bool(*subUvFrameOverLife, "perStripSubUVVariation", desc.subUVFrameOverLife.randomStartPhase);
+            desc.usePerStripSubUVVariation = desc.subUVFrameOverLife.randomStartPhase;
 
             const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
             if (frameIndexIter != subUvFrameOverLife->end())
                 Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
             if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame ||
-                (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::FramesPerSecond && desc.usePerStripSubUVVariation))
+                desc.subUVFrameOverLife.randomStartPhase)
                 desc.subUVRandomFrameSeed = Read_RandomSeedDesc(*subUvFrameOverLife);
 
             const uint32 frameCount = max(1u, desc.material.subUVRows * desc.material.subUVCols);
@@ -1560,6 +1579,7 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
             Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+            Fill_MaterialVec2ModulationPayload(desc.material.vec2Modulation, *materialScalarModulation);
         }
 
         if (hasAssignedMaterialInstance && assignedMaterialPayload.is_object())
