@@ -235,14 +235,14 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     ([this](const EvtBattlePresentation& event)
         {
             const string modeName = string(magic_enum::enum_name(event.cameraMode));
-            LOG_INFO(
-                "[BattleCamTrace] EvtBattlePresentation mode={} presetId={} clipId={} useClip={} subject={} opponent={}",
-                modeName.c_str(),
-                event.presetId.c_str(),
-                event.clipId.c_str(),
-                event.useClip,
-                event.subject != nullptr,
-                event.opponent != nullptr);
+            // LOG_INFO(
+            //     "[BattleCamTrace] EvtBattlePresentation mode={} presetId={} clipId={} useClip={} subject={} opponent={}",
+            //     modeName.c_str(),
+            //     event.presetId.c_str(),
+            //     event.clipId.c_str(),
+            //     event.useClip,
+            //     event.subject != nullptr,
+            //     event.opponent != nullptr);
 
             Apply_ShotRequest(Build_BattleShotRequestFromEvent(event));
         }
@@ -315,12 +315,12 @@ void BattleTurnCamera::Update(float timeDelta)
 
     const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
 
-    LOG_INFO(
-    "[BattleCamTrace] Update prevMode={} prevPresetId={} prevClipId={} activeClip={}",
-    modeName.c_str(),
-    _currentRequest.presetId.c_str(),
-    _currentRequest.clipId.c_str(),
-    _activeClip != nullptr);
+   // LOG_INFO(
+   // "[BattleCamTrace] Update prevMode={} prevPresetId={} prevClipId={} activeClip={}",
+   // modeName.c_str(),
+   // _currentRequest.presetId.c_str(),
+   // _currentRequest.clipId.c_str(),
+   // _activeClip != nullptr);
 }
 
 void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta)
@@ -408,12 +408,12 @@ void BattleTurnCamera::Set_Participants(
 void BattleTurnCamera::Reset_RuntimeState()
 {
     const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
-    LOG_INFO(
-        "[BattleCamTrace] Reset_RuntimeState prevMode={} prevPresetId={} prevClipId={} activeClip={}",
-        modeName.c_str(),
-        _currentRequest.presetId.c_str(),
-        _currentRequest.clipId.c_str(),
-        _activeClip != nullptr);
+    // LOG_INFO(
+    //     "[BattleCamTrace] Reset_RuntimeState prevMode={} prevPresetId={} prevClipId={} activeClip={}",
+    //     modeName.c_str(),
+    //     _currentRequest.presetId.c_str(),
+    //     _currentRequest.clipId.c_str(),
+    //     _activeClip != nullptr);
 
     _currentRequest = {};
     _targetTransform.reset();
@@ -1341,9 +1341,9 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
     {
-        LOG_DEBUG("[ApplyShot] intro preset resolve failed. mode={}, presetId={}",
-        static_cast<int>(request.mode),
-        request.presetId.c_str());
+        // LOG_DEBUG("[ApplyShot] intro preset resolve failed. mode={}, presetId={}",
+        // static_cast<int>(request.mode),
+        // request.presetId.c_str());
 
         if(request.mode != BattleCameraMode::WIDE &&  request.mode != BattleCameraMode::BATTLEINTRO)
         return;
@@ -1456,10 +1456,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         const string requestModeName = string(magic_enum::enum_name(request.mode));
         const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
 
-        LOG_DEBUG(
-         "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
-         requestModeName.c_str(),
-         currentModeName.c_str());
+        // LOG_DEBUG(
+        //  "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
+        //  requestModeName.c_str(),
+        //  currentModeName.c_str());
 
         return;
     }
@@ -1507,10 +1507,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     const string requestModeName = string(magic_enum::enum_name(request.mode));
     const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
 
-    LOG_DEBUG(
-        "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
-        requestModeName.c_str(),
-        currentModeName.c_str());
+    // LOG_DEBUG(
+    //     "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
+    //     requestModeName.c_str(),
+    //     currentModeName.c_str());
 }
 
 void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& subject, const Shared<Character>& opponent)

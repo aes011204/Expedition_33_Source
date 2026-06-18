@@ -645,7 +645,7 @@ const TargetCameraPreset& TargetCamera::Get_Preset(TargetCameraMode mode) const
         return _battleEnterPreset;
     }
 
-    LOG_DEBUG("Unknown Camera State");
+    // LOG_DEBUG("Unknown Camera State");
     return _normalPreset;
 }
 
@@ -665,7 +665,7 @@ void TargetCamera::Set_Preset(TargetCameraMode mode, const TargetCameraPreset& p
         _battleEnterPreset = preset;
 
     default:
-        LOG_DEBUG("Unknown Camera State");
+        // LOG_DEBUG("Unknown Camera State");
         break;
     }
 }
