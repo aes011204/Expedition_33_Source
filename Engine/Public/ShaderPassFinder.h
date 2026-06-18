@@ -28,6 +28,7 @@ namespace
         constexpr uint32 PackedAR_NMEPass = 9;
         constexpr uint32 PackedAR_NMETwoSidedPass = 10;
         constexpr uint32 LandscapeBlendPass = 11;
+        constexpr uint32 SignDecalPass = 14;
     }
 
     namespace VtxInstanceMeshExactPassIndex
