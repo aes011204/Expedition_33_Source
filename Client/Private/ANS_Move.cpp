@@ -97,6 +97,14 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
         _startRot = _moveTarget->Get_RotationEuler();
         _goalRot = _startRot;
 
+        const auto& phases = action.GetSkillData().AnimPhases;
+        if (action.GetCurAnimIndex() < phases.size())
+        {
+            const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
+            if (phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+                _goalRot = action.GetOriginRot();
+        }
+
         _isCounter = false;
     }
 }

@@ -64,8 +64,8 @@ bool MB_PotatoBag::Try_Consume_FreeAimWeakPoint()
     const auto Eff = _shield->Get_Component<EffectCom>();
     if (!Eff)
         return false;
-
-    Eff->Start_SwitchDissolve(.5f, "T_Perlin_Noise_M");
+    
+    Eff->Start_VanishDissolve(.5f, "T_Perlin_Noise_M",  true);
     _curPhase = NoShield;
 
     return Monster_BattleBase::Try_Consume_FreeAimWeakPoint();
@@ -73,14 +73,15 @@ bool MB_PotatoBag::Try_Consume_FreeAimWeakPoint()
 
 Monster_BattleBase::BattlePhase MB_PotatoBag::Get_CurPhase() const
 {
-    if (Get_HpRatio() > 0.8f)
-        return BattlePhase::Opening;
-    else if (_curPhase == Defense)
+    //if (Get_HpRatio() > 0.8f)
+    //    return BattlePhase::Opening;
+    if (_curPhase == Defense)
         return BattlePhase::Mid;
     else if (_curPhase == NoShield)
         return BattlePhase::Critical;
 
-    
+
+    return BattlePhase::Opening;
 }
 
 bool MB_PotatoBag::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
@@ -149,7 +150,7 @@ bool MB_PotatoBag::Should_AppendPreTurnEndPhase(const ActionRequest& request) co
 {
 
 
-    if (Get_CurPhase() == BattlePhase::Mid)
+    if (Get_CurPhase() == BattlePhase::Mid|| Get_CurPhase() == BattlePhase::Opening)
         return true;
     else
         return false;

@@ -447,13 +447,6 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
         return;
     }
 
-    // Dodge/Parry reaction anim이 비정상적으로 종료되지 않아도 턴이 영구 정지되지 않게 fail-safe를 둔다.
-    if (_animPhase == ReactionAnimPhase::Reaction && _reactionAnimElapsed >= 1.25f)
-    {
-        FinishReactionAnimation();
-        return;
-    }
-
     bool allFinished = true;
 
     for (const BattleChar& target : _reactionAnimTargets)

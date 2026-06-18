@@ -55,6 +55,7 @@ void BattleAction::Set_BattleActionFromRequest(const ActionRequest& request)
     _curAnimIndex = 0;
     _curStepIndex = 0;
     _originPos = {};
+    _originRot = {};
     _phaseStartPos = {};
     _phaseGoalPos = {};
     _phaseReachedGoal = false;
@@ -91,6 +92,7 @@ void BattleAction::ResetAction()
     _curStepIndex = 0;
 
     _originPos = {};
+    _originRot = {};
     _phaseStartPos = {};
     _phaseGoalPos = {};
     _phaseReachedGoal = false;
@@ -171,6 +173,7 @@ void BattleAction::InitActionDirection()
         return;
 
     _originPos = _curChar.actor->Get_Transform()->Get_Position();
+    _originRot = _curChar.actor->Get_Transform()->Get_RotationEuler();
 
     _curAnimIndex = 0;
 
