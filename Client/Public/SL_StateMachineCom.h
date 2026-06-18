@@ -1,14 +1,16 @@
 ﻿#pragma once
 
 #include "Battle_Enum.h"
+#include "SL_Types.h"
 #include "StateMachineCom.h"
 
 NS_BEGIN(Client)
 
+class SL_State;
+
 class SL_StateMachineCom : public StateMachineCom
 {
     GENERATED_COMPONENT(SL_StateMachineCom)
-
 public:
     SL_StateMachineCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     SL_StateMachineCom(const StateMachineCom& prototype);
@@ -20,16 +22,18 @@ public:
     void    BeginPlay() override;
 
 public:
-    HRESULT Add_State(SoulLikePlayerState playerState, const Shared<State>& state);
-    bool    Change_State(SoulLikePlayerState playerState);
-    Shared<State> Get_State(SoulLikePlayerState playerState) const;
-    SoulLikePlayerState Get_CurrentSoulLikeState() const;
+    HRESULT Add_State(SL_PlayerState playerState, const Shared<SL_State>& state);
+    bool    Change_State(SL_PlayerState playerState);
+    Shared<SL_State> Get_State(SL_PlayerState playerState) const;
+    Shared<SL_State> Get_CurrentSLState() const;
+    SL_PlayerState Get_CurrentSoulLikeState() const;
+
 
 public:
-    bool Request_Move(const Vec3& worldDir, bool sprint, float timeDelta);
+    bool Request_Move(const SL_MoveRequest& request, float timeDelta);
     bool Request_BasicAttack();
-    bool Request_Dodge();
-    bool Request_Skill(const Skill_Data& skillData);
+    bool Request_Dodge(const SL_MoveRequest& request);
+    bool Request_Skill(const Skill_Data& skillData, uint32 slotIndex);
 
 private:
     Shared<class SL_Maelle> Get_OwnerMaelle() const;

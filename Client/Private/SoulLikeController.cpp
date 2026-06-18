@@ -4,10 +4,15 @@
 #include "ClientScreenFxManager.h"
 #include "GameInstance.h"
 #include "PlayableParts.h"
+#include "PlayerStatCom.h"
+#include "Player_WorldBase.h"
+#include "ScreenFx_Manager.h"
 #include "SL_Maelle.h"
+#include "SL_StateMachineCom.h"
+#include "SL_TargetCom.h"
 #include "Spawn_Prefab.h"
-
-NS_BEGIN(Client)
+#include "TargetCamera.h"
+#include "SkillTreeCom.h"
 
 IMPLEMENT_REFLECTION(SoulLikeController)
 {
@@ -57,6 +62,15 @@ HRESULT SoulLikeController::Initialize(void* arg)
 void SoulLikeController::BeginPlay()
 {
     GameObject::BeginPlay();
+
+    if (!_editorStopHandle.IsValid())
+    {
+        _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+            [this]
+            {
+                Handle_EditorStopRuntime();
+            });
+    }
 }
 
 void SoulLikeController::Update(float timeDelta)
@@ -100,6 +114,8 @@ bool SoulLikeController::Begin_Battle()
 
 void SoulLikeController::End_Battle()
 {
+    Restore_TargetCamera();
+
     _state = BattleState::Finished;
     _enterFxTimer = 0.f;
 }
@@ -141,10 +157,25 @@ void SoulLikeController::Handle_BattleShotNotify(const AnimNotifyContext& contex
 
 HRESULT SoulLikeController::Ready_BattleTurnCamera()
 {
+    return S_OK;
 }
 
 void SoulLikeController::Request_TargetCamera()
 {
+    Shared<SL_Maelle> player = _player.lock();
+    if (player == nullptr || player->Get_Transform() == nullptr)
+        return;
+
+    CLIENT->Request_GamePlay();
+
+    Shared<TargetCamera> targetCamera =
+        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera));
+
+    if (targetCamera == nullptr)
+        return;
+
+    targetCamera->SetTargetTransform(player->Get_Transform());
+    targetCamera->Change_Mode(TargetCameraMode::SOULLIKE);
 }
 
 void SoulLikeController::Request_BattleShotCamera(const EvtBattlePresentation& event)
@@ -153,12 +184,30 @@ void SoulLikeController::Request_BattleShotCamera(const EvtBattlePresentation& e
 
 void SoulLikeController::Restore_TargetCamera()
 {
+    CLIENT->Request_GamePlay();
+
+    Shared<TargetCamera> targetCamera =
+        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera));
+
+    if (targetCamera)
+        targetCamera->Refresh_TargetTransform();
 }
 
 bool SoulLikeController::Spawn_Player()
 {
     if (_playerPrefab.empty())
         return false;
+
+    CLIENT->Ensure_DefaultEquippedWeapon(HeroId::Maelle);
+
+    const Shared<Player_WorldBase> worldMaelle = CLIENT->Find_Hero(HeroId::Maelle);
+    const Shared<PlayerStatCom> worldStat = worldMaelle
+        ? worldMaelle->Get_Component<PlayerStatCom>()
+        : nullptr;
+
+    const Shared<SkillTreeCom> worldSkillTreeCom = worldMaelle
+        ? worldMaelle->Get_Component<SkillTreeCom>()
+        : nullptr;
 
     const uint32 levelIndex = GAME->Current_LevelIndex();
 
@@ -173,9 +222,39 @@ bool SoulLikeController::Spawn_Player()
     if (player == nullptr)
         return false;
 
+    CHECK_NULL(worldStat, false);
+
+    // 스탯 세팅
+    if (FAILED(player->Apply_WorldStatSnapshot(worldStat->Create_BattleSyncSnapshot())))
+        return false;
+
+    // 스킬 세팅 -> 일단은 그냥 4개 꺼내오기. 나중에 그냥 직접 하나하나 세팅해서 고정시키는게 나을듯
+    vector<string> soulLikeSkillKeys = worldStat->Get_SkillKeys();
+
+    if (soulLikeSkillKeys.empty() && worldSkillTreeCom != nullptr)
+        soulLikeSkillKeys = worldSkillTreeCom->Get_UnlockedSkillIds();
+
+    if (soulLikeSkillKeys.size() > 4)
+        soulLikeSkillKeys.resize(4);
+    else
+        soulLikeSkillKeys.resize(4);
+
+    for (string& skillKey : soulLikeSkillKeys)
+    {
+        if (skillKey.empty())
+            continue;
+
+        if (CLIENT->Get_Skill(skillKey) == nullptr)
+            skillKey.clear();
+    }
+
+    player->Apply_WorldSkillKeys(soulLikeSkillKeys);
     player->Reset_CombatHp(_playerMaxHp);
+
     _player = player;
     _playerSpawned = true;
+
+    Request_TargetCamera();
 
     return true;
 }
@@ -202,36 +281,56 @@ void SoulLikeController::Update_Player(float timeDelta)
     if (player == nullptr)
         return;
 
-    player->Clear_CombatLockIfAnimFinished();
+    Shared<SL_StateMachineCom> stateMachine = player->Get_Component<SL_StateMachineCom>();
+    CHECK_NULL(stateMachine);
 
-    Vec3 moveDir = Vec3::Zero;
+    Shared<SL_TargetCom> targetCom = player->Get_Component<SL_TargetCom>();
+    if (targetCom && GAME->KeyDown(KEY_TYPE::T))
+        targetCom->Toggle_LockOn();
 
-    if (GAME->KeyPress(KEY_TYPE::W)) moveDir.z += 1.f;
-    if (GAME->KeyPress(KEY_TYPE::S)) moveDir.z -= 1.f;
-    if (GAME->KeyPress(KEY_TYPE::A)) moveDir.x -= 1.f;
-    if (GAME->KeyPress(KEY_TYPE::D)) moveDir.x += 1.f;
+    SL_MoveRequest moveRequest{};
 
-    if (moveDir.LengthSquared() > 0.f)
-    {
-        moveDir.Normalize();
-        player->Apply_MoveInput(moveDir, GAME->KeyPress(KEY_TYPE::SHIFT), timeDelta);
-    }
-    else
-    {
-        player->Stop_Move();
-    }
+    if (GAME->KeyPress(KEY_TYPE::W)) moveRequest.moveZ += 1.f;
+    if (GAME->KeyPress(KEY_TYPE::S)) moveRequest.moveZ -= 1.f;
+    if (GAME->KeyPress(KEY_TYPE::A)) moveRequest.moveX -= 1.f;
+    if (GAME->KeyPress(KEY_TYPE::D)) moveRequest.moveX += 1.f;
 
+    moveRequest.worldDir = Vec3(moveRequest.moveX, 0.f, moveRequest.moveZ);
+
+    if (moveRequest.worldDir.LengthSquared() > 0.f)
+        moveRequest.worldDir.Normalize();
+
+    moveRequest.sprint = GAME->KeyPress(KEY_TYPE::SHIFT);
+    moveRequest.lockOn = targetCom != nullptr && targetCom->Is_LockOn();
+
+    // 구르기.. 점프 흠
     if (GAME->KeyDown(KEY_TYPE::SPACE))
     {
-        player->Set_InvincibleTime(0.35f);
-        player->Play_SoulLikeAnim(SL_Maelle::SoulLikeAnim::Dodge, 0.05f, false);
+        stateMachine->Request_Dodge(moveRequest);
+        return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::LBUTTON))
+    // 스킬
     {
-        player->Set_CombatLocked(true);
-        player->Play_SoulLikeAnim(SL_Maelle::SoulLikeAnim::Attack, 0.05f, false);
+        Skill_Data skillData{};
+        uint32 skillSlotIndex = UINT32_MAX;
+
+        if (GAME->KeyDown(KEY_TYPE::Z))      skillSlotIndex = 0;
+        else if (GAME->KeyDown(KEY_TYPE::X)) skillSlotIndex = 1;
+        else if (GAME->KeyDown(KEY_TYPE::C)) skillSlotIndex = 2;
+        else if (GAME->KeyDown(KEY_TYPE::V)) skillSlotIndex = 3;
+
+        if (skillSlotIndex != UINT32_MAX && player->Try_GetEquippedSkill(skillSlotIndex, skillData))
+        {
+            stateMachine->Request_Skill(skillData, skillSlotIndex);
+            return;
+        }
     }
+
+    stateMachine->Request_Move(moveRequest, timeDelta);
+
+    if (GAME->KeyDown(KEY_TYPE::LBUTTON))
+        stateMachine->Request_BasicAttack();
 }
 
 void SoulLikeController::Check_BattleEnd()
@@ -239,6 +338,26 @@ void SoulLikeController::Check_BattleEnd()
     Shared<SL_Maelle> player = _player.lock();
     if (player == nullptr || player->Is_Dead())
         End_Battle();
+}
+
+void SoulLikeController::Handle_EditorStopRuntime()
+{
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+
+    if (Shared<SL_Maelle> player = _player.lock())
+    {
+        GAME->Remove_GameObject(levelIndex, player);
+    }
+
+    _player.reset();
+    _battleTurnCamera.reset();
+    _state = BattleState::None;
+    _enterFxTimer = 0.f;
+    _playerSpawned = false;
+
+    if (auto screenFxManager = GAME->Get_ScreenFxManager())
+        screenFxManager->Clear_ScreenEffect();
+
 }
 
 Shared<SoulLikeController> SoulLikeController::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -269,7 +388,11 @@ Shared<GameObject> SoulLikeController::Clone(void* arg)
 
 void SoulLikeController::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     GameObject::Free();
 }
-
-NS_END

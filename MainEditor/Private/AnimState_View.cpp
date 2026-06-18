@@ -1030,6 +1030,9 @@ void AnimState_View::Save_Mapping(const string &fileName)
 	{
 		return;
 	}
+
+    Refresh_BoundEnumBeforeSave();
+
 	fs::path rootPath = GAME->Get_AssetRoot();
 	fs::path modelDir = rootPath / fs::path(_sourceModelPath).parent_path();
 	fs::path savePath = modelDir / (fileName + ".animmap.json");
@@ -1039,15 +1042,11 @@ void AnimState_View::Save_Mapping(const string &fileName)
 	if (_liveModelCom != nullptr && _liveModelCom->Get_Owner() != nullptr)
 	{
 		auto owner = _liveModelCom->Get_Owner();
-		if (!owner->Get_SourcePrefabName().empty())
-		{
-			prefabName = owner->Get_SourcePrefabName();
-		}
-		else if (auto containerOwner = owner->Get_Owner())
+		if (auto containerOwner = owner->Get_Owner())
 		{
 			if (!containerOwner->Get_SourcePrefabName().empty())
 			{
-				prefabName = containerOwner->Get_SourcePrefabName();
+				prefabName = containerOwner->Get_SourcePrefabName(); // Body_Player에 남은 PB_*보다 루트 프리팹 이름을 우선 저장한다.
 			}
 			else
 			{
@@ -1063,6 +1062,10 @@ void AnimState_View::Save_Mapping(const string &fileName)
 					containerOwner->Set_SourcePrefabName(prefabName);
 				}
 			}
+		}
+		else if (!owner->Get_SourcePrefabName().empty())
+		{
+			prefabName = owner->Get_SourcePrefabName();
 		}
 		else
 		{
@@ -1455,6 +1458,80 @@ void AnimState_View::Apply_EnumFromProperty(
 		}
 		strncpy_s(_mappingSaveLoadBuffer, defaultName.c_str(), _TRUNCATE);
 	}
+}
+
+bool AnimState_View::Refresh_BoundEnumBeforeSave()
+{
+    if (_enumTypeName.empty())
+        return false;
+
+    EnumSearchResult matchedResult{};
+    bool found = false;
+
+    GAME->Visit_GameObjectTypes([&](const Engine::TypeRegistry::GameObjectTypeInfo& typeInfo)
+    {
+        if (found || typeInfo.reflectionInfo == nullptr)
+            return;
+
+        for (const auto& prop : typeInfo.reflectionInfo->properties)
+        {
+            if (prop.type != Engine::PropertyType::Enum || prop.enumNames.empty())
+                continue;
+
+            const string label = typeInfo.className + "::" + prop.displayName;
+            if (label != _enumTypeName)
+                continue;
+
+            matchedResult.ownerClassName = typeInfo.className;
+            matchedResult.propertyDisplayName = prop.displayName;
+            matchedResult.enumNames = prop.enumNames;
+            matchedResult.enumValues = prop.enumValues;
+            found = true;
+            return;
+        }
+    });
+
+    if (!found)
+    {
+        GAME->Visit_GlobalEnums([&](const Engine::TypeRegistry::GlobalEnumInfo& info)
+        {
+            if (found || info.enumNames.empty())
+                return;
+
+            const string label = string("GlobalEnum::") + info.displayName;
+            if (label != _enumTypeName)
+                return;
+
+            matchedResult.ownerClassName = "GlobalEnum";
+            matchedResult.propertyDisplayName = info.displayName;
+            matchedResult.enumNames = info.enumNames;
+            matchedResult.enumValues = info.enumValues;
+            found = true;
+        });
+    }
+
+    if (!found)
+        return false;
+
+    map<string, string> previousMapping = _animationMapping;
+
+    _stateNames.clear();
+    _stateIndices.clear();
+    _animationMapping.clear();
+
+    for (size_t i = 0; i < matchedResult.enumNames.size(); ++i)
+    {
+        const string& stateName = matchedResult.enumNames[i];
+        _stateNames.push_back(stateName);
+        _stateIndices.push_back(i < matchedResult.enumValues.size() ? matchedResult.enumValues[i] : static_cast<int32>(i));
+
+        // enum 값이 추가/이동되어도 기존 애니 매핑은 State 이름 기준으로 유지한다.
+        auto mapped = previousMapping.find(stateName);
+        if (mapped != previousMapping.end())
+            _animationMapping[stateName] = mapped->second;
+    }
+
+    return true;
 }
 
 Shared<AnimState_View> AnimState_View::Create()

@@ -2,16 +2,24 @@
 
 #include "Body_Player.h"
 #include "Bounding_OBB.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "CostumeManager.h"
 #include "EffectCom.h"
+#include "GameDataTable.h"
 #include "MovementCom.h"
 #include "ColliderCom.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
+#include "ModelCom.h"
 #include "PartObject.h"
+#include "Weapon.h"
+#include "WeaponPrefabLoader.h"
+#include "SL_StateMachineCom.h"
+#include "SL_TargetCom.h"
+#include "SL_Types.h"
 
-REGISTER_GLOBAL_ENUM(Client::SL_Maelle::SoulLikeAnim, "SL_MaelleAnim")
+REGISTER_GLOBAL_ENUM(SoulLikeAnim, "SL_MaelleAnim")
 
 IMPLEMENT_REFLECTION(SL_Maelle)
 {
@@ -59,7 +67,9 @@ void SL_Maelle::BeginPlay()
     if (_movementCom)
         _movementCom->Sync_RuntimePositionToTransform();
 
-    Play_SoulLikeAnim(SoulLikeAnim::Idle, 0.1f, true);
+    if (_stateMachineCom)
+        _stateMachineCom->Change_State(SL_PlayerState::Idle);
+
 }
 
 void SL_Maelle::Priority_Update(float timeDelta)
@@ -71,7 +81,14 @@ void SL_Maelle::Update(float timeDelta)
 {
     Character_WorldBase::Update(timeDelta);
 
+    // 무적 시간
     _invincibleRemain = max(0.f, _invincibleRemain - timeDelta);
+
+    if (_targetCom)
+        _targetCom->Update_Targeting(timeDelta);
+
+    if (_stateMachineCom)
+        _stateMachineCom->Update_CurrentState(timeDelta);
 
     if (_effectCom)
         _effectCom->Update(timeDelta);
@@ -99,19 +116,6 @@ void SL_Maelle::Reset_CombatHp(float maxHp)
     _hp = max(1.f, maxHp);
     _invincibleRemain = 0.f;
     _combatLocked = false;
-    Play_SoulLikeAnim(SoulLikeAnim::Idle, 0.1f, true);
-}
-
-void SL_Maelle::Clear_CombatLockIfAnimFinished()
-{
-    if (!_combatLocked)
-        return;
-
-    if (!Is_AnimFinished())
-        return;
-
-    _combatLocked = false;
-    Play_SoulLikeAnim(SoulLikeAnim::Idle, 0.1f, true);
 }
 
 HRESULT SL_Maelle::Ready_Components()
@@ -129,10 +133,13 @@ HRESULT SL_Maelle::Ready_Components()
     moveDesc.cct.height = 1.50f;
     moveDesc.cct.stepOffset = 0.35f;
     moveDesc.cct.contactOffset = 0.05f;
-    moveDesc.cct.slopeLimitDeg = 55.f;
+    moveDesc.cct.slopeLimitDeg = 55.f; 
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_StateMachine"), _stateMachineCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_Target"), _targetCom), E_FAIL);
 
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.75f, 0.f);
@@ -173,7 +180,7 @@ HRESULT SL_Maelle::Ready_PartObjects()
     CHECK_NULL(_body, E_FAIL);
 
     if (Shared<ModelCom> model = _body->Get_Model())
-        model->Refresh_AnimStateMappingFromOwnerContext(); // SL_Maelle.prefab 컨텍스트로 SL 전용 animmap을 다시 찾는다.
+        model->Refresh_AnimStateMappingFromOwnerContext(); // 초기 파츠 생성 직후 매핑을 잡고, Spawn_Prefab에서 source_prefab 세팅 후 한 번 더 갱신한다.
 
     Head_Player::HEAD_PLAYER_DESC headDesc{};
     headDesc.parentMatrix = bodyDesc.parentMatrix;
@@ -193,6 +200,7 @@ HRESULT SL_Maelle::Ready_PartObjects()
         hairDesc.parentMatrix = bodyDesc.parentMatrix;
         hairDesc.modelType = ModelType::Anim;
         hairDesc.modelTag = hairModelTag;
+        hairDesc.hairPhysicsDesc = Get_MaelleHairChainPhysicsDesc();
         hairDesc.socketMatrixPointer = _head->Get_SocketBoneMatrixPtr("head");
 
         CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
@@ -207,6 +215,102 @@ HRESULT SL_Maelle::Ready_PartObjects()
         Apply_CostumePartTransform(TEXT("Part_Head"), costumePreset->parts.headTransform);
         Apply_CostumePartTransform(TEXT("Part_Hair"), costumePreset->parts.hairTransform);
     }
+
+    CHECK_FAILED(Rebuild_WeaponPartFromCurrentStat(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT SL_Maelle::Apply_WorldStatSnapshot(const PlayerStatCom::BattleSyncSnapshot& snapshot)
+{
+    CHECK_NULL(_combatStatCom, E_FAIL);
+
+    _combatStatCom->Apply_BattleSyncSnapshot(snapshot);
+    CHECK_FAILED(Rebuild_WeaponPartFromCurrentStat(), E_FAIL);
+
+    return S_OK;
+}
+
+void SL_Maelle::Apply_WorldSkillKeys(const vector<string>& skillKeys)
+{
+    if (_combatStatCom)
+    {
+        _combatStatCom->Set_SkillKeys(skillKeys);
+    }
+}
+
+bool SL_Maelle::Try_GetEquippedSkill(uint32 slotIndex, Skill_Data& outSkillData) const
+{
+    if (_combatStatCom == nullptr)
+        return false;
+
+    string skillKey{};
+    if (!_combatStatCom->Try_GetSkillKeyBySlot(slotIndex, skillKey))
+        return false;
+
+    const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
+    if (skillData == nullptr)
+        return false;
+
+    outSkillData = *skillData;
+    return true;
+}
+
+HRESULT SL_Maelle::Rebuild_WeaponPartFromCurrentStat()
+{
+    Body_Player* body = dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body")));
+    CHECK_NULL(body, E_FAIL);
+
+    Remove_PartObject(TEXT("Part_Weapon"));
+
+    CHECK_FAILED(Ready_WeaponPart(body), E_FAIL);
+    return S_OK;
+}
+
+HRESULT SL_Maelle::Ready_WeaponPart(Body_Player* body)
+{
+    CHECK_NULL(body, E_FAIL);
+
+    const string equippedWeaponId = _combatStatCom
+        ? _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId
+        : "";
+
+    const GameDataTable::WeaponDesc* weapon = equippedWeaponId.empty()
+        ? nullptr
+        : CLIENT->Get_WeaponDesc("Maelle", equippedWeaponId);
+
+    const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs("Maelle");
+    if (weapon == nullptr && weapons != nullptr && !weapons->empty())
+        weapon = &weapons->front();
+
+    const string weaponPrefabName = (weapon != nullptr && !weapon->weaponPrefabName.empty())
+        ? weapon->weaponPrefabName
+        : Constants::Prefab::Maelle_Medalum;
+
+    WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
+    if (!WeaponPrefabLoader::Load(weaponPrefabName, loadedPrefab))
+        return E_FAIL;
+
+    Weapon::WEAPON_DESC weaponDesc{};
+    weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    weaponDesc.modelType = loadedPrefab.modelType;
+    weaponDesc.modelTag = loadedPrefab.modelTag.c_str();
+    weaponDesc.socketMatrix = body->Get_SocketBoneMatrixPtr("Weapon_r");
+    weaponDesc.applyAttachScaleCompensation = true;
+
+    CHECK_NULL(weaponDesc.socketMatrix, E_FAIL);
+
+    CHECK_FAILED(Add_PartObject(
+        ETOI(LevelType::Static),
+        TEXT("GameObject_Weapon"),
+        TEXT("Part_Weapon"),
+        &weaponDesc), E_FAIL);
+
+    PartObject* weaponPart = Get_PartObject(TEXT("Part_Weapon"));
+    CHECK_NULL(weaponPart, E_FAIL);
+
+    weaponPart->From_Json(loadedPrefab.rootJson);
+    weaponPart->Set_SourcePrefabName(weaponPrefabName);
 
     return S_OK;
 }
@@ -242,24 +346,64 @@ void SL_Maelle::Apply_CostumePartTransform(const wstring& partTag, const Costume
     partObject->Get_Transform()->Set_Scale(fallbackTransform.scale);
 }
 
-void SL_Maelle::Apply_MoveInput(const Vec3& worldDir, bool sprint, float timeDelta)
+bool SL_Maelle::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    UNREFERENCED_PARAMETER(partObjectJson);
+
+    // SL_Maelle 파츠 배치는 현재 CostumeManager preset이 기준이다.
+    // prefab에 저장된 Part_* TransformCom이 나중에 From_Json으로 들어오면 hair offset이 0으로 덮인다.
+    if (partTag == TEXT("Part_Body") ||
+        partTag == TEXT("Part_Head") ||
+        partTag == TEXT("Part_Hair"))
+        return false;
+
+    if (partTag.starts_with(TEXT("Part_Weapon")))
+        return false;
+
+    return true;
+}
+
+HairChainPhysicsDesc SL_Maelle::Get_MaelleHairChainPhysicsDesc() const
+{
+    HairChainPhysicsDesc desc{};
+
+    desc.profile = HairPhysicsProfile::Maelle;
+    desc.bonePrefix = "Strand_";
+
+    desc.stiffness = 0.035f;
+    desc.damping = 0.38f;
+    desc.windScale = 0.12f;
+    desc.gravity = Vec3(0.f, -0.35f, 0.f);
+
+    desc.movementInertiaScale = 0.12f;
+    desc.maxMovementInertia = 1.6f;
+    desc.maxMovementOffset = 0.045f;
+
+    desc.poseRestoreStrength = 0.15f;
+    desc.maxBendAngleDegree = 34.f;
+
+    desc.teleportDistance = 300.f;
+    desc.solverIterations = 3;
+
+    return desc;
+}
+
+void SL_Maelle::Apply_MoveInput(const SL_MoveRequest& request, float timeDelta)
 {
     if (_movementCom == nullptr)
         return;
 
     MovementCom::MovementInput input{};
-    if (!_combatLocked && worldDir.LengthSquared() > 0.f)
+
+    if (!_combatLocked && request.worldDir.LengthSquared() > 0.f)
     {
-        input.forcedDirection = worldDir;
-        input.moveZ = 1.f; // forcedDirection을 실제 이동 방향으로 소비하게 한다.
-        input.isRunPressed = sprint;
+        input.moveX = request.moveX;
+        input.moveZ = request.moveZ;
+        input.isRunPressed = request.sprint;
     }
 
     _movementCom->Apply_Input(input);
     _movementCom->Update_Movement(timeDelta);
-
-    if (!_combatLocked)
-        Play_SoulLikeAnim(worldDir.LengthSquared() > 0.f ? SoulLikeAnim::Move : SoulLikeAnim::Idle, 0.15f, true);
 }
 
 void SL_Maelle::Stop_Move()
@@ -271,19 +415,6 @@ void SL_Maelle::Stop_Move()
     }
 }
 
-bool SL_Maelle::Play_SoulLikeAnim(SoulLikeAnim anim, float blendDuration, bool loop)
-{
-    if (_body == nullptr)
-        return false;
-
-    return _body->Set_AnimationByState(ETOI(anim), blendDuration, loop);
-}
-
-bool SL_Maelle::Is_AnimFinished() const
-{
-    return _body && _body->Is_AnimationFinished();
-}
-
 void SL_Maelle::Apply_Damage(float damage)
 {
     if (Is_Invincible() || Is_Dead())
@@ -291,7 +422,9 @@ void SL_Maelle::Apply_Damage(float damage)
 
     _hp = max(0.f, _hp - damage);
     _combatLocked = true;
-    Play_SoulLikeAnim(Is_Dead() ? SoulLikeAnim::Dead : SoulLikeAnim::Hit, 0.1f, false);
+
+    if (_stateMachineCom)
+        _stateMachineCom->Change_State(Is_Dead() ? SL_PlayerState::Dead : SL_PlayerState::Hit);
 }
 
 Shared<SL_Maelle> SL_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

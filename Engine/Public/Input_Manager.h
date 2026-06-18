@@ -43,6 +43,7 @@ enum class KEY_TYPE
     R = 'R',
     T = 'T',
     H = 'H',
+    X = 'X',
 
 	KEY_0 = '0',
 	KEY_1 = '1',

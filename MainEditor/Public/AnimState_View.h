@@ -72,6 +72,7 @@ private:
 
 private:
 	void Apply_EnumFromProperty(const string &enumDisplayName, const vector<string> &names, const vector<int> &values);
+    bool Refresh_BoundEnumBeforeSave();
 
 	// Reflection 기반 Enum 검색 결과
 	struct EnumSearchResult

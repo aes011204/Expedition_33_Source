@@ -1,12 +1,18 @@
 ﻿#include "SL_Idle.h"
+#include "SL_StateMachineCom.h"
 
 SL_Idle::SL_Idle(const Shared<SL_Maelle>& owner)
+    : SL_State(owner)
 {
 }
 
 bool SL_Idle::EnterInvoke()
 {
-    return SL_State::EnterInvoke();
+    Stop_Movement();
+
+    Play_Anim(SoulLikeAnim::Idle, 0.15f, true);
+
+    return true;
 }
 
 void SL_Idle::Update(float timeDelta)
@@ -14,26 +20,46 @@ void SL_Idle::Update(float timeDelta)
     SL_State::Update(timeDelta);
 }
 
-bool SL_Idle::Request_Move(const Vec3& worldDir, bool sprint, float timeDelta)
+bool SL_Idle::Request_Move(const SL_MoveRequest& request, float timeDelta)
 {
-    return SL_State::Request_Move(worldDir, sprint, timeDelta);
+    if (_stateCom == nullptr)
+        return false;
+
+    if (request.worldDir.LengthSquared() <= 0.f)
+        return false;
+
+    if (!_stateCom->Change_State(SL_PlayerState::Run))
+        return false;
+
+    return _stateCom->Request_Move(request, timeDelta);
 }
 
 bool SL_Idle::Request_BasicAttack()
 {
-    return SL_State::Request_BasicAttack();
+    return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::BasicAttack);
 }
 
-bool SL_Idle::Request_Dodge()
+bool SL_Idle::Request_Dodge(const SL_MoveRequest& request)
 {
-    return SL_State::Request_Dodge();
+    return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Dodge);
 }
 
-bool SL_Idle::Request_Skill(const Skill_Data& skillData)
+bool SL_Idle::Request_Skill(const Skill_Data& skillData, uint32 slotIndex)
 {
-    return SL_State::Request_Skill(skillData);
+    CHECK_NULL(_stateCom , false);
+
+    return _stateCom->Change_State(SL_PlayerState::Skill);
 }
 
 Shared<SL_Idle> SL_Idle::Create(const Shared<SL_Maelle>& owner)
 {
+    auto instance = make_shared<SL_Idle>(owner);
+
+    if (FAILED(instance->Initialize()))
+    {
+        LOG_ERROR("[SL_IDLE] : Failed to Create State");
+        return nullptr;
+    }
+
+    return instance;
 }

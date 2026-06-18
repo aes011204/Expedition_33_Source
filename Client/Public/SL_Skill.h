@@ -1,0 +1,33 @@
+﻿#pragma once
+
+#include "SL_State.h"
+#include "Battle_Enum.h"
+
+NS_BEGIN(Client)
+
+class SL_Skill final : public SL_State
+{
+public:
+    explicit SL_Skill(const Shared<SL_Maelle>& owner);
+    ~SL_Skill() override = default;
+
+public:
+    bool EnterInvoke() override;
+    void Update(float timeDelta) override;
+
+public:
+    void Set_SkillRequest(const Skill_Data& skillData, uint32 slotIndex);
+
+private:
+    SoulLikeAnim Resolve_SkillAnim(uint32 slotIndex) const;
+
+private:
+    Skill_Data _skillData{};
+    uint32 _slotIndex = 0;
+    SoulLikeAnim _anim = SoulLikeAnim::Skill_1;
+
+public:
+    static Shared<SL_Skill> Create(const Shared<SL_Maelle>& owner);
+};
+
+NS_END

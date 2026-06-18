@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Battle_Event.h"
+#include "Delegate.h"
 #include "GameObject.h"
 
 NS_BEGIN(Client)
@@ -61,6 +62,7 @@ private:
     void Update_EnterFx(float timeDelta);
     void Update_Player(float timeDelta);
     void Check_BattleEnd();
+    void Handle_EditorStopRuntime();
 
 private:
     string _playerPrefab = "SL_Maelle";
@@ -79,6 +81,7 @@ private:
 
     float _enterFxTimer = 0.f;
     bool  _playerSpawned = false;
+    FDelegateHandle _editorStopHandle{};
 
 public:
     static Shared<SoulLikeController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

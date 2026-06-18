@@ -96,6 +96,7 @@ public:
     void    BeginPlay() override;
 
     void    Update_Movement(float timeDelta);
+    void    Move_ExternalDisplacement(const Vec3& displacement, float timeDelta);
 
 public:
     void Apply_Input(const MovementInput& input) { _input = input; }

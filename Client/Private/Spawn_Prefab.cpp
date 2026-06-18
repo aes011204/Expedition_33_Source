@@ -5,6 +5,7 @@
 #include "Helper_String.h"
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
+#include "SL_Maelle.h"
 #include "Body_Player.h"
 #include "ModelCom.h"
 #include "Monster_Part.h"
@@ -35,6 +36,16 @@ void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
         {
             if (Shared<ModelCom> model = body->Get_Model())
                 model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+        return;
+    }
+
+    if (auto soulLikePlayer = dynamic_pointer_cast<SL_Maelle>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(soulLikePlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext(); // Spawn_Prefab에서 SL_Maelle source_prefab 세팅 후 SL 전용 animmap을 다시 잡는다.
         }
     }
 }
@@ -261,6 +272,9 @@ wstring Spawn_Prefab::Resolve_DefaultLayerTag(const Shared<GameObject>& gameObje
         return TEXT("Layer_Monster");
 
     if (dynamic_pointer_cast<Player_WorldBase>(gameObject) != nullptr)
+        return TEXT("Layer_Player");
+
+    if (dynamic_pointer_cast<SL_Maelle>(gameObject) != nullptr)
         return TEXT("Layer_Player");
 
     return TEXT("Layer_GameObject");

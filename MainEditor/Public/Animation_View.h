@@ -161,6 +161,13 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewSLDodgeMoveRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -231,6 +238,8 @@ private:
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
+    void Update_PreviewSLDodgeMoveStates(float timeDelta);
+    void Reset_PreviewSLDodgeMoveStates();
     void Update_PreviewTrailEffect(float timeDelta);
     void Reset_PreviewTrailEffect();
     void Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime);
@@ -324,6 +333,7 @@ private:
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
+    vector<PreviewSLDodgeMoveRuntime> _previewSLDodgeMoveRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
     vector<PreviewSourceHistoryRuntime> _previewSourceHistoryRuntimes{};
     mutable int32 _previewTrailProviderStateId = -1; // preview effect가 지금 sample을 요청 중인 runtime state id다.

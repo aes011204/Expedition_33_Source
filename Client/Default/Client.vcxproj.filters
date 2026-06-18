@@ -551,11 +551,22 @@
     <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\SL_State.cpp" />
     <ClCompile Include="..\Private\SL_Idle.cpp" />
+    <ClCompile Include="..\Private\SL_TargetCom.cpp" />
+    <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
+    <ClCompile Include="..\Private\SL_Move.cpp" />
+    <ClCompile Include="..\Private\SL_Hit.cpp" />
+    <ClCompile Include="..\Private\SL_Dodge.cpp" />
+    <ClCompile Include="..\Private\SL_Dead.cpp" />
+    <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
+    <ClCompile Include="..\Private\SL_Skill.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1526,11 +1537,23 @@
     <ClInclude Include="..\Public\PictosBattleSystem.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
+    <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SL_Maelle.h" />
     <ClInclude Include="..\Public\SoulLikeController.h" />
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
     <ClInclude Include="..\Public\SL_State.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
+    <ClInclude Include="..\Public\SL_TargetCom.h" />
+    <ClInclude Include="..\Public\GamePlayUI_SL.h" />
+    <ClInclude Include="..\Public\SL_Move.h" />
+    <ClInclude Include="..\Public\SL_Hit.h" />
+    <ClInclude Include="..\Public\SL_Dodge.h" />
+    <ClInclude Include="..\Public\SL_Dead.h" />
+    <ClInclude Include="..\Public\SL_BasicAttack.h" />
+    <ClInclude Include="..\Public\SL_Types.h" />
+    <ClInclude Include="..\Public\SL_Skill.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

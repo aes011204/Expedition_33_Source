@@ -114,29 +114,7 @@ namespace Client
         Pictos_Idle,
     };
 
-    enum class SoulLikePlayerState
-    {
-        Idle,
-        Move,
-        BasicAttack,
-        Dodge,
-        Skill,
-        Hit,
-        Dead,
-        End
-    };
 
-    enum class SoulLikeAnim
-    {
-        Idle,
-        Move,
-        Attack_1,
-        Attack_2,
-        Attack_3,
-        Dodge,
-        Hit,
-        Dead,
-    };
 
 }
 

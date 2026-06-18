@@ -6,14 +6,16 @@ static constexpr CostumePresetDesc kDefaultCostumeDescs[] =
     {
         HeroId::Gustave, "Default", L"기본",
         L"Model_GustaveBody", L"Model_GustaveHead",
-        L"Model_GustaveHair", L"Model_GustaveBeard",
-        L"Model_GustaveMustache", nullptr
+        L"Model_GustaveHair", nullptr, // L"Model_GustaveBeard",
+        nullptr, // L"Model_GustaveMustache",
+        nullptr
     },
     {
         HeroId::Gustave, "Baguette", L"빠게트",
         L"Model_Gustave_Body_Baguette",
         L"Model_GustaveHead", L"Model_Gustave_Baguette_Hat",
-        L"Model_GustaveBeard", L"Model_GustaveMustache",
+        nullptr, // L"Model_GustaveBeard",
+        nullptr, // L"Model_GustaveMustache",
         L"Model_Gustave_Baguette_Glasses2"
     },
     {
@@ -21,7 +23,8 @@ static constexpr CostumePresetDesc kDefaultCostumeDescs[] =
         L"Model_Gustave_Body_Potato",
         L"Model_Gustave_Head_Potato",
         nullptr, // 대머리 프리셋이므로 hair 파츠를 만들지 않는다.
-        L"Model_GustaveBeard", L"Model_GustaveMustache",
+        nullptr, // L"Model_GustaveBeard",
+        nullptr, // L"Model_GustaveMustache",
         nullptr
     },
     // 루네
@@ -141,21 +144,21 @@ void CostumeManager::Apply_DefaultPartPlacement(CostumePreset& preset)
         preset.parts.hairTransform.scale = Vec3(1.f, 1.f, 1.f);
     };
 
-    const auto ApplyBeardTransform = [&preset](const Vec3& position, const Vec3& rotation, const Vec3& scale)
-    {
-        preset.parts.beardTransform.enabled = true;
-        preset.parts.beardTransform.position = position;
-        preset.parts.beardTransform.rotation = rotation;
-        preset.parts.beardTransform.scale = scale;
-    };
+    // const auto ApplyBeardTransform = [&preset](const Vec3& position, const Vec3& rotation, const Vec3& scale)
+    // {
+    //     preset.parts.beardTransform.enabled = true;
+    //     preset.parts.beardTransform.position = position;
+    //     preset.parts.beardTransform.rotation = rotation;
+    //     preset.parts.beardTransform.scale = scale;
+    // };
 
-    const auto ApplyMustacheTransform = [&preset](const Vec3& position, const Vec3& rotation, const Vec3& scale)
-    {
-        preset.parts.mustacheTransform.enabled = true;
-        preset.parts.mustacheTransform.position = position;
-        preset.parts.mustacheTransform.rotation = rotation;
-        preset.parts.mustacheTransform.scale = scale;
-    };
+    // const auto ApplyMustacheTransform = [&preset](const Vec3& position, const Vec3& rotation, const Vec3& scale)
+    // {
+    //     preset.parts.mustacheTransform.enabled = true;
+    //     preset.parts.mustacheTransform.position = position;
+    //     preset.parts.mustacheTransform.rotation = rotation;
+    //     preset.parts.mustacheTransform.scale = scale;
+    // };
 
     if (preset.heroId == HeroId::Gustave && preset.presetId == "Default")
     {
@@ -163,15 +166,15 @@ void CostumeManager::Apply_DefaultPartPlacement(CostumePreset& preset)
             Vec3(20.41f, -0.17f, 0.f),
             Vec3(-90.f, 0.f, -90.f));
 
-        ApplyBeardTransform(
-            Vec3(-155.9f, 0.8f, 0.f),
-            Vec3(-90.f, 0.f, -90.f),
-            Vec3(1.f, 1.f, 0.9999997f));
+        // ApplyBeardTransform(
+        //     Vec3(-155.9f, 0.8f, 0.f),
+        //     Vec3(-90.f, 0.f, -90.f),
+        //     Vec3(1.f, 1.f, 0.9999997f));
 
-        ApplyMustacheTransform(
-            Vec3(-156.f, 1.f, 0.f),
-            Vec3(-90.f, 0.f, -90.f),
-            Vec3(1.f, 1.f, 1.f));
+        // ApplyMustacheTransform(
+        //     Vec3(-156.f, 1.f, 0.f),
+        //     Vec3(-90.f, 0.f, -90.f),
+        //     Vec3(1.f, 1.f, 1.f));
     }
 
     if (preset.heroId == HeroId::Gustave && preset.presetId == "Baguette")
@@ -180,15 +183,15 @@ void CostumeManager::Apply_DefaultPartPlacement(CostumePreset& preset)
             Vec3(20.41f, -0.17f, 0.f),
             Vec3(-90.f, 0.f, -90.f));
 
-        ApplyBeardTransform(
-            Vec3(-155.9f, 0.8f, 0.f),
-            Vec3(-90.f, 0.f, -90.f),
-            Vec3(1.f, 1.f, 0.9999997f));
+        // ApplyBeardTransform(
+        //     Vec3(-155.9f, 0.8f, 0.f),
+        //     Vec3(-90.f, 0.f, -90.f),
+        //     Vec3(1.f, 1.f, 0.9999997f));
 
-        ApplyMustacheTransform(
-            Vec3(-156.f, 1.f, 0.f),
-            Vec3(-90.f, 0.f, -90.f),
-            Vec3(1.f, 1.f, 1.f));
+        // ApplyMustacheTransform(
+        //     Vec3(-156.f, 1.f, 0.f),
+        //     Vec3(-90.f, 0.f, -90.f),
+        //     Vec3(1.f, 1.f, 1.f));
 
         preset.parts.glassesTransform.enabled = true;
         preset.parts.glassesTransform.position = Vec3(1.41f, 1.0f, 0.f);
@@ -198,15 +201,15 @@ void CostumeManager::Apply_DefaultPartPlacement(CostumePreset& preset)
 
     if (preset.heroId == HeroId::Gustave && preset.presetId == "Potato")
     {
-        ApplyBeardTransform(
-            Vec3(-155.9f, 0.8f, 0.f),
-            Vec3(-90.f, 0.f, -90.f),
-            Vec3(1.f, 1.f, 0.9999997f));
+        // ApplyBeardTransform(
+        //     Vec3(-155.9f, 0.8f, 0.f),
+        //     Vec3(-90.f, 0.f, -90.f),
+        //     Vec3(1.f, 1.f, 0.9999997f));
 
-        ApplyMustacheTransform(
-            Vec3(-156.f, 1.f, 0.f),
-            Vec3(-90.f, 0.f, -90.f),
-            Vec3(1.f, 1.f, 1.f));
+        // ApplyMustacheTransform(
+        //     Vec3(-156.f, 1.f, 0.f),
+        //     Vec3(-90.f, 0.f, -90.f),
+        //     Vec3(1.f, 1.f, 1.f));
     }
 
     if (preset.heroId == HeroId::Lune && preset.presetId == "Baguette")
