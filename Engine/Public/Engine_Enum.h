@@ -108,6 +108,7 @@ namespace Engine
         BloomUpsampleAdd,
         ToneMapping,
         DistortionResolve,
+        FroxelCompositeHDR,
         LightShaftMaskHalf,
         LightShaftRadialBlurHalf,
         LightShaftCompositeHDR,
@@ -159,8 +160,9 @@ namespace Engine
         Water           = 13,
         LightShaft      = 14,
         PlayerRender    = 15,
-        FroxelDebug     = 16,
-        VolumetricLightShaftZone = 17,
+        Froxel          = 16,
+        FroxelDebug     = 17,
+        VolumetricLightShaftZone = 18,
 
         END
     };

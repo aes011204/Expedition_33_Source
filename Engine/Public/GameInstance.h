@@ -433,6 +433,7 @@ public : /* For.Target_Manager */
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
     HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
+    ID3D11ShaderResourceView* Get_RT_SRV(const wstring& targetTag);
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
@@ -463,6 +464,7 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
+    HRESULT                 Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const;
     HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
     void                    Set_ShadowEnabled(bool enabled);
     uint32                  Get_ShadowCascadeCount() const;

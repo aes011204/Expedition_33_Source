@@ -2323,6 +2323,11 @@ HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const cha
     return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
 }
 
+ID3D11ShaderResourceView* GameInstance::Get_RT_SRV(const wstring& targetTag)
+{
+    return _targetManager->Get_RT_SRV(targetTag);
+}
+
 HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
 {
     return _targetManager->Copy_CurrentRTV_To(targetTag);
@@ -2434,6 +2439,13 @@ HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowCB(shader);
+}
+
+HRESULT GameInstance::Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    outShadowCB = _shadow->Build_ShadowCB();
+    return S_OK;
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)

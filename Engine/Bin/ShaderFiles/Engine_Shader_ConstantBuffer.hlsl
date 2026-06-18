@@ -328,6 +328,9 @@ cbuffer FroxelDebugBuffer
     uint g_FroxelDebugHeight;
     uint g_FroxelDebugDepth;
     uint g_FroxelDebugSlice;
+    uint g_FroxelDebugMode;
+    float g_FroxelDebugGain;
+    float2 g_FroxelDebugPad0;
 };
 
 struct VolumetricLightShaftZoneEntry
@@ -353,7 +356,11 @@ cbuffer FroxelBuffer : register(b0)
     float g_FroxelNear;
 
     float g_FroxelFar;
-    float3 froxelPadding;
+    float g_FroxelCompositeIntensity;
+    float g_FroxelDepthBias;
+    float g_FroxelShadowStrength;
+    float g_FroxelCameraFar;
+    float3 g_FroxelPadding;
 
     row_major float4x4 g_FroxelInvView;
     row_major float4x4 g_FroxelInvProjection;
@@ -371,5 +378,24 @@ cbuffer VolumetricLightShaftZoneBuffer : register(b1)
     uint g_LightShaftZoneCount;
     float3 g_LightShaftZonePadding;
 }
+
+cbuffer FroxelShadowBuffer : register(b2)
+{
+    row_major float4x4 g_FroxelLightViewMatrix;
+    row_major float4x4 g_FroxelLightProjMatrix;
+
+    row_major float4x4 g_FroxelCascadeLightViewMatrices[4];
+    row_major float4x4 g_FroxelCascadeLightProjMatrices[4];
+
+    float4 g_FroxelCascadeSplits;
+    float g_FroxelCascadeBlendDistance;
+    float g_FroxelLightFar;
+    float g_FroxelShadowBias;
+
+    float g_FroxelShadowIntensity;
+    uint g_FroxelShadowCascadeCount;
+    uint g_FroxelActiveShadowCascadeIndex;
+    float g_FroxelShadowPadding0;
+};
 
 #endif

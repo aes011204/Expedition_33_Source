@@ -765,12 +765,15 @@ void Renderer::Render_VolumetricLightShaft()
     if (!_lightingPipeline)
         return ;
 
+    _lightingPipeline->Invalidate_FroxelFrameData();
+
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
 
     const Matrix* inverseView = GAME->Get_Transform_Inverse(D3DTS::View);
     const Matrix* inverseProjection = GAME->Get_Transform_Inverse(D3DTS::Proj);
 
     const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    const ShadowLightDesc* shadowLightDesc = GAME->Get_ShadowLightDesc();
     if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
         return ;
 
@@ -783,16 +786,32 @@ void Renderer::Render_VolumetricLightShaft()
     froxelCB.froxelHeight = _lightingPipeline->Get_DebugFroxelHeight();
     froxelCB.froxelDepth = _lightingPipeline->Get_DebugFroxelDepth();
     froxelCB.froxelNear = activeCamera->Get_Near();
-    froxelCB.froxelFar = 100.f;
+    froxelCB.froxelFar = (shadowLightDesc != nullptr && shadowLightDesc->zf > froxelCB.froxelNear)
+        ? shadowLightDesc->zf
+        : activeCamera->Get_Far();
+    froxelCB.compositeIntensity = 0.35f;
+    froxelCB.depthBias = 0.05f;
+    froxelCB.shadowStrength = 1.f;
+    froxelCB.cameraFar = activeCamera->Get_Far();
 
     froxelCB.inverseView = *inverseView;
     froxelCB.inverseProjection = *inverseProjection;
-    froxelCB.froxelPadding = Vec3(0.f, 0.f, 0.f);
 
     froxelCB.lightDirection = lightDesc->direction;
     froxelCB.lightColor = lightDesc->diffuse;
 
     froxelCB.camPosition = *GAME->Get_CamPosition();
+
+    ShadowCB shadowCB{};
+    if (FAILED(GAME->Get_ShadowCBSnapshot(shadowCB)))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Get_ShadowCBSnapshot");
+        return;
+    }
+
+    _lightingPipeline->Bind_FroxelInputSRVs(
+        GAME->Get_RT_SRV(RT::Depth),
+        GAME->Get_RT_SRV(RT::LightDepth));
 
     if(FAILED(_lightingPipeline->Update_FroxelZone(_lightShaftZoneCB)))
     {
@@ -806,9 +825,21 @@ void Renderer::Render_VolumetricLightShaft()
         return;
     }
 
-    if(FAILED(_lightingPipeline->Dispatch_Froxel()))
+    if (FAILED(_lightingPipeline->Update_FroxelShadow(shadowCB)))
     {
-        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_Froxel");
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Update_FroxelShadow");
+        return;
+    }
+
+    if(FAILED(_lightingPipeline->Dispatch_FroxelInject()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelInject");
+        return;
+    }
+
+    if (FAILED(_lightingPipeline->Dispatch_FroxelAccumulate()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelAccumulate");
         return;
     }
 }
@@ -1117,6 +1148,23 @@ void Renderer::Render_PostProcess()
         RETURN_LOG_IF_FAILED(
             Render_LightShaftCompositePass(),
             L"Render_PostProcess:FAIL Render_LightShaftCompositePass");
+    }
+
+    if (_lightingPipeline && _lightingPipeline->Has_FroxelFrameData() && _lightingPipeline->Get_FroxelIntegratedSRV())
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Render::FroxelComposite");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+            L"Render_PostProcess:FAIL Copy_RTV(HDRColor -> DistortionSource:Froxel)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(FroxelComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_FroxelCompositePass(),
+            L"Render_PostProcess:FAIL Render_FroxelCompositePass");
     }
 
     const bool useDOF = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::DOF);
@@ -1848,6 +1896,37 @@ HRESULT Renderer::Render_DistortionResolve()
     return S_OK;
 }
 
+HRESULT Renderer::Render_FroxelCompositePass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(HDR,FroxelComposite)");
+
+    const bool hasFailed =
+        FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource)) ||
+        FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DepthTexture", RT::Depth)) ||
+        FAILED(_postprocessShader->Bind_SRV("g_FroxelIntegratedTexture", _lightingPipeline->Get_FroxelIntegratedSRV())) ||
+        FAILED(_postprocessShader->Bind_CBufferData(_lightingPipeline->Get_FroxelParams())) ||
+        FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())) ||
+        FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::FroxelCompositeHDR))) ||
+        FAILED(_viBuffer->Render());
+
+    if (hasFailed)
+    {
+        _postprocessShader->Bind_SRV("g_FroxelIntegratedTexture", nullptr);
+        GAME->End_MRT();
+        return E_FAIL;
+    }
+
+    _postprocessShader->Bind_SRV("g_FroxelIntegratedTexture", nullptr);
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(HDR,FroxelComposite)");
+
+    return S_OK;
+}
+
 bool Renderer::Try_BuildLightShaftParams(LightShaftCB& outParams) const
 {
     outParams.lightVisible = 0.f;
@@ -2236,7 +2315,9 @@ void Renderer::Render_Debug()
                 _lightingPipeline->Get_DebugFroxelWidth(),
                 _lightingPipeline->Get_DebugFroxelHeight(),
                 _lightingPipeline->Get_DebugFroxelDepth(),
-                _lightingPipeline->Get_DebugFroxelSlice()
+                _lightingPipeline->Get_DebugFroxelSlice(),
+                static_cast<uint32>(_lightingPipeline->Get_DebugFroxelMode()),
+                _lightingPipeline->Get_DebugFroxelMode() == LightingPipeline::FroxelDebugMode::RawInjection ? 48.f : 1.f
             };
 
             if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)) ||

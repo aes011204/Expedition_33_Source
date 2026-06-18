@@ -591,6 +591,10 @@ void Scene_View::Render_MRTDebugPopup()
     Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
     if (lightingPipeline)
     {
+        int froxelDebugMode = static_cast<int>(lightingPipeline->Get_DebugFroxelMode());
+        if (ImGui::Combo("Froxel Debug Mode", &froxelDebugMode, "Integrated\0Raw Injection\0"))
+            lightingPipeline->Set_DebugFroxelMode(static_cast<LightingPipeline::FroxelDebugMode>(froxelDebugMode));
+
         int froxelSlice = static_cast<int>(lightingPipeline->Get_DebugFroxelSlice());
         const int maxFroxelSlice = static_cast<int>(max(1u, lightingPipeline->Get_DebugFroxelDepth()) - 1u);
         if (ImGui::SliderInt("Froxel Slice", &froxelSlice, 0, maxFroxelSlice))

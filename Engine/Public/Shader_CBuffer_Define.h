@@ -432,7 +432,7 @@ struct alignas(16) PlayerRenderCB
 /* ------------------------------------------ */
 struct alignas(16) FroxelCB
 {
-    static constexpr ConstantBuffer CBType = ConstantBuffer::FroxelDebug;
+    static constexpr ConstantBuffer CBType = ConstantBuffer::Froxel;
 
     uint32_t froxelWidth;
     uint32_t froxelHeight;
@@ -440,7 +440,11 @@ struct alignas(16) FroxelCB
     float froxelNear;
 
     float froxelFar;
-    Vec3 froxelPadding;
+    float compositeIntensity{ 1.f };
+    float depthBias{ 0.05f };
+    float shadowStrength{ 1.f };
+    float cameraFar{ 0.f };
+    Vec3 froxelPadding{ 0.f, 0.f, 0.f };
 
     Matrix inverseView;
     Matrix inverseProjection;
@@ -458,6 +462,9 @@ struct alignas(16) FroxelDebugCB
     uint32_t froxelDebugHeight;
     uint32_t froxelDebugDepth;
     uint32_t froxelDebugSlice;
+    uint32_t froxelDebugMode{ 0 };
+    float froxelDebugGain{ 1.f };
+    float _pad0[2]{};
 };
 
 // 패딩이 제대로 됐나 마지막 확인용 

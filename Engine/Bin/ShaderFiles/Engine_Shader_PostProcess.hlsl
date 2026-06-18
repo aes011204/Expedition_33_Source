@@ -23,6 +23,7 @@ Texture2D g_DOFCoCTexture;
 Texture2D g_DOFSourceTexture;
 Texture2D g_DOFNearTexture;
 Texture2D g_DOFFarTexture;
+Texture3D g_FroxelIntegratedTexture;
 
 // Bloom Extract 용도
 static const float3 REC_709 = float3(0.2126f, 0.7152f, 0.0722f);

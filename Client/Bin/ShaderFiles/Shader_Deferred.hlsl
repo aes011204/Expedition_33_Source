@@ -372,9 +372,21 @@ PS_OUT_BACKBUFFER PS_FroxelDebug(PS_IN In)
     const uint sliceIndex = min(g_FroxelDebugSlice, g_FroxelDebugDepth - 1u);
     const float sliceW = (sliceIndex + 0.5f) / max((float)g_FroxelDebugDepth, 1.f);
     const float3 froxelUVW = float3(saturate(In.Texcoord), sliceW);
-    const float3 value = saturate(g_FroxelTexture.Sample(PointClampSampler, froxelUVW).rgb);
+    const float4 froxelSample = g_FroxelTexture.Sample(PointClampSampler, froxelUVW);
 
-    Out.Color = float4(value, 1.f);
+    float3 value = froxelSample.rgb;
+    if (g_FroxelDebugMode == 1u)
+    {
+        const float rawEnergy = max(max(value.r, value.g), value.b);
+        const float rawMask = max(rawEnergy * max(g_FroxelDebugGain, 1.f), froxelSample.a * 4.f);
+        value = float3(rawMask, rawMask * 0.9f, rawMask * 0.6f);
+    }
+    else
+    {
+        value = saturate(value * max(g_FroxelDebugGain, 1.f));
+    }
+
+    Out.Color = float4(saturate(value), 1.f);
 
     return Out;
 }
