@@ -169,6 +169,7 @@
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
     <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
+    <ClInclude Include="..\public\ANS_WorldTimeScale.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_BattleShot.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
@@ -519,6 +520,7 @@
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
+    <ClCompile Include="..\private\ANS_WorldTimeScale.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />

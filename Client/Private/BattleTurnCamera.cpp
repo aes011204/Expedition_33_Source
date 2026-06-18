@@ -1917,12 +1917,8 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 
         // shake 외의 트랙은 애니메이션 진행률에 계속 맞추고 shake 트랙만 unscaled 시간 기준으로 다시 샘플링함
         // 런타임에서 월드 시간이나 애니메이션 배속이 바뀌어도 툴에서 편집한 shake의 리듬과 감쇠 느낌을 최대한 그대로 유지하기 위함
-      
-        const float shakeSampleTime = syncDurationSec > 0.f
-            ? clamp(_clipShakeTime / syncDurationSec, 0.f, 1.f)
-            : 0.f;
-        Apply_BattleCameraClipShakeSample(*_activeClip, shakeSampleTime, sample);
-        Debug_PrintClipShakeSample(currentAnimationTimeSec, sampleTime, shakeSampleTime, sample);
+        Apply_BattleCameraClipShakeSample(*_activeClip, sampleTime, sample);
+        Debug_PrintClipShakeSample(currentAnimationTimeSec, sampleTime, _clipShakeTime, sample);
 
         if (sampleTime >= 1.f)
         {
