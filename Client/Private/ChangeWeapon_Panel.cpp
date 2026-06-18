@@ -56,7 +56,7 @@ namespace
     {
         const auto previewLayout = Build_ChangeWeaponPreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);
-        CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(heroId, PreviewShotPanel::ChangeWeapon);
     }
 
     void Apply_ChangeWeaponPreviewWeapon(HeroId heroId)
@@ -132,7 +132,7 @@ void ChangeWeapon_Panel::Open()
     if (_selectedHeroId == HeroId::END)
         _selectedHeroId = HeroId::Lune;
 
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
+    CLIENT->Begin_Preview(PreviewShotPanel::ChangeWeapon);
     Show_ChangeWeaponPreview(_selectedHeroId);
 	CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Weapon_Intro, PreviewAnimState::Weapon_Idle);
 

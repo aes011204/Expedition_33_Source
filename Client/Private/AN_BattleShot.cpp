@@ -77,6 +77,11 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         return; // 단체 패링 중에는 ReactionController 상태를 보고 중복 Parry 막기
     }
 
+    if( _cameraMode == BattleCameraMode::BATTLEINTRO)
+    {
+        return;
+    }
+
     event.subject = character;
 
     if (battle)
@@ -120,4 +125,5 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         event.clipId.c_str());
 
     GAME->Get_EventBus().Publish(event);
+
 }

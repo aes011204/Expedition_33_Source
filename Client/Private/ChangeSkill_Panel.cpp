@@ -75,7 +75,7 @@ namespace
     {
         const auto previewLayout = Build_ChangeSkillPreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);
-        CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(heroId, PreviewShotPanel::ChangeSkill);
     }
 
     // 스킬 장착 틴트 색
@@ -117,7 +117,7 @@ void ChangeSkill_Panel::Open()
     if (_selectedHeroId == HeroId::END)
         _selectedHeroId = Get_DefaultSelectedHeroId();
 
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree); // Character Progression 하위 메뉴도 같은 preview shot을 이어서 쓴다.
+    CLIENT->Begin_Preview(PreviewShotPanel::ChangeSkill); // Character Progression 하위 메뉴도 같은 preview shot을 이어서 쓴다.
     Show_ChangeSkillPreview(_selectedHeroId);
     CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Skill_Intro, PreviewAnimState::Skill_Idle);
 
