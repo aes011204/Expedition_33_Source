@@ -2517,9 +2517,16 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
             }
 
             string animName = entry.path().stem().string();
-            _mappedAnimIndices[animName] = trueAnimIndex;
+            Shared<Animation> animation = Animation::Create(animData, channels);
+            if (!animation)
+            {
+                LOG_WARN("[ModelCom] Skipped invalid animation: {}", animName);
+                stream.close();
+                continue;
+            }
 
-            _animations.push_back(Animation::Create(animData, channels));
+            _mappedAnimIndices[animName] = trueAnimIndex;
+            _animations.push_back(animation);
             stream.close();
             ++trueAnimIndex;
         }

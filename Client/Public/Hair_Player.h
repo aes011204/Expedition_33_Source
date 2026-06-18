@@ -20,6 +20,7 @@ public:
     {
         HairChainPhysicsDesc    hairPhysicsDesc{};
         HairCB                  hairCB{};
+        bool                    usePoseFollowModifier = false;
     } HAIR_PLAYER_DESC;
 
 public:
@@ -44,6 +45,8 @@ private:
     HairChainPhysicsDesc    _hairPhysicsDesc{};
     HairCB                  _hairCB{};
     bool                    _hairPhysicsReady = false;
+    bool                    _usePoseFollowModifier = false;
+    bool                    _hairPoseFollowModifierReady = false;
 
     uint32                  _hairPass = 0;
 
