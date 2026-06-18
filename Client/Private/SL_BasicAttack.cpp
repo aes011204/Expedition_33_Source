@@ -1,4 +1,5 @@
 ﻿#include "SL_BasicAttack.h"
+
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
 
@@ -15,15 +16,87 @@ bool SL_BasicAttack::EnterInvoke()
 
     owner->Set_CombatLocked(true);
 
-    Play_Anim(SoulLikeAnim::Attack_1, 0.05f, false);
+    _comboIndex = 0;
+    _comboWindowEnabled = false;
+    _comboQueued = false;
+
+    Play_CurrentCombo();
 
     return true;
 }
 
 void SL_BasicAttack::Update(float timeDelta)
 {
+    UNREFERENCED_PARAMETER(timeDelta);
+
     if (!Is_AnimFinished())
         return;
+
+    Finish_Attack();
+}
+
+bool SL_BasicAttack::Request_BasicAttack()
+{
+    if (!_comboWindowEnabled)
+        return false;
+
+    if (!Can_AdvanceCombo())
+        return false;
+
+    _comboQueued = true;
+    return true;
+}
+
+void SL_BasicAttack::Set_ComboWindowEnabled(bool enabled)
+{
+    _comboWindowEnabled = enabled;
+
+    if (enabled)
+        return;
+
+    if (!_comboQueued)
+        return;
+
+    if (!Can_AdvanceCombo())
+        return;
+
+    ++_comboIndex;
+    _comboQueued = false;
+    _comboWindowEnabled = false;
+
+    Play_CurrentCombo();
+}
+
+void SL_BasicAttack::Play_CurrentCombo()
+{
+    Play_Anim(Get_CurrentComboAnim(), 0.05f, false);
+}
+
+SoulLikeAnim SL_BasicAttack::Get_CurrentComboAnim() const
+{
+    switch (_comboIndex)
+    {
+    case 0:
+        return SoulLikeAnim::Attack_1;
+    case 1:
+        return SoulLikeAnim::Attack_2;
+    case 2:
+        return SoulLikeAnim::Attack_3;
+    default:
+        return SoulLikeAnim::Attack_3;
+    }
+}
+
+bool SL_BasicAttack::Can_AdvanceCombo() const
+{
+    return _comboIndex + 1 < ComboMaxCount;
+}
+
+void SL_BasicAttack::Finish_Attack()
+{
+    _comboIndex = 0;
+    _comboWindowEnabled = false;
+    _comboQueued = false;
 
     if (Shared<SL_Maelle> owner = _owner.lock())
         owner->Set_CombatLocked(false);

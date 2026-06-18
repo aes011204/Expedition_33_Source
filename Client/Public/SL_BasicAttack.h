@@ -13,9 +13,29 @@ public:
 public:
     bool EnterInvoke() override;
     void Update(float timeDelta) override;
+    bool Request_BasicAttack() override;
+
+public:
+    void Set_ComboWindowEnabled(bool enabled);
+
+private:
+    void Play_CurrentCombo();
+    SoulLikeAnim Get_CurrentComboAnim() const;
+    bool Can_AdvanceCombo() const;
+    void Finish_Attack();
+
+private:
+    uint32 _comboIndex = 0;
+    bool _comboWindowEnabled = false;
+    bool _comboQueued = false;
+
+    // 최대 3타
+    static constexpr uint32 ComboMaxCount = 3;
 
 public:
     static Shared<SL_BasicAttack> Create(const Shared<SL_Maelle>& owner);
+
+
 };
 
 NS_END

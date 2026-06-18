@@ -567,6 +567,8 @@
     <ClCompile Include="..\Private\SL_Dead.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
     <ClCompile Include="..\Private\SL_Skill.cpp" />
+    <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
+    <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1554,6 +1556,8 @@
     <ClInclude Include="..\Public\SL_BasicAttack.h" />
     <ClInclude Include="..\Public\SL_Types.h" />
     <ClInclude Include="..\Public\SL_Skill.h" />
+    <ClInclude Include="..\Public\ANS_ComboEnable.h" />
+    <ClInclude Include="..\Public\SL_DamageSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

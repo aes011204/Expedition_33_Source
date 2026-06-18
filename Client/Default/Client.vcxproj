@@ -157,6 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
+    <ClInclude Include="..\Public\ANS_ComboEnable.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
     <ClInclude Include="..\public\ANS_Dodge.h" />
     <ClInclude Include="..\public\ANS_Emissive.h" />
@@ -236,6 +237,7 @@
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
     <ClInclude Include="..\Public\SL_BasicAttack.h" />
+    <ClInclude Include="..\Public\SL_DamageSystem.h" />
     <ClInclude Include="..\Public\SL_Dead.h" />
     <ClInclude Include="..\Public\SL_Dodge.h" />
     <ClInclude Include="..\Public\SL_Hit.h" />
@@ -520,6 +522,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
+    <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
     <ClCompile Include="..\private\ANS_Emissive.cpp" />
@@ -588,6 +591,7 @@
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
+    <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
     <ClCompile Include="..\Private\SL_Dead.cpp" />
     <ClCompile Include="..\Private\SL_Dodge.cpp" />
     <ClCompile Include="..\Private\SL_Hit.cpp" />
