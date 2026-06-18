@@ -189,6 +189,14 @@ void ChainModifierPreset::BuildScarfDesc(
     desc = {};
     desc.modifierTag = modifierTag;
 
+    const auto MakeHairGroup = [](const char* rootBoneName)
+        {
+            ChainModifier::BoneChainGroupDesc group{};
+            group.rootBoneName = rootBoneName;
+            group.maxDepth = 0;
+            return group;
+        };
+
     desc.shape.stiffness = 0.9f;
     desc.shape.poseRestoreStrength = 0.88f;
     desc.shape.maxBendAngleDegree = 18.f;
@@ -365,13 +373,13 @@ void ChainModifierPreset::BuildArmbandDesc(
 
     desc.shape.stiffness = 1.0f;
     desc.shape.poseRestoreStrength = 0.00005f;
-    desc.shape.maxBendAngleDegree = 75.f;
+    desc.shape.maxBendAngleDegree = 120.f;
     for (auto& group : desc.groups)
     {
-        group.rootRotationOffsetDegrees = Vec3(75.f, 0.f, 0.f);
+        group.rootRotationOffsetDegrees = Vec3(-35.f, 0.f, 0.f);
     }
 
-    desc.motion.damping = 0.98f;
+    desc.motion.damping = 0.985f;
     desc.motion.movementInertiaScale = 0.48f;
     desc.motion.ownerMovementInertiaScale = 0.10f;
     desc.motion.tipMovementInertiaScale = 2.5f;
@@ -386,12 +394,111 @@ void ChainModifierPreset::BuildArmbandDesc(
     desc.runtime.gravity = kCommonGravity;
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = 0.0001f;
-    desc.runtime.windStartRatio = 0.0005f;
-    desc.runtime.windWeightScale = 0.9f;
+    desc.runtime.windScale = kArmbandWindIntensity;
+    desc.runtime.windStartRatio = -1.f;
+    desc.runtime.windWeightScale = -1.f;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
+}
+
+void ChainModifierPreset::BuildPoseFollowHairDesc(
+    PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    PlayerCharacterType characterType,
+    const wstring& modifierTag)
+{
+    auto& desc = outDesc;
+    desc = {};
+    desc.modifierTag = modifierTag;
+    desc.ownerTransform = ownerTransform;
+
+    desc.enableCollision = false;
+    desc.windDirection = kCommonWindDirection;
+    desc.windScale = 0.f;
+    desc.ownerMotionScale = 0.04f;
+    desc.animatedMotionScale = 0.60f;
+    desc.ownerMotionDeadzone = 0.02f;
+    desc.ownerRotationDeadzoneDegree = 0.4f;
+    desc.animatedMotionDeadzone = 0.f;
+    desc.maxExternalOffset = 0.18f;
+
+    desc.damping = 0.68f;
+    desc.tipDampingScale = 1.08f;
+    desc.poseFollowStrength = 0.70f;
+    desc.tipFollowScale = 0.32f;
+    desc.maxBendAngleDegree = 8.f;
+    desc.tipBendAngleScale = 1.35f;
+    desc.bendLimitStrength = 0.9f;
+    desc.surfaceConstraintStrength = 0.18f;
+    desc.rootOutputAlpha = 0.f;
+    desc.tipOutputAlpha = 0.86f;
+    desc.idleOutputAlphaScale = 0.35f;
+    desc.outputSmoothAlpha = 0.52f;
+    desc.idleOutputSmoothAlpha = 0.72f;
+    desc.outputDeadzoneDegree = 0.05f;
+    desc.idleSettleStrength = 0.82f;
+    desc.sleepVelocityThreshold = 0.035f;
+    desc.sleepPoseDistance = 0.003f;
+    desc.solverIterations = 5;
+    desc.targetFrameRate = 60.f;
+
+    if (characterType == PlayerCharacterType::Maelle)
+    {
+        desc.maxBendAngleDegree = 9.f;
+        desc.maxExternalOffset = 0.20f;
+        desc.groups = {
+            { "Strand_1_1", 0.f, 1.f, 1.0f },
+            { "Strand_3_1", 0.f, 1.f, 1.0f },
+            { "Strand_5_1", 0.f, 1.f, 1.0f },
+            { "Strand_6_1", 0.f, 1.f, 1.0f }
+        };
+        return;
+    }
+
+    if (characterType == PlayerCharacterType::Lune)
+    {
+        desc.tipOutputAlpha = 0.88f;
+        desc.groups = {
+            { "Strand_1_1", 0.f, 1.f, 1.f },
+            { "Strand_2_1", 0.f, 1.f, 1.f },
+            { "Strand_3_1", 0.f, 1.f, 1.f },
+            { "Strand_4_1", 0.f, 1.f, 1.f },
+            { "Strand_5_1", 0.f, 1.f, 1.f },
+            { "Strand_6_1", 0.f, 1.f, 1.f },
+            { "Strand_7_1", 0.f, 1.f, 1.f },
+            { "Strand_8_1", 0.f, 1.f, 1.f },
+            { "Strand_9_1", 0.f, 1.f, 1.f },
+            { "Strand_10_1", 0.f, 1.f, 1.f },
+            { "Strand_11_1", 0.f, 1.f, 1.f },
+            { "Strand_12_1", 0.f, 1.f, 1.f },
+            { "Strand_13_1", 0.f, 1.f, 1.f },
+            { "Strand_14_1", 0.f, 1.f, 1.f }
+        };
+        return;
+    }
+
+    if (characterType == PlayerCharacterType::Gustave)
+    {
+        desc.rootOutputAlpha = 0.f;
+        desc.tipOutputAlpha = 0.86f;
+        desc.idleOutputAlphaScale = 0.32f;
+        desc.maxBendAngleDegree = 7.f;
+        desc.maxExternalOffset = 0.15f;
+        desc.groups = {
+            { "Strand_1_1", 0.f, 1.f, 1.f },
+            { "Strand_2_1", 0.f, 1.f, 1.f },
+            { "Strand_3_1", 0.f, 1.f, 1.f },
+            { "Strand_4_1", 0.f, 1.f, 1.f },
+            { "Strand_5_1", 0.f, 1.f, 1.f },
+            { "Strand_6_1", 0.f, 1.f, 1.f },
+            { "Strand_7_1", 0.f, 1.f, 1.f },
+            { "Strand_8_1", 0.f, 1.f, 1.f },
+            { "Strand_9_1", 0.f, 1.f, 1.f },
+            { "Strand_10_1", 0.f, 1.f, 1.f },
+            { "Strand_11_1", 0.f, 1.f, 1.f }
+        };
+    }
 }
 
 void ChainModifierPreset::BuildAbbestClothDesc(
@@ -462,16 +569,20 @@ void ChainModifierPreset::BuildBishopClothDesc(
     };
 
     desc.shape.stiffness = 1.0f;
-    desc.shape.poseRestoreStrength = 0.00005f;
+    desc.shape.tipStiffnessScale = 1.0f;
+    desc.shape.poseRestoreStrength = 0.f;
+    desc.shape.tipPoseRestoreScale = 1.0f;
     desc.shape.maxBendAngleDegree = 120.f;
-    desc.shape.rootOutputAlpha = 0.35f;
-    desc.shape.tipOutputAlpha = 0.94f;
-    desc.shape.pinRoot = false;
+    desc.shape.tipMaxBendAngleScale = 1.0f;
+    desc.shape.surfaceConstraintStrength = 0.f;
+    desc.shape.rootOutputAlpha = 0.05f;
+    desc.shape.tipOutputAlpha = 0.97f;
+    desc.shape.pinRoot = true;
 
     desc.motion.damping = 0.98f;
     desc.motion.tipDampingScale = 1.f;
-    desc.motion.movementInertiaScale = 0.55f;
-    desc.motion.ownerMovementInertiaScale = 1.0f;
+    desc.motion.movementInertiaScale = 2.055f;
+    desc.motion.ownerMovementInertiaScale = 3.65f;
     desc.motion.tipMovementInertiaScale = 2.8f;
     desc.motion.maxMovementOffset = 0.35f;
     desc.motion.solverIterations = 2;
@@ -481,6 +592,10 @@ void ChainModifierPreset::BuildBishopClothDesc(
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = 0.0012f;
     desc.runtime.constraintDeadzone = 0.025f;
+    desc.collision.enableCollision = true;
+    desc.collision.particleCollisionRadius = 0.f;
+    desc.collision.collisionRadiusPadding = 1.f;
+    desc.collision.debugDrawCapsules = false;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
@@ -509,17 +624,21 @@ void ChainModifierPreset::BuildBishopLegClothDesc(
     };
 
     desc.shape.stiffness = 1.0f;
-    desc.shape.poseRestoreStrength = 0.00005f;
+    desc.shape.tipStiffnessScale = 1.0f;
+    desc.shape.poseRestoreStrength = 0.f;
+    desc.shape.tipPoseRestoreScale = 1.0f;
     desc.shape.maxBendAngleDegree = 120.f;
-    desc.shape.rootOutputAlpha = 0.35f;
-    desc.shape.tipOutputAlpha = 0.94f;
-    desc.shape.pinRoot = false;
+    desc.shape.tipMaxBendAngleScale = 1.0f;
+    desc.shape.surfaceConstraintStrength = 0.f;
+    desc.shape.rootOutputAlpha = 0.05f;
+    desc.shape.tipOutputAlpha = 0.97f;
+    desc.shape.pinRoot = true;
 
     desc.motion.damping = 0.98f;
     desc.motion.tipDampingScale = 1.f;
     desc.runtime.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 0.55f;
-    desc.motion.ownerMovementInertiaScale = 1.0f;
+    desc.motion.movementInertiaScale = 2.055f;
+    desc.motion.ownerMovementInertiaScale = 3.65f;
     desc.motion.tipMovementInertiaScale = 2.8f;
     desc.motion.maxMovementOffset = 0.35f;
     desc.motion.solverIterations = 2;
@@ -528,6 +647,10 @@ void ChainModifierPreset::BuildBishopLegClothDesc(
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = 0.0012f;
     desc.runtime.constraintDeadzone = 0.025f;
+    desc.collision.enableCollision = true;
+    desc.collision.particleCollisionRadius = 0.f;
+    desc.collision.collisionRadiusPadding = 1.f;
+    desc.collision.debugDrawCapsules = false;
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;

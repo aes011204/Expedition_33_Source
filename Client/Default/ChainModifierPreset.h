@@ -27,6 +27,12 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Armband");
 
+    static void BuildPoseFollowHairDesc(
+        PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"PoseFollow_Hair");
+
     static void BuildAbbestClothDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,

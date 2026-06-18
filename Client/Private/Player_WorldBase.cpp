@@ -476,6 +476,7 @@ HRESULT Player_WorldBase::Add_CostumeHair(const wstring& modelTag, const Head_Pl
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.usePoseFollowModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(__super::Add_PartObject(
@@ -637,6 +638,7 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairPartDesc.usePoseFollowModifier = true;
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(
