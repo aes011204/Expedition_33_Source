@@ -11,7 +11,6 @@ public:
 	struct BoneChainGroupDesc
 	{
 		string rootBoneName{};
-		uint32 maxDepth{ 0xffffffffu };
 		float windMul{ 1.f };
 		float motionMul{ 1.f };
 		float followMul{ 1.f };
@@ -46,7 +45,7 @@ public:
 		float maxBendAngleDegree{ 18.f };
 		float tipBendAngleScale{ 1.35f };
 		float bendLimitStrength{ 0.86f };
-		float surfaceConstraintStrength{ 0.32f };
+		float surfaceConstraintStrength{ 0.f };
 
 		float rootOutputAlpha{ 0.28f };
 		float tipOutputAlpha{ 0.68f };
@@ -112,10 +111,14 @@ public:
 	bool Can_RuntimeRebuild() const override { return true; }
 	void RuntimeRebuild(ModelCom* model) override;
 	void ResetPose(ModelCom* model);
+	size_t Get_RuntimeGroupCount() const { return _chains.size(); }
+	string Get_RuntimeGroupRootBoneName(size_t groupIndex) const;
+	Vec3 Get_RuntimeGroupMultipliers(size_t groupIndex) const;
+	void Set_RuntimeGroupMultipliers(size_t groupIndex, const Vec3& multipliers);
 
 private:
 	void Initialize_Chains(ModelCom* model);
-	void BuildChainRecursive(ModelCom* model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain& outChain, uint32 currentDepth, uint32 maxDepth);
+	void BuildChainRecursive(ModelCom* model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain& outChain);
 	void Capture_CurrentPose(ModelCom* model, const Matrix& ownerWorld);
 	void Solve(ModelCom* model, float timeDelta, const Matrix& ownerWorld, const Vec3& ownerMotionDelta, float movementWeight, bool isOwnerIdle);
 	void Solve_SurfaceConstraints(const vector<WorldCapsule>& worldCapsules);
@@ -124,14 +127,6 @@ private:
 
 	vector<WorldCapsule> Update_WorldCapsules(const ModelCom* model, const Matrix& ownerWorld) const;
 	Vec3 Resolve_Collision(BoneChainNode& node, const vector<WorldCapsule>& capsules, const Vec3& position, bool movePrevPosition);
-
-	static float Get_NodeRatio(size_t nodeIndex, size_t nodeCount);
-	static float Get_TipRatio(size_t nodeIndex, size_t nodeCount);
-	static Vec3 Get_LocalDirection(const Matrix& parentWorld, const Vec3& worldDirection);
-	static Vec3 Get_WorldDirection(const Matrix& parentWorld, const Vec3& localDirection);
-	static Vec3 Limit_LocalDirectionByAngle(const Vec3& poseLocalDirection, const Vec3& simulatedLocalDirection, float maxAngleDegree);
-	static Quaternion Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection);
-	static Matrix Build_LocalMatrix_RotationOnly(const Matrix& baseLocal, const Quaternion& deltaRotation);
 
 private:
 	PoseFollowChainModifierDesc _desc{};

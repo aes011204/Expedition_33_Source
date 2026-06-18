@@ -4,6 +4,7 @@
 #include "AnimNotify_Parser.h"
 #include "AnimationModifier.h"
 #include "ChainModifier.h"
+#include "PoseFollowChainModifier.h"
 #include "ContainerObject.h"
 #include "EditorInstance.h"
 #include "Editor_Camera_Free.h"
@@ -1509,6 +1510,31 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                         if (ImGui::DragFloat3("Rot", &offsetDegrees.x, 0.25f, -180.f, 180.f))
                             chainModifier->Set_RuntimeGroupRootRotationOffset(groupIndex, offsetDegrees);
+
+                        ImGui::Spacing();
+                        ImGui::PopID();
+                    }
+                    ImGui::TreePop();
+                }
+            }
+
+            if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+            {
+                const size_t groupCount = poseFollowModifier->Get_RuntimeGroupCount();
+                if (groupCount > 0 && ImGui::TreeNodeEx("Group Multipliers", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::TextDisabled("X: Wind, Y: Motion, Z: Follow");
+                    for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
+                    {
+                        ImGui::PushID(static_cast<int>(groupIndex));
+
+                        const string rootBoneName = poseFollowModifier->Get_RuntimeGroupRootBoneName(groupIndex);
+                        ImGui::TextWrapped("%s", rootBoneName.empty() ? "(empty root)" : rootBoneName.c_str());
+
+                        Vec3 multipliers = poseFollowModifier->Get_RuntimeGroupMultipliers(groupIndex);
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        if (ImGui::DragFloat3("Mul", &multipliers.x, 0.01f, 0.f, 10.f))
+                            poseFollowModifier->Set_RuntimeGroupMultipliers(groupIndex, multipliers);
 
                         ImGui::Spacing();
                         ImGui::PopID();

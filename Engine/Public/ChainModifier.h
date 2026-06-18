@@ -79,6 +79,8 @@ public:
 			float maxBendAngleDegree{ 13.f };               // 바인드 포즈를 기준으로 허용되는 최대 꺾임 각도 (도 단위)
 			float tipMaxBendAngleScale{ 1.f };              // 끝단으로 갈수록 적용할 최대 꺾임 각도 배율
 			float surfaceConstraintStrength{ 0.f };         // 인접한 옷 체인끼리 원래 폭을 유지하는 가로 제약 강도
+			float rootOutputAlpha{ 1.f };                   // 루트 쪽 본 회전 출력 강도
+			float tipOutputAlpha{ 1.f };                    // 끝단 쪽 본 회전 출력 강도
 			bool pinRoot{ true };                           // 첫 번째 시뮬레이션 본의 위치를 부모 본에 핀(Pin)처럼 고정할지 여부
 		} shape{};
 
@@ -87,6 +89,7 @@ public:
 			float damping{ 0.55f };                         // 속도 유지 비율 (Verlet 적분에서 사용, 1에 가까울수록 속도 유지, 0에 가까울수록 감쇠)
 			float tipDampingScale{ 1.f };                   // 끝단으로 갈수록 적용할 속도 유지 비율 배율
 			float movementInertiaScale{ 0.06f };            // 캐릭터의 이동 속도가 체인의 움직임(관성)에 미치는 영향력
+			float ownerMovementInertiaScale{ 0.f };         // 소유자 Transform 이동이 체인 움직임에 미치는 영향력
 			float tipMovementInertiaScale{ 1.f };           // 끝단으로 갈수록 적용할 이동 관성 배율
 			float maxMovementOffset{ 0.02f };               // 외부 요인에 의해 한 번에 이동할 수 있는 최대 거리 제한
 			uint32 solverIterations{ 2 };                   // 프레임당 물리 시뮬레이션 반복 계산 횟수 (높을수록 정밀해짐)
@@ -138,7 +141,7 @@ private:
 	void Capture_ReplacePose(ModelCom *model, BoneChain &chain, const Matrix &ownerWorld);
 	void Capture_AdditivePose(ModelCom *model, BoneChain &chain, const Matrix &ownerWorld);
 	void Update_PoseLocalDirections(BoneChain &chain);
-	void Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, float movementWeight);
+	void Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, const Vec3 &ownerMotionDelta, float movementWeight);
 	void Solve_SurfaceConstraints(const vector<WorldCapsule> &worldCapsules);
 	void Write_BackToModel(ModelCom *model, const Matrix &ownerWorld);
 	void Write_BackChain(ModelCom *model, BoneChain &chain);

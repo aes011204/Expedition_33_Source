@@ -10,7 +10,6 @@ namespace
     constexpr float kScarfWindIntensity{ 0.45f };
     constexpr float kArmbandWindIntensity{ 0.12f };
     constexpr float kMonsterClothWindIntensity{ 0.00075f };
-    constexpr float kCoatWindIntensity{ 0.08f };
 
     Vec3 ConvertUePointToEngine(const Vec3& uePoint)
     {
@@ -258,11 +257,8 @@ void ChainModifierPreset::BuildPoseFollowScarfDesc(
     auto& desc = outDesc;
     desc = {};
     desc.modifierTag = modifierTag;
-    desc.strengthAlpha = 1.f;
     desc.ownerTransform = ownerTransform;
 
-    desc.enableCollision = true;
-    desc.debugDrawCapsules = false;
     desc.physicsAssetPath = GetPhysicsAssetPath(characterType);
     desc.includedCollisionBones = GetScarfCollisionBones(characterType);
     desc.particleCollisionRadius = 1.4f;
@@ -272,7 +268,6 @@ void ChainModifierPreset::BuildPoseFollowScarfDesc(
     desc.windScale = 0.f;
     desc.ownerMotionScale = 0.009f;
     desc.animatedMotionScale = 0.22f;
-    desc.ownerMotionDeadzone = 0.02f;
     desc.animatedMotionDeadzone = 0.09f;
     desc.maxExternalOffset = 1.45f;
 
@@ -283,7 +278,6 @@ void ChainModifierPreset::BuildPoseFollowScarfDesc(
     desc.maxBendAngleDegree = 20.f;
     desc.tipBendAngleScale = 2.25f;
     desc.bendLimitStrength = 0.88f;
-    desc.surfaceConstraintStrength = 0.18f;
     desc.rootOutputAlpha = 0.1f;
     desc.tipOutputAlpha = 0.82f;
     desc.idleOutputAlphaScale = 0.22f;
@@ -295,8 +289,6 @@ void ChainModifierPreset::BuildPoseFollowScarfDesc(
     desc.sleepPoseDistance = 0.18f;
     desc.solverIterations = 5;
     desc.targetFrameRate = 45.f;
-    desc.resetDistance = 3.f;
-    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
 
     if (characterType == PlayerCharacterType::Maelle)
     {
@@ -312,12 +304,12 @@ void ChainModifierPreset::BuildPoseFollowScarfDesc(
         desc.outputSmoothAlpha = 0.36f;
         desc.targetFrameRate = 60.f;
         desc.groups = {
-            { "Maelle_V4_Scarf_01_01", 0xffffffffu, 0.26f, 0.92f, 0.88f },
-            { "Maelle_V4_Scarf_02_01", 0xffffffffu, 0.26f, 0.92f, 0.88f },
-            { "Maelle_V4_Scarf_03_01", 0xffffffffu, 0.26f, 0.92f, 0.88f },
-            { "Maelle_V4_Scarf_04_01", 0xffffffffu, 0.26f, 0.92f, 0.88f },
-            { "Maelle_V4_Scarf_05_01", 0xffffffffu, 0.26f, 0.92f, 0.88f },
-            { "Maelle_V4_Scarf_06_01", 0xffffffffu, 0.26f, 0.92f, 0.88f }
+            { "Maelle_V4_Scarf_01_01", 0.26f, 0.92f, 0.88f },
+            { "Maelle_V4_Scarf_02_01", 0.26f, 0.92f, 0.88f },
+            { "Maelle_V4_Scarf_03_01", 0.26f, 0.92f, 0.88f },
+            { "Maelle_V4_Scarf_04_01", 0.26f, 0.92f, 0.88f },
+            { "Maelle_V4_Scarf_05_01", 0.26f, 0.92f, 0.88f },
+            { "Maelle_V4_Scarf_06_01", 0.26f, 0.92f, 0.88f }
         };
         return;
     }
@@ -325,12 +317,12 @@ void ChainModifierPreset::BuildPoseFollowScarfDesc(
     if (characterType == PlayerCharacterType::Lune)
     {
         desc.groups = {
-            { "Lune_V2_Scarf_01_01", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Lune_V2_Scarf_02_01", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Lune_V2_Scarf_03_01", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Lune_V2_Scarf_04_01", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Lune_V2_Scarf_05_01", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Lune_V2_Scarf_06_01", 0xffffffffu, 0.20f, 0.82f, 0.96f }
+            { "Lune_V2_Scarf_01_01", 0.20f, 0.82f, 0.96f },
+            { "Lune_V2_Scarf_02_01", 0.20f, 0.82f, 0.96f },
+            { "Lune_V2_Scarf_03_01", 0.20f, 0.82f, 0.96f },
+            { "Lune_V2_Scarf_04_01", 0.20f, 0.82f, 0.96f },
+            { "Lune_V2_Scarf_05_01", 0.20f, 0.82f, 0.96f },
+            { "Lune_V2_Scarf_06_01", 0.20f, 0.82f, 0.96f }
         };
         return;
     }
@@ -338,10 +330,10 @@ void ChainModifierPreset::BuildPoseFollowScarfDesc(
     if (characterType == PlayerCharacterType::Gustave)
     {
         desc.groups = {
-            { "Noah_V2_cloth2", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Noah_V2_cloth1", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Noah_V2_cloth3", 0xffffffffu, 0.20f, 0.82f, 0.96f },
-            { "Noah_V2_cloth4", 0xffffffffu, 0.20f, 0.82f, 0.96f }
+            { "Noah_V2_cloth2", 0.20f, 0.82f, 0.96f },
+            { "Noah_V2_cloth1", 0.20f, 0.82f, 0.96f },
+            { "Noah_V2_cloth3", 0.20f, 0.82f, 0.96f },
+            { "Noah_V2_cloth4", 0.20f, 0.82f, 0.96f }
         };
     }
 }
@@ -381,6 +373,7 @@ void ChainModifierPreset::BuildArmbandDesc(
 
     desc.motion.damping = 0.98f;
     desc.motion.movementInertiaScale = 0.48f;
+    desc.motion.ownerMovementInertiaScale = 0.10f;
     desc.motion.tipMovementInertiaScale = 2.5f;
     desc.motion.maxMovementOffset = 0.075f;
     desc.motion.solverIterations = 2;
@@ -424,21 +417,19 @@ void ChainModifierPreset::BuildAbbestClothDesc(
     desc.shape.tipPoseRestoreScale = 0.28f;
     desc.shape.maxBendAngleDegree = 105.f;
     desc.shape.tipMaxBendAngleScale = 1.22f;
+    desc.shape.rootOutputAlpha = 0.12f;
+    desc.shape.tipOutputAlpha = 0.92f;
     desc.shape.pinRoot = true;
     desc.motion.damping = 0.965f;
     desc.motion.tipDampingScale = 1.08f;
-    desc.runtime.gravity = Vec3::Zero;
     desc.motion.movementInertiaScale = 0.145f;
+    desc.motion.ownerMovementInertiaScale = 0.10f;
     desc.motion.tipMovementInertiaScale = 2.8f;
     desc.motion.maxMovementOffset = 0.042f;
-    desc.motion.solverIterations = 5;
-
-    desc.collision.enableCollision = false;
-    desc.collision.collisionRadiusPadding = 0.15f;
-    desc.collision.physicsAssetPath = GetPhysicsAssetPath(characterType);
-    desc.collision.debugDrawCapsules = false;
+    desc.motion.solverIterations = 2;
 
     desc.runtime.ownerTransform = ownerTransform;
+    desc.runtime.gravity = kCommonGravity;
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = kMonsterClothWindIntensity;
     desc.runtime.windStartRatio = 0.05f;
@@ -473,17 +464,20 @@ void ChainModifierPreset::BuildBishopClothDesc(
     desc.shape.stiffness = 1.0f;
     desc.shape.poseRestoreStrength = 0.00005f;
     desc.shape.maxBendAngleDegree = 120.f;
+    desc.shape.rootOutputAlpha = 0.35f;
+    desc.shape.tipOutputAlpha = 0.94f;
     desc.shape.pinRoot = false;
 
     desc.motion.damping = 0.98f;
     desc.motion.tipDampingScale = 1.f;
-    desc.runtime.gravity = kCommonGravity;
     desc.motion.movementInertiaScale = 0.55f;
+    desc.motion.ownerMovementInertiaScale = 1.0f;
     desc.motion.tipMovementInertiaScale = 2.8f;
-    desc.motion.maxMovementOffset = 0.075f;
+    desc.motion.maxMovementOffset = 0.35f;
     desc.motion.solverIterations = 2;
 
     desc.runtime.ownerTransform = ownerTransform;
+    desc.runtime.gravity = kCommonGravity;
     desc.runtime.windDirection = kCommonWindDirection;
     desc.runtime.windScale = 0.0012f;
     desc.runtime.constraintDeadzone = 0.025f;
@@ -517,15 +511,18 @@ void ChainModifierPreset::BuildBishopLegClothDesc(
     desc.shape.stiffness = 1.0f;
     desc.shape.poseRestoreStrength = 0.00005f;
     desc.shape.maxBendAngleDegree = 120.f;
+    desc.shape.rootOutputAlpha = 0.35f;
+    desc.shape.tipOutputAlpha = 0.94f;
     desc.shape.pinRoot = false;
 
     desc.motion.damping = 0.98f;
     desc.motion.tipDampingScale = 1.f;
     desc.runtime.gravity = kCommonGravity;
-    desc.motion.movementInertiaScale = 0.9f;
+    desc.motion.movementInertiaScale = 0.55f;
+    desc.motion.ownerMovementInertiaScale = 1.0f;
     desc.motion.tipMovementInertiaScale = 2.8f;
-    desc.motion.maxMovementOffset = 0.075f;
-    desc.motion.solverIterations = 5;
+    desc.motion.maxMovementOffset = 0.35f;
+    desc.motion.solverIterations = 2;
 
     desc.runtime.ownerTransform = ownerTransform;
     desc.runtime.windDirection = kCommonWindDirection;
@@ -535,7 +532,6 @@ void ChainModifierPreset::BuildBishopLegClothDesc(
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
 }
-
 
 void ChainModifierPreset::BuildBackpackBandDesc(
     ChainModifier::ChainModifierDesc& outDesc,
@@ -689,11 +685,8 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
     auto& desc = outDesc;
     desc = {};
     desc.modifierTag = modifierTag;
-    desc.strengthAlpha = 1.f;
     desc.ownerTransform = ownerTransform;
 
-    desc.enableCollision = true;
-    desc.debugDrawCapsules = false;
     desc.physicsAssetPath = GetPhysicsAssetPath(characterType);
     desc.includedCollisionBones = GetCoatCollisionBones(characterType);
     desc.overrideCapsules = GetSourceCoatCapsules(characterType);
@@ -704,12 +697,10 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
     }
 
     desc.particleCollisionRadius = 2.6f;
-    desc.collisionRadiusPadding = 0.08f;
     desc.windDirection = kCommonWindDirection;
     desc.windScale = 0.f;
     desc.ownerMotionScale = 0.006f;
     desc.animatedMotionScale = 0.17f;
-    desc.ownerMotionDeadzone = 0.02f;
     desc.animatedMotionDeadzone = 0.11f;
     desc.maxExternalOffset = 1.28f;
 
@@ -731,16 +722,13 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
     desc.sleepVelocityThreshold = 0.035f;
     desc.sleepPoseDistance = 0.22f;
     desc.solverIterations = 5;
-    desc.targetFrameRate = 60.f;
-    desc.resetDistance = 3.f;
-    desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
 
     if (characterType == PlayerCharacterType::Maelle)
     {
         desc.groups = {
-            { "Maelle_V2_Coat_01_01", 0xffffffffu, 0.34f, 0.66f, 1.02f },
-            { "Maelle_V2_Coat_02_01", 0xffffffffu, 0.34f, 0.66f, 1.02f },
-            { "Maelle_V2_Coat_03_01", 0xffffffffu, 0.34f, 0.66f, 1.02f }
+            { "Maelle_V2_Coat_01_01", 0.34f, 0.66f, 1.02f },
+            { "Maelle_V2_Coat_02_01", 0.34f, 0.66f, 1.02f },
+            { "Maelle_V2_Coat_03_01", 0.34f, 0.66f, 1.02f }
         };
         return;
     }
@@ -750,20 +738,19 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
         desc.collisionRadiusPadding = 0.12f;
         desc.particleCollisionRadius = 3.0f;
         desc.groups = {
-            { "Lune_V3_Coat_01_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
-            { "Lune_V3_Coat_02_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
-            { "Lune_V3_Coat_03_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
-            { "Lune_V3_Coat_04_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
-            { "Lune_V3_Coat_05_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
-            { "Lune_V3_Coat_06_01", 0xffffffffu, 0.34f, 0.64f, 1.05f },
-            { "Lune_V3_Coat_07_01", 0xffffffffu, 0.34f, 0.64f, 1.05f }
+            { "Lune_V3_Coat_01_01", 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_02_01", 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_03_01", 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_04_01", 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_05_01", 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_06_01", 0.34f, 0.64f, 1.05f },
+            { "Lune_V3_Coat_07_01", 0.34f, 0.64f, 1.05f }
         };
         return;
     }
 
     if (characterType == PlayerCharacterType::Gustave)
     {
-        desc.damping = 0.68f;
         desc.tipDampingScale = 1.16f;
         desc.poseFollowStrength = 0.59f;
         desc.tipFollowScale = 0.44f;
@@ -772,15 +759,15 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
         desc.tipOutputAlpha = 0.86f;
         desc.outputSmoothAlpha = 0.36f;
         desc.groups = {
-            { "Noah_V2Coat_00_01", 0xffffffffu, 0.34f, 1.04f, 0.93f },
-            { "Noah_V2Coat_01_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_02_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_03_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_04_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_05_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_06_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_07_01", 0xffffffffu, 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_08_01", 0xffffffffu, 0.34f, 1.03f, 0.94f }
+            { "Noah_V2Coat_00_01", 0.34f, 1.04f, 0.93f },
+            { "Noah_V2Coat_01_01", 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_02_01", 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_03_01", 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_04_01", 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_05_01", 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_06_01", 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_07_01", 0.34f, 1.03f, 0.94f },
+            { "Noah_V2Coat_08_01", 0.34f, 1.03f, 0.94f }
         };
     }
 }

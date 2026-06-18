@@ -427,10 +427,13 @@ const ClassReflectionInfo *ChainModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "shape.maxBendAngleDegree", "Max Bend", ChainShapeOffset(&ChainModifierDesc::ShapeSettings::maxBendAngleDegree), 0.25f, 0.f, 180.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "shape.tipMaxBendAngleScale", "Tip Bend", ChainShapeOffset(&ChainModifierDesc::ShapeSettings::tipMaxBendAngleScale), 0.01f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "shape.surfaceConstraintStrength", "Surface", ChainShapeOffset(&ChainModifierDesc::ShapeSettings::surfaceConstraintStrength), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "shape.rootOutputAlpha", "Root Out", ChainShapeOffset(&ChainModifierDesc::ShapeSettings::rootOutputAlpha), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "shape.tipOutputAlpha", "Tip Out", ChainShapeOffset(&ChainModifierDesc::ShapeSettings::tipOutputAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "shape.pinRoot", "Pin Root", ChainShapeOffset(&ChainModifierDesc::ShapeSettings::pinRoot));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.damping", "Damping", ChainMotionOffset(&ChainModifierDesc::MotionSettings::damping), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.tipDampingScale", "Tip Damp", ChainMotionOffset(&ChainModifierDesc::MotionSettings::tipDampingScale), 0.01f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.movementInertiaScale", "Inertia", ChainMotionOffset(&ChainModifierDesc::MotionSettings::movementInertiaScale), 0.005f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.ownerMovementInertiaScale", "Owner Inertia", ChainMotionOffset(&ChainModifierDesc::MotionSettings::ownerMovementInertiaScale), 0.005f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.tipMovementInertiaScale", "Tip Inertia", ChainMotionOffset(&ChainModifierDesc::MotionSettings::tipMovementInertiaScale), 0.01f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.maxMovementOffset", "Move Limit", ChainMotionOffset(&ChainModifierDesc::MotionSettings::maxMovementOffset), 0.001f, 0.f, 10.f);
 
@@ -653,7 +656,7 @@ void ChainModifier::Update_PoseLocalDirections(BoneChain &chain)
 	}
 }
 
-void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, float movementWeight)
+void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, const Vec3 &ownerMotionDelta, float movementWeight)
 {
 	const float delta = std::clamp(timeDelta, 0.f, 1.f / 30.f);
 	vector<WorldCapsule> worldCapsules = _desc.collision.enableCollision ? Update_WorldCapsule(model, &ownerWorld) : vector<WorldCapsule>{};
@@ -737,6 +740,10 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 			if (nodeMovementInertiaScale > 0.f)
 			{
 				externalOffset += -(node.originalWorld.Translation() - node.prevOriginalPosition) * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
+			}
+			if (_desc.motion.ownerMovementInertiaScale > 0.f && ownerMotionDelta.LengthSquared() > 0.000001f)
+			{
+				externalOffset += -ownerMotionDelta * _desc.motion.ownerMovementInertiaScale * chain.movementInertiaMul * movementWeight;
 			}
 
 			const float movementOffsetLength = externalOffset.Length();
@@ -1183,6 +1190,8 @@ void ChainModifier::Write_BackChain(ModelCom *model, BoneChain &chain)
 {
 	const float shapeStiffness = std::clamp(_desc.shape.stiffness * chain.stiffnessMul, 0.f, 1.f);
 	const float outputAlpha = std::clamp(_strengthAlpha, 0.f, 1.f);
+	const float rootOutputAlpha = std::clamp(_desc.shape.rootOutputAlpha, 0.f, 1.f);
+	const float tipOutputAlpha = std::clamp(_desc.shape.tipOutputAlpha, 0.f, 1.f);
 	const auto isRootNode = [this, &chain](const BoneChainNode &node)
 		{
 			return _desc.shape.pinRoot && node.parentNodeIndex >= 0 && chain.nodes[node.parentNodeIndex].isVirtualAnchor;
@@ -1241,7 +1250,7 @@ void ChainModifier::Write_BackChain(ModelCom *model, BoneChain &chain)
 			blendedLocalDir.Normalize();
 		}
 		Quaternion deltaRotation = Build_RotationDelta(firstChild.poseLocalDir, blendedLocalDir);
-		deltaRotation = Quaternion::Slerp(Quaternion::Identity, deltaRotation, outputAlpha);
+		deltaRotation = Quaternion::Slerp(Quaternion::Identity, deltaRotation, outputAlpha * rootOutputAlpha);
 		deltaRotation.Normalize();
 		model->Set_BoneLocalMatrix(node.boneIndex, Build_LocalMatrix_RotationOnly(baseLocal, deltaRotation));
 	}
@@ -1280,6 +1289,7 @@ void ChainModifier::Write_BackChain(ModelCom *model, BoneChain &chain)
 			BlendTipScale(shapeStiffness, _desc.shape.tipStiffnessScale, tipRatio),
 			0.f,
 			1.f);
+		const float nodeOutputAlpha = std::clamp(std::lerp(rootOutputAlpha, tipOutputAlpha, tipRatio), 0.f, 1.f);
 		const float nodeMaxBendAngleDegree = BlendTipScale(
 			_desc.shape.maxBendAngleDegree,
 			_desc.shape.tipMaxBendAngleScale,
@@ -1292,7 +1302,7 @@ void ChainModifier::Write_BackChain(ModelCom *model, BoneChain &chain)
 			blendedLocalDir.Normalize();
 		}
 		Quaternion deltaRotation = Build_RotationDelta(node.poseLocalDir, blendedLocalDir);
-		deltaRotation = Quaternion::Slerp(Quaternion::Identity, deltaRotation, outputAlpha);
+		deltaRotation = Quaternion::Slerp(Quaternion::Identity, deltaRotation, outputAlpha * nodeOutputAlpha);
 		deltaRotation.Normalize();
 		model->Set_BoneLocalMatrix(node.boneIndex, Build_LocalMatrix_RotationOnly(node.poseLocal, deltaRotation));
 		model->Rebuild_BoneCombinedMatrices();
@@ -1486,9 +1496,11 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 	}
 
 	const float ownerDistance = Vec3::Distance(_prevOwnerPos, currentOwnerPos);
+	Vec3 ownerMotionDelta = currentOwnerPos - _prevOwnerPos;
 	if (ownerDistance > _desc.runtime.resetDistance)
 	{
 		ResetPose(model);
+		ownerMotionDelta = Vec3::Zero;
 	}
 
 	_prevOwnerPos = currentOwnerPos;
@@ -1507,7 +1519,7 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 
 	for (uint32 i = 0; i < solverIterations; ++i)
 	{
-		Solve_Verlet(model, solverTimeDelta, ownerWorld, movementWeight);
+		Solve_Verlet(model, solverTimeDelta, ownerWorld, ownerMotionDelta, movementWeight);
 	}
 
 	Write_BackToModel(model, ownerWorld);

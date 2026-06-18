@@ -1,4 +1,4 @@
-#include "PoseFollowChainModifier.h"
+﻿#include "PoseFollowChainModifier.h"
 #include "ModelCom.h"
 #include "ModelPhysicsParser.h"
 #include "Reflection_Types.h"
@@ -52,12 +52,6 @@ namespace
 		return std::lerp(rootValue, tipValue, tipRatio);
 	}
 
-	bool IsCoatSurfaceChain(const string& rootBoneName)
-	{
-		return rootBoneName.find("Coat_") != string::npos
-			&& rootBoneName.find("Collar") == string::npos;
-	}
-
 	float GetAngleDegree(const Vec3& lhs, const Vec3& rhs)
 	{
 		Vec3 a = lhs;
@@ -70,6 +64,145 @@ namespace
 		a.Normalize();
 		b.Normalize();
 		return XMConvertToDegrees(acosf(std::clamp(a.Dot(b), -1.f, 1.f)));
+	}
+
+	float Get_TipRatio(size_t nodeIndex, size_t nodeCount)
+	{
+		if (nodeCount <= 1)
+		{
+			return 0.f;
+		}
+
+		const float nodeRatio = std::clamp(static_cast<float>(nodeIndex) / static_cast<float>(nodeCount - 1), 0.f, 1.f);
+		return SmoothStep(nodeRatio);
+	}
+
+	Vec3 Get_LocalDirection(const Matrix& parentWorld, const Vec3& worldDirection)
+	{
+		Vec3 localDirection = Vec3::TransformNormal(worldDirection, parentWorld.Invert());
+		if (localDirection.LengthSquared() > 0.0001f)
+		{
+			localDirection.Normalize();
+		}
+
+		return localDirection;
+	}
+
+	Vec3 Get_WorldDirection(const Matrix& parentWorld, const Vec3& localDirection)
+	{
+		Vec3 worldDirection = Vec3::TransformNormal(localDirection, parentWorld);
+		if (worldDirection.LengthSquared() > 0.0001f)
+		{
+			worldDirection.Normalize();
+		}
+
+		return worldDirection;
+	}
+
+	Vec3 Limit_LocalDirectionByAngle(const Vec3& poseLocalDirection, const Vec3& simulatedLocalDirection, float maxAngleDegree)
+	{
+		Vec3 poseDir = poseLocalDirection;
+		Vec3 simDir = simulatedLocalDirection;
+		if (poseDir.LengthSquared() <= 0.0001f || simDir.LengthSquared() <= 0.0001f)
+		{
+			return poseLocalDirection;
+		}
+
+		poseDir.Normalize();
+		simDir.Normalize();
+
+		if (maxAngleDegree <= 0.f)
+		{
+			return poseDir;
+		}
+
+		const float maxAngle = XMConvertToRadians(maxAngleDegree);
+		const float dot = std::clamp(poseDir.Dot(simDir), -1.f, 1.f);
+		const float angle = acosf(dot);
+		if (angle <= maxAngle)
+		{
+			return simDir;
+		}
+
+		Vec3 axis = poseDir.Cross(simDir);
+		if (axis.LengthSquared() <= 0.0001f)
+		{
+			return poseDir;
+		}
+
+		axis.Normalize();
+		Vec3 limitedDir = Vec3::Transform(poseDir, Matrix::CreateFromQuaternion(Quaternion::CreateFromAxisAngle(axis, maxAngle)));
+		if (limitedDir.LengthSquared() > 0.0001f)
+		{
+			limitedDir.Normalize();
+		}
+
+		return limitedDir;
+	}
+
+	Quaternion Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection)
+	{
+		Vec3 from = fromDirection;
+		Vec3 to = toDirection;
+		if (from.LengthSquared() <= 0.0001f || to.LengthSquared() <= 0.0001f)
+		{
+			return Quaternion::Identity;
+		}
+
+		from.Normalize();
+		to.Normalize();
+
+		const float dot = std::clamp(from.Dot(to), -1.f, 1.f);
+		if (dot > 0.9995f)
+		{
+			return Quaternion::Identity;
+		}
+
+		if (dot < -0.9995f)
+		{
+			Vec3 axis = Vec3::UnitX.Cross(from);
+			if (axis.LengthSquared() <= 0.0001f)
+			{
+				axis = Vec3::UnitY.Cross(from);
+			}
+			if (axis.LengthSquared() <= 0.0001f)
+			{
+				return Quaternion::Identity;
+			}
+
+			axis.Normalize();
+			return Quaternion::CreateFromAxisAngle(axis, XM_PI);
+		}
+
+		Vec3 axis = from.Cross(to);
+		if (axis.LengthSquared() <= 0.0001f)
+		{
+			return Quaternion::Identity;
+		}
+
+		axis.Normalize();
+		Quaternion delta = Quaternion::CreateFromAxisAngle(axis, acosf(dot));
+		delta.Normalize();
+		return delta;
+	}
+
+	Matrix Build_LocalMatrix_RotationOnly(const Matrix& baseLocal, const Quaternion& deltaRotation)
+	{
+		Matrix temp = baseLocal;
+		Vec3 scale = Vec3::One;
+		Quaternion baseRotation = Quaternion::Identity;
+		Vec3 translation = Vec3::Zero;
+		temp.Decompose(scale, baseRotation, translation);
+
+		Quaternion finalRotation = deltaRotation * baseRotation;
+		finalRotation.Normalize();
+
+		Matrix local = Matrix::CreateScale(scale) * Matrix::CreateFromQuaternion(finalRotation);
+		local._41 = baseLocal._41;
+		local._42 = baseLocal._42;
+		local._43 = baseLocal._43;
+		local._44 = baseLocal._44;
+		return local;
 	}
 }
 
@@ -111,7 +244,7 @@ HRESULT PoseFollowChainModifier::Initialize(AnimationModifierDesc* desc)
 	return S_OK;
 }
 
-void PoseFollowChainModifier::BuildChainRecursive(ModelCom* model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain& outChain, uint32 currentDepth, uint32 maxDepth)
+void PoseFollowChainModifier::BuildChainRecursive(ModelCom* model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain& outChain)
 {
 	BoneChainNode node{};
 	node.boneIndex = currentBoneIndex;
@@ -131,17 +264,12 @@ void PoseFollowChainModifier::BuildChainRecursive(ModelCom* model, int32 current
 		outChain.nodes[parentNodeIndex].childNodeIndices.push_back(thisNodeIndex);
 	}
 
-	if (currentDepth >= maxDepth)
-	{
-		return;
-	}
-
 	const uint32 numBones = static_cast<uint32>(model->Get_NumBones());
 	for (uint32 i = 0; i < numBones; ++i)
 	{
 		if (model->Get_BoneParentIndex(i) == currentBoneIndex)
 		{
-			BuildChainRecursive(model, static_cast<int32>(i), thisNodeIndex, outChain, currentDepth + 1, maxDepth);
+			BuildChainRecursive(model, static_cast<int32>(i), thisNodeIndex, outChain);
 		}
 	}
 }
@@ -179,11 +307,11 @@ void PoseFollowChainModifier::Initialize_Chains(ModelCom* model)
 			anchor.parentNodeIndex = -1;
 			anchor.isVirtualAnchor = true;
 			chain.nodes.push_back(anchor);
-			BuildChainRecursive(model, rootBoneIndex, 0, chain, 0, groupDesc.maxDepth);
+			BuildChainRecursive(model, rootBoneIndex, 0, chain);
 		}
 		else
 		{
-			BuildChainRecursive(model, rootBoneIndex, -1, chain, 0, groupDesc.maxDepth);
+			BuildChainRecursive(model, rootBoneIndex, -1, chain);
 		}
 
 		if (chain.nodes.size() > 1)
@@ -287,7 +415,6 @@ const ClassReflectionInfo* PoseFollowChainModifier::Get_RuntimeReflectionInfo() 
 			result.type = RegisteredType::None;
 
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableCollision", "Collision", PoseFollowOffset(&PoseFollowChainModifierDesc::enableCollision));
-			AddRuntimeProperty(result.properties, PropertyType::Bool, "debugDrawCapsules", "Debug Col", PoseFollowOffset(&PoseFollowChainModifierDesc::debugDrawCapsules));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "particleCollisionRadius", "Col Radius", PoseFollowOffset(&PoseFollowChainModifierDesc::particleCollisionRadius), 0.01f, 0.f, 100.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionRadiusPadding", "Col Pad", PoseFollowOffset(&PoseFollowChainModifierDesc::collisionRadiusPadding), 0.01f, 0.f, 100.f);
 
@@ -318,7 +445,6 @@ const ClassReflectionInfo* PoseFollowChainModifier::Get_RuntimeReflectionInfo() 
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleSettleStrength", "Idle Settle", PoseFollowOffset(&PoseFollowChainModifierDesc::idleSettleStrength), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "sleepVelocityThreshold", "Sleep Vel", PoseFollowOffset(&PoseFollowChainModifierDesc::sleepVelocityThreshold), 0.001f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "sleepPoseDistance", "Sleep Dist", PoseFollowOffset(&PoseFollowChainModifierDesc::sleepPoseDistance), 0.001f, 0.f, 10.f);
-
 			AddRuntimeProperty(result.properties, PropertyType::Float, "targetFrameRate", "Target FPS", PoseFollowOffset(&PoseFollowChainModifierDesc::targetFrameRate), 1.f, 0.f, 240.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "resetDistance", "Reset Dist", PoseFollowOffset(&PoseFollowChainModifierDesc::resetDistance), 0.05f, 0.f, 100.f);
 
@@ -330,8 +456,64 @@ const ClassReflectionInfo* PoseFollowChainModifier::Get_RuntimeReflectionInfo() 
 
 void PoseFollowChainModifier::On_RuntimeReflectionChanged(ModelCom* model, const PropertyInfo& property)
 {
-	UNREFERENCED_PARAMETER(model);
 	UNREFERENCED_PARAMETER(property);
+
+	if (!model || !_chainsInitialized || _chains.empty())
+	{
+		return;
+	}
+
+	model->Rebuild_BoneCombinedMatrices();
+
+	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Vec3 currentOwnerPos = ownerWorld.Translation();
+	Vec3 currentOwnerForward = Get_WorldDirection(ownerWorld, Vec3::UnitZ);
+	if (currentOwnerForward.LengthSquared() <= 0.0001f)
+	{
+		currentOwnerForward = Vec3::UnitZ;
+	}
+
+	const float ownerMotionLength = Vec3::Distance(currentOwnerPos, _prevOwnerPos);
+	const float ownerRotationDeltaDegree = GetAngleDegree(_prevOwnerForward, currentOwnerForward);
+	const bool isOwnerIdle = ownerMotionLength <= _desc.ownerMotionDeadzone
+		&& ownerRotationDeltaDegree <= _desc.ownerRotationDeadzoneDegree;
+
+	Write_BackToModel(model, ownerWorld, isOwnerIdle);
+	model->Rebuild_BoneCombinedMatrices();
+}
+
+string PoseFollowChainModifier::Get_RuntimeGroupRootBoneName(size_t groupIndex) const
+{
+	if (groupIndex >= _chains.size())
+	{
+		return {};
+	}
+
+	return _chains[groupIndex].rootBoneName;
+}
+
+Vec3 PoseFollowChainModifier::Get_RuntimeGroupMultipliers(size_t groupIndex) const
+{
+	if (groupIndex >= _chains.size())
+	{
+		return Vec3::Zero;
+	}
+
+	const auto& chain = _chains[groupIndex];
+	return Vec3(chain.windMul, chain.motionMul, chain.followMul);
+}
+
+void PoseFollowChainModifier::Set_RuntimeGroupMultipliers(size_t groupIndex, const Vec3& multipliers)
+{
+	if (groupIndex >= _chains.size())
+	{
+		return;
+	}
+
+	auto& chain = _chains[groupIndex];
+	chain.windMul = std::max(0.f, multipliers.x);
+	chain.motionMul = std::max(0.f, multipliers.y);
+	chain.followMul = std::max(0.f, multipliers.z);
 }
 
 void PoseFollowChainModifier::RuntimeRebuild(ModelCom* model)
@@ -428,7 +610,8 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 				if (lateralWind.LengthSquared() > 0.0001f)
 				{
 					lateralWind.Normalize();
-					const float windWeight = SmoothStep(std::clamp((Get_NodeRatio(i, chain.nodes.size()) - 0.18f) / 0.82f, 0.f, 1.f));
+					const float nodeRatio = chain.nodes.size() > 1 ? static_cast<float>(i) / static_cast<float>(chain.nodes.size() - 1) : 0.f;
+					const float windWeight = SmoothStep(std::clamp((nodeRatio - 0.18f) / 0.82f, 0.f, 1.f));
 					windTargetOffset += lateralWind * (_desc.windScale * chain.windMul * node.length * windWeight);
 				}
 			}
@@ -438,7 +621,8 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 			const float animatedMotionDeadzone = (isOwnerIdle && _desc.windScale <= 0.f)
 				? std::max(_desc.animatedMotionDeadzone, _desc.sleepPoseDistance)
 				: _desc.animatedMotionDeadzone;
-			const float motionWeightByTip = SmoothStep(std::clamp((Get_NodeRatio(i, chain.nodes.size()) - 0.08f) / 0.92f, 0.f, 1.f));
+			const float nodeRatio = chain.nodes.size() > 1 ? static_cast<float>(i) / static_cast<float>(chain.nodes.size() - 1) : 0.f;
+			const float motionWeightByTip = SmoothStep(std::clamp((nodeRatio - 0.08f) / 0.92f, 0.f, 1.f));
 			Vec3 externalOffset = Vec3::Zero;
 			if (!isOwnerIdle)
 			{
@@ -562,11 +746,6 @@ void PoseFollowChainModifier::Solve_SurfaceConstraints(const vector<WorldCapsule
 	{
 		auto& leftChain = _chains[chainIndex];
 		auto& rightChain = _chains[chainIndex + 1];
-		if (!IsCoatSurfaceChain(leftChain.rootBoneName) || !IsCoatSurfaceChain(rightChain.rootBoneName))
-		{
-			continue;
-		}
-
 		const size_t nodeCount = std::min(leftChain.nodes.size(), rightChain.nodes.size());
 		for (size_t nodeIndex = 1; nodeIndex < nodeCount; ++nodeIndex)
 		{
@@ -598,7 +777,8 @@ void PoseFollowChainModifier::Solve_SurfaceConstraints(const vector<WorldCapsule
 				continue;
 			}
 
-			const float tipRatio = SmoothStep(std::clamp((Get_NodeRatio(nodeIndex, nodeCount) - 0.12f) / 0.88f, 0.f, 1.f));
+			const float nodeRatio = nodeCount > 1 ? static_cast<float>(nodeIndex) / static_cast<float>(nodeCount - 1) : 0.f;
+			const float tipRatio = SmoothStep(std::clamp((nodeRatio - 0.12f) / 0.88f, 0.f, 1.f));
 			const float nodeStrength = strength * BlendTip(1.f, 0.5f, tipRatio);
 			const float error = currentDistance - restDistance;
 			const Vec3 correction = (currentDelta / currentDistance) * (error * nodeStrength);
@@ -900,149 +1080,6 @@ Vec3 PoseFollowChainModifier::Resolve_Collision(BoneChainNode& node, const vecto
 	}
 
 	return correctedPosition;
-}
-
-float PoseFollowChainModifier::Get_NodeRatio(size_t nodeIndex, size_t nodeCount)
-{
-	if (nodeCount <= 1)
-	{
-		return 0.f;
-	}
-
-	return std::clamp(static_cast<float>(nodeIndex) / static_cast<float>(nodeCount - 1), 0.f, 1.f);
-}
-
-float PoseFollowChainModifier::Get_TipRatio(size_t nodeIndex, size_t nodeCount)
-{
-	return SmoothStep(Get_NodeRatio(nodeIndex, nodeCount));
-}
-
-Vec3 PoseFollowChainModifier::Get_LocalDirection(const Matrix& parentWorld, const Vec3& worldDirection)
-{
-	Vec3 localDirection = Vec3::TransformNormal(worldDirection, parentWorld.Invert());
-	if (localDirection.LengthSquared() > 0.0001f)
-	{
-		localDirection.Normalize();
-	}
-
-	return localDirection;
-}
-
-Vec3 PoseFollowChainModifier::Get_WorldDirection(const Matrix& parentWorld, const Vec3& localDirection)
-{
-	Vec3 worldDirection = Vec3::TransformNormal(localDirection, parentWorld);
-	if (worldDirection.LengthSquared() > 0.0001f)
-	{
-		worldDirection.Normalize();
-	}
-
-	return worldDirection;
-}
-
-Vec3 PoseFollowChainModifier::Limit_LocalDirectionByAngle(const Vec3& poseLocalDirection, const Vec3& simulatedLocalDirection, float maxAngleDegree)
-{
-	Vec3 poseDir = poseLocalDirection;
-	Vec3 simDir = simulatedLocalDirection;
-	if (poseDir.LengthSquared() <= 0.0001f || simDir.LengthSquared() <= 0.0001f)
-	{
-		return poseLocalDirection;
-	}
-
-	poseDir.Normalize();
-	simDir.Normalize();
-
-	if (maxAngleDegree <= 0.f)
-	{
-		return poseDir;
-	}
-
-	const float maxAngle = XMConvertToRadians(maxAngleDegree);
-	const float dot = std::clamp(poseDir.Dot(simDir), -1.f, 1.f);
-	const float angle = acosf(dot);
-	if (angle <= maxAngle)
-	{
-		return simDir;
-	}
-
-	Vec3 axis = poseDir.Cross(simDir);
-	if (axis.LengthSquared() <= 0.0001f)
-	{
-		return poseDir;
-	}
-
-	axis.Normalize();
-	Vec3 limitedDir = Vec3::Transform(poseDir, Matrix::CreateFromQuaternion(Quaternion::CreateFromAxisAngle(axis, maxAngle)));
-	if (limitedDir.LengthSquared() > 0.0001f)
-	{
-		limitedDir.Normalize();
-	}
-
-	return limitedDir;
-}
-
-Quaternion PoseFollowChainModifier::Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection)
-{
-	Vec3 from = fromDirection;
-	Vec3 to = toDirection;
-	if (from.LengthSquared() <= 0.0001f || to.LengthSquared() <= 0.0001f)
-	{
-		return Quaternion::Identity;
-	}
-
-	from.Normalize();
-	to.Normalize();
-
-	const float dot = std::clamp(from.Dot(to), -1.f, 1.f);
-	if (dot > 0.9995f)
-	{
-		return Quaternion::Identity;
-	}
-
-	if (dot < -0.9995f)
-	{
-		Vec3 axis = Vec3::UnitX.Cross(from);
-		if (axis.LengthSquared() <= 0.0001f)
-		{
-			axis = Vec3::UnitY.Cross(from);
-		}
-		if (axis.LengthSquared() <= 0.0001f)
-		{
-			return Quaternion::Identity;
-		}
-
-		axis.Normalize();
-		return Quaternion::CreateFromAxisAngle(axis, XM_PI);
-	}
-
-	Vec3 axis = from.Cross(to);
-	if (axis.LengthSquared() <= 0.0001f)
-	{
-		return Quaternion::Identity;
-	}
-
-	axis.Normalize();
-	Quaternion delta = Quaternion::CreateFromAxisAngle(axis, acosf(dot));
-	delta.Normalize();
-	return delta;
-}
-
-Matrix PoseFollowChainModifier::Build_LocalMatrix_RotationOnly(const Matrix& baseLocal, const Quaternion& deltaRotation)
-{
-	Matrix temp = baseLocal;
-	Vec3 scale = Vec3::One;
-	Quaternion baseRotation = Quaternion::Identity;
-	Vec3 translation = Vec3::Zero;
-	temp.Decompose(scale, baseRotation, translation);
-
-	Quaternion finalRotation = deltaRotation * baseRotation;
-	finalRotation.Normalize();
-
-	Matrix local = Matrix::CreateScale(scale) * Matrix::CreateFromQuaternion(finalRotation);
-	local._41 = baseLocal._41;
-	local._42 = baseLocal._42;
-	local._43 = baseLocal._43;
-	local._44 = baseLocal._44;
-	return local;
 }
 
 void PoseFollowChainModifier::On_ActiveChanged(ModelCom* model, bool isActive)
