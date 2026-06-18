@@ -276,7 +276,7 @@ void PanelViewport::Render()
                 _gizmoWasUsing = gizmoUsing;
             }
 
-            if (sculptActive && ImGui::IsItemHovered() && _camera && _ctx && _pickingSystem)
+            if (sculptActive && ImGui::IsItemHovered() && _camera && _ctx)
             {
                 const ImVec2 vpMin = ImGui::GetItemRectMin();
                 const ImVec2 vpMax = ImGui::GetItemRectMax();
@@ -284,14 +284,17 @@ void PanelViewport::Render()
                 const ImVec2 mouse = ImGui::GetIO().MousePos;
 
                 Vec3 hitPos{};
-                if (_pickingSystem->SampleWorldPos(*_camera, mouse, vpMin, vpSz, hitPos))
+                if (Ray_Hit_Landscape(mouse, vpMin, vpSz, hitPos))
                 {
                     Matrix viewProj = Matrix(_camera->GetView()) * Matrix(_camera->GetProj());
 
                     auto WorldToScreen = [&](Vec3 wp, ImVec2& out) -> bool
                         {
                             Vec4 clip = Vec4::Transform(Vec4(wp.x, wp.y, wp.z, 1.f), viewProj);
-                            if (clip.w <= 0.f) return false;
+                            if (clip.w <= 0.f)
+                            {
+                                return false;
+                            }
                             out.x = vpMin.x + ((clip.x / clip.w) + 1.f) * 0.5f * vpSz.x;
                             out.y = vpMin.y + (1.f - (clip.y / clip.w)) * 0.5f * vpSz.y;
                             return true;
@@ -315,7 +318,7 @@ void PanelViewport::Render()
                 }
             }
 
-            if (_ctx->_boxScatterMode && _camera)
+            if (_ctx && _ctx->_boxScatterMode && _camera)
             {
                 const auto& box = _ctx->_pendingBox;
 
