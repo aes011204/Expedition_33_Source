@@ -168,7 +168,8 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
     if (obj->_type != EObjectType::EncounterZone &&
         obj->_type != EObjectType::TriggerVolume &&
         obj->_type != EObjectType::CameraZone &&
-        obj->_type != EObjectType::PostProcessVolume)
+        obj->_type != EObjectType::PostProcessVolume &&
+        obj->_type != EObjectType::ShaftVolume)
     {
         return;
     }
@@ -286,6 +287,21 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             if (ImGui::ColorEdit3("Fog Color", fogColor))
             {
                 obj->_ppFogColor = { fogColor[0], fogColor[1], fogColor[2] };
+            }
+        }
+        break;
+
+    case EObjectType::ShaftVolume:
+        if (ImGui::CollapsingHeader("Froxel Shaft", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::DragFloat("Density", &obj->_shaftDensity, 0.01f, 0.f, 10.f);
+            ImGui::DragFloat("Edge Fade", &obj->_shaftEdgeFade, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Intensity", &obj->_shaftIntensity, 0.01f, 0.f, 100.f);
+
+            float shaftColor[4] = { obj->_shaftLightColor.x, obj->_shaftLightColor.y, obj->_shaftLightColor.z, obj->_shaftLightColor.w };
+            if (ImGui::ColorEdit4("Light Color", shaftColor))
+            {
+                obj->_shaftLightColor = Vec4(shaftColor[0], shaftColor[1], shaftColor[2], shaftColor[3]);
             }
         }
         break;

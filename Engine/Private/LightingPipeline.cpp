@@ -154,7 +154,18 @@ HRESULT LightingPipeline::Dispatch_FroxelInject()
     const uint32 groupY = (_froxelHeight + 7u) / 8u;
     const uint32 groupZ = _froxelDepth;
 
-    CHECK_FAILED(_froxelInjectComputeShader->Dispatch(groupX, groupY, groupZ), E_FAIL);
+    HRESULT hr = _froxelInjectComputeShader->Dispatch(groupX, groupY, groupZ);
+
+    // Compute Shader에 물린 SRV/UAV를 바로 해제한다.
+    // 다음 패스에서 같은 Texture3D를 SRV/UAV로 바꿔 물 때 hazard 방지.
+    ID3D11ShaderResourceView* nullSRVs[3] = {};
+    _context->CSSetShaderResources(0, 3, nullSRVs);
+
+    ID3D11UnorderedAccessView* nullUAVs[1] = {};
+    UINT nullCounts[1] = { 0 };
+    _context->CSSetUnorderedAccessViews(0, 1, nullUAVs, nullCounts);
+
+    CHECK_FAILED(hr, E_FAIL);
 
     return S_OK;
 }
@@ -174,7 +185,20 @@ HRESULT LightingPipeline::Dispatch_FroxelAccumulate()
     const uint32 groupY = (_froxelHeight + 7u) / 8u;
     const uint32 groupZ = 1u;
 
-    CHECK_FAILED(_froxelAccumulateComputeShader->Dispatch(groupX, groupY, groupZ), E_FAIL);
+    HRESULT hr = _froxelAccumulateComputeShader->Dispatch(groupX, groupY, groupZ);
+
+    // Accumulate에서 읽은 g_FroxelInjectionTexture(t2),
+    // 쓴 g_FroxelIntegratedTexture(u0)를 바로 해제한다.
+    // 안 그러면 다음 프레임 CopyResource / Inject UAV 바인딩과 충돌할 수 있다.
+    ID3D11ShaderResourceView* nullSRVs[3] = {};
+    _context->CSSetShaderResources(0, 3, nullSRVs);
+
+    ID3D11UnorderedAccessView* nullUAVs[1] = {};
+    UINT nullCounts[1] = { 0 };
+    _context->CSSetUnorderedAccessViews(0, 1, nullUAVs, nullCounts);
+
+    CHECK_FAILED(hr, E_FAIL);
+
     _hasFroxelFrameData = true;
 
     return S_OK;

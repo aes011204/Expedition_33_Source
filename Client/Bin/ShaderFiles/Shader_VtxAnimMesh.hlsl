@@ -339,6 +339,12 @@ PS_OUT PS_CharacterHair(PS_IN In)
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
 
     float hairMask = SampleHairMask(finalUV);
     float hairDepth = SampleHairDepth(finalUV);
@@ -353,10 +359,10 @@ PS_OUT PS_CharacterHair(PS_IN In)
     const float hairCoreEnd = 0.50f;
 
     float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
+    
+    coreMask *= lerp(0.42f, 1.0f, edgeFade);
 
-    coreMask *= lerp(0.72f, 1.0f, edgeFade);
-
-    // 고립된 얇은 선은 GBuffer 본체 패스에서 약화한다.
+    // 고립된 얇은 선은 GBuffer 본체 패스에서 더 강하게 제거한다.
     float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);
     float isolatedStrandWeight = lerp(0.55f, 1.0f, clumpDensity);
     float coverage = coreMask * isolatedStrandWeight;
@@ -425,6 +431,12 @@ PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
     PS_OUT_HAIR_BLEND Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
 
     float3 hairColor = Compute_BlenderHairColor(finalUV);
     float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);

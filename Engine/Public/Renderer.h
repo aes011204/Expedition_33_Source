@@ -66,10 +66,12 @@ public:
     }
 
     void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
+    const FogZoneCB& Get_FogZones() const { return _fogZoneCB; }
     void Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
     {
         _lightShaftZoneCB = lightShaftZoneCB;
     }
+    const VolumetricLightShaftZoneCB& Get_VolumetricLightShaftZones() const { return _lightShaftZoneCB; }
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);

@@ -11,6 +11,7 @@
 #include "Client_Defines.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
+#include "EnvironmentView.h"
 #include "LightingPipeline.h"
 #include "Spawn_Prefab.h"
 
@@ -258,6 +259,7 @@ void Scene_View::Pre_Render()
         return;
 
     Tick_DragPreview(ImGui::GetIO().DeltaTime);
+    EnvironmentView::DrawDebugVolumes();
 }
 
 void Scene_View::Render()
@@ -901,6 +903,19 @@ void Scene_View::Render_SelectedObjectGizmo()
 {
     _gizmoMode = Internal::Resolve_GizmoModeFromTransformSpace();
 
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    if (EnvironmentView::ManipulateSelectedEntry(
+        viewMatrix,
+        projMatrix,
+        _viewportMin,
+        _viewportMax,
+        _gizmoOperation,
+        _gizmoMode))
+    {
+        return;
+    }
+
     Shared<GameObject> selectedObject = EDITOR->Selected_Object();
     if (selectedObject == nullptr)
         return;
@@ -909,8 +924,6 @@ void Scene_View::Render_SelectedObjectGizmo()
     if (transform == nullptr)
         return;
 
-    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
-    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
     if (viewMatrix == nullptr || projMatrix == nullptr)
         return;
 

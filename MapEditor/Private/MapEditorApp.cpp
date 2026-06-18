@@ -242,6 +242,7 @@ HRESULT MapEditorApp::Render()
 
     SyncSceneLights();
     SyncFogZones();
+    SyncVolumetricLightShaftZones();
 
     GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
 
@@ -736,6 +737,37 @@ void MapEditorApp::SyncFogZones()
     }
 
     GAME->Set_FogZones(cb);
+}
+
+void MapEditorApp::SyncVolumetricLightShaftZones()
+{
+    VolumetricLightShaftZoneCB cb{};
+
+    for (const auto& obj : _scene._shaftVolumes)
+    {
+        if (!obj)
+            continue;
+
+        if (cb.zoneCount >= VolumetricLightShaftZoneCB::MAX_LIGHT_SHAFT_ZONES)
+            break;
+
+        VolumetricLightShaftZoneEntry entry{};
+        const Matrix world =
+            Matrix::CreateFromQuaternion(obj->_rotation) *
+            Matrix::CreateTranslation(obj->_position);
+
+        entry.worldToLocal = world.Invert();
+        entry.halfExtents = obj->_zoneShape == EZoneShape::Sphere
+            ? Vec3(obj->_zoneRadius, obj->_zoneRadius, obj->_zoneRadius)
+            : obj->_zoneExtent;
+        entry.density = obj->_shaftDensity;
+        entry.lightColor = obj->_shaftLightColor;
+        entry.edgeFade = obj->_shaftEdgeFade;
+        entry.intensity = obj->_shaftIntensity;
+        cb.zones[cb.zoneCount++] = entry;
+    }
+
+    GAME->Set_VolumetricLightShaftZones(cb);
 }
 
 HRESULT MapEditorApp::Ready_Light()

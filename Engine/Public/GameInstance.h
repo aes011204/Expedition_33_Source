@@ -247,6 +247,8 @@ public: /* For.Renderer */
     ShaderCom_Controller*               Get_ShaderComController();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
+    const FogZoneCB&                    Get_FogZones() const;
+    const VolumetricLightShaftZoneCB&   Get_VolumetricLightShaftZones() const;
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
     void                                Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB);
 

@@ -1559,6 +1559,16 @@ RenderGroup GameInstance::Get_CurrentRenderGroup() const
     return _renderer->Get_CurrentGroup();
 }
 
+const FogZoneCB& GameInstance::Get_FogZones() const
+{
+    return _renderer->Get_FogZones();
+}
+
+const VolumetricLightShaftZoneCB& GameInstance::Get_VolumetricLightShaftZones() const
+{
+    return _renderer->Get_VolumetricLightShaftZones();
+}
+
 void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
 {
     if (_renderer)

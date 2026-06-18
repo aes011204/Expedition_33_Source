@@ -13,6 +13,7 @@ namespace
     constexpr const char* kStaticMeshFolderName = "StaticMesh";
     constexpr const char* kInstanceMeshFolderName = "InstanceMesh";
     constexpr const char* kPostProcessVolumeFolderName = "PostProcessVolume";
+    constexpr const char* kShaftVolumeFolderName = "ShaftVolume";
     constexpr const char* kWaterFolderName = "Water";
 
     std::mutex g_materialCacheMutex;
@@ -100,6 +101,7 @@ namespace
         return fs::exists(root / kStaticMeshFolderName) ||
             fs::exists(root / kInstanceMeshFolderName) ||
             fs::exists(root / kPostProcessVolumeFolderName) ||
+            fs::exists(root / kShaftVolumeFolderName) ||
             fs::exists(root / kWaterFolderName);
     }
 
@@ -630,6 +632,7 @@ bool MapAdapter::TryLoadSplitMapInstanceData(const wstring& filePath, SplitMapIn
     LoadSplitJsonObjects(root / kStaticMeshFolderName, data.staticMeshes, data.preloadModelPaths);
     LoadSplitJsonObjects(root / kInstanceMeshFolderName, data.instancedMeshes, data.preloadModelPaths);
     LoadSplitJsonObjects(root / kPostProcessVolumeFolderName, data.postProcessVolumes, data.preloadModelPaths);
+    LoadSplitJsonObjects(root / kShaftVolumeFolderName, data.shaftVolumes, data.preloadModelPaths);
     LoadSplitJsonObjects(root / kWaterFolderName, data.waters, data.preloadModelPaths);
 
     TryAppendModelOverridesFromJsonFile(data.sidecarJson, data.modelOverrides);
