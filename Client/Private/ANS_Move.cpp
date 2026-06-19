@@ -7,6 +7,7 @@
 #include "Character_BattleBase.h"
 #include "BattleSpawnRegistry.h"
 #include "TransformCom.h"
+#include "Monster_Part.h"
 
 void ANS_Move::On_Begin(const AnimNotifyContext& context)
 {

@@ -83,7 +83,7 @@ namespace
         CLIENT->Apply_PreviewLayout(previewLayout);
 
         // 아직 안만들었으니까 일단은, 카메라 프리뷰 SKill Tree꺼 재사용
-        CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(heroId, PreviewShotPanel::Wardrobe);
     }
 
     int32 To_HeroIndex(HeroId heroId)
@@ -153,7 +153,7 @@ void Wardrobe_Panel::Open()
     if (FAILED(Prepare_OpenResources()))
         LOG_WARN("Wardrobe_Panel: failed to prepare wardrobe resources");
 
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree); // Wardrobe도 기존 preview 플레이어를 그대로 사용한다.
+    CLIENT->Begin_Preview(PreviewShotPanel::Wardrobe); // Wardrobe도 기존 preview 플레이어를 그대로 사용한다.
     Sync_CurrentCostumeToPreviewHeroes();               // preview가 새로 스폰된 직후 current costume 상태를 먼저 맞춘다.
     Show_WardrobePreview(_selectedHeroId);
     CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Wardrobe_Intro, PreviewAnimState::Wardrobe_Idle);

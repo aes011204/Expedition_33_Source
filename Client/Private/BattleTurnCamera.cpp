@@ -235,14 +235,14 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     ([this](const EvtBattlePresentation& event)
         {
             const string modeName = string(magic_enum::enum_name(event.cameraMode));
-            LOG_INFO(
-                "[BattleCamTrace] EvtBattlePresentation mode={} presetId={} clipId={} useClip={} subject={} opponent={}",
-                modeName.c_str(),
-                event.presetId.c_str(),
-                event.clipId.c_str(),
-                event.useClip,
-                event.subject != nullptr,
-                event.opponent != nullptr);
+            // LOG_INFO(
+            //     "[BattleCamTrace] EvtBattlePresentation mode={} presetId={} clipId={} useClip={} subject={} opponent={}",
+            //     modeName.c_str(),
+            //     event.presetId.c_str(),
+            //     event.clipId.c_str(),
+            //     event.useClip,
+            //     event.subject != nullptr,
+            //     event.opponent != nullptr);
 
             Apply_ShotRequest(Build_BattleShotRequestFromEvent(event));
         }
@@ -313,6 +313,14 @@ void BattleTurnCamera::Update(float timeDelta)
 
     Update_TransformMatrices();
 
+    const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
+
+   // LOG_INFO(
+   // "[BattleCamTrace] Update prevMode={} prevPresetId={} prevClipId={} activeClip={}",
+   // modeName.c_str(),
+   // _currentRequest.presetId.c_str(),
+   // _currentRequest.clipId.c_str(),
+   // _activeClip != nullptr);
 }
 
 void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta)
@@ -346,9 +354,6 @@ void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
     _yaw = std::clamp(_yaw, -90.f, 90.f);     // 상하 각도 제한
 
     _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
-
-
-
 
     Update_TransformMatrices();
 }
@@ -403,12 +408,12 @@ void BattleTurnCamera::Set_Participants(
 void BattleTurnCamera::Reset_RuntimeState()
 {
     const string modeName = string(magic_enum::enum_name(_currentRequest.mode));
-    LOG_INFO(
-        "[BattleCamTrace] Reset_RuntimeState prevMode={} prevPresetId={} prevClipId={} activeClip={}",
-        modeName.c_str(),
-        _currentRequest.presetId.c_str(),
-        _currentRequest.clipId.c_str(),
-        _activeClip != nullptr);
+    // LOG_INFO(
+    //     "[BattleCamTrace] Reset_RuntimeState prevMode={} prevPresetId={} prevClipId={} activeClip={}",
+    //     modeName.c_str(),
+    //     _currentRequest.presetId.c_str(),
+    //     _currentRequest.clipId.c_str(),
+    //     _activeClip != nullptr);
 
     _currentRequest = {};
     _targetTransform.reset();
@@ -1336,9 +1341,9 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
     {
-        LOG_DEBUG("[ApplyShot] intro preset resolve failed. mode={}, presetId={}",
-        static_cast<int>(request.mode),
-        request.presetId.c_str());
+        // LOG_DEBUG("[ApplyShot] intro preset resolve failed. mode={}, presetId={}",
+        // static_cast<int>(request.mode),
+        // request.presetId.c_str());
 
         if(request.mode != BattleCameraMode::WIDE &&  request.mode != BattleCameraMode::BATTLEINTRO)
         return;
@@ -1448,6 +1453,14 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, BattleCameraClipSample{}, _clipShakeTime, toPose ))
         Apply_EvaluatedPoseWithDOF(toPose, _currentRequest.mode);
 
+        const string requestModeName = string(magic_enum::enum_name(request.mode));
+        const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
+
+        // LOG_DEBUG(
+        //  "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
+        //  requestModeName.c_str(),
+        //  currentModeName.c_str());
+
         return;
     }
 
@@ -1494,10 +1507,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     const string requestModeName = string(magic_enum::enum_name(request.mode));
     const string currentModeName = string(magic_enum::enum_name(_currentRequest.mode));
 
-    LOG_DEBUG(
-        "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
-        requestModeName.c_str(),
-        currentModeName.c_str());
+    // LOG_DEBUG(
+    //     "[BattleCamTrace] ApplyShot requestMode={} currentMode={}",
+    //     requestModeName.c_str(),
+    //     currentModeName.c_str());
 }
 
 void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& subject, const Shared<Character>& opponent)
@@ -1756,6 +1769,11 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
     EvaluatedPose pose{};
     const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
     Evaluate_CurrentPresetPose(targetPos, _currentPreset, clipSample, yawBase, _pitch, nullptr, pose);
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
+        Refresh_RuntimeDriftFromProfile(*drift, false);
+    Apply_RuntimeDrift(pose, 0.f);
+    Apply_ClipShake(pose, clipSample, _clipShakeTime);
+    Apply_EvaluatedPose(pose);
     Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
@@ -1777,6 +1795,12 @@ void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
     if (!Evaluate_EnemyAttackPose(enemyPos, playerPos, _currentPreset, clipSample, pose))
         return;
 
+    if (const BattleCameraDriftProfile* drift = Resolve_RuntimeDriftProfile(_currentRequest))
+        Refresh_RuntimeDriftFromProfile(*drift, false);
+    Apply_RuntimeDrift(pose, 0.f);
+    Apply_ClipShake(pose, clipSample, _clipShakeTime);
+    Apply_EvaluatedPose(pose);
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
     Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
 }
 
@@ -1893,12 +1917,8 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 
         // shake 외의 트랙은 애니메이션 진행률에 계속 맞추고 shake 트랙만 unscaled 시간 기준으로 다시 샘플링함
         // 런타임에서 월드 시간이나 애니메이션 배속이 바뀌어도 툴에서 편집한 shake의 리듬과 감쇠 느낌을 최대한 그대로 유지하기 위함
-      
-        const float shakeSampleTime = syncDurationSec > 0.f
-            ? clamp(_clipShakeTime / syncDurationSec, 0.f, 1.f)
-            : 0.f;
-        Apply_BattleCameraClipShakeSample(*_activeClip, shakeSampleTime, sample);
-        Debug_PrintClipShakeSample(currentAnimationTimeSec, sampleTime, shakeSampleTime, sample);
+        Apply_BattleCameraClipShakeSample(*_activeClip, sampleTime, sample);
+        Debug_PrintClipShakeSample(currentAnimationTimeSec, sampleTime, _clipShakeTime, sample);
 
         if (sampleTime >= 1.f)
         {

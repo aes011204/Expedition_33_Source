@@ -15,7 +15,7 @@ NS_BEGIN(Client)
 
 class CinematicSequenceRunner;
 
-    class CinematicCamera;
+class CinematicCamera;
 class BattleController;
 class Player_WorldBase;
 class TargetCamera;
@@ -30,6 +30,8 @@ class LevelTransitionFade;
 class ClientScreenFxManager;
 class PlayerInventory;
 class CostumeManager;
+
+class SoulLikeController;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -100,6 +102,7 @@ public: /* For.Hero Manager */
     // 컨트롤중인 플레이어
     Shared<Player_WorldBase>  Get_ActiveHero() const;
     HeroPartySlot   Get_ActiveHeroSlot() const;
+    void            Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot);
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
@@ -213,6 +216,13 @@ public: /* Costume Manager */
     void    Sync_PreviewHeroRuntimeData(HeroId heroId);
     void    Play_PreviewAnimation(HeroId heroId, PreviewAnimState introAnim, PreviewAnimState idleAnim);
 
+public: /* SoulLike */
+    void Set_SoulLikeController(const Shared<SoulLikeController>& controller);
+    Shared<SoulLikeController> Get_SoulLikeController() const { return _soulLikeController; }
+
+    bool Is_SoulLikeBattleActive() const;
+    bool Is_WorldControlSuspended() const;
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -249,6 +259,8 @@ private:
     Shared<PlayerInventory>     _playerInventory;
 
     Unique<CostumeManager>      _costumeManager;
+
+    Shared<SoulLikeController> _soulLikeController{};
 
 public:
 	void Free() override;
