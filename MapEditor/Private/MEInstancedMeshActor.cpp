@@ -138,12 +138,17 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
         return S_OK;
     }
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-    {
-        return E_FAIL;
-    }
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
+
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
     {
         return E_FAIL;
     }
@@ -179,12 +184,16 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
 
 HRESULT MEInstancedMeshActor::Bind_ShaderResources()
 {
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-    {
-        return E_FAIL;
-    }
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
     {
         return E_FAIL;
     }
