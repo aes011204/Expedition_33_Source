@@ -34,8 +34,10 @@ private:
     umap<wstring, Shared<UI_Base>> _uiByName{};
     Shared<UI_Button> _firstLevelButton = nullptr;
     Shared<UI_Button> _secondLevelButton = nullptr;
+    Shared<UI_Button> _thirdLevelButton = nullptr;
     bool _wasFirstLevelHovered = false;
     bool _wasSecondLevelHovered = false;
+    bool _wasThirdLevelHovered = false;
 
 public:
     static Shared<Level_GameEntry> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
