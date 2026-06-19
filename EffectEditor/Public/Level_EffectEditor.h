@@ -24,12 +24,15 @@ public:
     // 마지막으로 빌드된 preview definition으로 runtime preview만 initial 상태로 되돌린다.
     HRESULT Reset_PreviewRuntime();
     bool Is_PreviewFinished() const;
+    // Trail preview 전용 fixture를 필요 시점에만 준비한다.
+    HRESULT Ensure_TrailPreviewFixture();
 
 private: //## Static Values
     static constexpr auto kPreviewLayerTag{ L"Layer_Preview" };
 
 private: //## Data::PreviewRuntime
     Unique<EffectEditorPreviewRuntime> _previewRuntime{};
+    bool _trailPreviewFixtureReady{ false };
 
 private: //## Helper::Setup
     // preview에 필요한 최소 directional light만 준비한다.

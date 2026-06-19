@@ -38,7 +38,7 @@ private: //## Types
     using GridItemRef = ContentBrowserGridItemRef;
 
 private: //## Static Values
-    static constexpr const wchar_t* kContentBrowserSettingsPath{
+    static constexpr auto kContentBrowserSettingsPath{
         L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json"
     };
 

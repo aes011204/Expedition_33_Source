@@ -377,12 +377,9 @@ namespace Internal
             prototypeTag == L"Com_Collider_OBB";
     }
 
-    bool Is_EffectEditorPreviewModelAllowed(const wstring& prototypeTag)
+    bool Is_EffectEditorPreviewModelAllowed(const wstring&)
     {
-        return
-            prototypeTag == L"Model_GustaveBody" ||
-            prototypeTag == L"Model_GustaveHead" ||
-            prototypeTag == L"Model_GustaveHair";
+        return false;
     }
 
     bool Is_EffectEditorPreviewGameObjectAllowed(const wstring& prototypeTag)

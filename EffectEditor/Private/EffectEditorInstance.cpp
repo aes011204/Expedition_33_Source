@@ -517,18 +517,48 @@ void EffectEditorInstance::Set_AutoReplayPreviewEnabled(bool enabled)
 
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
+    if (!visible)
+    {
+        _isTrailPreviewVisible = false;
+        return;
+    }
+
     const bool becameVisible = visible && !_isTrailPreviewVisible;
-    if (becameVisible)
-        Reset_TrailPreviewGate();
-
-    _isTrailPreviewVisible = visible;
-
     if (!becameVisible)
         return;
 
     const Shared<Level> currentLevel = GAME->Current_LevelType();
     const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
-    if (effectEditorLevel != nullptr && FAILED(effectEditorLevel->Reset_PreviewRuntime()))
+    if (nullptr == effectEditorLevel)
+    {
+        LOG_ERROR("Failed to enable trail preview: EffectEditor level is not available.");
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Trail Preview를 준비할 수 없습니다. EffectEditor level이 없습니다."
+            );
+        }
+        return;
+    }
+
+    if (FAILED(effectEditorLevel->Ensure_TrailPreviewFixture()))
+    {
+        LOG_ERROR("Failed to initialize trail preview fixture.");
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Trail Preview 리소스 준비에 실패했습니다."
+            );
+        }
+        return;
+    }
+
+    Reset_TrailPreviewGate();
+    _isTrailPreviewVisible = true;
+
+    if (FAILED(effectEditorLevel->Reset_PreviewRuntime()))
         LOG_ERROR("Failed to reset EffectEditor preview runtime after enabling trail preview.");
 }
 
