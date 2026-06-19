@@ -8,7 +8,6 @@ NS_BEGIN(Client)
 
 class SL_Base;
 class SL_Maelle;
-class BattleTurnCamera;
 
 class SoulLikeController final : public GameObject
 {
@@ -58,7 +57,6 @@ public:
     void End_BattleShotCamera();
 
 private:
-    HRESULT Ready_BattleTurnCamera();
     void    Request_TargetCamera();
     void    Request_BattleShotCamera(const EvtBattlePresentation& event);
     void    Restore_TargetCamera();
@@ -86,9 +84,6 @@ private:
 
     float  _enterFxDelay = 0.6f;
     bool   _enableDebugKeyStart = true;
-
-private:
-    Shared<BattleTurnCamera> _battleTurnCamera;
 
     BattleState _state = BattleState::None;
     Weak<SL_Maelle> _player{};

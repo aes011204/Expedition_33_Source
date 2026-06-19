@@ -232,6 +232,28 @@ void Animation_View::Update(float timeDelta)
 
     Validate_SelectedBoneSelection();
 
+    if (_isSectionPreviewPlaying)
+    {
+        const AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData == nullptr)
+        {
+            _isSectionPreviewPlaying = false;
+            return;
+        }
+
+        const float startSec = Get_PlaySectionStartSec(animationData);
+        const float endSec = Get_PlaySectionEndSec(animationData);
+
+        if (playbackModel->Get_CurrentAnimationTimeSec() + 0.0001f >= endSec)
+        {
+            playbackModel->Set_CurrentAnimationTimeSec(startSec);
+            playbackModel->Play_Animation(0.f);
+            playbackModel->Set_AnimationPaused(false);
+            _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+            return;
+        }
+    }
+
     if (!playbackModel->Is_AnimationPaused())
     {
         if (playbackModel->Is_AnimationFinished())
@@ -410,7 +432,15 @@ void Animation_View::Render()
         {
             Shared<ModelCom> playbackModel = Get_PlaybackModel();
             if (playbackModel != nullptr)
-                playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+            {
+                if (playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+                else
+                {
+                    playbackModel->Set_AnimationPaused(true);
+                    _isSectionPreviewPlaying = false;
+                }
+            }
         }
 
         Handle_ClipboardShortcuts();
@@ -1222,46 +1252,207 @@ void Animation_View::Draw_BoneTree()
     ImGui::EndChild();
 }
 
+float Animation_View::Get_PlaySectionStartSec(const AnimNotifyData* animationData) const
+{
+    if (animationData == nullptr)
+        return 0.f;
+
+    return std::clamp(animationData->playSectionStartSec, 0.f, max(0.f, Get_CurrentAnimationLengthSec()));
+}
+
+float Animation_View::Get_PlaySectionEndSec(const AnimNotifyData* animationData) const
+{
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    if (animationData == nullptr)
+        return animationLengthSec;
+
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = animationData->playSectionEndSec >= 0.f
+        ? animationData->playSectionEndSec
+        : animationLengthSec;
+
+    return std::clamp(endSec, startSec, animationLengthSec);
+}
+
+void Animation_View::Clamp_PlaySection(AnimNotifyData* animationData)
+{
+    if (animationData == nullptr)
+        return;
+
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    animationData->playSectionStartSec = std::clamp(animationData->playSectionStartSec, 0.f, animationLengthSec);
+
+    if (animationData->playSectionEndSec >= 0.f)
+        animationData->playSectionEndSec = std::clamp(animationData->playSectionEndSec, animationData->playSectionStartSec, animationLengthSec);
+}
+
+void Animation_View::Play_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = Get_PlaySectionEndSec(animationData);
+
+    if (endSec <= startSec + 0.0001f)
+    {
+        playbackModel->Set_AnimationPaused(true);
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+        _isSectionPreviewPlaying = false;
+        return;
+    }
+
+    const float currentSec = playbackModel->Get_CurrentAnimationTimeSec();
+    if (currentSec < startSec - 0.0001f || currentSec >= endSec - 0.0001f)
+    {
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    }
+
+    playbackModel->Set_AnimationPaused(false);
+    _isSectionPreviewPlaying = true;
+}
+
+void Animation_View::Stop_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const float startSec = Get_PlaySectionStartSec(Get_CurrentAnimation());
+    playbackModel->Set_AnimationPaused(true);
+    playbackModel->Set_CurrentAnimationTimeSec(startSec);
+    playbackModel->Play_Animation(0.f);
+    _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    _isSectionPreviewPlaying = false;
+}
+
 void Animation_View::Draw_PlaybackToolbar()
 {
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
     const bool hasPlayback = (playbackModel != nullptr);
     const float animationLengthSec = Get_CurrentAnimationLengthSec();
     const float sliderMaxTimeSec = max(0.01f, animationLengthSec);
-    const ImVec2 playbackButtonSize(64.f, 0.f);
+    const ImVec2 playbackButtonSize(58.f, 0.f);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f, 4.f));
 
     if (hasPlayback)
     {
         if (ImGui::Button(playbackModel->Is_AnimationPaused() ? "Play" : "Pause", playbackButtonSize))
-            playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+        {
+            if (playbackModel->Is_AnimationPaused())
+                Play_CurrentSection(playbackModel);
+            else
+            {
+                playbackModel->Set_AnimationPaused(true);
+                _isSectionPreviewPlaying = false;
+            }
+        }
 
         ImGui::SameLine();
 
         if (ImGui::Button("Stop", playbackButtonSize))
-        {
-            playbackModel->Set_AnimationPaused(true);
-            playbackModel->Set_CurrentAnimationTimeSec(0.f);
-            playbackModel->Play_Animation(0.f); // preview scrub/stop에서도 ANS state 갱신까지 함께 반영한다.
-            _sequencerCurrentFrame = 0;
-        }
+            Stop_CurrentSection(playbackModel);
 
         ImGui::SameLine();
-        ImGui::TextDisabled("Frame %d", _sequencerCurrentFrame);
-        ImGui::SameLine(0.f, 12.f);
-        ImGui::TextDisabled("Max Frame %d", Get_CurrentAnimationFrameMax());
+        ImGui::TextDisabled("Frame %d / %d", _sequencerCurrentFrame, Get_CurrentAnimationFrameMax());
         ImGui::SameLine(0.f, 12.f);
         ImGui::Checkbox("Grid", &_showPreviewGrid);
 
         ImGui::SameLine();
+        ImGui::TextDisabled("Time");
+        ImGui::SameLine();
 
         float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
-        ImGui::SetNextItemWidth(220.f);
+        ImGui::SetNextItemWidth(260.f);
         if (ImGui::SliderFloat("##AnimScrub", &currentTimeSec, 0.f, sliderMaxTimeSec, "%.3f s"))
         {
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
             playbackModel->Play_Animation(0.f); // 시간은 고정한 채 notify/state만 현재 위치 기준으로 다시 평가한다.
             _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
+            _isSectionPreviewPlaying = false;
+        }
+
+        AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData != nullptr)
+        {
+            const float sectionLengthSec = max(0.f, animationLengthSec);
+            float sectionStartSec = Get_PlaySectionStartSec(animationData);
+            float sectionEndSec = Get_PlaySectionEndSec(animationData);
+            const float selectedSectionLengthSec = max(0.f, sectionEndSec - sectionStartSec);
+
+            ImGui::Spacing();
+            ImGui::PushID("PlaySectionControls");
+            ImGui::TextDisabled("Section");
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("Start");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            if (ImGui::DragFloat("##SectionStartSec", &sectionStartSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                animationData->playSectionStartSec = std::clamp(sectionStartSec, 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionStartSet"))
+            {
+                animationData->playSectionStartSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("End");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            if (ImGui::DragFloat("##SectionEndSec", &sectionEndSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                animationData->playSectionEndSec = std::clamp(sectionEndSec, animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionEndSet"))
+            {
+                animationData->playSectionEndSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+            ImGui::TextDisabled("Len %.3fs", selectedSectionLengthSec);
+            ImGui::PopID();
+
         }
     }
     else
@@ -1283,6 +1474,8 @@ void Animation_View::Draw_PlaybackToolbar()
         ImGui::SliderFloat("##AnimScrub", &dummyTimeSec, 0.f, sliderMaxTimeSec, "%.3f s");
         ImGui::EndDisabled();
     }
+
+    ImGui::PopStyleVar();
 }
 
 void Animation_View::Draw_PreviewPanel()
@@ -1382,6 +1575,54 @@ void Animation_View::Draw_Sequencer()
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
             playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 ANS_WeaponRotate 같은 state notify를 같이 갱신한다.
         }
+    }
+
+    if (const AnimNotifyData* animationData = Get_CurrentAnimation())
+    {
+        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const float timelineMinX = sequencerRect.Min.x + 200.f;
+        const float timelineMaxX = sequencerRect.Max.x;
+        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
+        const int32 frameMax = max(1, Get_CurrentAnimationFrameMax());
+        const int32 fps = max(1, Get_CurrentAnimationFps());
+
+        const int32 startFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionStartSec(animationData) * static_cast<float>(fps))),
+            0,
+            frameMax);
+        const int32 endFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionEndSec(animationData) * static_cast<float>(fps))),
+            0,
+            frameMax);
+
+        const float startX = timelineMinX + timelineWidth * (static_cast<float>(startFrame) / static_cast<float>(frameMax));
+        const float endX = timelineMinX + timelineWidth * (static_cast<float>(endFrame) / static_cast<float>(frameMax));
+
+        const float markerY = sequencerRect.Min.y + 5.f;
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
+        const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
+
+        if (endX > startX)
+        {
+            drawList->AddLine(
+                ImVec2(startX, markerY),
+                ImVec2(endX, markerY),
+                sectionLine,
+                2.f);
+        }
+
+        drawList->AddLine(
+            ImVec2(startX, sequencerRect.Min.y),
+            ImVec2(startX, sequencerRect.Max.y),
+            sectionGuide,
+            1.f);
+
+        drawList->AddLine(
+            ImVec2(endX, sequencerRect.Min.y),
+            ImVec2(endX, sequencerRect.Max.y),
+            sectionGuide,
+            1.f);
     }
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))

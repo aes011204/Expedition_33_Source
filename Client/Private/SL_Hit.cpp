@@ -44,6 +44,15 @@ void SL_Hit::Update(float timeDelta)
         _stateCom->Change_State(SL_PlayerState::Idle);
 }
 
+void SL_Hit::ExitInvoke()
+{
+    if (Shared<SL_Maelle> owner = _owner.lock())
+        owner->Set_CombatLocked(false);
+
+    SL_State::ExitInvoke();
+
+}
+
 Shared<SL_Hit> SL_Hit::Create(const Shared<SL_Maelle>& owner)
 {
     auto instance = make_shared<SL_Hit>(owner);

@@ -53,10 +53,13 @@ bool SL_State::Request_Dodge(const SL_MoveRequest& request)
     return false;
 }
 
-bool SL_State::Play_Anim(SoulLikeAnim anim, float blendDuration, bool loop)
+bool SL_State::Play_Anim(SoulLikeAnim anim, float blendDuration, bool loop, float startTimeSec)
 {
     if (_body == nullptr)
         return false;
+
+    if (startTimeSec > 0.f)
+        return _body->Set_AnimationByStateTimeSec(ETOI(anim), blendDuration, loop, startTimeSec);
 
     return _body->Set_AnimationByState(ETOI(anim), blendDuration, loop);
 }

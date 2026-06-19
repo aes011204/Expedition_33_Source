@@ -32,6 +32,7 @@ public:
     void Set_Animation(uint32 animIndex, bool isLoop) const;
     bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false) const;
     bool Set_AnimationByState(uint32 stateIndex, bool isLoop) const;
+    bool Set_AnimationByStateTimeSec(uint32 stateIndex, float blendDuration, bool isLoop = false, float startTimeSec = 0.f) const;
     uint32 Get_AnimationIndex() const;
     uint32 Get_AnimationStateIndex() const;
     float Get_AnimationProgress() const;

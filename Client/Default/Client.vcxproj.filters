@@ -1147,6 +1147,7 @@
     <ClCompile Include="..\Private\Unlock_Manager.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
+    <ClCompile Include="..\Private\AL_SL_State.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1184,6 +1185,7 @@
     <ClInclude Include="..\Public\Unlock_Manager.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
+    <ClInclude Include="..\Public\AL_SL_State.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

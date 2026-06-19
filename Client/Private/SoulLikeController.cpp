@@ -78,10 +78,8 @@ void SoulLikeController::BeginPlay()
     if (!_editorStopHandle.IsValid())
     {
         _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
-            [this]
-            {
-                Handle_EditorStopRuntime();
-            });
+            this,
+            &SoulLikeController::Handle_EditorStopRuntime);
     }
 }
 
@@ -174,11 +172,6 @@ void SoulLikeController::End_BattleShotCamera()
         return;
 
     Request_TargetCamera();
-}
-
-HRESULT SoulLikeController::Ready_BattleTurnCamera()
-{
-    return S_OK;
 }
 
 void SoulLikeController::Request_TargetCamera()
@@ -466,7 +459,6 @@ void SoulLikeController::Handle_EditorStopRuntime()
 {
     Remove_SpawnedBattleActors();
 
-    _battleTurnCamera.reset();
     _state = BattleState::None;
     _enterFxTimer = 0.f;
     _playerSpawned = false;

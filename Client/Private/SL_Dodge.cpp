@@ -84,6 +84,9 @@ void SL_Dodge::ExitInvoke()
 {
     Stop_Movement();
 
+    if (Shared<SL_Maelle> owner = _owner.lock())
+        owner->Set_CombatLocked(false);
+
     SL_State::ExitInvoke();
 }
 

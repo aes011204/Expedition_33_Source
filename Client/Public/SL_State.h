@@ -38,7 +38,7 @@ public:
 
 
 protected:
-    bool Play_Anim(SoulLikeAnim anim, float blendDuration, bool loop);
+    bool Play_Anim(SoulLikeAnim anim, float blendDuration, bool loop, float startTimeSec = 0.f);
     bool Is_AnimFinished() const;
     void Stop_Movement();
 

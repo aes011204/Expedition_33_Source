@@ -80,6 +80,13 @@ bool PlayableParts::Set_AnimationByState(uint32 stateIndex, bool isLoop) const
     return _modelCom->Set_AnimationByState(stateIndex, isLoop);
 }
 
+bool PlayableParts::Set_AnimationByStateTimeSec(uint32 stateIndex, float blendDuration, bool isLoop, float startTimeSec) const
+{
+    if (nullptr == _modelCom) return false;
+
+    return _modelCom->Set_AnimationByStateTimeSec(stateIndex, blendDuration, isLoop, startTimeSec);
+}
+
 
 uint32 PlayableParts::Get_AnimationIndex() const
 {

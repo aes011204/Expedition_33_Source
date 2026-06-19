@@ -156,6 +156,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\AL_SL_State.h" />
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
@@ -537,6 +538,7 @@
     <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\AL_SL_State.cpp" />
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />

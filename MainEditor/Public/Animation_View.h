@@ -198,6 +198,11 @@ private:
     void Draw_CreateNotifyStatePopup();
     void Draw_SequencerContextMenu();
     void Draw_TrackSection();
+    float Get_PlaySectionStartSec(const AnimNotifyData* animationData) const;
+    float Get_PlaySectionEndSec(const AnimNotifyData* animationData) const;
+    void Clamp_PlaySection(AnimNotifyData* animationData);
+    void Play_CurrentSection(const Shared<ModelCom>& playbackModel);
+    void Stop_CurrentSection(const Shared<ModelCom>& playbackModel);
 
     void Add_NotifyTrack(const string& trackName);
     void Add_NotifyStateTrack(const string& trackName);
@@ -360,6 +365,7 @@ private:
     bool _showPreviewGrid = true;
     bool _showPreviewSkyBackdrop = true;
     bool _previewSkyBackdropBegunPlay = false;
+    bool _isSectionPreviewPlaying = false;
     float _topSectionHeight = 500.f;
     wstring _previewOwnerObjectKey{};
     

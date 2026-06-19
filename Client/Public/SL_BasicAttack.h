@@ -13,6 +13,8 @@ public:
 public:
     bool EnterInvoke() override;
     void Update(float timeDelta) override;
+    void ExitInvoke() override;
+
     bool Request_BasicAttack() override;
     bool Request_Skill(const Skill_Data& skillData, uint32 slotIndex) override;
 
