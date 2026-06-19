@@ -11,6 +11,9 @@ namespace
     constexpr wchar_t UI_Battle_GustaveSkillPanel_Path[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Skill_Gustave.json";
     constexpr wchar_t UI_Battle_LuneSkillPanel_Path[] = L"UI/UI_Json/BattleSystem/Lune/UI_BattleSystem_Skill_Lune.json";
     constexpr wchar_t UI_Battle_MaelleSkillPanel_Path[] = L"UI/UI_Json/BattleSystem/Maelle/UI_BattleSystem_Skill_Maelle.json";
+    constexpr wchar_t UI_Battle_GustaveGradientPanel_Path[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Gradient_Gustave.json";
+    constexpr wchar_t UI_Battle_LuneGradientPanel_Path[] = L"UI/UI_Json/BattleSystem/Lune/UI_BattleSystem_Gradient_Lune.json";
+    constexpr wchar_t UI_Battle_MaelleGradientPanel_Path[] = L"UI/UI_Json/BattleSystem/Maelle/UI_BattleSystem_Gradient_Maelle.json";
 
     constexpr wchar_t UI_BattleSkillTooltip_LumiereAssault_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_LumiereAssault.json";
     constexpr wchar_t UI_BattleSkillTooltip_UnleashedCharge_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_UnleashedCharge.json";
@@ -139,6 +142,7 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
     }
 
     Close_MainPanels();
+    Close_GradientPanels();
 
     _root = nextRoot;
     _activeView = (_root != nullptr) ? ActiveView::MainPanel : ActiveView::None;
@@ -193,6 +197,61 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
     }
 }
 
+void UI_BattleSkillPanel::Open_GradientPanel(PlayerCharacterType playerType)
+{
+    Shared<UI_Base> nextRoot = nullptr;
+
+    switch (playerType)
+    {
+    case PlayerCharacterType::Gustave:
+        nextRoot = _gustaveGradientPanel;
+        break;
+
+    case PlayerCharacterType::Lune:
+        nextRoot = _luneGradientPanel;
+        break;
+
+    case PlayerCharacterType::Maelle:
+        nextRoot = _maelleGradientPanel;
+        break;
+
+    default:
+        break;
+    }
+
+    _activeHeroId = Resolve_HeroId(playerType);
+
+    if (_activeView == ActiveView::GradientPanel && _root == nextRoot && _isOpen)
+    {
+        Apply_CurrentRootEditorOffsets();
+        return;
+    }
+
+    if (_activeView == ActiveView::Tooltip)
+    {
+        Close();
+        return;
+    }
+
+    Close_MainPanels();
+    Close_GradientPanels();
+
+    _root = nextRoot;
+    _activeView = (_root != nullptr) ? ActiveView::GradientPanel : ActiveView::None;
+    Reset_EditorDesignPositionCache();
+
+    if (_root == nullptr)
+    {
+        _isOpen = false;
+        _activeHeroId = HeroId::END;
+        return;
+    }
+
+    UI_RuntimePanelBase::Open();
+    _root->Open();
+    Apply_CurrentRootEditorOffsets();
+}
+
 void UI_BattleSkillPanel::Open_Tooltip(const string& skillKey)
 {
     auto iter = _tooltipRoots.find(skillKey);
@@ -214,6 +273,7 @@ void UI_BattleSkillPanel::Open_Tooltip(const string& skillKey)
     }
 
     Close_MainPanels();
+    Close_GradientPanels();
     Close_TooltipImmediately();
 
     _activeHeroId = HeroId::END;
@@ -266,6 +326,7 @@ void UI_BattleSkillPanel::Close()
 void UI_BattleSkillPanel::Close_Immediately()
 {
     Close_MainPanels();
+    Close_GradientPanels();
     Close_Tooltips();
 
     _root = nullptr;
@@ -438,6 +499,10 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
             L"Image_BattleSystem_Skill_Maelle_Deco_3",
         }), E_FAIL);
 
+    CHECK_FAILED(Load_AndMerge(UI_Battle_GustaveGradientPanel_Path, L"BattleGradientPanelGustave", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_Battle_LuneGradientPanel_Path, L"BattleGradientPanelLune", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_Battle_MaelleGradientPanel_Path, L"BattleGradientPanelMaelle", {}, nullptr, {}), E_FAIL);
+
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_LumiereAssault_Path, L"BattleSkillTooltipLumiereAssault", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_UnleashedCharge_Path, L"BattleSkillTooltipUnleashedCharge", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_MarkingShot_Path, L"BattleSkillTooltipMarkingShot", {}, nullptr, {}), E_FAIL);
@@ -460,10 +525,16 @@ HRESULT UI_BattleSkillPanel::Bind_UI()
     _gustavePanel = Find_UI(_uiByName, L"Panel_BattleSystem_Skill_Gustave");
     _lunePanel = Find_UI(_uiByName, L"Panel_BattleSystem_Skill_Lune");
     _maellePanel = Find_UI(_uiByName, L"Panel_BattleSystem_Skill_Maelle");
+    _gustaveGradientPanel = Find_UI(_uiByName, L"Panel_BattleSystem_Gradient_Gustave");
+    _luneGradientPanel = Find_UI(_uiByName, L"Panel_BattleSystem_Gradient_Lune");
+    _maelleGradientPanel = Find_UI(_uiByName, L"Panel_BattleSystem_Gradient_Maelle");
 
     CHECK_NULL(_gustavePanel, E_FAIL);
     CHECK_NULL(_lunePanel, E_FAIL);
     CHECK_NULL(_maellePanel, E_FAIL);
+    CHECK_NULL(_gustaveGradientPanel, E_FAIL);
+    CHECK_NULL(_luneGradientPanel, E_FAIL);
+    CHECK_NULL(_maelleGradientPanel, E_FAIL);
 
     auto Bind_Tooltip = [&](const string& skillKey, const wchar_t* rootName) -> HRESULT
         {
@@ -531,6 +602,13 @@ void UI_BattleSkillPanel::Close_MainPanels()
     if (_gustavePanel) _gustavePanel->Close();
     if (_lunePanel) _lunePanel->Close();
     if (_maellePanel) _maellePanel->Close();
+}
+
+void UI_BattleSkillPanel::Close_GradientPanels()
+{
+    if (_gustaveGradientPanel) _gustaveGradientPanel->Close();
+    if (_luneGradientPanel) _luneGradientPanel->Close();
+    if (_maelleGradientPanel) _maelleGradientPanel->Close();
 }
 
 void UI_BattleSkillPanel::Open_MainPanelUIs(HeroId heroId)
@@ -739,6 +817,9 @@ void UI_BattleSkillPanel::Free()
     _gustavePanel.reset();
     _lunePanel.reset();
     _maellePanel.reset();
+    _gustaveGradientPanel.reset();
+    _luneGradientPanel.reset();
+    _maelleGradientPanel.reset();
     _gustaveMainPanelUIs.clear();
     _luneMainPanelUIs.clear();
     _maelleMainPanelUIs.clear();

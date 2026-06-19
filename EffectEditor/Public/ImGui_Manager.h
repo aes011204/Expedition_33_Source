@@ -4,6 +4,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor ImGui context 초기화, frame update, draw submission을 감싼다.
 class ImGui_Manager final : public Base
 {
 public:
@@ -15,7 +16,7 @@ public:
     void Update(float timeDelta);
     void Render();
 
-private:
+private: //## Helper::ImGuiLifecycle
     void ShutDown();
     void ImGuiStyleSetting();
     static string Get_ClientResourcePath(const wchar_t* relativePath);

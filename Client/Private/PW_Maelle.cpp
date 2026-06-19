@@ -9,8 +9,6 @@
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
-#include "ChainModifierPreset.h"
-#include <ChainModifier.h>
 #include "MovementCom.h"
 #include "TransformCom.h"
 
@@ -160,41 +158,6 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
 		}
 		else return E_FAIL;
-
-		// --- PoseFollowChainModifier for Scarf ---
-		PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
-		ChainModifierPreset::BuildPoseFollowScarfDesc(
-			scarfDesc,
-			Get_Transform().get(),
-			PlayerCharacterType::Maelle);
-
-		if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
-		{
-			body->Get_Model()->Add_AnimModifier(modifier);
-		}
-
-		// --- ChainModifier for Armband ---
-		ChainModifier::ChainModifierDesc armbandDesc{};
-		ChainModifierPreset::BuildArmbandDesc(
-			armbandDesc,
-			Get_Transform().get(),
-			PlayerCharacterType::Maelle);
-
-		if (auto armbandModifier = ChainModifier::Create(&armbandDesc))
-		{
-			body->Get_Model()->Add_AnimModifier(armbandModifier);
-		}
-
-		PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
-		ChainModifierPreset::BuildPoseFollowCoatDesc(
-			coatDesc,
-			Get_Transform().get(),
-			PlayerCharacterType::Maelle);
-
-		if (auto coatModifier = PoseFollowChainModifier::Create(&coatDesc))
-		{
-			body->Get_Model()->Add_AnimModifier(coatModifier);
-		}
 
 	return S_OK;
 }

@@ -64,7 +64,18 @@ BNode::NODE_STATE BT_Set_TargetAI::Logic_Update(float deltaTime)
 
     bb->Set_Value("TargetIndex", targetIndex);
 
-    owner->Push_TargetHistory(targetIndex);
+    bool isAllTargetSkill = false;
+    for (const TargetType targetType : skill->targetingType)
+    {
+        if (targetType == TargetType::AllEnemies || targetType == TargetType::AllEnemiesJump)
+        {
+            isAllTargetSkill = true;
+            break;
+        }
+    }
+
+    if (!isAllTargetSkill)
+        owner->Push_TargetHistory(targetIndex);
     return BNode::NODE_STATE::SUCCESS;
 }
 

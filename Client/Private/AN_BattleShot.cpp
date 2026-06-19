@@ -1,11 +1,12 @@
 ﻿#include "AN_BattleShot.h"
-#include <GameObject.h>
+#include "GameObject.h"
 #include "Battle_Event.h"
 #include "GameInstance.h"
 #include "Event_Bus.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "PlayableParts.h"
+#include "SoulLikeController.h"
 
 namespace
 {
@@ -57,7 +58,25 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
 
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr || !battle->Is_BattleStarted())
+    {
+        if (!CLIENT->Is_SoulLikeBattleActive())
+            return;
+
+        Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController();
+        if (soulLikeController == nullptr)
+            return;
+
+        soulLikeController->Handle_BattleShotNotify(
+            context,
+            _cameraMode,
+            _presetId,
+            _clipId,
+            _useClip,
+            _restartClip,
+            _keepCurrentClip);
+
         return;
+    }
 
     if (!Is_BattleRosterModel(*battle, context.model))
         return;

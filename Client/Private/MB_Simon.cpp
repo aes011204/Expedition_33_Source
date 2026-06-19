@@ -89,7 +89,7 @@ HRESULT MB_Simon::Ready_PartObjects()
 
     Mon_Simon_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = ModelType::Anim;
+    weaponDesc.modelType = ModelType::NonAnim;
     weaponDesc.modelTag = L"Model_Simon_Weapon";
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 

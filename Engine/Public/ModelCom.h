@@ -112,6 +112,7 @@ public: /* Animation Speed Control (Per-Animation) */
 
     bool Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
     bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
+    bool Set_AnimationByStateTimeSec(uint32 stateIndex, float blendDuration, bool isLoop = false, float startTimeSec = 0.f);
     uint32 Get_AnimIndexByState(uint32 stateIndex) const;
 
 public: // Morph 메시 연산 
@@ -184,6 +185,7 @@ public: /* AnimNotify */
 
     void    Set_CurrentAnimationTimeSec(float timeSec);
     void    Refresh_CurrentAnimationPose();
+    const AnimNotifyData* Find_AnimNotifyDataByState(uint32 stateIndex);
 
     // 현재 모델의 notify asset lazy-load
     bool    Ensure_AnimNotifyAssetLoaded();

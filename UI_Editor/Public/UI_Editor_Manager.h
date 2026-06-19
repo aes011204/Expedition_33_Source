@@ -59,9 +59,14 @@ public:
         UI_FillOrigin fillOrigin);
     ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
         const PatternOverlayPreviewDesc& previewDesc);
+    ID3D11ShaderResourceView* Get_MaterialVfxPreviewSRV(
+        const MaterialVfxPreviewDesc& previewDesc);
+    ID3D11ShaderResourceView* Get_ButtonSheenPreviewSRV(
+        const ButtonSheenPreviewDesc& previewDesc);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
     bool Create_PatternOverlayFromImage(ObjectId sourceObjectId);
+    bool Create_HoverBrushPreset(ObjectId targetObjectId, bool allowStateAnimationOverwrite = false);
     bool Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab);
     void Duplicate_UIObject(ObjectId objectId);
     void Delete_UIObject(ObjectId objectId);
@@ -99,6 +104,8 @@ public:
     bool Set_UIObjectUseFillRatio(ObjectId objectId, bool useFillRatio);
     bool Set_UIObjectFillRatio(ObjectId objectId, float fillRatio);
     bool Set_UIObjectFillOrigin(ObjectId objectId, UI_FillOrigin fillOrigin);
+    bool Set_UIObjectMaterialVfx(ObjectId objectId, const UI_MaterialVfxDesc& materialVfx);
+    bool Set_UIObjectButtonSheen(ObjectId objectId, const UI_ButtonSheenDesc& buttonSheen);
     bool Set_UIObjectVfxPath(ObjectId objectId, const string& vfxPath);
     bool Set_UIObjectVfxPlayOnOpen(ObjectId objectId, bool playOnOpen);
     bool Set_UIObjectVfxLoop(ObjectId objectId, bool loop);

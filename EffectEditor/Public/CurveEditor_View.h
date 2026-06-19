@@ -8,6 +8,7 @@ NS_BEGIN(EffectEditor)
 
 class Emitter_View;
 
+// 선택/pin된 module distribution curve들을 graph editor로 표시하고 편집한다.
 class CurveEditor_View final : public Editor_Window
 {
 public:
@@ -23,7 +24,7 @@ public:
     static bool Has_ModuleCurveTargets(AuthoringEmitter& emitter, AuthoringModule& module);
     static bool Has_ModuleConvertibleCurveTargets(AuthoringEmitter& emitter, AuthoringModule& module);
 
-private:
+private: //## Types::CurveTarget
     enum class CurveTargetChannel : uint8
     {
         Value,
@@ -86,7 +87,7 @@ private:
         GraphValueRange startRange{};
     };
 
-private:
+private: //## Helper::CurveTarget
     static bool Is_SameIdentity(const CurveTargetIdentity& lhs, const CurveTargetIdentity& rhs);
     static const char* Get_ChannelLabel(CurveTargetChannel channel);
     static float Read_Vector2Channel(const Vec2& value, CurveTargetChannel channel);
@@ -131,6 +132,7 @@ private:
     static TargetEditRange Compute_TargetEditRange(const CurveTarget& target);
     static float Clamp_GraphEditedValue(const CurveTarget& target, float value);
 
+private: //## Helper::TargetResolve
     Shared<Emitter_View> Resolve_EmitterView() const;
     static vector<CurveTarget> Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module, bool requireActiveCurve = true);
     vector<CurveTarget> Resolve_PinnedTargets();
@@ -177,11 +179,13 @@ private:
     void Remove_StalePinnedTracks(const vector<CurveTarget>& targets);
     void Ensure_ActiveTrack(const vector<CurveTarget>& targets);
 
+private: //## Helper::AuthoringHistory
     void Begin_CurveAuthoringEdit(const CurveTarget& target, const string& description);
     void Commit_CurveAuthoringEdit();
     bool Execute_CurveAuthoringEdit(const CurveTarget& target, const string& description, const function<bool()>& edit);
     void Mark_CurveChanged(const CurveTarget& target);
 
+private: //## Helper::Render
     bool Convert_ActiveTargetToConstantCurve(const CurveTarget& target);
     GraphValueRange Compute_GraphValueRange(const vector<CurveTarget>& targets);
     bool Is_GraphDragActiveFor(const CurveTarget& target, size_t keyIndex) const;
@@ -202,7 +206,7 @@ private:
 public:
     static Shared<CurveEditor_View> Create();
 
-private:
+private: //## Data::CurveEditor
     vector<PinnedTrack> _pinnedTracks{};
     optional<CurveTargetIdentity> _activeTrack{};
     optional<size_t> _selectedKeyIndex{};

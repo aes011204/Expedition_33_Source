@@ -14,28 +14,28 @@ NS_BEGIN(Client)
 // TODO: 추가 병목이 확인되면 emitter별 Reset_ForEffectReplay 비용을 더 줄인다.
 // 자동 완료 반환은 fire-and-forget entry에만 허용하고, owner-tracked entry는 consumer의 명시 release를 정본으로 둔다.
 
-// EffectInstance 전체를 재사용 단위로 관리하는 Client-local pool helper다.
+// EffectInstance root 단위 acquire/release/reuse를 관리하는 Client-local pool helper다.
 class EffectInstancePool final : public Base
 {
-public:
+public: //## Types::Public
     /**
      * Acquire()에 전달하는 "이 EffectInstance 1개를 어떻게 준비할지" 입력값이다.
      * 여기서 instance 단위란 EffectEmitter 1개가 아니라, 여러 emitter를 소유한 EffectInstance root 1개를 뜻한다.
      */
     struct AcquireDesc
     {
-        wstring effectName{};                                   // 저장된 effect definition을 찾는 이름이자, pool에서 같은 effect끼리 재사용하기 위한 key다.
-        Shared<const EffectDefinition> definition{};            // effectName lookup을 건너뛰고 이 definition을 직접 재생할 때 쓴다. editor preview 갱신용 입력이다.
-        uint32 layerLevelIndex{ ETOI(LevelType::Static) };      // 새 EffectInstance를 spawn하거나 inactive instance를 제거할 때 접근할 level layer index다.
-        wstring layerTag{};                                     // pool에 재사용 가능한 instance가 없을 때 새 EffectInstance를 등록할 layer tag다.
-        Vec3 worldPosition{ Vec3::Zero };                       // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
-        Vec3 scale{ Vec3::One };                                // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
-        Quat worldRotation{ Quat::Identity };                   // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
+        wstring effectName{};                              // 저장된 effect definition을 찾는 이름이자, pool에서 같은 effect끼리 재사용하기 위한 key다.
+        Shared<const EffectDefinition> definition{};       // effectName lookup을 건너뛰고 이 definition을 직접 재생할 때 쓴다. editor preview 갱신용 입력이다.
+        uint32 layerLevelIndex{ ETOI(LevelType::Static) }; // 새 EffectInstance를 spawn하거나 inactive instance를 제거할 때 접근할 level layer index다.
+        wstring layerTag{};                                // pool에 재사용 가능한 instance가 없을 때 새 EffectInstance를 등록할 layer tag다.
+        Vec3 worldPosition{ Vec3::Zero };                  // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
+        Vec3 scale{ Vec3::One };                           // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
+        Quat worldRotation{ Quat::Identity };              // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
         [[deprecated("Use worldRotation quaternion instead.")]]
-        Vec3 worldRotationEuler{ Vec3::Zero };                  // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
-        Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
+        Vec3 worldRotationEuler{ Vec3::Zero };                              // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
+        Weak<IEffectTrailSampleProvider> trailSampleProvider{};             // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
         Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{}; // source history emitter가 단일 source sample을 얻는 provider다.
-        bool autoReleaseOnFinished{ true };                     // true면 Release_Finished()가 완료된 instance를 자동 반환할 수 있다.
+        bool autoReleaseOnFinished{ true };                                 // true면 Release_Finished()가 완료된 instance를 자동 반환할 수 있다.
     };
 
     /**
@@ -63,7 +63,7 @@ public:
     EffectInstancePool() = default;
     ~EffectInstancePool() override = default;
 
-public:
+public: //## Behavior::Pool
     // 기존 instance 재사용 또는 신규 spawn 후 ready 상태로 돌려준다.
     HRESULT Acquire(const AcquireDesc& desc, AttachedHandle& outHandle);
     // 이미 acquired 된 instance root를 유지한 채 새 definition으로 preview/runtime 내용을 갱신한다.
@@ -75,7 +75,7 @@ public:
     // pool bookkeeping과 재사용 엔트리를 비운다.
     void Clear();
 
-public:
+public: //## Debug::EditorSession
     // [Effect Editor용] 같은 key의 inactive entry만 level에서 제거해 mutable preview definition 재사용을 막는다.
     void Discard_Inactive(const wstring& effectName);
     DebugSummary Get_DebugSummary() const;
@@ -83,7 +83,7 @@ public:
     // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기
     HRESULT Prewarm(const AcquireDesc& desc, uint32 count);
 
-private:
+private: //## Types::Pool
     /**
      * pool 내부 슬롯 1개다. 슬롯 1개는 재사용 가능한 EffectInstance 1개와, 그 instance를 다시 빌려줘도 되는지 여부를 기록한다.
      * caller에게는 AttachedHandle만 노출하고, 실제 EffectInstance 소유/재사용 상태는 이 entry가 추적한다.
@@ -99,10 +99,11 @@ private:
         bool autoReleaseOnFinished{ true };          // 완료 시 전역 자동 반환을 허용하는 fire-and-forget entry인지 기록한다.
     };
 
-private:
-    vector<PooledInstance> _entries{}; // 현재 pool이 관리하는 EffectInstance 재사용 엔트리 목록이다.
+private: //## Data::Pool
+    // 현재 pool이 관리하는 EffectInstance 재사용 엔트리 목록이다.
+    vector<PooledInstance> _entries{};
 
-private:
+private: //## Helper::Pool
     // key 기준 instance 확보를 담당한다.
     HRESULT Acquire_Instance(
         const AcquireDesc& desc,

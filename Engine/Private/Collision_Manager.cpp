@@ -12,7 +12,7 @@ HRESULT Collision_Manager::Initialize()
 
 void Collision_Manager::Update()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     if (GAME->KeyDown(KEY_TYPE::F1))
         _isDebug = !_isDebug;
 #endif
@@ -100,10 +100,12 @@ void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
     }
 
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     if (GAME->KeyDown(KEY_TYPE::F1))
         _isDebug = !_isDebug;
+#endif
 
+#ifdef _DEBUG
     if (sampleUpdatePerf)
     {
         perfSample.updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
@@ -141,6 +143,9 @@ bool Collision_Manager::Try_ConsumePerfSummary(const float windowSec, CollisionP
     return true;
 }
 
+#endif
+
+#if defined(_DEBUG) || defined(_EDITOR)
 void Collision_Manager::Render_Debug()
 {
     if (!_isDebug)
@@ -156,7 +161,9 @@ void Collision_Manager::Render_Debug()
         }
     }
 }
+#endif
 
+#ifdef _DEBUG
 void Collision_Manager::Accumulate_UpdatePerf(const UpdatePerfSample& sample)
 {
     ++_collisionPerfWindow.updateFrameCount;

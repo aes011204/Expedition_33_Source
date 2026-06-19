@@ -158,6 +158,8 @@ public:
     // 전투 결과 반영
     BattleSyncSnapshot Create_BattleSyncSnapshot() const;
     void Apply_BattleSyncSnapshot(const BattleSyncSnapshot& snapshot);
+    json Create_SaveJson() const;
+    bool Apply_SaveJson(const json& data);
 
     const array<string, EquippedPictosSlotCount>& Get_EquippedPictosIds() const
     {

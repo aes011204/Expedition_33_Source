@@ -717,6 +717,7 @@ HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)
 
         SkillTreeDesc desc{};
         desc.unlockCost = item.value("unlock cost", 0u);
+        desc.useCost = item.value("use cost", 0u);
         desc.portraitTextureName = item.value("portrait", "");
         desc.descUiName = item.value("desc ui", "");
         desc.skillName = String::ToWString(item.value("skill name", ""));

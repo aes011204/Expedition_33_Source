@@ -138,7 +138,7 @@ void Monster_WorldBase::BeginPlay()
 
 void Monster_WorldBase::Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return;
 
     const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
@@ -344,7 +344,7 @@ void Monster_WorldBase::Late_Update(float timeDelta)
     auto* weakPoint = dynamic_cast<Mon_WeakPoint*>(Get_PartObject(L"Part_Weak"));
 
     // 배틀 중에는 월드 베이스 안보이게
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
     {
         Set_Visible(false);
 
@@ -470,7 +470,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         return;
 
     // 이미 전투 중이거나, 충돌 후 2초 슬로우모션 진입 중이면
-    if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
         return;
 
     const Shared<GameObject> overlapOwner = other ? other->Get_Owner() : nullptr;

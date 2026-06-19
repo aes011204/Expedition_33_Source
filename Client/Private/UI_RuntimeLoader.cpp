@@ -72,6 +72,31 @@ namespace
         string patternMaskTexturePath{};
         Vec2 patternUvOffset{ 0.f, 0.f };
         Vec2 patternUvScale{ 1.f, 1.f };
+        UI_Image::MaterialVfxMode materialVfxMode = UI_Image::MaterialVfxMode::Energy;
+        string materialVfxNoiseTextureGuid{};
+        string materialVfxNoiseTexturePath{};
+        Vec4 materialVfxColor{ 1.f, 0.12f, 0.95f, 1.f };
+        Vec4 materialVfxCoreColor{ 1.f, 0.92f, 1.f, 1.f };
+        Vec4 materialVfxFlowColor{ 1.f, 1.f, 1.f, 0.f };
+        float materialVfxGlow = 4.f;
+        float materialVfxAlpha = 1.f;
+        float materialVfxCoreStrength = 2.2f;
+        float materialVfxCoreWidth = 0.13f;
+        float materialVfxCoreSoftness = 0.05f;
+        float materialVfxNoiseStrength = 0.35f;
+        Vec2 materialVfxUvScroll{ 0.08f, -0.18f };
+        float materialVfxEdgeWidth = 0.18f;
+        float materialVfxEdgeSoftness = 0.08f;
+        float materialVfxErosion = 0.18f;
+        float materialVfxFlicker = 0.22f;
+        float materialVfxDistortion = 0.015f;
+        float materialVfxEdgeWobbleSpeed = 1.f;
+        Vec4 buttonSheenColor{ 1.f, 0.960784f, 0.882353f, 0.588235f };
+        float buttonSheenSpeed = 0.75f;
+        float buttonSheenWidth = 0.18f;
+        float buttonSheenSoftness = 0.12f;
+        float buttonSheenAngle = -0.08f;
+        float buttonSheenNoiseStrength = 0.35f;
         bool useFillRatio = false;
         float fillRatio = 1.f;
         UI_Image::FillOrigin fillOrigin = UI_Image::FillOrigin::LeftToRight;
@@ -322,8 +347,63 @@ namespace
 
         if ("patternoverlay" == mode || "pattern_overlay" == mode || "pattern overlay" == mode)
             return UI_Image::ImageRenderMode::PatternOverlay;
+        if ("materialvfx" == mode || "material_vfx" == mode || "material vfx" == mode)
+            return UI_Image::ImageRenderMode::MaterialVfx;
+        if ("buttonsheen" == mode || "button_sheen" == mode || "button sheen" == mode)
+            return UI_Image::ImageRenderMode::ButtonSheen;
 
         return UI_Image::ImageRenderMode::Normal;
+    }
+
+    UI_Image::MaterialVfxMode Parse_MaterialVfxMode(const string& modeName)
+    {
+        const string mode = String::ToLowerCopy(modeName);
+
+        if ("brushflow" == mode || "brush_flow" == mode || "brush flow" == mode)
+            return UI_Image::MaterialVfxMode::BrushFlow;
+
+        return UI_Image::MaterialVfxMode::Energy;
+    }
+
+    void Read_MaterialVfx(const json& item, RuntimeUIObject& object)
+    {
+        const auto iter = item.find("materialVfx");
+        if (iter == item.end() || !iter->is_object())
+            return;
+
+        object.materialVfxMode = Parse_MaterialVfxMode(Read_String(*iter, "mode", "Energy"));
+        object.materialVfxNoiseTextureGuid = Read_String(*iter, "noiseTextureGuid", object.materialVfxNoiseTextureGuid);
+        object.materialVfxNoiseTexturePath = Read_String(*iter, "noiseTexturePath", object.materialVfxNoiseTexturePath);
+        object.materialVfxColor = Read_Color(*iter, "color", object.materialVfxColor);
+        object.materialVfxCoreColor = Read_Color(*iter, "coreColor", object.materialVfxCoreColor);
+        object.materialVfxFlowColor = Read_Color(*iter, "flowColor", object.materialVfxFlowColor);
+        object.materialVfxGlow = max(0.f, Read_Float(*iter, "glow", object.materialVfxGlow));
+        object.materialVfxAlpha = max(0.f, Read_Float(*iter, "alpha", object.materialVfxAlpha));
+        object.materialVfxCoreStrength = max(0.f, Read_Float(*iter, "coreStrength", object.materialVfxCoreStrength));
+        object.materialVfxCoreWidth = max(0.001f, Read_Float(*iter, "coreWidth", object.materialVfxCoreWidth));
+        object.materialVfxCoreSoftness = max(0.001f, Read_Float(*iter, "coreSoftness", object.materialVfxCoreSoftness));
+        object.materialVfxNoiseStrength = min(max(Read_Float(*iter, "noiseStrength", object.materialVfxNoiseStrength), 0.f), 1.f);
+        object.materialVfxUvScroll = Read_Vec2(*iter, "uvScroll", object.materialVfxUvScroll);
+        object.materialVfxEdgeWidth = max(0.001f, Read_Float(*iter, "edgeWidth", object.materialVfxEdgeWidth));
+        object.materialVfxEdgeSoftness = max(0.001f, Read_Float(*iter, "edgeSoftness", object.materialVfxEdgeSoftness));
+        object.materialVfxErosion = min(max(Read_Float(*iter, "erosion", object.materialVfxErosion), 0.f), 1.f);
+        object.materialVfxFlicker = min(max(Read_Float(*iter, "flicker", object.materialVfxFlicker), 0.f), 1.f);
+        object.materialVfxDistortion = min(max(Read_Float(*iter, "distortion", object.materialVfxDistortion), 0.f), 0.1f);
+        object.materialVfxEdgeWobbleSpeed = min(max(Read_Float(*iter, "edgeWobbleSpeed", object.materialVfxEdgeWobbleSpeed), 0.f), 4.f);
+    }
+
+    void Read_ButtonSheen(const json& item, RuntimeUIObject& object)
+    {
+        const auto iter = item.find("buttonSheen");
+        if (iter == item.end() || !iter->is_object())
+            return;
+
+        object.buttonSheenColor = Read_Color(*iter, "color", object.buttonSheenColor);
+        object.buttonSheenSpeed = min(max(Read_Float(*iter, "speed", object.buttonSheenSpeed), 0.f), 4.f);
+        object.buttonSheenWidth = min(max(Read_Float(*iter, "width", object.buttonSheenWidth), 0.001f), 1.f);
+        object.buttonSheenSoftness = min(max(Read_Float(*iter, "softness", object.buttonSheenSoftness), 0.001f), 1.f);
+        object.buttonSheenAngle = min(max(Read_Float(*iter, "angle", object.buttonSheenAngle), -2.f), 2.f);
+        object.buttonSheenNoiseStrength = min(max(Read_Float(*iter, "noiseStrength", object.buttonSheenNoiseStrength), 0.f), 1.f);
     }
 
     UI_Image::MaskTextureMode Parse_MaskTextureMode(const string& modeName)
@@ -1257,6 +1337,8 @@ namespace
         object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
         object.patternUvOffset = UI_Image::Clamp_PatternUvOffset(Read_Vec2(item, "patternUvOffset", UI_Image::Get_DefaultPatternUvOffset()));
         object.patternUvScale = UI_Image::Clamp_PatternUvScale(Read_Vec2(item, "patternUvScale", UI_Image::Get_DefaultPatternUvScale()));
+        Read_MaterialVfx(item, object);
+        Read_ButtonSheen(item, object);
         object.useFillRatio = Read_Bool(item, "useFillRatio", false);
         object.fillRatio = min(max(Read_Float(item, "fillRatio", 1.f), 0.f), 1.f);
         object.fillOrigin = Parse_FillOrigin(Read_String(item, "fillOrigin", "LeftToRight"));
@@ -1505,6 +1587,29 @@ namespace
         desc.maskTextureMode = object.maskTextureMode;
         desc.patternUvOffset = object.patternUvOffset;
         desc.patternUvScale = object.patternUvScale;
+        desc.materialVfxMode = object.materialVfxMode;
+        desc.materialVfxColor = object.materialVfxColor;
+        desc.materialVfxCoreColor = object.materialVfxCoreColor;
+        desc.materialVfxFlowColor = object.materialVfxFlowColor;
+        desc.materialVfxGlow = object.materialVfxGlow;
+        desc.materialVfxAlpha = object.materialVfxAlpha;
+        desc.materialVfxCoreStrength = object.materialVfxCoreStrength;
+        desc.materialVfxCoreWidth = object.materialVfxCoreWidth;
+        desc.materialVfxCoreSoftness = object.materialVfxCoreSoftness;
+        desc.materialVfxNoiseStrength = object.materialVfxNoiseStrength;
+        desc.materialVfxUvScroll = object.materialVfxUvScroll;
+        desc.materialVfxEdgeWidth = object.materialVfxEdgeWidth;
+        desc.materialVfxEdgeSoftness = object.materialVfxEdgeSoftness;
+        desc.materialVfxErosion = object.materialVfxErosion;
+        desc.materialVfxFlicker = object.materialVfxFlicker;
+        desc.materialVfxDistortion = object.materialVfxDistortion;
+        desc.materialVfxEdgeWobbleSpeed = object.materialVfxEdgeWobbleSpeed;
+        desc.buttonSheenColor = object.buttonSheenColor;
+        desc.buttonSheenSpeed = object.buttonSheenSpeed;
+        desc.buttonSheenWidth = object.buttonSheenWidth;
+        desc.buttonSheenSoftness = object.buttonSheenSoftness;
+        desc.buttonSheenAngle = object.buttonSheenAngle;
+        desc.buttonSheenNoiseStrength = object.buttonSheenNoiseStrength;
         desc.useFillRatio = object.useFillRatio;
         desc.fillRatio = object.fillRatio;
         desc.fillOrigin = object.fillOrigin;
@@ -1520,6 +1625,12 @@ namespace
             desc.patternMaskTexturePath = patternMaskTexturePath;
         else if (!object.patternMaskTextureGuid.empty() || !object.patternMaskTexturePath.empty())
             LOG_WARN("UI RuntimeLoader image pattern mask skipped: missing pattern mask texture. id={}", object.id);
+
+        const wstring materialVfxNoiseTexturePath = Resolve_JsonAssetPath(object.materialVfxNoiseTextureGuid, object.materialVfxNoiseTexturePath);
+        if (!materialVfxNoiseTexturePath.empty() && fs::exists(materialVfxNoiseTexturePath))
+            desc.materialVfxNoiseTexturePath = materialVfxNoiseTexturePath;
+        else if (!object.materialVfxNoiseTextureGuid.empty() || !object.materialVfxNoiseTexturePath.empty())
+            LOG_WARN("UI RuntimeLoader image material vfx noise skipped: missing noise texture. id={}", object.id);
 
         desc.color = object.color;
         desc.alphaMultiplier = object.alphaMultiplier;

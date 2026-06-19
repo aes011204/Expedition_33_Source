@@ -273,6 +273,45 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
     return true;
 }
 
+bool ModelCom::Set_AnimationByStateTimeSec(uint32 stateIndex, float blendDuration, bool isLoop, float startTimeSec)
+{
+    if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
+        return false;
+
+    const uint32 animIndex = _stateAnimIndices[stateIndex];
+
+    if (blendDuration <= 0.f)
+    {
+        _hasExplicitAnimation = true;
+        _skipInitialBlendSourceNotify = false;
+        _currentAnimStateIndex = stateIndex;
+        _nextAnimStateIndex = UINT32_MAX;
+        _currentAnimIndex = animIndex;
+        _isAnimLoop = isLoop;
+        _isBlending = false;
+        _isFinished = false;
+        _animations[_currentAnimIndex]->Set_StartTimeSec(startTimeSec);
+
+        Mark_BoneMatricesDirty();
+        return true;
+    }
+
+    _skipInitialBlendSourceNotify =
+        !_hasExplicitAnimation && _currentAnimIndex != animIndex;
+    _hasExplicitAnimation = true;
+    _nextAnimStateIndex = stateIndex;
+    _nextAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = true;
+    _blendDuration = blendDuration;
+    _blendElapsedTime = 0.f;
+    _isFinished = false;
+    _animations[_nextAnimIndex]->Set_StartTimeSec(startTimeSec);
+
+    Mark_BoneMatricesDirty();
+    return true;
+}
+
 uint32 ModelCom::Get_AnimIndexByState(uint32 stateIndex) const
 {
     return _stateAnimIndices[stateIndex];
@@ -1525,6 +1564,22 @@ void ModelCom::Refresh_CurrentAnimationPose()
     Mark_BoneMatricesDirty();
 }
 
+const AnimNotifyData* ModelCom::Find_AnimNotifyDataByState(uint32 stateIndex)
+{
+    if (!Ensure_AnimNotifyAssetLoaded())
+        return nullptr;
+
+    if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
+        return nullptr;
+
+    const uint32 animIndex = _stateAnimIndices[stateIndex];
+    const char* animationName = Get_AnimationName(animIndex);
+    if (animationName == nullptr)
+        return nullptr;
+
+    return AnimNotify_Parser::Find_Animation(_animNotifyAsset, animationName);
+}
+
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
 {
     if (_isAnimNotifyAssetLoaded)
@@ -2128,9 +2183,14 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
         _rootOriginalFrameVelocity.position =
             Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalRotationMatrix);
 
-        const float temp = _rootOriginalFrameVelocity.position.z;
+        const float tempZ = _rootOriginalFrameVelocity.position.z;
+
         _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
-        _rootOriginalFrameVelocity.position.y = temp;
+        _rootOriginalFrameVelocity.position.y = tempZ;
+
+
+
+
     }
 
     Mark_BoneMatricesDirty();

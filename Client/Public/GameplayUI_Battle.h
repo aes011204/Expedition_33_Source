@@ -133,6 +133,7 @@ private:
         const BattleChar& actor,
         BattleItemType selectedItemType,
         BattleTurnState currentState);
+
     HRESULT Ensure_BattleWorldSkillCards();
     void    Hide_BattleWorldSkillCards();
     void    Update_BattleWorldSkillCards(
@@ -140,6 +141,8 @@ private:
         const BattleChar& actor,
         const string& selectedSkillKey);
     void    Update_BattleTutorial(float timeDelta);
+
+    bool    Should_ShowChoiceTargetForSkillTargeting(const ActionRequest& request) const;
 
 private:
 #pragma region UI 위치맞추기

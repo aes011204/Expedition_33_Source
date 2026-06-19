@@ -13,7 +13,7 @@ namespace Client
     const unsigned int		g_iWinSizeX = { 1600 };
     const unsigned int		g_iWinSizeY = { 900 };
 
-    enum class LevelType { Static, Loading, MainTitle, GameEntry, GamePlay, MapTest, Stage01, GestralVillage, END };
+    enum class LevelType { Static, Loading, MainTitle, GameEntry, GamePlay, MapTest, Stage01, GestralVillage, Simon, END };
 }
 
 #include "Client_Macro.h"

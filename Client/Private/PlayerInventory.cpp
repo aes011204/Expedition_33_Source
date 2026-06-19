@@ -72,6 +72,66 @@ void PlayerInventory::Ensure_DefaultUnlockedWeapons(const vector<WeaponInventory
     }
 }
 
+json PlayerInventory::Create_SaveJson() const
+{
+    json root = json::object();
+    root["chroma"] = _chroma;
+    root["unlocked_pictos"] = _unlockedPictosIds;
+
+    root["owned_weapons"] = json::array();
+    for (const WeaponInventoryEntry& weapon : _ownedWeapons)
+    {
+        json entry = json::object();
+        entry["character_id"] = weapon.characterId;
+        entry["weapon_id"] = weapon.weaponId;
+        entry["enhance_level"] = weapon.enhanceLevel;
+        entry["enhance_exp"] = weapon.enhanceExp;
+        root["owned_weapons"].emplace_back(entry);
+    }
+
+    return root;
+}
+
+bool PlayerInventory::Apply_SaveJson(const json& data)
+{
+    if (!data.is_object())
+        return false;
+
+    Clear();
+    _chroma = data.value("chroma", 0u);
+
+    if (auto pictosIds = data.find("unlocked_pictos"); pictosIds != data.end() && pictosIds->is_array())
+    {
+        for (const json& pictosId : *pictosIds)
+        {
+            if (pictosId.is_string())
+                Unlock_Pictos(pictosId.get<string>());
+        }
+    }
+
+    if (auto weapons = data.find("owned_weapons"); weapons != data.end() && weapons->is_array())
+    {
+        for (const json& weapon : *weapons)
+        {
+            if (!weapon.is_object())
+                continue;
+
+            WeaponInventoryEntry entry{};
+            entry.characterId = weapon.value("character_id", string{});
+            entry.weaponId = weapon.value("weapon_id", string{});
+            entry.enhanceLevel = weapon.value("enhance_level", 1u);
+            entry.enhanceExp = weapon.value("enhance_exp", 0u);
+
+            if (entry.characterId.empty() || entry.weaponId.empty() || Is_WeaponUnlocked(entry.characterId, entry.weaponId))
+                continue;
+
+            _ownedWeapons.emplace_back(std::move(entry));
+        }
+    }
+
+    return true;
+}
+
 Shared<PlayerInventory> PlayerInventory::Create()
 {
     return make_shared<PlayerInventory>();

@@ -9,6 +9,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+// Client resource tree, file grid, thumbnail cache, and content browser settings를 표시한다.
 class Content_Browser final : public Editor_Window, private ContentBrowserCore
 {
 public:

@@ -20,6 +20,7 @@
 #include "MELandscapeManager.h"
 #include "MEMaterialApplicator.h"
 #include "MEWaterActor.h"
+#include "CmdDeleteObject.h"
 
 // test
 #include "METerrainActor.h"
@@ -222,6 +223,19 @@ HRESULT MapEditorApp::Render()
         _pickingSystem->DoPickAt(_scene, mousePos, vpPos, vpSize, *_rt);
     }
 
+    if (_viewport->ConsumeDelete())
+    {
+        if (_scene._selected)
+        {
+            auto it = find(_scene._objects.begin(), _scene._objects.end(), _scene._selected);
+            if (it != _scene._objects.end())
+            {
+                int index = static_cast<int>(distance(_scene._objects.begin(), it));
+                _scene.PushCommand(CmdDeleteObject::Create(_scene._selected, index));
+            }
+        }
+    }
+
     if (_viewport->ConsumeCursorSet(mousePos, vpPos, vpSize))
     {
         _pickingSystem->SetCursorAt(_scene, *_camera, mousePos, vpPos, vpSize, *_rt);
@@ -285,6 +299,10 @@ HRESULT MapEditorApp::Render()
     {
         for (uint32 idx : visibleIndices)
         {
+            if (idx >= static_cast<uint32>(_scene._staticMeshes.size()))
+            {
+                continue;
+            }
             auto& obj = _scene._staticMeshes[idx];
             if (!obj->_renderHandle)
             {
