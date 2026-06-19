@@ -22,8 +22,12 @@ HRESULT Mon_Dualliste_Sword_R::Initialize_Prototype()
 HRESULT Mon_Dualliste_Sword_R::Initialize(void* arg)
 {
     auto* desc = static_cast<SWORD_DESC*>(arg);
+    SWORD_DESC fallbackDesc{};
+    fallbackDesc.modelType = ModelType::NonAnim;
+    fallbackDesc.modelTag = L"Model_Dualliste_Sword_R";
+
     if (desc == nullptr)
-        return E_FAIL;
+        desc = &fallbackDesc;
 
     _socketMatrix = desc->socketMatrix;
 
@@ -42,7 +46,11 @@ void Mon_Dualliste_Sword_R::Priority_Update(float timeDelta)
 
 void Mon_Dualliste_Sword_R::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
+    Matrix socketMatrix = Matrix::Identity;
+    if (_socketMatrix != nullptr)
+        socketMatrix = *_socketMatrix;
+
+    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * socketMatrix);
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);

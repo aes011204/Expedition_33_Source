@@ -1,8 +1,21 @@
-#include "Mon_Dualliste_Sword_L.h"
+﻿#include "Mon_Dualliste_Sword_L.h"
 
 #include "EffectCom.h"
 
 NS_BEGIN(Client)
+
+//IMPLEMENT_REFLECTION(Mon_Dualliste_Sword_L)
+//{
+//    auto& info = GetStaticReflectionInfo();
+//    info.properties.clear();
+//
+//    info.displayName = "Mon_Dualliste_Sword_L";
+//    info.category = "Monster";
+//    
+//
+//    return true;
+//}
+
 
 Mon_Dualliste_Sword_L::Mon_Dualliste_Sword_L(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Monster_Part(device, context)
@@ -22,8 +35,12 @@ HRESULT Mon_Dualliste_Sword_L::Initialize_Prototype()
 HRESULT Mon_Dualliste_Sword_L::Initialize(void* arg)
 {
     auto* desc = static_cast<SWORD_DESC*>(arg);
+    SWORD_DESC fallbackDesc{};
+    fallbackDesc.modelType = ModelType::NonAnim;
+    fallbackDesc.modelTag = L"Model_Dualliste_Sword_L";
+
     if (desc == nullptr)
-        return E_FAIL;
+        desc = &fallbackDesc;
 
     _socketMatrix = desc->socketMatrix;
 
@@ -42,7 +59,11 @@ void Mon_Dualliste_Sword_L::Priority_Update(float timeDelta)
 
 void Mon_Dualliste_Sword_L::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
+    Matrix socketMatrix = Matrix::Identity;
+    if (_socketMatrix != nullptr)
+        socketMatrix = *_socketMatrix;
+
+    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * socketMatrix);
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
