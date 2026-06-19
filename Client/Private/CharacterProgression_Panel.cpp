@@ -25,8 +25,10 @@
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
 #include "GameDataTable.h"
-
+#include "GradientSkill.h"
 #include "PreviewPlayer.h"
+
+#include <algorithm>
 
 using namespace UI_Utils;
 
@@ -147,7 +149,7 @@ HRESULT CharacterProgression_Panel::Prepare_OpenResources()
     if (_abilityPentagonFill != nullptr)
         return S_OK;
 
-    // preview 캐릭터와 달리 UI 안에서만 쓰는 작은 런타임 도형이라 미리 만들어도 메뉴 흐름을 바꾸지 않는다.
+    // 메뉴 진입 전에 리소스만 준비하고, 실제 표시는 Open()에서만 켠다.
     return Ensure_AbilityPentagonUI();
 }
 
@@ -168,6 +170,9 @@ void CharacterProgression_Panel::Open(ContentTab initialTab)
 
     if (FAILED(Prepare_OpenResources()))
         LOG_WARN("CharacterProgression_Panel: failed to prepare runtime open resources");
+
+    if (_abilityPentagonFill)
+        _abilityPentagonFill->Open();
 
     _lastAction = Action::None;
     _activeContentTab = ContentTab::Overview;
@@ -205,6 +210,8 @@ void CharacterProgression_Panel::Close_Immediately(bool restoreWorldControl)
     _activeContentTab = ContentTab::Overview;
     _isShowingAvailableSkills = false;
     Set_SkillAreaVisible(false); // 닫는 중에는 Progression의 기술 영역을 다시 열지 않는다.
+    if (_abilityPentagonFill)
+        _abilityPentagonFill->Close(); // Add_UI로 만든 런타임 도형이라 root close만으로는 레벨 전환 때 남을 수 있다.
     UI_RuntimePanelBase::Close();
     Set_UIMapOpenState(_uiByName, false);
     Restore_PreviewOverrides();
@@ -773,10 +780,15 @@ void CharacterProgression_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCo
             skillKeys = skillTreeCom->Get_UnlockedSkillIds(); // 장착값이 아직 없으면 해금 스킬 순서를 초기 5칸 표시 기준으로 쓴다.
     }
 
-    if (skillKeys.size() > 5)
-        skillKeys.resize(5); // 6번째 Gradient 슬롯은 일반 스킬 표시에서 제외한다.
-    else
-        skillKeys.resize(5);
+    skillKeys.erase(
+        remove_if(skillKeys.begin(), skillKeys.end(),
+            [this](const string& skillKey)
+            {
+                return GradientSkill::Is_GradientSkill(_selectedHeroId, skillKey);
+            }),
+        skillKeys.end());
+
+    skillKeys.resize(GradientSkill::NormalSkillSlotCount); // 6번째 Gradient 슬롯은 일반 스킬 표시에서 제외한다.
 
     for (size_t i = 0; i < skillKeys.size(); ++i)
     {
@@ -806,7 +818,7 @@ void CharacterProgression_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCo
             _currentSkillEmptyLines[i]->Close(); // 스킬 이름이 들어간 슬롯에서는 앞 '-' 작대기를 숨긴다.
     }
 
-    // 6번째 슬롯은 일반 스킬 overflow가 아니라 추후 Gradient 스킬 전용 슬롯으로 비워 둔다.
+    Refresh_GradientSkillSlot(Resolve_SelectedSkillTree()); // 6번째 슬롯은 일반 overflow가 아니라 영웅별 Gradient 전용이다.
 }
 
 void CharacterProgression_Panel::Refresh_CurrentPictos(const Shared<PlayerStatCom>& statCom)
@@ -878,7 +890,15 @@ void CharacterProgression_Panel::Refresh_UnlockedSkills()
         return;
     }
 
-    const vector<string>& unlockedSkillIds = skillTreeCom->Get_UnlockedSkillIds();
+    vector<string> unlockedSkillIds = skillTreeCom->Get_UnlockedSkillIds();
+    unlockedSkillIds.erase(
+        remove_if(unlockedSkillIds.begin(), unlockedSkillIds.end(),
+            [this](const string& skillId)
+            {
+                return GradientSkill::Is_GradientSkill(_selectedHeroId, skillId);
+            }),
+        unlockedSkillIds.end());
+
     if (FAILED(Ensure_AvailableSkillSlotCount(unlockedSkillIds.size())))
         return;
 
@@ -900,6 +920,29 @@ void CharacterProgression_Panel::Refresh_UnlockedSkills()
         if (slot.root)
             slot.root->Open();
     }
+}
+
+void CharacterProgression_Panel::Refresh_GradientSkillSlot(const Shared<SkillTreeCom>& skillTreeCom)
+{
+    const char* gradientSkillKey = GradientSkill::Resolve_SkillKey(_selectedHeroId);
+    if (gradientSkillKey[0] == '\0' || skillTreeCom == nullptr || !skillTreeCom->IsUnlocked(gradientSkillKey))
+        return; // 잠긴 Gradient는 위 reset 상태("-") 유지
+
+    const GameDataTable::SkillTreeDesc* skillTreeDesc = CLIENT->Get_SkillTreeDesc(gradientSkillKey);
+
+    Set_Text(_gradientText, skillTreeDesc ? skillTreeDesc->skillName : String::ToWString(gradientSkillKey));
+    Set_IntText(_gradientGpText, skillTreeDesc ? skillTreeDesc->useCost : 0);
+    Set_IntText(_gradientGpBgText, skillTreeDesc ? skillTreeDesc->useCost : 0);
+
+    const wstring portraitPath = Resolve_SkillPortraitTexturePath(_selectedHeroId, skillTreeDesc);
+    if (_gradientIconImage && !portraitPath.empty())
+    {
+        _gradientIconImage->Set_TexturePath(portraitPath);
+        _gradientIconImage->Open();
+    }
+
+    if (_gradientEmptyLine)
+        _gradientEmptyLine->Close();
 }
 
 Shared<PlayerStatCom> CharacterProgression_Panel::Resolve_SelectedPlayerStat() const
@@ -1024,7 +1067,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
         desc.transformDesc.rotationRadians = transform->Get_RotationRadians();
     }
 
-    desc.isOpenOnCreate = true;
+    desc.isOpenOnCreate = false;
     desc.sortOrder = _abilityPentagonAnchor->Get_SortOrder();
     desc.renderGroup = _abilityPentagonAnchor->Get_RenderGroup();
     desc.texturePath = ResourceLoader::Resolve_RuntimePath(L"../Bin/Resources/Textures/UI/Common/Utility/T_White.png");
@@ -1040,6 +1083,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
 
     _abilityPentagonFill->Set_Parent(_abilityPanelRoot);
     _abilityPentagonAnchor->Close(); // 기존 json의 작은 중심 pentagon은 숨긴다.
+    _abilityPentagonFill->Close();   // prewarm 단계에서는 독립 런타임 UI가 화면에 뜨면 안 된다.
 
     return S_OK;
 }
@@ -1729,6 +1773,11 @@ void CharacterProgression_Panel::Free()
     _currentAgilityText.reset();
     _currentDefensePrimaryText.reset();
     _currentLuckText.reset();
+    if (_abilityPentagonFill)
+    {
+        _abilityPentagonFill->Close();
+        _abilityPentagonFill->Clear_Parent();
+    }
     _abilityPentagonFill.reset();
     _skillPanelRoot.reset();
     _skillTitleRoot.reset();

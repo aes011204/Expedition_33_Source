@@ -316,6 +316,17 @@ namespace Client::Constants::Prefab
     inline constexpr char MW_Volester[]         = "MW_Volester";
     inline constexpr char MB_Volester[]         = "MB_Volester";
 
+    inline constexpr char MW_Mime[]             = "MW_Mime";
+    inline constexpr char MB_Mime[]             = "MB_Mime";
+
+    inline constexpr char MW_PotatoBag[]        = "MW_PotatoBag";
+    inline constexpr char MB_PotatoBag[]        = "MB_PotatoBag";
+
+    // 쌍검
+    //inline constexpr char MW_Mime[]         = "MW_Mime";
+    //inline constexpr char MB_Mime[]         = "MB_Mime";
+
+
     inline constexpr char SL_Test_Lancelier[] = "SL_Test_Lancelier";
 #pragma endregion
 
@@ -339,6 +350,7 @@ namespace Client::Constants::Prefab
 
     inline constexpr char Eye_Target[]      = "ETC/EyeTarget";
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
+    inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
 
 }
 

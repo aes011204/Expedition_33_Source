@@ -8,6 +8,7 @@
 #include "AttackTargeting.h"
 #include "BattleStateMachine.h"
 #include "ChooseAction.h"
+#include "ChooseGradient.h"
 #include "ChooseItem.h"
 #include "ChooseSkill.h"
 #include "ChooseUltimate.h"
@@ -49,8 +50,10 @@
 #include "BattleTutorialController.h"
 #include "PlayerInventory.h"
 #include "PostProcessPipeline.h"
-
+#include "TransformCom.h"
+#include "GradientSkill.h"
 #include "PictosBattleSystem.h"
+#include "Unlock_Manager.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
@@ -378,11 +381,44 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
         _lastVictoryRewardExp = _battleSpawnRegistry->Get_BattleRewardExp();
-        Apply_VictoryRewardExp(_lastVictoryRewardExp);
+        Apply_VictoryRewardExp(_lastVictoryRewardExp); // 경험치 지급
 
+        // 크로마 지급
         if (auto inventory = CLIENT->Get_PlayerInventory())
         {
             inventory->Add_Chroma(_battleSpawnRegistry->Get_BattleRewardChroma());
+        }
+
+        if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+        {
+            vector<string> defeatedEnemyKeys{};
+            defeatedEnemyKeys.reserve(_enemies.size());
+
+            for (const BattleChar& enemy : _enemies)
+            {
+                if (enemy.actor == nullptr)
+                    continue;
+
+                const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
+                if (sourcePrefabName.empty())
+                    continue;
+
+                defeatedEnemyKeys.emplace_back(sourcePrefabName);
+            }
+
+            Vec3 rewardOrigin = Vec3::Zero;
+            const Vec3* rewardOriginPtr = nullptr;
+            if (const Shared<GameObject> sourceObject = _battleSpawnRegistry->Get_SourceWorldObject())
+            {
+                if (const Shared<TransformCom> sourceTransform = sourceObject->Get_Transform())
+                {
+                    rewardOrigin = sourceTransform->Get_WorldPosition();
+                    rewardOriginPtr = &rewardOrigin;
+                }
+            }
+
+            const uint32 rewardLevelIndex = _battleSpawnRegistry->Get_SourceWorldObjectLevelIndex();
+            unlockManager->Handle_BattleVictory(defeatedEnemyKeys, rewardLevelIndex, rewardOriginPtr);
         }
     }
 
@@ -445,6 +481,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         _battleSpawnRegistry->Destroy_SpawnedObjects();  // PB/MB는 무조건 제거
         _battleSpawnRegistry->Clear_SourceWorldObject(); // Neutral은 참조만 비우고, MW 오브젝트는 남겨야한다.
     }
+
+
 
     Clear_BattleRuntimeState();
 
@@ -2408,10 +2446,28 @@ void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<
     if (battleSkillKeys.empty() && worldSkillTreeCom)
         battleSkillKeys = worldSkillTreeCom->Get_UnlockedSkillIds(); // 장착값이 아직 없으면 해금 순서를 초기 5칸으로 사용한다.
 
-    if (battleSkillKeys.size() > 5)
-        battleSkillKeys.resize(5); // 6번째 Gradient 슬롯은 일반 battle skill 입력에 넣지 않는다.
+    battleSkillKeys.erase(
+        remove_if(battleSkillKeys.begin(), battleSkillKeys.end(),
+            [heroId](const string& skillKey)
+            {
+                return GradientSkill::Is_GradientSkill(heroId, skillKey);
+            }), battleSkillKeys.end());
+
+    // 5칸만 세팅
+    battleSkillKeys.resize(GradientSkill::NormalSkillSlotCount);
+
+    const char* gradientSkillKey = GradientSkill::Resolve_SkillKey(heroId);
+    if (gradientSkillKey[0] != '\0' &&
+        worldSkillTreeCom != nullptr &&
+        worldSkillTreeCom->IsUnlocked(gradientSkillKey) &&
+        CLIENT->Get_Skill(gradientSkillKey) != nullptr)
+    {
+        battleSkillKeys.push_back(gradientSkillKey); // 6번째 슬롯은 BattleCommand Q 전용 Gradient로 소비한다.
+    }
     else
-        battleSkillKeys.resize(5);
+    {
+        battleSkillKeys.push_back(""); // 잠긴 Gradient도 slot index를 유지한다.
+    }
 
     for (string& skillKey : battleSkillKeys)
     {
@@ -2591,6 +2647,7 @@ void BattleController::Set_BattleFSM()
     _battleFSM = BattleStateMachine::Create();
 
     _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseGradient, ChooseGradient::Create(GetSharedPtr<BattleController>()));
     _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(GetSharedPtr<BattleController>()));
     _battleFSM->Add_State(BattleTurnState::AttackPlaying, AttackPlaying::Create(GetSharedPtr<BattleController>()));
     _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(GetSharedPtr<BattleController>()));

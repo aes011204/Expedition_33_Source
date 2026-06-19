@@ -29,6 +29,8 @@
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 #include "Weapon.h"
+#include <algorithm>
+#include <cctype>
 
 namespace
 {
@@ -201,6 +203,25 @@ namespace
 
         return targetTime > previousTime || targetTime <= currentTime;
     }
+
+    bool Contains_CaseInsensitive(const string& text, const char* filter)
+    {
+        if (filter == nullptr || filter[0] == '\0')
+            return true;
+
+        string source = text;
+        string needle = filter;
+
+        auto toLower = [](unsigned char value)
+        {
+            return static_cast<char>(std::tolower(value));
+        };
+
+        std::transform(source.begin(), source.end(), source.begin(), toLower);
+        std::transform(needle.begin(), needle.end(), needle.begin(), toLower);
+
+        return source.find(needle) != string::npos;
+    }
 }
 
 Animation_View::Animation_View()
@@ -231,6 +252,28 @@ void Animation_View::Update(float timeDelta)
         return;
 
     Validate_SelectedBoneSelection();
+
+    if (_isSectionPreviewPlaying)
+    {
+        const AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData == nullptr)
+        {
+            _isSectionPreviewPlaying = false;
+            return;
+        }
+
+        const float startSec = Get_PlaySectionStartSec(animationData);
+        const float endSec = Get_PlaySectionEndSec(animationData);
+
+        if (playbackModel->Get_CurrentAnimationTimeSec() + 0.0001f >= endSec)
+        {
+            playbackModel->Set_CurrentAnimationTimeSec(startSec);
+            playbackModel->Play_Animation(0.f);
+            playbackModel->Set_AnimationPaused(false);
+            _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+            return;
+        }
+    }
 
     if (!playbackModel->Is_AnimationPaused())
     {
@@ -331,6 +374,7 @@ void Animation_View::Pre_Render()
             Late_Update_PreviewSkyBackdrop(dt);
 
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
+        Update_PreviewRootControllerStates(dt);
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
@@ -410,7 +454,15 @@ void Animation_View::Render()
         {
             Shared<ModelCom> playbackModel = Get_PlaybackModel();
             if (playbackModel != nullptr)
-                playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+            {
+                if (playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+                else
+                {
+                    playbackModel->Set_AnimationPaused(true);
+                    _isSectionPreviewPlaying = false;
+                }
+            }
         }
 
         Handle_ClipboardShortcuts();
@@ -493,6 +545,7 @@ void Animation_View::Render()
         Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
         Reset_PreviewSourceHistoryEffect();
+        Reset_PreviewRootControllerStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
     }
@@ -515,6 +568,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -550,6 +604,8 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -599,6 +655,8 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -653,6 +711,7 @@ void Animation_View::Reset_PreviewClone()
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewSourceHistoryEffect();
     _previewRootObject.reset();
     _previewModelCom.reset();
@@ -1222,46 +1281,207 @@ void Animation_View::Draw_BoneTree()
     ImGui::EndChild();
 }
 
+float Animation_View::Get_PlaySectionStartSec(const AnimNotifyData* animationData) const
+{
+    if (animationData == nullptr)
+        return 0.f;
+
+    return std::clamp(animationData->playSectionStartSec, 0.f, max(0.f, Get_CurrentAnimationLengthSec()));
+}
+
+float Animation_View::Get_PlaySectionEndSec(const AnimNotifyData* animationData) const
+{
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    if (animationData == nullptr)
+        return animationLengthSec;
+
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = animationData->playSectionEndSec >= 0.f
+        ? animationData->playSectionEndSec
+        : animationLengthSec;
+
+    return std::clamp(endSec, startSec, animationLengthSec);
+}
+
+void Animation_View::Clamp_PlaySection(AnimNotifyData* animationData)
+{
+    if (animationData == nullptr)
+        return;
+
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    animationData->playSectionStartSec = std::clamp(animationData->playSectionStartSec, 0.f, animationLengthSec);
+
+    if (animationData->playSectionEndSec >= 0.f)
+        animationData->playSectionEndSec = std::clamp(animationData->playSectionEndSec, animationData->playSectionStartSec, animationLengthSec);
+}
+
+void Animation_View::Play_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = Get_PlaySectionEndSec(animationData);
+
+    if (endSec <= startSec + 0.0001f)
+    {
+        playbackModel->Set_AnimationPaused(true);
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+        _isSectionPreviewPlaying = false;
+        return;
+    }
+
+    const float currentSec = playbackModel->Get_CurrentAnimationTimeSec();
+    if (currentSec < startSec - 0.0001f || currentSec >= endSec - 0.0001f)
+    {
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    }
+
+    playbackModel->Set_AnimationPaused(false);
+    _isSectionPreviewPlaying = true;
+}
+
+void Animation_View::Stop_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const float startSec = Get_PlaySectionStartSec(Get_CurrentAnimation());
+    playbackModel->Set_AnimationPaused(true);
+    playbackModel->Set_CurrentAnimationTimeSec(startSec);
+    playbackModel->Play_Animation(0.f);
+    _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    _isSectionPreviewPlaying = false;
+}
+
 void Animation_View::Draw_PlaybackToolbar()
 {
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
     const bool hasPlayback = (playbackModel != nullptr);
     const float animationLengthSec = Get_CurrentAnimationLengthSec();
     const float sliderMaxTimeSec = max(0.01f, animationLengthSec);
-    const ImVec2 playbackButtonSize(64.f, 0.f);
+    const ImVec2 playbackButtonSize(58.f, 0.f);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f, 4.f));
 
     if (hasPlayback)
     {
         if (ImGui::Button(playbackModel->Is_AnimationPaused() ? "Play" : "Pause", playbackButtonSize))
-            playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+        {
+            if (playbackModel->Is_AnimationPaused())
+                Play_CurrentSection(playbackModel);
+            else
+            {
+                playbackModel->Set_AnimationPaused(true);
+                _isSectionPreviewPlaying = false;
+            }
+        }
 
         ImGui::SameLine();
 
         if (ImGui::Button("Stop", playbackButtonSize))
-        {
-            playbackModel->Set_AnimationPaused(true);
-            playbackModel->Set_CurrentAnimationTimeSec(0.f);
-            playbackModel->Play_Animation(0.f); // preview scrub/stop에서도 ANS state 갱신까지 함께 반영한다.
-            _sequencerCurrentFrame = 0;
-        }
+            Stop_CurrentSection(playbackModel);
 
         ImGui::SameLine();
-        ImGui::TextDisabled("Frame %d", _sequencerCurrentFrame);
-        ImGui::SameLine(0.f, 12.f);
-        ImGui::TextDisabled("Max Frame %d", Get_CurrentAnimationFrameMax());
+        ImGui::TextDisabled("Frame %d / %d", _sequencerCurrentFrame, Get_CurrentAnimationFrameMax());
         ImGui::SameLine(0.f, 12.f);
         ImGui::Checkbox("Grid", &_showPreviewGrid);
 
         ImGui::SameLine();
+        ImGui::TextDisabled("Time");
+        ImGui::SameLine();
 
         float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
-        ImGui::SetNextItemWidth(220.f);
+        ImGui::SetNextItemWidth(260.f);
         if (ImGui::SliderFloat("##AnimScrub", &currentTimeSec, 0.f, sliderMaxTimeSec, "%.3f s"))
         {
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
             playbackModel->Play_Animation(0.f); // 시간은 고정한 채 notify/state만 현재 위치 기준으로 다시 평가한다.
             _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
+            _isSectionPreviewPlaying = false;
+        }
+
+        AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData != nullptr)
+        {
+            const float sectionLengthSec = max(0.f, animationLengthSec);
+            float sectionStartSec = Get_PlaySectionStartSec(animationData);
+            float sectionEndSec = Get_PlaySectionEndSec(animationData);
+            const float selectedSectionLengthSec = max(0.f, sectionEndSec - sectionStartSec);
+
+            ImGui::Spacing();
+            ImGui::PushID("PlaySectionControls");
+            ImGui::TextDisabled("Section");
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("Start");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            if (ImGui::DragFloat("##SectionStartSec", &sectionStartSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                animationData->playSectionStartSec = std::clamp(sectionStartSec, 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionStartSet"))
+            {
+                animationData->playSectionStartSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("End");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            if (ImGui::DragFloat("##SectionEndSec", &sectionEndSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                animationData->playSectionEndSec = std::clamp(sectionEndSec, animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionEndSet"))
+            {
+                animationData->playSectionEndSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+            ImGui::TextDisabled("Len %.3fs", selectedSectionLengthSec);
+            ImGui::PopID();
+
         }
     }
     else
@@ -1283,6 +1503,8 @@ void Animation_View::Draw_PlaybackToolbar()
         ImGui::SliderFloat("##AnimScrub", &dummyTimeSec, 0.f, sliderMaxTimeSec, "%.3f s");
         ImGui::EndDisabled();
     }
+
+    ImGui::PopStyleVar();
 }
 
 void Animation_View::Draw_PreviewPanel()
@@ -1380,8 +1602,74 @@ void Animation_View::Draw_Sequencer()
 
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 ANS_WeaponRotate 같은 state notify를 같이 갱신한다.
+            Update_PreviewRootControllerStates(0.f);
+            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 preview state notify를 같이 갱신한다.
         }
+    }
+
+    if (const AnimNotifyData* animationData = Get_CurrentAnimation())
+    {
+        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const float timelineMinX = sequencerRect.Min.x + 200.f;
+        const float timelineMaxX = sequencerRect.Max.x;
+        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
+        const int32 frameMax = max(1, Get_CurrentAnimationFrameMax());
+        const int32 fps = max(1, Get_CurrentAnimationFps());
+
+        const int32 startFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionStartSec(animationData) * static_cast<float>(fps))),
+            0,
+            frameMax);
+        const int32 endFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionEndSec(animationData) * static_cast<float>(fps))),
+            0,
+            frameMax);
+
+        const float startX = timelineMinX + timelineWidth * (static_cast<float>(startFrame) / static_cast<float>(frameMax));
+        const float endX = timelineMinX + timelineWidth * (static_cast<float>(endFrame) / static_cast<float>(frameMax));
+
+        const float markerY = sequencerRect.Min.y + 5.f;
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImU32 sectionOutside = IM_COL32(255, 72, 72, 24);
+        const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
+        const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
+
+        if (startX > timelineMinX)
+        {
+            drawList->AddRectFilled(
+                ImVec2(timelineMinX, sequencerRect.Min.y),
+                ImVec2(startX, sequencerRect.Max.y),
+                sectionOutside);
+        }
+
+        if (endX < timelineMaxX)
+        {
+            drawList->AddRectFilled(
+                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(timelineMaxX, sequencerRect.Max.y),
+                sectionOutside);
+        }
+
+        if (endX > startX)
+        {
+            drawList->AddLine(
+                ImVec2(startX, markerY),
+                ImVec2(endX, markerY),
+                sectionLine,
+                2.f);
+        }
+
+        drawList->AddLine(
+            ImVec2(startX, sequencerRect.Min.y),
+            ImVec2(startX, sequencerRect.Max.y),
+            sectionGuide,
+            1.f);
+
+        drawList->AddLine(
+            ImVec2(endX, sequencerRect.Min.y),
+            ImVec2(endX, sequencerRect.Max.y),
+            sectionGuide,
+            1.f);
     }
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
@@ -2399,19 +2687,34 @@ bool Animation_View::Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin
 
 void Animation_View::Draw_CreateNotifyPopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyPopup;
+
     if (_openCreateNotifyPopup)
     {
         _openCreateNotifyPopup = false;
+        _createNotifyFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyPopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyPopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifySearch", "Search notify...", _createNotifyFilter, IM_ARRAYSIZE(_createNotifyFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyTypes([&](const TypeRegistry::AnimNotifyTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_Notify_AtFrame(_requestedCreateNotifyFrame, info.className);
@@ -2421,25 +2724,42 @@ void Animation_View::Draw_CreateNotifyPopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotify types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotify types.");
 
     ImGui::EndPopup();
 }
 
 void Animation_View::Draw_CreateNotifyStatePopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyStatePopup;
+
     if (_openCreateNotifyStatePopup)
     {
         _openCreateNotifyStatePopup = false;
+        _createNotifyStateFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyStatePopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyStatePopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifyStateSearch", "Search notify state...", _createNotifyStateFilter, IM_ARRAYSIZE(_createNotifyStateFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyStateTypes([&](const TypeRegistry::AnimNotifyStateTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyStateFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_State_ByFrameRange(_requestedCreateStateStartFrame, _requestedCreateStateEndFrame, info.className);
@@ -2449,6 +2769,8 @@ void Animation_View::Draw_CreateNotifyStatePopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotifyState types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotifyState types.");
 
     ImGui::EndPopup();
 }
@@ -2892,6 +3214,149 @@ void Animation_View::Reset_PreviewSLDodgeMoveStates()
     }
 
     _previewSLDodgeMoveRuntimes.clear();
+}
+
+void Animation_View::Update_PreviewRootControllerStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_RootController")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewRootControllerRuntimes.begin(),
+            _previewRootControllerRuntimes.end(),
+            [&](const PreviewRootControllerRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewRootControllerRuntimes.end())
+        {
+            PreviewRootControllerRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewRootControllerRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            entry.notifyState->On_Tick(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+
+        entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewRootControllerRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewRootControllerRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewRootControllerRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            endContext.notifyStateDurationSec = 0.f;
+            _previewRootControllerRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewRootControllerRuntimes.erase(_previewRootControllerRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewRootControllerStates()
+{
+    if (_previewRootControllerRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.notifyStateDurationSec = 0.f;
+    context.isPreview = true;
+
+    for (PreviewRootControllerRuntime& runtime : _previewRootControllerRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewRootControllerRuntimes.clear();
 }
 
 void Animation_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)

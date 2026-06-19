@@ -17,7 +17,7 @@ public:
     enum class Anim
     {
         Idle,
-        Attack_1,
+        Attack_1, Attack_2,
         Hit,
         Dead
     };
@@ -59,6 +59,7 @@ private:
     Shared<Mon_Lancelier_Weapon> _weapon{};
 
     Anim _currentAnim = Anim::Idle;
+    Anim _nextAttackAnim = Anim::Attack_1;
     float _attackCooldown = 0.f;
     float _attackRange = 2.2f;
     float _attackInterval = 2.0f;

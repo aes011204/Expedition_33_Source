@@ -456,6 +456,9 @@
     <ClInclude Include="..\Public\IKAnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MotionScaleAnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\OffsetAnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
@@ -1096,6 +1099,9 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FacialClip.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MotionScaleAnimationModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\OffsetAnimationModifier.cpp">

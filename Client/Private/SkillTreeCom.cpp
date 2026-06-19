@@ -110,6 +110,39 @@ void SkillTreeCom::ForceUnlock(const string& skillId)
     _unlockedSkillId.push_back(skillId);
 }
 
+json SkillTreeCom::Create_SaveJson() const
+{
+    json root = json::object();
+    root["unlocked_skill_ids"] = _unlockedSkillId;
+
+    return root;
+}
+
+bool SkillTreeCom::Apply_SaveJson(const json& data)
+{
+    _unlockedSkillId.clear();
+
+    if (!data.is_object())
+        return true;
+
+    const auto it = data.find("unlocked_skill_ids");
+    if (it == data.end() || !it->is_array())
+        return true;
+
+    unordered_set<string> dedup{};
+    for (const json& entry : *it)
+    {
+        if (!entry.is_string())
+            continue;
+
+        const string skillId = entry.get<string>();
+        if (dedup.insert(skillId).second)
+            _unlockedSkillId.emplace_back(skillId);
+    }
+
+    return true;
+}
+
 bool SkillTreeCom::HasRequiredSkill(const string& skillId)
 {
     auto requirementDesc = CLIENT->Get_SkillTreeRequirementData();

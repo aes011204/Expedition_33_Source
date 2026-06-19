@@ -475,7 +475,29 @@ namespace UIEditor
 
                 if (renderObject.type == UI_ObjectType::Image && (!renderObject.textureGuid.empty() || !renderObject.texturePath.empty()))
                 {
-                    if (renderObject.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
+                    if (renderObject.imageRenderMode == UI_ImageRenderMode::MaterialVfx)
+                    {
+                        requiresCompositePreview = true;
+                        MaterialVfxPreviewDesc previewDesc = {};
+                        previewDesc.textureGuid = renderObject.textureGuid;
+                        previewDesc.texturePath = renderObject.texturePath;
+                        previewDesc.maskTextureGuid = renderObject.maskTextureGuid;
+                        previewDesc.maskTexturePath = renderObject.maskTexturePath;
+                        previewDesc.materialVfx = renderObject.materialVfx;
+                        previewSRV = _editorManager.Get_MaterialVfxPreviewSRV(previewDesc);
+                    }
+                    else if (renderObject.imageRenderMode == UI_ImageRenderMode::ButtonSheen)
+                    {
+                        requiresCompositePreview = true;
+                        ButtonSheenPreviewDesc previewDesc = {};
+                        previewDesc.textureGuid = renderObject.textureGuid;
+                        previewDesc.texturePath = renderObject.texturePath;
+                        previewDesc.maskTextureGuid = renderObject.maskTextureGuid;
+                        previewDesc.maskTexturePath = renderObject.maskTexturePath;
+                        previewDesc.buttonSheen = renderObject.buttonSheen;
+                        previewSRV = _editorManager.Get_ButtonSheenPreviewSRV(previewDesc);
+                    }
+                    else if (renderObject.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
                     {
                         requiresCompositePreview = true;
                         PatternOverlayPreviewDesc previewDesc = {};

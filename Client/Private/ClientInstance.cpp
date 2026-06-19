@@ -28,6 +28,7 @@
 #include "CostumeManager.h"
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
+#include "Unlock_Manager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -144,6 +145,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
+
+    _unlockManager = Unlock_Manager::Create();
+    CHECK_NULL(_unlockManager, E_FAIL);
 
 	_isInitialized = true;
 

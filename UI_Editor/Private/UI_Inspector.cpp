@@ -46,6 +46,7 @@ namespace UIEditor
             if (nullptr != selectedObject)
             {
                 ObjectId createPatternOverlaySourceId = 0;
+                ObjectId createHoverBrushPresetTargetId = 0;
                 ImGui::PushID(static_cast<int32>(selectedObject->id));
 
                 ImGui::Text("ID: %u", selectedObject->id);
@@ -142,6 +143,12 @@ namespace UIEditor
                     }
 
                     ImGui::Text("Container Children: %d", childCount);
+                    if (selectedObject->type == UI_ObjectType::Button || selectedObject->type == UI_ObjectType::Panel)
+                    {
+                        if (ImGui::Button("Create Button Ink Flow Layer"))
+                            createHoverBrushPresetTargetId = selectedObject->id;
+                    }
+
                     if (selectedObject->type == UI_ObjectType::Button)
                     {
                         ImGui::TextDisabled("Button objects can own Image/Text children.");
@@ -209,6 +216,9 @@ namespace UIEditor
 
                 if (createPatternOverlaySourceId != 0)
                     _editorManager.Create_PatternOverlayFromImage(createPatternOverlaySourceId);
+
+                if (createHoverBrushPresetTargetId != 0)
+                    _editorManager.Create_HoverBrushPreset(createHoverBrushPresetTargetId);
             }
             else
             {
