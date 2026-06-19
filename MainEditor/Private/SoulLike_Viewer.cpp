@@ -86,8 +86,9 @@ void SoulLike_Viewer::Render()
     Draw_Header();
     ImGui::Separator();
 
-    const float detailHeight = 150.f;
-    ImGui::BeginChild("SoulLikeRuntimeTable", ImVec2(0.f, -detailHeight), true);
+    const float availableHeight = ImGui::GetContentRegionAvail().y;
+    const float tableHeight = clamp(availableHeight * 0.35f, 118.f, 176.f);
+    ImGui::BeginChild("SoulLikeRuntimeTable", ImVec2(0.f, tableHeight), true);
     Draw_Table();
     ImGui::EndChild();
 

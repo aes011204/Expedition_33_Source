@@ -29,6 +29,8 @@
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 #include "Weapon.h"
+#include <algorithm>
+#include <cctype>
 
 namespace
 {
@@ -201,6 +203,25 @@ namespace
 
         return targetTime > previousTime || targetTime <= currentTime;
     }
+
+    bool Contains_CaseInsensitive(const string& text, const char* filter)
+    {
+        if (filter == nullptr || filter[0] == '\0')
+            return true;
+
+        string source = text;
+        string needle = filter;
+
+        auto toLower = [](unsigned char value)
+        {
+            return static_cast<char>(std::tolower(value));
+        };
+
+        std::transform(source.begin(), source.end(), source.begin(), toLower);
+        std::transform(needle.begin(), needle.end(), needle.begin(), toLower);
+
+        return source.find(needle) != string::npos;
+    }
 }
 
 Animation_View::Animation_View()
@@ -353,6 +374,7 @@ void Animation_View::Pre_Render()
             Late_Update_PreviewSkyBackdrop(dt);
 
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
+        Update_PreviewRootControllerStates(dt);
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
@@ -523,6 +545,7 @@ void Animation_View::Render()
         Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
         Reset_PreviewSourceHistoryEffect();
+        Reset_PreviewRootControllerStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
     }
@@ -545,6 +568,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -580,6 +604,8 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -629,6 +655,8 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -683,6 +711,7 @@ void Animation_View::Reset_PreviewClone()
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewSourceHistoryEffect();
     _previewRootObject.reset();
     _previewModelCom.reset();
@@ -1573,7 +1602,8 @@ void Animation_View::Draw_Sequencer()
 
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 ANS_WeaponRotate 같은 state notify를 같이 갱신한다.
+            Update_PreviewRootControllerStates(0.f);
+            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 preview state notify를 같이 갱신한다.
         }
     }
 
@@ -1600,8 +1630,25 @@ void Animation_View::Draw_Sequencer()
 
         const float markerY = sequencerRect.Min.y + 5.f;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImU32 sectionOutside = IM_COL32(255, 72, 72, 24);
         const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
         const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
+
+        if (startX > timelineMinX)
+        {
+            drawList->AddRectFilled(
+                ImVec2(timelineMinX, sequencerRect.Min.y),
+                ImVec2(startX, sequencerRect.Max.y),
+                sectionOutside);
+        }
+
+        if (endX < timelineMaxX)
+        {
+            drawList->AddRectFilled(
+                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(timelineMaxX, sequencerRect.Max.y),
+                sectionOutside);
+        }
 
         if (endX > startX)
         {
@@ -2640,19 +2687,34 @@ bool Animation_View::Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin
 
 void Animation_View::Draw_CreateNotifyPopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyPopup;
+
     if (_openCreateNotifyPopup)
     {
         _openCreateNotifyPopup = false;
+        _createNotifyFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyPopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyPopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifySearch", "Search notify...", _createNotifyFilter, IM_ARRAYSIZE(_createNotifyFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyTypes([&](const TypeRegistry::AnimNotifyTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_Notify_AtFrame(_requestedCreateNotifyFrame, info.className);
@@ -2662,25 +2724,42 @@ void Animation_View::Draw_CreateNotifyPopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotify types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotify types.");
 
     ImGui::EndPopup();
 }
 
 void Animation_View::Draw_CreateNotifyStatePopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyStatePopup;
+
     if (_openCreateNotifyStatePopup)
     {
         _openCreateNotifyStatePopup = false;
+        _createNotifyStateFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyStatePopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyStatePopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifyStateSearch", "Search notify state...", _createNotifyStateFilter, IM_ARRAYSIZE(_createNotifyStateFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyStateTypes([&](const TypeRegistry::AnimNotifyStateTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyStateFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_State_ByFrameRange(_requestedCreateStateStartFrame, _requestedCreateStateEndFrame, info.className);
@@ -2690,6 +2769,8 @@ void Animation_View::Draw_CreateNotifyStatePopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotifyState types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotifyState types.");
 
     ImGui::EndPopup();
 }
@@ -3133,6 +3214,149 @@ void Animation_View::Reset_PreviewSLDodgeMoveStates()
     }
 
     _previewSLDodgeMoveRuntimes.clear();
+}
+
+void Animation_View::Update_PreviewRootControllerStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_RootController")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewRootControllerRuntimes.begin(),
+            _previewRootControllerRuntimes.end(),
+            [&](const PreviewRootControllerRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewRootControllerRuntimes.end())
+        {
+            PreviewRootControllerRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewRootControllerRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            entry.notifyState->On_Tick(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+
+        entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewRootControllerRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewRootControllerRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewRootControllerRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            endContext.notifyStateDurationSec = 0.f;
+            _previewRootControllerRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewRootControllerRuntimes.erase(_previewRootControllerRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewRootControllerStates()
+{
+    if (_previewRootControllerRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.notifyStateDurationSec = 0.f;
+    context.isPreview = true;
+
+    for (PreviewRootControllerRuntime& runtime : _previewRootControllerRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewRootControllerRuntimes.clear();
 }
 
 void Animation_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)

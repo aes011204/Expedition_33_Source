@@ -72,6 +72,7 @@ private:
 
 public:
     void Change_Mode(TargetCameraMode mode);
+    TargetCameraMode Get_CurrentMode() const { return _currentState; }
     void Change_Target();
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
     void Refresh_TargetTransform();

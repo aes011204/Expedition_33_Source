@@ -30,6 +30,7 @@
 #include "RuntimeCheckpointService.h"
 #include "RuntimeRuleStateIO.h"
 #include "RuntimeRuleStateService.h"
+#include "TargetCamera.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -875,10 +876,18 @@ void EditorInstance::Activate_TargetCamera()
 void EditorInstance::Activate_FreeCamera()
 {
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    _hasTargetCameraModeBeforeFreeCamera = false;
+
     if (activeCamera != nullptr &&
         activeCamera->Get_ObjectType() != ObjectType::FreeCamera)
     {
         _cameraBeforeFreeCamera = activeCamera;
+
+        if (Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(activeCamera))
+        {
+            _targetCameraModeBeforeFreeCamera = targetCamera->Get_CurrentMode();
+            _hasTargetCameraModeBeforeFreeCamera = true;
+        }
     }
 
     CameraPoseSnapshot activeCameraPose{};
@@ -897,9 +906,27 @@ void EditorInstance::Restore_PreviousCameraOrTarget()
 {
     if (Shared<Camera> previousCamera = _cameraBeforeFreeCamera.lock())
     {
+        if (_hasTargetCameraModeBeforeFreeCamera)
+        {
+            if (Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(previousCamera))
+                targetCamera->Change_Mode(_targetCameraModeBeforeFreeCamera);
+        }
+
         GAME->Change_ActiveCamera(previousCamera);
         _cameraBeforeFreeCamera.reset();
+        _hasTargetCameraModeBeforeFreeCamera = false;
         return;
+    }
+
+    if (_hasTargetCameraModeBeforeFreeCamera)
+    {
+        if (Shared<TargetCamera> targetCamera =
+            dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+        {
+            targetCamera->Change_Mode(_targetCameraModeBeforeFreeCamera);
+        }
+
+        _hasTargetCameraModeBeforeFreeCamera = false;
     }
 
     Activate_TargetCamera();

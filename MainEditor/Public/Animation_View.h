@@ -168,6 +168,13 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewRootControllerRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -246,6 +253,8 @@ private:
     void Reset_PreviewWeaponRotateStates();
     void Update_PreviewSLDodgeMoveStates(float timeDelta);
     void Reset_PreviewSLDodgeMoveStates();
+    void Update_PreviewRootControllerStates(float timeDelta);
+    void Reset_PreviewRootControllerStates();
     void Update_PreviewTrailEffect(float timeDelta);
     void Reset_PreviewTrailEffect();
     void Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime);
@@ -340,6 +349,7 @@ private:
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
     vector<PreviewSLDodgeMoveRuntime> _previewSLDodgeMoveRuntimes{};
+    vector<PreviewRootControllerRuntime> _previewRootControllerRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
     vector<PreviewSourceHistoryRuntime> _previewSourceHistoryRuntimes{};
     mutable int32 _previewTrailProviderStateId = -1; // preview effect가 지금 sample을 요청 중인 runtime state id다.
@@ -377,6 +387,8 @@ private:
     bool _openCreateNotifyPopup = false;
     bool _openCreateNotifyStatePopup = false;
     bool _openSequencerContextPopup = false;
+    char _createNotifyFilter[128]{};
+    char _createNotifyStateFilter[128]{};
 
     int32 _requestedCreateNotifyFrame = 0;
     int32 _requestedCreateStateStartFrame = 0;

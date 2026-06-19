@@ -1148,6 +1148,7 @@
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\AL_SL_State.cpp" />
+    <ClCompile Include="..\Private\SL_Jump.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1179,6 +1180,7 @@
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
+    <ClCompile Include="..\Private\ANS_RootController.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="AN_SL_CameraReturn.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
@@ -1186,6 +1188,7 @@
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\AL_SL_State.h" />
+    <ClInclude Include="..\Public\SL_Jump.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -2278,6 +2281,7 @@
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
     <ClInclude Include="..\Public\SL_DamageSystem.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
+    <ClInclude Include="..\Public\ANS_RootController.h" />
     <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
     <ClInclude Include="AN_SL_CameraReturn.h" />
     <ClInclude Include="..\Public\SL_Base.h" />

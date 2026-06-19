@@ -168,6 +168,7 @@
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\Public\ANS_PlayEffect.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\Public\ANS_RootController.h" />
     <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h" />
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
@@ -251,6 +252,7 @@
     <ClInclude Include="..\Public\SL_Dodge.h" />
     <ClInclude Include="..\Public\SL_Hit.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
+    <ClInclude Include="..\Public\SL_Jump.h" />
     <ClInclude Include="..\Public\SL_Maelle.h" />
     <ClInclude Include="..\Public\SL_Move.h" />
     <ClInclude Include="..\Public\SL_Skill.h" />
@@ -550,6 +552,7 @@
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
+    <ClCompile Include="..\Private\ANS_RootController.cpp" />
     <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp" />
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
@@ -621,6 +624,7 @@
     <ClCompile Include="..\Private\SL_Dodge.cpp" />
     <ClCompile Include="..\Private\SL_Hit.cpp" />
     <ClCompile Include="..\Private\SL_Idle.cpp" />
+    <ClCompile Include="..\Private\SL_Jump.cpp" />
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
     <ClCompile Include="..\Private\SL_Move.cpp" />
     <ClCompile Include="..\Private\SL_Skill.cpp" />

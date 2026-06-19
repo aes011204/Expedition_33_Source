@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Editor_Defines.h"
+#include "CameraPresetTypes.h"
 #include "PlayerStatCom.h"
 
 NS_BEGIN(Engine)
@@ -291,6 +292,8 @@ private: /* Runtime Data */
     bool _hasPlayStartHeroStatSnapshots = false;
     CameraPoseSnapshot _playStartCameraPose = {};
     Weak<Camera> _cameraBeforeFreeCamera = {};
+    bool _hasTargetCameraModeBeforeFreeCamera = false;
+    TargetCameraMode _targetCameraModeBeforeFreeCamera = TargetCameraMode::NORMAL;
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;

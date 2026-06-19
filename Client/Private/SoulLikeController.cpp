@@ -2,6 +2,8 @@
 
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
+#include "GameplayUI.h"
+#include "GamePlayUI_SL.h"
 #include "GameInstance.h"
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
@@ -36,6 +38,8 @@ IMPLEMENT_REFLECTION(SoulLikeController)
 
 
     PROPERTY_FLOAT("Enter Fx Delay", _enterFxDelay, 0.f, 5.f, 0.05f);
+    PROPERTY_FLOAT("Victory Slow Duration", _victorySlowDuration, 0.f, 5.f, 0.05f);
+    PROPERTY_FLOAT("Victory Slow Time Scale", _victorySlowTimeScale, 0.f, 1.f, 0.01f);
     PROPERTY_BOOL("Enable Debug Key 3", _enableDebugKeyStart);
 
     return true;
@@ -96,6 +100,12 @@ void SoulLikeController::Update(float timeDelta)
         return;
     }
 
+    if (_state == BattleState::VictorySlow)
+    {
+        Update_VictorySlow();
+        return;
+    }
+
     if (_state == BattleState::Playing)
     {
         Update_Player(timeDelta);
@@ -108,9 +118,14 @@ bool SoulLikeController::Begin_Battle()
     if (Is_BattleActive())
         return false;
 
+    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(1.f);
+
     Remove_SpawnedBattleActors();
     _playerSpawned = false;
     _enterFxTimer = max(0.f, _enterFxDelay);
+    _victorySlowElapsed = 0.f;
+    _lastVictoryRewardExp = 0;
     _state = BattleState::EnterFx;
 
     if (auto screenFxManager = CLIENT->Get_ScreenFxManager())
@@ -124,10 +139,22 @@ bool SoulLikeController::Begin_Battle()
 
 void SoulLikeController::End_Battle()
 {
+    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(1.f);
     Restore_TargetCamera();
 
     _state = BattleState::Finished;
     _enterFxTimer = 0.f;
+    _victorySlowElapsed = 0.f;
+}
+
+void SoulLikeController::Confirm_Victory()
+{
+    if (_state != BattleState::Victory)
+        return;
+
+    Sync_PlayerResultToWorld();
+    End_Battle();
 }
 
 void SoulLikeController::Handle_BattleShotNotify(const AnimNotifyContext& context, BattleCameraMode cameraMode,
@@ -411,33 +438,14 @@ void SoulLikeController::Update_Player(float timeDelta)
     moveRequest.lockOn = targetCom != nullptr && targetCom->Is_LockOn();
 
     // 구르기.. 점프 흠
-    if (GAME->KeyDown(KEY_TYPE::SPACE))
-    {
-        stateMachine->Request_Dodge(moveRequest);
+    Update_Dodge(stateMachine, moveRequest);
+
+    if (Update_Skill(player, stateMachine))
         return;
-    }
-
-    // 스킬
-    {
-        Skill_Data skillData{};
-        uint32 skillSlotIndex = UINT32_MAX;
-
-        if (GAME->KeyDown(KEY_TYPE::Z))      skillSlotIndex = 0;
-        else if (GAME->KeyDown(KEY_TYPE::X)) skillSlotIndex = 1;
-        else if (GAME->KeyDown(KEY_TYPE::C)) skillSlotIndex = 2;
-        else if (GAME->KeyDown(KEY_TYPE::V)) skillSlotIndex = 3;
-
-        if (skillSlotIndex != UINT32_MAX && player->Try_GetEquippedSkill(skillSlotIndex, skillData))
-        {
-            stateMachine->Request_Skill(skillData, skillSlotIndex);
-            return;
-        }
-    }
 
     stateMachine->Request_Move(moveRequest, timeDelta);
 
-    if (GAME->KeyDown(KEY_TYPE::LBUTTON))
-        stateMachine->Request_BasicAttack();
+    Update_BaseAttack(stateMachine);
 }
 
 void SoulLikeController::Check_BattleEnd()
@@ -452,7 +460,103 @@ void SoulLikeController::Check_BattleEnd()
     }
 
     if (!_monsterPrefab.empty() && (opponent == nullptr || opponent->Is_Dead()))
-        End_Battle();
+        Begin_VictorySlow();
+}
+
+void SoulLikeController::Update_VictorySlow()
+{
+    _victorySlowElapsed += GAME->Get_UnscaledTimeDelta();
+
+    if (_victorySlowElapsed < max(0.f, _victorySlowDuration))
+        return;
+
+    GAME->Stop_WorldTimeSlow();
+    _victorySlowElapsed = 0.f;
+    Begin_Victory();
+}
+
+void SoulLikeController::Begin_VictorySlow()
+{
+    if (_state == BattleState::VictorySlow || _state == BattleState::Victory)
+        return;
+
+    _state = BattleState::VictorySlow;
+    _victorySlowElapsed = 0.f;
+
+    if (_victorySlowDuration <= 0.f)
+    {
+        Begin_Victory();
+        return;
+    }
+
+    GAME->Slow_WorldTime(_victorySlowTimeScale, _victorySlowDuration);
+}
+
+void SoulLikeController::Begin_Victory()
+{
+    if (_state == BattleState::Victory)
+        return;
+
+    GAME->Stop_WorldTimeSlow();
+    Apply_VictoryRewardExp();
+
+    _state = BattleState::Victory;
+    _enterFxTimer = 0.f;
+    _victorySlowElapsed = 0.f;
+
+    if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+    {
+        if (GamePlayUI_SL* soulLikeUI = gameplayUI->Get_SoulLikeUI())
+            soulLikeUI->Show_Victory();
+    }
+}
+
+void SoulLikeController::Apply_VictoryRewardExp()
+{
+    if (_lastVictoryRewardExp > 0)
+        return;
+
+    const Shared<SL_Base> monster = _monster.lock();
+    const Shared<SL_Maelle> player = _player.lock();
+    const Shared<PlayerStatCom> playerStat = player
+        ? dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat())
+        : nullptr;
+
+    if (monster == nullptr || playerStat == nullptr)
+        return;
+
+    const Shared<CombatStatCom> monsterStat = monster->Get_Stat();
+    if (monsterStat == nullptr)
+        return;
+
+    _lastVictoryRewardExp = monsterStat->Get_StatInfo().exp;
+
+    if (_lastVictoryRewardExp > 0)
+        playerStat->Add_Exp(_lastVictoryRewardExp);
+}
+
+void SoulLikeController::Sync_PlayerResultToWorld()
+{
+    const Shared<SL_Maelle> player = _player.lock();
+    const Shared<PlayerStatCom> playerStat = player
+        ? dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat())
+        : nullptr;
+
+    const Shared<Player_WorldBase> worldMaelle = CLIENT->Find_Hero(HeroId::Maelle);
+    const Shared<PlayerStatCom> worldStat = worldMaelle
+        ? worldMaelle->Get_Component<PlayerStatCom>()
+        : nullptr;
+
+    if (playerStat == nullptr || worldStat == nullptr)
+        return;
+
+    const PlayerStatCom::PRuntimeCombatStat& runtimeStat = playerStat->Get_PlayerRuntimeStat();
+    worldStat->Set_RuntimeProgress(
+        runtimeStat.CurLevel,
+        runtimeStat.CurExp,
+        runtimeStat.CurStatPoint,
+        runtimeStat.CurSkillPoint,
+        runtimeStat.CurRespecCount);
 }
 
 void SoulLikeController::Handle_EditorStopRuntime()
@@ -461,11 +565,57 @@ void SoulLikeController::Handle_EditorStopRuntime()
 
     _state = BattleState::None;
     _enterFxTimer = 0.f;
+    _victorySlowElapsed = 0.f;
+    _lastVictoryRewardExp = 0;
     _playerSpawned = false;
+
+    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(1.f);
 
     if (auto screenFxManager = GAME->Get_ScreenFxManager())
         screenFxManager->Clear_ScreenEffect();
 
+}
+
+void SoulLikeController::Update_BaseAttack(const Shared<SL_StateMachineCom>& stateMachine)
+{
+    if (stateMachine == nullptr)
+        return;
+
+    if (GAME->KeyDown(KEY_TYPE::LBUTTON))
+        stateMachine->Request_BasicAttack();
+}
+
+bool SoulLikeController::Update_Skill(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine)
+{
+    if (player == nullptr || stateMachine == nullptr)
+        return false;
+
+    Skill_Data skillData{};
+    uint32 skillSlotIndex = UINT32_MAX;
+
+    if (GAME->KeyDown(KEY_TYPE::Z))      skillSlotIndex = 0;
+    else if (GAME->KeyDown(KEY_TYPE::X)) skillSlotIndex = 1;
+    else if (GAME->KeyDown(KEY_TYPE::C)) skillSlotIndex = 2;
+    else if (GAME->KeyDown(KEY_TYPE::V)) skillSlotIndex = 3;
+
+    if (skillSlotIndex == UINT32_MAX || !player->Try_GetEquippedSkill(skillSlotIndex, skillData))
+        return false;
+
+    stateMachine->Request_Skill(skillData, skillSlotIndex);
+    return true;
+}
+
+void SoulLikeController::Update_Dodge(const Shared<SL_StateMachineCom>& stateMachine, const SL_MoveRequest& moveRequest)
+{
+    if (stateMachine == nullptr)
+        return;
+
+    if (GAME->KeyDown(KEY_TYPE::SPACE))
+    {
+        stateMachine->Request_Dodge(moveRequest);
+        return;
+    }
 }
 
 Shared<SoulLikeController> SoulLikeController::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
