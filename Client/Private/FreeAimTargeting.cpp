@@ -104,12 +104,17 @@ void FreeAimTargeting::Update(float timeDelta)
         return;
     }
 
-    // 진입이 끝나기 전에는 Shoot 허용 X
-    if (_freeAimAnimState != FreeAimAnimState::Idle)
-        return;
+
 
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
     {
+        if (_freeAimAnimState == FreeAimAnimState::EnterTransition)
+            _freeAimAnimState = FreeAimAnimState::Idle;
+
+        // 진입이 끝나기 전에는 Shoot 허용 X
+        if (_freeAimAnimState != FreeAimAnimState::Idle)
+            return;
+
         ActionRequest shotRequest{};
         shotRequest.actor = owner->Get_TurnActionRequest().actor;
         shotRequest.type = EBattleContext::FreeAimShoot;

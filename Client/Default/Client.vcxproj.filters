@@ -335,6 +335,15 @@
     <ClCompile Include="..\Private\AN_PlaySound.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_WeaponAttach.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_WeaponDetach.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_SpawnActor.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -567,6 +576,16 @@
     <ClCompile Include="..\Private\SL_Dead.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
     <ClCompile Include="..\Private\SL_Skill.cpp" />
+    <ClCompile Include="..\private\ANS_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
+    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp" />
+    <ClCompile Include="..\private\Simon_Combo.cpp" />
+    <ClCompile Include="..\private\Simon_Debuff.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
+    <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
+    <ClCompile Include="..\Private\SL_Dualliste.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1323,6 +1342,15 @@
     <ClInclude Include="..\Public\AN_PlaySound.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AN_ReturnBattleIdle.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_WeaponAttach.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_WeaponDetach.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AN_SpawnActor.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
@@ -1554,6 +1582,16 @@
     <ClInclude Include="..\Public\SL_BasicAttack.h" />
     <ClInclude Include="..\Public\SL_Types.h" />
     <ClInclude Include="..\Public\SL_Skill.h" />
+    <ClInclude Include="..\public\ANS_Jump.h" />
+    <ClInclude Include="..\public\ANS_JumpCounter.h" />
+    <ClInclude Include="..\Public\AN_JumpCounterStart.h" />
+    <ClInclude Include="..\public\Simon_Combo.h" />
+    <ClInclude Include="..\public\Simon_Debuff.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
+    <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
+    <ClInclude Include="..\Public\SL_Dualliste.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

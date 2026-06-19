@@ -5,7 +5,7 @@
 #include "BackGround.h"
 #include "Terrain.h"
 #include "FreeCamera.h"
-#include "MW_Dualliste.h"
+#include "SL_Dualliste.h"
 #include "MW_Lancelier.h"
 #include "Player_WorldBase.h"
 #include "Body_Player.h"

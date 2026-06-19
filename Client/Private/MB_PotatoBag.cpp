@@ -73,8 +73,8 @@ bool MB_PotatoBag::Try_Consume_FreeAimWeakPoint()
 
 Monster_BattleBase::BattlePhase MB_PotatoBag::Get_CurPhase() const
 {
-    //if (Get_HpRatio() > 0.8f)
-    //    return BattlePhase::Opening;
+    if (Get_HpRatio() > 0.9f)
+        return BattlePhase::Opening;
     if (_curPhase == Defense)
         return BattlePhase::Mid;
     else if (_curPhase == NoShield)
@@ -150,7 +150,7 @@ bool MB_PotatoBag::Should_AppendPreTurnEndPhase(const ActionRequest& request) co
 {
 
 
-    if (Get_CurPhase() == BattlePhase::Mid|| Get_CurPhase() == BattlePhase::Opening)
+    if (Get_CurPhase() == BattlePhase::Mid)
         return true;
     else
         return false;

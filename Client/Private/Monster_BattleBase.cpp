@@ -432,7 +432,7 @@ float Monster_BattleBase::Score_Target(
         static_cast<float>(target.statCom->Get_CurrentShield());
 
     if (estimatedDamage >= effectiveHp)
-        score += 8.f;
+        score += 5.f;
 
     return score;
 }

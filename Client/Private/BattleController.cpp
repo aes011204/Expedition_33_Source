@@ -2693,11 +2693,14 @@ void BattleController::HitAction(BattleChar target, AttackType attackType, bool 
         break;
 
     case AttackType::SingleAOE:
-    case AttackType::FreeAimWeak:
+
     case AttackType::ComboLast:
         target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
         break;
-
+    case AttackType::FreeAimWeak:
+        if (false == target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Weak), 0.3f, false))
+            target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
+        break;
     case AttackType::Counter:
         break;
     }

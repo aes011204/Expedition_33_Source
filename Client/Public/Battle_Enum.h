@@ -465,6 +465,8 @@ namespace Client
 
         Jump,
         JumpCounter,
+
+        Hit_Weak
     };
 
     enum class BattleReactionType
