@@ -96,6 +96,15 @@ void Weapon::Late_Update(float timeDelta)
     if (_shader == nullptr || _model == nullptr)
         return;
 
+    if (!Is_Visible())
+        return;
+
+    if (const Shared<GameObject> owner = Get_Owner())
+    {
+        if (!owner->Is_Visible())
+            return;
+    }
+
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 
     if (Casts_DynamicShadow())

@@ -289,26 +289,26 @@ HRESULT EffectInstancePool::Acquire_Instance(
         //    String::ToString(desc.effectName),
         //    activeCount,
         //    idleCount);
-        LOG_DEBUG(
-            "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
-            String::ToString(desc.effectName),
-            desc.layerLevelIndex,
-            String::ToString(desc.layerTag),
-            activeCount,
-            idleCount,
-            static_cast<const void*>(outInstance.get())
-        );
+        //LOG_DEBUG(
+        //    "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
+        //    String::ToString(desc.effectName),
+        //    desc.layerLevelIndex,
+        //    String::ToString(desc.layerTag),
+        //    activeCount,
+        //    idleCount,
+        //    static_cast<const void*>(outInstance.get())
+        //);
 
         return S_OK;
     }
 
     //LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
-    LOG_DEBUG(
-        "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
-        String::ToString(desc.effectName),
-        desc.layerLevelIndex,
-        String::ToString(desc.layerTag)
-    );
+    //LOG_DEBUG(
+    //    "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
+    //    String::ToString(desc.effectName),
+    //    desc.layerLevelIndex,
+    //    String::ToString(desc.layerTag)
+    //);
 
     const HRESULT spawnResult = Spawn_NewInstance(desc, outDefinition, outInstance);
     if (FAILED(spawnResult))

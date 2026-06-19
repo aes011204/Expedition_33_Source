@@ -27,6 +27,8 @@
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
 #include "PlayerStatCom.h"
+#include "SoulLikeController.h"
+#include "Unlock_Manager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -143,6 +145,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
+
+    _unlockManager = Unlock_Manager::Create();
+    CHECK_NULL(_unlockManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -399,6 +404,14 @@ HeroId ClientInstance::Get_HeroId(HeroPartySlot slot) const
 HeroPartySlot ClientInstance::Get_ActiveHeroSlot() const
 {
     return _heroManager->Get_ActiveHeroSlot();
+}
+
+void ClientInstance::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
+{
+    if (_heroManager == nullptr)
+        return;
+
+    _heroManager->Set_ActiveHeroSlotForCheckpoint(slot);
 }
 
 void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
@@ -862,6 +875,21 @@ void ClientInstance::Play_PreviewAnimation(HeroId heroId, PreviewAnimState intro
     _previewManager->Play_PreviewAnimation(heroId, introAnim, idleAnim);
 }
 
+void ClientInstance::Set_SoulLikeController(const Shared<SoulLikeController>& controller)
+{
+    _soulLikeController = controller;
+}
+
+bool ClientInstance::Is_SoulLikeBattleActive() const
+{
+    return _soulLikeController != nullptr && _soulLikeController->Is_BattleActive();
+}
+
+bool ClientInstance::Is_WorldControlSuspended() const
+{
+    return Is_BattleActive() || Is_SoulLikeBattleActive();
+}
+
 HRESULT ClientInstance::Ready_ResourceLoader()
 {
     _resourceLoader = ResourceLoader::Create(_device, _context);
@@ -908,6 +936,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);
+    ReleaseManager(_soulLikeController);
 
     _context.Reset();
     _device.Reset();

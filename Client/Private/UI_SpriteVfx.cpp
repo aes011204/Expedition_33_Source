@@ -288,7 +288,7 @@ Shared<EffectDefinition> UISpriteVfxRuntimeBuilder::Build_EffectDefinition(
     emitter.name = asset.name.empty() ? "UISpriteEmitter" : asset.name;
     emitter.kind = EffectEmitterKind::Sprite;
     emitter.enabled = true;
-    emitter.useLocalSpace = false;
+    emitter.useLocalSpace = true;
     emitter.renderLayerOverride = EffectEmitterRenderLayerOverride::UIEffect;
 
     ComputeSpriteEmitterDesc desc{};

@@ -3,6 +3,7 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
+#include "Monster_BattleBase.h"
 NS_BEGIN(Client)
 
 void BattleAction::Set_BattleActionFromRequest(const ActionRequest& request)
@@ -21,6 +22,28 @@ void BattleAction::Set_BattleActionFromRequest(const ActionRequest& request)
             LOG_WARN("BuildActionFromRequest: skill data not found. skillKey={}", request.skillKey.c_str());
     }
 
+    if (type == EBattleContext::Skill && request.actor.actor != nullptr)
+    {
+        if (const Shared<Monster_BattleBase> monster =
+            dynamic_pointer_cast<Monster_BattleBase>(request.actor.actor))
+        {
+            if (monster->Should_AppendPreTurnEndPhase(request))
+            {
+                const string preTurnEndSkillKey = monster->Get_PreTurnEndSkillKey();
+                if (const Skill_Data* preTurnEndSkill = CLIENT->Get_Skill(preTurnEndSkillKey))
+                {
+                    if (!preTurnEndSkill->AnimPhases.empty())
+                    {
+                        BattleActionPhase preTurnEndPhase = preTurnEndSkill->AnimPhases[0];
+                        preTurnEndPhase.phaseIndex =
+                            static_cast<uint32>(_selected_SkillKey.AnimPhases.size());
+                        _selected_SkillKey.AnimPhases.push_back(preTurnEndPhase);
+                    }
+                }
+            }
+        }
+    }
+
     if (request.itemType != BattleItemType::Invalid)
     {
         if (const Item_Data* itemData = CLIENT->Get_Item(request.itemType))
@@ -32,6 +55,7 @@ void BattleAction::Set_BattleActionFromRequest(const ActionRequest& request)
     _curAnimIndex = 0;
     _curStepIndex = 0;
     _originPos = {};
+    _originRot = {};
     _phaseStartPos = {};
     _phaseGoalPos = {};
     _phaseReachedGoal = false;
@@ -68,6 +92,7 @@ void BattleAction::ResetAction()
     _curStepIndex = 0;
 
     _originPos = {};
+    _originRot = {};
     _phaseStartPos = {};
     _phaseGoalPos = {};
     _phaseReachedGoal = false;
@@ -104,7 +129,8 @@ void BattleAction::SetupStep()
     else
         charter = CLIENT->Get_BattleController()->Get_AliveHeroes();
 
-    if (step.targetType == TargetType::Primary)
+    if (step.targetType == TargetType::Primary ||
+        step.targetType == TargetType::PrimaryJump)
     {
         step.targets.push_back(_InitTarget);
     }
@@ -119,7 +145,8 @@ void BattleAction::SetupStep()
 
         step.targets.push_back(charter[num]);
     }
-    else if (step.targetType == TargetType::AllEnemies)
+    else if (step.targetType == TargetType::AllEnemies ||
+        step.targetType == TargetType::AllEnemiesJump)
     {
 
         step.targets = charter;
@@ -146,6 +173,7 @@ void BattleAction::InitActionDirection()
         return;
 
     _originPos = _curChar.actor->Get_Transform()->Get_Position();
+    _originRot = _curChar.actor->Get_Transform()->Get_RotationEuler();
 
     _curAnimIndex = 0;
 

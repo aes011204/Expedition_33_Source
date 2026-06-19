@@ -12,6 +12,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Beam desc 기반 path sample을 strip payload로 낮춰 beam을 그린다.
 class ComputeGeneratedBeamEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeGeneratedBeamEmitter, ObjectType::EffectEmitter);
@@ -29,14 +30,20 @@ public:
     HRESULT Render() override;
 
 public:
-    HRESULT Reset_ForEffectReplay() override;                                   // effect replay 시 generated path와 재생 상태를 초기화한다.
-    bool Is_EffectFinished() const override;                                    // playback loop 완료 여부를 반환한다.
-    bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // beam 중간점을 blend sort 기준점으로 제공한다.
-    EffectSortPolicy Get_BlendSortPolicy() const override;                      // Required sort policy를 반환한다.
-    int32 Get_BlendSortLayer() const override;                                  // Required sort layer를 반환한다.
-    float Get_BlendSortBias() const override;                                   // Required sort bias를 반환한다.
+    // effect replay 시 generated path와 재생 상태를 초기화한다.
+    HRESULT Reset_ForEffectReplay() override;
+    // playback loop 완료 여부를 반환한다.
+    bool Is_EffectFinished() const override;
+    // beam 중간점을 blend sort 기준점으로 제공한다.
+    bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
+    // Required sort policy를 반환한다.
+    EffectSortPolicy Get_BlendSortPolicy() const override;
+    // Required sort layer를 반환한다.
+    int32 Get_BlendSortLayer() const override;
+    // Required sort bias를 반환한다.
+    float Get_BlendSortBias() const override;
 
-private:
+private: //## Types::PlaybackRuntime
     enum class PlaybackState : uint8
     {
         Delayed,
@@ -103,16 +110,23 @@ private:
         uint32 startInstanceLocation{};
     };
 
-private:
-    static constexpr auto kBeamShaderId{ L"Shader_EffectBeam" };                     // beam 전용 좌우 UV 보정 shader다.
-    static constexpr auto kBeamDistortionShaderId{ L"Shader_EffectBeamDistortion" }; // distortion beam 전용 shader다
-    static constexpr auto kBeamComputeShaderId{ L"ComputeShader_RibbonStrip" };      // segment payload를 instance로 낮추는 compute shader다.
+private: //## Static Values
+    // beam 전용 좌우 UV 보정 shader다.
+    static constexpr auto kBeamShaderId{ L"Shader_EffectBeam" };
+    // distortion beam 전용 shader다
+    static constexpr auto kBeamDistortionShaderId{ L"Shader_EffectBeamDistortion" };
+    // segment payload를 instance로 낮추는 compute shader다.
+    static constexpr auto kBeamComputeShaderId{ L"ComputeShader_RibbonStrip" };
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };
-    static constexpr uint32 kThreadCountX{ 64 }; // compute dispatch thread group 크기다.
+    // compute dispatch thread group 크기다.
+    static constexpr uint32 kThreadCountX{ 64 };
 
-private:
-    ComputeBeamEmitterDesc _desc{}; // clone 시점에 받은 Beam runtime 설정이다.
+private: //## Data::Desc
+    // clone 시점에 받은 Beam runtime 설정이다.
+    ComputeBeamEmitterDesc _desc{};
+
+private: //## Data::PlaybackRuntime
     PlaybackState _playbackState{ PlaybackState::Delayed };
     float _loopElapsedTime{};
     uint32 _loopIndex{};
@@ -121,8 +135,10 @@ private:
     float _visibleBeamLength{ 1.f };
     uint32 _drawSegmentCount{};
     uint32 _randomSubUVFrameIndex{};
-    vector<PathEntry> _pathEntries{}; // 이번 replay에서 생성된 parent/branch path 목록이다.
+    // 이번 replay에서 생성된 parent/branch path 목록이다.
+    vector<PathEntry> _pathEntries{};
 
+private: //## Data::Components
     Shared<ShaderCom> _shader{};
     Shared<ComputeShaderCom> _computeShader{};
     Shared<Texture> _mainTexture{};
@@ -138,17 +154,27 @@ private:
     Shared<ComputeStructuredBuffer> _computeOutput{};
     Shared<ComputeStructuredBuffer> _computeArgsOutput{};
 
-private:
-    void Reset_PlaybackRuntime(); // playback 시간/loop 상태를 초기화한다.
-    void Advance_Playback(float timeDelta); // delay/play/completed 상태를 전진시킨다.
-    void Rebuild_PathSamples(); // desc의 local start/end 또는 direction/length로 world sample을 다시 만든다.
-    Vec3 Resolve_LocalEnd(uint32 stripIndex) const; // endpoint mode와 strip index에 따라 local end를 계산한다.
-    Vec3 Transform_LocalPoint(const Vec3& localPoint) const; // emitter local point를 world point로 변환한다.
-    Vec3 Evaluate_NoiseOffset(uint32 stripIndex, uint32 sampleIndex, const Vec3& tangent) const; // seed 기반 jitter offset을 만든다.
-    void Append_BranchPathEntries(const PathEntry& parentPath, uint32 stripIndex, float activeElapsedTime); // parent path에서 branch path를 생성한다.
-    HRESULT Append_SegmentPayloads(vector<SegmentPayload>& outPayloads) const; // path sample을 compute input payload로 낮춘다.
-    bool Has_RenderablePath() const; // 렌더 가능한 path segment가 있는지 확인한다.
+private: //## Helper::PlaybackRuntime
+    // playback 시간/loop 상태를 초기화한다.
+    void Reset_PlaybackRuntime();
+    // delay/play/completed 상태를 전진시킨다.
+    void Advance_Playback(float timeDelta);
+    // desc의 local start/end 또는 direction/length로 world sample을 다시 만든다.
+    void Rebuild_PathSamples();
+    // endpoint mode와 strip index에 따라 local end를 계산한다.
+    Vec3 Resolve_LocalEnd(uint32 stripIndex) const;
+    // emitter local point를 world point로 변환한다.
+    Vec3 Transform_LocalPoint(const Vec3& localPoint) const;
+    // seed 기반 jitter offset을 만든다.
+    Vec3 Evaluate_NoiseOffset(uint32 stripIndex, uint32 sampleIndex, const Vec3& tangent) const;
+    // parent path에서 branch path를 생성한다.
+    void Append_BranchPathEntries(const PathEntry& parentPath, uint32 stripIndex, float activeElapsedTime);
+    // path sample을 compute input payload로 낮춘다.
+    HRESULT Append_SegmentPayloads(vector<SegmentPayload>& outPayloads) const;
+    // 렌더 가능한 path segment가 있는지 확인한다.
+    bool Has_RenderablePath() const;
 
+private: //## Helper::Setup
     HRESULT Ready_Components();
     HRESULT Ready_Texture();
     HRESULT Ready_NoiseTexture();
@@ -156,6 +182,8 @@ private:
     HRESULT Ready_FlowTexture();
     HRESULT Ready_DrawBuffers();
     HRESULT Ready_ComputeBuffers();
+
+private: //## Helper::Render
     HRESULT Dispatch_Compute();
     HRESULT Update_ComputeInput();
     HRESULT Update_ComputeConstants();
@@ -167,13 +195,18 @@ private:
     bool Can_SubmitRender() const;
     uint32 Compute_MaxRenderSegmentCount() const;
 
+private: //## Helper::PlaybackRuntime
     void Start_NextLoop();
     void Resample_VisualLife();
     float Resolve_CurrentLoopDelay() const;
     float Resolve_Duration() const;
-    float Resolve_VisualLife() const;                      // 한 loop 안에서 Beam이 실제로 보이는 시간을 반환한다.
-    float Resolve_ActiveElapsedTime(float duration) const; // delay 이후 현재 loop 진행 시간을 duration 안으로 제한한다.
+    // 한 loop 안에서 Beam이 실제로 보이는 시간을 반환한다.
+    float Resolve_VisualLife() const;
+    // delay 이후 현재 loop 진행 시간을 duration 안으로 제한한다.
+    float Resolve_ActiveElapsedTime(float duration) const;
     bool Has_NextLoop() const;
+
+private: //## Helper::Render
     bool Is_DistortionFamily() const;
     RenderGroup Resolve_RenderGroup() const;
     const wchar_t* Resolve_ShaderId() const;

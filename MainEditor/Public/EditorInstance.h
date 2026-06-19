@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Editor_Defines.h"
+#include "CameraPresetTypes.h"
 #include "PlayerStatCom.h"
 
 NS_BEGIN(Engine)
@@ -115,6 +116,11 @@ public: /* For.Editor Focus */
 public: /* For.Editor World */
     HRESULT Save_CurrentLevelSnapShot(const fs::path& path) const;
     HRESULT Load_CurrentLevelSnapShot(const fs::path& path);
+    bool    Capture_DemoCheckpoint(const fs::path& path) const;
+    bool    Load_DemoCheckpointInEditor(const fs::path& path);
+    bool    Save_GameStartRuleState(const fs::path& path) const;
+    bool    Save_CostumeUnlockRuleState(const fs::path& path, bool unlockBaguette, bool unlockPotato) const;
+    bool    Load_RuleStateInEditor(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
 
 public: /* For.Inspector */
@@ -286,6 +292,8 @@ private: /* Runtime Data */
     bool _hasPlayStartHeroStatSnapshots = false;
     CameraPoseSnapshot _playStartCameraPose = {};
     Weak<Camera> _cameraBeforeFreeCamera = {};
+    bool _hasTargetCameraModeBeforeFreeCamera = false;
+    TargetCameraMode _targetCameraModeBeforeFreeCamera = TargetCameraMode::NORMAL;
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;

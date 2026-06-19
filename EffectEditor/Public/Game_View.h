@@ -4,6 +4,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// 현재 비활성화된 legacy game viewport window다.
 class [[deprecated("Currently disabled in EffectEditor.")]] Game_View final : public Editor_Window
 {
 public:

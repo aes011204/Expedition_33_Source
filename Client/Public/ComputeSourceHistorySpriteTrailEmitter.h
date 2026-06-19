@@ -10,6 +10,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Source point history를 sprite stamp trail로 누적하고 렌더링한다.
 class ComputeSourceHistorySpriteTrailEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeSourceHistorySpriteTrailEmitter, ObjectType::EffectEmitter);
@@ -35,7 +36,7 @@ public:
     int32 Get_BlendSortLayer() const override;
     float Get_BlendSortBias() const override;
 
-private:
+private: //## Types::PlaybackRuntime
     enum class PlaybackState : uint8
     {
         Delayed,
@@ -114,7 +115,7 @@ private:
         float rotationRadians{};
     };
 
-private:
+private: //## Static Values
     static constexpr auto kShaderId{ L"Shader_EffectSourceHistorySpriteTrail" };
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr uint32 kPointVertexCount{ 1 };
@@ -125,7 +126,7 @@ private:
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
 
-private:
+private: //## Data::PlaybackRuntime
     ComputeSourceHistorySpriteTrailEmitterDesc _desc{};
     PlaybackState _playbackState{ PlaybackState::Delayed };
     bool _finishEmissionAfterUpdate{};
@@ -145,6 +146,7 @@ private:
     uint32 _stampSerialCounter{};
     int _opacitySourceIndex{ kOpacitySourceAlpha };
 
+private: //## Data::Components
     Shared<ShaderCom> _shader{};
     Shared<Texture> _mainTexture{};
     Shared<Texture> _noiseTexture{};
@@ -152,7 +154,7 @@ private:
     ComPtr<Buffer> _pointVB{};
     ComPtr<Buffer> _instanceBuffer{};
 
-private:
+private: //## Helper::PlaybackRuntime
     void Reset_PlaybackRuntime();
     void Reset_LoopScopedRuntime();
     void Advance_Playback(float timeDelta);
@@ -193,10 +195,13 @@ private:
     void Push_Stamp(vector<Stamp>& stamps, const Vec3& center, const Vec3& tangent, float pathDistanceFromHead, float widthScale, float lengthScale);
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
 
+private: //## Helper::Setup
     HRESULT Ready_Components();
     HRESULT Ready_Texture();
     HRESULT Ready_OptionalTexture(Shared<Texture>& outTexture, const string& textureGuid, const string& texturePath);
     HRESULT Ready_DrawBuffers();
+
+private: //## Helper::Render
     HRESULT Update_InstanceBuffer();
     HRESULT Append_StampInstances(const vector<Stamp>& stamps, vector<StampInstanceVertex>& outInstances) const;
     HRESULT Bind_ShaderResources();

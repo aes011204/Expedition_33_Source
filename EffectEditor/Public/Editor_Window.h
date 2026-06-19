@@ -4,6 +4,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor dockable window들의 공통 lifecycle과 open/focus/dirty 상태를 제공한다.
 class Editor_Window abstract : public Base
 {
 public:
@@ -19,7 +20,7 @@ public:
     virtual bool CanSave() const;
     virtual void Save();
 
-public:
+public: //## Accessors
     const wstring& Get_WindowName() const { return _window; }
     const string& Get_ImGuiWindowName() const { return _imguiWindowName; }
 
@@ -33,7 +34,7 @@ public:
     void MarkDirty() { _isDirty = true; }
     void ClearDirty() { _isDirty = false; }
 
-protected:
+protected: //## Data::WindowState
     wstring _window{};
     string _imguiWindowName{};
 

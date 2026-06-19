@@ -40,7 +40,31 @@ void Mon_Simon_Weapon::Priority_Update(float timeDelta)
 
 void Mon_Simon_Weapon::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * *_socketMatrix);
+    if (_isDetached)
+    {
+        _combinedWorldMatrix = _detachedWorldMatrix;
+        return;
+    }
+
+    Matrix worldMatrix = _offsetMatrix * _transformCom->Get_WorldMatrix();
+
+    if (_useSocketBinding && _socketMatrix != nullptr)
+        worldMatrix *= *_socketMatrix;
+
+    Update_CombinedWorldMatrix(worldMatrix);
+}
+
+void Mon_Simon_Weapon::Detach_PreserveWorld()
+{
+    _detachedWorldMatrix = Get_CombinedWorldMatrix();
+    _useSocketBinding = false;
+    _isDetached = true;
+}
+
+void Mon_Simon_Weapon::Attach_ToBindings()
+{
+    _isDetached = false;
+    _useSocketBinding = true;
 }
 
 void Mon_Simon_Weapon::Late_Update(float timeDelta)

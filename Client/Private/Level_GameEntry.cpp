@@ -44,6 +44,7 @@ void Level_GameEntry::Handle_Button()
 
     MainTitleMenuSound::Update_ButtonHoverSound(_firstLevelButton, _wasFirstLevelHovered);
     MainTitleMenuSound::Update_ButtonHoverSound(_secondLevelButton, _wasSecondLevelHovered);
+    MainTitleMenuSound::Update_ButtonHoverSound(_thirdLevelButton, _wasThirdLevelHovered);
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
@@ -73,6 +74,16 @@ void Level_GameEntry::Handle_Button()
 
         return;
     }
+
+    if (_thirdLevelButton && _thirdLevelButton->Was_Clicked())
+    {
+        GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
+
+        if (!CLIENT->Request_LevelTransition(LevelType::GestralVillage))
+            return;
+
+        return;
+    }
 }
 
 HRESULT Level_GameEntry::Ready_Layer_UI(const wstring& strLayerTag)
@@ -92,6 +103,11 @@ HRESULT Level_GameEntry::Ready_Layer_UI(const wstring& strLayerTag)
     _secondLevelButton = Find_TypedUI<UI_Button>(
         _uiByName,
         L"Button_SecondLevel",
+        "Level_GameEntry");
+
+    _thirdLevelButton = Find_TypedUI<UI_Button>(
+        _uiByName,
+        L"Button_ThirdLevel",
         "Level_GameEntry");
 
     return S_OK;

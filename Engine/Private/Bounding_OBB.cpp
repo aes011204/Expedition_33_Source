@@ -49,14 +49,12 @@ bool Bounding_OBB::Intersect(Bounding* otherBounding)
     return false;
 }
 
-#ifdef _DEBUG
 HRESULT Bounding_OBB::Render_Debug(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch, Color color)
 {
     DX::Draw(batch, _obb, color);
 
     return S_OK;
 }
-#endif
 
 Shared<Bounding_OBB> Bounding_OBB::Create(ComPtr<Device> device, ComPtr<Context> context, const BoundingOBBDesc& desc)
 {

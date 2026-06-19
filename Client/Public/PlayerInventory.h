@@ -39,6 +39,9 @@ public:
     void Unlock_Weapon(const string& characterId, const string& weaponId);
     void Ensure_DefaultUnlockedWeapons(const vector<WeaponInventoryEntry>& weapons);
 
+    json Create_SaveJson() const;
+    bool Apply_SaveJson(const json& data);
+
 private:
     uint32 _chroma = 0;
     vector<string> _unlockedPictosIds{};

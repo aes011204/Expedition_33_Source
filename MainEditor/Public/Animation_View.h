@@ -15,6 +15,8 @@ class EffectInstance;
 NS_END
 
 NS_BEGIN(Client)
+class SkyBoxFlow;
+class SkyCloudCard;
 class Weapon;
 NS_END
 
@@ -159,6 +161,20 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewSLDodgeMoveRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
+    struct PreviewRootControllerRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -189,6 +205,11 @@ private:
     void Draw_CreateNotifyStatePopup();
     void Draw_SequencerContextMenu();
     void Draw_TrackSection();
+    float Get_PlaySectionStartSec(const AnimNotifyData* animationData) const;
+    float Get_PlaySectionEndSec(const AnimNotifyData* animationData) const;
+    void Clamp_PlaySection(AnimNotifyData* animationData);
+    void Play_CurrentSection(const Shared<ModelCom>& playbackModel);
+    void Stop_CurrentSection(const Shared<ModelCom>& playbackModel);
 
     void Add_NotifyTrack(const string& trackName);
     void Add_NotifyStateTrack(const string& trackName);
@@ -216,6 +237,9 @@ private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Ensure_PreviewGridResources();
+    void Ensure_PreviewSkyBackdrop();
+    void Update_PreviewSkyBackdrop(float timeDelta);
+    void Late_Update_PreviewSkyBackdrop(float timeDelta);
     Shared<GameObject> Get_PreviewRenderObject() const;
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
@@ -227,6 +251,10 @@ private:
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
+    void Update_PreviewSLDodgeMoveStates(float timeDelta);
+    void Reset_PreviewSLDodgeMoveStates();
+    void Update_PreviewRootControllerStates(float timeDelta);
+    void Reset_PreviewRootControllerStates();
     void Update_PreviewTrailEffect(float timeDelta);
     void Reset_PreviewTrailEffect();
     void Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime);
@@ -301,6 +329,8 @@ private:
     Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
+    Shared<Client::SkyBoxFlow> _previewSkyBox{};
+    vector<Shared<Client::SkyCloudCard>> _previewSkyCloudCards{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
@@ -318,6 +348,8 @@ private:
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
+    vector<PreviewSLDodgeMoveRuntime> _previewSLDodgeMoveRuntimes{};
+    vector<PreviewRootControllerRuntime> _previewRootControllerRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
     vector<PreviewSourceHistoryRuntime> _previewSourceHistoryRuntimes{};
     mutable int32 _previewTrailProviderStateId = -1; // preview effect가 지금 sample을 요청 중인 runtime state id다.
@@ -341,6 +373,9 @@ private:
     bool _isPreviewHovered = false;
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;
+    bool _showPreviewSkyBackdrop = true;
+    bool _previewSkyBackdropBegunPlay = false;
+    bool _isSectionPreviewPlaying = false;
     float _topSectionHeight = 500.f;
     wstring _previewOwnerObjectKey{};
     
@@ -352,6 +387,8 @@ private:
     bool _openCreateNotifyPopup = false;
     bool _openCreateNotifyStatePopup = false;
     bool _openSequencerContextPopup = false;
+    char _createNotifyFilter[128]{};
+    char _createNotifyStateFilter[128]{};
 
     int32 _requestedCreateNotifyFrame = 0;
     int32 _requestedCreateStateStartFrame = 0;

@@ -83,7 +83,7 @@ namespace
         CLIENT->Apply_PreviewLayout(previewLayout);
 
         // 아직 안만들었으니까 일단은, 카메라 프리뷰 SKill Tree꺼 재사용
-        CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(heroId, PreviewShotPanel::Wardrobe);
     }
 
     int32 To_HeroIndex(HeroId heroId)
@@ -153,7 +153,7 @@ void Wardrobe_Panel::Open()
     if (FAILED(Prepare_OpenResources()))
         LOG_WARN("Wardrobe_Panel: failed to prepare wardrobe resources");
 
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree); // Wardrobe도 기존 preview 플레이어를 그대로 사용한다.
+    CLIENT->Begin_Preview(PreviewShotPanel::Wardrobe); // Wardrobe도 기존 preview 플레이어를 그대로 사용한다.
     Sync_CurrentCostumeToPreviewHeroes();               // preview가 새로 스폰된 직후 current costume 상태를 먼저 맞춘다.
     Show_WardrobePreview(_selectedHeroId);
     CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Wardrobe_Intro, PreviewAnimState::Wardrobe_Idle);
@@ -348,6 +348,10 @@ void Wardrobe_Panel::Handle_WardrobeInput()
     if (heroIndex >= _heroWardrobeUI.size())
         return;
 
+    CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
+    if (costumeManager == nullptr)
+        return;
+
     HeroWardrobeUI& currentHeroWardrobe = _heroWardrobeUI[heroIndex];
 
     for (size_t slotIndex = 0; slotIndex < currentHeroWardrobe.buttons.size(); ++slotIndex)
@@ -356,9 +360,18 @@ void Wardrobe_Panel::Handle_WardrobeInput()
         if (button == nullptr || !button->Was_Clicked())
             continue;
 
+        const char* presetId = kWardrobePresetIds[slotIndex];
+        if (!costumeManager->Is_PresetUnlocked(_selectedHeroId, presetId))
+        {
+            LOG_INFO(
+                "Wardrobe_Panel: locked preset UI clicked. hero={}, preset={}",
+                To_HeroDebugName(_selectedHeroId),
+                presetId);
+            return;
+        }
+
         GAME->Play_SoundCue(Constants::SoundCue::UI_Global_NavigateClick);
 
-        const char* presetId = kWardrobePresetIds[slotIndex];
         if (!Try_EquipPreset(presetId))
         {
             LOG_WARN(
@@ -377,17 +390,25 @@ void Wardrobe_Panel::Refresh_VisibleWardrobeCards()
     if (selectedHeroIndex < 0)
         return;
 
+    CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
+
     for (int32 heroIndex = 0; heroIndex < static_cast<int32>(_heroWardrobeUI.size()); ++heroIndex)
     {
         HeroWardrobeUI& heroWardrobe = _heroWardrobeUI[heroIndex];
         const bool isSelectedHero = heroIndex == selectedHeroIndex;
+        const HeroId heroId = kHeroOrder[heroIndex];
 
-        for (Shared<UI_Base>& panel : heroWardrobe.panels)
+        for (size_t slotIndex = 0; slotIndex < heroWardrobe.panels.size(); ++slotIndex)
         {
+            Shared<UI_Base>& panel = heroWardrobe.panels[slotIndex];
             if (panel == nullptr)
                 continue;
 
-            if (isSelectedHero)
+            const char* presetId = kWardrobePresetIds[slotIndex];
+            const bool isUnlocked =
+                costumeManager && costumeManager->Is_PresetUnlocked(heroId, presetId);
+
+            if (isSelectedHero && isUnlocked)
                 panel->Open();
             else
                 panel->Close();
@@ -439,6 +460,15 @@ bool Wardrobe_Panel::Try_EquipPreset(const char* presetId)
     CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
     if (costumeManager == nullptr)
         return false;
+
+    if (!costumeManager->Is_PresetUnlocked(_selectedHeroId, presetId))
+    {
+        LOG_INFO(
+            "Wardrobe_Panel: preset locked. hero={}, preset={}",
+            To_HeroDebugName(_selectedHeroId),
+            presetId);
+        return false;
+    }
 
     // CostumeManager current preset 갱신
     const CostumePreset* preset = costumeManager->Set_CurrentCostume(_selectedHeroId, presetId);

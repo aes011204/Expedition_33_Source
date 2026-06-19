@@ -9,8 +9,6 @@
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
-#include "ChainModifierPreset.h"
-#include "ChainModifier.h"
 #include "MovementCom.h"
 #include "TransformCom.h"
 
@@ -159,53 +157,6 @@ HRESULT PW_Gustave::Ready_BodyModifiers(Body_Player* body)
             wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
         }
         else return E_FAIL;
-
-        PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
-        ChainModifierPreset::BuildPoseFollowScarfDesc(
-            scarfDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
-
-        if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
-        {
-            body->Get_Model()->Add_AnimModifier(modifier);
-        }
-
-        ChainModifier::ChainModifierDesc armbandDesc{};
-        ChainModifierPreset::BuildArmbandDesc(
-            armbandDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
-
-        if (auto modifier = ChainModifier::Create(&armbandDesc))
-        {
-            body->Get_Model()->Add_AnimModifier(modifier);
-        }
-
-        ChainModifier::ChainModifierDesc backpackBandDesc{};
-        ChainModifierPreset::BuildBackpackBandDesc(
-            backpackBandDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
-
-        if (!backpackBandDesc.groups.empty())
-        {
-            if (auto modifier = ChainModifier::Create(&backpackBandDesc))
-            {
-                body->Get_Model()->Add_AnimModifier(modifier);
-            }
-        }
-
-        PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
-        ChainModifierPreset::BuildPoseFollowCoatDesc(
-            coatDesc,
-            Get_Transform().get(),
-            PlayerCharacterType::Gustave);
-
-        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
-        {
-            body->Get_Model()->Add_AnimModifier(modifier);
-        }
 
     return S_OK;
 }

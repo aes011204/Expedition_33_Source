@@ -24,6 +24,66 @@ namespace UIEditor
                 NearlyEqual(lhs.w, rhs.w);
         }
 
+        bool NearlyEqual(const UI_MaterialVfxDesc& lhs, const UI_MaterialVfxDesc& rhs)
+        {
+            return lhs.mode == rhs.mode &&
+                lhs.noiseTextureGuid == rhs.noiseTextureGuid &&
+                lhs.noiseTexturePath == rhs.noiseTexturePath &&
+                NearlyEqual(lhs.color, rhs.color) &&
+                NearlyEqual(lhs.coreColor, rhs.coreColor) &&
+                NearlyEqual(lhs.flowColor, rhs.flowColor) &&
+                NearlyEqual(lhs.glow, rhs.glow) &&
+                NearlyEqual(lhs.alpha, rhs.alpha) &&
+                NearlyEqual(lhs.coreStrength, rhs.coreStrength) &&
+                NearlyEqual(lhs.coreWidth, rhs.coreWidth) &&
+                NearlyEqual(lhs.coreSoftness, rhs.coreSoftness) &&
+                NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
+                NearlyEqual(lhs.uvScroll, rhs.uvScroll) &&
+                NearlyEqual(lhs.edgeWidth, rhs.edgeWidth) &&
+                NearlyEqual(lhs.edgeSoftness, rhs.edgeSoftness) &&
+                NearlyEqual(lhs.erosion, rhs.erosion) &&
+                NearlyEqual(lhs.flicker, rhs.flicker) &&
+                NearlyEqual(lhs.distortion, rhs.distortion) &&
+                NearlyEqual(lhs.edgeWobbleSpeed, rhs.edgeWobbleSpeed);
+        }
+
+        bool NearlyEqual(const UI_ButtonSheenDesc& lhs, const UI_ButtonSheenDesc& rhs)
+        {
+            return NearlyEqual(lhs.color, rhs.color) &&
+                NearlyEqual(lhs.speed, rhs.speed) &&
+                NearlyEqual(lhs.width, rhs.width) &&
+                NearlyEqual(lhs.softness, rhs.softness) &&
+                NearlyEqual(lhs.angle, rhs.angle) &&
+                NearlyEqual(lhs.noiseStrength, rhs.noiseStrength);
+        }
+
+        UI_MaterialVfxDesc Resolve_ClampedMaterialVfx(UI_MaterialVfxDesc materialVfx)
+        {
+            materialVfx.glow = Clamp_MaterialVfxGlow(materialVfx.glow);
+            materialVfx.alpha = Clamp_MaterialVfxAlpha(materialVfx.alpha);
+            materialVfx.coreStrength = Clamp_MaterialVfxCoreStrength(materialVfx.coreStrength);
+            materialVfx.coreWidth = Clamp_MaterialVfxCoreWidth(materialVfx.coreWidth);
+            materialVfx.coreSoftness = Clamp_MaterialVfxCoreSoftness(materialVfx.coreSoftness);
+            materialVfx.noiseStrength = Clamp_MaterialVfxNoiseStrength(materialVfx.noiseStrength);
+            materialVfx.edgeWidth = Clamp_MaterialVfxEdgeWidth(materialVfx.edgeWidth);
+            materialVfx.edgeSoftness = Clamp_MaterialVfxEdgeSoftness(materialVfx.edgeSoftness);
+            materialVfx.erosion = Clamp_MaterialVfxErosion(materialVfx.erosion);
+            materialVfx.flicker = Clamp_MaterialVfxFlicker(materialVfx.flicker);
+            materialVfx.distortion = Clamp_MaterialVfxDistortion(materialVfx.distortion);
+            materialVfx.edgeWobbleSpeed = Clamp_MaterialVfxEdgeWobbleSpeed(materialVfx.edgeWobbleSpeed);
+            return materialVfx;
+        }
+
+        UI_ButtonSheenDesc Resolve_ClampedButtonSheen(UI_ButtonSheenDesc buttonSheen)
+        {
+            buttonSheen.speed = Clamp_ButtonSheenSpeed(buttonSheen.speed);
+            buttonSheen.width = Clamp_ButtonSheenWidth(buttonSheen.width);
+            buttonSheen.softness = Clamp_ButtonSheenSoftness(buttonSheen.softness);
+            buttonSheen.angle = Clamp_ButtonSheenAngle(buttonSheen.angle);
+            buttonSheen.noiseStrength = Clamp_ButtonSheenNoiseStrength(buttonSheen.noiseStrength);
+            return buttonSheen;
+        }
+
         ImVec2 Resolve_ClampedScale(const ImVec2& scale)
         {
             return ImVec2(max(0.01f, scale.x), max(0.01f, scale.y));
@@ -471,6 +531,50 @@ namespace UIEditor
             return false;
 
         object->fillOrigin = fillOrigin;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectMaterialVfx(const UI_Document& document, ObjectId objectId, const UI_MaterialVfxDesc& materialVfx) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object &&
+            object->type == UI_ObjectType::Image &&
+            !NearlyEqual(object->materialVfx, Resolve_ClampedMaterialVfx(materialVfx));
+    }
+
+    bool UI_ObjectEditService::Set_ObjectMaterialVfx(UI_Document& document, ObjectId objectId, const UI_MaterialVfxDesc& materialVfx) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image)
+            return false;
+
+        const UI_MaterialVfxDesc clampedMaterialVfx = Resolve_ClampedMaterialVfx(materialVfx);
+        if (NearlyEqual(object->materialVfx, clampedMaterialVfx))
+            return false;
+
+        object->materialVfx = clampedMaterialVfx;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectButtonSheen(const UI_Document& document, ObjectId objectId, const UI_ButtonSheenDesc& buttonSheen) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object &&
+            object->type == UI_ObjectType::Image &&
+            !NearlyEqual(object->buttonSheen, Resolve_ClampedButtonSheen(buttonSheen));
+    }
+
+    bool UI_ObjectEditService::Set_ObjectButtonSheen(UI_Document& document, ObjectId objectId, const UI_ButtonSheenDesc& buttonSheen) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image)
+            return false;
+
+        const UI_ButtonSheenDesc clampedButtonSheen = Resolve_ClampedButtonSheen(buttonSheen);
+        if (NearlyEqual(object->buttonSheen, clampedButtonSheen))
+            return false;
+
+        object->buttonSheen = clampedButtonSheen;
         return true;
     }
 

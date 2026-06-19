@@ -26,6 +26,9 @@ public:
 
     const vector<string>& Get_UnlockedSkillIds() const { return _unlockedSkillId; } // Character Progression이 해금 스킬 목록을 표시할 때만 읽는다.
 
+    json Create_SaveJson() const;
+    bool Apply_SaveJson(const json& data);
+
 private:
     vector<string> _unlockedSkillId;
 

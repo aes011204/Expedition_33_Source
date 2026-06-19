@@ -1,5 +1,6 @@
 ﻿#include "FreeAimTargeting.h"
 #include <Battle_Event.h>
+#include "BattleAnimUtils.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "BattleTurnCamera.h"
@@ -69,7 +70,7 @@ void FreeAimTargeting::Update(float timeDelta)
     if (!owner || !battleFSM)
         return;
 
-     // Free Aim 발사 연출 중에는 조준 유지 상태만 두고 새 입력은 막는다.
+    // Free Aim 발사 연출 중에는 조준 유지 상태만 두고 새 입력은 막는다.
     if (owner->Is_FreeAimShotPlaying())
         return;
 
@@ -86,30 +87,35 @@ void FreeAimTargeting::Update(float timeDelta)
         battleCamera->Update_FreeAimRotation(timeDelta); // Free Aim 상태에서만 카메라 회전 갱신
         Update_FreeAimPlayerYaw(timeDelta);
     }
-        
+
 
     Refresh_HitTarget(); // 회전된 카메라 방향 기준으로 적 히트 판정
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
-        Play_CurrentActorBattleAnim(BattleAnimType::Base_Idle, 0.2f, true); // 취소 시에는 기본 Idle로 전환
+        if (!Play_CurrentActorBattleAnim(BattleAnimType::Turn_Start, 0.2f, false))
+            BattleAnimUtils::Play_BattleIdle(owner->Get_TurnActionRequest().actor, 0.2f);
         Clear_HitTarget();
 
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = owner->Get_TurnActionRequest().actor.actor;
+        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from FreeAimTargeting::Update RBUTTON");
         GAME->Get_EventBus().Publish(event);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
     }
 
-    // 진입이 끝나기 전에는 Shoot 허용 X
-    if (_freeAimAnimState != FreeAimAnimState::Idle)
-        return;
-
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
     {
+        if (_freeAimAnimState == FreeAimAnimState::EnterTransition)
+            _freeAimAnimState = FreeAimAnimState::Idle;
+
+        // 진입이 끝나기 전에는 Shoot 허용 X
+        if (_freeAimAnimState != FreeAimAnimState::Idle)
+            return;
+
         ActionRequest shotRequest{};
         shotRequest.actor = owner->Get_TurnActionRequest().actor;
         shotRequest.type = EBattleContext::FreeAimShoot;
@@ -160,47 +166,47 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
 
     const vector<BattleChar> aliveEnemies = owner->Get_AliveEnemies();
     const auto resolveHitTarget = [&](const PhysXQueryHit& hit, BattleFreeAimHitTarget& outResolvedHitTarget) -> bool
-    {
-        if (hit.owner == nullptr)
-            return false;
-
-        for (const auto& enemy : aliveEnemies)
         {
-            if (enemy.actor == nullptr || enemy.statCom == nullptr)
-                continue;
-
-            if (enemy.actor.get() == hit.owner)
-            {
-                outResolvedHitTarget.target = enemy;
-                outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
-                return true;
-            }
-
-            const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor);
-            if (monster == nullptr)
-                continue;
-
-            const Shared<Mon_WeakPoint> weakPoint = monster->Get_BattleWeakPoint();
-            if (weakPoint == nullptr || weakPoint.get() != hit.owner)
-                continue;
-
-            if (!weakPoint->Is_BattleWeakPointEnabled())
+            if (hit.owner == nullptr)
                 return false;
 
-            if (enemy.statCom->Get_CurrentShield() > 0)
+            for (const auto& enemy : aliveEnemies)
             {
+                if (enemy.actor == nullptr || enemy.statCom == nullptr)
+                    continue;
+
+                if (enemy.actor.get() == hit.owner)
+                {
+                    outResolvedHitTarget.target = enemy;
+                    outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    return true;
+                }
+
+                const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor);
+                if (monster == nullptr)
+                    continue;
+
+                const Shared<Mon_WeakPoint> weakPoint = monster->Get_BattleWeakPoint();
+                if (weakPoint == nullptr || weakPoint.get() != hit.owner)
+                    continue;
+
+                if (!weakPoint->Is_BattleWeakPointEnabled())
+                    return false;
+
+                if (enemy.statCom->Get_CurrentShield() > 0)
+                {
+                    outResolvedHitTarget.target = enemy;
+                    outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    return true;
+                }
+
                 outResolvedHitTarget.target = enemy;
-                outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
                 return true;
             }
 
-            outResolvedHitTarget.target = enemy;
-            outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
-            return true;
-        }
-
-        return false;
-    };
+            return false;
+        };
 
     PhysXQueryHit hit{};
     const bool hasHit = GAME->Sweep_Sphere(
@@ -257,17 +263,17 @@ bool FreeAimTargeting::Is_CurrentActorAnimFinished() const
     return actor.ModelCom->Is_AnimationFinished(); // 현재 재생 중인 진입 애니가 끝났는지 확인S
 }
 
-void FreeAimTargeting::Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const
+bool FreeAimTargeting::Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const
 {
     auto owner = Get_Owner();
     if (!owner)
-        return;
+        return false;
 
     const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom == nullptr)
-        return;
+        return false;
 
-    actor.ModelCom->Set_AnimationByState(ETOI(animType), blendTime, isLoop);
+    return actor.ModelCom->Set_AnimationByState(ETOI(animType), blendTime, isLoop);
 }
 
 void FreeAimTargeting::Update_FreeAimPlayerYaw(float timeDelta)

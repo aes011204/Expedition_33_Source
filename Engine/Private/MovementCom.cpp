@@ -200,6 +200,63 @@ void MovementCom::Update_Movement(float timeDelta)
 
 }
 
+void MovementCom::Move_ExternalDisplacement(const Vec3& displacement, float timeDelta)
+{
+    CHECK_NULL(_transformCom);
+
+    if (displacement.LengthSquared() <= 0.000001f)
+        return;
+
+    const float dt = max(timeDelta, 0.0001f);
+
+    if (_moveDesc.backend == MoveBackend::PhysXCCT)
+    {
+        if (_characterController == nullptr)
+            Create_CharacterController();
+
+        if (_characterController != nullptr)
+        {
+            const CharacterControllerMoveResult moveResult =
+                _characterController->Move(displacement, dt);
+
+            const bool smoothGrounding = moveResult.collisionDown;
+            Sync_Transform_FromCCT(moveResult.footPosition, dt, smoothGrounding, false);
+
+            if (moveResult.collisionDown)
+            {
+                _isGrounded = true;
+                _isJumping = false;
+                _velocity.y = 0.f;
+                _jumpStartHorizontalVelocity = Vec3::Zero;
+                _cctGroundDetachGraceRemain = kCCTGroundDetachGraceSec;
+            }
+            else if (!_isJumping && _isGrounded && _cctGroundDetachGraceRemain > 0.f)
+            {
+                _cctGroundDetachGraceRemain = max(0.f, _cctGroundDetachGraceRemain - dt);
+            }
+            else
+            {
+                _cctGroundDetachGraceRemain = 0.f;
+                _isGrounded = false;
+            }
+
+            if (moveResult.collisionUp && _velocity.y > 0.f)
+                _velocity.y = 0.f;
+
+            return;
+        }
+    }
+
+    if (_colliderCom == nullptr || _colliderCom->Get_PxShape() == nullptr)
+    {
+        _transformCom->Add_WorldPosition(displacement);
+        return;
+    }
+
+    Move_WithCollision(displacement);
+    Resolve_Ground_WithSnap();
+}
+
 void MovementCom::Set_MoveBackend(MoveBackend backend)
 {
     if (_moveDesc.backend == backend)
