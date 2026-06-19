@@ -46,15 +46,64 @@ HRESULT Level_GestralVillage::Render()
 HRESULT Level_GestralVillage::Ready_Lights()
 {
     LIGHT_DESC LightDesc{};
+
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = Vec4(1.f, -1.f, 1.f, 0.f);
-    LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-    LightDesc.ambient = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
-    LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.direction = Vec4(-0.8f, -0.6f, -1.f, 0.f);
+    LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+    LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.castShadow = true;
 
     if (FAILED(GAME->Add_Light(LightDesc)))
-    {
         return E_FAIL;
+
+    {
+        ShadowLightDesc ShadowDesc{};
+
+        ShadowDesc.eye = Vec3(0.f, 15.f, -7.f);
+        ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
+
+        // Camera 따라다니게
+        ShadowDesc.followCameraFrustum = true;
+        ShadowDesc.focusNear = 0.1f;
+        ShadowDesc.focusFar = 110.f;
+        ShadowDesc.lightDistancePadding = 30.f;
+        // 그림자용 ortho projection 범위 여유 값
+        ShadowDesc.xyPadding = 2.f;
+        ShadowDesc.zPadding = 40.f;
+
+        // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
+        ShadowDesc.shadowMapWidth = 4096;
+        ShadowDesc.shadowMapHeight = 4096;
+
+        ShadowDesc.cascadeSplitLambda = 0.8f;
+        ShadowDesc.bias = 0.0002f;
+        ShadowDesc.intensity = 0.6f;
+
+        if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+            return E_FAIL;
+        
+        // 카메라 close/normal/far 모드에 따라서 그림자 구간을 동적 조절하기 위한 프리셋 설정
+        ShadowCascadePresetSet cascadePresets{};
+        cascadePresets.close.focusNear = 0.1f;
+        cascadePresets.close.focusFar = 28.f;
+        cascadePresets.close.cascadeSplitLambda = 0.95f;
+        cascadePresets.close.cascadeBlendDistance = 0.8f;
+
+        cascadePresets.normal.focusNear = 0.1f;
+        cascadePresets.normal.focusFar = 110.f;
+        cascadePresets.normal.cascadeSplitLambda = 0.8f;
+        cascadePresets.normal.cascadeBlendDistance = 1.7f;
+
+        cascadePresets.farRange.focusNear = 0.1f;
+        cascadePresets.farRange.focusFar = 180.f;
+        cascadePresets.farRange.cascadeSplitLambda = 0.55f;
+        cascadePresets.farRange.cascadeBlendDistance = 3.f;
+
+        if (FAILED(GAME->Set_ShadowCascadePresets(cascadePresets)))
+            return E_FAIL;
+        if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
+            return E_FAIL;
     }
 
     return S_OK;
