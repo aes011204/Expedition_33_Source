@@ -1,8 +1,11 @@
 ﻿#include "SL_Dodge.h"
 
 #include "Body_Player.h"
+#include "Camera.h"
+#include "GameInstance.h"
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
+#include "TransformCom.h"
 
 SL_Dodge::SL_Dodge(const Shared<SL_Maelle>& owner)
     : SL_State(owner)
@@ -19,6 +22,31 @@ bool SL_Dodge::EnterInvoke()
     owner->Set_InvincibleTime(0.35f); // 구르기 시 무적 시간 세팅
 
     Stop_Movement();
+
+    if (!_request.lockOn)
+    {
+        Shared<Camera> camera = GAME->Get_ActiveCamera();
+        Shared<TransformCom> transform = owner->Get_Transform();
+
+        if (camera != nullptr && transform != nullptr)
+        {
+            Vec3 cameraForward = Vec3::Zero;
+            Vec3 cameraRight = Vec3::Zero;
+
+            if (camera->Try_GetFlatMoveBasis(cameraForward, cameraRight))
+            {
+                cameraForward.y = 0.f;
+
+                if (cameraForward.LengthSquared() > 0.0001f)
+                {
+                    cameraForward.Normalize();
+
+                    const Vec3 position = transform->Get_WorldPosition();
+                    transform->LookAt(position + cameraForward);
+                }
+            }
+        }
+    }
 
     _direction = Resolve_DodgeDirection(_request);
     _anim = Resolve_DodgeAnim(_direction);

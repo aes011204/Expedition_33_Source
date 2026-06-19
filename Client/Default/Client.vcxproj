@@ -502,6 +502,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="..\Public\Unlock_Manager.h" />
     <ClInclude Include="..\public\UtilitySystem.h" />
     <ClInclude Include="..\Public\VictoriaFlag.h" />
     <ClInclude Include="..\Public\Wardrobe_Panel.h" />
@@ -862,6 +863,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\Private\Unlock_Manager.cpp" />
     <ClCompile Include="..\private\UtilitySystem.cpp" />
     <ClCompile Include="..\Private\VictoriaFlag.cpp" />
     <ClCompile Include="..\Private\Wardrobe_Panel.cpp" />
