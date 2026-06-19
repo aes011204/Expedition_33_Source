@@ -33,15 +33,21 @@ public: //## Behavior::Lifecycle
     bool Is_Playing() const;
     // one-shot 완료 후 pool 반환 후보인지 반환한다.
     bool Is_Finished() const;
+
+public: //## Behavior::PlaybackOptions
     void Set_Loop(bool loop) { _loop = loop; }
     bool Is_Loop() const { return _loop; }
     // 튜토리얼 freeze는 Stop이 아니라 update만 멈춘다.
     void Set_PlaybackPaused(bool paused) { _isPlaybackPaused = paused; }
     bool Is_PlaybackPaused() const { return _isPlaybackPaused; }
+
+public: //## Behavior::ProviderBinding
     // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
     void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider);
     // 현재 acquire context가 공급한 source point sample provider를 child emitter에 다시 전파한다.
     void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider);
+
+public: //## Accessors
     // 같은 effect root 안의 child emitter를 follower source id로 찾는다.
     Shared<EffectEmitter> Find_EmitterById(uint32 emitterId) const;
 
@@ -73,7 +79,7 @@ private: //## Data::Children
     // root가 직접 소유하는 child emitter 목록이다.
     vector<Shared<EffectEmitter>> _emitters{};
 
-private: //## Helpers
+private: //## Helper::Children
     // definition emitters를 concrete runtime child로 생성한다.
     HRESULT Ready_Emitters();
     // 기존 child가 새 definition을 받을 수 있으면 재생성 없이 갱신한다.

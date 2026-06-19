@@ -14,10 +14,10 @@ NS_BEGIN(Client)
 // TODO: 추가 병목이 확인되면 emitter별 Reset_ForEffectReplay 비용을 더 줄인다.
 // 자동 완료 반환은 fire-and-forget entry에만 허용하고, owner-tracked entry는 consumer의 명시 release를 정본으로 둔다.
 
-// EffectInstance 전체를 재사용 단위로 관리하는 Client-local pool helper다.
+// EffectInstance root 단위 acquire/release/reuse를 관리하는 Client-local pool helper다.
 class EffectInstancePool final : public Base
 {
-public:
+public: //## Types::Public
     /**
      * Acquire()에 전달하는 "이 EffectInstance 1개를 어떻게 준비할지" 입력값이다.
      * 여기서 instance 단위란 EffectEmitter 1개가 아니라, 여러 emitter를 소유한 EffectInstance root 1개를 뜻한다.
@@ -63,7 +63,7 @@ public:
     EffectInstancePool() = default;
     ~EffectInstancePool() override = default;
 
-public:
+public: //## Behavior::Pool
     // 기존 instance 재사용 또는 신규 spawn 후 ready 상태로 돌려준다.
     HRESULT Acquire(const AcquireDesc& desc, AttachedHandle& outHandle);
     // 이미 acquired 된 instance root를 유지한 채 새 definition으로 preview/runtime 내용을 갱신한다.
@@ -75,7 +75,7 @@ public:
     // pool bookkeeping과 재사용 엔트리를 비운다.
     void Clear();
 
-public:
+public: //## Debug::EditorSession
     // [Effect Editor용] 같은 key의 inactive entry만 level에서 제거해 mutable preview definition 재사용을 막는다.
     void Discard_Inactive(const wstring& effectName);
     DebugSummary Get_DebugSummary() const;
@@ -83,7 +83,7 @@ public:
     // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기
     HRESULT Prewarm(const AcquireDesc& desc, uint32 count);
 
-private:
+private: //## Types::Pool
     /**
      * pool 내부 슬롯 1개다. 슬롯 1개는 재사용 가능한 EffectInstance 1개와, 그 instance를 다시 빌려줘도 되는지 여부를 기록한다.
      * caller에게는 AttachedHandle만 노출하고, 실제 EffectInstance 소유/재사용 상태는 이 entry가 추적한다.
@@ -99,10 +99,11 @@ private:
         bool autoReleaseOnFinished{ true };          // 완료 시 전역 자동 반환을 허용하는 fire-and-forget entry인지 기록한다.
     };
 
-private:
-    vector<PooledInstance> _entries{}; // 현재 pool이 관리하는 EffectInstance 재사용 엔트리 목록이다.
+private: //## Data::Pool
+    // 현재 pool이 관리하는 EffectInstance 재사용 엔트리 목록이다.
+    vector<PooledInstance> _entries{};
 
-private:
+private: //## Helper::Pool
     // key 기준 instance 확보를 담당한다.
     HRESULT Acquire_Instance(
         const AcquireDesc& desc,

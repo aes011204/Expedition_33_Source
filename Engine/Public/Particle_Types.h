@@ -441,10 +441,10 @@ enum class PointParticleSphereLocationPlacementMode : uint32
 // SphereLocation 모듈이 만든 생성 시점 구형 위치 offset 분포다.
 struct PointParticleSphereLocationDesc
 {
-    bool enabled{ false }; // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
-    Vec3 offset{ 0.f, 0.f, 0.f }; // emitter center 기준 구 중심 offset이다.
-    float radius{ 1.f }; // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
-    PointParticleSphereLocationMode mode{ PointParticleSphereLocationMode::Volume }; // 구 내부/표면 샘플링 정책이다.
+    bool enabled{ false };                                                                                      // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    Vec3 offset{ 0.f, 0.f, 0.f };                                                                               // emitter center 기준 구 중심 offset이다.
+    float radius{ 1.f };                                                                                        // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
+    PointParticleSphereLocationMode mode{ PointParticleSphereLocationMode::Volume };                            // 구 내부/표면 샘플링 정책이다.
     PointParticleSphereLocationPlacementMode placementMode{ PointParticleSphereLocationPlacementMode::Random }; // Surface 모드에서 구 표면 방향을 고르는 정책이다.
 };
 

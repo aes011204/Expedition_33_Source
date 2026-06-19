@@ -5,6 +5,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// Cascade-style emitter stack authoring, selection, clipboard, and module actions을 관리한다.
 class Emitter_View final : public Editor_Window
 {
 public:
@@ -26,12 +27,18 @@ public:
     HRESULT Initialize() override;
     void Render() override;
 
-    bool CanSave() const override; // 현재 effect authoring document가 Save 대상임을 알린다.
-    void Save() override;          // Save As dialog를 열어 emitter/module authoring json을 저장한다.
-    bool CanOpen() const;          // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
-    void Open();                   // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
-    bool CanAdd() const;           // 다른 effect authoring document의 emitter들을 현재 문서에 추가할 수 있는지 알린다.
-    void Add();                    // Add dialog로 .effect.json의 emitter stack만 현재 문서 끝에 추가한다.
+    // 현재 effect authoring document가 Save 대상임을 알린다.
+    bool CanSave() const override;
+    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
+    void Save() override;
+    // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
+    bool CanOpen() const;
+    // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
+    void Open();
+    // 다른 effect authoring document의 emitter들을 현재 문서에 추가할 수 있는지 알린다.
+    bool CanAdd() const;
+    // Add dialog로 .effect.json의 emitter stack만 현재 문서 끝에 추가한다.
+    void Add();
 
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
@@ -247,7 +254,8 @@ private: //## Helper::Clipboard
 
 private: //## Helper::Selection
     void Clear_Selection();
-    void Clamp_Selection(); // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
+    // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
+    void Clamp_Selection();
     void Select_Emitter(size_t emitterIndex);
     void Select_Module(size_t emitterIndex, size_t moduleIndex);
     void Select_TypeData(size_t emitterIndex);

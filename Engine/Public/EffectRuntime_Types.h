@@ -286,28 +286,28 @@ struct EffectRequiredMaterialRuntimeDesc
     bool noiseInvert{ false };                                                // noise scalar를 1-x로 뒤집는다.
     bool maskInvert{ false };                                                 // mask coverage를 1-x로 뒤집는다.
 
-    Vec2 mainUVScale{ 1.f, 1.f }; // main texture UV 반복/확대 배율 후보 값이다.
-    Vec2 mainUVOffset{ 0.f, 0.f }; // main texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 mainUVScrollSpeed{ 0.f, 0.f }; // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
-    EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // main texture UV tiling 해석 방식이다.
+    Vec2 mainUVScale{ 1.f, 1.f };                                                                                // main texture UV 반복/확대 배율 후보 값이다.
+    Vec2 mainUVOffset{ 0.f, 0.f };                                                                               // main texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                                                          // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // main texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy mainUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // main texture U/V축별 UV 해석 방식이다.
 
-    Vec2 noiseUVScale{ 1.f, 1.f }; // noise texture UV 반복/확대 배율 후보 값이다.
-    Vec2 noiseUVOffset{ 0.f, 0.f }; // noise texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 noiseUVScrollSpeed{ 0.f, 0.f }; // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
-    EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // noise texture UV tiling 해석 방식이다.
+    Vec2 noiseUVScale{ 1.f, 1.f };                                                                                // noise texture UV 반복/확대 배율 후보 값이다.
+    Vec2 noiseUVOffset{ 0.f, 0.f };                                                                               // noise texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                                                          // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // noise texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy noiseUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // noise texture U/V축별 UV 해석 방식이다.
 
-    Vec2 maskUVScale{ 1.f, 1.f }; // mask texture UV 반복/확대 배율 후보 값이다.
-    Vec2 maskUVOffset{ 0.f, 0.f }; // mask texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 maskUVScrollSpeed{ 0.f, 0.f }; // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
-    EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // mask texture UV tiling 해석 방식이다.
+    Vec2 maskUVScale{ 1.f, 1.f };                                                                                // mask texture UV 반복/확대 배율 후보 값이다.
+    Vec2 maskUVOffset{ 0.f, 0.f };                                                                               // mask texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                                                          // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // mask texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy maskUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // mask texture U/V축별 UV 해석 방식이다.
 
-    Vec2 flowUVScale{ 1.f, 1.f }; // SpriteDistortion flow texture UV 반복/확대 배율 후보 값이다.
-    Vec2 flowUVOffset{ 0.f, 0.f }; // SpriteDistortion flow texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 flowUVScrollSpeed{ 0.f, 0.f }; // SpriteDistortion flow texture UV scroll speed 후보 값이다.
-    EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // flow texture UV tiling 해석 방식이다.
+    Vec2 flowUVScale{ 1.f, 1.f };                                                                                // SpriteDistortion flow texture UV 반복/확대 배율 후보 값이다.
+    Vec2 flowUVOffset{ 0.f, 0.f };                                                                               // SpriteDistortion flow texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 flowUVScrollSpeed{ 0.f, 0.f };                                                                          // SpriteDistortion flow texture UV scroll speed 후보 값이다.
+    EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // flow texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy flowUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // flow texture U/V축별 UV 해석 방식이다.
 
     EffectMaterialAdditiveContributionData additive{};                                // Additive blend에서 더할 contribution 해석 규칙이다.
@@ -329,10 +329,10 @@ struct EffectRequiredMaterialRuntimeDesc
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.
 struct EffectSpriteRenderRuntimeDesc
 {
-    EffectScreenAlignment screenAlignment{ EffectScreenAlignment::FacingCameraPosition }; // sprite 축 선택 기준이다.
+    EffectScreenAlignment screenAlignment{ EffectScreenAlignment::FacingCameraPosition };                               // sprite 축 선택 기준이다.
     EffectSpriteDirectionalAlignmentMode directionalAlignmentMode{ EffectSpriteDirectionalAlignmentMode::TextureAxis }; // 방향 기준 사용 방식이다.
-    EffectSpriteTextureAxis spriteTextureAxis{ EffectSpriteTextureAxis::Y }; // TextureAxis mode에서 맞출 texture 축이다.
-    float spriteRollOffsetDegrees{ 0.f }; // authored texture 방향 차이를 보정하는 정적 roll offset이다.
+    EffectSpriteTextureAxis spriteTextureAxis{ EffectSpriteTextureAxis::Y };                                            // TextureAxis mode에서 맞출 texture 축이다.
+    float spriteRollOffsetDegrees{ 0.f };                                                                               // authored texture 방향 차이를 보정하는 정적 roll offset이다.
 };
 
 // Required 모듈에서 emitter playback에 필요한 값만 접은 runtime payload다.
@@ -458,15 +458,15 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
 struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{}; // trail 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{}; // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{}; // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
-    PointParticleRandomSeedRuntimeDesc lifetimeSeed{}; // Lifetime replay 단위 segment lifetime random sample seed salt다.
-    bool useLifetimeSegmentLifetime{ false }; // true면 Lifetime 모듈을 segmentLifetime 기준으로 소비한다.
-    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
-    PointParticleSizeByLifeDesc sizeByLife{}; // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
-    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
+    EffectRequiredMaterialRuntimeDesc material{};                                                   // trail 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime replay 단위 segment lifetime random sample seed salt다.
+    bool useLifetimeSegmentLifetime{ false };                                                       // true면 Lifetime 모듈을 segmentLifetime 기준으로 소비한다.
+    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
+    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{};                                              // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
 
     float width{ 1.f };             // render sample의 base/tip span에 곱할 폭 비율이다. 1이면 원본 base/tip 폭을 유지한다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
@@ -509,18 +509,18 @@ enum class EffectBeamBranchPreset : uint8
 struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{}; // beam 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{}; // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{}; // beam presentation life 기준 값이다.
-    PointParticleRandomSeedRuntimeDesc lifetimeSeed{}; // Lifetime visual life random sample seed salt다.
-    bool useLifetimeVisualLife{ false }; // true면 Lifetime 모듈을 visual cutoff/over-life 기준으로 소비한다.
-    EffectRequiredSortRuntimeDesc sort{}; // Required 모듈에서 Blend 정렬 규칙으로 소비한다.
-    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 beam 시작 색으로 소비한다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 beam 색/알파로 소비한다.
-    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 규칙이다.
-    PointParticleSizeByLifeDesc sizeByLife{}; // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
-    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{}; // SubUV RandomFrame replay 단위 seed salt다.
-    bool usePerStripSubUVVariation{ false }; // Legacy Beam strip별 SubUV RandomFrame variation compatibility flag다.
+    EffectRequiredMaterialRuntimeDesc material{};                                                   // beam 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};                                                           // beam presentation life 기준 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime visual life random sample seed salt다.
+    bool useLifetimeVisualLife{ false };                                                            // true면 Lifetime 모듈을 visual cutoff/over-life 기준으로 소비한다.
+    EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 Blend 정렬 규칙으로 소비한다.
+    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 beam 시작 색으로 소비한다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 beam 색/알파로 소비한다.
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
+    bool usePerStripSubUVVariation{ false };                                                        // Legacy Beam strip별 SubUV RandomFrame variation compatibility flag다.
 
     EffectBeamEndpointMode endpointMode{ EffectBeamEndpointMode::StartEnd };  // local path 작성 방식을 고른다.
     Vec3 localStart{ 0.f, 2.f, 0.f };                                         // effect/emitter local 기준 beam 시작점이다.
@@ -574,17 +574,17 @@ struct EffectFollowerSourcePoint
 struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{}; // ribbon 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{}; // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{}; // Lifetime 모듈에서 sample age 기준 fallback으로 소비하는 값이다.
-    PointParticleRandomSeedRuntimeDesc lifetimeSeed{}; // Lifetime replay 단위 sample lifetime random sample seed salt다.
-    bool useLifetimeSampleLifetime{ false }; // true면 Lifetime 모듈을 sampleLifetime 기준으로 소비한다.
-    EffectRequiredSortRuntimeDesc sort{}; // Required 모듈에서 Blend 정렬 규칙으로 소비하는 값이다.
-    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 source history sample 시작 색으로 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 sample age 기준 색/알파로 소비하는 값이다.
-    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 규칙이다.
-    PointParticleSizeByLifeDesc sizeByLife{}; // SizeByLife 모듈에서 source history strip 폭 배율로 소비하는 값이다.
-    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{}; // SubUV RandomFrame replay 단위 seed salt다.
+    EffectRequiredMaterialRuntimeDesc material{};                                                   // ribbon 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 sample age 기준 fallback으로 소비하는 값이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime replay 단위 sample lifetime random sample seed salt다.
+    bool useLifetimeSampleLifetime{ false };                                                        // true면 Lifetime 모듈을 sampleLifetime 기준으로 소비한다.
+    EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 Blend 정렬 규칙으로 소비하는 값이다.
+    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 source history sample 시작 색으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 sample age 기준 색/알파로 소비하는 값이다.
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 source history strip 폭 배율로 소비하는 값이다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
 
     EffectSourceHistoryRibbonSourceMode sourceMode{ EffectSourceHistoryRibbonSourceMode::SelfRoot }; // source history sample을 만들 source owner 종류다.
 

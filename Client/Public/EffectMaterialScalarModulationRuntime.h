@@ -8,6 +8,7 @@ NS_BEGIN(Client)
 // shader scalar payload 호환성은 이 이름으로 유지하고, Vec2/Color/refraction 같은 확장 material parameter는
 // 아래 MaterialParameter/Uniform resolve helper가 처리한다.
 
+//## Types::ShaderPayload
 struct EffectMaterialScalarModulationShaderPayload
 {
     static constexpr uint32 maxModulators{ EffectMaterialScalarModulationRuntimeDesc::kMaxModulators };
@@ -26,6 +27,7 @@ struct EffectMaterialScalarModulationShaderPayload
     array<Vec4, maxModulators> keyModesBlock1{};
 };
 
+//## Helper::CurveEvaluation
 inline float Compute_MaterialScalarModulationPhase(float elapsedTime, float duration)
 {
     const float safeDuration = max(duration, 0.0001f);
@@ -286,6 +288,7 @@ inline Vec2 Evaluate_MaterialVec2ModulationCurve(
     };
 }
 
+//## Helper::MaterialResolve
 inline void Apply_MaterialScalarModulationMultiplier(
     EffectRequiredMaterialRuntimeDesc& material,
     EffectMaterialScalarModulationTarget target,
@@ -484,6 +487,7 @@ inline EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialUniformParam
     return material;
 }
 
+//## Helper::ShaderPayload
 inline EffectMaterialScalarModulationShaderPayload Build_MaterialScalarModulationShaderPayload(
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float emitterPhase)

@@ -22,6 +22,7 @@ enum class EffectMaterialPreviewMeshMode : uint8
     Sphere,
 };
 
+// material instance를 offscreen render target에 preview 렌더링한다.
 class EffectMaterialPreviewRenderer final : public Base
 {
 public:
@@ -101,7 +102,8 @@ private: //## Data
     bool _hasRenderedPreview{ false };
     EffectMaterialPreviewMeshMode _meshMode{ EffectMaterialPreviewMeshMode::Plane };
     EffectPreviewOrbitCameraState _cameraState{};
-    float _materialPreviewElapsedTime{}; // material preview UV scroll 계산에 사용할 preview-local 누적 시간이다.
+    // material preview UV scroll 계산에 사용할 preview-local 누적 시간이다.
+    float _materialPreviewElapsedTime{};
     bool _isViewportDragging{ false };
     bool _hasPendingHome{ false };
 

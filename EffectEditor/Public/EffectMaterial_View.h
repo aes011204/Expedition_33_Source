@@ -7,6 +7,7 @@ NS_BEGIN(EffectEditor)
 
 class EffectMaterialPreviewRenderer;
 
+// material preset browser와 원본 material preview window를 그린다.
 class EffectMaterial_View final : public Editor_Window
 {
 public:
@@ -14,7 +15,8 @@ public:
     ~EffectMaterial_View() override;
 
 public:
-    void Update(float timeDelta) override; // material preview UV motion 시간을 갱신한다.
+    // material preview UV motion 시간을 갱신한다.
+    void Update(float timeDelta) override;
     void Pre_Render() override;
     void Render() override;
 
@@ -30,7 +32,7 @@ public: //## Accessor::Preset
     // UI 안내용 원본 material preset 파일명이다. 저장 identity로 사용하지 않는다.
     string Get_SelectedMaterialFileName() const;
 
-private: //## Data
+private: //## Data::Preset
     vector<string> _presetGuids{};
     wstring _selectedPresetPath{};
     string _selectedPresetGuid{};
@@ -39,7 +41,7 @@ private: //## Data
     string _statusMessage{};
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
 
-private: //## Helpers
+private: //## Helper::PresetView
     void Render_PresetInfo();
     void Render_PresetPreview();
     void Render_MaterialInstanceTable(const char* tableId, const EffectMaterialInstanceData& material) const;

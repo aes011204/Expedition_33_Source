@@ -8,6 +8,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor 실행 앱의 engine 초기화, update, render loop를 소유한다.
 class EffectEditorApp final : public Base
 {
 public:
@@ -21,12 +22,8 @@ public:
     void Late_Update(float timeDelta);
     HRESULT Render();
 
-private:
-    inline static const Vec4 kDefaultClearColor{ 0.18f, 0.18f, 0.18f, 1.f };
+private: //## Types::RenderPerf
 #ifdef _DEBUG
-    static constexpr float kEffectEditorRenderPerfSampleIntervalSec{ 0.25f };
-    static constexpr float kEffectEditorRenderPerfWindowSec{ 5.f };
-
     struct PerfCounter
     {
         size_t sampleCount{};
@@ -49,7 +46,14 @@ private:
     };
 #endif
 
-private:
+private: //## Static Values
+    inline static const Vec4 kDefaultClearColor{ 0.18f, 0.18f, 0.18f, 1.f };
+#ifdef _DEBUG
+    static constexpr float kEffectEditorRenderPerfSampleIntervalSec{ 0.25f };
+    static constexpr float kEffectEditorRenderPerfWindowSec{ 5.f };
+#endif
+
+private: //## Data::Core
     ComPtr<Device> _device{};
     ComPtr<Context> _context{};
 #ifdef _DEBUG
@@ -60,7 +64,7 @@ private:
     bool _hasRenderPerfLastSampleTime{ false };
 #endif
 
-private:
+private: //## Helper::Setup
     HRESULT Ready_Fonts();
     HRESULT Ready_Prototype_For_Static_Level();
     HRESULT Ready_PreviewLevel();
@@ -69,6 +73,7 @@ private:
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 
 #ifdef _DEBUG
+private: //## Helper::RenderPerf
     bool Should_SampleEffectEditorRenderPerf();
     void Reset_EffectEditorRenderPerfWindowState(chrono::steady_clock::time_point now);
     void Accumulate_EffectEditorRenderPerf(

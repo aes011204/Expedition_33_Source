@@ -7,7 +7,7 @@ NS_BEGIN(Engine)
 // Effect root 아래에서 실제 simulation/render를 수행하는 하위 emitter runtime 공통 부모다.
 class ENGINE_DLL EffectEmitter abstract : public GameObject
 {
-public:
+public: //## Types::RuntimeDesc
     // effect root가 child emitter 생성 직후 주입하는 공통 runtime 상태다.
     struct EffectEmitterRuntimeDesc
     {
@@ -26,7 +26,7 @@ public:
     EffectEmitter(const EffectEmitter& prototype);
     ~EffectEmitter() override = default;
 
-public: //## Behavior::Attach
+public: //## Behavior::RootBinding
     // root가 생성 직후 공통 runtime 상태를 주입한다.
     HRESULT Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDesc);
     // root와 local/world 정책을 기준으로 emitter transform을 동기화한다.
@@ -43,12 +43,16 @@ public: //## Behavior::Lifecycle
     virtual HRESULT Reload_Definition(const EffectEmitterDefinition& emitterDefinition);
     // effect root가 자연 완료 여부를 종합할 때 사용하는 완료 상태다.
     virtual bool Is_EffectFinished() const;
+
+public: //## Behavior::ProviderBinding
     // trail sample provider를 acquire 시점 context로 다시 바인딩한다.
     virtual void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider);
     // source history sample provider를 acquire 시점 context로 다시 바인딩한다.
     virtual void Bind_SourcePointSampleProvider(const Weak<IEffectSourcePointSampleProvider>& provider);
     // follower ribbon이 같은 effect 내부 source particle 위치를 요청할 때 쓰는 좁은 query다.
     virtual bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const;
+
+public: //## Behavior::Sort
     // Blend 정렬 시 emitter를 대표할 월드 위치를 반환한다.
     virtual bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const;
     // Blend 정렬 시 sort layer 안에서 적용할 정렬 정책을 반환한다.

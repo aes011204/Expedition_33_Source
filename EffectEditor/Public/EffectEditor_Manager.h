@@ -8,6 +8,7 @@ NS_BEGIN(EffectEditor)
 class Editor_Window;
 class Emitter_View;
 
+// EffectEditor windows, dock layouts, toolbar actions, and shortcut routing을 관리한다.
 class EffectEditor_Manager final : public Base
 {
 public:
@@ -24,7 +25,7 @@ public:
     bool Is_SceneFocusModeActive() const { return _isSceneFocusModeActive; }
     uint32 Get_CurrentDockSpaceId() const { return _currentDockSpaceId; }
 
-private:
+private: //## Types::SceneFocus
     struct PreviewViewportSnapshot
     {
         PreviewViewportMode mode{ PreviewViewportMode::Auto };
@@ -32,6 +33,7 @@ private:
         uint32 height{ 0 };
     };
 
+private: //## Data::Windows
     map<wstring, Shared<Editor_Window>> _windows{};
     bool _defaultDockLayoutBuilt{ false };
     bool _isSceneFocusModeActive{ false };
@@ -43,10 +45,11 @@ private:
     bool _sceneFocusHadIniFilenameSnapshot{ false };
     string _sceneFocusIniFilenameSnapshot{};
 
-private:
+private: //## Helper::WindowLifecycle
     // 등록된 editor window들의 초기화 hook을 한 번씩 실행한다.
     HRESULT Initialize_Windows();
 
+private: //## Helper::Layout
     void Render_MainMenuBar();
     void Render_RuntimeToolbar();
     void Render_DockSpace();
@@ -55,6 +58,7 @@ private:
     void Handle_Shortcuts();
     void Render_ShortcutHelp();
 
+private: //## Helper::EffectDocument
     // 현재 effect authoring document를 소유한 Emitter view를 찾는다.
     Shared<Emitter_View> Find_EffectAuthoringView() const;
     // Save 메뉴/단축키/툴바의 활성화 가능 여부를 한 곳에서 판단한다.
@@ -69,6 +73,8 @@ private:
     bool CanAdd_EffectEmitters() const;
     // Add 툴바가 공유하는 외부 effect emitter 추가 진입점이다.
     bool Add_EffectEmitters();
+
+private: //## Helper::SceneFocus
     void Toggle_SceneFocusMode();
     void Enter_SceneFocusMode();
     void Exit_SceneFocusMode();
@@ -76,6 +82,7 @@ private:
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);
 
+private: //## Helper::Exit
     void Render_ExitButton(float toolbarHeight);
     void Request_Exit();
 

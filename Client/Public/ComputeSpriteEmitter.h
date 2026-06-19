@@ -11,6 +11,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Compute sprite particle 재생과 material/render payload 제출을 담당한다.
 class ComputeSpriteEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeSpriteEmitter, ObjectType::EffectEmitter);
@@ -48,7 +49,7 @@ public: //## Debug::EditorSession
     static void Set_InfluenceOutlineDebugEnabled(bool enabled);
     static bool Is_InfluenceOutlineDebugEnabled();
 
-protected:
+protected: //## Hook
     // root/local-space sync 직후 compute center를 즉시 갱신한다.
     void On_EffectTransformSynced() override;
 

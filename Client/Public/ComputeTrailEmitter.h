@@ -13,6 +13,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Trail sample provider history를 GPU strip payload로 낮춰 trail을 그린다.
 class ComputeTrailEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeTrailEmitter, ObjectType::EffectEmitter);
@@ -30,12 +31,14 @@ public:
     HRESULT Render() override;
 
 public:
-    HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 trail history와 draw runtime을 초기화한다.
-    bool Is_EffectFinished() const override;  // trail은 일단 자동 완료가 아니라 명시 Stop/release를 따른다.
-    void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider) override;
+    // effect root 재사용 시 trail history와 draw runtime을 초기화한다.
+    HRESULT Reset_ForEffectReplay() override;
+    // trail은 일단 자동 완료가 아니라 명시 Stop/release를 따른다.
+    bool Is_EffectFinished() const override;
     // acquire 시점 owner가 준 trail sample provider를 현재 runtime desc에 다시 바인딩한다.
+    void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider) override;
 
-private:
+private: //## Types::TrailRuntime
     struct TrailHistorySample
     {
         EffectTrailSample sample{}; // provider에서 받은 base/tip world sample이다.
@@ -123,73 +126,133 @@ private:
         uint32 startInstanceLocation{}; // instance 시작 위치다.
     };
 
-private:
-    static constexpr auto kTrailShaderId{ "Shader_EffectTrail" }; // trail segment draw shader id다.
-    static constexpr auto kTrailDistortionShaderId{ "Shader_EffectTrailDistortion" }; // SpriteDistortion trail segment draw shader id다.
-    static constexpr auto kTrailComputeShaderId{ "ComputeShader_TrailStrip" }; // render sample을 instance payload로 낮추는 compute shader id다.
-    static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" }; // texture 미지정 시 사용할 기본 텍스처다.
-    static constexpr uint32 kThreadCountX{ 64 }; // compute shader numthreads.x와 맞춘 dispatch 단위다.
-    static constexpr uint32 kMaxCurveSubdivision{ 32 }; // preview 폭주를 막는 interval당 render sample 상한이다.
-    static constexpr uint32 kMaxSpawnPerUnitFrameSamples{ 64 }; // 한 frame에서 SpawnPerUnit이 추가할 수 있는 provider history sample 상한이다.
-    static constexpr float kSmoothSampleSideWeight{ 0.25f }; // tangent smoothing용 양옆 sample 가중치다.
-    static constexpr int kOpacitySourceAlpha{ 0 }; // main texture alpha를 opacity로 사용한다.
-    static constexpr int kOpacitySourceRed{ 1 }; // main texture red를 opacity로 사용한다.
-    static constexpr int kOpacitySourceLuminance{ 2 }; // main texture luminance를 opacity로 사용한다.
+private: //## Static Values
+    // trail segment draw shader id다.
+    static constexpr auto kTrailShaderId{ "Shader_EffectTrail" };
+    // SpriteDistortion trail segment draw shader id다.
+    static constexpr auto kTrailDistortionShaderId{ "Shader_EffectTrailDistortion" };
+    // render sample을 instance payload로 낮추는 compute shader id다.
+    static constexpr auto kTrailComputeShaderId{ "ComputeShader_TrailStrip" };
+    // texture 미지정 시 사용할 기본 텍스처다.
+    static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
+    // compute shader numthreads.x와 맞춘 dispatch 단위다.
+    static constexpr uint32 kThreadCountX{ 64 };
+    // preview 폭주를 막는 interval당 render sample 상한이다.
+    static constexpr uint32 kMaxCurveSubdivision{ 32 };
+    // 한 frame에서 SpawnPerUnit이 추가할 수 있는 provider history sample 상한이다.
+    static constexpr uint32 kMaxSpawnPerUnitFrameSamples{ 64 };
+    // tangent smoothing용 양옆 sample 가중치다.
+    static constexpr float kSmoothSampleSideWeight{ 0.25f };
+    // main texture alpha를 opacity로 사용한다.
+    static constexpr int kOpacitySourceAlpha{ 0 };
+    // main texture red를 opacity로 사용한다.
+    static constexpr int kOpacitySourceRed{ 1 };
+    // main texture luminance를 opacity로 사용한다.
+    static constexpr int kOpacitySourceLuminance{ 2 };
 
-private:
-    ComputeTrailEmitterDesc _desc{};       // clone 시점에 받은 trail runtime 설정이다.
-    vector<TrailHistorySample> _history{}; // CPU가 보관하는 provider sample history다.
-    uint32 _drawSegmentCount{};            // 이번 frame에 그릴 segment 개수다.
-    float _materialElapsedTime{};          // material UV scroll 계산에 사용할 emitter-local 누적 시간이다.
-    float _visibleTrailLength{ 1.f };      // body/mask UV stretch에 사용할 현재 표시 trail 길이다.
+private: //## Data::Desc
+    // clone 시점에 받은 trail runtime 설정이다.
+    ComputeTrailEmitterDesc _desc{};
 
-    Shared<ShaderCom> _shader{};               // trail draw shader다.
-    Shared<ComputeShaderCom> _computeShader{}; // trail payload 생성 compute shader다.
-    Shared<Texture> _mainTexture{};            // trail main texture다.
-    Shared<Texture> _noiseTexture{};           // 선택 noise texture. 없으면 material noise를 비활성화한다.
-    Shared<Texture> _maskTexture{};            // 선택 mask texture. 없으면 mask alpha 소비를 비활성화한다.
-    Shared<Texture> _flowTexture{};            // 선택 distortion flow texture. 없으면 distortion offset을 0으로 처리한다.
+private: //## Data::TrailRuntime
+    // CPU가 보관하는 provider sample history다.
+    vector<TrailHistorySample> _history{};
+    // 이번 frame에 그릴 segment 개수다.
+    uint32 _drawSegmentCount{};
+    // material UV scroll 계산에 사용할 emitter-local 누적 시간이다.
+    float _materialElapsedTime{};
+    // body/mask UV stretch에 사용할 현재 표시 trail 길이다.
+    float _visibleTrailLength{ 1.f };
 
-    ComPtr<Buffer> _pointVB{};                            // instanced point draw용 단일 vertex buffer다.
-    ComPtr<Buffer> _indexBuffer{};                        // instanced point draw용 단일 index buffer다.
-    ComPtr<Buffer> _instanceBuffer{};                     // compute 결과를 복사해 draw가 읽는 instance buffer다.
-    ComPtr<Buffer> _computeConstantBuffer{};              // compute shader frame parameter buffer다.
-    ComPtr<Buffer> _indirectArgsBuffer{};                 // DrawIndexedInstancedIndirect가 읽는 args destination buffer다.
-    Shared<ComputeStructuredBuffer> _historyInput{};      // CPU render sample을 compute가 읽는 SRV buffer다.
-    Shared<ComputeStructuredBuffer> _computeOutput{};     // compute가 작성하는 TrailInstanceVertex buffer다.
-    Shared<ComputeStructuredBuffer> _computeArgsOutput{}; // compute가 작성하는 indirect args source buffer다.
+private: //## Data::Components
+    // trail draw shader다.
+    Shared<ShaderCom> _shader{};
+    // trail payload 생성 compute shader다.
+    Shared<ComputeShaderCom> _computeShader{};
+    // trail main texture다.
+    Shared<Texture> _mainTexture{};
+    // 선택 noise texture. 없으면 material noise를 비활성화한다.
+    Shared<Texture> _noiseTexture{};
+    // 선택 mask texture. 없으면 mask alpha 소비를 비활성화한다.
+    Shared<Texture> _maskTexture{};
+    // 선택 distortion flow texture. 없으면 distortion offset을 0으로 처리한다.
+    Shared<Texture> _flowTexture{};
+    // instanced point draw용 단일 vertex buffer다.
+    ComPtr<Buffer> _pointVB{};
+    // instanced point draw용 단일 index buffer다.
+    ComPtr<Buffer> _indexBuffer{};
+    // compute 결과를 복사해 draw가 읽는 instance buffer다.
+    ComPtr<Buffer> _instanceBuffer{};
+    // compute shader frame parameter buffer다.
+    ComPtr<Buffer> _computeConstantBuffer{};
+    // DrawIndexedInstancedIndirect가 읽는 args destination buffer다.
+    ComPtr<Buffer> _indirectArgsBuffer{};
+    // CPU render sample을 compute가 읽는 SRV buffer다.
+    Shared<ComputeStructuredBuffer> _historyInput{};
+    // compute가 작성하는 TrailInstanceVertex buffer다.
+    Shared<ComputeStructuredBuffer> _computeOutput{};
+    // compute가 작성하는 indirect args source buffer다.
+    Shared<ComputeStructuredBuffer> _computeArgsOutput{};
 
-private:
-    HRESULT Ready_Components();     // trail draw/compute component와 리소스를 준비한다.
-    HRESULT Ready_Texture();        // trail main texture와 fallback texture를 준비한다.
-    HRESULT Ready_NoiseTexture();   // 선택 trail noise texture를 준비한다.
-    HRESULT Ready_MaskTexture();    // 선택 trail mask texture를 준비한다.
-    HRESULT Ready_FlowTexture();    // SpriteDistortion trail flow texture를 준비한다.
-    HRESULT Ready_DrawBuffers();    // indirect draw용 point/index/instance buffer를 준비한다.
-    HRESULT Ready_ComputeBuffers(); // render sample 입력, instance 출력, indirect args compute buffer를 준비한다.
+private: //## Helper::Setup
+    // trail draw/compute component와 리소스를 준비한다.
+    HRESULT Ready_Components();
+    // trail main texture와 fallback texture를 준비한다.
+    HRESULT Ready_Texture();
+    // 선택 trail noise texture를 준비한다.
+    HRESULT Ready_NoiseTexture();
+    // 선택 trail mask texture를 준비한다.
+    HRESULT Ready_MaskTexture();
+    // SpriteDistortion trail flow texture를 준비한다.
+    HRESULT Ready_FlowTexture();
+    // indirect draw용 point/index/instance buffer를 준비한다.
+    HRESULT Ready_DrawBuffers();
+    // render sample 입력, instance 출력, indirect args compute buffer를 준비한다.
+    HRESULT Ready_ComputeBuffers();
 
-    void Update_History(float timeDelta); // provider sample을 history에 누적하고 수명/개수를 정리한다.
+private: //## Helper::TrailRuntime
+    // provider sample을 history에 누적하고 수명/개수를 정리한다.
+    void Update_History(float timeDelta);
+    // render-time tessellation을 포함한 최대 segment capacity다.
+    uint32 Compute_MaxRenderSegmentCount() const;
+    // SpawnPerUnit 정책에 따라 provider sample과 보강 sample을 history에 삽입한다.
+    void Insert_TrailSamplesForFrame(const EffectTrailSample& trailSample);
+    // provider/render 보강 sample을 history head에 삽입한다.
+    void Insert_TrailSample(const EffectTrailSample& trailSample, float age);
+    // 원본 history를 render-time curve sample 배열로 낮춘다.
+    void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const;
+    // smoothTangent 옵션에 따라 history sample을 완만하게 보정한다.
+    EffectTrailSample Build_SmoothedHistorySample(uint32 sampleIndex) const;
 
-    uint32 Compute_MaxRenderSegmentCount() const;                             // render-time tessellation을 포함한 최대 segment capacity다.
-    void Insert_TrailSamplesForFrame(const EffectTrailSample& trailSample);   // SpawnPerUnit 정책에 따라 provider sample과 보강 sample을 history에 삽입한다.
-    void Insert_TrailSample(const EffectTrailSample& trailSample, float age); // provider/render 보강 sample을 history head에 삽입한다.
-    void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const;    // 원본 history를 render-time curve sample 배열로 낮춘다.
-    EffectTrailSample Build_SmoothedHistorySample(uint32 sampleIndex) const;  // smoothTangent 옵션에 따라 history sample을 완만하게 보정한다.
-
-    HRESULT Dispatch_Compute();              // render sample을 trail instance payload로 낮추는 compute pass를 실행한다.
-    HRESULT Update_ComputeInput();           // CPU render sample을 compute 입력 structured buffer에 업로드한다.
-    HRESULT Update_ComputeConstants();       // trail compute 상수 버퍼를 현재 desc 값으로 갱신한다.
-    HRESULT Reset_IndirectArgs();            // indirect draw args를 draw count 0 상태로 초기화한다.
-    HRESULT Copy_ComputeOutput();            // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
-    HRESULT Bind_ShaderResources();          // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
-    HRESULT Bind_DistortionResources();      // trail distortion field shader가 사용할 flow 파라미터를 바인딩한다.
-    void Resample_SegmentLifetime();         // replay 단위 Lifetime random을 segment lifetime window로 낮춘다.
-    bool Is_DistortionFamily() const;        // 현재 trail material family가 distortion 경로인지 확인한다.
-    RenderGroup Resolve_RenderGroup() const; // material family에 맞는 render group을 반환한다.
-    const char* Resolve_ShaderId() const;    // material family에 맞는 shader prototype id를 반환한다.
-    uint32 Resolve_ShaderPassIndex() const;  // 현재 shader에서 사용할 pass index를 반환한다.
-    int Resolve_OpacitySourceIndex() const;  // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
-    uint32 Resolve_BlendPassIndex() const;   // material blend mode에 맞는 EffectTrail shader pass를 고른다.
+private: //## Helper::Render
+    // render sample을 trail instance payload로 낮추는 compute pass를 실행한다.
+    HRESULT Dispatch_Compute();
+    // CPU render sample을 compute 입력 structured buffer에 업로드한다.
+    HRESULT Update_ComputeInput();
+    // trail compute 상수 버퍼를 현재 desc 값으로 갱신한다.
+    HRESULT Update_ComputeConstants();
+    // indirect draw args를 draw count 0 상태로 초기화한다.
+    HRESULT Reset_IndirectArgs();
+    // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
+    HRESULT Copy_ComputeOutput();
+    // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
+    HRESULT Bind_ShaderResources();
+    // trail distortion field shader가 사용할 flow 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();
+    // replay 단위 Lifetime random을 segment lifetime window로 낮춘다.
+    void Resample_SegmentLifetime();
+    // 현재 trail material family가 distortion 경로인지 확인한다.
+    bool Is_DistortionFamily() const;
+    // material family에 맞는 render group을 반환한다.
+    RenderGroup Resolve_RenderGroup() const;
+    // material family에 맞는 shader prototype id를 반환한다.
+    const char* Resolve_ShaderId() const;
+    // 현재 shader에서 사용할 pass index를 반환한다.
+    uint32 Resolve_ShaderPassIndex() const;
+    // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    int Resolve_OpacitySourceIndex() const;
+    // material blend mode에 맞는 EffectTrail shader pass를 고른다.
+    uint32 Resolve_BlendPassIndex() const;
 
 public:
     static Shared<ComputeTrailEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
