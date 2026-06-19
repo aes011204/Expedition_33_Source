@@ -5,6 +5,7 @@
 #include "EffectMaterial_View.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
+#include "Notification_Manager.h"
 #include "Texture.h"
 #include "TextureDisplayInfoResolver.h"
 
@@ -242,7 +243,7 @@ void Content_Browser::Render()
                 ImGui::SameLine();
 
                 if (ImGui::Button(ICON_FA_ROTATE_RIGHT " 새로고침", ImVec2(refreshWidth, 24.f)))
-                    Refresh_Resources();
+                    Refresh_AssetState();
 
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("새로고침");
@@ -275,6 +276,25 @@ void Content_Browser::Refresh_Resources()
             return GAME->Find_AssetGUID(filePath);
         }
     );
+}
+
+void Content_Browser::Refresh_AssetState()
+{
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (assetRoot.empty())
+    {
+        NOTIFY("새로고침 실패");
+        return;
+    }
+
+    const fs::path missingMetaRootPath = fs::path(assetRoot) / L"Effects";
+    if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot, true, missingMetaRootPath.wstring())))
+    {
+        Refresh_Resources();
+        NOTIFY("새로고침");
+    }
+    else
+        NOTIFY("새로고침 실패");
 }
 
 void Content_Browser::Refresh_CurrentFolder()

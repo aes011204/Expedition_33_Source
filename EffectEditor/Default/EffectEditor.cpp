@@ -4,6 +4,7 @@
 #include <tchar.h>
 #include <Windows.h>
 #include "EffectEditorApp.h"
+#include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Profile_View.h"
 
@@ -308,7 +309,10 @@ static LRESULT CALLBACK EffectEditor_WndProc(HWND hWnd, UINT message, WPARAM wPa
         break;
 
     case WM_CLOSE:
-        PostQuitMessage(0);
+        if (g_runtimeInitialized)
+            EDITOR->Request_Exit();
+        else
+            PostQuitMessage(0);
         return 0;
 
     case WM_MOUSEWHEEL:

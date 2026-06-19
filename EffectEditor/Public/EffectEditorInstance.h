@@ -63,6 +63,7 @@ public:
 
     void Update_Editor(float timeDelta);
     void Render_Editor(EffectEditorRenderPerfSample* outPerfSample = nullptr);
+    void Request_Exit();
 
 public: //## Accessor::Graphics
     ComPtr<Device> Get_Device() const { return _device; }

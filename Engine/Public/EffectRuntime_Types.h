@@ -291,28 +291,28 @@ struct EffectRequiredMaterialRuntimeDesc
     Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                                                          // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // main texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy mainUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // main texture U/V축별 UV 해석 방식이다.
-    EffectMaterialUVRotation mainUVRotation{ EffectMaterialUVRotation::None };                                    // main texture UV를 90도 단위로 회전하는 방식이다.
+    EffectMaterialUVRotation mainUVRotation{ EffectMaterialUVRotation::None };                                   // main texture UV를 90도 단위로 회전하는 방식이다.
 
     Vec2 noiseUVScale{ 1.f, 1.f };                                                                                // noise texture UV 반복/확대 배율 후보 값이다.
     Vec2 noiseUVOffset{ 0.f, 0.f };                                                                               // noise texture 샘플 시작 위치를 정적으로 민다.
     Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                                                          // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // noise texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy noiseUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // noise texture U/V축별 UV 해석 방식이다.
-    EffectMaterialUVRotation noiseUVRotation{ EffectMaterialUVRotation::None };                                    // noise texture UV를 90도 단위로 회전하는 방식이다.
+    EffectMaterialUVRotation noiseUVRotation{ EffectMaterialUVRotation::None };                                   // noise texture UV를 90도 단위로 회전하는 방식이다.
 
     Vec2 maskUVScale{ 1.f, 1.f };                                                                                // mask texture UV 반복/확대 배율 후보 값이다.
     Vec2 maskUVOffset{ 0.f, 0.f };                                                                               // mask texture 샘플 시작 위치를 정적으로 민다.
     Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                                                          // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // mask texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy maskUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // mask texture U/V축별 UV 해석 방식이다.
-    EffectMaterialUVRotation maskUVRotation{ EffectMaterialUVRotation::None };                                    // mask texture UV를 90도 단위로 회전하는 방식이다.
+    EffectMaterialUVRotation maskUVRotation{ EffectMaterialUVRotation::None };                                   // mask texture UV를 90도 단위로 회전하는 방식이다.
 
     Vec2 flowUVScale{ 1.f, 1.f };                                                                                // SpriteDistortion flow texture UV 반복/확대 배율 후보 값이다.
     Vec2 flowUVOffset{ 0.f, 0.f };                                                                               // SpriteDistortion flow texture 샘플 시작 위치를 정적으로 민다.
     Vec2 flowUVScrollSpeed{ 0.f, 0.f };                                                                          // SpriteDistortion flow texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap };                               // flow texture UV tiling 해석 방식이다.
     EffectMaterialUVAxisPolicy flowUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // flow texture U/V축별 UV 해석 방식이다.
-    EffectMaterialUVRotation flowUVRotation{ EffectMaterialUVRotation::None };                                    // flow texture UV를 90도 단위로 회전하는 방식이다.
+    EffectMaterialUVRotation flowUVRotation{ EffectMaterialUVRotation::None };                                   // flow texture UV를 90도 단위로 회전하는 방식이다.
 
     EffectMaterialAdditiveContributionData additive{};                                // Additive blend에서 더할 contribution 해석 규칙이다.
     EffectMaterialCoreEmissiveData coreEmissive{};                                    // alpha-derived inner core/outer halo shaping 값이다.
@@ -739,6 +739,20 @@ struct MeshVector3CurveRuntimeDesc
     Vec4 curveKeyValuesYBlock1{};               // key 4..7 Y 값이다.
     Vec4 curveKeyValuesZ{ 1.f, 1.f, 0.f, 0.f }; // key별 Z 값이다.
     Vec4 curveKeyValuesZBlock1{};               // key 4..7 Z 값이다.
+    Vec4 curveKeyArriveTangentsX{};             // key별 X arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsXBlock1{};       // key 4..7 X arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangentsX{};              // key별 X leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsXBlock1{};        // key 4..7 X leave tangent 값이다.
+    Vec4 curveKeyArriveTangentsY{};             // key별 Y arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsYBlock1{};       // key 4..7 Y arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangentsY{};              // key별 Y leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsYBlock1{};        // key 4..7 Y leave tangent 값이다.
+    Vec4 curveKeyArriveTangentsZ{};             // key별 Z arrive tangent 값이다.
+    Vec4 curveKeyArriveTangentsZBlock1{};       // key 4..7 Z arrive tangent 값이다.
+    Vec4 curveKeyLeaveTangentsZ{};              // key별 Z leave tangent 값이다.
+    Vec4 curveKeyLeaveTangentsZBlock1{};        // key 4..7 Z leave tangent 값이다.
+    Vec4 curveKeyModes{ 1.f, 1.f, 0.f, 0.f };   // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 curveKeyModesBlock1{};                 // key 4..7 interpolation mode 값이다.
 };
 
 // mesh emitter 전용 Vec3 scale/rotation runtime payload다.

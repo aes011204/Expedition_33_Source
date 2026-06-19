@@ -1768,16 +1768,28 @@ namespace EffectAssetRuntimeLoad::Emitters
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesXBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsX = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsXBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsX = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsXBlock1 = Vec4{};
                 }
                 if (!Read_Bool(*meshSizeByLife, "multiplyY", true))
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesYBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsY = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsYBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsY = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsYBlock1 = Vec4{};
                 }
                 if (!Read_Bool(*meshSizeByLife, "multiplyZ", true))
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesZBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsZ = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsZBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsZ = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsZBlock1 = Vec4{};
                 }
             }
         }

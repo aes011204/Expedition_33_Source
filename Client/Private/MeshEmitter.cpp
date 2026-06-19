@@ -2423,6 +2423,12 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
             desc.curveKeyTimesBlock1,
             desc.curveKeyValuesX,
             desc.curveKeyValuesXBlock1,
+            desc.curveKeyArriveTangentsX,
+            desc.curveKeyArriveTangentsXBlock1,
+            desc.curveKeyLeaveTangentsX,
+            desc.curveKeyLeaveTangentsXBlock1,
+            desc.curveKeyModes,
+            desc.curveKeyModesBlock1,
             desc.curveKeyCount,
             lerp(desc.start.x, desc.end.x, lifeProgress)
         ),
@@ -2432,6 +2438,12 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
             desc.curveKeyTimesBlock1,
             desc.curveKeyValuesY,
             desc.curveKeyValuesYBlock1,
+            desc.curveKeyArriveTangentsY,
+            desc.curveKeyArriveTangentsYBlock1,
+            desc.curveKeyLeaveTangentsY,
+            desc.curveKeyLeaveTangentsYBlock1,
+            desc.curveKeyModes,
+            desc.curveKeyModesBlock1,
             desc.curveKeyCount,
             lerp(desc.start.y, desc.end.y, lifeProgress)
         ),
@@ -2441,6 +2453,12 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
             desc.curveKeyTimesBlock1,
             desc.curveKeyValuesZ,
             desc.curveKeyValuesZBlock1,
+            desc.curveKeyArriveTangentsZ,
+            desc.curveKeyArriveTangentsZBlock1,
+            desc.curveKeyLeaveTangentsZ,
+            desc.curveKeyLeaveTangentsZBlock1,
+            desc.curveKeyModes,
+            desc.curveKeyModesBlock1,
             desc.curveKeyCount,
             lerp(desc.start.z, desc.end.z, lifeProgress)
         )

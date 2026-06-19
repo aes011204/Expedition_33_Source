@@ -239,6 +239,12 @@ void EffectEditorInstance::Render_Editor(EffectEditorRenderPerfSample* outPerfSa
         outPerfSample->imguiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 }
 
+void EffectEditorInstance::Request_Exit()
+{
+    if (_editorManager)
+        _editorManager->Request_Exit();
+}
+
 Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
 {
     if (nullptr == _editorManager)
