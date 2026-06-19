@@ -6,6 +6,7 @@
 #include "MEStaticMeshActor.h"
 #include "MEInstancedMeshActor.h"
 #include "PanelViewport.h"
+#include "Mesh.h"
 
 PanelModelOverride::PanelModelOverride(SceneContext* ctx, Shared<PanelViewport> viewport)
     : MEWindow{ L"Model Override" }, _ctx{ ctx }, _viewport{ viewport }
@@ -617,20 +618,59 @@ namespace
         }
     }
 
-    // 현재 모델의 material index를 고르는 compact combo.
-    void DrawMaterialSlotPicker(int32& selectedMaterialIndex, int32 materialCount)
+    string BuildMaterialSlotLabel(const Shared<ModelCom>& model, int32 materialIndex)
     {
+        string label = "[" + to_string(materialIndex) + "] ";
+        if (!model)
+        {
+            return label + "<null>";
+        }
+
+        const Shared<Material> material = model->Get_Material(static_cast<uint32>(materialIndex));
+        return label + (material ? material->Get_MaterialName() : string("<null>"));
+    }
+
+    void DrawSelectedModelMeshMap(const Shared<ModelCom>& model)
+    {
+        if (!model || !ImGui::CollapsingHeader("Mesh -> Material Slot", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            return;
+        }
+
+        const auto& meshes = model->Get_Meshes();
+        for (uint32 i = 0; i < static_cast<uint32>(meshes.size()); ++i)
+        {
+            const Shared<Mesh>& mesh = meshes[i];
+            if (!mesh)
+            {
+                continue;
+            }
+
+            const uint32 materialIndex = mesh->Get_MaterialIndex();
+            const Shared<Material> material = model->Get_Material(materialIndex);
+            ImGui::BulletText("Mesh[%u] %s  ->  Material[%u] : %s",
+                i,
+                mesh->Get_Name().c_str(),
+                materialIndex,
+                material ? material->Get_MaterialName().c_str() : "<null>");
+        }
+    }
+
+    // 현재 모델의 material index를 고르는 compact combo.
+    void DrawMaterialSlotPicker(int32& selectedMaterialIndex, const Shared<ModelCom>& model)
+    {
+        const int32 materialCount = model ? static_cast<int32>(model->Get_NumMaterials()) : 1;
         const int32 clampedMaterialCount = max(1, materialCount);
         selectedMaterialIndex = std::clamp(selectedMaterialIndex, 0, clampedMaterialCount - 1);
 
-        string materialLabel = "Material " + to_string(selectedMaterialIndex);
-        ImGui::SetNextItemWidth(180.f);
+        const string materialLabel = BuildMaterialSlotLabel(model, selectedMaterialIndex);
+        ImGui::SetNextItemWidth(280.f);
         if (ImGui::BeginCombo("Material Slot", materialLabel.c_str()))
         {
             for (int32 i = 0; i < clampedMaterialCount; ++i)
             {
                 const bool selected = (selectedMaterialIndex == i);
-                string label = "Material " + to_string(i);
+                const string label = BuildMaterialSlotLabel(model, i);
                 if (ImGui::Selectable(label.c_str(), selected))
                 {
                     selectedMaterialIndex = i;
@@ -1532,8 +1572,8 @@ void PanelModelOverride::RenderSelectedMaterialOverride()
         ImGui::SameLine();
         DrawMaterialCommandBar(_ctx, target, entry, mapName);
 
-        const int32 materialCount = target.model ? static_cast<int32>(target.model->Get_NumMaterials()) : 1;
-        DrawMaterialSlotPicker(_selectedMaterialIndex, materialCount);
+        DrawSelectedModelMeshMap(target.model);
+        DrawMaterialSlotPicker(_selectedMaterialIndex, target.model);
 
         json* existingBinding = FindBinding(entry.materialBindingsJson, static_cast<uint32>(_selectedMaterialIndex));
         bool useBinding = existingBinding != nullptr;
