@@ -233,11 +233,15 @@
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
+    <ClInclude Include="..\Public\GradientSkill.h" />
+    <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\PictosBattleSystem.h" />
     <ClInclude Include="..\Public\Pictos_Panel.h" />
     <ClInclude Include="..\Public\PreviewPlayer.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
     <ClInclude Include="..\Public\SL_Base.h" />
     <ClInclude Include="..\Public\SL_BasicAttack.h" />
@@ -365,6 +369,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="..\Public\ChooseGradient.h" />
     <ClInclude Include="..\public\ChooseSkill.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -597,11 +602,15 @@
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
+    <ClCompile Include="..\Private\GradientSkill.cpp" />
+    <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
     <ClCompile Include="..\Private\Pictos_Panel.cpp" />
     <ClCompile Include="..\Private\PreviewPlayer.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
@@ -729,6 +738,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\Private\ChooseGradient.cpp" />
     <ClCompile Include="..\private\ChooseSkill.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

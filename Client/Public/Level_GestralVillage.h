@@ -17,6 +17,9 @@ public:
     virtual HRESULT Render() override;
 
 private:
+    HRESULT Ready_Layer_Player(const wstring& strLayerTag);
+
+private:
     WindowTitleFpsState _windowTitleFps = {};
 
 private:

@@ -1,5 +1,6 @@
 ﻿#include "Level_GestralVillage.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -9,6 +10,7 @@ Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const C
 HRESULT Level_GestralVillage::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
+    CHECK_FAILED(Ready_Layer_Player(L"Layer_Player"), E_FAIL);
 
     return S_OK;
 }
@@ -21,6 +23,14 @@ void Level_GestralVillage::Update(float fTimeDelta)
 HRESULT Level_GestralVillage::Render()
 {
     Update_WindowTitleFps(_windowTitleFps, L"Level_GestralVillage");
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
+{
+    Vec3 startPos = Vec3(-9.f, -3.47f, 207.94f);
+    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos), E_FAIL);
 
     return S_OK;
 }

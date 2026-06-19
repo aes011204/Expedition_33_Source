@@ -731,6 +731,9 @@
     <ClCompile Include="..\private\ChooseItem.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ChooseGradient.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\ChooseSkill.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -1142,6 +1145,8 @@
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Unlock_Manager.cpp" />
+    <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
+    <ClCompile Include="..\Private\GradientSkill.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1152,6 +1157,8 @@
     </ClInclude>
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -1175,6 +1182,8 @@
     <ClCompile Include="AN_SL_CameraReturn.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClInclude Include="..\Public\Unlock_Manager.h" />
+    <ClInclude Include="..\Public\LevelChange_Portal.h" />
+    <ClInclude Include="..\Public\GradientSkill.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1807,6 +1816,9 @@
     <ClInclude Include="..\public\ChooseItem.h">
       <Filter>BattleState</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ChooseGradient.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\ChooseSkill.h">
       <Filter>BattleState</Filter>
     </ClInclude>
@@ -2242,6 +2254,8 @@
     </ClInclude>
     <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>

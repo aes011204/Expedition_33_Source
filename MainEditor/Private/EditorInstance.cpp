@@ -28,6 +28,8 @@
 #include "GameplayUI.h"
 #include "RuntimeCheckpointIO.h"
 #include "RuntimeCheckpointService.h"
+#include "RuntimeRuleStateIO.h"
+#include "RuntimeRuleStateService.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -70,6 +72,7 @@ void Sync_RestoredMovementRuntimePosition(const Shared<GameObject>& gameObject)
 
     movement->Sync_RuntimePositionToTransform();
 }
+
 }
 
 EditorInstance::EditorInstance()
@@ -663,6 +666,34 @@ bool EditorInstance::Load_DemoCheckpointInEditor(const fs::path& path)
 
     Clear_SelectedObject();
     return Client::RuntimeCheckpointService::Apply_ToCurrentLevel(checkpoint);
+}
+
+bool EditorInstance::Save_GameStartRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_GameStart();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Save_CostumeUnlockRuleState(
+    const fs::path& path,
+    bool unlockBaguette,
+    bool unlockPotato) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_CostumeUnlocks(unlockBaguette, unlockPotato);
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Load_RuleStateInEditor(const fs::path& path)
+{
+    Client::RuntimeRuleStateIO::RuleState ruleState{};
+    if (!Client::RuntimeRuleStateIO::Load_Msgpack(path, ruleState))
+        return false;
+
+    return Client::RuntimeRuleStateService::Apply_ToCurrentRuntime(ruleState);
 }
 
 void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath)

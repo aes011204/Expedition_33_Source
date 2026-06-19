@@ -70,12 +70,19 @@ public:
     const CostumePreset* Get_CurrentCostume(HeroId heroId) const;
     const CostumePreset* Get_Costume(HeroId heroId, const string& presetId) const;
     const vector<CostumePreset>* Get_Costumes(HeroId heroId) const;
+
     const CostumePreset* Set_CurrentCostume(HeroId heroId, const string& presetId);
+
+    // current + unlocked를 같이 저장
     json Create_CurrentCostumeSaveJson() const;
     bool Apply_CurrentCostumeSaveJson(const json& data);
 
     // TEMP. 일단 임시로 Hero Manager에서 변경 예정
     const CostumePreset* Toggle_NextCostume(HeroId heroId);
+
+    // 의상 해금 시스템 추가
+    bool Unlock_Preset(HeroId heroId, const string& presetId);
+    bool Is_PresetUnlocked(HeroId heroId, const string& presetId) const;
 
 private:
     void Register_DefaultCostumes();
@@ -90,6 +97,8 @@ private:
     umap<HeroId, vector<CostumePreset>> _costumesByHero{};
     umap<HeroId, string>                _currentCostumeByHero{};
 
+    // 캐릭터별 의상 해금. 그런데 한번에 다 해금하는 식으로 갈듯
+    umap<HeroId, uset<string>>          _unlockedPresetIdsByHero{};
 
 public:
     static Unique<CostumeManager> Create();

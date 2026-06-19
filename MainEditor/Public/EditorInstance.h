@@ -117,6 +117,9 @@ public: /* For.Editor World */
     HRESULT Load_CurrentLevelSnapShot(const fs::path& path);
     bool    Capture_DemoCheckpoint(const fs::path& path) const;
     bool    Load_DemoCheckpointInEditor(const fs::path& path);
+    bool    Save_GameStartRuleState(const fs::path& path) const;
+    bool    Save_CostumeUnlockRuleState(const fs::path& path, bool unlockBaguette, bool unlockPotato) const;
+    bool    Load_RuleStateInEditor(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
 
 public: /* For.Inspector */

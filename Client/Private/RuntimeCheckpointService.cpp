@@ -9,7 +9,9 @@
 #include "PlayerInventory.h"
 #include "PlayerStatCom.h"
 #include "Player_WorldBase.h"
+#include "SkillTreeCom.h"
 #include "TransformCom.h"
+#include "Unlock_Manager.h"
 
 NS_BEGIN(Client)
 
@@ -24,6 +26,9 @@ bool RuntimeCheckpointService::Capture_Current(RuntimeCheckpointIO::Checkpoint& 
 
     if (const CostumeManager* costumeManager = CLIENT->Get_CostumeManager())
         checkpoint.costumeJson = costumeManager->Create_CurrentCostumeSaveJson();
+
+    if (const Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+        checkpoint.unlockManagerJson = unlockManager->Create_SaveJson();
 
     uint32 slotIndex = 0;
     for (const HeroPartyEntry& entry : CLIENT->Get_HeroEntries())
@@ -49,6 +54,9 @@ bool RuntimeCheckpointService::Capture_Current(RuntimeCheckpointIO::Checkpoint& 
 
         if (Shared<PlayerStatCom> stat = entry.hero->Get_Component<PlayerStatCom>())
             heroState.statJson = stat->Create_SaveJson();
+
+        if (Shared<SkillTreeCom> skillTree = entry.hero->Get_Component<SkillTreeCom>())
+            heroState.skillTreeJson = skillTree->Create_SaveJson();
 
         checkpoint.heroes.emplace_back(std::move(heroState));
         ++slotIndex;
@@ -86,6 +94,9 @@ bool RuntimeCheckpointService::Apply_ToCurrentLevel(const RuntimeCheckpointIO::C
     if (costumeManager != nullptr)
         costumeManager->Apply_CurrentCostumeSaveJson(checkpoint.costumeJson);
 
+    if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+        unlockManager->Apply_SaveJson(checkpoint.unlockManagerJson, false);
+
     for (const RuntimeCheckpointIO::HeroState& heroState : checkpoint.heroes)
     {
         Shared<Player_WorldBase> hero = CLIENT->Find_Hero(heroState.heroId);
@@ -104,6 +115,9 @@ bool RuntimeCheckpointService::Apply_ToCurrentLevel(const RuntimeCheckpointIO::C
 
         if (Shared<PlayerStatCom> stat = hero->Get_Component<PlayerStatCom>())
             stat->Apply_SaveJson(heroState.statJson);
+
+        if (Shared<SkillTreeCom> skillTree = hero->Get_Component<SkillTreeCom>())
+            skillTree->Apply_SaveJson(heroState.skillTreeJson);
 
         if (costumeManager != nullptr)
         {
