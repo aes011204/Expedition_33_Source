@@ -13,6 +13,7 @@ namespace Internal
 {
 constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
 constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
+constexpr float kPlaybackCompletionEpsilon = 1e-4f;
 constexpr float kPlaneRadialEpsilon = 1e-4f;
 
 float Read_Vec4Component(const Vec4& values, uint32 index)
@@ -459,7 +460,7 @@ HRESULT MeshEmitter::Reload_Definition(const EffectEmitterDefinition& emitterDef
 
 bool MeshEmitter::Is_EffectFinished() const
 {
-    return !_isReady || (PlaybackState::Completed == _playbackState && _activeInstanceCount == 0u);
+    return !_isReady || (PlaybackState::Completed == _playbackState && Count_ActiveParticles() == 0u);
 }
 
 bool MeshEmitter::Collect_FollowerSourcePoints(
@@ -924,6 +925,12 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         0.f,
         0.f
     );
+    const Vec4 effectMeshUVRotationParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.maskUVRotation)),
+        0.f
+    );
     const Vec4 effectMeshSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -962,6 +969,7 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVRotationParams", &effectMeshUVRotationParams, sizeof(effectMeshUVRotationParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), 60, E_FAIL);
@@ -997,6 +1005,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     };
     const Vec4 distortionScreenSize{ max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f };
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const float flowUVRotation = static_cast<float>(static_cast<uint32>(material.flowUVRotation));
     const Vec2 flowUVPolicyParams{
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
@@ -1010,6 +1019,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), 60, E_FAIL);
     return S_OK;
 }
 
@@ -1196,8 +1206,23 @@ void MeshEmitter::Advance_Playback(float timeDelta)
             remainingTime -= playbackStep;
         }
 
-        if (_loopElapsedTime - delay < duration)
+        const float loopPlaybackTime = max(0.f, _loopElapsedTime - delay);
+        const float playbackTimeToEnd = duration - loopPlaybackTime;
+        if (playbackTimeToEnd > Internal::kPlaybackCompletionEpsilon)
             break;
+
+        if (playbackTimeToEnd > 0.f)
+        {
+            const float completionStep = min(remainingTime, playbackTimeToEnd);
+            if (completionStep > 0.f)
+            {
+                simulationDeltaTime += completionStep;
+                spawnRequest += Consume_SpawnRequest(completionStep);
+                remainingTime -= completionStep;
+            }
+        }
+
+        _loopElapsedTime = delay + duration;
 
         if (Has_NextLoop())
         {
@@ -1256,6 +1281,18 @@ bool MeshEmitter::Can_SubmitRender() const
 {
     return _isReady && _model && _shader && _instanceBuffer && _activeInstanceCount > 0u &&
            PlaybackState::Delayed != _playbackState;
+}
+
+uint32 MeshEmitter::Count_ActiveParticles() const
+{
+    uint32 activeParticleCount = 0u;
+    for (const MeshParticleState& particle : _particles)
+    {
+        if (particle.active)
+            ++activeParticleCount;
+    }
+
+    return activeParticleCount;
 }
 
 uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)

@@ -208,6 +208,11 @@ namespace Internal
             "켜면 이 이펙트를 재생할 때마다 생성되는 seed를 이 랜덤값 샘플에 섞습니다."
         );
         changed |= ImGui::Checkbox("##Value", &data.useInstanceSeed);
+        if (data.useInstanceSeed)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("켜짐");
+        }
         ImGui::PopID();
 
         detailContext.End_PropertyTable();
@@ -1323,24 +1328,28 @@ namespace Internal
             lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
             lhs.mainUVPolicy.uPolicy == rhs.mainUVPolicy.uPolicy &&
             lhs.mainUVPolicy.vPolicy == rhs.mainUVPolicy.vPolicy &&
+            lhs.mainUVRotation == rhs.mainUVRotation &&
             Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
             Is_SameVec2(lhs.noiseUVOffset, rhs.noiseUVOffset) &&
             Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
             lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
             lhs.noiseUVPolicy.uPolicy == rhs.noiseUVPolicy.uPolicy &&
             lhs.noiseUVPolicy.vPolicy == rhs.noiseUVPolicy.vPolicy &&
+            lhs.noiseUVRotation == rhs.noiseUVRotation &&
             Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
             Is_SameVec2(lhs.maskUVOffset, rhs.maskUVOffset) &&
             Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
             lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
             lhs.maskUVPolicy.uPolicy == rhs.maskUVPolicy.uPolicy &&
             lhs.maskUVPolicy.vPolicy == rhs.maskUVPolicy.vPolicy &&
+            lhs.maskUVRotation == rhs.maskUVRotation &&
             Is_SameVec2(lhs.flowUVScale, rhs.flowUVScale) &&
             Is_SameVec2(lhs.flowUVOffset, rhs.flowUVOffset) &&
             Is_SameVec2(lhs.flowUVScrollSpeed, rhs.flowUVScrollSpeed) &&
             lhs.flowUVTilingMode == rhs.flowUVTilingMode &&
             lhs.flowUVPolicy.uPolicy == rhs.flowUVPolicy.uPolicy &&
             lhs.flowUVPolicy.vPolicy == rhs.flowUVPolicy.vPolicy &&
+            lhs.flowUVRotation == rhs.flowUVRotation &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&

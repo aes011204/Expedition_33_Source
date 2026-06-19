@@ -254,6 +254,8 @@ private: //## Helper::PlaybackRuntime
     bool Can_SubmitRender() const;
 
 private: //## Helper::ParticleRuntime
+    // 완료 판정에 사용할 실제 active particle 수를 반환한다.
+    uint32 Count_ActiveParticles() const;
     // 이번 frame에 새로 활성화할 particle 수를 계산한다.
     uint32 Consume_SpawnRequest(float timeDelta);
     void Resample_LoopSpawnDistributions();

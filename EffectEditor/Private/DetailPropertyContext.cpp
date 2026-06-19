@@ -1011,6 +1011,11 @@ private: //## Distribution Types
             "켜면 이 이펙트를 재생할 때마다 생성되는 seed를 이 랜덤값 샘플에 섞습니다."
         );
         changed |= ImGui::Checkbox("##Value", &data.useInstanceSeed);
+        if (data.useInstanceSeed)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("켜짐");
+        }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 

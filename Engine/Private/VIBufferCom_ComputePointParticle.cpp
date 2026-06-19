@@ -211,6 +211,7 @@ struct ComputePointParticleParams
     Vec4 planeRadialCameraFacingRight{};             // xyz: camera right axis in emitter-local sampling space.
     Vec4 planeRadialCameraFacingUp{};                // xyz: camera up axis in emitter-local sampling space.
     Vec4 planeRadialCameraFacingNormal{};            // xyz: camera look axis in emitter-local sampling space.
+    XMUINT4 spawnSerialParams{};                     // x: replay-local spawn serial base, y/z/w: unused.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -349,7 +350,7 @@ HRESULT VIBufferCom_ComputePointParticle::Render()
     }
 }
 
-void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 spawnRequest, float lifetimeSamplePhase, bool killActiveParticles)
+void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 spawnRequest, uint32 spawnSerialBase, float lifetimeSamplePhase, bool killActiveParticles)
 {
     if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _lifecycleState || nullptr == _instanceVB)
         return;
@@ -361,6 +362,7 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
     _deltaTime = max(0.f, timeDelta);
     _elapsedTime += _deltaTime;
     _spawnRequest = spawnRequest;
+    _spawnSerialBase = spawnSerialBase;
     _lifetimeSamplePhase = clamp(lifetimeSamplePhase, 0.f, 1.f);
     _killActiveParticles = killActiveParticles ? 1u : 0u;
 
@@ -407,6 +409,7 @@ HRESULT VIBufferCom_ComputePointParticle::Reset_ForEffectReplay()
     _deltaTime = 0.f;
     _lifetimeSamplePhase = 0.f;
     _spawnRequest = 0u;
+    _spawnSerialBase = 0u;
     _killActiveParticles = 0u;
     _hasActiveParticles = false;
 
@@ -1029,7 +1032,8 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         },
         .planeRadialCameraFacingRight = Vec4{ cameraFacingRight.x, cameraFacingRight.y, cameraFacingRight.z, 0.f },
         .planeRadialCameraFacingUp = Vec4{ cameraFacingUp.x, cameraFacingUp.y, cameraFacingUp.z, 0.f },
-        .planeRadialCameraFacingNormal = Vec4{ cameraFacingNormal.x, cameraFacingNormal.y, cameraFacingNormal.z, 0.f }
+        .planeRadialCameraFacingNormal = Vec4{ cameraFacingNormal.x, cameraFacingNormal.y, cameraFacingNormal.z, 0.f },
+        .spawnSerialParams = XMUINT4{ _spawnSerialBase, 0u, 0u, 0u }
     };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);

@@ -231,6 +231,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_PlaneRadialCameraFacingRight;       // xyz: camera right axis in emitter-local sampling space
     float4 g_PlaneRadialCameraFacingUp;          // xyz: camera up axis in emitter-local sampling space
     float4 g_PlaneRadialCameraFacingNormal;      // xyz: camera look axis in emitter-local sampling space
+    uint4 g_SpawnSerialParams;                   // x: replay-local spawn serial base
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -1327,7 +1328,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
         if (spawnCandidate < g_SpawnRequest)
         {
-            lifecycle.respawnSeed += 4093u;
+            const uint spawnSerial = g_SpawnSerialParams.x + spawnCandidate;
+            lifecycle.respawnSeed = spawnSerial * 9781u + 1u;
             lifecycle.lifeMax = SampleLifeMax(lifecycle.respawnSeed + g_SpawnSeedSalts.x);
             lifecycle.lifeAge = 0.0f;
             lifecycle.active = 1u;
