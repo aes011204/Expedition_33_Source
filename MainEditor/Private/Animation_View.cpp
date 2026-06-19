@@ -320,13 +320,13 @@ void Animation_View::Pre_Render()
     if (_showPreviewSkyBackdrop)
         Update_PreviewSkyBackdrop(dt);
 
-    if (_showPreviewSkyBackdrop)
-        Render_PreviewSkyBackdrop();
-
     if (_sourceMode == SourceMode::LiveModel)
     {
         const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
         GAME->Backup_RenderGroup();
+        if (_showPreviewSkyBackdrop)
+            Late_Update_PreviewSkyBackdrop(dt);
+
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
@@ -340,6 +340,8 @@ void Animation_View::Pre_Render()
     else
     {
         GAME->Backup_RenderGroup();
+        if (_showPreviewSkyBackdrop)
+            Late_Update_PreviewSkyBackdrop(dt);
     }
 
     for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
@@ -2899,15 +2901,15 @@ void Animation_View::Update_PreviewSkyBackdrop(float timeDelta)
     }
 }
 
-void Animation_View::Render_PreviewSkyBackdrop() const
+void Animation_View::Late_Update_PreviewSkyBackdrop(float timeDelta)
 {
     if (_previewSkyBox != nullptr)
-        (void)_previewSkyBox->Render();
+        _previewSkyBox->Late_Update(timeDelta);
 
     for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
     {
         if (skyCloudCard != nullptr)
-            (void)skyCloudCard->Render();
+            skyCloudCard->Late_Update(timeDelta);
     }
 }
 

@@ -1,6 +1,14 @@
 ﻿#pragma once
 
+#include "Battle_Enum.h"
+
+NS_BEGIN(Engine)
+class GameObject;
+NS_END
+
 NS_BEGIN(Client)
+
+class CombatStatCom;
 
 struct SL_MoveRequest
 {
@@ -49,6 +57,19 @@ enum class SoulLikeAnim
 enum class SL_DodgeDirection
 {
     Fwd, Back, Left, Right, END
+};
+
+struct SL_DamageInfo
+{
+    Shared<GameObject>      attacker{};
+    Shared<GameObject>      target{};
+    Shared<CombatStatCom>   attackerStat{};
+    Shared<CombatStatCom>   targetStat{};
+
+    AttackType attackType = AttackType::Invalid;
+    float      finalDamage = 0.f;
+    bool       isCritical = false;
+    bool       isKilled = false;
 };
 
 NS_END

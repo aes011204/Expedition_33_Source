@@ -14,6 +14,7 @@ public:
     bool EnterInvoke() override;
     void Update(float timeDelta) override;
     bool Request_BasicAttack() override;
+    bool Request_Skill(const Skill_Data& skillData, uint32 slotIndex) override;
 
 public:
     void Set_ComboWindowEnabled(bool enabled);

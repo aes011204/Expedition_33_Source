@@ -69,7 +69,7 @@ void FreeAimTargeting::Update(float timeDelta)
     if (!owner || !battleFSM)
         return;
 
-     // Free Aim 발사 연출 중에는 조준 유지 상태만 두고 새 입력은 막는다.
+    // Free Aim 발사 연출 중에는 조준 유지 상태만 두고 새 입력은 막는다.
     if (owner->Is_FreeAimShotPlaying())
         return;
 
@@ -86,7 +86,7 @@ void FreeAimTargeting::Update(float timeDelta)
         battleCamera->Update_FreeAimRotation(timeDelta); // Free Aim 상태에서만 카메라 회전 갱신
         Update_FreeAimPlayerYaw(timeDelta);
     }
-        
+
 
     Refresh_HitTarget(); // 회전된 카메라 방향 기준으로 적 히트 판정
 
@@ -104,12 +104,15 @@ void FreeAimTargeting::Update(float timeDelta)
         return;
     }
 
-    // 진입이 끝나기 전에는 Shoot 허용 X
-    if (_freeAimAnimState != FreeAimAnimState::Idle)
-        return;
-
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
     {
+        if (_freeAimAnimState == FreeAimAnimState::EnterTransition)
+            _freeAimAnimState = FreeAimAnimState::Idle;
+
+        // 진입이 끝나기 전에는 Shoot 허용 X
+        if (_freeAimAnimState != FreeAimAnimState::Idle)
+            return;
+
         ActionRequest shotRequest{};
         shotRequest.actor = owner->Get_TurnActionRequest().actor;
         shotRequest.type = EBattleContext::FreeAimShoot;
@@ -160,47 +163,47 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
 
     const vector<BattleChar> aliveEnemies = owner->Get_AliveEnemies();
     const auto resolveHitTarget = [&](const PhysXQueryHit& hit, BattleFreeAimHitTarget& outResolvedHitTarget) -> bool
-    {
-        if (hit.owner == nullptr)
-            return false;
-
-        for (const auto& enemy : aliveEnemies)
         {
-            if (enemy.actor == nullptr || enemy.statCom == nullptr)
-                continue;
-
-            if (enemy.actor.get() == hit.owner)
-            {
-                outResolvedHitTarget.target = enemy;
-                outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
-                return true;
-            }
-
-            const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor);
-            if (monster == nullptr)
-                continue;
-
-            const Shared<Mon_WeakPoint> weakPoint = monster->Get_BattleWeakPoint();
-            if (weakPoint == nullptr || weakPoint.get() != hit.owner)
-                continue;
-
-            if (!weakPoint->Is_BattleWeakPointEnabled())
+            if (hit.owner == nullptr)
                 return false;
 
-            if (enemy.statCom->Get_CurrentShield() > 0)
+            for (const auto& enemy : aliveEnemies)
             {
+                if (enemy.actor == nullptr || enemy.statCom == nullptr)
+                    continue;
+
+                if (enemy.actor.get() == hit.owner)
+                {
+                    outResolvedHitTarget.target = enemy;
+                    outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    return true;
+                }
+
+                const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor);
+                if (monster == nullptr)
+                    continue;
+
+                const Shared<Mon_WeakPoint> weakPoint = monster->Get_BattleWeakPoint();
+                if (weakPoint == nullptr || weakPoint.get() != hit.owner)
+                    continue;
+
+                if (!weakPoint->Is_BattleWeakPointEnabled())
+                    return false;
+
+                if (enemy.statCom->Get_CurrentShield() > 0)
+                {
+                    outResolvedHitTarget.target = enemy;
+                    outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                    return true;
+                }
+
                 outResolvedHitTarget.target = enemy;
-                outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
                 return true;
             }
 
-            outResolvedHitTarget.target = enemy;
-            outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
-            return true;
-        }
-
-        return false;
-    };
+            return false;
+        };
 
     PhysXQueryHit hit{};
     const bool hasHit = GAME->Sweep_Sphere(

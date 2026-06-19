@@ -30,8 +30,6 @@ bool SL_Dodge::EnterInvoke()
 
 void SL_Dodge::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!Is_AnimFinished())
         return;
 
@@ -40,8 +38,18 @@ void SL_Dodge::Update(float timeDelta)
     if (Shared<SL_Maelle> owner = _owner.lock())
         owner->Set_CombatLocked(false);
 
-    if (_stateCom)
-        _stateCom->Change_State(SL_PlayerState::Idle);
+    if (_stateCom == nullptr)
+        return;
+
+    if (_request.worldDir.LengthSquared() > 0.f)
+    {
+        if (_stateCom->Change_State(SL_PlayerState::Run))
+            _stateCom->Request_Move(_request, timeDelta);
+
+        return;
+    }
+
+    _stateCom->Change_State(SL_PlayerState::Idle);
 }
 
 void SL_Dodge::ExitInvoke()
@@ -51,15 +59,19 @@ void SL_Dodge::ExitInvoke()
     SL_State::ExitInvoke();
 }
 
+bool SL_Dodge::Request_Move(const SL_MoveRequest& request, float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    _request = request;
+    return true;
+}
+
 SL_DodgeDirection SL_Dodge::Resolve_DodgeDirection(const SL_MoveRequest& request) const
 {
-    if (!request.lockOn)
-        return SL_DodgeDirection::Fwd;
-
     const float moveX = request.moveX;
     const float moveZ = request.moveZ;
 
-     // 입력 없이 Space만 누르면 정면 회피.
     if (fabsf(moveX) <= 0.001f && fabsf(moveZ) <= 0.001f)
         return SL_DodgeDirection::Fwd;
 

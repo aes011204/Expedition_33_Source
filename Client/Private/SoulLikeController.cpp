@@ -7,12 +7,15 @@
 #include "PlayerStatCom.h"
 #include "Player_WorldBase.h"
 #include "ScreenFx_Manager.h"
+#include "SL_Base.h"
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
 #include "SL_TargetCom.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "SkillTreeCom.h"
+#include "TransformCom.h"
+#include "MonsterStatCom.h"
 
 IMPLEMENT_REFLECTION(SoulLikeController)
 {
@@ -25,8 +28,14 @@ IMPLEMENT_REFLECTION(SoulLikeController)
     PROPERTY_STRING("Player Prefab", _playerPrefab);
     PROPERTY_VEC3("Player Spawn Position", _playerSpawnPosition, 0.1f);
     PROPERTY_VEC3("Player Spawn Rotation", _playerSpawnRotation, 1.f);
-    PROPERTY_FLOAT("Enter Fx Delay", _enterFxDelay, 0.f, 5.f, 0.05f);
+    PROPERTY_STRING("Monster Prefab", _monsterPrefab);
+    PROPERTY_FLOAT("Monster Spawn Distance", _monsterSpawnDistance, 0.f, 20.f, 0.1f);
+
     PROPERTY_FLOAT("Player Max HP", _playerMaxHp, 1.f, 9999.f, 1.f);
+    PROPERTY_FLOAT("Monster Max HP", _monsterMaxHp, 1.f, 9999.f, 1.f);
+
+
+    PROPERTY_FLOAT("Enter Fx Delay", _enterFxDelay, 0.f, 5.f, 0.05f);
     PROPERTY_BOOL("Enable Debug Key 3", _enableDebugKeyStart);
 
     return true;
@@ -42,9 +51,12 @@ SoulLikeController::SoulLikeController(const SoulLikeController& prototype)
     , _playerPrefab(prototype._playerPrefab)
     , _playerSpawnPosition(prototype._playerSpawnPosition)
     , _playerSpawnRotation(prototype._playerSpawnRotation)
+    , _monsterPrefab(prototype._monsterPrefab)
+    , _monsterSpawnDistance(prototype._monsterSpawnDistance)
     , _enterFxDelay(prototype._enterFxDelay)
     , _playerMaxHp(prototype._playerMaxHp)
     , _enableDebugKeyStart(prototype._enableDebugKeyStart)
+    , _monsterMaxHp(prototype._monsterMaxHp)
 {
 }
 
@@ -98,7 +110,7 @@ bool SoulLikeController::Begin_Battle()
     if (Is_BattleActive())
         return false;
 
-    _player.reset();
+    Remove_SpawnedBattleActors();
     _playerSpawned = false;
     _enterFxTimer = max(0.f, _enterFxDelay);
     _state = BattleState::EnterFx;
@@ -139,13 +151,14 @@ void SoulLikeController::Handle_BattleShotNotify(const AnimNotifyContext& contex
     if (character == nullptr)
         return;
 
-    if (character.get() != player.get())
+    Shared<SL_Base> subject = dynamic_pointer_cast<SL_Base>(character);
+    if (subject == nullptr)
         return;
 
     EvtBattlePresentation event{};
     event.cameraMode = cameraMode;
-    event.subject = player;
-    event.opponent = nullptr;
+    event.subject = subject;
+    event.opponent = (subject.get() == player.get()) ? Resolve_PlayerCameraOpponent(player) : player;
     event.presetId = presetId;
     event.clipId = clipId;
     event.useClip = useClip;
@@ -153,6 +166,14 @@ void SoulLikeController::Handle_BattleShotNotify(const AnimNotifyContext& contex
     event.keepCurrentClip = keepCurrentClip;
 
     Request_BattleShotCamera(event);
+}
+
+void SoulLikeController::End_BattleShotCamera()
+{
+    if (!Is_BattleActive())
+        return;
+
+    Request_TargetCamera();
 }
 
 HRESULT SoulLikeController::Ready_BattleTurnCamera()
@@ -176,10 +197,14 @@ void SoulLikeController::Request_TargetCamera()
 
     targetCamera->SetTargetTransform(player->Get_Transform());
     targetCamera->Change_Mode(TargetCameraMode::SOULLIKE);
+    targetCamera->Update(0.f);
 }
 
 void SoulLikeController::Request_BattleShotCamera(const EvtBattlePresentation& event)
 {
+    UNREFERENCED_PARAMETER(event);
+
+    Request_TargetCamera();
 }
 
 void SoulLikeController::Restore_TargetCamera()
@@ -191,6 +216,22 @@ void SoulLikeController::Restore_TargetCamera()
 
     if (targetCamera)
         targetCamera->Refresh_TargetTransform();
+}
+
+Shared<Character> SoulLikeController::Resolve_PlayerCameraOpponent(const Shared<SL_Maelle>& player) const
+{
+    if (player == nullptr)
+        return nullptr;
+
+    Shared<SL_TargetCom> targetCom = player->Get_Component<SL_TargetCom>();
+    if (targetCom != nullptr)
+    {
+        Shared<Character> lockedTarget = targetCom->Get_LockedTarget();
+        if (lockedTarget != nullptr)
+            return lockedTarget;
+    }
+
+    return _monster.lock();
 }
 
 bool SoulLikeController::Spawn_Player()
@@ -252,11 +293,84 @@ bool SoulLikeController::Spawn_Player()
     player->Reset_CombatHp(_playerMaxHp);
 
     _player = player;
+
+    if (!Spawn_Monster(player))
+    {
+        Remove_SpawnedBattleActors();
+        return false;
+    }
+
     _playerSpawned = true;
 
     Request_TargetCamera();
 
     return true;
+}
+
+bool SoulLikeController::Spawn_Monster(const Shared<SL_Maelle>& player)
+{
+    if (_monsterPrefab.empty())
+        return true;
+
+    if (player == nullptr || player->Get_Transform() == nullptr)
+        return false;
+
+    Vec3 forward = player->Get_Transform()->Get_WorldForward();
+    forward.y = 0.f;
+
+    if (forward.LengthSquared() <= 0.0001f)
+        forward = Vec3::Look;
+    else
+        forward.Normalize();
+
+    const Vec3 playerPosition = player->Get_Transform()->Get_WorldPosition();
+    Vec3 opponentPosition = playerPosition + forward * max(0.f, _monsterSpawnDistance);
+    opponentPosition.y = playerPosition.y;
+
+    Vec3 opponentRotation = player->Get_Transform()->Get_WorldRotationEuler();
+    opponentRotation.y += 180.f;
+
+    Shared<GameObject> monsterObject = Spawn_Prefab::Prefab(_monsterPrefab)
+        .AtLevel(GAME->Current_LevelIndex())
+        .InLayer(TEXT("Layer_Monster"))
+        .Position(opponentPosition)
+        .Rotation(opponentRotation)
+        .Spawn();
+
+    Shared<SL_Base> opponent = dynamic_pointer_cast<SL_Base>(monsterObject);
+    if (opponent == nullptr)
+        return false;
+
+    Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(opponent->Get_Stat());
+    if (monsterStat != nullptr)
+    {
+        auto& desc = monsterStat->Get_MonsterDesc();
+
+        monsterStat->Set_RuntimeCombatProfile(
+            _monsterMaxHp,
+            desc.maxAp,
+            desc.physicalAttack,
+            desc.physicalDefense,
+            desc.speed);
+    }
+
+    _monster = opponent;
+
+    return true;
+}
+
+void SoulLikeController::Remove_SpawnedBattleActors()
+{
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+
+    if (Shared<SL_Base> opponent = _monster.lock())
+        GAME->Remove_GameObject(levelIndex, opponent);
+
+    if (Shared<SL_Maelle> player = _player.lock())
+        GAME->Remove_GameObject(levelIndex, player);
+
+    _monster.reset();
+    _player.reset();
 }
 
 void SoulLikeController::Update_EnterFx(float timeDelta)
@@ -336,20 +450,22 @@ void SoulLikeController::Update_Player(float timeDelta)
 void SoulLikeController::Check_BattleEnd()
 {
     Shared<SL_Maelle> player = _player.lock();
+    Shared<SL_Base> opponent = _monster.lock();
+
     if (player == nullptr || player->Is_Dead())
+    {
+        End_Battle();
+        return;
+    }
+
+    if (!_monsterPrefab.empty() && (opponent == nullptr || opponent->Is_Dead()))
         End_Battle();
 }
 
 void SoulLikeController::Handle_EditorStopRuntime()
 {
-    const uint32 levelIndex = GAME->Current_LevelIndex();
+    Remove_SpawnedBattleActors();
 
-    if (Shared<SL_Maelle> player = _player.lock())
-    {
-        GAME->Remove_GameObject(levelIndex, player);
-    }
-
-    _player.reset();
     _battleTurnCamera.reset();
     _state = BattleState::None;
     _enterFxTimer = 0.f;

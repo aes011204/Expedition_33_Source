@@ -193,10 +193,20 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
     const wstring fileName = String::ToWString(prefabName) + L".prefab.json";
     const fs::path assetRoot = fs::path(GAME->Get_AssetRoot());
 
+    if (prefabName.starts_with("SL_"))
+    {
+        const fs::path playerPath = assetRoot / Constants::Prefab::Player_Dir / fileName;
+        const fs::path monsterPath = assetRoot / Constants::Prefab::Monster_Dir / fileName;
+
+        if (fs::exists(monsterPath) && !fs::exists(playerPath))
+            return monsterPath;
+
+        return playerPath;
+    }
+
     if (prefabName.starts_with("PW_") ||
         prefabName.starts_with("PB_") ||
-        prefabName.starts_with("PP_") ||
-        prefabName.starts_with("SL_"))
+        prefabName.starts_with("PP_"))
         return assetRoot / Constants::Prefab::Player_Dir / fileName; // 플레이어 프리팹은 Player 폴더로 정규화한다.
 
     if (prefabName.starts_with("MW_") || prefabName.starts_with("MB_") || prefabName.starts_with("TW_"))

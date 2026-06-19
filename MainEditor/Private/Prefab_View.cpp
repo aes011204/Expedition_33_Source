@@ -268,10 +268,10 @@ void Prefab_View::Pre_Render()
         _previewHasBegunPlay = true;
     }
 
-    if (_showPreviewSkyBackdrop)
-        Render_PreviewSkyBackdrop();
-
     GAME->Backup_RenderGroup();
+    if (_showPreviewSkyBackdrop)
+        Late_Update_PreviewSkyBackdrop(dt);
+
     PreviewObjectHelpers::Update_PreviewObject(_previewObject, dt);
 
     function<void(const Shared<GameObject>&)> forceVisibleRecursive =
@@ -1986,15 +1986,15 @@ void Prefab_View::Update_PreviewSkyBackdrop(float timeDelta)
     }
 }
 
-void Prefab_View::Render_PreviewSkyBackdrop() const
+void Prefab_View::Late_Update_PreviewSkyBackdrop(float timeDelta)
 {
     if (_previewSkyBox != nullptr)
-        (void)_previewSkyBox->Render();
+        _previewSkyBox->Late_Update(timeDelta);
 
     for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
     {
         if (skyCloudCard != nullptr)
-            (void)skyCloudCard->Render();
+            skyCloudCard->Late_Update(timeDelta);
     }
 }
 

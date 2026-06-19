@@ -813,7 +813,7 @@ HRESULT GameInstance::Draw_RendererOnly()
     if (hasPostProcessPipeline)
     {
         savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
-        postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::None); // 프리뷰 캡처는 현재 레벨의 HDR/후처리 상태를 상속하지 않는다.
+        postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
     }
 
     if (hasLightingPipeline)

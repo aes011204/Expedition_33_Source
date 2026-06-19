@@ -569,6 +569,10 @@
     <ClCompile Include="..\Private\SL_Skill.cpp" />
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
+    <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
+    <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
+    <ClCompile Include="AN_SL_CameraReturn.cpp" />
+    <ClCompile Include="..\Private\SL_Base.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1558,6 +1562,10 @@
     <ClInclude Include="..\Public\SL_Skill.h" />
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
     <ClInclude Include="..\Public\SL_DamageSystem.h" />
+    <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
+    <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
+    <ClInclude Include="AN_SL_CameraReturn.h" />
+    <ClInclude Include="..\Public\SL_Base.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

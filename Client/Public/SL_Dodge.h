@@ -14,6 +14,7 @@ public:
     bool EnterInvoke() override;
     void Update(float timeDelta) override;
     void ExitInvoke() override;
+    bool Request_Move(const SL_MoveRequest& request, float timeDelta) override;
 
 public:
     void Set_DodgeRequest(const SL_MoveRequest& request) { _request = request; }

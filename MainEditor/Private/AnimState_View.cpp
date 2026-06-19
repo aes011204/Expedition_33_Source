@@ -143,10 +143,10 @@ void AnimState_View::Pre_Render()
     if (_showPreviewSkyBackdrop)
         Update_PreviewSkyBackdrop(dt);
 
-    if (_showPreviewSkyBackdrop)
-        Render_PreviewSkyBackdrop();
-
     GAME->Backup_RenderGroup();
+    if (_showPreviewSkyBackdrop)
+        Late_Update_PreviewSkyBackdrop(dt);
+
     PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
 
     GAME->Draw_RendererOnly();
@@ -767,15 +767,15 @@ void AnimState_View::Update_PreviewSkyBackdrop(float timeDelta)
     }
 }
 
-void AnimState_View::Render_PreviewSkyBackdrop() const
+void AnimState_View::Late_Update_PreviewSkyBackdrop(float timeDelta)
 {
     if (_previewSkyBox != nullptr)
-        (void)_previewSkyBox->Render();
+        _previewSkyBox->Late_Update(timeDelta);
 
     for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
     {
         if (skyCloudCard != nullptr)
-            (void)skyCloudCard->Render();
+            skyCloudCard->Late_Update(timeDelta);
     }
 }
 

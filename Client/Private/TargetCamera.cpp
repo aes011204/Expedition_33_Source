@@ -632,9 +632,12 @@ void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     _targetTransformCom = targetTransform;
 
-    // 전환 직후 이전 target 위치가 남아 있으면 카메라 보간이 튈 수 있어서
     if (targetTransform)
-        _prevTargetPos = targetTransform->Get_WorldPosition();
+    {
+        const Vec3 targetPos = targetTransform->Get_WorldPosition();
+        _prevTargetPos = targetPos;
+        _smoothedTargetPos = targetPos;
+    }
 
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;

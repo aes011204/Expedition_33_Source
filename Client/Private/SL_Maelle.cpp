@@ -19,6 +19,8 @@
 #include "SL_TargetCom.h"
 #include "SL_Types.h"
 
+#include "SL_DamageSystem.h"
+
 REGISTER_GLOBAL_ENUM(SoulLikeAnim, "SL_MaelleAnim")
 
 IMPLEMENT_REFLECTION(SL_Maelle)
@@ -33,27 +35,27 @@ IMPLEMENT_REFLECTION(SL_Maelle)
 }
 
 SL_Maelle::SL_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Character_WorldBase(device, context)
+    : SL_Base(device, context)
 {
 }
 
 SL_Maelle::SL_Maelle(const SL_Maelle& prototype)
-    : Character_WorldBase(prototype)
+    : SL_Base(prototype)
 {
 }
 
 HRESULT SL_Maelle::Initialize_Prototype()
 {
-    return Character_WorldBase::Initialize_Prototype();
+    return SL_Base::Initialize_Prototype();
 }
 
 HRESULT SL_Maelle::Initialize(void* arg)
 {
-    Character_WorldBase::ContainerObjectDesc desc{};
+    SL_Base::ContainerObjectDesc desc{};
     desc.speedPerSec = 20.f;
     desc.degreePerSec = 720.f;
 
-    CHECK_FAILED(Character_WorldBase::Initialize(&desc), E_FAIL);
+    CHECK_FAILED(SL_Base::Initialize(&desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
@@ -62,7 +64,7 @@ HRESULT SL_Maelle::Initialize(void* arg)
 
 void SL_Maelle::BeginPlay()
 {
-    Character_WorldBase::BeginPlay();
+    SL_Base::BeginPlay();
 
     if (_movementCom)
         _movementCom->Sync_RuntimePositionToTransform();
@@ -74,12 +76,12 @@ void SL_Maelle::BeginPlay()
 
 void SL_Maelle::Priority_Update(float timeDelta)
 {
-    Character_WorldBase::Priority_Update(timeDelta);
+    SL_Base::Priority_Update(timeDelta);
 }
 
 void SL_Maelle::Update(float timeDelta)
 {
-    Character_WorldBase::Update(timeDelta);
+    SL_Base::Update(timeDelta);
 
     // 무적 시간
     _invincibleRemain = max(0.f, _invincibleRemain - timeDelta);
@@ -96,24 +98,65 @@ void SL_Maelle::Update(float timeDelta)
 
 void SL_Maelle::Late_Update(float timeDelta)
 {
-    Character_WorldBase::Late_Update(timeDelta);
+    SL_Base::Late_Update(timeDelta);
 
     Update_Culling(Vec3(1.f, 2.f, 1.f));
 }
 
 HRESULT SL_Maelle::Render()
 {
-    return Character_WorldBase::Render();
+    return SL_Base::Render();
 }
 
 HRESULT SL_Maelle::Render_Shadow()
 {
-    return Character_WorldBase::Render_Shadow();
+    return SL_Base::Render_Shadow();
+}
+
+void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    SL_Base::OnBeginOverlap(self, other);
+
+    if (self == nullptr || other == nullptr)
+        return;
+
+    // Maelle이 가진 공격 collider가 시작한 overlap만 데미지로 처리한다.
+    if (self.get() != _attackColliderCom.get())
+        return;
+
+    if (other->Get_CollisionPreset() != Collision_Preset::SL_MonsterBody)
+        return;
+
+    const Shared<GameObject> otherOwner = other->Get_Owner();
+    const Shared<SL_Base> target = dynamic_pointer_cast<SL_Base>(otherOwner);
+    if (target == nullptr || target.get() == this || target->Is_Dead())
+        return;
+
+    SL_DamageInfo damageInfo{};
+    if (!SL_DamageSystem::Apply_Damage(
+        GetSharedPtr<GameObject>(),
+        _combatStatCom,
+        target,
+        target->Get_Stat(),
+        1.f,
+        AttackType::BaseAttack,
+        damageInfo))
+    {
+        return;
+    }
+
+    target->Apply_Damage(damageInfo);
 }
 
 void SL_Maelle::Reset_CombatHp(float maxHp)
 {
-    _hp = max(1.f, maxHp);
+    if (_combatStatCom)
+    {
+        auto& runtimeStat = _combatStatCom->Get_RuntimeStat();
+        runtimeStat.CurHp = max(1.f, maxHp);
+        runtimeStat.CurAliveState = EAliveStatus::Alive;
+    }
+
     _invincibleRemain = 0.f;
     _combatLocked = false;
 }
@@ -133,7 +176,7 @@ HRESULT SL_Maelle::Ready_Components()
     moveDesc.cct.height = 1.50f;
     moveDesc.cct.stepOffset = 0.35f;
     moveDesc.cct.contactOffset = 0.05f;
-    moveDesc.cct.slopeLimitDeg = 55.f; 
+    moveDesc.cct.slopeLimitDeg = 55.f;
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
@@ -141,11 +184,30 @@ HRESULT SL_Maelle::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_StateMachine"), _stateMachineCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_Target"), _targetCom), E_FAIL);
 
-    Bounding_OBB::BoundingOBBDesc obbDesc{};
-    obbDesc.center = Vec3(0.f, 0.75f, 0.f);
-    obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
+    // 몸통
+    {
+        Bounding_OBB::BoundingOBBDesc obbDesc{};
+        obbDesc.center = Vec3(0.f, 0.75f, 0.f);
+        obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
 
-    CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Player_WorldBody), E_FAIL);
+        CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::SL_PlayerBody), E_FAIL);
+        CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_Body_Player")), E_FAIL);
+    }
+
+    // 무기
+    {
+        Bounding_OBB::BoundingOBBDesc attackObbDesc{};
+        attackObbDesc.center = Vec3(0.f, 1.0f, 0.95f);
+        attackObbDesc.extents = Vec3(0.55f, 0.65f, 0.85f);
+
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _attackColliderCom, &attackObbDesc), E_FAIL);
+        CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_PlayerAttack")), E_FAIL);
+
+        _attackColliderCom->Set_CollisionPreset(Collision_Preset::SL_PlayerAttack);
+        _attackColliderCom->Set_IsActive(false);
+        _attackColliderCom->Clear_Overlap();
+    }
+
 
     return S_OK;
 }
@@ -415,16 +477,36 @@ void SL_Maelle::Stop_Move()
     }
 }
 
-void SL_Maelle::Apply_Damage(float damage)
+Shared<CombatStatCom> SL_Maelle::Get_Stat() const
+{
+    return _combatStatCom;
+}
+
+Shared<ColliderCom> SL_Maelle::Get_AttackCollider() const
+{
+    return _attackColliderCom;
+}
+
+bool SL_Maelle::Is_Dead() const
+{
+    if (_combatStatCom == nullptr)
+        return true;
+
+    return _combatStatCom->Get_AliveStatus() == EAliveStatus::Dead;
+}
+
+void SL_Maelle::Apply_Damage(const SL_DamageInfo& damageInfo)
 {
     if (Is_Invincible() || Is_Dead())
         return;
 
-    _hp = max(0.f, _hp - damage);
+    if (damageInfo.target.get() != this)
+        return;
+
     _combatLocked = true;
 
     if (_stateMachineCom)
-        _stateMachineCom->Change_State(Is_Dead() ? SL_PlayerState::Dead : SL_PlayerState::Hit);
+        _stateMachineCom->Change_State(damageInfo.isKilled ? SL_PlayerState::Dead : SL_PlayerState::Hit);
 }
 
 Shared<SL_Maelle> SL_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -449,5 +531,5 @@ Shared<GameObject> SL_Maelle::Clone(void* arg)
 
 void SL_Maelle::Free()
 {
-    Character_WorldBase::Free();
+    SL_Base::Free();
 }

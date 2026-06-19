@@ -49,8 +49,21 @@ bool SL_Move::Request_Move(const SL_MoveRequest& request, float timeDelta)
         }
     }
 
-    if (_body != nullptr && _body->Get_AnimationStateIndex() != ETOI(SoulLikeAnim::Run))
-        Play_Anim(SoulLikeAnim::Run, 0.15f, true);
+    SoulLikeAnim moveAnim = SoulLikeAnim::Run;
+
+    if (request.lockOn)
+    {
+        const float absMoveX = fabsf(request.moveX);
+        const float absMoveZ = fabsf(request.moveZ);
+
+        if (absMoveZ >= absMoveX)
+            moveAnim = request.moveZ >= 0.f ? SoulLikeAnim::Target_Run_Fwd : SoulLikeAnim::Target_Run_Back;
+        else
+            moveAnim = request.moveX >= 0.f ? SoulLikeAnim::Target_Run_Right : SoulLikeAnim::Target_Run_Left;
+    }
+
+    if (_body != nullptr && _body->Get_AnimationStateIndex() != ETOI(moveAnim))
+        Play_Anim(moveAnim, 0.15f, true);
 
     return true;
 }

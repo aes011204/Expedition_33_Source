@@ -199,8 +199,9 @@ void BattleController::Update(float timeDelta)
 
             OnExitBattleField(EBattleEndResult::Victory);
             _battleEnded = true;
-            return;
         }
+
+        return; // 승리 확정 후에는 남은 액션 phase(Dash_Out/Return)를 더 진행하지 않는다.
     }
 
     if (!_isPendingVictorySlow && _requestEndTurnOnCurrentActorDeath)
@@ -1554,6 +1555,9 @@ void BattleController::Finish_FreeAimShot()
 
 void BattleController::OnActionEndNotify()
 {
+    if (_isPendingVictorySlow || _battleEnded)
+        return; // 마지막 몬스터 사망 후에는 공격자의 다음 phase로 넘기지 않는다.
+
     if (_isFreeAimShotPlaying)
     {
         Finish_FreeAimShot();
