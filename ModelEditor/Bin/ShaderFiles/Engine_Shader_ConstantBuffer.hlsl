@@ -364,10 +364,17 @@ cbuffer FroxelBuffer : register(b0)
 
     row_major float4x4 g_FroxelInvView;
     row_major float4x4 g_FroxelInvProjection;
+    row_major float4x4 g_FroxelPrevView;
+    row_major float4x4 g_FroxelPrevProjection;
 
     float4 g_FroxelLightDirection;
     float4 g_FroxelLightColor;
     float4 g_FroxelCamPosition;
+
+    float g_FroxelTemporalBlend;
+    float g_FroxelJitterZ;
+    float g_FroxelTemporalDepthReject;
+    uint g_FroxelHistoryValid;
 }
 
 // 카메라/Froxel/광원 공통 데이터

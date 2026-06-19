@@ -309,25 +309,39 @@ PS_OUT_COLOR PS_DistortionResolve(PS_IN In)
     return Out;
 }
 
+float ComputeFroxelSliceRatioFromViewDepth(float viewZ)
+{
+    const float nearZ = max(g_FroxelNear, 0.01f);
+    const float farZ = max(g_FroxelFar, nearZ + 0.01f);
+
+    viewZ = clamp(viewZ, nearZ, farZ);
+
+    return saturate(log(viewZ / nearZ) / log(farZ / nearZ));
+}
+
 float3 SampleIntegratedFroxelLighting(float2 uv)
 {
     const float froxelRange = max(g_FroxelFar - g_FroxelNear, EPSILON);
     const float sliceTexel = 1.f / max((float) g_FroxelDepth, 1.f);
-
     float viewZ = g_DepthTexture.Sample(PointClampSampler, uv).y * g_DeferredFar;
     if (viewZ <= EPSILON)
         viewZ = g_FroxelFar;
 
-    const float sliceRatio = saturate((viewZ - g_FroxelNear) / froxelRange);
+    const float sliceRatio = ComputeFroxelSliceRatioFromViewDepth(viewZ);
     const float2 clampedUV = saturate(uv);
-    const float3 froxelUVW0 = float3(clampedUV, saturate(sliceRatio - sliceTexel));
-    const float3 froxelUVW1 = float3(clampedUV, sliceRatio);
-    const float3 froxelUVW2 = float3(clampedUV, saturate(sliceRatio + sliceTexel));
+    const float3 froxelUVW0 = float3(clampedUV, saturate(sliceRatio - sliceTexel * 2.f));
+    const float3 froxelUVW1 = float3(clampedUV, saturate(sliceRatio - sliceTexel));
+    const float3 froxelUVW2 = float3(clampedUV, sliceRatio);
+    const float3 froxelUVW3 = float3(clampedUV, saturate(sliceRatio + sliceTexel));
+    const float3 froxelUVW4 = float3(clampedUV, saturate(sliceRatio + sliceTexel * 2.f));
 
     const float4 froxelLighting0 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW0);
     const float4 froxelLighting1 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW1);
     const float4 froxelLighting2 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW2);
-    const float4 froxelLighting = (froxelLighting0 + froxelLighting1 * 2.f + froxelLighting2) * 0.25f;
+    const float4 froxelLighting3 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW3);
+    const float4 froxelLighting4 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW4);
+    const float4 froxelLighting =
+        (froxelLighting0 + froxelLighting1 * 4.f + froxelLighting2 * 6.f + froxelLighting3 * 4.f + froxelLighting4) * 0.0625f;
 
     const float densityMask = smoothstep(0.03f, 0.35f, saturate(froxelLighting.a));
     const float nearFade = smoothstep(g_FroxelNear, g_FroxelNear + froxelRange * 0.15f, viewZ);

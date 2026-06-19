@@ -448,10 +448,17 @@ struct alignas(16) FroxelCB
 
     Matrix inverseView;
     Matrix inverseProjection;
+    Matrix previousView;
+    Matrix previousProjection;
 
     Vec4 lightDirection;
     Vec4 lightColor;
     Vec4 camPosition;
+
+    float temporalBlend{ 0.85f };
+    float jitterZ{ 0.f };
+    float temporalDepthReject{ 0.25f };
+    uint32 historyValid{ 0u };
 };
 
 struct alignas(16) FroxelDebugCB

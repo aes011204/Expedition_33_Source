@@ -173,12 +173,12 @@ HRESULT LightingPipeline::Dispatch_FroxelInject()
 HRESULT LightingPipeline::Dispatch_FroxelAccumulate()
 {
     CHECK_NULL(_froxelAccumulateComputeShader, E_FAIL);
-    CHECK_NULL(_froxelInjectionSRV, E_FAIL);
+    CHECK_NULL(_froxelBlurSRV, E_FAIL);
     CHECK_NULL(_froxelIntegratedUAV, E_FAIL);
     CHECK_NULL(_froxelBuffer, E_FAIL);
 
     CHECK_FAILED(_froxelAccumulateComputeShader->Bind_ConstantBuffer(0, _froxelBuffer.Get()), E_FAIL);
-    CHECK_FAILED(_froxelAccumulateComputeShader->Bind_SRV(2, _froxelInjectionSRV.Get()), E_FAIL);
+    CHECK_FAILED(_froxelAccumulateComputeShader->Bind_SRV(2, _froxelBlurSRV.Get()), E_FAIL);
     CHECK_FAILED(_froxelAccumulateComputeShader->Bind_UAV(0, _froxelIntegratedUAV.Get()), E_FAIL);
 
     const uint32 groupX = (_froxelWidth + 7u) / 8u;
@@ -199,6 +199,69 @@ HRESULT LightingPipeline::Dispatch_FroxelAccumulate()
 
     CHECK_FAILED(hr, E_FAIL);
 
+    return S_OK;
+}
+
+HRESULT LightingPipeline::Dispatch_FroxelBlur()
+{
+    CHECK_NULL(_froxelBlurComputeShader, E_FAIL);
+    CHECK_NULL(_froxelBuffer, E_FAIL);
+    CHECK_NULL(_froxelInjectionSRV, E_FAIL);
+    CHECK_NULL(_froxelBlurUAV, E_FAIL);
+
+    CHECK_FAILED(_froxelBlurComputeShader->Bind_ConstantBuffer(0, _froxelBuffer.Get()), E_FAIL);
+    CHECK_FAILED(_froxelBlurComputeShader->Bind_SRV(2, _froxelInjectionSRV.Get()), E_FAIL);
+    CHECK_FAILED(_froxelBlurComputeShader->Bind_UAV(0, _froxelBlurUAV.Get()), E_FAIL);
+
+    const uint32 groupX = (_froxelWidth + 7u) / 8u;
+    const uint32 groupY = (_froxelHeight + 7u) / 8u;
+    const uint32 groupZ = _froxelDepth;
+
+    HRESULT hr = _froxelBlurComputeShader->Dispatch(groupX, groupY, groupZ);
+
+    ID3D11ShaderResourceView* nullSRVs[3] = {};
+    _context->CSSetShaderResources(0, 3, nullSRVs);
+
+    ID3D11UnorderedAccessView* nullUAVs[1] = {};
+    UINT nullCounts[1] = { 0 };
+    _context->CSSetUnorderedAccessViews(0, 1, nullUAVs, nullCounts);
+
+    CHECK_FAILED(hr, E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT LightingPipeline::Dispatch_FroxelTemporal()
+{
+    CHECK_NULL(_froxelTemporalComputeShader, E_FAIL);
+    CHECK_NULL(_froxelBuffer, E_FAIL);
+    CHECK_NULL(_froxelIntegratedSRV, E_FAIL);
+    CHECK_NULL(_froxelHistorySRV, E_FAIL);
+    CHECK_NULL(_froxelTemporalUAV, E_FAIL);
+    CHECK_NULL(_froxelHistoryTexture, E_FAIL);
+    CHECK_NULL(_froxelTemporalTexture, E_FAIL);
+
+    CHECK_FAILED(_froxelTemporalComputeShader->Bind_ConstantBuffer(0, _froxelBuffer.Get()), E_FAIL);
+    CHECK_FAILED(_froxelTemporalComputeShader->Bind_SRV(2, _froxelIntegratedSRV.Get()), E_FAIL);
+    CHECK_FAILED(_froxelTemporalComputeShader->Bind_SRV(3, _froxelHistorySRV.Get()), E_FAIL);
+    CHECK_FAILED(_froxelTemporalComputeShader->Bind_UAV(0, _froxelTemporalUAV.Get()), E_FAIL);
+
+    const uint32 groupX = (_froxelWidth + 7u) / 8u;
+    const uint32 groupY = (_froxelHeight + 7u) / 8u;
+    const uint32 groupZ = _froxelDepth;
+
+    HRESULT hr = _froxelTemporalComputeShader->Dispatch(groupX, groupY, groupZ);
+
+    ID3D11ShaderResourceView* nullSRVs[4] = {};
+    _context->CSSetShaderResources(0, 4, nullSRVs);
+
+    ID3D11UnorderedAccessView* nullUAVs[1] = {};
+    UINT nullCounts[1] = { 0 };
+    _context->CSSetUnorderedAccessViews(0, 1, nullUAVs, nullCounts);
+
+    CHECK_FAILED(hr, E_FAIL);
+
+    _context->CopyResource(_froxelHistoryTexture.Get(), _froxelTemporalTexture.Get());
     _hasFroxelFrameData = true;
 
     return S_OK;
@@ -216,12 +279,12 @@ ID3D11ShaderResourceView* LightingPipeline::Get_DebugFroxelSRV() const
 {
     return (_froxelDebugMode == FroxelDebugMode::RawInjection)
         ? _froxelInjectionSRV.Get()
-        : _froxelIntegratedSRV.Get();
+        : (_froxelTemporalSRV ? _froxelTemporalSRV.Get() : _froxelIntegratedSRV.Get());
 }
 
 ID3D11ShaderResourceView* LightingPipeline::Get_FroxelIntegratedSRV() const
 {
-    return _froxelIntegratedSRV.Get();
+    return _froxelTemporalSRV ? _froxelTemporalSRV.Get() : _froxelIntegratedSRV.Get();
 }
 
 const FroxelCB& LightingPipeline::Get_FroxelParams() const
@@ -299,8 +362,11 @@ HRESULT LightingPipeline::Ready_FroxelTextures()
             return S_OK;
         };
 
-    return createTextureSet(_froxelInjectionTexture, _froxelInjectionUAV, _froxelInjectionSRV) ==
-        S_OK && createTextureSet(_froxelIntegratedTexture, _froxelIntegratedUAV, _froxelIntegratedSRV) == S_OK
+    return createTextureSet(_froxelInjectionTexture, _froxelInjectionUAV, _froxelInjectionSRV) == S_OK &&
+        createTextureSet(_froxelBlurTexture, _froxelBlurUAV, _froxelBlurSRV) == S_OK &&
+        createTextureSet(_froxelIntegratedTexture, _froxelIntegratedUAV, _froxelIntegratedSRV) == S_OK &&
+        createTextureSet(_froxelHistoryTexture, _froxelHistoryUAV, _froxelHistorySRV) == S_OK &&
+        createTextureSet(_froxelTemporalTexture, _froxelTemporalUAV, _froxelTemporalSRV) == S_OK
         ? S_OK
         : E_FAIL;
 }
@@ -347,6 +413,14 @@ HRESULT LightingPipeline::Ready_FroxelComputeShader()
     if (nullptr == froxelInjectComputeShader)
         return E_FAIL;
 
+    Shared<ComputeShaderCom> froxelBlurComputeShader = ComputeShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_Froxel.hlsl",
+        "BlurFroxelBuffer");
+    if (nullptr == froxelBlurComputeShader)
+        return E_FAIL;
+
     Shared<ComputeShaderCom> froxelAccumulateComputeShader = ComputeShaderCom::Create(
         _device,
         _context,
@@ -355,11 +429,23 @@ HRESULT LightingPipeline::Ready_FroxelComputeShader()
     if (nullptr == froxelAccumulateComputeShader)
         return E_FAIL;
 
+    Shared<ComputeShaderCom> froxelTemporalComputeShader = ComputeShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_Froxel.hlsl",
+        "TemporalFroxelIntegration");
+    if (nullptr == froxelTemporalComputeShader)
+        return E_FAIL;
+
     _froxelInjectComputeShader = std::move(froxelInjectComputeShader);
+    _froxelBlurComputeShader = std::move(froxelBlurComputeShader);
     _froxelAccumulateComputeShader = std::move(froxelAccumulateComputeShader);
+    _froxelTemporalComputeShader = std::move(froxelTemporalComputeShader);
 
     CHECK_NULL(_froxelInjectComputeShader, E_FAIL);
+    CHECK_NULL(_froxelBlurComputeShader, E_FAIL);
     CHECK_NULL(_froxelAccumulateComputeShader, E_FAIL);
+    CHECK_NULL(_froxelTemporalComputeShader, E_FAIL);
 
     return S_OK;
 }

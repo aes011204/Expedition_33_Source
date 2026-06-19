@@ -44,7 +44,9 @@ public:
     HRESULT Update_FroxelShadow(const ShadowCB& shadowCB);
     void Bind_FroxelInputSRVs(ID3D11ShaderResourceView* depthSRV, ID3D11ShaderResourceView* shadowSRV);
     HRESULT Dispatch_FroxelInject();
+    HRESULT Dispatch_FroxelBlur();
     HRESULT Dispatch_FroxelAccumulate();
+    HRESULT Dispatch_FroxelTemporal();
     HRESULT Reload_FroxelComputeShader();
     void Invalidate_FroxelFrameData();
     bool Has_FroxelFrameData() const;
@@ -72,19 +74,30 @@ private:
     SSAOCB _ssaoCB{};
     DeferredLightingCB _deferredLightingCB{};
 
-    const uint32    _froxelWidth = 160;
-    const uint32    _froxelHeight = 90;
-    const uint32    _froxelDepth = 64;
+    const uint32    _froxelWidth = 240;
+    const uint32    _froxelHeight = 135;
+    const uint32    _froxelDepth = 128;
 
     Shared<ComputeShaderCom>            _froxelInjectComputeShader;
+    Shared<ComputeShaderCom>            _froxelBlurComputeShader;
     Shared<ComputeShaderCom>            _froxelAccumulateComputeShader;
+    Shared<ComputeShaderCom>            _froxelTemporalComputeShader;
 
     ComPtr<ID3D11Texture3D>             _froxelInjectionTexture;
     ComPtr<ID3D11UnorderedAccessView>   _froxelInjectionUAV;
     ComPtr<ID3D11ShaderResourceView>    _froxelInjectionSRV;
+    ComPtr<ID3D11Texture3D>             _froxelBlurTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelBlurUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelBlurSRV;
     ComPtr<ID3D11Texture3D>             _froxelIntegratedTexture;
     ComPtr<ID3D11UnorderedAccessView>   _froxelIntegratedUAV;
     ComPtr<ID3D11ShaderResourceView>    _froxelIntegratedSRV;
+    ComPtr<ID3D11Texture3D>             _froxelHistoryTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelHistoryUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelHistorySRV;
+    ComPtr<ID3D11Texture3D>             _froxelTemporalTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelTemporalUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelTemporalSRV;
 
     ComPtr<ID3D11Buffer>                _froxelZoneBuffer;
     ComPtr<ID3D11Buffer>                _froxelBuffer;

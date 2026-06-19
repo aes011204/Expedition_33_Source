@@ -769,6 +769,8 @@ void Renderer::Render_VolumetricLightShaft()
 
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
 
+    const Matrix* view = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projection = GAME->Get_Transform(D3DTS::Proj);
     const Matrix* inverseView = GAME->Get_Transform_Inverse(D3DTS::View);
     const Matrix* inverseProjection = GAME->Get_Transform_Inverse(D3DTS::Proj);
 
@@ -778,8 +780,13 @@ void Renderer::Render_VolumetricLightShaft()
         return ;
 
     const Vec4* camPosition = GAME->Get_CamPosition();
-    if (activeCamera == nullptr || inverseView == nullptr || inverseProjection == nullptr || camPosition == nullptr)
+    if (activeCamera == nullptr || view == nullptr || projection == nullptr ||
+        inverseView == nullptr || inverseProjection == nullptr || camPosition == nullptr)
         return;
+
+    static bool hasFroxelHistory = false;
+    static Matrix previousFroxelView{};
+    static Matrix previousFroxelProjection{};
 
     FroxelCB froxelCB{};
     froxelCB.froxelWidth = _lightingPipeline->Get_DebugFroxelWidth();
@@ -796,11 +803,17 @@ void Renderer::Render_VolumetricLightShaft()
 
     froxelCB.inverseView = *inverseView;
     froxelCB.inverseProjection = *inverseProjection;
+    froxelCB.previousView = hasFroxelHistory ? previousFroxelView : *view;
+    froxelCB.previousProjection = hasFroxelHistory ? previousFroxelProjection : *projection;
 
     froxelCB.lightDirection = lightDesc->direction;
     froxelCB.lightColor = lightDesc->diffuse;
 
     froxelCB.camPosition = *GAME->Get_CamPosition();
+    froxelCB.temporalBlend = hasFroxelHistory ? 0.65f : 0.f;
+    froxelCB.jitterZ = 0.f;
+    froxelCB.temporalDepthReject = 0.25f;
+    froxelCB.historyValid = hasFroxelHistory ? 1u : 0u;
 
     ShadowCB shadowCB{};
     if (FAILED(GAME->Get_ShadowCBSnapshot(shadowCB)))
@@ -837,11 +850,27 @@ void Renderer::Render_VolumetricLightShaft()
         return;
     }
 
+    if (FAILED(_lightingPipeline->Dispatch_FroxelBlur()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelBlur");
+        return;
+    }
+
     if (FAILED(_lightingPipeline->Dispatch_FroxelAccumulate()))
     {
         LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelAccumulate");
         return;
     }
+
+    if (FAILED(_lightingPipeline->Dispatch_FroxelTemporal()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelTemporal");
+        return;
+    }
+
+    previousFroxelView = *view;
+    previousFroxelProjection = *projection;
+    hasFroxelHistory = true;
 }
 
 void Renderer::Render_NonLight()

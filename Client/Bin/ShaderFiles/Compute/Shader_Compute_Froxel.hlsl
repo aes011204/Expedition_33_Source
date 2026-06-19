@@ -4,6 +4,7 @@
 Texture2D<float4> g_FroxelDepthTexture : register(t0);          // 현재 Froxel이 물체보다 뒤에 있는지 판단할 때 사용
 Texture2DArray<float> g_FroxelShadowTexture : register(t1);     // cascade shadow map
 Texture3D<float4> g_FroxelInjectionTexture : register(t2);      // Infrect Froxel 패스에서 만든 결과를 Accumulate ㅠㅐ스에서 읽을 때 사용
+Texture3D<float4> g_FroxelHistoryTexture : register(t3);
 
 RWTexture3D<float4> g_FroxelVolumeUAV : register(u0);           // Compute Shader가 결과 쓰는 출력 Texture3D
 
@@ -15,6 +16,14 @@ static const float2 ShadowPoissonDisk[4] =
     float2(0.34495938f, 0.29387760f)
 };
 
+float ComputeFroxelViewDepthFromSliceRatio(float sliceRatio)
+{
+    const float nearZ = max(g_FroxelNear, 0.01f);
+    const float farZ = max(g_FroxelFar, nearZ + 0.01f);
+
+    return nearZ * pow(farZ / nearZ, saturate(sliceRatio));
+}
+
 // Froxel 인덱스를 실제 월드 위치로 바꾼다
 float3 ComputeFroxelWorldPosition(uint3 dispatchThreadID, out float3 froxelPositionVS, out float2 uv, out float viewDepth)
 {
@@ -23,8 +32,9 @@ float3 ComputeFroxelWorldPosition(uint3 dispatchThreadID, out float3 froxelPosit
     const float2 ndc = float2(uv.x * 2.f - 1.f, 1.f - uv.y * 2.f);
 
     // z 슬라이스 -> view depth
-    const float sliceRatio = ((float) dispatchThreadID.z + 0.5f) / max((float) g_FroxelDepth, 1.f);
-    viewDepth = lerp(g_FroxelNear, g_FroxelFar, sliceRatio);
+    const float depthCount = max((float) g_FroxelDepth, 1.f);
+    const float sliceRatio = saturate(((float) dispatchThreadID.z + 0.5f + g_FroxelJitterZ) / depthCount);
+    viewDepth = ComputeFroxelViewDepthFromSliceRatio(sliceRatio);
 
     // 화면 XY 방향 복원 
     float4 viewPosition = mul(float4(ndc, 1.f, 1.f), g_FroxelInvProjection);
@@ -181,8 +191,55 @@ void InjectFroxelBuffer(uint3 dispatchThreadID : SV_DispatchThreadID)
         accumulatedExtinction += zoneDensity * 0.08f * shadowVisibility;
     }
 
-    // Injection 결과 저장 
+    // Injection 결과 저장
     g_FroxelVolumeUAV[dispatchThreadID] = float4(accumulatedScattering, saturate(accumulatedExtinction));
+}
+
+float4 LoadFroxelSourceClamped(int3 coord)
+{
+    const int3 maxCoord = int3(
+        max((int) g_FroxelWidth - 1, 0),
+        max((int) g_FroxelHeight - 1, 0),
+        max((int) g_FroxelDepth - 1, 0));
+
+    coord = clamp(coord, int3(0, 0, 0), maxCoord);
+
+    return g_FroxelInjectionTexture.Load(int4(coord, 0));
+}
+
+[numthreads(8, 8, 1)]
+void BlurFroxelBuffer(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    if (dispatchThreadID.x >= g_FroxelWidth || dispatchThreadID.y >= g_FroxelHeight || dispatchThreadID.z >= g_FroxelDepth)
+        return;
+
+    const int3 baseCoord = int3(dispatchThreadID.xyz);
+    float4 accumulated = 0.f;
+    float weightSum = 0.f;
+
+    [unroll]
+    for (int zOffset = -1; zOffset <= 1; ++zOffset)
+    {
+        const float zWeight = (zOffset == 0) ? 2.f : 1.f;
+
+        [unroll]
+        for (int yOffset = -1; yOffset <= 1; ++yOffset)
+        {
+            const float yWeight = (yOffset == 0) ? 2.f : 1.f;
+
+            [unroll]
+            for (int xOffset = -1; xOffset <= 1; ++xOffset)
+            {
+                const float xWeight = (xOffset == 0) ? 2.f : 1.f;
+                const float weight = xWeight * yWeight * zWeight;
+
+                accumulated += LoadFroxelSourceClamped(baseCoord + int3(xOffset, yOffset, zOffset)) * weight;
+                weightSum += weight;
+            }
+        }
+    }
+
+    g_FroxelVolumeUAV[dispatchThreadID] = accumulated / max(weightSum, 0.0001f);
 }
 
 // 카메라 방향으로 빛을 모으는 단계
@@ -216,4 +273,79 @@ void AccumulateFroxelBuffer(uint3 dispatchThreadID : SV_DispatchThreadID)
             break;
         }
     }
+}
+
+float ComputeFroxelSliceRatioFromViewDepth(float viewDepth)
+{
+    const float nearZ = max(g_FroxelNear, 0.01f);
+    const float farZ = max(g_FroxelFar, nearZ + 0.01f);
+
+    viewDepth = clamp(viewDepth, nearZ, farZ);
+
+    return saturate(log(viewDepth / nearZ) / log(farZ / nearZ));
+}
+
+bool ComputePreviousFroxelUVW(float3 worldPos, out float3 previousUVW)
+{
+    float4 previousViewPos = mul(float4(worldPos, 1.f), g_FroxelPrevView);
+
+    if (previousViewPos.z <= g_FroxelNear || previousViewPos.z >= g_FroxelFar)
+    {
+        previousUVW = 0.f;
+        return false;
+    }
+
+    float4 previousClipPos = mul(previousViewPos, g_FroxelPrevProjection);
+
+    if (previousClipPos.w <= 0.0001f)
+    {
+        previousUVW = 0.f;
+        return false;
+    }
+
+    const float2 previousNDC = previousClipPos.xy / previousClipPos.w;
+
+    previousUVW.x = previousNDC.x * 0.5f + 0.5f;
+    previousUVW.y = previousNDC.y * -0.5f + 0.5f;
+    previousUVW.z = ComputeFroxelSliceRatioFromViewDepth(previousViewPos.z);
+
+    if (any(previousUVW.xy < 0.f) || any(previousUVW.xy > 1.f))
+        return false;
+
+    return true;
+}
+
+[numthreads(8, 8, 1)]
+void TemporalFroxelIntegration(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    if (dispatchThreadID.x >= g_FroxelWidth || dispatchThreadID.y >= g_FroxelHeight || dispatchThreadID.z >= g_FroxelDepth)
+        return;
+
+    const float4 currentLighting = g_FroxelInjectionTexture.Load(int4(dispatchThreadID.xyz, 0));
+
+    if (g_FroxelHistoryValid == 0u)
+    {
+        g_FroxelVolumeUAV[dispatchThreadID] = currentLighting;
+        return;
+    }
+
+    float3 froxelPositionVS = 0.f;
+    float2 uv = 0.f;
+    float viewDepth = 0.f;
+    const float3 froxelPositionWS = ComputeFroxelWorldPosition(dispatchThreadID, froxelPositionVS, uv, viewDepth);
+
+    float3 previousUVW = 0.f;
+    if (!ComputePreviousFroxelUVW(froxelPositionWS, previousUVW))
+    {
+        g_FroxelVolumeUAV[dispatchThreadID] = currentLighting;
+        return;
+    }
+
+    const float4 historyLighting = g_FroxelHistoryTexture.SampleLevel(LinearClampSampler, previousUVW, 0.f);
+
+    const float alphaDiff = abs(currentLighting.a - historyLighting.a);
+    const float reject = smoothstep(g_FroxelTemporalDepthReject * 0.5f, g_FroxelTemporalDepthReject, alphaDiff);
+    const float historyWeight = saturate(g_FroxelTemporalBlend) * (1.f - reject);
+
+    g_FroxelVolumeUAV[dispatchThreadID] = lerp(currentLighting, historyLighting, historyWeight);
 }
