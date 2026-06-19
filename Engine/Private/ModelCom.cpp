@@ -2128,9 +2128,14 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
         _rootOriginalFrameVelocity.position =
             Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalRotationMatrix);
 
-        const float temp = _rootOriginalFrameVelocity.position.z;
+        const float tempZ = _rootOriginalFrameVelocity.position.z;
+
         _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
-        _rootOriginalFrameVelocity.position.y = temp;
+        _rootOriginalFrameVelocity.position.y = tempZ;
+
+
+
+
     }
 
     Mark_BoneMatricesDirty();
