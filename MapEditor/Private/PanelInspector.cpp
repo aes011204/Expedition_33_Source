@@ -97,7 +97,7 @@ void PanelInspector::Render()
         if (!obj->_isDefaultLight)
         {
             ImGui::SameLine();
-            if (ImGui::Button("Delete"))
+            if (ImGui::Button("오브젝트 지우기"))
             {
                 auto it = find(_ctx->_objects.begin(), _ctx->_objects.end(), _ctx->_selected);
                 if (it != _ctx->_objects.end())
@@ -131,7 +131,7 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
         int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
         ImGui::Text("Instance Count: %d", instSize);
         ImGui::SameLine();
-        if (ImGui::SmallButton("Clear All") && !obj->_instancedTransforms.empty())
+        if (ImGui::SmallButton("오브젝트 지우기") && !obj->_instancedTransforms.empty())
         {
             obj->_instancedTransforms.clear();
             obj->_instancedParamsDirty = true;
@@ -147,7 +147,7 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
         auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
         ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
         ImGui::SameLine();
-        if (ImGui::SmallButton("Del"))
+        if (ImGui::SmallButton("인스턴스 지우기"))
         {
             obj->_instancedTransforms.erase(
                 obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);

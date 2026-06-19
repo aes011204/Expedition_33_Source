@@ -9,6 +9,7 @@
 #include "MECamera.h"
 #include "PanelModelOverride.h"
 #include "PanelLandscape.h"
+#include "GameInstance.h"
 
 extern HWND g_hWnd;
 
@@ -317,6 +318,20 @@ void MEManager::RenderDockSpace()
             }
             ImGui::EndMenu();
         }
+
+        const float fps = ImGui::GetIO().Framerate;
+        const uint32 renderCalls = GAME ? GAME->Get_RenderCall() : 0u;
+        const string perfLabel = "FPS: " + to_string(static_cast<int>(fps + 0.5f)) +
+            "  RenderCalls: " + to_string(renderCalls);
+        const float labelWidth = ImGui::CalcTextSize(perfLabel.c_str()).x;
+        const float cursorX = ImGui::GetCursorPosX();
+        const float availX = ImGui::GetContentRegionAvail().x;
+        const float targetX = cursorX + max(0.f, availX - labelWidth);
+        if (targetX > cursorX)
+        {
+            ImGui::SetCursorPosX(targetX);
+        }
+        ImGui::TextDisabled("%s", perfLabel.c_str());
 
         ImGui::EndMenuBar();
     }

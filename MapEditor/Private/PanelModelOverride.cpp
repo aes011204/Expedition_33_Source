@@ -630,6 +630,28 @@ namespace
         return label + (material ? material->Get_MaterialName() : string("<null>"));
     }
 
+    uint32 GetMaterialSlotCountForUi(const Shared<ModelCom>& model)
+    {
+        if (!model)
+        {
+            return 1;
+        }
+
+        uint32 slotCount = static_cast<uint32>(max<size_t>(1, model->Get_NumMaterials()));
+        const auto& meshes = model->Get_Meshes();
+        for (const Shared<Mesh>& mesh : meshes)
+        {
+            if (!mesh)
+            {
+                continue;
+            }
+
+            slotCount = max(slotCount, mesh->Get_MaterialIndex() + 1u);
+        }
+
+        return max(1u, slotCount);
+    }
+
     void DrawSelectedModelMeshMap(const Shared<ModelCom>& model)
     {
         if (!model || !ImGui::CollapsingHeader("Mesh -> Material Slot", ImGuiTreeNodeFlags_DefaultOpen))
@@ -659,7 +681,7 @@ namespace
     // 현재 모델의 material index를 고르는 compact combo.
     void DrawMaterialSlotPicker(int32& selectedMaterialIndex, const Shared<ModelCom>& model)
     {
-        const int32 materialCount = model ? static_cast<int32>(model->Get_NumMaterials()) : 1;
+        const int32 materialCount = static_cast<int32>(GetMaterialSlotCountForUi(model));
         const int32 clampedMaterialCount = max(1, materialCount);
         selectedMaterialIndex = std::clamp(selectedMaterialIndex, 0, clampedMaterialCount - 1);
 
@@ -681,6 +703,90 @@ namespace
                 }
             }
             ImGui::EndCombo();
+        }
+    }
+
+    string GetResolvedTexturePath(const Material::TextureSlot* textureSlot)
+    {
+        if (textureSlot == nullptr)
+        {
+            return {};
+        }
+
+        if (!textureSlot->resolvedPath.empty())
+        {
+            return String::ToString(textureSlot->resolvedPath);
+        }
+
+        return {};
+    }
+
+    void DrawCurrentMaterialSummary(const Shared<Material>& material, int32 materialIndex)
+    {
+        ImGui::SeparatorText("Current Material");
+
+        if (!material)
+        {
+            ImGui::TextDisabled("Material[%d] is not populated on this ModelCom.", materialIndex);
+            return;
+        }
+
+        DrawInfoRow("Slot", "[" + to_string(materialIndex) + "] " + material->Get_MaterialName());
+        DrawInfoRow("Template", magic_enum::enum_name(material->Get_TemplateId()).data());
+        DrawInfoRow("Pass", to_string(material->Get_PassIndex()));
+    }
+
+    void DrawCurrentMaterialTextureViewer(const Shared<Material>& material)
+    {
+        ImGui::SeparatorText("Current Applied Textures");
+
+        constexpr MaterialTextureSlot slots[] = {
+            MaterialTextureSlot::BaseColor,
+            MaterialTextureSlot::Normal,
+            MaterialTextureSlot::ORM,
+            MaterialTextureSlot::ORM2,
+            MaterialTextureSlot::ORM3,
+            MaterialTextureSlot::Emissive,
+            MaterialTextureSlot::OpacityMask,
+            MaterialTextureSlot::HairDepth,
+            MaterialTextureSlot::HairID,
+            MaterialTextureSlot::IrisHeight,
+            MaterialTextureSlot::IrisMask,
+        };
+
+        if (!material)
+        {
+            ImGui::TextDisabled("No runtime material is currently assigned to this slot.");
+            return;
+        }
+
+        for (MaterialTextureSlot slot : slots)
+        {
+            const Material::TextureSlot* textureSlot = material->Find_TextureSlot(slot, 0);
+            const string texturePath = GetResolvedTexturePath(textureSlot);
+            const string displayName = BuildTextureDisplayName(texturePath);
+
+            ImGui::PushID(static_cast<int32>(slot));
+            ImGui::Text("%-12s", magic_enum::enum_name(slot).data());
+            ImGui::SameLine();
+
+            char pathBuffer[MAX_PATH] = {};
+            strncpy_s(pathBuffer, displayName.c_str(), sizeof(pathBuffer) - 1);
+
+            ImGui::SetNextItemWidth(300.f);
+            ImGui::InputText("##current_tex_path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_ReadOnly);
+            if (!texturePath.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            {
+                ImGui::SetTooltip("%s", texturePath.c_str());
+            }
+
+            if (texturePath.empty())
+            {
+                ImGui::SameLine();
+                ImGui::TextDisabled("(none)");
+            }
+
+            ImGui::PopID();
         }
     }
 
@@ -928,7 +1034,7 @@ namespace
     }
 
     // v2 material binding의 texture slot 오버라이드 편집.
-    void DrawMaterialTextureEditor(json& instJson, MapEditor::SceneContext* ctx)
+    void DrawMaterialTextureEditor(json& instJson, MapEditor::SceneContext* ctx, const Shared<Material>& currentMaterial)
     {
         ImGui::SeparatorText("Texture Overrides");
 
@@ -985,7 +1091,9 @@ namespace
             ImGui::Text("%-12s", magic_enum::enum_name(slot).data());
             ImGui::SameLine();
 
-            string texPath = ReadTextureOverrideDisplayPath(instJson, key);
+            const Material::TextureSlot* currentSlot = currentMaterial ? currentMaterial->Find_TextureSlot(slot, 0) : nullptr;
+            const string currentPath = GetResolvedTexturePath(currentSlot);
+            string texPath = enabled ? ReadTextureOverrideDisplayPath(instJson, key) : currentPath;
             const string texDisplayName = BuildTextureDisplayName(texPath);
             char pathBuffer[MAX_PATH] = {};
             strncpy_s(pathBuffer, texDisplayName.c_str(), sizeof(pathBuffer) - 1);
@@ -1021,6 +1129,9 @@ namespace
                     ctx->_dirtyPassOverrides = true;
                 }
             }
+
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", enabled ? "Override" : "Current");
 
             ImGui::PopID();
         }
@@ -1281,7 +1392,7 @@ namespace
         }
 
         DrawMaterialCBEditor(instJson, entry, ctx);
-        DrawMaterialTextureEditor(instJson, ctx);
+        DrawMaterialTextureEditor(instJson, ctx, target.model ? target.model->Get_Material(static_cast<uint32>(selectedMaterialIndex)) : nullptr);
     }
 
     // 하단 접이식 영역: 기존 pass/texture slot 기반 ModelOverride 관리.
@@ -1574,6 +1685,19 @@ void PanelModelOverride::RenderSelectedMaterialOverride()
 
         DrawSelectedModelMeshMap(target.model);
         DrawMaterialSlotPicker(_selectedMaterialIndex, target.model);
+
+        const Shared<Material> currentMaterial = target.model
+            ? target.model->Get_Material(static_cast<uint32>(_selectedMaterialIndex))
+            : nullptr;
+
+        DrawCurrentMaterialSummary(currentMaterial, _selectedMaterialIndex);
+        DrawCurrentMaterialTextureViewer(currentMaterial);
+
+        const uint32 runtimeMaterialCount = target.model ? static_cast<uint32>(target.model->Get_NumMaterials()) : 0u;
+        if (static_cast<uint32>(_selectedMaterialIndex) >= runtimeMaterialCount)
+        {
+            ImGui::TextDisabled("This slot is referenced by mesh indices, but no runtime Material exists in ModelCom for it yet.");
+        }
 
         json* existingBinding = FindBinding(entry.materialBindingsJson, static_cast<uint32>(_selectedMaterialIndex));
         bool useBinding = existingBinding != nullptr;
