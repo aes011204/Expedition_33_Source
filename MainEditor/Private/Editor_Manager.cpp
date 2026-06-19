@@ -583,7 +583,7 @@ void Editor_Manager::Toggle_FocusMode()
 
         _focusModeWindowStates[name] = window->Is_Open();
 
-        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console" || name == L"Camera Tool")
+        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console" || name == L"Camera Tool" || name == L"SoulLike_Viewer")
             continue;
 
         window->Set_Open(false);
