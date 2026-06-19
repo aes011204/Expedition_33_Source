@@ -374,14 +374,23 @@ void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 d
     const ImGuiID consoleDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.16f, nullptr, &emitterDockId);
     const ImGuiID browserDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.36f, nullptr, &emitterDockId);
 
-    ImGui::DockBuilderDockWindow("Scene", sceneDockId);
-    ImGui::DockBuilderDockWindow("Inspector", detailDockId);
-    ImGui::DockBuilderDockWindow("Hierarchy", detailDockId);
-    ImGui::DockBuilderDockWindow("Profile", detailDockId);
-    ImGui::DockBuilderDockWindow("Emitter", emitterDockId);
-    ImGui::DockBuilderDockWindow("Content Browser", browserDockId);
-    ImGui::DockBuilderDockWindow("Curve Editor", browserDockId);
-    ImGui::DockBuilderDockWindow("Console", consoleDockId);
+    const auto dock_registered_window = [this](const wstring& windowName, ImGuiID targetDockId)
+    {
+        const Shared<Editor_Window> window = Find_Window(windowName);
+        if (window == nullptr)
+            return;
+
+        ImGui::DockBuilderDockWindow(window->Get_ImGuiWindowName().c_str(), targetDockId);
+    };
+
+    dock_registered_window(L"Scene", sceneDockId);
+    dock_registered_window(L"Detail", detailDockId);
+    dock_registered_window(L"Hierarchy", detailDockId);
+    dock_registered_window(L"Profile", detailDockId);
+    dock_registered_window(L"Emitter", emitterDockId);
+    dock_registered_window(L"Content Browser", browserDockId);
+    dock_registered_window(L"Curve Editor", browserDockId);
+    dock_registered_window(L"Console", consoleDockId);
 
     ImGui::DockBuilderFinish(dockSpaceId);
 }
@@ -393,13 +402,12 @@ void EffectEditor_Manager::Build_SceneFocusDockLayout(ImGuiID dockSpaceId, ImVec
 
     _sceneFocusDockLayoutBuilt = true;
     const Shared<Editor_Window> sceneWindow = Find_Window(L"Scene");
-    const char* sceneWindowName =
-        sceneWindow != nullptr ? sceneWindow->Get_ImGuiWindowName().c_str() : "Scene";
 
     ImGui::DockBuilderRemoveNode(dockSpaceId);
     ImGui::DockBuilderAddNode(dockSpaceId, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dockSpaceId, dockSpaceSize);
-    ImGui::DockBuilderDockWindow(sceneWindowName, dockSpaceId);
+    if (sceneWindow != nullptr)
+        ImGui::DockBuilderDockWindow(sceneWindow->Get_ImGuiWindowName().c_str(), dockSpaceId);
     ImGui::DockBuilderFinish(dockSpaceId);
 }
 
@@ -630,6 +638,8 @@ void EffectEditor_Manager::Toggle_SceneFocusMode()
 
 void EffectEditor_Manager::Enter_SceneFocusMode()
 {
+    ImGuiIO& io = ImGui::GetIO();
+
     _sceneFocusWindowOpenSnapshot.clear();
     for (const auto& [windowName, window] : _windows)
     {
@@ -645,6 +655,10 @@ void EffectEditor_Manager::Enter_SceneFocusMode()
         _sceneFocusDockSettingsSnapshot.assign(dockSettingsData, dockSettingsSize);
     else
         _sceneFocusDockSettingsSnapshot.clear();
+
+    _sceneFocusHadIniFilenameSnapshot = io.IniFilename != nullptr;
+    _sceneFocusIniFilenameSnapshot = _sceneFocusHadIniFilenameSnapshot ? io.IniFilename : "";
+    io.IniFilename = nullptr;
 
     _sceneFocusPreviewViewportSnapshot.mode = EDITOR->Get_PreviewViewportMode();
     _sceneFocusPreviewViewportSnapshot.width = max(1u, GAME->Get_ViewportWidth());
@@ -672,6 +686,8 @@ void EffectEditor_Manager::Enter_SceneFocusMode()
 
 void EffectEditor_Manager::Exit_SceneFocusMode()
 {
+    ImGuiIO& io = ImGui::GetIO();
+
     if (!_sceneFocusDockSettingsSnapshot.empty())
         ImGui::LoadIniSettingsFromMemory(_sceneFocusDockSettingsSnapshot.c_str(), _sceneFocusDockSettingsSnapshot.size());
 
@@ -703,6 +719,9 @@ void EffectEditor_Manager::Exit_SceneFocusMode()
     _sceneFocusDockLayoutBuilt = false;
     _sceneFocusDockSettingsSnapshot.clear();
     _sceneFocusWindowOpenSnapshot.clear();
+    io.IniFilename = _sceneFocusHadIniFilenameSnapshot ? _sceneFocusIniFilenameSnapshot.c_str() : nullptr;
+    _sceneFocusHadIniFilenameSnapshot = false;
+    _sceneFocusIniFilenameSnapshot.clear();
     _isSceneFocusModeActive = false;
 }
 

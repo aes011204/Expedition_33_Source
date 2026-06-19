@@ -6,7 +6,8 @@ NS_BEGIN(Engine)
 
 namespace Internal
 {
-    EffectEmitterFactory::CreateEmitterFn createEmitterFn = nullptr; // 현재 process에서 effect emitter 생성을 실제로 수행할 등록 함수다.
+    // 현재 process에서 effect emitter 생성을 실제로 수행할 등록 함수다.
+    EffectEmitterFactory::CreateEmitterFn createEmitterFn = nullptr;
 }
 
 void EffectEmitterFactory::Register_CreateEmitterFn(CreateEmitterFn createEmitterFn)

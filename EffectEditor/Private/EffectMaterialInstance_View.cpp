@@ -860,6 +860,8 @@ namespace Internal
             return "Clamp";
         case EffectTextureUVTilingMode::Raw:
             return "Raw";
+        case EffectTextureUVTilingMode::Mirror:
+            return "Mirror";
         default:
             return "Wrap";
         }
@@ -876,6 +878,7 @@ namespace Internal
             EffectTextureUVTilingMode::Wrap,
             EffectTextureUVTilingMode::Stretch,
             EffectTextureUVTilingMode::Clamp,
+            EffectTextureUVTilingMode::Mirror,
             EffectTextureUVTilingMode::Raw
         };
 
@@ -935,6 +938,70 @@ namespace Internal
         if (changed)
             compatibleMode = Resolve_CompatibleUVTilingModeForView(policy);
 
+        return changed;
+    }
+
+    const char* Get_UVRotationLabel(EffectMaterialUVRotation value)
+    {
+        switch (value)
+        {
+        case EffectMaterialUVRotation::None:
+            return "None";
+        case EffectMaterialUVRotation::Rotate90CW:
+            return "90 CW";
+        case EffectMaterialUVRotation::Rotate180:
+            return "180";
+        case EffectMaterialUVRotation::Rotate90CCW:
+            return "90 CCW";
+        default:
+            return "None";
+        }
+    }
+
+    bool Draw_UVRotationProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EffectMaterialUVRotation& value,
+        EffectMaterialUVRotation defaultValue,
+        const char* tooltip = nullptr)
+    {
+        static constexpr EffectMaterialUVRotation kRotations[]{
+            EffectMaterialUVRotation::None,
+            EffectMaterialUVRotation::Rotate90CW,
+            EffectMaterialUVRotation::Rotate180,
+            EffectMaterialUVRotation::Rotate90CCW
+        };
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool changed = false;
+
+        if (ImGui::BeginCombo("##Value", Get_UVRotationLabel(value)))
+        {
+            for (const EffectMaterialUVRotation rotation : kRotations)
+            {
+                const bool selected = value == rotation;
+                if (ImGui::Selectable(Get_UVRotationLabel(rotation), selected))
+                {
+                    value = rotation;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
         return changed;
     }
 
@@ -1277,6 +1344,15 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= mainAxisPolicyChanged;
             restartPreview |= mainAxisPolicyChanged;
+            const bool mainRotationChanged = Internal::Draw_UVRotationProperty(
+                detailPropertyContext,
+                "Main UV Rotation",
+                material.mainUVRotation,
+                defaultData.mainUVRotation,
+                "Main texture UV를 0.5 중심으로 90도 단위 회전한 뒤 scale/offset/scroll을 적용합니다."
+            );
+            changed |= mainRotationChanged;
+            restartPreview |= mainRotationChanged;
             changed |= detailPropertyContext.Draw_Vec2Property(
                 "Main UV Scale",
                 material.mainUVScale,
@@ -1370,6 +1446,15 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= noiseAxisPolicyChanged;
             restartPreview |= noiseAxisPolicyChanged;
+            const bool noiseRotationChanged = Internal::Draw_UVRotationProperty(
+                detailPropertyContext,
+                "Noise UV Rotation",
+                material.noiseUVRotation,
+                defaultData.noiseUVRotation,
+                "Noise texture UV를 0.5 중심으로 90도 단위 회전한 뒤 scale/offset/scroll을 적용합니다."
+            );
+            changed |= noiseRotationChanged;
+            restartPreview |= noiseRotationChanged;
             changed |= detailPropertyContext.Draw_Vec2Property(
                 "Noise UV Scale",
                 material.noiseUVScale,
@@ -1474,6 +1559,15 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= maskAxisPolicyChanged;
             restartPreview |= maskAxisPolicyChanged;
+            const bool maskRotationChanged = Internal::Draw_UVRotationProperty(
+                detailPropertyContext,
+                "Mask UV Rotation",
+                material.maskUVRotation,
+                defaultData.maskUVRotation,
+                "Mask texture UV를 0.5 중심으로 90도 단위 회전한 뒤 scale/offset/scroll을 적용합니다."
+            );
+            changed |= maskRotationChanged;
+            restartPreview |= maskRotationChanged;
             changed |= detailPropertyContext.Draw_Vec2Property(
                 "Mask UV Scale",
                 material.maskUVScale,
@@ -1543,6 +1637,15 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= flowAxisPolicyChanged;
             restartPreview |= flowAxisPolicyChanged;
+            const bool flowRotationChanged = Internal::Draw_UVRotationProperty(
+                detailPropertyContext,
+                "Flow UV Rotation",
+                material.flowUVRotation,
+                defaultData.flowUVRotation,
+                "Flow texture UV를 0.5 중심으로 90도 단위 회전한 뒤 scale/offset/scroll을 적용합니다."
+            );
+            changed |= flowRotationChanged;
+            restartPreview |= flowRotationChanged;
             changed |= detailPropertyContext.Draw_Vec2Property(
                 "Flow UV Scale",
                 material.flowUVScale,

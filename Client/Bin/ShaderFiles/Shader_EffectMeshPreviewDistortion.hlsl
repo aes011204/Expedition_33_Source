@@ -15,6 +15,7 @@ cbuffer cbEffectMeshPreviewDistortion : register(b2)
     float2 g_FlowUVOffset = { 0.f, 0.f };
     float2 g_FlowUVScrollSpeed = { 0.f, 0.f };
     float g_FlowUVTilingMode = 0.f;
+    float g_FlowUVRotation = 0.f;
     float g_EffectMeshPreviewDistortionPadding = 0.f;
 };
 
@@ -56,7 +57,8 @@ float2 Build_FlowUV(float2 rawUV)
         g_FlowUVOffset,
         g_FlowUVScrollSpeed,
         g_EffectDistortionParams.w,
-        g_FlowUVPolicyParams
+        g_FlowUVPolicyParams,
+        g_FlowUVRotation
     );
 }
 

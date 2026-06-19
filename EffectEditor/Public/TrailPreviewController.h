@@ -10,6 +10,7 @@ NS_BEGIN(EffectEditor)
 
 class TrailPreviewPlayerObject;
 
+// Trail preview player animation state와 source ratio를 제어한다.
 class TrailPreviewController final : public GameObject
 {
 public:
@@ -32,23 +33,23 @@ public:
 public:
     bool Try_GetAttackAnimationRatio(float& outRatio) const;
 
-private:
+private: //## Types::Animation
     enum class PreviewAnimationMode
     {
         Rest,
         Attack,
     };
 
-private:
+private: //## Static Values
     static constexpr auto kAttackAnimationName{ "Gustave_Noah_Skill_Blitz" };
     static constexpr auto kRestAnimationName{ "Gustave_Anim_Noah_Idle_World_FeetFixed" };
 
-private:
+private: //## Data::Animation
     Weak<TrailPreviewPlayerObject> _player{};
     PreviewAnimationMode _currentMode{ PreviewAnimationMode::Rest };
     bool _animationInitialized{ false };
 
-private:
+private: //## Helper::Animation
     void Set_PlayerVisible(bool visible);
     void Reset_PreviewPose();
     Shared<ModelCom> Get_BodyModel() const;
