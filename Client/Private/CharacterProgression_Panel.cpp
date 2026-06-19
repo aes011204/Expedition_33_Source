@@ -149,7 +149,7 @@ HRESULT CharacterProgression_Panel::Prepare_OpenResources()
     if (_abilityPentagonFill != nullptr)
         return S_OK;
 
-    // preview 캐릭터와 달리 UI 안에서만 쓰는 작은 런타임 도형이라 미리 만들어도 메뉴 흐름을 바꾸지 않는다.
+    // 메뉴 진입 전에 리소스만 준비하고, 실제 표시는 Open()에서만 켠다.
     return Ensure_AbilityPentagonUI();
 }
 
@@ -170,6 +170,9 @@ void CharacterProgression_Panel::Open(ContentTab initialTab)
 
     if (FAILED(Prepare_OpenResources()))
         LOG_WARN("CharacterProgression_Panel: failed to prepare runtime open resources");
+
+    if (_abilityPentagonFill)
+        _abilityPentagonFill->Open();
 
     _lastAction = Action::None;
     _activeContentTab = ContentTab::Overview;
@@ -1064,7 +1067,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
         desc.transformDesc.rotationRadians = transform->Get_RotationRadians();
     }
 
-    desc.isOpenOnCreate = true;
+    desc.isOpenOnCreate = false;
     desc.sortOrder = _abilityPentagonAnchor->Get_SortOrder();
     desc.renderGroup = _abilityPentagonAnchor->Get_RenderGroup();
     desc.texturePath = ResourceLoader::Resolve_RuntimePath(L"../Bin/Resources/Textures/UI/Common/Utility/T_White.png");
@@ -1080,6 +1083,7 @@ HRESULT CharacterProgression_Panel::Ensure_AbilityPentagonUI()
 
     _abilityPentagonFill->Set_Parent(_abilityPanelRoot);
     _abilityPentagonAnchor->Close(); // 기존 json의 작은 중심 pentagon은 숨긴다.
+    _abilityPentagonFill->Close();   // prewarm 단계에서는 독립 런타임 UI가 화면에 뜨면 안 된다.
 
     return S_OK;
 }

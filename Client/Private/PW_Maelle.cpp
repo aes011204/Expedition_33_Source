@@ -161,6 +161,10 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 		}
 		else return E_FAIL;
 
+#if defined(_DEBUG)
+		return S_OK; // DEBUG FPS 원인 확인: 스카프/암밴드/코트 chain modifier만 임시 차단한다.
+#endif
+
 		// --- PoseFollowChainModifier for Scarf ---
 		PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
 		ChainModifierPreset::BuildPoseFollowScarfDesc(

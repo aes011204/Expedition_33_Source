@@ -1,5 +1,6 @@
 ﻿#include "FreeAimTargeting.h"
 #include <Battle_Event.h>
+#include "BattleAnimUtils.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "BattleTurnCamera.h"
@@ -92,7 +93,8 @@ void FreeAimTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
-        Play_CurrentActorBattleAnim(BattleAnimType::Base_Idle, 0.2f, true); // 취소 시에는 기본 Idle로 전환
+        if (!Play_CurrentActorBattleAnim(BattleAnimType::Turn_Start, 0.2f, false))
+            BattleAnimUtils::Play_BattleIdle(owner->Get_TurnActionRequest().actor, 0.2f);
         Clear_HitTarget();
 
         EvtBattlePresentation event{};
@@ -261,17 +263,17 @@ bool FreeAimTargeting::Is_CurrentActorAnimFinished() const
     return actor.ModelCom->Is_AnimationFinished(); // 현재 재생 중인 진입 애니가 끝났는지 확인S
 }
 
-void FreeAimTargeting::Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const
+bool FreeAimTargeting::Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const
 {
     auto owner = Get_Owner();
     if (!owner)
-        return;
+        return false;
 
     const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom == nullptr)
-        return;
+        return false;
 
-    actor.ModelCom->Set_AnimationByState(ETOI(animType), blendTime, isLoop);
+    return actor.ModelCom->Set_AnimationByState(ETOI(animType), blendTime, isLoop);
 }
 
 void FreeAimTargeting::Update_FreeAimPlayerYaw(float timeDelta)
