@@ -19,6 +19,7 @@ public:
 public:
     void Update(float timeDelta) override;
     void Render() override;
+    void Request_RefreshResources();
 
 private: //## Types
     enum class IconType
@@ -61,11 +62,13 @@ private: //## Data
     vector<GridItemRef> _gridItemCache{};
 
     bool _needsInitialRefresh{ true };
+    bool _pendingResourceRefresh{ false };
 
     wstring _selectedFilePath{};
 
 private: //## Helper::Refresh
     void Refresh_Resources();
+    void Refresh_AssetState();
     void Refresh_CurrentFolder();
     void Load_Icons();
 

@@ -90,6 +90,12 @@ Content_Browser::~Content_Browser()
 void Content_Browser::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
+
+    if (_pendingResourceRefresh && !_resourceRoot.empty() && fs::exists(_resourceRoot))
+    {
+        Refresh_Resources();
+        _pendingResourceRefresh = false;
+    }
 }
 
 void Content_Browser::Render()
@@ -264,8 +270,14 @@ void Content_Browser::Render()
     ImGui::End();
 }
 
+void Content_Browser::Request_RefreshResources()
+{
+    _pendingResourceRefresh = true;
+}
+
 void Content_Browser::Refresh_Resources()
 {
+    const auto refreshBegin = chrono::steady_clock::now();
     _thumbnailCache.clear();
     _noThumbnailPaths.clear();
     _gridItemCache.clear();
@@ -276,6 +288,19 @@ void Content_Browser::Refresh_Resources()
             return GAME->Find_AssetGUID(filePath);
         }
     );
+
+    const auto elapsedMs = chrono::duration_cast<chrono::milliseconds>(
+        chrono::steady_clock::now() - refreshBegin).count();
+    if (elapsedMs >= 200)
+    {
+        LOG_INFO(
+            "[ContentBrowserTiming] Refresh_Resources elapsed={}ms root={} folders={} files={}",
+            elapsedMs,
+            String::ToString(_resourceRoot.wstring()),
+            static_cast<uint32>(_rootFolder.subFolders.size()),
+            static_cast<uint32>(_rootFolder.files.size())
+        );
+    }
 }
 
 void Content_Browser::Refresh_AssetState()
