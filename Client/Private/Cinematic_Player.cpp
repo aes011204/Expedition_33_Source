@@ -94,13 +94,14 @@ void Cinematic_Player::Stop()
     _currentFrame = _sequence ? _sequence->startFrame : 0;
 }
 
-void Cinematic_Player::Set_CurrentFrame(int frame)
+void Cinematic_Player::Set_CurrentFrame(int frame, bool applyCamera)
 {
     if (_sequence == nullptr)
         return;
 
     _currentFrame = std::clamp(frame, _sequence->startFrame, _sequence->endFrame);
-    Play();
+    if (applyCamera)
+        Play();
 }
 
 void Cinematic_Player::Ready_CinematicPlayer(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack, const Shared<CinematicCamera>& camera, bool playerOnOff)

@@ -167,6 +167,49 @@ void CinematicSequenceRunner::Set_CurrentFrame(int frame)
         Apply_ActorTransformTracks(targetFrame);
 }
 
+void CinematicSequenceRunner::Refresh_CurrentFrameContext()
+{
+    if (_player == nullptr || !_player->Is_CinematicPlaying())
+        return;
+
+    const int currentFrame = _player->Get_CurrentFrame();
+    const bool suspendActorTransformTrackPreview = _suspendActorTransformTrackPreview;
+
+    Cleanup_Context(true);
+    _nextEventIndex = 0;
+    _suspendActorTransformTrackPreview = suspendActorTransformTrackPreview;
+
+    _player->Set_CurrentFrame(currentFrame);
+    Execute_EventsUpToFrame(currentFrame);
+    if (!_suspendActorTransformTrackPreview)
+        Apply_ActorTransformTracks(currentFrame);
+}
+
+void CinematicSequenceRunner::Preview_CurrentFrame(
+    int frame,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
+{
+    if (_player == nullptr || !_player->Is_CinematicPlaying())
+        return;
+
+    const int targetFrame = std::clamp(frame, _sequence.startFrame, _sequence.endFrame);
+    const bool suspendActorTransformTrackPreview = _suspendActorTransformTrackPreview;
+
+    Cleanup_Context(true);
+    _nextEventIndex = 0;
+    _suspendActorTransformTrackPreview = suspendActorTransformTrackPreview;
+
+    _player->Set_CurrentFrame(targetFrame, applyCameraTrack);
+
+    if (applyEventTrack)
+        Execute_EventsUpToFrame(targetFrame);
+
+    if (applyEventTrack && applyActorTransformTrack && !_suspendActorTransformTrackPreview)
+        Apply_ActorTransformTracks(targetFrame);
+}
+
 void CinematicSequenceRunner::Set_ActorTransformTrackPreviewSuspended(bool suspended)
 {
     _suspendActorTransformTrackPreview = suspended;

@@ -21,7 +21,7 @@ public:
     void  Pause();
     void  Resume();
     void  Stop();
-    void  Set_CurrentFrame(int frame);
+    void  Set_CurrentFrame(int frame, bool applyCamera = true);
 
 public:
     void  Ready_CinematicPlayer(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack, const Shared<CinematicCamera>& camera, bool playerOnOff);

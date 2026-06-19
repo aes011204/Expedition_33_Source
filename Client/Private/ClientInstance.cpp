@@ -656,6 +656,30 @@ void ClientInstance::Set_CurrentSequenceFrame(int frame)
     _cinematicSequenceRunner->Set_CurrentFrame(frame);
 }
 
+void ClientInstance::Refresh_CurrentSequenceContext()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Refresh_CurrentFrameContext();
+}
+
+void ClientInstance::Preview_CurrentSequenceFrame(
+    int frame,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Preview_CurrentFrame(
+        frame,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
+}
+
 void ClientInstance::Set_ActorTransformTrackPreviewSuspended(bool suspended)
 {
     if (_cinematicSequenceRunner == nullptr)

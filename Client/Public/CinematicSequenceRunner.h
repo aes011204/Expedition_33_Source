@@ -22,6 +22,8 @@ public:
     void Pause_Sequence();
     void Resume_Sequence();
     void Set_CurrentFrame(int frame);
+    void Refresh_CurrentFrameContext();
+    void Preview_CurrentFrame(int frame, bool applyCameraTrack, bool applyEventTrack, bool applyActorTransformTrack);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
     void Update(float timeDelta, bool tickBoundAnimationsManually = false);

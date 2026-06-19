@@ -170,6 +170,8 @@ public: /*CinematicSequenceRunner*/
     void Pause_Sequence();
     void Resume_Sequence();
     void Set_CurrentSequenceFrame(int frame);
+    void Refresh_CurrentSequenceContext();
+    void Preview_CurrentSequenceFrame(int frame, bool applyCameraTrack, bool applyEventTrack, bool applyActorTransformTrack);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
     bool Is_CinematicPlaying() const;
