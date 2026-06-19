@@ -375,13 +375,13 @@ void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 d
     const ImGuiID browserDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.36f, nullptr, &emitterDockId);
 
     const auto dock_registered_window = [this](const wstring& windowName, ImGuiID targetDockId)
-        {
-            const Shared<Editor_Window> window = Find_Window(windowName);
-            if (window == nullptr)
-                return;
+    {
+        const Shared<Editor_Window> window = Find_Window(windowName);
+        if (window == nullptr)
+            return;
 
-            ImGui::DockBuilderDockWindow(window->Get_ImGuiWindowName().c_str(), targetDockId);
-        };
+        ImGui::DockBuilderDockWindow(window->Get_ImGuiWindowName().c_str(), targetDockId);
+    };
 
     dock_registered_window(L"Scene", sceneDockId);
     dock_registered_window(L"Detail", detailDockId);

@@ -1,4 +1,4 @@
-#include "EffectEditorPreviewDefinitionBuilder.h"
+﻿#include "EffectEditorPreviewDefinitionBuilder.h"
 
 #include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterialPresetReader.h"
@@ -798,6 +798,7 @@ namespace Internal
         desc.curveKeyLeaveTangentsBlock1 = Vec4{};
         desc.curveKeyModes = Vec4{};
         desc.curveKeyModesBlock1 = Vec4{};
+
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const FloatCurveKeyData& key = keys[index];

@@ -151,7 +151,7 @@ Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
 
 Vec3 Resolve_WorldAxisToEmitterSamplingAxis(const Vec3& worldAxis, const Shared<TransformCom>& emitterTransform)
 {
-    if (emitterTransform == nullptr)
+    if (nullptr == emitterTransform)
         return Normalize_OrFallback(worldAxis, Vec3{ 1.f, 0.f, 0.f });
 
     const Matrix inverseWorld = emitterTransform->Get_WorldMatrix().Invert();
@@ -952,101 +952,25 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         coreEmissive.outerIntensity
     );
 
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)),
-        60,
-        E_FAIL
-    );
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), 60, E_FAIL);
     return S_OK;
 }
 
@@ -2067,9 +1991,15 @@ Vec3 MeshEmitter::Sample_InitialRotation(uint32 seed) const
 
     const uint32 initialRotationSeed = seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialRotationSeed, _effectPlaybackSeed);
     return Vec3{
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, initialRotationSeed + 1u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.y, _desc.meshTransform.initialRotationDegreesMax.y, initialRotationSeed + 2u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.z, _desc.meshTransform.initialRotationDegreesMax.z, initialRotationSeed + 3u))
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, initialRotationSeed + 1u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialRotationDegreesMin.y, _desc.meshTransform.initialRotationDegreesMax.y, initialRotationSeed + 2u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialRotationDegreesMin.z, _desc.meshTransform.initialRotationDegreesMax.z, initialRotationSeed + 3u)
+        )
     };
 }
 

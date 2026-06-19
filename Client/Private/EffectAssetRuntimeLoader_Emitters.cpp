@@ -1502,8 +1502,10 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.subUVFrameOverLife.randomStartPhase =
                 Read_Bool(*subUvFrameOverLife, "randomStartPhase", desc.subUVFrameOverLife.randomStartPhase);
             if (!hasRandomStartPhase)
+            {
                 desc.subUVFrameOverLife.randomStartPhase =
                     Read_Bool(*subUvFrameOverLife, "perStripSubUVVariation", desc.subUVFrameOverLife.randomStartPhase);
+            }
             desc.usePerStripSubUVVariation = desc.subUVFrameOverLife.randomStartPhase;
 
             const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");

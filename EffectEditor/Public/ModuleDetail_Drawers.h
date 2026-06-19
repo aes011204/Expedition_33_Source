@@ -124,7 +124,7 @@ class AccelerationModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         AccelerationModuleData& data,
         DetailPropertyContext& detailContext);

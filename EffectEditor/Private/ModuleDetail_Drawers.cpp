@@ -2757,7 +2757,7 @@ bool VelocityConeModuleDetail::Draw(
     return changed;
 }
 
-bool AccelerationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
+bool AccelerationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
 {
     const AccelerationModuleData defaultData{};
     bool changed = false;
