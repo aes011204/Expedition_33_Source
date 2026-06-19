@@ -82,7 +82,7 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
 void Hero_Manager::Update_HeroManager(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return; // 배틀 중에서는 월드 플레이어 입력 제한
 
     if (_heroes.empty())
@@ -172,6 +172,24 @@ HeroId Hero_Manager::Get_HeroId(HeroPartySlot slot) const
 HeroPartySlot Hero_Manager::Get_ActiveHeroSlot() const
 {
     return static_cast<HeroPartySlot>(_activeIndex);
+}
+
+void Hero_Manager::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
+{
+    const uint32 index = ETOI(slot);
+    if (index >= _heroes.size())
+        return;
+
+    _activeIndex = index;
+    Apply_ControlRoles();
+
+    for (FollowerRuntime& runtime : _followerRuntime)
+        runtime = {};
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+    Refresh_TargetCamera();
 }
 
 Shared<Player_WorldBase> Hero_Manager::Get_FrontHero() const

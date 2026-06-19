@@ -664,7 +664,7 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
 bool GameplayUI_World::Is_WorldFreeAimActive() const
 {
     // 배틀 중 아닐 때.
-    if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
         return false;
 
     // 월드 입력이 막혀 있으면 조준 UI도 같이 숨긴다.

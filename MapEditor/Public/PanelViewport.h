@@ -75,6 +75,7 @@ private:
     MEPickingSystem* _pickingSystem = {};
 
     bool _spawnAsInstanced = false;
+    bool _deleteRequested = false;
 
 private:
     bool Ray_Hit_Landscape(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSz, Vec3& outHit);
@@ -84,6 +85,7 @@ public:
     bool ConsumeSpawn(string& outModelPath, ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
     bool ConsumeCursorSet(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
     bool ConsumeSculpt(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
+    bool ConsumeDelete();
 
 public:
     static Shared<PanelViewport> Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);

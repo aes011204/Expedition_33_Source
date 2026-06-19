@@ -21,6 +21,9 @@
 #include "PlayableParts.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
+#include "SkyBoxFlow.h"
+#include "SkyCloudCard.h"
+#include "TransformCom.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "imgui_internal.h"
@@ -29,6 +32,8 @@
 
 namespace
 {
+    const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
+
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
         if (!entry.playbackName.empty())
@@ -257,6 +262,13 @@ void Animation_View::Pre_Render()
     if (previewRenderObject == nullptr || _previewCamera == nullptr)
         return;
 
+    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
+    if (_previewRenderTarget == nullptr)
+        return;
+
+    if (_showPreviewSkyBackdrop)
+        Ensure_PreviewSkyBackdrop();
+
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
     const Shared<Camera> savedActiveCamera = GAME->Get_ActiveCamera();
@@ -308,16 +320,22 @@ void Animation_View::Pre_Render()
 
     const float dt = min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
     Lock_PreviewObjectToOrigin(previewRenderObject);
+    if (_showPreviewSkyBackdrop)
+        Update_PreviewSkyBackdrop(dt);
 
     if (_sourceMode == SourceMode::LiveModel)
     {
         const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
         GAME->Backup_RenderGroup();
+        if (_showPreviewSkyBackdrop)
+            Late_Update_PreviewSkyBackdrop(dt);
+
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
+        Update_PreviewSLDodgeMoveStates(dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
         Update_PreviewSourceHistoryEffect(dt);
         Update_PreviewTrailEffect(dt);
@@ -325,6 +343,8 @@ void Animation_View::Pre_Render()
     else
     {
         GAME->Backup_RenderGroup();
+        if (_showPreviewSkyBackdrop)
+            Late_Update_PreviewSkyBackdrop(dt);
     }
 
     for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
@@ -345,7 +365,7 @@ void Animation_View::Pre_Render()
     Draw_SelectedBoneMarker();
     Draw_TrailAnchorPreview();
     Draw_PreviewGrid();
-    EDITOR->Capture_BackBuffer_ToPreview();
+    EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
 
@@ -494,6 +514,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -631,6 +652,7 @@ void Animation_View::Reset_PreviewClone()
 {
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewSourceHistoryEffect();
     _previewRootObject.reset();
     _previewModelCom.reset();
@@ -1268,6 +1290,8 @@ void Animation_View::Draw_PreviewPanel()
     ImGui::BeginChild("AnimationPreviewPanel", ImVec2(0.f, 0.f), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     ImGui::TextUnformatted("Preview");
+    ImGui::SameLine();
+    ImGui::Checkbox("SkyBox", &_showPreviewSkyBackdrop);
     ImGui::Separator();
 
     ImVec2 previewSize = ImGui::GetContentRegionAvail();
@@ -1293,7 +1317,8 @@ void Animation_View::Draw_PreviewPanel()
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
 
-    ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
+    ID3D11ShaderResourceView* previewSRV =
+        _previewRenderTarget != nullptr ? _previewRenderTarget->Get_SRV() : nullptr;
     if (previewRenderObject != nullptr && playbackModel != nullptr && previewSRV != nullptr)
     {
         ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
@@ -2726,6 +2751,149 @@ void Animation_View::Reset_PreviewWeaponRotateStates()
     }
 }
 
+void Animation_View::Update_PreviewSLDodgeMoveStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewSLDodgeMoveStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewSLDodgeMoveStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewSLDodgeMoveStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_SL_DodgeMove")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewSLDodgeMoveRuntimes.begin(),
+            _previewSLDodgeMoveRuntimes.end(),
+            [&](const PreviewSLDodgeMoveRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewSLDodgeMoveRuntimes.end())
+        {
+            PreviewSLDodgeMoveRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewSLDodgeMoveRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            entry.notifyState->On_Tick(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+
+        entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewSLDodgeMoveRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewSLDodgeMoveRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewSLDodgeMoveRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            endContext.notifyStateDurationSec = 0.f;
+            _previewSLDodgeMoveRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewSLDodgeMoveRuntimes.erase(_previewSLDodgeMoveRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewSLDodgeMoveStates()
+{
+    if (_previewSLDodgeMoveRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.notifyStateDurationSec = 0.f;
+    context.isPreview = true;
+
+    for (PreviewSLDodgeMoveRuntime& runtime : _previewSLDodgeMoveRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewSLDodgeMoveRuntimes.clear();
+}
+
 void Animation_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
 {
     width = max(1u, width);
@@ -2772,6 +2940,104 @@ void Animation_View::Ensure_PreviewCamera()
 
     _previewCamera->Apply_EditorDesc(desc);
     Apply_PreviewCameraTransform(_previewCamera);
+}
+
+void Animation_View::Ensure_PreviewSkyBackdrop()
+{
+    if (_previewSkyBox != nullptr)
+        return;
+
+    Shared<Client::SkyBoxFlow> skyBoxPrototype = Client::SkyBoxFlow::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyBoxPrototype == nullptr)
+        return;
+
+    Client::SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    _previewSkyBox = dynamic_pointer_cast<Client::SkyBoxFlow>(skyBoxPrototype->Clone(&skyBoxDesc));
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Set_Visible(true);
+
+    _previewSkyCloudCards.clear();
+
+    Shared<Client::SkyCloudCard> skyCloudPrototype = Client::SkyCloudCard::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyCloudPrototype == nullptr)
+        return;
+
+    Client::SkyCloudCard::SKYCLOUDCARD_DESC cloudDesc{};
+    cloudDesc.modelTag = TEXT("Model_Cloud_Mesh");
+    cloudDesc.shaderTag = TEXT("Shader_SkyCloudCard");
+    cloudDesc.cloudTextureTag = TEXT("Texture_T_Cloud_13_H");
+    cloudDesc.position = kPreviewSkyCloudLocalOffset;
+    cloudDesc.rotation = Vec3(-4.763f, -119.267f, -349.155f);
+    cloudDesc.scale = Vec3(1.5f, 0.9f, 0.9f);
+
+    Shared<Client::SkyCloudCard> skyCloudCard =
+        dynamic_pointer_cast<Client::SkyCloudCard>(skyCloudPrototype->Clone(&cloudDesc));
+    if (skyCloudCard != nullptr)
+    {
+        skyCloudCard->Set_Visible(true);
+        _previewSkyCloudCards.push_back(skyCloudCard);
+    }
+}
+
+void Animation_View::Update_PreviewSkyBackdrop(float timeDelta)
+{
+    if (_previewSkyBox == nullptr)
+        return;
+
+    if (_previewCamera != nullptr)
+    {
+        Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
+        if (cameraTransform != nullptr)
+        {
+            const Vec3 cameraPos = cameraTransform->Get_WorldPosition();
+            for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+            {
+                if (skyCloudCard == nullptr)
+                    continue;
+
+                Shared<TransformCom> cloudTransform = skyCloudCard->Get_Transform();
+                if (cloudTransform != nullptr)
+                    cloudTransform->Set_WorldPosition(cameraPos + kPreviewSkyCloudLocalOffset);
+            }
+        }
+    }
+
+    if (!_previewSkyBackdropBegunPlay)
+    {
+        _previewSkyBox->Try_BeginPlay();
+        for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+        {
+            if (skyCloudCard != nullptr)
+                skyCloudCard->Try_BeginPlay();
+        }
+        _previewSkyBackdropBegunPlay = true;
+    }
+
+    _previewSkyBox->Set_Visible(true);
+    _previewSkyBox->Priority_Update(timeDelta);
+    _previewSkyBox->Update(timeDelta);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard == nullptr)
+            continue;
+
+        skyCloudCard->Set_Visible(true);
+        skyCloudCard->Priority_Update(timeDelta);
+        skyCloudCard->Update(timeDelta);
+    }
+}
+
+void Animation_View::Late_Update_PreviewSkyBackdrop(float timeDelta)
+{
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Late_Update(timeDelta);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard != nullptr)
+            skyCloudCard->Late_Update(timeDelta);
+    }
 }
 
 Shared<GameObject> Animation_View::Get_PreviewRenderObject() const
@@ -4229,7 +4495,7 @@ Editor_Camera_Free::EDITOR_CAMERA_DESC Animation_View::Build_PreviewCameraDesc(c
     desc.at = XMFLOAT4(0.25f, 1.0f, 0.f, 1.f);
     desc.fovy = XM_PIDIV4;
     desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
+    desc.farPlane = 500.f;
     desc.yaw = 0.f;
     desc.pitch = 0.f;
     desc.mouseSensor = 0.15f;

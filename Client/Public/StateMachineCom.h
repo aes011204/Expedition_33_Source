@@ -39,6 +39,8 @@ protected:
 private:
     static Shared<StateMachineCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<Component> Clone(void* arg) override;
+
+protected:
     virtual void Free() override;
 };
 

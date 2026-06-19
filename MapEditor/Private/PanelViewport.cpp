@@ -175,6 +175,29 @@ void PanelViewport::Render()
                     {
                         _gizmoOp = ImGuizmo::SCALE;
                     }
+
+                    if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+                    {
+                        auto& sel = _ctx->_selected;
+                        if (!sel->_isDefaultLight)
+                        {
+                            if (sel->_type == EObjectType::InstancedMesh)
+                            {
+                                const int32 instSize = static_cast<int32>(sel->_instancedTransforms.size());
+                                if (sel->_selectedInstanceIdx >= 0 && sel->_selectedInstanceIdx < instSize)
+                                {
+                                    sel->_instancedTransforms.erase(
+                                        sel->_instancedTransforms.begin() + sel->_selectedInstanceIdx);
+                                    sel->_instancedParamsDirty = true;
+                                    sel->_selectedInstanceIdx = -1;
+                                }
+                            }
+                            else
+                            {
+                                _deleteRequested = true;
+                            }
+                        }
+                    }
                 }
 
                 float view[16] = {}, proj[16] = {};
@@ -506,6 +529,17 @@ bool PanelViewport::ConsumeSculpt(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2&
     outVpPos = _sculptVpPos;
     outVpSize = _sculptVpSize;
 
+    return true;
+}
+
+bool PanelViewport::ConsumeDelete()
+{
+    if (!_deleteRequested)
+    {
+        return false;
+    }
+
+    _deleteRequested = false;
     return true;
 }
 

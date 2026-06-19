@@ -199,8 +199,9 @@ void BattleController::Update(float timeDelta)
 
             OnExitBattleField(EBattleEndResult::Victory);
             _battleEnded = true;
-            return;
         }
+
+        return; // 승리 확정 후에는 남은 액션 phase(Dash_Out/Return)를 더 진행하지 않는다.
     }
 
     if (!_isPendingVictorySlow && _requestEndTurnOnCurrentActorDeath)
@@ -284,7 +285,24 @@ void BattleController::Update(float timeDelta)
         if (_reactionController.IsBusy())
             return;
 
+        const BattleChar actor = _turnAction.Get_CurChar();
+        const bool isMonsterFreeTurnSkill =
+            actor.actor != nullptr &&
+            actor.statCom != nullptr &&
+            !actor.statCom->Is_Player() &&
+            _turnAction.GetType() == EBattleContext::Skill &&
+            _turnAction.GetSkillData().apCost < 0;
+
         _isActionExecuting = false;
+
+        if (isMonsterFreeTurnSkill)
+        {
+            // 몬스터 전용 free-turn 스킬은 턴을 유지한 채 다음 스킬 선택으로 다시 진입한다.
+            Play_EnemyTargetedEnd();
+            Run_EnemyTurn();
+            return;
+        }
+
         EndTurn();
         return;
     }
@@ -1031,6 +1049,40 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
     return alive;
 }
 
+bool BattleController::Will_NextScheduledTurnBePlayer(const BattleChar& currentActor) const
+{
+    auto queueCopy = _turnQueue;
+    uint64 previewNextTurnEntrySeq = _nextTurnEntrySeq;
+
+    if (currentActor.actor != nullptr &&
+        currentActor.statCom != nullptr &&
+        currentActor.statCom->Get_CurAliveState() == EAliveStatus::Alive)
+    {
+        TurnEntry nextEntry{};
+        nextEntry.hero = currentActor;
+        nextEntry.nextTime =
+            _battleTime + 100.f / max(currentActor.statCom->Get_Speed(), 1.f);
+        nextEntry.orderSeq = previewNextTurnEntrySeq++;
+        queueCopy.push(nextEntry);
+    }
+
+    while (!queueCopy.empty())
+    {
+        const TurnEntry entry = queueCopy.top();
+        queueCopy.pop();
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.statCom->Get_CurAliveState() != EAliveStatus::Alive)
+            continue;
+
+        return entry.hero.statCom->Is_Player();
+    }
+
+    return false;
+}
+
 void BattleController::Handle_EditorStopRuntime()
 {
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
@@ -1554,6 +1606,9 @@ void BattleController::Finish_FreeAimShot()
 
 void BattleController::OnActionEndNotify()
 {
+    if (_isPendingVictorySlow || _battleEnded)
+        return; // 마지막 몬스터 사망 후에는 공격자의 다음 phase로 넘기지 않는다.
+
     if (_isFreeAimShotPlaying)
     {
         Finish_FreeAimShot();
@@ -2643,11 +2698,14 @@ void BattleController::HitAction(BattleChar target, AttackType attackType, bool 
         break;
 
     case AttackType::SingleAOE:
-    case AttackType::FreeAimWeak:
+
     case AttackType::ComboLast:
         target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
         break;
-
+    case AttackType::FreeAimWeak:
+        if (false == target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Weak), 0.3f, false))
+            target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
+        break;
     case AttackType::Counter:
         break;
     }
