@@ -19,11 +19,14 @@ public:
     void  Update(float timeDelta);
     void  Play();
     void  Pause();
+    void  Resume();
     void  Stop();
+    void  Set_CurrentFrame(int frame);
 
 public:
     void  Ready_CinematicPlayer(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack, const Shared<CinematicCamera>& camera, bool playerOnOff);
     bool  Is_CinematicPlaying() {return _isCinematicPlaying;}
+    bool  Is_CinematicPaused() {return _isCinematicPaused;}
     int   Get_CurrentFrame() {return _currentFrame;}
 
 
@@ -35,6 +38,7 @@ private:
     CINEMATIC_TRACK*             _cinematicTrack = nullptr;
     int                          _currentFrame = 0;
     bool                         _isCinematicPlaying = false;
+    bool                         _isCinematicPaused = false;
 
 public:
     static Shared<Cinematic_Player> Create();

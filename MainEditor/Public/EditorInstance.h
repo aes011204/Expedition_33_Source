@@ -78,6 +78,7 @@ public: /* For.Window */
 public: /* For.Preview */
     PreviewOwner            Get_ActivePreviewOwner() const;
     bool                    Is_ActivePreviewOwner(PreviewOwner owner) const;
+    void                    Set_StickyPreviewOwner(PreviewOwner owner);
 
 public: /* For.Editor Selection */
     const Editor_Context*   Get_EditorContext() const { return _editorContext.get(); }

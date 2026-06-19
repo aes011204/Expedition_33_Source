@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "BattleMonsterSpawnDesc.h"
+#include "Cinematic_Types.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
@@ -161,7 +162,18 @@ public: /*For.Camera Director*/
 
 public: /*CinematicSequenceRunner*/
     bool Play_Sequence(const wstring& filePath, int trackIndex);
+    bool Play_Sequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex);
+    void Pause_Sequence();
+    void Resume_Sequence();
+    void Set_CurrentSequenceFrame(int frame);
+    void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
+    bool Is_CinematicPlaying() const;
+    bool Is_CinematicPaused() const;
+    int Get_CurrentSequenceFrame() const;
+    Shared<GameObject> Get_CinematicBoundActor(const string& targetId) const;
+    bool Is_ActorTransformTrackPreviewSuspended() const;
+    void Update_CinematicPreview(float timeDelta);
 
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();

@@ -784,6 +784,11 @@ bool EditorInstance::Is_ActivePreviewOwner(PreviewOwner owner) const
     return Get_ActivePreviewOwner() == owner;
 }
 
+void EditorInstance::Set_StickyPreviewOwner(PreviewOwner owner)
+{
+    _stickyPreviewOwner = owner;
+}
+
 void EditorInstance::Execute_Command(const Shared<ICommand>& command)
 {
     if (_commandHistory && command)

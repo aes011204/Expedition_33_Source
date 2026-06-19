@@ -29,6 +29,17 @@
 
 namespace
 {
+    const char* ToPreviewOwnerLabel(PreviewOwner owner)
+    {
+        switch (owner)
+        {
+        case PreviewOwner::Prefab: return "Prefab";
+        case PreviewOwner::Animation: return "Animation";
+        case PreviewOwner::AnimState: return "AnimState";
+        default: return "None";
+        }
+    }
+
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
         if (!entry.playbackName.empty())
@@ -558,6 +569,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Ensure_PreviewCamera();
     Fit_PreviewCameraToModel();
     Sync_PreviewAnimationSelection(true);
+    EDITOR->Set_StickyPreviewOwner(PreviewOwner::Animation);
 
     Set_Open(true);
 }
@@ -1268,6 +1280,14 @@ void Animation_View::Draw_PreviewPanel()
     ImGui::BeginChild("AnimationPreviewPanel", ImVec2(0.f, 0.f), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     ImGui::TextUnformatted("Preview");
+    const PreviewOwner activeOwner = EDITOR->Get_ActivePreviewOwner();
+    ImGui::TextDisabled(
+        "owner=%s defer=%s root=%s model=%s srv=%s",
+        ToPreviewOwnerLabel(activeOwner),
+        Should_DeferToCompanionPreview() ? "yes" : "no",
+        _previewRootObject != nullptr ? "ok" : "null",
+        Get_PlaybackModel() != nullptr ? "ok" : "null",
+        EDITOR->Get_SharedPreviewSRV() != nullptr ? "ok" : "null");
     ImGui::Separator();
 
     ImVec2 previewSize = ImGui::GetContentRegionAvail();
