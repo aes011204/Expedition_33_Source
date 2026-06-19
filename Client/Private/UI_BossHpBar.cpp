@@ -1,4 +1,4 @@
-#include "UI_BossHpBar.h"
+﻿#include "UI_BossHpBar.h"
 
 #include "Client_Constants.h"
 #include "MonsterStatCom.h"
@@ -459,7 +459,7 @@ uint32 UI_BossHpBar::Resolve_MaxShield(const BattleChar& target) const
 
 bool UI_BossHpBar::Is_ValidBossTarget(const BattleChar& target) const
 {
-    if (target.actor == nullptr || target.statCom == nullptr)
+    if (target.statCom == nullptr)
         return false;
 
     if (target.statCom->Is_Player())

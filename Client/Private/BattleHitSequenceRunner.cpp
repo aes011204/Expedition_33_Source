@@ -1,6 +1,8 @@
 ﻿#include "BattleHitSequenceRunner.h"
 
+#include "ClientInstance.h"
 #include "DamageSystem.h"
+#include "Character_BattleBase.h"
 
 void BattleHitSequenceRunner::Update(float timeDelta)
 {
@@ -31,6 +33,8 @@ void BattleHitSequenceRunner::Update(float timeDelta)
             _pending.target,
             _pending.attackType);
 
+        Play_HitEffect(_pending.target, _pending.hitEffect);
+
         --_pending.remainingHits;
     }
 
@@ -38,8 +42,14 @@ void BattleHitSequenceRunner::Update(float timeDelta)
         Clear();
 }
 
-void BattleHitSequenceRunner::Begin_RepeatedHit(const BattleChar& attacker, const BattleChar& target, int32 hitCount,
-    float interval, float hitDamage, AttackType attackType)
+void BattleHitSequenceRunner::Begin_RepeatedHit(
+    const BattleChar& attacker,
+    const BattleChar& target,
+    int32 hitCount,
+    float interval,
+    float hitDamage,
+    AttackType attackType,
+    const HitEffectDesc& hitEffect)
 {
     Clear();
 
@@ -63,9 +73,25 @@ void BattleHitSequenceRunner::Begin_RepeatedHit(const BattleChar& attacker, cons
     _pending.elapsed = 0.f;
     _pending.hitDamage = hitDamage;
     _pending.attackType = attackType;
+    _pending.hitEffect = hitEffect;
 }
 
 void BattleHitSequenceRunner::Clear()
 {
     _pending = {};
+}
+
+void BattleHitSequenceRunner::Play_HitEffect(const BattleChar& target, const HitEffectDesc& hitEffect) const
+{
+    if (!hitEffect.Is_Valid() || target.actor == nullptr)
+    {
+        return;
+    }
+
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = hitEffect.effectName;
+    effectDesc.spawnBasisTarget = target.actor;
+    effectDesc.localOffset = hitEffect.localOffset;
+
+    CLIENT->Play_Effect(effectDesc);
 }

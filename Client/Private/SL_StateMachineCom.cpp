@@ -155,6 +155,18 @@ bool SL_StateMachineCom::Request_Skill(const Skill_Data& skillData, uint32 slotI
     return state->Request_Skill(skillData, slotIndex);
 }
 
+void SL_StateMachineCom::Notify_BasicAttackComboWindow(bool enabled)
+{
+    if (Get_CurrentSoulLikeState() != SL_PlayerState::BasicAttack)
+        return;
+
+    auto basicAttack = dynamic_pointer_cast<SL_BasicAttack>(Get_State(SL_PlayerState::BasicAttack));
+    if (basicAttack == nullptr)
+        return;
+
+    basicAttack->Set_ComboWindowEnabled(enabled);
+}
+
 Shared<SL_Maelle> SL_StateMachineCom::Get_OwnerMaelle() const
 {
     if (_owner.expired())

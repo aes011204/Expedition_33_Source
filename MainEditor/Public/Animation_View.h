@@ -188,6 +188,7 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
     void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
     void Draw_TrailAnchorPanel();
     void Draw_EventListPanel();
@@ -226,7 +227,7 @@ private:
     void Ensure_PreviewGridResources();
     void Ensure_PreviewSkyBackdrop();
     void Update_PreviewSkyBackdrop(float timeDelta);
-    void Render_PreviewSkyBackdrop() const;
+    void Late_Update_PreviewSkyBackdrop(float timeDelta);
     Shared<GameObject> Get_PreviewRenderObject() const;
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;

@@ -183,8 +183,9 @@ namespace MapEditor
     { "OpaqueAR", VtxMeshPassIndex::OpaqueARPass },
     { "OpaqueARTwoSided", VtxMeshPassIndex::OpaqueARTwoSidedPass },
     { "LandscapeBlend", VtxMeshPassIndex::LandscapeBlendPass },
+    { "SignDecal", VtxMeshPassIndex::SignDecalPass },
     };
-    inline constexpr int32 g_staticMeshPassOptionCount = 9;
+    inline constexpr int32 g_staticMeshPassOptionCount = 10;
 
     inline constexpr pair<const char*, uint32> g_instanceMeshPassOptions[] = {
     { "Default", VtxInstanceMeshExactPassIndex::DefaultPass },
@@ -209,6 +210,20 @@ namespace MapEditor
     {
         Vec3 center = Vec3::Zero;
         float radius = 10.f;
+        int count = 20;
+        int seed = 0;
+        float scaleMin = 0.8f;
+        float scaleMax = 1.2f;
+        float yRotMax = 180.f;
+        float minSpacing = 1.f;
+    };
+
+    struct ScatterBoxZone
+    {
+        Vec3 center = Vec3::Zero;
+        // Y는 보류 — 인스턴스는 center.y 높이에 배치
+        float halfExtentX = 5.f;
+        float halfExtentZ = 5.f;
         int count = 20;
         int seed = 0;
         float scaleMin = 0.8f;

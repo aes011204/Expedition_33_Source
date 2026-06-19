@@ -52,7 +52,7 @@ HRESULT SL_TargetCom::Initialize(void* arg)
     CHECK_NULL(_targetCollider, E_FAIL);
 
     // 공격 판정이 아니라 락온 후보 검색용 overlap sphere다.
-    _targetCollider->Set_CollisionPreset(Collision_Preset::Player_Target);
+    _targetCollider->Set_CollisionPreset(Collision_Preset::SL_TargetSensor);
     _targetCollider->Set_IsActive(true);
 
     _isLocked = false;

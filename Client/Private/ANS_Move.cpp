@@ -71,23 +71,12 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
     else
     {
         const BattleChar& curChar = action.Get_CurChar();
-        if (curChar.actor == nullptr)
+        if (curChar.actor == nullptr || curChar.ModelCom == nullptr)
             return;
 
-        PartObject* body = curChar.actor->Get_PartObject(L"Part_Body");
-        if (body == nullptr)
-            return;
+        curChar.ModelCom->Set_RootMotionEnabled(false);
 
-        Shared<ModelCom> model = body->Get_Component<ModelCom>();
-        if (model == nullptr)
-            return;
-
-        model->Set_RootMotionEnabled(false);
-
-        if (action.Get_CurChar().actor == nullptr)
-            return;
-
-        _moveTarget = action.Get_CurChar().actor->Get_Transform();
+        _moveTarget = curChar.actor->Get_Transform();
         if (_moveTarget == nullptr)
             return;
 

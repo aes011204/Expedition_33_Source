@@ -71,7 +71,7 @@ private:
     void Ensure_PreviewGridResources();
     void Ensure_PreviewSkyBackdrop();
     void Update_PreviewSkyBackdrop(float timeDelta);
-    void Render_PreviewSkyBackdrop() const;
+    void Late_Update_PreviewSkyBackdrop(float timeDelta);
 
     void Reset_PreviewCameraPose();
     void Lock_PreviewObjectToOrigin();

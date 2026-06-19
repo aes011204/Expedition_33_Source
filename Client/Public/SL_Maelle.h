@@ -1,11 +1,12 @@
 ﻿#pragma once
 
-#include "Character_WorldBase.h"
+#include "SL_Base.h"
 #include "HairChainPhysics.h"
 #include "PlayerStatCom.h"
 
 NS_BEGIN(Engine)
 class MovementCom;
+class ColliderCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -21,7 +22,7 @@ class SL_StateMachineCom;
 class SL_TargetCom;
 struct SL_MoveRequest;
 
-class SL_Maelle final : public Character_WorldBase
+class SL_Maelle final : public SL_Base
 {
     GENERATED_GAMEOBJECT(SL_Maelle, ObjectType::Player)
 
@@ -40,6 +41,13 @@ public:
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
+    void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+
+    Shared<CombatStatCom> Get_Stat() const override;
+    Shared<ColliderCom> Get_AttackCollider() const override;
+    bool    Is_Dead() const override;
+    void    Apply_Damage(const SL_DamageInfo& damageInfo) override;
+
 public:
     void    Apply_MoveInput(const SL_MoveRequest& request, float timeDelta);
     void    Stop_Move();
@@ -50,10 +58,6 @@ public:
     void    Set_InvincibleTime(float value) { _invincibleRemain = max(0.f, value); }
     bool    Is_Invincible() const { return _invincibleRemain > 0.f; }
 
-    void    Apply_Damage(float damage);
-    float   Get_Hp() const { return _hp; }
-    bool    Is_Dead() const { return _hp <= 0.f; }
-
     Body_Player* Get_Body() const { return _body.get(); }
     void    Reset_CombatHp(float maxHp);
 
@@ -61,9 +65,6 @@ public:
 	void    Apply_WorldSkillKeys(const vector<string>& skillKeys);
     bool    Try_GetEquippedSkill(uint32 slotIndex, Skill_Data& outSkillData) const;
     HRESULT Rebuild_WeaponPartFromCurrentStat();
-
-public:
-
 
 private:
     HRESULT Ready_Components();
@@ -82,11 +83,12 @@ private:
     Shared<SL_StateMachineCom>  _stateMachineCom;
     Shared<SL_TargetCom>        _targetCom;
 
-    Shared<Body_Player> _body{};
-    Shared<Head_Player> _head{};
-    Shared<Hair_Player> _hair{};
+    Shared<Body_Player>         _body{};
+    Shared<Head_Player>         _head{};
+    Shared<Hair_Player>         _hair{};
 
-    float _hp = 100.f;
+    Shared<ColliderCom>         _attackColliderCom{};
+
     float _invincibleRemain = 0.f;
     bool _combatLocked = false; // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true로 둔다.
 

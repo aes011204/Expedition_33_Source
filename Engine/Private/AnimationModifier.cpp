@@ -18,6 +18,7 @@ HRESULT AnimationModifier::Initialize(AnimationModifierDesc* desc)
     _strengthAlpha = desc->strengthAlpha;
     _modifierTag = desc->modifierTag;
     _evaluateOnLeaderPose = desc->evaluateOnLeaderPose;
+    _blendMode = desc->blendMode;
 
     return S_OK;
 }

@@ -28,12 +28,13 @@ public:
     Shared<SL_State> Get_CurrentSLState() const;
     SL_PlayerState Get_CurrentSoulLikeState() const;
 
-
 public:
     bool Request_Move(const SL_MoveRequest& request, float timeDelta);
     bool Request_BasicAttack();
     bool Request_Dodge(const SL_MoveRequest& request);
     bool Request_Skill(const Skill_Data& skillData, uint32 slotIndex);
+
+    void Notify_BasicAttackComboWindow(bool enabled);
 
 private:
     Shared<class SL_Maelle> Get_OwnerMaelle() const;

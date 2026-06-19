@@ -98,19 +98,6 @@ namespace ModelEditor
 			return keyTimes;
 		}
 
-		void Normalize_InPlaceRootTranslation(const string& boneName, vector<KEYFRAME>& frames)
-		{
-			if (boneName != "root" || frames.size() < 2)
-				return;
-
-			const Vec3 rootDelta = frames.back().translation - frames.front().translation;
-			if (rootDelta.Length() > 0.001f)
-				return;
-
-			const Vec3 fixedTranslation = frames.front().translation;
-			for (KEYFRAME& frame : frames)
-				frame.translation = fixedTranslation; // 제자리 root는 중간 흔들림을 제거하고 회전/스케일만 보존한다.
-		}
 	}
 
 	LRESULT CALLBACK ModelConverter::DragDropWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
@@ -1028,8 +1015,6 @@ namespace ModelEditor
 					aiVector3D scale = Sample_VectorKey(animNode->mScalingKeys, animNode->mNumScalingKeys, trackTime, aiVector3D(1.f, 1.f, 1.f));
 					frames[k].scale = Vec3{ scale.x, scale.y, scale.z };
 				}
-
-				Normalize_InPlaceRootTranslation(channelData.boneName, frames);
 
 				channels.push_back(channelData);
 				keyFrames.push_back(move(frames));

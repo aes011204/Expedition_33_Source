@@ -21,6 +21,7 @@ public:
 public:
     void    Draw_Box(const DebugBoxDesc& desc);
     void    Draw_Sphere(const DebugSphereDesc& desc);
+    void    Draw_Capsule(const DebugCapsuleDesc& desc);
     void    Draw_Line(const DebugLineDesc& desc);
     void    Draw_TraceLine(const DebugTraceLineDesc& desc);
 

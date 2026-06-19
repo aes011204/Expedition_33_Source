@@ -315,6 +315,8 @@ namespace Client::Constants::Prefab
 
     inline constexpr char MW_Volester[]         = "MW_Volester";
     inline constexpr char MB_Volester[]         = "MB_Volester";
+
+    inline constexpr char SL_Test_Lancelier[] = "SL_Test_Lancelier";
 #pragma endregion
 
 #pragma region 무기
