@@ -43,6 +43,7 @@ HRESULT MB_PotatoBag::Initialize(void* arg)
     _combatStat->Set_Skill("PotatoBag_AttAoE");
     _combatStat->Set_Skill("PotatoBag_AttShieldGun");
     _combatStat->Set_Skill("PotatoBag_Lighting");
+  //  _combatStat->Set_Skill("PotatoBag_DefenseMod");
 
 	Get_Transform()->Set_SpeedPerSec(4.f);
 

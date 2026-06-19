@@ -137,6 +137,27 @@ namespace Internal
         }
     }
 
+    const char* Get_SourceHistorySpriteTrailScreenAlignmentTooltip(EmitterScreenAlignment value)
+    {
+        switch (value)
+        {
+        case EmitterScreenAlignment::FacingCameraPosition:
+            return "Stamp 위치는 path 위에 유지하고, 카드는 각 위치에서 카메라 위치를 바라봅니다.";
+
+        case EmitterScreenAlignment::Rectangle:
+            return "카드 세로축은 World Up으로 유지하고, 카드 길이 축은 texture X/Y 중 어느 축을 길이로 볼지만 정합니다.";
+
+        case EmitterScreenAlignment::Square:
+            return "카메라 화면 평면 기준이며 더 큰 축으로 정사각형 stamp card를 만듭니다.";
+
+        case EmitterScreenAlignment::Velocity:
+            return "SourceHistorySpriteTrail에서는 실제 속도 대신 path tangent를 기준 방향으로 사용합니다.";
+
+        default:
+            return Get_ScreenAlignmentTooltip(value);
+        }
+    }
+
     EmitterScreenAlignment Resolve_ScreenAlignmentFallback(EmitterScreenAlignment value)
     {
         const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
@@ -592,7 +613,7 @@ public: //## Table / Basic Controls
                         supported
                         ? "%s"
                         : "SourceHistorySpriteTrail에서는 이 화면 정렬을 사용하지 않습니다.",
-                        Internal::Get_ScreenAlignmentTooltip(candidate)
+                        Internal::Get_SourceHistorySpriteTrailScreenAlignmentTooltip(candidate)
                     );
                 }
 

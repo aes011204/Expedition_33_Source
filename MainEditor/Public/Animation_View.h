@@ -188,6 +188,7 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
     void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
     void Draw_TrailAnchorPanel();
     void Draw_EventListPanel();

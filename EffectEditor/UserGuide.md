@@ -564,6 +564,15 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 
 Sprite Trail에서는 방향 정렬 옵션에 따라 `정렬할 텍스처 축` 대신 `카드 길이 축`이 표시될 수 있다. 이 값은 texture X/Y 중 어느 축을 stamp card의 긴 방향으로 맞출지 정하는 보정값이며, source path 자체를 바꾸는 값은 아니다.
 
+Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, stamp center/tangent를 이미 source history에서 받은 뒤 card basis만 고르는 의미로 해석한다.
+
+| Sprite Trail 화면 정렬 | 해석 |
+| --- | --- |
+| `Facing Camera Position` | stamp 위치는 path 위에 유지하고, 각 card가 자기 위치에서 카메라 위치를 바라본다. Path tangent는 회전 기준으로 쓰지 않는다. |
+| `Rectangle` | card 세로축을 World Up으로 유지하고, 가로축은 카메라 가시성을 유지하는 방향으로 잡는다. `카드 길이 축`은 texture X/Y 중 어느 축을 길이로 볼지만 정한다. |
+| `Square` | 카메라 화면 평면 기준 card에서 더 큰 축으로 정사각형을 만든다. |
+| `Velocity` | SourceHistorySpriteTrail에서는 실제 velocity가 아니라 path tangent를 기준 방향으로 사용한다. `방향 정렬 방식`과 `카드 길이 축`으로 tangent를 look 또는 texture 축에 맞춘다. |
+
 ### 6.6 스폰
 
 `스폰`은 Emitter가 particle 또는 visual 요소를 얼마나 생성하는지 결정한다.

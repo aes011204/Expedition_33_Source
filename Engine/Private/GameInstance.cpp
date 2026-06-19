@@ -2705,6 +2705,11 @@ void GameInstance::Draw_DebugSphere(const DebugSphereDesc& desc)
     return _debugManager->Draw_Sphere(desc);
 }
 
+void GameInstance::Draw_DebugCapsule(const DebugCapsuleDesc& desc)
+{
+    return _debugManager->Draw_Capsule(desc);
+}
+
 void GameInstance::Draw_DebugLine(const DebugLineDesc& desc)
 {
     return _debugManager->Draw_Line(desc);

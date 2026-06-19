@@ -19,7 +19,7 @@ namespace
     constexpr float FREE_AIM_MONSTER_SWEEP_RADIUS = 0.3f;
     constexpr float FREE_AIM_HIT_EFFECT_NORMAL_OFFSET = 0.05f;
 
-    const wstring WORLD_FREE_AIM_HIT_EFFECT_NAME = L"World_FreeAim_Hit.effect.json";
+    const wstring WORLD_FREE_AIM_HIT_EFFECT_NAME = L"World_FreeAim_Hit_EX.effect.json";
 }
 
 Player_FreeAim::Player_FreeAim(const Shared<Player_WorldBase>& owner)

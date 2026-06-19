@@ -7,6 +7,7 @@
 #include "Character_BattleBase.h"
 #include "BattleSpawnRegistry.h"
 #include "TransformCom.h"
+#include "Monster_Part.h"
 
 void ANS_Move::On_Begin(const AnimNotifyContext& context)
 {
@@ -69,13 +70,13 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
     }
     else
     {
-        action.Get_CurChar().actor->Get_Component<ModelCom>()->Set_RootMotionEnabled(false);
-
-
-        if (action.Get_CurChar().actor == nullptr)
+        const BattleChar& curChar = action.Get_CurChar();
+        if (curChar.actor == nullptr || curChar.ModelCom == nullptr)
             return;
 
-        _moveTarget = action.Get_CurChar().actor->Get_Transform();
+        curChar.ModelCom->Set_RootMotionEnabled(false);
+
+        _moveTarget = curChar.actor->Get_Transform();
         if (_moveTarget == nullptr)
             return;
 

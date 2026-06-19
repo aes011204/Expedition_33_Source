@@ -8,6 +8,14 @@ NS_BEGIN(Client)
 class BattleHitSequenceRunner
 {
 public:
+    struct HitEffectDesc
+    {
+        wstring effectName{};
+        Vec3 localOffset{ Vec3::Zero };
+
+        bool Is_Valid() const { return !effectName.empty(); }
+    };
+
     struct PendingHitSequence
     {
         bool active = false;
@@ -22,6 +30,8 @@ public:
 
         // 첫 타랑 같은 타입으로 들어가게
         AttackType attackType = AttackType::SingleSkill;
+
+        HitEffectDesc hitEffect{};
     };
 
 public:
@@ -36,17 +46,20 @@ public:
         int32 hitCount,
         float interval,
         float hitDamage,
-        AttackType attackType);
+        AttackType attackType,
+        const HitEffectDesc& hitEffect = {});
 
     void Clear();
 
-    
     bool Is_Active() const { return _pending.active; }
     const PendingHitSequence& Get_Pending() const { return _pending; }
 
 private:
     PendingHitSequence _pending{};
 
+private:
+    // 예약된 반복 타격이 실제 적용된 직후, 설정된 경우에만 타겟 기준 히트 이펙트를 1회 재생한다.
+    void Play_HitEffect(const BattleChar& target, const HitEffectDesc& hitEffect) const;
 };
 
 NS_END

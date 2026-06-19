@@ -8,7 +8,26 @@
 #include "Debug_Profile.h"
 #include "AnimComputeRuntime.h"
 #include "EffectCom.h"
+#include "PoseFollowChainModifier.h"
+#include "ChainModifierPreset.h"
 
+namespace
+{
+    Client::PlayerCharacterType ToPlayerCharacterType(Client::HairPhysicsProfile profile)
+    {
+        switch (profile)
+        {
+        case Client::HairPhysicsProfile::Gustave:
+            return Client::PlayerCharacterType::Gustave;
+        case Client::HairPhysicsProfile::Lune:
+            return Client::PlayerCharacterType::Lune;
+        case Client::HairPhysicsProfile::Maelle:
+            return Client::PlayerCharacterType::Maelle;
+        default:
+            return Client::PlayerCharacterType::None;
+        }
+    }
+}
 
 Hair_Player::Hair_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PlayableParts{ device, context } {
@@ -36,6 +55,7 @@ HRESULT Hair_Player::Initialize(void* arg)
         // PW_* 캐릭터에서 넘긴 hair physics 값을 실제 파츠에 저장
         _hairPhysicsDesc = desc->hairPhysicsDesc;
         _hairCB = desc->hairCB;
+        _usePoseFollowModifier = desc->usePoseFollowModifier;
     }
 
     _offsetMatrix = Matrix::Identity;
@@ -68,6 +88,47 @@ void Hair_Player::Update(float timeDelta)
         return;
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+    if (_usePoseFollowModifier)
+    {
+        if (!_hairPoseFollowModifierReady)
+        {
+            Shared<TransformCom> ownerTransform{};
+            if (const Shared<GameObject> owner = Get_Owner())
+                ownerTransform = owner->Get_Transform();
+
+            PoseFollowChainModifier::PoseFollowChainModifierDesc hairDesc{};
+            ChainModifierPreset::BuildPoseFollowHairDesc(
+                hairDesc,
+                ownerTransform.get(),
+                ToPlayerCharacterType(_hairPhysicsDesc.profile));
+
+            if (!hairDesc.groups.empty())
+            {
+                if (auto modifier = PoseFollowChainModifier::Create(&hairDesc))
+                {
+                    _modelCom->Add_AnimModifier(modifier);
+                    _hairPoseFollowModifierReady = true;
+                }
+            }
+        }
+
+        if (_hairPoseFollowModifierReady)
+        {
+            if (_animComputeRuntime != nullptr)
+            {
+                CHECK_FAILED(_animComputeRuntime->Update_Frame(timeDelta));
+            }
+            else
+            {
+                _modelCom->Play_Animation(timeDelta);
+                CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
+            }
+        }
+
+        _wasPhysicsSkipped = false;
+        return;
+    }
 
     if (!_hairPhysicsReady)
     {
