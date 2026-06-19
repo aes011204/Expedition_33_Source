@@ -126,7 +126,11 @@ private:
     void    Update_BattleSystemIntroState(float timeDelta);
     HRESULT Ensure_BattleWorldCommandCards();
     void    Hide_BattleWorldCommandCards();
-    void    Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState);
+    void    Update_BattleWorldCommandCards(
+        const Vec3& commandHudWorldPos,
+        BattleTurnState currentState,
+        uint32 curAp,
+        uint32 maxAp);
     HRESULT Ensure_BattleWorldItemCards();
     void    Hide_BattleWorldItemCards();
     void    Update_BattleWorldItemCards(

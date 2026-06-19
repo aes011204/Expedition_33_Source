@@ -13,7 +13,7 @@ public:
 
 public:
     HRESULT Initialize(void* arg) override;
-    void    Show_ForBattleState(const Vec3& anchorWorldPos, BattleTurnState currentState);
+    void    Show_ForBattleState(const Vec3& anchorWorldPos, BattleTurnState currentState, uint32 curAp, uint32 maxAp);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

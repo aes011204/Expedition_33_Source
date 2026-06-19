@@ -1202,26 +1202,16 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     if (currentState == BattleTurnState::ChooseAction)
     {
-        _battleCommandHUD->Open();
-        _battleCommandHUD->Set_TargetWorldPosition(worldPos);
-
-        // 현재 턴 영웅을 HUD에 넘겨 Hero별 오프셋 세팅이 되게
-        _battleCommandHUD->Set_CurrentHeroId(_currentPlayerTurnActor.heroId);
-
-        _battleCommandHUD->Set_CurrentPlayerAP(
+        _battleCommandHUD->Close();
+        Update_BattleWorldCommandCards(
+            worldPos,
+            currentState,
             _currentPlayerTurnActor.statCom->Get_CurAP(),
             _currentPlayerTurnActor.statCom->Get_MaxAP());
-
-        _battleCommandHUD->Refresh_ForState(currentState);
-
-        _battleCommandHUD->Update(timeDelta);
-    }
-    else
-    {
-        _battleCommandHUD->Close();
+        return;
     }
 
-    Update_BattleWorldCommandCards(worldPos, currentState);
+    _battleCommandHUD->Close();
 }
 
 HRESULT GameplayUI_Battle::Ensure_BattleWorldCommandCards()
@@ -1241,12 +1231,16 @@ void GameplayUI_Battle::Hide_BattleWorldCommandCards()
         _battleWorldCommandCards->Hide();
 }
 
-void GameplayUI_Battle::Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState)
+void GameplayUI_Battle::Update_BattleWorldCommandCards(
+    const Vec3& commandHudWorldPos,
+    BattleTurnState currentState,
+    uint32 curAp,
+    uint32 maxAp)
 {
     if (FAILED(Ensure_BattleWorldCommandCards()))
         return;
 
-    _battleWorldCommandCards->Show_ForBattleState(commandHudWorldPos, currentState);
+    _battleWorldCommandCards->Show_ForBattleState(commandHudWorldPos, currentState, curAp, maxAp);
     _battleWorldCommandCards->Late_Update(0.f);
 }
 
