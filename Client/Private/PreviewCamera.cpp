@@ -71,7 +71,7 @@ void PreviewCamera::Update(float timeDelta)
     
     _transformCom->Set_WorldPosition(nextPos);
     _transformCom->LookAt(targetPos);
- 
+
     Apply_View(); 
 }
 

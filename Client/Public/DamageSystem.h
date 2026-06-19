@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "CombatStatCom.h"
 #include "Delegate.h"
 
 NS_BEGIN(Client)

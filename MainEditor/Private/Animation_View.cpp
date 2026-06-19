@@ -2,6 +2,9 @@
 #include "Animation_NameUtils.h"
 #include "AnimSequencerAdapter.h"
 #include "AnimNotify_Parser.h"
+#include "AnimationModifier.h"
+#include "ChainModifier.h"
+#include "PoseFollowChainModifier.h"
 #include "ContainerObject.h"
 #include "EditorInstance.h"
 #include "Editor_Camera_Free.h"
@@ -1420,7 +1423,131 @@ void Animation_View::Draw_SelectedDetail()
         ImGui::TextWrapped("Notify, NotifyState, 또는 Bone을 선택하세요.");
     }
 
+    Draw_ModifierRuntimePanel(playbackModel);
+
     ImGui::EndChild();
+}
+
+void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel)
+{
+    ImGui::Separator();
+    ImGui::TextUnformatted("Animation Modifiers");
+
+    if (playbackModel == nullptr)
+    {
+        ImGui::TextDisabled("No playback model.");
+        return;
+    }
+
+    const auto& modifiers = playbackModel->Get_Modifiers();
+    bool hasEditableModifier = false;
+
+    for (const Shared<AnimationModifier>& modifier : modifiers)
+    {
+        if (modifier == nullptr)
+            continue;
+
+        const ClassReflectionInfo* reflectionInfo = modifier->Get_RuntimeReflectionInfo();
+        void* reflectionTarget = modifier->Get_RuntimeReflectionTarget();
+        if (reflectionInfo == nullptr || reflectionTarget == nullptr || reflectionInfo->properties.empty())
+            continue;
+
+        hasEditableModifier = true;
+
+        const string tag = String::ToString(modifier->Get_ModifierTag());
+        const string typeName = reflectionInfo->displayName.empty() ? reflectionInfo->className : reflectionInfo->displayName;
+        const string headerLabel = (tag.empty() ? typeName : tag + "  [" + typeName + "]");
+
+        ImGui::PushID(modifier.get());
+        if (ImGui::CollapsingHeader(headerLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool active = modifier->Is_Active();
+            if (ImGui::Checkbox("Active", &active))
+                modifier->Set_Active(active);
+
+            ImGui::SameLine();
+            float strengthAlpha = modifier->Get_StrengthAlpha();
+            ImGui::SetNextItemWidth(120.f);
+            if (ImGui::DragFloat("Strength", &strengthAlpha, 0.01f, 0.f, 1.f))
+                modifier->Set_StrengthAlpha(std::clamp(strengthAlpha, 0.f, 1.f));
+
+            if (modifier->Can_RuntimeResetPose())
+            {
+                if (ImGui::Button("Reset Pose"))
+                    modifier->RuntimeResetPose(playbackModel.get());
+            }
+
+            if (modifier->Can_RuntimeRebuild())
+            {
+                ImGui::SameLine();
+                if (ImGui::Button("Rebuild Chains"))
+                    modifier->RuntimeRebuild(playbackModel.get());
+            }
+
+            ImGui::Spacing();
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, property))
+                    modifier->On_RuntimeReflectionChanged(playbackModel.get(), property);
+
+                ImGui::Spacing();
+            }
+
+            if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
+            {
+                const size_t groupCount = chainModifier->Get_RuntimeGroupCount();
+                if (groupCount > 0 && ImGui::TreeNodeEx("Group Root Offsets", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::TextDisabled("Root rotation applies while dragging. Use Rebuild only if bind rest must refresh.");
+                    for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
+                    {
+                        ImGui::PushID(static_cast<int>(groupIndex));
+
+                        const string rootBoneName = chainModifier->Get_RuntimeGroupRootBoneName(groupIndex);
+                        ImGui::TextWrapped("%s", rootBoneName.empty() ? "(empty root)" : rootBoneName.c_str());
+
+                        Vec3 offsetDegrees = chainModifier->Get_RuntimeGroupRootRotationOffset(groupIndex);
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        if (ImGui::DragFloat3("Rot", &offsetDegrees.x, 0.25f, -180.f, 180.f))
+                            chainModifier->Set_RuntimeGroupRootRotationOffset(groupIndex, offsetDegrees);
+
+                        ImGui::Spacing();
+                        ImGui::PopID();
+                    }
+                    ImGui::TreePop();
+                }
+            }
+
+            if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+            {
+                const size_t groupCount = poseFollowModifier->Get_RuntimeGroupCount();
+                if (groupCount > 0 && ImGui::TreeNodeEx("Group Multipliers", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::TextDisabled("X: Wind, Y: Motion, Z: Follow");
+                    for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
+                    {
+                        ImGui::PushID(static_cast<int>(groupIndex));
+
+                        const string rootBoneName = poseFollowModifier->Get_RuntimeGroupRootBoneName(groupIndex);
+                        ImGui::TextWrapped("%s", rootBoneName.empty() ? "(empty root)" : rootBoneName.c_str());
+
+                        Vec3 multipliers = poseFollowModifier->Get_RuntimeGroupMultipliers(groupIndex);
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        if (ImGui::DragFloat3("Mul", &multipliers.x, 0.01f, 0.f, 10.f))
+                            poseFollowModifier->Set_RuntimeGroupMultipliers(groupIndex, multipliers);
+
+                        ImGui::Spacing();
+                        ImGui::PopID();
+                    }
+                    ImGui::TreePop();
+                }
+            }
+        }
+        ImGui::PopID();
+    }
+
+    if (!hasEditableModifier)
+        ImGui::TextDisabled("No ChainModifier or PoseFollowChainModifier on this model.");
 }
 
 void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel)

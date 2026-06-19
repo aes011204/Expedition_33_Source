@@ -305,6 +305,25 @@ PS_OUT PS_PackedAR_NME(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_SignDecal(PS_IN In)
+{
+    PS_OUT Out;
+    float2 uv = ApplyUVTransform(In.Texcoord);
+    float4 tex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+
+    float brightness = dot(tex.rgb, float3(0.299f, 0.587f, 0.114f));
+    clip(brightness - 0.05f);
+
+    float3 color = tex.rgb * g_BaseColorTint.rgb;
+
+    Out.Diffuse = float4(color, 1.f);
+    Out.Normal = float4(EncodeNormal(normalize(In.Normal.xyz)), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(1.f, 1.f, 0.f, 1.f);
+    Out.Emissive = float4(color * g_EmissiveIntensity, 1.f);
+    return Out;
+}
+
 PS_OUT PS_LandscapeBlend(PS_IN In)
 {
     PS_OUT Out;
@@ -342,7 +361,7 @@ PS_OUT_ID PS_ID(PS_IN In)
     Out.Color.r = float(g_iObjectID & 0xFF) / 255.f;
     Out.Color.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
     Out.Color.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
-    Out.Color.a = 1.f;
+    Out.Color.a = 0.f;
 
     return Out;
 }
@@ -432,4 +451,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(LandscapeBlendPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_LandscapeBlend)      // 11
     PASS_RS_DS_BS_VP(FaceAccessoryBeardPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_FaceAccessoryBeard) // 12
     PASS_RS_DS_BS_VP(FaceAccAlphaBlend, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_Default, PS_FaceAccAlphaBlend) // 13
+    PASS_RS_DS_BS_VP(SignDecalPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_SignDecal) // 14
 }

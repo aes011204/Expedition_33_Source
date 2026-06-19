@@ -262,6 +262,9 @@
     <Filter Include="01.Utility\04.Component\ModelDeform">
       <UniqueIdentifier>{79aa129c-34f6-433a-95c6-41a1479a501c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\Model\Animation\ModelPhysicsParse">
+      <UniqueIdentifier>{6005d4c7-1332-4bb7-ba71-e8e7339f105a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -482,6 +485,15 @@
     </ClInclude>
     <ClInclude Include="..\Public\ModelDeform.h">
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ChainModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PoseFollowChainModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ModelPhysicsParser.h">
+      <Filter>01.Utility\04.Component\Model\Animation\ModelPhysicsParse</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1108,6 +1120,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\ModelDeform.cpp">
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ChainModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PoseFollowChainModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ModelPhysicsParser.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\ModelPhysicsParse</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

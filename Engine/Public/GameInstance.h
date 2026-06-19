@@ -542,6 +542,7 @@ public: // For. BT_Node
 public: /* For.Debug_Manager */
     void Draw_DebugBox(const DebugBoxDesc& desc);
     void Draw_DebugSphere(const DebugSphereDesc& desc);
+    void Draw_DebugCapsule(const DebugCapsuleDesc& desc);
     void Draw_DebugLine(const DebugLineDesc& desc);
     void Draw_DebugTraceLine(const DebugTraceLineDesc& desc);
 

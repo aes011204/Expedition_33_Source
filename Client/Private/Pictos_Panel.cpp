@@ -61,7 +61,7 @@ namespace
     {
         const auto previewLayout = Build_PictosPreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);
-        CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(heroId, PreviewShotPanel::Pictos);
 
         if (const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager())
         {
@@ -186,7 +186,7 @@ void Pictos_Panel::Open()
     if (_selectedHeroId == HeroId::END)
         _selectedHeroId = Resolve_DefaultHeroId();
 
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
+    CLIENT->Begin_Preview(PreviewShotPanel::Pictos);
     Show_PictosPreview(_selectedHeroId);
     CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Pictos_Intro, PreviewAnimState::Pictos_Idle);
 

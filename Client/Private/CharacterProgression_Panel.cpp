@@ -75,8 +75,35 @@ namespace
     void Show_CharacterProgressionPreview(HeroId heroId, CharacterProgression_Panel::ContentTab tab)
     {
         const auto previewLayout = Build_CharacterProgressionPreviewLayout(tab);
+
+        PreviewShotPanel panel = PreviewShotPanel::CharacterProgression;
+
+        switch(tab)
+        {
+        case CharacterProgression_Panel::ContentTab::Pictos:
+            panel = PreviewShotPanel::Pictos;
+            break;
+
+        case CharacterProgression_Panel::ContentTab::Skill:
+            panel =PreviewShotPanel::ChangeSkill;
+            break;
+
+        case CharacterProgression_Panel::ContentTab::Wardrobe:
+            panel = PreviewShotPanel::Wardrobe;
+            break;
+
+        case CharacterProgression_Panel::ContentTab::Weapon:
+            panel = PreviewShotPanel::ChangeWeapon;
+            break;
+
+        case CharacterProgression_Panel::ContentTab::Overview:
+        default:
+            panel = PreviewShotPanel::CharacterProgression;
+            break;
+        }
+
         CLIENT->Apply_PreviewLayout(previewLayout);
-        CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(heroId, panel);
     }
 }
 
@@ -145,7 +172,7 @@ void CharacterProgression_Panel::Open(ContentTab initialTab)
     _lastAction = Action::None;
     _activeContentTab = ContentTab::Overview;
 
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
+    CLIENT->Begin_Preview(PreviewShotPanel::CharacterProgression);
     Show_CharacterProgressionPreview(_selectedHeroId, _activeContentTab);
     Update_PreviewHeroVisibility();
     Apply_PreviewOverrides();
