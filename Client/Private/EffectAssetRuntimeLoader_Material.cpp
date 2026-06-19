@@ -112,6 +112,10 @@ namespace EffectAssetRuntimeLoad::Material
         Read_UVAxisPolicy(material, "noiseUVPolicy", materialDesc.noiseUVTilingMode, materialDesc.noiseUVPolicy, materialDesc.noiseUVTilingMode);
         Read_UVAxisPolicy(material, "maskUVPolicy", materialDesc.maskUVTilingMode, materialDesc.maskUVPolicy, materialDesc.maskUVTilingMode);
         Read_UVAxisPolicy(material, "flowUVPolicy", materialDesc.flowUVTilingMode, materialDesc.flowUVPolicy, materialDesc.flowUVTilingMode);
+        Read_Enum(material, "mainUVRotation", materialDesc.mainUVRotation);
+        Read_Enum(material, "noiseUVRotation", materialDesc.noiseUVRotation);
+        Read_Enum(material, "maskUVRotation", materialDesc.maskUVRotation);
+        Read_Enum(material, "flowUVRotation", materialDesc.flowUVRotation);
         materialDesc.refractionIntensity = Read_Float(material, "refractionIntensity", materialDesc.refractionIntensity);
         materialDesc.refractionPresence = Read_Float(material, "refractionPresence", materialDesc.refractionPresence);
         Read_Enum(material, "distortionShapeMode", materialDesc.distortionShapeMode);

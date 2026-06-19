@@ -239,7 +239,7 @@ void SL_Test_Lancelier::Update_Attack(float timeDelta)
     if (_currentAnim == Anim::Hit && !_body->Is_AnimationFinished())
         return;
 
-    if (_currentAnim == Anim::Attack_1 && !_body->Is_AnimationFinished())
+    if ((_currentAnim == Anim::Attack_1 || _currentAnim == Anim::Attack_2) && !_body->Is_AnimationFinished())
         return;
 
     _attackCooldown = max(0.f, _attackCooldown - timeDelta);
@@ -262,7 +262,9 @@ void SL_Test_Lancelier::Update_Attack(float timeDelta)
     if (distance <= _attackRange && _attackCooldown <= 0.f)
     {
         _attackCooldown = _attackInterval;
-        Play_Anim(Anim::Attack_1, 0.1f, false);
+        const Anim attackAnim = _nextAttackAnim;
+        _nextAttackAnim = (_nextAttackAnim == Anim::Attack_1) ? Anim::Attack_2 : Anim::Attack_1;
+        Play_Anim(attackAnim, 0.1f, false);
         return;
     }
 

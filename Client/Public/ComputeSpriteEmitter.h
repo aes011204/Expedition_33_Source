@@ -11,6 +11,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Compute sprite particle 재생과 material/render payload 제출을 담당한다.
 class ComputeSpriteEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeSpriteEmitter, ObjectType::EffectEmitter);
@@ -48,7 +49,7 @@ public: //## Debug::EditorSession
     static void Set_InfluenceOutlineDebugEnabled(bool enabled);
     static bool Is_InfluenceOutlineDebugEnabled();
 
-protected:
+protected: //## Hook
     // root/local-space sync 직후 compute center를 즉시 갱신한다.
     void On_EffectTransformSynced() override;
 
@@ -65,6 +66,7 @@ private: //## Types::PlaybackRuntime
         float computeDeltaTime{};    // 이번 frame에서 particle simulation에 흘려보낼 시간이다.
         float lifetimeSamplePhase{}; // 이번 spawn request의 Lifetime curve sampling phase다.
         uint32 spawnRequest{};       // 이번 frame에 활성화할 particle 수다.
+        uint32 spawnSerialBase{};    // 이번 frame 첫 spawn의 replay-local 순번이다.
         bool killActiveParticles{};  // 이번 frame에 active particle을 모두 죽일지 나타낸다.
     };
 
@@ -109,6 +111,8 @@ private: //## Data::SpawnRuntime
     float _emitterElapsedTime{};
     // fractional spawn rate를 프레임 사이에 보존한다.
     float _spawnAccumulator{};
+    // Restart Preview마다 0부터 다시 시작하는 spawn 순번이다.
+    uint32 _spawnSerialCounter{};
     float _sampledSpawnRate{ 10.f };
     float _sampledSpawnRateScale{ 1.f };
 

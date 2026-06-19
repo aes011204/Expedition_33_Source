@@ -5,6 +5,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor log entries를 필터링하고 console window로 표시한다.
 class Console_View final : public Editor_Window
 {
 public:
@@ -15,7 +16,7 @@ public:
     HRESULT Initialize() override;
     void Render() override;
 
-private:
+private: //## Data::LogCache
     vector<ConsoleLogEntry> _cachedLogs{};
     uint32 _cachedRevision{ 0 };
     bool _autoScroll{ true };
@@ -27,7 +28,7 @@ private:
     bool _showError{ true };
     bool _showCritical{ true };
 
-private:
+private: //## Helper::LogView
     void Refresh_Logs();
     bool Pass_Filter(const ConsoleLogEntry& entry) const;
     ImVec4 Get_LogColor(const ConsoleLogEntry& entry) const;

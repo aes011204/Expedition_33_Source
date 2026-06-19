@@ -21,6 +21,7 @@ public:
     void    Update(float timeDelta) override;
 
     void    Open_MainPanel(PlayerCharacterType playerType);
+    void    Open_GradientPanel(PlayerCharacterType playerType);
     void    Open_Tooltip(const string& skillKey);
     void    Close() override;
 
@@ -38,6 +39,7 @@ private:
     {
         None,
         MainPanel,
+        GradientPanel,
         Tooltip,
     };
 
@@ -55,6 +57,7 @@ private:
     vector<Shared<UI_Base>>* Resolve_MainPanelAnimationTargets(HeroId heroId);
 
     void    Close_MainPanels();
+    void    Close_GradientPanels();
     void    Close_Tooltips();
     void    Close_TooltipImmediately();
 
@@ -66,6 +69,9 @@ private:
     Shared<UI_Base> _gustavePanel{};
     Shared<UI_Base> _lunePanel{};
     Shared<UI_Base> _maellePanel{};
+    Shared<UI_Base> _gustaveGradientPanel{};
+    Shared<UI_Base> _luneGradientPanel{};
+    Shared<UI_Base> _maelleGradientPanel{};
     vector<Shared<UI_Base>> _gustaveMainPanelUIs{};
     vector<Shared<UI_Base>> _luneMainPanelUIs{};
     vector<Shared<UI_Base>> _maelleMainPanelUIs{};

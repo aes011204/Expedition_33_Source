@@ -33,6 +33,12 @@ namespace UIEditor
         _fontPreviewCommands.clear();
         _texturePreviewLoadCountThisFrame = 0;
         _compositePreviewCreateCountThisFrame = 0;
+        _materialVfxPreviewTime = fmodf(_materialVfxPreviewTime + max(0.f, ImGui::GetIO().DeltaTime), 32.f);
+        _materialVfxPreviewCache.clear();
+        _materialVfxPreviewFailedKeys.clear();
+        _buttonSheenPreviewTime = fmodf(_buttonSheenPreviewTime + max(0.f, ImGui::GetIO().DeltaTime), 32.f);
+        _buttonSheenPreviewCache.clear();
+        _buttonSheenPreviewFailedKeys.clear();
     }
 
     void UI_Editor_PreviewService::Clear_RuntimeCaches()
@@ -45,6 +51,12 @@ namespace UIEditor
         _fillRatioPreviewFailedKeys.clear();
         _patternOverlayPreviewCache.clear();
         _patternOverlayPreviewFailedKeys.clear();
+        _materialVfxPreviewCache.clear();
+        _materialVfxPreviewFailedKeys.clear();
+        _materialVfxPreviewTime = 0.f;
+        _buttonSheenPreviewCache.clear();
+        _buttonSheenPreviewFailedKeys.clear();
+        _buttonSheenPreviewTime = 0.f;
         _fontPreviewCache.clear();
         _fontPreviewFailedGuids.clear();
         _fontPreviewCommands.clear();

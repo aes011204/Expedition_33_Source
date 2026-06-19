@@ -1657,6 +1657,12 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
         0.f,
         0.f
     );
+    const Vec4 effectSpriteUVRotationParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.maskUVRotation)),
+        0.f
+    );
     const Vec4 effectSpriteSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -1708,6 +1714,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Bind_ShaderResources()
         _shader->Bind_RawValue("g_EffectSpriteMaskUVAxisPolicyParams", &effectSpriteMaskUVAxisPolicyParams, sizeof(effectSpriteMaskUVAxisPolicyParams)),
         E_FAIL
     );
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteUVRotationParams", &effectSpriteUVRotationParams, sizeof(effectSpriteUVRotationParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase - floorf(emitterPhase)), E_FAIL);
@@ -1831,6 +1838,29 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_Lifetime(uint32 stampSerial
 
     const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    if (_desc.lifetime.lifeTimeCurve.enabled)
+    {
+        const float spawnPhase = clamp(_loopElapsedTime / Resolve_Duration(), 0.f, 1.f);
+        return max(
+            0.0001f,
+            Evaluate_CompactCurve(
+                spawnPhase,
+                _desc.lifetime.lifeTimeCurve.curveKeyTimes,
+                _desc.lifetime.lifeTimeCurve.curveKeyTimesBlock1,
+                _desc.lifetime.lifeTimeCurve.curveKeyValues,
+                _desc.lifetime.lifeTimeCurve.curveKeyValuesBlock1,
+                _desc.lifetime.lifeTimeCurve.curveKeyArriveTangents,
+                _desc.lifetime.lifeTimeCurve.curveKeyArriveTangentsBlock1,
+                _desc.lifetime.lifeTimeCurve.curveKeyLeaveTangents,
+                _desc.lifetime.lifeTimeCurve.curveKeyLeaveTangentsBlock1,
+                _desc.lifetime.lifeTimeCurve.curveKeyModes,
+                _desc.lifetime.lifeTimeCurve.curveKeyModesBlock1,
+                _desc.lifetime.lifeTimeCurve.curveKeyCount,
+                lifeMax
+            )
+        );
+    }
+
     if (lifeMin == lifeMax)
         return lifeMin;
 
@@ -2222,6 +2252,12 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_RotationOverLife(float li
         _desc.rotation.rotationOverLifeCurveTimesBlock1,
         _desc.rotation.rotationOverLifeCurveValues,
         _desc.rotation.rotationOverLifeCurveValuesBlock1,
+        _desc.rotation.rotationOverLifeCurveArriveTangents,
+        _desc.rotation.rotationOverLifeCurveArriveTangentsBlock1,
+        _desc.rotation.rotationOverLifeCurveLeaveTangents,
+        _desc.rotation.rotationOverLifeCurveLeaveTangentsBlock1,
+        _desc.rotation.rotationOverLifeCurveModes,
+        _desc.rotation.rotationOverLifeCurveModesBlock1,
         _desc.rotation.rotationOverLifeCurveKeyCount,
         fallbackRotation
     );
@@ -2240,6 +2276,12 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_RotationRateScaleByLife(f
         _desc.rotation.rotationRateScaleByLifeCurveTimesBlock1,
         _desc.rotation.rotationRateScaleByLifeCurveValues,
         _desc.rotation.rotationRateScaleByLifeCurveValuesBlock1,
+        _desc.rotation.rotationRateScaleByLifeCurveArriveTangents,
+        _desc.rotation.rotationRateScaleByLifeCurveArriveTangentsBlock1,
+        _desc.rotation.rotationRateScaleByLifeCurveLeaveTangents,
+        _desc.rotation.rotationRateScaleByLifeCurveLeaveTangentsBlock1,
+        _desc.rotation.rotationRateScaleByLifeCurveModes,
+        _desc.rotation.rotationRateScaleByLifeCurveModesBlock1,
         _desc.rotation.rotationRateScaleByLifeCurveKeyCount,
         fallbackScale
     );
@@ -2257,6 +2299,12 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_VelocityScaleByLife(float
         _desc.motion.velocityScaleByLifeCurveTimesBlock1,
         _desc.motion.velocityScaleByLifeCurveValues,
         _desc.motion.velocityScaleByLifeCurveValuesBlock1,
+        _desc.motion.velocityScaleByLifeCurveArriveTangents,
+        _desc.motion.velocityScaleByLifeCurveArriveTangentsBlock1,
+        _desc.motion.velocityScaleByLifeCurveLeaveTangents,
+        _desc.motion.velocityScaleByLifeCurveLeaveTangentsBlock1,
+        _desc.motion.velocityScaleByLifeCurveModes,
+        _desc.motion.velocityScaleByLifeCurveModesBlock1,
         _desc.motion.velocityScaleByLifeCurveKeyCount,
         fallbackScale
     );
@@ -2276,6 +2324,12 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesX,
             _desc.motion.accelerationCurveValuesXBlock1,
+            _desc.motion.accelerationCurveArriveTangentsX,
+            _desc.motion.accelerationCurveArriveTangentsXBlock1,
+            _desc.motion.accelerationCurveLeaveTangentsX,
+            _desc.motion.accelerationCurveLeaveTangentsXBlock1,
+            _desc.motion.accelerationCurveModes,
+            _desc.motion.accelerationCurveModesBlock1,
             keyCount,
             stamp.acceleration.x
         ),
@@ -2285,6 +2339,12 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesY,
             _desc.motion.accelerationCurveValuesYBlock1,
+            _desc.motion.accelerationCurveArriveTangentsY,
+            _desc.motion.accelerationCurveArriveTangentsYBlock1,
+            _desc.motion.accelerationCurveLeaveTangentsY,
+            _desc.motion.accelerationCurveLeaveTangentsYBlock1,
+            _desc.motion.accelerationCurveModes,
+            _desc.motion.accelerationCurveModesBlock1,
             keyCount,
             stamp.acceleration.y
         ),
@@ -2294,6 +2354,12 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesZ,
             _desc.motion.accelerationCurveValuesZBlock1,
+            _desc.motion.accelerationCurveArriveTangentsZ,
+            _desc.motion.accelerationCurveArriveTangentsZBlock1,
+            _desc.motion.accelerationCurveLeaveTangentsZ,
+            _desc.motion.accelerationCurveLeaveTangentsZBlock1,
+            _desc.motion.accelerationCurveModes,
+            _desc.motion.accelerationCurveModesBlock1,
             keyCount,
             stamp.acceleration.z
         )

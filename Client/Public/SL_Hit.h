@@ -13,6 +13,7 @@ public:
 public:
     bool EnterInvoke() override;
     void Update(float timeDelta) override;
+    void ExitInvoke() override;
 
 public:
     static Shared<SL_Hit> Create(const Shared<SL_Maelle>& owner);

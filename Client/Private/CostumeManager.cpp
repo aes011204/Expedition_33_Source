@@ -84,6 +84,7 @@ HRESULT CostumeManager::Initialize()
 {
     _costumesByHero.clear();
     _currentCostumeByHero.clear();
+    _unlockedPresetIdsByHero.clear();
 
     // 일단 기본 옷 등록
     Register_DefaultCostumes();
@@ -106,6 +107,7 @@ void CostumeManager::Register_DefaultCostumes()
             continue;
 
         _currentCostumeByHero[desc.heroId] = desc.presetId;
+        _unlockedPresetIdsByHero[desc.heroId].insert(desc.presetId);
     }
 }
 
@@ -304,6 +306,11 @@ const CostumePreset* CostumeManager::Set_CurrentCostume(HeroId heroId, const str
     if (preset == nullptr)
         return nullptr;
 
+    if (!Is_PresetUnlocked(heroId, presetId))
+    {
+        return nullptr;
+    }
+
     _currentCostumeByHero[heroId] = preset->presetId;
     return preset;
 }
@@ -312,6 +319,7 @@ json CostumeManager::Create_CurrentCostumeSaveJson() const
 {
     json root = json::object();
     root["current"] = json::array();
+    root["unlocked"] = json::object();
 
     for (const auto& [heroId, presetId] : _currentCostumeByHero)
     {
@@ -321,67 +329,139 @@ json CostumeManager::Create_CurrentCostumeSaveJson() const
         root["current"].emplace_back(entry);
     }
 
+    for (const auto& [heroId, presetIds] : _unlockedPresetIdsByHero)
+    {
+        const string heroKey = string(magic_enum::enum_name(heroId));
+        root["unlocked"][heroKey] = json::array();
+
+        for (const string& presetId : presetIds)
+            root["unlocked"][heroKey].emplace_back(presetId);
+    }
+
     return root;
 }
 
 bool CostumeManager::Apply_CurrentCostumeSaveJson(const json& data)
 {
-    if (!data.is_object())
-        return false;
+    _currentCostumeByHero.clear();
+    _unlockedPresetIdsByHero.clear();
 
-    auto current = data.find("current");
-    if (current == data.end() || !current->is_array())
-        return false;
-
-    bool appliedAny = false;
-    for (const json& entry : *current)
+    for (const DefaultCostumeDesc& desc : kDefaultCostumeByHero)
     {
-        if (!entry.is_object())
+        if (desc.presetId == nullptr || desc.presetId[0] == '\0')
             continue;
 
-        const auto heroId = magic_enum::enum_cast<HeroId>(entry.value("hero_id", string{}));
-        if (!heroId.has_value())
-            continue;
-
-        const string presetId = entry.value("preset_id", string{});
-        if (Set_CurrentCostume(heroId.value(), presetId) != nullptr)
-            appliedAny = true;
+        _currentCostumeByHero[desc.heroId] = desc.presetId;
+        _unlockedPresetIdsByHero[desc.heroId].insert(desc.presetId); // 저장값이 비어도 기본 의상은 항상 복원한다.
     }
 
-    return appliedAny;
+    if (!data.is_object())
+        return true;
+
+    if (auto unlocked = data.find("unlocked"); unlocked != data.end() && unlocked->is_object())
+    {
+        for (auto iter = unlocked->begin(); iter != unlocked->end(); ++iter)
+        {
+            const auto heroId = magic_enum::enum_cast<HeroId>(iter.key());
+            if (!heroId.has_value() || !iter.value().is_array())
+                continue;
+
+            for (const json& presetId : iter.value())
+            {
+                if (presetId.is_string())
+                    Unlock_Preset(heroId.value(), presetId.get<string>());
+            }
+        }
+    }
+
+    bool appliedAny = false;
+    if (auto current = data.find("current"); current != data.end() && current->is_array())
+    {
+        for (const json& entry : *current)
+        {
+            if (!entry.is_object())
+                continue;
+
+            const auto heroId = magic_enum::enum_cast<HeroId>(entry.value("hero_id", string{}));
+            if (!heroId.has_value())
+                continue;
+
+            const string presetId = entry.value("preset_id", string{});
+            if (Set_CurrentCostume(heroId.value(), presetId) != nullptr)
+                appliedAny = true;
+        }
+    }
+
+    return appliedAny || !_currentCostumeByHero.empty();
 }
 
 const CostumePreset* CostumeManager::Toggle_NextCostume(HeroId heroId)
 {
     const auto costumeIter = _costumesByHero.find(heroId);
-    if (costumeIter == _costumesByHero.end())
-        return nullptr;
+	if (costumeIter == _costumesByHero.end())
+		return nullptr;
 
-    const vector<CostumePreset>& costumes = costumeIter->second;
-    if (costumes.empty())
-        return nullptr;
+	vector<const CostumePreset*> unlockedCostumes{};
+	for (const auto& costume : costumeIter->second)
+	{
+		if (Is_PresetUnlocked(heroId, costume.presetId))
+			unlockedCostumes.emplace_back(&costume);
+	}
 
-    string currentPresetId{};
-    const auto currentIter = _currentCostumeByHero.find(heroId);
-    if (currentIter != _currentCostumeByHero.end())
+	if (unlockedCostumes.empty())
+		return nullptr;
+
+	string currentPresetId{};
+	const auto currentIter = _currentCostumeByHero.find(heroId);
+	if (currentIter != _currentCostumeByHero.end())
+		currentPresetId = currentIter->second;
+
+	size_t nextIndex = 0;
+	for (size_t i = 0; i < unlockedCostumes.size(); ++i)
+	{
+		if (unlockedCostumes[i]->presetId == currentPresetId)
+		{
+			nextIndex = (i + 1) % unlockedCostumes.size();
+			break;
+		}
+	}
+
+	_currentCostumeByHero[heroId] = unlockedCostumes[nextIndex]->presetId;
+	return unlockedCostumes[nextIndex];
+}
+
+bool CostumeManager::Unlock_Preset(HeroId heroId, const string& presetId)
+{
+    if (presetId.empty())
+        return false;
+
+    if (Get_Costume(heroId, presetId) == nullptr)
+        return false;
+
+    uset<string>& unlockedPresetIds = _unlockedPresetIdsByHero[heroId];
+    const bool newUnlocked = unlockedPresetIds.insert(presetId).second;
+
+    if (newUnlocked)
     {
-        currentPresetId = currentIter->second;
+        LOG_INFO(
+            "CostumeManager: unlocked costume. hero={}, preset={}",
+            magic_enum::enum_name(heroId),
+            presetId);
     }
 
-    size_t nextIndex = 0;
+    return newUnlocked;
+}
 
-    for (size_t i = 0; i < costumes.size(); ++i)
-    {
-        if (costumes[i].presetId == currentPresetId)
-        {
-            nextIndex = (i + 1) % costumes.size();
-            break;
-        }
-    }
+bool CostumeManager::Is_PresetUnlocked(HeroId heroId, const string& presetId) const
+{
+    if (presetId.empty())
+        return false;
 
-    _currentCostumeByHero[heroId] = costumes[nextIndex].presetId;
+    const auto iter = _unlockedPresetIdsByHero.find(heroId);
+    if (iter == _unlockedPresetIdsByHero.end())
+        return false;
 
-    return &costumes[nextIndex];
+    return iter->second.contains(presetId);
 }
 
 Unique<CostumeManager> CostumeManager::Create()
@@ -401,6 +481,7 @@ void CostumeManager::Free()
 {
     _costumesByHero.clear();
     _currentCostumeByHero.clear();
+    _unlockedPresetIdsByHero.clear();
 
     Base::Free();
 }

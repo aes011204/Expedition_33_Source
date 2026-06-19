@@ -354,6 +354,7 @@ void ComputeSpriteEmitter::Update(float timeDelta)
     _viBuffer->Dispatch_Compute(
         playbackTick.computeDeltaTime,
         playbackTick.spawnRequest,
+        playbackTick.spawnSerialBase,
         playbackTick.lifetimeSamplePhase,
         playbackTick.killActiveParticles
     );
@@ -821,6 +822,12 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         0.f,
         0.f
     );
+    const Vec4 effectSpriteUVRotationParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.maskUVRotation)),
+        0.f
+    );
     const Vec4 effectSpriteSourceParams = Vec4(
         static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -849,6 +856,10 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
             &effectSpriteMaskUVAxisPolicyParams,
             sizeof(effectSpriteMaskUVAxisPolicyParams)
         ),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectSpriteUVRotationParams", &effectSpriteUVRotationParams, sizeof(effectSpriteUVRotationParams)),
         E_FAIL
     );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
@@ -937,6 +948,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const float flowUVRotation = static_cast<float>(static_cast<uint32>(material.flowUVRotation));
     const Vec2 flowUVPolicyParams(
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
@@ -976,6 +988,10 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     );
     CHECK_FAILED_ONCE(
         _shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)),
         E_FAIL
     );
 
@@ -1237,6 +1253,7 @@ void ComputeSpriteEmitter::Reset_PlaybackRuntime()
     _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
     _emitterElapsedTime = 0.f;
     _spawnAccumulator = 0.f;
+    _spawnSerialCounter = 0u;
     _loopElapsedTime = 0.f;
     _loopIndex = 0u;
     _completedKillDispatched = false;
@@ -1286,6 +1303,8 @@ ComputeSpriteEmitter::PlaybackTick ComputeSpriteEmitter::Advance_Playback(float 
         {
             tick.computeDeltaTime += playbackStep;
             const uint32 spawnRequest = Consume_SpawnRequest(playbackStep);
+            if (spawnRequest > 0u && tick.spawnRequest == 0u)
+                tick.spawnSerialBase = _spawnSerialCounter;
             tick.spawnRequest += spawnRequest;
             if (spawnRequest > 0u)
                 tick.lifetimeSamplePhase = clamp(_emitterElapsedTime / max(0.0001f, duration), 0.f, 1.f);
@@ -1313,6 +1332,9 @@ ComputeSpriteEmitter::PlaybackTick ComputeSpriteEmitter::Advance_Playback(float 
 
     if (PlaybackState::Completed == _playbackState && !_desc.required.playback.killOnCompleted)
         tick.computeDeltaTime += remainingTime;
+
+    if (tick.spawnRequest > 0u)
+        _spawnSerialCounter += tick.spawnRequest;
 
     return tick;
 }

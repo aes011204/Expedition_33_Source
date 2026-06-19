@@ -88,6 +88,7 @@ json RuntimeCheckpointIO::To_Json(const Checkpoint& checkpoint)
     root["active_slot"] = Enum_ToString(checkpoint.activeSlot);
     root["inventory"] = checkpoint.inventoryJson;
     root["costumes"] = checkpoint.costumeJson;
+    root["unlock_manager"] = checkpoint.unlockManagerJson;
 
     root["heroes"] = json::array();
     for (const HeroState& hero : checkpoint.heroes)
@@ -98,6 +99,7 @@ json RuntimeCheckpointIO::To_Json(const Checkpoint& checkpoint)
         entry["position"] = Write_Vec3(hero.position);
         entry["rotation"] = Write_Vec3(hero.rotation);
         entry["stat"] = hero.statJson;
+        entry["skill_tree"] = hero.skillTreeJson;
         root["heroes"].emplace_back(entry);
     }
 
@@ -133,6 +135,7 @@ bool RuntimeCheckpointIO::From_Json(const json& root, Checkpoint& outCheckpoint)
 
     checkpoint.inventoryJson = root.value("inventory", json::object());
     checkpoint.costumeJson = root.value("costumes", json::object());
+    checkpoint.unlockManagerJson = root.value("unlock_manager", json::object());
 
     if (auto heroes = root.find("heroes"); heroes != root.end() && heroes->is_array())
     {
@@ -151,6 +154,7 @@ bool RuntimeCheckpointIO::From_Json(const json& root, Checkpoint& outCheckpoint)
             hero.position = Read_Vec3(entry.value("position", json::array()), Vec3::Zero);
             hero.rotation = Read_Vec3(entry.value("rotation", json::array()), Vec3::Zero);
             hero.statJson = entry.value("stat", json::object());
+            hero.skillTreeJson = entry.value("skill_tree", json::object());
             checkpoint.heroes.emplace_back(std::move(hero));
         }
     }

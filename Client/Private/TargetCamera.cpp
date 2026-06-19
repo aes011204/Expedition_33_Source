@@ -164,7 +164,8 @@ void TargetCamera::BeginPlay()
 
 void TargetCamera::OnActivated()
 {
-    Refresh_TargetTransform();
+    if (_currentState != TargetCameraMode::SOULLIKE)
+        Refresh_TargetTransform();
 
     Shared<TransformCom> targetTransformCom;
     if (Try_GetTargetTransform(targetTransformCom))

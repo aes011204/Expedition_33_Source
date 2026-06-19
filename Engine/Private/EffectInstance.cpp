@@ -1,15 +1,15 @@
 ﻿#include "EffectInstance.h"
 
-namespace
+namespace Internal
 {
-    uint32 Generate_EffectPlaybackSeed()
-    {
-        static uint32 state{ 0x9E3779B9u };
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        return state != 0u ? state : 0xA341316Cu;
-    }
+uint32 Generate_EffectPlaybackSeed()
+{
+    static uint32 state{ 0x9E3779B9u };
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state != 0u ? state : 0xA341316Cu;
+}
 }
 
 IMPLEMENT_REFLECTION(EffectInstance)
@@ -48,7 +48,7 @@ HRESULT EffectInstance::Initialize(void* arg)
         _desc = *static_cast<EffectInstanceDesc*>(arg);
 
     _definition = _desc.definition;
-    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
+    _effectPlaybackSeed = Internal::Generate_EffectPlaybackSeed();
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Emitters(), E_FAIL);
@@ -160,7 +160,7 @@ void EffectInstance::Stop()
 
 HRESULT EffectInstance::Reset()
 {
-    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
+    _effectPlaybackSeed = Internal::Generate_EffectPlaybackSeed();
     _playbackState = EffectPlaybackState::Stopped;
     _isPlaybackPaused = false; // Reset 이후 새 재생은 pause되지 않은 상태로 시작한다.
     Set_Visible(false);

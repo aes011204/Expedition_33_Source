@@ -601,14 +601,14 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
     };
 
     const Vec3 basisRight = transformInheritance.inheritRotation
-        ? normalize_axis(Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13), Vec3::Right)
-        : Vec3::Right;
+                            ? normalize_axis(Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13), Vec3::Right)
+                            : Vec3::Right;
     const Vec3 basisUp = transformInheritance.inheritRotation
-        ? normalize_axis(Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23), Vec3::Up)
-        : Vec3::Up;
+                         ? normalize_axis(Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23), Vec3::Up)
+                         : Vec3::Up;
     const Vec3 basisLook = transformInheritance.inheritRotation
-        ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Forward)
-        : Vec3::Forward;
+                           ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Forward)
+                           : Vec3::Forward;
 
     Matrix basisWorldMatrix = Matrix::Identity;
     basisWorldMatrix._11 = basisRight.x;
@@ -712,16 +712,7 @@ HRESULT EffectCom::Play_AttachedPartEffect(
     const Vec3& localRotation,
     const Vec3& scale)
 {
-    return Play_AttachedPartEffect(
-        levelIndex,
-        effectName,
-        partTag,
-        "",
-        layerTag,
-        localOffset,
-        localRotation,
-        scale
-    );
+    return Play_AttachedPartEffect(levelIndex, effectName, partTag, "", layerTag, localOffset, localRotation, scale);
 }
 
 HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& partTag, const wstring& layerTag)

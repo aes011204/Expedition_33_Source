@@ -3,12 +3,14 @@
 #include "Battle_Event.h"
 #include "Delegate.h"
 #include "GameObject.h"
+#include "SL_Types.h"
 
 NS_BEGIN(Client)
 
 class SL_Base;
 class SL_Maelle;
-class BattleTurnCamera;
+
+class SL_StateMachineCom;
 
 class SoulLikeController final : public GameObject
 {
@@ -20,6 +22,8 @@ public:
         None,
         EnterFx,
         Playing,
+        VictorySlow,
+        Victory,
         Finished,
     };
 
@@ -37,10 +41,14 @@ public:
 public:
     bool Begin_Battle();
     void End_Battle();
+    void Confirm_Victory();
 
     bool Is_BattleActive() const
     {
-        return _state == BattleState::EnterFx || _state == BattleState::Playing;
+        return _state == BattleState::EnterFx ||
+            _state == BattleState::Playing ||
+            _state == BattleState::VictorySlow ||
+            _state == BattleState::Victory;
     }
 
     void Handle_BattleShotNotify(
@@ -54,11 +62,11 @@ public:
 
     Shared<SL_Maelle> Get_Player() const { return _player.lock(); }
     Shared<SL_Base> Get_Monster() const { return _monster.lock(); }
+    uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
     void End_BattleShotCamera();
 
 private:
-    HRESULT Ready_BattleTurnCamera();
     void    Request_TargetCamera();
     void    Request_BattleShotCamera(const EvtBattlePresentation& event);
     void    Restore_TargetCamera();
@@ -69,9 +77,18 @@ private:
     bool Spawn_Monster(const Shared<SL_Maelle>& player);
     void Remove_SpawnedBattleActors();
     void Update_EnterFx(float timeDelta);
-    void Update_Player(float timeDelta);
+    void Update_VictorySlow();
     void Check_BattleEnd();
+    void Begin_VictorySlow();
+    void Begin_Victory();
+    void Apply_VictoryRewardExp();
+    void Sync_PlayerResultToWorld();
     void Handle_EditorStopRuntime();
+
+    void Update_Player(float timeDelta);
+    void Update_BaseAttack(const Shared<SL_StateMachineCom>& stateMachine);
+    bool Update_Skill(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
+    void Update_Dodge(const Shared<SL_StateMachineCom>& stateMachine, const SL_MoveRequest& moveRequest);
 
 private:
     string _playerPrefab = "SL_Maelle";
@@ -85,16 +102,17 @@ private:
     float  _monsterMaxHp = 500.f;
 
     float  _enterFxDelay = 0.6f;
+    float  _victorySlowDuration = 0.6f;
+    float  _victorySlowTimeScale = 0.12f;
     bool   _enableDebugKeyStart = true;
-
-private:
-    Shared<BattleTurnCamera> _battleTurnCamera;
 
     BattleState _state = BattleState::None;
     Weak<SL_Maelle> _player{};
     Weak<SL_Base> _monster{};
 
     float _enterFxTimer = 0.f;
+    float _victorySlowElapsed = 0.f;
+    uint32 _lastVictoryRewardExp = 0;
     bool  _playerSpawned = false;
     FDelegateHandle _editorStopHandle{};
 

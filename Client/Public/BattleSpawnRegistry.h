@@ -42,6 +42,7 @@ public:
     uint32 Get_BattleRewardChroma() const { return _battleRewardChroma; }
     uint32 Get_BattleHeroSpawnCount() const { return _battleHeroSpawnCount; }
     Shared<GameObject> Get_SourceWorldObject() const { return _sourceWorldObject.lock(); }
+    uint32 Get_SourceWorldObjectLevelIndex() const { return _sourceWorldObjectLevelIndex; }
     const vector<string>& Get_BattleMonsterPortraitGuids() const { return _battleMonsterPortraitGuids; }
 
     void Clear_BattleReward();
@@ -63,7 +64,7 @@ private:
 
     // 전투를 진입할 때, 충돌된 월드베이스 몬스터
     Weak<GameObject> _sourceWorldObject;
-    uint32 _sourceWorldObjectLevelIndex = 0;
+    uint32 _sourceWorldObjectLevelIndex = UINT32_MAX;
 
 public:
     static Shared<BattleSpawnRegistry> Create();

@@ -972,21 +972,25 @@ namespace Internal
         root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
         root["mainUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.mainUVPolicy));
         root["mainUVPolicy"] = To_Json(data.mainUVPolicy);
+        root["mainUVRotation"] = To_EnumToken(data.mainUVRotation);
         root["noiseUVScale"] = To_Json(data.noiseUVScale);
         root["noiseUVOffset"] = To_Json(data.noiseUVOffset);
         root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
         root["noiseUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.noiseUVPolicy));
         root["noiseUVPolicy"] = To_Json(data.noiseUVPolicy);
+        root["noiseUVRotation"] = To_EnumToken(data.noiseUVRotation);
         root["maskUVScale"] = To_Json(data.maskUVScale);
         root["maskUVOffset"] = To_Json(data.maskUVOffset);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
         root["maskUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.maskUVPolicy));
         root["maskUVPolicy"] = To_Json(data.maskUVPolicy);
+        root["maskUVRotation"] = To_EnumToken(data.maskUVRotation);
         root["flowUVScale"] = To_Json(data.flowUVScale);
         root["flowUVOffset"] = To_Json(data.flowUVOffset);
         root["flowUVScrollSpeed"] = To_Json(data.flowUVScrollSpeed);
         root["flowUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.flowUVPolicy));
         root["flowUVPolicy"] = To_Json(data.flowUVPolicy);
+        root["flowUVRotation"] = To_EnumToken(data.flowUVRotation);
         root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
@@ -1076,6 +1080,8 @@ namespace Internal
         if (const auto mainUVTilingModeIter = root.find("mainUVTilingMode"); mainUVTilingModeIter != root.end())
             Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
         Read_UVAxisPolicyField(root, "mainUVPolicy", outData.mainUVTilingMode, outData.mainUVPolicy, outData.mainUVTilingMode);
+        if (const auto mainUVRotationIter = root.find("mainUVRotation"); mainUVRotationIter != root.end())
+            Try_ReadEnumToken(*mainUVRotationIter, outData.mainUVRotation);
 
         if (const auto noiseUVScaleIter = root.find("noiseUVScale"); noiseUVScaleIter != root.end())
             Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
@@ -1089,6 +1095,8 @@ namespace Internal
         if (const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode"); noiseUVTilingModeIter != root.end())
             Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
         Read_UVAxisPolicyField(root, "noiseUVPolicy", outData.noiseUVTilingMode, outData.noiseUVPolicy, outData.noiseUVTilingMode);
+        if (const auto noiseUVRotationIter = root.find("noiseUVRotation"); noiseUVRotationIter != root.end())
+            Try_ReadEnumToken(*noiseUVRotationIter, outData.noiseUVRotation);
 
         if (const auto maskUVScaleIter = root.find("maskUVScale"); maskUVScaleIter != root.end())
             Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
@@ -1102,6 +1110,8 @@ namespace Internal
         if (const auto maskUVTilingModeIter = root.find("maskUVTilingMode"); maskUVTilingModeIter != root.end())
             Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
         Read_UVAxisPolicyField(root, "maskUVPolicy", outData.maskUVTilingMode, outData.maskUVPolicy, outData.maskUVTilingMode);
+        if (const auto maskUVRotationIter = root.find("maskUVRotation"); maskUVRotationIter != root.end())
+            Try_ReadEnumToken(*maskUVRotationIter, outData.maskUVRotation);
 
         if (const auto flowUVScaleIter = root.find("flowUVScale"); flowUVScaleIter != root.end())
             Read_Vec2(*flowUVScaleIter, outData.flowUVScale);
@@ -1115,6 +1125,8 @@ namespace Internal
         if (const auto flowUVTilingModeIter = root.find("flowUVTilingMode"); flowUVTilingModeIter != root.end())
             Try_ReadEnumToken(*flowUVTilingModeIter, outData.flowUVTilingMode);
         Read_UVAxisPolicyField(root, "flowUVPolicy", outData.flowUVTilingMode, outData.flowUVPolicy, outData.flowUVTilingMode);
+        if (const auto flowUVRotationIter = root.find("flowUVRotation"); flowUVRotationIter != root.end())
+            Try_ReadEnumToken(*flowUVRotationIter, outData.flowUVRotation);
 
         Read_NumberField(root, "refractionIntensity", outData.refractionIntensity);
         Read_NumberField(root, "refractionPresence", outData.refractionPresence);

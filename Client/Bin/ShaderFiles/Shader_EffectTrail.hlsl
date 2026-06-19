@@ -19,6 +19,7 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };           // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
     float4 g_EffectTrailUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
     float4 g_EffectTrailMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
+    float4 g_EffectTrailUVRotationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectTrailSourceParams = { 1.f, 0.f, 0.f, 0.f };           // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f };         // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
@@ -49,6 +50,19 @@ Texture2D g_MainTexture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
 
+float2 Rotate_MaterialUV(float2 uv, float rotation)
+{
+    const int mode = (int)(rotation + 0.5f);
+    float2 result = uv;
+    if (mode == 1)
+        result = float2(1.f - uv.y, uv.x);
+    else if (mode == 2)
+        result = 1.f - uv;
+    else if (mode == 3)
+        result = float2(uv.y, 1.f - uv.x);
+    return result;
+}
+
 float2 Apply_MaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
 {
     return uv * uvParams.xy + uvOffset + uvParams.zw * g_EffectTrailMaterialTime;
@@ -56,37 +70,44 @@ float2 Apply_MaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
 
 float Resolve_TrailAxisBaseUV(float rawValue, bool lengthAxis, float policy)
 {
+    const int mode = (int)(policy + 0.5f);
     const float visibleLength = max(g_EffectTrailUVPolicyParams.x, 0.0001f);
     const float uvTiling = max(g_EffectTrailUVPolicyParams.y, 0.0001f);
+    float result = rawValue;
 
-    if (policy >= 2.5f)
-        return rawValue;
-    if (lengthAxis && policy >= 0.5f && policy < 1.5f)
-        return saturate(rawValue / visibleLength);
-    if (lengthAxis)
-        return rawValue * uvTiling;
+    if (mode != 3 && lengthAxis && mode == 1)
+        result = saturate(rawValue / visibleLength);
+    else if (mode != 3 && lengthAxis)
+        result = rawValue * uvTiling;
 
-    return rawValue;
+    return result;
 }
 
-float2 Build_TrailSlotBaseUV(float2 rawUV, float2 policy)
+float2 Build_TrailSlotBaseUV(float2 rawUV, float2 policy, float rotation)
 {
+    const float2 rotatedUV = Rotate_MaterialUV(rawUV, rotation);
     return float2(
-        Resolve_TrailAxisBaseUV(rawUV.x, false, policy.x),
-        Resolve_TrailAxisBaseUV(rawUV.y, true, policy.y)
+        Resolve_TrailAxisBaseUV(rotatedUV.x, false, policy.x),
+        Resolve_TrailAxisBaseUV(rotatedUV.y, true, policy.y)
     );
 }
 
-float Apply_TrailAxisAddress(float value, float policy)
+float Apply_TrailAxisAddressValue(float value, float policy)
 {
-    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
+    const int mode = (int)(policy + 0.5f);
+    float result = frac(value);
+    if (mode == 1 || mode == 2)
+        result = saturate(value);
+    else if (mode == 4)
+        result = 1.f - abs(frac(value * 0.5f) * 2.f - 1.f);
+    return result;
 }
 
 float2 Apply_TrailAxisAddress(float2 uv, float2 policy)
 {
     return float2(
-        Apply_TrailAxisAddress(uv.x, policy.x),
-        Apply_TrailAxisAddress(uv.y, policy.y)
+        Apply_TrailAxisAddressValue(uv.x, policy.x),
+        Apply_TrailAxisAddressValue(uv.y, policy.y)
     );
 }
 
@@ -226,9 +247,9 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float2 mainUVPolicy = g_EffectTrailUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectTrailUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectTrailMaskUVAxisPolicyParams.xy;
-    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVPolicy);
-    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVPolicy);
-    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVPolicy);
+    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVPolicy, g_EffectTrailUVRotationParams.x);
+    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVPolicy, g_EffectTrailUVRotationParams.y);
+    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVPolicy, g_EffectTrailUVRotationParams.z);
     const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams, g_EffectTrailUVOffsetParams.xy);
     const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams, g_EffectTrailUVOffsetParams.zw);
     const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams, g_EffectTrailMaskUVOffsetParams.xy);
@@ -340,9 +361,9 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float2 mainUVPolicy = g_EffectTrailUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectTrailUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectTrailMaskUVAxisPolicyParams.xy;
-    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVPolicy);
-    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVPolicy);
-    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVPolicy);
+    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVPolicy, g_EffectTrailUVRotationParams.x);
+    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVPolicy, g_EffectTrailUVRotationParams.y);
+    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVPolicy, g_EffectTrailUVRotationParams.z);
     const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams, g_EffectTrailUVOffsetParams.xy);
     const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams, g_EffectTrailUVOffsetParams.zw);
     const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams, g_EffectTrailMaskUVOffsetParams.xy);

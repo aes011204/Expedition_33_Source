@@ -7,7 +7,7 @@ NS_BEGIN(Client)
 class RuntimeCheckpointIO final
 {
 public:
-    static constexpr uint32 CurrentVersion = 1;
+    static constexpr uint32 CurrentVersion = 2;
 
     struct WorldObject
     {
@@ -22,6 +22,7 @@ public:
         Vec3 position = Vec3::Zero;
         Vec3 rotation = Vec3::Zero;
         json statJson = json::object();
+        json skillTreeJson = json::object();
     };
 
     struct Checkpoint
@@ -31,6 +32,7 @@ public:
         HeroPartySlot activeSlot = HeroPartySlot::Slot_0;
         json inventoryJson = json::object();
         json costumeJson = json::object();
+        json unlockManagerJson = json::object();
         vector<HeroState> heroes{};
         vector<WorldObject> worldObjects{};
     };
