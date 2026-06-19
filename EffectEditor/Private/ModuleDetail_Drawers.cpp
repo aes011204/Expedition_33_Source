@@ -3,10 +3,10 @@
 #include "EffectEditorInstance.h"
 #include "EffectEditor_Macro.h"
 #include "EffectMaterialInstance_View.h"
+#include "EffectMaterialPresetReader.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterial_View.h"
-#include "EffectMaterialPresetReader.h"
 #include "Helper_EffectAuthoring.h"
 #include "Notification_Manager.h"
 
@@ -208,6 +208,11 @@ namespace Internal
             "켜면 이 이펙트를 재생할 때마다 생성되는 seed를 이 랜덤값 샘플에 섞습니다."
         );
         changed |= ImGui::Checkbox("##Value", &data.useInstanceSeed);
+        if (data.useInstanceSeed)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("켜짐");
+        }
         ImGui::PopID();
 
         detailContext.End_PropertyTable();
@@ -1323,24 +1328,28 @@ namespace Internal
             lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
             lhs.mainUVPolicy.uPolicy == rhs.mainUVPolicy.uPolicy &&
             lhs.mainUVPolicy.vPolicy == rhs.mainUVPolicy.vPolicy &&
+            lhs.mainUVRotation == rhs.mainUVRotation &&
             Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
             Is_SameVec2(lhs.noiseUVOffset, rhs.noiseUVOffset) &&
             Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
             lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
             lhs.noiseUVPolicy.uPolicy == rhs.noiseUVPolicy.uPolicy &&
             lhs.noiseUVPolicy.vPolicy == rhs.noiseUVPolicy.vPolicy &&
+            lhs.noiseUVRotation == rhs.noiseUVRotation &&
             Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
             Is_SameVec2(lhs.maskUVOffset, rhs.maskUVOffset) &&
             Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
             lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
             lhs.maskUVPolicy.uPolicy == rhs.maskUVPolicy.uPolicy &&
             lhs.maskUVPolicy.vPolicy == rhs.maskUVPolicy.vPolicy &&
+            lhs.maskUVRotation == rhs.maskUVRotation &&
             Is_SameVec2(lhs.flowUVScale, rhs.flowUVScale) &&
             Is_SameVec2(lhs.flowUVOffset, rhs.flowUVOffset) &&
             Is_SameVec2(lhs.flowUVScrollSpeed, rhs.flowUVScrollSpeed) &&
             lhs.flowUVTilingMode == rhs.flowUVTilingMode &&
             lhs.flowUVPolicy.uPolicy == rhs.flowUVPolicy.uPolicy &&
             lhs.flowUVPolicy.vPolicy == rhs.flowUVPolicy.vPolicy &&
+            lhs.flowUVRotation == rhs.flowUVRotation &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&
@@ -2363,13 +2372,16 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
 
     if (ImGui::CollapsingHeader("파티클 생존 시간", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        const bool supportsLifetimeConstantCurve =
+            emitter.typeData.kind != AuthoringTypeDataKind::Trail &&
+            emitter.typeData.kind != AuthoringTypeDataKind::Ribbon;
         changed |= detailContext.Draw_FloatDistributionGroup(
             "파티클 생존 시간",
             data.lifeTime,
             defaultData.lifeTime,
             0.01f,
             true,
-            true,
+            supportsLifetimeConstantCurve,
             Find_AuthoringValueRange(module.type, "lifeTime"),
             "spawn window가 아니라 태어난 particle 개별 생존 시간입니다."
         );
@@ -2381,10 +2393,12 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
         }
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             ImGui::TextDisabled("Mesh ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
-        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
-                 emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
-                 emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
-            ImGui::TextDisabled("Trail/Ribbon/SourceHistorySpriteTrail ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Sprite Trail ConstantCurve: stamp 생성 시점의 현재 loop 진행률로 stamp lifetime을 한 번 샘플합니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+            ImGui::TextDisabled("Trail ConstantCurve: segment별 lifetime 저장이 없어 아직 비지원입니다. Constant/Uniform 수명은 계속 지원됩니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+            ImGui::TextDisabled("Ribbon ConstantCurve: sample별 lifetime 저장이 없어 아직 비지원입니다. Constant/Uniform 수명은 계속 지원됩니다.");
         else
             ImGui::TextDisabled("Sprite ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
     }
@@ -2752,7 +2766,7 @@ bool VelocityConeModuleDetail::Draw(
     return changed;
 }
 
-bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
+bool AccelerationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
 {
     const AccelerationModuleData defaultData{};
     bool changed = false;
@@ -2769,6 +2783,8 @@ bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Acceler
             nullptr,
             "매 frame 현재 속도에 누적되는 가속도 벡터입니다."
         );
+        if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Sprite Trail에서 Path Follow/Replay가 켜지면 path module이 stamp 중심 위치를 소유합니다.");
     }
 
     return changed;
@@ -3943,9 +3959,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 structureChanged = true;
                             }
                             else
-                            {
                                 modulator.targetField = nextSelection.vec2Target;
-                            }
                         }
                         if (!structureChanged)
                         {

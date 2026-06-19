@@ -467,11 +467,15 @@ namespace Client
         Waiting_LookAround_1,
         Waiting_LookAround_2,
 
+        Jump,
+        JumpCounter,
+
+        Hit_Weak
     };
 
     enum class BattleReactionType
     {
-        None, Parry, Dodge, QTE, END
+        None, Parry, Dodge, QTE, Jump, JumpCounter, END
     };
 
     enum class BattleQTEResult

@@ -7,6 +7,7 @@
 
 #include "BattleController.h"
 #include "ClientInstance.h"
+#include "MB_PotatoBag.h"
 
 NS_BEGIN(Client)
 
@@ -70,6 +71,25 @@ namespace BattleAnimUtils
                 return BattleAnimType::Base_Idle; // 태세 없음이면 기존 기본 idle
             }
         }
+
+        if (auto potato = dynamic_pointer_cast<MB_PotatoBag>(actor.actor))
+        {
+            switch (potato->Get_CurPhase())
+            {
+            case Monster_BattleBase::BattlePhase::Opening:
+                return BattleAnimType::Base_Idle;
+
+            case Monster_BattleBase::BattlePhase::Mid:
+                return BattleAnimType::Defensive_Idle;
+
+            case Monster_BattleBase::BattlePhase::Critical:
+                return BattleAnimType::Virtuose_Idle;
+
+            default:
+                return BattleAnimType::Base_Idle; 
+            }
+        }
+
 
         return BattleAnimType::Base_Idle; // 마엘이 아니면 기존 규칙 유지
     }

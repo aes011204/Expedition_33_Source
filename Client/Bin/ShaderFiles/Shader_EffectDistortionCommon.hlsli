@@ -62,28 +62,54 @@ float2 EffectDistortion_ComputeScreenOffset(float2 flow, float intensity)
 
 float EffectDistortion_ApplyAxisPolicy(float rawValue, float transformedValue, float policy)
 {
-    return policy >= 2.5f ? rawValue : transformedValue;
+    const int mode = (int)(policy + 0.5f);
+    float result = transformedValue;
+    if (mode == 3)
+        result = rawValue;
+    return result;
 }
 
-float EffectDistortion_ApplyAxisAddress(float value, float policy)
+float EffectDistortion_ApplyAxisAddressValue(float value, float policy)
 {
-    return policy >= 0.5f && policy < 2.5f ? saturate(value) : value;
+    const int mode = (int)(policy + 0.5f);
+    float result = frac(value);
+    if (mode == 1 || mode == 2)
+        result = saturate(value);
+    else if (mode == 3)
+        result = value;
+    else if (mode == 4)
+        result = 1.f - abs(frac(value * 0.5f) * 2.f - 1.f);
+    return result;
 }
 
-float2 EffectDistortion_BuildAxisSeparatedUV(float2 rawUV, float2 scale, float2 offset, float2 scrollSpeed, float materialTime, float2 policy)
+float2 EffectDistortion_RotateMaterialUV(float2 uv, float rotation)
 {
-    const float2 transformedUV = rawUV * scale + offset + scrollSpeed * materialTime;
+    const int mode = (int)(rotation + 0.5f);
+    float2 result = uv;
+    if (mode == 1)
+        result = float2(1.f - uv.y, uv.x);
+    else if (mode == 2)
+        result = 1.f - uv;
+    else if (mode == 3)
+        result = float2(uv.y, 1.f - uv.x);
+    return result;
+}
+
+float2 EffectDistortion_BuildAxisSeparatedUV(float2 rawUV, float2 scale, float2 offset, float2 scrollSpeed, float materialTime, float2 policy, float rotation)
+{
+    const float2 rotatedUV = EffectDistortion_RotateMaterialUV(rawUV, rotation);
+    const float2 transformedUV = rotatedUV * scale + offset + scrollSpeed * materialTime;
     return float2(
-        EffectDistortion_ApplyAxisPolicy(rawUV.x, transformedUV.x, policy.x),
-        EffectDistortion_ApplyAxisPolicy(rawUV.y, transformedUV.y, policy.y)
+        EffectDistortion_ApplyAxisPolicy(rotatedUV.x, transformedUV.x, policy.x),
+        EffectDistortion_ApplyAxisPolicy(rotatedUV.y, transformedUV.y, policy.y)
     );
 }
 
 float2 EffectDistortion_ApplyAxisSeparatedAddress(float2 uv, float2 policy)
 {
     return float2(
-        EffectDistortion_ApplyAxisAddress(uv.x, policy.x),
-        EffectDistortion_ApplyAxisAddress(uv.y, policy.y)
+        EffectDistortion_ApplyAxisAddressValue(uv.x, policy.x),
+        EffectDistortion_ApplyAxisAddressValue(uv.y, policy.y)
     );
 }
 

@@ -3,6 +3,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor authoring document와 .effect.json schema 사이의 변환을 담당한다.
 class EffectAuthoringJsonSerializer final
 {
 public:

@@ -9,13 +9,14 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+// scene object 선택과 effect authoring 선택 상태를 editor 전역 context로 보관한다.
 class Editor_Context final : public Base
 {
 public:
     Editor_Context() = default;
     ~Editor_Context() override;
 
-public:
+public: //## Accessors
     const EditorSelection& Get_Selection() const { return _selection; }
     const EffectAuthoringSelection& Get_EffectSelection() const { return _effectSelection; }
 
@@ -31,7 +32,7 @@ public:
     uint32 Get_SelectionRevision() const { return _selectionRevision; }
     uint32 Get_EffectSelectionRevision() const { return _effectSelectionRevision; }
 
-private:
+private: //## Data::Selection
     EditorSelection _selection{};
     EffectAuthoringSelection _effectSelection{};
     EditorFocusRequest _focusRequest{};
