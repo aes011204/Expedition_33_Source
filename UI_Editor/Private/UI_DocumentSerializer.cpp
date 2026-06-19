@@ -106,6 +106,10 @@ namespace UIEditor
         {
             switch (imageRenderMode)
             {
+            case UI_ImageRenderMode::ButtonSheen:
+                return "ButtonSheen";
+            case UI_ImageRenderMode::MaterialVfx:
+                return "MaterialVfx";
             case UI_ImageRenderMode::PatternOverlay:
                 return "PatternOverlay";
             case UI_ImageRenderMode::Normal:
@@ -120,8 +124,34 @@ namespace UIEditor
 
             if ("patternoverlay" == mode || "pattern_overlay" == mode || "pattern overlay" == mode)
                 return UI_ImageRenderMode::PatternOverlay;
+            if ("materialvfx" == mode || "material_vfx" == mode || "material vfx" == mode)
+                return UI_ImageRenderMode::MaterialVfx;
+            if ("buttonsheen" == mode || "button_sheen" == mode || "button sheen" == mode)
+                return UI_ImageRenderMode::ButtonSheen;
 
             return UI_ImageRenderMode::Normal;
+        }
+
+        const char* Get_MaterialVfxModeName(UI_MaterialVfxMode materialVfxMode)
+        {
+            switch (materialVfxMode)
+            {
+            case UI_MaterialVfxMode::BrushFlow:
+                return "BrushFlow";
+            case UI_MaterialVfxMode::Energy:
+            default:
+                return "Energy";
+            }
+        }
+
+        UI_MaterialVfxMode Parse_MaterialVfxMode(const string& modeName)
+        {
+            const string mode = String::ToLowerCopy(modeName);
+
+            if ("brushflow" == mode || "brush_flow" == mode || "brush flow" == mode)
+                return UI_MaterialVfxMode::BrushFlow;
+
+            return UI_MaterialVfxMode::Energy;
         }
 
         const char* Get_MaskTextureModeName(UI_MaskTextureMode maskTextureMode)
@@ -329,6 +359,101 @@ namespace UIEditor
                 ColorFloatToByte(value.z),
                 ColorFloatToByte(value.w)
             });
+        }
+
+        json Vec2Float_ToJson(const ImVec2& value)
+        {
+            return json::array({ value.x, value.y });
+        }
+
+        UI_MaterialVfxDesc Read_MaterialVfxDesc(const json& item)
+        {
+            UI_MaterialVfxDesc materialVfx = Get_DefaultMaterialVfxDesc();
+            const auto iter = item.find("materialVfx");
+            if (iter == item.end() || !iter->is_object())
+                return materialVfx;
+
+            materialVfx.mode = Parse_MaterialVfxMode(Read_String(*iter, "mode", Get_MaterialVfxModeName(materialVfx.mode)));
+            materialVfx.noiseTextureGuid = Read_String(*iter, "noiseTextureGuid", materialVfx.noiseTextureGuid);
+            materialVfx.noiseTexturePath = Read_String(*iter, "noiseTexturePath", materialVfx.noiseTexturePath);
+            materialVfx.color = Read_Color(*iter, "color", materialVfx.color);
+            materialVfx.coreColor = Read_Color(*iter, "coreColor", materialVfx.coreColor);
+            materialVfx.flowColor = Read_Color(*iter, "flowColor", materialVfx.flowColor);
+            materialVfx.glow = Clamp_MaterialVfxGlow(Read_Float(*iter, "glow", materialVfx.glow));
+            materialVfx.alpha = Clamp_MaterialVfxAlpha(Read_Float(*iter, "alpha", materialVfx.alpha));
+            materialVfx.coreStrength = Clamp_MaterialVfxCoreStrength(Read_Float(*iter, "coreStrength", materialVfx.coreStrength));
+            materialVfx.coreWidth = Clamp_MaterialVfxCoreWidth(Read_Float(*iter, "coreWidth", materialVfx.coreWidth));
+            materialVfx.coreSoftness = Clamp_MaterialVfxCoreSoftness(Read_Float(*iter, "coreSoftness", materialVfx.coreSoftness));
+            materialVfx.noiseStrength = Clamp_MaterialVfxNoiseStrength(Read_Float(*iter, "noiseStrength", materialVfx.noiseStrength));
+            materialVfx.uvScroll = Read_Vec2(*iter, "uvScroll", materialVfx.uvScroll);
+            materialVfx.edgeWidth = Clamp_MaterialVfxEdgeWidth(Read_Float(*iter, "edgeWidth", materialVfx.edgeWidth));
+            materialVfx.edgeSoftness = Clamp_MaterialVfxEdgeSoftness(Read_Float(*iter, "edgeSoftness", materialVfx.edgeSoftness));
+            materialVfx.erosion = Clamp_MaterialVfxErosion(Read_Float(*iter, "erosion", materialVfx.erosion));
+            materialVfx.flicker = Clamp_MaterialVfxFlicker(Read_Float(*iter, "flicker", materialVfx.flicker));
+            materialVfx.distortion = Clamp_MaterialVfxDistortion(Read_Float(*iter, "distortion", materialVfx.distortion));
+            materialVfx.edgeWobbleSpeed = Clamp_MaterialVfxEdgeWobbleSpeed(Read_Float(*iter, "edgeWobbleSpeed", materialVfx.edgeWobbleSpeed));
+            return materialVfx;
+        }
+
+        json MaterialVfxDesc_ToJson(const UI_MaterialVfxDesc& materialVfx)
+        {
+            json item = {};
+            item["mode"] = Get_MaterialVfxModeName(materialVfx.mode);
+            if (!materialVfx.noiseTextureGuid.empty())
+                item["noiseTextureGuid"] = materialVfx.noiseTextureGuid;
+            if (!materialVfx.noiseTexturePath.empty())
+                item["noiseTexturePath"] = materialVfx.noiseTexturePath;
+            item["color"] = Color_ToJson(materialVfx.color);
+            item["coreColor"] = Color_ToJson(materialVfx.coreColor);
+            if (!NearlyEqual(materialVfx.flowColor.x, 1.f) ||
+                !NearlyEqual(materialVfx.flowColor.y, 1.f) ||
+                !NearlyEqual(materialVfx.flowColor.z, 1.f) ||
+                !NearlyEqual(materialVfx.flowColor.w, 0.f))
+            {
+                item["flowColor"] = Color_ToJson(materialVfx.flowColor);
+            }
+            item["glow"] = Clamp_MaterialVfxGlow(materialVfx.glow);
+            item["alpha"] = Clamp_MaterialVfxAlpha(materialVfx.alpha);
+            item["coreStrength"] = Clamp_MaterialVfxCoreStrength(materialVfx.coreStrength);
+            item["coreWidth"] = Clamp_MaterialVfxCoreWidth(materialVfx.coreWidth);
+            item["coreSoftness"] = Clamp_MaterialVfxCoreSoftness(materialVfx.coreSoftness);
+            item["noiseStrength"] = Clamp_MaterialVfxNoiseStrength(materialVfx.noiseStrength);
+            item["uvScroll"] = Vec2Float_ToJson(materialVfx.uvScroll);
+            item["edgeWidth"] = Clamp_MaterialVfxEdgeWidth(materialVfx.edgeWidth);
+            item["edgeSoftness"] = Clamp_MaterialVfxEdgeSoftness(materialVfx.edgeSoftness);
+            item["erosion"] = Clamp_MaterialVfxErosion(materialVfx.erosion);
+            item["flicker"] = Clamp_MaterialVfxFlicker(materialVfx.flicker);
+            item["distortion"] = Clamp_MaterialVfxDistortion(materialVfx.distortion);
+            item["edgeWobbleSpeed"] = Clamp_MaterialVfxEdgeWobbleSpeed(materialVfx.edgeWobbleSpeed);
+            return item;
+        }
+
+        UI_ButtonSheenDesc Read_ButtonSheenDesc(const json& item)
+        {
+            UI_ButtonSheenDesc buttonSheen = Get_DefaultButtonSheenDesc();
+            const auto iter = item.find("buttonSheen");
+            if (iter == item.end() || !iter->is_object())
+                return buttonSheen;
+
+            buttonSheen.color = Read_Color(*iter, "color", buttonSheen.color);
+            buttonSheen.speed = Clamp_ButtonSheenSpeed(Read_Float(*iter, "speed", buttonSheen.speed));
+            buttonSheen.width = Clamp_ButtonSheenWidth(Read_Float(*iter, "width", buttonSheen.width));
+            buttonSheen.softness = Clamp_ButtonSheenSoftness(Read_Float(*iter, "softness", buttonSheen.softness));
+            buttonSheen.angle = Clamp_ButtonSheenAngle(Read_Float(*iter, "angle", buttonSheen.angle));
+            buttonSheen.noiseStrength = Clamp_ButtonSheenNoiseStrength(Read_Float(*iter, "noiseStrength", buttonSheen.noiseStrength));
+            return buttonSheen;
+        }
+
+        json ButtonSheenDesc_ToJson(const UI_ButtonSheenDesc& buttonSheen)
+        {
+            json item = {};
+            item["color"] = Color_ToJson(buttonSheen.color);
+            item["speed"] = Clamp_ButtonSheenSpeed(buttonSheen.speed);
+            item["width"] = Clamp_ButtonSheenWidth(buttonSheen.width);
+            item["softness"] = Clamp_ButtonSheenSoftness(buttonSheen.softness);
+            item["angle"] = Clamp_ButtonSheenAngle(buttonSheen.angle);
+            item["noiseStrength"] = Clamp_ButtonSheenNoiseStrength(buttonSheen.noiseStrength);
+            return item;
         }
 
         float Read_RotationRadians(const json& item)
@@ -638,6 +763,10 @@ namespace UIEditor
                 item["patternUvOffset"] = Vec2_ToJson(object.patternUvOffset);
             if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !NearlyEqual(object.patternUvScale, Get_DefaultPatternUvScale()))
                 item["patternUvScale"] = Vec2_ToJson(object.patternUvScale);
+            if (object.imageRenderMode == UI_ImageRenderMode::MaterialVfx)
+                item["materialVfx"] = MaterialVfxDesc_ToJson(object.materialVfx);
+            if (object.imageRenderMode == UI_ImageRenderMode::ButtonSheen)
+                item["buttonSheen"] = ButtonSheenDesc_ToJson(object.buttonSheen);
             if (object.useFillRatio)
                 item["useFillRatio"] = true;
             if (object.useFillRatio && !NearlyEqual(object.fillRatio, Get_DefaultFillRatio()))
@@ -743,6 +872,8 @@ namespace UIEditor
             object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
             object.patternUvOffset = Clamp_PatternUvOffset(Read_Vec2(item, "patternUvOffset", Get_DefaultPatternUvOffset()));
             object.patternUvScale = Clamp_PatternUvScale(Read_Vec2(item, "patternUvScale", Get_DefaultPatternUvScale()));
+            object.materialVfx = Read_MaterialVfxDesc(item);
+            object.buttonSheen = Read_ButtonSheenDesc(item);
             object.useFillRatio = Read_Bool(item, "useFillRatio", false);
             object.fillRatio = Clamp_FillRatio(Read_Float(item, "fillRatio", Get_DefaultFillRatio()));
             object.fillOrigin = Parse_FillOrigin(Read_String(item, "fillOrigin", Get_FillOriginName(Get_DefaultFillOrigin())));

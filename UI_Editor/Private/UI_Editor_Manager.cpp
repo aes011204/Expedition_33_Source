@@ -15,11 +15,34 @@ namespace UIEditor
 {
     namespace
     {
+        constexpr const char* kHoverBrushFlowName = "Hover_PaintSlashFlow";
+        constexpr const char* kHoverBrushFlowTexturePath = "../Bin/Resources/Textures/UI/Common/Paint/T_Generic_PaintSlash_Text_Variation3.png";
+
         string Normalize_PathForCompare(const string& path)
         {
             string normalizedPath = String::ToLowerCopy(path);
             replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
             return normalizedPath;
+        }
+
+        bool Starts_With(const string& value, const string& prefix)
+        {
+            return value.size() >= prefix.size() && equal(prefix.begin(), prefix.end(), value.begin());
+        }
+
+        ObjectId Find_GeneratedChildByName(const UI_Document& document, ObjectId parentId, const string& baseName)
+        {
+            const string generatedPrefix = baseName + "_";
+            for (const UI_Object& object : document.Get_Objects())
+            {
+                if (object.parentId != parentId)
+                    continue;
+
+                if (object.name == baseName || Starts_With(object.name, generatedPrefix))
+                    return object.id;
+            }
+
+            return 0;
         }
 
     }
@@ -203,6 +226,18 @@ namespace UIEditor
         const PatternOverlayPreviewDesc& previewDesc)
     {
         return _previewService.Get_PatternOverlayPreviewSRV(previewDesc);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_MaterialVfxPreviewSRV(
+        const MaterialVfxPreviewDesc& previewDesc)
+    {
+        return _previewService.Get_MaterialVfxPreviewSRV(previewDesc);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_ButtonSheenPreviewSRV(
+        const ButtonSheenPreviewDesc& previewDesc)
+    {
+        return _previewService.Get_ButtonSheenPreviewSRV(previewDesc);
     }
 
     void UI_Editor_Manager::Render_DockSpace()
@@ -552,6 +587,7 @@ namespace UIEditor
                 resolveTextureGuid(object.textureGuid, object.texturePath, "image");
                 resolveTextureGuid(object.maskTextureGuid, object.maskTexturePath, "mask");
                 resolveTextureGuid(object.patternMaskTextureGuid, object.patternMaskTexturePath, "pattern mask");
+                resolveTextureGuid(object.materialVfx.noiseTextureGuid, object.materialVfx.noiseTexturePath, "material vfx noise");
             }
             else if (object.type == UI_ObjectType::Text)
             {
@@ -721,6 +757,137 @@ namespace UIEditor
         *overlayObject = overlay;
 
         Set_SingleSelection(overlayObjectId);
+        Clear_RuntimeCaches();
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Create_HoverBrushPreset(ObjectId targetObjectId, bool allowStateAnimationOverwrite)
+    {
+        UNREFERENCED_PARAMETER(allowStateAnimationOverwrite);
+
+        const UI_Object* targetObject = static_cast<const UI_Document&>(_document).Find_Object(targetObjectId);
+        if (nullptr == targetObject || !Is_ContainerObjectType(targetObject->type))
+            return false;
+
+        if (Is_ObjectEffectivelyLocked(targetObjectId))
+            return false;
+
+        const ObjectId flowObjectId = Find_GeneratedChildByName(_document, targetObjectId, kHoverBrushFlowName);
+        if (flowObjectId != 0 && Is_ObjectEffectivelyLocked(flowObjectId))
+            return false;
+
+        const string flowName = flowObjectId != 0
+            ? static_cast<const UI_Document&>(_document).Find_Object(flowObjectId)->name
+            : _document.Generate_UniqueName(kHoverBrushFlowName);
+
+        Push_UndoSnapshot();
+
+        targetObject = static_cast<const UI_Document&>(_document).Find_Object(targetObjectId);
+        if (nullptr == targetObject)
+            return false;
+
+        const ImVec2 targetSize = ImVec2(max(1.f, targetObject->size.x), max(1.f, targetObject->size.y));
+        const ImVec2 targetCenter = ImVec2(targetSize.x * 0.5f, targetSize.y * 0.5f);
+        const UI_RenderGroup targetRenderGroup = targetObject->renderGroup;
+
+        int32 minChildSortOrder = numeric_limits<int32>::max();
+        for (const UI_Object& object : _document.Get_Objects())
+        {
+            if (object.parentId != targetObjectId)
+                continue;
+
+            minChildSortOrder = min(minChildSortOrder, object.sortOrder);
+        }
+
+        if (minChildSortOrder == numeric_limits<int32>::max())
+            minChildSortOrder = targetObject->sortOrder;
+
+        const int32 flowSortOrder = minChildSortOrder - 1;
+
+        auto configureHoverBrushImage = [&](ObjectId objectId, const string& objectName, const ImVec2& size, int32 sortOrder) -> ObjectId
+        {
+            ObjectId resolvedObjectId = objectId;
+            if (resolvedObjectId == 0)
+                resolvedObjectId = UI_DocumentInternalAccess::Create_Object(_document, UI_ObjectType::Image, targetObjectId);
+
+            UI_Object* object = UI_DocumentInternalAccess::Find_Object(_document, resolvedObjectId);
+            if (nullptr == object)
+                return 0;
+
+            object->parentId = targetObjectId;
+            object->name = objectName;
+            object->type = UI_ObjectType::Image;
+            object->position = targetCenter;
+            object->size = size;
+            object->scale = ImVec2(1.f, 1.f);
+            object->rotationRadians = 0.f;
+            object->pivot = ImVec2(0.5f, 0.5f);
+            object->anchorMin = ImVec2(0.f, 0.f);
+            object->anchorMax = ImVec2(0.f, 0.f);
+            object->color = ImVec4(1.f, 1.f, 1.f, 1.f);
+            object->alphaMultiplier = 1.f;
+            object->visible = true;
+            object->locked = false;
+            object->sortOrder = sortOrder;
+            object->renderGroup = targetRenderGroup;
+            object->textureGuid.clear();
+            object->texturePath = kHoverBrushFlowTexturePath;
+            object->imageRenderMode = UI_ImageRenderMode::MaterialVfx;
+            object->maskTextureGuid.clear();
+            object->maskTexturePath.clear();
+            object->maskTextureMode = UI_MaskTextureMode::Alpha;
+            object->patternMaskTextureGuid.clear();
+            object->patternMaskTexturePath.clear();
+            object->patternUvOffset = Get_DefaultPatternUvOffset();
+            object->patternUvScale = Get_DefaultPatternUvScale();
+            object->materialVfx = Get_DefaultMaterialVfxDesc();
+            object->materialVfx.mode = UI_MaterialVfxMode::BrushFlow;
+            object->materialVfx.color = ImVec4(0.025f, 0.021f, 0.018f, 0.92f);
+            object->materialVfx.coreColor = ImVec4(0.42f, 0.18f, 0.055f, 0.58f);
+            object->materialVfx.glow = 0.65f;
+            object->materialVfx.alpha = 1.f;
+            object->materialVfx.coreStrength = 0.9f;
+            object->materialVfx.coreWidth = 0.09f;
+            object->materialVfx.coreSoftness = 0.1f;
+            object->materialVfx.noiseStrength = 0.82f;
+            object->materialVfx.uvScroll = ImVec2(0.48f, 0.08f);
+            object->materialVfx.edgeWidth = 0.3f;
+            object->materialVfx.edgeSoftness = 0.18f;
+            object->materialVfx.erosion = 0.13f;
+            object->materialVfx.flicker = 0.28f;
+            object->materialVfx.distortion = 0.044f;
+            object->materialVfx.edgeWobbleSpeed = 2.85f;
+            object->buttonSheen = Get_DefaultButtonSheenDesc();
+            object->useFillRatio = false;
+            object->fillRatio = Get_DefaultFillRatio();
+            object->fillOrigin = Get_DefaultFillOrigin();
+            object->vfxPath.clear();
+            object->vfxPlayOnOpen = true;
+            object->vfxLoop = false;
+            object->vfxStopOnClose = true;
+            object->stateAnimationPath.clear();
+            object->animationClips.clear();
+
+            return resolvedObjectId;
+        };
+
+        const ImVec2 flowSize = ImVec2(
+            max(targetSize.x + 88.f, targetSize.x * 1.26f),
+            max(targetSize.y + 28.f, targetSize.y * 1.5f));
+
+        const ObjectId resolvedFlowId = configureHoverBrushImage(
+            flowObjectId,
+            flowName,
+            flowSize,
+            flowSortOrder);
+
+        if (resolvedFlowId == 0)
+            return false;
+
+        Set_SingleSelection(targetObjectId);
+        Resolve_LoadedAssetReferences();
+        Refresh_AnimationTargetBindings();
         Clear_RuntimeCaches();
         Mark_Dirty();
         return true;

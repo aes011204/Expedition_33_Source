@@ -55,6 +55,10 @@ namespace UIEditor
         bool Set_ObjectFillRatio(UI_Document& document, ObjectId objectId, float fillRatio) const;
         bool Can_SetObjectFillOrigin(const UI_Document& document, ObjectId objectId, UI_FillOrigin fillOrigin) const;
         bool Set_ObjectFillOrigin(UI_Document& document, ObjectId objectId, UI_FillOrigin fillOrigin) const;
+        bool Can_SetObjectMaterialVfx(const UI_Document& document, ObjectId objectId, const UI_MaterialVfxDesc& materialVfx) const;
+        bool Set_ObjectMaterialVfx(UI_Document& document, ObjectId objectId, const UI_MaterialVfxDesc& materialVfx) const;
+        bool Can_SetObjectButtonSheen(const UI_Document& document, ObjectId objectId, const UI_ButtonSheenDesc& buttonSheen) const;
+        bool Set_ObjectButtonSheen(UI_Document& document, ObjectId objectId, const UI_ButtonSheenDesc& buttonSheen) const;
 
         bool Can_SetObjectVfxPath(const UI_Document& document, ObjectId objectId, const string& vfxPath) const;
         bool Set_ObjectVfxPath(UI_Document& document, ObjectId objectId, const string& vfxPath) const;
