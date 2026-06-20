@@ -25,9 +25,7 @@ public:
     BoundingBox&        Get_OriginAABB() { return _originAABB;}
     const BoundingBox&  Get_AABB() const { return _aabb; }
 
-#ifdef _DEBUG
     HRESULT Render_Debug(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch, Color color) override;
-#endif
 
 
 private:

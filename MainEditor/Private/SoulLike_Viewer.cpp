@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "SoulLike_Viewer.h"
 
 #include "CombatStatCom.h"
@@ -12,7 +12,6 @@
 #include "TransformCom.h"
 #include "TypeRegistry.h"
 
-#include <algorithm>
 #include <cctype>
 
 NS_BEGIN(MainEditor)
