@@ -185,13 +185,13 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 			body->Get_Model()->Add_AnimModifier(armbandModifier);
 		}
 
-		PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
-		ChainModifierPreset::BuildPoseFollowCoatDesc(
+		ChainModifier::ChainModifierDesc coatDesc{};
+		ChainModifierPreset::BuildCoatDesc(
 			coatDesc,
 			Get_Transform().get(),
 			PlayerCharacterType::Maelle);
 
-		if (auto coatModifier = PoseFollowChainModifier::Create(&coatDesc))
+		if (auto coatModifier = ChainModifier::Create(&coatDesc))
 		{
 			body->Get_Model()->Add_AnimModifier(coatModifier);
 		}

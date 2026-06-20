@@ -788,6 +788,7 @@ Shared<Hair_Player> Player_WorldBase::Create_CostumeHairVariant(const wstring& m
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.usePoseFollowModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(

@@ -196,13 +196,13 @@ HRESULT PW_Gustave::Ready_BodyModifiers(Body_Player* body)
             }
         }
 
-        PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
-        ChainModifierPreset::BuildPoseFollowCoatDesc(
+        ChainModifier::ChainModifierDesc coatDesc{};
+        ChainModifierPreset::BuildCoatDesc(
             coatDesc,
             Get_Transform().get(),
             PlayerCharacterType::Gustave);
 
-        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
+        if (auto modifier = ChainModifier::Create(&coatDesc))
         {
             body->Get_Model()->Add_AnimModifier(modifier);
         }

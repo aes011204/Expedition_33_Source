@@ -9,6 +9,7 @@
 #include "AnimComputeRuntime.h"
 #include "EffectCom.h"
 #include "PoseFollowChainModifier.h"
+#include "ChainModifier.h"
 #include "ChainModifierPreset.h"
 
 namespace
@@ -97,15 +98,15 @@ void Hair_Player::Update(float timeDelta)
             if (const Shared<GameObject> owner = Get_Owner())
                 ownerTransform = owner->Get_Transform();
 
-            PoseFollowChainModifier::PoseFollowChainModifierDesc hairDesc{};
-            ChainModifierPreset::BuildPoseFollowHairDesc(
+            ChainModifier::ChainModifierDesc hairDesc{};
+            ChainModifierPreset::BuildBindPoseHairDesc(
                 hairDesc,
                 ownerTransform.get(),
                 ToPlayerCharacterType(_hairPhysicsDesc.profile));
 
             if (!hairDesc.groups.empty())
             {
-                if (auto modifier = PoseFollowChainModifier::Create(&hairDesc))
+                if (auto modifier = ChainModifier::Create(&hairDesc))
                 {
                     _modelCom->Add_AnimModifier(modifier);
                     _hairPoseFollowModifierReady = true;

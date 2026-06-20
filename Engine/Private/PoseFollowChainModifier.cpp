@@ -417,6 +417,7 @@ const ClassReflectionInfo* PoseFollowChainModifier::Get_RuntimeReflectionInfo() 
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableCollision", "Collision", PoseFollowOffset(&PoseFollowChainModifierDesc::enableCollision));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "particleCollisionRadius", "Col Radius", PoseFollowOffset(&PoseFollowChainModifierDesc::particleCollisionRadius), 0.01f, 0.f, 100.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionRadiusPadding", "Col Pad", PoseFollowOffset(&PoseFollowChainModifierDesc::collisionRadiusPadding), 0.01f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "debugDrawCapsules", "Debug Col", PoseFollowOffset(&PoseFollowChainModifierDesc::debugDrawCapsules));
 
 			AddRuntimeProperty(result.properties, PropertyType::Vec3, "windDirection", "Wind Dir", PoseFollowOffset(&PoseFollowChainModifierDesc::windDirection), 0.01f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "windScale", "Wind", PoseFollowOffset(&PoseFollowChainModifierDesc::windScale), 0.001f, 0.f, 10.f);
@@ -445,6 +446,7 @@ const ClassReflectionInfo* PoseFollowChainModifier::Get_RuntimeReflectionInfo() 
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleSettleStrength", "Idle Settle", PoseFollowOffset(&PoseFollowChainModifierDesc::idleSettleStrength), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "sleepVelocityThreshold", "Sleep Vel", PoseFollowOffset(&PoseFollowChainModifierDesc::sleepVelocityThreshold), 0.001f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "sleepPoseDistance", "Sleep Dist", PoseFollowOffset(&PoseFollowChainModifierDesc::sleepPoseDistance), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "solverIterations", "Solver Iter", PoseFollowOffset(&PoseFollowChainModifierDesc::solverIterations), 1.f, 1.f, 32.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "targetFrameRate", "Target FPS", PoseFollowOffset(&PoseFollowChainModifierDesc::targetFrameRate), 1.f, 0.f, 240.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "resetDistance", "Reset Dist", PoseFollowOffset(&PoseFollowChainModifierDesc::resetDistance), 0.05f, 0.f, 100.f);
 
@@ -514,6 +516,54 @@ void PoseFollowChainModifier::Set_RuntimeGroupMultipliers(size_t groupIndex, con
 	chain.windMul = std::max(0.f, multipliers.x);
 	chain.motionMul = std::max(0.f, multipliers.y);
 	chain.followMul = std::max(0.f, multipliers.z);
+}
+
+void PoseFollowChainModifier::Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta)
+{
+	_runtimeTestOwnerMotionEnabled = enabled;
+	_runtimeTestOwnerMotionDelta = enabled ? delta : Vec3::Zero;
+}
+
+void PoseFollowChainModifier::Build_RuntimeDebugNodes(ModelCom* model, vector<RuntimeDebugNode>& outNodes) const
+{
+	outNodes.clear();
+	if (!model)
+	{
+		return;
+	}
+
+	size_t totalNodeCount = 0;
+	for (const auto& chain : _chains)
+	{
+		totalNodeCount += chain.nodes.size();
+	}
+	outNodes.reserve(totalNodeCount);
+
+	for (size_t groupIndex = 0; groupIndex < _chains.size(); ++groupIndex)
+	{
+		const auto& chain = _chains[groupIndex];
+		for (size_t nodeIndex = 0; nodeIndex < chain.nodes.size(); ++nodeIndex)
+		{
+			const auto& node = chain.nodes[nodeIndex];
+
+			RuntimeDebugNode debugNode{};
+			debugNode.groupIndex = groupIndex;
+			debugNode.nodeIndex = nodeIndex;
+			debugNode.parentNodeIndex = node.parentNodeIndex;
+			debugNode.boneIndex = node.boneIndex;
+			debugNode.boneName = model->Get_BoneName(node.boneIndex);
+			debugNode.posePosition = node.originalWorld.Translation();
+			const bool isRootNode = node.parentNodeIndex >= 0
+				&& chain.nodes[static_cast<size_t>(node.parentNodeIndex)].isVirtualAnchor;
+			debugNode.simulatedPosition = (node.isVirtualAnchor || isRootNode)
+				? debugNode.posePosition
+				: node.position;
+			debugNode.writeAlpha = node.debugWriteAlpha;
+			debugNode.isVirtualAnchor = node.isVirtualAnchor;
+			debugNode.isRootNode = node.debugIsRootNode || isRootNode;
+			outNodes.push_back(std::move(debugNode));
+		}
+	}
 }
 
 void PoseFollowChainModifier::RuntimeRebuild(ModelCom* model)
@@ -637,9 +687,11 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 
 			const float externalLength = externalOffset.Length();
 			const float maxExternalOffset = _desc.maxExternalOffset * movementWeight;
+			bool externalClamped = false;
 			if (externalLength > maxExternalOffset && externalLength > 0.0001f)
 			{
 				externalOffset *= maxExternalOffset / externalLength;
+				externalClamped = true;
 			}
 
 			Vec3 nextPosition = node.position + velocity + externalOffset;
@@ -702,6 +754,36 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 			if (_desc.enableCollision)
 			{
 				nextPosition = Resolve_Collision(node, worldCapsules, nextPosition, true);
+			}
+
+			if (externalClamped && poseWorldDir.LengthSquared() > 0.0001f)
+			{
+				const float followAlpha = std::clamp(
+					BlendTip(_desc.poseFollowStrength, _desc.poseFollowStrength * _desc.tipFollowScale, tipRatio) * chain.followMul,
+					0.f,
+					1.f);
+				const float shapeGuardRadius = std::max(0.0001f, std::max(_desc.maxExternalOffset, maxExternalOffset));
+				const float softGuardRadius = shapeGuardRadius * 0.65f;
+				Vec3 poseDeviation = nextPosition - poseTarget;
+				float poseDeviationLength = poseDeviation.Length();
+				if (poseDeviationLength > shapeGuardRadius && poseDeviationLength > 0.0001f)
+				{
+					const Vec3 guardedPosition = poseTarget + (poseDeviation / poseDeviationLength) * shapeGuardRadius;
+					const Vec3 guardCorrection = guardedPosition - nextPosition;
+					nextPosition = guardedPosition;
+					node.prevPosition += guardCorrection;
+					poseDeviation = nextPosition - poseTarget;
+					poseDeviationLength = poseDeviation.Length();
+				}
+
+				const float overGuardRatio = (shapeGuardRadius > softGuardRadius)
+					? std::clamp((poseDeviationLength - softGuardRadius) / (shapeGuardRadius - softGuardRadius), 0.f, 1.f)
+					: 1.f;
+				const float guardAlpha = SmoothStep(overGuardRatio);
+				const float windupBleedAlpha = std::clamp(followAlpha * std::lerp(0.25f, 0.75f, guardAlpha), 0.08f, 0.65f);
+				const float windupRecoverAlpha = std::clamp(followAlpha * std::lerp(0.05f, 0.35f, guardAlpha), 0.02f, 0.35f);
+				nextPosition = Vec3::Lerp(nextPosition, poseTarget, windupRecoverAlpha * guardAlpha);
+				node.prevPosition = Vec3::Lerp(node.prevPosition, nextPosition, windupBleedAlpha);
 			}
 
 			node.position = nextPosition;
@@ -820,6 +902,12 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 			return node.parentNodeIndex >= 0 && chain.nodes[node.parentNodeIndex].isVirtualAnchor;
 		};
 
+	for (auto& node : chain.nodes)
+	{
+		node.debugWriteAlpha = 0.f;
+		node.debugIsRootNode = isRootNode(node);
+	}
+
 	for (size_t i = 0; i < chain.nodes.size(); ++i)
 	{
 		auto& node = chain.nodes[i];
@@ -852,6 +940,7 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 
 		const Quaternion deltaRotation = Build_RotationDelta(childNode.poseLocalDir, simulatedLocalDir);
 		const float writeAlpha = outputAlpha * std::clamp(_desc.rootOutputAlpha, 0.f, 1.f);
+		node.debugWriteAlpha = writeAlpha;
 		if (writeAlpha <= 0.0001f)
 		{
 			model->Set_BoneLocalMatrix(node.boneIndex, node.poseLocal);
@@ -916,6 +1005,7 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 		const float writeAlpha = outputAlpha
 			* BlendTip(_desc.rootOutputAlpha, _desc.tipOutputAlpha, tipRatio)
 			* (idleNoWindPose ? std::clamp(_desc.idleOutputAlphaScale, 0.f, 1.f) : 1.f);
+		node.debugWriteAlpha = writeAlpha;
 		Vec3 targetLocalDir = Vec3::Lerp(node.poseLocalDir, simulatedLocalDir, writeAlpha);
 		if (targetLocalDir.LengthSquared() <= 0.0001f)
 		{
@@ -1131,6 +1221,10 @@ void PoseFollowChainModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
 	}
 
 	Vec3 ownerMotionDelta = currentOwnerPos - _prevOwnerPos;
+	if (_runtimeTestOwnerMotionEnabled)
+	{
+		ownerMotionDelta += _runtimeTestOwnerMotionDelta;
+	}
 	float ownerMotionLength = ownerMotionDelta.Length();
 	const float ownerRotationDeltaDegree = GetAngleDegree(_prevOwnerForward, currentOwnerForward);
 	if (ownerMotionLength > _desc.resetDistance)

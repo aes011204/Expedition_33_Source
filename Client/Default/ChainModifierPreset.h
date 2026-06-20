@@ -33,6 +33,17 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"PoseFollow_Hair");
 
+    static void BuildBindPoseHairDesc(
+        ChainModifier::ChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"BindPose_Hair");
+
+    static void BuildMaelleHairChainDesc(
+        ChainModifier::ChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        const wstring& modifierTag = L"ClothPhysics_MaelleHair");
+
     static void BuildAbbestClothDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
@@ -50,6 +61,12 @@ public:
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_Eveque_Leg");
+
+    static void BuildPotatoBagHairDesc(
+        ChainModifier::ChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"ClothPhysics_PotatoBagHair");
 
     static void BuildBackpackBandDesc(
         ChainModifier::ChainModifierDesc& outDesc,

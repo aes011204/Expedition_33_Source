@@ -38,6 +38,7 @@ public:
 		Vec3 position{ Vec3::Zero };
 		Vec3 prevPosition{ Vec3::Zero };
 		float length{ 0.01f };
+		float tipRatio{ 0.f };
 		bool isVirtualAnchor{ false };
 		bool isVirtualTip{ false };
 	};
@@ -82,6 +83,7 @@ public:
 			float rootOutputAlpha{ 1.f };                   // 루트 쪽 본 회전 출력 강도
 			float tipOutputAlpha{ 1.f };                    // 끝단 쪽 본 회전 출력 강도
 			bool pinRoot{ true };                           // 첫 번째 시뮬레이션 본의 위치를 부모 본에 핀(Pin)처럼 고정할지 여부
+			bool useBindPoseAsRest{ false };                // true면 매 프레임 애니메이션 pose가 아니라 초기 bind pose 방향/로컬을 복원 기준으로 사용
 		} shape{};
 
 		struct MotionSettings
