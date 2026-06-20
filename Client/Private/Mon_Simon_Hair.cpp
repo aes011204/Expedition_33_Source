@@ -1,6 +1,8 @@
-#include "Mon_Simon_Hair.h"
+﻿#include "Mon_Simon_Hair.h"
 
 #include "EffectCom.h"
+#include "ChainModifier.h"
+#include "ChainModifierPreset.h"
 
 NS_BEGIN(Client)
 
@@ -30,6 +32,28 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
     if (FAILED(Monster_Part::Initialize(desc)))
         return E_FAIL;
 
+    CHECK_FAILED(Ready_Modifier(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Mon_Simon_Hair::Ready_Modifier()
+{
+    ChainModifier::ChainModifierDesc hairDesc{};
+    ChainModifierPreset::BuildSimonHairDesc(
+        hairDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+    hairDesc.runtime.ownerWorldMatrix = &Get_CombinedWorldMatrix();
+
+    if (!hairDesc.groups.empty())
+    {
+        if (auto modifier = ChainModifier::Create(&hairDesc))
+        {
+            _model->Add_AnimModifier(modifier);
+        }
+    }
+
     return S_OK;
 }
 
@@ -42,6 +66,11 @@ void Mon_Simon_Hair::Update(float timeDelta)
 {
     if (_socketMatrix != nullptr)
         Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
+    else
+        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+    if (_model)
+        _model->Play_Animation(timeDelta);
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
@@ -65,7 +94,7 @@ HRESULT Mon_Simon_Hair::Render_Shadow()
 uint32 Mon_Simon_Hair::Decide_PassIndex(Shared<Material> mat)
 {
     UNREFERENCED_PARAMETER(mat);
-    return 0;
+    return mat->Get_PassIndex();
 }
 
 Shared<Mon_Simon_Hair> Mon_Simon_Hair::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -7,6 +7,21 @@ NS_BEGIN(Engine)
 class ENGINE_DLL ChainModifier final : public AnimationModifier
 {
 public:
+	struct BoneChain;
+
+	class PurseModifier
+	{
+	public:
+		void Prepare(const BoneChain& chain);
+		Vec3 Compute_RootMotionOffset(const BoneChain& chain, size_t nodeIndex) const;
+
+	private:
+		Matrix _currentAnchorWorld{ Matrix::Identity };
+		Matrix _previousAnchorWorld{ Matrix::Identity };
+		Matrix _currentAnchorInv{ Matrix::Identity };
+		bool _isPrepared{ false };
+	};
+
 	struct BoneChainGroupDesc
 	{
 		string rootBoneName{};              // 이 체인 그룹의 시뮬레이션을 시작할 첫 번째 본의 이름
@@ -56,6 +71,7 @@ public:
 		float windMul{ 1.f };
 		float dummyEndLength{ 0.f };
 		Vec3 rootRotationOffsetDegrees{ Vec3::Zero };
+		PurseModifier purseModifier{};
 	};
 
 	struct CapsuleColliderDesc
@@ -94,6 +110,9 @@ public:
 			float ownerMovementInertiaScale{ 0.f };         // 소유자 Transform 이동이 체인 움직임에 미치는 영향력
 			float tipMovementInertiaScale{ 1.f };           // 끝단으로 갈수록 적용할 이동 관성 배율
 			float maxMovementOffset{ 0.02f };               // 외부 요인에 의해 한 번에 이동할 수 있는 최대 거리 제한
+			bool removeOwnerMotionFromPoseInertia{ false }; // true면 movementInertiaScale 계산에서 소유자 월드 이동분을 제외
+			bool followOwnerTranslationInSimulation{ false }; // true면 소유자 직선 이동분만큼 시뮬레이션 상태도 함께 이동
+			bool usePurseModifier{ false };                 // true면 체인 루트/앵커 이동과 회전을 자식 노드 관성 입력으로 사용
 			uint32 solverIterations{ 2 };                   // 프레임당 물리 시뮬레이션 반복 계산 횟수 (높을수록 정밀해짐)
 		} motion{};
 
@@ -112,6 +131,7 @@ public:
 		{
 			float resetDistance{ 3.f };                     // 1프레임 내에 이 거리 이상 이동(텔레포트)하면 시뮬레이션을 초기화함
 			TransformCom *ownerTransform{ nullptr };        // 월드 공간 물리 시뮬레이션의 기준이 되는 소유자의 Transform 정보 (보통 캐릭터 Transform)
+			const Matrix *ownerWorldMatrix{ nullptr };       // 파츠/소켓 반영 월드 행렬이 별도로 있으면 ownerTransform보다 우선 사용
 			float targetFrameRate{ 0.f };                   // 0보다 크면 이 FPS 기준으로 최대 서브스텝 델타를 맞추도록 solver iteration을 보정
 			Vec3 gravity{ 0.f, -0.25f, 0.f };               // 매 서브스텝마다 적용되는 월드 공간 기준 중력
 			Vec3 windDirection{ Vec3::Zero };
@@ -137,13 +157,15 @@ private:
 	void Initialize_Chains(ModelCom *model);
 	void BuildChainRecursive(ModelCom *model, int32 currentBoneIndex, int32 parentNodeIndex, BoneChain &outChain, uint32 currentDepth, uint32 maxDepth);
 	void BuildBindLocalDirections(ModelCom *model, BoneChain &chain, const Matrix &ownerWorld);
+	Matrix Resolve_OwnerWorldMatrix() const;
 
 private:
 	void Capture_CurrentPose(ModelCom *model, const Matrix &ownerWorld);
 	void Capture_ReplacePose(ModelCom *model, BoneChain &chain, const Matrix &ownerWorld);
 	void Capture_AdditivePose(ModelCom *model, BoneChain &chain, const Matrix &ownerWorld);
 	void Update_PoseLocalDirections(BoneChain &chain);
-	void Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, const Vec3 &ownerMotionDelta, float movementWeight);
+	void Apply_OwnerTranslationToSimulation(const Vec3 &ownerDelta);
+	void Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, const Vec3 &ownerMotionDelta, const Vec3 &poseInertiaOwnerDelta, float movementWeight);
 	void Solve_SurfaceConstraints(const vector<WorldCapsule> &worldCapsules);
 	void Write_BackToModel(ModelCom *model, const Matrix &ownerWorld);
 	void Write_BackChain(ModelCom *model, BoneChain &chain);

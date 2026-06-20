@@ -298,6 +298,8 @@ void PoseFollowChainModifier::Initialize_Chains(ModelCom* model)
 		chain.windMul = groupDesc.windMul;
 		chain.motionMul = groupDesc.motionMul;
 		chain.followMul = groupDesc.followMul;
+		chain.rootOutputMul = groupDesc.rootOutputMul;
+		chain.tipOutputMul = groupDesc.tipOutputMul;
 
 		const int32 parentBoneIndex = model->Get_BoneParentIndex(rootBoneIndex);
 		if (parentBoneIndex != -1)
@@ -939,7 +941,9 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 		}
 
 		const Quaternion deltaRotation = Build_RotationDelta(childNode.poseLocalDir, simulatedLocalDir);
-		const float writeAlpha = outputAlpha * std::clamp(_desc.rootOutputAlpha, 0.f, 1.f);
+		const float writeAlpha = outputAlpha
+			* std::clamp(_desc.rootOutputAlpha, 0.f, 1.f)
+			* std::clamp(chain.rootOutputMul, 0.f, 1.f);
 		node.debugWriteAlpha = writeAlpha;
 		if (writeAlpha <= 0.0001f)
 		{
@@ -1003,7 +1007,10 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 			Vec3::Distance(node.originalWorld.Translation(), node.prevOriginalWorld.Translation()) <= animatedMotionDeadzone;
 		const bool idleNoWindPose = isOwnerIdle && idleAnimatedPose && _desc.windScale <= 0.f;
 		const float writeAlpha = outputAlpha
-			* BlendTip(_desc.rootOutputAlpha, _desc.tipOutputAlpha, tipRatio)
+			* BlendTip(
+				_desc.rootOutputAlpha * std::clamp(chain.rootOutputMul, 0.f, 1.f),
+				_desc.tipOutputAlpha * std::clamp(chain.tipOutputMul, 0.f, 1.f),
+				tipRatio)
 			* (idleNoWindPose ? std::clamp(_desc.idleOutputAlphaScale, 0.f, 1.f) : 1.f);
 		node.debugWriteAlpha = writeAlpha;
 		Vec3 targetLocalDir = Vec3::Lerp(node.poseLocalDir, simulatedLocalDir, writeAlpha);

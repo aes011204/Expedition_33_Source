@@ -5,6 +5,7 @@
 #include "Body_Player.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
+#include "ChainModifierPreset.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
@@ -183,13 +184,13 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 			body->Get_Model()->Add_AnimModifier(armbandModifier);
 		}
 
-		ChainModifier::ChainModifierDesc coatDesc{};
-		ChainModifierPreset::BuildCoatDesc(
+		PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+		ChainModifierPreset::BuildPoseFollowCoatDesc(
 			coatDesc,
 			Get_Transform().get(),
 			PlayerCharacterType::Maelle);
 
-		if (auto coatModifier = ChainModifier::Create(&coatDesc))
+		if (auto coatModifier = PoseFollowChainModifier::Create(&coatDesc))
 		{
 			body->Get_Model()->Add_AnimModifier(coatModifier);
 		}

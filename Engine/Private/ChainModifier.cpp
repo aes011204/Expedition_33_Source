@@ -266,6 +266,36 @@ namespace
 	}
 }
 
+void ChainModifier::PurseModifier::Prepare(const BoneChain &chain)
+{
+	_isPrepared = false;
+	if (chain.nodes.empty())
+	{
+		return;
+	}
+
+	const auto &anchorNode = chain.nodes.front();
+	_currentAnchorWorld = anchorNode.originalWorld;
+	_previousAnchorWorld = anchorNode.prevOriginalWorld;
+	_currentAnchorInv = _currentAnchorWorld.Invert();
+	_isPrepared = true;
+}
+
+Vec3 ChainModifier::PurseModifier::Compute_RootMotionOffset(const BoneChain &chain, size_t nodeIndex) const
+{
+	if (!_isPrepared || nodeIndex >= chain.nodes.size())
+	{
+		return Vec3::Zero;
+	}
+
+	const auto &node = chain.nodes[nodeIndex];
+	const Vec3 nodeAnchorLocal = Vec3::Transform(node.originalWorld.Translation(), _currentAnchorInv);
+	const Vec3 previousDrivenWorld = Vec3::Transform(nodeAnchorLocal, _previousAnchorWorld);
+	const Vec3 currentDrivenWorld = Vec3::Transform(nodeAnchorLocal, _currentAnchorWorld);
+
+	return previousDrivenWorld - currentDrivenWorld;
+}
+
 HRESULT ChainModifier::Initialize(AnimationModifierDesc *desc)
 {
 	if (FAILED(__super::Initialize(desc)))
@@ -421,10 +451,25 @@ void ChainModifier::BuildBindLocalDirections(ModelCom *model, BoneChain &chain, 
 	}
 }
 
+Matrix ChainModifier::Resolve_OwnerWorldMatrix() const
+{
+	if (_desc.runtime.ownerWorldMatrix)
+	{
+		return *_desc.runtime.ownerWorldMatrix;
+	}
+
+	if (_desc.runtime.ownerTransform)
+	{
+		return _desc.runtime.ownerTransform->Get_WorldMatrix();
+	}
+
+	return Matrix::Identity;
+}
+
 void ChainModifier::Initialize_Chains(ModelCom *model)
 {
 	_chains.clear();
-	Matrix ownerWorld = _desc.runtime.ownerTransform ? _desc.runtime.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	Matrix ownerWorld = Resolve_OwnerWorldMatrix();
 
 	for (const auto &groupDesc : _desc.groups)
 	{
@@ -483,7 +528,7 @@ void ChainModifier::Initialize_Chains(ModelCom *model)
 
 void ChainModifier::ResetPose(ModelCom *model)
 {
-	Matrix ownerWorld = _desc.runtime.ownerTransform ? _desc.runtime.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	Matrix ownerWorld = Resolve_OwnerWorldMatrix();
 
 	Capture_CurrentPose(model, ownerWorld);
 
@@ -525,6 +570,7 @@ const ClassReflectionInfo *ChainModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.ownerMovementInertiaScale", "Owner Inertia", ChainMotionOffset(&ChainModifierDesc::MotionSettings::ownerMovementInertiaScale), 0.005f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.tipMovementInertiaScale", "Tip Inertia", ChainMotionOffset(&ChainModifierDesc::MotionSettings::tipMovementInertiaScale), 0.01f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "motion.maxMovementOffset", "Move Limit", ChainMotionOffset(&ChainModifierDesc::MotionSettings::maxMovementOffset), 0.001f, 0.f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Bool, "motion.usePurseModifier", "Purse", ChainMotionOffset(&ChainModifierDesc::MotionSettings::usePurseModifier));
 
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "collision.enableCollision", "Collision", ChainCollisionOffset(&ChainModifierDesc::CollisionSettings::enableCollision));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collision.particleCollisionRadius", "Col Radius", ChainCollisionOffset(&ChainModifierDesc::CollisionSettings::particleCollisionRadius), 0.01f, 0.f, 100.f);
@@ -634,6 +680,28 @@ void ChainModifier::Capture_CurrentPose(ModelCom *model, const Matrix &ownerWorl
 		}
 
 		Update_PoseLocalDirections(chain);
+	}
+}
+
+void ChainModifier::Apply_OwnerTranslationToSimulation(const Vec3 &ownerDelta)
+{
+	if (!_desc.motion.followOwnerTranslationInSimulation || ownerDelta.LengthSquared() <= 0.000001f)
+	{
+		return;
+	}
+
+	for (auto &chain : _chains)
+	{
+		for (auto &node : chain.nodes)
+		{
+			if (node.isVirtualAnchor)
+			{
+				continue;
+			}
+
+			node.position += ownerDelta;
+			node.prevPosition += ownerDelta;
+		}
 	}
 }
 
@@ -751,7 +819,7 @@ void ChainModifier::Update_PoseLocalDirections(BoneChain &chain)
 	}
 }
 
-void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, const Vec3 &ownerMotionDelta, float movementWeight)
+void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix &ownerWorld, const Vec3 &ownerMotionDelta, const Vec3 &poseInertiaOwnerDelta, float movementWeight)
 {
 	const float delta = std::clamp(timeDelta, 0.f, 1.f / 30.f);
 	vector<WorldCapsule> worldCapsules = _desc.collision.enableCollision ? Update_WorldCapsule(model, &ownerWorld) : vector<WorldCapsule>{};
@@ -788,6 +856,10 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 		const float shapeStiffness = std::clamp(_desc.shape.stiffness * chain.stiffnessMul, 0.f, 1.f);
 		float curDamping = _desc.motion.damping * chain.dampingMul;
 		Vec3 curGravity = _desc.runtime.gravity * chain.gravityMul;
+		if (_desc.motion.usePurseModifier)
+		{
+			chain.purseModifier.Prepare(chain);
+		}
 
 		const auto isPinnedNode = [this, &chain](const BoneChainNode &node)
 			{
@@ -834,9 +906,23 @@ void ChainModifier::Solve_Verlet(ModelCom *model, float timeDelta, const Matrix 
 			Vec3 externalOffset = ComputeWindOffset(_desc, chain, node, i) * windTimeScale;
 			if (nodeMovementInertiaScale > 0.f)
 			{
-				externalOffset += -(node.originalWorld.Translation() - node.prevOriginalPosition) * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
+				Vec3 poseInertiaDelta = node.originalWorld.Translation() - node.prevOriginalPosition;
+				if (_desc.motion.removeOwnerMotionFromPoseInertia)
+				{
+					poseInertiaDelta -= poseInertiaOwnerDelta;
+				}
+				externalOffset += -poseInertiaDelta * nodeMovementInertiaScale * chain.movementInertiaMul * movementWeight;
 			}
-			if (_desc.motion.ownerMovementInertiaScale > 0.f && ownerMotionDelta.LengthSquared() > 0.000001f)
+			if (_desc.motion.usePurseModifier && _desc.motion.ownerMovementInertiaScale > 0.f)
+			{
+				const float purseTipScale = BlendTipScale(1.f, _desc.motion.tipMovementInertiaScale, tipRatio);
+				externalOffset += chain.purseModifier.Compute_RootMotionOffset(chain, i)
+					* _desc.motion.ownerMovementInertiaScale
+					* purseTipScale
+					* chain.movementInertiaMul
+					* movementWeight;
+			}
+			else if (_desc.motion.ownerMovementInertiaScale > 0.f && ownerMotionDelta.LengthSquared() > 0.000001f)
 			{
 				externalOffset += -ownerMotionDelta * _desc.motion.ownerMovementInertiaScale * chain.movementInertiaMul * movementWeight;
 			}
@@ -1585,7 +1671,7 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 		Initialize_Chains(model);
 	}
 
-	Matrix ownerWorld = _desc.runtime.ownerTransform ? _desc.runtime.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	Matrix ownerWorld = Resolve_OwnerWorldMatrix();
 	Vec3 currentOwnerPos = ownerWorld.Translation();
 
 	if (_isFirstUpdate)
@@ -1597,7 +1683,8 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 	}
 
 	const float ownerDistance = Vec3::Distance(_prevOwnerPos, currentOwnerPos);
-	Vec3 ownerMotionDelta = currentOwnerPos - _prevOwnerPos;
+	Vec3 poseInertiaOwnerDelta = currentOwnerPos - _prevOwnerPos;
+	Vec3 ownerMotionDelta = poseInertiaOwnerDelta;
 	if (_runtimeTestOwnerMotionEnabled)
 	{
 		ownerMotionDelta += _runtimeTestOwnerMotionDelta;
@@ -1606,11 +1693,13 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 	{
 		ResetPose(model);
 		ownerMotionDelta = Vec3::Zero;
+		poseInertiaOwnerDelta = Vec3::Zero;
 	}
 
 	_prevOwnerPos = currentOwnerPos;
 
 	Capture_CurrentPose(model, ownerWorld);
+	Apply_OwnerTranslationToSimulation(poseInertiaOwnerDelta);
 
 	uint32 solverIterations = std::max<uint32>(_desc.motion.solverIterations, 1);
 	if (_desc.runtime.targetFrameRate > 1.f)
@@ -1624,7 +1713,7 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 
 	for (uint32 i = 0; i < solverIterations; ++i)
 	{
-		Solve_Verlet(model, solverTimeDelta, ownerWorld, ownerMotionDelta, movementWeight);
+		Solve_Verlet(model, solverTimeDelta, ownerWorld, ownerMotionDelta, poseInertiaOwnerDelta, movementWeight);
 	}
 
 	Write_BackToModel(model, ownerWorld);

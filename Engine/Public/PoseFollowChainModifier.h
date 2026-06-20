@@ -14,6 +14,8 @@ public:
 		float windMul{ 1.f };
 		float motionMul{ 1.f };
 		float followMul{ 1.f };
+		float rootOutputMul{ 1.f };
+		float tipOutputMul{ 1.f };
 	};
 
 	struct PoseFollowChainModifierDesc : public AnimationModifierDesc
@@ -90,6 +92,8 @@ private:
 		float windMul{ 1.f };
 		float motionMul{ 1.f };
 		float followMul{ 1.f };
+		float rootOutputMul{ 1.f };
+		float tipOutputMul{ 1.f };
 	};
 
 	struct WorldCapsule

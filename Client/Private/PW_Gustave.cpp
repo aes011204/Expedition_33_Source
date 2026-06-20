@@ -5,6 +5,7 @@
 #include "Body_Player.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
+#include "ChainModifierPreset.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
@@ -194,13 +195,13 @@ HRESULT PW_Gustave::Ready_BodyModifiers(Body_Player* body)
             }
         }
 
-        ChainModifier::ChainModifierDesc coatDesc{};
-        ChainModifierPreset::BuildCoatDesc(
+        PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+        ChainModifierPreset::BuildPoseFollowCoatDesc(
             coatDesc,
             Get_Transform().get(),
             PlayerCharacterType::Gustave);
 
-        if (auto modifier = ChainModifier::Create(&coatDesc))
+        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
         {
             body->Get_Model()->Add_AnimModifier(modifier);
         }
