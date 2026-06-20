@@ -693,6 +693,14 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
             return false;
 
         const wstring pathKey = Normalize_PathKey(assetMeta.fullPath);
+        const auto currentGuidIter = _guidToMeta.find(assetMeta.guid);
+        const bool isNewRegistryAsset = currentGuidIter == _guidToMeta.end();
+        const bool isChangedRegistryAsset =
+            !isNewRegistryAsset &&
+            (currentGuidIter->second.fullPath != assetMeta.fullPath ||
+             currentGuidIter->second.relativePath != assetMeta.relativePath ||
+             currentGuidIter->second.type != assetMeta.type ||
+             currentGuidIter->second.modelType != assetMeta.modelType);
 
         if (const auto existing = _pathToGuid.find(pathKey);
             existing != _pathToGuid.end() && existing->second != assetMeta.guid)
@@ -700,6 +708,9 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
             _guidToMeta.erase(existing->second);
             _assetRegistryDirty = true;
         }
+
+        if (isNewRegistryAsset || isChangedRegistryAsset)
+            _assetRegistryDirty = true; // force scan에서 meta로 발견한 새/변경 에셋도 AssetRegistry.json 저장 대상으로 만든다.
 
         _guidToMeta[assetMeta.guid] = assetMeta;
         _pathToGuid[pathKey] = assetMeta.guid;

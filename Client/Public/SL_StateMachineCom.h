@@ -32,7 +32,10 @@ public:
     bool Request_Move(const SL_MoveRequest& request, float timeDelta);
     bool Request_BasicAttack();
     bool Request_Dodge(const SL_MoveRequest& request);
+    bool Request_Parry();
     bool Request_Skill(const Skill_Data& skillData, uint32 slotIndex);
+    bool Request_Jump();
+    bool Request_JumpCounter();
 
     void Notify_BasicAttackComboWindow(bool enabled);
 

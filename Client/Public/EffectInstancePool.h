@@ -31,6 +31,7 @@ public: //## Types::Public
         Vec3 worldPosition{ Vec3::Zero };                  // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
         Vec3 scale{ Vec3::One };                           // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
         Quat worldRotation{ Quat::Identity };              // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
+        float playbackSpeed{ 1.f };                        // acquire된 EffectInstance의 emitter 시간 진행 배율이다.
         [[deprecated("Use worldRotation quaternion instead.")]]
         Vec3 worldRotationEuler{ Vec3::Zero };                              // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{};             // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.

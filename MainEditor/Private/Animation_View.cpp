@@ -375,7 +375,7 @@ void Animation_View::Pre_Render()
 
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         Update_PreviewRootControllerStates(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
@@ -535,6 +535,13 @@ void Animation_View::Render()
         Draw_CreateNotifyPopup();
         Draw_CreateNotifyStatePopup();
         Draw_SequencerContextMenu();
+
+        if (_hasPendingNotifyUndoSnapshot &&
+            !ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+            !ImGui::IsAnyItemActive())
+        {
+            Commit_PendingNotifyUndo();
+        }
     }
 
     Set_Open(isOpen);
@@ -590,6 +597,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 
     Refresh_Source();
     Load_NotifyAsset();
@@ -627,6 +635,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 
     Refresh_Source();
     Rebuild_PreviewClone();
@@ -675,6 +684,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _sequencerSelectedRow = -1;
     _sequencerFirstFrame = 0;
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 }
 
 void Animation_View::Rebuild_PreviewClone()
@@ -1099,6 +1109,7 @@ void Animation_View::Draw_AnimationSelector()
                         _sequencerCurrentFrame = 0;
                         _sequencerSelectedRow = -1;
                         _sequencerFirstFrame = 0;
+                        Clear_NotifyUndoHistory();
 
                         Sync_PreviewAnimationSelection();
 
@@ -1425,8 +1436,14 @@ void Animation_View::Draw_PlaybackToolbar()
             ImGui::SameLine();
 
             ImGui::SetNextItemWidth(74.f);
+            const NotifyUndoSnapshot sectionStartUndoSnapshot = Capture_NotifyUndoSnapshot();
             if (ImGui::DragFloat("##SectionStartSec", &sectionStartSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
             {
+                if (!_hasPendingNotifyUndoSnapshot)
+                {
+                    _pendingNotifyUndoSnapshot = sectionStartUndoSnapshot;
+                    _hasPendingNotifyUndoSnapshot = true;
+                }
                 animationData->playSectionStartSec = std::clamp(sectionStartSec, 0.f, sectionLengthSec);
                 Clamp_PlaySection(animationData);
                 _isDirty = true;
@@ -1434,14 +1451,18 @@ void Animation_View::Draw_PlaybackToolbar()
                 if (!playbackModel->Is_AnimationPaused())
                     Play_CurrentSection(playbackModel);
             }
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                Commit_PendingNotifyUndo();
 
             ImGui::SameLine();
 
             if (ImGui::Button("Set##SectionStartSet"))
             {
+                const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
                 animationData->playSectionStartSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), 0.f, sectionLengthSec);
                 Clamp_PlaySection(animationData);
                 _isDirty = true;
+                Commit_NotifyUndoSnapshot(undoSnapshot);
 
                 if (!playbackModel->Is_AnimationPaused())
                     Play_CurrentSection(playbackModel);
@@ -1455,8 +1476,14 @@ void Animation_View::Draw_PlaybackToolbar()
             ImGui::SameLine();
 
             ImGui::SetNextItemWidth(74.f);
+            const NotifyUndoSnapshot sectionEndUndoSnapshot = Capture_NotifyUndoSnapshot();
             if (ImGui::DragFloat("##SectionEndSec", &sectionEndSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
             {
+                if (!_hasPendingNotifyUndoSnapshot)
+                {
+                    _pendingNotifyUndoSnapshot = sectionEndUndoSnapshot;
+                    _hasPendingNotifyUndoSnapshot = true;
+                }
                 animationData->playSectionEndSec = std::clamp(sectionEndSec, animationData->playSectionStartSec, sectionLengthSec);
                 Clamp_PlaySection(animationData);
                 _isDirty = true;
@@ -1464,14 +1491,18 @@ void Animation_View::Draw_PlaybackToolbar()
                 if (!playbackModel->Is_AnimationPaused())
                     Play_CurrentSection(playbackModel);
             }
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                Commit_PendingNotifyUndo();
 
             ImGui::SameLine();
 
             if (ImGui::Button("Set##SectionEndSet"))
             {
+                const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
                 animationData->playSectionEndSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), animationData->playSectionStartSec, sectionLengthSec);
                 Clamp_PlaySection(animationData);
                 _isDirty = true;
+                Commit_NotifyUndoSnapshot(undoSnapshot);
 
                 if (!playbackModel->Is_AnimationPaused())
                     Play_CurrentSection(playbackModel);
@@ -1718,12 +1749,50 @@ void Animation_View::Draw_SelectedDetail()
     if (AnimNotifyEventEntry* notify = Find_SelectedNotify())
     {
         if (notify->notify != nullptr)
-            Inspector::Draw_ReflectionSection("SelectedNotify", notify->notify.get(), notify->notify->Get_ReflectionInfo());
+        {
+            const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+            if (Inspector::Draw_ReflectionSection("SelectedNotify", notify->notify.get(), notify->notify->Get_ReflectionInfo()))
+            {
+                if (ImGui::IsAnyItemActive())
+                {
+                    if (!_hasPendingNotifyUndoSnapshot)
+                    {
+                        _pendingNotifyUndoSnapshot = undoSnapshot;
+                        _hasPendingNotifyUndoSnapshot = true;
+                    }
+                }
+                else
+                {
+                    Commit_NotifyUndoSnapshot(undoSnapshot);
+                }
+
+                _isDirty = true;
+            }
+        }
     }
     else if (AnimNotifyStateEntry* notifyState = Find_SelectedState())
     {
         if (notifyState->notifyState != nullptr)
-            Inspector::Draw_ReflectionSection("SelectedNotifyState", notifyState->notifyState.get(), notifyState->notifyState->Get_ReflectionInfo());
+        {
+            const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+            if (Inspector::Draw_ReflectionSection("SelectedNotifyState", notifyState->notifyState.get(), notifyState->notifyState->Get_ReflectionInfo()))
+            {
+                if (ImGui::IsAnyItemActive())
+                {
+                    if (!_hasPendingNotifyUndoSnapshot)
+                    {
+                        _pendingNotifyUndoSnapshot = undoSnapshot;
+                        _hasPendingNotifyUndoSnapshot = true;
+                    }
+                }
+                else
+                {
+                    Commit_NotifyUndoSnapshot(undoSnapshot);
+                }
+
+                _isDirty = true;
+            }
+        }
     }
     else if (playbackModel != nullptr && _selectedBoneIndex >= 0)
     {
@@ -2162,6 +2231,8 @@ void Animation_View::Add_NotifyTrack(const string& trackName)
     if (animationData == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     AnimNotifyTrackDesc trackDesc{};
     trackDesc.name = trackName.empty()
         ? "Notify"
@@ -2170,6 +2241,7 @@ void Animation_View::Add_NotifyTrack(const string& trackName)
     animationData->notifyTracks.push_back(trackDesc);
     _selectedNotifyTrackIndex = static_cast<int32>(animationData->notifyTracks.size()) - 1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_NotifyStateTrack(const string& trackName)
@@ -2177,6 +2249,8 @@ void Animation_View::Add_NotifyStateTrack(const string& trackName)
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr)
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     AnimNotifyTrackDesc trackDesc{};
     trackDesc.name = trackName.empty()
@@ -2186,6 +2260,7 @@ void Animation_View::Add_NotifyStateTrack(const string& trackName)
     animationData->notifyStateTracks.push_back(trackDesc);
     _selectedNotifyStateTrackIndex = static_cast<int32>(animationData->notifyStateTracks.size()) - 1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
@@ -2198,8 +2273,10 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
     if (notifyInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyTracks.empty())
-        Add_NotifyTrack("Notify");
+        animationData->notifyTracks.push_back({ "Notify" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
@@ -2219,6 +2296,7 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
     _selectedNotifyId = createdId;
     _selectedNotifyTrackIndex = std::clamp(_sequencerContextHasTrack && !_sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, const string& typeName)
@@ -2231,8 +2309,10 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
     if (notifyStateInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyStateTracks.empty())
-        Add_NotifyStateTrack("Notify State");
+        animationData->notifyStateTracks.push_back({ "Notify State" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 minFrame = min(startFrame, endFrame);
@@ -2251,6 +2331,7 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
     _selectedStateId = createdId;
     _selectedNotifyStateTrackIndex = std::clamp(_sequencerContextHasTrack && _sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Delete_SelectedNotify()
@@ -2258,6 +2339,8 @@ void Animation_View::Delete_SelectedNotify()
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr || _selectedNotifyIds.empty())
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     auto it = std::remove_if(
         animationData->notifies.begin(),
@@ -2272,6 +2355,7 @@ void Animation_View::Delete_SelectedNotify()
         animationData->notifies.erase(it, animationData->notifies.end());
         Clear_SelectedNotifySelection();
         _isDirty = true;
+        Commit_NotifyUndoSnapshot(undoSnapshot);
     }
 }
 
@@ -2280,6 +2364,8 @@ void Animation_View::Delete_SelectedState()
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr || _selectedStateId == -1)
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     auto it = std::remove_if(
         animationData->notifyStates.begin(),
@@ -2294,6 +2380,7 @@ void Animation_View::Delete_SelectedState()
         animationData->notifyStates.erase(it, animationData->notifyStates.end());
         _selectedStateId = -1;
         _isDirty = true;
+        Commit_NotifyUndoSnapshot(undoSnapshot);
     }
 }
 
@@ -2306,11 +2393,14 @@ void Animation_View::Delete_SelectedNotifyTrack()
     if (_selectedNotifyTrackIndex < 0 || _selectedNotifyTrackIndex >= static_cast<int32>(animationData->notifyTracks.size()))
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     Remove_NotifyTrackEntries(*animationData, _selectedNotifyTrackIndex);
     animationData->notifyTracks.erase(animationData->notifyTracks.begin() + _selectedNotifyTrackIndex);
     _selectedNotifyTrackIndex = animationData->notifyTracks.empty() ? 0 : min(_selectedNotifyTrackIndex, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     Clear_SelectedNotifySelection();
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Delete_SelectedNotifyStateTrack()
@@ -2322,11 +2412,149 @@ void Animation_View::Delete_SelectedNotifyStateTrack()
     if (_selectedNotifyStateTrackIndex < 0 || _selectedNotifyStateTrackIndex >= static_cast<int32>(animationData->notifyStateTracks.size()))
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     Remove_NotifyStateTrackEntries(*animationData, _selectedNotifyStateTrackIndex);
     animationData->notifyStateTracks.erase(animationData->notifyStateTracks.begin() + _selectedNotifyStateTrackIndex);
     _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty() ? 0 : min(_selectedNotifyStateTrackIndex, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
     _selectedStateId = -1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
+}
+
+Animation_View::NotifyUndoSnapshot Animation_View::Capture_NotifyUndoSnapshot() const
+{
+    NotifyUndoSnapshot snapshot{};
+    snapshot.assetJson = AnimNotify_Parser::To_Json(_asset);
+    snapshot.currentAnimationName = _currentAnimationName;
+    snapshot.selectedNotifyId = _selectedNotifyId;
+    snapshot.selectedStateId = _selectedStateId;
+    snapshot.selectedNotifyTrackIndex = _selectedNotifyTrackIndex;
+    snapshot.selectedNotifyStateTrackIndex = _selectedNotifyStateTrackIndex;
+    snapshot.sequencerCurrentFrame = _sequencerCurrentFrame;
+    snapshot.selectedNotifyIds.assign(_selectedNotifyIds.begin(), _selectedNotifyIds.end());
+    return snapshot;
+}
+
+void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    AnimNotifyAsset restoredAsset{};
+    if (!AnimNotify_Parser::From_Json(snapshot.assetJson, restoredAsset))
+        return;
+
+    _asset = std::move(restoredAsset);
+    if (_asset.modelGuid.empty())
+        _asset.modelGuid = _modelGuid;
+
+    _currentAnimationName = snapshot.currentAnimationName;
+    if (!_currentAnimationName.empty())
+    {
+        if (const AnimationEntry* entry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName))
+            _currentAnimationName = entry->displayName;
+    }
+
+    _selectedNotifyId = snapshot.selectedNotifyId;
+    _selectedStateId = snapshot.selectedStateId;
+    _selectedNotifyTrackIndex = snapshot.selectedNotifyTrackIndex;
+    _selectedNotifyStateTrackIndex = snapshot.selectedNotifyStateTrackIndex;
+    _sequencerCurrentFrame = snapshot.sequencerCurrentFrame;
+
+    _selectedNotifyIds.clear();
+    for (const int32 notifyId : snapshot.selectedNotifyIds)
+        _selectedNotifyIds.insert(notifyId);
+
+    if (Find_SelectedNotify() == nullptr)
+        Clear_SelectedNotifySelection();
+
+    if (Find_SelectedState() == nullptr)
+        _selectedStateId = -1;
+
+    if (AnimNotifyData* animationData = Get_CurrentAnimation())
+    {
+        _selectedNotifyTrackIndex = animationData->notifyTracks.empty()
+            ? 0
+            : std::clamp(_selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+        _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty()
+            ? 0
+            : std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
+    }
+
+    Reset_PreviewAnimSpeedStates();
+    Reset_PreviewPlayEffectStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
+    Reset_PreviewSourceHistoryEffect();
+    Reset_PreviewTrailEffect();
+    Reset_PreviewWeaponRotateStates();
+
+    _isDirty = true;
+}
+
+void Animation_View::Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    const NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    if (snapshot.assetJson == currentSnapshot.assetJson)
+        return;
+
+    static constexpr size_t MaxUndoCount = 64;
+    _notifyUndoStack.push_back(snapshot);
+    if (_notifyUndoStack.size() > MaxUndoCount)
+        _notifyUndoStack.erase(_notifyUndoStack.begin());
+
+    _notifyRedoStack.clear();
+}
+
+void Animation_View::Begin_PendingNotifyUndo()
+{
+    if (_hasPendingNotifyUndoSnapshot)
+        return;
+
+    _pendingNotifyUndoSnapshot = Capture_NotifyUndoSnapshot();
+    _hasPendingNotifyUndoSnapshot = true;
+}
+
+void Animation_View::Commit_PendingNotifyUndo()
+{
+    if (!_hasPendingNotifyUndoSnapshot)
+        return;
+
+    Commit_NotifyUndoSnapshot(_pendingNotifyUndoSnapshot);
+    _pendingNotifyUndoSnapshot = {};
+    _hasPendingNotifyUndoSnapshot = false;
+}
+
+void Animation_View::Clear_NotifyUndoHistory()
+{
+    _notifyUndoStack.clear();
+    _notifyRedoStack.clear();
+    _pendingNotifyUndoSnapshot = {};
+    _hasPendingNotifyUndoSnapshot = false;
+}
+
+void Animation_View::Undo_NotifyEdit()
+{
+    if (_notifyUndoStack.empty())
+        return;
+
+    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    NotifyUndoSnapshot undoSnapshot = std::move(_notifyUndoStack.back());
+    _notifyUndoStack.pop_back();
+    _notifyRedoStack.push_back(std::move(currentSnapshot));
+
+    Restore_NotifyUndoSnapshot(undoSnapshot);
+}
+
+void Animation_View::Redo_NotifyEdit()
+{
+    if (_notifyRedoStack.empty())
+        return;
+
+    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    NotifyUndoSnapshot redoSnapshot = std::move(_notifyRedoStack.back());
+    _notifyRedoStack.pop_back();
+    _notifyUndoStack.push_back(std::move(currentSnapshot));
+
+    Restore_NotifyUndoSnapshot(redoSnapshot);
 }
 
 void Animation_View::Handle_ClipboardShortcuts()
@@ -2366,6 +2594,18 @@ void Animation_View::Handle_ClipboardShortcuts()
 
     if (!io.KeyCtrl)
         return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Z, false))
+    {
+        Undo_NotifyEdit();
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Y, false))
+    {
+        Redo_NotifyEdit();
+        return;
+    }
 
     if (ImGui::IsKeyPressed(ImGuiKey_C, false))
     {
@@ -2423,6 +2663,8 @@ void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
     if (clampedDelta == 0)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     float primaryTimeSec = -1.f;
     for (const auto& [entry, frame] : selectedEntries)
     {
@@ -2455,6 +2697,7 @@ void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
     }
 
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
@@ -2481,6 +2724,8 @@ void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
     if (clampedDelta == 0)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     const int32 movedStartFrame = startFrame + clampedDelta;
     selectedState->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
 
@@ -2498,6 +2743,7 @@ void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
     }
 
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Copy_SelectedNotify()
@@ -2561,8 +2807,10 @@ void Animation_View::Paste_CopiedNotify()
     if (animationData == nullptr || _copiedNotifies.empty())
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyTracks.empty())
-        Add_NotifyTrack("Notify");
+        animationData->notifyTracks.push_back({ "Notify" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const float pasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
@@ -2602,6 +2850,8 @@ void Animation_View::Paste_CopiedNotify()
 
     if (!_selectedNotifyIds.empty())
         NOTIFY("노티파이 붙여넣기: {}개", static_cast<int32>(_selectedNotifyIds.size()));
+
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Paste_CopiedState()
@@ -2614,10 +2864,12 @@ void Animation_View::Paste_CopiedState()
     if (notifyStateInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     notifyStateInstance->From_Json(_copiedNotifyState.payload);
 
     if (animationData->notifyStateTracks.empty())
-        Add_NotifyStateTrack("Notify State");
+        animationData->notifyStateTracks.push_back({ "Notify State" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 trackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
@@ -2639,6 +2891,7 @@ void Animation_View::Paste_CopiedState()
     _isDirty = true;
 
     NOTIFY("노티파이 스테이트 붙여넣기: {}", _copiedNotifyState.typeName);
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex)
