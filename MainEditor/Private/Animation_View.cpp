@@ -1928,6 +1928,79 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                     }
                     ImGui::TreePop();
                 }
+
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* chainDesc = static_cast<ChainModifier::ChainModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    if (chainDesc != nullptr && chainDesc->motion.maxMovementOffset <= 0.0001f)
+                    {
+                        ImGui::TextColored(ImVec4(1.f, 0.68f, 0.25f, 1.f), "Move Limit is 0, so test motion is clamped.");
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 1.f;
+                        if (chainDesc != nullptr)
+                        {
+                            const float resetLimit = chainDesc->runtime.resetDistance > 0.1f ? chainDesc->runtime.resetDistance * 0.8f : 1.f;
+                            const float ownerScale = std::max(chainDesc->motion.ownerMovementInertiaScale, 0.001f);
+                            visibleDelta = std::clamp(0.05f / ownerScale, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (chainDesc != nullptr)
+                    {
+                        const float estimatedMotion = _modifierPreviewMotionTestDelta * chainDesc->motion.ownerMovementInertiaScale;
+                        ImGui::TextDisabled("Effective owner input: %.3f", estimatedMotion);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
             }
 
             if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
@@ -2137,6 +2210,19 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
 
         for (const Shared<AnimationModifier>& modifier : model->Get_Modifiers())
         {
+            if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    chainModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                chainModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+
             if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
             {
                 const bool tagMatches =

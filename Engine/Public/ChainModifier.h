@@ -170,6 +170,7 @@ public:
 	string Get_RuntimeGroupRootBoneName(size_t groupIndex) const;
 	Vec3 Get_RuntimeGroupRootRotationOffset(size_t groupIndex) const;
 	void Set_RuntimeGroupRootRotationOffset(size_t groupIndex, const Vec3& offsetDegrees);
+	void Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta);
 
 public:
 	void ResetPose(ModelCom *model);
@@ -182,6 +183,8 @@ private:
 	bool _isFirstUpdate{ true };
 	bool _chainsInitialized{ false };
 	Vec3 _prevOwnerPos{ Vec3::Zero };
+	bool _runtimeTestOwnerMotionEnabled{ false };
+	Vec3 _runtimeTestOwnerMotionDelta{ Vec3::Zero };
 
 public:
 	static Shared<ChainModifier> Create(const ChainModifierDesc *desc);

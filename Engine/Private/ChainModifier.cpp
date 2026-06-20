@@ -608,6 +608,12 @@ void ChainModifier::Set_RuntimeGroupRootRotationOffset(size_t groupIndex, const 
 	}
 }
 
+void ChainModifier::Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta)
+{
+	_runtimeTestOwnerMotionEnabled = enabled;
+	_runtimeTestOwnerMotionDelta = enabled ? delta : Vec3::Zero;
+}
+
 void ChainModifier::Capture_CurrentPose(ModelCom *model, const Matrix &ownerWorld)
 {
 	for (auto &chain : _chains)
@@ -1592,6 +1598,10 @@ void ChainModifier::Evaluate_Modifier(ModelCom *model, float timeDelta)
 
 	const float ownerDistance = Vec3::Distance(_prevOwnerPos, currentOwnerPos);
 	Vec3 ownerMotionDelta = currentOwnerPos - _prevOwnerPos;
+	if (_runtimeTestOwnerMotionEnabled)
+	{
+		ownerMotionDelta += _runtimeTestOwnerMotionDelta;
+	}
 	if (ownerDistance > _desc.runtime.resetDistance)
 	{
 		ResetPose(model);

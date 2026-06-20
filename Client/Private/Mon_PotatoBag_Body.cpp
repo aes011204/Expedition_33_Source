@@ -50,6 +50,20 @@ HRESULT Mon_PotatoBag_Body::Ready_Modifier()
         }
     }
 
+    ChainModifier::ChainModifierDesc clothBackDesc{};
+    ChainModifierPreset::BuildPotatoBagClothBackDesc(
+        clothBackDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+
+    if (!clothBackDesc.groups.empty())
+    {
+        if (auto modifier = ChainModifier::Create(&clothBackDesc))
+        {
+            _model->Add_AnimModifier(modifier);
+        }
+    }
+
     return S_OK;
 }
 

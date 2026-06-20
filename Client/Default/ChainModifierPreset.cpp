@@ -591,8 +591,8 @@ void ChainModifierPreset::BuildBindPoseHairDesc(
     {
         desc.groups = {
             MakeBindPoseHairGroup("Strand_0_1", 0.82f, 1.060f, 2.10f, 0.68f, 1.05f),
-            MakeBindPoseHairGroup("Strand_5_1", 1.15f, 0.930f, 0.48f, 1.35f, 0.62f),
-            MakeBindPoseHairGroup("Strand_6_1", 1.15f, 0.930f, 0.48f, 1.35f, 0.62f)
+            MakeBindPoseHairGroup("Strand_5_1", 1.025f, 1.010f, 1.25f, 1.05f, 0.90f),
+            MakeBindPoseHairGroup("Strand_6_1", 1.025f, 1.010f, 1.25f, 1.05f, 0.90f)
         };
 
         desc.shape.stiffness = 0.625f;
@@ -601,7 +601,7 @@ void ChainModifierPreset::BuildBindPoseHairDesc(
         desc.shape.tipPoseRestoreScale = 1.000f;
         desc.shape.maxBendAngleDegree = 39.750f;
         desc.shape.tipMaxBendAngleScale = 1.000f;
-        desc.shape.rootOutputAlpha = 0.f;
+        desc.shape.rootOutputAlpha = 0.120f;
         desc.shape.tipOutputAlpha = 1.f;
         desc.shape.surfaceConstraintStrength = 0.f;
         desc.shape.pinRoot = true;
@@ -924,30 +924,34 @@ void ChainModifierPreset::BuildPotatoBagHairDesc(
         { "Head_Custom_Bones_03_00" }
     };
 
-    desc.shape.stiffness = 1.0f;
-    desc.shape.tipStiffnessScale = 1.0f;
-    desc.shape.poseRestoreStrength = 0.f;
-    desc.shape.tipPoseRestoreScale = 1.0f;
-    desc.shape.maxBendAngleDegree = 120.f;
+    desc.shape.stiffness = 0.935f;
+    desc.shape.tipStiffnessScale = 1.150f;
+    desc.shape.poseRestoreStrength = 0.070f;
+    desc.shape.tipPoseRestoreScale = 1.110f;
+    desc.shape.maxBendAngleDegree = 80.f;
     desc.shape.tipMaxBendAngleScale = 1.0f;
     desc.shape.surfaceConstraintStrength = 0.f;
-    desc.shape.rootOutputAlpha = 0.05f;
+    desc.shape.rootOutputAlpha = 0.f;
     desc.shape.tipOutputAlpha = 0.97f;
     desc.shape.pinRoot = true;
 
-    desc.motion.damping = 0.98f;
-    desc.motion.tipDampingScale = 1.f;
-    desc.motion.movementInertiaScale = 2.055f;
-    desc.motion.ownerMovementInertiaScale = 3.65f;
-    desc.motion.tipMovementInertiaScale = 2.8f;
-    desc.motion.maxMovementOffset = 0.35f;
+    desc.motion.damping = 0.985f;
+    desc.motion.tipDampingScale = 0.965f;
+    desc.motion.movementInertiaScale = 0.770f;
+    desc.motion.ownerMovementInertiaScale = 0.850f;
+    desc.motion.tipMovementInertiaScale = 1.740f;
+    desc.motion.maxMovementOffset = 0.082f;
     desc.motion.solverIterations = 2;
 
     desc.runtime.ownerTransform = ownerTransform;
-    desc.runtime.gravity = Vec3::Zero;
+    desc.runtime.gravity = Vec3(0.f, -50.f, 0.f);
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = 0.0012f;
-    desc.runtime.constraintDeadzone = 0.025f;
+    desc.runtime.windScale = 0.001f;
+    desc.runtime.windStartRatio = -1.f;
+    desc.runtime.windWeightScale = -1.f;
+    desc.runtime.constraintDeadzone = 0.010f;
+    desc.runtime.resetDistance = 3.f;
+    desc.runtime.targetFrameRate = 0.f;
     desc.collision.enableCollision = false;
     desc.collision.particleCollisionRadius = 0.f;
     desc.collision.collisionRadiusPadding = 1.f;
@@ -955,6 +959,55 @@ void ChainModifierPreset::BuildPotatoBagHairDesc(
 
     desc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
     return;
+}
+
+void ChainModifierPreset::BuildPotatoBagClothBackDesc(
+    ChainModifier::ChainModifierDesc& outDesc,
+    TransformCom* ownerTransform,
+    PlayerCharacterType characterType,
+    const wstring& modifierTag)
+{
+    BuildPotatoBagHairDesc(outDesc, ownerTransform, characterType, modifierTag);
+
+    outDesc.groups = {
+        { "Potatobag_Boss_Cloth_Back_L_01" },
+        { "Potatobag_Boss_Cloth_Back_R_01" },
+        { "Potatobag_Boss_Cloth_Pelvis_R_01" },
+        { "Potatobag_Boss_Cloth_Pelvis_C_01" },
+        { "Potatobag_Boss_Cloth_Pelvis_L_01" }
+    };
+
+    outDesc.shape.stiffness = 0.245f;
+    outDesc.shape.tipStiffnessScale = 0.580f;
+    outDesc.shape.poseRestoreStrength = 0.030f;
+    outDesc.shape.tipPoseRestoreScale = 1.0f;
+    outDesc.shape.maxBendAngleDegree = 90.f;
+    outDesc.shape.tipMaxBendAngleScale = 1.0f;
+    outDesc.shape.surfaceConstraintStrength = 0.155f;
+    outDesc.shape.rootOutputAlpha = 0.5f;
+    outDesc.shape.tipOutputAlpha = 0.840f;
+    outDesc.shape.pinRoot = false;
+
+    outDesc.motion.damping = 0.980f;
+    outDesc.motion.tipDampingScale = 1.040f;
+    outDesc.motion.movementInertiaScale = 0.185f;
+    outDesc.motion.ownerMovementInertiaScale = 0.185f;
+    outDesc.motion.tipMovementInertiaScale = 0.390f;
+    outDesc.motion.maxMovementOffset = 0.051f;
+
+    outDesc.runtime.gravity = Vec3(0.f, 0.f, 0.f);
+    outDesc.runtime.windDirection = kCommonWindDirection;
+    outDesc.runtime.windScale = 0.f;
+    outDesc.runtime.windStartRatio = -1.f;
+    outDesc.runtime.windWeightScale = -1.f;
+    outDesc.runtime.constraintDeadzone = 0.059f;
+    outDesc.runtime.resetDistance = 3.f;
+    outDesc.runtime.targetFrameRate = 0.f;
+
+    outDesc.collision.enableCollision = false;
+    outDesc.collision.particleCollisionRadius = 0.f;
+    outDesc.collision.collisionRadiusPadding = 1.f;
+    outDesc.collision.debugDrawCapsules = false;
 }
 
 void ChainModifierPreset::BuildBackpackBandDesc(
@@ -1028,26 +1081,25 @@ void ChainModifierPreset::BuildCoatDesc(
     desc.modifierTag = modifierTag;
     desc.strengthAlpha = 0.96f;
 
-    desc.shape.stiffness = 0.75f;
-    desc.shape.tipStiffnessScale = 0.55f;
-    desc.shape.poseRestoreStrength = 0.18f;
-    desc.shape.tipPoseRestoreScale = 1.f;
-    desc.shape.maxBendAngleDegree = 28.f;
-    desc.shape.tipMaxBendAngleScale = 1.0f;
-    desc.shape.surfaceConstraintStrength = 0.34f;
-    desc.shape.rootOutputAlpha = 0.f;
+    desc.shape.stiffness = 0.70f;
+    desc.shape.tipStiffnessScale = 0.68f;
+    desc.shape.poseRestoreStrength = 0.12f;
+    desc.shape.tipPoseRestoreScale = 1.18f;
+    desc.shape.maxBendAngleDegree = 40.f;
+    desc.shape.tipMaxBendAngleScale = 0.85f;
+    desc.shape.surfaceConstraintStrength = 0.145f;
+    desc.shape.rootOutputAlpha = 0.05f;
     desc.shape.tipOutputAlpha = 1.f;
     desc.shape.pinRoot = true;
     desc.shape.useBindPoseAsRest = true;
 
-    desc.motion.damping = 0.65f;
-    desc.motion.tipDampingScale = 1.1538461f;
-    desc.runtime.gravity = Vec3::Zero;
-    // 우리 구현은 animated-pose transport와 별개로 관성 오프셋을 또 더하므로
-    // 코트에서는 값을 낮춰야 "끝만 뒤로 끌려가는" 현상이 줄어든다.
-    desc.motion.movementInertiaScale = 0.012f;
-    desc.motion.tipMovementInertiaScale = 1.0f;
-    desc.motion.maxMovementOffset = 0.01f;
+    desc.motion.damping = 0.66f;
+    desc.motion.tipDampingScale = 1.02f;
+    desc.runtime.gravity = Vec3(0.f, -0.45f, 0.f);
+    desc.motion.movementInertiaScale = 0.18f;
+    desc.motion.ownerMovementInertiaScale = 0.f;
+    desc.motion.tipMovementInertiaScale = 1.28f;
+    desc.motion.maxMovementOffset = 0.034f;
     desc.motion.solverIterations = 4;
 
     desc.collision.enableCollision = true;

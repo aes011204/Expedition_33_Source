@@ -68,6 +68,12 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_PotatoBagHair");
 
+    static void BuildPotatoBagClothBackDesc(
+        ChainModifier::ChainModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"ClothPhysics_PotatoBagCloth_Back");
+
     static void BuildBackpackBandDesc(
         ChainModifier::ChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
