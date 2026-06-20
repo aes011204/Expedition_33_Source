@@ -50,6 +50,7 @@ public:
     uint32 GetCurAnimIndex() const { return _curAnimIndex; }
     uint32 GetCurStepIndex() const { return _curStepIndex; }
     const Vec3& GetOriginPos() const { return _originPos; }
+    const Vec3& GetOriginRot() const { return _originRot; }
     const Vec3& GetPhaseStartPos() const { return _phaseStartPos; }
     const Vec3& GetPhaseGoalPos() const { return _phaseGoalPos; }
     bool HasReachedPhaseGoal() const { return _phaseReachedGoal; }
@@ -70,6 +71,7 @@ public:
 private:
 
     void Set_OriginPosToCurPos() { _originPos = _curChar.actor->Get_Transform()->Get_Position(); };
+    void Set_OriginRotToCurRot() { _originRot = _curChar.actor->Get_Transform()->Get_RotationEuler(); };
     void SetupStep();
 
 private:
@@ -89,6 +91,7 @@ private:
 
     //------------------------------
     Vec3 _originPos = {};
+    Vec3 _originRot = {};
     Vec3 _phaseStartPos = {};
     Vec3 _phaseGoalPos = {};
     bool _phaseReachedGoal = false;

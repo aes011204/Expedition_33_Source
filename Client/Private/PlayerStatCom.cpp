@@ -338,6 +338,85 @@ void PlayerStatCom::Apply_BattleSyncSnapshot(const BattleSyncSnapshot& snapshot)
     _PRuntimeStat.CurShield = snapshot.curShield;
 }
 
+json PlayerStatCom::Create_SaveJson() const
+{
+    const BattleSyncSnapshot snapshot = Create_BattleSyncSnapshot();
+
+    json root = json::object();
+    root["level"] = snapshot.desc.level;
+    root["exp"] = snapshot.desc.exp;
+    root["stat_point"] = snapshot.curStatPoint;
+    root["skill_point"] = snapshot.curSkillPoint;
+    root["respec_count"] = snapshot.curRespecCount;
+    root["vitality"] = snapshot.curVitality;
+    root["might"] = snapshot.curMight;
+    root["agility"] = snapshot.curAgility;
+    root["defense"] = snapshot.curDefense;
+    root["luck"] = snapshot.curLuck;
+    root["hp"] = snapshot.curHp;
+    root["ap"] = snapshot.curAp;
+    root["shield"] = snapshot.curShield;
+    root["equipped_weapon_id"] = snapshot.desc.equippedWeaponId;
+    root["equipped_weapon_power"] = snapshot.desc.equippedWeaponPower;
+    root["equipped_pictos_ids"] = snapshot.desc.equippedPictosIds;
+    root["alive_status"] = string(magic_enum::enum_name(const_cast<PlayerStatCom*>(this)->Get_AliveStatus()));
+
+    return root;
+}
+
+bool PlayerStatCom::Apply_SaveJson(const json& data)
+{
+    if (!data.is_object())
+        return false;
+
+    BattleSyncSnapshot snapshot = Create_BattleSyncSnapshot();
+
+    snapshot.desc.level = data.value("level", snapshot.desc.level);
+    snapshot.desc.exp = data.value("exp", snapshot.desc.exp);
+
+    snapshot.curStatPoint = data.value("stat_point", snapshot.curStatPoint);
+    snapshot.curSkillPoint = data.value("skill_point", snapshot.curSkillPoint);
+    snapshot.curRespecCount = data.value("respec_count", snapshot.curRespecCount);
+
+    snapshot.curVitality = data.value("vitality", snapshot.curVitality);
+    snapshot.curMight = data.value("might", snapshot.curMight);
+    snapshot.curAgility = data.value("agility", snapshot.curAgility);
+    snapshot.curDefense = data.value("defense", snapshot.curDefense);
+    snapshot.curLuck = data.value("luck", snapshot.curLuck);
+
+    snapshot.desc.statPoint = snapshot.curStatPoint;       // desc/runtime 양쪽을 같은 진행 상태로 맞춘다.
+    snapshot.desc.skillPoint = snapshot.curSkillPoint;
+    snapshot.desc.respecCount = snapshot.curRespecCount;
+    snapshot.desc.vitality = snapshot.curVitality;
+    snapshot.desc.might = snapshot.curMight;
+    snapshot.desc.agility = snapshot.curAgility;
+    snapshot.desc.defense = snapshot.curDefense;
+    snapshot.desc.luck = snapshot.curLuck;
+
+    snapshot.curHp = data.value("hp", snapshot.curHp);
+    snapshot.curAp = data.value("ap", snapshot.curAp);
+    snapshot.curShield = data.value("shield", snapshot.curShield);
+
+    snapshot.desc.equippedWeaponId = data.value("equipped_weapon_id", snapshot.desc.equippedWeaponId);
+    snapshot.desc.equippedWeaponPower = data.value("equipped_weapon_power", snapshot.desc.equippedWeaponPower);
+
+    if (auto pictosIds = data.find("equipped_pictos_ids"); pictosIds != data.end() && pictosIds->is_array())
+    {
+        for (size_t i = 0; i < EquippedPictosSlotCount && i < pictosIds->size(); ++i)
+        {
+            if ((*pictosIds)[i].is_string())
+                snapshot.desc.equippedPictosIds[i] = (*pictosIds)[i].get<string>();
+        }
+    }
+
+    Apply_BattleSyncSnapshot(snapshot);
+
+    if (const auto aliveStatus = magic_enum::enum_cast<EAliveStatus>(data.value("alive_status", string{})))
+        Set_AliveStatus(aliveStatus.value());
+
+    return true;
+}
+
 void PlayerStatCom::Set_EquippedPictos(size_t slotIndex, const string& pictosId)
 {
     if (slotIndex >= EquippedPictosSlotCount)

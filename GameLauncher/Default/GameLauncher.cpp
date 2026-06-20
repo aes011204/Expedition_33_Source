@@ -35,7 +35,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     if (!Init_GameLauncherInstance(hInstance, nCmdShow))
         return FALSE;
 
-    mainApp = GameLauncherApp::MainApp::Create();
+    mainApp = GameLauncherApp::MainApp::Create(lpCmdLine != nullptr ? lpCmdLine : L"");
     if (mainApp == nullptr)
         return FALSE;
 

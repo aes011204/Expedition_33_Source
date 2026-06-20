@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 //#include "PhysX_Types.h"
@@ -96,6 +96,7 @@ public:
     void    BeginPlay() override;
 
     void    Update_Movement(float timeDelta);
+    void    Move_ExternalDisplacement(const Vec3& displacement, float timeDelta);
 
 public:
     void Apply_Input(const MovementInput& input) { _input = input; }
@@ -130,6 +131,7 @@ public:
     void Stop_VerticalMovement();
 
     Vec3 Get_Velocity() { return _velocity; }
+    const Vec3* Get_VelocityPtr() const { return &_velocity; }
     void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
 
     void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }

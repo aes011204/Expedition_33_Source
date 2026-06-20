@@ -137,6 +137,27 @@ namespace Internal
         }
     }
 
+    const char* Get_SourceHistorySpriteTrailScreenAlignmentTooltip(EmitterScreenAlignment value)
+    {
+        switch (value)
+        {
+        case EmitterScreenAlignment::FacingCameraPosition:
+            return "Stamp 위치는 path 위에 유지하고, 카드는 각 위치에서 카메라 위치를 바라봅니다.";
+
+        case EmitterScreenAlignment::Rectangle:
+            return "카드 세로축은 World Up으로 유지하고, 카드 길이 축은 texture X/Y 중 어느 축을 길이로 볼지만 정합니다.";
+
+        case EmitterScreenAlignment::Square:
+            return "카메라 화면 평면 기준이며 더 큰 축으로 정사각형 stamp card를 만듭니다.";
+
+        case EmitterScreenAlignment::Velocity:
+            return "SourceHistorySpriteTrail에서는 실제 속도 대신 path tangent를 기준 방향으로 사용합니다.";
+
+        default:
+            return Get_ScreenAlignmentTooltip(value);
+        }
+    }
+
     EmitterScreenAlignment Resolve_ScreenAlignmentFallback(EmitterScreenAlignment value)
     {
         const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
@@ -592,7 +613,7 @@ public: //## Table / Basic Controls
                         supported
                         ? "%s"
                         : "SourceHistorySpriteTrail에서는 이 화면 정렬을 사용하지 않습니다.",
-                        Internal::Get_ScreenAlignmentTooltip(candidate)
+                        Internal::Get_SourceHistorySpriteTrailScreenAlignmentTooltip(candidate)
                     );
                 }
 
@@ -990,6 +1011,11 @@ private: //## Distribution Types
             "켜면 이 이펙트를 재생할 때마다 생성되는 seed를 이 랜덤값 샘플에 섞습니다."
         );
         changed |= ImGui::Checkbox("##Value", &data.useInstanceSeed);
+        if (data.useInstanceSeed)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("켜짐");
+        }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -1444,44 +1470,7 @@ private: //## Label Helpers
         if (keys.empty())
             return 0.f;
 
-        if (keys.size() == 1)
-            return keys.front().time < 0.5f ? 1.f : 0.f;
-
-        vector<float> times{};
-        times.reserve(keys.size());
-        for (const TKey& key : keys)
-            times.push_back(clamp(key.time, 0.f, 1.f));
-
-        ranges::sort(times);
-
-        float bestLeft = 0.f;
-        float bestRight = times.front();
-        float bestGap = bestRight - bestLeft;
-        for (size_t index = 1; index < times.size(); ++index)
-        {
-            const float left = times[index - 1];
-            const float right = times[index];
-            const float gap = right - left;
-            if (gap > bestGap)
-            {
-                bestLeft = left;
-                bestRight = right;
-                bestGap = gap;
-            }
-        }
-
-        const float tailGap = 1.f - times.back();
-        if (tailGap > bestGap)
-        {
-            bestLeft = times.back();
-            bestRight = 1.f;
-            bestGap = tailGap;
-        }
-
-        if (bestGap <= 0.f)
-            return clamp(keys.back().time, 0.f, 1.f);
-
-        return clamp((bestLeft + bestRight) * 0.5f, 0.f, 1.f);
+        return 1.f;
     }
 
     CurveKeyHeaderAction Draw_CurveKeyHeaderActions(size_t index, size_t keyCount)

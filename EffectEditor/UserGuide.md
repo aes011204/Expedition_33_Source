@@ -564,6 +564,15 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 
 Sprite Trail에서는 방향 정렬 옵션에 따라 `정렬할 텍스처 축` 대신 `카드 길이 축`이 표시될 수 있다. 이 값은 texture X/Y 중 어느 축을 stamp card의 긴 방향으로 맞출지 정하는 보정값이며, source path 자체를 바꾸는 값은 아니다.
 
+Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, stamp center/tangent를 이미 source history에서 받은 뒤 card basis만 고르는 의미로 해석한다.
+
+| Sprite Trail 화면 정렬 | 해석 |
+| --- | --- |
+| `Facing Camera Position` | stamp 위치는 path 위에 유지하고, 각 card가 자기 위치에서 카메라 위치를 바라본다. Path tangent는 회전 기준으로 쓰지 않는다. |
+| `Rectangle` | card 세로축을 World Up으로 유지하고, 가로축은 카메라 가시성을 유지하는 방향으로 잡는다. `카드 길이 축`은 texture X/Y 중 어느 축을 길이로 볼지만 정한다. |
+| `Square` | 카메라 화면 평면 기준 card에서 더 큰 축으로 정사각형을 만든다. |
+| `Velocity` | SourceHistorySpriteTrail에서는 실제 velocity가 아니라 path tangent를 기준 방향으로 사용한다. `방향 정렬 방식`과 `카드 길이 축`으로 tangent를 look 또는 texture 축에 맞춘다. |
+
 ### 6.6 스폰
 
 `스폰`은 Emitter가 particle 또는 visual 요소를 얼마나 생성하는지 결정한다.
@@ -601,7 +610,8 @@ Sprite Trail에서는 방향 정렬 옵션에 따라 `정렬할 텍스처 축` �
 - Sprite: ConstantCurve는 particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플한다.
 - Mesh: ConstantCurve는 particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플한다.
 - Beam: ConstantCurve는 전체 반복 순서 진행률로 각 loop의 visual life를 한 번 샘플한다. 무한 반복에서는 반복 번호를 curve 구간에 순환 적용한다.
-- Trail/Ribbon/Sprite Trail: ConstantCurve sampling axis는 현재 Sprite/Mesh/Beam 구현 범위 밖으로 표시된다.
+- Sprite Trail: ConstantCurve는 stamp 생성 시점의 현재 loop 진행률로 stamp lifetime을 한 번 샘플한다.
+- Trail/Ribbon: Constant/Uniform 수명은 지원하지만, ConstantCurve는 segment/sample별 lifetime 저장 구조가 없어 현재 비지원으로 표시된다.
 
 ### 6.8 위치 Module
 
@@ -710,13 +720,15 @@ Sprite Trail에서는 방향 정렬 옵션에 따라 `정렬할 텍스처 축` �
 | `가속` | `가속` | 시간에 따라 더해지는 velocity 변화다. | X/Y/Z acceleration이다. | Vec3 분포 | 지속적으로 속도를 바꾼다. |
 | `드래그` | `드래그` | 속도 감쇠 계수다. | 값이 커질수록 velocity가 빨리 줄어든다. | float 분포 | 너무 크면 거의 멈춘 것처럼 보일 수 있다. |
 
+`가속`의 `고정값 커브`는 particle 또는 stamp life progress 기준으로 절대 가속을 평가한다. `Constant`, `Linear`, `CurveAutoClamped` 보간과 tangent 모양은 Sprite, Mesh, Sprite Trail runtime에서 같은 의미로 소비된다.
+
 ![Velocity over life module](UserGuide_Img/detail_velocity_over_life_module.png)
 
 | Module | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- | --- |
 | `수명에 따른 속도` | `속도 배율` | lifetime 진행에 따른 velocity multiplier다. | 1은 유지, 0은 속도 제거 방향이다. | float 분포/curve | 기존 velocity에 대한 배율로 본다. |
 
-Sprite Trail에서 `Path Follow` 또는 `Path Replay`가 위치 정본을 소유할 때는 source history path 위 좌표가 stamp 중심 위치를 결정한다. 이 경우 일반 velocity 계열은 path 좌표 이동과 같은 의미가 아니므로, 경로 흡수 연출은 경로 Module에서 먼저 잡는 편이 안전하다.
+Sprite Trail에서 `Path Follow` 또는 `Path Replay`가 위치 정본을 소유할 때는 source history path 위 좌표가 stamp 중심 위치를 결정한다. 이 경우 일반 velocity/acceleration/drag 계열은 stamp 중심 이동에 반영되지 않으므로, 경로 흡수 연출은 경로 Module에서 먼저 잡는 편이 안전하다.
 
 ### 6.11 회전 / 방향 Module
 
@@ -1164,6 +1176,7 @@ Curve Editor의 graph X축은 key의 `In 값`이며 현재 UI에서는 0~1 범�
 | `머티리얼 변조` + `ParticleLife` | Sprite material scalar에서만 선택 가능하며 particle lifetime 기준으로 평가한다. |
 | Trail/Ribbon source history 계열 | curve만이 아니라 source sample이 어떻게 쌓이는지도 결과에 영향을 준다. |
 | Sprite Trail stamp 계열 | stamp age/lifetime 기준 변화와 source history path sampling을 구분해서 본다. |
+| Sprite Trail `수명` ConstantCurve | stamp 생성 시점의 emitter loop 진행률로 stamp lifetime을 한 번 샘플한다. |
 | Sprite Trail `Path Replay` 흡수 곡선 | `지정 시간` 모드에서 head로 따라붙는 진행률을 보정한다. |
 
 따라서 curve가 기대와 다르게 보이면 `curve 모양`만 보지 말고, 그 curve가 어떤 시간 축에서 sampling되는지 확인해야 한다.

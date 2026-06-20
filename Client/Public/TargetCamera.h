@@ -72,12 +72,14 @@ private:
 
 public:
     void Change_Mode(TargetCameraMode mode);
+    TargetCameraMode Get_CurrentMode() const { return _currentState; }
     void Change_Target();
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
     void Refresh_TargetTransform();
 
     Vec3 Get_FreeAimQueryOrigin() const;
     Vec3 Get_FreeAimQueryDirection() const;
+    void Play_HitShake(float amplitude, float duration, float strengthScale);
 
 public:
     //TODO imgui      desc 하나로 보여주는 걸로 바꾸기?
@@ -124,6 +126,7 @@ private:
     TargetCameraPreset  _normalPreset;
     TargetCameraPreset  _aimPreset;
     TargetCameraPreset  _battleEnterPreset;
+    TargetCameraPreset  _soulLikePreset;
 
     float               _battleEnterDuration = 3.f;
     float               _battleEnterAcc = { 0.f };
@@ -166,6 +169,26 @@ private:
     // 매 프레임 계산된 화면 중앙 look target을 저장해 두고
     // world crosshair hit query가 같은 기준을 쓰게 한다.
     Vec3               _currentLookTarget = Vec3::Zero;
+
+    struct RuntimeShakeState
+    {
+        bool active = false;
+        float elapsed = 0.f;
+        float duration = 0.f;
+        float amplitude = 0.f;
+        float frequencyX = 58.f;
+        float frequencyY = 83.f;
+        float decayRateX = 0.f;
+        float decayRateY = 8.f;
+        float verticalRatio = 0.6f;
+        float strengthScale = 0.035f;
+    };
+
+    void Start_RuntimeShake(float amplitude, float duration, float strengthScale);
+    Vec3 Sample_RuntimeShake(const Vec3& cameraPos, const Vec3& lookTarget);
+    void Reset_RuntimeShake();
+
+    RuntimeShakeState _runtimeShake{};
 
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -26,9 +26,7 @@ public:
     BoundingOrientedBox&        Get_OriginOBB() { return _originalOBB; }
     const BoundingOrientedBox&  Get_OBB() const { return _obb; }
 
-#ifdef _DEBUG
     HRESULT Render_Debug(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch, Color color) override;
-#endif
 
 private:
     BoundingOrientedBox _originalOBB;

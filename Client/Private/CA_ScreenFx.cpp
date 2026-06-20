@@ -24,6 +24,7 @@ HRESULT CA_ScreenFx::Initialize(ScreenFxDesc* desc)
 void CA_ScreenFx::Update_ScreenFx(float timeDelta)
 {
     _timeAcc += timeDelta;
+    _elapsedTime = _timeAcc;
     float ratio = 1.0f - std::clamp(_timeAcc / max(0.001f, _duration), 0.0f, 1.0f);
     _currentIntensity = _maxIntensity * ratio;
 }

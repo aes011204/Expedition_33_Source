@@ -17,6 +17,7 @@ cbuffer cbEffectBeamDistortion : register(b2)
     float4 g_EffectBeamMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectBeamUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: mask offset
     float4 g_EffectBeamUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main U/V policy, zw: mask U/V policy
+    float4 g_EffectBeamUVRotationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectBeamSourceParams = { 0.f, 0.f, 0.f, 0.f }; // x: opacity source, y: mask source, z: mask invert, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
     float2 g_FlowUVPolicyParams = { 0.f, 0.f };
@@ -24,6 +25,7 @@ cbuffer cbEffectBeamDistortion : register(b2)
     float2 g_FlowUVOffset = { 0.f, 0.f };
     float2 g_FlowUVScrollSpeed = { 0.f, 0.f };
     float g_FlowUVTilingMode = 0.f;
+    float g_FlowUVRotation = 0.f;
     float g_BeamDistortionPadding = 0.f;
 };
 
@@ -93,7 +95,11 @@ float3 Resolve_BeamSide(float3 currentPosition, float3 tangent)
 
 float Resolve_BeamAxisUV(float rawValue, float transformedValue, float policy)
 {
-    return policy >= 2.5f ? rawValue : transformedValue;
+    const int mode = (int)(policy + 0.5f);
+    float result = transformedValue;
+    if (mode == 3)
+        result = rawValue;
+    return result;
 }
 
 float2 Apply_BeamMaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
@@ -101,25 +107,45 @@ float2 Apply_BeamMaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
     return uv * uvParams.xy + uvOffset + uvParams.zw * g_EffectDistortionParams.w;
 }
 
-float2 Build_BeamMaterialUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy)
+float2 Rotate_MaterialUV(float2 uv, float rotation)
 {
-    const float2 transformedUV = Apply_BeamMaterialUV(rawUV, uvParams, uvOffset);
+    const int mode = (int)(rotation + 0.5f);
+    float2 result = uv;
+    if (mode == 1)
+        result = float2(1.f - uv.y, uv.x);
+    else if (mode == 2)
+        result = 1.f - uv;
+    else if (mode == 3)
+        result = float2(uv.y, 1.f - uv.x);
+    return result;
+}
+
+float2 Build_BeamMaterialUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy, float rotation)
+{
+    const float2 rotatedUV = Rotate_MaterialUV(rawUV, rotation);
+    const float2 transformedUV = Apply_BeamMaterialUV(rotatedUV, uvParams, uvOffset);
     return float2(
-        Resolve_BeamAxisUV(rawUV.x, transformedUV.x, policy.x),
-        Resolve_BeamAxisUV(rawUV.y, transformedUV.y, policy.y)
+        Resolve_BeamAxisUV(rotatedUV.x, transformedUV.x, policy.x),
+        Resolve_BeamAxisUV(rotatedUV.y, transformedUV.y, policy.y)
     );
 }
 
-float Apply_BeamAxisAddress(float value, float policy)
+float Apply_BeamAxisAddressValue(float value, float policy)
 {
-    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
+    const int mode = (int)(policy + 0.5f);
+    float result = frac(value);
+    if (mode == 1 || mode == 2)
+        result = saturate(value);
+    else if (mode == 4)
+        result = 1.f - abs(frac(value * 0.5f) * 2.f - 1.f);
+    return result;
 }
 
 float2 Apply_BeamAxisAddress(float2 uv, float2 policy)
 {
     return float2(
-        Apply_BeamAxisAddress(uv.x, policy.x),
-        Apply_BeamAxisAddress(uv.y, policy.y)
+        Apply_BeamAxisAddressValue(uv.x, policy.x),
+        Apply_BeamAxisAddressValue(uv.y, policy.y)
     );
 }
 
@@ -141,7 +167,8 @@ float2 Build_FlowUV(float2 rawUV)
         g_FlowUVOffset,
         g_FlowUVScrollSpeed,
         g_EffectDistortionParams.w,
-        g_FlowUVPolicyParams
+        g_FlowUVPolicyParams,
+        g_FlowUVRotation
     );
 }
 
@@ -298,8 +325,8 @@ PS_OUT PS_MAIN(PS_IN In)
 
     const float2 mainUVPolicy = g_EffectBeamUVAxisPolicyParams.xy;
     const float2 maskUVPolicy = g_EffectBeamUVAxisPolicyParams.zw;
-    const float2 mainUV = Build_BeamMaterialUV(In.texCoord, g_EffectBeamMainUVParams, g_EffectBeamUVOffsetParams.xy, mainUVPolicy);
-    const float2 maskUV = Build_BeamMaterialUV(In.texCoord, g_EffectBeamMaskUVParams, g_EffectBeamUVOffsetParams.zw, maskUVPolicy);
+    const float2 mainUV = Build_BeamMaterialUV(In.texCoord, g_EffectBeamMainUVParams, g_EffectBeamUVOffsetParams.xy, mainUVPolicy, g_EffectBeamUVRotationParams.x);
+    const float2 maskUV = Build_BeamMaterialUV(In.texCoord, g_EffectBeamMaskUVParams, g_EffectBeamUVOffsetParams.zw, maskUVPolicy, g_EffectBeamUVRotationParams.y);
     const float4 mainTexel = Sample_BeamMainTexture(mainUV, mainUVPolicy);
     const float selectedOpacity = Effect_SelectOpacity(mainTexel, (int)g_EffectBeamSourceParams.x);
     const float alphaCutoff = saturate(g_EffectBeamAlphaParams.x);

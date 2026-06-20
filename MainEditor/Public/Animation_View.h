@@ -15,6 +15,8 @@ class EffectInstance;
 NS_END
 
 NS_BEGIN(Client)
+class SkyBoxFlow;
+class SkyCloudCard;
 class Weapon;
 NS_END
 
@@ -96,6 +98,18 @@ public:
         int32 trackIndex = 0;
     };
 
+    struct NotifyUndoSnapshot
+    {
+        json assetJson{};
+        string currentAnimationName{};
+        int32 selectedNotifyId = -1;
+        int32 selectedStateId = -1;
+        int32 selectedNotifyTrackIndex = 0;
+        int32 selectedNotifyStateTrackIndex = 0;
+        int32 sequencerCurrentFrame = 0;
+        vector<int32> selectedNotifyIds{};
+    };
+
 private:
     enum class TrailAnchorSlot : uint8
     {
@@ -159,6 +173,20 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewSLDodgeMoveRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
+    struct PreviewRootControllerRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -179,6 +207,7 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
     void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
     void Draw_TrailAnchorPanel();
     void Draw_EventListPanel();
@@ -188,6 +217,11 @@ private:
     void Draw_CreateNotifyStatePopup();
     void Draw_SequencerContextMenu();
     void Draw_TrackSection();
+    float Get_PlaySectionStartSec(const AnimNotifyData* animationData) const;
+    float Get_PlaySectionEndSec(const AnimNotifyData* animationData) const;
+    void Clamp_PlaySection(AnimNotifyData* animationData);
+    void Play_CurrentSection(const Shared<ModelCom>& playbackModel);
+    void Stop_CurrentSection(const Shared<ModelCom>& playbackModel);
 
     void Add_NotifyTrack(const string& trackName);
     void Add_NotifyStateTrack(const string& trackName);
@@ -199,6 +233,14 @@ private:
     void Delete_SelectedNotifyTrack();
     void Delete_SelectedNotifyStateTrack();
     void Handle_ClipboardShortcuts();
+    void Undo_NotifyEdit();
+    void Redo_NotifyEdit();
+    NotifyUndoSnapshot Capture_NotifyUndoSnapshot() const;
+    void Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot);
+    void Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot);
+    void Begin_PendingNotifyUndo();
+    void Commit_PendingNotifyUndo();
+    void Clear_NotifyUndoHistory();
     void Move_SelectedNotifiesByFrame(int32 frameDelta);
     void Move_SelectedStateByFrame(int32 frameDelta);
     void Copy_SelectedNotify();
@@ -215,6 +257,9 @@ private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Ensure_PreviewGridResources();
+    void Ensure_PreviewSkyBackdrop();
+    void Update_PreviewSkyBackdrop(float timeDelta);
+    void Late_Update_PreviewSkyBackdrop(float timeDelta);
     Shared<GameObject> Get_PreviewRenderObject() const;
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
@@ -226,6 +271,10 @@ private:
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
+    void Update_PreviewSLDodgeMoveStates(float timeDelta);
+    void Reset_PreviewSLDodgeMoveStates();
+    void Update_PreviewRootControllerStates(float timeDelta);
+    void Reset_PreviewRootControllerStates();
     void Update_PreviewTrailEffect(float timeDelta);
     void Reset_PreviewTrailEffect();
     void Begin_PreviewTrailDrain(PreviewTrailRuntime& runtime);
@@ -300,6 +349,8 @@ private:
     Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
+    Shared<Client::SkyBoxFlow> _previewSkyBox{};
+    vector<Shared<Client::SkyCloudCard>> _previewSkyCloudCards{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
@@ -317,6 +368,8 @@ private:
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
+    vector<PreviewSLDodgeMoveRuntime> _previewSLDodgeMoveRuntimes{};
+    vector<PreviewRootControllerRuntime> _previewRootControllerRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
     vector<PreviewSourceHistoryRuntime> _previewSourceHistoryRuntimes{};
     mutable int32 _previewTrailProviderStateId = -1; // preview effect가 지금 sample을 요청 중인 runtime state id다.
@@ -340,6 +393,9 @@ private:
     bool _isPreviewHovered = false;
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;
+    bool _showPreviewSkyBackdrop = true;
+    bool _previewSkyBackdropBegunPlay = false;
+    bool _isSectionPreviewPlaying = false;
     float _topSectionHeight = 500.f;
     wstring _previewOwnerObjectKey{};
     
@@ -351,6 +407,8 @@ private:
     bool _openCreateNotifyPopup = false;
     bool _openCreateNotifyStatePopup = false;
     bool _openSequencerContextPopup = false;
+    char _createNotifyFilter[128]{};
+    char _createNotifyStateFilter[128]{};
 
     int32 _requestedCreateNotifyFrame = 0;
     int32 _requestedCreateStateStartFrame = 0;
@@ -372,6 +430,11 @@ private:
     NotifyClipboardKind _notifyClipboardKind = NotifyClipboardKind::None;
     vector<CopiedNotifyEntry> _copiedNotifies{};
     CopiedNotifyStateEntry _copiedNotifyState{};
+
+    vector<NotifyUndoSnapshot> _notifyUndoStack{};
+    vector<NotifyUndoSnapshot> _notifyRedoStack{};
+    NotifyUndoSnapshot _pendingNotifyUndoSnapshot{};
+    bool _hasPendingNotifyUndoSnapshot = false;
 
     Unique<AnimSequencerAdapter> _sequencer{};
 

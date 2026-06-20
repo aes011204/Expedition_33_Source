@@ -9,6 +9,8 @@
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
+#include "MovementCom.h"
+#include "TransformCom.h"
 
 IMPLEMENT_REFLECTION(PW_Gustave)
 {
@@ -63,8 +65,16 @@ void PW_Gustave::BeginPlay()
 
 HRESULT PW_Gustave::Ready_Modifier()
 {
-    if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-    {
+    auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
+    CHECK_NULL(body, E_FAIL);
+
+    return Ready_BodyModifiers(body);
+}
+
+HRESULT PW_Gustave::Ready_BodyModifiers(Body_Player* body)
+{
+    CHECK_NULL(body, E_FAIL);
+
         OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
         aimOffsetDesc.baseModelCom = body->Get_Model().get();
         aimOffsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
@@ -147,9 +157,6 @@ HRESULT PW_Gustave::Ready_Modifier()
             wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
         }
         else return E_FAIL;
-    }
-    else
-        return E_FAIL;
 
     return S_OK;
 }

@@ -28,6 +28,9 @@ public:
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
+    void Set_UseSocketBinding(bool useSocketBinding) { _useSocketBinding = useSocketBinding; }
+    void Detach_PreserveWorld();
+    void Attach_ToBindings();
 
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
@@ -35,6 +38,9 @@ private:
 private:
     const Matrix* _socketMatrix = nullptr;
     Matrix _offsetMatrix = {};
+    Matrix _detachedWorldMatrix = Matrix::Identity;
+    bool _useSocketBinding = true;
+    bool _isDetached = false;
 
 public:
     static Shared<Mon_Simon_Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

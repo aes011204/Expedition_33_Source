@@ -13,6 +13,8 @@ namespace
             return "None";
         case Client::BattleTurnState::ChooseSkill:
             return "ChooseSkill";
+        case Client::BattleTurnState::ChooseGradient:
+            return "ChooseGradient";
         case Client::BattleTurnState::AttackTargeting:
             return "AttackTargeting";
         case Client::BattleTurnState::AttackPlaying:

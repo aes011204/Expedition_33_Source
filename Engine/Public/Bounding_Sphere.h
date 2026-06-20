@@ -25,9 +25,7 @@ public:
     BoundingSphere&         Get_OriginSphere() { return _originSphere; }
     const BoundingSphere&   Get_Sphere() const { return _sphere; }
 
-#ifdef _DEBUG
     HRESULT Render_Debug(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch, Color color) override;
-#endif
 
 private:
     BoundingSphere _originSphere;

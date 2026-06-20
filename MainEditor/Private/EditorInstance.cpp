@@ -26,6 +26,11 @@
 #include <fstream>
 #include "ClientInstance.h"
 #include "GameplayUI.h"
+#include "RuntimeCheckpointIO.h"
+#include "RuntimeCheckpointService.h"
+#include "RuntimeRuleStateIO.h"
+#include "RuntimeRuleStateService.h"
+#include "TargetCamera.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -68,6 +73,7 @@ void Sync_RestoredMovementRuntimePosition(const Shared<GameObject>& gameObject)
 
     movement->Sync_RuntimePositionToTransform();
 }
+
 }
 
 EditorInstance::EditorInstance()
@@ -634,6 +640,63 @@ HRESULT EditorInstance::Load_CurrentLevelSnapShot(const fs::path& path)
     return Restore_CurrentLevelObjects(snapshots, selectedIndex);
 }
 
+bool EditorInstance::Capture_DemoCheckpoint(const fs::path& path) const
+{
+    Client::RuntimeCheckpointIO::Checkpoint checkpoint{};
+    if (!Client::RuntimeCheckpointService::Capture_Current(checkpoint))
+        return false;
+
+    return Client::RuntimeCheckpointIO::Save_Msgpack(path, checkpoint);
+}
+
+bool EditorInstance::Load_DemoCheckpointInEditor(const fs::path& path)
+{
+    Client::RuntimeCheckpointIO::Checkpoint checkpoint{};
+    if (!Client::RuntimeCheckpointIO::Load_Msgpack(path, checkpoint))
+        return false;
+
+    if (checkpoint.levelType != static_cast<LevelType>(GAME->Current_LevelIndex()))
+    {
+        LOG_WARN("[EditorInstance] checkpoint level mismatch. current={}, checkpoint={}",
+            GAME->Current_LevelIndex(), magic_enum::enum_name(checkpoint.levelType));
+        return false;
+    }
+
+    if (IsPlaying() || IsPaused())
+        Stop();
+
+    Clear_SelectedObject();
+    return Client::RuntimeCheckpointService::Apply_ToCurrentLevel(checkpoint);
+}
+
+bool EditorInstance::Save_GameStartRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_GameStart();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Save_CostumeUnlockRuleState(
+    const fs::path& path,
+    bool unlockBaguette,
+    bool unlockPotato) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_CostumeUnlocks(unlockBaguette, unlockPotato);
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Load_RuleStateInEditor(const fs::path& path)
+{
+    Client::RuntimeRuleStateIO::RuleState ruleState{};
+    if (!Client::RuntimeRuleStateIO::Load_Msgpack(path, ruleState))
+        return false;
+
+    return Client::RuntimeRuleStateService::Apply_ToCurrentRuntime(ruleState);
+}
+
 void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath)
 {
     if (prefabName.empty())
@@ -813,10 +876,18 @@ void EditorInstance::Activate_TargetCamera()
 void EditorInstance::Activate_FreeCamera()
 {
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    _hasTargetCameraModeBeforeFreeCamera = false;
+
     if (activeCamera != nullptr &&
         activeCamera->Get_ObjectType() != ObjectType::FreeCamera)
     {
         _cameraBeforeFreeCamera = activeCamera;
+
+        if (Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(activeCamera))
+        {
+            _targetCameraModeBeforeFreeCamera = targetCamera->Get_CurrentMode();
+            _hasTargetCameraModeBeforeFreeCamera = true;
+        }
     }
 
     CameraPoseSnapshot activeCameraPose{};
@@ -835,9 +906,27 @@ void EditorInstance::Restore_PreviousCameraOrTarget()
 {
     if (Shared<Camera> previousCamera = _cameraBeforeFreeCamera.lock())
     {
+        if (_hasTargetCameraModeBeforeFreeCamera)
+        {
+            if (Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(previousCamera))
+                targetCamera->Change_Mode(_targetCameraModeBeforeFreeCamera);
+        }
+
         GAME->Change_ActiveCamera(previousCamera);
         _cameraBeforeFreeCamera.reset();
+        _hasTargetCameraModeBeforeFreeCamera = false;
         return;
+    }
+
+    if (_hasTargetCameraModeBeforeFreeCamera)
+    {
+        if (Shared<TargetCamera> targetCamera =
+            dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+        {
+            targetCamera->Change_Mode(_targetCameraModeBeforeFreeCamera);
+        }
+
+        _hasTargetCameraModeBeforeFreeCamera = false;
     }
 
     Activate_TargetCamera();

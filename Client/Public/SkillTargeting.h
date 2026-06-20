@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Battle_Enum.h"
 #include "Battle_State.h"
 
 NS_BEGIN(Client)
@@ -21,6 +22,7 @@ public:
 
 private:
     bool    Try_MoveTargetIndex(int32 direction, size_t enemyCount);
+    bool    Requires_SkillTarget(const Skill_Data* skillData);
 
 private:
     uint32 _targetIndex = {};

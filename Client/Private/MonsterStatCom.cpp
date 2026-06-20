@@ -206,6 +206,9 @@ void MonsterStatCom::Set_RuntimeCombatProfile(float maxHp, uint32 maxAp, float p
     _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
     _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
     _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+
+  _monsterDesc._criticalRatio = _monsterDesc._criticalRatio;
+  _monsterDesc._midRatio = _monsterDesc._midRatio;
 }
 
 BattleMonsterStatSnapshot MonsterStatCom::Create_BattleSyncSnapshot() const

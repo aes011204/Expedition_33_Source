@@ -9,6 +9,8 @@
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
+#include "MovementCom.h"
+#include "TransformCom.h"
 
 IMPLEMENT_REFLECTION(PW_Maelle)
 {
@@ -64,8 +66,16 @@ void PW_Maelle::BeginPlay()
 
 HRESULT PW_Maelle::Ready_Modifier()
 {
-	if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-	{
+	auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
+	CHECK_NULL(body, E_FAIL);
+
+	return Ready_BodyModifiers(body);
+}
+
+HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
+{
+	CHECK_NULL(body, E_FAIL);
+
 		OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
 		aimOffsetDesc.baseModelCom = body->Get_Model().get();
 		aimOffsetDesc.animName = "Maelle_IdleFreeAim_LoopingWorld_Sweep";
@@ -104,6 +114,8 @@ HRESULT PW_Maelle::Ready_Modifier()
 		}
 		else return E_FAIL;
 
+		wOffsetDesc.animName = "Maelle_Walk_B";
+		wOffsetDesc.modifierTag = L"Walk_B";
 		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
 		{
 			modifier->Set_Active(false);
@@ -146,9 +158,6 @@ HRESULT PW_Maelle::Ready_Modifier()
 			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
 		}
 		else return E_FAIL;
-	}
-	else
-		return E_FAIL;
 
 	return S_OK;
 }

@@ -5,6 +5,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor preview viewport의 orbit camera GameObject를 구현한다.
 class EffectEditorCamera final : public Camera
 {
 public:

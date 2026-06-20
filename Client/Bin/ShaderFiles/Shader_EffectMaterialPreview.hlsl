@@ -17,7 +17,8 @@ cbuffer cbEffectMaterialPreview : register(b2)
     float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };     // xy: mask offset, zw: reserved
     float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };           // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
     float4 g_EffectMaterialPreviewUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
-    float4 g_EffectMaterialPreviewMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
+    float4 g_EffectMaterialPreviewMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialPreviewUVRotationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialPreviewSourceParams = { 1.f, 0.f, 0.f, 0.f };           // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectMaterialPreviewAdditiveParams = { 0.f, 0.f, 0.f, 1.f };         // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectMaterialPreviewAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
@@ -43,28 +44,52 @@ float2 Apply_MaterialPreviewUV(float2 uv, float4 uvParams, float2 uvOffset)
 
 float Resolve_PreviewAxisUV(float rawValue, float transformedValue, float policy)
 {
-    return policy >= 2.5f ? rawValue : transformedValue;
+    const int mode = (int)(policy + 0.5f);
+    float result = transformedValue;
+    if (mode == 3)
+        result = rawValue;
+    return result;
 }
 
-float2 Build_MaterialPreviewUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy)
+float2 Rotate_MaterialUV(float2 uv, float rotation)
 {
-    const float2 transformedUV = Apply_MaterialPreviewUV(rawUV, uvParams, uvOffset);
+    const int mode = (int)(rotation + 0.5f);
+    float2 result = uv;
+    if (mode == 1)
+        result = float2(1.f - uv.y, uv.x);
+    else if (mode == 2)
+        result = 1.f - uv;
+    else if (mode == 3)
+        result = float2(uv.y, 1.f - uv.x);
+    return result;
+}
+
+float2 Build_MaterialPreviewUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy, float rotation)
+{
+    const float2 rotatedUV = Rotate_MaterialUV(rawUV, rotation);
+    const float2 transformedUV = Apply_MaterialPreviewUV(rotatedUV, uvParams, uvOffset);
     return float2(
-        Resolve_PreviewAxisUV(rawUV.x, transformedUV.x, policy.x),
-        Resolve_PreviewAxisUV(rawUV.y, transformedUV.y, policy.y)
+        Resolve_PreviewAxisUV(rotatedUV.x, transformedUV.x, policy.x),
+        Resolve_PreviewAxisUV(rotatedUV.y, transformedUV.y, policy.y)
     );
 }
 
-float Apply_PreviewAxisAddress(float value, float policy)
+float Apply_PreviewAxisAddressValue(float value, float policy)
 {
-    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
+    const int mode = (int)(policy + 0.5f);
+    float result = frac(value);
+    if (mode == 1 || mode == 2)
+        result = saturate(value);
+    else if (mode == 4)
+        result = 1.f - abs(frac(value * 0.5f) * 2.f - 1.f);
+    return result;
 }
 
 float2 Apply_PreviewAxisAddress(float2 uv, float2 policy)
 {
     return float2(
-        Apply_PreviewAxisAddress(uv.x, policy.x),
-        Apply_PreviewAxisAddress(uv.y, policy.y)
+        Apply_PreviewAxisAddressValue(uv.x, policy.x),
+        Apply_PreviewAxisAddressValue(uv.y, policy.y)
     );
 }
 
@@ -141,9 +166,9 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float2 mainUVPolicy = g_EffectMaterialPreviewUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectMaterialPreviewUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectMaterialPreviewMaskUVAxisPolicyParams.xy;
-    const float2 mainUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams, g_EffectMaterialPreviewUVOffsetParams.xy, mainUVPolicy);
-    const float2 noiseUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams, g_EffectMaterialPreviewUVOffsetParams.zw, noiseUVPolicy);
-    const float2 maskUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMaskUVParams, g_EffectMaterialPreviewMaskUVOffsetParams.xy, maskUVPolicy);
+    const float2 mainUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams, g_EffectMaterialPreviewUVOffsetParams.xy, mainUVPolicy, g_EffectMaterialPreviewUVRotationParams.x);
+    const float2 noiseUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams, g_EffectMaterialPreviewUVOffsetParams.zw, noiseUVPolicy, g_EffectMaterialPreviewUVRotationParams.y);
+    const float2 maskUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMaskUVParams, g_EffectMaterialPreviewMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMaterialPreviewUVRotationParams.z);
     const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVPolicy);
     const float opacityPower = max(g_EffectMaterialPreviewParams.y, 0.0001f);
     const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
@@ -208,9 +233,9 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float2 mainUVPolicy = g_EffectMaterialPreviewUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectMaterialPreviewUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectMaterialPreviewMaskUVAxisPolicyParams.xy;
-    const float2 mainUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams, g_EffectMaterialPreviewUVOffsetParams.xy, mainUVPolicy);
-    const float2 noiseUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams, g_EffectMaterialPreviewUVOffsetParams.zw, noiseUVPolicy);
-    const float2 maskUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMaskUVParams, g_EffectMaterialPreviewMaskUVOffsetParams.xy, maskUVPolicy);
+    const float2 mainUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams, g_EffectMaterialPreviewUVOffsetParams.xy, mainUVPolicy, g_EffectMaterialPreviewUVRotationParams.x);
+    const float2 noiseUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams, g_EffectMaterialPreviewUVOffsetParams.zw, noiseUVPolicy, g_EffectMaterialPreviewUVRotationParams.y);
+    const float2 maskUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMaskUVParams, g_EffectMaterialPreviewMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMaterialPreviewUVRotationParams.z);
     const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVPolicy);
     const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
     const float alphaErosion = saturate(g_EffectMaterialPreviewAlphaParams.y);

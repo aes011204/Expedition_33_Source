@@ -1,4 +1,4 @@
-#include "SourcePointSampleProvider_ByPart.h"
+﻿#include "SourcePointSampleProvider_ByPart.h"
 
 #include "EffectCom.h"
 
@@ -37,7 +37,8 @@ bool SourcePointSampleProvider_ByPart::Try_GetSourcePointSample(EffectSourcePoin
         _socketName,
         _trailAnchorAsset,
         _sourcePointPolicy,
-        outSample);
+        outSample
+    );
 }
 
 NS_END

@@ -191,12 +191,6 @@ HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
-    //UI_RuntimeLoader::UI_LoadDesc desc{};
-    //desc.levelIndex = ETOI(LevelType::GamePlay);
-    //desc.jsonPath = Constants::UI::UI_Json_Path;
-    //desc.outUIByName = &_uiByName;
-
-    //CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
 
     return S_OK;

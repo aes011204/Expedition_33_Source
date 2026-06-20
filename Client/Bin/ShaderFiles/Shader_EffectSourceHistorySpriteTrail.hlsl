@@ -18,6 +18,7 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteUVRotationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f };
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
@@ -163,16 +164,36 @@ bool TryResolveTextureAxisBasis(float3 axisDir, float3 center, out float3 rightD
     return resolved;
 }
 
+void ResolveWorldUpRectangleBasis(float3 center, out float3 rightDir, out float3 upDir)
+{
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
+    const float3 worldUp = float3(0.f, 1.f, 0.f);
+    float3 cameraLook = float3(0.f, 0.f, 0.f);
+    if (!TryNormalize(g_CamPosition.xyz - center, cameraLook))
+        return;
+
+    float3 worldRight = float3(0.f, 0.f, 0.f);
+    if (!TryNormalize(cross(worldUp, cameraLook), worldRight))
+        return;
+
+    rightDir = worldRight;
+    upDir = worldUp;
+}
+
 void ResolveTrailBasis(float3 center, float3 tangent, out float3 rightDir, out float3 upDir)
 {
     ResolveCameraPlaneBasis(rightDir, upDir);
 
     const int screenAlignment = (int)g_SourceHistorySpriteTrailParams.x;
     const float3 pathAxis = NormalizeOrFallback(tangent, float3(0.f, 1.f, 0.f));
-    if (screenAlignment == 0 || screenAlignment == 1)
+    if (screenAlignment == 0)
     {
-        if (!TryResolveTextureAxisBasis(pathAxis, center, rightDir, upDir))
-            ResolveCameraPlaneBasis(rightDir, upDir);
+        ResolveLookAlignedBasis(ResolveFacingLookDirection(center), rightDir, upDir);
+    }
+    else if (screenAlignment == 1)
+    {
+        ResolveWorldUpRectangleBasis(center, rightDir, upDir);
     }
     else if (screenAlignment == 4)
     {
@@ -276,28 +297,52 @@ void GS_MAIN(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
 
 float Resolve_EffectSpriteAxisUV(float rawValue, float transformedValue, float policy)
 {
-    return policy >= 2.5f ? rawValue : transformedValue;
+    const int mode = (int)(policy + 0.5f);
+    float result = transformedValue;
+    if (mode == 3)
+        result = rawValue;
+    return result;
 }
 
-float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float2 policy)
+float2 Rotate_MaterialUV(float2 uv, float rotation)
 {
-    const float2 transformedUV = baseUV * uvParams.xy + uvOffset + uvParams.zw * g_EffectSpriteMaterialTime;
+    const int mode = (int)(rotation + 0.5f);
+    float2 result = uv;
+    if (mode == 1)
+        result = float2(1.f - uv.y, uv.x);
+    else if (mode == 2)
+        result = 1.f - uv;
+    else if (mode == 3)
+        result = float2(uv.y, 1.f - uv.x);
+    return result;
+}
+
+float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float2 policy, float rotation)
+{
+    const float2 rotatedUV = Rotate_MaterialUV(baseUV, rotation);
+    const float2 transformedUV = rotatedUV * uvParams.xy + uvOffset + uvParams.zw * g_EffectSpriteMaterialTime;
     return float2(
-        Resolve_EffectSpriteAxisUV(baseUV.x, transformedUV.x, policy.x),
-        Resolve_EffectSpriteAxisUV(baseUV.y, transformedUV.y, policy.y)
+        Resolve_EffectSpriteAxisUV(rotatedUV.x, transformedUV.x, policy.x),
+        Resolve_EffectSpriteAxisUV(rotatedUV.y, transformedUV.y, policy.y)
     );
 }
 
-float Apply_EffectSpriteAxisAddress(float value, float policy)
+float Apply_EffectSpriteAxisAddressValue(float value, float policy)
 {
-    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
+    const int mode = (int)(policy + 0.5f);
+    float result = frac(value);
+    if (mode == 1 || mode == 2)
+        result = saturate(value);
+    else if (mode == 4)
+        result = 1.f - abs(frac(value * 0.5f) * 2.f - 1.f);
+    return result;
 }
 
 float2 Apply_EffectSpriteAxisAddress(float2 uv, float2 policy)
 {
     return float2(
-        Apply_EffectSpriteAxisAddress(uv.x, policy.x),
-        Apply_EffectSpriteAxisAddress(uv.y, policy.y)
+        Apply_EffectSpriteAxisAddressValue(uv.x, policy.x),
+        Apply_EffectSpriteAxisAddressValue(uv.y, policy.y)
     );
 }
 
@@ -330,7 +375,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(GS_OUT input)
     const float2 mainUVPolicy = g_EffectSpriteUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectSpriteUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectSpriteMaskUVAxisPolicyParams.xy;
-    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, mainUVPolicy);
+    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, mainUVPolicy, g_EffectSpriteUVRotationParams.x);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, mainUVPolicy);
     const float resolvedOpacityPower = g_EffectSpriteParams.y
                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
@@ -377,7 +422,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(GS_OUT input)
 
     if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, noiseUVPolicy);
+        const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, noiseUVPolicy, g_EffectSpriteUVRotationParams.y);
         const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, noiseUVPolicy);
         const float noise = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
@@ -388,7 +433,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(GS_OUT input)
 
     if (0 != g_EffectSpriteAlphaParams.z)
     {
-        const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, maskUVPolicy);
+        const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, maskUVPolicy, g_EffectSpriteUVRotationParams.z);
         const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, maskUVPolicy);
         maskAlpha = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
@@ -444,9 +489,9 @@ PS_OUT PS_ADDITIVE(GS_OUT input)
     const float2 mainUVPolicy = g_EffectSpriteUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectSpriteUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectSpriteMaskUVAxisPolicyParams.xy;
-    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, mainUVPolicy);
-    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, noiseUVPolicy);
-    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, maskUVPolicy);
+    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, mainUVPolicy, g_EffectSpriteUVRotationParams.x);
+    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, noiseUVPolicy, g_EffectSpriteUVRotationParams.y);
+    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, maskUVPolicy, g_EffectSpriteUVRotationParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, mainUVPolicy);
     const float resolvedNoiseStrength = g_EffectSpriteParams.z
                                         * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);

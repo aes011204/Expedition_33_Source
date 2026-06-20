@@ -5,6 +5,8 @@
 #include "Helper_String.h"
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
+#include "SL_Base.h"
+#include "SL_Maelle.h"
 #include "Body_Player.h"
 #include "ModelCom.h"
 #include "Monster_Part.h"
@@ -36,6 +38,16 @@ void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
             if (Shared<ModelCom> model = body->Get_Model())
                 model->Refresh_AnimStateMappingFromOwnerContext();
         }
+        return;
+    }
+
+    if (auto soulLikePlayer = dynamic_pointer_cast<SL_Maelle>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(soulLikePlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext(); // Spawn_Prefab에서 SL_Maelle source_prefab 세팅 후 SL 전용 animmap을 다시 잡는다.
+        }
     }
 }
 
@@ -54,6 +66,16 @@ void Refresh_MonsterBodyAnimMapping(const Shared<GameObject>& gameObject)
     if (auto battleMonster = dynamic_pointer_cast<Monster_BattleBase>(gameObject))
     {
         if (auto* body = dynamic_cast<Monster_Part*>(battleMonster->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+        return;
+    }
+
+    if (auto soulLikeActor = dynamic_pointer_cast<SL_Base>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Monster_Part*>(soulLikeActor->Get_PartObject(L"Part_Body")))
         {
             if (Shared<ModelCom> model = body->Get_Model())
                 model->Refresh_AnimStateMappingFromOwnerContext();
@@ -182,7 +204,20 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
     const wstring fileName = String::ToWString(prefabName) + L".prefab.json";
     const fs::path assetRoot = fs::path(GAME->Get_AssetRoot());
 
-    if (prefabName.starts_with("PW_") || prefabName.starts_with("PB_") || prefabName.starts_with("PP_"))
+    if (prefabName.starts_with("SL_"))
+    {
+        const fs::path playerPath = assetRoot / Constants::Prefab::Player_Dir / fileName;
+        const fs::path monsterPath = assetRoot / Constants::Prefab::Monster_Dir / fileName;
+
+        if (fs::exists(monsterPath) && !fs::exists(playerPath))
+            return monsterPath;
+
+        return playerPath;
+    }
+
+    if (prefabName.starts_with("PW_") ||
+        prefabName.starts_with("PB_") ||
+        prefabName.starts_with("PP_"))
         return assetRoot / Constants::Prefab::Player_Dir / fileName; // 플레이어 프리팹은 Player 폴더로 정규화한다.
 
     if (prefabName.starts_with("MW_") || prefabName.starts_with("MB_") || prefabName.starts_with("TW_"))
@@ -258,6 +293,9 @@ wstring Spawn_Prefab::Resolve_DefaultLayerTag(const Shared<GameObject>& gameObje
         return TEXT("Layer_Monster");
 
     if (dynamic_pointer_cast<Player_WorldBase>(gameObject) != nullptr)
+        return TEXT("Layer_Player");
+
+    if (dynamic_pointer_cast<SL_Maelle>(gameObject) != nullptr)
         return TEXT("Layer_Player");
 
     return TEXT("Layer_GameObject");

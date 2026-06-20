@@ -283,6 +283,24 @@ HRESULT Object_Manager::Clear_Layers(uint32 levelIndex)
     if (levelIndex >= _numLevels)
         return E_FAIL;
 
+    for (auto& [layerTag, layer] : _layers[levelIndex])
+    {
+        UNREFERENCED_PARAMETER(layerTag);
+
+        if (layer)
+            layer->Free();
+    }
+
+    _pendingRemoveGameObjects.erase(
+        remove_if(
+            _pendingRemoveGameObjects.begin(),
+            _pendingRemoveGameObjects.end(),
+            [levelIndex](const PendingRemoveGameObject& pending)
+            {
+                return pending.levelIndex == levelIndex;
+            }),
+        _pendingRemoveGameObjects.end());
+
     _layers[levelIndex].clear();
     ++_objectRevision;
 

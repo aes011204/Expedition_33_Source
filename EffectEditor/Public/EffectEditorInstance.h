@@ -48,6 +48,7 @@ enum class EffectEditorPostProcessPreset
     Custom,
 };
 
+// EffectEditor singleton으로 editor subsystem, preview viewport, runtime state, and session options를 조율한다.
 class EffectEditorInstance final : public Base
 {
     DECLARE_SINGLETON(EffectEditorInstance)

@@ -28,6 +28,11 @@ public:
     bool                    Intersect(Shared<ColliderCom> target);
 
 public:
+    const set<Weak<ColliderCom>, owner_less<Weak<ColliderCom>>>& Get_OverlapSet() const
+    {
+        return _overlapSet;
+    }
+
     void                    Add_Overlap(Shared<ColliderCom> other);
     void                    Remove_Overlap(Shared<ColliderCom> other);
     bool                    Is_Overlapping(Shared<ColliderCom> other) const;
@@ -50,13 +55,11 @@ public:
     void                    Set_ShapeDesc(const ColliderShapeDesc& shapeDesc);
 
 
-#ifdef _DEBUG
 public:
     HRESULT Render_Debug();
 
 private:
     HRESULT Ready_DebugRenderResources();
-#endif
 
 
 public: /* PhysX */
@@ -107,11 +110,9 @@ private:
     Shared<Bounding> _bounding = nullptr;
     set<Weak<ColliderCom>, owner_less<Weak<ColliderCom>>> _overlapSet;
 
-#ifdef _DEBUG
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _batch = nullptr;
     Shared<DirectX::BasicEffect> _effect = nullptr;
     ComPtr<ID3D11InputLayout> _inputLayout = nullptr;
-#endif
 
 private:
     ColliderShapeDesc _shapeDesc{};
