@@ -98,6 +98,18 @@ public:
         int32 trackIndex = 0;
     };
 
+    struct NotifyUndoSnapshot
+    {
+        json assetJson{};
+        string currentAnimationName{};
+        int32 selectedNotifyId = -1;
+        int32 selectedStateId = -1;
+        int32 selectedNotifyTrackIndex = 0;
+        int32 selectedNotifyStateTrackIndex = 0;
+        int32 sequencerCurrentFrame = 0;
+        vector<int32> selectedNotifyIds{};
+    };
+
 private:
     enum class TrailAnchorSlot : uint8
     {
@@ -221,6 +233,14 @@ private:
     void Delete_SelectedNotifyTrack();
     void Delete_SelectedNotifyStateTrack();
     void Handle_ClipboardShortcuts();
+    void Undo_NotifyEdit();
+    void Redo_NotifyEdit();
+    NotifyUndoSnapshot Capture_NotifyUndoSnapshot() const;
+    void Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot);
+    void Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot);
+    void Begin_PendingNotifyUndo();
+    void Commit_PendingNotifyUndo();
+    void Clear_NotifyUndoHistory();
     void Move_SelectedNotifiesByFrame(int32 frameDelta);
     void Move_SelectedStateByFrame(int32 frameDelta);
     void Copy_SelectedNotify();
@@ -410,6 +430,11 @@ private:
     NotifyClipboardKind _notifyClipboardKind = NotifyClipboardKind::None;
     vector<CopiedNotifyEntry> _copiedNotifies{};
     CopiedNotifyStateEntry _copiedNotifyState{};
+
+    vector<NotifyUndoSnapshot> _notifyUndoStack{};
+    vector<NotifyUndoSnapshot> _notifyRedoStack{};
+    NotifyUndoSnapshot _pendingNotifyUndoSnapshot{};
+    bool _hasPendingNotifyUndoSnapshot = false;
 
     Unique<AnimSequencerAdapter> _sequencer{};
 

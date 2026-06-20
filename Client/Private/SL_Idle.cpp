@@ -44,11 +44,23 @@ bool SL_Idle::Request_Dodge(const SL_MoveRequest& request)
     return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Dodge);
 }
 
+bool SL_Idle::Request_Parry()
+{
+    return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Parry);
+}
+
 bool SL_Idle::Request_Skill(const Skill_Data& skillData, uint32 slotIndex)
 {
-    CHECK_NULL(_stateCom , false);
+    CHECK_NULL(_stateCom, false);
 
     return _stateCom->Change_State(SL_PlayerState::Skill);
+}
+
+bool SL_Idle::Request_Jump()
+{
+    CHECK_NULL(_stateCom, false);
+
+    return _stateCom->Change_State(SL_PlayerState::Jump);
 }
 
 Shared<SL_Idle> SL_Idle::Create(const Shared<SL_Maelle>& owner)

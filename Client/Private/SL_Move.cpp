@@ -78,11 +78,23 @@ bool SL_Move::Request_Dodge(const SL_MoveRequest& request)
     return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Dodge);
 }
 
+bool SL_Move::Request_Parry()
+{
+    return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Parry);
+}
+
 bool SL_Move::Request_Skill(const Skill_Data& skillData, uint32 slotIndex)
 {
     CHECK_NULL(_stateCom , false);
 
     return _stateCom->Change_State(SL_PlayerState::Skill);
+}
+
+bool SL_Move::Request_Jump()
+{
+    CHECK_NULL(_stateCom, false);
+
+    return _stateCom->Change_State(SL_PlayerState::Jump);
 }
 
 Shared<SL_Move> SL_Move::Create(const Shared<SL_Maelle>& owner)

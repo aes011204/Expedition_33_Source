@@ -40,6 +40,8 @@ public: //## Behavior::PlaybackOptions
     // 튜토리얼 freeze는 Stop이 아니라 update만 멈춘다.
     void Set_PlaybackPaused(bool paused) { _isPlaybackPaused = paused; }
     bool Is_PlaybackPaused() const { return _isPlaybackPaused; }
+    void Set_PlaybackSpeed(float speed);
+    float Get_PlaybackSpeed() const { return _playbackSpeed; }
 
 public: //## Behavior::ProviderBinding
     // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
@@ -72,6 +74,8 @@ private: //## Data::Lifecycle
     bool _loop{ false };
     // 현재 프레임을 화면에 남긴 채 emitter 시간 진행만 막는다.
     bool _isPlaybackPaused{ false };
+    // emitter 시간 진행 배율이다. 0이면 transform follow는 유지하고 visual time만 멈춘다.
+    float _playbackSpeed{ 1.f };
     // effect root 재생 1회 단위 random seed다.
     uint32 _effectPlaybackSeed{ 0 };
 

@@ -6,8 +6,13 @@
 #include "SL_Base.h"
 #include "SL_Maelle.h"
 #include "SoulLikeController.h"
+#include "UI_BattleSystemHUD.h"
 #include "UI_BattleVictory.h"
 #include "UI_BossHpBar.h"
+#include "UI_ReactionResult.h"
+#include "UI_Utils.h"
+
+using namespace UI_Utils;
 
 namespace
 {
@@ -37,7 +42,9 @@ HRESULT GamePlayUI_SL::Initialize(uint32 levelIndex)
 
 void GamePlayUI_SL::Update(float timeDelta)
 {
+    Update_BattleSystemHUD(timeDelta);
 	Update_BossHpBar(timeDelta);
+    Update_ReactionResult(timeDelta);
     Update_BattleVictory(timeDelta);
 }
 
@@ -45,6 +52,12 @@ void GamePlayUI_SL::Handle_EditorStopRuntime()
 {
 	if (_bossHpBar)
         _bossHpBar->Clear_Boss();
+
+    if (_battleSystemHUD)
+        _battleSystemHUD->Close();
+
+    if (_reactionResult)
+        _reactionResult->Close();
 
     _isVictoryUiActive = false;
     _isVictoryConfirmPending = false;
@@ -74,8 +87,14 @@ vector<RuntimeUIEntry> GamePlayUI_SL::Get_RuntimeUIEntries() const
     if (_bossHpBar)
         _bossHpBar->Append_RuntimeUIEntries(entries, "SoulLike", "BossHpBar");
 
+    if (_battleSystemHUD)
+        _battleSystemHUD->Append_RuntimeUIEntries(entries, "SoulLike", "BattleSystemHUD");
+
     if (_battleVictory)
         _battleVictory->Append_RuntimeUIEntries(entries, "SoulLike", "BattleVictory");
+
+    if (_reactionResult)
+        _reactionResult->Append_RuntimeUIEntries(entries, "SoulLike", "ReactionResult");
 
     return entries;
 }
@@ -89,6 +108,15 @@ bool GamePlayUI_SL::Ensure_BossHpBar()
     return _bossHpBar != nullptr;
 }
 
+bool GamePlayUI_SL::Ensure_BattleSystemHUD()
+{
+    if (_battleSystemHUD)
+        return true;
+
+    _battleSystemHUD = UI_BattleSystemHUD::Create(_levelIndex);
+    return _battleSystemHUD != nullptr;
+}
+
 bool GamePlayUI_SL::Ensure_BattleVictory()
 {
     if (_battleVictory)
@@ -96,6 +124,69 @@ bool GamePlayUI_SL::Ensure_BattleVictory()
 
     _battleVictory = UI_BattleVictory::Create(_levelIndex);
     return _battleVictory != nullptr;
+}
+
+bool GamePlayUI_SL::Ensure_ReactionResult()
+{
+    if (_reactionResult)
+        return true;
+
+    _reactionResult = UI_ReactionResult::Create(_levelIndex);
+    return _reactionResult != nullptr;
+}
+
+void GamePlayUI_SL::Show_ParryResult(const Vec3& worldPos)
+{
+    if (!Ensure_ReactionResult())
+        return;
+
+    Vec2 screenPos{};
+    if (!Try_ProjectWorldToScreen(worldPos, screenPos))
+        return;
+
+    screenPos += Vec2(24.f, -24.f);
+    _reactionResult->Show_Reaction(BattleReactionType::Parry, screenPos);
+}
+
+void GamePlayUI_SL::Update_BattleSystemHUD(float timeDelta)
+{
+    if (!CLIENT->Is_SoulLikeBattleActive())
+    {
+        if (_battleSystemHUD)
+            _battleSystemHUD->Close();
+        return;
+    }
+
+    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+    const Shared<SL_Maelle> player = controller ? controller->Get_Player() : nullptr;
+    const Shared<PlayerStatCom> playerStat = player
+        ? dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat())
+        : nullptr;
+
+    if (playerStat == nullptr)
+    {
+        if (_battleSystemHUD)
+            _battleSystemHUD->Close();
+        return;
+    }
+
+    if (!Ensure_BattleSystemHUD())
+        return;
+
+    _battleSystemHUD->Set_BattleHeroIds({ HeroId::Maelle });
+    _battleSystemHUD->Open();
+    _battleSystemHUD->Clear_GustaveMechanismCharge();
+    _battleSystemHUD->Clear_LuneMechanismStains();
+    _battleSystemHUD->Clear_MaelleMechanismStance();
+
+    _battleSystemHUD->Set_PartyBattleStat(
+        PlayerCharacterType::Maelle,
+        playerStat->Get_CurHp(),
+        playerStat->Get_StatInfo().maxHp,
+        playerStat->Get_CurAP(),
+        playerStat->Get_MaxAP());
+
+    _battleSystemHUD->Update(timeDelta);
 }
 
 void GamePlayUI_SL::Update_BossHpBar(float timeDelta)
@@ -125,6 +216,20 @@ void GamePlayUI_SL::Update_BossHpBar(float timeDelta)
 
     _bossHpBar->Show_Boss(boss);
     _bossHpBar->Update(timeDelta);
+}
+
+void GamePlayUI_SL::Update_ReactionResult(float timeDelta)
+{
+    if (_reactionResult == nullptr)
+        return;
+
+    if (!CLIENT->Is_SoulLikeBattleActive())
+    {
+        _reactionResult->Close();
+        return;
+    }
+
+    _reactionResult->Update(timeDelta);
 }
 
 void GamePlayUI_SL::Update_BattleVictory(float timeDelta)
@@ -290,6 +395,18 @@ void GamePlayUI_SL::Free()
     {
         _battleVictory->Free();
         _battleVictory.reset();
+    }
+
+    if (_battleSystemHUD)
+    {
+        _battleSystemHUD->Free();
+        _battleSystemHUD.reset();
+    }
+
+    if (_reactionResult)
+    {
+        _reactionResult->Free();
+        _reactionResult.reset();
     }
 
     Base::Free();
