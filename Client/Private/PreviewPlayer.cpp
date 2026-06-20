@@ -1098,7 +1098,8 @@ const wchar_t* PreviewPlayer::Get_DefaultBeardModelTag() const
     switch (_heroId)
     {
     case HeroId::Gustave:
-        return L"Model_GustaveBeard";
+        // return L"Model_GustaveBeard";
+        return nullptr;
     default:
         return nullptr;
     }
@@ -1109,7 +1110,8 @@ const wchar_t* PreviewPlayer::Get_DefaultMustacheModelTag() const
     switch (_heroId)
     {
     case HeroId::Gustave:
-        return L"Model_GustaveMustache";
+        // return L"Model_GustaveMustache";
+        return nullptr;
     default:
         return nullptr;
     }

@@ -4,6 +4,7 @@
 NS_BEGIN(Client)
 
 class Mon_Simon_Body;
+class Mon_Simon_Hair;
 class Mon_Simon_Weapon;
 
 class MB_Simon :
@@ -27,6 +28,7 @@ protected:
 
 private:
     Shared<Mon_Simon_Body> _body = {};
+    Shared<Mon_Simon_Hair> _hair = {};
     Shared<Mon_Simon_Weapon> _weapon = {};
 
 public:

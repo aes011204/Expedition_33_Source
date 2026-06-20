@@ -1251,6 +1251,14 @@ bool Inspector::Draw_ReflectionProperty(
     const string visibleLabel =
         property.displayName.empty() ? property.name : property.displayName;
     const string hiddenId = "##" + idPrefix + "_" + property.name;
+    const auto drawPropertyLabel = [&visibleLabel]()
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+    };
 
     switch (property.type)
     {
@@ -1258,9 +1266,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         bool* value = static_cast<bool*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         return ImGui::Checkbox(hiddenId.c_str(), value);
     }
 
@@ -1269,9 +1275,7 @@ bool Inspector::Draw_ReflectionProperty(
         int* value = static_cast<int*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
@@ -1289,9 +1293,7 @@ bool Inspector::Draw_ReflectionProperty(
         float* value = static_cast<float*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
@@ -1304,9 +1306,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec2* value = static_cast<Vec2*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_Vec2PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1315,9 +1315,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec3* value = static_cast<Vec3*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_Vec3PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1326,9 +1324,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec4* value = static_cast<Vec4*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_Vec4PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1337,9 +1333,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec4* value = static_cast<Vec4*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_ColorPropertyRow(idPrefix + "_" + property.name, *value);
     }
@@ -1349,9 +1343,7 @@ bool Inspector::Draw_ReflectionProperty(
         std::string* value = static_cast<std::string*>(address);
         bool changed = false;
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         if (property.isBlackboardKey && _btBlackboardKeys != nullptr)
         {
@@ -1405,9 +1397,7 @@ bool Inspector::Draw_ReflectionProperty(
         wstring* value = static_cast<wstring*>(address);
         bool changed = false;
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         if (idPrefix == "EffectCom" && property.name == "_inspectorEffectName")
         {
@@ -1432,9 +1422,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         int* value = static_cast<int*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_EnumPropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1442,9 +1430,7 @@ bool Inspector::Draw_ReflectionProperty(
     case PropertyType::ReadOnly:
     default:
     {
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::BeginDisabled();
         ImGui::TextUnformatted("Unsupported");
         ImGui::EndDisabled();

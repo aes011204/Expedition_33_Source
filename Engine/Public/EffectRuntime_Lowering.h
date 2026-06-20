@@ -42,21 +42,25 @@ inline void Copy_EffectMaterialInstanceToRuntimeDesc(
     outMaterial.mainUVScrollSpeed = material.mainUVScrollSpeed;
     outMaterial.mainUVTilingMode = material.mainUVTilingMode;
     outMaterial.mainUVPolicy = material.mainUVPolicy;
+    outMaterial.mainUVRotation = material.mainUVRotation;
     outMaterial.noiseUVScale = material.noiseUVScale;
     outMaterial.noiseUVOffset = material.noiseUVOffset;
     outMaterial.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
     outMaterial.noiseUVTilingMode = material.noiseUVTilingMode;
     outMaterial.noiseUVPolicy = material.noiseUVPolicy;
+    outMaterial.noiseUVRotation = material.noiseUVRotation;
     outMaterial.maskUVScale = material.maskUVScale;
     outMaterial.maskUVOffset = material.maskUVOffset;
     outMaterial.maskUVScrollSpeed = material.maskUVScrollSpeed;
     outMaterial.maskUVTilingMode = material.maskUVTilingMode;
     outMaterial.maskUVPolicy = material.maskUVPolicy;
+    outMaterial.maskUVRotation = material.maskUVRotation;
     outMaterial.flowUVScale = material.flowUVScale;
     outMaterial.flowUVOffset = material.flowUVOffset;
     outMaterial.flowUVScrollSpeed = material.flowUVScrollSpeed;
     outMaterial.flowUVTilingMode = material.flowUVTilingMode;
     outMaterial.flowUVPolicy = material.flowUVPolicy;
+    outMaterial.flowUVRotation = material.flowUVRotation;
 
     outMaterial.additive = material.additive;
     outMaterial.coreEmissive = material.coreEmissive;

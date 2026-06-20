@@ -222,7 +222,7 @@ PS_OUT_ID PS_ID_Instance(PS_ID_INST_IN In)
     Out.vColor.r = float(finalID & 0xFF) / 255.f;
     Out.vColor.g = float((finalID >> 8) & 0xFF) / 255.f;
     Out.vColor.b = float((finalID >> 16) & 0xFF) / 255.f;
-    Out.vColor.a = 1.f;
+    Out.vColor.a = float((finalID >> 24) & 0xFF) / 255.f;
     return Out;
 }
 

@@ -25,6 +25,7 @@ namespace Client
     {
         None,
         ChooseSkill,
+        ChooseGradient,     // BattleCommand Q opens the Gradient selection state.
         AttackTargeting,
         AttackPlaying,      // 타겟 선택 끝나고, 평타 or 스킬 실행중일 때
         ChooseItem,
@@ -354,6 +355,9 @@ namespace Client
     };
 
     //------------------------------------
+    inline constexpr uint32 kBattleSkillPageNormal = 0;
+    inline constexpr uint32 kBattleSkillPageSecond = 1;
+
     struct ActionRequest
     {
         EBattleContext type = EBattleContext::Invalid;
@@ -363,7 +367,7 @@ namespace Client
         string skillKey = "";
         BattleItemType itemType = BattleItemType::Invalid;
 
-        uint32 skillPage = 0; // Choose Skill에서 스킬 패널이 왼쪽 오른쪽인지 페이즈 구별용
+        uint32 skillPage = kBattleSkillPageNormal; // Choose Skill에서 스킬 패널이 왼쪽 오른쪽인지 페이즈 구별용
     };
 
     //
@@ -463,11 +467,15 @@ namespace Client
         Waiting_LookAround_1,
         Waiting_LookAround_2,
 
+        Jump,
+        JumpCounter,
+
+        Hit_Weak
     };
 
     enum class BattleReactionType
     {
-        None, Parry, Dodge, QTE, END
+        None, Parry, Dodge, QTE, Jump, JumpCounter, END
     };
 
     enum class BattleQTEResult

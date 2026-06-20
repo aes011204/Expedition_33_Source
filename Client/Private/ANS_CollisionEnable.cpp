@@ -1,0 +1,99 @@
+﻿#include "ANS_CollisionEnable.h"
+
+#include "ColliderCom.h"
+#include "GameInstance.h"
+#include "GameObject.h"
+#include "TransformCom.h"
+
+IMPLEMENT_REFLECTION(ANS_CollisionEnable)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "ANS_CollisionEnable";
+    info.category = "SoulLike";
+
+    PROPERTY_STRING("Collider Tag", _colliderTag);
+
+    return true;
+}
+
+void ANS_CollisionEnable::On_Begin(const AnimNotifyContext& context)
+{
+    Set_ColliderActive(context, true);
+}
+
+void ANS_CollisionEnable::On_Tick(const AnimNotifyContext& context)
+{
+    const Shared<GameObject> owner = Resolve_CollisionOwner(context.owner);
+    const Shared<ColliderCom> collider = Resolve_Collider(owner);
+
+    if (owner == nullptr || collider == nullptr || !collider->Get_IsActive())
+        return;
+
+    Sync_Collider(owner, collider);
+}
+
+void ANS_CollisionEnable::On_End(const AnimNotifyContext& context)
+{
+    Set_ColliderActive(context, false);
+}
+
+Shared<GameObject> ANS_CollisionEnable::Resolve_CollisionOwner(GameObject* notifyOwner) const
+{
+    Shared<GameObject> current = notifyOwner ? notifyOwner->GetSharedPtr<GameObject>() : nullptr;
+
+    while (current)
+    {
+        const wstring tag = String::ToWString(_colliderTag);
+        if (current->Get_Component<ColliderCom>(tag))
+            return current;
+
+        current = current->Get_Owner();
+    }
+
+    return nullptr;
+}
+
+Shared<ColliderCom> ANS_CollisionEnable::Resolve_Collider(const Shared<GameObject>& owner) const
+{
+    if (owner == nullptr)
+        return nullptr;
+
+    return owner->Get_Component<ColliderCom>(String::ToWString(_colliderTag));
+}
+
+void ANS_CollisionEnable::Sync_Collider(const Shared<GameObject>& owner, const Shared<ColliderCom>& collider) const
+{
+    if (owner == nullptr || owner->Get_Transform() == nullptr || collider == nullptr)
+        return;
+
+    collider->Update_Collider(owner->Get_Transform()->Get_WorldMatrix());
+
+    GAME->Add_Collider(collider);
+}
+
+void ANS_CollisionEnable::Set_ColliderActive(const AnimNotifyContext& context, bool active) const
+{
+    if (context.isPreview)
+        return;
+
+    const Shared<GameObject> owner = Resolve_CollisionOwner(context.owner);
+    const Shared<ColliderCom> collider = Resolve_Collider(owner);
+
+    if (owner == nullptr || collider == nullptr)
+        return;
+
+    collider->Clear_Overlap();
+
+    if (active)
+    {
+        GAME->Unregister_PhysXCollider(collider.get());
+        collider->Set_IsActive(true);
+        Sync_Collider(owner, collider);
+        return;
+    }
+
+    collider->Set_IsActive(false);
+    GAME->Unregister_PhysXCollider(collider.get());
+}

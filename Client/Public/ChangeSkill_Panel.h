@@ -92,7 +92,9 @@ private:
 
     vector<string> Build_CurrentNormalSkillKeys(const Shared<PlayerStatCom>& statCom) const;
     bool    Try_EquipAvailableSkillToSelectedSlot(const string& skillId);
+
     void    Refresh_CurrentSkillButtonFocus();
+    void    Refresh_GradientSkillSlot(const Shared<SkillTreeCom>& skillTreeCom);
 
 private:
     struct PreviewOverrideState

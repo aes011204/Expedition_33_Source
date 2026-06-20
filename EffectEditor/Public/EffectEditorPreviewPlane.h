@@ -9,6 +9,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+// Effect preview 바닥 기준면을 mesh effect material로 렌더링한다.
 class EffectEditorPreviewPlane final : public GameObject
 {
 public:

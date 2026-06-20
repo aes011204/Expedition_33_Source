@@ -13,6 +13,7 @@ namespace Internal
 {
 constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
 constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
+constexpr float kPlaybackCompletionEpsilon = 1e-4f;
 constexpr float kPlaneRadialEpsilon = 1e-4f;
 
 float Read_Vec4Component(const Vec4& values, uint32 index)
@@ -151,7 +152,7 @@ Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
 
 Vec3 Resolve_WorldAxisToEmitterSamplingAxis(const Vec3& worldAxis, const Shared<TransformCom>& emitterTransform)
 {
-    if (emitterTransform == nullptr)
+    if (nullptr == emitterTransform)
         return Normalize_OrFallback(worldAxis, Vec3{ 1.f, 0.f, 0.f });
 
     const Matrix inverseWorld = emitterTransform->Get_WorldMatrix().Invert();
@@ -459,7 +460,7 @@ HRESULT MeshEmitter::Reload_Definition(const EffectEmitterDefinition& emitterDef
 
 bool MeshEmitter::Is_EffectFinished() const
 {
-    return !_isReady || (PlaybackState::Completed == _playbackState && _activeInstanceCount == 0u);
+    return !_isReady || (PlaybackState::Completed == _playbackState && Count_ActiveParticles() == 0u);
 }
 
 bool MeshEmitter::Collect_FollowerSourcePoints(
@@ -924,6 +925,12 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         0.f,
         0.f
     );
+    const Vec4 effectMeshUVRotationParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.maskUVRotation)),
+        0.f
+    );
     const Vec4 effectMeshSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -952,101 +959,26 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         coreEmissive.outerIntensity
     );
 
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)),
-        60,
-        E_FAIL
-    );
-    CHECK_FAILED_THROTTLED(
-        _shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)),
-        60,
-        E_FAIL
-    );
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshUVRotationParams", &effectMeshUVRotationParams, sizeof(effectMeshUVRotationParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), 60, E_FAIL);
     return S_OK;
 }
 
@@ -1073,6 +1005,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     };
     const Vec4 distortionScreenSize{ max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f };
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const float flowUVRotation = static_cast<float>(static_cast<uint32>(material.flowUVRotation));
     const Vec2 flowUVPolicyParams{
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
@@ -1086,6 +1019,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), 60, E_FAIL);
     return S_OK;
 }
 
@@ -1272,8 +1206,23 @@ void MeshEmitter::Advance_Playback(float timeDelta)
             remainingTime -= playbackStep;
         }
 
-        if (_loopElapsedTime - delay < duration)
+        const float loopPlaybackTime = max(0.f, _loopElapsedTime - delay);
+        const float playbackTimeToEnd = duration - loopPlaybackTime;
+        if (playbackTimeToEnd > Internal::kPlaybackCompletionEpsilon)
             break;
+
+        if (playbackTimeToEnd > 0.f)
+        {
+            const float completionStep = min(remainingTime, playbackTimeToEnd);
+            if (completionStep > 0.f)
+            {
+                simulationDeltaTime += completionStep;
+                spawnRequest += Consume_SpawnRequest(completionStep);
+                remainingTime -= completionStep;
+            }
+        }
+
+        _loopElapsedTime = delay + duration;
 
         if (Has_NextLoop())
         {
@@ -1332,6 +1281,18 @@ bool MeshEmitter::Can_SubmitRender() const
 {
     return _isReady && _model && _shader && _instanceBuffer && _activeInstanceCount > 0u &&
            PlaybackState::Delayed != _playbackState;
+}
+
+uint32 MeshEmitter::Count_ActiveParticles() const
+{
+    uint32 activeParticleCount = 0u;
+    for (const MeshParticleState& particle : _particles)
+    {
+        if (particle.active)
+            ++activeParticleCount;
+    }
+
+    return activeParticleCount;
 }
 
 uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)
@@ -1478,9 +1439,10 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.active = true;
     particle.age = 0.f;
     const float spawnPhase = clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f);
+    const uint32 lifetimeSeed = seed + Internal::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed);
     particle.lifeMax = _desc.lifetime.lifeTimeCurve.enabled
                        ? max(0.0001f, Internal::Evaluate_FloatCurve(_desc.lifetime.lifeTimeCurve, spawnPhase, lifeMax))
-                       : RandomRange(lifeMin, lifeMax, seed + 11u);
+                       : RandomRange(lifeMin, lifeMax, lifetimeSeed + 11u);
     particle.position = spawnPosition;
     particle.spawnOffset = spawnOffset;
     particle.spawnPosition = spawnPosition;
@@ -1493,8 +1455,20 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
         particle.spawnOrientation = Build_PlaneRadialMeshOrientation(planeRadialSample, particle.spawnOrientationEnabled);
     particle.rotationRadians = Sample_InitialRotation(seed + 41u);
     particle.angularVelocityRadians = Sample_InitialAngularVelocity(seed + 43u);
-    particle.startColor = Sample_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax, seed + 47u);
-    particle.endColor = Sample_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax, seed + 53u);
+    particle.startColor = Sample_Color(
+        _desc.initialColor.startColorMin,
+        _desc.initialColor.startColorMax,
+        _desc.initialColor.colorSeed,
+        _desc.initialColor.alphaSeed,
+        seed + 47u
+    );
+    particle.endColor = Sample_Color(
+        _desc.colorOverLife.endColorMin,
+        _desc.colorOverLife.endColorMax,
+        _desc.colorOverLife.colorSeed,
+        _desc.colorOverLife.alphaSeed,
+        seed + 53u
+    );
     particle.seed = seed;
 }
 
@@ -1655,10 +1629,11 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
     if (_desc.initialLocation.enabled)
     {
+        const uint32 initialLocationSeed = seed + Internal::Resolve_SeedSalt(_desc.initialLocationSeed, _effectPlaybackSeed);
         offset += Vec3{
-            RandomRange(_desc.initialLocation.minOffset.x, _desc.initialLocation.maxOffset.x, seed + 1u),
-            RandomRange(_desc.initialLocation.minOffset.y, _desc.initialLocation.maxOffset.y, seed + 2u),
-            RandomRange(_desc.initialLocation.minOffset.z, _desc.initialLocation.maxOffset.z, seed + 3u)
+            RandomRange(_desc.initialLocation.minOffset.x, _desc.initialLocation.maxOffset.x, initialLocationSeed + 1u),
+            RandomRange(_desc.initialLocation.minOffset.y, _desc.initialLocation.maxOffset.y, initialLocationSeed + 2u),
+            RandomRange(_desc.initialLocation.minOffset.z, _desc.initialLocation.maxOffset.z, initialLocationSeed + 3u)
         };
     }
 
@@ -2016,13 +1991,20 @@ float MeshEmitter::Sample_Drag(uint32 seed) const
     return max(0.f, RandomRange(minDrag, maxDrag, dragSeed));
 }
 
-Vec4 MeshEmitter::Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint32 seed) const
+Vec4 MeshEmitter::Sample_Color(
+    const Vec4& minColor,
+    const Vec4& maxColor,
+    const PointParticleRandomSeedRuntimeDesc& colorSeed,
+    const PointParticleRandomSeedRuntimeDesc& alphaSeed,
+    uint32 seed) const
 {
+    const uint32 rgbSeed = seed + Internal::Resolve_SeedSalt(colorSeed, _effectPlaybackSeed);
+    const uint32 resolvedAlphaSeed = seed + Internal::Resolve_SeedSalt(alphaSeed, _effectPlaybackSeed);
     return Vec4{
-        RandomRange(min(minColor.x, maxColor.x), max(minColor.x, maxColor.x), seed + 1u),
-        RandomRange(min(minColor.y, maxColor.y), max(minColor.y, maxColor.y), seed + 2u),
-        RandomRange(min(minColor.z, maxColor.z), max(minColor.z, maxColor.z), seed + 3u),
-        RandomRange(min(minColor.w, maxColor.w), max(minColor.w, maxColor.w), seed + 4u)
+        RandomRange(min(minColor.x, maxColor.x), max(minColor.x, maxColor.x), rgbSeed + 1u),
+        RandomRange(min(minColor.y, maxColor.y), max(minColor.y, maxColor.y), rgbSeed + 2u),
+        RandomRange(min(minColor.z, maxColor.z), max(minColor.z, maxColor.z), rgbSeed + 3u),
+        RandomRange(min(minColor.w, maxColor.w), max(minColor.w, maxColor.w), resolvedAlphaSeed + 4u)
     };
 }
 
@@ -2031,10 +2013,11 @@ Vec3 MeshEmitter::Sample_InitialScale(uint32 seed) const
     if (!_desc.meshTransform.initialScaleEnabled)
         return Vec3{ 1.f, 1.f, 1.f };
 
+    const uint32 initialScaleSeed = seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialScaleSeed, _effectPlaybackSeed);
     return Vec3{
-        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.x, _desc.meshTransform.initialScaleMax.x, seed + 1u)),
-        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.y, _desc.meshTransform.initialScaleMax.y, seed + 2u)),
-        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.z, _desc.meshTransform.initialScaleMax.z, seed + 3u))
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.x, _desc.meshTransform.initialScaleMax.x, initialScaleSeed + 1u)),
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.y, _desc.meshTransform.initialScaleMax.y, initialScaleSeed + 2u)),
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.z, _desc.meshTransform.initialScaleMax.z, initialScaleSeed + 3u))
     };
 }
 
@@ -2043,10 +2026,17 @@ Vec3 MeshEmitter::Sample_InitialRotation(uint32 seed) const
     if (!_desc.meshTransform.rotationEnabled)
         return Vec3{};
 
+    const uint32 initialRotationSeed = seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialRotationSeed, _effectPlaybackSeed);
     return Vec3{
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, seed + 1u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.y, _desc.meshTransform.initialRotationDegreesMax.y, seed + 2u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.z, _desc.meshTransform.initialRotationDegreesMax.z, seed + 3u))
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, initialRotationSeed + 1u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialRotationDegreesMin.y, _desc.meshTransform.initialRotationDegreesMax.y, initialRotationSeed + 2u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialRotationDegreesMin.z, _desc.meshTransform.initialRotationDegreesMax.z, initialRotationSeed + 3u)
+        )
     };
 }
 
@@ -2055,15 +2045,29 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
     if (!_desc.meshTransform.rotationEnabled)
         return Vec3{};
 
+    const uint32 initialAngularVelocitySeed =
+        seed + Internal::Resolve_SeedSalt(_desc.meshTransform.initialAngularVelocitySeed, _effectPlaybackSeed);
     return Vec3{
         XMConvertToRadians(
-            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.x, _desc.meshTransform.initialAngularVelocityDegreesMax.x, seed + 1u)
+            RandomRange(
+                _desc.meshTransform.initialAngularVelocityDegreesMin.x,
+                _desc.meshTransform.initialAngularVelocityDegreesMax.x,
+                initialAngularVelocitySeed + 1u
+            )
         ),
         XMConvertToRadians(
-            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.y, _desc.meshTransform.initialAngularVelocityDegreesMax.y, seed + 2u)
+            RandomRange(
+                _desc.meshTransform.initialAngularVelocityDegreesMin.y,
+                _desc.meshTransform.initialAngularVelocityDegreesMax.y,
+                initialAngularVelocitySeed + 2u
+            )
         ),
         XMConvertToRadians(
-            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.z, _desc.meshTransform.initialAngularVelocityDegreesMax.z, seed + 3u)
+            RandomRange(
+                _desc.meshTransform.initialAngularVelocityDegreesMin.z,
+                _desc.meshTransform.initialAngularVelocityDegreesMax.z,
+                initialAngularVelocitySeed + 3u
+            )
         )
     };
 }
@@ -2077,6 +2081,12 @@ float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
         _desc.motion.velocityScaleByLifeCurveTimesBlock1,
         _desc.motion.velocityScaleByLifeCurveValues,
         _desc.motion.velocityScaleByLifeCurveValuesBlock1,
+        _desc.motion.velocityScaleByLifeCurveArriveTangents,
+        _desc.motion.velocityScaleByLifeCurveArriveTangentsBlock1,
+        _desc.motion.velocityScaleByLifeCurveLeaveTangents,
+        _desc.motion.velocityScaleByLifeCurveLeaveTangentsBlock1,
+        _desc.motion.velocityScaleByLifeCurveModes,
+        _desc.motion.velocityScaleByLifeCurveModesBlock1,
         _desc.motion.velocityScaleByLifeCurveKeyCount,
         fallbackScale
     );
@@ -2096,6 +2106,12 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesX,
             _desc.motion.accelerationCurveValuesXBlock1,
+            _desc.motion.accelerationCurveArriveTangentsX,
+            _desc.motion.accelerationCurveArriveTangentsXBlock1,
+            _desc.motion.accelerationCurveLeaveTangentsX,
+            _desc.motion.accelerationCurveLeaveTangentsXBlock1,
+            _desc.motion.accelerationCurveModes,
+            _desc.motion.accelerationCurveModesBlock1,
             keyCount,
             particle.acceleration.x
         ),
@@ -2105,6 +2121,12 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesY,
             _desc.motion.accelerationCurveValuesYBlock1,
+            _desc.motion.accelerationCurveArriveTangentsY,
+            _desc.motion.accelerationCurveArriveTangentsYBlock1,
+            _desc.motion.accelerationCurveLeaveTangentsY,
+            _desc.motion.accelerationCurveLeaveTangentsYBlock1,
+            _desc.motion.accelerationCurveModes,
+            _desc.motion.accelerationCurveModesBlock1,
             keyCount,
             particle.acceleration.y
         ),
@@ -2114,6 +2136,12 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesZ,
             _desc.motion.accelerationCurveValuesZBlock1,
+            _desc.motion.accelerationCurveArriveTangentsZ,
+            _desc.motion.accelerationCurveArriveTangentsZBlock1,
+            _desc.motion.accelerationCurveLeaveTangentsZ,
+            _desc.motion.accelerationCurveLeaveTangentsZBlock1,
+            _desc.motion.accelerationCurveModes,
+            _desc.motion.accelerationCurveModesBlock1,
             keyCount,
             particle.acceleration.z
         )
@@ -2132,6 +2160,12 @@ Vec3 MeshEmitter::Evaluate_OrbitOffset(const MeshParticleState& particle, float 
         _desc.orbitOverLife.angleCurveTimesBlock1,
         _desc.orbitOverLife.angleCurveValues,
         _desc.orbitOverLife.angleCurveValuesBlock1,
+        _desc.orbitOverLife.angleCurveArriveTangents,
+        _desc.orbitOverLife.angleCurveArriveTangentsBlock1,
+        _desc.orbitOverLife.angleCurveLeaveTangents,
+        _desc.orbitOverLife.angleCurveLeaveTangentsBlock1,
+        _desc.orbitOverLife.angleCurveModes,
+        _desc.orbitOverLife.angleCurveModesBlock1,
         _desc.orbitOverLife.angleCurveKeyCount,
         lerp(_desc.orbitOverLife.angleDegreesOverLife.x, _desc.orbitOverLife.angleDegreesOverLife.y, lifeProgress)
     );
@@ -2141,6 +2175,12 @@ Vec3 MeshEmitter::Evaluate_OrbitOffset(const MeshParticleState& particle, float 
         _desc.orbitOverLife.radiusScaleCurveTimesBlock1,
         _desc.orbitOverLife.radiusScaleCurveValues,
         _desc.orbitOverLife.radiusScaleCurveValuesBlock1,
+        _desc.orbitOverLife.radiusScaleCurveArriveTangents,
+        _desc.orbitOverLife.radiusScaleCurveArriveTangentsBlock1,
+        _desc.orbitOverLife.radiusScaleCurveLeaveTangents,
+        _desc.orbitOverLife.radiusScaleCurveLeaveTangentsBlock1,
+        _desc.orbitOverLife.radiusScaleCurveModes,
+        _desc.orbitOverLife.radiusScaleCurveModesBlock1,
         _desc.orbitOverLife.radiusScaleCurveKeyCount,
         lerp(_desc.orbitOverLife.radiusScaleOverLife.x, _desc.orbitOverLife.radiusScaleOverLife.y, lifeProgress)
     );

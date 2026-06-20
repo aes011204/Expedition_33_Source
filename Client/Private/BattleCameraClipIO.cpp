@@ -110,7 +110,19 @@ void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, Ca
     {
         CameraKeyframe key{};
         key.time = keyframe.value("time", key.time);
-        key.value = keyframe.value("value", key.value);
+        if (const auto valueIter = keyframe.find("value"); valueIter != keyframe.end())
+        {
+            const json& valueNode = *valueIter;
+            if (valueNode.is_number())
+            {
+                key.value = valueNode.get<float>();
+            }
+            else if (valueNode.is_array() && !valueNode.empty() && valueNode[0].is_number())
+            {
+                // Older authored clips may serialize scalar track values as [number, "Key"].
+                key.value = valueNode[0].get<float>();
+            }
+        }
         const int interpolationValue = keyframe.value("interpolation", static_cast<int>(key.interpolation));
         switch (interpolationValue)
         {

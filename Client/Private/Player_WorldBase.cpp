@@ -76,7 +76,7 @@ void Player_WorldBase::BeginPlay()
 
 void Player_WorldBase::Priority_Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return;
 
     __super::Priority_Update(timeDelta);
@@ -128,7 +128,7 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
 void Player_WorldBase::Update(float timeDelta)
 {
-      if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return;
 
     __super::Update(timeDelta);
@@ -140,7 +140,7 @@ void Player_WorldBase::Update(float timeDelta)
 
 void Player_WorldBase::Late_Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
     {
         Set_Visible(false);
         return;

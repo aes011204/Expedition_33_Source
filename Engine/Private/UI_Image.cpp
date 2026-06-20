@@ -17,6 +17,32 @@ UI_Image::UI_Image(const UI_Image& prototype)
     , _patternMaskTexturePath{ prototype._patternMaskTexturePath }
     , _patternUvOffset{ prototype._patternUvOffset }
     , _patternUvScale{ prototype._patternUvScale }
+    , _materialVfxMode{ prototype._materialVfxMode }
+    , _materialVfxNoiseTexturePath{ prototype._materialVfxNoiseTexturePath }
+    , _materialVfxColor{ prototype._materialVfxColor }
+    , _materialVfxCoreColor{ prototype._materialVfxCoreColor }
+    , _materialVfxFlowColor{ prototype._materialVfxFlowColor }
+    , _materialVfxGlow{ prototype._materialVfxGlow }
+    , _materialVfxAlpha{ prototype._materialVfxAlpha }
+    , _materialVfxCoreStrength{ prototype._materialVfxCoreStrength }
+    , _materialVfxCoreWidth{ prototype._materialVfxCoreWidth }
+    , _materialVfxCoreSoftness{ prototype._materialVfxCoreSoftness }
+    , _materialVfxNoiseStrength{ prototype._materialVfxNoiseStrength }
+    , _materialVfxUvScroll{ prototype._materialVfxUvScroll }
+    , _materialVfxEdgeWidth{ prototype._materialVfxEdgeWidth }
+    , _materialVfxEdgeSoftness{ prototype._materialVfxEdgeSoftness }
+    , _materialVfxErosion{ prototype._materialVfxErosion }
+    , _materialVfxFlicker{ prototype._materialVfxFlicker }
+    , _materialVfxDistortion{ prototype._materialVfxDistortion }
+    , _materialVfxEdgeWobbleSpeed{ prototype._materialVfxEdgeWobbleSpeed }
+    , _materialVfxTime{ prototype._materialVfxTime }
+    , _buttonSheenColor{ prototype._buttonSheenColor }
+    , _buttonSheenSpeed{ prototype._buttonSheenSpeed }
+    , _buttonSheenWidth{ prototype._buttonSheenWidth }
+    , _buttonSheenSoftness{ prototype._buttonSheenSoftness }
+    , _buttonSheenAngle{ prototype._buttonSheenAngle }
+    , _buttonSheenNoiseStrength{ prototype._buttonSheenNoiseStrength }
+    , _buttonSheenTime{ prototype._buttonSheenTime }
     , _color{ prototype._color }
     , _shaderPrototypeLevelIndex{ prototype._shaderPrototypeLevelIndex }
     , _shaderPrototypeTag{ prototype._shaderPrototypeTag }
@@ -77,6 +103,30 @@ HRESULT UI_Image::Initialize(void* arg)
         _patternMaskTexturePath = desc->patternMaskTexturePath;
         _patternUvOffset = Clamp_PatternUvOffset(desc->patternUvOffset);
         _patternUvScale = Clamp_PatternUvScale(desc->patternUvScale);
+        _materialVfxMode = desc->materialVfxMode;
+        _materialVfxNoiseTexturePath = desc->materialVfxNoiseTexturePath;
+        _materialVfxColor = desc->materialVfxColor;
+        _materialVfxCoreColor = desc->materialVfxCoreColor;
+        _materialVfxFlowColor = desc->materialVfxFlowColor;
+        _materialVfxGlow = max(0.f, desc->materialVfxGlow);
+        _materialVfxAlpha = max(0.f, desc->materialVfxAlpha);
+        _materialVfxCoreStrength = max(0.f, desc->materialVfxCoreStrength);
+        _materialVfxCoreWidth = max(0.001f, desc->materialVfxCoreWidth);
+        _materialVfxCoreSoftness = max(0.001f, desc->materialVfxCoreSoftness);
+        _materialVfxNoiseStrength = min(max(desc->materialVfxNoiseStrength, 0.f), 1.f);
+        _materialVfxUvScroll = desc->materialVfxUvScroll;
+        _materialVfxEdgeWidth = max(0.001f, desc->materialVfxEdgeWidth);
+        _materialVfxEdgeSoftness = max(0.001f, desc->materialVfxEdgeSoftness);
+        _materialVfxErosion = min(max(desc->materialVfxErosion, 0.f), 1.f);
+        _materialVfxFlicker = min(max(desc->materialVfxFlicker, 0.f), 1.f);
+        _materialVfxDistortion = min(max(desc->materialVfxDistortion, 0.f), 0.1f);
+        _materialVfxEdgeWobbleSpeed = min(max(desc->materialVfxEdgeWobbleSpeed, 0.f), 4.f);
+        _buttonSheenColor = desc->buttonSheenColor;
+        _buttonSheenSpeed = min(max(desc->buttonSheenSpeed, 0.f), 4.f);
+        _buttonSheenWidth = min(max(desc->buttonSheenWidth, 0.001f), 1.f);
+        _buttonSheenSoftness = min(max(desc->buttonSheenSoftness, 0.001f), 1.f);
+        _buttonSheenAngle = min(max(desc->buttonSheenAngle, -2.f), 2.f);
+        _buttonSheenNoiseStrength = min(max(desc->buttonSheenNoiseStrength, 0.f), 1.f);
         _color = desc->color;
         _shaderPrototypeLevelIndex = desc->shaderPrototypeLevelIndex;
         _shaderPrototypeTag = desc->shaderPrototypeTag;
@@ -97,7 +147,7 @@ HRESULT UI_Image::Initialize(void* arg)
     if (FAILED(Load_TextureResource()))
         return E_FAIL;
 
-    if (!_maskTexturePath.empty() || !_patternMaskTexturePath.empty())
+    if (!_maskTexturePath.empty() || !_patternMaskTexturePath.empty() || !_materialVfxNoiseTexturePath.empty())
     {
         ComPtr<Device> device = GAME->Get_Device();
         CHECK_NULL(device, E_FAIL);
@@ -114,6 +164,13 @@ HRESULT UI_Image::Initialize(void* arg)
         {
             LOG_WARN("UI_Image pattern mask texture load failed. path='{}'", String::ToString(_patternMaskTexturePath));
             _patternMaskSrv.Reset();
+        }
+
+        if (!_materialVfxNoiseTexturePath.empty() &&
+            FAILED(CreateWICTextureFromFile(device.Get(), _materialVfxNoiseTexturePath.c_str(), nullptr, _materialVfxNoiseSrv.GetAddressOf())))
+        {
+            LOG_WARN("UI_Image material vfx noise texture load failed. path='{}'", String::ToString(_materialVfxNoiseTexturePath));
+            _materialVfxNoiseSrv.Reset();
         }
     }
 
@@ -229,7 +286,87 @@ HRESULT UI_Image::Render()
 
     uint32 passIndex = 0u;
 
-    if (_imageRenderMode == ImageRenderMode::PatternOverlay)
+    if (_imageRenderMode == ImageRenderMode::MaterialVfx)
+    {
+        _materialVfxTime = fmodf(_materialVfxTime + max(0.f, GAME->Get_UnscaledTimeDelta()), 32.f);
+
+        if (FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr != _maskSrv ? _maskSrv.Get() : _srv.Get())))
+            return E_FAIL;
+
+        if (FAILED(_shader->Bind_SRV("g_PatternMaskTexture", nullptr != _materialVfxNoiseSrv ? _materialVfxNoiseSrv.Get() : _srv.Get())))
+            return E_FAIL;
+
+        const float materialUseBaseMask = nullptr == _maskSrv ? 1.f : 0.f;
+        const float materialHasNoise = nullptr != _materialVfxNoiseSrv ? 1.f : 0.f;
+        const uint32 materialVfxMode = static_cast<uint32>(_materialVfxMode);
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxMode", &materialVfxMode, sizeof(uint32))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxColor", &_materialVfxColor, sizeof(Vec4))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreColor", &_materialVfxCoreColor, sizeof(Vec4))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxFlowColor", &_materialVfxFlowColor, sizeof(Vec4))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxGlow", &_materialVfxGlow, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxAlpha", &_materialVfxAlpha, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreStrength", &_materialVfxCoreStrength, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreWidth", &_materialVfxCoreWidth, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreSoftness", &_materialVfxCoreSoftness, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxNoiseStrength", &_materialVfxNoiseStrength, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxUvScroll", &_materialVfxUvScroll, sizeof(Vec2))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeWidth", &_materialVfxEdgeWidth, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeSoftness", &_materialVfxEdgeSoftness, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxErosion", &_materialVfxErosion, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxFlicker", &_materialVfxFlicker, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxDistortion", &_materialVfxDistortion, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeWobbleSpeed", &_materialVfxEdgeWobbleSpeed, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxTime", &_materialVfxTime, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxUseBaseMask", &materialUseBaseMask, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxHasNoise", &materialHasNoise, sizeof(float))))
+            return E_FAIL;
+
+        passIndex = 7u;
+    }
+    else if (_imageRenderMode == ImageRenderMode::ButtonSheen)
+    {
+        _buttonSheenTime = fmodf(_buttonSheenTime + max(0.f, GAME->Get_UnscaledTimeDelta()), 32.f);
+
+        if (FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr != _maskSrv ? _maskSrv.Get() : _srv.Get())))
+            return E_FAIL;
+
+        if (FAILED(_shader->Bind_RawValue("g_ButtonSheenColor", &_buttonSheenColor, sizeof(Vec4))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_ButtonSheenSpeed", &_buttonSheenSpeed, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_ButtonSheenWidth", &_buttonSheenWidth, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_ButtonSheenSoftness", &_buttonSheenSoftness, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_ButtonSheenAngle", &_buttonSheenAngle, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_ButtonSheenNoiseStrength", &_buttonSheenNoiseStrength, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_ButtonSheenTime", &_buttonSheenTime, sizeof(float))))
+            return E_FAIL;
+
+        passIndex = 8u;
+    }
+    else if (_imageRenderMode == ImageRenderMode::PatternOverlay)
     {
         if (nullptr == _maskSrv || nullptr == _patternMaskSrv)
             return S_OK;
@@ -384,6 +521,7 @@ void UI_Image::Free()
 {
     _viBuffer.reset();
     _shader.reset();
+    _materialVfxNoiseSrv.Reset();
     _patternMaskSrv.Reset();
     _maskSrv.Reset();
     _srv.Reset();

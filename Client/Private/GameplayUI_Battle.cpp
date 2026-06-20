@@ -47,6 +47,7 @@
 #include "BattleTutorialController.h"
 #include "BattleResultRecoder.h"
 #include "BattleSpawnRegistry.h"
+#include "GradientSkill.h"
 
 #include "UI_Utils.h"
 
@@ -1552,9 +1553,22 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
 
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
 
-    if (turnState == BattleTurnState::AttackTargeting ||
-        turnState == BattleTurnState::SkillTargeting)
+    if (turnState == BattleTurnState::AttackTargeting)
     {
+        _choiceTarget->Open();
+        _choiceTarget->Update(timeDelta);
+        return;
+    }
+
+    if (turnState == BattleTurnState::SkillTargeting)
+    {
+        const ActionRequest& request = battleController->Get_TurnActionRequest();
+        if (!Should_ShowChoiceTargetForSkillTargeting(request))
+        {
+            _choiceTarget->Close(); // 전체 대상 스킬은 스킬 툴팁만 남긴다.
+            return;
+        }
+
         _choiceTarget->Open();
         _choiceTarget->Update(timeDelta);
         return;
@@ -1661,7 +1675,8 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
 
     if (turnState != BattleTurnState::ChooseAction &&
         turnState != BattleTurnState::ChooseItem &&
-        turnState != BattleTurnState::ChooseSkill)
+        turnState != BattleTurnState::ChooseSkill &&
+        turnState != BattleTurnState::ChooseGradient)
     {
         _escapeSkipTurn->Close();
         _escapeSkipTurn->Update(timeDelta);
@@ -1796,6 +1811,7 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     if (state == BattleTurnState::ChooseAction ||
         state == BattleTurnState::AttackTargeting ||
         state == BattleTurnState::ChooseSkill ||
+        state == BattleTurnState::ChooseGradient ||
         state == BattleTurnState::SkillTargeting)
     {
         _battleMechanism->Show_Hero(_activePlayerId);
@@ -1906,10 +1922,31 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         }
         break;
 
+    case BattleTurnState::ChooseGradient:
+        if (turnRequest.actor.statCom)
+        {
+            _battleSkillPanel->Open_GradientPanel(turnRequest.actor.statCom->Get_PlayerType());
+            _battleSkillPanel->Update(timeDelta);
+        }
+        else
+        {
+            _battleSkillPanel->Close_Immediately();
+        }
+        break;
+
     case BattleTurnState::SkillTargeting:
-        _battleSkillPanel->Open_Tooltip(turnRequest.skillKey);
-        _battleSkillPanel->Update(timeDelta);
-        Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey);
+        if (GradientSkill::Is_GradientSkill(turnRequest.actor.heroId, turnRequest.skillKey) &&
+            turnRequest.actor.statCom)
+        {
+            _battleSkillPanel->Open_GradientPanel(turnRequest.actor.statCom->Get_PlayerType());
+            _battleSkillPanel->Update(timeDelta);
+        }
+        else
+        {
+            _battleSkillPanel->Open_Tooltip(turnRequest.skillKey);
+            _battleSkillPanel->Update(timeDelta);
+            Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey);
+        }
         break;
 
     default:
@@ -2072,6 +2109,22 @@ void GameplayUI_Battle::Update_BattleTutorial(float timeDelta)
         return;
 
     _battleTutorial->Update(timeDelta);
+}
+
+bool GameplayUI_Battle::Should_ShowChoiceTargetForSkillTargeting(const ActionRequest& request) const
+{
+    const Skill_Data* skillData = CLIENT->Get_Skill(request.skillKey);
+    if (skillData == nullptr)
+        return true;
+
+    for (TargetType targetType : skillData->targetingType)
+    {
+        if (targetType == TargetType::Primary ||
+            targetType == TargetType::PrimaryJump)
+            return true;
+    }
+
+    return false;
 }
 
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const

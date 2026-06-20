@@ -82,6 +82,8 @@ namespace Engine
         UI,
         BattleStartSpawner,
         PuzzleTarget,
+        SoulLikeController,
+
     };
 
     enum class DeferredPass : uint8

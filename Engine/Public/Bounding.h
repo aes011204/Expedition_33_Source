@@ -23,11 +23,9 @@ public:
 
     virtual bool    Intersect(Bounding* otherBounding) = 0;
 
-#ifdef _DEBUG
     virtual HRESULT Render_Debug(
         DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch,
         Color color) = 0;
-#endif
 
 public:
     virtual CollisionShape  Get_Shape() const = 0;

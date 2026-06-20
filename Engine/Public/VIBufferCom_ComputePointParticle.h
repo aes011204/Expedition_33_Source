@@ -24,7 +24,7 @@ public:
     HRESULT Render() override;
 
 public: //## Behavior::ComputeUpdate
-    void Dispatch_Compute(float timeDelta, uint32 spawnRequest, float lifetimeSamplePhase, bool killActiveParticles); // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
+    void Dispatch_Compute(float timeDelta, uint32 spawnRequest, uint32 spawnSerialBase, float lifetimeSamplePhase, bool killActiveParticles); // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
     void Update_RuntimeDesc(const ComputePointParticleDesc& desc);                         // 같은 instance count 안에서 위치/크기 runtime payload를 갱신한다.
     void Set_Center(const Vec3& center);                                                   // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
     void Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look);            // emitter local 값을 world 방향으로 바꾸는 basis를 갱신한다.
@@ -73,6 +73,7 @@ private: //## Data::Compute
     float _deltaTime{};                                      // 이번 dispatch의 frame delta time.
     float _lifetimeSamplePhase{};                            // 이번 spawn request에 적용할 Lifetime curve phase다.
     uint32 _spawnRequest{};                                  // 이번 dispatch에서 inactive slot을 활성화할 요청 수.
+    uint32 _spawnSerialBase{};                               // 이번 dispatch 첫 spawn의 replay-local 순번이다.
     uint32 _killActiveParticles{};                           // 이번 dispatch에서 active particle을 모두 죽일지 나타낸다.
     bool _hasActiveParticles{ false };                       // readback 없이 비활성 emitter submit을 줄이기 위한 CPU-side latch다.
 

@@ -34,7 +34,7 @@ HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> conte
     _device = device;
     _context = context;
 
-    _idRT = RenderTarget::Create(L"RenderTarget", _device, _context, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
+    _idRT = RenderTarget::Create(L"RenderTarget", _device, _context, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 0.f), true);
     CHECK_NULL(_idRT, E_FAIL);
 
     D3D11_TEXTURE2D_DESC stagingDesc{};
@@ -80,7 +80,7 @@ uint32 MEPickingSystem::SampleID(const SceneContext& scene, const ImVec2& mouseP
             continue;
         }
 
-        uint32 baseID = 0x800000u | ((i & 0xFFu) << 15);
+        uint32 baseID = 0x80000000u | ((i & 0x7FFFu) << 16);
         uint32 chunkOffset = 0;
         for (auto& chunk : obj->_instancedChunkHandles)
         {
@@ -104,7 +104,7 @@ uint32 MEPickingSystem::SampleID(const SceneContext& scene, const ImVec2& mouseP
     if (SUCCEEDED(_context->Map(_idStagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
     {
         const uint8* p = static_cast<const uint8*>(mapped.pData);
-        id = p[0] | (p[1] << 8) | (p[2] << 16);
+        id = p[0] | (p[1] << 8) | (p[2] << 16) | (uint32(p[3]) << 24);
         _context->Unmap(_idStagingTex.Get(), 0);
     }
 
@@ -167,10 +167,10 @@ void MEPickingSystem::DoPickAt(SceneContext& scene, const ImVec2& mousePos, cons
         scene._selected = nullptr;
     }
 
-    else if (id & 0x800000u)
+    else if (id & 0x80000000u)
     {
-        uint32 groupIdx = (id >> 15) & 0xFFu;
-        uint32 offsetInGroup = id & 0x7FFFu;
+        uint32 groupIdx = (id >> 16) & 0x7FFFu;
+        uint32 offsetInGroup = id & 0xFFFFu;
         if (groupIdx < static_cast<uint32>(scene._instancedMeshes.size()))
         {
             scene._selected = scene._instancedMeshes[groupIdx];

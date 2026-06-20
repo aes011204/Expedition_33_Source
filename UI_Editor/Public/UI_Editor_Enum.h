@@ -24,6 +24,14 @@ enum class UI_ImageRenderMode
 {
     Normal,
     PatternOverlay,
+    MaterialVfx,
+    ButtonSheen,
+};
+
+enum class UI_MaterialVfxMode
+{
+    Energy,
+    BrushFlow,
 };
 
 enum class UI_MaskTextureMode

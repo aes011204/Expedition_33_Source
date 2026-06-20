@@ -61,6 +61,8 @@ struct AnimNotifyData
 {
     string  animationName{};
     int32   displayFps = 60;
+    float   playSectionStartSec = 0.f;
+    float   playSectionEndSec = -1.f;
 
     // v1은 기본 트랙 하나씩만 유지한다.
     vector<AnimNotifyTrackDesc> notifyTracks;
