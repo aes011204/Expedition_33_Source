@@ -974,52 +974,52 @@ void ChainModifierPreset::BuildSimonHairDesc(
     desc.modifierTag = modifierTag;
 
     desc.groups = {
-        MakeBindPoseHairGroup("Simon_Strand_Hair_01_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_02_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_03_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_04_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_05_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_06_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_07_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_08_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_09_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_10_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_11_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_12_1", 1.00f, 1.02f, 0.72f, 1.05f, 0.92f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_13_1", 1.08f, 1.08f, 0.48f, 1.18f, 0.78f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_14_1", 1.08f, 1.08f, 0.48f, 1.18f, 0.78f),
-        MakeBindPoseHairGroup("Simon_Strand_Hair_15_1", 1.08f, 1.08f, 0.48f, 1.18f, 0.78f)
+        MakeBindPoseHairGroup("Simon_Strand_Hair_01_1", 1.00f, 0.94f, 0.70f, 1.18f, 0.85f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_02_1", 1.00f, 0.94f, 0.70f, 1.18f, 0.85f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_03_1", 1.00f, 0.96f, 0.82f, 1.10f, 0.92f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_04_1", 1.00f, 0.96f, 0.82f, 1.10f, 0.92f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_05_1", 1.00f, 0.96f, 0.82f, 1.10f, 0.92f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_06_1", 1.00f, 0.96f, 0.82f, 1.10f, 0.92f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_07_1", 1.00f, 0.96f, 0.82f, 1.10f, 0.92f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_08_1", 1.00f, 0.96f, 0.82f, 1.10f, 0.92f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_09_1", 1.00f, 0.96f, 0.82f, 1.10f, 0.92f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_10_1", 1.00f, 0.94f, 0.70f, 1.18f, 0.85f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_11_1", 1.00f, 0.94f, 0.70f, 1.18f, 0.85f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_12_1", 1.00f, 0.94f, 0.70f, 1.18f, 0.85f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_13_1", 1.08f, 1.02f, 0.56f, 1.22f, 0.78f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_14_1", 1.08f, 1.02f, 0.56f, 1.22f, 0.78f),
+        MakeBindPoseHairGroup("Simon_Strand_Hair_15_1", 1.08f, 1.02f, 0.56f, 1.22f, 0.78f)
     };
     for (auto& group : desc.groups)
     {
         group.windMul = 1.f;
     }
 
-    desc.shape.stiffness = 0.115f;
+    desc.shape.stiffness = 0.135f;
     desc.shape.tipStiffnessScale = 1.180f;
-    desc.shape.poseRestoreStrength = 0.120f;
-    desc.shape.tipPoseRestoreScale = 0.780f;
-    desc.shape.maxBendAngleDegree = 54.f;
+    desc.shape.poseRestoreStrength = 0.150f;
+    desc.shape.tipPoseRestoreScale = 0.720f;
+    desc.shape.maxBendAngleDegree = 46.f;
     desc.shape.tipMaxBendAngleScale = 1.350f;
     desc.shape.surfaceConstraintStrength = 0.f;
-    desc.shape.rootOutputAlpha = 0.220f;
-    desc.shape.tipOutputAlpha = 0.900f;
+    desc.shape.rootOutputAlpha = 0.260f;
+    desc.shape.tipOutputAlpha = 0.960f;
     desc.shape.pinRoot = true;
     desc.shape.useBindPoseAsRest = true;
 
-    desc.motion.damping = 0.720f;
-    desc.motion.tipDampingScale = 1.080f;
-    desc.motion.movementInertiaScale = 0.220f;
-    desc.motion.ownerMovementInertiaScale = 0.320f;
-    desc.motion.tipMovementInertiaScale = 1.350f;
-    desc.motion.maxMovementOffset = 0.120f;
+    desc.motion.damping = 0.660f;
+    desc.motion.tipDampingScale = 1.150f;
+    desc.motion.movementInertiaScale = 0.180f;
+    desc.motion.ownerMovementInertiaScale = 0.420f;
+    desc.motion.tipMovementInertiaScale = 1.450f;
+    desc.motion.maxMovementOffset = 0.095f;
     desc.motion.usePurseModifier = true;
     desc.motion.solverIterations = 4;
 
     desc.runtime.ownerTransform = ownerTransform;
-    desc.runtime.gravity = Vec3::Zero;
+    desc.runtime.gravity = Vec3(0.f, -0.45f, 0.f);
     desc.runtime.windDirection = kCommonWindDirection;
-    desc.runtime.windScale = 0.012f;
+    desc.runtime.windScale = 0.f;
     desc.runtime.windStartRatio = -1.f;
     desc.runtime.windWeightScale = -1.f;
     desc.runtime.constraintDeadzone = 0.014f;
@@ -1370,21 +1370,39 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
 
     if (characterType == PlayerCharacterType::None)
     {
-        desc.collisionRadiusPadding = 0.08f;
-        desc.tipDampingScale = 1.16f;
-        desc.poseFollowStrength = 0.59f;
-        desc.tipFollowScale = 0.44f;
-        desc.tipBendAngleScale = 1.92f;
-        desc.rootOutputAlpha = 0.09f;
-        desc.tipOutputAlpha = 0.86f;
+        desc.enableCollision = false;
+        desc.collisionRadiusPadding = 0.f;
+        desc.particleCollisionRadius = 0.f;
+        desc.ownerMotionScale = 0.075f;
+        desc.animatedMotionScale = 0.55f;
+        desc.ownerMotionDeadzone = 0.030f;
+        desc.ownerRotationDeadzoneDegree = 0.40f;
+        desc.animatedMotionDeadzone = 0.120f;
+        desc.maxExternalOffset = 0.85f;
+        desc.damping = 0.82f;
+        desc.tipDampingScale = 1.12f;
+        desc.poseFollowStrength = 0.30f;
+        desc.tipFollowScale = 0.38f;
+        desc.maxBendAngleDegree = 54.f;
+        desc.tipBendAngleScale = 2.05f;
+        desc.bendLimitStrength = 0.48f;
+        desc.surfaceConstraintStrength = 0.015f;
+        desc.rootOutputAlpha = 0.12f;
+        desc.tipOutputAlpha = 0.96f;
+        desc.idleOutputAlphaScale = 0.55f;
         desc.outputSmoothAlpha = 0.36f;
+        desc.idleOutputSmoothAlpha = 0.90f;
+        desc.outputDeadzoneDegree = 3.0f;
+        desc.idleSettleStrength = 0.98f;
+        desc.sleepVelocityThreshold = 0.055f;
+        desc.sleepPoseDistance = 0.26f;
         desc.groups = {
-            { "Simon_Coat_01_01", 0.34f, 1.04f, 0.93f },
-            { "Simon_Coat_02_01", 0.34f, 1.03f, 0.94f },
-            { "Simon_Coat_03_01", 0.34f, 1.03f, 0.94f },
-            { "Simon_Coat_04_01", 0.34f, 1.03f, 0.94f },
-            { "Simon_Coat_05_01", 0.34f, 1.03f, 0.94f },
-            { "Simon_Coat_06_01", 0.34f, 1.03f, 0.94f }
+            { "Simon_Coat_01_01", 0.34f, 1.62f, 0.42f, 0.82f, 1.00f },
+            { "Simon_Coat_02_01", 0.34f, 1.62f, 0.42f, 0.82f, 1.00f },
+            { "Simon_Coat_03_01", 0.34f, 1.62f, 0.42f, 0.82f, 1.00f },
+            { "Simon_Coat_04_01", 0.34f, 1.62f, 0.42f, 0.82f, 1.00f },
+            { "Simon_Coat_05_01", 0.34f, 1.62f, 0.42f, 0.82f, 1.00f },
+            { "Simon_Coat_06_01", 0.34f, 1.62f, 0.42f, 0.82f, 1.00f }
         };
         return;
     }
@@ -1426,7 +1444,7 @@ void ChainModifierPreset::BuildPoseFollowCoatDesc(
             { "Noah_V2Coat_05_01", 0.34f, 1.03f, 0.94f },
             { "Noah_V2Coat_06_01", 0.34f, 1.03f, 0.94f },
             { "Noah_V2Coat_07_01", 0.34f, 1.03f, 0.94f },
-            { "Noah_V2Coat_08_01", 0.34f, 1.40f, 0.52f, 0.64f, 0.82f }
+            { "Noah_V2Coat_08_01", 0.34f, 1.62f, 0.42f, 0.82f, 1.00f }
         };
     }
 }

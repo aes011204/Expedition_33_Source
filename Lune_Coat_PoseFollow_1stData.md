@@ -145,6 +145,25 @@ Each group uses:
   - follow `0.58f -> 0.54f`
   - root output `0.26f -> 0.34f`
   - tip output `0.66f -> 0.78f`
+- Gustave `08` opened for stronger jump flutter:
+  - motion `1.40f -> 1.52f`
+  - follow `0.52f -> 0.46f`
+  - root output `0.64f -> 0.72f`
+  - tip output `0.82f -> 0.92f`
+- Gustave `08` opened one more step:
+  - motion `1.52f -> 1.62f`
+  - follow `0.46f -> 0.42f`
+  - root output `0.72f -> 0.82f`
+  - tip output `0.92f -> 1.00f`
+- Simon coat matched to latest Gustave PoseFollow settings:
+  - Simon uses `PlayerCharacterType::None` in `BuildPoseFollowCoatDesc`.
+  - Simon scalar values were matched to the Gustave / Lune PoseFollow coat scalar set.
+  - `Simon_Coat_01_01` through `Simon_Coat_06_01` now use:
+    - wind `0.34f`
+    - motion `1.62f`
+    - follow `0.42f`
+    - root output `0.82f`
+    - tip output `1.00f`
 - Root output group control added for short-chain upper jitter:
   - `01~02`: root output multiplier `0.10f`
   - `03~04`: root output multiplier `0.20f`
