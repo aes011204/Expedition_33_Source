@@ -2489,7 +2489,7 @@ void Emitter_View::Process_PendingTypeDataAction()
 
     const PendingTypeDataAction action = _pendingTypeDataAction;
     const size_t emitterIndex = _pendingTypeDataEmitterIndex.value();
-    const char* description = "Edit TypeData";
+    auto description = "Edit TypeData";
     switch (action)
     {
     case PendingTypeDataAction::AddTrail:
@@ -2883,7 +2883,7 @@ void Emitter_View::Close_ModulePicker()
 
 void Emitter_View::Draw_ModulePickerPopup()
 {
-    constexpr const char* modalPopupId = "새 모듈##ModuleAddPopup";
+    constexpr auto modalPopupId = "새 모듈##ModuleAddPopup";
 
     if (_modulePickerPendingOpen)
     {

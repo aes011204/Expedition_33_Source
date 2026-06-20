@@ -14,8 +14,8 @@ FILE* g_debugConsole = nullptr;
 HWND g_hWnd = nullptr;
 HINSTANCE g_hInst = nullptr;
 
-static const wchar_t* g_windowClassName = L"Expedition158EffectEditor";
-static const wchar_t* g_windowTitle = L"Expedition_158 EffectEditor";
+static auto g_windowClassName = L"Expedition158EffectEditor";
+static auto g_windowTitle = L"Expedition_158 EffectEditor";
 static constexpr DWORD kFullscreenWindowStyle = WS_POPUP | WS_VISIBLE;
 static constexpr DWORD kWindowedWindowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 static constexpr LONG kDefaultWindowedClientWidth = 1600;

@@ -104,7 +104,7 @@ namespace Internal
 
     SourceHistorySpriteTrailArrivalMode Resolve_SourceHistorySpriteTrailArrivalMode(const json& root)
     {
-        SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
+        SourceHistorySpriteTrailArrivalMode arrivalMode = SourceHistorySpriteTrailArrivalMode::KillOnArrive;
         if (const auto arrivalModeIter = root.find("arrivalMode"); arrivalModeIter != root.end() &&
                                                                    Try_ReadEnumToken(*arrivalModeIter, arrivalMode))
             return arrivalMode;

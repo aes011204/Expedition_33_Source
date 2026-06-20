@@ -13,8 +13,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
-    constexpr const char* kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
+    constexpr auto kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
+    constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
 
     bool Is_TexturePayloadFile(const fs::path& filePath)
     {

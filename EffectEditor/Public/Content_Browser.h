@@ -38,9 +38,7 @@ private: //## Types
     using GridItemRef = ContentBrowserGridItemRef;
 
 private: //## Static Values
-    static constexpr auto kContentBrowserSettingsPath{
-        L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json"
-    };
+    static constexpr auto kContentBrowserSettingsPath{ L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json" };
 
 private: //## Data
     float _leftPanelWidth{ 300.f };
