@@ -1,9 +1,11 @@
 #include "BattleWorldUI_CommandCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "Camera.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
+#include "TransformCom.h"
 #include "VIBuffer_Rect.h"
 
 NS_BEGIN(Client)
@@ -11,9 +13,31 @@ NS_BEGIN(Client)
 namespace
 {
     constexpr wchar_t kBattleWorldCommandHUDJsonPath[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_HUD.json";
+    constexpr wchar_t kBattleWorldCommandPlacementJsonPath[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Command_WorldPlacement.json";
     constexpr uint32 kBattleWorldCommandCompositionRenderScale = 2;
     constexpr uint32 kBattleWorldCommandMaxApSegmentCount = 9;
+    constexpr uint32 kBattleWorldCommandPlacementHeroCount = static_cast<uint32>(HeroId::END);
+    constexpr float kBattleWorldCommandDegreesToRadians = 0.017453292519943295f;
+    constexpr float kBattleWorldCommandRadiansToDegrees = 57.29577951308232f;
     const Vec2 kBattleWorldCommandRootWorldSize = Vec2(2.04f, 1.40f);
+    constexpr uint32 kBattleWorldCommandSurfaceOffsetCount = 7;
+
+    struct BattleWorldCommandSurfaceOffsetSpec
+    {
+        const char* id = "";
+        const char* label = "";
+    };
+
+    const BattleWorldCommandSurfaceOffsetSpec kBattleWorldCommandSurfaceOffsetSpecs[kBattleWorldCommandSurfaceOffsetCount] =
+    {
+        { "Button_BattleCommand_Item", "Command Item Offset" },
+        { "Panel_BattleCommand_BG", "Command BG Offset" },
+        { "Button_BattleCommand_Skill", "Command Skill Offset" },
+        { "Button_BattleCommand_Attack", "Command Attack Offset" },
+        { "Button_BattleCommand_Shot", "Command Shot Offset" },
+        { "Panel_BattlePortrait_Current_Character_AP_Bar", "Command AP Bar Offset" },
+        { "Button_BattleCommand_GradientSkill", "Command GradientSkill Offset" },
+    };
 
     enum class BattleWorldCommandSurfaceKind
     {
@@ -26,6 +50,12 @@ namespace
     {
         Image,
         Text,
+    };
+
+    enum class BattleWorldCommandLayerRenderLayer
+    {
+        Background,
+        Foreground,
     };
 
     enum class BattleWorldCommandTextSlot
@@ -115,6 +145,7 @@ namespace
         struct Layer
         {
             BattleWorldCommandLayerKind kind = BattleWorldCommandLayerKind::Image;
+            BattleWorldCommandLayerRenderLayer renderLayer = BattleWorldCommandLayerRenderLayer::Foreground;
             int32 sortOrder = 0;
             uint32 sequence = 0;
             BattleWorldCommandImageDef image{};
@@ -148,6 +179,18 @@ namespace
         bool dirty = true;
     };
 
+    struct BattleWorldCommandWorldPlacementTuning
+    {
+        Vec3 screenPosition = Vec3::Zero;
+        Vec3 baseOffset = Vec3::Zero;
+        array<Vec3, kBattleWorldCommandSurfaceOffsetCount> surfaceOffsets{};
+        Vec2 worldSize = kBattleWorldCommandRootWorldSize;
+        float visualScale = 1.f;
+        float pitchRadians = 0.f;
+        float rollRadians = 0.f;
+        float yawOffsetRadians = 0.f;
+    };
+
     struct BattleWorldCommandJsonObject
     {
         uint32 sequence = 0;
@@ -162,6 +205,7 @@ namespace
         string maskTexturePath;
         string maskTextureMode = "Alpha";
         string imageRenderMode = "Normal";
+        string renderLayer = "Foreground";
         string patternMaskTextureGuid;
         string patternMaskTexturePath;
         string fontTag;
@@ -189,6 +233,107 @@ namespace
     bool Should_ShowBattleWorldCommandCards(BattleTurnState state)
     {
         return state == BattleTurnState::ChooseAction;
+    }
+
+    HeroId Normalize_CommandHeroId(HeroId heroId)
+    {
+        const uint32 heroIndex = static_cast<uint32>(heroId);
+        if (heroIndex < kBattleWorldCommandPlacementHeroCount)
+            return heroId;
+
+        return HeroId::Gustave;
+    }
+
+    uint32 Resolve_CommandHeroIndex(HeroId heroId)
+    {
+        return static_cast<uint32>(Normalize_CommandHeroId(heroId));
+    }
+
+    const char* To_CommandHeroJsonName(HeroId heroId)
+    {
+        switch (Normalize_CommandHeroId(heroId))
+        {
+        case HeroId::Gustave:
+            return "Gustave";
+        case HeroId::Lune:
+            return "Lune";
+        case HeroId::Maelle:
+            return "Maelle";
+        case HeroId::END:
+        default:
+            return "Gustave";
+        }
+    }
+
+    bool Try_ParseCommandHeroJsonName(const string& heroName, HeroId& outHeroId)
+    {
+        const string lowerName = String::ToLowerCopy(heroName);
+        if (lowerName == "gustave")
+        {
+            outHeroId = HeroId::Gustave;
+            return true;
+        }
+
+        if (lowerName == "lune")
+        {
+            outHeroId = HeroId::Lune;
+            return true;
+        }
+
+        if (lowerName == "maelle")
+        {
+            outHeroId = HeroId::Maelle;
+            return true;
+        }
+
+        return false;
+    }
+
+    uint32 Resolve_CommandSurfaceOffsetIndex(const string& surfaceName)
+    {
+        for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldCommandSurfaceOffsetCount; ++offsetIndex)
+        {
+            if (surfaceName == kBattleWorldCommandSurfaceOffsetSpecs[offsetIndex].id)
+                return offsetIndex;
+        }
+
+        return UINT32_MAX;
+    }
+
+    Vec3 Resolve_CommandSurfaceOffset(
+        const BattleWorldCommandWorldPlacementTuning& tuning,
+        const string& surfaceName)
+    {
+        const uint32 offsetIndex = Resolve_CommandSurfaceOffsetIndex(surfaceName);
+        if (offsetIndex >= kBattleWorldCommandSurfaceOffsetCount)
+            return Vec3::Zero;
+
+        return tuning.surfaceOffsets[offsetIndex];
+    }
+
+    BattleWorldCommandWorldPlacementTuning Make_DefaultCommandWorldPlacementTuning(HeroId heroId)
+    {
+        UNREFERENCED_PARAMETER(heroId);
+
+        BattleWorldCommandWorldPlacementTuning tuning{};
+        tuning.screenPosition = Vec3::Zero;
+        tuning.baseOffset = Vec3::Zero;
+        tuning.worldSize = kBattleWorldCommandRootWorldSize;
+        tuning.visualScale = 1.f;
+        tuning.pitchRadians = 0.f;
+        tuning.rollRadians = 0.f;
+        tuning.yawOffsetRadians = 0.f;
+        return tuning;
+    }
+
+    array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>
+        Make_DefaultCommandWorldPlacementTunings()
+    {
+        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount> tunings{};
+        for (uint32 heroIndex = 0; heroIndex < kBattleWorldCommandPlacementHeroCount; ++heroIndex)
+            tunings[heroIndex] = Make_DefaultCommandWorldPlacementTuning(static_cast<HeroId>(heroIndex));
+
+        return tunings;
     }
 
     string Read_JsonString(const json& node, const char* key, const string& fallback = {})
@@ -238,6 +383,18 @@ namespace
             iter->at(1).is_number() ? iter->at(1).get<float>() : fallback.y);
     }
 
+    Vec3 Read_JsonVec3(const json& node, const char* key, const Vec3& fallback)
+    {
+        const auto iter = node.find(key);
+        if (iter == node.end() || !iter->is_array() || iter->size() < 3)
+            return fallback;
+
+        return Vec3(
+            iter->at(0).is_number() ? iter->at(0).get<float>() : fallback.x,
+            iter->at(1).is_number() ? iter->at(1).get<float>() : fallback.y,
+            iter->at(2).is_number() ? iter->at(2).get<float>() : fallback.z);
+    }
+
     Vec4 Read_JsonColor(const json& node, const char* key, const Vec4& fallback)
     {
         const auto iter = node.find(key);
@@ -282,6 +439,13 @@ namespace
             return BattleWorldCommandMaskTextureMode::BlackWhite;
 
         return BattleWorldCommandMaskTextureMode::Unknown;
+    }
+
+    BattleWorldCommandLayerRenderLayer Parse_JsonRenderLayer(const string& renderLayerName)
+    {
+        return String::ToLowerCopy(renderLayerName) == "background"
+            ? BattleWorldCommandLayerRenderLayer::Background
+            : BattleWorldCommandLayerRenderLayer::Foreground;
     }
 
     const char* To_LogName(BattleWorldCommandImageRenderMode mode)
@@ -332,6 +496,7 @@ namespace
         object.maskTexturePath = Read_JsonString(node, "maskTexturePath");
         object.maskTextureMode = Read_JsonString(node, "maskTextureMode", "Alpha");
         object.imageRenderMode = Read_JsonString(node, "imageRenderMode", "Normal");
+        object.renderLayer = Read_JsonString(node, "renderLayer", "Foreground");
         object.patternMaskTextureGuid = Read_JsonString(node, "patternMaskTextureGuid");
         object.patternMaskTexturePath = Read_JsonString(node, "patternMaskTexturePath");
         object.fontTag = Read_JsonString(node, "fontTag");
@@ -844,6 +1009,7 @@ namespace
         const bool isApSegment = Try_ParseApSegmentIndex(object.name, apSegmentIndex);
 
         outLayer.kind = BattleWorldCommandLayerKind::Image;
+        outLayer.renderLayer = Parse_JsonRenderLayer(object.renderLayer);
         outLayer.sortOrder = object.sortOrder;
         outLayer.sequence = object.sequence;
         outLayer.image.slot = isApSegment ? BattleWorldCommandImageSlot::ApSegment : BattleWorldCommandImageSlot::Literal;
@@ -885,6 +1051,7 @@ namespace
         color.w *= Resolve_JsonAlphaMultiplier(object, panelId, objectsById);
 
         outLayer.kind = BattleWorldCommandLayerKind::Text;
+        outLayer.renderLayer = Parse_JsonRenderLayer(object.renderLayer);
         outLayer.sortOrder = object.sortOrder;
         outLayer.sequence = object.sequence;
         outLayer.text.slot = Resolve_TextSlot(object.name);
@@ -1089,6 +1256,299 @@ namespace
         return true;
     }
 
+    fs::path Resolve_CommandWorldPlacementJsonPath()
+    {
+        return (fs::path(GAME->Get_AssetRoot()) / kBattleWorldCommandPlacementJsonPath).lexically_normal();
+    }
+
+    BattleWorldCommandWorldPlacementTuning Read_CommandWorldPlacementTuningNode(
+        const json& root,
+        const BattleWorldCommandWorldPlacementTuning& fallback)
+    {
+        BattleWorldCommandWorldPlacementTuning tuning = fallback;
+        tuning.screenPosition = Read_JsonVec3(root, "screenPosition", tuning.screenPosition);
+        tuning.baseOffset = Read_JsonVec3(root, "baseOffset", tuning.baseOffset);
+        tuning.worldSize = Read_JsonVec2(root, "worldSize", tuning.worldSize);
+        tuning.visualScale = Read_JsonFloat(root, "visualScale", tuning.visualScale);
+        tuning.pitchRadians =
+            Read_JsonFloat(root, "pitchDegrees", tuning.pitchRadians * kBattleWorldCommandRadiansToDegrees) *
+            kBattleWorldCommandDegreesToRadians;
+        tuning.rollRadians =
+            Read_JsonFloat(root, "rollDegrees", tuning.rollRadians * kBattleWorldCommandRadiansToDegrees) *
+            kBattleWorldCommandDegreesToRadians;
+        tuning.yawOffsetRadians =
+            Read_JsonFloat(root, "yawOffsetDegrees", tuning.yawOffsetRadians * kBattleWorldCommandRadiansToDegrees) *
+            kBattleWorldCommandDegreesToRadians;
+
+        if (const auto offsetsIter = root.find("surfaceOffsets");
+            offsetsIter != root.end() && offsetsIter->is_object())
+        {
+            for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldCommandSurfaceOffsetCount; ++offsetIndex)
+            {
+                const char* offsetId = kBattleWorldCommandSurfaceOffsetSpecs[offsetIndex].id;
+                tuning.surfaceOffsets[offsetIndex] =
+                    Read_JsonVec3(*offsetsIter, offsetId, tuning.surfaceOffsets[offsetIndex]);
+            }
+        }
+
+        return tuning;
+    }
+
+    bool Try_LoadCommandWorldPlacementTunings(
+        const fs::path& jsonPath,
+        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>& outTunings)
+    {
+        if (!fs::exists(jsonPath))
+            return false;
+
+        json root{};
+        try
+        {
+            ifstream file(jsonPath);
+            file >> root;
+        }
+        catch (const exception& e)
+        {
+            LOG_WARN("BattleWorldUI command placement json parse failed. path='{}', error='{}'",
+                String::ToString(jsonPath.wstring()),
+                e.what());
+            return false;
+        }
+
+        auto tunings = Make_DefaultCommandWorldPlacementTunings();
+        if (const auto charactersIter = root.find("characters");
+            charactersIter != root.end() && charactersIter->is_object())
+        {
+            for (const auto& [heroName, heroNode] : charactersIter->items())
+            {
+                if (!heroNode.is_object())
+                    continue;
+
+                HeroId heroId = HeroId::END;
+                if (!Try_ParseCommandHeroJsonName(heroName, heroId))
+                {
+                    LOG_WARN("BattleWorldUI command placement json has unknown character. character='{}'", heroName);
+                    continue;
+                }
+
+                const uint32 heroIndex = Resolve_CommandHeroIndex(heroId);
+                tunings[heroIndex] = Read_CommandWorldPlacementTuningNode(heroNode, tunings[heroIndex]);
+            }
+        }
+        else
+        {
+            const BattleWorldCommandWorldPlacementTuning flatTuning =
+                Read_CommandWorldPlacementTuningNode(root, BattleWorldCommandWorldPlacementTuning{});
+            for (auto& tuning : tunings)
+                tuning = flatTuning;
+        }
+
+        outTunings = tunings;
+        return true;
+    }
+
+    json To_JsonVec2(const Vec2& value)
+    {
+        return json::array({ value.x, value.y });
+    }
+
+    json To_JsonVec3(const Vec3& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    json To_CommandWorldPlacementTuningJson(const BattleWorldCommandWorldPlacementTuning& tuning)
+    {
+        json root = json::object();
+        root["screenPosition"] = To_JsonVec3(tuning.screenPosition);
+        root["baseOffset"] = To_JsonVec3(tuning.baseOffset);
+        root["surfaceOffsets"] = json::object();
+        for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldCommandSurfaceOffsetCount; ++offsetIndex)
+        {
+            root["surfaceOffsets"][kBattleWorldCommandSurfaceOffsetSpecs[offsetIndex].id] =
+                To_JsonVec3(tuning.surfaceOffsets[offsetIndex]);
+        }
+        root["worldSize"] = To_JsonVec2(tuning.worldSize);
+        root["visualScale"] = tuning.visualScale;
+        root["pitchDegrees"] = tuning.pitchRadians * kBattleWorldCommandRadiansToDegrees;
+        root["rollDegrees"] = tuning.rollRadians * kBattleWorldCommandRadiansToDegrees;
+        root["yawOffsetDegrees"] = tuning.yawOffsetRadians * kBattleWorldCommandRadiansToDegrees;
+        return root;
+    }
+
+    bool Write_CommandWorldPlacementTuningsToFile(
+        const array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>& tunings,
+        fs::file_time_type* outWriteTime)
+    {
+        const fs::path jsonPath = Resolve_CommandWorldPlacementJsonPath();
+
+        json root = json::object();
+        root["characters"] = json::object();
+        for (uint32 heroIndex = 0; heroIndex < kBattleWorldCommandPlacementHeroCount; ++heroIndex)
+        {
+            const HeroId heroId = static_cast<HeroId>(heroIndex);
+            root["characters"][To_CommandHeroJsonName(heroId)] =
+                To_CommandWorldPlacementTuningJson(tunings[heroIndex]);
+        }
+
+        error_code errorCode{};
+        fs::create_directories(jsonPath.parent_path(), errorCode);
+        if (errorCode)
+        {
+            LOG_WARN("BattleWorldUI command placement json directory create failed. path='{}'",
+                String::ToString(jsonPath.parent_path().wstring()));
+            return false;
+        }
+
+        try
+        {
+            ofstream file(jsonPath);
+            if (!file.is_open())
+            {
+                LOG_WARN("BattleWorldUI command placement json open failed. path='{}'",
+                    String::ToString(jsonPath.wstring()));
+                return false;
+            }
+
+            file << root.dump(2) << '\n';
+        }
+        catch (const exception& e)
+        {
+            LOG_WARN("BattleWorldUI command placement json write failed. path='{}', error='{}'",
+                String::ToString(jsonPath.wstring()),
+                e.what());
+            return false;
+        }
+
+        if (outWriteTime != nullptr)
+        {
+            const fs::file_time_type writeTime = fs::last_write_time(jsonPath, errorCode);
+            if (!errorCode)
+                *outWriteTime = writeTime;
+        }
+
+        LOG_INFO("BattleWorldUI command placement json saved. path='{}'",
+            String::ToString(jsonPath.wstring()));
+        return true;
+    }
+
+    RuntimeWorldUIPlacementTuning To_EditorWorldPlacementTuning(
+        const BattleWorldCommandWorldPlacementTuning& tuning)
+    {
+        RuntimeWorldUIPlacementTuning editorTuning{};
+        editorTuning.screenPosition = tuning.screenPosition;
+        editorTuning.baseOffset = tuning.baseOffset;
+        editorTuning.qOffset = Vec3::Zero;
+        editorTuning.wOffset = Vec3::Zero;
+        editorTuning.eOffset = Vec3::Zero;
+        editorTuning.showKeyOffsets = false;
+        editorTuning.namedOffsets.reserve(kBattleWorldCommandSurfaceOffsetCount);
+        for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldCommandSurfaceOffsetCount; ++offsetIndex)
+        {
+            editorTuning.namedOffsets.push_back(
+                {
+                    kBattleWorldCommandSurfaceOffsetSpecs[offsetIndex].id,
+                    kBattleWorldCommandSurfaceOffsetSpecs[offsetIndex].label,
+                    tuning.surfaceOffsets[offsetIndex]
+                });
+        }
+        editorTuning.worldSize = tuning.worldSize;
+        editorTuning.visualScale = tuning.visualScale;
+        editorTuning.pitchDegrees = tuning.pitchRadians * kBattleWorldCommandRadiansToDegrees;
+        editorTuning.rollDegrees = tuning.rollRadians * kBattleWorldCommandRadiansToDegrees;
+        editorTuning.yawOffsetDegrees = tuning.yawOffsetRadians * kBattleWorldCommandRadiansToDegrees;
+        return editorTuning;
+    }
+
+    BattleWorldCommandWorldPlacementTuning From_EditorWorldPlacementTuning(
+        const RuntimeWorldUIPlacementTuning& editorTuning)
+    {
+        BattleWorldCommandWorldPlacementTuning tuning{};
+        tuning.screenPosition = editorTuning.screenPosition;
+        tuning.baseOffset = editorTuning.baseOffset;
+        for (const auto& namedOffset : editorTuning.namedOffsets)
+        {
+            const uint32 offsetIndex = Resolve_CommandSurfaceOffsetIndex(namedOffset.id);
+            if (offsetIndex < kBattleWorldCommandSurfaceOffsetCount)
+                tuning.surfaceOffsets[offsetIndex] = namedOffset.offset;
+        }
+        tuning.worldSize = Vec2(
+            max(0.01f, editorTuning.worldSize.x),
+            max(0.01f, editorTuning.worldSize.y));
+        tuning.visualScale = max(0.01f, editorTuning.visualScale);
+        tuning.pitchRadians = editorTuning.pitchDegrees * kBattleWorldCommandDegreesToRadians;
+        tuning.rollRadians = editorTuning.rollDegrees * kBattleWorldCommandDegreesToRadians;
+        tuning.yawOffsetRadians = editorTuning.yawOffsetDegrees * kBattleWorldCommandDegreesToRadians;
+        return tuning;
+    }
+
+    void Reload_CommandWorldPlacementTuningIfNeeded(
+        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount>& tunings,
+        fs::file_time_type& knownWriteTime,
+        bool& hasKnownFile)
+    {
+        const fs::path jsonPath = Resolve_CommandWorldPlacementJsonPath();
+        if (!fs::exists(jsonPath))
+        {
+            if (hasKnownFile)
+            {
+                tunings = Make_DefaultCommandWorldPlacementTunings();
+                knownWriteTime = {};
+                hasKnownFile = false;
+                LOG_INFO("BattleWorldUI command placement json removed. using defaults.");
+            }
+            return;
+        }
+
+        error_code errorCode{};
+        const fs::file_time_type writeTime = fs::last_write_time(jsonPath, errorCode);
+        if (errorCode)
+            return;
+
+        if (hasKnownFile && writeTime == knownWriteTime)
+            return;
+
+        array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount> loadedTunings{};
+        knownWriteTime = writeTime;
+        hasKnownFile = true;
+
+        if (!Try_LoadCommandWorldPlacementTunings(jsonPath, loadedTunings))
+            return;
+
+        tunings = loadedTunings;
+        LOG_INFO("BattleWorldUI command placement json reloaded. path='{}'",
+            String::ToString(jsonPath.wstring()));
+    }
+
+    Matrix Resolve_CameraFacingYawRotation(const Vec3& surfacePosition)
+    {
+        const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+        if (activeCamera == nullptr || activeCamera->Get_Transform() == nullptr)
+            return Matrix::Identity;
+
+        Vec3 toCamera = activeCamera->Get_Transform()->Get_WorldPosition() - surfacePosition;
+        toCamera.y = 0.f;
+
+        if (toCamera.LengthSquared() <= 0.0001f)
+            return Matrix::Identity;
+
+        toCamera.Normalize();
+        return Matrix::CreateRotationY(atan2f(-toCamera.x, -toCamera.z));
+    }
+
+    Vec3 Resolve_CameraScreenPositionDelta(const Vec3& screenPosition)
+    {
+        const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+        if (activeCamera == nullptr || activeCamera->Get_Transform() == nullptr)
+            return Vec3(screenPosition.x, -screenPosition.y, screenPosition.z);
+
+        Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+        return
+            cameraTransform->Get_WorldRight() * screenPosition.x -
+            cameraTransform->Get_WorldUp() * screenPosition.y +
+            cameraTransform->Get_WorldForward() * screenPosition.z;
+    }
+
     HRESULT Bind_WorldUIPlaneShaderState(
         ShaderCom* shader,
         const Matrix& worldMatrix,
@@ -1178,7 +1638,10 @@ namespace
         virtual ~IWorldUICommandSurface() = default;
 
         virtual HRESULT Compose(const BattleWorldCommandSurfaceDef& def) = 0;
-        virtual HRESULT Bind_ShaderResource(ShaderCom* shader, const char* name) const = 0;
+        virtual bool Has_BackgroundContent() const = 0;
+        virtual bool Has_ForegroundContent() const = 0;
+        virtual HRESULT Bind_BackgroundShaderResource(ShaderCom* shader, const char* name) const = 0;
+        virtual HRESULT Bind_ForegroundShaderResource(ShaderCom* shader, const char* name) const = 0;
     };
 
     class RenderTargetComposedBattleWorldCommandSurface final : public IWorldUICommandSurface
@@ -1200,16 +1663,32 @@ namespace
 
         HRESULT Initialize(uint32 surfaceIndex)
         {
-            _renderTarget = RenderTarget::Create(
-                L"BattleWorldCommandSurface_" + to_wstring(surfaceIndex),
+            const uint32 targetWidth =
+                static_cast<uint32>(max(1.f, roundf(_pixelSize.x * static_cast<float>(kBattleWorldCommandCompositionRenderScale))));
+            const uint32 targetHeight =
+                static_cast<uint32>(max(1.f, roundf(_pixelSize.y * static_cast<float>(kBattleWorldCommandCompositionRenderScale))));
+
+            _backgroundRenderTarget = RenderTarget::Create(
+                L"BattleWorldCommandSurface_" + to_wstring(surfaceIndex) + L"_Background",
                 _device,
                 _context,
-                static_cast<uint32>(max(1.f, roundf(_pixelSize.x * static_cast<float>(kBattleWorldCommandCompositionRenderScale)))),
-                static_cast<uint32>(max(1.f, roundf(_pixelSize.y * static_cast<float>(kBattleWorldCommandCompositionRenderScale)))),
+                targetWidth,
+                targetHeight,
                 DXGI_FORMAT_R8G8B8A8_UNORM,
                 Vec4(0.f, 0.f, 0.f, 0.f),
                 false);
-            CHECK_NULL(_renderTarget, E_FAIL);
+            CHECK_NULL(_backgroundRenderTarget, E_FAIL);
+
+            _foregroundRenderTarget = RenderTarget::Create(
+                L"BattleWorldCommandSurface_" + to_wstring(surfaceIndex) + L"_Foreground",
+                _device,
+                _context,
+                targetWidth,
+                targetHeight,
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                Vec4(0.f, 0.f, 0.f, 0.f),
+                false);
+            CHECK_NULL(_foregroundRenderTarget, E_FAIL);
 
             D3D11_BLEND_DESC blendDesc{};
             blendDesc.RenderTarget[0].BlendEnable = TRUE;
@@ -1227,7 +1706,8 @@ namespace
 
         HRESULT Compose(const BattleWorldCommandSurfaceDef& def) override
         {
-            CHECK_NULL(_renderTarget, E_FAIL);
+            CHECK_NULL(_backgroundRenderTarget, E_FAIL);
+            CHECK_NULL(_foregroundRenderTarget, E_FAIL);
 
             ScopedRenderTargetState restoreState{ _context };
 
@@ -1235,22 +1715,16 @@ namespace
             _context->VSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
             _context->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
 
-            CHECK_FAILED(_renderTarget->Begin(true, false), E_FAIL);
-
-            for (const auto& layer : def.layers)
-            {
-                if (layer.kind == BattleWorldCommandLayerKind::Image &&
-                    Should_DrawImageLayer(layer.image, def.content))
-                {
-                    CHECK_FAILED(Draw_CompositionImage(layer.image), E_FAIL);
-                }
-            }
-
-            for (const auto& layer : def.layers)
-            {
-                if (layer.kind == BattleWorldCommandLayerKind::Text)
-                    Draw_CompositionText(layer.text);
-            }
+            _hasBackgroundContent = Has_RenderLayerContent(def, BattleWorldCommandLayerRenderLayer::Background);
+            _hasForegroundContent = Has_RenderLayerContent(def, BattleWorldCommandLayerRenderLayer::Foreground);
+            CHECK_FAILED(Compose_RenderLayer(
+                _backgroundRenderTarget,
+                def,
+                BattleWorldCommandLayerRenderLayer::Background), E_FAIL);
+            CHECK_FAILED(Compose_RenderLayer(
+                _foregroundRenderTarget,
+                def,
+                BattleWorldCommandLayerRenderLayer::Foreground), E_FAIL);
 
             _context->VSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
             _context->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
@@ -1258,10 +1732,26 @@ namespace
             return S_OK;
         }
 
-        HRESULT Bind_ShaderResource(ShaderCom* shader, const char* name) const override
+        bool Has_BackgroundContent() const override
         {
-            CHECK_NULL(_renderTarget, E_FAIL);
-            return _renderTarget->Bind_ShaderResource(shader, name);
+            return _hasBackgroundContent;
+        }
+
+        bool Has_ForegroundContent() const override
+        {
+            return _hasForegroundContent;
+        }
+
+        HRESULT Bind_BackgroundShaderResource(ShaderCom* shader, const char* name) const override
+        {
+            CHECK_NULL(_backgroundRenderTarget, E_FAIL);
+            return _backgroundRenderTarget->Bind_ShaderResource(shader, name);
+        }
+
+        HRESULT Bind_ForegroundShaderResource(ShaderCom* shader, const char* name) const override
+        {
+            CHECK_NULL(_foregroundRenderTarget, E_FAIL);
+            return _foregroundRenderTarget->Bind_ShaderResource(shader, name);
         }
 
         static Unique<IWorldUICommandSurface> Create(
@@ -1285,6 +1775,62 @@ namespace
         }
 
     private:
+        bool Has_RenderLayerContent(
+            const BattleWorldCommandSurfaceDef& def,
+            BattleWorldCommandLayerRenderLayer renderLayer) const
+        {
+            for (const auto& layer : def.layers)
+            {
+                if (layer.renderLayer != renderLayer)
+                    continue;
+
+                if (layer.kind == BattleWorldCommandLayerKind::Image)
+                {
+                    if (Should_DrawImageLayer(layer.image, def.content))
+                        return true;
+
+                    continue;
+                }
+
+                if (layer.kind == BattleWorldCommandLayerKind::Text)
+                    return !layer.text.text.empty();
+            }
+
+            return false;
+        }
+
+        HRESULT Compose_RenderLayer(
+            const Shared<RenderTarget>& renderTarget,
+            const BattleWorldCommandSurfaceDef& def,
+            BattleWorldCommandLayerRenderLayer renderLayer)
+        {
+            CHECK_NULL(renderTarget, E_FAIL);
+            CHECK_FAILED(renderTarget->Begin(true, false), E_FAIL);
+
+            for (const auto& layer : def.layers)
+            {
+                if (layer.renderLayer != renderLayer)
+                    continue;
+
+                if (layer.kind == BattleWorldCommandLayerKind::Image &&
+                    Should_DrawImageLayer(layer.image, def.content))
+                {
+                    CHECK_FAILED(Draw_CompositionImage(layer.image), E_FAIL);
+                }
+            }
+
+            for (const auto& layer : def.layers)
+            {
+                if (layer.renderLayer != renderLayer)
+                    continue;
+
+                if (layer.kind == BattleWorldCommandLayerKind::Text)
+                    Draw_CompositionText(layer.text);
+            }
+
+            return S_OK;
+        }
+
         HRESULT Draw_CompositionImage(const BattleWorldCommandImageDef& image)
         {
             CHECK_NULL(image.texture, E_FAIL);
@@ -1421,9 +1967,12 @@ namespace
         ComPtr<Context> _context{};
         Shared<ShaderCom> _shader{};
         Shared<VIBuffer_Rect> _viBuffer{};
-        Shared<RenderTarget> _renderTarget{};
+        Shared<RenderTarget> _backgroundRenderTarget{};
+        Shared<RenderTarget> _foregroundRenderTarget{};
         ComPtr<ID3D11BlendState> _compositionBlendState{};
         Vec2 _pixelSize = Vec2(1.f, 1.f);
+        bool _hasBackgroundContent = false;
+        bool _hasForegroundContent = false;
     };
 }
 
@@ -1433,6 +1982,12 @@ struct BattleWorldUI_CommandCards::Impl
     Shared<VIBuffer_Rect> viBuffer{};
     vector<BattleWorldCommandSurfaceTemplate> templates{};
     vector<BattleWorldCommandSurfaceInstance> surfaces{};
+    array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount> placementTunings =
+        Make_DefaultCommandWorldPlacementTunings();
+    fs::file_time_type placementTuningWriteTime{};
+    bool hasPlacementTuningFile = false;
+    HeroId activePlacementHeroId = HeroId::END;
+    HeroId editorPlacementHeroId = HeroId::END;
 };
 
 BattleWorldUI_CommandCards::BattleWorldUI_CommandCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -1453,6 +2008,10 @@ HRESULT BattleWorldUI_CommandCards::Initialize(void* arg)
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("VIBuffer_Rect"), _impl->viBuffer), E_FAIL);
 
     CHECK_FAILED(Try_LoadJsonCommandSurfaceTemplates(_device, _context, _impl->templates) ? S_OK : E_FAIL, E_FAIL);
+    Reload_CommandWorldPlacementTuningIfNeeded(
+        _impl->placementTunings,
+        _impl->placementTuningWriteTime,
+        _impl->hasPlacementTuningFile);
 
     _impl->surfaces.clear();
     _impl->surfaces.reserve(_impl->templates.size());
@@ -1483,13 +2042,31 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
     uint32 curAp,
-    uint32 maxAp)
+    uint32 maxAp,
+    HeroId actorHeroId)
 {
     if (_impl == nullptr || !Should_ShowBattleWorldCommandCards(currentState))
     {
         Hide();
         return;
     }
+
+    Reload_CommandWorldPlacementTuningIfNeeded(
+        _impl->placementTunings,
+        _impl->placementTuningWriteTime,
+        _impl->hasPlacementTuningFile);
+
+    const HeroId placementHeroId = Normalize_CommandHeroId(actorHeroId);
+    const uint32 placementHeroIndex = Resolve_CommandHeroIndex(placementHeroId);
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+
+    const BattleWorldCommandWorldPlacementTuning& placementTuning =
+        _impl->placementTunings[placementHeroIndex];
+    const Vec2 rootScale(
+        placementTuning.worldSize.x / max(0.01f, kBattleWorldCommandRootWorldSize.x),
+        placementTuning.worldSize.y / max(0.01f, kBattleWorldCommandRootWorldSize.y));
 
     const BattleWorldCommandSurfaceContent content
     {
@@ -1518,10 +2095,30 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
             surface.dirty = false;
         }
 
-        const Vec3 position = anchorWorldPos + surface.def.worldOffset;
+        const Vec3 surfaceOffset =
+            surface.def.worldOffset +
+            Resolve_CommandSurfaceOffset(placementTuning, surface.def.sourceName);
+        const Vec3 localOffset(
+            surfaceOffset.x * rootScale.x,
+            surfaceOffset.y * rootScale.y,
+            surfaceOffset.z);
+        const Vec2 surfaceWorldSize(
+            surface.def.worldSize.x * rootScale.x,
+            surface.def.worldSize.y * rootScale.y);
+        const Vec3 position =
+            anchorWorldPos +
+            Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
+            placementTuning.baseOffset +
+            localOffset;
         surface.worldMatrix =
-            Matrix::CreateScale(surface.def.worldSize.x, surface.def.worldSize.y, 1.f) *
-            Matrix::CreateRotationZ(-surface.def.rotationRadians) *
+            Matrix::CreateScale(
+                surfaceWorldSize.x * placementTuning.visualScale,
+                surfaceWorldSize.y * placementTuning.visualScale,
+                1.f) *
+            Matrix::CreateRotationZ(-surface.def.rotationRadians + placementTuning.rollRadians) *
+            Matrix::CreateRotationX(placementTuning.pitchRadians) *
+            Matrix::CreateRotationY(placementTuning.yawOffsetRadians) *
+            Resolve_CameraFacingYawRotation(position) *
             Matrix::CreateTranslation(position.x, position.y, position.z);
         surface.visible = true;
         anyVisible = true;
@@ -1541,6 +2138,102 @@ void BattleWorldUI_CommandCards::Hide()
         surface.visible = false;
 }
 
+HeroId BattleWorldUI_CommandCards::Get_EditorWorldPlacementHeroId() const
+{
+    if (_impl == nullptr)
+        return HeroId::Gustave;
+
+    if (_impl->editorPlacementHeroId != HeroId::END)
+        return Normalize_CommandHeroId(_impl->editorPlacementHeroId);
+
+    if (_impl->activePlacementHeroId != HeroId::END)
+        return Normalize_CommandHeroId(_impl->activePlacementHeroId);
+
+    return HeroId::Gustave;
+}
+
+void BattleWorldUI_CommandCards::Set_EditorWorldPlacementHeroId(HeroId heroId)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementHeroId = Normalize_CommandHeroId(heroId);
+}
+
+RuntimeWorldUIPlacementTuning BattleWorldUI_CommandCards::Get_EditorWorldPlacementTuning() const
+{
+    if (_impl == nullptr)
+        return To_EditorWorldPlacementTuning(Make_DefaultCommandWorldPlacementTuning(HeroId::Gustave));
+
+    const uint32 heroIndex = Resolve_CommandHeroIndex(Get_EditorWorldPlacementHeroId());
+    return To_EditorWorldPlacementTuning(_impl->placementTunings[heroIndex]);
+}
+
+void BattleWorldUI_CommandCards::Set_EditorWorldPlacementTuning(
+    const RuntimeWorldUIPlacementTuning& tuning,
+    bool saveImmediately)
+{
+    if (_impl == nullptr)
+        return;
+
+    const uint32 heroIndex = Resolve_CommandHeroIndex(Get_EditorWorldPlacementHeroId());
+    _impl->placementTunings[heroIndex] = From_EditorWorldPlacementTuning(tuning);
+
+    if (!saveImmediately)
+        return;
+
+    if (Write_CommandWorldPlacementTuningsToFile(
+        _impl->placementTunings,
+        &_impl->placementTuningWriteTime))
+    {
+        _impl->hasPlacementTuningFile = true;
+    }
+}
+
+void BattleWorldUI_CommandCards::Reload_EditorWorldPlacementTuning()
+{
+    if (_impl == nullptr)
+        return;
+
+    const fs::path jsonPath = Resolve_CommandWorldPlacementJsonPath();
+    if (!fs::exists(jsonPath))
+    {
+        _impl->placementTunings = Make_DefaultCommandWorldPlacementTunings();
+        _impl->placementTuningWriteTime = {};
+        _impl->hasPlacementTuningFile = false;
+        LOG_INFO("BattleWorldUI command placement json reload requested, but file is missing. using defaults.");
+        return;
+    }
+
+    array<BattleWorldCommandWorldPlacementTuning, kBattleWorldCommandPlacementHeroCount> loadedTunings{};
+    if (!Try_LoadCommandWorldPlacementTunings(jsonPath, loadedTunings))
+        return;
+
+    error_code errorCode{};
+    const fs::file_time_type writeTime = fs::last_write_time(jsonPath, errorCode);
+    if (!errorCode)
+        _impl->placementTuningWriteTime = writeTime;
+
+    _impl->placementTunings = loadedTunings;
+    _impl->hasPlacementTuningFile = true;
+}
+
+void BattleWorldUI_CommandCards::Reset_EditorWorldPlacementTuning()
+{
+    if (_impl == nullptr)
+        return;
+
+    const HeroId heroId = Get_EditorWorldPlacementHeroId();
+    _impl->placementTunings[Resolve_CommandHeroIndex(heroId)] =
+        Make_DefaultCommandWorldPlacementTuning(heroId);
+    if (Write_CommandWorldPlacementTuningsToFile(
+        _impl->placementTunings,
+        &_impl->placementTuningWriteTime))
+    {
+        _impl->hasPlacementTuningFile = true;
+    }
+}
+
 void BattleWorldUI_CommandCards::Late_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
@@ -1558,13 +2251,31 @@ HRESULT BattleWorldUI_CommandCards::Render()
 
     const Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
 
+    bool drewBackground = false;
     for (const auto& surface : _impl->surfaces)
     {
-        if (!surface.visible || surface.surface == nullptr)
+        if (!surface.visible || surface.surface == nullptr || !surface.surface->Has_BackgroundContent())
             continue;
 
         CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), surface.worldMatrix, color), E_FAIL);
-        CHECK_FAILED(surface.surface->Bind_ShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
+        CHECK_FAILED(surface.surface->Bind_BackgroundShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
+        CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
+        CHECK_FAILED(GAME->Bind_BackgroundUIBehindPlayerStencilState(), E_FAIL);
+        CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);
+        CHECK_FAILED(_impl->viBuffer->Render(), E_FAIL);
+        drewBackground = true;
+    }
+
+    if (drewBackground)
+        CHECK_FAILED(GAME->Bind_UINoDepthStencilState(), E_FAIL);
+
+    for (const auto& surface : _impl->surfaces)
+    {
+        if (!surface.visible || surface.surface == nullptr || !surface.surface->Has_ForegroundContent())
+            continue;
+
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), surface.worldMatrix, color), E_FAIL);
+        CHECK_FAILED(surface.surface->Bind_ForegroundShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Render(), E_FAIL);
