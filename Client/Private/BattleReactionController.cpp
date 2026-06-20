@@ -290,7 +290,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
                     battle->Play_BattleHitStop(0.08f, 0.08f);
 
                 PlayEffectDesc effectDesc{};
-                effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+                effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
                 effectDesc.spawnBasisTarget = target.actor;
                 effectDesc.scale = Vec3(0.5f, 0.5f, 0.5f);
                 effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
@@ -816,9 +816,9 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
     if (hitCount > 0)
     {
         PlayEffectDesc effectDesc{};
-        effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+        effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
         effectDesc.spawnBasisTarget = _counterDamageTarget.actor;
-        effectDesc.scale = Vec3(1.2f, 1.2f, 1.2f);
+        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
         effectDesc.localOffset = Vec3(0.f, 1.2f, 0.f);
 
         CLIENT->Play_Effect(effectDesc);

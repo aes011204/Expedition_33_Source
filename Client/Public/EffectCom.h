@@ -182,22 +182,24 @@ public: //## Behavior::TrailAndSourceHistory
         const wstring& effectName,
         const wstring& partTag,
         const wstring& layerTag,
-        SourceHistorySourcePointPolicy sourcePointPolicy = SourceHistorySourcePointPolicy::Tip,
-        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
-        const string& socketName = "");
+        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::WeaponAnchor,
+        const string& socketName = "",
+        const string& sourceHistoryAnchorName = "Source",
+        const Vec3& sourceHistoryLocalOffset = Vec3::Zero);
 
     void Stop_SourceHistoryEffect(
         const wstring& effectName,
         const wstring& partTag,
-        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
-        const string& socketName = "");
+        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::WeaponAnchor,
+        const string& socketName = "",
+        const string& sourceHistoryAnchorName = "Source");
 
     bool Try_GetSourcePointSampleForPart(
         const wstring& partTag,
         SourceHistorySourceBindingMode sourceBindingMode,
         const string& socketName,
-        const TrailAnchorAsset& trailAnchorAsset,
-        SourceHistorySourcePointPolicy sourcePointPolicy,
+        const string& sourceHistoryAnchorName,
+        const Vec3& sourceHistoryLocalOffset,
         EffectSourcePointSample& outSample) const;
 
 private: //## Types::AttachedEffect
@@ -232,7 +234,9 @@ private: //## Types::AttachedEffect
         bool isTrailDraining = false;
         float trailDrainElapsed = 0.f;
         float trailDrainDuration = 0.25f;
-        SourceHistorySourceBindingMode sourceHistorySourceBindingMode{ SourceHistorySourceBindingMode::TrailAnchor };
+        SourceHistorySourceBindingMode sourceHistorySourceBindingMode{ SourceHistorySourceBindingMode::WeaponAnchor };
+        string sourceHistoryAnchorName{ "Source" };
+        Vec3 sourceHistoryLocalOffset{ Vec3::Zero };
         Shared<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};
         Shared<bool> sourcePointSampleEnabled{};
         bool isSourceHistoryDraining = false;
@@ -299,9 +303,15 @@ private: //## Helper::AttachedEffects
         const wstring& partTag,
         SourceHistorySourceBindingMode sourceBindingMode,
         const string& socketName,
-        const TrailAnchorAsset& trailAnchorAsset,
-        SourceHistorySourcePointPolicy sourcePointPolicy,
+        const string& sourceHistoryAnchorName,
+        const Vec3& sourceHistoryLocalOffset,
         EffectSourcePointSample& outSample) const;
+
+    bool Try_ResolveWeaponAnchorWorldPosition(
+        const Weapon& weaponPart,
+        const string& anchorName,
+        const Vec3& localOffset,
+        Vec3& outWorldPosition) const;
 
 private: //## Data::DrawFeatures
     // 디졸브

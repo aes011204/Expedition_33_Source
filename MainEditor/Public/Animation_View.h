@@ -139,11 +139,11 @@ private:
         string partTag = "Part_Weapon";
         int32 sourceBindingMode = 0;
         string socketName{};
-        int32 sourcePointPolicy = 0;
+        string sourceHistoryAnchorName{ "Source" };
+        Vec3 sourceHistoryLocalOffset{ Vec3::Zero };
         string modelGuid{};
         float lastTimeSec = -1.f;
 
-        Client::TrailAnchorAsset trailAnchorAsset{};
         Shared<EffectInstance> effect{};
         wstring effectName{};
         bool isPlaying = false;
@@ -308,16 +308,19 @@ private:
         const string& partTag,
         const Client::TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
+    bool Try_ResolvePreviewWeaponAnchorWorldPosition(
+        const string& partTag,
+        const string& anchorName,
+        const Vec3& localOffset,
+        Vec3& outWorldPosition) const;
     bool Try_ResolvePreviewSocketWorldPosition(
         const string& partTag,
         const string& socketName,
+        const Vec3& localOffset,
         Vec3& outWorldPosition) const;
     bool Load_PreviewTrailAnchorAsset(
         const string& partTag,
         PreviewTrailRuntime& outRuntime);
-    bool Load_PreviewSourceHistoryAnchorAsset(
-        const string& partTag,
-        PreviewSourceHistoryRuntime& outRuntime);
     Weapon* Resolve_PreviewWeapon(const wstring& partTag) const;
 
     AnimNotifyData* Get_CurrentAnimation();

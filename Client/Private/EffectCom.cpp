@@ -816,9 +816,10 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     const wstring& effectName,
     const wstring& partTag,
     const wstring& layerTag,
-    SourceHistorySourcePointPolicy sourcePointPolicy,
     SourceHistorySourceBindingMode sourceBindingMode,
-    const string& socketName)
+    const string& socketName,
+    const string& sourceHistoryAnchorName,
+    const Vec3& sourceHistoryLocalOffset)
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
@@ -851,79 +852,26 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     attached.layerTag = layerTag;
     attached.role = AttachedEffectRole::SourceHistoryPoint;
     attached.sourceHistorySourceBindingMode = sourceBindingMode;
+    attached.sourceHistoryAnchorName = sourceHistoryAnchorName;
+    attached.sourceHistoryLocalOffset = sourceHistoryLocalOffset;
     attached.sourcePointSampleEnabled = make_shared<bool>(true);
 
-    if (sourceBindingMode == SourceHistorySourceBindingMode::TrailAnchor)
-    {
-        const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
-        if (weaponPart == nullptr)
-        {
-            LOG_WARN(
-                "[EffectCom] Play_SourceHistoryEffect failed: weapon part not found. effect={}, part={}, layer={}",
-                String::ToString(effectName),
-                String::ToString(partTag),
-                String::ToString(layerTag)
-            );
-            return E_FAIL;
-        }
-
-        const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
-        if (weaponModel == nullptr)
-        {
-            LOG_WARN(
-                "[EffectCom] Play_SourceHistoryEffect failed: weapon model is null. effect={}, part={}",
-                String::ToString(resolvedEffectName),
-                String::ToString(partTag)
-            );
-            return E_FAIL;
-        }
-
-        const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
-        if (sourceModelPath.empty())
-        {
-            LOG_WARN(
-                "[EffectCom] Play_SourceHistoryEffect failed: source model path is empty. effect={}, part={}",
-                String::ToString(resolvedEffectName),
-                String::ToString(partTag)
-            );
-            return E_FAIL;
-        }
-
-        const string modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
-        if (modelGuid.empty())
-        {
-            LOG_WARN(
-                "[EffectCom] Play_SourceHistoryEffect failed: model guid is empty. effect={}, part={}, model={}",
-                String::ToString(resolvedEffectName),
-                String::ToString(partTag),
-                String::ToString(sourceModelPath)
-            );
-            return E_FAIL;
-        }
-
-        const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
-        if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
-        {
-            LOG_WARN(
-                "[EffectCom] Play_SourceHistoryEffect failed: trail anchor load. effect={}, part={}, path={}",
-                String::ToString(resolvedEffectName),
-                String::ToString(partTag),
-                String::ToString(anchorPath.wstring())
-            );
-            return E_FAIL;
-        }
-    }
-
     EffectSourcePointSample initialSample{};
-    if (!Try_BuildSourcePointSample(attached.partTag, sourceBindingMode, socketName, attached.trailAnchorAsset, sourcePointPolicy, initialSample))
+    if (!Try_BuildSourcePointSample(
+        attached.partTag,
+        sourceBindingMode,
+        socketName,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
+        initialSample))
     {
         LOG_WARN(
-            "[EffectCom] Play_SourceHistoryEffect failed: source point sample. effect={}, part={}, binding={}, socket={}, policy={}",
+            "[EffectCom] Play_SourceHistoryEffect failed: source point sample. effect={}, part={}, binding={}, socket={}, anchor={}",
             String::ToString(resolvedEffectName),
             String::ToString(partTag),
             static_cast<int>(sourceBindingMode),
             socketName,
-            static_cast<int>(sourcePointPolicy)
+            sourceHistoryAnchorName
         );
         return E_FAIL;
     }
@@ -933,8 +881,8 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
         partTag,
         sourceBindingMode,
         socketName,
-        attached.trailAnchorAsset,
-        sourcePointPolicy,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
         attached.sourcePointSampleEnabled
     );
     CHECK_NULL(attached.sourcePointSampleProvider, E_FAIL);
@@ -987,7 +935,8 @@ void EffectCom::Stop_SourceHistoryEffect(
     const wstring& effectName,
     const wstring& partTag,
     SourceHistorySourceBindingMode sourceBindingMode,
-    const string& socketName)
+    const string& socketName,
+    const string& sourceHistoryAnchorName)
 {
     wstring resolvedEffectName{};
     if (!Try_ResolveSourceHistoryEffectName(effectName, resolvedEffectName))
@@ -1005,6 +954,8 @@ void EffectCom::Stop_SourceHistoryEffect(
             continue;
         if (attached.socketName != socketName)
             continue;
+        if (attached.sourceHistoryAnchorName != sourceHistoryAnchorName)
+            continue;
 
         Begin_SourceHistoryDrain(attached);
     }
@@ -1016,11 +967,17 @@ bool EffectCom::Try_GetSourcePointSampleForPart(
     const wstring& partTag,
     SourceHistorySourceBindingMode sourceBindingMode,
     const string& socketName,
-    const TrailAnchorAsset& trailAnchorAsset,
-    SourceHistorySourcePointPolicy sourcePointPolicy,
+    const string& sourceHistoryAnchorName,
+    const Vec3& sourceHistoryLocalOffset,
     EffectSourcePointSample& outSample) const
 {
-    return Try_BuildSourcePointSample(partTag, sourceBindingMode, socketName, trailAnchorAsset, sourcePointPolicy, outSample);
+    return Try_BuildSourcePointSample(
+        partTag,
+        sourceBindingMode,
+        socketName,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
+        outSample);
 }
 
 bool EffectCom::Try_ResolveTrailEffectName(
@@ -1315,8 +1272,8 @@ bool EffectCom::Try_BuildSourcePointSample(
     const wstring& partTag,
     SourceHistorySourceBindingMode sourceBindingMode,
     const string& socketName,
-    const TrailAnchorAsset& trailAnchorAsset,
-    SourceHistorySourcePointPolicy sourcePointPolicy,
+    const string& sourceHistoryAnchorName,
+    const Vec3& sourceHistoryLocalOffset,
     EffectSourcePointSample& outSample) const
 {
     if (sourceBindingMode == SourceHistorySourceBindingMode::Socket)
@@ -1325,27 +1282,24 @@ bool EffectCom::Try_BuildSourcePointSample(
         if (!Try_GetSocketWorldMatrix(partTag, socketName, socketWorldMatrix))
             return false;
 
-        outSample.worldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outSample.worldPosition = Vec3::Transform(sourceHistoryLocalOffset, socketWorldMatrix);
         return true;
     }
 
-    EffectTrailSample trailSample{};
-    if (!Try_BuildTrailSample(partTag, trailAnchorAsset, trailSample))
+    const Shared<GameObject> ownerObject = Get_Owner();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
+    if (ownerContainer == nullptr)
         return false;
 
-    switch (sourcePointPolicy)
-    {
-    case SourceHistorySourcePointPolicy::Base:
-        outSample.worldPosition = trailSample.baseWorldPosition;
-        return true;
-    case SourceHistorySourcePointPolicy::Mid:
-        outSample.worldPosition = (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f;
-        return true;
-    case SourceHistorySourcePointPolicy::Tip:
-    default:
-        outSample.worldPosition = trailSample.tipWorldPosition;
-        return true;
-    }
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+    if (weaponPart == nullptr)
+        return false;
+
+    return Try_ResolveWeaponAnchorWorldPosition(
+        *weaponPart,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
+        outSample.worldPosition);
 }
 
 bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
@@ -1367,6 +1321,33 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
 
     const Matrix anchorWorldMatrix = *boneMatrix * weaponPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
+}
+
+bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
+    const Weapon& weaponPart,
+    const string& anchorName,
+    const Vec3& localOffset,
+    Vec3& outWorldPosition) const
+{
+    const WeaponSourceHistoryAnchorDesc* anchor = weaponPart.Find_SourceHistoryAnchor(anchorName);
+    if (anchor == nullptr || anchor->boneName.empty())
+        return false;
+
+    const Shared<ModelCom> weaponModel = weaponPart.Get_Model();
+    if (weaponModel == nullptr)
+        return false;
+
+    const int32 boneIndex = weaponModel->Get_BoneIndex(anchor->boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = weaponModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart.Get_CombinedWorldMatrix();
+    outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
     return true;
 }
 

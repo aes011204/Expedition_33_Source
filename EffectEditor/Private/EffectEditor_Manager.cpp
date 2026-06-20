@@ -488,6 +488,18 @@ void EffectEditor_Manager::Handle_Shortcuts()
         return;
     }
 
+    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space, false))
+    {
+        if (EDITOR->IsPlaying())
+            EDITOR->Pause();
+        else if (EDITOR->IsPaused())
+            EDITOR->Resume();
+        else
+            EDITOR->Play();
+
+        return;
+    }
+
     if (ImGui::IsKeyPressed(ImGuiKey_F5, false))
     {
         if (EDITOR->IsPaused())
@@ -574,6 +586,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             };
 
             draw_section_row("Playback / Runtime");
+            draw_shortcut_row("Space", "Play / Pause");
             draw_shortcut_row("F5", "Play / Resume");
             draw_shortcut_row("R", "Restart Preview");
             draw_shortcut_row("F9", "Pause");
@@ -607,6 +620,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Alt + MMB Drag", "Pan");
             draw_shortcut_row("Alt + RMB Drag", "Dolly");
             draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
+            draw_shortcut_row("Shift + Space", "Toggle Gizmo Local / World");
 
             ImGui::EndTable();
         }

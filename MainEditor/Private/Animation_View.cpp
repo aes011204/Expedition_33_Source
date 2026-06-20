@@ -939,44 +939,6 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
     return !outRuntime.trailAnchorAsset.modelGuid.empty();
 }
 
-bool Animation_View::Load_PreviewSourceHistoryAnchorAsset(
-    const string& partTag,
-    PreviewSourceHistoryRuntime& outRuntime)
-{
-    outRuntime.trailAnchorAsset = {};
-    outRuntime.modelGuid.clear();
-
-    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
-    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
-    if (ownerContainer == nullptr)
-        return false;
-
-    const wstring previewPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
-    if (weaponPart == nullptr)
-        return false;
-
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
-    if (weaponModel == nullptr)
-        return false;
-
-    const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
-    if (sourceModelPath.empty())
-        return false;
-
-    outRuntime.modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
-    if (outRuntime.modelGuid.empty())
-        return false;
-
-    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(outRuntime.modelGuid);
-    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), outRuntime.trailAnchorAsset);
-
-    if (outRuntime.trailAnchorAsset.modelGuid.empty())
-        outRuntime.trailAnchorAsset.modelGuid = outRuntime.modelGuid;
-
-    return !outRuntime.trailAnchorAsset.modelGuid.empty();
-}
-
 void Animation_View::Save_NotifyAsset()
 {
     if (_modelGuid.empty())
@@ -3145,31 +3107,17 @@ bool Animation_View::Try_GetSourcePointSampleForRuntime(
     EffectSourcePointSample& outSample) const
 {
     if (runtime.sourceBindingMode == 1)
-    {
-        return Try_ResolvePreviewSocketWorldPosition(runtime.partTag, runtime.socketName, outSample.worldPosition);
-    }
+        return Try_ResolvePreviewSocketWorldPosition(
+            runtime.partTag,
+            runtime.socketName,
+            runtime.sourceHistoryLocalOffset,
+            outSample.worldPosition);
 
-    PreviewTrailRuntime trailRuntime{};
-    trailRuntime.partTag = runtime.partTag;
-    trailRuntime.trailAnchorAsset = runtime.trailAnchorAsset;
-
-    EffectTrailSample trailSample{};
-    if (!Try_GetTrailSampleForRuntime(trailRuntime, trailSample))
-        return false;
-
-    switch (runtime.sourcePointPolicy)
-    {
-    case 1:
-        outSample.worldPosition = trailSample.baseWorldPosition;
-        return true;
-    case 2:
-        outSample.worldPosition = (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f;
-        return true;
-    case 0:
-    default:
-        outSample.worldPosition = trailSample.tipWorldPosition;
-        return true;
-    }
+    return Try_ResolvePreviewWeaponAnchorWorldPosition(
+        runtime.partTag,
+        runtime.sourceHistoryAnchorName,
+        runtime.sourceHistoryLocalOffset,
+        outSample.worldPosition);
 }
 
 void Animation_View::Update_PreviewWeaponRotateStates(float timeDelta)
@@ -4412,9 +4360,22 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
         const json payload = activeState->notifyState->To_Json();
         const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
         const string effectNameValue = payload.value("_effectName", string{});
-        const int32 sourceBindingMode = payload.value("_sourceBindingMode", 0);
+        int32 sourceBindingMode = payload.value("_sourceBindingMode", 2);
+        if (sourceBindingMode == 0)
+            sourceBindingMode = 2;
         const string socketName = payload.value("_socketName", string{});
-        const int32 sourcePointPolicy = payload.value("_sourcePointPolicy", 0);
+        string sourceHistoryAnchorName = payload.value("_sourceHistoryAnchorName", string{ "Source" });
+        if (sourceHistoryAnchorName.empty())
+            sourceHistoryAnchorName = "Source";
+        Vec3 sourceHistoryLocalOffset = Vec3::Zero;
+        if (payload.contains("_sourceHistoryLocalOffset") &&
+            payload["_sourceHistoryLocalOffset"].is_array() &&
+            payload["_sourceHistoryLocalOffset"].size() >= 3)
+        {
+            sourceHistoryLocalOffset.x = payload["_sourceHistoryLocalOffset"][0].get<float>();
+            sourceHistoryLocalOffset.y = payload["_sourceHistoryLocalOffset"][1].get<float>();
+            sourceHistoryLocalOffset.z = payload["_sourceHistoryLocalOffset"][2].get<float>();
+        }
         if (effectNameValue.empty())
             continue;
 
@@ -4437,12 +4398,10 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             newRuntime.partTag = partTag;
             newRuntime.sourceBindingMode = sourceBindingMode;
             newRuntime.socketName = socketName;
-            newRuntime.sourcePointPolicy = sourcePointPolicy;
+            newRuntime.sourceHistoryAnchorName = sourceHistoryAnchorName;
+            newRuntime.sourceHistoryLocalOffset = sourceHistoryLocalOffset;
             _previewSourceHistoryRuntimes.push_back(std::move(newRuntime));
             runtime = &_previewSourceHistoryRuntimes.back();
-
-            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
-                continue;
         }
 
         if (runtime->isDraining)
@@ -4461,7 +4420,8 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
         if (runtime->partTag != partTag ||
             runtime->sourceBindingMode != sourceBindingMode ||
             runtime->socketName != socketName ||
-            runtime->sourcePointPolicy != sourcePointPolicy)
+            runtime->sourceHistoryAnchorName != sourceHistoryAnchorName ||
+            runtime->sourceHistoryLocalOffset != sourceHistoryLocalOffset)
         {
             if (runtime->effect)
                 runtime->effect->Stop();
@@ -4469,20 +4429,15 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->partTag = partTag;
             runtime->sourceBindingMode = sourceBindingMode;
             runtime->socketName = socketName;
-            runtime->sourcePointPolicy = sourcePointPolicy;
+            runtime->sourceHistoryAnchorName = sourceHistoryAnchorName;
+            runtime->sourceHistoryLocalOffset = sourceHistoryLocalOffset;
             runtime->effect.reset();
             runtime->effectName.clear();
             runtime->isPlaying = false;
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
-
-            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
-                continue;
         }
-
-        if (runtime->sourceBindingMode == 0 && runtime->trailAnchorAsset.modelGuid.empty())
-            continue;
 
         if (!Ensure_PreviewSourceHistoryEffect(*runtime, resolvedEffectName))
             continue;
@@ -5049,9 +5004,47 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
     return true;
 }
 
+bool Animation_View::Try_ResolvePreviewWeaponAnchorWorldPosition(
+    const string& partTag,
+    const string& anchorName,
+    const Vec3& localOffset,
+    Vec3& outWorldPosition) const
+{
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    const wstring previewPartTag = String::ToWString(partTag);
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
+    if (weaponPart == nullptr)
+        return false;
+
+    const Client::WeaponSourceHistoryAnchorDesc* anchor = weaponPart->Find_SourceHistoryAnchor(anchorName);
+    if (anchor == nullptr || anchor->boneName.empty())
+        return false;
+
+    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    if (weaponModel == nullptr)
+        return false;
+
+    const int32 boneIndex = weaponModel->Get_BoneIndex(anchor->boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = weaponModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
+    return true;
+}
+
 bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
     const string& partTag,
     const string& socketName,
+    const Vec3& localOffset,
     Vec3& outWorldPosition) const
 {
     if (socketName.empty())
@@ -5074,7 +5067,7 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
             return false;
 
         const Matrix socketWorldMatrix = *socketMatrix * playablePart->Get_CombinedWorldMatrix();
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }
 
@@ -5085,7 +5078,7 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
             return false;
 
         const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }
 
