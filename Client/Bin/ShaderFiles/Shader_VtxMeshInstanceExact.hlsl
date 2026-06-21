@@ -110,7 +110,7 @@ PS_OUT PS_Mask(PS_IN In)
 
     float2 finalUV = ApplyUVTransform(In.vTexcoord);
 
-    float4 baseColor = SampleBaseColor(finalUV);
+    float4 baseColor = SampleBaseColorFallback(finalUV);
 
     float mask = GetOpacityMaskForMasked(finalUV, baseColor);
     if (mask < g_OpacityMaskClipValue)

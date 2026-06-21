@@ -8,6 +8,9 @@
 #include "CmdAddInstance.h"
 #include "CmdEraseInstances.h"
 #include "MEWaterActor.h"
+#include "CmdConvertToInstanced.h"
+#include "CmdConvertAllToStatic.h"
+#include "CmdConvertOneToStatic.h"
 
 PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }, _camera{ camera }
@@ -156,7 +159,7 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
 
         auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
         ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
-        ImGui::SameLine();
+
         if (ImGui::SmallButton("인스턴스 지우기"))
         {
             _ctx->PushCommand(CmdDeleteInstance::Create(obj, obj->_selectedInstanceIdx));
@@ -168,6 +171,16 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
             const InstanceTransform copied = t;
             _ctx->PushCommand(CmdAddInstance::Create(obj, copied, obj->_selectedInstanceIdx + 1));
             return;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("정적으로 변환"))
+        {
+            if (auto cmd = CmdConvertOneToStatic::Create(obj, obj->_selectedInstanceIdx))
+            {
+                _ctx->PushCommand(cmd);
+                return;
+            }
         }
 
         float pos[3] = { t._position.x, t._position.y, t._position.z };
@@ -379,7 +392,19 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
         {
             string pathStr = String::ToString(obj->_modelPath);
             ImGui::TextDisabled("%s", pathStr.empty() ? "(없음)" : pathStr.c_str());
-            
+
+            if (!obj->_modelPath.empty())
+            {
+                if (ImGui::Button("인스턴스로 변환"))
+                {
+                    if (auto cmd = CmdConvertToInstanced::Create(obj))
+                    {
+                        _ctx->PushCommand(cmd);
+                        return;
+                    }
+                }
+            }
+
             DrawMaterialOverrides(obj);
         }
         break;
@@ -527,6 +552,46 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             }
 
             ImGui::Checkbox("Has Collision", &obj->_instancedHasCollision);
+
+            ImGui::Separator();
+            int32 instCount = static_cast<int32>(obj->_instancedTransforms.size());
+            if (ImGui::Button("전체를 정적으로 변환"))
+            {
+                if (instCount > 50)
+                {
+                    ImGui::OpenPopup("ConvertAllConfirm");
+                }
+                else if (auto cmd = CmdConvertAllToStatic::Create(obj))
+                {
+                    _ctx->PushCommand(cmd);
+                    ImGui::End();
+                    SetOpen(_isOpen);
+                    return;
+                }
+            }
+
+            if (ImGui::BeginPopupModal("ConvertAllConfirm", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::Text("인스턴스 %d개를 정적 메쉬로 변환합니다.\n오브젝트가 많아 성능에 영향을 줄 수 있습니다.\n계속하시겠습니까?", instCount);
+                ImGui::Separator();
+                if (ImGui::Button("확인", ImVec2(100, 0)))
+                {
+                    if (auto cmd = CmdConvertAllToStatic::Create(obj))
+                    {
+                        ImGui::CloseCurrentPopup();
+                        ImGui::EndPopup();
+                        _ctx->PushCommand(cmd);
+                        return;
+                    }
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("취소", ImVec2(100, 0)))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
         }
 
         if (ImGui::CollapsingHeader("Scatter Zone"))

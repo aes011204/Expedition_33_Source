@@ -52,6 +52,21 @@ float4 SampleBaseColor(float2 uv)
     return baseColor;
 }
 
+float4 SampleBaseColorFallback(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+        return float4(g_BaseColorTint.rgb, 1.f);
+
+    float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+
+    if (baseColor.a < 0.3f)
+        discard;
+
+    baseColor.rgb *= g_BaseColorTint.rgb;
+    baseColor.a *= g_BaseColorTint.a;
+    return baseColor;
+}
+
 float ResolveScalarChannel(float4 tex, uint source)
 {
     if (source == MATERIAL_CHANNEL_CONST0)
