@@ -54,13 +54,11 @@ bool Bounding_AABB::Intersect(Bounding* otherBounding)
     return false;
 }
 
-#ifdef _DEBUG
 HRESULT Bounding_AABB::Render_Debug(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch, Color color)
 {
     DX::Draw(batch, _aabb, color);
     return S_OK;
 }
-#endif
 
 Shared<Bounding_AABB> Bounding_AABB::Create(ComPtr<Device> device, ComPtr<Context> context,
     const BoundingAABBDesc& desc)

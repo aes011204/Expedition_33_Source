@@ -46,13 +46,11 @@ bool Bounding_Sphere::Intersect(Bounding* otherBounding)
     return false;
 }
 
-#ifdef _DEBUG
 HRESULT Bounding_Sphere::Render_Debug(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch, Color color)
 {
     DX::Draw(batch, _sphere, color);
     return S_OK;
 }
-#endif
 
 Shared<Bounding_Sphere> Bounding_Sphere::Create(ComPtr<Device> device, ComPtr<Context> context, const FBoundingSphereDesc& desc)
 {

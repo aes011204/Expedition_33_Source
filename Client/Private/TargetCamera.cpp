@@ -6,6 +6,7 @@
 #include "PhysX_Types.h"
 #include "CameraPresetTypes.h"
 #include "ClientScreenFxManager.h"
+#include "BattleCameraClipUtils.h"
 
 namespace
 {
@@ -164,7 +165,8 @@ void TargetCamera::BeginPlay()
 
 void TargetCamera::OnActivated()
 {
-    Refresh_TargetTransform();
+    if (_currentState != TargetCameraMode::SOULLIKE)
+        Refresh_TargetTransform();
 
     Shared<TransformCom> targetTransformCom;
     if (Try_GetTargetTransform(targetTransformCom))
@@ -447,6 +449,10 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
         }
     }
 
+    const Vec3 shakeOffset = Sample_RuntimeShake(newPos, lookTarget);
+    newPos += shakeOffset;
+    lookTarget += shakeOffset;
+
     _transformCom->Set_WorldPosition(newPos);
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
@@ -482,6 +488,74 @@ Vec3 TargetCamera::Get_FreeAimQueryDirection() const
 
     direction.Normalize();
     return direction;
+}
+
+void TargetCamera::Play_HitShake(float amplitude, float duration, float strengthScale)
+{
+    Start_RuntimeShake(amplitude, duration, strengthScale);
+}
+
+void TargetCamera::Start_RuntimeShake(float amplitude, float duration, float strengthScale)
+{
+    if (duration <= 0.f || amplitude <= 0.f || strengthScale <= 0.f)
+    {
+        Reset_RuntimeShake();
+        return;
+    }
+
+    _runtimeShake.active = true;
+    _runtimeShake.elapsed = 0.f;
+    _runtimeShake.duration = duration;
+    _runtimeShake.amplitude = amplitude;
+    _runtimeShake.strengthScale = strengthScale;
+}
+
+Vec3 TargetCamera::Sample_RuntimeShake(const Vec3& cameraPos, const Vec3& lookTarget)
+{
+    if (!_runtimeShake.active)
+        return Vec3::Zero;
+
+    _runtimeShake.elapsed += max(0.f, GAME->Get_UnscaledTimeDelta());
+
+    Vec3 forward = lookTarget - cameraPos;
+    if (forward.LengthSquared() <= 0.000001f)
+        return Vec3::Zero;
+
+    forward.Normalize();
+
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.000001f)
+        right = Vec3::Right;
+    else
+        right.Normalize();
+
+    Vec3 up = forward.Cross(right);
+    if (up.LengthSquared() <= 0.000001f)
+        up = Vec3::Up;
+    else
+        up.Normalize();
+
+    const Vec3 shakeOffset = Sample_BattleCameraShakeOffset(
+        _runtimeShake.amplitude,
+        _runtimeShake.verticalRatio,
+        _runtimeShake.strengthScale,
+        _runtimeShake.frequencyX,
+        _runtimeShake.frequencyY,
+        _runtimeShake.decayRateX,
+        _runtimeShake.decayRateY,
+        _runtimeShake.elapsed,
+        right,
+        up);
+
+    if (_runtimeShake.elapsed >= _runtimeShake.duration)
+        _runtimeShake.active = false;
+
+    return shakeOffset;
+}
+
+void TargetCamera::Reset_RuntimeShake()
+{
+    _runtimeShake = {};
 }
 
 void TargetCamera::Update_NormalState(float timeDelta)
@@ -565,7 +639,11 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
     const TargetCameraMode previousMode = _currentState;
     const bool wasBattleEnter = previousMode == TargetCameraMode::BATTLE_ENTER;
 
+    if (previousMode != mode && mode != TargetCameraMode::SOULLIKE)
+        Reset_RuntimeShake();
+
     _currentState = mode;
+
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
     _collisionDistance = -1.f;

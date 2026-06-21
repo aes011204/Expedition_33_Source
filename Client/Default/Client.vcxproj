@@ -156,17 +156,22 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\AL_SL_State.h" />
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
     <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\public\ANS_Jump.h" />
+    <ClInclude Include="..\public\ANS_JumpCounter.h" />
     <ClInclude Include="..\public\ANS_Emissive.h" />
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\Public\ANS_ParryWindow.h" />
     <ClInclude Include="..\Public\ANS_PlayEffect.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\Public\ANS_RootController.h" />
     <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h" />
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
@@ -182,10 +187,14 @@
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
     <ClInclude Include="..\Public\AN_PlaySound.h" />
+    <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
+    <ClInclude Include="..\Public\AN_WeaponAttach.h" />
+    <ClInclude Include="..\Public\AN_WeaponDetach.h" />
     <ClInclude Include="..\Public\AN_SpawnActor.h" />
     <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
+    <ClInclude Include="..\Public\AN_JumpCounterStart.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
@@ -233,12 +242,19 @@
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
+    <ClInclude Include="..\Public\GradientSkill.h" />
+    <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\PictosBattleSystem.h" />
     <ClInclude Include="..\Public\Pictos_Panel.h" />
     <ClInclude Include="..\Public\PreviewPlayer.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
+    <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h" />
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h" />
     <ClInclude Include="..\Public\SL_Base.h" />
     <ClInclude Include="..\Public\SL_BasicAttack.h" />
     <ClInclude Include="..\Public\SL_DamageSystem.h" />
@@ -246,8 +262,11 @@
     <ClInclude Include="..\Public\SL_Dodge.h" />
     <ClInclude Include="..\Public\SL_Hit.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
+    <ClInclude Include="..\Public\SL_Jump.h" />
+    <ClInclude Include="..\Public\SL_JumpCounter.h" />
     <ClInclude Include="..\Public\SL_Maelle.h" />
     <ClInclude Include="..\Public\SL_Move.h" />
+    <ClInclude Include="..\Public\SL_Parry.h" />
     <ClInclude Include="..\Public\SL_Skill.h" />
     <ClInclude Include="..\Public\SL_State.h" />
     <ClInclude Include="..\Public\SL_TargetCom.h" />
@@ -288,6 +307,7 @@
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GamePlayMenuFade.h" />
     <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h" />
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h" />
@@ -304,6 +324,9 @@
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\MB_Volester.h" />
     <ClInclude Include="..\Public\Mon_Abbest_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\public\Mon_Bishop_Body.h" />
     <ClInclude Include="..\Public\Mon_Mime_Bagutte.h" />
     <ClInclude Include="..\Public\Mon_Mime_Body.h" />
@@ -314,6 +337,7 @@
     <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
     <ClInclude Include="..\public\Mon_Volester_Body.h" />
     <ClInclude Include="..\Public\MW_Abbest.h" />
+    <ClInclude Include="..\Public\MW_Dualliste.h" />
     <ClInclude Include="..\public\MW_Bishop.h" />
     <ClInclude Include="..\Public\MW_Mime.h" />
     <ClInclude Include="..\Public\MW_PotatoBag.h" />
@@ -365,6 +389,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="..\Public\ChooseGradient.h" />
     <ClInclude Include="..\public\ChooseSkill.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -532,17 +557,22 @@
     <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\AL_SL_State.cpp" />
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\private\ANS_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
     <ClCompile Include="..\private\ANS_Emissive.cpp" />
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
+    <ClCompile Include="..\Private\ANS_RootController.cpp" />
     <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp" />
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
@@ -559,10 +589,14 @@
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
     <ClCompile Include="..\Private\AN_PlaySound.cpp" />
+    <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponDetach.cpp" />
     <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
     <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
+    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
@@ -597,12 +631,19 @@
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
+    <ClCompile Include="..\Private\GradientSkill.cpp" />
+    <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
     <ClCompile Include="..\Private\Pictos_Panel.cpp" />
     <ClCompile Include="..\Private\PreviewPlayer.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
+    <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
@@ -610,8 +651,12 @@
     <ClCompile Include="..\Private\SL_Dodge.cpp" />
     <ClCompile Include="..\Private\SL_Hit.cpp" />
     <ClCompile Include="..\Private\SL_Idle.cpp" />
+    <ClCompile Include="..\Private\SL_Jump.cpp" />
+    <ClCompile Include="..\Private\SL_Dualliste.cpp" />
+    <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
     <ClCompile Include="..\Private\SL_Move.cpp" />
+    <ClCompile Include="..\Private\SL_Parry.cpp" />
     <ClCompile Include="..\Private\SL_Skill.cpp" />
     <ClCompile Include="..\Private\SL_State.cpp" />
     <ClCompile Include="..\Private\SL_TargetCom.cpp" />
@@ -654,6 +699,7 @@
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />
@@ -670,6 +716,9 @@
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\MB_Volester.cpp" />
     <ClCompile Include="..\Private\Mon_Abbest_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
     <ClCompile Include="..\private\Mon_Bishop_Body.cpp" />
     <ClCompile Include="..\Private\Mon_Mime_Bagutte.cpp" />
     <ClCompile Include="..\Private\Mon_Mime_Body.cpp" />
@@ -680,6 +729,7 @@
     <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
     <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
     <ClCompile Include="..\Private\MW_Abbest.cpp" />
+    <ClCompile Include="..\Private\MW_Dualliste.cpp" />
     <ClCompile Include="..\private\MW_Bishop.cpp" />
     <ClCompile Include="..\Private\MW_Mime.cpp" />
     <ClCompile Include="..\Private\MW_PotatoBag.cpp" />
@@ -729,6 +779,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\Private\ChooseGradient.cpp" />
     <ClCompile Include="..\private\ChooseSkill.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

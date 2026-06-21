@@ -92,6 +92,27 @@ HRESULT SL_Test_Lancelier::Render_Shadow()
     return SL_Base::Render_Shadow();
 }
 
+Vec3 SL_Test_Lancelier::Resolve_ColliderWorldCenter(const Shared<ColliderCom>& collider) const
+{
+    if (collider == nullptr)
+        return _transformCom ? _transformCom->Get_WorldPosition() : Vec3::Zero;
+
+    const Shared<Bounding> bounding = collider->Get_Bounding();
+    if (bounding != nullptr)
+    {
+        if (const Shared<Bounding_OBB> obb = dynamic_pointer_cast<Bounding_OBB>(bounding))
+        {
+            const auto& box = obb->Get_OBB();
+            return Vec3(box.Center.x, box.Center.y, box.Center.z);
+        }
+    }
+
+    if (_transformCom)
+        return _transformCom->Get_WorldPosition();
+
+    return Vec3::Zero;
+}
+
 void SL_Test_Lancelier::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
 {
     SL_Base::OnBeginOverlap(self, other);
@@ -99,7 +120,6 @@ void SL_Test_Lancelier::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (self == nullptr || other == nullptr)
         return;
 
-    // 몬스터 공격 collider가 만든 overlap만 Maelle 피격으로 처리한다.
     if (self.get() != _attackColliderCom.get())
         return;
 
@@ -109,6 +129,35 @@ void SL_Test_Lancelier::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     const Shared<SL_Base> target = dynamic_pointer_cast<SL_Base>(other->Get_Owner());
     if (target == nullptr || target.get() == this || target->Is_Dead())
         return;
+
+    const Vec3 impactWorldPos = Resolve_ColliderWorldCenter(self);
+
+    if (Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(target))
+    {
+        if (maelle->Try_ConsumeParry(impactWorldPos))
+        {
+            if (_attackColliderCom)
+            {
+                _attackColliderCom->Set_IsActive(false);
+                _attackColliderCom->Clear_Overlap();
+            }
+            return;
+        }
+
+        if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        {
+            const Shared<SL_Base> attacker = dynamic_pointer_cast<SL_Base>(GetSharedPtr<GameObject>());
+            if (controller->Try_ConsumeJumpCounterDodge(attacker, maelle))
+            {
+                if (_attackColliderCom)
+                {
+                    _attackColliderCom->Set_IsActive(false);
+                    _attackColliderCom->Clear_Overlap();
+                }
+                return;
+            }
+        }
+    }
 
     SL_DamageInfo damageInfo{};
     if (!SL_DamageSystem::Apply_Damage(
@@ -239,7 +288,7 @@ void SL_Test_Lancelier::Update_Attack(float timeDelta)
     if (_currentAnim == Anim::Hit && !_body->Is_AnimationFinished())
         return;
 
-    if (_currentAnim == Anim::Attack_1 && !_body->Is_AnimationFinished())
+    if ((_currentAnim == Anim::Attack_1 || _currentAnim == Anim::Attack_2) && !_body->Is_AnimationFinished())
         return;
 
     _attackCooldown = max(0.f, _attackCooldown - timeDelta);
@@ -262,7 +311,9 @@ void SL_Test_Lancelier::Update_Attack(float timeDelta)
     if (distance <= _attackRange && _attackCooldown <= 0.f)
     {
         _attackCooldown = _attackInterval;
-        Play_Anim(Anim::Attack_1, 0.1f, false);
+        const Anim attackAnim = _nextAttackAnim;
+        _nextAttackAnim = (_nextAttackAnim == Anim::Attack_1) ? Anim::Attack_2 : Anim::Attack_1;
+        Play_Anim(attackAnim, 0.1f, false);
         return;
     }
 

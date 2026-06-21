@@ -26,6 +26,7 @@
 #include "ClientInstance.h"
 #include "PostProcess_View.h"
 #include "ScreenFx_View.h"
+#include "SoulLike_Viewer.h"
 
 namespace fs = std::filesystem;
 
@@ -70,11 +71,31 @@ namespace
         OPENFILENAMEW ofn{};
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = g_hWnd;
-        ofn.lpstrFilter = L"Checkpoint (*.checkpoint.bin)\0*.checkpoint.bin\0All Files (*.*)\0*.*\0";
+        ofn.lpstrFilter = L"체크포인트 (*.checkpoint.bin)\0*.checkpoint.bin\0모든 파일 (*.*)\0*.*\0";
         ofn.lpstrFile = fileName;
         ofn.nMaxFile = MAX_PATH;
         ofn.lpstrInitialDir = initialDir.empty() ? nullptr : initialDir.c_str();
         ofn.lpstrDefExt = L"checkpoint.bin";
+        ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
+        if (!GetOpenFileNameW(&ofn))
+            return false;
+
+        outPath = fs::path(fileName);
+        return true;
+    }
+
+    bool PickRuleStateFileDialog(const fs::path& initialDir, fs::path& outPath)
+    {
+        wchar_t fileName[MAX_PATH] = {};
+        OPENFILENAMEW ofn{};
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = g_hWnd;
+        ofn.lpstrFilter = L"룰 상태 (*.rule.bin)\0*.rule.bin\0모든 파일 (*.*)\0*.*\0";
+        ofn.lpstrFile = fileName;
+        ofn.nMaxFile = MAX_PATH;
+        ofn.lpstrInitialDir = initialDir.empty() ? nullptr : initialDir.c_str();
+        ofn.lpstrDefExt = L"rule.bin";
         ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
 
         if (!GetOpenFileNameW(&ofn))
@@ -119,6 +140,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(AnimState_View::Create());
     Add_Window(PostProcess_View::Create());
     Add_Window(ScreenFx_View::Create());
+    Add_Window(SoulLike_Viewer::Create());
     return S_OK;
 }
 
@@ -215,7 +237,7 @@ void Editor_Manager::Render_MainMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
-        if (ImGui::BeginMenu("Demo Checkpoint"))
+        if (ImGui::BeginMenu("데모 체크포인트"))
         {
             Render_CheckpointButtons();
             ImGui::EndMenu();
@@ -561,7 +583,7 @@ void Editor_Manager::Toggle_FocusMode()
 
         _focusModeWindowStates[name] = window->Is_Open();
 
-        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console" || name == L"Camera Tool")
+        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console" || name == L"Camera Tool" || name == L"SoulLike_Viewer")
             continue;
 
         window->Set_Open(false);
@@ -650,61 +672,116 @@ void Editor_Manager::Render_CheckpointButtons()
 {
     Notification_Manager* notification = EDITOR->Get_Notification();
 
-    if (ImGui::MenuItem("Save Checkpoint"))
+    if (ImGui::BeginMenu("체크포인트"))
     {
-        Open_SaveCheckpointPopup();
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("현재 시연 체크포인트 저장");
-
-    if (ImGui::MenuItem("Open Checkpoint..."))
-    {
-        fs::path path{};
-        if (Pick_CheckpointFile(path))
+        if (ImGui::MenuItem("체크포인트 저장"))
         {
-            _selectedCheckpointPath = path;
-            if (EDITOR->Load_DemoCheckpointInEditor(_selectedCheckpointPath))
+            Open_SaveCheckpointPopup();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("현재 위치, 월드 오브젝트, 인벤토리, 룰 상태를 함께 저장");
+
+        if (ImGui::MenuItem("체크포인트 열기..."))
+        {
+            fs::path path{};
+            if (Pick_CheckpointFile(path))
             {
-                if (notification)
+                _selectedCheckpointPath = path;
+                if (EDITOR->Load_DemoCheckpointInEditor(_selectedCheckpointPath))
                 {
-                    notification->Add_Notification_With_Type(
-                        NotifyType::Success,
-                        "Checkpoint loaded: {}",
-                        String::ToString(_selectedCheckpointPath.wstring()));
+                    if (notification)
+                    {
+                        notification->Add_Notification_With_Type(
+                            NotifyType::Success,
+                            "체크포인트 로드 완료: {}",
+                            String::ToString(_selectedCheckpointPath.wstring()));
+                    }
+                }
+                else
+                {
+                    if (notification)
+                        notification->Add_Notification_With_Type(NotifyType::Error, "체크포인트 로드 실패.");
+                    MSG_BOX("체크포인트 로드에 실패했습니다.");
                 }
             }
-            else
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("체크포인트 파일 선택 후 현재 레벨에 적용");
+
+        if (ImGui::MenuItem("체크포인트로 실행"))
+        {
+            if (_selectedCheckpointPath.empty())
+                _selectedCheckpointPath = Resolve_DefaultCheckpointPath();
+
+            if (!fs::exists(_selectedCheckpointPath) || !Launch_GameLauncher(&_selectedCheckpointPath))
             {
                 if (notification)
-                    notification->Add_Notification_With_Type(NotifyType::Error, "Checkpoint load failed.");
-                MSG_BOX("Failed to load checkpoint.");
+                    notification->Add_Notification_With_Type(NotifyType::Error, "체크포인트 실행 실패.");
+                MSG_BOX("체크포인트로 GameLauncher 실행에 실패했습니다.");
+            }
+            else if (notification)
+            {
+                notification->Add_Notification_With_Type(
+                    NotifyType::Success,
+                    "체크포인트 실행 요청: {}",
+                    String::ToString(_selectedCheckpointPath.wstring()));
             }
         }
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("체크포인트 파일 선택 후 현재 레벨에 적용");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("선택된 체크포인트로 GameLauncher 실행");
 
-    if (ImGui::MenuItem("Launch With Checkpoint"))
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("룰 상태"))
     {
-        if (_selectedCheckpointPath.empty())
-            _selectedCheckpointPath = Resolve_DefaultCheckpointPath();
+        Render_RuleStateButtons();
+        ImGui::Separator();
 
-        if (!fs::exists(_selectedCheckpointPath) || !Launch_GameLauncher(&_selectedCheckpointPath))
+        if (ImGui::MenuItem("룰 상태 열기..."))
         {
-            if (notification)
-                notification->Add_Notification_With_Type(NotifyType::Error, "Checkpoint launch failed.");
-            MSG_BOX("Failed to launch GameLauncher with checkpoint.");
+            fs::path path{};
+            if (Pick_RuleStateFile(path))
+            {
+                _selectedRuleStatePath = path;
+                if (EDITOR->Load_RuleStateInEditor(_selectedRuleStatePath))
+                {
+                    if (notification)
+                    {
+                        notification->Add_Notification_With_Type(
+                            NotifyType::Success,
+                            "룰 상태 로드 완료: {}",
+                            String::ToString(_selectedRuleStatePath.wstring()));
+                    }
+                }
+                else
+                {
+                    if (notification)
+                        notification->Add_Notification_With_Type(NotifyType::Error, "룰 상태 로드 실패.");
+                    MSG_BOX("룰 상태 로드에 실패했습니다.");
+                }
+            }
         }
-        else if (notification)
-        {
-            notification->Add_Notification_With_Type(
-                NotifyType::Success,
-                "Checkpoint launch requested: {}",
-                String::ToString(_selectedCheckpointPath.wstring()));
-        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("위치와 월드는 유지하고 의상/룰 완료 상태만 적용");
+
+        ImGui::EndMenu();
     }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("선택된 체크포인트로 GameLauncher 실행");
+}
+
+void Editor_Manager::Render_RuleStateButtons()
+{
+    if (ImGui::MenuItem("게임 시작 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::GameStart);
+
+    if (ImGui::MenuItem("마임 옷 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::MimeCostumeOnly);
+
+    if (ImGui::MenuItem("포테이토 옷 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::PotatoCostumeOnly);
+
+    if (ImGui::MenuItem("의상 해금 전체 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::AllCostumes);
 }
 
 void Editor_Manager::Render_SaveCheckpointPopup()
@@ -712,7 +789,7 @@ void Editor_Manager::Render_SaveCheckpointPopup()
     if (_openSaveCheckpointPopup)
     {
         _openSaveCheckpointPopup = false;
-        ImGui::OpenPopup("Save Demo Checkpoint");
+        ImGui::OpenPopup("데모 체크포인트 저장");
     }
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -725,10 +802,10 @@ void Editor_Manager::Render_SaveCheckpointPopup()
     }
     ImGui::SetNextWindowSize(ImVec2(420.f, 0.f), ImGuiCond_Appearing);
 
-    if (!ImGui::BeginPopupModal("Save Demo Checkpoint", nullptr, ImGuiWindowFlags_NoResize))
+    if (!ImGui::BeginPopupModal("데모 체크포인트 저장", nullptr, ImGuiWindowFlags_NoResize))
         return;
 
-    ImGui::TextUnformatted("Checkpoint Name");
+    ImGui::TextUnformatted("체크포인트 이름");
     ImGui::SetNextItemWidth(320.f);
     const bool enterPressed = ImGui::InputText(
         "##CheckpointName",
@@ -743,9 +820,9 @@ void Editor_Manager::Render_SaveCheckpointPopup()
 
     ImGui::Separator();
 
-    const bool savePressed = ImGui::Button("Save", ImVec2(90.f, 0.f));
+    const bool savePressed = ImGui::Button("저장", ImVec2(90.f, 0.f));
     ImGui::SameLine();
-    if (ImGui::Button("Cancel", ImVec2(90.f, 0.f)))
+    if (ImGui::Button("취소", ImVec2(90.f, 0.f)))
         ImGui::CloseCurrentPopup();
 
     if (savePressed || enterPressed)
@@ -782,15 +859,54 @@ bool Editor_Manager::Save_CheckpointToPath(const fs::path& checkpointPath)
         {
             notification->Add_Notification_With_Type(
                 NotifyType::Success,
-                "Checkpoint saved: {}",
+                "체크포인트 저장 완료: {}",
                 String::ToString(_selectedCheckpointPath.wstring()));
         }
         return true;
     }
 
     if (notification)
-        notification->Add_Notification_With_Type(NotifyType::Error, "Checkpoint save failed.");
-    MSG_BOX("Failed to save checkpoint.");
+        notification->Add_Notification_With_Type(NotifyType::Error, "체크포인트 저장 실패.");
+    MSG_BOX("체크포인트 저장에 실패했습니다.");
+    return false;
+}
+
+bool Editor_Manager::Save_RuleStatePreset(RuleStatePreset preset)
+{
+    const bool unlockBaguette =
+        preset == RuleStatePreset::MimeCostumeOnly ||
+        preset == RuleStatePreset::AllCostumes;
+
+    const bool unlockPotato =
+        preset == RuleStatePreset::PotatoCostumeOnly ||
+        preset == RuleStatePreset::AllCostumes;
+
+    const fs::path ruleStatePath = Resolve_RuleStatePath(preset);
+    _selectedRuleStatePath = ruleStatePath;
+
+    Notification_Manager* notification = EDITOR->Get_Notification();
+    const bool saved =
+        (preset == RuleStatePreset::GameStart)
+        ? EDITOR->Save_GameStartRuleState(ruleStatePath)
+        : EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
+
+    if (saved)
+    {
+        if (notification)
+        {
+            notification->Add_Notification_With_Type(
+                NotifyType::Success,
+                "룰 상태 저장 완료: {}",
+                String::ToString(ruleStatePath.wstring()));
+        }
+
+        return true;
+    }
+
+    if (notification)
+        notification->Add_Notification_With_Type(NotifyType::Error, "룰 상태 저장 실패.");
+
+    MSG_BOX("룰 상태 저장에 실패했습니다.");
     return false;
 }
 
@@ -814,6 +930,38 @@ fs::path Editor_Manager::Resolve_CheckpointPathFromName(const string& checkpoint
     return Resolve_DefaultCheckpointPath().parent_path() / String::ToWString(fileName);
 }
 
+fs::path Editor_Manager::Resolve_DefaultRuleStatePath() const
+{
+    return Resolve_DefaultCheckpointPath()
+        .parent_path()
+        .parent_path()
+        / L"RuleStates"
+        / L"Rule_GameStart.rule.bin";
+}
+
+fs::path Editor_Manager::Resolve_RuleStatePath(RuleStatePreset preset) const
+{
+    const fs::path ruleStateDir = Resolve_DefaultRuleStatePath().parent_path();
+
+    switch (preset)
+    {
+    case RuleStatePreset::GameStart:
+        return ruleStateDir / L"Rule_GameStart.rule.bin";
+
+    case RuleStatePreset::MimeCostumeOnly:
+        return ruleStateDir / L"Rule_MimeCostume.rule.bin";
+
+    case RuleStatePreset::PotatoCostumeOnly:
+        return ruleStateDir / L"Rule_PotatoCostume.rule.bin";
+
+    case RuleStatePreset::AllCostumes:
+        return ruleStateDir / L"Rule_AllCostumes.rule.bin";
+
+    default:
+        return ruleStateDir / L"Rule_Debug.rule.bin";
+    }
+}
+
 bool Editor_Manager::Pick_CheckpointFile(fs::path& outPath) const
 {
     fs::path initialDir = Resolve_DefaultCheckpointPath().parent_path();
@@ -821,6 +969,15 @@ bool Editor_Manager::Pick_CheckpointFile(fs::path& outPath) const
         initialDir = _selectedCheckpointPath.parent_path();
 
     return PickCheckpointFileDialog(initialDir, outPath);
+}
+
+bool Editor_Manager::Pick_RuleStateFile(fs::path& outPath) const
+{
+    fs::path initialDir = Resolve_DefaultRuleStatePath().parent_path();
+    if (!_selectedRuleStatePath.empty() && _selectedRuleStatePath.has_parent_path())
+        initialDir = _selectedRuleStatePath.parent_path();
+
+    return PickRuleStateFileDialog(initialDir, outPath);
 }
 
 void Editor_Manager::Render_ReloadDataButton()

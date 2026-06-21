@@ -228,7 +228,10 @@ namespace PreviewObjectHelpers
         }
     }
 
-    inline void Update_PreviewObject(const Shared<GameObject>& gameObject, float timeDelta)
+    inline void Update_PreviewObject(
+        const Shared<GameObject>& gameObject,
+        float timeDelta,
+        bool tickAttachedEffects = true)
     {
         if (gameObject == nullptr)
             return;
@@ -241,7 +244,8 @@ namespace PreviewObjectHelpers
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterWorld->Engine::ContainerObject::Update(timeDelta);
             monsterWorld->Engine::ContainerObject::Late_Update(timeDelta);
-            Tick_AttachedPreviewEffects(gameObject, timeDelta);
+            if (tickAttachedEffects)
+                Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
@@ -251,7 +255,8 @@ namespace PreviewObjectHelpers
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterBattle->Engine::ContainerObject::Update(timeDelta);
             monsterBattle->Engine::ContainerObject::Late_Update(timeDelta);
-            Tick_AttachedPreviewEffects(gameObject, timeDelta);
+            if (tickAttachedEffects)
+                Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
@@ -260,7 +265,8 @@ namespace PreviewObjectHelpers
             playerWorld->Engine::ContainerObject::Priority_Update(timeDelta);
             playerWorld->Engine::ContainerObject::Update(timeDelta);
             playerWorld->Engine::ContainerObject::Late_Update(timeDelta);
-            Tick_AttachedPreviewEffects(gameObject, timeDelta);
+            if (tickAttachedEffects)
+                Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
@@ -269,14 +275,16 @@ namespace PreviewObjectHelpers
             playerBattle->Engine::ContainerObject::Priority_Update(timeDelta);
             playerBattle->Engine::ContainerObject::Update(timeDelta);
             playerBattle->Engine::ContainerObject::Late_Update(timeDelta);
-            Tick_AttachedPreviewEffects(gameObject, timeDelta);
+            if (tickAttachedEffects)
+                Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
         gameObject->Priority_Update(timeDelta);
         gameObject->Update(timeDelta);
         gameObject->Late_Update(timeDelta);
-        Tick_AttachedPreviewEffects(gameObject, timeDelta);
+        if (tickAttachedEffects)
+            Tick_AttachedPreviewEffects(gameObject, timeDelta);
     }
 }
 NS_END

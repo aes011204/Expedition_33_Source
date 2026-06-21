@@ -17,6 +17,8 @@ json AnimNotify_Parser::To_Json(const AnimNotifyAsset& asset)
         json animationNode = json::object();
         animationNode["animation_name"] = animationData.animationName;
         animationNode["display_fps"] = animationData.displayFps;
+        animationNode["play_section_start_sec"] = animationData.playSectionStartSec;
+        animationNode["play_section_end_sec"] = animationData.playSectionEndSec;
         animationNode["next_notify_id"] = animationData.nextNotifyId;
         animationNode["next_state_id"] = animationData.nextStateId;
 
@@ -83,6 +85,8 @@ bool AnimNotify_Parser::From_Json(const json& root, AnimNotifyAsset& outAsset)
         AnimNotifyData animationData{};
         animationData.animationName = animationNode.value("animation_name", string{});
         animationData.displayFps = max(1, animationNode.value("display_fps", 60));
+        animationData.playSectionStartSec = max(0.f, animationNode.value("play_section_start_sec", 0.f));
+        animationData.playSectionEndSec = animationNode.value("play_section_end_sec", -1.f);
         animationData.nextNotifyId = max(1, animationNode.value("next_notify_id", 1));
         animationData.nextStateId = max(1, animationNode.value("next_state_id", 1));
 
@@ -393,6 +397,14 @@ void AnimNotify_Parser::Ensure_DefaultTracks(AnimNotifyData& animationData)
 void AnimNotify_Parser::Sort_And_Clamp(AnimNotifyData& animationData, float animationLengthSec)
 {
     Ensure_DefaultTracks(animationData);
+
+    animationData.playSectionStartSec = Clamp_TimeSec(animationData.playSectionStartSec, animationLengthSec);
+    if (animationData.playSectionEndSec >= 0.f)
+    {
+        animationData.playSectionEndSec = Clamp_TimeSec(animationData.playSectionEndSec, animationLengthSec);
+        if (animationData.playSectionEndSec < animationData.playSectionStartSec)
+            animationData.playSectionEndSec = animationData.playSectionStartSec;
+    }
 
     std::unordered_set<int32> usedNotifyIds{};
     int32 nextNotifyId = max(animationData.nextNotifyId, Compute_NextNotifyId(animationData));

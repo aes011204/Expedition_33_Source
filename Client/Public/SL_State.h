@@ -35,10 +35,12 @@ public:
     virtual bool Request_BasicAttack() { return false; }
     virtual bool Request_Dodge(const SL_MoveRequest& request);
     virtual bool Request_Skill(const Skill_Data& skillData, uint32 slotIndex) { return false; }
-
+    virtual bool Request_Parry() { return false; }
+    virtual bool Request_Jump() { return false; }
+    virtual bool Request_JumpCounter() { return false; }
 
 protected:
-    bool Play_Anim(SoulLikeAnim anim, float blendDuration, bool loop);
+    bool Play_Anim(SoulLikeAnim anim, float blendDuration, bool loop, float startTimeSec = 0.f);
     bool Is_AnimFinished() const;
     void Stop_Movement();
 

@@ -270,5 +270,7 @@ void Level_MapTest::Free()
         _editorPlayRuntimeHandle.Reset();
     }
 
+    CLIENT->Clear_GameplayUI();
+
     __super::Free();
 }

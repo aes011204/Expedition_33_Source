@@ -246,10 +246,12 @@ namespace UIEditor
     {
         const UI_Object* selectedObject = _editorManager.Get_SelectedObject();
         const bool hasSelectedImage = nullptr != selectedObject && selectedObject->type == UI_ObjectType::Image;
+        const bool hasHoverBrushTarget = nullptr != selectedObject &&
+            (selectedObject->type == UI_ObjectType::Button || selectedObject->type == UI_ObjectType::Panel);
 
-        if (!hasSelectedImage)
+        if (!hasSelectedImage && !hasHoverBrushTarget)
         {
-            ImGui::TextDisabled("Select an Image UI object.");
+            ImGui::TextDisabled("Select an Image, Button, or Panel UI object.");
             ImGui::Separator();
             Render_KeyframeAnimationEditor();
             return;
@@ -257,9 +259,9 @@ namespace UIEditor
 
         const ObjectId selectedObjectId = selectedObject->id;
         const bool isLocked = _editorManager.Is_ObjectEffectivelyLocked(selectedObjectId);
-        const bool isPatternOverlay = selectedObject->imageRenderMode == UI_ImageRenderMode::PatternOverlay;
+        const bool isPatternOverlay = hasSelectedImage && selectedObject->imageRenderMode == UI_ImageRenderMode::PatternOverlay;
 
-        if (selectedObject->imageRenderMode == UI_ImageRenderMode::Normal)
+        if (hasSelectedImage && selectedObject->imageRenderMode == UI_ImageRenderMode::Normal)
         {
             if (ImGui::Button("Create Brush Overlay"))
                 _editorManager.Create_PatternOverlayFromImage(selectedObjectId);
@@ -269,6 +271,25 @@ namespace UIEditor
             ImGui::BeginDisabled(true);
             ImGui::Button("Create Brush Overlay");
             ImGui::EndDisabled();
+        }
+
+        if (hasHoverBrushTarget && !isLocked)
+        {
+            if (ImGui::Button("Create Button Ink Flow Layer"))
+                _editorManager.Create_HoverBrushPreset(selectedObjectId);
+        }
+        else
+        {
+            ImGui::BeginDisabled(true);
+            ImGui::Button("Create Button Ink Flow Layer");
+            ImGui::EndDisabled();
+        }
+
+        if (!hasSelectedImage)
+        {
+            ImGui::Separator();
+            Render_KeyframeAnimationEditor();
+            return;
         }
 
         selectedObject = _editorManager.Get_SelectedObject();

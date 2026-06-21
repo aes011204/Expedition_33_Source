@@ -35,6 +35,18 @@ void SL_BasicAttack::Update(float timeDelta)
     Finish_Attack();
 }
 
+void SL_BasicAttack::ExitInvoke()
+{
+    _comboIndex = 0;
+    _comboWindowEnabled = false;
+    _comboQueued = false;
+
+    if (Shared<SL_Maelle> owner = _owner.lock())
+        owner->Set_CombatLocked(false);
+
+    SL_State::ExitInvoke();
+}
+
 bool SL_BasicAttack::Request_BasicAttack()
 {
     if (!_comboWindowEnabled)

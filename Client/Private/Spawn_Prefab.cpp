@@ -5,6 +5,7 @@
 #include "Helper_String.h"
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
+#include "SL_Base.h"
 #include "SL_Maelle.h"
 #include "Body_Player.h"
 #include "ModelCom.h"
@@ -65,6 +66,16 @@ void Refresh_MonsterBodyAnimMapping(const Shared<GameObject>& gameObject)
     if (auto battleMonster = dynamic_pointer_cast<Monster_BattleBase>(gameObject))
     {
         if (auto* body = dynamic_cast<Monster_Part*>(battleMonster->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+        return;
+    }
+
+    if (auto soulLikeActor = dynamic_pointer_cast<SL_Base>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Monster_Part*>(soulLikeActor->Get_PartObject(L"Part_Body")))
         {
             if (Shared<ModelCom> model = body->Get_Model())
                 model->Refresh_AnimStateMappingFromOwnerContext();

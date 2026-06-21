@@ -104,9 +104,7 @@
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib </AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -129,9 +127,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib </AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -158,7 +154,6 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
@@ -190,7 +185,6 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\fmt.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\fmt.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\spdlog.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\spdlog.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\DirectXTK.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\DirectXTK.dll" "$(OutDir)"

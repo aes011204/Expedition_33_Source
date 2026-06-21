@@ -184,6 +184,11 @@ void GameplayUI::Handle_EditorStopRuntime()
     {
         _battleUI->Handle_EditorStopRuntime();
     }
+
+    if (_soulLikeUI)
+    {
+        _soulLikeUI->Handle_EditorStopRuntime();
+    }
 }
 
 Shared<GameplayUI> GameplayUI::Create(uint32 levelIndex)
@@ -213,6 +218,7 @@ void GameplayUI::Free()
 
     Release_UI(_worldUI);
     Release_UI(_battleUI);
+    Release_UI(_soulLikeUI);
 
     Base::Free();
 }

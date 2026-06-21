@@ -985,6 +985,12 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.sizeByLifeCurveTimesBlock1 = _desc.sizeByLife.curveKeyTimesBlock1;
     params.sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX;
     params.sizeByLifeCurveValuesXBlock1 = _desc.sizeByLife.curveKeyValuesXBlock1;
+    params.sizeByLifeCurveArriveTangentsX = _desc.sizeByLife.curveKeyArriveTangentsX;
+    params.sizeByLifeCurveArriveTangentsXBlock1 = _desc.sizeByLife.curveKeyArriveTangentsXBlock1;
+    params.sizeByLifeCurveLeaveTangentsX = _desc.sizeByLife.curveKeyLeaveTangentsX;
+    params.sizeByLifeCurveLeaveTangentsXBlock1 = _desc.sizeByLife.curveKeyLeaveTangentsXBlock1;
+    params.sizeByLifeCurveModes = _desc.sizeByLife.curveKeyModes;
+    params.sizeByLifeCurveModesBlock1 = _desc.sizeByLife.curveKeyModesBlock1;
     params.sizeByLifeCurveParams = Vec4{
         static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.sizeByLife.curveKeyCount))),
         _desc.sizeByLife.multiplyX ? 1.f : 0.f,
@@ -1117,6 +1123,12 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         0.f,
         0.f
     );
+    const Vec4 effectTrailUVRotationParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVRotation)),
+        static_cast<float>(static_cast<uint32>(material.maskUVRotation)),
+        0.f
+    );
     const Vec4 effectTrailSourceParams = Vec4(
         static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -1138,6 +1150,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         _shader->Bind_RawValue("g_EffectTrailMaskUVAxisPolicyParams", &effectTrailMaskUVAxisPolicyParams, sizeof(effectTrailMaskUVAxisPolicyParams)),
         E_FAIL
     );
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVRotationParams", &effectTrailUVRotationParams, sizeof(effectTrailUVRotationParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailSourceParams", &effectTrailSourceParams, sizeof(effectTrailSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(
@@ -1199,6 +1212,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const float flowUVRotation = static_cast<float>(static_cast<uint32>(material.flowUVRotation));
     const Vec2 flowUVPolicyParams(
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
@@ -1211,6 +1225,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVRotation", &flowUVRotation, sizeof(flowUVRotation)), E_FAIL);
 
     return S_OK;
 }

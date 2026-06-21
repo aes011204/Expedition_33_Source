@@ -2,6 +2,8 @@
 
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
+#include "Body_Player.h"
+#include "ModelCom.h"
 
 SL_Skill::SL_Skill(const Shared<SL_Maelle>& owner)
     : SL_State(owner)
@@ -18,7 +20,9 @@ bool SL_Skill::EnterInvoke()
     Stop_Movement();
 
     _anim = Resolve_SkillAnim(_slotIndex);
-    Play_Anim(_anim, 0.05f, false);
+    Resolve_PlaySection();
+    const float blendDuration = _playSectionStartSec > 0.f ? 0.f : 0.05f;
+    Play_Anim(_anim, blendDuration, false, _playSectionStartSec);
 
     return true;
 }
@@ -27,14 +31,21 @@ void SL_Skill::Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
-    if (!Is_AnimFinished())
+    if (!Is_PlaySectionFinished() && !Is_AnimFinished())
         return;
+
+    Finish_Skill();
+}
+
+void SL_Skill::ExitInvoke()
+{
+    _playSectionStartSec = 0.f;
+    _playSectionEndSec = -1.f;
 
     if (Shared<SL_Maelle> owner = _owner.lock())
         owner->Set_CombatLocked(false);
 
-    if (_stateCom)
-        _stateCom->Change_State(SL_PlayerState::Idle);
+    SL_State::ExitInvoke();
 }
 
 void SL_Skill::Set_SkillRequest(const Skill_Data& skillData, uint32 slotIndex)
@@ -57,6 +68,42 @@ SoulLikeAnim SL_Skill::Resolve_SkillAnim(uint32 slotIndex) const
     default:
         return SoulLikeAnim::Skill_1;
     }
+}
+
+void SL_Skill::Resolve_PlaySection()
+{
+    _playSectionStartSec = 0.f;
+    _playSectionEndSec = -1.f;
+
+    if (_body == nullptr || _body->Get_Model() == nullptr)
+        return;
+
+    const AnimNotifyData* animationData = _body->Get_Model()->Find_AnimNotifyDataByState(ETOI(_anim));
+    if (animationData == nullptr)
+        return;
+
+    _playSectionStartSec = max(0.f, animationData->playSectionStartSec);
+    _playSectionEndSec = animationData->playSectionEndSec;
+}
+
+bool SL_Skill::Is_PlaySectionFinished() const
+{
+    if (_playSectionEndSec < 0.f)
+        return false;
+
+    if (_body == nullptr || _body->Get_Model() == nullptr)
+        return false;
+
+    return _body->Get_Model()->Get_CurrentAnimationTimeSec() + 0.0001f >= _playSectionEndSec;
+}
+
+void SL_Skill::Finish_Skill()
+{
+    if (Shared<SL_Maelle> owner = _owner.lock())
+        owner->Set_CombatLocked(false);
+
+    if (_stateCom)
+        _stateCom->Change_State(SL_PlayerState::Idle);
 }
 
 Shared<SL_Skill> SL_Skill::Create(const Shared<SL_Maelle>& owner)

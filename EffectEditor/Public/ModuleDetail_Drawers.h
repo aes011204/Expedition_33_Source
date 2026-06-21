@@ -1,11 +1,12 @@
 ﻿#pragma once
 
-#include "EffectAuthoring_Types.h"
 #include "DetailPropertyContext.h"
+#include "EffectAuthoring_Types.h"
 #include "EffectMaterialPreviewRenderer.h"
 
 NS_BEGIN(EffectEditor)
 
+// Required module의 renderer/material/common authoring row를 그린다.
 class RequiredModuleDetail
 {
 public:
@@ -20,6 +21,7 @@ private:
     Unique<EffectMaterialPreviewRenderer> _materialSlotPreview{};
 };
 
+// Spawn module의 rate/burst authoring row를 그린다.
 class SpawnModuleDetail
 {
 public:
@@ -30,6 +32,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// Lifetime module의 particle lifetime authoring row를 그린다.
 class LifetimeModuleDetail
 {
 public:
@@ -40,6 +43,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialSize module의 sprite initial size authoring row를 그린다.
 class InitialSizeModuleDetail
 {
 public:
@@ -50,6 +54,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialMeshSize module의 mesh initial size authoring row를 그린다.
 class InitialMeshSizeModuleDetail
 {
 public:
@@ -60,6 +65,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialLocation module의 emitter-local spawn offset authoring row를 그린다.
 class InitialLocationModuleDetail
 {
 public:
@@ -70,6 +76,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SphereLocation module의 sphere spawn distribution authoring row를 그린다.
 class SphereLocationModuleDetail
 {
 public:
@@ -80,6 +87,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// PlaneRadialLocation module의 plane radial spawn authoring row를 그린다.
 class PlaneRadialLocationModuleDetail
 {
 public:
@@ -90,6 +98,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialVelocity module의 initial velocity authoring row를 그린다.
 class InitialVelocityModuleDetail
 {
 public:
@@ -100,6 +109,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialRadialVelocity module의 radial velocity authoring row를 그린다.
 class InitialRadialVelocityModuleDetail
 {
 public:
@@ -110,6 +120,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// VelocityCone module의 cone velocity authoring row를 그린다.
 class VelocityConeModuleDetail
 {
 public:
@@ -120,16 +131,18 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// Acceleration module의 motion acceleration authoring row를 그린다.
 class AccelerationModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         AccelerationModuleData& data,
         DetailPropertyContext& detailContext);
 };
 
+// Drag module의 motion drag authoring row를 그린다.
 class DragModuleDetail
 {
 public:
@@ -140,6 +153,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// VelocityOverLife module의 life-based velocity scaling authoring row를 그린다.
 class VelocityOverLifeModuleDetail
 {
 public:
@@ -150,6 +164,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialRotation module의 sprite initial rotation authoring row를 그린다.
 class InitialRotationModuleDetail
 {
 public:
@@ -160,6 +175,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// OrbitOverLife module의 orbit offset authoring row를 그린다.
 class OrbitOverLifeModuleDetail
 {
 public:
@@ -170,6 +186,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// PlaneRadialOrientation module의 plane radial orientation authoring row를 그린다.
 class PlaneRadialOrientationModuleDetail
 {
 public:
@@ -180,6 +197,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SphereRadialOrientation module의 sphere radial orientation authoring row를 그린다.
 class SphereRadialOrientationModuleDetail
 {
 public:
@@ -190,6 +208,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// RotationOverLife module의 sprite rotation curve authoring row를 그린다.
 class RotationOverLifeModuleDetail
 {
 public:
@@ -200,6 +219,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialRotationRate module의 sprite angular velocity authoring row를 그린다.
 class InitialRotationRateModuleDetail
 {
 public:
@@ -210,6 +230,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// RotationRateScaleByLife module의 sprite angular velocity scale authoring row를 그린다.
 class RotationRateScaleByLifeModuleDetail
 {
 public:
@@ -220,6 +241,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialMeshRotation module의 mesh initial rotation authoring row를 그린다.
 class InitialMeshRotationModuleDetail
 {
 public:
@@ -230,6 +252,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// MeshRotationOverLife module의 mesh rotation curve authoring row를 그린다.
 class MeshRotationOverLifeModuleDetail
 {
 public:
@@ -240,6 +263,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialMeshRotationRate module의 mesh angular velocity authoring row를 그린다.
 class InitialMeshRotationRateModuleDetail
 {
 public:
@@ -250,6 +274,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// MeshRotationRateScaleByLife module의 mesh angular velocity scale authoring row를 그린다.
 class MeshRotationRateScaleByLifeModuleDetail
 {
 public:
@@ -260,6 +285,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// InitialColor module의 start color/alpha authoring row를 그린다.
 class InitialColorModuleDetail
 {
 public:
@@ -270,6 +296,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// ColorOverLife module의 life-based color/alpha authoring row를 그린다.
 class ColorOverLifeModuleDetail
 {
 public:
@@ -280,6 +307,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SubUVFrameOverLife module의 frame selection authoring row를 그린다.
 class SubUVFrameOverLifeModuleDetail
 {
 public:
@@ -290,6 +318,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SizeByLife module의 sprite scale-over-life authoring row를 그린다.
 class SizeByLifeModuleDetail
 {
 public:
@@ -300,6 +329,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// MeshSizeByLife module의 mesh scale-over-life authoring row를 그린다.
 class MeshSizeByLifeModuleDetail
 {
 public:
@@ -310,6 +340,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SpawnPerUnit module의 distance-based spawn authoring row를 그린다.
 class SpawnPerUnitModuleDetail
 {
 public:
@@ -320,6 +351,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SourceHistorySpriteTrail PathFollow module의 path-follow stamp motion row를 그린다.
 class SourceHistorySpriteTrailPathFollowModuleDetail
 {
 public:
@@ -330,6 +362,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SourceHistorySpriteTrail PathReplay module의 path-replay stamp motion row를 그린다.
 class SourceHistorySpriteTrailPathReplayModuleDetail
 {
 public:
@@ -340,6 +373,7 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// MaterialScalarModulation module의 material parameter modulation authoring row를 그린다.
 class MaterialScalarModulationModuleDetail
 {
 public:

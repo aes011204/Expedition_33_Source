@@ -58,7 +58,7 @@ void BattleSpawnRegistry::Register_BattleMonsterObject(const Shared<GameObject>&
 void BattleSpawnRegistry::Set_SourceWorldObject(const Shared<GameObject>& object, uint32 levelIndex)
 {
     _sourceWorldObject = object;
-    _sourceWorldObjectLevelIndex = object ? levelIndex : 0;
+    _sourceWorldObjectLevelIndex = object ? levelIndex : UINT32_MAX;
 }
 
 void BattleSpawnRegistry::Update_SpawnPose(const Shared<GameObject>& object)
@@ -135,7 +135,7 @@ void BattleSpawnRegistry::Clear_BattleReward()
 void BattleSpawnRegistry::Clear_SourceWorldObject()
 {
     _sourceWorldObject.reset();
-    _sourceWorldObjectLevelIndex = 0;
+    _sourceWorldObjectLevelIndex = UINT32_MAX;
 }
 
 void BattleSpawnRegistry::Clear_All()

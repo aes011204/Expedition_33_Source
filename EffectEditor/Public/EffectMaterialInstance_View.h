@@ -35,6 +35,7 @@ struct EffectMaterialRenderPolicyBinding
     const char* sourceLabel{ "Required" };
 };
 
+// selected emitter/module의 embedded material instance를 편집하고 preview한다.
 class EffectMaterialInstance_View final : public Editor_Window
 {
 public:
@@ -42,7 +43,8 @@ public:
     ~EffectMaterialInstance_View() override;
 
 public:
-    void Update(float timeDelta) override; // material instance preview UV motion 시간을 갱신한다.
+    // material instance preview UV motion 시간을 갱신한다.
+    void Update(float timeDelta) override;
     void Pre_Render() override;
     void Render() override;
     // 현재 consumer가 지원하지 않는 distortion shape 편집을 막는다.
@@ -58,14 +60,14 @@ public:
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);
 
-private: //## Data
+private: //## Data::Target
     uint32 _targetEmitterId{ 0 };
     uint32 _targetModuleId{ 0 };
     DetailPropertyContext _detailPropertyContext{};
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
     map<string, Shared<Texture>> _textureThumbnailCache{};
 
-private: //## Helpers
+private: //## Helper::MaterialInstance
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
     void Begin_PendingAuthoringEdit(

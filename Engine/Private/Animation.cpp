@@ -68,6 +68,11 @@ void Animation::Set_CurrentTimeSec(float timeSec)
         ch->ResetVelocityState();
 }
 
+void Animation::Set_StartTimeSec(float startSec)
+{
+    Set_CurrentTimeSec(startSec);
+}
+
 void Animation::Evaluate_CurrentPose(const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
 {
     for (uint32 i = 0; i < _numChannels; ++i)

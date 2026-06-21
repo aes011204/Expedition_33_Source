@@ -115,15 +115,17 @@ public:
     // 약점 세팅
     virtual Shared<Mon_WeakPoint> Get_BattleWeakPoint() const { return nullptr; }
     // 약점 소비
-    bool Try_Consume_FreeAimWeakPoint();
+    virtual bool Try_Consume_FreeAimWeakPoint();
     // 약점 숨기기
     void Hide_FreeAimWeakPoint();
     // 부활하면 리셋?
     void Reset_FreeAimWeakPoint();
 
 public:
-    float Get_HpRatio();
-    BattlePhase Get_CurPhase();
+    float Get_HpRatio()const;
+    virtual BattlePhase Get_CurPhase() const;
+    virtual bool Should_AppendPreTurnEndPhase(const ActionRequest& request) const { return false; };
+    virtual string Get_PreTurnEndSkillKey() const { return ""; };
     float Score_Skill(const Skill_Data* skill, const SkillChoiceContext& context, const vector<BattleChar>& heroes);
     float Score_Target(const Skill_Data* skill, const BattleChar& target, int32 targetIndex);
     float Estimate_SkillDamage(const Skill_Data* skill, const BattleChar& target);

@@ -11,6 +11,7 @@
 NS_BEGIN(Client)
 
 class BattleWorldUI_CommandCards;
+class BattleWorldUI_GradientCards;
 class BattleWorldUI_ItemCards;
 class BattleWorldUI_SkillCards;
 class UI_BattleDefense;
@@ -126,20 +127,34 @@ private:
     void    Update_BattleSystemIntroState(float timeDelta);
     HRESULT Ensure_BattleWorldCommandCards();
     void    Hide_BattleWorldCommandCards();
-    void    Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState);
+    void    Update_BattleWorldCommandCards(
+        const Vec3& commandHudWorldPos,
+        BattleTurnState currentState,
+        uint32 curAp,
+        uint32 maxAp,
+        HeroId actorHeroId);
     HRESULT Ensure_BattleWorldItemCards();
     void    Hide_BattleWorldItemCards();
     void    Update_BattleWorldItemCards(
         const BattleChar& actor,
         BattleItemType selectedItemType,
         BattleTurnState currentState);
+
     HRESULT Ensure_BattleWorldSkillCards();
     void    Hide_BattleWorldSkillCards();
     void    Update_BattleWorldSkillCards(
         BattleTurnState currentState,
         const BattleChar& actor,
-        const string& selectedSkillKey);
+        const string& selectedSkillKey,
+        uint32 skillPage);
+    HRESULT Ensure_BattleWorldGradientCards();
+    void    Hide_BattleWorldGradientCards();
+    void    Update_BattleWorldGradientCards(
+        BattleTurnState currentState,
+        const BattleChar& actor);
     void    Update_BattleTutorial(float timeDelta);
+
+    bool    Should_ShowChoiceTargetForSkillTargeting(const ActionRequest& request) const;
 
 private:
 #pragma region UI 위치맞추기
@@ -170,6 +185,7 @@ private:
     Shared<BattleWorldUI_CommandCards>      _battleWorldCommandCards;
     Shared<BattleWorldUI_ItemCards>         _battleWorldItemCards;
     Shared<BattleWorldUI_SkillCards>        _battleWorldSkillCards;
+    Shared<BattleWorldUI_GradientCards>     _battleWorldGradientCards;
 
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
     Unique<UI_BossHpBar>                    _bossHpBar;

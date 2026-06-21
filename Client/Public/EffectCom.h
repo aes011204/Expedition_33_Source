@@ -18,11 +18,12 @@ NS_BEGIN(Client)
 
 class Weapon;
 
+// Owner gameplay object의 effect 재생, attach, trail/source-history binding을 관리한다.
 class EffectCom final : public Component
 {
     GENERATED_COMPONENT(EffectCom);
 
-public:
+public: //## Types::Public
     enum class EffectPlayTarget : uint8
     {
         OwnerRoot = 0,  // 플레이할 Owner의 Transform 기준
@@ -50,6 +51,7 @@ public:
         Vec3 localOffset = Vec3::Zero;
         Vec3 localRotation = Vec3::Zero;
         Vec3 scale = Vec3::One;
+        float playbackSpeed = 1.f;
         EffectTransformInheritance transformInheritance{};
 
         bool followTarget = false;          // AN은 false, ANS/attach 는 true로 사용
@@ -78,7 +80,127 @@ public:
         bool wasPaused = false;          // 튜토리얼 시작 전 pause 상태로 되돌리기 위해 저장한다.
     };
 
-private:
+public:
+    EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    ~EffectCom() override;
+
+public:
+    HRESULT Initialize_Prototype() override;
+    HRESULT Initialize(void* arg) override;
+    void BeginPlay() override;
+    void Update(float timeDelta);
+    void Tick_AttachedEffectInstances(float timeDelta);
+
+public: //## Behavior::DrawFeatures
+    // World에서 Active 중인 플레이어 바꿀 때
+    void Start_SwitchDissolve(float durationSec, const string& noiseName);
+    // 몬스터 죽을 떄 사라지게
+    void Start_VanishDissolve(float durationSec, const string& noiseName, bool vanishComplete);
+    // UI Preview에서 역광 효과 내게
+    void Set_PreviewRim(const Vec3& color, float intensity, float power, float hairIntensity);
+    void Clear_PreviewRim();
+    // 현재 이 컴포넌트가 소유한 attached effect를 모두 pool로 반환한다.
+    void Stop_AllAttachedEffects();
+
+    HRESULT Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMask);
+
+    // Render 쪽에서는 owner만 세팅
+    static HRESULT Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask);
+
+public: //## Behavior::AttachedEffects
+    // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
+    static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
+
+    // socket follow와 자동 release 후보 정리를 함께 수행한다.
+    void Update_AttachedEffects(float timeDelta);
+    void Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& outStates);
+    void Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& states);
+
+    InspectorEffectSettings Get_InspectorEffectSettings() const;
+    void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
+    HRESULT Play_InspectorEffect();
+
+public: //## Behavior::PlayEffect
+    HRESULT Play_Effect(const EffectPlayDesc& desc);
+    HRESULT Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::AttachedHandle* outHandle);
+
+    // ANS 종료될 때, 같은 key의 attached effect를 pool로 반환하게
+    void Stop_Effect(
+        const wstring& effectName,
+        EffectPlayTarget target,
+        const wstring& partTag = L"",
+        const string& socketName = "");
+    void Stop_Effect(const EffectInstancePool::AttachedHandle& handle);
+
+public: //## Behavior::AttachedPartEffect
+    HRESULT Play_AttachedEffect(
+        uint32 levelIndex,
+        const wstring& effectName,
+        const wstring& partTag,
+        const string& socketName,
+        const wstring& layerTag,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One,
+        const Weak<IEffectTrailSampleProvider>& trailSampleProvider = {});
+
+    HRESULT Play_AttachedPartEffect(
+        uint32 levelIndex,
+        const wstring& effectName,
+        const wstring& partTag,
+        const string& socketName,
+        const wstring& layerTag,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
+
+    HRESULT Play_AttachedPartEffect(
+        uint32 levelIndex,
+        const wstring& effectName,
+        const wstring& partTag,
+        const wstring& layerTag,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
+
+public: //## Behavior::TrailAndSourceHistory
+    HRESULT Play_TrailEffect(
+        const wstring& effectName,
+        const wstring& partTag,
+        const wstring& layerTag);
+
+    void Stop_TrailEffect(
+        const wstring& effectName,
+        const wstring& partTag);
+
+    bool Try_GetTrailSampleForPart(
+        const wstring& partTag,
+        const TrailAnchorAsset& trailAnchorAsset,
+        EffectTrailSample& outSample) const;
+
+    HRESULT Play_SourceHistoryEffect(
+        const wstring& effectName,
+        const wstring& partTag,
+        const wstring& layerTag,
+        SourceHistorySourcePointPolicy sourcePointPolicy = SourceHistorySourcePointPolicy::Tip,
+        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
+        const string& socketName = "");
+
+    void Stop_SourceHistoryEffect(
+        const wstring& effectName,
+        const wstring& partTag,
+        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
+        const string& socketName = "");
+
+    bool Try_GetSourcePointSampleForPart(
+        const wstring& partTag,
+        SourceHistorySourceBindingMode sourceBindingMode,
+        const string& socketName,
+        const TrailAnchorAsset& trailAnchorAsset,
+        SourceHistorySourcePointPolicy sourcePointPolicy,
+        EffectSourcePointSample& outSample) const;
+
+private: //## Types::AttachedEffect
     enum class AttachedEffectRole : uint8
     {
         Normal,
@@ -118,134 +240,18 @@ private:
         float sourceHistoryDrainDuration = 0.5f;
     };
 
-public:
-    EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~EffectCom() override;
-
-public:
-    HRESULT Initialize_Prototype() override;
-    HRESULT Initialize(void* arg) override;
-    void BeginPlay() override;
-    void Update(float timeDelta);
-    void Tick_AttachedEffectInstances(float timeDelta);
-
-public:
-    // World에서 Active 중인 플레이어 바꿀 때
-    void Start_SwitchDissolve(float durationSec, const string& noiseName);
-    // 몬스터 죽을 떄 사라지게
-    void Start_VanishDissolve(float durationSec, const string& noiseName, bool vanishComplete);
-    // UI Preview에서 역광 효과 내게
-    void Set_PreviewRim(const Vec3& color, float intensity, float power, float hairIntensity);
-    void Clear_PreviewRim();
-    void Stop_AllAttachedEffects(); // 현재 이 컴포넌트가 소유한 attached effect를 모두 pool로 반환한다.
-
-    HRESULT Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMask);
-
-    // Render 쪽에서는 owner만 세팅
-    static HRESULT Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask);
-
-public:
-    // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
-    static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
-
-    void Update_AttachedEffects(float timeDelta); // socket follow와 자동 release 후보 정리를 함께 수행한다.
-    void Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& outStates);
-    void Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& states);
-
-    InspectorEffectSettings Get_InspectorEffectSettings() const;
-    void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
-    HRESULT Play_InspectorEffect();
-
-#pragma region AN_PlayEffect에서 재생시킬 함수
-    HRESULT Play_Effect(const EffectPlayDesc& desc);
-    HRESULT Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::AttachedHandle* outHandle);
-
-    // ANS 종료될 때, 같은 key의 attached effect를 pool로 반환하게
-    void Stop_Effect(
-        const wstring& effectName,
-        EffectPlayTarget target,
-        const wstring& partTag = L"",
-        const string& socketName = "");
-    void Stop_Effect(const EffectInstancePool::AttachedHandle& handle);
-#pragma endregion
-
-#pragma region Effect 특정 파츠, 소켓에 붙이기
-    HRESULT Play_AttachedEffect(
-        uint32 levelIndex,
-        const wstring& effectName,
-        const wstring& partTag,
-        const string& socketName,
-        const wstring& layerTag,
-        const Vec3& localOffset = Vec3::Zero,
-        const Vec3& localRotation = Vec3::Zero,
-        const Vec3& scale = Vec3::One,
-        const Weak<IEffectTrailSampleProvider>& trailSampleProvider = {});
-
-    HRESULT Play_AttachedPartEffect(
-        uint32 levelIndex,
-        const wstring& effectName,
-        const wstring& partTag,
-        const string& socketName,
-        const wstring& layerTag,
-        const Vec3& localOffset = Vec3::Zero,
-        const Vec3& localRotation = Vec3::Zero,
-        const Vec3& scale = Vec3::One);
-
-    HRESULT Play_AttachedPartEffect(
-        uint32 levelIndex,
-        const wstring& effectName,
-        const wstring& partTag,
-        const wstring& layerTag,
-        const Vec3& localOffset = Vec3::Zero,
-        const Vec3& localRotation = Vec3::Zero,
-        const Vec3& scale = Vec3::One);
-#pragma endregion
-
-#pragma region ANS_Trail에서 사용할 Play, Stop Trail
-    HRESULT Play_TrailEffect(
-        const wstring& effectName,
-        const wstring& partTag,
-        const wstring& layerTag);
-
-    void Stop_TrailEffect(
-        const wstring& effectName,
-        const wstring& partTag);
-
-    bool Try_GetTrailSampleForPart(
-        const wstring& partTag,
-        const TrailAnchorAsset& trailAnchorAsset,
-        EffectTrailSample& outSample) const;
-
-    HRESULT Play_SourceHistoryEffect(
-        const wstring& effectName,
-        const wstring& partTag,
-        const wstring& layerTag,
-        SourceHistorySourcePointPolicy sourcePointPolicy = SourceHistorySourcePointPolicy::Tip,
-        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
-        const string& socketName = "");
-
-    void Stop_SourceHistoryEffect(
-        const wstring& effectName,
-        const wstring& partTag,
-        SourceHistorySourceBindingMode sourceBindingMode = SourceHistorySourceBindingMode::TrailAnchor,
-        const string& socketName = "");
-
-    bool Try_GetSourcePointSampleForPart(
-        const wstring& partTag,
-        SourceHistorySourceBindingMode sourceBindingMode,
-        const string& socketName,
-        const TrailAnchorAsset& trailAnchorAsset,
-        SourceHistorySourcePointPolicy sourcePointPolicy,
-        EffectSourcePointSample& outSample) const;
-#pragma endregion
-
-private:
+private: //## Helper::AttachedEffects
     void Play_InspectorEffectIfEnabled();
-    void Release_AttachedEffect(AttachedEffect& attached);                   // 명시 반환이 필요한 attached effect를 pool로 되돌린다.
-    void Begin_TrailDrain(AttachedEffect& attached);                         // sample 공급을 끊고 segmentLifetime 동안 자연 fade시킨다.
-    void Begin_SourceHistoryDrain(AttachedEffect& attached);                 // sample 공급을 끊고 단일 source history가 자연 fade되게 둔다.
-    bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const; // auto/manual release 정책을 판정한다.
-    void Prune_ReleasedAttachedEffects();                                    // 반환이 끝난 attached entry를 목록에서 제거한다.
+    // 명시 반환이 필요한 attached effect를 pool로 되돌린다.
+    void Release_AttachedEffect(AttachedEffect& attached);
+    // sample 공급을 끊고 segmentLifetime 동안 자연 fade시킨다.
+    void Begin_TrailDrain(AttachedEffect& attached);
+    // sample 공급을 끊고 단일 source history가 자연 fade되게 둔다.
+    void Begin_SourceHistoryDrain(AttachedEffect& attached);
+    // auto/manual release 정책을 판정한다.
+    bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const;
+    // 반환이 끝난 attached entry를 목록에서 제거한다.
+    void Prune_ReleasedAttachedEffects();
 
     bool Try_GetOwnerRootWorldMatrix(Matrix& outWorldMatrix) const;
 
@@ -297,12 +303,15 @@ private:
         SourceHistorySourcePointPolicy sourcePointPolicy,
         EffectSourcePointSample& outSample) const;
 
-private:
-    SwitchDissolveRuntime _switchDissolve{};   // 디졸브
-    PreviewRimRuntime _previewRim{};           // SkillTree preview 외곽광
-    vector<AttachedEffect> _attachedEffects{}; // 소켓에 붙일 이팩트
+private: //## Data::DrawFeatures
+    // 디졸브
+    SwitchDissolveRuntime _switchDissolve{};
+    // SkillTree preview 외곽광
+    PreviewRimRuntime _previewRim{};
+    // 소켓에 붙일 이팩트
+    vector<AttachedEffect> _attachedEffects{};
 
-private:
+private: //## Data::Inspector
     bool _vanishComplete = false;
 
     bool _inspectorAutoPlayEffect = false;

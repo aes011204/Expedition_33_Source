@@ -131,6 +131,16 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
+    const auto read_uv_rotation = [&](const char* key, EffectMaterialUVRotation defaultValue) -> EffectMaterialUVRotation
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectMaterialUVRotation> parsed = magic_enum::enum_cast<EffectMaterialUVRotation>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
     const auto read_additive_color_source = [](
         const json& node,
         const char* key,
@@ -323,24 +333,28 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.mainUVTilingMode = read_uv_tiling_mode("mainUVTilingMode", defaultMaterial.mainUVTilingMode);
     material.mainUVPolicy = read_uv_axis_policy("mainUVPolicy", material.mainUVTilingMode, defaultMaterial.mainUVPolicy);
     material.mainUVTilingMode = resolve_compatible_uv_tiling_mode(material.mainUVPolicy);
+    material.mainUVRotation = read_uv_rotation("mainUVRotation", defaultMaterial.mainUVRotation);
     material.noiseUVScale = read_vec2("noiseUVScale", defaultMaterial.noiseUVScale);
     material.noiseUVOffset = read_vec2("noiseUVOffset", defaultMaterial.noiseUVOffset);
     material.noiseUVScrollSpeed = read_vec2("noiseUVScrollSpeed", defaultMaterial.noiseUVScrollSpeed);
     material.noiseUVTilingMode = read_uv_tiling_mode("noiseUVTilingMode", defaultMaterial.noiseUVTilingMode);
     material.noiseUVPolicy = read_uv_axis_policy("noiseUVPolicy", material.noiseUVTilingMode, defaultMaterial.noiseUVPolicy);
     material.noiseUVTilingMode = resolve_compatible_uv_tiling_mode(material.noiseUVPolicy);
+    material.noiseUVRotation = read_uv_rotation("noiseUVRotation", defaultMaterial.noiseUVRotation);
     material.maskUVScale = read_vec2("maskUVScale", defaultMaterial.maskUVScale);
     material.maskUVOffset = read_vec2("maskUVOffset", defaultMaterial.maskUVOffset);
     material.maskUVScrollSpeed = read_vec2("maskUVScrollSpeed", defaultMaterial.maskUVScrollSpeed);
     material.maskUVTilingMode = read_uv_tiling_mode("maskUVTilingMode", defaultMaterial.maskUVTilingMode);
     material.maskUVPolicy = read_uv_axis_policy("maskUVPolicy", material.maskUVTilingMode, defaultMaterial.maskUVPolicy);
     material.maskUVTilingMode = resolve_compatible_uv_tiling_mode(material.maskUVPolicy);
+    material.maskUVRotation = read_uv_rotation("maskUVRotation", defaultMaterial.maskUVRotation);
     material.flowUVScale = read_vec2("flowUVScale", defaultMaterial.flowUVScale);
     material.flowUVOffset = read_vec2("flowUVOffset", defaultMaterial.flowUVOffset);
     material.flowUVScrollSpeed = read_vec2("flowUVScrollSpeed", defaultMaterial.flowUVScrollSpeed);
     material.flowUVTilingMode = read_uv_tiling_mode("flowUVTilingMode", defaultMaterial.flowUVTilingMode);
     material.flowUVPolicy = read_uv_axis_policy("flowUVPolicy", material.flowUVTilingMode, defaultMaterial.flowUVPolicy);
     material.flowUVTilingMode = resolve_compatible_uv_tiling_mode(material.flowUVPolicy);
+    material.flowUVRotation = read_uv_rotation("flowUVRotation", defaultMaterial.flowUVRotation);
     material.blendMode = read_blend_mode("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
 

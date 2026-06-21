@@ -569,6 +569,9 @@
     <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
@@ -729,6 +732,9 @@
       <Filter>BattleState</Filter>
     </ClCompile>
     <ClCompile Include="..\private\ChooseItem.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ChooseGradient.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
     <ClCompile Include="..\private\ChooseSkill.cpp">
@@ -1142,6 +1148,24 @@
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Unlock_Manager.cpp" />
+    <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
+    <ClCompile Include="..\Private\GradientSkill.cpp" />
+    <ClCompile Include="..\Private\AL_SL_State.cpp" />
+    <ClCompile Include="..\Private\SL_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
+    <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponDetach.cpp" />
+    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp" />
+    <ClCompile Include="..\Private\SL_Dualliste.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
+    <ClCompile Include="..\Private\MW_Dualliste.cpp" />
+    <ClCompile Include="..\Private\SL_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
+    <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1152,7 +1176,18 @@
     </ClInclude>
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
+    <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
@@ -1171,10 +1206,37 @@
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
+    <ClCompile Include="..\Private\ANS_RootController.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="AN_SL_CameraReturn.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClInclude Include="..\Public\Unlock_Manager.h" />
+    <ClInclude Include="..\Public\LevelChange_Portal.h" />
+    <ClInclude Include="..\Public\GradientSkill.h" />
+    <ClInclude Include="..\Public\AL_SL_State.h" />
+    <ClInclude Include="..\Public\SL_Jump.h" />
+    <ClInclude Include="..\public\ANS_Jump.h" />
+    <ClInclude Include="..\public\ANS_JumpCounter.h" />
+    <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
+    <ClInclude Include="..\Public\AN_WeaponAttach.h" />
+    <ClInclude Include="..\Public\AN_WeaponDetach.h" />
+    <ClInclude Include="..\Public\AN_JumpCounterStart.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
+    <ClInclude Include="..\Public\MW_Dualliste.h" />
+    <ClInclude Include="..\Public\SL_Parry.h" />
+    <ClInclude Include="..\Public\ANS_ParryWindow.h" />
+    <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_JumpCounter.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1639,6 +1701,9 @@
     <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1805,6 +1870,9 @@
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ChooseItem.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ChooseGradient.h">
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ChooseSkill.h">
@@ -2242,6 +2310,8 @@
     </ClInclude>
     <ClInclude Include="..\Public\RuntimeCheckpointIO.h" />
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
+    <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
@@ -2262,6 +2332,7 @@
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
     <ClInclude Include="..\Public\SL_DamageSystem.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
+    <ClInclude Include="..\Public\ANS_RootController.h" />
     <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
     <ClInclude Include="AN_SL_CameraReturn.h" />
     <ClInclude Include="..\Public\SL_Base.h" />

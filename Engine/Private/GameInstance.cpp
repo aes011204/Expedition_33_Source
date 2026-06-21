@@ -757,12 +757,14 @@ HRESULT GameInstance::Draw()
 
     //CHECK_FAILED(Update_Picking(), E_FAIL);
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     // Collision Manager
     {
         _collisionManager->Render_Debug();
     }
+#endif
 
+#ifdef _DEBUG
     // Debug Manager
     {
         Draw_ShadowCascadeWorldDebug();

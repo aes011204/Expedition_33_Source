@@ -22,8 +22,9 @@ public:
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, CollisionPerfSummary& outSummary);
-    void Render_Debug();
 #endif
+
+    void Render_Debug();
 
 public:
     void    Add_Collider(Shared<ColliderCom> collider);

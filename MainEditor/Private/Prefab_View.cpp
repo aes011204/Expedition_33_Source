@@ -2021,7 +2021,7 @@ void Prefab_View::Lock_PreviewObjectToOrigin()
 
 void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) const
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     if (gameObject == nullptr)
         return;
 

@@ -29,6 +29,9 @@
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 #include "Weapon.h"
+#include <algorithm>
+#include <cctype>
+#include <cstring>
 
 namespace
 {
@@ -201,6 +204,270 @@ namespace
 
         return targetTime > previousTime || targetTime <= currentTime;
     }
+
+    bool Contains_CaseInsensitive(const string& text, const char* filter)
+    {
+        if (filter == nullptr || filter[0] == '\0')
+            return true;
+
+        string source = text;
+        string needle = filter;
+
+        auto toLower = [](unsigned char value)
+        {
+            return static_cast<char>(std::tolower(value));
+        };
+
+        std::transform(source.begin(), source.end(), source.begin(), toLower);
+        std::transform(needle.begin(), needle.end(), needle.begin(), toLower);
+
+        return source.find(needle) != string::npos;
+    }
+
+    struct ModifierPropertySection
+    {
+        const char* title;
+        const char* help;
+    };
+
+    bool Starts_With(const string& text, const char* prefix)
+    {
+        const size_t prefixLength = std::strlen(prefix);
+        return text.size() >= prefixLength && text.compare(0, prefixLength, prefix) == 0;
+    }
+
+    const char* Resolve_ChainModifierSection(const string& propertyName)
+    {
+        if (Starts_With(propertyName, "collision."))
+            return "Collision";
+
+        if (propertyName == "runtime.gravity"
+            || propertyName == "runtime.windDirection"
+            || propertyName == "runtime.windScale"
+            || propertyName == "runtime.windStartRatio"
+            || propertyName == "runtime.windWeightScale")
+            return "Forces";
+
+        if (propertyName == "motion.movementInertiaScale"
+            || propertyName == "motion.ownerMovementInertiaScale"
+            || propertyName == "motion.tipMovementInertiaScale"
+            || propertyName == "motion.maxMovementOffset")
+            return "Motion Input / Limit";
+
+        if (propertyName == "motion.damping"
+            || propertyName == "motion.tipDampingScale"
+            || propertyName == "runtime.constraintDeadzone"
+            || propertyName == "runtime.resetDistance"
+            || propertyName == "runtime.targetFrameRate")
+            return "Damping / Stability";
+
+        if (propertyName == "shape.poseRestoreStrength"
+            || propertyName == "shape.tipPoseRestoreScale"
+            || propertyName == "shape.rootOutputAlpha"
+            || propertyName == "shape.tipOutputAlpha")
+            return "Restore / Output";
+
+        if (Starts_With(propertyName, "shape."))
+            return "Shape / Bend";
+
+        return "Other";
+    }
+
+    const char* Resolve_PoseFollowModifierSection(const string& propertyName)
+    {
+        if (propertyName == "enableCollision"
+            || propertyName == "particleCollisionRadius"
+            || propertyName == "collisionRadiusPadding"
+            || propertyName == "debugDrawCapsules")
+            return "Collision";
+
+        if (propertyName == "windDirection"
+            || propertyName == "windScale"
+            || propertyName == "ownerMotionScale"
+            || propertyName == "animatedMotionScale"
+            || propertyName == "ownerMotionDeadzone"
+            || propertyName == "ownerRotationDeadzoneDegree"
+            || propertyName == "animatedMotionDeadzone"
+            || propertyName == "maxExternalOffset")
+            return "Motion Input / Gates";
+
+        if (propertyName == "damping"
+            || propertyName == "tipDampingScale"
+            || propertyName == "idleSettleStrength"
+            || propertyName == "sleepVelocityThreshold"
+            || propertyName == "sleepPoseDistance")
+            return "Damping / Settle";
+
+        if (propertyName == "poseFollowStrength"
+            || propertyName == "tipFollowScale"
+            || propertyName == "maxBendAngleDegree"
+            || propertyName == "tipBendAngleScale"
+            || propertyName == "bendLimitStrength"
+            || propertyName == "surfaceConstraintStrength")
+            return "Follow / Shape";
+
+        if (propertyName == "rootOutputAlpha"
+            || propertyName == "tipOutputAlpha"
+            || propertyName == "idleOutputAlphaScale"
+            || propertyName == "outputSmoothAlpha"
+            || propertyName == "idleOutputSmoothAlpha"
+            || propertyName == "outputDeadzoneDegree")
+            return "Output / Idle";
+
+        if (propertyName == "solverIterations"
+            || propertyName == "targetFrameRate"
+            || propertyName == "resetDistance")
+            return "Runtime";
+
+        return "Other";
+    }
+
+    const char* Resolve_ModifierPropertySection(const string& className, const string& propertyName)
+    {
+        if (className == "ChainModifierRuntime")
+            return Resolve_ChainModifierSection(propertyName);
+
+        if (className == "PoseFollowChainModifierRuntime")
+            return Resolve_PoseFollowModifierSection(propertyName);
+
+        return nullptr;
+    }
+
+    bool Draw_ModifierRuntimeProperty(
+        AnimationModifier* modifier,
+        ModelCom* model,
+        const ClassReflectionInfo* reflectionInfo,
+        void* reflectionTarget,
+        const PropertyInfo& property)
+    {
+        PropertyInfo drawProperty = property;
+        if (reflectionInfo->className == "ChainModifierRuntime")
+        {
+            if (property.name == "motion.ownerMovementInertiaScale")
+                drawProperty.displayName = "Owner Iner";
+            else if (property.name == "motion.tipMovementInertiaScale")
+                drawProperty.displayName = "Tip Iner";
+            else if (property.name == "shape.poseRestoreStrength")
+                drawProperty.displayName = "Restore";
+            else if (property.name == "shape.tipPoseRestoreScale")
+                drawProperty.displayName = "Tip Restore";
+            else if (property.name == "shape.surfaceConstraintStrength")
+                drawProperty.displayName = "Surface";
+            else if (property.name == "runtime.constraintDeadzone")
+                drawProperty.displayName = "Const Dead";
+            else if (property.name == "runtime.targetFrameRate")
+                drawProperty.displayName = "FPS";
+        }
+        else if (reflectionInfo->className == "PoseFollowChainModifierRuntime")
+        {
+            if (property.name == "ownerRotationDeadzoneDegree")
+                drawProperty.displayName = "Rot Dead";
+            else if (property.name == "animatedMotionDeadzone")
+                drawProperty.displayName = "Anim Dead";
+            else if (property.name == "idleOutputAlphaScale")
+                drawProperty.displayName = "Idle Out";
+            else if (property.name == "idleOutputSmoothAlpha")
+                drawProperty.displayName = "Idle Smooth";
+            else if (property.name == "outputDeadzoneDegree")
+                drawProperty.displayName = "Out Dead";
+            else if (property.name == "sleepVelocityThreshold")
+                drawProperty.displayName = "Sleep Vel";
+            else if (property.name == "solverIterations")
+                drawProperty.displayName = "Solver";
+            else if (property.name == "targetFrameRate")
+                drawProperty.displayName = "FPS";
+        }
+
+        if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, drawProperty))
+        {
+            modifier->On_RuntimeReflectionChanged(model, property);
+            return true;
+        }
+
+        return false;
+    }
+
+    void Draw_ModifierRuntimeProperties(
+        AnimationModifier* modifier,
+        ModelCom* model,
+        const ClassReflectionInfo* reflectionInfo,
+        void* reflectionTarget)
+    {
+        const bool isChain = reflectionInfo->className == "ChainModifierRuntime";
+        const bool isPoseFollow = reflectionInfo->className == "PoseFollowChainModifierRuntime";
+        if (!isChain && !isPoseFollow)
+        {
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                Draw_ModifierRuntimeProperty(modifier, model, reflectionInfo, reflectionTarget, property);
+                ImGui::Spacing();
+            }
+            return;
+        }
+
+        const ModifierPropertySection chainSections[] =
+        {
+            { "Motion Input / Limit", "Inertia adds motion; Move Limit clamps that input." },
+            { "Damping / Stability", "Damping keeps residual velocity; deadzone/reset limit small jitter and teleports." },
+            { "Restore / Output", "Restore pulls toward pose; Root/Tip Out decides how much sim writes to bones." },
+            { "Shape / Bend", "Stiffness and bend constraints decide how much the chain keeps its shape." },
+            { "Forces", "Gravity and wind are continuous forces even when character motion is small." },
+            { "Collision", "Collision changes particle constraints, not the authored bone pose." },
+            { "Other", "" },
+        };
+
+        const ModifierPropertySection poseFollowSections[] =
+        {
+            { "Motion Input / Gates", "Owner/Anim/Wind add external motion; deadzones and Move Limit gate that input." },
+            { "Damping / Settle", "Damping keeps velocity; settle/sleep values calm idle motion." },
+            { "Follow / Shape", "Follow restores pose direction; bend/surface limit how far it can fold." },
+            { "Output / Idle", "Output controls how much sim writes back; idle values reduce no-motion flutter." },
+            { "Collision", "Capsule push-out uses these radius/debug values." },
+            { "Runtime", "Substep, target FPS, and teleport reset controls." },
+            { "Other", "" },
+        };
+
+        const ModifierPropertySection* sections = isChain ? chainSections : poseFollowSections;
+        const size_t sectionCount = isChain
+            ? sizeof(chainSections) / sizeof(chainSections[0])
+            : sizeof(poseFollowSections) / sizeof(poseFollowSections[0]);
+
+        for (size_t sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex)
+        {
+            const ModifierPropertySection& section = sections[sectionIndex];
+            bool hasSectionProperty = false;
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                const char* propertySection = Resolve_ModifierPropertySection(reflectionInfo->className, property.name);
+                if (propertySection != nullptr && std::strcmp(propertySection, section.title) == 0)
+                {
+                    hasSectionProperty = true;
+                    break;
+                }
+            }
+
+            if (!hasSectionProperty)
+                continue;
+
+            if (ImGui::TreeNodeEx(section.title, ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (section.help != nullptr && section.help[0] != '\0')
+                    ImGui::TextDisabled("%s", section.help);
+
+                for (const PropertyInfo& property : reflectionInfo->properties)
+                {
+                    const char* propertySection = Resolve_ModifierPropertySection(reflectionInfo->className, property.name);
+                    if (propertySection == nullptr || std::strcmp(propertySection, section.title) != 0)
+                        continue;
+
+                    Draw_ModifierRuntimeProperty(modifier, model, reflectionInfo, reflectionTarget, property);
+                    ImGui::Spacing();
+                }
+
+                ImGui::TreePop();
+            }
+        }
+    }
 }
 
 Animation_View::Animation_View()
@@ -231,6 +498,28 @@ void Animation_View::Update(float timeDelta)
         return;
 
     Validate_SelectedBoneSelection();
+
+    if (_isSectionPreviewPlaying)
+    {
+        const AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData == nullptr)
+        {
+            _isSectionPreviewPlaying = false;
+            return;
+        }
+
+        const float startSec = Get_PlaySectionStartSec(animationData);
+        const float endSec = Get_PlaySectionEndSec(animationData);
+
+        if (playbackModel->Get_CurrentAnimationTimeSec() + 0.0001f >= endSec)
+        {
+            playbackModel->Set_CurrentAnimationTimeSec(startSec);
+            playbackModel->Play_Animation(0.f);
+            playbackModel->Set_AnimationPaused(false);
+            _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+            return;
+        }
+    }
 
     if (!playbackModel->Is_AnimationPaused())
     {
@@ -331,6 +620,9 @@ void Animation_View::Pre_Render()
             Late_Update_PreviewSkyBackdrop(dt);
 
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
+        Update_PreviewRootControllerStates(dt);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
+        Update_ModifierPreviewMotionTest(dt);
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
@@ -364,6 +656,7 @@ void Animation_View::Pre_Render()
     Ensure_PreviewGridResources();
     Draw_SelectedBoneMarker();
     Draw_TrailAnchorPreview();
+    Draw_ModifierChainDebug();
     Draw_PreviewGrid();
     EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
     GAME->Set_Lights(savedLightDescs);
@@ -410,7 +703,15 @@ void Animation_View::Render()
         {
             Shared<ModelCom> playbackModel = Get_PlaybackModel();
             if (playbackModel != nullptr)
-                playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+            {
+                if (playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+                else
+                {
+                    playbackModel->Set_AnimationPaused(true);
+                    _isSectionPreviewPlaying = false;
+                }
+            }
         }
 
         Handle_ClipboardShortcuts();
@@ -483,6 +784,13 @@ void Animation_View::Render()
         Draw_CreateNotifyPopup();
         Draw_CreateNotifyStatePopup();
         Draw_SequencerContextMenu();
+
+        if (_hasPendingNotifyUndoSnapshot &&
+            !ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+            !ImGui::IsAnyItemActive())
+        {
+            Commit_PendingNotifyUndo();
+        }
     }
 
     Set_Open(isOpen);
@@ -493,6 +801,7 @@ void Animation_View::Render()
         Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
         Reset_PreviewSourceHistoryEffect();
+        Reset_PreviewRootControllerStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
     }
@@ -515,6 +824,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
     Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -522,6 +832,8 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _sourceMode = SourceMode::None;
     _sourceModelPath = modelPath;
     _liveModelCom.reset();
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
     _pendingDockId = preferredDockId;
     _requestFocusOnOpen = true;
 
@@ -536,6 +848,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 
     Refresh_Source();
     Load_NotifyAsset();
@@ -550,6 +863,8 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -571,8 +886,11 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 
+    Refresh_LiveModelTargets();
     Refresh_Source();
+
     Rebuild_PreviewClone();
     Load_NotifyAsset();
     Load_TrailAnchorAsset();
@@ -599,6 +917,8 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -606,6 +926,8 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _sourceMode = SourceMode::None;
     _sourceModelPath.clear();
     _liveModelCom.reset();
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
     _modelGuid.clear();
     _currentAnimationName.clear();
     _availableAnimations.clear();
@@ -617,6 +939,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _sequencerSelectedRow = -1;
     _sequencerFirstFrame = 0;
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 }
 
 void Animation_View::Rebuild_PreviewClone()
@@ -653,6 +976,7 @@ void Animation_View::Reset_PreviewClone()
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewSourceHistoryEffect();
     _previewRootObject.reset();
     _previewModelCom.reset();
@@ -794,6 +1118,160 @@ void Animation_View::Refresh_LiveAnimationList()
         entry.playbackName = playbackName;
         _availableAnimations.push_back(move(entry));
     }
+}
+
+void Animation_View::Refresh_LiveModelTargets()
+{
+    wstring previousObjectKey{};
+    wstring previousComponentTag{};
+    wstring previousSourceModelPath{};
+    if (_selectedLiveModelTargetIndex >= 0 &&
+        _selectedLiveModelTargetIndex < static_cast<int32>(_liveModelTargets.size()))
+    {
+        const LiveModelTarget& previousTarget = _liveModelTargets[_selectedLiveModelTargetIndex];
+        previousObjectKey = previousTarget.objectKey;
+        previousComponentTag = previousTarget.componentTag;
+        previousSourceModelPath = previousTarget.sourceModelPath;
+    }
+
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
+
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+        return;
+
+    const Shared<GameObject> liveRootObject = Resolve_RootPreviewObject(_liveModelCom->Get_Owner());
+    if (liveRootObject == nullptr)
+        return;
+
+    function<void(const Shared<GameObject>&, const wstring&)> collectRecursive =
+        [&](const Shared<GameObject>& gameObject, const wstring& objectKey)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        gameObject->Visit_Components([&](const wstring& componentTag, const Shared<Component>& component)
+        {
+            Shared<ModelCom> modelCom = dynamic_pointer_cast<ModelCom>(component);
+            if (modelCom == nullptr)
+                return;
+
+            LiveModelTarget target{};
+            target.objectKey = objectKey;
+            target.componentTag = componentTag;
+            target.sourceModelPath = modelCom->Get_SourceModelPath();
+            target.model = modelCom;
+
+            string label = String::ToString(objectKey.empty() ? L"Root" : objectKey);
+            if (!componentTag.empty())
+                label += " / " + String::ToString(componentTag);
+
+            const ClassReflectionInfo& ownerInfo = gameObject->Get_ReflectionInfo();
+            if (!ownerInfo.displayName.empty())
+                label += "  [" + ownerInfo.displayName + "]";
+            else if (!ownerInfo.className.empty())
+                label += "  [" + ownerInfo.className + "]";
+
+            vector<string> badges{};
+            if (modelCom->Get_NumAnimations() > 0)
+                badges.push_back("Anim " + to_string(modelCom->Get_NumAnimations()));
+            if (!modelCom->Get_Modifiers().empty())
+                badges.push_back("Modifier " + to_string(modelCom->Get_Modifiers().size()));
+
+            if (!badges.empty())
+            {
+                label += "  (";
+                for (size_t i = 0; i < badges.size(); ++i)
+                {
+                    if (i > 0)
+                        label += ", ";
+                    label += badges[i];
+                }
+                label += ")";
+            }
+
+            target.label = move(label);
+
+            const bool matchesPrevious =
+                !previousObjectKey.empty() &&
+                target.objectKey == previousObjectKey &&
+                target.componentTag == previousComponentTag &&
+                target.sourceModelPath == previousSourceModelPath;
+
+            if (matchesPrevious || (_selectedLiveModelTargetIndex < 0 && modelCom == _liveModelCom))
+                _selectedLiveModelTargetIndex = static_cast<int32>(_liveModelTargets.size());
+
+            _liveModelTargets.push_back(move(target));
+        });
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            if (partObject == nullptr)
+                continue;
+
+            const wstring childKey = objectKey + L"/" + partTag;
+            collectRecursive(partObject, childKey);
+        }
+    };
+
+    collectRecursive(liveRootObject, L"Root");
+}
+
+void Animation_View::Draw_LiveModelTargetSelector()
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelTargets.size() <= 1)
+        return;
+
+    if (_selectedLiveModelTargetIndex < 0 ||
+        _selectedLiveModelTargetIndex >= static_cast<int32>(_liveModelTargets.size()) ||
+        _liveModelTargets[_selectedLiveModelTargetIndex].model == nullptr)
+    {
+        Refresh_LiveModelTargets();
+    }
+
+    if (_liveModelTargets.size() <= 1)
+        return;
+
+    const char* previewLabel = "(select live model)";
+    if (_selectedLiveModelTargetIndex >= 0 &&
+        _selectedLiveModelTargetIndex < static_cast<int32>(_liveModelTargets.size()))
+    {
+        previewLabel = _liveModelTargets[_selectedLiveModelTargetIndex].label.c_str();
+    }
+
+    ImGui::SeparatorText("Modifier Model");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("##LiveModelTarget", previewLabel))
+    {
+        for (int32 i = 0; i < static_cast<int32>(_liveModelTargets.size()); ++i)
+        {
+            const LiveModelTarget& target = _liveModelTargets[i];
+            const bool isSelected = (i == _selectedLiveModelTargetIndex);
+            if (ImGui::Selectable(target.label.c_str(), isSelected))
+                Switch_LiveModelTarget(static_cast<size_t>(i));
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+}
+
+void Animation_View::Switch_LiveModelTarget(size_t targetIndex)
+{
+    if (targetIndex >= _liveModelTargets.size())
+        return;
+
+    const Shared<ModelCom> selectedModel = _liveModelTargets[targetIndex].model;
+    if (selectedModel == nullptr)
+        return;
+
+    _selectedLiveModelTargetIndex = static_cast<int32>(targetIndex);
 }
 
 void Animation_View::Load_NotifyAsset()
@@ -985,6 +1463,7 @@ void Animation_View::Draw_Header()
     ImGui::Text("| Animation");
     ImGui::SameLine();
     ImGui::TextDisabled("%s", previewName);
+
 }
 
 void Animation_View::Draw_AnimationSelector()
@@ -1040,6 +1519,7 @@ void Animation_View::Draw_AnimationSelector()
                         _sequencerCurrentFrame = 0;
                         _sequencerSelectedRow = -1;
                         _sequencerFirstFrame = 0;
+                        Clear_NotifyUndoHistory();
 
                         Sync_PreviewAnimationSelection();
 
@@ -1222,46 +1702,227 @@ void Animation_View::Draw_BoneTree()
     ImGui::EndChild();
 }
 
+float Animation_View::Get_PlaySectionStartSec(const AnimNotifyData* animationData) const
+{
+    if (animationData == nullptr)
+        return 0.f;
+
+    return std::clamp(animationData->playSectionStartSec, 0.f, max(0.f, Get_CurrentAnimationLengthSec()));
+}
+
+float Animation_View::Get_PlaySectionEndSec(const AnimNotifyData* animationData) const
+{
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    if (animationData == nullptr)
+        return animationLengthSec;
+
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = animationData->playSectionEndSec >= 0.f
+        ? animationData->playSectionEndSec
+        : animationLengthSec;
+
+    return std::clamp(endSec, startSec, animationLengthSec);
+}
+
+void Animation_View::Clamp_PlaySection(AnimNotifyData* animationData)
+{
+    if (animationData == nullptr)
+        return;
+
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    animationData->playSectionStartSec = std::clamp(animationData->playSectionStartSec, 0.f, animationLengthSec);
+
+    if (animationData->playSectionEndSec >= 0.f)
+        animationData->playSectionEndSec = std::clamp(animationData->playSectionEndSec, animationData->playSectionStartSec, animationLengthSec);
+}
+
+void Animation_View::Play_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = Get_PlaySectionEndSec(animationData);
+
+    if (endSec <= startSec + 0.0001f)
+    {
+        playbackModel->Set_AnimationPaused(true);
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+        _isSectionPreviewPlaying = false;
+        return;
+    }
+
+    const float currentSec = playbackModel->Get_CurrentAnimationTimeSec();
+    if (currentSec < startSec - 0.0001f || currentSec >= endSec - 0.0001f)
+    {
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    }
+
+    playbackModel->Set_AnimationPaused(false);
+    _isSectionPreviewPlaying = true;
+}
+
+void Animation_View::Stop_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const float startSec = Get_PlaySectionStartSec(Get_CurrentAnimation());
+    playbackModel->Set_AnimationPaused(true);
+    playbackModel->Set_CurrentAnimationTimeSec(startSec);
+    playbackModel->Play_Animation(0.f);
+    _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    _isSectionPreviewPlaying = false;
+}
+
 void Animation_View::Draw_PlaybackToolbar()
 {
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
     const bool hasPlayback = (playbackModel != nullptr);
     const float animationLengthSec = Get_CurrentAnimationLengthSec();
     const float sliderMaxTimeSec = max(0.01f, animationLengthSec);
-    const ImVec2 playbackButtonSize(64.f, 0.f);
+    const ImVec2 playbackButtonSize(58.f, 0.f);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f, 4.f));
 
     if (hasPlayback)
     {
         if (ImGui::Button(playbackModel->Is_AnimationPaused() ? "Play" : "Pause", playbackButtonSize))
-            playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+        {
+            if (playbackModel->Is_AnimationPaused())
+                Play_CurrentSection(playbackModel);
+            else
+            {
+                playbackModel->Set_AnimationPaused(true);
+                _isSectionPreviewPlaying = false;
+            }
+        }
 
         ImGui::SameLine();
 
         if (ImGui::Button("Stop", playbackButtonSize))
-        {
-            playbackModel->Set_AnimationPaused(true);
-            playbackModel->Set_CurrentAnimationTimeSec(0.f);
-            playbackModel->Play_Animation(0.f); // preview scrub/stop에서도 ANS state 갱신까지 함께 반영한다.
-            _sequencerCurrentFrame = 0;
-        }
+            Stop_CurrentSection(playbackModel);
 
         ImGui::SameLine();
-        ImGui::TextDisabled("Frame %d", _sequencerCurrentFrame);
-        ImGui::SameLine(0.f, 12.f);
-        ImGui::TextDisabled("Max Frame %d", Get_CurrentAnimationFrameMax());
+        ImGui::TextDisabled("Frame %d / %d", _sequencerCurrentFrame, Get_CurrentAnimationFrameMax());
         ImGui::SameLine(0.f, 12.f);
         ImGui::Checkbox("Grid", &_showPreviewGrid);
 
         ImGui::SameLine();
+        ImGui::TextDisabled("Time");
+        ImGui::SameLine();
 
         float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
-        ImGui::SetNextItemWidth(220.f);
+        ImGui::SetNextItemWidth(260.f);
         if (ImGui::SliderFloat("##AnimScrub", &currentTimeSec, 0.f, sliderMaxTimeSec, "%.3f s"))
         {
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
             playbackModel->Play_Animation(0.f); // 시간은 고정한 채 notify/state만 현재 위치 기준으로 다시 평가한다.
             _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
+            _isSectionPreviewPlaying = false;
+        }
+
+        AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData != nullptr)
+        {
+            const float sectionLengthSec = max(0.f, animationLengthSec);
+            float sectionStartSec = Get_PlaySectionStartSec(animationData);
+            float sectionEndSec = Get_PlaySectionEndSec(animationData);
+            const float selectedSectionLengthSec = max(0.f, sectionEndSec - sectionStartSec);
+
+            ImGui::Spacing();
+            ImGui::PushID("PlaySectionControls");
+            ImGui::TextDisabled("Section");
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("Start");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            const NotifyUndoSnapshot sectionStartUndoSnapshot = Capture_NotifyUndoSnapshot();
+            if (ImGui::DragFloat("##SectionStartSec", &sectionStartSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                if (!_hasPendingNotifyUndoSnapshot)
+                {
+                    _pendingNotifyUndoSnapshot = sectionStartUndoSnapshot;
+                    _hasPendingNotifyUndoSnapshot = true;
+                }
+                animationData->playSectionStartSec = std::clamp(sectionStartSec, 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                Commit_PendingNotifyUndo();
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionStartSet"))
+            {
+                const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+                animationData->playSectionStartSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+                Commit_NotifyUndoSnapshot(undoSnapshot);
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("End");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            const NotifyUndoSnapshot sectionEndUndoSnapshot = Capture_NotifyUndoSnapshot();
+            if (ImGui::DragFloat("##SectionEndSec", &sectionEndSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                if (!_hasPendingNotifyUndoSnapshot)
+                {
+                    _pendingNotifyUndoSnapshot = sectionEndUndoSnapshot;
+                    _hasPendingNotifyUndoSnapshot = true;
+                }
+                animationData->playSectionEndSec = std::clamp(sectionEndSec, animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                Commit_PendingNotifyUndo();
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionEndSet"))
+            {
+                const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+                animationData->playSectionEndSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+                Commit_NotifyUndoSnapshot(undoSnapshot);
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+            ImGui::TextDisabled("Len %.3fs", selectedSectionLengthSec);
+            ImGui::PopID();
+
         }
     }
     else
@@ -1283,6 +1944,8 @@ void Animation_View::Draw_PlaybackToolbar()
         ImGui::SliderFloat("##AnimScrub", &dummyTimeSec, 0.f, sliderMaxTimeSec, "%.3f s");
         ImGui::EndDisabled();
     }
+
+    ImGui::PopStyleVar();
 }
 
 void Animation_View::Draw_PreviewPanel()
@@ -1380,8 +2043,74 @@ void Animation_View::Draw_Sequencer()
 
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 ANS_WeaponRotate 같은 state notify를 같이 갱신한다.
+            Update_PreviewRootControllerStates(0.f);
+            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 preview state notify를 같이 갱신한다.
         }
+    }
+
+    if (const AnimNotifyData* animationData = Get_CurrentAnimation())
+    {
+        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const float timelineMinX = sequencerRect.Min.x + 200.f;
+        const float timelineMaxX = sequencerRect.Max.x;
+        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
+        const int32 frameMax = max(1, Get_CurrentAnimationFrameMax());
+        const int32 fps = max(1, Get_CurrentAnimationFps());
+
+        const int32 startFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionStartSec(animationData) * static_cast<float>(fps))),
+            0,
+            frameMax);
+        const int32 endFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionEndSec(animationData) * static_cast<float>(fps))),
+            0,
+            frameMax);
+
+        const float startX = timelineMinX + timelineWidth * (static_cast<float>(startFrame) / static_cast<float>(frameMax));
+        const float endX = timelineMinX + timelineWidth * (static_cast<float>(endFrame) / static_cast<float>(frameMax));
+
+        const float markerY = sequencerRect.Min.y + 5.f;
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImU32 sectionOutside = IM_COL32(255, 72, 72, 24);
+        const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
+        const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
+
+        if (startX > timelineMinX)
+        {
+            drawList->AddRectFilled(
+                ImVec2(timelineMinX, sequencerRect.Min.y),
+                ImVec2(startX, sequencerRect.Max.y),
+                sectionOutside);
+        }
+
+        if (endX < timelineMaxX)
+        {
+            drawList->AddRectFilled(
+                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(timelineMaxX, sequencerRect.Max.y),
+                sectionOutside);
+        }
+
+        if (endX > startX)
+        {
+            drawList->AddLine(
+                ImVec2(startX, markerY),
+                ImVec2(endX, markerY),
+                sectionLine,
+                2.f);
+        }
+
+        drawList->AddLine(
+            ImVec2(startX, sequencerRect.Min.y),
+            ImVec2(startX, sequencerRect.Max.y),
+            sectionGuide,
+            1.f);
+
+        drawList->AddLine(
+            ImVec2(endX, sequencerRect.Min.y),
+            ImVec2(endX, sequencerRect.Max.y),
+            sectionGuide,
+            1.f);
     }
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
@@ -1430,12 +2159,50 @@ void Animation_View::Draw_SelectedDetail()
     if (AnimNotifyEventEntry* notify = Find_SelectedNotify())
     {
         if (notify->notify != nullptr)
-            Inspector::Draw_ReflectionSection("SelectedNotify", notify->notify.get(), notify->notify->Get_ReflectionInfo());
+        {
+            const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+            if (Inspector::Draw_ReflectionSection("SelectedNotify", notify->notify.get(), notify->notify->Get_ReflectionInfo()))
+            {
+                if (ImGui::IsAnyItemActive())
+                {
+                    if (!_hasPendingNotifyUndoSnapshot)
+                    {
+                        _pendingNotifyUndoSnapshot = undoSnapshot;
+                        _hasPendingNotifyUndoSnapshot = true;
+                    }
+                }
+                else
+                {
+                    Commit_NotifyUndoSnapshot(undoSnapshot);
+                }
+
+                _isDirty = true;
+            }
+        }
     }
     else if (AnimNotifyStateEntry* notifyState = Find_SelectedState())
     {
         if (notifyState->notifyState != nullptr)
-            Inspector::Draw_ReflectionSection("SelectedNotifyState", notifyState->notifyState.get(), notifyState->notifyState->Get_ReflectionInfo());
+        {
+            const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+            if (Inspector::Draw_ReflectionSection("SelectedNotifyState", notifyState->notifyState.get(), notifyState->notifyState->Get_ReflectionInfo()))
+            {
+                if (ImGui::IsAnyItemActive())
+                {
+                    if (!_hasPendingNotifyUndoSnapshot)
+                    {
+                        _pendingNotifyUndoSnapshot = undoSnapshot;
+                        _hasPendingNotifyUndoSnapshot = true;
+                    }
+                }
+                else
+                {
+                    Commit_NotifyUndoSnapshot(undoSnapshot);
+                }
+
+                _isDirty = true;
+            }
+        }
     }
     else if (playbackModel != nullptr && _selectedBoneIndex >= 0)
     {
@@ -1458,13 +2225,19 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
     ImGui::Separator();
     ImGui::TextUnformatted("Animation Modifiers");
 
-    if (playbackModel == nullptr)
+    Draw_LiveModelTargetSelector();
+
+    Shared<ModelCom> modifierModel = Get_ModifierRuntimeModel();
+    if (modifierModel == nullptr)
+        modifierModel = playbackModel;
+
+    if (modifierModel == nullptr)
     {
         ImGui::TextDisabled("No playback model.");
         return;
     }
 
-    const auto& modifiers = playbackModel->Get_Modifiers();
+    const auto& modifiers = modifierModel->Get_Modifiers();
     bool hasEditableModifier = false;
 
     for (const Shared<AnimationModifier>& modifier : modifiers)
@@ -1499,29 +2272,23 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
             if (modifier->Can_RuntimeResetPose())
             {
                 if (ImGui::Button("Reset Pose"))
-                    modifier->RuntimeResetPose(playbackModel.get());
+                    modifier->RuntimeResetPose(modifierModel.get());
             }
 
             if (modifier->Can_RuntimeRebuild())
             {
                 ImGui::SameLine();
                 if (ImGui::Button("Rebuild Chains"))
-                    modifier->RuntimeRebuild(playbackModel.get());
+                    modifier->RuntimeRebuild(modifierModel.get());
             }
 
             ImGui::Spacing();
-            for (const PropertyInfo& property : reflectionInfo->properties)
-            {
-                if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, property))
-                    modifier->On_RuntimeReflectionChanged(playbackModel.get(), property);
-
-                ImGui::Spacing();
-            }
+            Draw_ModifierRuntimeProperties(modifier.get(), modifierModel.get(), reflectionInfo, reflectionTarget);
 
             if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
             {
                 const size_t groupCount = chainModifier->Get_RuntimeGroupCount();
-                if (groupCount > 0 && ImGui::TreeNodeEx("Group Root Offsets", ImGuiTreeNodeFlags_DefaultOpen))
+                if (groupCount > 0 && ImGui::TreeNode("Group Root Offsets"))
                 {
                     ImGui::TextDisabled("Root rotation applies while dragging. Use Rebuild only if bind rest must refresh.");
                     for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
@@ -1541,12 +2308,168 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                     }
                     ImGui::TreePop();
                 }
+
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* chainDesc = static_cast<ChainModifier::ChainModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    if (chainDesc != nullptr && chainDesc->motion.maxMovementOffset <= 0.0001f)
+                    {
+                        ImGui::TextColored(ImVec4(1.f, 0.68f, 0.25f, 1.f), "Move Limit is 0, so test motion is clamped.");
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 1.f;
+                        if (chainDesc != nullptr)
+                        {
+                            const float resetLimit = chainDesc->runtime.resetDistance > 0.1f ? chainDesc->runtime.resetDistance * 0.8f : 1.f;
+                            const float ownerScale = std::max(chainDesc->motion.ownerMovementInertiaScale, 0.001f);
+                            visibleDelta = std::clamp(0.05f / ownerScale, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (chainDesc != nullptr)
+                    {
+                        const float estimatedMotion = _modifierPreviewMotionTestDelta * chainDesc->motion.ownerMovementInertiaScale;
+                        ImGui::TextDisabled("Effective owner input: %.3f", estimatedMotion);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
             }
 
             if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
             {
+                bool debugThisModifier = _showModifierChainDebug
+                    && _modifierChainDebugTag == modifier->Get_ModifierTag();
+                if (ImGui::Checkbox("Debug Chains", &debugThisModifier))
+                {
+                    _showModifierChainDebug = debugThisModifier;
+                    _modifierChainDebugTag = debugThisModifier ? modifier->Get_ModifierTag() : wstring{};
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("Blue: pose, green/yellow: output, red: no output");
+
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* poseDesc = static_cast<PoseFollowChainModifier::PoseFollowChainModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            poseFollowModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    if (poseDesc != nullptr && poseDesc->maxExternalOffset <= 0.0001f)
+                    {
+                        ImGui::TextColored(ImVec4(1.f, 0.68f, 0.25f, 1.f), "Move Limit is 0, so test motion is clamped.");
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 1.f;
+                        if (poseDesc != nullptr)
+                        {
+                            const float resetLimit = poseDesc->resetDistance > 0.1f ? poseDesc->resetDistance * 0.8f : 1.f;
+                            const float ownerScale = std::max(poseDesc->ownerMotionScale, 0.001f);
+                            visibleDelta = std::clamp(0.05f / ownerScale, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (poseDesc != nullptr)
+                    {
+                        const float estimatedMotion = _modifierPreviewMotionTestDelta * poseDesc->ownerMotionScale;
+                        ImGui::TextDisabled("Effective owner input: %.3f", estimatedMotion);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        poseFollowModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
+
                 const size_t groupCount = poseFollowModifier->Get_RuntimeGroupCount();
-                if (groupCount > 0 && ImGui::TreeNodeEx("Group Multipliers", ImGuiTreeNodeFlags_DefaultOpen))
+                if (groupCount > 0 && ImGui::TreeNode("Group Multipliers"))
                 {
                     ImGui::TextDisabled("X: Wind, Y: Motion, Z: Follow");
                     for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
@@ -1573,6 +2496,127 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
 
     if (!hasEditableModifier)
         ImGui::TextDisabled("No ChainModifier or PoseFollowChainModifier on this model.");
+}
+
+void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (!_modifierPreviewMotionTestEnabled)
+    {
+        _modifierPreviewMotionTestAppliedCount = 0;
+        return;
+    }
+
+    Shared<ModelCom> selectedModel = Get_ModifierRuntimeModel();
+
+    vector<Shared<ModelCom>> modifierModels{};
+    auto addModifierModel = [&](const Shared<ModelCom>& model)
+    {
+        if (model == nullptr)
+            return;
+
+        const auto exists = std::find_if(
+            modifierModels.begin(),
+            modifierModels.end(),
+            [&](const Shared<ModelCom>& existing)
+            {
+                return existing.get() == model.get();
+            });
+
+        if (exists == modifierModels.end())
+            modifierModels.push_back(model);
+    };
+
+    if (_sourceMode == SourceMode::LiveModel && !_liveModelTargets.empty())
+    {
+        for (const LiveModelTarget& target : _liveModelTargets)
+        {
+            Shared<ModelCom> targetModel = target.model;
+            if (_previewRootObject != nullptr)
+            {
+                const Shared<GameObject> previewOwner =
+                    PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
+                Shared<ModelCom> previewModel{};
+                if (previewOwner != nullptr && !target.componentTag.empty())
+                    previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
+
+                if (previewModel == nullptr)
+                    previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
+
+                if (previewModel != nullptr)
+                {
+                    targetModel = previewModel;
+                }
+            }
+
+            addModifierModel(targetModel);
+        }
+    }
+    else
+    {
+        addModifierModel(Get_PlaybackModel());
+    }
+
+    addModifierModel(selectedModel);
+
+    _modifierPreviewMotionTestAppliedCount = 0;
+
+    Vec3 testDelta = Vec3::Zero;
+    if (_modifierPreviewMotionTestEnabled)
+    {
+        Vec3 direction = _modifierPreviewMotionTestDirection;
+        const float directionLength = direction.Length();
+        if (directionLength > 0.0001f)
+            direction /= directionLength;
+        else
+            direction = Vec3(1.f, 0.f, 0.f);
+
+        float wave = 1.f;
+        if (_modifierPreviewMotionTestOscillate)
+        {
+            constexpr float kTwoPi = 6.28318530718f;
+            const float frequency = std::max(0.f, _modifierPreviewMotionTestFrequency);
+            wave = static_cast<float>(std::sin(ImGui::GetTime() * kTwoPi * frequency));
+        }
+
+        testDelta = direction * (_modifierPreviewMotionTestDelta * wave);
+    }
+
+    for (const Shared<ModelCom>& model : modifierModels)
+    {
+        if (model == nullptr)
+            continue;
+
+        for (const Shared<AnimationModifier>& modifier : model->Get_Modifiers())
+        {
+            if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    chainModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                chainModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+
+            if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    poseFollowModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                poseFollowModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+        }
+    }
 }
 
 void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel)
@@ -1874,6 +2918,8 @@ void Animation_View::Add_NotifyTrack(const string& trackName)
     if (animationData == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     AnimNotifyTrackDesc trackDesc{};
     trackDesc.name = trackName.empty()
         ? "Notify"
@@ -1882,6 +2928,7 @@ void Animation_View::Add_NotifyTrack(const string& trackName)
     animationData->notifyTracks.push_back(trackDesc);
     _selectedNotifyTrackIndex = static_cast<int32>(animationData->notifyTracks.size()) - 1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_NotifyStateTrack(const string& trackName)
@@ -1889,6 +2936,8 @@ void Animation_View::Add_NotifyStateTrack(const string& trackName)
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr)
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     AnimNotifyTrackDesc trackDesc{};
     trackDesc.name = trackName.empty()
@@ -1898,6 +2947,7 @@ void Animation_View::Add_NotifyStateTrack(const string& trackName)
     animationData->notifyStateTracks.push_back(trackDesc);
     _selectedNotifyStateTrackIndex = static_cast<int32>(animationData->notifyStateTracks.size()) - 1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
@@ -1910,8 +2960,10 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
     if (notifyInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyTracks.empty())
-        Add_NotifyTrack("Notify");
+        animationData->notifyTracks.push_back({ "Notify" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
@@ -1931,6 +2983,7 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
     _selectedNotifyId = createdId;
     _selectedNotifyTrackIndex = std::clamp(_sequencerContextHasTrack && !_sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, const string& typeName)
@@ -1943,8 +2996,10 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
     if (notifyStateInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyStateTracks.empty())
-        Add_NotifyStateTrack("Notify State");
+        animationData->notifyStateTracks.push_back({ "Notify State" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 minFrame = min(startFrame, endFrame);
@@ -1963,6 +3018,7 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
     _selectedStateId = createdId;
     _selectedNotifyStateTrackIndex = std::clamp(_sequencerContextHasTrack && _sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Delete_SelectedNotify()
@@ -1970,6 +3026,8 @@ void Animation_View::Delete_SelectedNotify()
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr || _selectedNotifyIds.empty())
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     auto it = std::remove_if(
         animationData->notifies.begin(),
@@ -1984,6 +3042,7 @@ void Animation_View::Delete_SelectedNotify()
         animationData->notifies.erase(it, animationData->notifies.end());
         Clear_SelectedNotifySelection();
         _isDirty = true;
+        Commit_NotifyUndoSnapshot(undoSnapshot);
     }
 }
 
@@ -1992,6 +3051,8 @@ void Animation_View::Delete_SelectedState()
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr || _selectedStateId == -1)
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     auto it = std::remove_if(
         animationData->notifyStates.begin(),
@@ -2006,6 +3067,7 @@ void Animation_View::Delete_SelectedState()
         animationData->notifyStates.erase(it, animationData->notifyStates.end());
         _selectedStateId = -1;
         _isDirty = true;
+        Commit_NotifyUndoSnapshot(undoSnapshot);
     }
 }
 
@@ -2018,11 +3080,14 @@ void Animation_View::Delete_SelectedNotifyTrack()
     if (_selectedNotifyTrackIndex < 0 || _selectedNotifyTrackIndex >= static_cast<int32>(animationData->notifyTracks.size()))
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     Remove_NotifyTrackEntries(*animationData, _selectedNotifyTrackIndex);
     animationData->notifyTracks.erase(animationData->notifyTracks.begin() + _selectedNotifyTrackIndex);
     _selectedNotifyTrackIndex = animationData->notifyTracks.empty() ? 0 : min(_selectedNotifyTrackIndex, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     Clear_SelectedNotifySelection();
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Delete_SelectedNotifyStateTrack()
@@ -2034,11 +3099,149 @@ void Animation_View::Delete_SelectedNotifyStateTrack()
     if (_selectedNotifyStateTrackIndex < 0 || _selectedNotifyStateTrackIndex >= static_cast<int32>(animationData->notifyStateTracks.size()))
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     Remove_NotifyStateTrackEntries(*animationData, _selectedNotifyStateTrackIndex);
     animationData->notifyStateTracks.erase(animationData->notifyStateTracks.begin() + _selectedNotifyStateTrackIndex);
     _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty() ? 0 : min(_selectedNotifyStateTrackIndex, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
     _selectedStateId = -1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
+}
+
+Animation_View::NotifyUndoSnapshot Animation_View::Capture_NotifyUndoSnapshot() const
+{
+    NotifyUndoSnapshot snapshot{};
+    snapshot.assetJson = AnimNotify_Parser::To_Json(_asset);
+    snapshot.currentAnimationName = _currentAnimationName;
+    snapshot.selectedNotifyId = _selectedNotifyId;
+    snapshot.selectedStateId = _selectedStateId;
+    snapshot.selectedNotifyTrackIndex = _selectedNotifyTrackIndex;
+    snapshot.selectedNotifyStateTrackIndex = _selectedNotifyStateTrackIndex;
+    snapshot.sequencerCurrentFrame = _sequencerCurrentFrame;
+    snapshot.selectedNotifyIds.assign(_selectedNotifyIds.begin(), _selectedNotifyIds.end());
+    return snapshot;
+}
+
+void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    AnimNotifyAsset restoredAsset{};
+    if (!AnimNotify_Parser::From_Json(snapshot.assetJson, restoredAsset))
+        return;
+
+    _asset = std::move(restoredAsset);
+    if (_asset.modelGuid.empty())
+        _asset.modelGuid = _modelGuid;
+
+    _currentAnimationName = snapshot.currentAnimationName;
+    if (!_currentAnimationName.empty())
+    {
+        if (const AnimationEntry* entry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName))
+            _currentAnimationName = entry->displayName;
+    }
+
+    _selectedNotifyId = snapshot.selectedNotifyId;
+    _selectedStateId = snapshot.selectedStateId;
+    _selectedNotifyTrackIndex = snapshot.selectedNotifyTrackIndex;
+    _selectedNotifyStateTrackIndex = snapshot.selectedNotifyStateTrackIndex;
+    _sequencerCurrentFrame = snapshot.sequencerCurrentFrame;
+
+    _selectedNotifyIds.clear();
+    for (const int32 notifyId : snapshot.selectedNotifyIds)
+        _selectedNotifyIds.insert(notifyId);
+
+    if (Find_SelectedNotify() == nullptr)
+        Clear_SelectedNotifySelection();
+
+    if (Find_SelectedState() == nullptr)
+        _selectedStateId = -1;
+
+    if (AnimNotifyData* animationData = Get_CurrentAnimation())
+    {
+        _selectedNotifyTrackIndex = animationData->notifyTracks.empty()
+            ? 0
+            : std::clamp(_selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+        _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty()
+            ? 0
+            : std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
+    }
+
+    Reset_PreviewAnimSpeedStates();
+    Reset_PreviewPlayEffectStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
+    Reset_PreviewSourceHistoryEffect();
+    Reset_PreviewTrailEffect();
+    Reset_PreviewWeaponRotateStates();
+
+    _isDirty = true;
+}
+
+void Animation_View::Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    const NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    if (snapshot.assetJson == currentSnapshot.assetJson)
+        return;
+
+    static constexpr size_t MaxUndoCount = 64;
+    _notifyUndoStack.push_back(snapshot);
+    if (_notifyUndoStack.size() > MaxUndoCount)
+        _notifyUndoStack.erase(_notifyUndoStack.begin());
+
+    _notifyRedoStack.clear();
+}
+
+void Animation_View::Begin_PendingNotifyUndo()
+{
+    if (_hasPendingNotifyUndoSnapshot)
+        return;
+
+    _pendingNotifyUndoSnapshot = Capture_NotifyUndoSnapshot();
+    _hasPendingNotifyUndoSnapshot = true;
+}
+
+void Animation_View::Commit_PendingNotifyUndo()
+{
+    if (!_hasPendingNotifyUndoSnapshot)
+        return;
+
+    Commit_NotifyUndoSnapshot(_pendingNotifyUndoSnapshot);
+    _pendingNotifyUndoSnapshot = {};
+    _hasPendingNotifyUndoSnapshot = false;
+}
+
+void Animation_View::Clear_NotifyUndoHistory()
+{
+    _notifyUndoStack.clear();
+    _notifyRedoStack.clear();
+    _pendingNotifyUndoSnapshot = {};
+    _hasPendingNotifyUndoSnapshot = false;
+}
+
+void Animation_View::Undo_NotifyEdit()
+{
+    if (_notifyUndoStack.empty())
+        return;
+
+    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    NotifyUndoSnapshot undoSnapshot = std::move(_notifyUndoStack.back());
+    _notifyUndoStack.pop_back();
+    _notifyRedoStack.push_back(std::move(currentSnapshot));
+
+    Restore_NotifyUndoSnapshot(undoSnapshot);
+}
+
+void Animation_View::Redo_NotifyEdit()
+{
+    if (_notifyRedoStack.empty())
+        return;
+
+    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    NotifyUndoSnapshot redoSnapshot = std::move(_notifyRedoStack.back());
+    _notifyRedoStack.pop_back();
+    _notifyUndoStack.push_back(std::move(currentSnapshot));
+
+    Restore_NotifyUndoSnapshot(redoSnapshot);
 }
 
 void Animation_View::Handle_ClipboardShortcuts()
@@ -2078,6 +3281,18 @@ void Animation_View::Handle_ClipboardShortcuts()
 
     if (!io.KeyCtrl)
         return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Z, false))
+    {
+        Undo_NotifyEdit();
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Y, false))
+    {
+        Redo_NotifyEdit();
+        return;
+    }
 
     if (ImGui::IsKeyPressed(ImGuiKey_C, false))
     {
@@ -2135,6 +3350,8 @@ void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
     if (clampedDelta == 0)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     float primaryTimeSec = -1.f;
     for (const auto& [entry, frame] : selectedEntries)
     {
@@ -2167,6 +3384,7 @@ void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
     }
 
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
@@ -2193,6 +3411,8 @@ void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
     if (clampedDelta == 0)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     const int32 movedStartFrame = startFrame + clampedDelta;
     selectedState->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
 
@@ -2210,6 +3430,7 @@ void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
     }
 
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Copy_SelectedNotify()
@@ -2273,8 +3494,10 @@ void Animation_View::Paste_CopiedNotify()
     if (animationData == nullptr || _copiedNotifies.empty())
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyTracks.empty())
-        Add_NotifyTrack("Notify");
+        animationData->notifyTracks.push_back({ "Notify" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const float pasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
@@ -2314,6 +3537,8 @@ void Animation_View::Paste_CopiedNotify()
 
     if (!_selectedNotifyIds.empty())
         NOTIFY("노티파이 붙여넣기: {}개", static_cast<int32>(_selectedNotifyIds.size()));
+
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Paste_CopiedState()
@@ -2326,10 +3551,12 @@ void Animation_View::Paste_CopiedState()
     if (notifyStateInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     notifyStateInstance->From_Json(_copiedNotifyState.payload);
 
     if (animationData->notifyStateTracks.empty())
-        Add_NotifyStateTrack("Notify State");
+        animationData->notifyStateTracks.push_back({ "Notify State" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 trackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
@@ -2351,6 +3578,7 @@ void Animation_View::Paste_CopiedState()
     _isDirty = true;
 
     NOTIFY("노티파이 스테이트 붙여넣기: {}", _copiedNotifyState.typeName);
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex)
@@ -2399,19 +3627,34 @@ bool Animation_View::Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin
 
 void Animation_View::Draw_CreateNotifyPopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyPopup;
+
     if (_openCreateNotifyPopup)
     {
         _openCreateNotifyPopup = false;
+        _createNotifyFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyPopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyPopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifySearch", "Search notify...", _createNotifyFilter, IM_ARRAYSIZE(_createNotifyFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyTypes([&](const TypeRegistry::AnimNotifyTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_Notify_AtFrame(_requestedCreateNotifyFrame, info.className);
@@ -2421,25 +3664,42 @@ void Animation_View::Draw_CreateNotifyPopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotify types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotify types.");
 
     ImGui::EndPopup();
 }
 
 void Animation_View::Draw_CreateNotifyStatePopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyStatePopup;
+
     if (_openCreateNotifyStatePopup)
     {
         _openCreateNotifyStatePopup = false;
+        _createNotifyStateFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyStatePopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyStatePopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifyStateSearch", "Search notify state...", _createNotifyStateFilter, IM_ARRAYSIZE(_createNotifyStateFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyStateTypes([&](const TypeRegistry::AnimNotifyStateTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyStateFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_State_ByFrameRange(_requestedCreateStateStartFrame, _requestedCreateStateEndFrame, info.className);
@@ -2449,6 +3709,8 @@ void Animation_View::Draw_CreateNotifyStatePopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotifyState types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotifyState types.");
 
     ImGui::EndPopup();
 }
@@ -2511,6 +3773,37 @@ Shared<ModelCom> Animation_View::Get_PlaybackModel() const
         return _previewModelCom;
 
     return _liveModelCom;
+}
+
+Shared<ModelCom> Animation_View::Get_ModifierRuntimeModel() const
+{
+    if (_sourceMode != SourceMode::LiveModel ||
+        _selectedLiveModelTargetIndex < 0 ||
+        _selectedLiveModelTargetIndex >= static_cast<int32>(_liveModelTargets.size()))
+    {
+        return Get_PlaybackModel();
+    }
+
+    const LiveModelTarget& target = _liveModelTargets[_selectedLiveModelTargetIndex];
+
+    if (_previewRootObject != nullptr)
+    {
+        const Shared<GameObject> previewOwner =
+            PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
+        Shared<ModelCom> previewModel{};
+        if (previewOwner != nullptr && !target.componentTag.empty())
+            previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
+
+        if (previewModel == nullptr)
+            previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
+
+        if (previewModel != nullptr)
+        {
+            return previewModel;
+        }
+    }
+
+    return target.model != nullptr ? target.model : Get_PlaybackModel();
 }
 
 bool Animation_View::Try_GetTrailSample(EffectTrailSample& outSample) const
@@ -2892,6 +4185,149 @@ void Animation_View::Reset_PreviewSLDodgeMoveStates()
     }
 
     _previewSLDodgeMoveRuntimes.clear();
+}
+
+void Animation_View::Update_PreviewRootControllerStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_RootController")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewRootControllerRuntimes.begin(),
+            _previewRootControllerRuntimes.end(),
+            [&](const PreviewRootControllerRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewRootControllerRuntimes.end())
+        {
+            PreviewRootControllerRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewRootControllerRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            entry.notifyState->On_Tick(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+
+        entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewRootControllerRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewRootControllerRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewRootControllerRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            endContext.notifyStateDurationSec = 0.f;
+            _previewRootControllerRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewRootControllerRuntimes.erase(_previewRootControllerRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewRootControllerStates()
+{
+    if (_previewRootControllerRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.notifyStateDurationSec = 0.f;
+    context.isPreview = true;
+
+    for (PreviewRootControllerRuntime& runtime : _previewRootControllerRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewRootControllerRuntimes.clear();
 }
 
 void Animation_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
@@ -3307,6 +4743,145 @@ void Animation_View::Draw_SelectedBoneMarker() const
     drawAxisLine(rightAxis * axisLength, DirectX::Colors::Red);
     drawAxisLine(upAxis * axisLength, DirectX::Colors::Lime);
     drawAxisLine(forwardAxis * axisLength, DirectX::Colors::DeepSkyBlue);
+
+    _previewGridBatch->End();
+}
+
+void Animation_View::Draw_ModifierChainDebug() const
+{
+    if (!_showModifierChainDebug)
+        return;
+
+    Shared<ModelCom> modifierModel = Get_ModifierRuntimeModel();
+    if (modifierModel == nullptr)
+        return;
+
+    PoseFollowChainModifier* poseFollowModifier = nullptr;
+    for (const Shared<AnimationModifier>& modifier : modifierModel->Get_Modifiers())
+    {
+        if (modifier == nullptr || modifier->Get_ModifierTag() != _modifierChainDebugTag)
+            continue;
+
+        poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get());
+        if (poseFollowModifier != nullptr)
+            break;
+    }
+
+    if (poseFollowModifier == nullptr)
+        return;
+
+    vector<PoseFollowChainModifier::RuntimeDebugNode> nodes{};
+    poseFollowModifier->Build_RuntimeDebugNodes(modifierModel.get(), nodes);
+    if (nodes.empty())
+        return;
+
+    Matrix debugCorrection = Matrix::Identity;
+    if (const Shared<GameObject> modelOwner = modifierModel->Get_Owner())
+    {
+        if (const Shared<PartObject> partOwner = dynamic_pointer_cast<PartObject>(modelOwner))
+        {
+            Matrix sourceWorld = Matrix::Identity;
+            if (const Shared<GameObject> parentOwner = partOwner->Get_Owner())
+            {
+                if (const Shared<TransformCom> parentTransform = parentOwner->Get_Transform())
+                    sourceWorld = parentTransform->Get_WorldMatrix();
+            }
+
+            debugCorrection = sourceWorld.Invert() * partOwner->Get_CombinedWorldMatrix();
+        }
+    }
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    unordered_map<size_t, size_t> nodeLookup{};
+    nodeLookup.reserve(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i)
+    {
+        const uint64 key = (static_cast<uint64>(nodes[i].groupIndex) << 32) | static_cast<uint32>(nodes[i].nodeIndex);
+        nodeLookup.emplace(static_cast<size_t>(key), i);
+    }
+
+    const auto findNode =
+        [&](size_t groupIndex, int32 nodeIndex) -> const PoseFollowChainModifier::RuntimeDebugNode*
+    {
+        if (nodeIndex < 0)
+            return nullptr;
+
+        const uint64 key = (static_cast<uint64>(groupIndex) << 32) | static_cast<uint32>(nodeIndex);
+        const auto it = nodeLookup.find(static_cast<size_t>(key));
+        if (it == nodeLookup.end())
+            return nullptr;
+
+        return &nodes[it->second];
+    };
+
+    const auto drawLine =
+        [&](const Vec3& start, const Vec3& end, const XMVECTORF32& color)
+    {
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(Vec3::Transform(start, debugCorrection), color),
+            DirectX::VertexPositionColor(Vec3::Transform(end, debugCorrection), color));
+    };
+
+    const auto drawCross =
+        [&](const Vec3& center, float radius, const XMVECTORF32& color)
+    {
+        drawLine(center + Vec3(-radius, 0.f, 0.f), center + Vec3(radius, 0.f, 0.f), color);
+        drawLine(center + Vec3(0.f, -radius, 0.f), center + Vec3(0.f, radius, 0.f), color);
+        drawLine(center + Vec3(0.f, 0.f, -radius), center + Vec3(0.f, 0.f, radius), color);
+    };
+
+    _previewGridBatch->Begin();
+
+    for (const auto& node : nodes)
+    {
+        const auto* parent = findNode(node.groupIndex, node.parentNodeIndex);
+        if (parent != nullptr)
+        {
+            drawLine(parent->posePosition, node.posePosition, DirectX::Colors::DeepSkyBlue);
+
+            const float writeAlpha = std::clamp(node.writeAlpha, 0.f, 1.f);
+            XMVECTORF32 simulatedColor = DirectX::Colors::Red;
+            if (node.isVirtualAnchor)
+                simulatedColor = DirectX::Colors::Gray;
+            else if (writeAlpha > 0.02f)
+                simulatedColor = XMVECTORF32{ { 1.f - writeAlpha, 1.f, 0.10f, 1.f } };
+
+            drawLine(parent->simulatedPosition, node.simulatedPosition, simulatedColor);
+        }
+
+        const float pointRadius = node.isRootNode ? 0.055f : 0.035f;
+        XMVECTORF32 pointColor = DirectX::Colors::Lime;
+        if (node.isVirtualAnchor)
+            pointColor = DirectX::Colors::Gray;
+        else if (node.writeAlpha <= 0.02f)
+            pointColor = DirectX::Colors::Red;
+        else if (node.isRootNode)
+            pointColor = DirectX::Colors::Orange;
+
+        drawCross(node.simulatedPosition, pointRadius, pointColor);
+    }
 
     _previewGridBatch->End();
 }

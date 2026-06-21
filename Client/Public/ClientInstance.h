@@ -32,6 +32,7 @@ class PlayerInventory;
 class CostumeManager;
 
 class SoulLikeController;
+class Unlock_Manager;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -223,6 +224,9 @@ public: /* SoulLike */
     bool Is_SoulLikeBattleActive() const;
     bool Is_WorldControlSuspended() const;
 
+public: /* Unlock Manager */
+    Unlock_Manager* Get_UnlockManager() const { return _unlockManager.get(); }
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -259,8 +263,9 @@ private:
     Shared<PlayerInventory>     _playerInventory;
 
     Unique<CostumeManager>      _costumeManager;
+    Shared<SoulLikeController> _soulLikeController;
 
-    Shared<SoulLikeController> _soulLikeController{};
+    Unique<Unlock_Manager>      _unlockManager;
 
 public:
 	void Free() override;

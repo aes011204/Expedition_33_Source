@@ -41,13 +41,13 @@ HRESULT MB_Simon::Initialize(void* arg)
     //_body->Set_Animation("Simon_Idle", 0.3f, true);
 
     _combatStat->Set_Skill("Simon_SwordGround");
-    _combatStat->Set_Skill("Simon_Debuff");
-    _combatStat->Set_Skill("Simon_Strong_Combo");
-    _combatStat->Set_Skill("Simon_Long_Combo");
-    _combatStat->Set_Skill("Simon_Short_Combo");
+    //_combatStat->Set_Skill("Simon_Debuff");
+    //_combatStat->Set_Skill("Simon_Strong_Combo");
+    //_combatStat->Set_Skill("Simon_Long_Combo");
+    //_combatStat->Set_Skill("Simon_Short_Combo");
     //_combatStat->Set_Skill("Simon_Berserk");
     _combatStat->Set_Skill("Simon_LightSpeed");
-    _combatStat->Set_Skill("Simon_Sword_Att");
+    //_combatStat->Set_Skill("Simon_Sword_Att");
 
     return S_OK;
 }
@@ -89,7 +89,7 @@ HRESULT MB_Simon::Ready_PartObjects()
 
     Mon_Simon_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = ModelType::Anim;
+    weaponDesc.modelType = ModelType::NonAnim;
     weaponDesc.modelTag = L"Model_Simon_Weapon";
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
