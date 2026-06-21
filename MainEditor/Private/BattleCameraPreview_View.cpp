@@ -1590,6 +1590,7 @@ void BattleCameraPreview_View::Render_PreviewPanel()
     }
 
     Render_BattlePresetEditor();
+    Render_SoulLikeSkillPresetEditor();
 
     ImGui::EndChild();
 }
@@ -1965,6 +1966,104 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
 
         _battlePresetDirty = true;
         _battleDriftDirty = true;
+        _previewDirty = true;
+    }
+}
+
+void BattleCameraPreview_View::Render_SoulLikeSkillPresetEditor()
+{
+    const string selectedSkillId = Get_SelectedSkillId();
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextDisabled("SoulLike Skill Camera");
+
+    if (selectedSkillId.empty())
+    {
+        ImGui::TextDisabled("Select a skill override to edit CameraPreset_SOULLIKE_<SkillKey>.json.");
+        return;
+    }
+
+    if (!_hasLoadedSoulLikeSkillPreset || _loadedSoulLikeSkillPresetId != selectedSkillId)
+        Load_SoulLikeSkillPresetForCurrentSkill();
+
+    ImGui::Text("Editing Skill : %s", selectedSkillId.c_str());
+    if (ImGui::Checkbox("Preview SoulLike Skill Camera", &_previewSoulLikeSkillCameraEnabled))
+        _previewDirty = true;
+
+    if (ImGui::Button("Load Skill SoulLike Preset"))
+    {
+        Load_SoulLikeSkillPresetForCurrentSkill();
+        _previewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load Base SoulLike Preset"))
+    {
+        Load_SoulLikeSkillPresetForCurrentSkill(true);
+        _previewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save SoulLike Skill Preset"))
+    {
+        Client::CameraPresetIO::SaveSoulLikeSkillPresetToFile(selectedSkillId, _editingSoulLikeSkillPreset);
+        _soulLikeSkillPresetDirty = false;
+    }
+
+    ImGui::TextDisabled(
+        "Saved file : CameraPreset_SOULLIKE_%s.json%s",
+        selectedSkillId.c_str(),
+        _soulLikeSkillPresetDirty ? " *" : "");
+
+    bool changed = false;
+    auto dragFloat = [&changed](const char* label, float& value, float speed, float minValue, float maxValue, const char* format = "%.3f")
+    {
+        ImGui::SetNextItemWidth(kPresetInputWidth);
+        if (ImGui::DragFloat(label, &value, speed, minValue, maxValue, format))
+            changed = true;
+    };
+
+    float fovDeg = XMConvertToDegrees(_editingSoulLikeSkillPreset.camera.fovy);
+    ImGui::SetNextItemWidth(kPresetInputWidth);
+    if (ImGui::DragFloat("SL FOV Deg", &fovDeg, 0.1f, 10.f, 120.f, "%.2f"))
+    {
+        _editingSoulLikeSkillPreset.camera.fovy = XMConvertToRadians(fovDeg);
+        changed = true;
+    }
+
+    dragFloat("SL Distance", _editingSoulLikeSkillPreset.distance, 0.01f, 0.1f, 50.f);
+    dragFloat("SL Side Offset", _editingSoulLikeSkillPreset.sideOffset, 0.01f, -20.f, 20.f);
+    dragFloat("SL Height Offset", _editingSoulLikeSkillPreset.heightOffset, 0.01f, -20.f, 20.f);
+    dragFloat("SL Aim Offset", _editingSoulLikeSkillPreset.aimOffset, 0.01f, -20.f, 20.f);
+    dragFloat("SL Look Height", _editingSoulLikeSkillPreset.lookHeight, 0.01f, -10.f, 20.f);
+    dragFloat("SL Pivot Height", _editingSoulLikeSkillPreset.pivotHeight, 0.01f, -10.f, 20.f);
+
+    ImGui::Separator();
+    dragFloat("SL Yaw Offset", _editingSoulLikeSkillPreset.yawOffset, 0.05f, -360.f, 360.f);
+    dragFloat("SL Pitch Offset", _editingSoulLikeSkillPreset.pitchOffset, 0.05f, -89.f, 89.f);
+    dragFloat("SL Roll Offset", _editingSoulLikeSkillPreset.rollOffset, 0.001f, -XM_PI, XM_PI);
+
+    ImGui::Separator();
+    dragFloat("SL Follow Speed", _editingSoulLikeSkillPreset.followSpeed, 0.01f, 0.f, 30.f);
+    dragFloat("SL Target Follow Speed", _editingSoulLikeSkillPreset.targetFollowSpeed, 0.01f, 0.f, 30.f);
+    dragFloat("SL Vertical Follow Speed", _editingSoulLikeSkillPreset.verticalFollowSpeed, 0.01f, 0.f, 30.f);
+    ImGui::SetNextItemWidth(kPresetInputWidth);
+    if (Select_EnumCombo("SL Target Follow Easing", _editingSoulLikeSkillPreset.targetFollowEasing, kPresetInputWidth))
+        changed = true;
+
+    dragFloat("SL Near Plane", _editingSoulLikeSkillPreset.camera.nearPlane, 0.001f, 0.001f, 10.f);
+    dragFloat("SL Far Plane", _editingSoulLikeSkillPreset.camera.farPlane, 1.f, 10.f, 5000.f, "%.1f");
+
+    if (ImGui::Checkbox("SL Snap On Enter", &_editingSoulLikeSkillPreset.snapOnEnter))
+        changed = true;
+
+    if (ImGui::Checkbox("SL Allow Mouse Rotation", &_editingSoulLikeSkillPreset.allowMouseRotation))
+        changed = true;
+
+    if (changed)
+    {
+        _soulLikeSkillPresetDirty = true;
         _previewDirty = true;
     }
 }
@@ -2889,7 +2988,10 @@ void BattleCameraPreview_View::Apply_PreviewContext()
     Sync_BattleClipFrameFromPreviewTime();
     Apply_PreviewAnimation(_previewContext.timeSec);
     Update_PreviewAttackActorMotion(_previewContext.timeSec);
-    Apply_BattleCameraPreviewPose(_previewContext.timeSec);
+    if (_previewSoulLikeSkillCameraEnabled && !Get_SelectedSkillId().empty())
+        Apply_SoulLikeSkillPreviewPose();
+    else
+        Apply_BattleCameraPreviewPose(_previewContext.timeSec);
     _previewDirty = false;
 }
 
@@ -3131,6 +3233,66 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
     }
 }
 
+void BattleCameraPreview_View::Apply_SoulLikeSkillPreviewPose()
+{
+    if (_previewCamera == nullptr)
+        return;
+
+    const string selectedSkillId = Get_SelectedSkillId();
+    if (selectedSkillId.empty())
+        return;
+
+    if (!_hasLoadedSoulLikeSkillPreset || _loadedSoulLikeSkillPresetId != selectedSkillId)
+        Load_SoulLikeSkillPresetForCurrentSkill();
+
+    const TargetCameraPreset& preset = _editingSoulLikeSkillPreset;
+
+    Vec3 subjectPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
+    if (Shared<GameObject> subjectObject = Resolve_PreviewBattleActor(_previewContext.subjectSide))
+    {
+        if (Shared<TransformCom> transform = subjectObject->Get_Transform())
+            subjectPos = transform->Get_WorldPosition();
+    }
+
+    const float finalYaw = Get_PreviewBattlePlaneYaw() + preset.yawOffset;
+    const float finalPitch = preset.pitchOffset;
+
+    const float yawRad = XMConvertToRadians(finalYaw);
+    const float pitchRad = XMConvertToRadians(finalPitch);
+
+    Vec3 backDir;
+    backDir.x = -sinf(yawRad);
+    backDir.y = 0.f;
+    backDir.z = -cosf(yawRad);
+    backDir.Normalize();
+
+    Vec3 rightDir;
+    rightDir.x = cosf(yawRad);
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(yawRad);
+    rightDir.Normalize();
+
+    const Vec3 baseOffset = backDir * preset.distance;
+    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
+    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+
+    const Vec3 pivotPos = subjectPos + Vec3::Up * preset.pivotHeight;
+    const Vec3 framingPos = pivotPos + rightDir * preset.aimOffset;
+    const Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * preset.heightOffset + rightDir * preset.sideOffset;
+    const Vec3 lookTarget = framingPos + Vec3::Up * preset.lookHeight;
+
+    _previewCamera->Set_FovY(preset.camera.fovy);
+    _previewCamera->Set_Near(preset.camera.nearPlane);
+    _previewCamera->Set_Far(preset.camera.farPlane);
+
+    if (Shared<TransformCom> transform = _previewCamera->Get_Transform())
+    {
+        transform->Set_WorldPosition(desiredPos);
+        transform->LookAt(lookTarget);
+        transform->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, preset.rollOffset));
+    }
+}
+
 float BattleCameraPreview_View::Get_CurrentPreviewAnimationDurationSec() const
 {
     if (_useSkillShotTimeline)
@@ -3294,6 +3456,28 @@ void BattleCameraPreview_View::Load_BattlePresetForMode(BattleCameraMode mode, b
 void BattleCameraPreview_View::Load_BattlePresetForCurrentMode(bool loadBase)
 {
     Load_BattlePresetForMode(_previewContext.mode, loadBase);
+}
+
+void BattleCameraPreview_View::Load_SoulLikeSkillPresetForCurrentSkill(bool loadBase)
+{
+    const string selectedSkillId = Get_SelectedSkillId();
+    if (selectedSkillId.empty())
+    {
+        _hasLoadedSoulLikeSkillPreset = false;
+        _loadedSoulLikeSkillPresetId.clear();
+        _soulLikeSkillPresetDirty = false;
+        return;
+    }
+
+    _editingSoulLikeSkillPreset = TargetCameraPreset{};
+    Client::CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, _editingSoulLikeSkillPreset);
+
+    if (!loadBase)
+        Client::CameraPresetIO::LoadSoulLikeSkillPresetFromFile(selectedSkillId, _editingSoulLikeSkillPreset);
+
+    _loadedSoulLikeSkillPresetId = selectedSkillId;
+    _hasLoadedSoulLikeSkillPreset = true;
+    _soulLikeSkillPresetDirty = false;
 }
 
 void BattleCameraPreview_View::Load_BattleDriftForMode(BattleCameraMode mode)

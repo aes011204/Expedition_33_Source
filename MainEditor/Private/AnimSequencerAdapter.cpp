@@ -374,7 +374,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
                 _view->_selectedNotifyId = entry.id;
             }
 
-            _view->_selectedStateId = -1;
+            _view->Clear_SelectedStateSelection();
             _view->_selectedNotifyTrackIndex = trackIndex;
             _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + trackIndex;
             _draggingNotifyId = entry.id;
@@ -424,7 +424,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
     if (!clickedAnyItem && rowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
         _view->Clear_SelectedNotifySelection();
-        _view->_selectedStateId = -1;
+        _view->Clear_SelectedStateSelection();
         _view->_selectedNotifyTrackIndex = trackIndex;
         _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + trackIndex;
     }
@@ -486,7 +486,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             interactionRect.Max.x += expand;
         }
 
-        const bool selected = (_view->_selectedStateId == entry.id);
+        const bool selected = _view->Is_StateSelected(entry.id);
         const bool hovered = interactionRect.Contains(mousePos);
 
         const float drawHandleWidth = min(10.f, max(4.f, (itemRect.Max.x - itemRect.Min.x) * 0.35f));
@@ -549,7 +549,29 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
         {
             clickedAnyItem = true;
             _view->Begin_PendingNotifyUndo();
-            _view->_selectedStateId = entry.id;
+            const bool ctrlPressed = io.KeyCtrl;
+
+            if (ctrlPressed)
+            {
+                if (_view->Is_StateSelected(entry.id))
+                {
+                    _view->_selectedStateIds.erase(entry.id);
+                    if (_view->_selectedStateId == entry.id)
+                        _view->_selectedStateId = _view->_selectedStateIds.empty() ? -1 : *_view->_selectedStateIds.begin();
+                }
+                else
+                {
+                    _view->_selectedStateIds.insert(entry.id);
+                    _view->_selectedStateId = entry.id;
+                }
+            }
+            else
+            {
+                _view->_selectedStateIds.clear();
+                _view->_selectedStateIds.insert(entry.id);
+                _view->_selectedStateId = entry.id;
+            }
+
             _view->Clear_SelectedNotifySelection();
             _view->_selectedNotifyStateTrackIndex = trackIndex;
             _view->_sequencerSelectedRow = Get_StateHeaderRow(animationData) + 1 + trackIndex;
@@ -619,7 +641,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
 
     if (!clickedAnyItem && rowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        _view->_selectedStateId = -1;
+        _view->Clear_SelectedStateSelection();
         _view->Clear_SelectedNotifySelection();
         _view->_selectedNotifyStateTrackIndex = trackIndex;
         _view->_sequencerSelectedRow = Get_StateHeaderRow(animationData) + 1 + trackIndex;

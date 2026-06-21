@@ -128,6 +128,7 @@ private:
     void Render_PreviewPanel();
     void Render_TransitionPreviewPanel();
     void Render_BattlePresetEditor();
+    void Render_SoulLikeSkillPresetEditor();
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
     void Render_SelectedBattleClipKeyframe();
@@ -141,6 +142,7 @@ private:
     void Apply_PreviewContext();
     void Apply_PreviewAnimation(float previewTimeSec) const;
     void Apply_BattleCameraPreviewPose(float previewTimeSec);
+    void Apply_SoulLikeSkillPreviewPose();
     float Get_CurrentPreviewAnimationDurationSec() const;
     float Get_BattleClipAuthoringDurationSec() const;
     int  Get_BattleClipPreviewFrameMax() const;
@@ -159,6 +161,7 @@ private:
     void Ensure_BattlePresetLoaded();
     void Load_BattlePresetForMode(BattleCameraMode mode, bool loadBase = false);
     void Load_BattlePresetForCurrentMode(bool loadBase = false);
+    void Load_SoulLikeSkillPresetForCurrentSkill(bool loadBase = false);
     void Load_BattleDriftForMode(BattleCameraMode mode);
     void Load_BattleDriftForCurrentMode();
     void Load_BattleClipForMode(BattleCameraMode mode, bool loadBase = false, bool resetTimeline = false);
@@ -314,12 +317,17 @@ private:
     float _previewShotDragOriginalStartSec = 0.f;
     float _previewShotDragOriginalEndSec = 0.f;
     BattleCameraPreset _editingBattlePreset{};
+    TargetCameraPreset _editingSoulLikeSkillPreset{};
     BattleCameraDriftProfile _editingBattleDrift{};
     bool _battlePresetDirty = false;
+    bool _soulLikeSkillPresetDirty = false;
     bool _battleDriftDirty = false;
     BattleCameraMode _loadedBattlePresetMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattlePresetSkillId{};
     bool _hasLoadedBattlePreset = false;
+    string _loadedSoulLikeSkillPresetId{};
+    bool _hasLoadedSoulLikeSkillPreset = false;
+    bool _previewSoulLikeSkillCameraEnabled = false;
     BattleCameraMode _loadedBattleDriftMode = BattleCameraMode::PLAYERATTACK;
     bool _loadedBattleDriftBossVariant = false;
     bool _hasLoadedBattleDrift = false;

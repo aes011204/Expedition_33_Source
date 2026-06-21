@@ -99,6 +99,7 @@ HRESULT SoulLikeCamera::Initialize(void* arg)
     CHECK_FAILED(Camera::Initialize(arg), E_FAIL);
 
     CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, _targetSettings);
+    _baseSettings = _targetSettings;
     _currentSettings = _targetSettings;
 
     Set_FovY(_currentSettings.camera.fovy);
@@ -209,6 +210,83 @@ bool SoulLikeCamera::Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) cons
     return true;
 }
 
+const TargetCameraPreset& SoulLikeCamera::Get_Preset() const
+{
+    return _targetSettings;
+}
+
+void SoulLikeCamera::Set_Preset(const TargetCameraPreset& preset)
+{
+    _baseSettings = preset;
+    _targetSettings = preset;
+    _activeSkillPresetKey.clear();
+}
+
+void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
+{
+    _baseSettings = preset;
+    _currentSettings = preset;
+    _targetSettings = preset;
+    _activeSkillPresetKey.clear();
+
+    Set_FovY(_currentSettings.camera.fovy);
+    Set_Near(_currentSettings.camera.nearPlane);
+    Set_Far(_currentSettings.camera.farPlane);
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+}
+
+bool SoulLikeCamera::Apply_SkillPreset(const string& skillKey)
+{
+    if (skillKey.empty())
+        return false;
+
+    TargetCameraPreset skillPreset = _baseSettings;
+    if (!CameraPresetIO::LoadSoulLikeSkillPresetFromFile(skillKey, skillPreset))
+    {
+        Restore_BasePreset();
+        return false;
+    }
+
+    _targetSettings = skillPreset;
+    _activeSkillPresetKey = skillKey;
+
+    if (_targetSettings.snapOnEnter)
+        _currentSettings = _targetSettings;
+
+    Set_FovY(_currentSettings.camera.fovy);
+    Set_Near(_currentSettings.camera.nearPlane);
+    Set_Far(_currentSettings.camera.farPlane);
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+
+    return true;
+}
+
+void SoulLikeCamera::Restore_BasePreset()
+{
+    if (_activeSkillPresetKey.empty())
+        return;
+
+    _activeSkillPresetKey.clear();
+    _targetSettings = _baseSettings;
+
+    if (_targetSettings.snapOnEnter)
+        _currentSettings = _targetSettings;
+
+    Set_FovY(_currentSettings.camera.fovy);
+    Set_Near(_currentSettings.camera.nearPlane);
+    Set_Far(_currentSettings.camera.farPlane);
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+}
+
 void SoulLikeCamera::Build_DefaultPreset(const SOULLIKE_CAMERA_DESC& desc)
 {
     _targetSettings.followSpeed = desc.followSpeed;
@@ -236,6 +314,7 @@ void SoulLikeCamera::Build_DefaultPreset(const SOULLIKE_CAMERA_DESC& desc)
     _targetSettings.camera.mouseSensor = desc.mouseSensor;
     _targetSettings.camera.mouseSensitivity = desc.mouseSensitivity;
 
+    _baseSettings = _targetSettings;
     _currentSettings = _targetSettings;
 }
 

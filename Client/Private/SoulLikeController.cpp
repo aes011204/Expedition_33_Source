@@ -245,6 +245,27 @@ void SoulLikeController::End_BattleShotCamera()
     Request_SoulLikeCamera();
 }
 
+void SoulLikeController::Apply_SkillCameraPreset(const string& skillKey)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (skillKey.empty())
+        return;
+
+    if (!Ensure_SoulLikeCamera())
+        return;
+
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        soulLikeCamera->Apply_SkillPreset(skillKey);
+}
+
+void SoulLikeController::Restore_SkillCameraPreset()
+{
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        soulLikeCamera->Restore_BasePreset();
+}
+
 void SoulLikeController::Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo)
 {
     UNREFERENCED_PARAMETER(damageInfo);

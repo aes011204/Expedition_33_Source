@@ -108,6 +108,7 @@ public:
         int32 selectedNotifyStateTrackIndex = 0;
         int32 sequencerCurrentFrame = 0;
         vector<int32> selectedNotifyIds{};
+        vector<int32> selectedStateIds{};
     };
 
     struct LiveModelTarget
@@ -261,7 +262,9 @@ private:
     void Paste_CopiedNotify();
     void Paste_CopiedState();
     void Clear_SelectedNotifySelection();
+    void Clear_SelectedStateSelection();
     bool Is_NotifySelected(int32 notifyId) const;
+    bool Is_StateSelected(int32 stateId) const;
 
     void Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex);
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
@@ -399,6 +402,7 @@ private:
     int32 _selectedNotifyTrackIndex = 0;
     int32 _selectedNotifyStateTrackIndex = 0;
     std::unordered_set<int32> _selectedNotifyIds{};
+    std::unordered_set<int32> _selectedStateIds{};
 
     int32 _sequencerCurrentFrame = 0;
     int32 _sequencerSelectedRow = -1;
@@ -455,6 +459,7 @@ private:
 
     NotifyClipboardKind _notifyClipboardKind = NotifyClipboardKind::None;
     vector<CopiedNotifyEntry> _copiedNotifies{};
+    vector<CopiedNotifyStateEntry> _copiedNotifyStates{};
     CopiedNotifyStateEntry _copiedNotifyState{};
 
     vector<NotifyUndoSnapshot> _notifyUndoStack{};

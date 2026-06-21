@@ -13,7 +13,46 @@ SL_Move::SL_Move(const Shared<SL_Maelle>& owner)
 
 bool SL_Move::EnterInvoke()
 {
-    return SL_State::EnterInvoke();
+    if (!SL_State::EnterInvoke())
+        return false;
+
+    _idleToRunPlaying = false;
+    _runToIdlePlaying = false;
+
+    if (_playIdleToRun)
+    {
+        _playIdleToRun = false;
+        _idleToRunPlaying = Play_Anim(SoulLikeAnim::Idle_To_Run, 0.05f, false);
+    }
+
+    return true;
+}
+
+void SL_Move::Update(float timeDelta)
+{
+    SL_State::Update(timeDelta);
+
+    if (_runToIdlePlaying && Is_AnimFinished())
+    {
+        _runToIdlePlaying = false;
+
+        if (_stateCom != nullptr)
+            _stateCom->Change_State(SL_PlayerState::Idle);
+    }
+}
+
+void SL_Move::ExitInvoke()
+{
+    _playIdleToRun = false;
+    _idleToRunPlaying = false;
+    _runToIdlePlaying = false;
+
+    SL_State::ExitInvoke();
+}
+
+void SL_Move::Set_PlayIdleToRun(bool play)
+{
+    _playIdleToRun = play;
 }
 
 bool SL_Move::Request_Move(const SL_MoveRequest& request, float timeDelta)
@@ -27,11 +66,28 @@ bool SL_Move::Request_Move(const SL_MoveRequest& request, float timeDelta)
 
     if (request.worldDir.LengthSquared() <= 0.f)
     {
-        _stateCom->Change_State(SL_PlayerState::Idle);
+        if (!_runToIdlePlaying)
+        {
+            _idleToRunPlaying = false;
+            _runToIdlePlaying = Play_Anim(SoulLikeAnim::Run_To_Idle, 0.08f, false);
+            Stop_Movement();
+        }
+
         return true;
     }
 
+    if (_runToIdlePlaying)
+        _runToIdlePlaying = false;
+
     owner->Apply_MoveInput(request, timeDelta);
+
+    if (_idleToRunPlaying)
+    {
+        if (!Is_AnimFinished())
+            return true;
+
+        _idleToRunPlaying = false;
+    }
 
     SoulLikeAnim moveAnim = SoulLikeAnim::Run;
 

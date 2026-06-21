@@ -55,6 +55,9 @@ enum class SoulLikeAnim
 
     Dead,
     Parry,
+
+    Idle_To_Run,
+    Run_To_Idle,
 };
 
 enum class SL_DodgeDirection

@@ -67,6 +67,8 @@ public:
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
     void End_BattleShotCamera();
+    void Apply_SkillCameraPreset(const string& skillKey);
+    void Restore_SkillCameraPreset();
 
     void Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo);
     void Play_PlayerParryFeedback();
