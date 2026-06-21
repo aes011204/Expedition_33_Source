@@ -14,6 +14,7 @@
 namespace
 {
     constexpr wchar_t kAnimationName[] = L"Get_Character";
+    constexpr float kGetCharacterDurationSec = 2.f; // Get_Character.uianim: 0~60f / 30fps
 }
 
 HRESULT UI_GetCharacter::Initialize(uint32 levelIndex)
@@ -28,12 +29,19 @@ HRESULT UI_GetCharacter::Initialize(uint32 levelIndex)
     return S_OK;
 }
 
-void UI_GetCharacter::Update(float)
+void UI_GetCharacter::Update(float timeDelta)
 {
     if (!Is_Open())
         return;
 
     if (GAME->KeyDown(KEY_TYPE::F) || GAME->KeyDown(KEY_TYPE::ESCAPE))
+    {
+        Close_Immediately();
+        return;
+    }
+
+    _elapsed += max(0.f, timeDelta);
+    if (_elapsed >= kGetCharacterDurationSec)
         Close_Immediately();
 }
 
@@ -50,6 +58,7 @@ void UI_GetCharacter::Open_ForHeroes(const vector<HeroId>& heroIds)
     Set_HeroLevelText(HeroId::Lune);
     Set_HeroLevelText(HeroId::Maelle);
 
+    _elapsed = 0.f;
     UI_RuntimePanelBase::Open();
 
     // Get Character는 클릭 UI가 아니라 연출 UI라서 마우스/UIOnly 전환 없이 월드 조작만 막는다.
@@ -65,6 +74,8 @@ void UI_GetCharacter::Close()
 
 void UI_GetCharacter::Close_Immediately()
 {
+    _elapsed = 0.f;
+
     Stop_TargetAnimations();
     UI_RuntimePanelBase::Close();
 

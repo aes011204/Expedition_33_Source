@@ -9,6 +9,8 @@
 #include "UI_CrossHair.h"
 #include "UI_GetCharacter.h"
 #include "UI_GetClothes.h"
+#include "UI_GetWeapon.h"
+#include "UI_GetPictos.h"
 #include "ClientInstance.h"
 #include "Player_FreeAim.h"
 #include "PlayerStateMachineCom.h"
@@ -98,6 +100,12 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _getClothesPanel = UI_GetClothes::Create(levelIndex);
     CHECK_NULL(_getClothesPanel, E_FAIL);
 
+    _getWeaponPanel = UI_GetWeapon::Create(levelIndex);
+    CHECK_NULL(_getWeaponPanel, E_FAIL);
+
+    _getPictosPanel = UI_GetPictos::Create(levelIndex);
+    CHECK_NULL(_getPictosPanel, E_FAIL);
+
     _arenaCharacterSelectPanel = UI_ArenaCharacterSelect::Create(levelIndex);
     CHECK_NULL(_arenaCharacterSelectPanel, E_FAIL);
 
@@ -139,6 +147,12 @@ void GameplayUI_World::Update(float timeDelta)
     if (_getClothesPanel)
         _getClothesPanel->Update(timeDelta);
 
+    if (_getWeaponPanel)
+        _getWeaponPanel->Update(timeDelta);
+
+    if (_getPictosPanel)
+        _getPictosPanel->Update(timeDelta);
+
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Update(timeDelta);
 
@@ -155,6 +169,12 @@ void GameplayUI_World::Update(float timeDelta)
 
         if (Is_GetClothesOpen())
             return; // Get Clothes가 떠 있는 동안 다른 월드 메뉴 액션을 소비하지 않는다.
+
+        if (Is_GetWeaponOpen())
+            return; // Get Weapon은 아직 자동 획득 소비 없이, 열려 있을 때 월드 메뉴 액션만 막는다.
+
+        if (Is_GetPictosOpen())
+            return; // Get Pictos도 코드 패널만 준비하고, 열린 동안 월드 메뉴 액션만 막는다.
 
         if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
             Handle_ArenaCharacterSelectAction(_arenaCharacterSelectPanel->Consume_LastAction());
@@ -180,6 +200,12 @@ void GameplayUI_World::Update_Input()
 
     if (Is_GetClothesOpen())
         return; // 닫기 입력은 UI_GetClothes::Update가 처리하고, 월드 메뉴 입력은 막는다.
+
+    if (Is_GetWeaponOpen())
+        return; // 닫기 입력은 UI_GetWeapon::Update가 처리하고, 월드 메뉴 입력은 막는다.
+
+    if (Is_GetPictosOpen())
+        return; // 닫기 입력은 UI_GetPictos::Update가 처리하고, 월드 메뉴 입력은 막는다.
 
     Handle_ArenaCharacterSelectInput();
     Handle_SavePointInput();
@@ -214,6 +240,10 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
         _getCharacterPanel->Append_RuntimeUIEntries(entries, "World", "GetCharacterPanel");
     if (_getClothesPanel)
         _getClothesPanel->Append_RuntimeUIEntries(entries, "World", "GetClothesPanel");
+    if (_getWeaponPanel)
+        _getWeaponPanel->Append_RuntimeUIEntries(entries, "World", "GetWeaponPanel");
+    if (_getPictosPanel)
+        _getPictosPanel->Append_RuntimeUIEntries(entries, "World", "GetPictosPanel");
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
     Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
@@ -225,6 +255,8 @@ bool GameplayUI_World::Is_AnyMenuOpen() const
 {
     return Is_GetCharacterOpen() ||
         Is_GetClothesOpen() ||
+        Is_GetWeaponOpen() ||
+        Is_GetPictosOpen() ||
         !_menuStack.empty() ||
         (_savePointPanel && _savePointPanel->Is_ClosingWithOutro());
 }
@@ -246,6 +278,12 @@ void GameplayUI_World::Force_CloseAllMenus()
 
     if (_getClothesPanel && _getClothesPanel->Is_Open())
         _getClothesPanel->Close_Immediately();
+
+    if (_getWeaponPanel && _getWeaponPanel->Is_Open())
+        _getWeaponPanel->Close_Immediately();
+
+    if (_getPictosPanel && _getPictosPanel->Is_Open())
+        _getPictosPanel->Close_Immediately();
 
     if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
         _arenaCharacterSelectPanel->Close_Immediately();
@@ -710,6 +748,16 @@ bool GameplayUI_World::Is_GetClothesOpen() const
     return _getClothesPanel && _getClothesPanel->Is_Open();
 }
 
+bool GameplayUI_World::Is_GetWeaponOpen() const
+{
+    return _getWeaponPanel && _getWeaponPanel->Is_Open();
+}
+
+bool GameplayUI_World::Is_GetPictosOpen() const
+{
+    return _getPictosPanel && _getPictosPanel->Is_Open();
+}
+
 void GameplayUI_World::Update_CrossHair(float timeDelta)
 {
     if (_crossHair == nullptr)
@@ -951,6 +999,8 @@ void GameplayUI_World::Free()
     Release_Panel(_expeditionStatPanel);
     Release_Panel(_getCharacterPanel);
     Release_Panel(_getClothesPanel);
+    Release_Panel(_getWeaponPanel);
+    Release_Panel(_getPictosPanel);
     Release_Panel(_arenaCharacterSelectPanel);
 
     Base::Free();

@@ -128,6 +128,51 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Get_Clothes_PotatoBag_Path[] =
         L"UI/UI_Json/CommonSystem/Get_Item/Clothes/UI_Get_Clothes_PotatoBag.json";
 
+    inline constexpr wchar_t UI_Get_Weapon_Gustave_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Gustave_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Gustave_Candy_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Gustave_Candy.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Gustave_Lanceram_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Gustave_Lanceram.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Lune_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Lune_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Lune_Colim_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Lune_Colim.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Lune_Snowim_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Lune_Snowim.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Maelle_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Maelle_Medalum_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Medalum.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Maelle_Sekarum_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Sekarum.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_AugmentedAim_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_AugmentedAim.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_AugmentedAttack_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_AugmentedAttack.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_EnergisingTurn_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_EnergisingTurn.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_GlassCannon_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_GlassCannon.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_Roulette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_Roulette.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_WarmingUp_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_WarmingUp.json";
+
 #pragma endregion
 
 #pragma region 쌍검투사
@@ -254,6 +299,21 @@ namespace Client::Constants::UI_Anim
 #pragma region 해금 시스템
      inline constexpr wchar_t UI_GetCharacterAnim_Path[] =
         L"UI/UI_Animations/Tutorial/Get_Character";
+
+    inline constexpr wchar_t UI_GetClothesBaguetteIntroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_Baguette_Intro";
+
+    inline constexpr wchar_t UI_GetClothesBaguetteOutroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_Baguette_Outro";
+
+    inline constexpr wchar_t UI_GetClothesPotatoBagIntroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_PotatoBag_Intro";
+
+    inline constexpr wchar_t UI_GetClothesPotatoBagOutroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_PotatoBag_Outro";
+
+    inline constexpr wchar_t UI_GetItemAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Item";
 #pragma endregion
 
 #pragma region 배틀 픽토스

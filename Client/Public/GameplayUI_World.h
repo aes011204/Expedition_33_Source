@@ -15,6 +15,8 @@ class ExpeditionStat_Panel;
 class UI_CrossHair;
 class UI_GetCharacter;
 class UI_GetClothes;
+class UI_GetWeapon;
+class UI_GetPictos;
 
 class ChangeSkill_Panel;
 class ChangeWeapon_Panel;
@@ -53,6 +55,8 @@ private:
     void    Try_ShowPendingGetClothes();
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
+    bool    Is_GetWeaponOpen() const;
+    bool    Is_GetPictosOpen() const;
 
 private:
     void    Push_Menu(GameplayMenu menu);
@@ -78,6 +82,8 @@ private:
     Unique<UI_CrossHair>          _crossHair;
     Unique<UI_GetCharacter>       _getCharacterPanel;
     Unique<UI_GetClothes>         _getClothesPanel;
+    Unique<UI_GetWeapon>          _getWeaponPanel;
+    Unique<UI_GetPictos>          _getPictosPanel;
     Unique<UI_ArenaCharacterSelect> _arenaCharacterSelectPanel;
 
     Unique<CharacterProgression_Panel> _characterProgressionPanel;

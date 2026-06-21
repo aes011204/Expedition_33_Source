@@ -1169,6 +1169,8 @@
     <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
     <ClCompile Include="..\Private\UI_GetCharacter.cpp" />
     <ClCompile Include="..\Private\UI_GetClothes.cpp" />
+    <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
+    <ClCompile Include="..\Private\UI_GetPictos.cpp" />
     <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
@@ -1246,6 +1248,8 @@
     <ClInclude Include="..\Public\SoulLikeCamera.h" />
     <ClInclude Include="..\Public\UI_GetCharacter.h" />
     <ClInclude Include="..\Public\UI_GetClothes.h" />
+    <ClInclude Include="..\Public\UI_GetWeapon.h" />
+    <ClInclude Include="..\Public\UI_GetPictos.h" />
     <ClInclude Include="..\Public\UI_BattlePictos.h" />
     <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
     <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />

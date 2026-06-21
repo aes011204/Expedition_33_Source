@@ -688,6 +688,14 @@ bool EditorInstance::Save_CostumeUnlockRuleState(
     return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
 }
 
+bool EditorInstance::Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_FirstTutorialHeroUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
 bool EditorInstance::Load_RuleStateInEditor(const fs::path& path)
 {
     Client::RuntimeRuleStateIO::RuleState ruleState{};

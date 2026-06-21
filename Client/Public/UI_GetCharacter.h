@@ -38,6 +38,8 @@ private:
     Shared<UI_Text> _luneLevelText{};
     Shared<UI_Text> _maelleLevelText{};
     vector<HeroId> _showingHeroes{};
+
+    float _elapsed = 0.f;
 };
 
 NS_END

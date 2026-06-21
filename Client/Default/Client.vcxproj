@@ -501,6 +501,8 @@
     <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
     <ClInclude Include="..\Public\UI_GetCharacter.h" />
     <ClInclude Include="..\Public\UI_GetClothes.h" />
+    <ClInclude Include="..\Public\UI_GetWeapon.h" />
+    <ClInclude Include="..\Public\UI_GetPictos.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
     <ClInclude Include="..\Public\UI_DestroyShield.h" />
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
@@ -895,6 +897,8 @@
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
     <ClCompile Include="..\Private\UI_GetCharacter.cpp" />
     <ClCompile Include="..\Private\UI_GetClothes.cpp" />
+    <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
+    <ClCompile Include="..\Private\UI_GetPictos.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
     <ClCompile Include="..\Private\UI_DestroyShield.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />

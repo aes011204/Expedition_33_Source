@@ -11,6 +11,12 @@ namespace
 {
     constexpr char kBaguettePresentationId[] = "Baguette";
     constexpr char kPotatoBagPresentationId[] = "PotatoBag";
+    constexpr wchar_t kBaguetteIntroAnimationName[] = L"Get_Clothes_Baguette_Intro";
+    constexpr wchar_t kBaguetteOutroAnimationName[] = L"Get_Clothes_Baguette_Outro";
+    constexpr wchar_t kPotatoBagIntroAnimationName[] = L"Get_Clothes_PotatoBag_Intro";
+    constexpr wchar_t kPotatoBagOutroAnimationName[] = L"Get_Clothes_PotatoBag_Outro";
+    constexpr float kGetClothesAutoOutroDelaySec = 1.f;
+    constexpr float kGetClothesOutroDurationSec = 1.f; // Get_Clothes_*_Outro.uianim: 0~60f / 60fps
 
     string Normalize_ClothesPresentationId(const string& presetId)
     {
@@ -36,12 +42,29 @@ HRESULT UI_GetClothes::Initialize(uint32 levelIndex)
     return S_OK;
 }
 
-void UI_GetClothes::Update(float)
+void UI_GetClothes::Update(float timeDelta)
 {
     if (!Is_Open())
         return;
 
+    if (_isClosingWithOutro)
+    {
+        _closeElapsed += max(0.f, timeDelta);
+
+        if (_closeElapsed >= _outroDuration)
+            Finish_CloseAndOpenNext();
+
+        return;
+    }
+
     if (GAME->KeyDown(KEY_TYPE::F) || GAME->KeyDown(KEY_TYPE::ESCAPE))
+    {
+        Close();
+        return;
+    }
+
+    _openElapsed += max(0.f, timeDelta);
+    if (_openElapsed >= kGetClothesAutoOutroDelaySec)
         Close();
 }
 
@@ -71,20 +94,30 @@ void UI_GetClothes::Close()
         return;
     }
 
-    Close_AllRoots();
-    _activePresentationId.clear();
+    if (_isClosingWithOutro)
+        return;
 
-    // Get Clothes는 클릭 UI가 아니라 연출 UI라서 마우스/UIOnly 전환 없이 월드 조작만 막는다.
-    GAME->Set_PlayerInputBlocked(false);
+    _isClosingWithOutro = true;
+    _openElapsed = 0.f;
+    _closeElapsed = 0.f;
+    _outroDuration = kGetClothesOutroDurationSec;
 
-    Open_NextPreset();
+    Play_TargetAnimation(Resolve_OutroAnimationName(_activePresentationId));
+
+    if (_outroDuration <= 0.f)
+        Finish_CloseAndOpenNext();
 }
 
 void UI_GetClothes::Close_Immediately()
 {
+    _isClosingWithOutro = false;
+    _openElapsed = 0.f;
+    _closeElapsed = 0.f;
+
     _queuedPresentationIds.clear();
     _activePresentationId.clear();
 
+    Stop_TargetAnimations();
     Close_AllRoots();
 
     // Try_ShowPendingGetClothes가 기존 입력 차단 상태에서는 열지 않으므로, 여기서 우리가 건 차단만 복구한다.
@@ -101,6 +134,11 @@ HRESULT UI_GetClothes::Load_UI(uint32 levelIndex)
         desc.jsonPath = Constants::UI::UI_Get_Clothes_Baguette_Path;
         desc.prototypeTagPrefix = L"GetClothesBaguette";
         desc.outUIByName = &loadedUIByName;
+        desc.animationPaths =
+        {
+            Constants::UI_Anim::UI_GetClothesBaguetteIntroAnim_Path,
+            Constants::UI_Anim::UI_GetClothesBaguetteOutroAnim_Path,
+        };
 
         CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
@@ -118,6 +156,11 @@ HRESULT UI_GetClothes::Load_UI(uint32 levelIndex)
         desc.jsonPath = Constants::UI::UI_Get_Clothes_PotatoBag_Path;
         desc.prototypeTagPrefix = L"GetClothesPotatoBag";
         desc.outUIByName = &loadedUIByName;
+        desc.animationPaths =
+        {
+            Constants::UI_Anim::UI_GetClothesPotatoBagIntroAnim_Path,
+            Constants::UI_Anim::UI_GetClothesPotatoBagOutroAnim_Path,
+        };
 
         CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
@@ -151,8 +194,13 @@ void UI_GetClothes::Open_NextPreset()
         if (_root == nullptr)
             continue;
 
+        _isClosingWithOutro = false;
+        _openElapsed = 0.f;
+        _closeElapsed = 0.f;
+
         Close_AllRoots();
         UI_RuntimePanelBase::Open();
+        Play_TargetAnimation(Resolve_IntroAnimationName(_activePresentationId));
 
         // Get Clothes는 클릭 UI가 아니라 연출 UI라서 마우스/UIOnly 전환 없이 월드 조작만 막는다.
         GAME->Set_PlayerInputBlocked(true);
@@ -160,6 +208,22 @@ void UI_GetClothes::Open_NextPreset()
     }
 
     _activePresentationId.clear();
+}
+
+void UI_GetClothes::Finish_CloseAndOpenNext()
+{
+    _isClosingWithOutro = false;
+    _openElapsed = 0.f;
+    _closeElapsed = 0.f;
+
+    Stop_TargetAnimations();
+    Close_AllRoots();
+    _activePresentationId.clear();
+
+    // Get Clothes는 클릭 UI가 아니라 연출 UI라서 마우스/UIOnly 전환 없이 월드 조작만 막는다.
+    GAME->Set_PlayerInputBlocked(false);
+
+    Open_NextPreset();
 }
 
 void UI_GetClothes::Close_AllRoots()
@@ -191,6 +255,57 @@ bool UI_GetClothes::Is_PresetQueuedOrOpen(const string& presentationId) const
 
     return std::find(_queuedPresentationIds.begin(), _queuedPresentationIds.end(), presentationId) !=
         _queuedPresentationIds.end();
+}
+
+const wchar_t* UI_GetClothes::Resolve_IntroAnimationName(const string& presentationId) const
+{
+    if (presentationId == kBaguettePresentationId)
+        return kBaguetteIntroAnimationName;
+
+    if (presentationId == kPotatoBagPresentationId)
+        return kPotatoBagIntroAnimationName;
+
+    return L"";
+}
+
+const wchar_t* UI_GetClothes::Resolve_OutroAnimationName(const string& presentationId) const
+{
+    if (presentationId == kBaguettePresentationId)
+        return kBaguetteOutroAnimationName;
+
+    if (presentationId == kPotatoBagPresentationId)
+        return kPotatoBagOutroAnimationName;
+
+    return L"";
+}
+
+void UI_GetClothes::Play_TargetAnimation(const wchar_t* animationName)
+{
+    if (animationName == nullptr || animationName[0] == L'\0')
+        return;
+
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Play_UIAnimation(animationName, true);
+    }
+}
+
+void UI_GetClothes::Stop_TargetAnimations()
+{
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Stop_UIAnimation();
+    }
 }
 
 Unique<UI_GetClothes> UI_GetClothes::Create(uint32 levelIndex)

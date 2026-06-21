@@ -25,9 +25,14 @@ private:
     HRESULT Bind_UI();
 
     void Open_NextPreset();
+    void Finish_CloseAndOpenNext();
     void Close_AllRoots();
     Shared<Engine::UI_Base> Resolve_Root(const string& presentationId) const;
     bool Is_PresetQueuedOrOpen(const string& presentationId) const;
+    const wchar_t* Resolve_IntroAnimationName(const string& presentationId) const;
+    const wchar_t* Resolve_OutroAnimationName(const string& presentationId) const;
+    void Play_TargetAnimation(const wchar_t* animationName);
+    void Stop_TargetAnimations();
 
 private:
     Shared<Engine::UI_Base> _baguetteRoot{};
@@ -35,6 +40,11 @@ private:
 
     string _activePresentationId{};
     vector<string> _queuedPresentationIds{};
+
+    bool _isClosingWithOutro = false;
+    float _openElapsed = 0.f;
+    float _closeElapsed = 0.f;
+    float _outroDuration = 1.f;
 };
 
 NS_END
