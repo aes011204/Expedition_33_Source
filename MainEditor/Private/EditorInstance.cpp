@@ -1331,8 +1331,12 @@ void EditorInstance::Restore_PlayStartHeroStatSnapshots()
         if (stat == nullptr)
             continue;
 
+        const auto equippedPictosIds = stat->Get_EquippedPictosIds(); // F4 Stop은 HP/AP/Shield만 되돌리고, play 중 장착한 픽토스는 유지한다.
         stat->Apply_BattleSyncSnapshot(snapshot.statSnapshot);
         stat->Set_AliveStatus(snapshot.aliveStatus);
+
+        for (size_t slotIndex = 0; slotIndex < equippedPictosIds.size(); ++slotIndex)
+            stat->Set_EquippedPictos(slotIndex, equippedPictosIds[slotIndex]);
     }
 
     _playStartHeroStatSnapshots.clear();

@@ -1,7 +1,7 @@
 ﻿#include "PictosBattleSystem.h"
-
 #include "CombatStatCom.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 #include "PlayerStatCom.h"
 
 namespace
@@ -23,6 +23,7 @@ void PictosBattleSystem::Clear_RuntimeState()
 {
     _warmingUpDamageBonusByStat.clear();
     _rouletteDamageMultiplierByStat.clear();
+    _pendingActivations.clear();
 }
 
 uint32 PictosBattleSystem::Resolve_TurnStartApBonus(const BattleChar& actor) const
@@ -40,15 +41,23 @@ void PictosBattleSystem::ProcessTurnStart(const BattleChar& actor)
 
     CombatStatCom* statKey = actor.statCom.get();
 
+    // 활력의 턴
+    if (Has_EquippedPictosId(actor.statCom, kPictosEnergisingTurn))
+        Queue_Activation(actor, kPictosEnergisingTurn);
+
     // 예열
     if (Has_EquippedPictosId(actor.statCom, kPictosWarmingUp))
-        _warmingUpDamageBonusByStat[statKey] += 5.f; // 자기 턴마다 주는 피해 +5% 누적
+    {
+        _warmingUpDamageBonusByStat[statKey] += 5.f;
+        Queue_Activation(actor, kPictosWarmingUp);
+    }
 
     // 룰렛
     if (Has_EquippedPictosId(actor.statCom, kPictosRoulette))
     {
         const bool highRoll = GAME->Random(0.f, 1.f) < 0.5f;
         _rouletteDamageMultiplierByStat[statKey] = highRoll ? 1.5f : 0.5f;
+        Queue_Activation(actor, kPictosRoulette);
     }
     else
     {
@@ -56,8 +65,48 @@ void PictosBattleSystem::ProcessTurnStart(const BattleChar& actor)
     }
 }
 
+vector<PictosBattleSystem::PictosActivationEvent> PictosBattleSystem::Consume_PendingActivations()
+{
+    vector<PictosActivationEvent> result = std::move(_pendingActivations);
+    _pendingActivations.clear();
+
+    return result;
+}
+
+void PictosBattleSystem::Queue_Activation(const BattleChar& actor, const string& pictosId)
+{
+    if (actor.heroId == HeroId::END || pictosId.empty())
+        return;
+
+    const auto duplicated = find_if(
+        _pendingActivations.begin(),
+        _pendingActivations.end(),
+        [&](const PictosActivationEvent& event)
+        {
+            return event.heroId == actor.heroId && event.pictosId == pictosId;
+        });
+
+    if (duplicated != _pendingActivations.end())
+        return; // 같은 프레임에 같은 hero/pictos가 여러 번 계산되어도 UI는 한 번만
+
+    PictosActivationEvent event{};
+    event.heroId = actor.heroId;
+    event.pictosId = pictosId;
+    event.displayName = Resolve_PictosDisplayName(pictosId);
+
+    _pendingActivations.push_back(event);
+}
+
+wstring PictosBattleSystem::Resolve_PictosDisplayName(const string& pictosId) const
+{
+    if (const auto* desc = CLIENT->Get_PictosDesc(pictosId))
+        return desc->name;
+
+    return wstring(pictosId.begin(), pictosId.end());
+}
+
 float PictosBattleSystem::Resolve_DamageMultiplier(const BattleChar& attacker, const BattleChar& target,
-    AttackType attackType) const
+    AttackType attackType)
 {
     if (!Is_PictosBaseDamageType(attackType))
         return 1.f;
@@ -69,17 +118,26 @@ float PictosBattleSystem::Resolve_DamageMultiplier(const BattleChar& attacker, c
     {
         // 유리 대포
         if (Has_EquippedPictosId(attacker.statCom, kPictosGlassCannon))
+        {
             multiplier += 0.25f;
+            Queue_Activation(attacker, kPictosGlassCannon);
+        }
 
         // 증강 공격
         if (attackType == AttackType::BaseAttack &&
             Has_EquippedPictosId(attacker.statCom, kPictosAugmentedAttack))
+        {
             multiplier += 0.5f;
+            Queue_Activation(attacker, kPictosAugmentedAttack);
+        }
 
         // 증강 조준
         if ((attackType == AttackType::FreeAimLight || attackType == AttackType::FreeAimWeak) &&
             Has_EquippedPictosId(attacker.statCom, kPictosAugmentedAim))
+        {
             multiplier += 0.5f;
+            Queue_Activation(attacker, kPictosAugmentedAim);
+        }
 
         // 예열
         if (auto it = _warmingUpDamageBonusByStat.find(attacker.statCom.get()); it != _warmingUpDamageBonusByStat.end())
@@ -95,6 +153,7 @@ float PictosBattleSystem::Resolve_DamageMultiplier(const BattleChar& attacker, c
         Has_EquippedPictosId(target.statCom, kPictosGlassCannon))
     {
         multiplier *= 1.25f;
+        Queue_Activation(target, kPictosGlassCannon);
     }
 
     return multiplier;
@@ -144,6 +203,7 @@ void PictosBattleSystem::Free()
 {
     _warmingUpDamageBonusByStat.clear();
     _rouletteDamageMultiplierByStat.clear();
+    _pendingActivations.clear();
 
     Base::Free();
 }

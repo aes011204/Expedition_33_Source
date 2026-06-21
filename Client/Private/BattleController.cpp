@@ -449,7 +449,11 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
             }
 
             const uint32 rewardLevelIndex = _battleSpawnRegistry->Get_SourceWorldObjectLevelIndex();
-            unlockManager->Handle_BattleVictory(defeatedEnemyKeys, rewardLevelIndex, rewardOriginPtr);
+            unlockManager->Handle_BattleVictory(
+                defeatedEnemyKeys,
+                _activeBattleFieldID,
+                rewardLevelIndex,
+                rewardOriginPtr);
         }
     }
 
@@ -521,6 +525,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _enemies.clear();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
@@ -1187,6 +1192,8 @@ void BattleController::Handle_EditorStopRuntime()
     _battleTurnCamera.reset();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
+
     // DOF_MODIFY 
     End_BattleDOFOverride();
     if (hadBattleRuntime)
@@ -1848,6 +1855,7 @@ void BattleController::Confirm_Victory()
     _enemies.clear();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
@@ -2295,6 +2303,8 @@ void BattleController::Complete_BattleField()
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
     const uint32 battleFieldId = _pendingBattleFieldID;
+    _activeBattleFieldID = battleFieldId;
+
     const bool isPlayerAdvantage = _pendingBattleIsPlayerAdvantage;
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
@@ -2353,6 +2363,7 @@ void BattleController::Complete_BattleField()
         _heroes.clear();
         _enemies.clear();
         Clear_BattleEnterPending();
+        _activeBattleFieldID = 0;
         return;
     }
 

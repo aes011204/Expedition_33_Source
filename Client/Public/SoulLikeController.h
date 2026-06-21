@@ -43,6 +43,7 @@ public:
     bool Begin_Battle();
     void End_Battle();
     void Confirm_Victory();
+    bool Is_DebugKeyStartEnabled() const { return _enableDebugKeyStart; }
 
     bool Is_BattleActive() const
     {

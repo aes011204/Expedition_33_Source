@@ -28,6 +28,8 @@ void BattleReactionController::OpenWindow(BattleReactionType type)
 
 void BattleReactionController::CloseWindow(BattleReactionType type)
 {
+    const bool wasOpen = IsWindowOpen(type);
+
     if (type == BattleReactionType::Dodge)
         _isDodgeOpen = false;
     else if (type == BattleReactionType::Parry)
@@ -37,6 +39,9 @@ void BattleReactionController::CloseWindow(BattleReactionType type)
     else if (type == BattleReactionType::JumpCounter)
         _isJumpCounterOpen = false;
     // 성공했을 때 입력은 AN_Attack에서 Consume 소모
+
+    if (wasOpen)
+        OnReactionWindowClosed.Broadcast(type);
 }
 
 void BattleReactionController::Clear()
@@ -129,14 +134,13 @@ void BattleReactionController::NotifyJumpCounterWindowBegin()
     if (_jumpCounterState != JumpCounterState::JumpSucceeded)
         return;
 
-    _isJumpCounterOpen = true;
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
-    OnReactionWindowOpened.Broadcast(BattleReactionType::JumpCounter);
+    OpenWindow(BattleReactionType::JumpCounter);
 }
 
 void BattleReactionController::NotifyJumpCounterWindowEnd()
 {
-    _isJumpCounterOpen = false;
+    CloseWindow(BattleReactionType::JumpCounter);
 
     if (_jumpCounterState == JumpCounterState::CounterWindowOpen)
     {
@@ -161,6 +165,15 @@ bool BattleReactionController::TryStartQueuedJumpCounter(ModelCom* sourceModel)
     }
 
     return false;
+}
+
+bool BattleReactionController::Try_GetJumpCounterTarget(BattleChar& outTarget) const
+{
+    if (_jumpCounterTarget.actor == nullptr || _jumpCounterTarget.statCom == nullptr)
+        return false;
+
+    outTarget = _jumpCounterTarget;
+    return true;
 }
 
 bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex)
@@ -1076,6 +1089,7 @@ Shared<BattleReactionController> BattleReactionController::Create()
 void BattleReactionController::Free()
 {
     OnReactionWindowOpened.Clear();
+    OnReactionWindowClosed.Clear();
     OnReactionSucceeded.Clear();
     OnCounterStarted.Clear();
 

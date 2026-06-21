@@ -389,6 +389,8 @@ private:
     vector<Buffs> _processedTurnStartStatuses = {};
     bool          _isWaitingTurnStartStatusHit = false;
 
+    uint32      _activeBattleFieldID = 0;
+
 public:
     static Shared<BattleController> Create();
     void Free() override;

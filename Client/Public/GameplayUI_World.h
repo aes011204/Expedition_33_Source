@@ -5,6 +5,7 @@
 #include "GamePlayMenuFade.h"
 #include "GameplayUI_Types.h"
 #include "SavePoint_Panel.h"
+#include "UI_ArenaCharacterSelect.h"
 
 NS_BEGIN(Client)
 
@@ -12,6 +13,8 @@ class SkillTree_Panel;
 class CharacterStatus_Panel;
 class ExpeditionStat_Panel;
 class UI_CrossHair;
+class UI_GetCharacter;
+class UI_GetClothes;
 
 class ChangeSkill_Panel;
 class ChangeWeapon_Panel;
@@ -42,8 +45,14 @@ private:
     void    Handle_ExpeditionStat();
     void    Handle_BackInput();            // Esc로 현재 메뉴 닫고 이전 메뉴 복귀
     void    Handle_CharacterProgressionAction(CharacterProgression_Panel::Action action);
+    void    Handle_ArenaCharacterSelectInput();
+    void    Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect::Action action);
 
     void    Update_CrossHair(float timeDelta);
+    void    Try_ShowPendingGetCharacter();
+    void    Try_ShowPendingGetClothes();
+    bool    Is_GetCharacterOpen() const;
+    bool    Is_GetClothesOpen() const;
 
 private:
     void    Push_Menu(GameplayMenu menu);
@@ -67,6 +76,9 @@ private:
     Unique<ChangeWeapon_Panel>    _changeWeaponPanel;
     Unique<ExpeditionStat_Panel>  _expeditionStatPanel;
     Unique<UI_CrossHair>          _crossHair;
+    Unique<UI_GetCharacter>       _getCharacterPanel;
+    Unique<UI_GetClothes>         _getClothesPanel;
+    Unique<UI_ArenaCharacterSelect> _arenaCharacterSelectPanel;
 
     Unique<CharacterProgression_Panel> _characterProgressionPanel;
     Unique<ChangeSkill_Panel>          _changeSkillPanel;

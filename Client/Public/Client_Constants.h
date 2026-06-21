@@ -116,8 +116,38 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_Pictos_Path[] =
         L"UI/UI_Json/CommonSystem/UI_Pictos.json";
+#pragma endregion
+
+#pragma region 해금 시스템
+    inline constexpr wchar_t UI_Get_Character_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/UI_Get_Character.json";
+
+    inline constexpr wchar_t UI_Get_Clothes_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Clothes/UI_Get_Clothes_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Clothes_PotatoBag_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Clothes/UI_Get_Clothes_PotatoBag.json";
 
 #pragma endregion
+
+#pragma region 쌍검투사
+    inline constexpr wchar_t UI_Arena_Character_Select_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Arena_Character_Select.json";
+#pragma endregion
+
+#pragma region 배틀 픽토스
+    inline constexpr wchar_t UI_Battle_Activation_Pictos_Path[] =
+        L"UI/UI_Json/BattleSystem/UI_Battle_Activation_Pictos.json";
+#pragma endregion
+
+#pragma region 배틀 점프 리액션
+    inline constexpr wchar_t UI_Jump_Path[] =
+        L"UI/UI_Json/BattleSystem/UI_Jump.json";
+
+    inline constexpr wchar_t UI_JumpCounter_Path[] =
+        L"UI/UI_Json/BattleSystem/UI_JumpCounter.json";
+#pragma endregion
+
 
 
 }
@@ -220,6 +250,31 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_Tutorial_CounterAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_Counter";
     inline constexpr wchar_t UI_Tutorial_FreeAimAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_FreeAim";
 #pragma endregion
+
+#pragma region 해금 시스템
+     inline constexpr wchar_t UI_GetCharacterAnim_Path[] =
+        L"UI/UI_Animations/Tutorial/Get_Character";
+#pragma endregion
+
+#pragma region 배틀 픽토스
+     inline constexpr wchar_t UI_BattlePictosActivationAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/Battle_Pictos_Activation";
+
+inline constexpr wchar_t UI_BattlePictosDeactivationAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/Battle_Pictos_Deactivation";
+#pragma endregion
+
+#pragma region 배틀 점프 리액션
+    inline constexpr wchar_t UI_JumpTextIntroAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/Jump_Text_Intro";
+
+    inline constexpr wchar_t UI_JumpCounterIntroAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/JumpCounter_Intro";
+
+    inline constexpr wchar_t UI_JumpCounterSuccessAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/JumpCounter_Success";
+#pragma endregion
+
 
 
 }

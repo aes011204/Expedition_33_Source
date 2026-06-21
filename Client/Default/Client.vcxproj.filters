@@ -1167,6 +1167,11 @@
     <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
     <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
+    <ClCompile Include="..\Private\UI_GetCharacter.cpp" />
+    <ClCompile Include="..\Private\UI_GetClothes.cpp" />
+    <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
+    <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
+    <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1239,6 +1244,11 @@
     </ClInclude>
     <ClInclude Include="..\Public\SL_JumpCounter.h" />
     <ClInclude Include="..\Public\SoulLikeCamera.h" />
+    <ClInclude Include="..\Public\UI_GetCharacter.h" />
+    <ClInclude Include="..\Public\UI_GetClothes.h" />
+    <ClInclude Include="..\Public\UI_BattlePictos.h" />
+    <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
+    <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

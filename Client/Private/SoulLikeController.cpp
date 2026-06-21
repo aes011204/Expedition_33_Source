@@ -113,9 +113,6 @@ void SoulLikeController::Update(float timeDelta)
 {
     GameObject::Update(timeDelta);
 
-    if (_enableDebugKeyStart && GAME->KeyDown(KEY_TYPE::KEY_3))
-        Begin_Battle();
-
     if (_state == BattleState::EnterFx)
     {
         Update_EnterFx(timeDelta);

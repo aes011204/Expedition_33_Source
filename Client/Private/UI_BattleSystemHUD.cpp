@@ -27,6 +27,8 @@ namespace
     constexpr wchar_t kBattlePortraitDeactivationLuneAnimationName[] = L"BattlePortrait_Deactivation_Lune";
     constexpr wchar_t kBattlePortraitDeactivationMaelleAnimationName[] = L"BattlePortrait_Deactivation_Maelle";
 
+    constexpr Vec2 kBattlePictosPortraitAnchorOffset{ 70.f, -68.f };
+
     constexpr Vec2 kCurrentTurnApPositions[9] =
     {
         Vec2{ 95.21306268017625f, 23.29340820053867f },
@@ -269,6 +271,20 @@ void UI_BattleSystemHUD::Play_BattleSystemIntro()
     _activePortraitHeroId = HeroId::END;
     Reset_TargetAnimationState(true);
     Play_TargetAnimation(kBattleSystemIntroAnimationName);
+}
+
+bool UI_BattleSystemHUD::Try_GetPortraitPictosAnchor(HeroId heroId, Vec2& outPosition) const
+{
+    const uint32 slotIndex = Get_SlotIndex(heroId);
+    if (slotIndex >= 3)
+        return false;
+
+    const PartyBattleStatSlot& slot = _partySlots[slotIndex];
+    if (slot.root == nullptr || slot.root->Get_Transform() == nullptr)
+        return false;
+
+    outPosition = slot.root->Get_Transform()->Get_Position() + kBattlePictosPortraitAnchorOffset;
+    return true;
 }
 
 HRESULT UI_BattleSystemHUD::Load_UI(uint32 levelIndex)
