@@ -1,20 +1,41 @@
 ﻿#pragma once
-
 #include "SL_Base.h"
 NS_BEGIN(Engine)
-
 class AIController;
+class ColliderCom;
 NS_END
-NS_BEGIN(Client)
 
+NS_BEGIN(Client)
 class Mon_Dualliste_Body;
 class Mon_Dualliste_Sword_L;
 class Mon_Dualliste_Sword_R;
 class MonsterStatCom;
+class SL_Mon_StateMachineCom;
 
 class SL_Dualliste final : public SL_Base
 {
     GENERATED_GAMEOBJECT(SL_Dualliste, ObjectType::Monster)
+
+public:
+    enum class Anim
+    {
+        Intro,
+        Idle,
+        Walk,
+        Run,
+        DashIntro,
+        Dash_1,
+        DashAtt_Spain,
+        DashAtt_Stab,
+        PhaseChange,
+        Stun_Start,
+        Stun_Idle,
+        Stun_End,
+        Attack_Combo_1,
+        Attack_Combo_2,
+        Hit,
+        Dead
+    };
 
 public:
     SL_Dualliste(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -34,21 +55,35 @@ public:
 public:
     void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     Shared<CombatStatCom> Get_Stat() const override;
-    Shared<ColliderCom> Get_AttackCollider() const override;
+    Shared<ColliderCom> Get_AttackColliderL() const;
+    Shared<ColliderCom> Get_AttackColliderR() const;
+    bool Play_Anim(Anim anim, float blendDuration, bool loop);
+    bool Play_Anim(Anim anim, float blendDuration, bool loop, float startFrame);
+    void Set_AnimPaused(bool paused);
+    void Set_AnimTimeSec(float timeSec);
+    void Refresh_AnimPose();
+    bool Is_AnimFinished() const;
     bool Is_Dead() const override;
+    void Set_IntroFin(bool isDone) { _isIntroDone = isDone; };
     void Apply_Damage(const SL_DamageInfo& damageInfo) override;
+    bool Change_State(SL_MonState state);
 
 protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
+    void Update_BlackBoard();
 
 private:
     Shared<MonsterStatCom> _combatStat = {};
-    Shared<ColliderCom> _attackColliderCom = {};
+    Shared<ColliderCom> _attackRCom = {};
+    Shared<ColliderCom> _attackLCom = {};
     Shared<AIController>         _aiCtrl;
+    Shared<SL_Mon_StateMachineCom> _stateMachineCom = {};
     Shared<Mon_Dualliste_Body> _body = {};
     Shared<Mon_Dualliste_Sword_L> _swordL = {};
     Shared<Mon_Dualliste_Sword_R> _swordR = {};
+    Anim _currentAnim = Anim::Idle;
+    bool _isIntroDone = false;
 
 public:
     static Shared<SL_Dualliste> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

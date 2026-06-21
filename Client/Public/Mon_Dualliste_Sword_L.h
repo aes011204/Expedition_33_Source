@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "Monster_Part.h"
@@ -29,12 +29,16 @@ public:
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+    HRESULT Ready_Components(const MONSTER_PART_DESC& desc) override;
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
 
 private:
     const Matrix* _socketMatrix = nullptr;
     Matrix _offsetMatrix = {};
+
+    Shared<ColliderCom>         _attackLCom{};
+
 
 public:
     static Shared<Mon_Dualliste_Sword_L> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

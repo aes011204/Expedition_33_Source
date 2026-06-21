@@ -9,6 +9,14 @@
 #include "Mon_Dualliste_Sword_R.h"
 #include "MonsterStatCom.h"
 #include "SL_DamageSystem.h"
+#include "SL_Mon_StateMachineCom.h"
+#include "AIController.h"
+#include "ClientScreenFxManager.h"
+#include "BlackBoard.h"
+#include "ClientInstance.h"
+#include "Player_WorldBase.h"
+
+REGISTER_GLOBAL_ENUM(SL_Dualliste::Anim, "SL_DuallisteAnim")
 
 IMPLEMENT_REFLECTION(SL_Dualliste)
 {
@@ -49,11 +57,22 @@ void SL_Dualliste::BeginPlay()
 {
     SL_Base::BeginPlay();
 
-    if (_attackColliderCom)
-    {
-        _attackColliderCom->Set_IsActive(false);
-        _attackColliderCom->Clear_Overlap();
-    }
+   if (_attackRCom)
+   {
+       _attackRCom->Set_IsActive(false);
+       _attackRCom->Clear_Overlap();
+   }
+
+   if (_attackLCom)
+   {
+       _attackLCom->Set_IsActive(false);
+       _attackLCom->Clear_Overlap();
+   }
+
+   //_body->Set_AnimationByState(ETOI(Anim::Intro),0.f,1.f);
+
+   if (_stateMachineCom)
+       _stateMachineCom->Change_State(SL_MonState::Intro);
 }
 
 void SL_Dualliste::Priority_Update(float timeDelta)
@@ -68,6 +87,14 @@ void SL_Dualliste::Update(float timeDelta)
 
     if (CLIENT->Is_BattleActive())
         return;
+
+    Update_BlackBoard();
+
+    if (_aiCtrl && _isIntroDone)
+        _aiCtrl->Update(timeDelta);
+
+    if (_stateMachineCom)
+        _stateMachineCom->Update_CurrentState(timeDelta);
 
     if (_body)
         _body->Play_Animation(timeDelta);
@@ -99,7 +126,8 @@ void SL_Dualliste::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
     if (self == nullptr || other == nullptr)
         return;
 
-    if (self.get() != _attackColliderCom.get())
+    if (self.get() != _attackRCom.get() &&
+        self.get() != _attackLCom.get())
         return;
 
     if (other->Get_CollisionPreset() != Collision_Preset::SL_PlayerBody)
@@ -130,9 +158,73 @@ Shared<CombatStatCom> SL_Dualliste::Get_Stat() const
     return _combatStat;
 }
 
-Shared<ColliderCom> SL_Dualliste::Get_AttackCollider() const
+Shared<ColliderCom> SL_Dualliste::Get_AttackColliderL() const
 {
-    return _attackColliderCom;
+    return _attackLCom;
+}
+Shared<ColliderCom> SL_Dualliste::Get_AttackColliderR() const
+{
+    return _attackRCom;
+}
+
+bool SL_Dualliste::Play_Anim(Anim anim, float blendDuration, bool loop)
+{
+    if (_body == nullptr)
+        return false;
+
+    if (_currentAnim == anim && loop)
+        return true;
+
+    if (_body->Set_AnimationByState(ETOI(anim), blendDuration, loop))
+    {
+        _currentAnim = anim;
+        return true;
+    }
+
+    return false;
+}
+
+bool SL_Dualliste::Play_Anim(Anim anim, float blendDuration, bool loop, float startFrame)
+{
+    if (_body == nullptr)
+        return false;
+
+    if (_body->Set_AnimationByState(ETOI(anim), blendDuration, loop, startFrame))
+    {
+        _currentAnim = anim;
+        return true;
+    }
+
+    return false;
+}
+
+void SL_Dualliste::Set_AnimPaused(bool paused)
+{
+    if (_body == nullptr || _body->Get_Model() == nullptr)
+        return;
+
+    _body->Get_Model()->Set_AnimationPaused(paused);
+}
+
+void SL_Dualliste::Set_AnimTimeSec(float timeSec)
+{
+    if (_body == nullptr || _body->Get_Model() == nullptr)
+        return;
+
+    _body->Get_Model()->Set_CurrentAnimationTimeSec(timeSec);
+}
+
+void SL_Dualliste::Refresh_AnimPose()
+{
+    if (_body == nullptr || _body->Get_Model() == nullptr)
+        return;
+
+    _body->Get_Model()->Refresh_CurrentAnimationPose();
+}
+
+bool SL_Dualliste::Is_AnimFinished() const
+{
+    return _body != nullptr && _body->Is_AnimationFinished();
 }
 
 bool SL_Dualliste::Is_Dead() const
@@ -146,9 +238,48 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
         return;
 }
 
+void SL_Dualliste::Update_BlackBoard()
+{
+    if (_aiCtrl == nullptr || _transformCom == nullptr)
+        return;
+
+    const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+    if (bb == nullptr)
+        return;
+
+    bb->Set_Value<bool>("IsDead", Is_Dead());
+
+    const Shared<Player_WorldBase> player = CLIENT->Get_ActiveHero();
+    if (player == nullptr || player->Get_Transform() == nullptr)
+    {
+        bb->Set_Value<bool>("CanAttack", false);
+        return;
+    }
+
+    const Vec3 targetPos = player->Get_Transform()->Get_WorldPosition();
+    bb->Set_Value<Vec3>("TargetPos", targetPos);
+
+    const Vec3 myPos = _transformCom->Get_WorldPosition();
+    const float distanceToTarget = Vec3::Distance(myPos, targetPos);
+    bb->Set_Value<bool>("CanAttack", distanceToTarget <= 3.0f);
+}
+
+bool SL_Dualliste::Change_State(SL_MonState state)
+{
+	if (_stateMachineCom == nullptr)
+		return false;
+
+	return _stateMachineCom->Change_State(state);
+}
+
+
 HRESULT SL_Dualliste::Ready_Components()
 {
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl), E_FAIL);
+    _aiCtrl->Set_Owner(static_pointer_cast<SL_Dualliste>(shared_from_this()));
+
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_Mon_StateMachine"), _stateMachineCom), E_FAIL);
 
     _combatStat->Set_RuntimeCombatProfile(150.f, 0, 18.f, 0.f, 0.f);
 
@@ -158,20 +289,6 @@ HRESULT SL_Dualliste::Ready_Components()
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &bodyObbDesc, Collision_Preset::SL_MonsterBody), E_FAIL);
     CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_MonsterBody")), E_FAIL);
-
-    Bounding_OBB::BoundingOBBDesc attackObbDesc{};
-    attackObbDesc.center = Vec3(0.f, 1.0f, 1.0f);
-    attackObbDesc.extents = Vec3(0.55f, 0.65f, 0.95f);
-
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _attackColliderCom, &attackObbDesc), E_FAIL);
-    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_MonsterAttack")), E_FAIL);
-
-    _attackColliderCom->Set_CollisionPreset(Collision_Preset::SL_MonsterAttack);
-    _attackColliderCom->Set_IsActive(false);
-    _attackColliderCom->Clear_Overlap();
-
-
-
 
     return S_OK;
 }

@@ -159,6 +159,7 @@
     <ClInclude Include="..\Public\AL_SL_State.h" />
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
+    <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h" />
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
     <ClInclude Include="..\public\ANS_Dodge.h" />
@@ -167,6 +168,7 @@
     <ClInclude Include="..\public\ANS_Emissive.h" />
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
+    <ClInclude Include="..\Public\ANS_SL_MoveTo.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\Public\ANS_PlayEffect.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
@@ -237,6 +239,13 @@
     <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
+    <ClInclude Include="..\Public\BT_SL_CanAttack.h" />
+    <ClInclude Include="..\Public\BT_SL_IsDead.h" />
+    <ClInclude Include="..\Public\BT_SL_IsHit.h" />
+    <ClInclude Include="..\Public\BT_SL_IsIntroDone.h" />
+    <ClInclude Include="..\Public\BT_SL_IsStun.h" />
+    <ClInclude Include="..\Public\BT_SL_SetDesiredState.h" />
+    <ClInclude Include="..\Public\BT_SL_SetSelectedAttack.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
@@ -259,6 +268,15 @@
     <ClInclude Include="..\Public\SL_Hit.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
     <ClInclude Include="..\Public\SL_Jump.h" />
+    <ClInclude Include="..\Public\SL_Mon_IntroState.h" />
+    <ClInclude Include="..\Public\SL_Mon_AttackState.h" />
+    <ClInclude Include="..\Public\SL_Mon_ChaseState.h" />
+    <ClInclude Include="..\Public\SL_Mon_DeadState.h" />
+    <ClInclude Include="..\Public\SL_Mon_HitState.h" />
+    <ClInclude Include="..\Public\SL_Mon_IdleState.h" />
+    <ClInclude Include="..\Public\SL_Mon_State.h" />
+    <ClInclude Include="..\Public\SL_Mon_StunState.h" />
+    <ClInclude Include="..\Public\SL_Mon_StateMachineCom.h" />
     <ClInclude Include="..\Public\SL_Maelle.h" />
     <ClInclude Include="..\Public\SL_Move.h" />
     <ClInclude Include="..\Public\SL_Skill.h" />
@@ -553,6 +571,7 @@
     <ClCompile Include="..\Private\AL_SL_State.cpp" />
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp" />
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
@@ -561,6 +580,7 @@
     <ClCompile Include="..\private\ANS_Emissive.cpp" />
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_MoveTo.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
@@ -641,6 +661,15 @@
     <ClCompile Include="..\Private\SL_Hit.cpp" />
     <ClCompile Include="..\Private\SL_Idle.cpp" />
     <ClCompile Include="..\Private\SL_Jump.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_IntroState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_AttackState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_ChaseState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_DeadState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_HitState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_IdleState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_State.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_StunState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\SL_Dualliste.cpp" />
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
     <ClCompile Include="..\Private\SL_Move.cpp" />
@@ -751,6 +780,13 @@
     </ClCompile>
     <ClCompile Include="..\private\BT_Chase.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+    <ClCompile Include="..\Private\BT_SL_CanAttack.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsDead.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsHit.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsIntroDone.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsStun.cpp" />
+    <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp" />
+    <ClCompile Include="..\Private\BT_SL_SetSelectedAttack.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
     <ClCompile Include="..\Private\BT_RotateToTarget.cpp" />

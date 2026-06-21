@@ -69,6 +69,16 @@ void Refresh_MonsterBodyAnimMapping(const Shared<GameObject>& gameObject)
             if (Shared<ModelCom> model = body->Get_Model())
                 model->Refresh_AnimStateMappingFromOwnerContext();
         }
+        return;
+    }
+
+    if (auto soulLikeActor = dynamic_pointer_cast<SL_Base>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Monster_Part*>(soulLikeActor->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
     }
 }
 

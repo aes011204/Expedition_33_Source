@@ -1,20 +1,22 @@
 ﻿#include "Mon_Dualliste_Sword_L.h"
 
+#include "Bounding_OBB.h"
+#include "ColliderCom.h"
 #include "EffectCom.h"
 
 NS_BEGIN(Client)
 
-//IMPLEMENT_REFLECTION(Mon_Dualliste_Sword_L)
-//{
-//    auto& info = GetStaticReflectionInfo();
-//    info.properties.clear();
-//
-//    info.displayName = "Mon_Dualliste_Sword_L";
-//    info.category = "Monster";
-//    
-//
-//    return true;
-//}
+IMPLEMENT_REFLECTION(Mon_Dualliste_Sword_L)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Mon_Dualliste_Sword_L";
+    info.category = "Weapon";
+    
+
+    return true;
+}
 
 
 Mon_Dualliste_Sword_L::Mon_Dualliste_Sword_L(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -67,6 +69,11 @@ void Mon_Dualliste_Sword_L::Update(float timeDelta)
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
+
+
+    if (_attackLCom)
+        _attackLCom->Update_Collider(Get_CombinedWorldMatrix());
+    GAME->Add_Collider(_attackLCom, Get_CombinedWorldMatrix());
 }
 
 void Mon_Dualliste_Sword_L::Late_Update(float timeDelta)
@@ -82,6 +89,23 @@ HRESULT Mon_Dualliste_Sword_L::Render()
 HRESULT Mon_Dualliste_Sword_L::Render_Shadow()
 {
     return Monster_Part::Render_Shadow();
+}
+
+HRESULT Mon_Dualliste_Sword_L::Ready_Components(const MONSTER_PART_DESC& desc)
+{
+
+    Bounding_OBB::BoundingOBBDesc attackObbDesc{};
+    attackObbDesc.center = Vec3(0.f, 1.0f, 1.0f);
+    attackObbDesc.extents = Vec3(0.55f, 0.65f, 0.95f);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _attackLCom, &attackObbDesc), E_FAIL);
+    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_MonsterSword_L")), E_FAIL);
+
+    _attackLCom->Set_CollisionPreset(Collision_Preset::SL_MonsterAttack);
+    _attackLCom->Set_IsActive(false);
+    _attackLCom->Clear_Overlap();
+
+    return Monster_Part::Ready_Components(desc);
 }
 
 uint32 Mon_Dualliste_Sword_L::Decide_PassIndex(Shared<Material> mat)
