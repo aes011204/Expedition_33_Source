@@ -547,6 +547,7 @@
     <ClInclude Include="AN_SL_CameraReturn.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="ChainModifierPreset.h" />
+    <ClInclude Include="DialogueTypes.h" />
     <ClInclude Include="Mon_Simon_Weapon.h" />
     <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
