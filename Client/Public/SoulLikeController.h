@@ -9,6 +9,7 @@ NS_BEGIN(Client)
 
 class SL_Base;
 class SL_Maelle;
+class SoulLikeCamera;
 
 class SL_StateMachineCom;
 
@@ -81,9 +82,12 @@ public:
 
 
 private:
-    void    Request_TargetCamera();
+    void    Request_SoulLikeCamera();
     void    Request_BattleShotCamera(const EvtBattlePresentation& event);
-    void    Restore_TargetCamera();
+    void    Restore_GameplayCamera();
+    bool    Ensure_SoulLikeCamera();
+    bool    Ensure_BattleTurnCamera();
+    void    Remove_SoulLikeRuntimeCameras();
     Shared<Character> Resolve_PlayerCameraOpponent(const Shared<SL_Maelle>& player) const;
 
 private:
@@ -125,12 +129,16 @@ private:
     BattleState _state = BattleState::None;
     Weak<SL_Maelle> _player{};
     Weak<SL_Base> _monster{};
+    Weak<SoulLikeCamera> _soulLikeCamera{};
 
     float _enterFxTimer = 0.f;
     float _victorySlowElapsed = 0.f;
     uint32 _lastVictoryRewardExp = 0;
     bool  _playerSpawned = false;
     FDelegateHandle _editorStopHandle{};
+    uint32 _soulLikeCameraLevelIndex = 0;
+    uint32 _soulLikeBattleTurnCameraLevelIndex = 0;
+    bool _createdSoulLikeBattleTurnCamera = false;
 
 private:
     /* 패링 */
@@ -144,10 +152,6 @@ private:
     // 공격할 때
     float _playerAttackHitStopTimeScale = 0.08f;
     float _playerAttackHitStopDuration = 0.04f;
-
-    float _playerHitShakeAmplitude = 1.0f;
-    float _playerHitShakeDuration = 0.12f;
-    float _playerHitShakeStrength = 0.035f;
 
     Weak<SL_Base> _jumpCounterAttacker{};
     bool _jumpCounterThreatOpen = false;

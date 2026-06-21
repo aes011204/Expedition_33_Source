@@ -12,6 +12,9 @@ IMPLEMENT_REFLECTION(ANS_QTE)
 	PROPERTY_FLOAT("Progress Duration", _progressDuration);
 	PROPERTY_FLOAT("Perfect Start Ratio", _perfectStartRatio);
 	PROPERTY_FLOAT("Perfect End Ratio", _perfectEndRatio);
+	PROPERTY_FLOAT("Fail Damage Bonus Rate", _failDamageBonusRate);
+	PROPERTY_FLOAT("Normal Damage Bonus Rate", _normalDamageBonusRate);
+	PROPERTY_FLOAT("Perfect Damage Bonus Rate", _perfectDamageBonusRate);
 
 	PROPERTY_ENUM("QTE 프리셋을 골라", _qtePreset, BattleQTEPreset);
 
@@ -56,6 +59,9 @@ BattleQTERequest ANS_QTE::Make_Request() const
 	request.progressDuration = _progressDuration;
 	request.perfectStartRatio = _perfectStartRatio;
 	request.perfectEndRatio = _perfectEndRatio;
+	request.failDamageBonusRate = _failDamageBonusRate;
+	request.normalDamageBonusRate = _normalDamageBonusRate;
+	request.perfectDamageBonusRate = _perfectDamageBonusRate;
 
 	request.placementPreset = _qtePreset;
 	request.screenPosition = Resolve_ScreenPosition(_qtePreset);

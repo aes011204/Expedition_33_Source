@@ -138,6 +138,12 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
+        if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
+        {
+            LOG_DEBUG("ChooseAction: FreeAimTargeting blocked because active camera is not BattleTurnCamera");
+            return;
+        }
+
         owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
 
         EvtBattlePresentation event;

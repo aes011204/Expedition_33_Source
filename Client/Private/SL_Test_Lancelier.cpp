@@ -195,7 +195,18 @@ void SL_Test_Lancelier::Apply_Damage(const SL_DamageInfo& damageInfo)
     if (damageInfo.target.get() != this)
         return;
 
-    Play_Anim(Is_Dead() ? Anim::Dead : Anim::Hit, 0.08f, false);
+    if (Is_Dead())
+    {
+        Play_Anim(Anim::Dead, 0.08f, false);
+        return;
+    }
+
+    if (damageInfo.attackType == AttackType::BaseAttack)
+    {
+        return;
+    }
+
+    Play_Anim(Anim::Hit, 0.08f, false);
 }
 
 HRESULT SL_Test_Lancelier::Ready_Components()

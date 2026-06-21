@@ -1,5 +1,7 @@
 ﻿#include "SoulLikeController.h"
-
+#include "BattleController.h"
+#include "BattleTurnCamera.h"
+#include "Event_Bus.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
 #include "GameplayUI.h"
@@ -15,10 +17,11 @@
 #include "SL_StateMachineCom.h"
 #include "SL_TargetCom.h"
 #include "Spawn_Prefab.h"
-#include "TargetCamera.h"
+#include "SoulLikeCamera.h"
 #include "SkillTreeCom.h"
 #include "TransformCom.h"
 #include "MonsterStatCom.h"
+#include "SL_Skill.h"
 
 IMPLEMENT_REFLECTION(SoulLikeController)
 {
@@ -50,11 +53,7 @@ IMPLEMENT_REFLECTION(SoulLikeController)
 
     PROPERTY_FLOAT("피격 히트스탑 시간 배율", _playerHitStopTimeScale, 0.f, 1.f, 0.01f);
     PROPERTY_FLOAT("피격 히트스탑 지속 시간", _playerHitStopDuration, 0.f, 1.f, 0.01f);
-                   
-    PROPERTY_FLOAT("피격 카메라 흔들림 진폭", _playerHitShakeAmplitude, 0.f, 5.f, 0.05f);
-    PROPERTY_FLOAT("피격 카메라 흔들림 시간", _playerHitShakeDuration, 0.f, 1.f, 0.01f);
-    PROPERTY_FLOAT("피격 카메라 흔들림 세기", _playerHitShakeStrength, 0.f, 0.2f, 0.005f);
-                   
+
     PROPERTY_FLOAT("공격 히트스탑 시간 배율", _playerAttackHitStopTimeScale, 0.f, 1.f, 0.01f);
     PROPERTY_FLOAT("공격 히트스탑 지속 시간", _playerAttackHitStopDuration, 0.f, 1.f, 0.01f);
 
@@ -83,9 +82,6 @@ SoulLikeController::SoulLikeController(const SoulLikeController& prototype)
     , _playerHitStopDuration(prototype._playerHitStopDuration)
     , _playerAttackHitStopTimeScale(prototype._playerAttackHitStopTimeScale)
     , _playerAttackHitStopDuration(prototype._playerAttackHitStopDuration)
-    , _playerHitShakeAmplitude(prototype._playerHitShakeAmplitude)
-    , _playerHitShakeDuration(prototype._playerHitShakeDuration)
-    , _playerHitShakeStrength(prototype._playerHitShakeStrength)
     , _jumpCounterDamageMultiplier(prototype._jumpCounterDamageMultiplier)
 {
 }
@@ -144,6 +140,9 @@ bool SoulLikeController::Begin_Battle()
     if (Is_BattleActive())
         return false;
 
+    if (Shared<BattleController> battleController = CLIENT->Get_BattleController())
+        battleController->Cancel_BattleEnterPending();
+
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
 
@@ -173,7 +172,7 @@ void SoulLikeController::End_Battle()
 {
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
-    Restore_TargetCamera();
+    Remove_SoulLikeRuntimeCameras();
 
     _state = BattleState::Finished;
     _enterFxTimer = 0.f;
@@ -195,10 +194,11 @@ void SoulLikeController::Confirm_Victory()
     End_Battle();
 }
 
-void SoulLikeController::Handle_BattleShotNotify(const AnimNotifyContext& context, BattleCameraMode cameraMode,
-    const string& presetId, const string& clipId, bool useClip, bool restartClip, bool keepCurrentClip)
+void SoulLikeController::Handle_BattleShotNotify(
+    const AnimNotifyContext& context, BattleCameraMode cameraMode, const string& presetId,
+    const string& clipId, bool useClip, bool restartClip, bool keepCurrentClip)
 {
-    if (!Is_BattleActive())
+    if (_state != BattleState::Playing)
         return;
 
     if (context.owner == nullptr || context.model == nullptr)
@@ -218,25 +218,34 @@ void SoulLikeController::Handle_BattleShotNotify(const AnimNotifyContext& contex
     if (subject == nullptr)
         return;
 
+    if (subject.get() != player.get())
+        return;
+
+    Shared<SL_StateMachineCom> stateMachine = player->Get_Component<SL_StateMachineCom>();
+    if (stateMachine == nullptr || stateMachine->Get_CurrentSoulLikeState() != SL_PlayerState::Skill)
+        return;
+
     EvtBattlePresentation event{};
     event.cameraMode = cameraMode;
     event.subject = subject;
-    event.opponent = (subject.get() == player.get()) ? Resolve_PlayerCameraOpponent(player) : player;
+    event.opponent = Resolve_PlayerCameraOpponent(player);
     event.presetId = presetId;
     event.clipId = clipId;
     event.useClip = useClip;
     event.restartClip = restartClip;
     event.keepCurrentClip = keepCurrentClip;
 
+    if (Shared<SL_Skill> skillState = dynamic_pointer_cast<SL_Skill>(stateMachine->Get_State(SL_PlayerState::Skill)))
+        event.skillId = skillState->Get_CurrentSkillKey();
+
     Request_BattleShotCamera(event);
 }
-
 void SoulLikeController::End_BattleShotCamera()
 {
     if (!Is_BattleActive())
         return;
 
-    Request_TargetCamera();
+    Request_SoulLikeCamera();
 }
 
 void SoulLikeController::Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo)
@@ -253,20 +262,6 @@ void SoulLikeController::Play_PlayerParryFeedback()
 
     if (_playerHitStopDuration > 0.f)
         GAME->Slow_WorldTime(_playerHitStopTimeScale, _playerHitStopDuration);
-
-    Shared<TargetCamera> targetCamera =
-        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera));
-
-    if (targetCamera == nullptr)
-        return;
-
-    if (targetCamera->Get_CurrentMode() != TargetCameraMode::SOULLIKE)
-        return;
-
-    targetCamera->Play_HitShake(
-        _playerHitShakeAmplitude,
-        _playerHitShakeDuration,
-        _playerHitShakeStrength);
 }
 
 void SoulLikeController::Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo)
@@ -395,41 +390,141 @@ void SoulLikeController::Apply_JumpCounterDamage()
     _jumpCounterAttackStarted = false;
 }
 
-void SoulLikeController::Request_TargetCamera()
+void SoulLikeController::Request_SoulLikeCamera()
 {
     Shared<SL_Maelle> player = _player.lock();
     if (player == nullptr || player->Get_Transform() == nullptr)
         return;
 
-    CLIENT->Request_GamePlay();
-
-    Shared<TargetCamera> targetCamera =
-        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera));
-
-    if (targetCamera == nullptr)
+    if (!Ensure_SoulLikeCamera())
         return;
 
-    targetCamera->SetTargetTransform(player->Get_Transform());
-    targetCamera->Change_Mode(TargetCameraMode::SOULLIKE);
-    targetCamera->Update(0.f);
+    Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock();
+    if (soulLikeCamera == nullptr)
+        return;
+
+    soulLikeCamera->SetTargetTransform(player->Get_Transform());
+    GAME->Change_ActiveCamera(static_pointer_cast<Camera>(soulLikeCamera));
+    soulLikeCamera->Update(0.f);
 }
 
 void SoulLikeController::Request_BattleShotCamera(const EvtBattlePresentation& event)
 {
-    UNREFERENCED_PARAMETER(event);
+    if (_state != BattleState::Playing || event.subject == nullptr)
+        return;
 
-    Request_TargetCamera();
+    if (!Ensure_BattleTurnCamera())
+        return;
+
+    CLIENT->Request_BattleTurn();
+    GAME->Get_EventBus().Publish(event);
 }
 
-void SoulLikeController::Restore_TargetCamera()
+bool SoulLikeController::Ensure_BattleTurnCamera()
+{
+    if (GAME->Get_CameraByType(ObjectType::BattleTurnCamera) != nullptr)
+        return true;
+
+    BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
+    desc.eye = XMFLOAT4(0.f, 8.f, -15.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 1.2f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(45.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 500.f;
+    desc.mouseSensor = 0.15f;
+    desc.mouseSensitivity = 0.f;
+
+    Shared<GameObject> cameraObject = nullptr;
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_BattleTurnCamera"),
+            GAME->Current_LevelIndex(),
+            TEXT("Layer_Camera"),
+            cameraObject,
+            &desc),
+        false);
+
+    Shared<BattleTurnCamera> battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(cameraObject);
+    CHECK_NULL(battleTurnCamera, false);
+
+    battleTurnCamera->Try_BeginPlay();
+    battleTurnCamera->Reset_RuntimeState();
+    _soulLikeBattleTurnCameraLevelIndex = GAME->Current_LevelIndex();
+    _createdSoulLikeBattleTurnCamera = true;
+
+    return true;
+}
+
+void SoulLikeController::Restore_GameplayCamera()
 {
     CLIENT->Request_GamePlay();
+}
 
-    Shared<TargetCamera> targetCamera =
-        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera));
+bool SoulLikeController::Ensure_SoulLikeCamera()
+{
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        return true;
 
-    if (targetCamera)
-        targetCamera->Refresh_TargetTransform();
+    if (Shared<SoulLikeCamera> soulLikeCamera =
+        dynamic_pointer_cast<SoulLikeCamera>(GAME->Get_CameraByType(ObjectType::SoulLikeCamera)))
+    {
+        _soulLikeCamera = soulLikeCamera;
+        _soulLikeCameraLevelIndex = GAME->Current_LevelIndex();
+        return true;
+    }
+
+    SoulLikeCamera::SOULLIKE_CAMERA_DESC desc{};
+    desc.speedPerSec = 10.f;
+    desc.degreePerSec = 180.f;
+    desc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(60.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 500.f;
+    desc.mouseSensor = 0.06f;
+    desc.mouseSensitivity = 0.5f;
+
+    Shared<GameObject> cameraObject = nullptr;
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_SoulLikeCamera"),
+            GAME->Current_LevelIndex(),
+            TEXT("Layer_Camera"),
+            cameraObject,
+            &desc),
+        false);
+
+    Shared<SoulLikeCamera> soulLikeCamera = dynamic_pointer_cast<SoulLikeCamera>(cameraObject);
+    CHECK_NULL(soulLikeCamera, false);
+
+    soulLikeCamera->Try_BeginPlay();
+
+    _soulLikeCamera = soulLikeCamera;
+    _soulLikeCameraLevelIndex = GAME->Current_LevelIndex();
+
+    return true;
+}
+
+void SoulLikeController::Remove_SoulLikeRuntimeCameras()
+{
+    Restore_GameplayCamera();
+
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        GAME->Remove_GameObject(_soulLikeCameraLevelIndex, soulLikeCamera);
+
+    _soulLikeCamera.reset();
+    _soulLikeCameraLevelIndex = 0;
+
+    if (_createdSoulLikeBattleTurnCamera)
+    {
+        if (Shared<Camera> battleTurnCamera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera))
+            GAME->Remove_GameObject(_soulLikeBattleTurnCameraLevelIndex, battleTurnCamera);
+    }
+
+    _createdSoulLikeBattleTurnCamera = false;
+    _soulLikeBattleTurnCameraLevelIndex = 0;
 }
 
 Shared<Character> SoulLikeController::Resolve_PlayerCameraOpponent(const Shared<SL_Maelle>& player) const
@@ -519,7 +614,7 @@ bool SoulLikeController::Spawn_Player()
 
     _playerSpawned = true;
 
-    Request_TargetCamera();
+    Request_SoulLikeCamera();
 
     return true;
 }
@@ -588,6 +683,8 @@ void SoulLikeController::Remove_SpawnedBattleActors()
 
     _monster.reset();
     _player.reset();
+
+    Remove_SoulLikeRuntimeCameras();
 }
 
 void SoulLikeController::Update_EnterFx(float timeDelta)

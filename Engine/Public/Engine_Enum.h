@@ -65,6 +65,7 @@ namespace Engine
         PreviewCamera,
         BattleTurnCamera,
         CinematicCamera,
+        SoulLikeCamera,
 
         Terrain,
         Landscape,

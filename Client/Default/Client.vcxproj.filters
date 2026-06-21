@@ -1163,6 +1163,7 @@
     <ClCompile Include="..\Private\SL_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
+    <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1234,6 +1235,7 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SL_JumpCounter.h" />
+    <ClInclude Include="..\Public\SoulLikeCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

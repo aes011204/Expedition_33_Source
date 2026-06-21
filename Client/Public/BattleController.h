@@ -69,6 +69,7 @@ public:
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
+    void Cancel_BattleEnterPending();
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
