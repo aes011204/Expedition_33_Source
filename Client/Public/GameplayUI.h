@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Delegate.h"
 #include "GameplayUI_Types.h"
 
 NS_BEGIN(Client)
@@ -61,6 +62,7 @@ private:
     Unique<GamePlayUI_SL>       _soulLikeUI;
 
     GameplayUIInputMode         _lastInputMode = GameplayUIInputMode::World;
+    FDelegateHandle             _editorStopHandle{};
 
 public:
     static Shared<GameplayUI> Create(uint32 levelIndex);

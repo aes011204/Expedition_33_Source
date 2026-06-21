@@ -592,6 +592,11 @@ void ClientInstance::Request_GamePlay()
     return _cameraDirector->Request_GamePlay();
 }
 
+void ClientInstance::Request_SoulLikeCamera()
+{
+    return _cameraDirector->Request_SoulLikeCamera();
+}
+
 void ClientInstance::Request_Preview()
 {
     return _cameraDirector->Request_Preview();

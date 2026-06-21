@@ -19,7 +19,8 @@ public:
         BattleTurnState currentState,
         const BattleChar& actor,
         const string& selectedSkillKey,
-        uint32 skillPage);
+        uint32 skillPage,
+        float timeDelta);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

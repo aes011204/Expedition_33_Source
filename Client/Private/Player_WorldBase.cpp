@@ -146,6 +146,12 @@ void Player_WorldBase::Late_Update(float timeDelta)
         return;
     }
 
+    if (!_partyVisibilityAllowed)
+    {
+        Set_Visible(false); // 잠긴 파티원은 Character_WorldBase::Update_Culling이 다시 켜기 전에 차단한다.
+        return;
+    }
+
     __super::Late_Update(timeDelta);
 
     Update_Culling(Vec3(1.f, 2.f, 1.f));
@@ -154,6 +160,14 @@ void Player_WorldBase::Late_Update(float timeDelta)
 HRESULT Player_WorldBase::Render()
 {
     return S_OK;
+}
+
+void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)
+{
+    _partyVisibilityAllowed = allowed;
+
+    if (!allowed)
+        Set_Visible(false);
 }
 
 void Player_WorldBase::Update_StatusPreview(float timeDelta)
@@ -788,6 +802,7 @@ Shared<Hair_Player> Player_WorldBase::Create_CostumeHairVariant(const wstring& m
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.usePoseFollowModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(

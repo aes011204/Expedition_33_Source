@@ -1,6 +1,7 @@
 #include "BattleWorldUI_CommandCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
@@ -175,6 +176,8 @@ namespace
         BattleWorldCommandSurfaceDef def{};
         Unique<IWorldUICommandSurface> surface{};
         Matrix worldMatrix = Matrix::Identity;
+        BattleWorldSurfaceAnimState introAnim{};
+        Vec3 introStartOffset = Vec3::Zero;
         bool visible = false;
         bool dirty = true;
     };
@@ -1988,6 +1991,9 @@ struct BattleWorldUI_CommandCards::Impl
     bool hasPlacementTuningFile = false;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
+    BattleTurnState introState = BattleTurnState::None;
+    HeroId introHeroId = HeroId::END;
+    bool hasIntroKey = false;
 };
 
 BattleWorldUI_CommandCards::BattleWorldUI_CommandCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -2043,7 +2049,8 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
     BattleTurnState currentState,
     uint32 curAp,
     uint32 maxAp,
-    HeroId actorHeroId)
+    HeroId actorHeroId,
+    float timeDelta)
 {
     if (_impl == nullptr || !Should_ShowBattleWorldCommandCards(currentState))
     {
@@ -2061,6 +2068,22 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
+
+    const bool restartIntro =
+        !_impl->hasIntroKey ||
+        _impl->introState != currentState ||
+        _impl->introHeroId != placementHeroId;
+    if (restartIntro)
+    {
+        _impl->introState = currentState;
+        _impl->introHeroId = placementHeroId;
+        _impl->hasIntroKey = true;
+        for (uint32 surfaceIndex = 0; surfaceIndex < _impl->surfaces.size(); ++surfaceIndex)
+            Restart_BattleWorldSurfaceAnim(_impl->surfaces[surfaceIndex].introAnim, surfaceIndex);
+    }
+
+    for (auto& surface : _impl->surfaces)
+        Advance_BattleWorldSurfaceAnim(surface.introAnim, timeDelta);
 
     const BattleWorldCommandWorldPlacementTuning& placementTuning =
         _impl->placementTunings[placementHeroIndex];
@@ -2102,6 +2125,8 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
             surfaceOffset.x * rootScale.x,
             surfaceOffset.y * rootScale.y,
             surfaceOffset.z);
+        const float introOutwardX = localOffset.x < 0.f ? -0.04f : 0.04f;
+        surface.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(introOutwardX, -0.06f, 0.f));
         const Vec2 surfaceWorldSize(
             surface.def.worldSize.x * rootScale.x,
             surface.def.worldSize.y * rootScale.y);
@@ -2134,6 +2159,7 @@ void BattleWorldUI_CommandCards::Hide()
     if (_impl == nullptr)
         return;
 
+    _impl->hasIntroKey = false;
     for (auto& surface : _impl->surfaces)
         surface.visible = false;
 }
@@ -2257,7 +2283,9 @@ HRESULT BattleWorldUI_CommandCards::Render()
         if (!surface.visible || surface.surface == nullptr || !surface.surface->Has_BackgroundContent())
             continue;
 
-        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), surface.worldMatrix, color), E_FAIL);
+        const BattleWorldSurfaceAnimRenderState renderState =
+            Apply_BattleWorldSurfaceAnim(surface.introAnim, surface.worldMatrix, color, surface.introStartOffset);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(surface.surface->Bind_BackgroundShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(GAME->Bind_BackgroundUIBehindPlayerStencilState(), E_FAIL);
@@ -2274,7 +2302,9 @@ HRESULT BattleWorldUI_CommandCards::Render()
         if (!surface.visible || surface.surface == nullptr || !surface.surface->Has_ForegroundContent())
             continue;
 
-        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), surface.worldMatrix, color), E_FAIL);
+        const BattleWorldSurfaceAnimRenderState renderState =
+            Apply_BattleWorldSurfaceAnim(surface.introAnim, surface.worldMatrix, color, surface.introStartOffset);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(surface.surface->Bind_ForegroundShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);

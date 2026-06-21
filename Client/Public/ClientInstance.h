@@ -158,6 +158,7 @@ public: /* For.Battle_Controller */
 
 public: /*For.Camera Director*/
     void Request_GamePlay();
+    void Request_SoulLikeCamera();
     void Request_Preview();
     void Request_BattleTurn();
     Shared<CinematicCamera> Request_Cinematic();

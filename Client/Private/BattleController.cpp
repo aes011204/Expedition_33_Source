@@ -122,6 +122,12 @@ void BattleController::Update(float timeDelta)
     if (Update_BattleTutorialGate(timeDelta))
         return;
 
+    if (_isBattleEntering && CLIENT->Is_SoulLikeBattleActive())
+    {
+        Cancel_BattleEnterPending();
+        return;
+    }
+
     if (_isBattleEntering)
     {
         if (!_hasRequestedBattleEnterCamera)
@@ -374,6 +380,31 @@ void BattleController::OnEnterBattleField(
     GAME->Slow_WorldTime(_battleEnterSlow.worldTimeScale, _battleEnterSlow.duration);
 }
 
+void BattleController::Cancel_BattleEnterPending()
+{
+    if (!_isBattleEntering || _isBattleActive)
+        return;
+
+    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(1.f);
+    GAME->Set_PlayerInputBlocked(false);
+
+    if (_battleSpawnRegistry)
+    {
+        if (Shared<Monster_WorldBase> worldMonster =
+            dynamic_pointer_cast<Monster_WorldBase>(_battleSpawnRegistry->Get_SourceWorldObject()))
+        {
+            worldMonster->Restore_AfterBattleExit();
+        }
+
+        _battleSpawnRegistry->Clear_SourceWorldObject();
+    }
+
+    _battleEnded = false;
+    _pendingNextTurn = false;
+    Clear_BattleEnterPending();
+}
+
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     _lastVictoryRewardExp = 0;
@@ -418,7 +449,11 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
             }
 
             const uint32 rewardLevelIndex = _battleSpawnRegistry->Get_SourceWorldObjectLevelIndex();
-            unlockManager->Handle_BattleVictory(defeatedEnemyKeys, rewardLevelIndex, rewardOriginPtr);
+            unlockManager->Handle_BattleVictory(
+                defeatedEnemyKeys,
+                _activeBattleFieldID,
+                rewardLevelIndex,
+                rewardOriginPtr);
         }
     }
 
@@ -490,6 +525,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _enemies.clear();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
@@ -501,9 +537,6 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
 void BattleController::ExecuteAction(const BattleAction& turnAction)
 {
-    if (_qteController)
-        _qteController->Clear();  // 새 액션 시작 시 이전 QTE 결과가 다음 스킬에 섞이지 않게 초기화한다.
-
     const auto BattleChar = turnAction.Get_CurChar();
     if (!BattleChar.actor)
         return;
@@ -1123,6 +1156,13 @@ bool BattleController::Will_NextScheduledTurnBePlayer(const BattleChar& currentA
 
 void BattleController::Handle_EditorStopRuntime()
 {
+    const bool hadBattleRuntime =
+        _isBattleEntering ||
+        _isWaitingBattleTransition ||
+        _isBattleActive ||
+        _isPendingVictorySlow ||
+        _isWaitingVictoryConfirm;
+
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
     CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
@@ -1152,9 +1192,12 @@ void BattleController::Handle_EditorStopRuntime()
     _battleTurnCamera.reset();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
+
     // DOF_MODIFY 
     End_BattleDOFOverride();
-    Restore_WorldCamera();
+    if (hadBattleRuntime)
+        Restore_WorldCamera();
 
     if (_battleFSM)
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
@@ -1812,6 +1855,7 @@ void BattleController::Confirm_Victory()
     _enemies.clear();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
@@ -2259,6 +2303,8 @@ void BattleController::Complete_BattleField()
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
     const uint32 battleFieldId = _pendingBattleFieldID;
+    _activeBattleFieldID = battleFieldId;
+
     const bool isPlayerAdvantage = _pendingBattleIsPlayerAdvantage;
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
@@ -2317,6 +2363,7 @@ void BattleController::Complete_BattleField()
         _heroes.clear();
         _enemies.clear();
         Clear_BattleEnterPending();
+        _activeBattleFieldID = 0;
         return;
     }
 

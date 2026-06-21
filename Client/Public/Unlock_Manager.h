@@ -17,6 +17,7 @@ public:
         UnlockCostumePreset,
         UnlockSkill,
         SpawnWorldObject,
+        UnlockHero,
     };
 
     struct UnlockReward
@@ -44,7 +45,8 @@ public:
     {
         string ruleId{};
         TriggerType triggerType = TriggerType::EnemyKilled;
-        string triggerKey{}; // MB_Mime, MB_PotatoBag 등
+        string triggerKey{};             // MB_Mime, MB_PotatoBag 등
+        uint32 triggerBattleFieldId = 0; // 0이면 적 프리펩 이름만 검사
 
         vector<UnlockReward> rewards{};
     };
@@ -55,10 +57,17 @@ public:
     // 전투 승리 후 넘겨준 적 prefab 키 목록 기준으로 해금 처리
     void Handle_BattleVictory(
         const vector<string>& enemyKeys,
+        uint32 battleFieldId,
         uint32 rewardLevelIndex = UINT32_MAX,
         const Vec3* rewardOrigin = nullptr);
+
+    bool Is_HeroUnlocked(HeroId heroId) const;
     bool Is_Completed(const string& ruleId) const;
 
+    vector<HeroId> Consume_GetCharacterHeroes();
+    vector<string> Consume_GetClothesPresetIds();
+
+public:
     // 완료 룰 ID로 저장 -> 불러오기까지 구현하려고
     json Create_SaveJson() const;
 
@@ -69,15 +78,24 @@ private:
     void Register_DefaultRules();
     void Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevelIndex, const Vec3* rewardOrigin);
 
+    void Reset_DefaultHeroUnlocks();
+    void Queue_GetClothesPresentation(const string& presetId);
+
     void Apply_Reward(
         const UnlockReward& reward,
         uint32 rewardLevelIndex = UINT32_MAX,
-        const Vec3* rewardOrigin = nullptr);
+        const Vec3* rewardOrigin = nullptr,
+        bool queuePresentation = true);
+
     const UnlockRule* Find_Rule(const string& ruleId) const;
 
 private:
     vector<UnlockRule> _rules{};
     uset<string> _completedRuleIds{};
+
+    uset<HeroId> _unlockedHeroIds{};
+    vector<HeroId> _pendingGetCharacterHeroes{};
+    vector<string> _pendingGetClothesPresetIds{};
 
 public:
     static Unique<Unlock_Manager> Create();

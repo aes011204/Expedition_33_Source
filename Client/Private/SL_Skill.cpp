@@ -1,9 +1,11 @@
 ﻿#include "SL_Skill.h"
-
+#include "Event_Bus.h"
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
 #include "Body_Player.h"
 #include "ModelCom.h"
+#include "SoulLikeController.h"
+#include "ClientInstance.h"
 
 SL_Skill::SL_Skill(const Shared<SL_Maelle>& owner)
     : SL_State(owner)
@@ -101,6 +103,9 @@ void SL_Skill::Finish_Skill()
 {
     if (Shared<SL_Maelle> owner = _owner.lock())
         owner->Set_CombatLocked(false);
+
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+        soulLikeController->End_BattleShotCamera();
 
     if (_stateCom)
         _stateCom->Change_State(SL_PlayerState::Idle);

@@ -31,6 +31,7 @@
 #include "Weapon.h"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 
 namespace
 {
@@ -222,6 +223,251 @@ namespace
 
         return source.find(needle) != string::npos;
     }
+
+    struct ModifierPropertySection
+    {
+        const char* title;
+        const char* help;
+    };
+
+    bool Starts_With(const string& text, const char* prefix)
+    {
+        const size_t prefixLength = std::strlen(prefix);
+        return text.size() >= prefixLength && text.compare(0, prefixLength, prefix) == 0;
+    }
+
+    const char* Resolve_ChainModifierSection(const string& propertyName)
+    {
+        if (Starts_With(propertyName, "collision."))
+            return "Collision";
+
+        if (propertyName == "runtime.gravity"
+            || propertyName == "runtime.windDirection"
+            || propertyName == "runtime.windScale"
+            || propertyName == "runtime.windStartRatio"
+            || propertyName == "runtime.windWeightScale")
+            return "Forces";
+
+        if (propertyName == "motion.movementInertiaScale"
+            || propertyName == "motion.ownerMovementInertiaScale"
+            || propertyName == "motion.tipMovementInertiaScale"
+            || propertyName == "motion.maxMovementOffset")
+            return "Motion Input / Limit";
+
+        if (propertyName == "motion.damping"
+            || propertyName == "motion.tipDampingScale"
+            || propertyName == "runtime.constraintDeadzone"
+            || propertyName == "runtime.resetDistance"
+            || propertyName == "runtime.targetFrameRate")
+            return "Damping / Stability";
+
+        if (propertyName == "shape.poseRestoreStrength"
+            || propertyName == "shape.tipPoseRestoreScale"
+            || propertyName == "shape.rootOutputAlpha"
+            || propertyName == "shape.tipOutputAlpha")
+            return "Restore / Output";
+
+        if (Starts_With(propertyName, "shape."))
+            return "Shape / Bend";
+
+        return "Other";
+    }
+
+    const char* Resolve_PoseFollowModifierSection(const string& propertyName)
+    {
+        if (propertyName == "enableCollision"
+            || propertyName == "particleCollisionRadius"
+            || propertyName == "collisionRadiusPadding"
+            || propertyName == "debugDrawCapsules")
+            return "Collision";
+
+        if (propertyName == "windDirection"
+            || propertyName == "windScale"
+            || propertyName == "ownerMotionScale"
+            || propertyName == "animatedMotionScale"
+            || propertyName == "ownerMotionDeadzone"
+            || propertyName == "ownerRotationDeadzoneDegree"
+            || propertyName == "animatedMotionDeadzone"
+            || propertyName == "maxExternalOffset")
+            return "Motion Input / Gates";
+
+        if (propertyName == "damping"
+            || propertyName == "tipDampingScale"
+            || propertyName == "idleSettleStrength"
+            || propertyName == "sleepVelocityThreshold"
+            || propertyName == "sleepPoseDistance")
+            return "Damping / Settle";
+
+        if (propertyName == "poseFollowStrength"
+            || propertyName == "tipFollowScale"
+            || propertyName == "maxBendAngleDegree"
+            || propertyName == "tipBendAngleScale"
+            || propertyName == "bendLimitStrength"
+            || propertyName == "surfaceConstraintStrength")
+            return "Follow / Shape";
+
+        if (propertyName == "rootOutputAlpha"
+            || propertyName == "tipOutputAlpha"
+            || propertyName == "idleOutputAlphaScale"
+            || propertyName == "outputSmoothAlpha"
+            || propertyName == "idleOutputSmoothAlpha"
+            || propertyName == "outputDeadzoneDegree")
+            return "Output / Idle";
+
+        if (propertyName == "solverIterations"
+            || propertyName == "targetFrameRate"
+            || propertyName == "resetDistance")
+            return "Runtime";
+
+        return "Other";
+    }
+
+    const char* Resolve_ModifierPropertySection(const string& className, const string& propertyName)
+    {
+        if (className == "ChainModifierRuntime")
+            return Resolve_ChainModifierSection(propertyName);
+
+        if (className == "PoseFollowChainModifierRuntime")
+            return Resolve_PoseFollowModifierSection(propertyName);
+
+        return nullptr;
+    }
+
+    bool Draw_ModifierRuntimeProperty(
+        AnimationModifier* modifier,
+        ModelCom* model,
+        const ClassReflectionInfo* reflectionInfo,
+        void* reflectionTarget,
+        const PropertyInfo& property)
+    {
+        PropertyInfo drawProperty = property;
+        if (reflectionInfo->className == "ChainModifierRuntime")
+        {
+            if (property.name == "motion.ownerMovementInertiaScale")
+                drawProperty.displayName = "Owner Iner";
+            else if (property.name == "motion.tipMovementInertiaScale")
+                drawProperty.displayName = "Tip Iner";
+            else if (property.name == "shape.poseRestoreStrength")
+                drawProperty.displayName = "Restore";
+            else if (property.name == "shape.tipPoseRestoreScale")
+                drawProperty.displayName = "Tip Restore";
+            else if (property.name == "shape.surfaceConstraintStrength")
+                drawProperty.displayName = "Surface";
+            else if (property.name == "runtime.constraintDeadzone")
+                drawProperty.displayName = "Const Dead";
+            else if (property.name == "runtime.targetFrameRate")
+                drawProperty.displayName = "FPS";
+        }
+        else if (reflectionInfo->className == "PoseFollowChainModifierRuntime")
+        {
+            if (property.name == "ownerRotationDeadzoneDegree")
+                drawProperty.displayName = "Rot Dead";
+            else if (property.name == "animatedMotionDeadzone")
+                drawProperty.displayName = "Anim Dead";
+            else if (property.name == "idleOutputAlphaScale")
+                drawProperty.displayName = "Idle Out";
+            else if (property.name == "idleOutputSmoothAlpha")
+                drawProperty.displayName = "Idle Smooth";
+            else if (property.name == "outputDeadzoneDegree")
+                drawProperty.displayName = "Out Dead";
+            else if (property.name == "sleepVelocityThreshold")
+                drawProperty.displayName = "Sleep Vel";
+            else if (property.name == "solverIterations")
+                drawProperty.displayName = "Solver";
+            else if (property.name == "targetFrameRate")
+                drawProperty.displayName = "FPS";
+        }
+
+        if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, drawProperty))
+        {
+            modifier->On_RuntimeReflectionChanged(model, property);
+            return true;
+        }
+
+        return false;
+    }
+
+    void Draw_ModifierRuntimeProperties(
+        AnimationModifier* modifier,
+        ModelCom* model,
+        const ClassReflectionInfo* reflectionInfo,
+        void* reflectionTarget)
+    {
+        const bool isChain = reflectionInfo->className == "ChainModifierRuntime";
+        const bool isPoseFollow = reflectionInfo->className == "PoseFollowChainModifierRuntime";
+        if (!isChain && !isPoseFollow)
+        {
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                Draw_ModifierRuntimeProperty(modifier, model, reflectionInfo, reflectionTarget, property);
+                ImGui::Spacing();
+            }
+            return;
+        }
+
+        const ModifierPropertySection chainSections[] =
+        {
+            { "Motion Input / Limit", "Inertia adds motion; Move Limit clamps that input." },
+            { "Damping / Stability", "Damping keeps residual velocity; deadzone/reset limit small jitter and teleports." },
+            { "Restore / Output", "Restore pulls toward pose; Root/Tip Out decides how much sim writes to bones." },
+            { "Shape / Bend", "Stiffness and bend constraints decide how much the chain keeps its shape." },
+            { "Forces", "Gravity and wind are continuous forces even when character motion is small." },
+            { "Collision", "Collision changes particle constraints, not the authored bone pose." },
+            { "Other", "" },
+        };
+
+        const ModifierPropertySection poseFollowSections[] =
+        {
+            { "Motion Input / Gates", "Owner/Anim/Wind add external motion; deadzones and Move Limit gate that input." },
+            { "Damping / Settle", "Damping keeps velocity; settle/sleep values calm idle motion." },
+            { "Follow / Shape", "Follow restores pose direction; bend/surface limit how far it can fold." },
+            { "Output / Idle", "Output controls how much sim writes back; idle values reduce no-motion flutter." },
+            { "Collision", "Capsule push-out uses these radius/debug values." },
+            { "Runtime", "Substep, target FPS, and teleport reset controls." },
+            { "Other", "" },
+        };
+
+        const ModifierPropertySection* sections = isChain ? chainSections : poseFollowSections;
+        const size_t sectionCount = isChain
+            ? sizeof(chainSections) / sizeof(chainSections[0])
+            : sizeof(poseFollowSections) / sizeof(poseFollowSections[0]);
+
+        for (size_t sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex)
+        {
+            const ModifierPropertySection& section = sections[sectionIndex];
+            bool hasSectionProperty = false;
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                const char* propertySection = Resolve_ModifierPropertySection(reflectionInfo->className, property.name);
+                if (propertySection != nullptr && std::strcmp(propertySection, section.title) == 0)
+                {
+                    hasSectionProperty = true;
+                    break;
+                }
+            }
+
+            if (!hasSectionProperty)
+                continue;
+
+            if (ImGui::TreeNodeEx(section.title, ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (section.help != nullptr && section.help[0] != '\0')
+                    ImGui::TextDisabled("%s", section.help);
+
+                for (const PropertyInfo& property : reflectionInfo->properties)
+                {
+                    const char* propertySection = Resolve_ModifierPropertySection(reflectionInfo->className, property.name);
+                    if (propertySection == nullptr || std::strcmp(propertySection, section.title) != 0)
+                        continue;
+
+                    Draw_ModifierRuntimeProperty(modifier, model, reflectionInfo, reflectionTarget, property);
+                    ImGui::Spacing();
+                }
+
+                ImGui::TreePop();
+            }
+        }
+    }
 }
 
 Animation_View::Animation_View()
@@ -375,7 +621,8 @@ void Animation_View::Pre_Render()
 
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         Update_PreviewRootControllerStates(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
+        Update_ModifierPreviewMotionTest(dt);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
@@ -408,6 +655,7 @@ void Animation_View::Pre_Render()
     Ensure_PreviewGridResources();
     Draw_SelectedBoneMarker();
     Draw_TrailAnchorPreview();
+    Draw_ModifierChainDebug();
     Draw_PreviewGrid();
     EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
     GAME->Set_Lights(savedLightDescs);
@@ -583,6 +831,8 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _sourceMode = SourceMode::None;
     _sourceModelPath = modelPath;
     _liveModelCom.reset();
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
     _pendingDockId = preferredDockId;
     _requestFocusOnOpen = true;
 
@@ -637,7 +887,9 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _selectedBoneIndex = -1;
     Clear_NotifyUndoHistory();
 
+    Refresh_LiveModelTargets();
     Refresh_Source();
+
     Rebuild_PreviewClone();
     Load_NotifyAsset();
     Load_TrailAnchorAsset();
@@ -674,6 +926,8 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _sourceMode = SourceMode::None;
     _sourceModelPath.clear();
     _liveModelCom.reset();
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
     _modelGuid.clear();
     _currentAnimationName.clear();
     _availableAnimations.clear();
@@ -866,6 +1120,160 @@ void Animation_View::Refresh_LiveAnimationList()
     }
 }
 
+void Animation_View::Refresh_LiveModelTargets()
+{
+    wstring previousObjectKey{};
+    wstring previousComponentTag{};
+    wstring previousSourceModelPath{};
+    if (_selectedLiveModelTargetIndex >= 0 &&
+        _selectedLiveModelTargetIndex < static_cast<int32>(_liveModelTargets.size()))
+    {
+        const LiveModelTarget& previousTarget = _liveModelTargets[_selectedLiveModelTargetIndex];
+        previousObjectKey = previousTarget.objectKey;
+        previousComponentTag = previousTarget.componentTag;
+        previousSourceModelPath = previousTarget.sourceModelPath;
+    }
+
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
+
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+        return;
+
+    const Shared<GameObject> liveRootObject = Resolve_RootPreviewObject(_liveModelCom->Get_Owner());
+    if (liveRootObject == nullptr)
+        return;
+
+    function<void(const Shared<GameObject>&, const wstring&)> collectRecursive =
+        [&](const Shared<GameObject>& gameObject, const wstring& objectKey)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        gameObject->Visit_Components([&](const wstring& componentTag, const Shared<Component>& component)
+        {
+            Shared<ModelCom> modelCom = dynamic_pointer_cast<ModelCom>(component);
+            if (modelCom == nullptr)
+                return;
+
+            LiveModelTarget target{};
+            target.objectKey = objectKey;
+            target.componentTag = componentTag;
+            target.sourceModelPath = modelCom->Get_SourceModelPath();
+            target.model = modelCom;
+
+            string label = String::ToString(objectKey.empty() ? L"Root" : objectKey);
+            if (!componentTag.empty())
+                label += " / " + String::ToString(componentTag);
+
+            const ClassReflectionInfo& ownerInfo = gameObject->Get_ReflectionInfo();
+            if (!ownerInfo.displayName.empty())
+                label += "  [" + ownerInfo.displayName + "]";
+            else if (!ownerInfo.className.empty())
+                label += "  [" + ownerInfo.className + "]";
+
+            vector<string> badges{};
+            if (modelCom->Get_NumAnimations() > 0)
+                badges.push_back("Anim " + to_string(modelCom->Get_NumAnimations()));
+            if (!modelCom->Get_Modifiers().empty())
+                badges.push_back("Modifier " + to_string(modelCom->Get_Modifiers().size()));
+
+            if (!badges.empty())
+            {
+                label += "  (";
+                for (size_t i = 0; i < badges.size(); ++i)
+                {
+                    if (i > 0)
+                        label += ", ";
+                    label += badges[i];
+                }
+                label += ")";
+            }
+
+            target.label = move(label);
+
+            const bool matchesPrevious =
+                !previousObjectKey.empty() &&
+                target.objectKey == previousObjectKey &&
+                target.componentTag == previousComponentTag &&
+                target.sourceModelPath == previousSourceModelPath;
+
+            if (matchesPrevious || (_selectedLiveModelTargetIndex < 0 && modelCom == _liveModelCom))
+                _selectedLiveModelTargetIndex = static_cast<int32>(_liveModelTargets.size());
+
+            _liveModelTargets.push_back(move(target));
+        });
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            if (partObject == nullptr)
+                continue;
+
+            const wstring childKey = objectKey + L"/" + partTag;
+            collectRecursive(partObject, childKey);
+        }
+    };
+
+    collectRecursive(liveRootObject, L"Root");
+}
+
+void Animation_View::Draw_LiveModelTargetSelector()
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelTargets.size() <= 1)
+        return;
+
+    if (_selectedLiveModelTargetIndex < 0 ||
+        _selectedLiveModelTargetIndex >= static_cast<int32>(_liveModelTargets.size()) ||
+        _liveModelTargets[_selectedLiveModelTargetIndex].model == nullptr)
+    {
+        Refresh_LiveModelTargets();
+    }
+
+    if (_liveModelTargets.size() <= 1)
+        return;
+
+    const char* previewLabel = "(select live model)";
+    if (_selectedLiveModelTargetIndex >= 0 &&
+        _selectedLiveModelTargetIndex < static_cast<int32>(_liveModelTargets.size()))
+    {
+        previewLabel = _liveModelTargets[_selectedLiveModelTargetIndex].label.c_str();
+    }
+
+    ImGui::SeparatorText("Modifier Model");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("##LiveModelTarget", previewLabel))
+    {
+        for (int32 i = 0; i < static_cast<int32>(_liveModelTargets.size()); ++i)
+        {
+            const LiveModelTarget& target = _liveModelTargets[i];
+            const bool isSelected = (i == _selectedLiveModelTargetIndex);
+            if (ImGui::Selectable(target.label.c_str(), isSelected))
+                Switch_LiveModelTarget(static_cast<size_t>(i));
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+}
+
+void Animation_View::Switch_LiveModelTarget(size_t targetIndex)
+{
+    if (targetIndex >= _liveModelTargets.size())
+        return;
+
+    const Shared<ModelCom> selectedModel = _liveModelTargets[targetIndex].model;
+    if (selectedModel == nullptr)
+        return;
+
+    _selectedLiveModelTargetIndex = static_cast<int32>(targetIndex);
+}
+
 void Animation_View::Load_NotifyAsset()
 {
     _asset = {};
@@ -1055,6 +1463,7 @@ void Animation_View::Draw_Header()
     ImGui::Text("| Animation");
     ImGui::SameLine();
     ImGui::TextDisabled("%s", previewName);
+
 }
 
 void Animation_View::Draw_AnimationSelector()
@@ -1816,13 +2225,19 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
     ImGui::Separator();
     ImGui::TextUnformatted("Animation Modifiers");
 
-    if (playbackModel == nullptr)
+    Draw_LiveModelTargetSelector();
+
+    Shared<ModelCom> modifierModel = Get_ModifierRuntimeModel();
+    if (modifierModel == nullptr)
+        modifierModel = playbackModel;
+
+    if (modifierModel == nullptr)
     {
         ImGui::TextDisabled("No playback model.");
         return;
     }
 
-    const auto& modifiers = playbackModel->Get_Modifiers();
+    const auto& modifiers = modifierModel->Get_Modifiers();
     bool hasEditableModifier = false;
 
     for (const Shared<AnimationModifier>& modifier : modifiers)
@@ -1857,29 +2272,23 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
             if (modifier->Can_RuntimeResetPose())
             {
                 if (ImGui::Button("Reset Pose"))
-                    modifier->RuntimeResetPose(playbackModel.get());
+                    modifier->RuntimeResetPose(modifierModel.get());
             }
 
             if (modifier->Can_RuntimeRebuild())
             {
                 ImGui::SameLine();
                 if (ImGui::Button("Rebuild Chains"))
-                    modifier->RuntimeRebuild(playbackModel.get());
+                    modifier->RuntimeRebuild(modifierModel.get());
             }
 
             ImGui::Spacing();
-            for (const PropertyInfo& property : reflectionInfo->properties)
-            {
-                if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, property))
-                    modifier->On_RuntimeReflectionChanged(playbackModel.get(), property);
-
-                ImGui::Spacing();
-            }
+            Draw_ModifierRuntimeProperties(modifier.get(), modifierModel.get(), reflectionInfo, reflectionTarget);
 
             if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
             {
                 const size_t groupCount = chainModifier->Get_RuntimeGroupCount();
-                if (groupCount > 0 && ImGui::TreeNodeEx("Group Root Offsets", ImGuiTreeNodeFlags_DefaultOpen))
+                if (groupCount > 0 && ImGui::TreeNode("Group Root Offsets"))
                 {
                     ImGui::TextDisabled("Root rotation applies while dragging. Use Rebuild only if bind rest must refresh.");
                     for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
@@ -1899,12 +2308,168 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                     }
                     ImGui::TreePop();
                 }
+
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* chainDesc = static_cast<ChainModifier::ChainModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    if (chainDesc != nullptr && chainDesc->motion.maxMovementOffset <= 0.0001f)
+                    {
+                        ImGui::TextColored(ImVec4(1.f, 0.68f, 0.25f, 1.f), "Move Limit is 0, so test motion is clamped.");
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 1.f;
+                        if (chainDesc != nullptr)
+                        {
+                            const float resetLimit = chainDesc->runtime.resetDistance > 0.1f ? chainDesc->runtime.resetDistance * 0.8f : 1.f;
+                            const float ownerScale = std::max(chainDesc->motion.ownerMovementInertiaScale, 0.001f);
+                            visibleDelta = std::clamp(0.05f / ownerScale, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (chainDesc != nullptr)
+                    {
+                        const float estimatedMotion = _modifierPreviewMotionTestDelta * chainDesc->motion.ownerMovementInertiaScale;
+                        ImGui::TextDisabled("Effective owner input: %.3f", estimatedMotion);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
             }
 
             if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
             {
+                bool debugThisModifier = _showModifierChainDebug
+                    && _modifierChainDebugTag == modifier->Get_ModifierTag();
+                if (ImGui::Checkbox("Debug Chains", &debugThisModifier))
+                {
+                    _showModifierChainDebug = debugThisModifier;
+                    _modifierChainDebugTag = debugThisModifier ? modifier->Get_ModifierTag() : wstring{};
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("Blue: pose, green/yellow: output, red: no output");
+
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* poseDesc = static_cast<PoseFollowChainModifier::PoseFollowChainModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            poseFollowModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    if (poseDesc != nullptr && poseDesc->maxExternalOffset <= 0.0001f)
+                    {
+                        ImGui::TextColored(ImVec4(1.f, 0.68f, 0.25f, 1.f), "Move Limit is 0, so test motion is clamped.");
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 1.f;
+                        if (poseDesc != nullptr)
+                        {
+                            const float resetLimit = poseDesc->resetDistance > 0.1f ? poseDesc->resetDistance * 0.8f : 1.f;
+                            const float ownerScale = std::max(poseDesc->ownerMotionScale, 0.001f);
+                            visibleDelta = std::clamp(0.05f / ownerScale, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (poseDesc != nullptr)
+                    {
+                        const float estimatedMotion = _modifierPreviewMotionTestDelta * poseDesc->ownerMotionScale;
+                        ImGui::TextDisabled("Effective owner input: %.3f", estimatedMotion);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        poseFollowModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
+
                 const size_t groupCount = poseFollowModifier->Get_RuntimeGroupCount();
-                if (groupCount > 0 && ImGui::TreeNodeEx("Group Multipliers", ImGuiTreeNodeFlags_DefaultOpen))
+                if (groupCount > 0 && ImGui::TreeNode("Group Multipliers"))
                 {
                     ImGui::TextDisabled("X: Wind, Y: Motion, Z: Follow");
                     for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
@@ -1931,6 +2496,127 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
 
     if (!hasEditableModifier)
         ImGui::TextDisabled("No ChainModifier or PoseFollowChainModifier on this model.");
+}
+
+void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (!_modifierPreviewMotionTestEnabled)
+    {
+        _modifierPreviewMotionTestAppliedCount = 0;
+        return;
+    }
+
+    Shared<ModelCom> selectedModel = Get_ModifierRuntimeModel();
+
+    vector<Shared<ModelCom>> modifierModels{};
+    auto addModifierModel = [&](const Shared<ModelCom>& model)
+    {
+        if (model == nullptr)
+            return;
+
+        const auto exists = std::find_if(
+            modifierModels.begin(),
+            modifierModels.end(),
+            [&](const Shared<ModelCom>& existing)
+            {
+                return existing.get() == model.get();
+            });
+
+        if (exists == modifierModels.end())
+            modifierModels.push_back(model);
+    };
+
+    if (_sourceMode == SourceMode::LiveModel && !_liveModelTargets.empty())
+    {
+        for (const LiveModelTarget& target : _liveModelTargets)
+        {
+            Shared<ModelCom> targetModel = target.model;
+            if (_previewRootObject != nullptr)
+            {
+                const Shared<GameObject> previewOwner =
+                    PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
+                Shared<ModelCom> previewModel{};
+                if (previewOwner != nullptr && !target.componentTag.empty())
+                    previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
+
+                if (previewModel == nullptr)
+                    previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
+
+                if (previewModel != nullptr)
+                {
+                    targetModel = previewModel;
+                }
+            }
+
+            addModifierModel(targetModel);
+        }
+    }
+    else
+    {
+        addModifierModel(Get_PlaybackModel());
+    }
+
+    addModifierModel(selectedModel);
+
+    _modifierPreviewMotionTestAppliedCount = 0;
+
+    Vec3 testDelta = Vec3::Zero;
+    if (_modifierPreviewMotionTestEnabled)
+    {
+        Vec3 direction = _modifierPreviewMotionTestDirection;
+        const float directionLength = direction.Length();
+        if (directionLength > 0.0001f)
+            direction /= directionLength;
+        else
+            direction = Vec3(1.f, 0.f, 0.f);
+
+        float wave = 1.f;
+        if (_modifierPreviewMotionTestOscillate)
+        {
+            constexpr float kTwoPi = 6.28318530718f;
+            const float frequency = std::max(0.f, _modifierPreviewMotionTestFrequency);
+            wave = static_cast<float>(std::sin(ImGui::GetTime() * kTwoPi * frequency));
+        }
+
+        testDelta = direction * (_modifierPreviewMotionTestDelta * wave);
+    }
+
+    for (const Shared<ModelCom>& model : modifierModels)
+    {
+        if (model == nullptr)
+            continue;
+
+        for (const Shared<AnimationModifier>& modifier : model->Get_Modifiers())
+        {
+            if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    chainModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                chainModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+
+            if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    poseFollowModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                poseFollowModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+        }
+    }
 }
 
 void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel)
@@ -3089,6 +3775,37 @@ Shared<ModelCom> Animation_View::Get_PlaybackModel() const
     return _liveModelCom;
 }
 
+Shared<ModelCom> Animation_View::Get_ModifierRuntimeModel() const
+{
+    if (_sourceMode != SourceMode::LiveModel ||
+        _selectedLiveModelTargetIndex < 0 ||
+        _selectedLiveModelTargetIndex >= static_cast<int32>(_liveModelTargets.size()))
+    {
+        return Get_PlaybackModel();
+    }
+
+    const LiveModelTarget& target = _liveModelTargets[_selectedLiveModelTargetIndex];
+
+    if (_previewRootObject != nullptr)
+    {
+        const Shared<GameObject> previewOwner =
+            PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
+        Shared<ModelCom> previewModel{};
+        if (previewOwner != nullptr && !target.componentTag.empty())
+            previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
+
+        if (previewModel == nullptr)
+            previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
+
+        if (previewModel != nullptr)
+        {
+            return previewModel;
+        }
+    }
+
+    return target.model != nullptr ? target.model : Get_PlaybackModel();
+}
+
 bool Animation_View::Try_GetTrailSample(EffectTrailSample& outSample) const
 {
     for (const PreviewTrailRuntime& runtime : _previewTrailRuntimes)
@@ -4026,6 +4743,145 @@ void Animation_View::Draw_SelectedBoneMarker() const
     drawAxisLine(rightAxis * axisLength, DirectX::Colors::Red);
     drawAxisLine(upAxis * axisLength, DirectX::Colors::Lime);
     drawAxisLine(forwardAxis * axisLength, DirectX::Colors::DeepSkyBlue);
+
+    _previewGridBatch->End();
+}
+
+void Animation_View::Draw_ModifierChainDebug() const
+{
+    if (!_showModifierChainDebug)
+        return;
+
+    Shared<ModelCom> modifierModel = Get_ModifierRuntimeModel();
+    if (modifierModel == nullptr)
+        return;
+
+    PoseFollowChainModifier* poseFollowModifier = nullptr;
+    for (const Shared<AnimationModifier>& modifier : modifierModel->Get_Modifiers())
+    {
+        if (modifier == nullptr || modifier->Get_ModifierTag() != _modifierChainDebugTag)
+            continue;
+
+        poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get());
+        if (poseFollowModifier != nullptr)
+            break;
+    }
+
+    if (poseFollowModifier == nullptr)
+        return;
+
+    vector<PoseFollowChainModifier::RuntimeDebugNode> nodes{};
+    poseFollowModifier->Build_RuntimeDebugNodes(modifierModel.get(), nodes);
+    if (nodes.empty())
+        return;
+
+    Matrix debugCorrection = Matrix::Identity;
+    if (const Shared<GameObject> modelOwner = modifierModel->Get_Owner())
+    {
+        if (const Shared<PartObject> partOwner = dynamic_pointer_cast<PartObject>(modelOwner))
+        {
+            Matrix sourceWorld = Matrix::Identity;
+            if (const Shared<GameObject> parentOwner = partOwner->Get_Owner())
+            {
+                if (const Shared<TransformCom> parentTransform = parentOwner->Get_Transform())
+                    sourceWorld = parentTransform->Get_WorldMatrix();
+            }
+
+            debugCorrection = sourceWorld.Invert() * partOwner->Get_CombinedWorldMatrix();
+        }
+    }
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    unordered_map<size_t, size_t> nodeLookup{};
+    nodeLookup.reserve(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i)
+    {
+        const uint64 key = (static_cast<uint64>(nodes[i].groupIndex) << 32) | static_cast<uint32>(nodes[i].nodeIndex);
+        nodeLookup.emplace(static_cast<size_t>(key), i);
+    }
+
+    const auto findNode =
+        [&](size_t groupIndex, int32 nodeIndex) -> const PoseFollowChainModifier::RuntimeDebugNode*
+    {
+        if (nodeIndex < 0)
+            return nullptr;
+
+        const uint64 key = (static_cast<uint64>(groupIndex) << 32) | static_cast<uint32>(nodeIndex);
+        const auto it = nodeLookup.find(static_cast<size_t>(key));
+        if (it == nodeLookup.end())
+            return nullptr;
+
+        return &nodes[it->second];
+    };
+
+    const auto drawLine =
+        [&](const Vec3& start, const Vec3& end, const XMVECTORF32& color)
+    {
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(Vec3::Transform(start, debugCorrection), color),
+            DirectX::VertexPositionColor(Vec3::Transform(end, debugCorrection), color));
+    };
+
+    const auto drawCross =
+        [&](const Vec3& center, float radius, const XMVECTORF32& color)
+    {
+        drawLine(center + Vec3(-radius, 0.f, 0.f), center + Vec3(radius, 0.f, 0.f), color);
+        drawLine(center + Vec3(0.f, -radius, 0.f), center + Vec3(0.f, radius, 0.f), color);
+        drawLine(center + Vec3(0.f, 0.f, -radius), center + Vec3(0.f, 0.f, radius), color);
+    };
+
+    _previewGridBatch->Begin();
+
+    for (const auto& node : nodes)
+    {
+        const auto* parent = findNode(node.groupIndex, node.parentNodeIndex);
+        if (parent != nullptr)
+        {
+            drawLine(parent->posePosition, node.posePosition, DirectX::Colors::DeepSkyBlue);
+
+            const float writeAlpha = std::clamp(node.writeAlpha, 0.f, 1.f);
+            XMVECTORF32 simulatedColor = DirectX::Colors::Red;
+            if (node.isVirtualAnchor)
+                simulatedColor = DirectX::Colors::Gray;
+            else if (writeAlpha > 0.02f)
+                simulatedColor = XMVECTORF32{ { 1.f - writeAlpha, 1.f, 0.10f, 1.f } };
+
+            drawLine(parent->simulatedPosition, node.simulatedPosition, simulatedColor);
+        }
+
+        const float pointRadius = node.isRootNode ? 0.055f : 0.035f;
+        XMVECTORF32 pointColor = DirectX::Colors::Lime;
+        if (node.isVirtualAnchor)
+            pointColor = DirectX::Colors::Gray;
+        else if (node.writeAlpha <= 0.02f)
+            pointColor = DirectX::Colors::Red;
+        else if (node.isRootNode)
+            pointColor = DirectX::Colors::Orange;
+
+        drawCross(node.simulatedPosition, pointRadius, pointColor);
+    }
 
     _previewGridBatch->End();
 }

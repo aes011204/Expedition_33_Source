@@ -1,6 +1,7 @@
 #include "BattleWorldUI_SkillCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
@@ -171,6 +172,8 @@ namespace
         BattleWorldSkillCardDef def{};
         Unique<IWorldUISkillCardSurface> surface{};
         Matrix worldMatrix = Matrix::Identity;
+        BattleWorldSurfaceAnimState introAnim{};
+        Vec3 introStartOffset = Vec3::Zero;
         bool hasContent = false;
         bool visible = false;
         bool selected = false;
@@ -2388,6 +2391,11 @@ struct BattleWorldUI_SkillCards::Impl
     HeroId editorPlacementHeroId = HeroId::END;
     uint32 activePlacementPage = UINT32_MAX;
     uint32 editorPlacementPage = UINT32_MAX;
+    BattleTurnState introState = BattleTurnState::None;
+    HeroId introHeroId = HeroId::END;
+    uint32 introPage = UINT32_MAX;
+    string introSelectedSkillKey{};
+    bool hasIntroKey = false;
 };
 
 BattleWorldUI_SkillCards::BattleWorldUI_SkillCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -2472,7 +2480,8 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
     BattleTurnState currentState,
     const BattleChar& actor,
     const string& selectedSkillKey,
-    uint32 skillPage)
+    uint32 skillPage,
+    float timeDelta)
 {
     if (_impl == nullptr || !Should_ShowBattleWorldSkillCards(currentState) || actor.statCom == nullptr)
     {
@@ -2511,6 +2520,26 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
     _impl->activePlacementPage = pageIndex;
     if (_impl->editorPlacementPage >= kBattleWorldSkillPageCount)
         _impl->editorPlacementPage = pageIndex;
+
+    const bool restartIntro =
+        !_impl->hasIntroKey ||
+        _impl->introState != currentState ||
+        _impl->introHeroId != placementHeroId ||
+        _impl->introPage != pageIndex ||
+        _impl->introSelectedSkillKey != selectedSkillKey;
+    if (restartIntro)
+    {
+        _impl->introState = currentState;
+        _impl->introHeroId = placementHeroId;
+        _impl->introPage = pageIndex;
+        _impl->introSelectedSkillKey = selectedSkillKey;
+        _impl->hasIntroKey = true;
+        for (uint32 surfaceIndex = 0; surfaceIndex < kBattleWorldSkillSurfaceCount; ++surfaceIndex)
+            Restart_BattleWorldSurfaceAnim(_impl->cards[surfaceIndex].introAnim, surfaceIndex);
+    }
+
+    for (auto& card : _impl->cards)
+        Advance_BattleWorldSurfaceAnim(card.introAnim, timeDelta);
 
     const BattleWorldSkillWorldPlacementTuning& placementTuning =
         _impl->placementTunings[placementHeroIndex][pageIndex];
@@ -2643,6 +2672,8 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
             surfaceOffset.x * rootScale.x,
             surfaceOffset.y * rootScale.y,
             surfaceOffset.z);
+        const float introOutwardX = localOffset.x < 0.f ? -0.04f : 0.04f;
+        card.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(introOutwardX, -0.06f, 0.f));
         const Vec2 surfaceWorldSize(
             presentation.worldSize.x * rootScale.x,
             presentation.worldSize.y * rootScale.y);
@@ -2675,6 +2706,7 @@ void BattleWorldUI_SkillCards::Hide()
     if (_impl == nullptr)
         return;
 
+    _impl->hasIntroKey = false;
     for (auto& card : _impl->cards)
         card.visible = false;
 }
@@ -2831,7 +2863,9 @@ HRESULT BattleWorldUI_SkillCards::Render()
         if (!card.visible || card.surface == nullptr)
             continue;
 
-        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), card.worldMatrix, color), E_FAIL);
+        const BattleWorldSurfaceAnimRenderState renderState =
+            Apply_BattleWorldSurfaceAnim(card.introAnim, card.worldMatrix, color, card.introStartOffset);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(card.surface->Bind_ShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);

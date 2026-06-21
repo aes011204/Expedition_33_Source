@@ -11,6 +11,7 @@ public:
 
     static RuntimeRuleStateIO::RuleState Build_GameStart();
     static RuntimeRuleStateIO::RuleState Build_CostumeUnlocks(bool unlockBaguette, bool unlockPotato);
+    static RuntimeRuleStateIO::RuleState Build_FirstTutorialHeroUnlocks();
     static bool Apply_ToCurrentRuntime(const RuntimeRuleStateIO::RuleState& ruleState);
 };
 

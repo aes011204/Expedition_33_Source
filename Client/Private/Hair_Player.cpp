@@ -9,6 +9,7 @@
 #include "AnimComputeRuntime.h"
 #include "EffectCom.h"
 #include "PoseFollowChainModifier.h"
+#include "ChainModifier.h"
 #include "ChainModifierPreset.h"
 
 namespace
@@ -97,20 +98,106 @@ void Hair_Player::Update(float timeDelta)
             if (const Shared<GameObject> owner = Get_Owner())
                 ownerTransform = owner->Get_Transform();
 
-            PoseFollowChainModifier::PoseFollowChainModifierDesc hairDesc{};
-            ChainModifierPreset::BuildPoseFollowHairDesc(
-                hairDesc,
-                ownerTransform.get(),
-                ToPlayerCharacterType(_hairPhysicsDesc.profile));
-
-            if (!hairDesc.groups.empty())
+            const PlayerCharacterType characterType = ToPlayerCharacterType(_hairPhysicsDesc.profile);
+            bool modifierAdded = false;
+            auto addModifier = [&](const ChainModifier::ChainModifierDesc& desc)
             {
-                if (auto modifier = PoseFollowChainModifier::Create(&hairDesc))
+                if (desc.groups.empty())
+                {
+                    return;
+                }
+
+                if (auto modifier = ChainModifier::Create(&desc))
                 {
                     _modelCom->Add_AnimModifier(modifier);
-                    _hairPoseFollowModifierReady = true;
+                    modifierAdded = true;
                 }
+            };
+
+            if (characterType == PlayerCharacterType::Maelle)
+            {
+                ChainModifier::ChainModifierDesc backHairDesc{};
+                ChainModifierPreset::BuildBindPoseHairDesc(
+                    backHairDesc,
+                    ownerTransform.get(),
+                    characterType,
+                    L"BindPose_Hair_Back");
+
+                decltype(backHairDesc.groups) backGroups{};
+                for (const auto& group : backHairDesc.groups)
+                {
+                    if (group.rootBoneName == "Strand_0_1")
+                    {
+                        backGroups.push_back(group);
+                    }
+                }
+                backHairDesc.groups = std::move(backGroups);
+                addModifier(backHairDesc);
+
+                ChainModifier::ChainModifierDesc frontHairDesc{};
+                ChainModifierPreset::BuildBindPoseHairDesc(
+                    frontHairDesc,
+                    ownerTransform.get(),
+                    characterType,
+                    L"BindPose_Hair_Front");
+
+                decltype(frontHairDesc.groups) frontGroups{};
+                for (const auto& group : frontHairDesc.groups)
+                {
+                    if (group.rootBoneName == "Strand_5_1" || group.rootBoneName == "Strand_6_1")
+                    {
+                        auto frontGroup = group;
+                        frontGroup.stiffnessMul = 1.025f;
+                        frontGroup.dampingMul = 1.010f;
+                        frontGroup.movementInertiaMul = 1.25f;
+                        frontGroup.poseRestoreMul = 1.05f;
+                        frontGroup.maxBendAngleMul = 0.90f;
+                        frontGroups.push_back(frontGroup);
+                    }
+                }
+                frontHairDesc.groups = std::move(frontGroups);
+                frontHairDesc.shape.stiffness = 0.805f;
+                frontHairDesc.shape.tipStiffnessScale = 1.000f;
+                frontHairDesc.shape.poseRestoreStrength = 0.020f;
+                frontHairDesc.shape.tipPoseRestoreScale = 0.540f;
+                frontHairDesc.shape.maxBendAngleDegree = 28.f;
+                frontHairDesc.shape.tipMaxBendAngleScale = 1.000f;
+                frontHairDesc.shape.surfaceConstraintStrength = 0.f;
+                frontHairDesc.shape.rootOutputAlpha = 0.070f;
+                frontHairDesc.shape.tipOutputAlpha = 1.f;
+                frontHairDesc.shape.pinRoot = false;
+
+                frontHairDesc.motion.damping = 0.830f;
+                frontHairDesc.motion.tipDampingScale = 1.420f;
+                frontHairDesc.motion.movementInertiaScale = 0.125f;
+                frontHairDesc.motion.ownerMovementInertiaScale = 0.875f;
+                frontHairDesc.motion.tipMovementInertiaScale = 1.220f;
+                frontHairDesc.motion.maxMovementOffset = 0.018f;
+
+                frontHairDesc.runtime.gravity = Vec3(0.f, -0.6f, 0.f);
+                frontHairDesc.runtime.windScale = 0.f;
+                frontHairDesc.runtime.windStartRatio = -1.f;
+                frontHairDesc.runtime.windWeightScale = -1.f;
+                frontHairDesc.runtime.constraintDeadzone = 0.010f;
+                frontHairDesc.runtime.resetDistance = 3.f;
+                frontHairDesc.runtime.targetFrameRate = 60.f;
+
+                frontHairDesc.collision.enableCollision = false;
+                frontHairDesc.collision.particleCollisionRadius = 0.f;
+                addModifier(frontHairDesc);
             }
+            else
+            {
+                ChainModifier::ChainModifierDesc hairDesc{};
+                ChainModifierPreset::BuildBindPoseHairDesc(
+                    hairDesc,
+                    ownerTransform.get(),
+                    characterType);
+
+                addModifier(hairDesc);
+            }
+
+            _hairPoseFollowModifierReady = modifierAdded;
         }
 
         if (_hairPoseFollowModifierReady)

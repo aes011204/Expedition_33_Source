@@ -17,7 +17,8 @@ public:
     void    Show_ForBattleState(
         const Vec3& anchorWorldPos,
         BattleTurnState currentState,
-        HeroId actorHeroId);
+        HeroId actorHeroId,
+        float timeDelta);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

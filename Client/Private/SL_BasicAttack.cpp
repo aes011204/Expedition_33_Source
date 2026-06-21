@@ -72,6 +72,17 @@ bool SL_BasicAttack::Request_Skill(const Skill_Data& skillData, uint32 slotIndex
     return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Skill);
 }
 
+bool SL_BasicAttack::Request_Parry()
+{
+    if (!_comboWindowEnabled)
+        return false;
+
+    _comboQueued = false;
+    _comboWindowEnabled = false;
+
+    return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Parry);
+}
+
 void SL_BasicAttack::Set_ComboWindowEnabled(bool enabled)
 {
     _comboWindowEnabled = enabled;
