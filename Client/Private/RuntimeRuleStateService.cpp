@@ -56,6 +56,20 @@ namespace
 
         return root;
     }
+
+    json Build_HeroUnlockSaveJson(const vector<HeroId>& unlockedHeroIds)
+    {
+        json root = json::object();
+        root["completed_rule_ids"] = json::array();
+        root["unlocked_hero_ids"] = json::array();
+
+        for (HeroId heroId : unlockedHeroIds)
+        {
+            root["unlocked_hero_ids"].emplace_back(static_cast<int>(heroId));
+        }
+
+        return root;
+    }
 }
 
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GameStart()
@@ -68,6 +82,14 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_CostumeUnlocks(bool
     RuntimeRuleStateIO::RuleState ruleState{};
     ruleState.costumeJson = Build_CostumeSaveJson(unlockBaguette, unlockPotato);
     ruleState.unlockManagerJson = Build_UnlockManagerSaveJson(unlockBaguette, unlockPotato);
+    return ruleState;
+}
+
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_FirstTutorialHeroUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+    ruleState.costumeJson = Build_CostumeSaveJson(false, false);
+    ruleState.unlockManagerJson = Build_HeroUnlockSaveJson({ HeroId::Gustave, HeroId::Maelle });
     return ruleState;
 }
 

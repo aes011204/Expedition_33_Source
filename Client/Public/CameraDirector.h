@@ -17,6 +17,7 @@ public:
 
 public:
     void Request_GamePlay();
+    void Request_SoulLikeCamera();
     void Request_Preview();
     void Request_BattleTurn();
     Shared<CinematicCamera>  Request_Cinematic();

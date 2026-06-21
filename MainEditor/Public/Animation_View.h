@@ -112,6 +112,15 @@ public:
         vector<int32> selectedNotifyIds{};
     };
 
+    struct LiveModelTarget
+    {
+        wstring objectKey{};
+        wstring componentTag{};
+        string label{};
+        wstring sourceModelPath{};
+        Shared<ModelCom> model{};
+    };
+
 private:
     enum class TrailAnchorSlot : uint8
     {
@@ -197,6 +206,9 @@ private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
     void Refresh_LiveAnimationList();
+    void Refresh_LiveModelTargets();
+    void Draw_LiveModelTargetSelector();
+    void Switch_LiveModelTarget(size_t targetIndex);
     void Rebuild_PreviewClone();
     void Reset_PreviewClone();
 
@@ -215,6 +227,7 @@ private:
     void Draw_SelectedDetail();
     void Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry);
     void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
+    void Update_ModifierPreviewMotionTest(float timeDelta);
     void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
     void Draw_TrailAnchorPanel();
     void Draw_EventListPanel();
@@ -261,6 +274,7 @@ private:
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
 
     Shared<ModelCom> Get_PlaybackModel() const;
+    Shared<ModelCom> Get_ModifierRuntimeModel() const;
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Ensure_PreviewGridResources();
@@ -271,6 +285,7 @@ private:
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
+    void Draw_ModifierChainDebug() const;
     void Draw_TrailAnchorPreview() const;
     void Update_PreviewAnimSpeedStates(float timeDelta);
     void Reset_PreviewAnimSpeedStates();
@@ -355,6 +370,8 @@ private:
 
     wstring _sourceModelPath{};
     Shared<ModelCom> _liveModelCom{};
+    vector<LiveModelTarget> _liveModelTargets{};
+    int32 _selectedLiveModelTargetIndex = -1;
     Shared<GameObject> _previewRootObject{};
     Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
@@ -406,9 +423,18 @@ private:
     bool _showPreviewSkyBackdrop = true;
     bool _previewSkyBackdropBegunPlay = false;
     bool _isSectionPreviewPlaying = false;
+    bool _showModifierChainDebug = false;
+    wstring _modifierChainDebugTag{};
     float _topSectionHeight = 500.f;
     wstring _previewOwnerObjectKey{};
-    
+    bool _modifierPreviewMotionTestEnabled = false;
+    bool _modifierPreviewMotionTestOscillate = true;
+    wstring _modifierPreviewMotionTestTag{};
+    Vec3 _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+    float _modifierPreviewMotionTestDelta = 0.04f;
+    float _modifierPreviewMotionTestFrequency = 2.f;
+    int32 _modifierPreviewMotionTestAppliedCount = 0;
+
     // 사이즈 조절
     uint32 _previewWidth = 640;
     uint32 _previewHeight = 360;

@@ -19,6 +19,7 @@ public:
         MimeCostumeOnly,
         PotatoCostumeOnly,
         AllCostumes,
+        FirstTutorialHeroUnlocks,
     };
 
 public:

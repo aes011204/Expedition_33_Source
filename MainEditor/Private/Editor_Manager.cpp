@@ -782,6 +782,9 @@ void Editor_Manager::Render_RuleStateButtons()
 
     if (ImGui::MenuItem("의상 해금 전체 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::AllCostumes);
+
+    if (ImGui::MenuItem("튜토리얼 후 플레이어 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::FirstTutorialHeroUnlocks);
 }
 
 void Editor_Manager::Render_SaveCheckpointPopup()
@@ -885,10 +888,13 @@ bool Editor_Manager::Save_RuleStatePreset(RuleStatePreset preset)
     _selectedRuleStatePath = ruleStatePath;
 
     Notification_Manager* notification = EDITOR->Get_Notification();
-    const bool saved =
-        (preset == RuleStatePreset::GameStart)
-        ? EDITOR->Save_GameStartRuleState(ruleStatePath)
-        : EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
+    bool saved = false;
+    if (preset == RuleStatePreset::GameStart)
+        saved = EDITOR->Save_GameStartRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::FirstTutorialHeroUnlocks)
+        saved = EDITOR->Save_FirstTutorialHeroUnlockRuleState(ruleStatePath);
+    else
+        saved = EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
 
     if (saved)
     {
@@ -956,6 +962,9 @@ fs::path Editor_Manager::Resolve_RuleStatePath(RuleStatePreset preset) const
 
     case RuleStatePreset::AllCostumes:
         return ruleStateDir / L"Rule_AllCostumes.rule.bin";
+
+    case RuleStatePreset::FirstTutorialHeroUnlocks:
+        return ruleStateDir / L"Rule_FirstTutorialHeroUnlocks.rule.bin";
 
     default:
         return ruleStateDir / L"Rule_Debug.rule.bin";

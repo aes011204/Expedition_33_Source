@@ -69,6 +69,7 @@ public:
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
+    void Cancel_BattleEnterPending();
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
@@ -387,6 +388,8 @@ private:
 
     vector<Buffs> _processedTurnStartStatuses = {};
     bool          _isWaitingTurnStartStatusHit = false;
+
+    uint32      _activeBattleFieldID = 0;
 
 public:
     static Shared<BattleController> Create();

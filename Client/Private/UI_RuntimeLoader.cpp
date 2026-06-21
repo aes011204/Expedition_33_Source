@@ -85,6 +85,8 @@ namespace
         float materialVfxCoreSoftness = 0.05f;
         float materialVfxNoiseStrength = 0.35f;
         Vec2 materialVfxUvScroll{ 0.08f, -0.18f };
+        float materialVfxFlowSpeed = 1.f;
+        float materialVfxPreserveColor = 0.f;
         float materialVfxEdgeWidth = 0.18f;
         float materialVfxEdgeSoftness = 0.08f;
         float materialVfxErosion = 0.18f;
@@ -384,6 +386,8 @@ namespace
         object.materialVfxCoreSoftness = max(0.001f, Read_Float(*iter, "coreSoftness", object.materialVfxCoreSoftness));
         object.materialVfxNoiseStrength = min(max(Read_Float(*iter, "noiseStrength", object.materialVfxNoiseStrength), 0.f), 1.f);
         object.materialVfxUvScroll = Read_Vec2(*iter, "uvScroll", object.materialVfxUvScroll);
+        object.materialVfxFlowSpeed = min(max(Read_Float(*iter, "flowSpeed", object.materialVfxFlowSpeed), 0.f), 4.f);
+        object.materialVfxPreserveColor = min(max(Read_Float(*iter, "preserveColor", object.materialVfxPreserveColor), 0.f), 1.f);
         object.materialVfxEdgeWidth = max(0.001f, Read_Float(*iter, "edgeWidth", object.materialVfxEdgeWidth));
         object.materialVfxEdgeSoftness = max(0.001f, Read_Float(*iter, "edgeSoftness", object.materialVfxEdgeSoftness));
         object.materialVfxErosion = min(max(Read_Float(*iter, "erosion", object.materialVfxErosion), 0.f), 1.f);
@@ -1598,6 +1602,8 @@ namespace
         desc.materialVfxCoreSoftness = object.materialVfxCoreSoftness;
         desc.materialVfxNoiseStrength = object.materialVfxNoiseStrength;
         desc.materialVfxUvScroll = object.materialVfxUvScroll;
+        desc.materialVfxFlowSpeed = object.materialVfxFlowSpeed;
+        desc.materialVfxPreserveColor = object.materialVfxPreserveColor;
         desc.materialVfxEdgeWidth = object.materialVfxEdgeWidth;
         desc.materialVfxEdgeSoftness = object.materialVfxEdgeSoftness;
         desc.materialVfxErosion = object.materialVfxErosion;

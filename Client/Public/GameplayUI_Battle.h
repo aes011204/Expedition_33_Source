@@ -11,6 +11,7 @@
 NS_BEGIN(Client)
 
 class BattleWorldUI_CommandCards;
+class BattleWorldUI_GradientCards;
 class BattleWorldUI_ItemCards;
 class BattleWorldUI_SkillCards;
 class UI_BattleDefense;
@@ -38,6 +39,8 @@ class UI_BattleSkillPanel;
 class UI_BattleAnnounce;
 class UI_SuddenAttack;
 class UI_AddAP;
+class UI_BattlePictos;
+class UI_BattleJumpReaction;
 class UI_QTE;
 class UI_MarkEffect;
 class UI_BattleTutorial;
@@ -78,6 +81,8 @@ private:
     void    Handle_DamageApplied(const DamageAppliedInfo& info);
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
     void    Handle_ReactionSucceeded(BattleReactionType reactionType, const vector<BattleChar>& target);
+    void    Handle_ReactionWindowOpened(BattleReactionType reactionType);
+    void    Handle_ReactionWindowClosed(BattleReactionType reactionType);
     void    Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason);
     void    Handle_QTEStarted(const BattleQTERequest& request);
     void    Handle_QTEResolved(BattleQTEResult result);
@@ -98,6 +103,7 @@ private:
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
+    void    Update_BattlePictos(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
     bool    Ensure_BossHpBar();
     void    Update_BossHpBar(float timeDelta);
@@ -111,6 +117,7 @@ private:
     void    Update_DestroyShields(float timeDelta);
     void    Update_HealFonts(float timeDelta);
     void    Update_AddAPs(float timeDelta);
+    void    Update_BattleJumpReaction(float timeDelta);
 
     void    Update_EscapeSkipTurn(float timeDelta);
     void    Update_AttackTooltip(float timeDelta);
@@ -126,20 +133,35 @@ private:
     void    Update_BattleSystemIntroState(float timeDelta);
     HRESULT Ensure_BattleWorldCommandCards();
     void    Hide_BattleWorldCommandCards();
-    void    Update_BattleWorldCommandCards(const Vec3& commandHudWorldPos, BattleTurnState currentState);
+    void    Update_BattleWorldCommandCards(
+        const Vec3& commandHudWorldPos,
+        BattleTurnState currentState,
+        uint32 curAp,
+        uint32 maxAp,
+        HeroId actorHeroId,
+        float timeDelta);
     HRESULT Ensure_BattleWorldItemCards();
     void    Hide_BattleWorldItemCards();
     void    Update_BattleWorldItemCards(
         const BattleChar& actor,
         BattleItemType selectedItemType,
-        BattleTurnState currentState);
+        BattleTurnState currentState,
+        float timeDelta);
 
     HRESULT Ensure_BattleWorldSkillCards();
     void    Hide_BattleWorldSkillCards();
     void    Update_BattleWorldSkillCards(
         BattleTurnState currentState,
         const BattleChar& actor,
-        const string& selectedSkillKey);
+        const string& selectedSkillKey,
+        uint32 skillPage,
+        float timeDelta);
+    HRESULT Ensure_BattleWorldGradientCards();
+    void    Hide_BattleWorldGradientCards();
+    void    Update_BattleWorldGradientCards(
+        BattleTurnState currentState,
+        const BattleChar& actor,
+        float timeDelta);
     void    Update_BattleTutorial(float timeDelta);
 
     bool    Should_ShowChoiceTargetForSkillTargeting(const ActionRequest& request) const;
@@ -150,6 +172,7 @@ private:
     bool    Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const;
     bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
     bool    Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos);
+    bool    Try_GetJumpReactionScreenPos(const BattleChar& target, Vec2& outScreenPos) const;
 #pragma endregion
 
     // Turn Order
@@ -173,6 +196,7 @@ private:
     Shared<BattleWorldUI_CommandCards>      _battleWorldCommandCards;
     Shared<BattleWorldUI_ItemCards>         _battleWorldItemCards;
     Shared<BattleWorldUI_SkillCards>        _battleWorldSkillCards;
+    Shared<BattleWorldUI_GradientCards>     _battleWorldGradientCards;
 
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
     Unique<UI_BossHpBar>                    _bossHpBar;
@@ -195,6 +219,7 @@ private:
     Unique<UI_QTE>                          _qte;
     Unique<UI_MarkEffect>                   _markEffect;
     Unique<UI_BattleTutorial>               _battleTutorial;
+    Unique<UI_BattleJumpReaction>           _battleJumpReaction;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
@@ -209,6 +234,9 @@ private:
     static constexpr uint32 kAddAPPoolSize = 4;
     array<Unique<UI_AddAP>, kAddAPPoolSize> _addAPs{};
 
+    static constexpr uint32 kBattlePictosPoolSize = 9; // 3 heroes x 3 equipped pictos
+    array<Unique<UI_BattlePictos>, kBattlePictosPoolSize> _battlePictos{};
+
     // Delegate 구독 대상
     Shared<BattleController> _battleController;
     FDelegateHandle          _battleStartedHandle{};        // 배틀 시작
@@ -221,6 +249,8 @@ private:
     FDelegateHandle          _healAppliedHandle{};
     FDelegateHandle          _battleApChangedHandle{};
     FDelegateHandle          _reactionSucceededHandle{};
+    FDelegateHandle          _reactionWindowOpenedHandle{};
+    FDelegateHandle          _reactionWindowClosedHandle{};
 
     // QTE
     FDelegateHandle          _qteStartedHandle{};

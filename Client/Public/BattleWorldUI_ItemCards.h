@@ -18,7 +18,8 @@ public:
         const Vec3& anchorWorldPos,
         BattleTurnState currentState,
         BattleItemType selectedItemType,
-        HeroId actorHeroId);
+        HeroId actorHeroId,
+        float timeDelta);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;
