@@ -302,7 +302,7 @@ namespace Internal
         TrailPreviewGateMode defaultValue,
         const char* id)
     {
-        static constexpr TrailPreviewGateMode kValues[] = {
+        static constexpr TrailPreviewGateMode values[] = {
             TrailPreviewGateMode::Always,
             TrailPreviewGateMode::Window,
         };
@@ -314,7 +314,7 @@ namespace Internal
         bool changed = false;
         if (ImGui::BeginCombo("##Value", Get_TrailPreviewGateModeLabel(value)))
         {
-            for (const TrailPreviewGateMode candidate : kValues)
+            for (const TrailPreviewGateMode candidate : values)
             {
                 const bool selected = value == candidate;
                 if (ImGui::Selectable(Get_TrailPreviewGateModeLabel(candidate), selected))
@@ -375,7 +375,7 @@ namespace Internal
         EmitterRenderLayerOverride& value,
         EmitterRenderLayerOverride defaultValue)
     {
-        static constexpr EmitterRenderLayerOverride kValues[] = {
+        static constexpr EmitterRenderLayerOverride values[] = {
             EmitterRenderLayerOverride::Auto,
             EmitterRenderLayerOverride::UIEffect,
         };
@@ -387,7 +387,7 @@ namespace Internal
         bool changed = false;
         if (ImGui::BeginCombo("##Value", Get_RenderLayerOverrideLabel(value)))
         {
-            for (const EmitterRenderLayerOverride candidate : kValues)
+            for (const EmitterRenderLayerOverride candidate : values)
             {
                 const bool selected = value == candidate;
                 if (ImGui::Selectable(Get_RenderLayerOverrideLabel(candidate), selected))
@@ -420,7 +420,7 @@ namespace Internal
         SourceHistoryRibbonSourceMode& value,
         SourceHistoryRibbonSourceMode defaultValue)
     {
-        static constexpr SourceHistoryRibbonSourceMode kValues[] = {
+        static constexpr SourceHistoryRibbonSourceMode values[] = {
             SourceHistoryRibbonSourceMode::SelfRoot,
             SourceHistoryRibbonSourceMode::ParticleEmitter,
         };
@@ -432,7 +432,7 @@ namespace Internal
         bool changed = false;
         if (ImGui::BeginCombo("##Value", Get_SourceHistoryRibbonSourceModeLabel(value)))
         {
-            for (const SourceHistoryRibbonSourceMode candidate : kValues)
+            for (const SourceHistoryRibbonSourceMode candidate : values)
             {
                 const bool selected = value == candidate;
                 if (ImGui::Selectable(Get_SourceHistoryRibbonSourceModeLabel(candidate), selected))
@@ -945,7 +945,7 @@ namespace Internal
 
     static bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
     {
-        static constexpr uint32 kToneMapModes[] = { 0u, 1u, 2u };
+        static constexpr uint32 toneMapModes[] = { 0u, 1u, 2u };
 
         ImGui::PushID("ToneMapMode");
         detailContext.Draw_PropertyLabel("ToneMap Mode", "HDR 색을 LDR 화면 범위로 눌러 담는 tone mapping 곡선입니다.");
@@ -954,7 +954,7 @@ namespace Internal
         bool changed = false;
         if (ImGui::BeginCombo("##Value", Get_ToneMapModeLabel(toneMapMode)))
         {
-            for (const uint32 candidate : kToneMapModes)
+            for (const uint32 candidate : toneMapModes)
             {
                 const bool selected = toneMapMode == candidate;
                 if (ImGui::Selectable(Get_ToneMapModeLabel(candidate), selected))
@@ -2475,6 +2475,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::VelocityCone:
         if (auto* data = get_if<VelocityConeModuleData>(&module.data))
             changed = _velocityConeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SourceMotionVelocity:
+        if (auto* data = get_if<SourceMotionVelocityModuleData>(&module.data))
+            changed = _sourceMotionVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::Acceleration:

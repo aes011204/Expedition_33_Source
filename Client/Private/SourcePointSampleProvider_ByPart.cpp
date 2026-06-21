@@ -24,11 +24,11 @@ SourcePointSampleProvider_ByPart::SourcePointSampleProvider_ByPart(
 
 bool SourcePointSampleProvider_ByPart::Try_GetSourcePointSample(EffectSourcePointSample& outSample) const
 {
-    if (_sampleEnabled != nullptr && !*_sampleEnabled)
+    if (nullptr != _sampleEnabled && !*_sampleEnabled)
         return false;
 
     const Shared<EffectCom> effectCom = _effectCom.lock();
-    if (effectCom == nullptr)
+    if (nullptr == effectCom)
         return false;
 
     return effectCom->Try_GetSourcePointSampleForPart(

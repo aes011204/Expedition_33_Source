@@ -23,23 +23,22 @@ namespace Internal
         const float t2 = ratio * ratio;
         const float t3 = t2 * ratio;
 
-        return (
-                   p1 * 2.f +
-                   (p2 - p0) * ratio +
-                   (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
-                   (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
-               ) * 0.5f;
+        return (p1 * 2.f +
+                (p2 - p0) * ratio +
+                (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
+                (p1 * 3.f - p0 - p2 * 3.f + p3) * t3)
+               * 0.5f;
     }
 
     Vec3 Catmull_RomDerivative(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float ratio)
     {
         const float t2 = ratio * ratio;
 
-        return (
-                   p2 - p0 +
-                   (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * (2.f * ratio) +
-                   (p1 * 3.f - p0 - p2 * 3.f + p3) * (3.f * t2)
-               ) * 0.5f;
+        return (p2 - p0 +
+                (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * (2.f * ratio) +
+                (p1 * 3.f - p0 - p2 * 3.f + p3) * (3.f * t2)
+               )
+               * 0.5f;
     }
 
     float Hash01(uint32 value)
@@ -148,34 +147,6 @@ namespace Internal
             E_FAIL
         );
         return S_OK;
-    }
-
-    EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulation(
-        const EffectRequiredMaterialRuntimeDesc& baseMaterial,
-        float emitterPhase)
-    {
-        EffectRequiredMaterialRuntimeDesc material = baseMaterial;
-        const auto& modulation = baseMaterial.coreColorRgbModulation;
-        const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
-
-        for (uint32 index = 0; index < count; ++index)
-        {
-            const EffectMaterialCoreColorRgbModulatorRuntimeDesc& modulator = modulation.modulators[index];
-            if (!modulator.enabled || modulator.timeSource != EffectMaterialScalarModulationTimeSource::EmitterTime)
-                continue;
-
-            const Vec3 fallbackValue{
-                material.coreEmissive.coreColor.x,
-                material.coreEmissive.coreColor.y,
-                material.coreEmissive.coreColor.z
-            };
-            const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
-            material.coreEmissive.coreColor.x = coreColorRgb.x;
-            material.coreEmissive.coreColor.y = coreColorRgb.y;
-            material.coreEmissive.coreColor.z = coreColorRgb.z;
-        }
-
-        return material;
     }
 
     float Read_Vec4Component(const Vec4& valuesBlock0, const Vec4& valuesBlock1, uint32 index)
@@ -1315,6 +1286,8 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
     const Vec3 tangent = Internal::Normalize_OrFallback(movement, lastValidTangent);
     if (tangent.LengthSquared() > 0.0001f)
         lastValidTangent = tangent;
+    const bool sourceVelocityValid = distance > 0.0001f && timeDelta > 0.f;
+    const Vec3 sourceVelocity = sourceVelocityValid ? movement / max(timeDelta, 0.0001f) : Vec3{};
 
     const bool canSampleHistoryPath =
         !history.empty() && (history.front().position - currentPosition).LengthSquared() <= 0.0001f;
@@ -1334,6 +1307,15 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
             outTangent = sampledTangent;
         }
     };
+    const auto make_source_motion_context =
+        [&sourceVelocity, sourceVelocityValid](const Vec3& stampTangent)
+    {
+        SourceMotionVelocityContext context{};
+        context.sourceVelocity = sourceVelocity;
+        context.sourceVelocityValid = sourceVelocityValid;
+        context.tangent = Internal::Normalize_OrFallback(stampTangent, Vec3{ 1.f, 0.f, 0.f });
+        return context;
+    };
 
     if (_desc.stampSpawnMode == EffectSourceHistorySpriteTrailStampSpawnMode::Time)
     {
@@ -1344,7 +1326,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
             Vec3 center{};
             Vec3 stampTangent{};
             sample_spawn_point(0.f, currentPosition, center, stampTangent);
-            Push_Stamp(stamps, center, stampTangent, 0.f, 1.f, 1.f);
+            Push_Stamp(stamps, center, stampTangent, make_source_motion_context(stampTangent), 0.f, 1.f, 1.f);
         }
         return;
     }
@@ -1365,7 +1347,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Spawn_StampsForPath(
             center,
             stampTangent
         );
-        Push_Stamp(stamps, center, stampTangent, backDistance, 1.f, 1.f);
+        Push_Stamp(stamps, center, stampTangent, make_source_motion_context(stampTangent), backDistance, 1.f, 1.f);
         distanceAccumulator -= _desc.stampSpacing;
     }
 }
@@ -1374,6 +1356,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(
     vector<Stamp>& stamps,
     const Vec3& center,
     const Vec3& tangent,
+    const SourceMotionVelocityContext& sourceMotionContext,
     float pathDistanceFromHead,
     float widthScale,
     float lengthScale)
@@ -1418,7 +1401,7 @@ void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(
     stamp.lengthScale = max(0.f, lengthScale * initialSize.y);
     stamp.initialRotationRadians = Sample_InitialRotation(stampSerial);
     stamp.initialAngularVelocityRadians = Sample_InitialAngularVelocity(stampSerial);
-    stamp.velocity = Sample_InitialVelocity(stampSerial, stamp.center, stamp.tangent);
+    stamp.velocity = Sample_InitialVelocity(stampSerial, stamp.center, sourceMotionContext);
     stamp.acceleration = Sample_Acceleration(stampSerial);
     stamp.drag = Sample_Drag(stampSerial);
     stamp.pathFollowActive = _desc.pathFollow.enabled && !_desc.pathReplay.enabled;
@@ -1911,7 +1894,10 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_InitialAngularVelocity(uint
     );
 }
 
-Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const Vec3& tangent) const
+Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
+    uint32 stampSerial,
+    const Vec3& spawnCenter,
+    const SourceMotionVelocityContext& sourceMotionContext) const
 {
     if (!_desc.motion.enabled)
         return Vec3{};
@@ -1926,6 +1912,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(uint32 stamp
                _transformCom->Get_WorldForward() * localVector.z;
     };
 
+    const Vec3 tangent = Internal::Normalize_OrFallback(sourceMotionContext.tangent, Vec3{ 1.f, 0.f, 0.f });
     Vec3 velocity{};
     if (_desc.motion.initialVelocityEnabled)
     {
@@ -2017,6 +2004,92 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(uint32 stamp
             1747u
         );
         velocity += coneDirection * coneSpeed;
+    }
+
+    if (_desc.motion.sourceMotionVelocityEnabled)
+    {
+        const float sourceSpeed =
+            sourceMotionContext.sourceVelocityValid ? sourceMotionContext.sourceVelocity.Length() : 0.f;
+        const Vec3 fallbackForward = _transformCom != nullptr
+                                     ? _transformCom->Get_WorldForward()
+                                     : Vec3{ 0.f, 0.f, 1.f };
+        const Vec3 normalizedSourceVelocity =
+            sourceMotionContext.sourceVelocityValid
+            ? Internal::Normalize_OrFallback(sourceMotionContext.sourceVelocity, fallbackForward)
+            : Internal::Normalize_OrFallback(fallbackForward, Vec3{ 0.f, 0.f, 1.f });
+        const Vec3 normalizedTangent = Internal::Normalize_OrFallback(tangent, normalizedSourceVelocity);
+
+        const auto resolve_side_from_tangent = [&normalizedTangent]()
+        {
+            Vec3 side = normalizedTangent.Cross(Vec3{ 0.f, 1.f, 0.f });
+            if (side.LengthSquared() <= 0.0001f)
+                side = normalizedTangent.Cross(Vec3{ 0.f, 0.f, 1.f });
+            if (side.LengthSquared() <= 0.0001f)
+                side = Vec3{ 1.f, 0.f, 0.f };
+            return Internal::Normalize_OrFallback(side, Vec3{ 1.f, 0.f, 0.f });
+        };
+
+        const uint32 sourceMotionSeed =
+            Internal::Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _effectPlaybackSeed) +
+            stampSerial * 3571u +
+            2309u;
+        Vec3 resolvedDirection{};
+        switch (_desc.motion.sourceMotionVelocityDirectionMode)
+        {
+        case PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            resolvedDirection = normalizedSourceVelocity;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            resolvedDirection = -normalizedSourceVelocity;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            resolvedDirection = -normalizedTangent;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::SideFromTangent:
+            resolvedDirection = resolve_side_from_tangent();
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            resolvedDirection = resolve_side_from_tangent();
+            if (Internal::Hash01(sourceMotionSeed + 37u) < 0.5f)
+                resolvedDirection = -resolvedDirection;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::TrailTangent:
+        default:
+            resolvedDirection = normalizedTangent;
+            break;
+        }
+
+        if (_desc.motion.sourceMotionVelocityDirectionMode != PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity &&
+            _desc.motion.sourceMotionVelocitySpreadAngleDegrees > 0.f)
+        {
+            resolvedDirection = Internal::SampleConeDirection(
+                resolvedDirection,
+                _desc.motion.sourceMotionVelocitySpreadAngleDegrees,
+                sourceMotionSeed + 71u
+            );
+        }
+
+        const float sampledSpeed = Sample_Range(
+            _desc.motion.sourceMotionVelocitySpeed.x,
+            _desc.motion.sourceMotionVelocitySpeed.y,
+            _desc.motion.sourceMotionVelocitySeed,
+            stampSerial,
+            2357u
+        );
+
+        if (_desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity)
+        {
+            velocity += sourceMotionContext.sourceVelocity * _desc.motion.sourceMotionVelocitySourceSpeedScale;
+            velocity += normalizedSourceVelocity * sampledSpeed;
+        }
+        else
+        {
+            const float resolvedSpeed =
+                sampledSpeed + sourceSpeed * _desc.motion.sourceMotionVelocitySourceSpeedScale;
+            velocity += resolvedDirection * resolvedSpeed;
+        }
     }
 
     return velocity;

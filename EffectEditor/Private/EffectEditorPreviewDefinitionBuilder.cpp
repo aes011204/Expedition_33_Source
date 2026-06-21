@@ -190,6 +190,30 @@ namespace Internal
         }
     }
 
+    PointParticleSourceMotionVelocityDirectionMode Resolve_SourceMotionVelocityDirectionMode(
+        SourceMotionVelocityDirectionMode value)
+    {
+        switch (value)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity;
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection;
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangent;
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangentOpposite;
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::SideFromTangent;
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::RandomSideFromTangent;
+        default:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangent;
+        }
+    }
+
     fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
         if (nullptr == GAME)
@@ -1504,6 +1528,20 @@ namespace Internal
         };
     }
 
+    void Fill_SourceMotionVelocityPayload(PointParticleMotionDesc& desc, const SourceMotionVelocityModuleData& data)
+    {
+        desc.enabled = true;
+        desc.sourceMotionVelocityEnabled = true;
+        desc.sourceMotionVelocityDirectionMode = Resolve_SourceMotionVelocityDirectionMode(data.directionMode);
+        desc.sourceMotionVelocitySpeed = Vec2{
+            Evaluate_FloatDistributionMin(data.speed, desc.sourceMotionVelocitySpeed.x),
+            Evaluate_FloatDistributionMax(data.speed, desc.sourceMotionVelocitySpeed.y)
+        };
+        desc.sourceMotionVelocitySeed = Build_RandomSeedDesc(data.speed);
+        desc.sourceMotionVelocitySourceSpeedScale = max(0.f, data.sourceSpeedScale);
+        desc.sourceMotionVelocitySpreadAngleDegrees = clamp(data.spreadAngleDegrees, 0.f, 180.f);
+    }
+
     Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
     {
         if (const auto* constant = get_if<ConstantColorDistributionData>(&data.payload))
@@ -1931,6 +1969,14 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     {
         Internal::Fill_VelocityConePayload(desc.motion, *velocityCone);
         desc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
     }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
@@ -2638,6 +2684,14 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
         emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
     }
 
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
+    }
+
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
@@ -3229,6 +3283,14 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
     {
         Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
         emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
     }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))

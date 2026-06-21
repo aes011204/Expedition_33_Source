@@ -226,7 +226,7 @@ private: //## Types::AttachedEffect
         Vec3 scale{ Vec3::One };
         EffectTransformInheritance transformInheritance{};
 
-        bool followTarget = false; // true면 Update에서 owner/socket 위치를 계속 따라간다.
+        bool followTarget = false;                                // true면 Update에서 owner/socket 위치를 계속 따라간다.
         AttachedEffectRole role{ AttachedEffectRole::Normal };
         TrailAnchorAsset trailAnchorAsset{};
         Shared<IEffectTrailSampleProvider> trailSampleProvider{}; // 각 trail instance가 자기 sample source를 유지한다.
@@ -234,7 +234,8 @@ private: //## Types::AttachedEffect
         bool isTrailDraining = false;
         float trailDrainElapsed = 0.f;
         float trailDrainDuration = 0.25f;
-        SourceHistorySourceBindingMode sourceHistorySourceBindingMode{ SourceHistorySourceBindingMode::WeaponAnchor };
+        SourceHistorySourceBindingMode sourceHistorySourceBindingMode{
+            SourceHistorySourceBindingMode::WeaponAnchor };
         string sourceHistoryAnchorName{ "Source" };
         Vec3 sourceHistoryLocalOffset{ Vec3::Zero };
         Shared<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};

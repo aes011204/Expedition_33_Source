@@ -16,7 +16,7 @@
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
 
-namespace
+namespace Internal
 {
 float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
 {
@@ -195,9 +195,8 @@ void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         if (effect == nullptr)
             continue;
 
-        const bool alreadyCaptured = any_of(
-            outStates.begin(),
-            outStates.end(),
+        const bool alreadyCaptured = ranges::any_of(
+            outStates,
             [&effect](const AttachedEffectPauseState& state)
             {
                 return state.effect == effect;
@@ -608,8 +607,8 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
                          ? normalize_axis(Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23), Vec3::Up)
                          : Vec3::Up;
     const Vec3 basisLook = transformInheritance.inheritRotation
-                           ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Forward)
-                           : Vec3::Forward;
+                           ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Look)
+                           : Vec3::Look;
 
     Matrix basisWorldMatrix = Matrix::Identity;
     basisWorldMatrix._11 = basisRight.x;
@@ -774,7 +773,7 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
     acquireDesc.autoReleaseOnFinished = false;
 
-    attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
+    attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
@@ -908,7 +907,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     acquireDesc.autoReleaseOnFinished = false;
 
     attached.sourceHistoryDrainDuration =
-        Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
+        Internal::Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     const HRESULT acquireResult = effectPool->Acquire(acquireDesc, attached.poolHandle);
     if (FAILED(acquireResult))

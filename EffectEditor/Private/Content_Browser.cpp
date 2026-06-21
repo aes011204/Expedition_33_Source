@@ -29,11 +29,11 @@ namespace Internal
 
     static ImTextureID ToImTextureId(const Shared<Texture>& texture)
     {
-        if (texture == nullptr)
+        if (nullptr == texture)
             return static_cast<ImTextureID>(0);
 
         const auto& srvs = texture->Get_SRVs();
-        if (srvs.empty() || srvs[0] == nullptr)
+        if (srvs.empty() || nullptr == srvs[0])
             return static_cast<ImTextureID>(0);
 
         return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
@@ -47,7 +47,7 @@ namespace Internal
             return;
         }
 
-        constexpr const char* ellipsis = "...";
+        constexpr auto ellipsis = "...";
         const float ellipsisWidth = ImGui::CalcTextSize(ellipsis).x;
         if (maxWidth <= ellipsisWidth)
         {
@@ -755,7 +755,7 @@ void Content_Browser::Open_Folder(FolderNode* folder)
 
 void Content_Browser::Open_File(const FileEntry& fileEntry)
 {
-    if (EDITOR == nullptr)
+    if (nullptr == EDITOR)
         return;
 
     const fs::path filePath = fileEntry.filePath;
@@ -774,7 +774,7 @@ void Content_Browser::Open_File(const FileEntry& fileEntry)
 
     const Shared<Editor_Window> materialWindow = EDITOR->Get_Window(L"Effect Material");
     const Shared<EffectMaterial_View> materialView = dynamic_pointer_cast<EffectMaterial_View>(materialWindow);
-    if (materialView == nullptr)
+    if (nullptr == materialView)
         return;
 
     materialView->Open_Preset(fileEntry.filePath);
@@ -877,7 +877,7 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FileEntry& fileEntry, b
     Shared<Texture> thumbnailTexture =
         Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), thumbnailPath.c_str(), 1);
 
-    if (thumbnailTexture == nullptr)
+    if (nullptr == thumbnailTexture)
     {
         _noThumbnailPaths.insert(fileEntry.filePath);
         return nullptr;
@@ -941,7 +941,7 @@ ImTextureID Content_Browser::Get_IconTextureId(IconType iconType) const
 
 bool Content_Browser::Can_GoParentFolder() const
 {
-    if (_currentFolder == nullptr || _rootFolder.fullPath.empty())
+    if (nullptr == _currentFolder || _rootFolder.fullPath.empty())
         return false;
 
     const fs::path currentPath(_currentFolder->fullPath);

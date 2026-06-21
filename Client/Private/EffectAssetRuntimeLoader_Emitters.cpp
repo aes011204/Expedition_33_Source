@@ -41,6 +41,26 @@ namespace EffectAssetRuntimeLoad::Emitters
         return nullptr;
     }
 
+    void Fill_SourceMotionVelocityPayload(PointParticleMotionDesc& desc, const json& sourceMotionVelocity)
+    {
+        desc.enabled = true;
+        desc.sourceMotionVelocityEnabled = true;
+        Read_Enum(sourceMotionVelocity, "directionMode", desc.sourceMotionVelocityDirectionMode);
+        desc.sourceMotionVelocitySourceSpeedScale =
+            max(0.f, Read_Float(sourceMotionVelocity, "sourceSpeedScale", desc.sourceMotionVelocitySourceSpeedScale));
+        desc.sourceMotionVelocitySpreadAngleDegrees =
+            clamp(Read_Float(sourceMotionVelocity, "spreadAngleDegrees", desc.sourceMotionVelocitySpreadAngleDegrees), 0.f, 180.f);
+
+        if (const auto speedIter = sourceMotionVelocity.find("speed"); speedIter != sourceMotionVelocity.end())
+        {
+            desc.sourceMotionVelocitySpeed = Vec2{
+                Evaluate_FloatDistributionMin(*speedIter, desc.sourceMotionVelocitySpeed.x),
+                Evaluate_FloatDistributionMax(*speedIter, desc.sourceMotionVelocitySpeed.y)
+            };
+            desc.sourceMotionVelocitySeed = Read_DistributionRandomSeedDesc(*speedIter, &sourceMotionVelocity);
+        }
+    }
+
     string Resolve_RendererType(const json& emitter)
     {
         string rendererType = Read_String(emitter, "rendererType");
@@ -623,6 +643,9 @@ namespace EffectAssetRuntimeLoad::Emitters
             if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
+
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
 
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
@@ -1268,6 +1291,9 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
 
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
+
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
@@ -1843,6 +1869,9 @@ namespace EffectAssetRuntimeLoad::Emitters
             if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
+
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
 
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {

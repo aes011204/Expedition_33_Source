@@ -131,6 +131,17 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SourceMotionVelocity module의 source/trail motion 기반 초기 속도 row를 그린다.
+class SourceMotionVelocityModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SourceMotionVelocityModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 // Acceleration module의 motion acceleration authoring row를 그린다.
 class AccelerationModuleDetail
 {

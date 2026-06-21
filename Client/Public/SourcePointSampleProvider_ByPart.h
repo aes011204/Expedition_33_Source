@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "EffectRuntime_Types.h"
@@ -24,7 +24,6 @@ public:
         string sourceHistoryAnchorName,
         Vec3 sourceHistoryLocalOffset,
         Shared<bool> sampleEnabled = nullptr);
-
     ~SourcePointSampleProvider_ByPart() override = default;
 
 public:

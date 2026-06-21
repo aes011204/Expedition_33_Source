@@ -232,6 +232,10 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_PlaneRadialCameraFacingUp;          // xyz: camera up axis in emitter-local sampling space
     float4 g_PlaneRadialCameraFacingNormal;      // xyz: camera look axis in emitter-local sampling space
     uint4 g_SpawnSerialParams;                   // x: replay-local spawn serial base
+    float4 g_SourceMotionVelocity;               // xyz: emitter center delta velocity, w: valid
+    float4 g_SourceMotionVelocityParams;         // x: enabled, y: direction mode, z: spread angle degrees, w: source speed scale
+    float4 g_SourceMotionVelocitySpeed;          // x/y: speed min/max
+    uint4 g_SourceMotionVelocitySeedSalts;       // x: SourceMotionVelocity
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -1092,6 +1096,48 @@ float3 SampleConeDirection(float3 axis, float angleDegrees, uint seed)
     return sampledDirection;
 }
 
+float3 ResolveSourceMotionVelocity(float3 sourceVelocity, uint seed)
+{
+    const bool sourceVelocityValid = g_SourceMotionVelocity.w != 0.0f;
+    const float sourceSpeed = sourceVelocityValid ? length(sourceVelocity) : 0.0f;
+    const float3 fallbackForward = ResolveEmitterBasisVector(float3(0.0f, 0.0f, 1.0f));
+    const float fallbackLength = length(fallbackForward);
+    const float3 fallbackDirection = fallbackLength < 0.0001f ? float3(0.0f, 0.0f, 1.0f) : fallbackForward / fallbackLength;
+    float3 sourceDirection = fallbackDirection;
+    if (sourceSpeed >= 0.0001f)
+        sourceDirection = sourceVelocity / sourceSpeed;
+    const float3 tangent = sourceDirection;
+    float3 side = cross(tangent, float3(0.0f, 1.0f, 0.0f));
+    if (length(side) < 0.0001f)
+        side = cross(tangent, float3(0.0f, 0.0f, 1.0f));
+    side = length(side) < 0.0001f ? float3(1.0f, 0.0f, 0.0f) : normalize(side);
+
+    const uint directionMode = (uint)g_SourceMotionVelocityParams.y;
+    float3 resolvedDirection = tangent;
+    if (directionMode == 0u || directionMode == 1u)
+        resolvedDirection = sourceDirection;
+    else if (directionMode == 2u)
+        resolvedDirection = -sourceDirection;
+    else if (directionMode == 4u)
+        resolvedDirection = -tangent;
+    else if (directionMode == 5u)
+        resolvedDirection = side;
+    else if (directionMode == 6u)
+        resolvedDirection = Hash01(seed + 3119u) < 0.5f ? side : -side;
+
+    const float resolvedDirectionLength = length(resolvedDirection);
+    resolvedDirection = resolvedDirectionLength < 0.0001f ? fallbackDirection : resolvedDirection / resolvedDirectionLength;
+    if (directionMode != 0u && g_SourceMotionVelocityParams.z > 0.0f)
+        resolvedDirection = SampleConeDirection(resolvedDirection, g_SourceMotionVelocityParams.z, seed + 3251u);
+
+    const float sampledSpeed = lerp(g_SourceMotionVelocitySpeed.x, g_SourceMotionVelocitySpeed.y, Hash01(seed + 2357u));
+    float3 result = resolvedDirection * (sampledSpeed + sourceSpeed * g_SourceMotionVelocityParams.w);
+    if (directionMode == 0u)
+        result = sourceVelocity * g_SourceMotionVelocityParams.w + sourceDirection * sampledSpeed;
+
+    return result;
+}
+
 struct PlaneRadialFrame
 {
     float3 localOffset;
@@ -1448,6 +1494,12 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                      : ResolveEmitterBasisVector(sampledConeDirection);
         const float coneSpeed = lerp(g_VelocityConeSpeed.x, g_VelocityConeSpeed.y, Hash01(velocityConeSeed + 1747u));
         initialVelocity += coneDirection * coneSpeed;
+    }
+
+    if (g_SourceMotionVelocityParams.x != 0.0f)
+    {
+        const uint sourceMotionVelocitySeed = seed + g_SourceMotionVelocitySeedSalts.x;
+        initialVelocity += ResolveSourceMotionVelocity(g_SourceMotionVelocity.xyz, sourceMotionVelocitySeed);
     }
 
     const float drag = max(0.0f, lerp(g_MotionRadialSpeedDrag.z, g_MotionRadialSpeedDrag.w, Hash01(dragSeed + 607u)));

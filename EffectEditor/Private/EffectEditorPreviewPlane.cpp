@@ -36,10 +36,10 @@ HRESULT EffectEditorPreviewPlane::Initialize(void* arg)
 
 void EffectEditorPreviewPlane::Late_Update(float)
 {
-    if (EDITOR == nullptr || !EDITOR->Is_PreviewPlaneVisible())
+    if (nullptr == EDITOR || !EDITOR->Is_PreviewPlaneVisible())
         return;
 
-    if (_model == nullptr || _shader == nullptr || _texture == nullptr || _instanceBuffer == nullptr)
+    if (nullptr == _model || nullptr == _shader || nullptr == _texture || nullptr == _instanceBuffer)
         return;
 
     GAME->Add_RenderGroup(RenderGroup::EffectMasked, GetSharedPtr<GameObject>());
@@ -47,7 +47,7 @@ void EffectEditorPreviewPlane::Late_Update(float)
 
 HRESULT EffectEditorPreviewPlane::Render()
 {
-    if (EDITOR == nullptr || !EDITOR->Is_PreviewPlaneVisible())
+    if (nullptr == EDITOR || !EDITOR->Is_PreviewPlaneVisible())
         return S_OK;
 
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
@@ -132,11 +132,11 @@ HRESULT EffectEditorPreviewPlane::Ready_InstanceBuffer()
 
 wstring EffectEditorPreviewPlane::Resolve_ResourcePath(const wchar_t* relativePath) const
 {
-    if (relativePath == nullptr || relativePath[0] == L'\0')
+    if (nullptr == relativePath || relativePath[0] == L'\0')
         return {};
 
     fs::path resourcePath{ relativePath };
-    if (resourcePath.is_relative() && GAME != nullptr)
+    if (resourcePath.is_relative() && nullptr != GAME)
         resourcePath = fs::path(GAME->Get_AssetRoot()) / resourcePath;
 
     resourcePath = resourcePath.lexically_normal();
@@ -163,8 +163,7 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Wrap)),
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
-        0.f
-    };
+        0.f };
     const Vec4 effectMeshSourceParams{ 1.f, 0.f, 0.f, 0.f };
     const Vec4 effectMeshAdditiveParams{ 0.f, 0.f, 0.f, 1.f };
     const Vec4 effectMeshAdditiveColor{ 1.f, 1.f, 1.f, 1.f };

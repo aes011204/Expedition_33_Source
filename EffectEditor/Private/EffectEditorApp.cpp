@@ -1,10 +1,10 @@
 ﻿#include "EffectEditorApp.h"
 
 #include "ClientInstance.h"
-#include "Content_Browser.h"
 #include "ComputeGeneratedBeamEmitter.h"
 #include "ComputeSourceHistoryRibbonEmitter.h"
 #include "ComputeSourceHistorySpriteTrailEmitter.h"
+#include "Content_Browser.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
@@ -62,12 +62,12 @@ namespace Internal
 
     bool Is_IgnoredAssetPath(const fs::path& path, const fs::path& resourceRoot)
     {
-        static const vector<string> kIgnoreFolders{ ".git", ".vs", "Fonts", "Data/Assets" };
+        static const vector<string> ignoreFolders{ ".git", ".vs", "Fonts", "Data/Assets" };
 
         const fs::path normalizedPath = path.lexically_normal();
         const fs::path normalizedRoot = resourceRoot.empty() ? fs::path() : resourceRoot.lexically_normal();
 
-        for (const string& ignoreFolder : kIgnoreFolders)
+        for (const string& ignoreFolder : ignoreFolders)
         {
             const string lowerIgnore = String::ToLowerCopy(ignoreFolder);
             if (lowerIgnore.find('/') == string::npos && lowerIgnore.find('\\') == string::npos)
@@ -117,14 +117,14 @@ namespace Internal
         }
 
         return 0 == relativePath.find("ui/ui_json/") ||
-            0 == relativePath.find("data/json/animnotifies/") ||
-            0 == relativePath.find("data/json/bt/") ||
-            0 == relativePath.find("data/json/camerapreset/") ||
-            0 == relativePath.find("data/json/cinematics/") ||
-            0 == relativePath.find("data/json/prefabs/") ||
-            0 == relativePath.find("materials/") ||
-            0 == relativePath.find("effects/assets/") ||
-            0 == relativePath.find("effects/materials/");
+               0 == relativePath.find("data/json/animnotifies/") ||
+               0 == relativePath.find("data/json/bt/") ||
+               0 == relativePath.find("data/json/camerapreset/") ||
+               0 == relativePath.find("data/json/cinematics/") ||
+               0 == relativePath.find("data/json/prefabs/") ||
+               0 == relativePath.find("materials/") ||
+               0 == relativePath.find("effects/assets/") ||
+               0 == relativePath.find("effects/materials/");
     }
 
     bool Should_RegisterAsset(const fs::path& path, const fs::path& resourceRoot)
@@ -140,31 +140,29 @@ namespace Internal
             name == "assetregistry.cache.json" ||
             extension == ".xlsx" ||
             extension == ".csv")
-        {
             return false;
-        }
 
         if (extension == ".json")
             return Should_RegisterJsonAsset(path, resourceRoot);
 
         return extension == ".model"
-            || extension == ".meshbin"
-            || extension == ".anim"
-            || extension == ".clip"
-            || extension == ".psa"
-            || extension == ".dds"
-            || extension == ".png"
-            || extension == ".jpg"
-            || extension == ".jpeg"
-            || extension == ".tga"
-            || extension == ".hlsl"
-            || extension == ".fx"
-            || extension == ".wav"
-            || extension == ".mp3"
-            || extension == ".ogg"
-            || extension == ".spritefont"
-            || extension == ".ttf"
-            || extension == ".otf";
+               || extension == ".meshbin"
+               || extension == ".anim"
+               || extension == ".clip"
+               || extension == ".psa"
+               || extension == ".dds"
+               || extension == ".png"
+               || extension == ".jpg"
+               || extension == ".jpeg"
+               || extension == ".tga"
+               || extension == ".hlsl"
+               || extension == ".fx"
+               || extension == ".wav"
+               || extension == ".mp3"
+               || extension == ".ogg"
+               || extension == ".spritefont"
+               || extension == ".ttf"
+               || extension == ".otf";
     }
 
     string Detect_AssetType(const fs::path& filePath, const fs::path& resourceRoot)
@@ -308,9 +306,7 @@ namespace Internal
                         result.existingMetaAssets.push_back(assetMeta);
                 }
                 else
-                {
                     result.missingMetaAssetPaths.push_back(path.wstring());
-                }
             }
 
             result.scanSucceeded = true;
@@ -636,26 +632,27 @@ void EffectEditorApp::Queue_EffectsAssetDeltaScan()
 
     const fs::path assetRootPath = _assetRootPath;
     const fs::path effectsScanRoot = _effectsAssetScanRoot;
-    const bool enqueued = GAME->Enqueue_ThreadJob([this, assetRootPath, effectsScanRoot]()
-    {
-        const auto scanBegin = chrono::steady_clock::now();
-        AssetDeltaScanResult scanResult = Internal::Scan_EffectsAssetDelta(assetRootPath, effectsScanRoot);
-        const auto elapsedMs = chrono::duration_cast<chrono::milliseconds>(
-            chrono::steady_clock::now() - scanBegin).count();
+    const bool enqueued = GAME->Enqueue_ThreadJob(
+        [this, assetRootPath, effectsScanRoot]
+        {
+            const auto scanBegin = chrono::steady_clock::now();
+            AssetDeltaScanResult scanResult = Internal::Scan_EffectsAssetDelta(assetRootPath, effectsScanRoot);
+            const auto elapsedMs = chrono::duration_cast<chrono::milliseconds>(
+                chrono::steady_clock::now() - scanBegin).count();
 
-        LOG_INFO(
-            "[AssetDeltaScan] background scan complete scanRoot={} discovered={} existingMeta={} missingMeta={} stale={} elapsed={}ms",
-            String::ToString(effectsScanRoot.wstring()),
-            static_cast<uint32>(scanResult.discoveredAssetPaths.size()),
-            static_cast<uint32>(scanResult.existingMetaAssets.size()),
-            static_cast<uint32>(scanResult.missingMetaAssetPaths.size()),
-            static_cast<uint32>(scanResult.staleAssetPaths.size()),
-            elapsedMs
-        );
+            LOG_INFO(
+                "[AssetDeltaScan] background scan complete scanRoot={} discovered={} existingMeta={} missingMeta={} stale={} elapsed={}ms",
+                String::ToString(effectsScanRoot.wstring()),
+                static_cast<uint32>(scanResult.discoveredAssetPaths.size()),
+                static_cast<uint32>(scanResult.existingMetaAssets.size()),
+                static_cast<uint32>(scanResult.missingMetaAssetPaths.size()),
+                static_cast<uint32>(scanResult.staleAssetPaths.size()),
+                elapsedMs
+            );
 
-        lock_guard<mutex> lock(_assetDeltaScanMutex);
-        _pendingAssetDeltaScanResult = std::move(scanResult);
-    });
+            lock_guard<mutex> lock(_assetDeltaScanMutex);
+            _pendingAssetDeltaScanResult = std::move(scanResult);
+        });
 
     if (!enqueued)
     {

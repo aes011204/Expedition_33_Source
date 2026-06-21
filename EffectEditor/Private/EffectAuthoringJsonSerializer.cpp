@@ -2194,6 +2194,32 @@ namespace Internal
         Apply_LegacyRandomSeedToUniform(outData.speed, legacySeed);
     }
 
+    json To_Json(const SourceMotionVelocityModuleData& data)
+    {
+        json root = json::object();
+        root["directionMode"] = To_EnumToken(data.directionMode);
+        root["speed"] = To_Json(data.speed);
+        root["sourceSpeedScale"] = data.sourceSpeedScale;
+        root["spreadAngleDegrees"] = data.spreadAngleDegrees;
+        return root;
+    }
+
+    void From_Json(const json& root, SourceMotionVelocityModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto directionModeIter = root.find("directionMode"); directionModeIter != root.end())
+            Try_ReadEnumToken(*directionModeIter, outData.directionMode);
+        if (const auto speedIter = root.find("speed"); speedIter != root.end())
+            From_Json(*speedIter, outData.speed);
+        Read_NumberField(root, "sourceSpeedScale", outData.sourceSpeedScale);
+        Read_NumberField(root, "spreadAngleDegrees", outData.spreadAngleDegrees);
+        DistributionRandomSeedData legacySeed{};
+        Read_RandomSeedField(root, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.speed, legacySeed);
+    }
+
     json To_Json(const AccelerationModuleData& data)
     {
         json root = json::object();
@@ -2956,6 +2982,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::VelocityCone:
         root["data"] = Internal::To_Json(get<VelocityConeModuleData>(module.data));
         break;
+    case AuthoringModuleType::SourceMotionVelocity:
+        root["data"] = Internal::To_Json(get<SourceMotionVelocityModuleData>(module.data));
+        break;
     case AuthoringModuleType::Acceleration:
         root["data"] = Internal::To_Json(get<AccelerationModuleData>(module.data));
         break;
@@ -3101,6 +3130,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
             break;
         case AuthoringModuleType::VelocityCone:
             Internal::From_Json(*dataIter, get<VelocityConeModuleData>(module.data));
+            break;
+        case AuthoringModuleType::SourceMotionVelocity:
+            Internal::From_Json(*dataIter, get<SourceMotionVelocityModuleData>(module.data));
             break;
         case AuthoringModuleType::Acceleration:
             Internal::From_Json(*dataIter, get<AccelerationModuleData>(module.data));
@@ -3253,6 +3285,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return InitialRadialVelocityModuleData{};
     case AuthoringModuleType::VelocityCone:
         return VelocityConeModuleData{};
+    case AuthoringModuleType::SourceMotionVelocity:
+        return SourceMotionVelocityModuleData{};
     case AuthoringModuleType::Acceleration:
         return AccelerationModuleData{};
     case AuthoringModuleType::Drag:

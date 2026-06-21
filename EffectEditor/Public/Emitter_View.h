@@ -202,6 +202,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_InitialRadialVelocityModule();
     AuthoringModule Make_VelocityConeModule();
+    AuthoringModule Make_SourceMotionVelocityModule();
     AuthoringModule Make_AccelerationModule();
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();

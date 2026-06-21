@@ -76,12 +76,11 @@ static Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Ve
     const float t2 = ratio * ratio;
     const float t3 = t2 * ratio;
 
-    return (
-               p1 * 2.f +
-               (p2 - p0) * ratio +
-               (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
-               (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
-           ) * 0.5f;
+    return (p1 * 2.f +
+            (p2 - p0) * ratio +
+            (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
+            (p1 * 3.f - p0 - p2 * 3.f + p3) * t3)
+           * 0.5f;
 }
 
 static float Read_Vec4Component(const Vec4& values, uint32 index)
@@ -172,34 +171,6 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     );
 
     return S_OK;
-}
-
-static EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulation(
-    const EffectRequiredMaterialRuntimeDesc& baseMaterial,
-    float emitterPhase)
-{
-    auto material = baseMaterial;
-    const auto& modulation = baseMaterial.coreColorRgbModulation;
-    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
-
-    for (uint32 index = 0; index < count; ++index)
-    {
-        const auto& modulator = modulation.modulators[index];
-        if (!modulator.enabled || modulator.timeSource != EffectMaterialScalarModulationTimeSource::EmitterTime)
-            continue;
-
-        const Vec3 fallbackValue{
-            material.coreEmissive.coreColor.x,
-            material.coreEmissive.coreColor.y,
-            material.coreEmissive.coreColor.z
-        };
-        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
-        material.coreEmissive.coreColor.x = coreColorRgb.x;
-        material.coreEmissive.coreColor.y = coreColorRgb.y;
-        material.coreEmissive.coreColor.z = coreColorRgb.z;
-    }
-
-    return material;
 }
 
 static wstring Resolve_RibbonTexturePathByGuid(const string& textureGuid)
@@ -322,7 +293,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
     _desc.material.subUVRows = max(1u, _desc.material.subUVRows);
     _desc.material.subUVCols = max(1u, _desc.material.subUVCols);
     _desc.subUVFrameOverLife.frameCurveKeyCount =
-        max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.subUVFrameOverLife.frameCurveKeyCount));
+        max(1u, min(kEffectDistributionCurveMaxKeys, _desc.subUVFrameOverLife.frameCurveKeyCount));
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
     Reset_PlaybackRuntime();
@@ -581,7 +552,7 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
 
     if (Is_EmittingSourceSamples())
     {
-        const Shared<Engine::EffectInstance> effectOwner = dynamic_pointer_cast<Engine::EffectInstance>(_effectOwner.lock());
+        const Shared<EffectInstance> effectOwner = dynamic_pointer_cast<EffectInstance>(_effectOwner.lock());
         const Shared<EffectEmitter> sourceEmitter =
             effectOwner != nullptr ? effectOwner->Find_EmitterById(_desc.sourceEmitterId) : nullptr;
 
@@ -943,7 +914,7 @@ void ComputeSourceHistoryRibbonEmitter::Retire_HistoryStroke(
 
     _retiredLoopStrokes.push_back(
         RetiredLoopStroke{
-            .history = std::move(history),
+            .history = move(history),
             .widthMultiplier = clamp(widthMultiplier, 0.f, 1.f)
         }
     );
@@ -1634,7 +1605,7 @@ Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgres
     const PointParticleColorOverLifeCurveDesc& curve = _desc.colorOverLife.curve;
     if (curve.colorCurveEnabled)
     {
-        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.colorCurveKeyCount));
+        const uint32 keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, curve.colorCurveKeyCount));
         color.x = Evaluate_CompactCurve(
             lifeProgress,
             curve.colorCurveTimes,
@@ -1684,7 +1655,7 @@ Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgres
 
     if (curve.alphaCurveEnabled)
     {
-        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.alphaCurveKeyCount));
+        const uint32 keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, curve.alphaCurveKeyCount));
         color.w = Evaluate_CompactCurve(
             lifeProgress,
             curve.alphaCurveTimes,
@@ -1843,7 +1814,7 @@ float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(
     uint32 keyCount,
     float fallbackValue) const
 {
-    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    const uint32 clampedKeyCount = max(1u, min(kEffectDistributionCurveMaxKeys, keyCount));
     if (clampedKeyCount == 1u || lifeProgress <= EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, 0u))
         return EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, 0u);
 
@@ -1882,7 +1853,7 @@ float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(
     uint32 keyCount,
     float fallbackValue) const
 {
-    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    const uint32 clampedKeyCount = max(1u, min(kEffectDistributionCurveMaxKeys, keyCount));
     if (clampedKeyCount == 1u || lifeProgress <= EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, 0u))
         return EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, 0u);
 

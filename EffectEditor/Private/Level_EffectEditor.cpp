@@ -22,10 +22,9 @@ namespace Internal
 {
     bool Is_TrailPreviewModelResource(const wstring& prototypeTag)
     {
-        return
-            prototypeTag == L"Model_GustaveBody" ||
-            prototypeTag == L"Model_GustaveHead" ||
-            prototypeTag == L"Model_GustaveHair";
+        return prototypeTag == L"Model_GustaveBody" ||
+               prototypeTag == L"Model_GustaveHead" ||
+               prototypeTag == L"Model_GustaveHair";
     }
 }
 
@@ -113,9 +112,7 @@ HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
     {
         if (loadJob.eType != ELoadJobType::Model ||
             !Internal::Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
-        {
             continue;
-        }
 
         CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
         ++registeredModelCount;
@@ -176,9 +173,9 @@ HRESULT Level_EffectEditor::Ready_Lights()
 HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 {
     EffectEditorCamera::EffectEditorCameraDesc cameraDesc{};
-    cameraDesc.speedPerSec = 5.f; //!! 초기 카메라 속도
+    cameraDesc.speedPerSec = 5.f;                // 초기 카메라 속도
     cameraDesc.degreePerSec = 180.f;
-    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f); //!! 초기 카메라 거리
+    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f); // 초기 카메라 거리
     cameraDesc.at = Vec4(0.f, 0.f, 0.f, 1.f);
     cameraDesc.fovy = XMConvertToRadians(60.f);
     cameraDesc.nearPlane = 0.1f;

@@ -773,6 +773,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_InitialRadialVelocityModule();
     case AuthoringModuleType::VelocityCone:
         return Make_VelocityConeModule();
+    case AuthoringModuleType::SourceMotionVelocity:
+        return Make_SourceMotionVelocityModule();
     case AuthoringModuleType::Acceleration:
         return Make_AccelerationModule();
     case AuthoringModuleType::Drag:
@@ -942,6 +944,17 @@ AuthoringModule Emitter_View::Make_VelocityConeModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = VelocityConeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SourceMotionVelocityModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SourceMotionVelocity;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SourceMotionVelocityModuleData{};
     return module;
 }
 
@@ -1238,6 +1251,7 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         case AuthoringModuleType::InitialVelocity:
         case AuthoringModuleType::InitialRadialVelocity:
         case AuthoringModuleType::VelocityCone:
+        case AuthoringModuleType::SourceMotionVelocity:
         case AuthoringModuleType::Acceleration:
         case AuthoringModuleType::Drag:
         case AuthoringModuleType::VelocityOverLife:
@@ -1283,6 +1297,10 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
     case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         return emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+    case AuthoringModuleType::SourceMotionVelocity:
+        return emitter.typeData.kind == AuthoringTypeDataKind::None ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh ||
+               emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
@@ -1318,6 +1336,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::InitialVelocity:
     case AuthoringModuleType::InitialRadialVelocity:
     case AuthoringModuleType::VelocityCone:
+    case AuthoringModuleType::SourceMotionVelocity:
     case AuthoringModuleType::Acceleration:
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
@@ -1392,6 +1411,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::VelocityCone:
         module = Make_VelocityConeModule();
+        break;
+    case AuthoringModuleType::SourceMotionVelocity:
+        module = Make_SourceMotionVelocityModule();
         break;
     case AuthoringModuleType::Acceleration:
         module = Make_AccelerationModule();
@@ -2314,6 +2336,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = VelocityConeModuleData{};
         break;
 
+    case AuthoringModuleType::SourceMotionVelocity:
+        module.data = SourceMotionVelocityModuleData{};
+        break;
+
     case AuthoringModuleType::Acceleration:
         module.data = AccelerationModuleData{};
         break;
@@ -2676,6 +2702,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityCone),
             ""
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SourceMotionVelocity,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SourceMotionVelocity),
+            "Sprite / Mesh / Sprite Trail TypeData 전용"
         )
     );
     entries.push_back(
