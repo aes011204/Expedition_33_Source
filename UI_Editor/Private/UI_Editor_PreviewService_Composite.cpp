@@ -404,6 +404,8 @@ namespace UIEditor
             to_string(previewDesc.materialVfx.coreSoftness) + "|" +
             to_string(previewDesc.materialVfx.noiseStrength) + "|" +
             to_string(previewDesc.materialVfx.uvScroll.x) + "," + to_string(previewDesc.materialVfx.uvScroll.y) + "|" +
+            to_string(previewDesc.materialVfx.flowSpeed) + "|" +
+            to_string(previewDesc.materialVfx.preserveColor) + "|" +
             to_string(previewDesc.materialVfx.edgeWidth) + "|" +
             to_string(previewDesc.materialVfx.edgeSoftness) + "|" +
             to_string(previewDesc.materialVfx.erosion) + "|" +
@@ -717,6 +719,8 @@ namespace UIEditor
             const float materialCoreWidth = Clamp_MaterialVfxCoreWidth(materialVfx->coreWidth);
             const float materialCoreSoftness = Clamp_MaterialVfxCoreSoftness(materialVfx->coreSoftness);
             const float materialNoiseStrength = Clamp_MaterialVfxNoiseStrength(materialVfx->noiseStrength);
+            const float materialFlowSpeed = Clamp_MaterialVfxFlowSpeed(materialVfx->flowSpeed);
+            const float materialPreserveColor = Clamp_MaterialVfxPreserveColor(materialVfx->preserveColor);
             const float materialEdgeWidth = Clamp_MaterialVfxEdgeWidth(materialVfx->edgeWidth);
             const float materialEdgeSoftness = Clamp_MaterialVfxEdgeSoftness(materialVfx->edgeSoftness);
             const float materialErosion = Clamp_MaterialVfxErosion(materialVfx->erosion);
@@ -739,6 +743,8 @@ namespace UIEditor
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxCoreSoftness", &materialCoreSoftness, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxNoiseStrength", &materialNoiseStrength, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxUvScroll", &materialUvScroll, sizeof(Vec2))) &&
+                SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxFlowSpeed", &materialFlowSpeed, sizeof(float))) &&
+                SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxPreserveColor", &materialPreserveColor, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxEdgeWidth", &materialEdgeWidth, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxEdgeSoftness", &materialEdgeSoftness, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxErosion", &materialErosion, sizeof(float))) &&

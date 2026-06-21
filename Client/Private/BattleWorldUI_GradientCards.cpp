@@ -1,6 +1,7 @@
 #include "BattleWorldUI_GradientCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
 #include "RenderTarget.h"
@@ -142,6 +143,8 @@ namespace
         BattleWorldGradientPanelTemplate panelTemplate{};
         Unique<IWorldUIGradientSurface> surface{};
         Matrix worldMatrix = Matrix::Identity;
+        BattleWorldSurfaceAnimState introAnim{};
+        Vec3 introStartOffset = Vec3::Zero;
         bool visible = false;
         bool dirty = true;
     };
@@ -1629,6 +1632,9 @@ struct BattleWorldUI_GradientCards::Impl
     bool hasPlacementTuningFile = false;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
+    BattleTurnState introState = BattleTurnState::None;
+    HeroId introHeroId = HeroId::END;
+    bool hasIntroKey = false;
 };
 
 BattleWorldUI_GradientCards::BattleWorldUI_GradientCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -1680,7 +1686,8 @@ HRESULT BattleWorldUI_GradientCards::Initialize(void* arg)
 void BattleWorldUI_GradientCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
-    HeroId actorHeroId)
+    HeroId actorHeroId,
+    float timeDelta)
 {
     if (_impl == nullptr || !Should_ShowBattleWorldGradientCards(currentState))
     {
@@ -1699,8 +1706,23 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
 
+    const bool restartIntro =
+        !_impl->hasIntroKey ||
+        _impl->introState != currentState ||
+        _impl->introHeroId != placementHeroId;
+    if (restartIntro)
+    {
+        _impl->introState = currentState;
+        _impl->introHeroId = placementHeroId;
+        _impl->hasIntroKey = true;
+        Restart_BattleWorldSurfaceAnim(_impl->panels[placementHeroIndex].introAnim, 0);
+    }
+
     for (auto& panel : _impl->panels)
+    {
         panel.visible = false;
+        Advance_BattleWorldSurfaceAnim(panel.introAnim, timeDelta);
+    }
 
     BattleWorldGradientPanelInstance& panel = _impl->panels[placementHeroIndex];
     if (!panel.panelTemplate.valid || panel.surface == nullptr)
@@ -1726,6 +1748,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
         placementTuning.baseOffset;
+    panel.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(0.f, -0.08f, 0.f));
     const Vec2 aspectWorldSize = Resolve_AspectWorldSize(
         placementTuning.worldSize,
         panel.panelTemplate.pixelSize);
@@ -1752,6 +1775,7 @@ void BattleWorldUI_GradientCards::Hide()
     if (_impl == nullptr)
         return;
 
+    _impl->hasIntroKey = false;
     for (auto& panel : _impl->panels)
         panel.visible = false;
 }
@@ -1874,7 +1898,9 @@ HRESULT BattleWorldUI_GradientCards::Render()
         if (!panel.visible || panel.surface == nullptr)
             continue;
 
-        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), panel.worldMatrix, color), E_FAIL);
+        const BattleWorldSurfaceAnimRenderState renderState =
+            Apply_BattleWorldSurfaceAnim(panel.introAnim, panel.worldMatrix, color, panel.introStartOffset);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(panel.surface->Bind_ShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);

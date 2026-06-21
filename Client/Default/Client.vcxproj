@@ -312,6 +312,7 @@
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h" />
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h" />
+    <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />

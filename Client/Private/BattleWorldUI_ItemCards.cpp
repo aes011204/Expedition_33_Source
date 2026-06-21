@@ -1,6 +1,7 @@
 #include "BattleWorldUI_ItemCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
 #include "RenderTarget.h"
@@ -163,6 +164,8 @@ namespace
         BattleWorldItemCardDef def{};
         Unique<IWorldUIItemCardSurface> surface{};
         Matrix worldMatrix = Matrix::Identity;
+        BattleWorldSurfaceAnimState introAnim{};
+        Vec3 introStartOffset = Vec3::Zero;
         bool hasContent = false;
         bool visible = false;
         bool selected = false;
@@ -2069,6 +2072,10 @@ struct BattleWorldUI_ItemCards::Impl
     bool hasPlacementTuningFile = false;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
+    BattleTurnState introState = BattleTurnState::None;
+    HeroId introHeroId = HeroId::END;
+    BattleItemType introItemType = BattleItemType::Invalid;
+    bool hasIntroKey = false;
 };
 
 BattleWorldUI_ItemCards::BattleWorldUI_ItemCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -2138,7 +2145,8 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
     BattleItemType selectedItemType,
-    HeroId actorHeroId)
+    HeroId actorHeroId,
+    float timeDelta)
 {
     if (_impl == nullptr || !Should_ShowBattleWorldItemCards(currentState))
     {
@@ -2156,6 +2164,24 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
+
+    const bool restartIntro =
+        !_impl->hasIntroKey ||
+        _impl->introState != currentState ||
+        _impl->introHeroId != placementHeroId ||
+        _impl->introItemType != selectedItemType;
+    if (restartIntro)
+    {
+        _impl->introState = currentState;
+        _impl->introHeroId = placementHeroId;
+        _impl->introItemType = selectedItemType;
+        _impl->hasIntroKey = true;
+        for (uint32 slotIndex = 0; slotIndex < kBattleWorldItemSlotCount; ++slotIndex)
+            Restart_BattleWorldSurfaceAnim(_impl->cards[slotIndex].introAnim, slotIndex);
+    }
+
+    for (auto& card : _impl->cards)
+        Advance_BattleWorldSurfaceAnim(card.introAnim, timeDelta);
 
     bool anyVisible = false;
     for (uint32 slotIndex = 0; slotIndex < kBattleWorldItemSlotCount; ++slotIndex)
@@ -2209,6 +2235,8 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
             anchorWorldPos +
             Resolve_CameraScreenPositionDelta(presentation.screenPosition) +
             presentation.worldOffset;
+        const float introOutwardX = presentation.worldOffset.x < 0.f ? -0.04f : 0.04f;
+        card.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(introOutwardX, -0.06f, 0.f));
         const Vec2 aspectWorldSize = Resolve_AspectWorldSize(presentation.worldSize, card.def.pixelSize);
         card.worldMatrix =
             Matrix::CreateScale(
@@ -2234,6 +2262,7 @@ void BattleWorldUI_ItemCards::Hide()
     if (_impl == nullptr)
         return;
 
+    _impl->hasIntroKey = false;
     for (auto& card : _impl->cards)
         card.visible = false;
 }
@@ -2356,7 +2385,9 @@ HRESULT BattleWorldUI_ItemCards::Render()
         if (!card.visible || card.surface == nullptr)
             continue;
 
-        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), card.worldMatrix, color), E_FAIL);
+        const BattleWorldSurfaceAnimRenderState renderState =
+            Apply_BattleWorldSurfaceAnim(card.introAnim, card.worldMatrix, color, card.introStartOffset);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(card.surface->Bind_ShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);

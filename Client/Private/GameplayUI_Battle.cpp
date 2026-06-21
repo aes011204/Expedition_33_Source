@@ -1287,13 +1287,15 @@ void GameplayUI_Battle::Handle_BattleAnnounceFinished()
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 {
-    Hide_BattleWorldCommandCards();
-
     if (_battleCommandHUD == nullptr)
+    {
+        Hide_BattleWorldCommandCards();
         return;
+    }
 
     if (!_isBattleUiActive || !_isPlayerTurnUiActive)
     {
+        Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
     }
@@ -1301,6 +1303,7 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
     const auto battleController = CLIENT->Get_BattleController();
     if (battleController == nullptr || !battleController->Is_BattleStarted())
     {
+        Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
     }
@@ -1309,6 +1312,7 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     if (!_hasCurrentPlayerTurnActor || _currentPlayerTurnActor.statCom == nullptr)
     {
+        Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
     }
@@ -1316,6 +1320,7 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
     Vec3 worldPos{};
     if (!Try_GetBattleCommandHudWorldPos(_currentPlayerTurnActor, worldPos))
     {
+        Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
     }
@@ -1328,10 +1333,12 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
             currentState,
             _currentPlayerTurnActor.statCom->Get_CurAP(),
             _currentPlayerTurnActor.statCom->Get_MaxAP(),
-            _currentPlayerTurnActor.heroId);
+            _currentPlayerTurnActor.heroId,
+            timeDelta);
         return;
     }
 
+    Hide_BattleWorldCommandCards();
     _battleCommandHUD->Close();
 }
 
@@ -1357,12 +1364,13 @@ void GameplayUI_Battle::Update_BattleWorldCommandCards(
     BattleTurnState currentState,
     uint32 curAp,
     uint32 maxAp,
-    HeroId actorHeroId)
+    HeroId actorHeroId,
+    float timeDelta)
 {
     if (FAILED(Ensure_BattleWorldCommandCards()))
         return;
 
-    _battleWorldCommandCards->Show_ForBattleState(commandHudWorldPos, currentState, curAp, maxAp, actorHeroId);
+    _battleWorldCommandCards->Show_ForBattleState(commandHudWorldPos, currentState, curAp, maxAp, actorHeroId, timeDelta);
     _battleWorldCommandCards->Late_Update(0.f);
 }
 
@@ -2045,16 +2053,16 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
 
 void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
-    Hide_BattleWorldItemCards();
-
     if (_battleItemPanel == nullptr)
+    {
+        Hide_BattleWorldItemCards();
         return;
+    }
 
     auto battleController = CLIENT->Get_BattleController();
     if (battleController == nullptr || !battleController->Is_PlayerTurnActive())
     {
+        Hide_BattleWorldItemCards();
         _battleItemPanel->Close();
         return;
     }
@@ -2073,14 +2081,16 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
     {
     case BattleTurnState::ChooseItem:
         _battleItemPanel->Close();
-        Update_BattleWorldItemCards(turnRequest.actor, turnRequest.itemType, turnState);
+        Update_BattleWorldItemCards(turnRequest.actor, turnRequest.itemType, turnState, timeDelta);
         break;
 
     case BattleTurnState::ItemTargeting:
+        Hide_BattleWorldItemCards();
         _battleItemPanel->Open_Tooltip(turnRequest.itemType);
         break;
 
     default:
+        Hide_BattleWorldItemCards();
         _battleItemPanel->Close();
         break;
     }
@@ -2088,21 +2098,26 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
 
 void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
 {
-    Hide_BattleWorldSkillCards();
-    Hide_BattleWorldGradientCards();
-
     if (_battleSkillPanel == nullptr)
+    {
+        Hide_BattleWorldSkillCards();
+        Hide_BattleWorldGradientCards();
         return;
+    }
 
     auto battleController = CLIENT->Get_BattleController();
     if (battleController == nullptr)
     {
+        Hide_BattleWorldSkillCards();
+        Hide_BattleWorldGradientCards();
         _battleSkillPanel->Close_Immediately();
         return;
     }
 
     if (!battleController->Is_PlayerTurnActive())
     {
+        Hide_BattleWorldSkillCards();
+        Hide_BattleWorldGradientCards();
         _battleSkillPanel->Close();
         _battleSkillPanel->Update(timeDelta);
         return;
@@ -2116,12 +2131,15 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
     case BattleTurnState::ChooseSkill:
         if (turnRequest.actor.statCom)
         {
+            Hide_BattleWorldGradientCards();
             _battleSkillPanel->Close();
             _battleSkillPanel->Update(timeDelta);
-            Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey, turnRequest.skillPage);
+            Update_BattleWorldSkillCards(turnState, turnRequest.actor, turnRequest.skillKey, turnRequest.skillPage, timeDelta);
         }
         else
         {
+            Hide_BattleWorldSkillCards();
+            Hide_BattleWorldGradientCards();
             _battleSkillPanel->Close_Immediately();
         }
         break;
@@ -2129,17 +2147,22 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
     case BattleTurnState::ChooseGradient:
         if (turnRequest.actor.statCom)
         {
+            Hide_BattleWorldSkillCards();
             _battleSkillPanel->Close();
             _battleSkillPanel->Update(timeDelta);
-            Update_BattleWorldGradientCards(turnState, turnRequest.actor);
+            Update_BattleWorldGradientCards(turnState, turnRequest.actor, timeDelta);
         }
         else
         {
+            Hide_BattleWorldSkillCards();
+            Hide_BattleWorldGradientCards();
             _battleSkillPanel->Close_Immediately();
         }
         break;
 
     case BattleTurnState::SkillTargeting:
+        Hide_BattleWorldSkillCards();
+        Hide_BattleWorldGradientCards();
         if (GradientSkill::Is_GradientSkill(turnRequest.actor.heroId, turnRequest.skillKey) &&
             turnRequest.actor.statCom)
         {
@@ -2154,6 +2177,8 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         break;
 
     default:
+        Hide_BattleWorldSkillCards();
+        Hide_BattleWorldGradientCards();
         _battleSkillPanel->Close();
         _battleSkillPanel->Update(timeDelta);
         break;
@@ -2180,7 +2205,8 @@ void GameplayUI_Battle::Hide_BattleWorldItemCards()
 void GameplayUI_Battle::Update_BattleWorldItemCards(
     const BattleChar& actor,
     BattleItemType selectedItemType,
-    BattleTurnState currentState)
+    BattleTurnState currentState,
+    float timeDelta)
 {
     if (actor.statCom == nullptr)
         return;
@@ -2192,7 +2218,7 @@ void GameplayUI_Battle::Update_BattleWorldItemCards(
     if (FAILED(Ensure_BattleWorldItemCards()))
         return;
 
-    _battleWorldItemCards->Show_ForBattleState(worldPos, currentState, selectedItemType, actor.heroId);
+    _battleWorldItemCards->Show_ForBattleState(worldPos, currentState, selectedItemType, actor.heroId, timeDelta);
     _battleWorldItemCards->Late_Update(0.f);
 }
 
@@ -2217,7 +2243,8 @@ void GameplayUI_Battle::Update_BattleWorldSkillCards(
     BattleTurnState currentState,
     const BattleChar& actor,
     const string& selectedSkillKey,
-    uint32 skillPage)
+    uint32 skillPage,
+    float timeDelta)
 {
     if (actor.statCom == nullptr)
         return;
@@ -2229,7 +2256,7 @@ void GameplayUI_Battle::Update_BattleWorldSkillCards(
     if (FAILED(Ensure_BattleWorldSkillCards()))
         return;
 
-    _battleWorldSkillCards->Show_ForBattleState(worldPos, currentState, actor, selectedSkillKey, skillPage);
+    _battleWorldSkillCards->Show_ForBattleState(worldPos, currentState, actor, selectedSkillKey, skillPage, timeDelta);
     _battleWorldSkillCards->Late_Update(0.f);
 }
 
@@ -2252,7 +2279,8 @@ void GameplayUI_Battle::Hide_BattleWorldGradientCards()
 
 void GameplayUI_Battle::Update_BattleWorldGradientCards(
     BattleTurnState currentState,
-    const BattleChar& actor)
+    const BattleChar& actor,
+    float timeDelta)
 {
     if (actor.statCom == nullptr)
         return;
@@ -2264,7 +2292,7 @@ void GameplayUI_Battle::Update_BattleWorldGradientCards(
     if (FAILED(Ensure_BattleWorldGradientCards()))
         return;
 
-    _battleWorldGradientCards->Show_ForBattleState(worldPos, currentState, actor.heroId);
+    _battleWorldGradientCards->Show_ForBattleState(worldPos, currentState, actor.heroId, timeDelta);
     _battleWorldGradientCards->Late_Update(0.f);
 }
 

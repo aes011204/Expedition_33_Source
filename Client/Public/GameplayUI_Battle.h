@@ -138,13 +138,15 @@ private:
         BattleTurnState currentState,
         uint32 curAp,
         uint32 maxAp,
-        HeroId actorHeroId);
+        HeroId actorHeroId,
+        float timeDelta);
     HRESULT Ensure_BattleWorldItemCards();
     void    Hide_BattleWorldItemCards();
     void    Update_BattleWorldItemCards(
         const BattleChar& actor,
         BattleItemType selectedItemType,
-        BattleTurnState currentState);
+        BattleTurnState currentState,
+        float timeDelta);
 
     HRESULT Ensure_BattleWorldSkillCards();
     void    Hide_BattleWorldSkillCards();
@@ -152,12 +154,14 @@ private:
         BattleTurnState currentState,
         const BattleChar& actor,
         const string& selectedSkillKey,
-        uint32 skillPage);
+        uint32 skillPage,
+        float timeDelta);
     HRESULT Ensure_BattleWorldGradientCards();
     void    Hide_BattleWorldGradientCards();
     void    Update_BattleWorldGradientCards(
         BattleTurnState currentState,
-        const BattleChar& actor);
+        const BattleChar& actor,
+        float timeDelta);
     void    Update_BattleTutorial(float timeDelta);
 
     bool    Should_ShowChoiceTargetForSkillTargeting(const ActionRequest& request) const;
