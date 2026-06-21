@@ -191,10 +191,6 @@ void PanelViewport::Render()
                                 if (sel->_selectedInstanceIdx >= 0 && sel->_selectedInstanceIdx < instSize)
                                 {
                                     _deleteCommand = CmdDeleteInstance::Create(sel, sel->_selectedInstanceIdx);
-                                    if (_deleteCommand)
-                                    {
-                                        _deleteCommand->Execute(*_ctx);
-                                    }
                                 }
                             }
                             else
