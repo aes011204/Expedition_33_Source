@@ -896,6 +896,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Ensure_PreviewCamera();
     Fit_PreviewCameraToModel();
     Sync_PreviewAnimationSelection(true);
+    EDITOR->Set_StickyPreviewOwner(PreviewOwner::Animation);
 
     Set_Open(true);
 }

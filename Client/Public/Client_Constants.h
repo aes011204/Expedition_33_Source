@@ -401,6 +401,8 @@ namespace Client::Constants::Prefab
 
     inline constexpr wchar_t VictorialFlag_Dir[] = L"Data/json/Prefabs/ETC/VictoriaFlag";
 
+
+
 #pragma region 플레이어
     // 월드
     inline constexpr char PW_Gustave[]  = "PW_Gustave";
@@ -466,7 +468,7 @@ namespace Client::Constants::Prefab
     inline constexpr char Eye_Target[]      = "ETC/EyeTarget";
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
-
+    inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -480,7 +482,9 @@ namespace Client::Constants::SoundBGM
 
 namespace Client::Constants::Cinematic
 {
-    inline constexpr wchar_t BridgeCinematic[]= L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";  
+    inline constexpr wchar_t RuntimeJson_Dir[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/";
+    inline constexpr wchar_t BridgeCinematic[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";
+    inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic.json";
 }
 
 namespace Client::Constants::SoundCue
