@@ -37,7 +37,7 @@ cbuffer TrailComputeParams : register(b0)
     float3 g_TrailParamsPadding;
     float4 g_StartColor;
     float4 g_EndColor;
-    float4 g_ColorOverLifeCurveParams; // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
+    float4 g_ColorOverLifeCurveParams;           // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
     float4 g_ColorOverLifeColorCurveTimes;
     float4 g_ColorOverLifeColorCurveTimesBlock1; // 커브 Key를 4개 -> 8개로 확장하면서 Block1들 추가됨
     float4 g_ColorOverLifeColorCurveValuesR;
@@ -70,10 +70,10 @@ cbuffer TrailComputeParams : register(b0)
     float4 g_ColorOverLifeAlphaCurveLeaveBlock1;
     float4 g_ColorOverLifeAlphaCurveModes;
     float4 g_ColorOverLifeAlphaCurveModesBlock1;
-    float4 g_SizeByLifeParams;     // x/y: width start/end, z: enabled, w: reserved
-    float4 g_SizeByLifeCurveTimes; // scaleOverLife key times
+    float4 g_SizeByLifeParams;                   // x/y: width start/end, z: enabled, w: reserved
+    float4 g_SizeByLifeCurveTimes;               // scaleOverLife key times
     float4 g_SizeByLifeCurveTimesBlock1;
-    float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
+    float4 g_SizeByLifeCurveValuesX;             // scaleOverLife X multipliers
     float4 g_SizeByLifeCurveValuesXBlock1;
     float4 g_SizeByLifeCurveArriveTangentsX;
     float4 g_SizeByLifeCurveArriveTangentsXBlock1;
@@ -81,8 +81,8 @@ cbuffer TrailComputeParams : register(b0)
     float4 g_SizeByLifeCurveLeaveTangentsXBlock1;
     float4 g_SizeByLifeCurveModes;
     float4 g_SizeByLifeCurveModesBlock1;
-    float4 g_SizeByLifeCurveParams; // x: key count, y: multiplyX, zw: reserved
-    float4 g_LengthParams;          // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved
+    float4 g_SizeByLifeCurveParams;              // x: key count, y: multiplyX, zw: reserved
+    float4 g_LengthParams;                       // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved
 };
 
 StructuredBuffer<TrailSamplePayload> HistoryData : register(t0);

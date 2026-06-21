@@ -5,6 +5,7 @@
 #include "EffectMaterial_View.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
+#include "Notification_Manager.h"
 #include "Texture.h"
 #include "TextureDisplayInfoResolver.h"
 
@@ -12,8 +13,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
-    constexpr const char* kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
+    constexpr auto kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
+    constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
 
     bool Is_TexturePayloadFile(const fs::path& filePath)
     {
@@ -28,11 +29,11 @@ namespace Internal
 
     static ImTextureID ToImTextureId(const Shared<Texture>& texture)
     {
-        if (texture == nullptr)
+        if (nullptr == texture)
             return static_cast<ImTextureID>(0);
 
         const auto& srvs = texture->Get_SRVs();
-        if (srvs.empty() || srvs[0] == nullptr)
+        if (srvs.empty() || nullptr == srvs[0])
             return static_cast<ImTextureID>(0);
 
         return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
@@ -46,7 +47,7 @@ namespace Internal
             return;
         }
 
-        constexpr const char* ellipsis = "...";
+        constexpr auto ellipsis = "...";
         const float ellipsisWidth = ImGui::CalcTextSize(ellipsis).x;
         if (maxWidth <= ellipsisWidth)
         {
@@ -89,6 +90,12 @@ Content_Browser::~Content_Browser()
 void Content_Browser::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
+
+    if (_pendingResourceRefresh && !_resourceRoot.empty() && fs::exists(_resourceRoot))
+    {
+        Refresh_Resources();
+        _pendingResourceRefresh = false;
+    }
 }
 
 void Content_Browser::Render()
@@ -242,7 +249,7 @@ void Content_Browser::Render()
                 ImGui::SameLine();
 
                 if (ImGui::Button(ICON_FA_ROTATE_RIGHT " 새로고침", ImVec2(refreshWidth, 24.f)))
-                    Refresh_Resources();
+                    Refresh_AssetState();
 
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("새로고침");
@@ -263,8 +270,14 @@ void Content_Browser::Render()
     ImGui::End();
 }
 
+void Content_Browser::Request_RefreshResources()
+{
+    _pendingResourceRefresh = true;
+}
+
 void Content_Browser::Refresh_Resources()
 {
+    const auto refreshBegin = chrono::steady_clock::now();
     _thumbnailCache.clear();
     _noThumbnailPaths.clear();
     _gridItemCache.clear();
@@ -275,6 +288,38 @@ void Content_Browser::Refresh_Resources()
             return GAME->Find_AssetGUID(filePath);
         }
     );
+
+    const auto elapsedMs = chrono::duration_cast<chrono::milliseconds>(
+        chrono::steady_clock::now() - refreshBegin).count();
+    if (elapsedMs >= 200)
+    {
+        LOG_INFO(
+            "[ContentBrowserTiming] Refresh_Resources elapsed={}ms root={} folders={} files={}",
+            elapsedMs,
+            String::ToString(_resourceRoot.wstring()),
+            static_cast<uint32>(_rootFolder.subFolders.size()),
+            static_cast<uint32>(_rootFolder.files.size())
+        );
+    }
+}
+
+void Content_Browser::Refresh_AssetState()
+{
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (assetRoot.empty())
+    {
+        NOTIFY("새로고침 실패");
+        return;
+    }
+
+    const fs::path missingMetaRootPath = fs::path(assetRoot) / L"Effects";
+    if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot, true, missingMetaRootPath.wstring())))
+    {
+        Refresh_Resources();
+        NOTIFY("새로고침");
+    }
+    else
+        NOTIFY("새로고침 실패");
 }
 
 void Content_Browser::Refresh_CurrentFolder()
@@ -710,7 +755,7 @@ void Content_Browser::Open_Folder(FolderNode* folder)
 
 void Content_Browser::Open_File(const FileEntry& fileEntry)
 {
-    if (EDITOR == nullptr)
+    if (nullptr == EDITOR)
         return;
 
     const fs::path filePath = fileEntry.filePath;
@@ -729,7 +774,7 @@ void Content_Browser::Open_File(const FileEntry& fileEntry)
 
     const Shared<Editor_Window> materialWindow = EDITOR->Get_Window(L"Effect Material");
     const Shared<EffectMaterial_View> materialView = dynamic_pointer_cast<EffectMaterial_View>(materialWindow);
-    if (materialView == nullptr)
+    if (nullptr == materialView)
         return;
 
     materialView->Open_Preset(fileEntry.filePath);
@@ -832,7 +877,7 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FileEntry& fileEntry, b
     Shared<Texture> thumbnailTexture =
         Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), thumbnailPath.c_str(), 1);
 
-    if (thumbnailTexture == nullptr)
+    if (nullptr == thumbnailTexture)
     {
         _noThumbnailPaths.insert(fileEntry.filePath);
         return nullptr;
@@ -896,7 +941,7 @@ ImTextureID Content_Browser::Get_IconTextureId(IconType iconType) const
 
 bool Content_Browser::Can_GoParentFolder() const
 {
-    if (_currentFolder == nullptr || _rootFolder.fullPath.empty())
+    if (nullptr == _currentFolder || _rootFolder.fullPath.empty())
         return false;
 
     const fs::path currentPath(_currentFolder->fullPath);

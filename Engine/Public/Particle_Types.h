@@ -167,18 +167,19 @@ struct SourceHistorySpriteTrailInstanceLayout
 // SubUVFrameOverLife 모듈의 최소 preview runtime desc다.
 struct PointParticleSubUVFrameOverLifeDesc
 {
-    bool enabled{ false };                                                     // SubUV frame over life 모듈이 실제로 켜져 있는지 나타낸다.
-    uint32 startFrame{ 0 };                                                    // FixedFrame에서는 선택 frame, 재생 모드에서는 시작 frame이다.
-    uint32 endFrame{ 0 };                                                      // 재생 모드에서 종료 frame이다.
-    bool loop{ false };                                                        // FPS 재생에서 frame range를 반복할지 나타낸다.
-    SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame }; // 고정 선택, 수명 맞춤, FPS 재생, 랜덤 선택 중 하나를 결정한다.
-    float framesPerSecond{ 12.f };                                             // FPS 재생 모드에서 초당 넘길 frame 수다.
-    bool randomStartPhase{ false };                                            // FPS 재생에서 particle/stamp/strip별 시작 phase를 다르게 할지 나타낸다.
-    uint32 frameCurveKeyCount{ 1 };                                            // 후속 Curve Editor 이관 후보인 compact frame curve key 수다.
-    Vec4 frameCurveTimes{};                                                    // 후속 Curve Editor용 key time 0..1 값이다.
-    Vec4 frameCurveTimesBlock1{};                                              // compact curve key 4..7 time 값이다.
-    Vec4 frameCurveValues{};                                                   // 후속 Curve Editor용 frame index 값이다.
-    Vec4 frameCurveValuesBlock1{};                                             // compact curve key 4..7 frame index 값이다.
+    bool enabled{ false };                    // SubUV frame over life 모듈이 실제로 켜져 있는지 나타낸다.
+    uint32 startFrame{ 0 };                   // FixedFrame에서는 선택 frame, 재생 모드에서는 시작 frame이다.
+    uint32 endFrame{ 0 };                     // 재생 모드에서 종료 frame이다.
+    bool loop{ false };                       // FPS 재생에서 frame range를 반복할지 나타낸다.
+    SubUVFramePlaybackMode playbackMode{
+        SubUVFramePlaybackMode::FixedFrame }; // 고정 선택, 수명 맞춤, FPS 재생, 랜덤 선택 중 하나를 결정한다.
+    float framesPerSecond{ 12.f };            // FPS 재생 모드에서 초당 넘길 frame 수다.
+    bool randomStartPhase{ false };           // FPS 재생에서 particle/stamp/strip별 시작 phase를 다르게 할지 나타낸다.
+    uint32 frameCurveKeyCount{ 1 };           // 후속 Curve Editor 이관 후보인 compact frame curve key 수다.
+    Vec4 frameCurveTimes{};                   // 후속 Curve Editor용 key time 0..1 값이다.
+    Vec4 frameCurveTimesBlock1{};             // compact curve key 4..7 time 값이다.
+    Vec4 frameCurveValues{};                  // 후속 Curve Editor용 frame index 값이다.
+    Vec4 frameCurveValuesBlock1{};            // compact curve key 4..7 frame index 값이다.
 };
 
 // Float ConstantCurve distribution을 runtime에서 평가하기 위한 compact payload다.
@@ -291,23 +292,41 @@ enum class PointParticleInitialRadialVelocityCenterDirectionMode : uint32
     PlaneRadial = 1,
 };
 
+enum class PointParticleSourceMotionVelocityDirectionMode : uint32
+{
+    InheritSourceVelocity = 0,
+    SourceVelocityDirection = 1,
+    SourceVelocityOpposite = 2,
+    TrailTangent = 3,
+    TrailTangentOpposite = 4,
+    SideFromTangent = 5,
+    RandomSideFromTangent = 6,
+};
+
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleMotionDesc
 {
-    bool enabled{ false };                           // motion 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
-    bool initialVelocityEnabled{ false };            // 시작 벡터 속도 항을 적용할지 나타낸다.
-    bool initialVelocityInWorldSpace{ false };       // true면 시작 벡터 속도를 emitter basis 변환 없이 world 값으로 본다.
-    bool initialRadialVelocityEnabled{ false };      // 시작 방사성 속도 항을 적용할지 나타낸다.
-    bool initialRadialVelocityInWorldSpace{ false }; // true면 radial pivot을 world offset으로 본다.
-    bool velocityConeEnabled{ false };               // 축 기준 cone 안에서 샘플한 시작 속도 항을 적용할지 나타낸다.
-    bool velocityConeInWorldSpace{ false };          // true면 cone axis를 emitter basis 변환 없이 world 값으로 본다.
-    Vec3 initialVelocityMin{ 0.f, 0.f, 0.f };        // InitialVelocity vector 분포의 하한이다.
-    Vec3 initialVelocityMax{ 0.f, 0.f, 0.f };        // InitialVelocity vector 분포의 상한이다.
-    Vec3 radialPivot{ 0.f, 0.f, 0.f };               // InitialRadialVelocity의 방사 방향 기준점이다.
-    Vec2 radialSpeed{ 0.f, 0.f };                    // InitialRadialVelocity speed 분포의 min/max다.
-    Vec3 velocityConeAxis{ 0.f, 1.f, 0.f };          // VelocityCone의 중심축이다.
-    float velocityConeAngleDegrees{ 30.f };          // VelocityCone의 중심축 기준 half-angle이다.
-    Vec2 velocityConeSpeed{ 0.f, 0.f };              // VelocityCone speed 분포의 min/max다.
+    bool enabled{ false };                                          // motion 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
+    bool initialVelocityEnabled{ false };                           // 시작 벡터 속도 항을 적용할지 나타낸다.
+    bool initialVelocityInWorldSpace{ false };                      // true면 시작 벡터 속도를 emitter basis 변환 없이 world 값으로 본다.
+    bool initialRadialVelocityEnabled{ false };                     // 시작 방사성 속도 항을 적용할지 나타낸다.
+    bool initialRadialVelocityInWorldSpace{ false };                // true면 radial pivot을 world offset으로 본다.
+    bool velocityConeEnabled{ false };                              // 축 기준 cone 안에서 샘플한 시작 속도 항을 적용할지 나타낸다.
+    bool velocityConeInWorldSpace{ false };                         // true면 cone axis를 emitter basis 변환 없이 world 값으로 본다.
+    bool sourceMotionVelocityEnabled{ false };                      // source/trail motion 기반 시작 속도 항을 적용할지 나타낸다.
+    Vec3 initialVelocityMin{ 0.f, 0.f, 0.f };                       // InitialVelocity vector 분포의 하한이다.
+    Vec3 initialVelocityMax{ 0.f, 0.f, 0.f };                       // InitialVelocity vector 분포의 상한이다.
+    Vec3 radialPivot{ 0.f, 0.f, 0.f };                              // InitialRadialVelocity의 방사 방향 기준점이다.
+    Vec2 radialSpeed{ 0.f, 0.f };                                   // InitialRadialVelocity speed 분포의 min/max다.
+    Vec3 velocityConeAxis{ 0.f, 1.f, 0.f };                         // VelocityCone의 중심축이다.
+    float velocityConeAngleDegrees{ 30.f };                         // VelocityCone의 중심축 기준 half-angle이다.
+    Vec2 velocityConeSpeed{ 0.f, 0.f };                             // VelocityCone speed 분포의 min/max다.
+    PointParticleSourceMotionVelocityDirectionMode sourceMotionVelocityDirectionMode{
+        PointParticleSourceMotionVelocityDirectionMode::TrailTangent
+    };                                                              // SourceMotionVelocity가 source motion에서 방향을 고르는 정책이다.
+    Vec2 sourceMotionVelocitySpeed{ 0.f, 0.f };                     // SourceMotionVelocity speed 분포의 min/max다.
+    float sourceMotionVelocitySourceSpeedScale{ 0.f };              // source speed를 시작 속도 크기에 더할 배율이다.
+    float sourceMotionVelocitySpreadAngleDegrees{ 0.f };            // source motion 방향 주변 local 분산 half-angle이다.
     PointParticleInitialRadialVelocityCenterDirectionMode initialRadialVelocityCenterDirectionMode{
         PointParticleInitialRadialVelocityCenterDirectionMode::RandomUpward
     };                                                              // 중심 중첩 시 InitialRadialVelocity가 사용할 방향 정책이다.
@@ -353,6 +372,7 @@ struct PointParticleMotionDesc
     PointParticleRandomSeedRuntimeDesc initialVelocitySeed{};       // InitialVelocity random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc initialRadialVelocitySeed{}; // InitialRadialVelocity random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc velocityConeSeed{};          // VelocityCone random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc sourceMotionVelocitySeed{};  // SourceMotionVelocity speed/spread random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc accelerationSeed{};          // Acceleration random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc dragSeed{};                  // Drag random sample seed salt다.
 };
@@ -401,19 +421,19 @@ struct PointParticleBurstDesc
 // Spawn 모듈이 만든 연속/버스트 생성 규칙이다.
 struct PointParticleSpawnDesc
 {
-    bool processSpawnRate{ true };     // 연속 spawn rate를 적용할지 나타낸다.
-    float spawnRate{ 10.f };           // 초당 생성할 particle 수다.
-    Vec2 spawnRateRange{ 10.f, 10.f }; // loop 시작 시 seed 기반으로 샘플할 spawn rate 범위다.
-    PointParticleRandomSeedRuntimeDesc spawnRateSeed{};
-    float spawnRateScale{ 1.f };          // spawn rate에 곱할 배율이다.
-    Vec2 spawnRateScaleRange{ 1.f, 1.f }; // loop 시작 시 seed 기반으로 샘플할 spawn rate scale 범위다.
-    PointParticleRandomSeedRuntimeDesc spawnRateScaleSeed{};
-    bool processBurstList{ true };           // burst 목록을 적용할지 나타낸다.
-    vector<PointParticleBurstDesc> bursts{}; // emitter time 기준 1회성 burst 목록이다.
-    float burstScale{ 1.f };                 // burst count에 곱할 배율이다.
-    Vec2 burstScaleRange{ 1.f, 1.f };        // burst 실행 시점에 seed 기반으로 샘플할 burst scale 범위다.
-    PointParticleRandomSeedRuntimeDesc burstScaleSeed{};
-    uint32 maxActiveCount{ 64u }; // 동시에 살아 있을 수 있는 particle 상한이다.
+    bool processSpawnRate{ true };                           // 연속 spawn rate를 적용할지 나타낸다.
+    float spawnRate{ 10.f };                                 // 초당 생성할 particle 수다.
+    Vec2 spawnRateRange{ 10.f, 10.f };                       // loop 시작 시 seed 기반으로 샘플할 spawn rate 범위다.
+    PointParticleRandomSeedRuntimeDesc spawnRateSeed{};      // SpawnRate random sample seed salt다.
+    float spawnRateScale{ 1.f };                             // spawn rate에 곱할 배율이다.
+    Vec2 spawnRateScaleRange{ 1.f, 1.f };                    // loop 시작 시 seed 기반으로 샘플할 spawn rate scale 범위다.
+    PointParticleRandomSeedRuntimeDesc spawnRateScaleSeed{}; // SpawnRateScale random sample seed salt다.
+    bool processBurstList{ true };                           // burst 목록을 적용할지 나타낸다.
+    vector<PointParticleBurstDesc> bursts{};                 // emitter time 기준 1회성 burst 목록이다.
+    float burstScale{ 1.f };                                 // burst count에 곱할 배율이다.
+    Vec2 burstScaleRange{ 1.f, 1.f };                        // burst 실행 시점에 seed 기반으로 샘플할 burst scale 범위다.
+    PointParticleRandomSeedRuntimeDesc burstScaleSeed{};     // BurstScale random sample seed salt다.
+    uint32 maxActiveCount{ 64u };                            // 동시에 살아 있을 수 있는 particle 상한이다.
 };
 
 // InitialLocation 모듈이 만든 생성 시점 위치 offset 분포다.
@@ -441,11 +461,13 @@ enum class PointParticleSphereLocationPlacementMode : uint32
 // SphereLocation 모듈이 만든 생성 시점 구형 위치 offset 분포다.
 struct PointParticleSphereLocationDesc
 {
-    bool enabled{ false };                                                                                      // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
-    Vec3 offset{ 0.f, 0.f, 0.f };                                                                               // emitter center 기준 구 중심 offset이다.
-    float radius{ 1.f };                                                                                        // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
-    PointParticleSphereLocationMode mode{ PointParticleSphereLocationMode::Volume };                            // 구 내부/표면 샘플링 정책이다.
-    PointParticleSphereLocationPlacementMode placementMode{ PointParticleSphereLocationPlacementMode::Random }; // Surface 모드에서 구 표면 방향을 고르는 정책이다.
+    bool enabled{ false };                                  // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    Vec3 offset{ 0.f, 0.f, 0.f };                           // emitter center 기준 구 중심 offset이다.
+    float radius{ 1.f };                                    // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
+    PointParticleSphereLocationMode mode{
+        PointParticleSphereLocationMode::Volume };          // 구 내부/표면 샘플링 정책이다.
+    PointParticleSphereLocationPlacementMode placementMode{
+        PointParticleSphereLocationPlacementMode::Random }; // Surface 모드에서 구 표면 방향을 고르는 정책이다.
 };
 
 // PlaneRadialLocation 모듈이 위치를 샘플링할 emitter-local 평면이다.
@@ -476,20 +498,23 @@ enum class PointParticlePlaneRadialLocationPlacementMode : uint32
 // PlaneRadialLocation 모듈이 만든 생성 시점 평면/방사 위치 offset 분포다.
 struct PointParticlePlaneRadialLocationDesc
 {
-    bool enabled{ false }; // authoring PlaneRadialLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
-    PointParticlePlaneRadialLocationPlane plane{ PointParticlePlaneRadialLocationPlane::XY };
-    PointParticlePlaneRadialLocationShape shape{ PointParticlePlaneRadialLocationShape::Disc };
-    PointParticlePlaneRadialLocationPlacementMode placementMode{ PointParticlePlaneRadialLocationPlacementMode::Random };
-    Vec3 offset{ 0.f, 0.f, 0.f };                          // emitter center 기준 평면 샘플 중심 offset이다.
-    Vec2 uRange{ -0.5f, 0.5f };                            // Rectangle 샘플링에서 plane U축 범위다.
-    Vec2 vRange{ -0.5f, 0.5f };                            // Rectangle 샘플링에서 plane V축 범위다.
-    Vec2 radiusRange{ 0.f, 1.f };                          // Disc/Ring/Arc 샘플링 반지름 범위다.
-    Vec2 angleDegreesRange{ 0.f, 360.f };                  // Disc/Ring/Arc 샘플링 각도 범위다.
-    PointParticleRandomSeedRuntimeDesc uSeed{};            // Rectangle U random sample seed salt다.
-    PointParticleRandomSeedRuntimeDesc vSeed{};            // Rectangle V random sample seed salt다.
-    PointParticleRandomSeedRuntimeDesc radiusSeed{};       // Polar radius random sample seed salt다.
-    PointParticleRandomSeedRuntimeDesc angleDegreesSeed{}; // Polar angle random sample seed salt다.
-    float thickness{ 0.f };                                // plane normal 방향 두께다. 0이면 평면에 붙는다.
+    bool enabled{ false };                                       // PlaneRadialLocation 모듈 연결 여부다.
+    PointParticlePlaneRadialLocationPlane plane{
+        PointParticlePlaneRadialLocationPlane::XY };             // 샘플링할 emitter-local 평면이다.
+    PointParticlePlaneRadialLocationShape shape{
+        PointParticlePlaneRadialLocationShape::Disc };           // 평면 위 위치 샘플링 형태다.
+    PointParticlePlaneRadialLocationPlacementMode placementMode{
+        PointParticlePlaneRadialLocationPlacementMode::Random }; // polar angle 선택 정책이다.
+    Vec3 offset{ 0.f, 0.f, 0.f };                                // emitter center 기준 평면 샘플 중심 offset이다.
+    Vec2 uRange{ -0.5f, 0.5f };                                  // Rectangle 샘플링에서 plane U축 범위다.
+    Vec2 vRange{ -0.5f, 0.5f };                                  // Rectangle 샘플링에서 plane V축 범위다.
+    Vec2 radiusRange{ 0.f, 1.f };                                // Disc/Ring/Arc 샘플링 반지름 범위다.
+    Vec2 angleDegreesRange{ 0.f, 360.f };                        // Disc/Ring/Arc 샘플링 각도 범위다.
+    PointParticleRandomSeedRuntimeDesc uSeed{};                  // Rectangle U random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc vSeed{};                  // Rectangle V random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc radiusSeed{};             // Polar radius random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc angleDegreesSeed{};       // Polar angle random sample seed salt다.
+    float thickness{ 0.f };                                      // plane normal 방향 두께다. 0이면 평면에 붙는다.
 };
 
 // PlaneRadialOrientation 모듈이 회전 결과를 적용할 runtime 대상이다.
@@ -525,13 +550,17 @@ enum class PointParticlePlaneRadialOrientationAxis : uint32
 // PlaneRadialOrientation 모듈이 만든 radial frame 기반 초기 회전 payload다.
 struct PointParticlePlaneRadialOrientationDesc
 {
-    bool enabled{ false }; // authoring PlaneRadialOrientation 모듈이 preview/runtime에 연결되었는지 나타낸다.
-    PointParticlePlaneRadialOrientationTargetKind targetKind{ PointParticlePlaneRadialOrientationTargetKind::Auto };
-    PointParticlePlaneRadialOrientationMode orientationMode{ PointParticlePlaneRadialOrientationMode::None };
-    PointParticlePlaneRadialOrientationAxis meshForwardAxis{ PointParticlePlaneRadialOrientationAxis::PositiveZ };
-    PointParticlePlaneRadialOrientationAxis meshUpAxis{ PointParticlePlaneRadialOrientationAxis::PositiveY };
-    float tiltDegrees{ 0.f };
-    float rollOffsetDegrees{ 0.f };
+    bool enabled{ false };                                     // PlaneRadialOrientation 모듈 연결 여부다.
+    PointParticlePlaneRadialOrientationTargetKind targetKind{
+        PointParticlePlaneRadialOrientationTargetKind::Auto }; // 회전 적용 대상 자동/스프라이트/메시 정책이다.
+    PointParticlePlaneRadialOrientationMode orientationMode{
+        PointParticlePlaneRadialOrientationMode::None };       // radial frame에서 고를 초기 방향이다.
+    PointParticlePlaneRadialOrientationAxis meshForwardAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveZ };  // mesh forward로 볼 local 축이다.
+    PointParticlePlaneRadialOrientationAxis meshUpAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveY };  // mesh up으로 볼 local 축이다.
+    float tiltDegrees{ 0.f };                                  // radial 방향에서 추가로 기울일 각도다.
+    float rollOffsetDegrees{ 0.f };                            // 최종 방향 기준 roll 보정 각도다.
 };
 
 // SphereRadialOrientation 모듈이 sphere sample frame에서 고를 방향이다.
@@ -545,12 +574,15 @@ enum class PointParticleSphereRadialOrientationMode : uint32
 // SphereRadialOrientation 모듈이 만든 구형 radial frame 기반 초기 mesh 회전 payload다.
 struct PointParticleSphereRadialOrientationDesc
 {
-    bool enabled{ false }; // authoring SphereRadialOrientation 모듈이 preview/runtime에 연결되었는지 나타낸다.
-    PointParticleSphereRadialOrientationMode orientationMode{ PointParticleSphereRadialOrientationMode::None };
-    PointParticlePlaneRadialOrientationAxis meshForwardAxis{ PointParticlePlaneRadialOrientationAxis::PositiveZ };
-    PointParticlePlaneRadialOrientationAxis meshUpAxis{ PointParticlePlaneRadialOrientationAxis::PositiveY };
-    float tiltDegrees{ 0.f };
-    float rollOffsetDegrees{ 0.f };
+    bool enabled{ false };                                    // SphereRadialOrientation 모듈 연결 여부다.
+    PointParticleSphereRadialOrientationMode orientationMode{
+        PointParticleSphereRadialOrientationMode::None };     // sphere radial frame에서 고를 초기 방향이다.
+    PointParticlePlaneRadialOrientationAxis meshForwardAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveZ }; // mesh forward로 볼 local 축이다.
+    PointParticlePlaneRadialOrientationAxis meshUpAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveY }; // mesh up으로 볼 local 축이다.
+    float tiltDegrees{ 0.f };                                 // radial 방향에서 추가로 기울일 각도다.
+    float rollOffsetDegrees{ 0.f };                           // 최종 방향 기준 roll 보정 각도다.
 };
 
 // OrbitOverLife 모듈이 emitter-local offset을 회전시킬 plane이다.
@@ -564,32 +596,32 @@ enum class EffectOrbitPlane : uint32
 // OrbitOverLife 모듈을 sprite/mesh runtime이 공유해 소비하는 payload다.
 struct EffectOrbitOverLifeRuntimeDesc
 {
-    bool enabled{ false };
-    EffectOrbitPlane plane{ EffectOrbitPlane::XY };
-    Vec2 angleDegreesOverLife{ 0.f, 0.f };
-    uint32 angleCurveKeyCount{ 2 };
-    Vec4 angleCurveTimes{ 0.f, 1.f, 0.f, 0.f };
-    Vec4 angleCurveTimesBlock1{};
-    Vec4 angleCurveValues{ 0.f, 0.f, 0.f, 0.f };
-    Vec4 angleCurveValuesBlock1{};
-    Vec4 angleCurveArriveTangents{};
-    Vec4 angleCurveArriveTangentsBlock1{};
-    Vec4 angleCurveLeaveTangents{};
-    Vec4 angleCurveLeaveTangentsBlock1{};
-    Vec4 angleCurveModes{ 1.f, 1.f, 0.f, 0.f };
-    Vec4 angleCurveModesBlock1{};
-    Vec2 radiusScaleOverLife{ 1.f, 1.f };
-    uint32 radiusScaleCurveKeyCount{ 2 };
-    Vec4 radiusScaleCurveTimes{ 0.f, 1.f, 0.f, 0.f };
-    Vec4 radiusScaleCurveTimesBlock1{};
-    Vec4 radiusScaleCurveValues{ 1.f, 1.f, 0.f, 0.f };
-    Vec4 radiusScaleCurveValuesBlock1{};
-    Vec4 radiusScaleCurveArriveTangents{};
-    Vec4 radiusScaleCurveArriveTangentsBlock1{};
-    Vec4 radiusScaleCurveLeaveTangents{};
-    Vec4 radiusScaleCurveLeaveTangentsBlock1{};
-    Vec4 radiusScaleCurveModes{ 1.f, 1.f, 0.f, 0.f };
-    Vec4 radiusScaleCurveModesBlock1{};
+    bool enabled{ false };                             // OrbitOverLife 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    EffectOrbitPlane plane{ EffectOrbitPlane::XY };    // emitter-local offset을 회전시킬 평면이다.
+    Vec2 angleDegreesOverLife{ 0.f, 0.f };             // 수명 시작/종료 시 누적 orbit 각도 fallback이다.
+    uint32 angleCurveKeyCount{ 2 };                    // orbit angle compact curve key 수다.
+    Vec4 angleCurveTimes{ 0.f, 1.f, 0.f, 0.f };        // orbit angle key time 0..1 값이다.
+    Vec4 angleCurveTimesBlock1{};                      // orbit angle key 4..7 time 값이다.
+    Vec4 angleCurveValues{ 0.f, 0.f, 0.f, 0.f };       // orbit angle key별 degree 값이다.
+    Vec4 angleCurveValuesBlock1{};                     // orbit angle key 4..7 degree 값이다.
+    Vec4 angleCurveArriveTangents{};                   // orbit angle key별 arrive tangent 값이다.
+    Vec4 angleCurveArriveTangentsBlock1{};             // orbit angle key 4..7 arrive tangent 값이다.
+    Vec4 angleCurveLeaveTangents{};                    // orbit angle key별 leave tangent 값이다.
+    Vec4 angleCurveLeaveTangentsBlock1{};              // orbit angle key 4..7 leave tangent 값이다.
+    Vec4 angleCurveModes{ 1.f, 1.f, 0.f, 0.f };        // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 angleCurveModesBlock1{};                      // orbit angle key 4..7 interpolation mode 값이다.
+    Vec2 radiusScaleOverLife{ 1.f, 1.f };              // 수명 시작/종료 시 orbit radius 배율 fallback이다.
+    uint32 radiusScaleCurveKeyCount{ 2 };              // radius scale compact curve key 수다.
+    Vec4 radiusScaleCurveTimes{ 0.f, 1.f, 0.f, 0.f };  // radius scale key time 0..1 값이다.
+    Vec4 radiusScaleCurveTimesBlock1{};                // radius scale key 4..7 time 값이다.
+    Vec4 radiusScaleCurveValues{ 1.f, 1.f, 0.f, 0.f }; // radius scale key별 배율 값이다.
+    Vec4 radiusScaleCurveValuesBlock1{};               // radius scale key 4..7 배율 값이다.
+    Vec4 radiusScaleCurveArriveTangents{};             // radius scale key별 arrive tangent 값이다.
+    Vec4 radiusScaleCurveArriveTangentsBlock1{};       // radius scale key 4..7 arrive tangent 값이다.
+    Vec4 radiusScaleCurveLeaveTangents{};              // radius scale key별 leave tangent 값이다.
+    Vec4 radiusScaleCurveLeaveTangentsBlock1{};        // radius scale key 4..7 leave tangent 값이다.
+    Vec4 radiusScaleCurveModes{ 1.f, 1.f, 0.f, 0.f };  // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 radiusScaleCurveModesBlock1{};                // radius scale key 4..7 interpolation mode 값이다.
 };
 
 // 인스턴스 생성에 공통으로 필요한 spawn 규칙.
@@ -660,10 +692,9 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     bool useMaxDrawCount{ false };                                    // true면 draw 제출 수만 별도로 제한한다.
     uint32 maxDrawCount{ 0 };                                         // 0이면 instanceCount 기준으로 제한한다.
     PointParticleDrawMode drawMode{                                   // compute particle 경로의 정식 draw 제출 방식.
-        PointParticleDrawMode::DrawIndexedInstancedIndirect
-    };
-    uint32 computeShaderLevelIndex{};    // compute shader prototype이 등록된 level index. Engine은 Client의 LevelType을 알지 않는다.
-    wstring computeShaderPrototypeTag{}; // instance payload를 갱신할 compute shader component prototype tag.
+        PointParticleDrawMode::DrawIndexedInstancedIndirect };
+    uint32 computeShaderLevelIndex{};                                 // compute shader prototype 등록 level index다.
+    wstring computeShaderPrototypeTag{};                              // instance payload를 갱신할 compute shader component prototype tag.
 };
 
 NS_END

@@ -213,41 +213,13 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     return S_OK;
 }
 
-static EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulation(
-    const EffectRequiredMaterialRuntimeDesc& baseMaterial,
-    float emitterPhase)
-{
-    auto material = baseMaterial;
-    const auto& modulation = baseMaterial.coreColorRgbModulation;
-    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
-
-    for (uint32 index = 0; index < count; ++index)
-    {
-        const auto& modulator = modulation.modulators[index];
-        if (!modulator.enabled || modulator.timeSource != EffectMaterialScalarModulationTimeSource::EmitterTime)
-            continue;
-
-        const Vec3 fallbackValue{
-            material.coreEmissive.coreColor.x,
-            material.coreEmissive.coreColor.y,
-            material.coreEmissive.coreColor.z
-        };
-        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
-        material.coreEmissive.coreColor.x = coreColorRgb.x;
-        material.coreEmissive.coreColor.y = coreColorRgb.y;
-        material.coreEmissive.coreColor.z = coreColorRgb.z;
-    }
-
-    return material;
-}
-
 wstring Resolve_TexturePathByGuid(const string& textureGuid)
 {
-    if (GAME == nullptr || textureGuid.empty())
+    if (nullptr == GAME || textureGuid.empty())
         return {};
 
     const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
-    if (assetMeta == nullptr || assetMeta->type != "Texture")
+    if (nullptr == assetMeta || assetMeta->type != "Texture")
         return {};
 
     const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
@@ -396,45 +368,20 @@ bool ComputeSpriteEmitter::Collect_FollowerSourcePoints(
     vector<EffectFollowerSourcePoint>& outPoints,
     uint32 maxPointCount) const
 {
-    return _viBuffer != nullptr && _viBuffer->Collect_FollowerSourcePoints(outPoints, maxPointCount);
+    return nullptr != _viBuffer && _viBuffer->Collect_FollowerSourcePoints(outPoints, maxPointCount);
 }
 
 bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
-    if (_transformCom == nullptr)
+    if (nullptr == _transformCom)
         return false;
 
     const Vec4* cameraPosition4 = GAME != nullptr ? GAME->Get_CamPosition() : nullptr;
-    if (cameraPosition4 == nullptr)
+    if (nullptr == cameraPosition4)
     {
         outWorldPosition = _transformCom->Get_WorldPosition();
         return true;
     }
-
-    const auto max_abs = [](float a, float b) -> float
-    {
-        return max(fabsf(a), fabsf(b));
-    };
-
-    const auto max_curve_value = [](const Vec4& values, uint32 keyCount) -> float
-    {
-        float result = values.x;
-        const uint32 safeKeyCount = min(keyCount, 4u);
-        for (uint32 index = 1u; index < safeKeyCount; ++index)
-        {
-            switch (index)
-            {
-            case 1u: result = max(result, values.y);
-                break;
-            case 2u: result = max(result, values.z);
-                break;
-            case 3u: result = max(result, values.w);
-                break;
-            default: break;
-            }
-        }
-        return result;
-    };
 
     const Vec3 emitterWorldPosition = _transformCom->Get_WorldPosition();
 
