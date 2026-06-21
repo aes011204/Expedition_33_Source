@@ -617,19 +617,44 @@ void ClientInstance::Restore_PreviousCamera()
     return _cameraDirector->Restore_PreviousCamera();
 }
 
-bool ClientInstance::Play_Sequence(const wstring& filePath, int trackIndex)
+bool ClientInstance::Play_Sequence(
+    const wstring& filePath,
+    int trackIndex,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
 {
-    return _cinematicSequenceRunner->Play_Sequence(filePath, trackIndex);
+    return _cinematicSequenceRunner->Play_Sequence(
+        filePath,
+        trackIndex,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
 }
 
-bool ClientInstance::Play_Sequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex)
+bool ClientInstance::Play_Sequence(
+    const CINEMATIC_SEQUENCE& sequence,
+    int trackIndex,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
 {
-    return _cinematicSequenceRunner->Play_Sequence(sequence, trackIndex);
+    return _cinematicSequenceRunner->Play_Sequence(
+        sequence,
+        trackIndex,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
 }
 
 void ClientInstance::Stop_Sequence()
 {
     return  _cinematicSequenceRunner->Stop_Sequence();
+}
+
+void ClientInstance::Stop_SequenceKeepContext()
+{
+    return _cinematicSequenceRunner->Stop_SequenceKeepContext();
 }
 
 void ClientInstance::Pause_Sequence()
@@ -640,12 +665,18 @@ void ClientInstance::Pause_Sequence()
     _cinematicSequenceRunner->Pause_Sequence();
 }
 
-void ClientInstance::Resume_Sequence()
+void ClientInstance::Resume_Sequence(
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
 {
     if (_cinematicSequenceRunner == nullptr)
         return;
 
-    _cinematicSequenceRunner->Resume_Sequence();
+    _cinematicSequenceRunner->Resume_Sequence(
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
 }
 
 void ClientInstance::Set_CurrentSequenceFrame(int frame)
@@ -668,7 +699,8 @@ void ClientInstance::Preview_CurrentSequenceFrame(
     int frame,
     bool applyCameraTrack,
     bool applyEventTrack,
-    bool applyActorTransformTrack)
+    bool applyActorTransformTrack,
+    bool forceRebuildContext)
 {
     if (_cinematicSequenceRunner == nullptr)
         return;
@@ -677,7 +709,18 @@ void ClientInstance::Preview_CurrentSequenceFrame(
         frame,
         applyCameraTrack,
         applyEventTrack,
-        applyActorTransformTrack);
+        applyActorTransformTrack,
+        forceRebuildContext);
+}
+
+bool ClientInstance::Sync_CinematicPreviewSequence(
+    const CINEMATIC_SEQUENCE& sequence,
+    int trackIndex)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return false;
+
+    return _cinematicSequenceRunner->Sync_PreviewSequence(sequence, trackIndex);
 }
 
 void ClientInstance::Set_ActorTransformTrackPreviewSuspended(bool suspended)

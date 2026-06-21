@@ -100,6 +100,28 @@ int GetActorTransformTrackOffset(const CINEMATIC_SEQUENCE* sequence, int index)
     return index - GetActorTransformTrackStartIndex(sequence);
 }
 
+bool* GetPreviewToggleForTrack(
+    const CINEMATIC_SEQUENCE* sequence,
+    int index,
+    bool* cameraTrackEnabled,
+    bool* eventTrackEnabled,
+    bool* actorTransformTrackEnabled)
+{
+    if (sequence == nullptr)
+        return nullptr;
+
+    if (index >= 0 && index < static_cast<int>(sequence->cinematicTracks.size()))
+        return cameraTrackEnabled;
+
+    if (IsEventTrackIndex(sequence, index))
+        return eventTrackEnabled;
+
+    if (IsActorTransformTrackIndex(sequence, index))
+        return actorTransformTrackEnabled;
+
+    return nullptr;
+}
+
 CameraTrack* GetModifierTrack(CINEMATIC_SEQUENCE* sequence, int index)
 {
     if (sequence == nullptr)
@@ -632,7 +654,11 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     bool* requestOpenInsertPopup,
     bool* requestRemoveKeyPopup,
     int* contextTrackIndex,
-    int* contextFrame)
+    int* contextFrame,
+    bool* previewDirty,
+    bool* cameraTrackEnabled,
+    bool* eventTrackEnabled,
+    bool* actorTransformTrackEnabled)
     : _sequence(sequence)
     , _selectedTrackIndex(selectedTrackIndex)
     , _selectedKeyIndex(selectedKeyIndex)
@@ -646,6 +672,10 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     , _requestRemoveKeyPopup(requestRemoveKeyPopup)
     , _contextTrackIndex(contextTrackIndex)
     , _contextFrame(contextFrame)
+    , _previewDirty(previewDirty)
+    , _cameraTrackEnabled(cameraTrackEnabled)
+    , _eventTrackEnabled(eventTrackEnabled)
+    , _actorTransformTrackEnabled(actorTransformTrackEnabled)
 {
 }
 
@@ -723,8 +753,52 @@ size_t CinematicSequencerAdapter::GetCustomHeight(int index)
 
 void CinematicSequencerAdapter::CustomDraw(int index, ImDrawList* draw_list, const ImRect& rc, const ImRect& legendRect, const ImRect& clippingRect, const ImRect& legendClippingRect)
 {
-    UNREFERENCED_PARAMETER(legendRect);
-    UNREFERENCED_PARAMETER(legendClippingRect);
+    if (bool* enabled = GetPreviewToggleForTrack(
+        _sequence,
+        index,
+        _cameraTrackEnabled,
+        _eventTrackEnabled,
+        _actorTransformTrackEnabled))
+    {
+        const float checkboxSize = 16.f;
+        const ImVec2 checkboxMin(
+            legendRect.Max.x - checkboxSize - 8.f,
+            legendRect.Min.y + std::max((legendRect.GetHeight() - checkboxSize) * 0.5f, 0.f));
+        const ImVec2 checkboxMax(checkboxMin.x + checkboxSize, checkboxMin.y + checkboxSize);
+        const ImRect checkboxRect(checkboxMin, checkboxMax);
+        const bool hovered = ImGui::IsMouseHoveringRect(checkboxRect.Min, checkboxRect.Max, false);
+
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            *enabled = !(*enabled);
+            if (_previewDirty != nullptr)
+                *_previewDirty = true;
+        }
+
+        draw_list->PushClipRect(legendClippingRect.Min, legendClippingRect.Max, true);
+        draw_list->AddRectFilled(
+            checkboxRect.Min,
+            checkboxRect.Max,
+            hovered ? IM_COL32(74, 76, 84, 255) : IM_COL32(52, 54, 60, 255),
+            3.f);
+        draw_list->AddRect(checkboxRect.Min, checkboxRect.Max, IM_COL32(130, 134, 146, 255), 3.f);
+
+        if (*enabled)
+        {
+            draw_list->AddLine(
+                ImVec2(checkboxRect.Min.x + 3.f, checkboxRect.Min.y + checkboxSize * 0.55f),
+                ImVec2(checkboxRect.Min.x + checkboxSize * 0.42f, checkboxRect.Max.y - 3.f),
+                IM_COL32(242, 194, 76, 255),
+                2.f);
+            draw_list->AddLine(
+                ImVec2(checkboxRect.Min.x + checkboxSize * 0.42f, checkboxRect.Max.y - 3.f),
+                ImVec2(checkboxRect.Max.x - 3.f, checkboxRect.Min.y + 3.f),
+                IM_COL32(242, 194, 76, 255),
+                2.f);
+        }
+
+        draw_list->PopClipRect();
+    }
 
     DrawKeyMarkers(
         _sequence,

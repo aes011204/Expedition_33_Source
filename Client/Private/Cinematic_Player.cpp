@@ -58,7 +58,8 @@ void Cinematic_Player::Update(float timeDelta)
         Stop();
     }
 
-    Play();
+    if (_applyCameraTrack)
+        Play();
 }
 
 void Cinematic_Player::Play()
@@ -104,13 +105,32 @@ void Cinematic_Player::Set_CurrentFrame(int frame, bool applyCamera)
         Play();
 }
 
-void Cinematic_Player::Ready_CinematicPlayer(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack, const Shared<CinematicCamera>& camera, bool playerOnOff)
+void Cinematic_Player::Rebind_Sequence(
+    CINEMATIC_SEQUENCE* cinematicSequence,
+    CINEMATIC_TRACK* cinematicTrack)
+{
+    _sequence = cinematicSequence;
+    _cinematicTrack = cinematicTrack;
+    _leftKey = nullptr;
+    _rightKey = nullptr;
+
+    if (_sequence != nullptr)
+        _currentFrame = std::clamp(_currentFrame, _sequence->startFrame, _sequence->endFrame);
+}
+
+void Cinematic_Player::Ready_CinematicPlayer(
+    CINEMATIC_SEQUENCE* cinematicSequence,
+    CINEMATIC_TRACK* cinematicTrack,
+    const Shared<CinematicCamera>& camera,
+    bool playerOnOff,
+    bool applyCameraTrack)
 {
     _sequence = cinematicSequence;
     _cinematicTrack = cinematicTrack;
     _cinematicCamera = camera;
     _isCinematicPlaying = playerOnOff;
     _isCinematicPaused = false;
+    _applyCameraTrack = applyCameraTrack;
     _currentFrame = _sequence ? _sequence->startFrame : 0;
 }
 

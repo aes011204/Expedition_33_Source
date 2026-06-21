@@ -8,6 +8,12 @@
 #include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
+#include "Trigger_Cinematic.h"
+
+namespace
+{
+constexpr Vec3 kCinematicTriggerSpawnPosition = Vec3(78.61f, 22.06f, -14.58f);
+}
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : StreamingLevel{ device, context }
@@ -40,8 +46,12 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
-    if(FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle"))))
+    if(FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle")))) 
         return E_FAIL;
+    
+    if(FAILED(Ready_Layer_Trigger(TEXT("Layer_Trigger"))))
+        return E_FAIL;
+
 
     GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
@@ -56,7 +66,8 @@ void Level_GamePlay::BeginPlay()
 void Level_GamePlay::Update(float fTimeDelta)
 {
     //Update_MapStreaming(fTimeDelta);
-    
+    if (GAME->KeyPress(KEY_TYPE::F7))
+        Respawn_CinematicTrigger();
 
 }
 
@@ -186,6 +197,51 @@ HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
     LOG_DEBUG("controller cast = {}", controller != nullptr);
 
     return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_Trigger(const wstring& strLayerTag)
+{
+    Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(L"Layer_GameObject")
+        .Position(kCinematicTriggerSpawnPosition)
+        .Spawn();
+
+    const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(spawned);
+    if (trigger != nullptr)
+        trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
+
+    return S_OK;
+}
+
+void Level_GamePlay::Respawn_CinematicTrigger()
+{
+    vector<Shared<GameObject>> triggersToRemove{};
+
+    GAME->Visit_LevelObjects(
+        ETOI(LevelType::GamePlay),
+        [&](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            if (dynamic_pointer_cast<Trigger_Cinematic>(gameObject) == nullptr)
+                return;
+
+            triggersToRemove.push_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& triggerObject : triggersToRemove)
+        GAME->Remove_GameObject(ETOI(LevelType::GamePlay), triggerObject);
+
+    GAME->Flush_RemovedGameObjects();
+
+    Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(L"Layer_GameObject")
+        .Position(kCinematicTriggerSpawnPosition)
+        .Spawn();
+
+    const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(spawned);
+    if (trigger != nullptr)
+        trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
 }
 
 

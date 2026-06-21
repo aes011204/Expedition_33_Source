@@ -268,6 +268,7 @@
     <ClInclude Include="..\Public\SL_Types.h" />
     <ClInclude Include="..\Public\SoulLikeController.h" />
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
+    <ClInclude Include="..\public\Trigger_Cinematic.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
     <ClInclude Include="..\public\CinematicSequenceRunner.h" />
@@ -650,6 +651,7 @@
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
+    <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
     <ClCompile Include="..\private\CinematicCamera.cpp" />

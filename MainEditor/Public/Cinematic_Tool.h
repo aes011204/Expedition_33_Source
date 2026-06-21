@@ -14,6 +14,7 @@ NS_END
 NS_BEGIN(Client)
 class FreeCamera;
 class BattleTurnCamera;
+class CinematicCamera;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -66,7 +67,10 @@ private:
     void Refresh_SequenceFileList();
     void Load_SelectedSequenceFile();
     void Apply_CurrentFramePose();
+    bool Sync_PreviewSequenceToRunner();
     void Request_CinematicPreviewRefresh(bool rebuildContext = false);
+    void Sort_AllActorTransformTrackKeyframes();
+    void Sync_FreeCameraToCinematicPreviewPose();
     void Clear_PendingInsertRequest();
     void Sort_BattleClipTrackKeyframes(CameraTrack& track);
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
@@ -132,6 +136,8 @@ private:
     int                                  _battleClipContextTrackIndex = -1;
     int                                  _battleClipContextFrame = 0;
     bool                                 _isBattleClipPreviewDirty = false;
+    bool                                 _isCinematicTabActive = false;
+    bool                                 _isPreviewStoppedForEditing = false;
     bool                                 _useFreeCameraWhilePaused = true;
     bool                                 _previewApplyCameraTrack = true;
     bool                                 _previewApplyEventTrack = true;

@@ -1149,6 +1149,20 @@
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\AL_SL_State.cpp" />
     <ClCompile Include="..\Private\SL_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_Jump.cpp" />
+    <ClCompile Include="..\private\ANS_JumpCounter.cpp" />
+    <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
+    <ClCompile Include="..\Private\AN_WeaponDetach.cpp" />
+    <ClCompile Include="..\Private\AN_JumpCounterStart.cpp" />
+    <ClCompile Include="..\Private\SL_Dualliste.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
+    <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
+    <ClCompile Include="..\Private\MW_Dualliste.cpp" />
+    <ClCompile Include="..\private\Trigger_Cinematic.cpp">
+      <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1189,6 +1203,19 @@
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\AL_SL_State.h" />
     <ClInclude Include="..\Public\SL_Jump.h" />
+    <ClInclude Include="..\public\ANS_Jump.h" />
+    <ClInclude Include="..\public\ANS_JumpCounter.h" />
+    <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
+    <ClInclude Include="..\Public\AN_WeaponAttach.h" />
+    <ClInclude Include="..\Public\AN_WeaponDetach.h" />
+    <ClInclude Include="..\Public\AN_JumpCounterStart.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
+    <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
+    <ClInclude Include="..\Public\MW_Dualliste.h" />
+    <ClInclude Include="..\public\Trigger_Cinematic.h">
+      <Filter>02.GameObject\Map</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

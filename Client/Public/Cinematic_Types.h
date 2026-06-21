@@ -102,6 +102,7 @@ struct CinematicPlayAnimEventData
     float blendDuration = 0.25f;
     bool loop = false;
     float startFrame = 0.f;
+    float speed = 1.f;
 };
 
 struct CinematicDespawnEventData

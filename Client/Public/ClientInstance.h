@@ -165,15 +165,35 @@ public: /*For.Camera Director*/
     void Restore_PreviousCamera();
 
 public: /*CinematicSequenceRunner*/
-    bool Play_Sequence(const wstring& filePath, int trackIndex);
-    bool Play_Sequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex);
+    bool Play_Sequence(
+        const wstring& filePath,
+        int trackIndex,
+        bool applyCameraTrack = true,
+        bool applyEventTrack = true,
+        bool applyActorTransformTrack = true);
+    bool Play_Sequence(
+        const CINEMATIC_SEQUENCE& sequence,
+        int trackIndex,
+        bool applyCameraTrack = true,
+        bool applyEventTrack = true,
+        bool applyActorTransformTrack = true);
     void Pause_Sequence();
-    void Resume_Sequence();
+    void Resume_Sequence(
+        bool applyCameraTrack = true,
+        bool applyEventTrack = true,
+        bool applyActorTransformTrack = true);
     void Set_CurrentSequenceFrame(int frame);
     void Refresh_CurrentSequenceContext();
-    void Preview_CurrentSequenceFrame(int frame, bool applyCameraTrack, bool applyEventTrack, bool applyActorTransformTrack);
+    void Preview_CurrentSequenceFrame(
+        int frame,
+        bool applyCameraTrack,
+        bool applyEventTrack,
+        bool applyActorTransformTrack,
+        bool forceRebuildContext = false);
+    bool Sync_CinematicPreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
+    void Stop_SequenceKeepContext();
     bool Is_CinematicPlaying() const;
     bool Is_CinematicPaused() const;
     int Get_CurrentSequenceFrame() const;

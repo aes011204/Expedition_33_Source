@@ -1,5 +1,5 @@
 ﻿#include "CinematicCamera.h"
-
+#include "GameInstance.h"
 
 CinematicCamera::CinematicCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) : Camera { device, context}
 {
@@ -68,7 +68,8 @@ void CinematicCamera::Apply_CinematicPose(const CAMERAPOSE& camPose)
     Set_Near(camPose.nearPlane);
     Set_Far(camPose.farPlane);
 
-    Update_TransformMatrices();
+    if (GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+        Update_TransformMatrices();
 }
 
 Shared<CinematicCamera> CinematicCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -197,6 +197,7 @@ json SerializeEvent(const CINEMATIC_EVENT& event)
         eventJson["blendDuration"] = playAnim->blendDuration;
         eventJson["loop"] = playAnim->loop;
         eventJson["startFrame"] = playAnim->startFrame;
+        eventJson["speed"] = playAnim->speed;
     }
     else if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
     {
@@ -219,6 +220,7 @@ void DeserializeEvent(const json& eventJson, CINEMATIC_EVENT& outEvent)
         payload.blendDuration = eventJson.value("blendDuration", payload.blendDuration);
         payload.loop = eventJson.value("loop", payload.loop);
         payload.startFrame = eventJson.value("startFrame", payload.startFrame);
+        payload.speed = eventJson.value("speed", payload.speed);
         outEvent.payload = payload;
     }
     else if (type == "despawn")
