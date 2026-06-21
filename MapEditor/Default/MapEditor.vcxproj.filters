@@ -67,8 +67,17 @@
     <Filter Include="09. EditorCommands\IEditorCommand\CmdAddObject">
       <UniqueIdentifier>{28ca647f-5ec4-4dde-99d1-f6ba5fbb96e2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdAddInstance">
+      <UniqueIdentifier>{7cc00638-f077-42cf-b618-90d171635122}</UniqueIdentifier>
+    </Filter>
     <Filter Include="09. EditorCommands\IEditorCommand\CmdDeleteObject">
       <UniqueIdentifier>{ca1c3a2e-7884-416b-8ee4-8c7c23affdb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdDeleteInstance">
+      <UniqueIdentifier>{b11b61c0-c560-4acf-80b7-8f321112c241}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdEraseInstances">
+      <UniqueIdentifier>{5f99749c-25ea-447f-8886-3a15f90b2d20}</UniqueIdentifier>
     </Filter>
     <Filter Include="09. EditorCommands\IEditorCommand\CmdTransformObject">
       <UniqueIdentifier>{dc5d53dd-39d7-4553-a53b-eb7431dc1302}</UniqueIdentifier>
@@ -192,8 +201,17 @@
     <ClInclude Include="..\Public\CmdAddObject.h">
       <Filter>09. EditorCommands\IEditorCommand\CmdAddObject</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CmdAddInstance.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdAddInstance</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\CmdDeleteObject.h">
       <Filter>09. EditorCommands\IEditorCommand\CmdDeleteObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdDeleteInstance.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdDeleteInstance</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdEraseInstances.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdEraseInstances</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CmdTransformObject.h">
       <Filter>09. EditorCommands\IEditorCommand\CmdTransformObject</Filter>
@@ -306,8 +324,17 @@
     <ClCompile Include="..\Private\CmdAddObject.cpp">
       <Filter>09. EditorCommands\IEditorCommand\CmdAddObject</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\CmdAddInstance.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdAddInstance</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\CmdDeleteObject.cpp">
       <Filter>09. EditorCommands\IEditorCommand\CmdDeleteObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdDeleteInstance.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdDeleteInstance</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdEraseInstances.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdEraseInstances</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\CmdTransformObject.cpp">
       <Filter>09. EditorCommands\IEditorCommand\CmdTransformObject</Filter>

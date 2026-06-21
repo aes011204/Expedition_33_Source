@@ -5,6 +5,7 @@
 #include "MECamera.h"
 #include "SceneContext.h"
 #include "CmdTransformObject.h"
+#include "CmdDeleteInstance.h"
 #include "MEPickingSystem.h"
 #include "GameInstance.h"
 #include "LightingPipeline.h"
@@ -186,10 +187,11 @@ void PanelViewport::Render()
                                 const int32 instSize = static_cast<int32>(sel->_instancedTransforms.size());
                                 if (sel->_selectedInstanceIdx >= 0 && sel->_selectedInstanceIdx < instSize)
                                 {
-                                    sel->_instancedTransforms.erase(
-                                        sel->_instancedTransforms.begin() + sel->_selectedInstanceIdx);
-                                    sel->_instancedParamsDirty = true;
-                                    sel->_selectedInstanceIdx = -1;
+                                    _deleteCommand = CmdDeleteInstance::Create(sel, sel->_selectedInstanceIdx);
+                                    if (_deleteCommand)
+                                    {
+                                        _deleteCommand->Execute(*_ctx);
+                                    }
                                 }
                             }
                             else
@@ -541,6 +543,13 @@ bool PanelViewport::ConsumeDelete()
 
     _deleteRequested = false;
     return true;
+}
+
+Shared<IEditorCommand> PanelViewport::ConsumeDeleteCommand()
+{
+    Shared<IEditorCommand> cmd = _deleteCommand;
+    _deleteCommand.reset();
+    return cmd;
 }
 
 Shared<PanelViewport> PanelViewport::Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)

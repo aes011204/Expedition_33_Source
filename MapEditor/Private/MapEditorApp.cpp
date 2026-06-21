@@ -21,6 +21,7 @@
 #include "MEMaterialApplicator.h"
 #include "MEWaterActor.h"
 #include "CmdDeleteObject.h"
+#include "CmdAddInstance.h"
 
 // test
 #include "METerrainActor.h"
@@ -234,6 +235,11 @@ HRESULT MapEditorApp::Render()
                 _scene.PushCommand(CmdDeleteObject::Create(_scene._selected, index));
             }
         }
+    }
+
+    if (Shared<IEditorCommand> deleteCmd = _viewport->ConsumeDeleteCommand())
+    {
+        _scene.PushCommand(deleteCmd);
     }
 
     if (_viewport->ConsumeCursorSet(mousePos, vpPos, vpSize))
@@ -611,7 +617,20 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
     {
         if (_viewport->IsSpawnAsInstanced())
         {
-            spawned = _scene.SpawnInstancedObject(String::ToWString(modelPath), _scene._cursorPos);
+            const wstring instancedModelPath = String::ToWString(modelPath);
+            if (Shared<EditorObject> existing = _scene.FindInstancedObjectByModelPath(instancedModelPath))
+            {
+                InstanceTransform transform{};
+                transform._position = _scene._cursorPos;
+                transform._scale = Vec3(1.f, 1.f, 1.f);
+                transform._rotation = Quat::Identity;
+
+                const int32 insertIndex = static_cast<int32>(existing->_instancedTransforms.size());
+                _scene.PushCommand(CmdAddInstance::Create(existing, transform, insertIndex));
+                return;
+            }
+
+            spawned = _scene.SpawnInstancedObject(instancedModelPath, _scene._cursorPos);
         }
         else
         {

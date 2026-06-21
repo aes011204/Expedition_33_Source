@@ -4,6 +4,9 @@
 #include "MECamera.h"
 #include "CmdTransformObject.h"
 #include "CmdDeleteObject.h"
+#include "CmdDeleteInstance.h"
+#include "CmdAddInstance.h"
+#include "CmdEraseInstances.h"
 #include "MEWaterActor.h"
 
 PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
@@ -156,10 +159,14 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
         ImGui::SameLine();
         if (ImGui::SmallButton("인스턴스 지우기"))
         {
-            obj->_instancedTransforms.erase(
-                obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);
-            obj->_instancedParamsDirty = true;
-            obj->_selectedInstanceIdx = -1;
+            _ctx->PushCommand(CmdDeleteInstance::Create(obj, obj->_selectedInstanceIdx));
+            return;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("인스턴스 복사하기"))
+        {
+            const InstanceTransform copied = t;
+            _ctx->PushCommand(CmdAddInstance::Create(obj, copied, obj->_selectedInstanceIdx + 1));
             return;
         }
 
@@ -652,7 +659,7 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             if (ImGui::Button("Erase"))
             {
-                _ctx->EraseAt(obj.get(), _eraseRadius, _eraseCenter);
+                _ctx->PushCommand(CmdEraseInstances::Create(obj, _eraseRadius, _eraseCenter));
             }
         }
 
