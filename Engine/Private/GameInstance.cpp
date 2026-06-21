@@ -3020,6 +3020,14 @@ void GameInstance::Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX
     _screenFxManager->Play_ScreenEffect(screenFX);
 }
 
+bool GameInstance::Is_ScreenFxFinished(const wstring& tag) const
+{
+    if (_screenFxManager == nullptr)
+        return false;
+
+    return _screenFxManager->Is_ScreenEffectFinished(tag);
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
