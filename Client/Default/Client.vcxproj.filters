@@ -569,6 +569,9 @@
     <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
@@ -1163,6 +1166,9 @@
     <ClCompile Include="..\private\Trigger_Cinematic.cpp">
       <Filter>02.GameObject\Map</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\SL_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
+    <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1176,6 +1182,15 @@
     <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
     <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
@@ -1216,6 +1231,18 @@
     <ClInclude Include="..\public\Trigger_Cinematic.h">
       <Filter>02.GameObject\Map</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\SL_Parry.h" />
+    <ClInclude Include="..\Public\ANS_ParryWindow.h" />
+    <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_JumpCounter.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1678,6 +1705,9 @@
       <Filter>04. GamePlayUI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h">

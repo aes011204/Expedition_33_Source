@@ -51,6 +51,7 @@ public: //## Types::Public
         Vec3 localOffset = Vec3::Zero;
         Vec3 localRotation = Vec3::Zero;
         Vec3 scale = Vec3::One;
+        float playbackSpeed = 1.f;
         EffectTransformInheritance transformInheritance{};
 
         bool followTarget = false;          // AN은 false, ANS/attach 는 true로 사용

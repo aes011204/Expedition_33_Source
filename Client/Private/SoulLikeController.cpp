@@ -11,6 +11,7 @@
 #include "ScreenFx_Manager.h"
 #include "SL_Base.h"
 #include "SL_Maelle.h"
+#include "SL_DamageSystem.h"
 #include "SL_StateMachineCom.h"
 #include "SL_TargetCom.h"
 #include "Spawn_Prefab.h"
@@ -27,20 +28,35 @@ IMPLEMENT_REFLECTION(SoulLikeController)
     info.category = "SoulLike";
     info.displayName = "SoulLike Controller";
 
-    PROPERTY_STRING("Player Prefab", _playerPrefab);
-    PROPERTY_VEC3("Player Spawn Position", _playerSpawnPosition, 0.1f);
-    PROPERTY_VEC3("Player Spawn Rotation", _playerSpawnRotation, 1.f);
-    PROPERTY_STRING("Monster Prefab", _monsterPrefab);
-    PROPERTY_FLOAT("Monster Spawn Distance", _monsterSpawnDistance, 0.f, 20.f, 0.1f);
+    PROPERTY_STRING("플레이어 프리팹", _playerPrefab);
+    PROPERTY_VEC3("플레이어 스폰 위치", _playerSpawnPosition, 0.1f);
+    PROPERTY_VEC3("플레이어 스폰 회전", _playerSpawnRotation, 1.f);
+    PROPERTY_STRING("몬스터 프리팹", _monsterPrefab);
+    PROPERTY_FLOAT("몬스터 스폰 거리", _monsterSpawnDistance, 0.f, 20.f, 0.1f);
 
-    PROPERTY_FLOAT("Player Max HP", _playerMaxHp, 1.f, 9999.f, 1.f);
-    PROPERTY_FLOAT("Monster Max HP", _monsterMaxHp, 1.f, 9999.f, 1.f);
+    PROPERTY_FLOAT("플레이어 최대 체력", _playerMaxHp, 1.f, 9999.f, 1.f);
+    PROPERTY_FLOAT("몬스터 최대 체력", _monsterMaxHp, 1.f, 9999.f, 1.f);
 
+    PROPERTY_FLOAT("진입 연출 지연 시간", _enterFxDelay, 0.f, 5.f, 0.05f);
+    PROPERTY_BOOL("디버그 3번키 시작 사용", _enableDebugKeyStart);
 
-    PROPERTY_FLOAT("Enter Fx Delay", _enterFxDelay, 0.f, 5.f, 0.05f);
-    PROPERTY_FLOAT("Victory Slow Duration", _victorySlowDuration, 0.f, 5.f, 0.05f);
-    PROPERTY_FLOAT("Victory Slow Time Scale", _victorySlowTimeScale, 0.f, 1.f, 0.01f);
-    PROPERTY_BOOL("Enable Debug Key 3", _enableDebugKeyStart);
+    // 전투 슬로우
+    PROPERTY_FLOAT("승리 슬로우 지속 시간", _victorySlowDuration, 0.f, 5.f, 0.05f);
+    PROPERTY_FLOAT("승리 슬로우 시간 배율", _victorySlowTimeScale, 0.f, 1.f, 0.01f);
+
+    // 패링 밀려나는거
+    PROPERTY_FLOAT("플레이어 피격 밀림 거리", _playerHitPushDistance, 0.f, 5.f, 0.05f);
+    PROPERTY_FLOAT("플레이어 피격 밀림 시간", _playerHitPushDuration, 0.f, 1.f, 0.01f);
+
+    PROPERTY_FLOAT("피격 히트스탑 시간 배율", _playerHitStopTimeScale, 0.f, 1.f, 0.01f);
+    PROPERTY_FLOAT("피격 히트스탑 지속 시간", _playerHitStopDuration, 0.f, 1.f, 0.01f);
+                   
+    PROPERTY_FLOAT("피격 카메라 흔들림 진폭", _playerHitShakeAmplitude, 0.f, 5.f, 0.05f);
+    PROPERTY_FLOAT("피격 카메라 흔들림 시간", _playerHitShakeDuration, 0.f, 1.f, 0.01f);
+    PROPERTY_FLOAT("피격 카메라 흔들림 세기", _playerHitShakeStrength, 0.f, 0.2f, 0.005f);
+                   
+    PROPERTY_FLOAT("공격 히트스탑 시간 배율", _playerAttackHitStopTimeScale, 0.f, 1.f, 0.01f);
+    PROPERTY_FLOAT("공격 히트스탑 지속 시간", _playerAttackHitStopDuration, 0.f, 1.f, 0.01f);
 
     return true;
 }
@@ -61,6 +77,16 @@ SoulLikeController::SoulLikeController(const SoulLikeController& prototype)
     , _playerMaxHp(prototype._playerMaxHp)
     , _enableDebugKeyStart(prototype._enableDebugKeyStart)
     , _monsterMaxHp(prototype._monsterMaxHp)
+    , _playerHitPushDistance(prototype._playerHitPushDistance)
+    , _playerHitPushDuration(prototype._playerHitPushDuration)
+    , _playerHitStopTimeScale(prototype._playerHitStopTimeScale)
+    , _playerHitStopDuration(prototype._playerHitStopDuration)
+    , _playerAttackHitStopTimeScale(prototype._playerAttackHitStopTimeScale)
+    , _playerAttackHitStopDuration(prototype._playerAttackHitStopDuration)
+    , _playerHitShakeAmplitude(prototype._playerHitShakeAmplitude)
+    , _playerHitShakeDuration(prototype._playerHitShakeDuration)
+    , _playerHitShakeStrength(prototype._playerHitShakeStrength)
+    , _jumpCounterDamageMultiplier(prototype._jumpCounterDamageMultiplier)
 {
 }
 
@@ -122,6 +148,12 @@ bool SoulLikeController::Begin_Battle()
     GAME->Set_WorldTimeScale(1.f);
 
     Remove_SpawnedBattleActors();
+    _jumpCounterAttacker.reset();
+    _jumpCounterThreatOpen = false;
+    _jumpCounterJumpSucceeded = false;
+    _jumpCounterCounterWindowOpen = false;
+    _jumpCounterAttackStarted = false;
+    _jumpCounterDamageApplied = false;
     _playerSpawned = false;
     _enterFxTimer = max(0.f, _enterFxDelay);
     _victorySlowElapsed = 0.f;
@@ -146,6 +178,12 @@ void SoulLikeController::End_Battle()
     _state = BattleState::Finished;
     _enterFxTimer = 0.f;
     _victorySlowElapsed = 0.f;
+    _jumpCounterAttacker.reset();
+    _jumpCounterThreatOpen = false;
+    _jumpCounterJumpSucceeded = false;
+    _jumpCounterCounterWindowOpen = false;
+    _jumpCounterAttackStarted = false;
+    _jumpCounterDamageApplied = false;
 }
 
 void SoulLikeController::Confirm_Victory()
@@ -199,6 +237,162 @@ void SoulLikeController::End_BattleShotCamera()
         return;
 
     Request_TargetCamera();
+}
+
+void SoulLikeController::Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo)
+{
+    UNREFERENCED_PARAMETER(damageInfo);
+
+    Play_PlayerParryFeedback();
+}
+
+void SoulLikeController::Play_PlayerParryFeedback()
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (_playerHitStopDuration > 0.f)
+        GAME->Slow_WorldTime(_playerHitStopTimeScale, _playerHitStopDuration);
+
+    Shared<TargetCamera> targetCamera =
+        dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera));
+
+    if (targetCamera == nullptr)
+        return;
+
+    if (targetCamera->Get_CurrentMode() != TargetCameraMode::SOULLIKE)
+        return;
+
+    targetCamera->Play_HitShake(
+        _playerHitShakeAmplitude,
+        _playerHitShakeDuration,
+        _playerHitShakeStrength);
+}
+
+void SoulLikeController::Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo)
+{
+    UNREFERENCED_PARAMETER(damageInfo);
+
+    if (_state != BattleState::Playing)
+        return;
+
+    if (_playerAttackHitStopDuration <= 0.f)
+        return;
+
+    GAME->Slow_WorldTime(_playerAttackHitStopTimeScale, _playerAttackHitStopDuration);
+}
+
+void SoulLikeController::Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (active)
+    {
+        if (attacker == nullptr)
+            return;
+
+        _jumpCounterAttacker = attacker;
+        _jumpCounterThreatOpen = true;
+        _jumpCounterJumpSucceeded = false;
+        _jumpCounterCounterWindowOpen = false;
+        _jumpCounterAttackStarted = false;
+        _jumpCounterDamageApplied = false;
+        return;
+    }
+
+    Shared<SL_Base> currentAttacker = _jumpCounterAttacker.lock();
+    if (attacker != nullptr && currentAttacker != nullptr && attacker.get() != currentAttacker.get())
+        return;
+
+    _jumpCounterThreatOpen = false;
+
+    if (!_jumpCounterJumpSucceeded && !_jumpCounterAttackStarted)
+    {
+        _jumpCounterAttacker.reset();
+        _jumpCounterCounterWindowOpen = false;
+        _jumpCounterDamageApplied = false;
+    }
+}
+
+void SoulLikeController::Set_JumpCounterWindowOpen(bool open)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (open)
+    {
+        if (!_jumpCounterJumpSucceeded || _jumpCounterAttackStarted)
+            return;
+
+        _jumpCounterCounterWindowOpen = true;
+        return;
+    }
+
+    _jumpCounterCounterWindowOpen = false;
+
+    if (!_jumpCounterAttackStarted)
+    {
+        _jumpCounterAttacker.reset();
+        _jumpCounterThreatOpen = false;
+        _jumpCounterJumpSucceeded = false;
+        _jumpCounterDamageApplied = false;
+    }
+}
+
+bool SoulLikeController::Try_ConsumeJumpCounterDodge(const Shared<SL_Base>& attacker, const Shared<SL_Maelle>& target)
+{
+    if (_state != BattleState::Playing)
+        return false;
+
+    if (!_jumpCounterJumpSucceeded)
+        return false;
+
+    if (target == nullptr || target.get() != _player.lock().get())
+        return false;
+
+    const Shared<SL_Base> currentAttacker = _jumpCounterAttacker.lock();
+    if (attacker == nullptr || currentAttacker == nullptr || attacker.get() != currentAttacker.get())
+        return false;
+
+    return true;
+}
+
+void SoulLikeController::Apply_JumpCounterDamage()
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (!_jumpCounterAttackStarted || _jumpCounterDamageApplied)
+        return;
+
+    const Shared<SL_Maelle> player = _player.lock();
+    const Shared<SL_Base> target = _jumpCounterAttacker.lock();
+    if (player == nullptr || target == nullptr || target->Is_Dead())
+        return;
+
+    SL_DamageInfo damageInfo{};
+    if (!SL_DamageSystem::Apply_Damage(
+        player,
+        player->Get_Stat(),
+        target,
+        target->Get_Stat(),
+        _jumpCounterDamageMultiplier,
+        AttackType::Counter,
+        damageInfo))
+    {
+        return;
+    }
+
+    _jumpCounterDamageApplied = true;
+    target->Apply_Damage(damageInfo);
+    Play_PlayerAttackHitFeedback(damageInfo);
+
+    _jumpCounterAttacker.reset();
+    _jumpCounterThreatOpen = false;
+    _jumpCounterJumpSucceeded = false;
+    _jumpCounterCounterWindowOpen = false;
+    _jumpCounterAttackStarted = false;
 }
 
 void SoulLikeController::Request_TargetCamera()
@@ -310,7 +504,10 @@ bool SoulLikeController::Spawn_Player()
     }
 
     player->Apply_WorldSkillKeys(soulLikeSkillKeys);
-    player->Reset_CombatHp(_playerMaxHp);
+
+    const Shared<PlayerStatCom> playerStat = dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat());
+    const float playerMaxHp = playerStat ? playerStat->Get_PlayerRuntimeStat().CurMaxHp : _playerMaxHp;
+    player->Reset_CombatHp(playerMaxHp);
 
     _player = player;
 
@@ -437,8 +634,13 @@ void SoulLikeController::Update_Player(float timeDelta)
     moveRequest.sprint = GAME->KeyPress(KEY_TYPE::SHIFT);
     moveRequest.lockOn = targetCom != nullptr && targetCom->Is_LockOn();
 
-    // 구르기.. 점프 흠
+    if (Update_Jump(stateMachine))
+        return;
+
     Update_Dodge(stateMachine, moveRequest);
+
+    if (Update_Parry(stateMachine))
+        return;
 
     if (Update_Skill(player, stateMachine))
         return;
@@ -470,7 +672,7 @@ void SoulLikeController::Update_VictorySlow()
     if (_victorySlowElapsed < max(0.f, _victorySlowDuration))
         return;
 
-    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(0.0001f);
     _victorySlowElapsed = 0.f;
     Begin_Victory();
 }
@@ -489,7 +691,7 @@ void SoulLikeController::Begin_VictorySlow()
         return;
     }
 
-    GAME->Slow_WorldTime(_victorySlowTimeScale, _victorySlowDuration);
+    GAME->Set_WorldTimeScale(_victorySlowTimeScale);
 }
 
 void SoulLikeController::Begin_Victory()
@@ -497,7 +699,7 @@ void SoulLikeController::Begin_Victory()
     if (_state == BattleState::Victory)
         return;
 
-    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(0.0001f);
     Apply_VictoryRewardExp();
 
     _state = BattleState::Victory;
@@ -568,6 +770,12 @@ void SoulLikeController::Handle_EditorStopRuntime()
     _victorySlowElapsed = 0.f;
     _lastVictoryRewardExp = 0;
     _playerSpawned = false;
+    _jumpCounterAttacker.reset();
+    _jumpCounterThreatOpen = false;
+    _jumpCounterJumpSucceeded = false;
+    _jumpCounterCounterWindowOpen = false;
+    _jumpCounterAttackStarted = false;
+    _jumpCounterDamageApplied = false;
 
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
@@ -582,8 +790,54 @@ void SoulLikeController::Update_BaseAttack(const Shared<SL_StateMachineCom>& sta
     if (stateMachine == nullptr)
         return;
 
-    if (GAME->KeyDown(KEY_TYPE::LBUTTON))
-        stateMachine->Request_BasicAttack();
+    if (!GAME->KeyDown(KEY_TYPE::LBUTTON))
+        return;
+
+    if (_jumpCounterCounterWindowOpen &&
+        _jumpCounterJumpSucceeded &&
+        !_jumpCounterAttackStarted)
+    {
+        if (stateMachine->Request_JumpCounter())
+        {
+            _jumpCounterAttackStarted = true;
+            _jumpCounterCounterWindowOpen = false;
+            return;
+        }
+    }
+
+    stateMachine->Request_BasicAttack();
+}
+
+bool SoulLikeController::Update_Jump(const Shared<SL_StateMachineCom>& stateMachine)
+{
+    if (stateMachine == nullptr)
+        return false;
+
+    if (GAME->KeyDown(KEY_TYPE::SPACE) &&
+        _jumpCounterThreatOpen &&
+        !_jumpCounterJumpSucceeded &&
+        !_jumpCounterAttackStarted)
+    {
+        if (!stateMachine->Request_Jump())
+            return false;
+
+        _jumpCounterJumpSucceeded = true;
+        _jumpCounterCounterWindowOpen = false;
+        return true;
+    }
+
+    return false;
+}
+
+bool SoulLikeController::Update_Parry(const Shared<SL_StateMachineCom>& stateMachine)
+{
+    if (stateMachine == nullptr)
+        return false;
+
+    if (!GAME->KeyDown(KEY_TYPE::E))
+        return false;
+
+    return stateMachine->Request_Parry();
 }
 
 bool SoulLikeController::Update_Skill(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine)

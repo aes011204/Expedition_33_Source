@@ -198,6 +198,10 @@ public: /* AnimNotify */
 private:
     // 현재 애니메이션 이름으로 노티파이 데이터 찾기
     const AnimNotifyData* Find_CurrentNotifyAnimation() const;
+    bool    Try_GetPlaySection(uint32 animIndex, float& outStartSec, float& outEndSec);
+    void    Apply_StartFrameWithPlaySection(uint32 animIndex, bool isLoop, float startFrame);
+    void    Apply_StartTimeSecWithPlaySection(uint32 animIndex, bool isLoop, float startTimeSec);
+    bool    Apply_CurrentPlaySectionEnd(const AnimPipelineContext& context);
     void    Stop_AllNotifyStates(bool executeEndCheck);
     // 다른 애니메이션에 속한 active state 정리
     void    Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName, bool executeEndCheck);

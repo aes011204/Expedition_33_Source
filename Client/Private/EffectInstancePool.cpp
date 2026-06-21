@@ -411,6 +411,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     transform->Set_WorldRotationQuaternion(desc.worldRotation);
     transform->Set_Scale(desc.scale);
 
+    instance->Set_PlaybackSpeed(desc.playbackSpeed);
     CHECK_FAILED(instance->Reset(), E_FAIL);
     CHECK_FAILED(instance->Play(), E_FAIL);
     return S_OK;

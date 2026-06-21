@@ -6,6 +6,8 @@
 #include "ClientInstance.h"
 #include "CostumeManager.h"
 #include "EffectCom.h"
+#include "GameplayUI.h"
+#include "GamePlayUI_SL.h"
 #include "GameDataTable.h"
 #include "MovementCom.h"
 #include "ColliderCom.h"
@@ -18,6 +20,7 @@
 #include "SL_StateMachineCom.h"
 #include "SL_TargetCom.h"
 #include "SL_Types.h"
+#include "SoulLikeController.h"
 
 #include "SL_DamageSystem.h"
 
@@ -86,6 +89,8 @@ void SL_Maelle::Update(float timeDelta)
     // 무적 시간
     _invincibleRemain = max(0.f, _invincibleRemain - timeDelta);
 
+    Update_HitPush(timeDelta);
+
     if (_targetCom)
         _targetCom->Update_Targeting(timeDelta);
 
@@ -132,6 +137,9 @@ void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     if (target == nullptr || target.get() == this || target->Is_Dead())
         return;
 
+    const auto controller = CLIENT->Get_SoulLikeController();
+    CHECK_NULL(controller);
+
     SL_DamageInfo damageInfo{};
     if (!SL_DamageSystem::Apply_Damage(
         GetSharedPtr<GameObject>(),
@@ -144,6 +152,8 @@ void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     {
         return;
     }
+
+    controller->Play_PlayerAttackHitFeedback(damageInfo);
 
     target->Apply_Damage(damageInfo);
 }
@@ -159,6 +169,70 @@ void SL_Maelle::Reset_CombatHp(float maxHp)
 
     _invincibleRemain = 0.f;
     _combatLocked = false;
+    _parryWindowOpen = false;
+    _parryConsumed = false;
+
+    _hitPushDir = Vec3::Zero;
+    _hitPushDistance = 0.f;
+    _hitPushDuration = 0.f;
+    _hitPushElapsed = 0.f;
+}
+
+void SL_Maelle::Open_ParryWindow()
+{
+    if (Is_Dead())
+        return;
+
+    _parryWindowOpen = true;
+}
+
+void SL_Maelle::Close_ParryWindow()
+{
+    _parryWindowOpen = false;
+}
+
+void SL_Maelle::Reset_ParryConsumed()
+{
+    _parryConsumed = false;
+}
+
+bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos)
+{
+    if (!_parryWindowOpen || _parryConsumed || Is_Dead())
+        return false;
+
+    if (!Is_ParryFrontHit(impactWorldPos))
+        return false;
+
+    _parryConsumed = true;
+
+    // 패링 성공하면, 무적
+    Set_InvincibleTime(0.2f);
+
+    // 패링 Hit Effect. 크기 조절좀 해야할듯
+    {
+        PlayEffectDesc effectDesc{};
+        effectDesc.effectName = L"World_FreeAim_Hit_EX.effect.json";
+        effectDesc.worldPosition = impactWorldPos;
+        effectDesc.scale = Vec3(0.6f, 0.6f, 0.6f);
+        CLIENT->Play_Effect(effectDesc);
+    }
+
+    if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        controller->Play_PlayerParryFeedback();
+
+    // 쳐내기 UI. 필요한가?
+    //if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+    //{
+    //    if (GamePlayUI_SL* soulLikeUI = gameplayUI->Get_SoulLikeUI())
+    //    {
+    //        Vec3 worldPos = _transformCom ? _transformCom->Get_WorldPosition() : Vec3::Zero;
+    //        worldPos.y += 1.4f;
+    //        soulLikeUI->Show_ParryResult(worldPos);
+    //    }
+    //}
+
+    return true;
 }
 
 HRESULT SL_Maelle::Ready_Components()
@@ -450,6 +524,99 @@ HairChainPhysicsDesc SL_Maelle::Get_MaelleHairChainPhysicsDesc() const
     return desc;
 }
 
+bool SL_Maelle::Is_ParryFrontHit(const Vec3& impactWorldPos) const
+{
+    Vec3 forward = _transformCom->Get_WorldForward();
+    forward.y = 0.f;
+
+    if (forward.LengthSquared() <= 0.0001f)
+        return false;
+
+    Vec3 toImpact = impactWorldPos - _transformCom->Get_WorldPosition();
+    toImpact.y = 0.f;
+
+    if (toImpact.LengthSquared() <= 0.0001f)
+        return false;
+
+    forward.Normalize();
+    toImpact.Normalize();
+
+    // 내적값이 1보다 크면 전방
+    return forward.Dot(toImpact) > 0.f;
+}
+
+void SL_Maelle::Begin_HitPush(const SL_DamageInfo& damageInfo)
+{
+    auto controller = CLIENT->Get_SoulLikeController();
+    CHECK_NULL(controller);
+
+    const float pushDistance = controller->Get_PlayerHitPushDistance();
+    const float pushDuration = controller->Get_PlayerHitPushDuration();
+
+    if (pushDistance <= 0.f || pushDuration <= 0.f || _transformCom == nullptr)
+    {
+        _hitPushDir = Vec3::Zero;
+        _hitPushDistance = 0.f;
+        _hitPushDuration = 0.f;
+        _hitPushElapsed = 0.f;
+        return;
+    }
+
+    Vec3 pushDir = Vec3::Zero;
+
+    if (damageInfo.attacker && damageInfo.attacker->Get_Transform())
+    {
+        pushDir = _transformCom->Get_WorldPosition() - damageInfo.attacker->Get_Transform()->Get_WorldPosition();
+        pushDir.y = 0.f;
+    }
+
+    if (pushDir.LengthSquared() <= 0.0001f)
+    {
+        pushDir = -_transformCom->Get_WorldForward();
+        pushDir.y = 0.f;
+    }
+
+    if (pushDir.LengthSquared() <= 0.0001f)
+        pushDir = Vec3::Look;
+
+    pushDir.Normalize();
+
+    _hitPushDir = pushDir;
+    _hitPushDistance = pushDistance;
+    _hitPushDuration = pushDuration;
+    _hitPushElapsed = 0.f;
+
+}
+
+void SL_Maelle::Update_HitPush(float timeDelta)
+{
+    CHECK_NULL(_movementCom);
+
+    if (_hitPushDuration <= 0.f || _hitPushDistance <= 0.f)
+        return;
+
+    const float dt = max(GAME->Get_UnscaledTimeDelta(), 0.0001f);
+
+    const float prevT = clamp(_hitPushElapsed / _hitPushDuration, 0.f, 1.f);
+    _hitPushElapsed = min(_hitPushElapsed + dt, _hitPushDuration);
+    const float curT = clamp(_hitPushElapsed / _hitPushDuration, 0.f, 1.f);
+
+    const float prevEase = 1.f - (1.f - prevT) * (1.f - prevT);
+    const float curEase = 1.f - (1.f - curT) * (1.f - curT);
+    const float stepDistance = _hitPushDistance * max(0.f, curEase - prevEase);
+
+    if (stepDistance > 0.f && _hitPushDir.LengthSquared() > 0.0001f)
+        _movementCom->Move_ExternalDisplacement(_hitPushDir * stepDistance, dt);
+
+    if (_hitPushElapsed >= _hitPushDuration)
+    {
+        _hitPushDir = Vec3::Zero;
+        _hitPushDistance = 0.f;
+        _hitPushDuration = 0.f;
+        _hitPushElapsed = 0.f;
+    }
+}
+
 void SL_Maelle::Apply_MoveInput(const SL_MoveRequest& request, float timeDelta)
 {
     if (_movementCom == nullptr)
@@ -497,16 +664,31 @@ bool SL_Maelle::Is_Dead() const
 
 void SL_Maelle::Apply_Damage(const SL_DamageInfo& damageInfo)
 {
-    if (Is_Invincible() || Is_Dead())
+    if (Is_Invincible())
         return;
 
     if (damageInfo.target.get() != this)
         return;
 
+    if (_combatStatCom)
+    {
+        auto& runtimeStat = _combatStatCom->Get_RuntimeStat();
+
+        if (runtimeStat.CurHp <= 1.f)
+            runtimeStat.CurHp = 1.f;
+
+        runtimeStat.CurAliveState = EAliveStatus::Alive;
+    }
+
+    Begin_HitPush(damageInfo);
+
+    if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        controller->Play_PlayerHitFeedback(damageInfo);
+
     _combatLocked = true;
 
     if (_stateMachineCom)
-        _stateMachineCom->Change_State(damageInfo.isKilled ? SL_PlayerState::Dead : SL_PlayerState::Hit);
+        _stateMachineCom->Change_State(SL_PlayerState::Hit);
 }
 
 Shared<SL_Maelle> SL_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

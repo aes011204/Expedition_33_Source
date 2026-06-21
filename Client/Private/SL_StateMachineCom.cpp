@@ -1,12 +1,15 @@
 ﻿#include "SL_StateMachineCom.h"
+#include "SL_Maelle.h"
 
 #include "SL_BasicAttack.h"
 #include "SL_Dead.h"
 #include "SL_Dodge.h"
 #include "SL_Hit.h"
 #include "SL_Idle.h"
-#include "SL_Maelle.h"
+#include "SL_Jump.h"
+#include "SL_JumpCounter.h"
 #include "SL_Move.h"
+#include "SL_Parry.h"
 #include "SL_Skill.h"
 #include "SL_State.h"
 
@@ -58,6 +61,9 @@ void SL_StateMachineCom::BeginPlay()
     CHECK_FAILED(Add_State(SL_PlayerState::Hit, SL_Hit::Create(owner)));
     CHECK_FAILED(Add_State(SL_PlayerState::Dead, SL_Dead::Create(owner)));
     CHECK_FAILED(Add_State(SL_PlayerState::Skill, SL_Skill::Create(owner)));
+    CHECK_FAILED(Add_State(SL_PlayerState::Parry, SL_Parry::Create(owner)));
+    CHECK_FAILED(Add_State(SL_PlayerState::Jump, SL_Jump::Create(owner)));
+    CHECK_FAILED(Add_State(SL_PlayerState::JumpCounter, SL_JumpCounter::Create(owner)));
 
     for (auto& [stateTag, state] : _states)
     {
@@ -142,6 +148,15 @@ bool SL_StateMachineCom::Request_Dodge(const SL_MoveRequest& request)
     return state->Request_Dodge(request);
 }
 
+bool SL_StateMachineCom::Request_Parry()
+{
+    Shared<SL_State> state = Get_CurrentSLState();
+    if (state == nullptr)
+        return false;
+
+    return state->Request_Parry();
+}
+
 bool SL_StateMachineCom::Request_Skill(const Skill_Data& skillData, uint32 slotIndex)
 {
     Shared<SL_State> state = Get_CurrentSLState();
@@ -153,6 +168,24 @@ bool SL_StateMachineCom::Request_Skill(const Skill_Data& skillData, uint32 slotI
         skillState->Set_SkillRequest(skillData, slotIndex);
 
     return state->Request_Skill(skillData, slotIndex);
+}
+
+bool SL_StateMachineCom::Request_Jump()
+{
+    Shared<SL_State> state = Get_CurrentSLState();
+    if (state == nullptr)
+        return false;
+
+    return state->Request_Jump();
+}
+
+bool SL_StateMachineCom::Request_JumpCounter()
+{
+    Shared<SL_State> state = Get_CurrentSLState();
+    if (state == nullptr)
+        return false;
+
+    return state->Request_JumpCounter();
 }
 
 void SL_StateMachineCom::Notify_BasicAttackComboWindow(bool enabled)

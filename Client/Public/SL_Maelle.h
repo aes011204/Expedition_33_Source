@@ -58,6 +58,12 @@ public:
     void    Set_InvincibleTime(float value) { _invincibleRemain = max(0.f, value); }
     bool    Is_Invincible() const { return _invincibleRemain > 0.f; }
 
+    void    Open_ParryWindow();
+    void    Close_ParryWindow();
+    void    Reset_ParryConsumed();
+    bool    Try_ConsumeParry(const Vec3& impactWorldPos);
+    bool    Is_ParryWindowOpen() const { return _parryWindowOpen; }
+
     Body_Player* Get_Body() const { return _body.get(); }
     void    Reset_CombatHp(float maxHp);
 
@@ -70,11 +76,18 @@ private:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
     HRESULT Ready_WeaponPart(Body_Player* body);
+
+private:
     const CostumePreset* Get_CurrentSoulLikeCostume() const;
-    const wchar_t* Select_CostumeModelTag(const wstring& costumeModelTag, const wchar_t* defaultModelTag) const;
-    void Apply_CostumePartTransform(const wstring& partTag, const CostumePartLocalTransform& fallbackTransform);
-    bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
+    const wchar_t*       Select_CostumeModelTag(const wstring& costumeModelTag, const wchar_t* defaultModelTag) const;
+    void                 Apply_CostumePartTransform(const wstring& partTag, const CostumePartLocalTransform& fallbackTransform);
+    bool                 Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
     HairChainPhysicsDesc Get_MaelleHairChainPhysicsDesc() const;
+
+	// 패링이 앞에서 데미지 들어왔는지
+	bool				 Is_ParryFrontHit(const Vec3& impactWorldPos) const;
+    void                 Begin_HitPush(const SL_DamageInfo& damageInfo);
+    void                 Update_HitPush(float timeDelta);
 
 private:
     Shared<MovementCom>         _movementCom{};
@@ -90,7 +103,15 @@ private:
     Shared<ColliderCom>         _attackColliderCom{};
 
     float _invincibleRemain = 0.f;
-    bool _combatLocked = false; // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true로 둔다.
+    bool  _combatLocked = false; // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true
+    bool  _parryWindowOpen = false;
+    bool  _parryConsumed = false;
+
+private: /* 피격 밀림 */
+    Vec3  _hitPushDir = Vec3::Zero;
+    float _hitPushDistance = 0.f;
+    float _hitPushDuration = 0.f;
+    float _hitPushElapsed = 0.f;
 
 public:
     static Shared<SL_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

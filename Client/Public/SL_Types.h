@@ -28,9 +28,11 @@ enum class SL_PlayerState
     Dodge,
     Skill,
     Hit,
-    Parry,
 
     Dead,
+    Parry,
+    Jump,
+    JumpCounter,
 
     End
 };
@@ -52,6 +54,7 @@ enum class SoulLikeAnim
     Jump, Jump_Counter,
 
     Dead,
+    Parry,
 };
 
 enum class SL_DodgeDirection

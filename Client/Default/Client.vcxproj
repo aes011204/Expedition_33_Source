@@ -168,6 +168,7 @@
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\Public\ANS_ParryWindow.h" />
     <ClInclude Include="..\Public\ANS_PlayEffect.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\Public\ANS_RootController.h" />
@@ -250,7 +251,10 @@
     <ClInclude Include="..\Public\RuntimeCheckpointService.h" />
     <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
+    <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h" />
+    <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h" />
     <ClInclude Include="..\Public\SL_Base.h" />
     <ClInclude Include="..\Public\SL_BasicAttack.h" />
     <ClInclude Include="..\Public\SL_DamageSystem.h" />
@@ -259,8 +263,10 @@
     <ClInclude Include="..\Public\SL_Hit.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
     <ClInclude Include="..\Public\SL_Jump.h" />
+    <ClInclude Include="..\Public\SL_JumpCounter.h" />
     <ClInclude Include="..\Public\SL_Maelle.h" />
     <ClInclude Include="..\Public\SL_Move.h" />
+    <ClInclude Include="..\Public\SL_Parry.h" />
     <ClInclude Include="..\Public\SL_Skill.h" />
     <ClInclude Include="..\Public\SL_State.h" />
     <ClInclude Include="..\Public\SL_TargetCom.h" />
@@ -302,6 +308,7 @@
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GamePlayMenuFade.h" />
     <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h" />
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h" />
@@ -563,6 +570,7 @@
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\Private\ANS_RootController.cpp" />
@@ -633,7 +641,10 @@
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
     <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
     <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
+    <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_BasicAttack.cpp" />
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
@@ -643,8 +654,10 @@
     <ClCompile Include="..\Private\SL_Idle.cpp" />
     <ClCompile Include="..\Private\SL_Jump.cpp" />
     <ClCompile Include="..\Private\SL_Dualliste.cpp" />
+    <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
     <ClCompile Include="..\Private\SL_Move.cpp" />
+    <ClCompile Include="..\Private\SL_Parry.cpp" />
     <ClCompile Include="..\Private\SL_Skill.cpp" />
     <ClCompile Include="..\Private\SL_State.cpp" />
     <ClCompile Include="..\Private\SL_TargetCom.cpp" />
@@ -688,6 +701,7 @@
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />

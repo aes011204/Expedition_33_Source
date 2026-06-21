@@ -440,6 +440,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     acquireDesc.worldPosition = spawnWorldPosition;
     acquireDesc.worldRotation = spawnWorldRotation;
     acquireDesc.scale = spawnWorldScale;
+    acquireDesc.playbackSpeed = desc.playbackSpeed;
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
     const bool shouldTrackAttached =
         outHandle != nullptr ||
