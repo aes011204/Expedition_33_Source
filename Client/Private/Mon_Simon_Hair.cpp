@@ -1,8 +1,8 @@
 ﻿#include "Mon_Simon_Hair.h"
 
 #include "EffectCom.h"
-#include "ChainModifier.h"
 #include "ChainModifierPreset.h"
+#include "PoseFollowChainModifier.h"
 
 NS_BEGIN(Client)
 
@@ -39,16 +39,16 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
 
 HRESULT Mon_Simon_Hair::Ready_Modifier()
 {
-    ChainModifier::ChainModifierDesc hairDesc{};
-    ChainModifierPreset::BuildSimonHairDesc(
+    PoseFollowChainModifier::PoseFollowChainModifierDesc hairDesc{};
+    ChainModifierPreset::BuildPoseFollowHairDesc(
         hairDesc,
         _transformCom.get(),
-        PlayerCharacterType::None);
-    hairDesc.runtime.ownerWorldMatrix = &Get_CombinedWorldMatrix();
+        PlayerCharacterType::None,
+        L"PoseFollow_SimonHair");
 
     if (!hairDesc.groups.empty())
     {
-        if (auto modifier = ChainModifier::Create(&hairDesc))
+        if (auto modifier = PoseFollowChainModifier::Create(&hairDesc))
         {
             _model->Add_AnimModifier(modifier);
         }

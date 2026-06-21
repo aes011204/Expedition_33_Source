@@ -475,6 +475,54 @@ void ChainModifierPreset::BuildPoseFollowHairDesc(
     desc.solverIterations = 5;
     desc.targetFrameRate = 60.f;
 
+    if (characterType == PlayerCharacterType::None)
+    {
+        desc.windScale = 0.018f;
+        desc.ownerMotionScale = 0.100f;
+        desc.animatedMotionScale = 0.350f;
+        desc.ownerMotionDeadzone = 0.025f;
+        desc.ownerRotationDeadzoneDegree = 0.35f;
+        desc.animatedMotionDeadzone = 0.060f;
+        desc.maxExternalOffset = 0.180f;
+
+        desc.damping = 0.780f;
+        desc.tipDampingScale = 1.350f;
+        desc.poseFollowStrength = 0.420f;
+        desc.tipFollowScale = 0.550f;
+        desc.maxBendAngleDegree = 22.f;
+        desc.tipBendAngleScale = 1.500f;
+        desc.bendLimitStrength = 0.760f;
+        desc.rootOutputAlpha = 0.080f;
+        desc.tipOutputAlpha = 0.820f;
+        desc.idleOutputAlphaScale = 0.450f;
+        desc.outputSmoothAlpha = 0.480f;
+        desc.idleOutputSmoothAlpha = 0.800f;
+        desc.outputDeadzoneDegree = 0.650f;
+        desc.idleSettleStrength = 0.920f;
+        desc.sleepVelocityThreshold = 0.020f;
+        desc.sleepPoseDistance = 0.090f;
+        desc.solverIterations = 4;
+
+        desc.groups = {
+            { "Simon_Strand_Hair_01_1", 1.00f, 0.85f, 1.00f, 0.55f, 0.95f },
+            { "Simon_Strand_Hair_02_1", 1.00f, 0.85f, 1.00f, 0.55f, 0.95f },
+            { "Simon_Strand_Hair_03_1", 1.00f, 1.00f, 0.96f, 0.65f, 1.00f },
+            { "Simon_Strand_Hair_04_1", 1.00f, 1.00f, 0.96f, 0.65f, 1.00f },
+            { "Simon_Strand_Hair_05_1", 1.00f, 1.05f, 0.94f, 0.72f, 1.00f },
+            { "Simon_Strand_Hair_06_1", 1.00f, 1.05f, 0.94f, 0.72f, 1.00f },
+            { "Simon_Strand_Hair_07_1", 1.00f, 1.05f, 0.94f, 0.72f, 1.00f },
+            { "Simon_Strand_Hair_08_1", 1.00f, 1.05f, 0.94f, 0.72f, 1.00f },
+            { "Simon_Strand_Hair_09_1", 1.00f, 1.00f, 0.96f, 0.65f, 1.00f },
+            { "Simon_Strand_Hair_10_1", 1.00f, 0.85f, 1.00f, 0.55f, 0.95f },
+            { "Simon_Strand_Hair_11_1", 1.00f, 0.85f, 1.00f, 0.55f, 0.95f },
+            { "Simon_Strand_Hair_12_1", 1.00f, 0.85f, 1.00f, 0.55f, 0.95f },
+            { "Simon_Strand_Hair_13_1", 0.65f, 0.65f, 1.12f, 0.35f, 0.80f },
+            { "Simon_Strand_Hair_14_1", 0.65f, 0.65f, 1.12f, 0.35f, 0.80f },
+            { "Simon_Strand_Hair_15_1", 0.65f, 0.65f, 1.12f, 0.35f, 0.80f }
+        };
+        return;
+    }
+
     if (characterType == PlayerCharacterType::Maelle)
     {
         desc.windScale = 0.0012f;
