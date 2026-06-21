@@ -2211,6 +2211,8 @@ namespace Internal
 
         if (const auto directionModeIter = root.find("directionMode"); directionModeIter != root.end())
             Try_ReadEnumToken(*directionModeIter, outData.directionMode);
+        if (outData.directionMode == SourceMotionVelocityDirectionMode::InheritSourceVelocity)
+            outData.directionMode = SourceMotionVelocityDirectionMode::SourceVelocityDirection;
         if (const auto speedIter = root.find("speed"); speedIter != root.end())
             From_Json(*speedIter, outData.speed);
         Read_NumberField(root, "sourceSpeedScale", outData.sourceSpeedScale);

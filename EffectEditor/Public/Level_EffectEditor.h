@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "EffectAuthoring_Types.h"
 #include "Level.h"
 
 NS_BEGIN(EffectEditor)
@@ -24,6 +25,8 @@ public:
     // 마지막으로 빌드된 preview definition으로 runtime preview만 initial 상태로 되돌린다.
     HRESULT Reset_PreviewRuntime();
     bool Is_PreviewFinished() const;
+    void Apply_PreviewEmitterTransformOverrides(const vector<AuthoringEmitter>& emitters);
+    bool Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const;
     // Trail preview 전용 fixture를 필요 시점에만 준비한다.
     HRESULT Ensure_TrailPreviewFixture();
 

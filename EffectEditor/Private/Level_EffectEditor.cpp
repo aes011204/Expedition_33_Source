@@ -57,6 +57,11 @@ void Level_EffectEditor::Update(float timeDelta)
     _previewRuntime->Update(timeDelta);
 
     __super::Update(timeDelta);
+
+    const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
+    const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
+    if (emitterView != nullptr)
+        _previewRuntime->Apply_PreviewEmitterTransformOverrides(emitterView->Get_Emitters());
 }
 
 HRESULT Level_EffectEditor::Render()
@@ -92,6 +97,16 @@ HRESULT Level_EffectEditor::Reset_PreviewRuntime()
 bool Level_EffectEditor::Is_PreviewFinished() const
 {
     return _previewRuntime->Is_Finished();
+}
+
+void Level_EffectEditor::Apply_PreviewEmitterTransformOverrides(const vector<AuthoringEmitter>& emitters)
+{
+    _previewRuntime->Apply_PreviewEmitterTransformOverrides(emitters);
+}
+
+bool Level_EffectEditor::Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const
+{
+    return _previewRuntime->Try_GetPreviewEmitterWorldMatrix(emitterId, outWorldMatrix);
 }
 
 HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()

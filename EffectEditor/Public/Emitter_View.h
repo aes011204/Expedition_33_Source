@@ -285,6 +285,7 @@ private: //## Helper::PreviewState
     void Mark_AllPreviewDirty();
     void Sync_EmitterMirror(AuthoringEmitter& emitter);
     void Sync_AllEmitterMirrors();
+    void Sanitize_PreviewTransformState();
 
 private: //## Helper::ModulePicker
     vector<ModulePickerEntry> Build_ModulePickerEntries(const AuthoringEmitter& emitter) const;

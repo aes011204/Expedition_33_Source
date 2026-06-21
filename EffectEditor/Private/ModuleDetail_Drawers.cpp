@@ -2780,7 +2780,7 @@ bool SourceMotionVelocityModuleDetail::Draw(
         switch (mode)
         {
         case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
-            return "소스 속도 상속";
+            return "소스 속도 방향";
         case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
             return "소스 속도 방향";
         case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
@@ -2802,9 +2802,9 @@ bool SourceMotionVelocityModuleDetail::Draw(
         switch (mode)
         {
         case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
-            return "source가 움직인 속도 벡터를 그대로 상속하고, 속도 값은 그 방향에 추가로 더합니다.\nsource 이동 delta가 없으면 속도를 더하지 않습니다.";
+            return "기존 asset 호환용 값입니다. 편집 시 소스 속도 방향으로 정규화됩니다.";
         case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
-            return "source가 움직인 방향으로 초기 속도를 더합니다.\n일반 Sprite/Mesh에서는 emitter center 이동 방향을 사용합니다.";
+            return "source가 움직인 방향으로 초기 속도를 더합니다.\n속도=0, 소스 속도 상속 배율=1이면 source 속도를 그대로 상속합니다.";
         case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
             return "source가 움직인 방향의 반대로 초기 속도를 더합니다.\n일반 Sprite/Mesh에서는 emitter center 이동 방향을 사용합니다.";
         case SourceMotionVelocityDirectionMode::TrailTangent:
@@ -2858,12 +2858,10 @@ bool SourceMotionVelocityModuleDetail::Draw(
                     SourceMotionVelocityDirectionMode::RandomSideFromTangent,
                     SourceMotionVelocityDirectionMode::SourceVelocityDirection,
                     SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
-                    SourceMotionVelocityDirectionMode::InheritSourceVelocity,
                 };
                 static constexpr SourceMotionVelocityDirectionMode sourceVelocityCandidates[] = {
                     SourceMotionVelocityDirectionMode::SourceVelocityDirection,
                     SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
-                    SourceMotionVelocityDirectionMode::InheritSourceVelocity,
                 };
                 const SourceMotionVelocityDirectionMode* candidates =
                     sourceHistorySpriteTrail ? sourceHistoryCandidates : sourceVelocityCandidates;
@@ -2894,11 +2892,11 @@ bool SourceMotionVelocityModuleDetail::Draw(
             ImGui::PopID();
 
             changed |= detailContext.Draw_FloatProperty(
-                "소스 속도 배율",
+                "소스 속도 상속 배율",
                 data.sourceSpeedScale,
                 defaultData.sourceSpeedScale,
                 0.01f,
-                "source 이동 속도를 초기 속도 크기에 더하는 배율입니다."
+                "sourceSpeed에 곱해 초기 속도 크기에 추가하는 배율입니다."
             );
             changed |= detailContext.Draw_FloatProperty(
                 "퍼짐 각도",

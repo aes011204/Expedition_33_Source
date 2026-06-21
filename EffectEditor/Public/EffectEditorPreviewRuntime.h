@@ -22,6 +22,8 @@ public:
     HRESULT Restart_FromAuthoring(const vector<AuthoringEmitter>& emitters);
     HRESULT Reset_Runtime();
     bool Is_Finished() const;
+    void Apply_PreviewEmitterTransformOverrides(const vector<AuthoringEmitter>& emitters);
+    bool Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const;
 
     void Clear();
 
@@ -50,6 +52,7 @@ private: //## Data::PreviewRuntime
     Shared<const EffectDefinition> _currentPreviewDefinition{};
     Shared<const EffectDefinition> _currentPreviewTrailDefinition{};
     vector<PreviewTrailStrokeRuntime> _previewTrailStrokes{};
+    vector<AuthoringEmitter> _currentAuthoringEmitters{};
     bool _wasTrailPreviewGateOpen{ false };
     float _lastTrailPreviewSourceRatio{ 0.f };
     bool _hasTrailPreviewSourceRatio{ false };
