@@ -132,16 +132,16 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     event.restartClip = _restartClip;
     event.keepCurrentClip = _keepCurrentClip;
 
-    const string modeName = string(magic_enum::enum_name(_cameraMode));
-    LOG_INFO(
-        "[BattleCamTrace] AN_BattleShot animation={} timeSec={:.3f} mode={} prefab={} useClip={} presetId={} clipId={}",
-        context.animationName.c_str(),
-        context.currentTimeSec,
-        modeName.c_str(),
-        character->Get_SourcePrefabName().c_str(),
-        _useClip,
-        event.presetId.c_str(),
-        event.clipId.c_str());
+    //const string modeName = string(magic_enum::enum_name(_cameraMode));
+    //LOG_INFO(
+    //    "[BattleCamTrace] AN_BattleShot animation={} timeSec={:.3f} mode={} prefab={} useClip={} presetId={} clipId={}",
+    //    context.animationName.c_str(),
+    //    context.currentTimeSec,
+    //    modeName.c_str(),
+    //    character->Get_SourcePrefabName().c_str(),
+    //    _useClip,
+    //    event.presetId.c_str(),
+    //    event.clipId.c_str());
 
     GAME->Get_EventBus().Publish(event);
 

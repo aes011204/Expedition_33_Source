@@ -69,7 +69,10 @@ void CinematicCamera::Apply_CinematicPose(const CAMERAPOSE& camPose)
     Set_Far(camPose.farPlane);
 
     if (GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+    {
         Update_TransformMatrices();
+        GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
+    }
 }
 
 Shared<CinematicCamera> CinematicCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
