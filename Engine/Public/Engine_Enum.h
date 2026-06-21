@@ -84,6 +84,7 @@ namespace Engine
         BattleStartSpawner,
         PuzzleTarget,
         SoulLikeController,
+        Trigger_Cinematic,
 
     };
 

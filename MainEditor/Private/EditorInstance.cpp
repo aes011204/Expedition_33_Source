@@ -855,6 +855,11 @@ bool EditorInstance::Is_ActivePreviewOwner(PreviewOwner owner) const
     return Get_ActivePreviewOwner() == owner;
 }
 
+void EditorInstance::Set_StickyPreviewOwner(PreviewOwner owner)
+{
+    _stickyPreviewOwner = owner;
+}
+
 void EditorInstance::Execute_Command(const Shared<ICommand>& command)
 {
     if (_commandHistory && command)
@@ -1654,6 +1659,9 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
     const bool gameFocusedActual =
         gameView && gameView->Is_Open() && gameView->Is_Focused();
+    const bool gameInteractive =
+        gameView && gameView->Is_Open() &&
+        (gameView->Is_Focused() || gameView->Is_Hovered());
 
     const bool hasPendingGameFocus =
         _hasPendingWindowFocus &&
@@ -1677,6 +1685,21 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     const bool isMenuAutoPlayLevel =
         GAME->Current_LevelIndex() == ETOI(LevelType::MainTitle) ||
         GAME->Current_LevelIndex() == ETOI(LevelType::GameEntry);
+
+    if (_isCinematicPreviewFreeCameraOverride && isFreeCamera)
+    {
+        const bool freeCameraControl = GAME->KeyPress(KEY_TYPE::RBUTTON);
+        GAME->Set_PlayerInputBlocked(false);
+        GAME->Set_FreeCameraInputEnabled(true);
+
+        if (freeCameraControl)
+            GAME->Lock_Mouse();
+        else
+            GAME->Unlock_Mouse();
+
+        applyMouseLockOverride();
+        return;
+    }
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
@@ -1719,7 +1742,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         if (isFreeCamera)
         {
             const bool freeCameraControl =
-                gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
+                (gameFocused || gameInteractive) && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
             GAME->Set_PlayerInputBlocked(false); // Play 중 FreeCamera에 잠깐 남아 있어도 이전 blocked 상태를 끌고 가지 않게 바로 푼다.
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);

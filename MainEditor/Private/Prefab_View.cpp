@@ -747,7 +747,7 @@ void Prefab_View::Open_PendingAnimationView()
             preferredAnimation = animationName;
     }
 
-    animationView->Open_FromModelComponent(modelCom, preferredAnimation, _pendingAnimationDockId, false);
+    animationView->Open_FromModelComponent(modelCom, preferredAnimation, _pendingAnimationDockId, true);
 }
 
 void Prefab_View::Open_PendingAnimStateView()

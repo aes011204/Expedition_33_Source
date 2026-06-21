@@ -79,6 +79,7 @@ public: /* For.Window */
 public: /* For.Preview */
     PreviewOwner            Get_ActivePreviewOwner() const;
     bool                    Is_ActivePreviewOwner(PreviewOwner owner) const;
+    void                    Set_StickyPreviewOwner(PreviewOwner owner);
 
 public: /* For.Editor Selection */
     const Editor_Context*   Get_EditorContext() const { return _editorContext.get(); }
@@ -181,6 +182,8 @@ public: // for targetCamera edit mode
     void Toogle_TargetCameraEditMode();
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable;}
     const bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
+    void Set_CinematicPreviewFreeCameraOverride(bool enable) { _isCinematicPreviewFreeCameraOverride = enable; }
+    bool Is_CinematicPreviewFreeCameraOverride() const { return _isCinematicPreviewFreeCameraOverride; }
 
 private:
     void Focus_GameView();
@@ -249,6 +252,7 @@ private: /* 저장 */
 
 private:
     bool                        _isTargetCameraEditMode = false;
+    bool                        _isCinematicPreviewFreeCameraOverride = false;
     MouseLockOverrideMode       _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
 
 private: /* Core Data */
