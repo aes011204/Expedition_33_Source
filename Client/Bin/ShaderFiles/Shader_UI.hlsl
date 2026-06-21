@@ -29,6 +29,8 @@ float g_MaterialVfxGlow = 4.0f;
 float g_MaterialVfxAlpha = 1.0f;
 float g_MaterialVfxNoiseStrength = 0.35f;
 float2 g_MaterialVfxUvScroll = float2(0.08f, -0.18f);
+float g_MaterialVfxFlowSpeed = 1.0f;
+float g_MaterialVfxPreserveColor = 0.0f;
 float g_MaterialVfxEdgeWidth = 0.18f;
 float g_MaterialVfxEdgeSoftness = 0.08f;
 float g_MaterialVfxErosion = 0.18f;
@@ -230,7 +232,7 @@ PS_OUT PS_MATERIAL_BRUSH_FLOW(PS_IN In)
 {
     PS_OUT Out;
 
-    const float2 flowScroll = g_MaterialVfxUvScroll * g_MaterialVfxTime;
+    const float2 flowScroll = g_MaterialVfxUvScroll * g_MaterialVfxFlowSpeed * g_MaterialVfxTime;
     const float2 baseUv = saturate(In.vTexcoord);
 
     const float4 fixedBrush = g_Texture.Sample(LinearClampSampler, baseUv);
@@ -310,7 +312,8 @@ PS_OUT PS_MATERIAL_BRUSH_FLOW(PS_IN In)
     const float core = pow(saturate(brushCoverage), 1.7f) * g_MaterialVfxCoreStrength * (0.03f + flowDetail * 0.08f);
     const float edgeCore = edgeHeat * g_MaterialVfxCoreStrength * (0.16f + g_MaterialVfxGlow * 0.015f);
     Out.vColor.rgb = g_MaterialVfxColor.rgb * internalShade * glowBoost + g_MaterialVfxCoreColor.rgb * (core + edgeCore);
-    Out.vColor.a = alpha * g_Color.a;
+    const float preservedAlpha = smoothstep(0.04f, 0.16f, brushCoverage * mask);
+    Out.vColor.a = lerp(alpha, max(alpha, preservedAlpha), saturate(g_MaterialVfxPreserveColor)) * g_Color.a;
 
     return Out;
 }
@@ -322,7 +325,7 @@ PS_OUT PS_MATERIAL_VFX(PS_IN In)
 
     PS_OUT Out;
 
-    const float2 flowScroll = g_MaterialVfxUvScroll * g_MaterialVfxTime;
+    const float2 flowScroll = g_MaterialVfxUvScroll * g_MaterialVfxFlowSpeed * g_MaterialVfxTime;
     const float2 edgeScroll = flowScroll * g_MaterialVfxEdgeWobbleSpeed;
     const float noiseA = Sample_MaterialVfxNoise(In.vTexcoord + flowScroll);
     const float noiseB = Sample_MaterialVfxNoise(In.vTexcoord + flowScroll * 0.73f + float2(0.37f, 0.53f));
@@ -349,13 +352,14 @@ PS_OUT PS_MATERIAL_VFX(PS_IN In)
     float flowTint = flowPattern * g_MaterialVfxFlowColor.a;
     float alpha = saturate(coverage * g_MaterialVfxAlpha * g_MaterialVfxColor.a);
     float solidAlpha = smoothstep(0.08f, 0.22f, coverage);
+    float preservedAlpha = lerp(solidAlpha * 0.82f, solidAlpha, saturate(g_MaterialVfxPreserveColor));
     float glow = edge * g_MaterialVfxGlow;
 
     float3 edgeColor = g_MaterialVfxColor.rgb * (0.55f + glow);
     float3 noiseColor = lerp(edgeColor, g_MaterialVfxFlowColor.rgb, flowTint);
     float3 coreColor = g_MaterialVfxCoreColor.rgb * coreAlpha;
     Out.vColor.rgb = noiseColor + coreColor;
-    Out.vColor.a = saturate(max(alpha, solidAlpha * 0.82f)) * g_Color.a;
+    Out.vColor.a = saturate(max(alpha, preservedAlpha)) * g_Color.a;
 
     return Out;
 }

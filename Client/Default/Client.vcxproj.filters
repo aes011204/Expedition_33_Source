@@ -1713,6 +1713,9 @@
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\GameplayUI_Battle.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
