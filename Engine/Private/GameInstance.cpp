@@ -796,7 +796,7 @@ HRESULT GameInstance::Draw()
     return S_OK;
 }
 
-HRESULT GameInstance::Draw_RendererOnly()
+HRESULT GameInstance::Draw_RendererOnly(bool preservePostProcess)
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
@@ -813,7 +813,11 @@ HRESULT GameInstance::Draw_RendererOnly()
     if (hasPostProcessPipeline)
     {
         savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
-        postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
+
+        if (!preservePostProcess)
+        {
+            postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
+        }
     }
 
     if (hasLightingPipeline)

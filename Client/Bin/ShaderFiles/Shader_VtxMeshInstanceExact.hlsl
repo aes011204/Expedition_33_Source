@@ -8,6 +8,7 @@
 
 float4x4 g_PreTransformMatrix;
 uint g_iObjectID;
+float g_fAccTime;
 
 struct VS_IN
 {
@@ -120,7 +121,7 @@ PS_OUT PS_Mask(PS_IN In)
     float3 orm = SampleOrm(finalUV);
 
     // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확인만
-    float3 emissive = SampleEmissive(finalUV);
+    float3 emissive = SampleEmissiveColorFallback(finalUV);
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
@@ -226,6 +227,50 @@ PS_OUT_ID PS_ID_Instance(PS_ID_INST_IN In)
     return Out;
 }
 
+struct PS_OUT_GLOW
+{
+    vector vColor : SV_Target0;
+};
+
+PS_OUT_GLOW PS_GlowOnly(PS_IN In)
+{
+    PS_OUT_GLOW Out;
+    float2 uv = In.vTexcoord;
+    
+    float cloudMask = 1.f;
+    if (HasMaterialTexture(MATERIAL_SLOT_EMISSIVE))
+    {
+        float2 cloudUV = uv * 4.f + float2(g_fAccTime * 0.01f, g_fAccTime * 0.01f);
+        cloudMask = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE].Sample(LinearWrapSampler, cloudUV).r;
+    }
+    
+    float auraMask = 1.f;
+    if (HasMaterialTexture(MATERIAL_SLOT_ORM2))
+    {
+        float2 auraUV = uv + float2(g_fAccTime * -0.03f, g_fAccTime * 0.02f);
+        auraMask = g_MaterialTextures[MATERIAL_SLOT_ORM2].Sample(LinearWrapSampler, auraUV).r;
+    }
+    
+    float finalMask = cloudMask * auraMask;
+    
+    float3 N = normalize(In.vNormal.xyz);
+    if (HasMaterialTexture(MATERIAL_SLOT_NORMAL))
+    {
+        float3 normalSample = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, uv).xyz;
+        normalSample = normalSample * 2.f - 1.f;
+        float3 T = normalize(In.vTangent);
+        float3 B = normalize(In.vBinormal);
+        N = normalize(normalSample.x * T + normalSample.y * B + normalSample.z * N);
+    }
+    
+    float3 viewDir = normalize(g_CamPosition.xyz - In.vWorldPos.xyz);
+    float rim = 1.0f - saturate(dot(viewDir, N));
+    rim = pow(rim, 2.918f);
+    
+    Out.vColor = float4(g_EmissiveColor.rgb * g_EmissiveIntensity * (rim + finalMask * 0.5f) * 8.f, 0.f);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
@@ -238,4 +283,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(OpaqueARPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 7
     PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 8
     PASS_RS_DS_BS_VP(IDInstancePass, RS_CullNone, DSS_Default, BS_Default, VS_ID_Instance, PS_ID_Instance) // 9
+    PASS_RS_DS_BS_VP(EmissiveGlowPass, RS_Default, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, PS_GlowOnly) // 10
 }

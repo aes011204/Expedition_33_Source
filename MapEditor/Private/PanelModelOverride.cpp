@@ -497,6 +497,17 @@ namespace
         }
 
         target.model->From_Json(entry.BuildMaterialJson(target.modelPath, GetMapName(ctx)));
+
+        if (target.object)
+        {
+            for (auto& chunk : target.object->_instancedChunkHandles)
+            {
+                if (chunk)
+                {
+                    chunk->Refresh_HasGlow();
+                }
+            }
+        }
     }
 
     void DrawInfoRow(const char* label, const string& value)
