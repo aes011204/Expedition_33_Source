@@ -24,10 +24,12 @@ public:
     Shared<ModelCom> GetModel() const { return _lodModels[0]; }
     Shared<ModelCom> GetLodModel(int lod) const { return _lodModels[lod]; }
     uint32 Get_InstanceCount() const { return _instanceCount; }
+    bool Get_HasGlow() const { return _hasGlow; }
 
     void Set_CameraFar(float camfar) { _cameraFar = camfar; }
     void Set_CullShader(Shared<ComputeShaderCom> shader) { _cullShader = shader; }
     void Set_LodModel(int lod, Shared<ModelCom> model);
+    void Set_HasGlow(bool hasGlow) { _hasGlow = hasGlow; }
 
 public:
     virtual HRESULT Initialize(void* arg) override;
@@ -58,6 +60,9 @@ private:
     float _lod1Dist = 80.f;
     float _lod2Dist = 200.f;
 
+    bool _hasGlow = false;
+    float _accTime = {};
+
 private:
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);
     void GenerateInstances(const Vec3& centerPos, float areaWidth, float areaDepth, float density, uint32 seed, vector<MESHINSTANCEDATA>& outInstances);
@@ -70,6 +75,7 @@ private:
 
 public:
     HRESULT UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms, MEModelManager* modelManager = nullptr);
+    void Refresh_HasGlow();
 
 public:
     static Shared<MEInstancedMeshActor> Create(ComPtr<Device> device, ComPtr<Context> context);

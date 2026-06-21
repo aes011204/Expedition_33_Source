@@ -300,6 +300,8 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clear
     }
 
     dsv = dsv ? dsv : _originalDSV.Get();
+    //if (useDSV && !dsv)
+    //    dsv = _originalDSV.Get();
     // ^ fix to down
 
     //if (!useDSV)

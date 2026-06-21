@@ -16,6 +16,7 @@ namespace Engine
         EffectMasked, // Mask 식 Effect용
         Distortion,   // Effect용 Distortion
         Blend,
+        Glow,
         UI,
         UIEffect,
         END

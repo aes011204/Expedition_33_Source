@@ -336,7 +336,7 @@ HRESULT MapEditorApp::Render()
                 }
 
                 obj->_instancedChunkHandles[ci]->Set_CameraFar(_camera->GetFar());
-                obj->_instancedChunkHandles[ci]->Late_Update(0.f);
+                obj->_instancedChunkHandles[ci]->Late_Update(_timeDelta);
             }
         }
     }
@@ -376,7 +376,7 @@ HRESULT MapEditorApp::Render()
 
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
-    CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
+    CHECK_FAILED(GAME->Draw_RendererOnly(true), E_FAIL);
 
     _debugRenderer->Draw(_scene);
     GAME->Render_DebugDepth();
@@ -527,6 +527,8 @@ void MapEditorApp::Update_InstancedMeshHandles()
                 _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
                 const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
                 _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
+
+                actor->Refresh_HasGlow();
             }
 
             obj->_instancedChunkHandles.push_back(actor);

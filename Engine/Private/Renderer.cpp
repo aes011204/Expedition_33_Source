@@ -213,6 +213,8 @@ void Renderer::Draw()
     // ========================================= //
     Render_Blend();
     // ========================================= //
+    Render_Glow();
+
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:After");
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
@@ -1003,6 +1005,33 @@ void Renderer::Render_Blend()
     GAME->End_MRT();
 }
 
+void Renderer::Render_Glow()
+{
+    auto& glowGroup = _renderGroups[ETOI(RenderGroup::Glow)];
+    if (glowGroup.empty())
+    {
+        return;
+    }
+
+    RETURN_LOG_IF_FAILED(GAME->Begin_MRT(MRT::HDR, UseDSV, NotClearRTV), L"Render_Glow:FAIL Begin_MRT(HDR)");
+
+    _currentGroup = RenderGroup::Glow;
+
+    for (auto& renderObject : glowGroup)
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    glowGroup.clear();
+
+    GAME->End_MRT();
+}
+
 void Renderer::Render_UIEffect()
 {
     GAME->Bind_BackBuffer();
@@ -1175,8 +1204,8 @@ void Renderer::Render_PostProcess()
     if (useBloom)
     {
         const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
-        const ViewportSize quarter = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
-        const ViewportSize eighth = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
+        const ViewportSize quarter = { max(1u, viewportWidth / 4u), max(1u, viewportHeight / 4u) };
+        const ViewportSize eighth = { max(1u, viewportWidth / 8u), max(1u, viewportHeight / 8u) };
 
         auto bindBloomScreenSpace = [&](uint32 srcWidth, uint32 srcHeight, const wchar_t* logTag)
         {

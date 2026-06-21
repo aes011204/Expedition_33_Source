@@ -109,7 +109,7 @@ public:
     void Update_Engine(float timeDelta, const function<void(float)>& clientUpdate);
 
     HRESULT Draw();
-    HRESULT Draw_RendererOnly(); // 에디터용
+    HRESULT Draw_RendererOnly(bool preservePostProcess = false); // 에디터용
     void Backup_RenderGroup();
     void Restore_RenderGroup();
 

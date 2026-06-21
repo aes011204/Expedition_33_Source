@@ -73,7 +73,7 @@ PS_OUT_COLOR PS_Debug(PS_IN In)
 PS_OUT_BACKBUFFER PS_BloomExtractHalf(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-
+    
     float2 texel = max(g_TexelSize, float2(EPSILON, EPSILON));
     float2 offset = texel * 1.5f;
 
@@ -281,6 +281,7 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         color = pow(saturate(color), 1.f / gamma);
     }
     // 최종 출력 화면은 LDR
+
     Out.Color = float4(saturate(color), 1.f);
     return Out;
 }

@@ -136,6 +136,15 @@
     <Filter Include="07. MeshActor\WaterActor">
       <UniqueIdentifier>{4b77f76f-2587-4825-afd3-ef9aeb250d46}</UniqueIdentifier>
     </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdConvertToInstanced">
+      <UniqueIdentifier>{15a1b56b-b56e-43bd-825e-17ba98bac584}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdConvertAllToStatic">
+      <UniqueIdentifier>{f6aeb690-f9f2-4465-a2e9-a771487e7446}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdConvertOneToStatic">
+      <UniqueIdentifier>{c1ee9022-a616-478b-8761-3ecd0b08baf6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -258,6 +267,15 @@
     <ClInclude Include="..\Public\MEWaterActor.h">
       <Filter>07. MeshActor\WaterActor</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CmdConvertToInstanced.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdConvertToInstanced</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdConvertAllToStatic.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdConvertAllToStatic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdConvertOneToStatic.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdConvertOneToStatic</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="MapEditor.ico">
@@ -377,6 +395,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\MEWaterActor.cpp">
       <Filter>07. MeshActor\WaterActor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdConvertToInstanced.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdConvertToInstanced</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdConvertAllToStatic.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdConvertAllToStatic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdConvertOneToStatic.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdConvertOneToStatic</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -57,13 +57,66 @@ void MEInstancedMeshActor::Late_Update(float timeDelta)
         return;
     }
 
+    _accTime += timeDelta;
+
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+
+    if (_hasGlow)
+    {
+        GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
+    }
 }
 
 HRESULT MEInstancedMeshActor::Render()
 {
     if (_instanceCount == 0 || !_lodModels[0] || !_shader)
     {
+        return S_OK;
+    }
+
+    if (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow)
+    {
+        if (FAILED(Bind_ShaderResources()))
+        {
+            return E_FAIL;
+        }
+
+        for (int lod = 0; lod < 3; ++lod)
+        {
+            if (!_lodModels[lod])
+            {
+                continue;
+            }
+
+            const uint32 numMeshes = static_cast<uint32>(_lodModels[lod]->Get_NumMeshes());
+            for (uint32 i = 0; i < numMeshes; ++i)
+            {
+                const uint32 materialIndex = _lodModels[lod]->Get_MeshMaterialIndex(i);
+                const Shared<Material> material = _lodModels[lod]->Get_Material(materialIndex);
+                if (material)
+                {
+                    if (FAILED(_shader->Bind_MaterialTextures(*material)))
+                    {
+                        return E_FAIL;
+                    }
+
+                    if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                    {
+                        return E_FAIL;
+                    }
+                }
+
+                if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::EmissiveGlowPass)))
+                {
+                    return E_FAIL;
+                }
+
+                if (FAILED(_lodModels[lod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+                {
+                    return E_FAIL;
+                }
+            }
+        }
         return S_OK;
     }
 
@@ -138,6 +191,16 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
         return S_OK;
     }
 
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
+
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
+
     if (FAILED(GAME->Bind_CameraCB(_shader)))
     {
         return E_FAIL;
@@ -174,6 +237,15 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
 
 HRESULT MEInstancedMeshActor::Bind_ShaderResources()
 {
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
+
+    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    //{
+    //    return E_FAIL;
+    //}
     if (FAILED(GAME->Bind_CameraCB(_shader)))
     {
         return E_FAIL;
@@ -181,6 +253,11 @@ HRESULT MEInstancedMeshActor::Bind_ShaderResources()
 
     Matrix identity = Matrix::Identity;
     if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_fAccTime", &_accTime, sizeof(float))))
     {
         return E_FAIL;
     }
@@ -560,7 +637,29 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const ve
     }
 
     CreateCullBuffers(matrices, transforms);
+
+    Refresh_HasGlow();
+
     return S_OK;
+}
+
+void MEInstancedMeshActor::Refresh_HasGlow()
+{
+    _hasGlow = false;
+    if (!_lodModels[0])
+    {
+        return;
+    }
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        const Shared<Material> mat = _lodModels[0]->Get_Material(_lodModels[0]->Get_MeshMaterialIndex(i));
+        if (mat && mat->Get_CB().emissiveIntensity > 0.f)
+        {
+            _hasGlow = true;
+            return;
+        }
+    }
 }
 
 HRESULT MEInstancedMeshActor::Ready_Components()
