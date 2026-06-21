@@ -1171,7 +1171,9 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
             t._rotation = Quat::Identity;
             obj->_instancedTransforms.push_back(t);
             obj->_instancedParamsDirty = true;
+            obj->_selectedInstanceIdx = static_cast<int32>(obj->_instancedTransforms.size()) - 1;
             _dirtyRenderHandles = true;
+            _selected = obj;
             return obj;
         }
     }
@@ -1191,6 +1193,7 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
     t._scale = Vec3(1.f, 1.f, 1.f);
     t._rotation = Quat::Identity;
     obj->_instancedTransforms.push_back(t);
+    obj->_selectedInstanceIdx = 0;
 
     obj->UpdateWorldMatrix();
     obj->_instancedParamsDirty = true;
@@ -1198,6 +1201,19 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
     _dirtyRenderHandles = true;
     Add(obj);
     return obj;
+}
+
+Shared<EditorObject> SceneContext::FindInstancedObjectByModelPath(const wstring& modelPath)
+{
+    for (auto& obj : _instancedMeshes)
+    {
+        if (obj && obj->_instancedModelPath == modelPath)
+        {
+            return obj;
+        }
+    }
+
+    return nullptr;
 }
 
 Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, const Vec3& pos)
