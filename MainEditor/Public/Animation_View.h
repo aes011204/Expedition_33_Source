@@ -4,6 +4,7 @@
 #include "Editor_Window.h"
 #include "AnimNotify_Types.h"
 #include "Editor_Camera_Free.h"
+#include "ANS_Trail.h"
 #include "TrailAnchor_Asset.h"
 #include <unordered_set>
 
@@ -15,6 +16,7 @@ class EffectInstance;
 NS_END
 
 NS_BEGIN(Client)
+class ANS_Trail;
 class SkyBoxFlow;
 class SkyCloudCard;
 class Weapon;
@@ -123,6 +125,10 @@ private:
         string partTag = "Part_Weapon";
         string modelGuid{};
         float lastTimeSec = -1.f;
+        float offsetPhase = 0.f;
+        Client::ANS_Trail::TipExtendCurve tipExtendCurve{};
+        Client::ANS_Trail::LocalOffsetCurve baseLocalOffsetCurve{};
+        Client::ANS_Trail::LocalOffsetCurve tipLocalOffsetCurve{};
 
         Client::TrailAnchorAsset trailAnchorAsset{};
         Shared<EffectInstance> effect{};
@@ -207,6 +213,7 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry);
     void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
     void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
     void Draw_TrailAnchorPanel();

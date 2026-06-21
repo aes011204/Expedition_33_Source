@@ -83,6 +83,7 @@ float Resolve_SourceHistoryDrainDuration(const Shared<const EffectDefinition>& d
 
     return max(0.001f, duration + 0.1f);
 }
+
 }
 
 IMPLEMENT_REFLECTION(EffectCom)
@@ -715,7 +716,12 @@ HRESULT EffectCom::Play_AttachedPartEffect(
     return Play_AttachedPartEffect(levelIndex, effectName, partTag, "", layerTag, localOffset, localRotation, scale);
 }
 
-HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& partTag, const wstring& layerTag)
+HRESULT EffectCom::Play_TrailEffect(
+    const wstring& effectName,
+    const wstring& partTag,
+    const wstring& layerTag,
+    uint64 trailNotifyToken,
+    const TrailOffsetRuntimeDesc& offsetDesc)
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
@@ -744,6 +750,9 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.partTag = partTag;
     attached.layerTag = layerTag;
     attached.role = AttachedEffectRole::Trail;
+    attached.trailNotifyToken = trailNotifyToken;
+    attached.trailOffset = offsetDesc;
+    attached.trailOffset.phase = std::clamp(attached.trailOffset.phase, 0.f, 1.f);
     attached.trailSampleEnabled = make_shared<bool>(true);
 
     const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
@@ -751,13 +760,14 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
         return E_FAIL;
 
     EffectTrailSample initialSample{};
-    if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, initialSample))
+    if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, initialSample))
         return E_FAIL;
 
     attached.trailSampleProvider = make_shared<TrailSampleProvider_ByPart>(
         static_pointer_cast<EffectCom>(GetSharedPtr<EffectCom>()),
         partTag,
         attached.trailAnchorAsset,
+        trailNotifyToken,
         attached.trailSampleEnabled
     );
     CHECK_NULL(attached.trailSampleProvider, E_FAIL);
@@ -773,7 +783,7 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
     acquireDesc.autoReleaseOnFinished = false;
 
-    attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
+    attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
@@ -782,7 +792,36 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     return S_OK;
 }
 
-void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partTag)
+void EffectCom::Update_TrailEffectOffset(
+    const wstring& effectName,
+    const wstring& partTag,
+    uint64 trailNotifyToken,
+    const TrailOffsetRuntimeDesc& offsetDesc)
+{
+    if (trailNotifyToken == 0)
+        return;
+
+    wstring resolvedEffectName{};
+    if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
+        return;
+
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.role != AttachedEffectRole::Trail)
+            continue;
+        if (attached.effectName != resolvedEffectName)
+            continue;
+        if (attached.partTag != partTag)
+            continue;
+        if (attached.trailNotifyToken != trailNotifyToken)
+            continue;
+
+        attached.trailOffset = offsetDesc;
+        attached.trailOffset.phase = std::clamp(attached.trailOffset.phase, 0.f, 1.f);
+    }
+}
+
+void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partTag, uint64 trailNotifyToken)
 {
     wstring resolvedEffectName{};
     if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
@@ -796,6 +835,8 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
             continue;
         if (attached.partTag != partTag)
             continue;
+        if (trailNotifyToken != 0 && attached.trailNotifyToken != trailNotifyToken)
+            continue;
 
         Begin_TrailDrain(attached);
     }
@@ -806,9 +847,25 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
 bool EffectCom::Try_GetTrailSampleForPart(
     const wstring& partTag,
     const TrailAnchorAsset& trailAnchorAsset,
+    uint64 trailNotifyToken,
     EffectTrailSample& outSample) const
 {
-    return Try_BuildTrailSample(partTag, trailAnchorAsset, outSample);
+    const TrailOffsetRuntimeDesc* offsetDesc = nullptr;
+    if (trailNotifyToken != 0)
+    {
+        for (const AttachedEffect& attached : _attachedEffects)
+        {
+            if (attached.role != AttachedEffectRole::Trail)
+                continue;
+            if (attached.trailNotifyToken != trailNotifyToken)
+                continue;
+
+            offsetDesc = &attached.trailOffset;
+            break;
+        }
+    }
+
+    return Try_BuildTrailSample(partTag, trailAnchorAsset, offsetDesc, outSample);
 }
 
 HRESULT EffectCom::Play_SourceHistoryEffect(
@@ -1039,7 +1096,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
         if (attached.role == AttachedEffectRole::Trail)
         {
             EffectTrailSample trailSample{};
-            if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, trailSample))
+            if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, trailSample))
                 continue;
 
             const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
@@ -1230,6 +1287,7 @@ bool EffectCom::Try_GetPartRootWorldMatrix(const wstring& partTag, Matrix& outWo
 bool EffectCom::Try_BuildTrailSample(
     const wstring& partTag,
     const TrailAnchorAsset& trailAnchorAsset,
+    const TrailOffsetRuntimeDesc* offsetDesc,
     EffectTrailSample& outSample) const
 {
     const Shared<GameObject> ownerObject = Get_Owner();
@@ -1241,11 +1299,21 @@ bool EffectCom::Try_BuildTrailSample(
     if (weaponPart == nullptr)
         return false;
 
+    const TrailAnchorAsset sampleAnchorAsset =
+        offsetDesc != nullptr
+            ? ANS_Trail::Make_OffsetTrailAnchorAsset(
+                trailAnchorAsset,
+                offsetDesc->tipExtendCurve,
+                offsetDesc->baseLocalOffsetCurve,
+                offsetDesc->tipLocalOffsetCurve,
+                offsetDesc->phase)
+            : trailAnchorAsset;
+
     Vec3 baseWorld{};
     Vec3 tipWorld{};
-    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, trailAnchorAsset.base, baseWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, sampleAnchorAsset.base, baseWorld))
         return false;
-    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, trailAnchorAsset.tip, tipWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, sampleAnchorAsset.tip, tipWorld))
         return false;
 
     outSample.baseWorldPosition = baseWorld;

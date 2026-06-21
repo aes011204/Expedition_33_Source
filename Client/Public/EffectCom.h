@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "ANS_Trail.h"
 #include "Component.h"
 #include "EffectInstancePool.h"
 #include "PreviewRimFeature.h"
@@ -78,6 +79,14 @@ public: //## Types::Public
     {
         Shared<EffectInstance> effect{}; // EffectInstance root를 직접 pause/restore한다.
         bool wasPaused = false;          // 튜토리얼 시작 전 pause 상태로 되돌리기 위해 저장한다.
+    };
+
+    struct TrailOffsetRuntimeDesc
+    {
+        float phase = 0.f;
+        ANS_Trail::TipExtendCurve tipExtendCurve{};
+        ANS_Trail::LocalOffsetCurve baseLocalOffsetCurve{};
+        ANS_Trail::LocalOffsetCurve tipLocalOffsetCurve{};
     };
 
 public:
@@ -167,15 +176,25 @@ public: //## Behavior::TrailAndSourceHistory
     HRESULT Play_TrailEffect(
         const wstring& effectName,
         const wstring& partTag,
-        const wstring& layerTag);
+        const wstring& layerTag,
+        uint64 trailNotifyToken = 0,
+        const TrailOffsetRuntimeDesc& offsetDesc = TrailOffsetRuntimeDesc{});
+
+    void Update_TrailEffectOffset(
+        const wstring& effectName,
+        const wstring& partTag,
+        uint64 trailNotifyToken,
+        const TrailOffsetRuntimeDesc& offsetDesc);
 
     void Stop_TrailEffect(
         const wstring& effectName,
-        const wstring& partTag);
+        const wstring& partTag,
+        uint64 trailNotifyToken = 0);
 
     bool Try_GetTrailSampleForPart(
         const wstring& partTag,
         const TrailAnchorAsset& trailAnchorAsset,
+        uint64 trailNotifyToken,
         EffectTrailSample& outSample) const;
 
     HRESULT Play_SourceHistoryEffect(
@@ -230,6 +249,8 @@ private: //## Types::AttachedEffect
         AttachedEffectRole role{ AttachedEffectRole::Normal };
         TrailAnchorAsset trailAnchorAsset{};
         Shared<IEffectTrailSampleProvider> trailSampleProvider{}; // 각 trail instance가 자기 sample source를 유지한다.
+        uint64 trailNotifyToken = 0;
+        TrailOffsetRuntimeDesc trailOffset{};
         Shared<bool> trailSampleEnabled{};
         bool isTrailDraining = false;
         float trailDrainElapsed = 0.f;
@@ -289,6 +310,7 @@ private: //## Helper::AttachedEffects
     bool Try_BuildTrailSample(
         const wstring& partTag,
         const TrailAnchorAsset& trailAnchorAsset,
+        const TrailOffsetRuntimeDesc* offsetDesc,
         EffectTrailSample& outSample) const;
 
     bool Try_ResolveTrailAnchorWorldPosition(
