@@ -37,9 +37,9 @@ cbuffer ComputePointParticleParams : register(b0)
     uint g_MaxDrawCount;
     uint g_KillActiveParticles;
     float4 g_Center;
-    float4 g_EmitterBasisRight; // xyz: emitter local X axis in world space
-    float4 g_EmitterBasisUp;    // xyz: emitter local Y axis in world space
-    float4 g_EmitterBasisLook;  // xyz: emitter local Z axis in world space
+    float4 g_EmitterBasisRight;                  // xyz: emitter local X axis in world space
+    float4 g_EmitterBasisUp;                     // xyz: emitter local Y axis in world space
+    float4 g_EmitterBasisLook;                   // xyz: emitter local Z axis in world space
     float4 g_SpawnRange;
     float4 g_InitialLocationMin;                 // xyz: InitialLocation min offset, w: enabled
     float4 g_InitialLocationMax;                 // xyz: InitialLocation max offset
@@ -69,7 +69,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_StartColorMax;
     float4 g_EndColorMin;
     float4 g_EndColorMax;
-    float4 g_ColorOverLifeCurveParams; // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
+    float4 g_ColorOverLifeCurveParams;           // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
     float4 g_ColorOverLifeColorCurveTimes;
     float4 g_ColorOverLifeColorCurveTimesBlock1; // 커브 Key를 4개 -> 8개로 확장하면서 Block1들 추가됨
     float4 g_ColorOverLifeColorCurveValuesR;
@@ -102,23 +102,23 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_ColorOverLifeAlphaCurveLeaveBlock1;
     float4 g_ColorOverLifeAlphaCurveModes;
     float4 g_ColorOverLifeAlphaCurveModesBlock1;
-    float4 g_SubUVParams;          // x/y: rows/cols, z: playback mode, w: frames per second
-    float4 g_SubUVFrameParams;     // x/y: start/end frame, z: loop, w: enabled
-    float4 g_SubUVFrameCurveTimes; // SubUV frame curve key times
+    float4 g_SubUVParams;                        // x/y: rows/cols, z: playback mode, w: frames per second
+    float4 g_SubUVFrameParams;                   // x/y: start/end frame, z: loop, w: enabled
+    float4 g_SubUVFrameCurveTimes;               // SubUV frame curve key times
     float4 g_SubUVFrameCurveTimesBlock1;
-    float4 g_SubUVFrameCurveValues; // SubUV frame curve frame values
+    float4 g_SubUVFrameCurveValues;              // SubUV frame curve frame values
     float4 g_SubUVFrameCurveValuesBlock1;
-    float4 g_SubUVFrameCurveParams; // x: key count, y: random start phase flag
-    uint4 g_SpawnSeedSalts;         // x: Lifetime, y: InitialLocation, z: SphereLocation, w: unused
-    uint4 g_SubUVSeedSalts;         // x: SubUV RandomFrame
-    uint4 g_AppearanceSeedSalts0;   // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB
-    uint4 g_AppearanceSeedSalts1;   // x: ColorOverLife Alpha
-    float4 g_SizeByLifeParams;      // x/y: width start/end, z/w: height start/end
-    float4 g_SizeByLifeCurveTimes;  // scaleOverLife key times
+    float4 g_SubUVFrameCurveParams;              // x: key count, y: random start phase flag
+    uint4 g_SpawnSeedSalts;                      // x: Lifetime, y: InitialLocation, z: SphereLocation, w: unused
+    uint4 g_SubUVSeedSalts;                      // x: SubUV RandomFrame
+    uint4 g_AppearanceSeedSalts0;                // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB
+    uint4 g_AppearanceSeedSalts1;                // x: ColorOverLife Alpha
+    float4 g_SizeByLifeParams;                   // x/y: width start/end, z/w: height start/end
+    float4 g_SizeByLifeCurveTimes;               // scaleOverLife key times
     float4 g_SizeByLifeCurveTimesBlock1;
-    float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
+    float4 g_SizeByLifeCurveValuesX;             // scaleOverLife X multipliers
     float4 g_SizeByLifeCurveValuesXBlock1;
-    float4 g_SizeByLifeCurveValuesY; // scaleOverLife Y multipliers
+    float4 g_SizeByLifeCurveValuesY;             // scaleOverLife Y multipliers
     float4 g_SizeByLifeCurveValuesYBlock1;
     float4 g_SizeByLifeCurveArriveTangentsX;
     float4 g_SizeByLifeCurveArriveTangentsXBlock1;
@@ -130,24 +130,24 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SizeByLifeCurveLeaveTangentsYBlock1;
     float4 g_SizeByLifeCurveModes;
     float4 g_SizeByLifeCurveModesBlock1;
-    float4 g_SizeByLifeCurveParams; // x: key count, y: multiplyX, z: multiplyY, w: axisLock
-    float4 g_MotionFlags;           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
-    float4 g_MotionSpaceFlags;      // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode
-    float4 g_InitialVelocityMin;    // xyz: vector velocity min
-    float4 g_InitialVelocityMax;    // xyz: vector velocity max
-    float4 g_MotionRadialPivot;     // xyz: radial pivot
-    float4 g_MotionRadialSpeedDrag; // x/y: radial speed min/max, z/w: drag min/max
-    float4 g_VelocityConeAxisAngle; // xyz: cone axis, w: half-angle degrees
-    float4 g_VelocityConeSpeed;     // x/y: speed min/max
+    float4 g_SizeByLifeCurveParams;              // x: key count, y: multiplyX, z: multiplyY, w: axisLock
+    float4 g_MotionFlags;                        // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
+    float4 g_MotionSpaceFlags;                   // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode
+    float4 g_InitialVelocityMin;                 // xyz: vector velocity min
+    float4 g_InitialVelocityMax;                 // xyz: vector velocity max
+    float4 g_MotionRadialPivot;                  // xyz: radial pivot
+    float4 g_MotionRadialSpeedDrag;              // x/y: radial speed min/max, z/w: drag min/max
+    float4 g_VelocityConeAxisAngle;              // xyz: cone axis, w: half-angle degrees
+    float4 g_VelocityConeSpeed;                  // x/y: speed min/max
     float4 g_AccelerationMin;
     float4 g_AccelerationMax;
-    float4 g_AccelerationCurveTimes; // Acceleration key times
+    float4 g_AccelerationCurveTimes;             // Acceleration key times
     float4 g_AccelerationCurveTimesBlock1;
-    float4 g_AccelerationCurveValuesX; // Acceleration X key values
+    float4 g_AccelerationCurveValuesX;           // Acceleration X key values
     float4 g_AccelerationCurveValuesXBlock1;
-    float4 g_AccelerationCurveValuesY; // Acceleration Y key values
+    float4 g_AccelerationCurveValuesY;           // Acceleration Y key values
     float4 g_AccelerationCurveValuesYBlock1;
-    float4 g_AccelerationCurveValuesZ; // Acceleration Z key values
+    float4 g_AccelerationCurveValuesZ;           // Acceleration Z key values
     float4 g_AccelerationCurveValuesZBlock1;
     float4 g_AccelerationCurveArriveTangentsX;
     float4 g_AccelerationCurveArriveTangentsXBlock1;
@@ -163,11 +163,11 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_AccelerationCurveLeaveTangentsZBlock1;
     float4 g_AccelerationCurveModes;
     float4 g_AccelerationCurveModesBlock1;
-    float4 g_AccelerationCurveParams; // x: key count, y: enabled
+    float4 g_AccelerationCurveParams;            // x: key count, y: enabled
     float4 g_VelocityScaleByLife;
-    float4 g_VelocityScaleByLifeCurveTimes; // VelocityOverLife key times
+    float4 g_VelocityScaleByLifeCurveTimes;      // VelocityOverLife key times
     float4 g_VelocityScaleByLifeCurveTimesBlock1;
-    float4 g_VelocityScaleByLifeCurveValues; // VelocityOverLife multiplier values
+    float4 g_VelocityScaleByLifeCurveValues;     // VelocityOverLife multiplier values
     float4 g_VelocityScaleByLifeCurveValuesBlock1;
     float4 g_VelocityScaleByLifeCurveArriveTangents;
     float4 g_VelocityScaleByLifeCurveArriveTangentsBlock1;
@@ -175,12 +175,12 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_VelocityScaleByLifeCurveLeaveTangentsBlock1;
     float4 g_VelocityScaleByLifeCurveModes;
     float4 g_VelocityScaleByLifeCurveModesBlock1;
-    float4 g_VelocityScaleByLifeCurveParams; // x: key count
-    float4 g_OrbitParams;                    // x: enabled, y: plane
-    float4 g_OrbitAngleRange;                // x/y: angle start/end degrees
-    float4 g_OrbitAngleCurveTimes;           // OrbitOverLife angle key times
+    float4 g_VelocityScaleByLifeCurveParams;     // x: key count
+    float4 g_OrbitParams;                        // x: enabled, y: plane
+    float4 g_OrbitAngleRange;                    // x/y: angle start/end degrees
+    float4 g_OrbitAngleCurveTimes;               // OrbitOverLife angle key times
     float4 g_OrbitAngleCurveTimesBlock1;
-    float4 g_OrbitAngleCurveValues; // OrbitOverLife angle degree values
+    float4 g_OrbitAngleCurveValues;              // OrbitOverLife angle degree values
     float4 g_OrbitAngleCurveValuesBlock1;
     float4 g_OrbitAngleCurveArriveTangents;
     float4 g_OrbitAngleCurveArriveTangentsBlock1;
@@ -188,11 +188,11 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_OrbitAngleCurveLeaveTangentsBlock1;
     float4 g_OrbitAngleCurveModes;
     float4 g_OrbitAngleCurveModesBlock1;
-    float4 g_OrbitAngleCurveParams; // x: key count
-    float4 g_OrbitRadiusRange;      // x/y: radius scale start/end
-    float4 g_OrbitRadiusCurveTimes; // OrbitOverLife radius scale key times
+    float4 g_OrbitAngleCurveParams;              // x: key count
+    float4 g_OrbitRadiusRange;                   // x/y: radius scale start/end
+    float4 g_OrbitRadiusCurveTimes;              // OrbitOverLife radius scale key times
     float4 g_OrbitRadiusCurveTimesBlock1;
-    float4 g_OrbitRadiusCurveValues; // OrbitOverLife radius scale values
+    float4 g_OrbitRadiusCurveValues;             // OrbitOverLife radius scale values
     float4 g_OrbitRadiusCurveValuesBlock1;
     float4 g_OrbitRadiusCurveArriveTangents;
     float4 g_OrbitRadiusCurveArriveTangentsBlock1;
@@ -200,14 +200,14 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_OrbitRadiusCurveLeaveTangentsBlock1;
     float4 g_OrbitRadiusCurveModes;
     float4 g_OrbitRadiusCurveModesBlock1;
-    float4 g_OrbitRadiusCurveParams;     // x: key count
-    uint4 g_MotionSeedSalts0;            // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration
-    uint4 g_MotionSeedSalts1;            // x: Drag
-    float4 g_RotationInitialRate;        // x/y: initial rotation min/max, z/w: rate min/max
-    float4 g_RotationByLife;             // (Legacy) x/y: rotation start/end, z/w: rate scale start/end
-    float4 g_RotationOverLifeCurveTimes; // rotationOverLife key times
+    float4 g_OrbitRadiusCurveParams;             // x: key count
+    uint4 g_MotionSeedSalts0;                    // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration
+    uint4 g_MotionSeedSalts1;                    // x: Drag
+    float4 g_RotationInitialRate;                // x/y: initial rotation min/max, z/w: rate min/max
+    float4 g_RotationByLife;                     // (Legacy) x/y: rotation start/end, z/w: rate scale start/end
+    float4 g_RotationOverLifeCurveTimes;         // rotationOverLife key times
     float4 g_RotationOverLifeCurveTimesBlock1;
-    float4 g_RotationOverLifeCurveValues; // rotationOverLife degree values
+    float4 g_RotationOverLifeCurveValues;        // rotationOverLife degree values
     float4 g_RotationOverLifeCurveValuesBlock1;
     float4 g_RotationOverLifeCurveArriveTangents;
     float4 g_RotationOverLifeCurveArriveTangentsBlock1;
@@ -215,8 +215,8 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_RotationOverLifeCurveLeaveTangentsBlock1;
     float4 g_RotationOverLifeCurveModes;
     float4 g_RotationOverLifeCurveModesBlock1;
-    float4 g_RotationOverLifeCurveParams;       // x: key count
-    float4 g_RotationRateScaleByLifeCurveTimes; // rotationRateScaleByLife key times
+    float4 g_RotationOverLifeCurveParams;        // x: key count
+    float4 g_RotationRateScaleByLifeCurveTimes;  // rotationRateScaleByLife key times
     float4 g_RotationRateScaleByLifeCurveTimesBlock1;
     float4 g_RotationRateScaleByLifeCurveValues; // rotationRateScaleByLife multiplier values
     float4 g_RotationRateScaleByLifeCurveValuesBlock1;
@@ -327,13 +327,13 @@ void AccumulateAccelerationHermiteSegment(
     const float m1 = rightArriveTangent * width;
 
     const float h00 = 0.5f * s4 - s3 + s;
-    const float h10 = 0.25f * s4 - (2.0f / 3.0f) * s3 + 0.5f * s2;
+    const float h10 = 0.25f * s4 - 2.0f / 3.0f * s3 + 0.5f * s2;
     const float h01 = -0.5f * s4 + s3;
-    const float h11 = 0.25f * s4 - (1.0f / 3.0f) * s3;
+    const float h11 = 0.25f * s4 - 1.0f / 3.0f * s3;
     const float segmentIntegral = width * (leftValue * h00 + m0 * h10 + rightValue * h01 + m1 * h11);
 
-    const float wh00 = (2.0f / 5.0f) * s5 - 0.75f * s4 + 0.5f * s2;
-    const float wh10 = 0.2f * s5 - 0.5f * s4 + (1.0f / 3.0f) * s3;
+    const float wh00 = 2.0f / 5.0f * s5 - 0.75f * s4 + 0.5f * s2;
+    const float wh10 = 0.2f * s5 - 0.5f * s4 + 1.0f / 3.0f * s3;
     const float wh01 = -(2.0f / 5.0f) * s5 + 0.75f * s4;
     const float wh11 = 0.2f * s5 - 0.25f * s4;
     const float localWeighted =
@@ -359,9 +359,7 @@ void AccumulateAccelerationCurveSegment(
     inout float weightedIntegral)
 {
     if (mode < 0.5f)
-    {
         AccumulateAccelerationConstantSegment(leftTime, rightTime, leftValue, lifeProgress, integral, weightedIntegral);
-    }
     else if (mode >= 1.5f)
     {
         AccumulateAccelerationHermiteSegment(
@@ -377,9 +375,7 @@ void AccumulateAccelerationCurveSegment(
         );
     }
     else
-    {
         AccumulateAccelerationSegment(leftTime, rightTime, leftValue, rightValue, lifeProgress, integral, weightedIntegral);
-    }
 }
 
 void IntegrateAccelerationAxis(
@@ -738,7 +734,7 @@ float IntegrateHermiteBasis1(float t)
     const float t2 = t * t;
     const float t3 = t2 * t;
     const float t4 = t3 * t;
-    return 0.25f * t4 - (2.0f / 3.0f) * t3 + 0.5f * t2;
+    return 0.25f * t4 - 2.0f / 3.0f * t3 + 0.5f * t2;
 }
 
 float IntegrateHermiteBasis2(float t)
@@ -754,7 +750,7 @@ float IntegrateHermiteBasis3(float t)
     const float t2 = t * t;
     const float t3 = t2 * t;
     const float t4 = t3 * t;
-    return 0.25f * t4 - (1.0f / 3.0f) * t3;
+    return 0.25f * t4 - 1.0f / 3.0f * t3;
 }
 
 float IntegrateCurveSegment(
@@ -774,19 +770,17 @@ float IntegrateCurveSegment(
     float result = 0.0f;
 
     if (mode < 0.5f)
-    {
         result = leftValue * max(0.0f, endTime - startTime);
-    }
     else if (mode >= 1.5f)
     {
         const float leftLeave = leftLeaveTangent * width;
         const float rightArrive = rightArriveTangent * width;
         result = width * (
-            leftValue * (IntegrateHermiteBasis0(t1) - IntegrateHermiteBasis0(t0)) +
-            leftLeave * (IntegrateHermiteBasis1(t1) - IntegrateHermiteBasis1(t0)) +
-            rightValue * (IntegrateHermiteBasis2(t1) - IntegrateHermiteBasis2(t0)) +
-            rightArrive * (IntegrateHermiteBasis3(t1) - IntegrateHermiteBasis3(t0))
-        );
+                     leftValue * (IntegrateHermiteBasis0(t1) - IntegrateHermiteBasis0(t0)) +
+                     leftLeave * (IntegrateHermiteBasis1(t1) - IntegrateHermiteBasis1(t0)) +
+                     rightValue * (IntegrateHermiteBasis2(t1) - IntegrateHermiteBasis2(t0)) +
+                     rightArrive * (IntegrateHermiteBasis3(t1) - IntegrateHermiteBasis3(t0))
+                 );
     }
     else
     {
@@ -1103,6 +1097,9 @@ float3 ResolveSourceMotionVelocity(float3 sourceVelocity, uint seed)
     const float3 fallbackForward = ResolveEmitterBasisVector(float3(0.0f, 0.0f, 1.0f));
     const float fallbackLength = length(fallbackForward);
     const float3 fallbackDirection = fallbackLength < 0.0001f ? float3(0.0f, 0.0f, 1.0f) : fallbackForward / fallbackLength;
+    const uint directionMode = (uint)g_SourceMotionVelocityParams.y;
+    const bool sourceVelocityRequired = directionMode <= 2u;
+
     float3 sourceDirection = fallbackDirection;
     if (sourceSpeed >= 0.0001f)
         sourceDirection = sourceVelocity / sourceSpeed;
@@ -1112,7 +1109,6 @@ float3 ResolveSourceMotionVelocity(float3 sourceVelocity, uint seed)
         side = cross(tangent, float3(0.0f, 0.0f, 1.0f));
     side = length(side) < 0.0001f ? float3(1.0f, 0.0f, 0.0f) : normalize(side);
 
-    const uint directionMode = (uint)g_SourceMotionVelocityParams.y;
     float3 resolvedDirection = tangent;
     if (directionMode == 0u || directionMode == 1u)
         resolvedDirection = sourceDirection;
@@ -1134,6 +1130,9 @@ float3 ResolveSourceMotionVelocity(float3 sourceVelocity, uint seed)
     float3 result = resolvedDirection * (sampledSpeed + sourceSpeed * g_SourceMotionVelocityParams.w);
     if (directionMode == 0u)
         result = sourceVelocity * g_SourceMotionVelocityParams.w + sourceDirection * sampledSpeed;
+
+    if (sourceVelocityRequired && !sourceVelocityValid)
+        result = float3(0.0f, 0.0f, 0.0f);
 
     return result;
 }

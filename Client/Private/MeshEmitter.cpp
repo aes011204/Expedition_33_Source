@@ -2000,6 +2000,13 @@ Vec3 MeshEmitter::Sample_InitialVelocity(
     if (_desc.motion.sourceMotionVelocityEnabled)
     {
         const uint32 sourceMotionSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _effectPlaybackSeed);
+        const bool requiresSourceVelocity =
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity ||
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection ||
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
+        if (requiresSourceVelocity && !sourceMotionContext.sourceVelocityValid)
+            return velocity;
+
         const Vec3 fallbackForward = Resolve_LocalVector(Vec3{ 0.f, 0.f, 1.f });
         const Vec3 sourceDirection = sourceMotionContext.sourceVelocityValid
                                      ? Internal::Normalize_OrFallback(sourceMotionContext.sourceVelocity, fallbackForward)

@@ -8,12 +8,12 @@
 cbuffer cbEffectBeamMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectBeamParams = { 1.f, 1.f, 0.f, 0.f };       // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectBeamAlphaParams = { 0.f, 0.f, 0.f, 0.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectBeamMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectBeamParams = { 1.f, 1.f, 0.f, 0.f };                 // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectBeamAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectBeamMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectBeamNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectBeamMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
-    float4 g_EffectBeamUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
+    float4 g_EffectBeamUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };         // xy: main offset, zw: noise offset
     float4 g_EffectBeamMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectBeamUVModeParams = { 0.f, 0.f, 0.f, 0.f };           // x: main, y: noise, z: mask, w: reserved
     float4 g_EffectBeamUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
@@ -24,9 +24,9 @@ cbuffer cbEffectBeamMaterial : register(b2)
     float4 g_EffectBeamAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectBeamAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectBeamAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };
-    float4 g_EffectBeamCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };    // x: enabled, y: corePower, z: coreIntensity, w: outerPower
-    float4 g_EffectBeamCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
-    float4 g_EffectBeamAxisParams = { 0.f, 1.f, 0.f, 0.f };            // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
+    float4 g_EffectBeamCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };     // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectBeamCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f };  // rgb: coreColor, a: outerIntensity
+    float4 g_EffectBeamAxisParams = { 0.f, 1.f, 0.f, 0.f };             // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
     float4 g_EffectBeamFallbackAxis = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationMeta[8];

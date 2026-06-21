@@ -23,10 +23,10 @@ namespace Internal
         const float t2 = ratio * ratio;
         const float t3 = t2 * ratio;
 
-        return (p1 * 2.f +
-                (p2 - p0) * ratio +
-                (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
-                (p1 * 3.f - p0 - p2 * 3.f + p3) * t3)
+        return (p1 * 2.f
+                + (p2 - p0) * ratio
+                + (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2
+                + (p1 * 3.f - p0 - p2 * 3.f + p3) * t3)
                * 0.5f;
     }
 
@@ -34,10 +34,9 @@ namespace Internal
     {
         const float t2 = ratio * ratio;
 
-        return (p2 - p0 +
-                (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * (2.f * ratio) +
-                (p1 * 3.f - p0 - p2 * 3.f + p3) * (3.f * t2)
-               )
+        return (p2 - p0
+                + (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * (2.f * ratio)
+                + (p1 * 3.f - p0 - p2 * 3.f + p3) * (3.f * t2))
                * 0.5f;
     }
 
@@ -2008,6 +2007,13 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
 
     if (_desc.motion.sourceMotionVelocityEnabled)
     {
+        const bool requiresSourceVelocity =
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity ||
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection ||
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
+        if (requiresSourceVelocity && !sourceMotionContext.sourceVelocityValid)
+            return velocity;
+
         const float sourceSpeed =
             sourceMotionContext.sourceVelocityValid ? sourceMotionContext.sourceVelocity.Length() : 0.f;
         const Vec3 fallbackForward = _transformCom != nullptr
@@ -2019,7 +2025,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
             : Internal::Normalize_OrFallback(fallbackForward, Vec3{ 0.f, 0.f, 1.f });
         const Vec3 normalizedTangent = Internal::Normalize_OrFallback(tangent, normalizedSourceVelocity);
 
-        const auto resolve_side_from_tangent = [&normalizedTangent]()
+        const auto resolve_side_from_tangent = [&normalizedTangent]
         {
             Vec3 side = normalizedTangent.Cross(Vec3{ 0.f, 1.f, 0.f });
             if (side.LengthSquared() <= 0.0001f)

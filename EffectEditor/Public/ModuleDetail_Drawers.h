@@ -136,7 +136,7 @@ class SourceMotionVelocityModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         SourceMotionVelocityModuleData& data,
         DetailPropertyContext& detailContext);

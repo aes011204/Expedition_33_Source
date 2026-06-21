@@ -10,9 +10,9 @@ float4x4 g_PreTransformMatrix;
 cbuffer cbEffectMeshMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMeshParams = { 1.f, 1.f, 0.f, 0.f };       // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectMeshAlphaParams = { 0.f, 0.f, 0.f, 0.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectMeshMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectMeshParams = { 1.f, 1.f, 0.f, 0.f };                 // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMeshAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMeshMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectMeshNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectMeshMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectMeshUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };

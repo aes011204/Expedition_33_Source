@@ -2767,7 +2767,7 @@ bool VelocityConeModuleDetail::Draw(
 }
 
 bool SourceMotionVelocityModuleDetail::Draw(
-    AuthoringEmitter&,
+    const AuthoringEmitter& emitter,
     AuthoringModule&,
     SourceMotionVelocityModuleData& data,
     DetailPropertyContext& detailContext)
@@ -2797,6 +2797,35 @@ bool SourceMotionVelocityModuleDetail::Draw(
             return "트레일 접선";
         }
     };
+    const auto direction_mode_tooltip = [](SourceMotionVelocityDirectionMode mode)
+    {
+        switch (mode)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return "source가 움직인 속도 벡터를 그대로 상속하고, 속도 값은 그 방향에 추가로 더합니다.\nsource 이동 delta가 없으면 속도를 더하지 않습니다.";
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return "source가 움직인 방향으로 초기 속도를 더합니다.\n일반 Sprite/Mesh에서는 emitter center 이동 방향을 사용합니다.";
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return "source가 움직인 방향의 반대로 초기 속도를 더합니다.\n일반 Sprite/Mesh에서는 emitter center 이동 방향을 사용합니다.";
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return "SourceHistorySpriteTrail의 source history 접선 방향을 사용합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없으므로 소스 속도 방향 모드를 우선 사용하세요.";
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return "SourceHistorySpriteTrail의 source history 접선 반대 방향을 사용합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return "SourceHistorySpriteTrail 접선의 측면 방향으로 초기 속도를 더합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return "SourceHistorySpriteTrail 접선의 양쪽 측면 중 하나를 랜덤으로 골라 초기 속도를 더합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        default:
+            return "";
+        }
+    };
+    const auto is_trail_tangent_mode = [](SourceMotionVelocityDirectionMode mode)
+    {
+        return mode == SourceMotionVelocityDirectionMode::TrailTangent ||
+               mode == SourceMotionVelocityDirectionMode::TrailTangentOpposite ||
+               mode == SourceMotionVelocityDirectionMode::SideFromTangent ||
+               mode == SourceMotionVelocityDirectionMode::RandomSideFromTangent;
+    };
 
     const bool sourceMotionVelocityOpen = ImGui::CollapsingHeader("소스 모션 속도", ImGuiTreeNodeFlags_DefaultOpen);
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
@@ -2809,14 +2838,20 @@ bool SourceMotionVelocityModuleDetail::Draw(
 
     if (sourceMotionVelocityOpen)
     {
+        const bool sourceHistorySpriteTrail =
+            emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+
         if (detailContext.Begin_PropertyTable("SourceMotionVelocity"))
         {
             ImGui::PushID("DirectionMode");
-            detailContext.Draw_PropertyLabel("방향");
+            detailContext.Draw_PropertyLabel(
+                "방향",
+                "Source motion에서 초기 속도 방향을 고르는 방식입니다. 항목 위에 마우스를 올리면 타입별 의미를 볼 수 있습니다."
+            );
             SourceMotionVelocityDirectionMode nextDirectionMode = data.directionMode;
             if (ImGui::BeginCombo("##Value", direction_mode_label(nextDirectionMode)))
             {
-                const SourceMotionVelocityDirectionMode candidates[] = {
+                static constexpr SourceMotionVelocityDirectionMode sourceHistoryCandidates[] = {
                     SourceMotionVelocityDirectionMode::TrailTangent,
                     SourceMotionVelocityDirectionMode::TrailTangentOpposite,
                     SourceMotionVelocityDirectionMode::SideFromTangent,
@@ -2825,16 +2860,32 @@ bool SourceMotionVelocityModuleDetail::Draw(
                     SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
                     SourceMotionVelocityDirectionMode::InheritSourceVelocity,
                 };
-                for (const SourceMotionVelocityDirectionMode candidate : candidates)
+                static constexpr SourceMotionVelocityDirectionMode sourceVelocityCandidates[] = {
+                    SourceMotionVelocityDirectionMode::SourceVelocityDirection,
+                    SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
+                    SourceMotionVelocityDirectionMode::InheritSourceVelocity,
+                };
+                const SourceMotionVelocityDirectionMode* candidates =
+                    sourceHistorySpriteTrail ? sourceHistoryCandidates : sourceVelocityCandidates;
+                const size_t candidateCount =
+                    sourceHistorySpriteTrail
+                    ? sizeof(sourceHistoryCandidates) / sizeof(sourceHistoryCandidates[0])
+                    : sizeof(sourceVelocityCandidates) / sizeof(sourceVelocityCandidates[0]);
+                for (size_t index = 0; index < candidateCount; ++index)
                 {
+                    const SourceMotionVelocityDirectionMode candidate = candidates[index];
                     const bool selected = nextDirectionMode == candidate;
                     if (ImGui::Selectable(direction_mode_label(candidate), selected))
                         nextDirectionMode = candidate;
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                        ImGui::SetTooltip("%s", direction_mode_tooltip(candidate));
                     if (selected)
                         ImGui::SetItemDefaultFocus();
                 }
                 ImGui::EndCombo();
             }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("%s", direction_mode_tooltip(nextDirectionMode));
             if (data.directionMode != nextDirectionMode)
             {
                 data.directionMode = nextDirectionMode;
@@ -2858,6 +2909,9 @@ bool SourceMotionVelocityModuleDetail::Draw(
             );
             detailContext.End_PropertyTable();
         }
+
+        if (!sourceHistorySpriteTrail && is_trail_tangent_mode(data.directionMode))
+            ImGui::TextDisabled("트레일 접선 계열은 SourceHistorySpriteTrail에서만 명확한 접선 기준을 가집니다.");
 
         const float clampedSourceSpeedScale = max(0.f, data.sourceSpeedScale);
         if (data.sourceSpeedScale != clampedSourceSpeedScale)
