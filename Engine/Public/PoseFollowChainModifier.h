@@ -22,6 +22,7 @@ public:
 	{
 		vector<BoneChainGroupDesc> groups{};
 		TransformCom* ownerTransform{ nullptr };
+		const Matrix* ownerWorldMatrix{ nullptr };
 
 		wstring physicsAssetPath{};
 		vector<string> includedCollisionBones{};

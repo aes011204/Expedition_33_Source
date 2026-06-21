@@ -68,11 +68,11 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_PotatoBagHair");
 
-    static void BuildSimonHairDesc(
-        ChainModifier::ChainModifierDesc& outDesc,
+    static void BuildSimonPoseFollowHairDesc(
+        PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,
-        const wstring& modifierTag = L"ClothPhysics_SimonHair");
+        const wstring& modifierTag = L"PoseFollow_SimonHair");
 
     static void BuildPotatoBagClothBackDesc(
         ChainModifier::ChainModifierDesc& outDesc,

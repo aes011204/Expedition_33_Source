@@ -41,6 +41,16 @@ namespace
 		properties.push_back(std::move(property));
 	}
 
+	Matrix Get_OwnerWorld(const PoseFollowChainModifier::PoseFollowChainModifierDesc& desc)
+	{
+		if (desc.ownerWorldMatrix)
+		{
+			return *desc.ownerWorldMatrix;
+		}
+
+		return desc.ownerTransform ? desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	}
+
 	float SmoothStep(float value)
 	{
 		value = std::clamp(value, 0.f, 1.f);
@@ -322,7 +332,7 @@ void PoseFollowChainModifier::Initialize_Chains(ModelCom* model)
 		}
 	}
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	Capture_CurrentPose(model, ownerWorld);
 
 	for (auto& chain : _chains)
@@ -390,7 +400,7 @@ void PoseFollowChainModifier::ResetPose(ModelCom* model)
 		return;
 	}
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	Capture_CurrentPose(model, ownerWorld);
 
 	for (auto& chain : _chains)
@@ -469,7 +479,7 @@ void PoseFollowChainModifier::On_RuntimeReflectionChanged(ModelCom* model, const
 
 	model->Rebuild_BoneCombinedMatrices();
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	const Vec3 currentOwnerPos = ownerWorld.Translation();
 	Vec3 currentOwnerForward = Get_WorldDirection(ownerWorld, Vec3::UnitZ);
 	if (currentOwnerForward.LengthSquared() <= 0.0001f)
@@ -722,8 +732,10 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 				nextPosition = Vec3::Lerp(nextPosition, poseTarget, settleAlpha);
 				node.prevPosition = Vec3::Lerp(node.prevPosition, nextPosition, settleAlpha);
 
-				if (velocity.Length() <= _desc.sleepVelocityThreshold
-					&& Vec3::Distance(nextPosition, poseTarget) <= _desc.sleepPoseDistance)
+				const bool nearPose = Vec3::Distance(nextPosition, poseTarget) <= _desc.sleepPoseDistance;
+				const bool canSnapIdlePose = nearPose
+					&& (_desc.windScale <= 0.f || velocity.Length() <= _desc.sleepVelocityThreshold);
+				if (canSnapIdlePose)
 				{
 					nextPosition = poseTarget;
 					node.prevPosition = poseTarget;
@@ -1006,6 +1018,17 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 		const bool idleAnimatedPose =
 			Vec3::Distance(node.originalWorld.Translation(), node.prevOriginalWorld.Translation()) <= animatedMotionDeadzone;
 		const bool idleNoWindPose = isOwnerIdle && idleAnimatedPose && _desc.windScale <= 0.f;
+		const float outputDeadzoneDegree = _desc.outputDeadzoneDegree;
+		if (idleNoWindPose && GetAngleDegree(node.poseLocalDir, simulatedLocalDir) <= outputDeadzoneDegree)
+		{
+			node.debugWriteAlpha = 0.f;
+			node.smoothedLocalDir = node.poseLocalDir;
+			node.hasSmoothedLocalDir = true;
+			model->Set_BoneLocalMatrix(node.boneIndex, node.poseLocal);
+			model->Rebuild_BoneCombinedMatrices();
+			continue;
+		}
+
 		const float writeAlpha = outputAlpha
 			* BlendTip(
 				_desc.rootOutputAlpha * std::clamp(chain.rootOutputMul, 0.f, 1.f),
@@ -1023,9 +1046,6 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 			targetLocalDir.Normalize();
 		}
 
-		const float outputDeadzoneDegree = idleNoWindPose
-			? _desc.outputDeadzoneDegree * std::clamp(_desc.idleOutputAlphaScale, 0.f, 1.f)
-			: _desc.outputDeadzoneDegree;
 		if (GetAngleDegree(node.poseLocalDir, targetLocalDir) <= outputDeadzoneDegree)
 		{
 			targetLocalDir = node.poseLocalDir;
@@ -1210,7 +1230,7 @@ void PoseFollowChainModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
 		return;
 	}
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	const Vec3 currentOwnerPos = ownerWorld.Translation();
 	Vec3 currentOwnerForward = Get_WorldDirection(ownerWorld, Vec3::UnitZ);
 	if (currentOwnerForward.LengthSquared() <= 0.0001f)

@@ -40,11 +40,11 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
 HRESULT Mon_Simon_Hair::Ready_Modifier()
 {
     PoseFollowChainModifier::PoseFollowChainModifierDesc hairDesc{};
-    ChainModifierPreset::BuildPoseFollowHairDesc(
+    ChainModifierPreset::BuildSimonPoseFollowHairDesc(
         hairDesc,
         _transformCom.get(),
-        PlayerCharacterType::None,
-        L"PoseFollow_SimonHair");
+        PlayerCharacterType::None);
+    hairDesc.ownerWorldMatrix = &Get_CombinedWorldMatrix();
 
     if (!hairDesc.groups.empty())
     {
