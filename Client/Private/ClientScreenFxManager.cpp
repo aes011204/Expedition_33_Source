@@ -37,6 +37,7 @@ void ClientScreenFxManager::Play_BattleInCounterFx()
 
     Distortion_ScreenFx::DistortionDesc distDesc;
     distDesc.passType = ETOI(ScreenFx_Type::Distortion);
+    distDesc.tag = L"BattleInCounterFx";
     distDesc.duration = 2.f;
     distDesc.endPredicate = killCondition;
     distDesc.bulgeIntensity = 0.575f;
@@ -45,6 +46,11 @@ void ClientScreenFxManager::Play_BattleInCounterFx()
     distDesc.isReverse = true;
 
     GAME->Play_ScreenFx(Distortion_ScreenFx::Create(&distDesc));
+}
+
+bool ClientScreenFxManager::Is_BattleInCounterFxFinished() const
+{
+    return GAME->Is_ScreenFxFinished(L"BattleInCounterFx");
 }
 
 void ClientScreenFxManager::Transition_To_BattleField()

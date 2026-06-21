@@ -12,13 +12,26 @@ ScreenFx_Manager::~ScreenFx_Manager()
 
 void ScreenFx_Manager::Play_ScreenEffect(const Shared<ScreenFx_Instance>& effect)
 {
-    if (effect != nullptr)
-        _activeEffects.push_back(effect);
+    if (effect == nullptr)
+        return;
+
+    if (!effect->Get_Tag().empty())
+        _finishedEffectTags.erase(effect->Get_Tag());
+
+    _activeEffects.push_back(effect);
 }
 
 void ScreenFx_Manager::Clear_ScreenEffect()
 {
     _activeEffects.clear();
+}
+
+bool ScreenFx_Manager::Is_ScreenEffectFinished(const wstring& tag) const
+{
+    if (tag.empty())
+        return false;
+
+    return _finishedEffectTags.contains(tag);
 }
 
 void ScreenFx_Manager::Update(float timeDelta)
@@ -31,6 +44,9 @@ void ScreenFx_Manager::Update(float timeDelta)
 
         if (_activeEffects[i]->Check_EndCondition())
         {
+            if (!_activeEffects[i]->Get_Tag().empty())
+                _finishedEffectTags.insert(_activeEffects[i]->Get_Tag());
+
             _activeEffects.erase(_activeEffects.begin() + i);
         }
         else
