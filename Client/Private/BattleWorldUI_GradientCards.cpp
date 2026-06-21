@@ -1683,6 +1683,29 @@ HRESULT BattleWorldUI_GradientCards::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleWorldUI_GradientCards::Warmup_ForBattleState(HeroId actorHeroId)
+{
+    if (_impl == nullptr)
+        return E_FAIL;
+
+    const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
+    const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+
+    BattleWorldGradientPanelInstance& panel = _impl->panels[placementHeroIndex];
+    if (!panel.panelTemplate.valid || panel.surface == nullptr)
+        return E_FAIL;
+
+    if (!panel.dirty)
+        return S_OK;
+
+    CHECK_FAILED(panel.surface->Compose(panel.panelTemplate), E_FAIL);
+    panel.dirty = false;
+    return S_OK;
+}
+
 void BattleWorldUI_GradientCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
@@ -1694,11 +1717,6 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
         Hide();
         return;
     }
-
-    Reload_GradientWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
 
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);

@@ -188,8 +188,14 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 
     Bind_BattleDelegates();
 
+    if (FAILED(Ensure_BattleWorldCommandCards()))
+        LOG_WARN("BattleWorldUI command cards editor target preload failed.");
+
     if (FAILED(Ensure_BattleWorldItemCards()))
         LOG_WARN("BattleWorldUI item cards editor target preload failed.");
+
+    if (FAILED(Ensure_BattleWorldSkillCards()))
+        LOG_WARN("BattleWorldUI skill cards editor target preload failed.");
 
     if (FAILED(Ensure_BattleWorldGradientCards()))
         LOG_WARN("BattleWorldUI gradient cards editor target preload failed.");
@@ -538,6 +544,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _activePlayerId = HeroId::END;
     _battleStartVictoryStats.clear();
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
+    _battleWorldWarmupHeroFlags.fill(false);
 
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
 
@@ -613,6 +620,12 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _battleSystemHUD->Set_BattleHeroIds(battleHeroIds);
         _battleSystemHUD->Open();
         _battleSystemHUD->Play_BattleSystemIntro();
+    }
+
+    if (_battleController)
+    {
+        for (const BattleChar& hero : _battleController->Get_BattleHeroes())
+            Warmup_BattleWorldCardsForActor(hero);
     }
 
     Play_BattleEnterTransition(); // 전투 진입 연출은 battle UI 쪽에서 시작한다.
@@ -700,6 +713,8 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
                 _battleSystemHUD->Play_PortraitActivation(actor.heroId);
             }
         }
+
+        Warmup_BattleWorldCardsForActor(actor);
     }
     else
     {
@@ -2094,6 +2109,60 @@ void GameplayUI_Battle::Update_BattleWorldGradientCards(
 
     _battleWorldGradientCards->Show_ForBattleState(worldPos, currentState, actor.heroId, timeDelta);
     _battleWorldGradientCards->Late_Update(0.f);
+}
+
+void GameplayUI_Battle::Warmup_BattleWorldCardsForActor(const BattleChar& actor)
+{
+    if (actor.statCom == nullptr || !actor.statCom->Is_Player())
+        return;
+
+    const uint32 heroIndex = static_cast<uint32>(actor.heroId);
+    if (heroIndex >= _battleWorldWarmupHeroFlags.size())
+        return;
+
+    if (_battleWorldWarmupHeroFlags[heroIndex])
+        return;
+
+    if (FAILED(Ensure_BattleWorldCommandCards()))
+    {
+        LOG_WARN("BattleWorldUI command cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldCommandCards->Warmup_ForBattleState(
+        actor.statCom->Get_CurAP(),
+        actor.statCom->Get_MaxAP(),
+        actor.heroId)))
+    {
+        LOG_WARN("BattleWorldUI command cards warmup failed.");
+    }
+
+    if (FAILED(Ensure_BattleWorldItemCards()))
+    {
+        LOG_WARN("BattleWorldUI item cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldItemCards->Warmup_ForBattleState(BattleItemType::Invalid, actor.heroId)))
+    {
+        LOG_WARN("BattleWorldUI item cards warmup failed.");
+    }
+
+    if (FAILED(Ensure_BattleWorldSkillCards()))
+    {
+        LOG_WARN("BattleWorldUI skill cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldSkillCards->Warmup_ForBattleState(actor, string{}, kBattleSkillPageNormal)))
+    {
+        LOG_WARN("BattleWorldUI skill cards warmup failed.");
+    }
+
+    if (FAILED(Ensure_BattleWorldGradientCards()))
+    {
+        LOG_WARN("BattleWorldUI gradient cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldGradientCards->Warmup_ForBattleState(actor.heroId)))
+    {
+        LOG_WARN("BattleWorldUI gradient cards warmup failed.");
+    }
+
+    _battleWorldWarmupHeroFlags[heroIndex] = true;
 }
 
 void GameplayUI_Battle::Update_BattleAnnounce(float timeDelta)

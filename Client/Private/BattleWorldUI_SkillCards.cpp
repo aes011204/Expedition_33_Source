@@ -2475,6 +2475,146 @@ HRESULT BattleWorldUI_SkillCards::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleWorldUI_SkillCards::Warmup_ForBattleState(
+    const BattleChar& actor,
+    const string& selectedSkillKey,
+    uint32 skillPage)
+{
+    if (_impl == nullptr || actor.statCom == nullptr)
+        return E_FAIL;
+
+    const HeroId placementHeroId = Normalize_SkillHeroId(actor.heroId);
+    const uint32 placementHeroIndex = Resolve_SkillHeroIndex(placementHeroId);
+    const uint32 pageIndex = Normalize_SkillPage(skillPage);
+
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+    _impl->activePlacementPage = pageIndex;
+    if (_impl->editorPlacementPage >= kBattleWorldSkillPageCount)
+        _impl->editorPlacementPage = pageIndex;
+
+    const BattleWorldSkillWorldPlacementTuning& placementTuning =
+        _impl->placementTunings[placementHeroIndex][pageIndex];
+
+    HRESULT result = S_OK;
+    for (uint32 surfaceIndex = 0; surfaceIndex < kBattleWorldSkillSurfaceCount; ++surfaceIndex)
+    {
+        auto& card = _impl->cards[surfaceIndex];
+
+        const BattleWorldSkillCardTemplate& cardTemplate =
+            _impl->templates[placementHeroIndex][pageIndex][surfaceIndex];
+        const bool templateChanged =
+            card.templateHeroId != placementHeroId ||
+            card.templatePage != pageIndex ||
+            card.templateSurfaceIndex != surfaceIndex;
+
+        BattleWorldSkillCardPresentation presentation{};
+
+        if (surfaceIndex == kBattleWorldSkillChangeSurfaceIndex)
+        {
+            BattleWorldSkillCardContent content{};
+            content.skillKey = "ChangeSkillPage";
+
+            if (!card.hasContent || !Is_SameContent(card.def.content, content) || templateChanged)
+            {
+                card.def = Build_SkillCardDef(content, cardTemplate);
+                card.hasContent = true;
+                card.templateHeroId = placementHeroId;
+                card.templatePage = pageIndex;
+                card.templateSurfaceIndex = surfaceIndex;
+                card.dirty = true;
+            }
+
+            presentation.visible = true;
+            presentation.screenPosition = placementTuning.screenPosition;
+            presentation.worldOffset = card.def.worldOffset;
+            presentation.worldSize = card.def.worldSize;
+            presentation.visualScale = placementTuning.visualScale;
+            presentation.pitchRadians = placementTuning.pitchRadians;
+            presentation.rollRadians = placementTuning.rollRadians;
+            presentation.yawOffsetRadians = placementTuning.yawOffsetRadians;
+        }
+        else
+        {
+            uint32 actualSkillSlotIndex = 0;
+            if (!Try_ResolveActualSkillSlotIndex(surfaceIndex, actualSkillSlotIndex))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            string skillKey{};
+            if (!actor.statCom->Try_GetSkillKeyBySlot(actualSkillSlotIndex, skillKey))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            const Skill_Data* skill = CLIENT->Get_Skill(skillKey);
+            if (skill == nullptr)
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            const wstring keyPrompt = Resolve_KeyPromptForPageSlot(pageIndex, actualSkillSlotIndex);
+            const BattleWorldSkillCardContent content = Build_SkillCardContent(keyPrompt, skillKey, *skill);
+
+            if (!card.hasContent || !Is_SameContent(card.def.content, content) || templateChanged)
+            {
+                card.def = Build_SkillCardDef(content, cardTemplate);
+                card.hasContent = true;
+                card.templateHeroId = placementHeroId;
+                card.templatePage = pageIndex;
+                card.templateSurfaceIndex = surfaceIndex;
+                card.dirty = true;
+            }
+
+            presentation =
+                Resolve_SkillPresentation(
+                    surfaceIndex,
+                    card.def,
+                    placementTuning,
+                    BattleTurnState::ChooseSkill,
+                    selectedSkillKey);
+        }
+
+        if (card.selected != presentation.selected || card.dimmed != presentation.dimmed)
+        {
+            card.selected = presentation.selected;
+            card.dimmed = presentation.dimmed;
+            card.dirty = true;
+        }
+
+        if (!presentation.visible || !card.dirty)
+            continue;
+
+        if (FAILED(Ensure_SkillCardSurface(
+            card,
+            surfaceIndex,
+            _device,
+            _context,
+            _impl->shader,
+            _impl->viBuffer,
+            card.def.pixelSize)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        if (card.surface == nullptr || FAILED(card.surface->Compose(card.def, card.selected, card.dimmed)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        card.dirty = false;
+    }
+
+    return result;
+}
+
 void BattleWorldUI_SkillCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
@@ -2488,11 +2628,6 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
         Hide();
         return;
     }
-
-    Reload_SkillWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
 
     const HeroId placementHeroId = Normalize_SkillHeroId(actor.heroId);
     const uint32 placementHeroIndex = Resolve_SkillHeroIndex(placementHeroId);

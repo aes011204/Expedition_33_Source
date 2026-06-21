@@ -2044,6 +2044,49 @@ HRESULT BattleWorldUI_CommandCards::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleWorldUI_CommandCards::Warmup_ForBattleState(uint32 curAp, uint32 maxAp, HeroId actorHeroId)
+{
+    if (_impl == nullptr)
+        return E_FAIL;
+
+    const HeroId placementHeroId = Normalize_CommandHeroId(actorHeroId);
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+
+    const BattleWorldCommandSurfaceContent content
+    {
+        min(curAp, kBattleWorldCommandMaxApSegmentCount),
+        min(maxAp, kBattleWorldCommandMaxApSegmentCount)
+    };
+
+    HRESULT result = S_OK;
+    for (uint32 surfaceIndex = 0; surfaceIndex < _impl->surfaces.size(); ++surfaceIndex)
+    {
+        BattleWorldCommandSurfaceInstance& surface = _impl->surfaces[surfaceIndex];
+
+        if (surface.def.kind == BattleWorldCommandSurfaceKind::ApBar &&
+            (surface.def.content.curAp != content.curAp || surface.def.content.maxAp != content.maxAp))
+        {
+            surface.def = Build_SurfaceDef(content, _impl->templates[surfaceIndex]);
+            surface.dirty = true;
+        }
+
+        if (!surface.dirty)
+            continue;
+
+        if (surface.surface == nullptr || FAILED(surface.surface->Compose(surface.def)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        surface.dirty = false;
+    }
+
+    return result;
+}
+
 void BattleWorldUI_CommandCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
@@ -2057,11 +2100,6 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
         Hide();
         return;
     }
-
-    Reload_CommandWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
 
     const HeroId placementHeroId = Normalize_CommandHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_CommandHeroIndex(placementHeroId);

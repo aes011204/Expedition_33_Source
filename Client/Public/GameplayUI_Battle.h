@@ -156,6 +156,7 @@ private:
         BattleTurnState currentState,
         const BattleChar& actor,
         float timeDelta);
+    void    Warmup_BattleWorldCardsForActor(const BattleChar& actor);
     void    Update_BattleTutorial(float timeDelta);
 
     bool    Should_ShowChoiceTargetForSkillTargeting(const ActionRequest& request) const;
@@ -282,6 +283,8 @@ private:
 private:
     BattleChar               _currentPlayerTurnActor{}; // 현재 턴 진행중인 플레이어
     bool                     _hasCurrentPlayerTurnActor = false;
+    static constexpr uint32  kBattleWorldWarmupHeroCount = static_cast<uint32>(HeroId::END);
+    array<bool, kBattleWorldWarmupHeroCount> _battleWorldWarmupHeroFlags{};
 
 public:
     static Shared<GameplayUI_Battle> Create(uint32 levelIndex);

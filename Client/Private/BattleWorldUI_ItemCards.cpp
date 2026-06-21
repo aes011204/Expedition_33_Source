@@ -2141,6 +2141,68 @@ HRESULT BattleWorldUI_ItemCards::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleWorldUI_ItemCards::Warmup_ForBattleState(BattleItemType selectedItemType, HeroId actorHeroId)
+{
+    if (_impl == nullptr)
+        return E_FAIL;
+
+    const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
+    const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+
+    HRESULT result = S_OK;
+    for (uint32 slotIndex = 0; slotIndex < kBattleWorldItemSlotCount; ++slotIndex)
+    {
+        auto& card = _impl->cards[slotIndex];
+
+        const BattleWorldItemSlotDef& slot = kBattleWorldItemSlots[slotIndex];
+        const Item_Data* item = CLIENT->Get_Item(slot.itemType);
+        if (item == nullptr || !item->IsValid())
+        {
+            card.hasContent = false;
+            continue;
+        }
+
+        const BattleWorldItemCardContent content = Build_ItemCardContent(slot, *item);
+        if (!card.hasContent || !Is_SameContent(card.def.content, content))
+        {
+            card.def = Build_ItemCardDef(content, _impl->templates[slotIndex]);
+            card.hasContent = true;
+            card.dirty = true;
+        }
+
+        const BattleWorldItemCardPresentation presentation =
+            Resolve_ItemPresentation(
+                slotIndex,
+                card.def,
+                _impl->placementTunings[placementHeroIndex],
+                BattleTurnState::ChooseItem,
+                selectedItemType);
+
+        if (card.selected != presentation.selected || card.dimmed != presentation.dimmed)
+        {
+            card.selected = presentation.selected;
+            card.dimmed = presentation.dimmed;
+            card.dirty = true;
+        }
+
+        if (!presentation.visible || !card.dirty)
+            continue;
+
+        if (card.surface == nullptr || FAILED(card.surface->Compose(card.def, card.selected, card.dimmed)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        card.dirty = false;
+    }
+
+    return result;
+}
+
 void BattleWorldUI_ItemCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
@@ -2153,11 +2215,6 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
         Hide();
         return;
     }
-
-    Reload_ItemWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
 
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
