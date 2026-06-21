@@ -569,6 +569,9 @@
     <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
@@ -1698,6 +1701,9 @@
       <Filter>04. GamePlayUI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h">

@@ -534,14 +534,58 @@ void Inspector::Draw_RuntimeWorldUIPlacementInspector(
         ImGui::EndCombo();
     }
 
+    const uint32 variantCount = target->Get_EditorWorldPlacementVariantCount();
+    if (variantCount > 1)
+    {
+        uint32 selectedVariantIndex = target->Get_EditorWorldPlacementVariantIndex();
+        if (selectedVariantIndex >= variantCount)
+            selectedVariantIndex = 0;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Page");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::BeginCombo(
+            "##RuntimeWorldPlacementVariant",
+            target->Get_EditorWorldPlacementVariantLabel(selectedVariantIndex)))
+        {
+            for (uint32 variantIndex = 0; variantIndex < variantCount; ++variantIndex)
+            {
+                const bool selected = selectedVariantIndex == variantIndex;
+                if (ImGui::Selectable(target->Get_EditorWorldPlacementVariantLabel(variantIndex), selected))
+                {
+                    target->Set_EditorWorldPlacementVariantIndex(variantIndex);
+                    selectedVariantIndex = variantIndex;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+
     Client::RuntimeWorldUIPlacementTuning tuning = target->Get_EditorWorldPlacementTuning();
     bool changed = false;
 
     changed |= Draw_UIVec3Row("Screen Position", "##RuntimeWorldScreenPosition", tuning.screenPosition, 0.01f);
     changed |= Draw_UIVec3Row("Base Offset", "##RuntimeWorldBaseOffset", tuning.baseOffset, 0.01f);
-    changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
-    changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
-    changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    if (tuning.showKeyOffsets)
+    {
+        changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
+        changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
+        changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    }
+
+    for (size_t offsetIndex = 0; offsetIndex < tuning.namedOffsets.size(); ++offsetIndex)
+    {
+        auto& namedOffset = tuning.namedOffsets[offsetIndex];
+        const string label = namedOffset.label.empty() ? namedOffset.id : namedOffset.label;
+        const string controlId = "##RuntimeWorldNamedOffset" + to_string(offsetIndex);
+        changed |= Draw_UIVec3Row(label.c_str(), controlId.c_str(), namedOffset.offset, 0.01f);
+    }
+
     changed |= Draw_UIVec2Row("World Size", "##RuntimeWorldSize", tuning.worldSize, 0.01f);
     changed |= Draw_UIFloatRow("Visual Scale", "##RuntimeWorldVisualScale", tuning.visualScale, 0.01f);
     changed |= Draw_UIFloatRow("Pitch", "##RuntimeWorldPitch", tuning.pitchDegrees, 0.1f);

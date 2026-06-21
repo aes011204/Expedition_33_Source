@@ -1,11 +1,13 @@
 #include "BattleWorldUI_SkillCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "Camera.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
+#include "TransformCom.h"
 #include "VIBuffer_Rect.h"
 
 NS_BEGIN(Client)
@@ -14,20 +16,39 @@ namespace
 {
     constexpr char kBattleWorldSkillCardTextureGuid[] = "bec2ba8a-a265-40d8-9bd1-bc85420ebaa2";
     constexpr char kBattleWorldKeyFrameTextureGuid[] = "72de5c45-b20f-490d-9d69-396a830b514f";
-    constexpr wchar_t kBattleWorldSkillPanelJsonPath[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Skill_Gustave.json";
+    constexpr wchar_t kBattleWorldSkillPlacementJsonPath[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Skill_WorldPlacement.json";
+    constexpr wchar_t kBattleWorldSkillFallbackJsonPath[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Skill_Gustave_Left.json";
     constexpr uint32 kBattleWorldSkillFallbackPixelWidth = 768;
     constexpr uint32 kBattleWorldSkillFallbackPixelHeight = 192;
-    constexpr uint32 kBattleWorldSkillSlotCount = 3;
+    constexpr uint32 kBattleWorldSkillSlotCount = 5;
+    constexpr uint32 kBattleWorldSkillChangeSurfaceIndex = kBattleWorldSkillSlotCount;
+    constexpr uint32 kBattleWorldSkillSurfaceCount = kBattleWorldSkillSlotCount + 1;
+    constexpr uint32 kBattleWorldSkillPageCount = 2;
+    constexpr uint32 kBattleWorldSkillPlacementHeroCount = static_cast<uint32>(HeroId::END);
     constexpr float kBattleWorldSkillCompositionRenderScale = 2.f;
+    constexpr float kBattleWorldSkillDegreesToRadians = 0.017453292519943295f;
+    constexpr float kBattleWorldSkillRadiansToDegrees = 57.29577951308232f;
     const Vec2 kBattleWorldSkillListWorldSize = Vec2(1.05f, 0.262f);
-    const Vec2 kBattleWorldSkillTargetingWorldSize = Vec2(1.12f, 0.28f);
+    const Vec2 kBattleWorldSkillRootWorldSize = Vec2(2.52f, 1.155f);
     const Vec3 kBattleWorldSkillTargetingOffset = Vec3(0.52f, 1.00f, 0.f);
-    const Vec3 kBattleWorldSkillListOffsets[kBattleWorldSkillSlotCount] =
+
+    struct BattleWorldSkillSurfaceOffsetSpec
     {
-        Vec3(0.50f, 1.04f, 0.f),
-        Vec3(0.50f, 0.76f, 0.f),
-        Vec3(0.50f, 0.48f, 0.f),
+        const char* id = "";
+        const char* leftLabel = "";
+        const char* rightLabel = "";
     };
+
+    const BattleWorldSkillSurfaceOffsetSpec kBattleWorldSkillSurfaceOffsetSpecs[kBattleWorldSkillSurfaceCount] =
+    {
+        { "Surface0", "Skill Q Offset", "Skill Preview 1 Offset" },
+        { "Surface1", "Skill W Offset", "Skill Preview 2 Offset" },
+        { "Surface2", "Skill E Offset", "Skill Preview 3 Offset" },
+        { "Surface3", "Skill Extra 1 Offset", "Skill Q Offset" },
+        { "Surface4", "Skill Extra 2 Offset", "Skill W Offset" },
+        { "ChangeR", "Skill R Offset", "Skill R Offset" },
+    };
+
     constexpr float kBattleWorldSkillDefaultScale = 1.f;
     constexpr float kBattleWorldSkillSelectedScale = 1.05f;
 
@@ -118,6 +139,8 @@ namespace
         Vec2 pixelSize = Vec2(
             static_cast<float>(kBattleWorldSkillFallbackPixelWidth),
             static_cast<float>(kBattleWorldSkillFallbackPixelHeight));
+        Vec3 worldOffset = Vec3::Zero;
+        Vec2 worldSize = kBattleWorldSkillListWorldSize;
 
         struct Layer
         {
@@ -136,6 +159,8 @@ namespace
         Vec2 pixelSize = Vec2(
             static_cast<float>(kBattleWorldSkillFallbackPixelWidth),
             static_cast<float>(kBattleWorldSkillFallbackPixelHeight));
+        Vec3 worldOffset = Vec3::Zero;
+        Vec2 worldSize = kBattleWorldSkillListWorldSize;
         vector<BattleWorldSkillCardDef::Layer> layers{};
     };
 
@@ -151,6 +176,10 @@ namespace
         bool selected = false;
         bool dimmed = false;
         bool dirty = true;
+        Vec2 surfacePixelSize = Vec2::Zero;
+        HeroId templateHeroId = HeroId::END;
+        uint32 templatePage = UINT32_MAX;
+        uint32 templateSurfaceIndex = UINT32_MAX;
     };
 
     struct BattleWorldSkillCardPresentation
@@ -158,10 +187,31 @@ namespace
         bool visible = false;
         bool selected = false;
         bool dimmed = false;
+        Vec3 screenPosition = Vec3::Zero;
         Vec3 worldOffset = Vec3::Zero;
         Vec2 worldSize = kBattleWorldSkillListWorldSize;
         float visualScale = kBattleWorldSkillDefaultScale;
+        float pitchRadians = 0.f;
+        float rollRadians = 0.f;
+        float yawOffsetRadians = 0.f;
     };
+
+    struct BattleWorldSkillWorldPlacementTuning
+    {
+        Vec3 screenPosition = Vec3::Zero;
+        Vec3 baseOffset = Vec3::Zero;
+        array<Vec3, kBattleWorldSkillSurfaceCount> surfaceOffsets{};
+        Vec2 worldSize = kBattleWorldSkillRootWorldSize;
+        float visualScale = kBattleWorldSkillDefaultScale;
+        float pitchRadians = 0.f;
+        float rollRadians = 0.f;
+        float yawOffsetRadians = 0.f;
+    };
+
+    using BattleWorldSkillWorldPlacementPages =
+        array<BattleWorldSkillWorldPlacementTuning, kBattleWorldSkillPageCount>;
+    using BattleWorldSkillWorldPlacementTunings =
+        array<BattleWorldSkillWorldPlacementPages, kBattleWorldSkillPlacementHeroCount>;
 
     bool Should_ShowBattleWorldSkillCards(BattleTurnState state)
     {
@@ -172,6 +222,162 @@ namespace
     bool Is_TargetingSkillCardState(BattleTurnState state)
     {
         return state == BattleTurnState::SkillTargeting;
+    }
+
+    HeroId Normalize_SkillHeroId(HeroId heroId)
+    {
+        const uint32 heroIndex = static_cast<uint32>(heroId);
+        if (heroIndex < kBattleWorldSkillPlacementHeroCount)
+            return heroId;
+
+        return HeroId::Gustave;
+    }
+
+    uint32 Resolve_SkillHeroIndex(HeroId heroId)
+    {
+        return static_cast<uint32>(Normalize_SkillHeroId(heroId));
+    }
+
+    uint32 Normalize_SkillPage(uint32 page)
+    {
+        return page < kBattleWorldSkillPageCount ? page : 0u;
+    }
+
+    const char* To_SkillHeroJsonName(HeroId heroId)
+    {
+        switch (Normalize_SkillHeroId(heroId))
+        {
+        case HeroId::Gustave:
+            return "Gustave";
+        case HeroId::Lune:
+            return "Lune";
+        case HeroId::Maelle:
+            return "Maelle";
+        case HeroId::END:
+        default:
+            return "Gustave";
+        }
+    }
+
+    bool Try_ParseSkillHeroJsonName(const string& heroName, HeroId& outHeroId)
+    {
+        const string lowerName = String::ToLowerCopy(heroName);
+        if (lowerName == "gustave")
+        {
+            outHeroId = HeroId::Gustave;
+            return true;
+        }
+
+        if (lowerName == "lune")
+        {
+            outHeroId = HeroId::Lune;
+            return true;
+        }
+
+        if (lowerName == "maelle")
+        {
+            outHeroId = HeroId::Maelle;
+            return true;
+        }
+
+        return false;
+    }
+
+    const char* To_SkillPageJsonName(uint32 page)
+    {
+        return Normalize_SkillPage(page) == 0 ? "Left" : "Right";
+    }
+
+    bool Try_ParseSkillPageJsonName(const string& pageName, uint32& outPage)
+    {
+        const string lowerName = String::ToLowerCopy(pageName);
+        if (lowerName == "left")
+        {
+            outPage = 0;
+            return true;
+        }
+
+        if (lowerName == "right")
+        {
+            outPage = 1;
+            return true;
+        }
+
+        return false;
+    }
+
+    const char* Resolve_SkillSurfaceOffsetLabel(uint32 page, uint32 offsetIndex)
+    {
+        if (offsetIndex >= kBattleWorldSkillSurfaceCount)
+            return "";
+
+        return Normalize_SkillPage(page) == 0
+            ? kBattleWorldSkillSurfaceOffsetSpecs[offsetIndex].leftLabel
+            : kBattleWorldSkillSurfaceOffsetSpecs[offsetIndex].rightLabel;
+    }
+
+    uint32 Resolve_SkillSurfaceOffsetIndex(const string& surfaceName)
+    {
+        for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldSkillSurfaceCount; ++offsetIndex)
+        {
+            if (surfaceName == kBattleWorldSkillSurfaceOffsetSpecs[offsetIndex].id)
+                return offsetIndex;
+        }
+
+        return UINT32_MAX;
+    }
+
+    BattleWorldSkillWorldPlacementTuning Make_DefaultSkillWorldPlacementTuning(HeroId heroId)
+    {
+        UNREFERENCED_PARAMETER(heroId);
+
+        BattleWorldSkillWorldPlacementTuning tuning{};
+        tuning.screenPosition = Vec3::Zero;
+        tuning.baseOffset = Vec3::Zero;
+        tuning.worldSize = kBattleWorldSkillRootWorldSize;
+        tuning.visualScale = kBattleWorldSkillDefaultScale;
+        tuning.pitchRadians = 0.f;
+        tuning.rollRadians = 0.f;
+        tuning.yawOffsetRadians = 0.f;
+        return tuning;
+    }
+
+    BattleWorldSkillWorldPlacementTunings Make_DefaultSkillWorldPlacementTunings()
+    {
+        BattleWorldSkillWorldPlacementTunings tunings{};
+        for (uint32 heroIndex = 0; heroIndex < kBattleWorldSkillPlacementHeroCount; ++heroIndex)
+        {
+            for (uint32 pageIndex = 0; pageIndex < kBattleWorldSkillPageCount; ++pageIndex)
+            {
+                tunings[heroIndex][pageIndex] =
+                    Make_DefaultSkillWorldPlacementTuning(static_cast<HeroId>(heroIndex));
+            }
+        }
+
+        return tunings;
+    }
+
+    const wchar_t* Resolve_SkillPageJsonPath(HeroId heroId, uint32 page)
+    {
+        const uint32 pageIndex = Normalize_SkillPage(page);
+        switch (Normalize_SkillHeroId(heroId))
+        {
+        case HeroId::Gustave:
+            return pageIndex == 0
+                ? L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Skill_Gustave_Left.json"
+                : L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Skill_Gustave_Right.json";
+        case HeroId::Lune:
+            return pageIndex == 0
+                ? L"UI/UI_Json/BattleSystem/Lune/UI_BattleSystem_Skill_Lune_Left.json"
+                : L"UI/UI_Json/BattleSystem/Lune/UI_BattleSystem_Skill_Lune_Right.json";
+        case HeroId::Maelle:
+            return pageIndex == 0
+                ? L"UI/UI_Json/BattleSystem/Maelle/UI_BattleSystem_Skill_Maelle_Left.json"
+                : L"UI/UI_Json/BattleSystem/Maelle/UI_BattleSystem_Skill_Maelle_Right.json";
+        case HeroId::END:
+        default:
+            return kBattleWorldSkillFallbackJsonPath;
+        }
     }
 
     const wchar_t* Resolve_KeyPrompt(uint32 slotIndex)
@@ -187,6 +393,25 @@ namespace
         default:
             return L"";
         }
+    }
+
+    wstring Resolve_KeyPromptForPageSlot(uint32 page, uint32 actualSlotIndex)
+    {
+        const uint32 pageIndex = Normalize_SkillPage(page);
+        if (pageIndex == 0)
+        {
+            if (actualSlotIndex < 3)
+                return Resolve_KeyPrompt(actualSlotIndex);
+
+            return L"";
+        }
+
+        if (actualSlotIndex == 3)
+            return L"Q";
+        if (actualSlotIndex == 4)
+            return L"W";
+
+        return L"";
     }
 
     wstring Resolve_ElementText(ElementalType element)
@@ -234,13 +459,13 @@ namespace
     }
 
     BattleWorldSkillCardContent Build_SkillCardContent(
-        uint32 slotIndex,
+        const wstring& keyPrompt,
         const string& skillKey,
         const Skill_Data& skill)
     {
         BattleWorldSkillCardContent content{};
         content.skillKey = skillKey;
-        content.keyPrompt = Resolve_KeyPrompt(slotIndex);
+        content.keyPrompt = keyPrompt;
         content.title = Resolve_SkillTitle(skill);
         content.description = Resolve_SkillDescription(skill);
         content.subDescription = Resolve_SkillSubDescription(skill);
@@ -302,16 +527,94 @@ namespace
     {
         const char* panelName = "";
         const char* textPrefix = "";
+        bool useRuntimeText = true;
     };
 
     using BattleWorldSkillJsonObjectMap = unordered_map<int32, BattleWorldSkillJsonObject>;
 
-    const BattleWorldSkillJsonPanelSpec kBattleWorldSkillJsonPanelSpecs[kBattleWorldSkillSlotCount] =
+    const char* Resolve_SkillChangePanelName(HeroId heroId, uint32 page)
     {
-        { "Panel_LumiereAssault", "LumiereAssault" },
-        { "Panel_UnleashedCharge", "UnleashedCharge" },
-        { "Panel_MarkingShot", "MarkingShot" },
-    };
+        const uint32 pageIndex = Normalize_SkillPage(page);
+        switch (Normalize_SkillHeroId(heroId))
+        {
+        case HeroId::Gustave:
+            return pageIndex == 0
+                ? "Panel_Change_Gustave_Skill_Panel_Left"
+                : "Panel_Change_Gustave_Skill_Panel_Right";
+        case HeroId::Lune:
+            return pageIndex == 0
+                ? "Panel_Change_Lune_Skill_Panel_Left"
+                : "Panel_Change_Lune_Skill_Panel_Right";
+        case HeroId::Maelle:
+            return pageIndex == 0
+                ? "Panel_Change_Maelle_Skill_Panel_Left"
+                : "Panel_Change_Maelle_Skill_Panel_Right";
+        case HeroId::END:
+        default:
+            return "";
+        }
+    }
+
+    BattleWorldSkillJsonPanelSpec Resolve_SkillJsonPanelSpec(HeroId heroId, uint32 page, uint32 surfaceIndex)
+    {
+        if (surfaceIndex == kBattleWorldSkillChangeSurfaceIndex)
+            return { Resolve_SkillChangePanelName(heroId, page), "", false };
+
+        switch (Normalize_SkillHeroId(heroId))
+        {
+        case HeroId::Gustave:
+            switch (surfaceIndex)
+            {
+            case 0: return { "Panel_LumiereAssault", "LumiereAssault", true };
+            case 1: return { "Panel_UnleashedCharge", "UnleashedCharge", true };
+            case 2: return { "Panel_MarkingShot", "MarkingShot", true };
+            case 3: return { "Panel_Shatter", "Shatter", true };
+            case 4: return { "Panel_PerfectBreak", "PerfectBreak", true };
+            default: break;
+            }
+            break;
+        case HeroId::Lune:
+            switch (surfaceIndex)
+            {
+            case 0: return { "Panel_Immolation", "Immolation", true };
+            case 1: return { "Panel_IceGust", "IceGust", true };
+            case 2: return { "Panel_Thunderfall", "Thunderfall", true };
+            case 3: return { "Panel_TerraQuake", "TerraQuake", true };
+            case 4: return { "Panel_CripplingTsunami", "CripplingTsunami", true };
+            default: break;
+            }
+            break;
+
+        case HeroId::Maelle:
+            switch (surfaceIndex)
+            {
+            case 0: return { "Panel_Spark", "Spark", true };
+            case 1: return { "Panel_Percee", "Percee", true };
+            case 2: return { "Panel_FleuretFury", "FleuretFury", true };
+            case 3: return { "Panel_SwordBallet", "SwordBallet", true };
+            case 4: return { "Panel_Stendhal", "Stendhal", true };
+            default: break;
+            }
+            break;
+
+        case HeroId::END:
+        default:
+            break;
+        }
+
+        return {};
+    }
+
+    bool Try_ResolveActualSkillSlotIndex(uint32 surfaceIndex, uint32& outActualSlotIndex)
+    {
+        if (surfaceIndex < kBattleWorldSkillSlotCount)
+        {
+            outActualSlotIndex = surfaceIndex;
+            return true;
+        }
+
+        return false;
+    }
 
     string Read_JsonString(const json& node, const char* key, const string& fallback = {})
     {
@@ -358,6 +661,18 @@ namespace
         return Vec2(
             iter->at(0).is_number() ? iter->at(0).get<float>() : fallback.x,
             iter->at(1).is_number() ? iter->at(1).get<float>() : fallback.y);
+    }
+
+    Vec3 Read_JsonVec3(const json& node, const char* key, const Vec3& fallback)
+    {
+        const auto iter = node.find(key);
+        if (iter == node.end() || !iter->is_array() || iter->size() < 3)
+            return fallback;
+
+        return Vec3(
+            iter->at(0).is_number() ? iter->at(0).get<float>() : fallback.x,
+            iter->at(1).is_number() ? iter->at(1).get<float>() : fallback.y,
+            iter->at(2).is_number() ? iter->at(2).get<float>() : fallback.z);
     }
 
     Vec4 Read_JsonColor(const json& node, const char* key, const Vec4& fallback)
@@ -780,6 +1095,32 @@ namespace
         return Vec2(baseWorldSize.x, baseWorldSize.x * pixelSize.y / pixelSize.x);
     }
 
+    Vec3 Resolve_SurfaceWorldOffset(
+        const BattleWorldSkillJsonObject& panel,
+        const BattleWorldSkillJsonObject& rootPanel)
+    {
+        const float rootWidth = max(1.f, rootPanel.size.x);
+        const float rootHeight = max(1.f, rootPanel.size.y);
+        const Vec2 local(
+            panel.position.x - rootWidth * rootPanel.pivot.x,
+            rootHeight * rootPanel.pivot.y - panel.position.y);
+
+        return Vec3(
+            local.x / rootWidth * kBattleWorldSkillRootWorldSize.x,
+            local.y / rootHeight * kBattleWorldSkillRootWorldSize.y,
+            0.f);
+    }
+
+    Vec2 Resolve_SurfaceWorldSize(
+        const BattleWorldSkillJsonObject& panel,
+        const BattleWorldSkillJsonObject& rootPanel)
+    {
+        const float rootWidth = max(1.f, rootPanel.size.x);
+        const float worldWidth =
+            kBattleWorldSkillRootWorldSize.x * max(1.f, panel.size.x) / rootWidth;
+        return Resolve_AspectWorldSize(Vec2(worldWidth, worldWidth), panel.size);
+    }
+
     Vec4 Resolve_ImageColor(const Vec4& color, bool selected, bool dimmed)
     {
         if (selected)
@@ -929,6 +1270,8 @@ namespace
         BattleWorldSkillCardDef def{};
         def.content = content;
         def.pixelSize = cardTemplate.pixelSize;
+        def.worldOffset = cardTemplate.worldOffset;
+        def.worldSize = cardTemplate.worldSize;
         def.layers = cardTemplate.layers;
 
         for (auto& layer : def.layers)
@@ -1140,9 +1483,12 @@ namespace
     bool Try_LoadJsonSkillCardTemplates(
         const ComPtr<Device>& device,
         const ComPtr<Context>& context,
-        array<BattleWorldSkillCardTemplate, kBattleWorldSkillSlotCount>& outTemplates)
+        HeroId heroId,
+        uint32 page,
+        array<BattleWorldSkillCardTemplate, kBattleWorldSkillSurfaceCount>& outTemplates)
     {
-        const fs::path jsonPath = (fs::path(GAME->Get_AssetRoot()) / kBattleWorldSkillPanelJsonPath).lexically_normal();
+        const fs::path jsonPath =
+            (fs::path(GAME->Get_AssetRoot()) / Resolve_SkillPageJsonPath(heroId, page)).lexically_normal();
         if (!fs::exists(jsonPath))
         {
             LOG_WARN("BattleWorldUI skill json template missing. path='{}'", String::ToString(jsonPath.wstring()));
@@ -1182,9 +1528,27 @@ namespace
             objects.push_back(std::move(object));
         }
 
-        for (uint32 slotIndex = 0; slotIndex < kBattleWorldSkillSlotCount; ++slotIndex)
+        const auto rootPanelIter = find_if(objects.begin(), objects.end(),
+            [](const BattleWorldSkillJsonObject& object)
+            {
+                return object.name.rfind("Panel_BattleSystem_Skill_", 0) == 0 && object.parentId == 0;
+            });
+
+        if (rootPanelIter == objects.end() || !rootPanelIter->visible)
         {
-            const BattleWorldSkillJsonPanelSpec& panelSpec = kBattleWorldSkillJsonPanelSpecs[slotIndex];
+            LOG_WARN("BattleWorldUI skill json root panel missing. path='{}'",
+                String::ToString(jsonPath.wstring()));
+            return false;
+        }
+
+        bool loadedAny = false;
+        for (uint32 surfaceIndex = 0; surfaceIndex < kBattleWorldSkillSurfaceCount; ++surfaceIndex)
+        {
+            const BattleWorldSkillJsonPanelSpec panelSpec =
+                Resolve_SkillJsonPanelSpec(heroId, page, surfaceIndex);
+            if (panelSpec.panelName == nullptr || panelSpec.panelName[0] == '\0')
+                continue;
+
             const auto panelIter = find_if(objects.begin(), objects.end(),
                 [&](const BattleWorldSkillJsonObject& object)
                 {
@@ -1193,14 +1557,18 @@ namespace
 
             if (panelIter == objects.end() || !panelIter->visible)
             {
-                LOG_WARN("BattleWorldUI skill json panel missing. panel='{}'", panelSpec.panelName);
-                return false;
+                LOG_WARN("BattleWorldUI skill json panel missing. path='{}', panel='{}'",
+                    String::ToString(jsonPath.wstring()),
+                    panelSpec.panelName);
+                continue;
             }
 
             BattleWorldSkillCardTemplate cardTemplate{};
             cardTemplate.pixelSize = Vec2(
                 max(1.f, panelIter->size.x),
                 max(1.f, panelIter->size.y));
+            cardTemplate.worldOffset = Resolve_SurfaceWorldOffset(*panelIter, *rootPanelIter);
+            cardTemplate.worldSize = Resolve_SurfaceWorldSize(*panelIter, *rootPanelIter);
 
             for (const BattleWorldSkillJsonObject& object : objects)
             {
@@ -1224,8 +1592,10 @@ namespace
 
             if (cardTemplate.layers.empty())
             {
-                LOG_WARN("BattleWorldUI skill json panel has no extracted layers. panel='{}'", panelSpec.panelName);
-                return false;
+                LOG_WARN("BattleWorldUI skill json panel has no extracted layers. path='{}', panel='{}'",
+                    String::ToString(jsonPath.wstring()),
+                    panelSpec.panelName);
+                continue;
             }
 
             sort(cardTemplate.layers.begin(), cardTemplate.layers.end(),
@@ -1237,15 +1607,326 @@ namespace
                     return lhs.sequence < rhs.sequence;
                 });
 
-            outTemplates[slotIndex] = std::move(cardTemplate);
+            outTemplates[surfaceIndex] = std::move(cardTemplate);
+            loadedAny = true;
         }
 
+        return loadedAny;
+    }
+
+    fs::path Resolve_SkillWorldPlacementJsonPath()
+    {
+        return (fs::path(GAME->Get_AssetRoot()) / kBattleWorldSkillPlacementJsonPath).lexically_normal();
+    }
+
+    BattleWorldSkillWorldPlacementTuning Read_SkillWorldPlacementTuningNode(
+        const json& root,
+        const BattleWorldSkillWorldPlacementTuning& fallback)
+    {
+        BattleWorldSkillWorldPlacementTuning tuning = fallback;
+        tuning.screenPosition = Read_JsonVec3(root, "screenPosition", tuning.screenPosition);
+        tuning.baseOffset = Read_JsonVec3(root, "baseOffset", tuning.baseOffset);
+        tuning.worldSize = Read_JsonVec2(root, "worldSize", tuning.worldSize);
+        tuning.visualScale = Read_JsonFloat(root, "visualScale", tuning.visualScale);
+        tuning.pitchRadians =
+            Read_JsonFloat(root, "pitchDegrees", tuning.pitchRadians * kBattleWorldSkillRadiansToDegrees) *
+            kBattleWorldSkillDegreesToRadians;
+        tuning.rollRadians =
+            Read_JsonFloat(root, "rollDegrees", tuning.rollRadians * kBattleWorldSkillRadiansToDegrees) *
+            kBattleWorldSkillDegreesToRadians;
+        tuning.yawOffsetRadians =
+            Read_JsonFloat(root, "yawOffsetDegrees", tuning.yawOffsetRadians * kBattleWorldSkillRadiansToDegrees) *
+            kBattleWorldSkillDegreesToRadians;
+
+        if (const auto legacyOffsetsIter = root.find("slotOffsets");
+            legacyOffsetsIter != root.end() && legacyOffsetsIter->is_object())
+        {
+            tuning.surfaceOffsets[0] = Read_JsonVec3(*legacyOffsetsIter, "Q", tuning.surfaceOffsets[0]);
+            tuning.surfaceOffsets[1] = Read_JsonVec3(*legacyOffsetsIter, "W", tuning.surfaceOffsets[1]);
+            tuning.surfaceOffsets[2] = Read_JsonVec3(*legacyOffsetsIter, "E", tuning.surfaceOffsets[2]);
+        }
+
+        if (const auto offsetsIter = root.find("surfaceOffsets");
+            offsetsIter != root.end() && offsetsIter->is_object())
+        {
+            for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldSkillSurfaceCount; ++offsetIndex)
+            {
+                const char* offsetId = kBattleWorldSkillSurfaceOffsetSpecs[offsetIndex].id;
+                tuning.surfaceOffsets[offsetIndex] =
+                    Read_JsonVec3(*offsetsIter, offsetId, tuning.surfaceOffsets[offsetIndex]);
+            }
+        }
+
+        return tuning;
+    }
+
+    bool Try_LoadSkillWorldPlacementTunings(
+        const fs::path& jsonPath,
+        BattleWorldSkillWorldPlacementTunings& outTunings)
+    {
+        if (!fs::exists(jsonPath))
+            return false;
+
+        json root{};
+        try
+        {
+            ifstream file(jsonPath);
+            file >> root;
+        }
+        catch (const exception& e)
+        {
+            LOG_WARN("BattleWorldUI skill placement json parse failed. path='{}', error='{}'",
+                String::ToString(jsonPath.wstring()),
+                e.what());
+            return false;
+        }
+
+        auto tunings = Make_DefaultSkillWorldPlacementTunings();
+        if (const auto charactersIter = root.find("characters");
+            charactersIter != root.end() && charactersIter->is_object())
+        {
+            for (const auto& [heroName, heroNode] : charactersIter->items())
+            {
+                if (!heroNode.is_object())
+                    continue;
+
+                HeroId heroId = HeroId::END;
+                if (!Try_ParseSkillHeroJsonName(heroName, heroId))
+                {
+                    LOG_WARN("BattleWorldUI skill placement json has unknown character. character='{}'", heroName);
+                    continue;
+                }
+
+                const uint32 heroIndex = Resolve_SkillHeroIndex(heroId);
+                if (const auto pagesIter = heroNode.find("pages");
+                    pagesIter != heroNode.end() && pagesIter->is_object())
+                {
+                    for (const auto& [pageName, pageNode] : pagesIter->items())
+                    {
+                        if (!pageNode.is_object())
+                            continue;
+
+                        uint32 pageIndex = 0;
+                        if (!Try_ParseSkillPageJsonName(pageName, pageIndex))
+                        {
+                            LOG_WARN("BattleWorldUI skill placement json has unknown page. character='{}', page='{}'",
+                                heroName,
+                                pageName);
+                            continue;
+                        }
+
+                        tunings[heroIndex][pageIndex] =
+                            Read_SkillWorldPlacementTuningNode(pageNode, tunings[heroIndex][pageIndex]);
+                    }
+                }
+                else
+                {
+                    const BattleWorldSkillWorldPlacementTuning flatTuning =
+                        Read_SkillWorldPlacementTuningNode(heroNode, tunings[heroIndex][0]);
+                    for (auto& pageTuning : tunings[heroIndex])
+                        pageTuning = flatTuning;
+                }
+            }
+        }
+        else
+        {
+            const BattleWorldSkillWorldPlacementTuning flatTuning =
+                Read_SkillWorldPlacementTuningNode(root, BattleWorldSkillWorldPlacementTuning{});
+            for (auto& heroTunings : tunings)
+            {
+                for (auto& pageTuning : heroTunings)
+                    pageTuning = flatTuning;
+            }
+        }
+
+        outTunings = tunings;
         return true;
+    }
+
+    json To_JsonVec2(const Vec2& value)
+    {
+        return json::array({ value.x, value.y });
+    }
+
+    json To_JsonVec3(const Vec3& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    json To_SkillWorldPlacementTuningJson(const BattleWorldSkillWorldPlacementTuning& tuning)
+    {
+        json root = json::object();
+        root["screenPosition"] = To_JsonVec3(tuning.screenPosition);
+        root["baseOffset"] = To_JsonVec3(tuning.baseOffset);
+        root["surfaceOffsets"] = json::object();
+        for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldSkillSurfaceCount; ++offsetIndex)
+        {
+            root["surfaceOffsets"][kBattleWorldSkillSurfaceOffsetSpecs[offsetIndex].id] =
+                To_JsonVec3(tuning.surfaceOffsets[offsetIndex]);
+        }
+        root["worldSize"] = To_JsonVec2(tuning.worldSize);
+        root["visualScale"] = tuning.visualScale;
+        root["pitchDegrees"] = tuning.pitchRadians * kBattleWorldSkillRadiansToDegrees;
+        root["rollDegrees"] = tuning.rollRadians * kBattleWorldSkillRadiansToDegrees;
+        root["yawOffsetDegrees"] = tuning.yawOffsetRadians * kBattleWorldSkillRadiansToDegrees;
+        return root;
+    }
+
+    bool Write_SkillWorldPlacementTuningsToFile(
+        const BattleWorldSkillWorldPlacementTunings& tunings,
+        fs::file_time_type* outWriteTime)
+    {
+        const fs::path jsonPath = Resolve_SkillWorldPlacementJsonPath();
+
+        json root = json::object();
+        root["characters"] = json::object();
+        for (uint32 heroIndex = 0; heroIndex < kBattleWorldSkillPlacementHeroCount; ++heroIndex)
+        {
+            const HeroId heroId = static_cast<HeroId>(heroIndex);
+            json heroNode = json::object();
+            heroNode["pages"] = json::object();
+            for (uint32 pageIndex = 0; pageIndex < kBattleWorldSkillPageCount; ++pageIndex)
+            {
+                heroNode["pages"][To_SkillPageJsonName(pageIndex)] =
+                    To_SkillWorldPlacementTuningJson(tunings[heroIndex][pageIndex]);
+            }
+            root["characters"][To_SkillHeroJsonName(heroId)] = std::move(heroNode);
+        }
+
+        error_code errorCode{};
+        fs::create_directories(jsonPath.parent_path(), errorCode);
+        if (errorCode)
+        {
+            LOG_WARN("BattleWorldUI skill placement json directory create failed. path='{}'",
+                String::ToString(jsonPath.parent_path().wstring()));
+            return false;
+        }
+
+        try
+        {
+            ofstream file(jsonPath);
+            if (!file.is_open())
+            {
+                LOG_WARN("BattleWorldUI skill placement json open failed. path='{}'",
+                    String::ToString(jsonPath.wstring()));
+                return false;
+            }
+
+            file << root.dump(2) << '\n';
+        }
+        catch (const exception& e)
+        {
+            LOG_WARN("BattleWorldUI skill placement json write failed. path='{}', error='{}'",
+                String::ToString(jsonPath.wstring()),
+                e.what());
+            return false;
+        }
+
+        if (outWriteTime != nullptr)
+        {
+            const fs::file_time_type writeTime = fs::last_write_time(jsonPath, errorCode);
+            if (!errorCode)
+                *outWriteTime = writeTime;
+        }
+
+        LOG_INFO("BattleWorldUI skill placement json saved. path='{}'",
+            String::ToString(jsonPath.wstring()));
+        return true;
+    }
+
+    RuntimeWorldUIPlacementTuning To_EditorWorldPlacementTuning(
+        const BattleWorldSkillWorldPlacementTuning& tuning,
+        uint32 pageIndex)
+    {
+        RuntimeWorldUIPlacementTuning editorTuning{};
+        editorTuning.screenPosition = tuning.screenPosition;
+        editorTuning.baseOffset = tuning.baseOffset;
+        editorTuning.qOffset = Vec3::Zero;
+        editorTuning.wOffset = Vec3::Zero;
+        editorTuning.eOffset = Vec3::Zero;
+        editorTuning.showKeyOffsets = false;
+        editorTuning.namedOffsets.reserve(kBattleWorldSkillSurfaceCount);
+        for (uint32 offsetIndex = 0; offsetIndex < kBattleWorldSkillSurfaceCount; ++offsetIndex)
+        {
+            editorTuning.namedOffsets.push_back(
+                {
+                    kBattleWorldSkillSurfaceOffsetSpecs[offsetIndex].id,
+                    Resolve_SkillSurfaceOffsetLabel(pageIndex, offsetIndex),
+                    tuning.surfaceOffsets[offsetIndex]
+                });
+        }
+        editorTuning.worldSize = tuning.worldSize;
+        editorTuning.visualScale = tuning.visualScale;
+        editorTuning.pitchDegrees = tuning.pitchRadians * kBattleWorldSkillRadiansToDegrees;
+        editorTuning.rollDegrees = tuning.rollRadians * kBattleWorldSkillRadiansToDegrees;
+        editorTuning.yawOffsetDegrees = tuning.yawOffsetRadians * kBattleWorldSkillRadiansToDegrees;
+        return editorTuning;
+    }
+
+    BattleWorldSkillWorldPlacementTuning From_EditorWorldPlacementTuning(
+        const RuntimeWorldUIPlacementTuning& editorTuning)
+    {
+        BattleWorldSkillWorldPlacementTuning tuning{};
+        tuning.screenPosition = editorTuning.screenPosition;
+        tuning.baseOffset = editorTuning.baseOffset;
+        for (const auto& namedOffset : editorTuning.namedOffsets)
+        {
+            const uint32 offsetIndex = Resolve_SkillSurfaceOffsetIndex(namedOffset.id);
+            if (offsetIndex < kBattleWorldSkillSurfaceCount)
+                tuning.surfaceOffsets[offsetIndex] = namedOffset.offset;
+        }
+        tuning.worldSize = Vec2(
+            max(0.01f, editorTuning.worldSize.x),
+            max(0.01f, editorTuning.worldSize.y));
+        tuning.visualScale = max(0.01f, editorTuning.visualScale);
+        tuning.pitchRadians = editorTuning.pitchDegrees * kBattleWorldSkillDegreesToRadians;
+        tuning.rollRadians = editorTuning.rollDegrees * kBattleWorldSkillDegreesToRadians;
+        tuning.yawOffsetRadians = editorTuning.yawOffsetDegrees * kBattleWorldSkillDegreesToRadians;
+        return tuning;
+    }
+
+    void Reload_SkillWorldPlacementTuningIfNeeded(
+        BattleWorldSkillWorldPlacementTunings& tunings,
+        fs::file_time_type& knownWriteTime,
+        bool& hasKnownFile)
+    {
+        const fs::path jsonPath = Resolve_SkillWorldPlacementJsonPath();
+        if (!fs::exists(jsonPath))
+        {
+            if (hasKnownFile)
+            {
+                tunings = Make_DefaultSkillWorldPlacementTunings();
+                knownWriteTime = {};
+                hasKnownFile = false;
+                LOG_INFO("BattleWorldUI skill placement json removed. using defaults.");
+            }
+            return;
+        }
+
+        error_code errorCode{};
+        const fs::file_time_type writeTime = fs::last_write_time(jsonPath, errorCode);
+        if (errorCode)
+            return;
+
+        if (hasKnownFile && writeTime == knownWriteTime)
+            return;
+
+        BattleWorldSkillWorldPlacementTunings loadedTunings{};
+        knownWriteTime = writeTime;
+        hasKnownFile = true;
+
+        if (!Try_LoadSkillWorldPlacementTunings(jsonPath, loadedTunings))
+            return;
+
+        tunings = loadedTunings;
+        LOG_INFO("BattleWorldUI skill placement json reloaded. path='{}'",
+            String::ToString(jsonPath.wstring()));
     }
 
     BattleWorldSkillCardPresentation Resolve_SkillPresentation(
         uint32 slotIndex,
         const BattleWorldSkillCardDef& def,
+        const BattleWorldSkillWorldPlacementTuning& placementTuning,
         BattleTurnState state,
         const string& selectedSkillKey)
     {
@@ -1261,9 +1942,13 @@ namespace
 
             presentation.visible = true;
             presentation.selected = true;
+            presentation.screenPosition = placementTuning.screenPosition;
             presentation.worldOffset = kBattleWorldSkillTargetingOffset;
-            presentation.worldSize = kBattleWorldSkillTargetingWorldSize;
-            presentation.visualScale = kBattleWorldSkillSelectedScale;
+            presentation.worldSize = def.worldSize;
+            presentation.visualScale = placementTuning.visualScale * kBattleWorldSkillSelectedScale;
+            presentation.pitchRadians = placementTuning.pitchRadians;
+            presentation.rollRadians = placementTuning.rollRadians;
+            presentation.yawOffsetRadians = placementTuning.yawOffsetRadians;
             return presentation;
         }
 
@@ -1271,10 +1956,43 @@ namespace
             return presentation;
 
         presentation.visible = true;
-        presentation.worldOffset = kBattleWorldSkillListOffsets[slotIndex];
-        presentation.worldSize = kBattleWorldSkillListWorldSize;
-        presentation.visualScale = kBattleWorldSkillDefaultScale;
+        presentation.screenPosition = placementTuning.screenPosition;
+        presentation.worldOffset = def.worldOffset;
+        presentation.worldSize = def.worldSize;
+        presentation.visualScale = placementTuning.visualScale;
+        presentation.pitchRadians = placementTuning.pitchRadians;
+        presentation.rollRadians = placementTuning.rollRadians;
+        presentation.yawOffsetRadians = placementTuning.yawOffsetRadians;
         return presentation;
+    }
+
+    Matrix Resolve_CameraFacingYawRotation(const Vec3& cardPosition)
+    {
+        const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+        if (activeCamera == nullptr || activeCamera->Get_Transform() == nullptr)
+            return Matrix::Identity;
+
+        Vec3 toCamera = activeCamera->Get_Transform()->Get_WorldPosition() - cardPosition;
+        toCamera.y = 0.f;
+
+        if (toCamera.LengthSquared() <= 0.0001f)
+            return Matrix::Identity;
+
+        toCamera.Normalize();
+        return Matrix::CreateRotationY(atan2f(-toCamera.x, -toCamera.z));
+    }
+
+    Vec3 Resolve_CameraScreenPositionDelta(const Vec3& screenPosition)
+    {
+        const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+        if (activeCamera == nullptr || activeCamera->Get_Transform() == nullptr)
+            return Vec3(screenPosition.x, -screenPosition.y, screenPosition.z);
+
+        Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+        return
+            cameraTransform->Get_WorldRight() * screenPosition.x -
+            cameraTransform->Get_WorldUp() * screenPosition.y +
+            cameraTransform->Get_WorldForward() * screenPosition.z;
     }
 
     HRESULT Bind_WorldUIPlaneShaderState(
@@ -1620,14 +2338,56 @@ namespace
             static_cast<float>(kBattleWorldSkillFallbackPixelHeight));
     };
 
+    bool Is_SamePixelSize(const Vec2& lhs, const Vec2& rhs)
+    {
+        return fabsf(lhs.x - rhs.x) < 0.5f && fabsf(lhs.y - rhs.y) < 0.5f;
+    }
+
+    HRESULT Ensure_SkillCardSurface(
+        BattleWorldSkillCardInstance& card,
+        uint32 slotIndex,
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        const Shared<ShaderCom>& shader,
+        const Shared<VIBuffer_Rect>& viBuffer,
+        const Vec2& pixelSize)
+    {
+        if (card.surface != nullptr && Is_SamePixelSize(card.surfacePixelSize, pixelSize))
+            return S_OK;
+
+        card.surface = RenderTargetComposedBattleWorldSkillCardSurface::Create(
+            slotIndex,
+            device,
+            context,
+            shader,
+            viBuffer,
+            pixelSize);
+        CHECK_NULL(card.surface, E_FAIL);
+
+        card.surfacePixelSize = pixelSize;
+        card.dirty = true;
+        return S_OK;
+    }
+
 }
 
 struct BattleWorldUI_SkillCards::Impl
 {
     Shared<ShaderCom> shader{};
     Shared<VIBuffer_Rect> viBuffer{};
-    array<BattleWorldSkillCardTemplate, kBattleWorldSkillSlotCount> templates{};
-    array<BattleWorldSkillCardInstance, kBattleWorldSkillSlotCount> cards{};
+    array<
+        array<
+            array<BattleWorldSkillCardTemplate, kBattleWorldSkillSurfaceCount>,
+            kBattleWorldSkillPageCount>,
+        kBattleWorldSkillPlacementHeroCount> templates{};
+    array<BattleWorldSkillCardInstance, kBattleWorldSkillSurfaceCount> cards{};
+    BattleWorldSkillWorldPlacementTunings placementTunings = Make_DefaultSkillWorldPlacementTunings();
+    fs::file_time_type placementTuningWriteTime{};
+    bool hasPlacementTuningFile = false;
+    HeroId activePlacementHeroId = HeroId::END;
+    HeroId editorPlacementHeroId = HeroId::END;
+    uint32 activePlacementPage = UINT32_MAX;
+    uint32 editorPlacementPage = UINT32_MAX;
 };
 
 BattleWorldUI_SkillCards::BattleWorldUI_SkillCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -1650,7 +2410,7 @@ HRESULT BattleWorldUI_SkillCards::Initialize(void* arg)
     Shared<Texture> fallbackCardTexture = BattleWorldUI_JsonTextureResolver::Load_TextureFromUIImage(
         _device,
         _context,
-        kBattleWorldSkillPanelJsonPath,
+        kBattleWorldSkillFallbackJsonPath,
         "Image_LumiereAssault_Frame",
         kBattleWorldSkillCardTextureGuid);
     CHECK_NULL(fallbackCardTexture, E_FAIL);
@@ -1658,30 +2418,49 @@ HRESULT BattleWorldUI_SkillCards::Initialize(void* arg)
     Shared<Texture> fallbackKeyFrameTexture = BattleWorldUI_JsonTextureResolver::Load_TextureFromUIImage(
         _device,
         _context,
-        kBattleWorldSkillPanelJsonPath,
+        kBattleWorldSkillFallbackJsonPath,
         "Image_KeyFrame_Q",
         kBattleWorldKeyFrameTextureGuid);
     CHECK_NULL(fallbackKeyFrameTexture, E_FAIL);
 
     const BattleWorldSkillCardTemplate fallbackTemplate =
         Build_FallbackSkillCardTemplate(fallbackCardTexture, fallbackKeyFrameTexture);
-    for (auto& cardTemplate : _impl->templates)
-        cardTemplate = fallbackTemplate;
-
-    array<BattleWorldSkillCardTemplate, kBattleWorldSkillSlotCount> jsonTemplates{};
-    if (Try_LoadJsonSkillCardTemplates(_device, _context, jsonTemplates))
-        _impl->templates = std::move(jsonTemplates);
-
-    for (uint32 slotIndex = 0; slotIndex < kBattleWorldSkillSlotCount; ++slotIndex)
+    for (auto& heroTemplates : _impl->templates)
     {
-        _impl->cards[slotIndex].surface = RenderTargetComposedBattleWorldSkillCardSurface::Create(
-            slotIndex,
+        for (auto& pageTemplates : heroTemplates)
+        {
+            for (auto& cardTemplate : pageTemplates)
+                cardTemplate = fallbackTemplate;
+        }
+    }
+
+    for (uint32 heroIndex = 0; heroIndex < kBattleWorldSkillPlacementHeroCount; ++heroIndex)
+    {
+        const HeroId heroId = static_cast<HeroId>(heroIndex);
+        for (uint32 pageIndex = 0; pageIndex < kBattleWorldSkillPageCount; ++pageIndex)
+        {
+            array<BattleWorldSkillCardTemplate, kBattleWorldSkillSurfaceCount> jsonTemplates =
+                _impl->templates[heroIndex][pageIndex];
+            if (Try_LoadJsonSkillCardTemplates(_device, _context, heroId, pageIndex, jsonTemplates))
+                _impl->templates[heroIndex][pageIndex] = std::move(jsonTemplates);
+        }
+    }
+
+    Reload_SkillWorldPlacementTuningIfNeeded(
+        _impl->placementTunings,
+        _impl->placementTuningWriteTime,
+        _impl->hasPlacementTuningFile);
+
+    for (uint32 surfaceIndex = 0; surfaceIndex < kBattleWorldSkillSurfaceCount; ++surfaceIndex)
+    {
+        CHECK_FAILED(Ensure_SkillCardSurface(
+            _impl->cards[surfaceIndex],
+            surfaceIndex,
             _device,
             _context,
             _impl->shader,
             _impl->viBuffer,
-            _impl->templates[slotIndex].pixelSize);
-        CHECK_NULL(_impl->cards[slotIndex].surface, E_FAIL);
+            _impl->templates[Resolve_SkillHeroIndex(HeroId::Gustave)][0][surfaceIndex].pixelSize), E_FAIL);
     }
 
     Hide();
@@ -1692,7 +2471,8 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
     const BattleChar& actor,
-    const string& selectedSkillKey)
+    const string& selectedSkillKey,
+    uint32 skillPage)
 {
     if (_impl == nullptr || !Should_ShowBattleWorldSkillCards(currentState) || actor.statCom == nullptr)
     {
@@ -1700,36 +2480,130 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
         return;
     }
 
-    bool anyVisible = false;
-    for (uint32 slotIndex = 0; slotIndex < kBattleWorldSkillSlotCount; ++slotIndex)
+    Reload_SkillWorldPlacementTuningIfNeeded(
+        _impl->placementTunings,
+        _impl->placementTuningWriteTime,
+        _impl->hasPlacementTuningFile);
+
+    const HeroId placementHeroId = Normalize_SkillHeroId(actor.heroId);
+    const uint32 placementHeroIndex = Resolve_SkillHeroIndex(placementHeroId);
+    uint32 pageIndex = Normalize_SkillPage(skillPage);
+
+    if (Is_TargetingSkillCardState(currentState) && !selectedSkillKey.empty())
     {
-        auto& card = _impl->cards[slotIndex];
+        for (uint32 actualSlotIndex = 0; actualSlotIndex < 5; ++actualSlotIndex)
+        {
+            string candidateSkillKey{};
+            if (!actor.statCom->Try_GetSkillKeyBySlot(actualSlotIndex, candidateSkillKey))
+                continue;
+
+            if (candidateSkillKey == selectedSkillKey)
+            {
+                pageIndex = actualSlotIndex >= 3 ? 1u : 0u;
+                break;
+            }
+        }
+    }
+
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+    _impl->activePlacementPage = pageIndex;
+    if (_impl->editorPlacementPage >= kBattleWorldSkillPageCount)
+        _impl->editorPlacementPage = pageIndex;
+
+    const BattleWorldSkillWorldPlacementTuning& placementTuning =
+        _impl->placementTunings[placementHeroIndex][pageIndex];
+    const Vec2 rootScale(
+        placementTuning.worldSize.x / max(0.01f, kBattleWorldSkillRootWorldSize.x),
+        placementTuning.worldSize.y / max(0.01f, kBattleWorldSkillRootWorldSize.y));
+
+    bool anyVisible = false;
+    for (uint32 surfaceIndex = 0; surfaceIndex < kBattleWorldSkillSurfaceCount; ++surfaceIndex)
+    {
+        auto& card = _impl->cards[surfaceIndex];
         card.visible = false;
 
-        string skillKey{};
-        if (!actor.statCom->Try_GetSkillKeyBySlot(slotIndex, skillKey))
-        {
-            card.hasContent = false;
-            continue;
-        }
+        const BattleWorldSkillCardTemplate& cardTemplate =
+            _impl->templates[placementHeroIndex][pageIndex][surfaceIndex];
+        const bool templateChanged =
+            card.templateHeroId != placementHeroId ||
+            card.templatePage != pageIndex ||
+            card.templateSurfaceIndex != surfaceIndex;
 
-        const Skill_Data* skill = CLIENT->Get_Skill(skillKey);
-        if (skill == nullptr)
-        {
-            card.hasContent = false;
-            continue;
-        }
+        BattleWorldSkillCardPresentation presentation{};
 
-        const BattleWorldSkillCardContent content = Build_SkillCardContent(slotIndex, skillKey, *skill);
-        if (!card.hasContent || !Is_SameContent(card.def.content, content))
+        if (surfaceIndex == kBattleWorldSkillChangeSurfaceIndex)
         {
-            card.def = Build_SkillCardDef(content, _impl->templates[slotIndex]);
-            card.hasContent = true;
-            card.dirty = true;
-        }
+            BattleWorldSkillCardContent content{};
+            content.skillKey = "ChangeSkillPage";
 
-        const BattleWorldSkillCardPresentation presentation =
-            Resolve_SkillPresentation(slotIndex, card.def, currentState, selectedSkillKey);
+            if (!card.hasContent || !Is_SameContent(card.def.content, content) || templateChanged)
+            {
+                card.def = Build_SkillCardDef(content, cardTemplate);
+                card.hasContent = true;
+                card.templateHeroId = placementHeroId;
+                card.templatePage = pageIndex;
+                card.templateSurfaceIndex = surfaceIndex;
+                card.dirty = true;
+            }
+
+            if (currentState == BattleTurnState::ChooseSkill)
+            {
+                presentation.visible = true;
+                presentation.screenPosition = placementTuning.screenPosition;
+                presentation.worldOffset = card.def.worldOffset;
+                presentation.worldSize = card.def.worldSize;
+                presentation.visualScale = placementTuning.visualScale;
+                presentation.pitchRadians = placementTuning.pitchRadians;
+                presentation.rollRadians = placementTuning.rollRadians;
+                presentation.yawOffsetRadians = placementTuning.yawOffsetRadians;
+            }
+        }
+        else
+        {
+            uint32 actualSkillSlotIndex = 0;
+            if (!Try_ResolveActualSkillSlotIndex(surfaceIndex, actualSkillSlotIndex))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            string skillKey{};
+            if (!actor.statCom->Try_GetSkillKeyBySlot(actualSkillSlotIndex, skillKey))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            const Skill_Data* skill = CLIENT->Get_Skill(skillKey);
+            if (skill == nullptr)
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            const wstring keyPrompt = Resolve_KeyPromptForPageSlot(pageIndex, actualSkillSlotIndex);
+            const BattleWorldSkillCardContent content = Build_SkillCardContent(keyPrompt, skillKey, *skill);
+
+            if (!card.hasContent || !Is_SameContent(card.def.content, content) || templateChanged)
+            {
+                card.def = Build_SkillCardDef(content, cardTemplate);
+                card.hasContent = true;
+                card.templateHeroId = placementHeroId;
+                card.templatePage = pageIndex;
+                card.templateSurfaceIndex = surfaceIndex;
+                card.dirty = true;
+            }
+
+            presentation =
+                Resolve_SkillPresentation(
+                    surfaceIndex,
+                    card.def,
+                    placementTuning,
+                    currentState,
+                    selectedSkillKey);
+        }
 
         if (card.selected != presentation.selected || card.dimmed != presentation.dimmed)
         {
@@ -1743,19 +2617,49 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
 
         if (card.dirty)
         {
+            if (FAILED(Ensure_SkillCardSurface(
+                card,
+                surfaceIndex,
+                _device,
+                _context,
+                _impl->shader,
+                _impl->viBuffer,
+                card.def.pixelSize)))
+            {
+                continue;
+            }
+
             if (card.surface == nullptr || FAILED(card.surface->Compose(card.def, card.selected, card.dimmed)))
                 continue;
 
             card.dirty = false;
         }
 
-        const Vec3 position = anchorWorldPos + presentation.worldOffset;
-        const Vec2 aspectWorldSize = Resolve_AspectWorldSize(presentation.worldSize, card.def.pixelSize);
+        Vec3 surfaceOffset = presentation.worldOffset;
+        if (surfaceIndex < kBattleWorldSkillSurfaceCount)
+            surfaceOffset += placementTuning.surfaceOffsets[surfaceIndex];
+
+        const Vec3 localOffset(
+            surfaceOffset.x * rootScale.x,
+            surfaceOffset.y * rootScale.y,
+            surfaceOffset.z);
+        const Vec2 surfaceWorldSize(
+            presentation.worldSize.x * rootScale.x,
+            presentation.worldSize.y * rootScale.y);
+        const Vec3 position =
+            anchorWorldPos +
+            Resolve_CameraScreenPositionDelta(presentation.screenPosition) +
+            placementTuning.baseOffset +
+            localOffset;
         card.worldMatrix =
             Matrix::CreateScale(
-                aspectWorldSize.x * presentation.visualScale,
-                aspectWorldSize.y * presentation.visualScale,
+                surfaceWorldSize.x * presentation.visualScale,
+                surfaceWorldSize.y * presentation.visualScale,
                 1.f) *
+            Matrix::CreateRotationZ(presentation.rollRadians) *
+            Matrix::CreateRotationX(presentation.pitchRadians) *
+            Matrix::CreateRotationY(presentation.yawOffsetRadians) *
+            Resolve_CameraFacingYawRotation(position) *
             Matrix::CreateTranslation(position.x, position.y, position.z);
         card.visible = true;
         anyVisible = true;
@@ -1773,6 +2677,136 @@ void BattleWorldUI_SkillCards::Hide()
 
     for (auto& card : _impl->cards)
         card.visible = false;
+}
+
+HeroId BattleWorldUI_SkillCards::Get_EditorWorldPlacementHeroId() const
+{
+    if (_impl == nullptr)
+        return HeroId::Gustave;
+
+    if (_impl->editorPlacementHeroId != HeroId::END)
+        return Normalize_SkillHeroId(_impl->editorPlacementHeroId);
+
+    if (_impl->activePlacementHeroId != HeroId::END)
+        return Normalize_SkillHeroId(_impl->activePlacementHeroId);
+
+    return HeroId::Gustave;
+}
+
+void BattleWorldUI_SkillCards::Set_EditorWorldPlacementHeroId(HeroId heroId)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementHeroId = Normalize_SkillHeroId(heroId);
+}
+
+uint32 BattleWorldUI_SkillCards::Get_EditorWorldPlacementVariantCount() const
+{
+    return kBattleWorldSkillPageCount;
+}
+
+uint32 BattleWorldUI_SkillCards::Get_EditorWorldPlacementVariantIndex() const
+{
+    if (_impl == nullptr)
+        return 0;
+
+    if (_impl->editorPlacementPage < kBattleWorldSkillPageCount)
+        return _impl->editorPlacementPage;
+
+    if (_impl->activePlacementPage < kBattleWorldSkillPageCount)
+        return _impl->activePlacementPage;
+
+    return 0;
+}
+
+const char* BattleWorldUI_SkillCards::Get_EditorWorldPlacementVariantLabel(uint32 index) const
+{
+    return To_SkillPageJsonName(index);
+}
+
+void BattleWorldUI_SkillCards::Set_EditorWorldPlacementVariantIndex(uint32 index)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->editorPlacementPage = Normalize_SkillPage(index);
+}
+
+RuntimeWorldUIPlacementTuning BattleWorldUI_SkillCards::Get_EditorWorldPlacementTuning() const
+{
+    if (_impl == nullptr)
+        return To_EditorWorldPlacementTuning(Make_DefaultSkillWorldPlacementTuning(HeroId::Gustave), 0);
+
+    const uint32 heroIndex = Resolve_SkillHeroIndex(Get_EditorWorldPlacementHeroId());
+    const uint32 pageIndex = Get_EditorWorldPlacementVariantIndex();
+    return To_EditorWorldPlacementTuning(_impl->placementTunings[heroIndex][pageIndex], pageIndex);
+}
+
+void BattleWorldUI_SkillCards::Set_EditorWorldPlacementTuning(
+    const RuntimeWorldUIPlacementTuning& tuning,
+    bool saveImmediately)
+{
+    if (_impl == nullptr)
+        return;
+
+    const uint32 heroIndex = Resolve_SkillHeroIndex(Get_EditorWorldPlacementHeroId());
+    const uint32 pageIndex = Get_EditorWorldPlacementVariantIndex();
+    _impl->placementTunings[heroIndex][pageIndex] = From_EditorWorldPlacementTuning(tuning);
+
+    if (!saveImmediately)
+        return;
+
+    if (Write_SkillWorldPlacementTuningsToFile(
+        _impl->placementTunings,
+        &_impl->placementTuningWriteTime))
+    {
+        _impl->hasPlacementTuningFile = true;
+    }
+}
+
+void BattleWorldUI_SkillCards::Reload_EditorWorldPlacementTuning()
+{
+    if (_impl == nullptr)
+        return;
+
+    const fs::path jsonPath = Resolve_SkillWorldPlacementJsonPath();
+    if (!fs::exists(jsonPath))
+    {
+        _impl->placementTunings = Make_DefaultSkillWorldPlacementTunings();
+        _impl->placementTuningWriteTime = {};
+        _impl->hasPlacementTuningFile = false;
+        LOG_INFO("BattleWorldUI skill placement json reload requested, but file is missing. using defaults.");
+        return;
+    }
+
+    BattleWorldSkillWorldPlacementTunings loadedTunings{};
+    if (!Try_LoadSkillWorldPlacementTunings(jsonPath, loadedTunings))
+        return;
+
+    error_code errorCode{};
+    const fs::file_time_type writeTime = fs::last_write_time(jsonPath, errorCode);
+    if (!errorCode)
+        _impl->placementTuningWriteTime = writeTime;
+
+    _impl->placementTunings = loadedTunings;
+    _impl->hasPlacementTuningFile = true;
+}
+
+void BattleWorldUI_SkillCards::Reset_EditorWorldPlacementTuning()
+{
+    if (_impl == nullptr)
+        return;
+
+    const HeroId heroId = Get_EditorWorldPlacementHeroId();
+    _impl->placementTunings[Resolve_SkillHeroIndex(heroId)][Get_EditorWorldPlacementVariantIndex()] =
+        Make_DefaultSkillWorldPlacementTuning(heroId);
+    if (Write_SkillWorldPlacementTuningsToFile(
+        _impl->placementTunings,
+        &_impl->placementTuningWriteTime))
+    {
+        _impl->hasPlacementTuningFile = true;
+    }
 }
 
 void BattleWorldUI_SkillCards::Late_Update(float timeDelta)

@@ -34,6 +34,9 @@ public:
     using Monster_Part::Set_Animation;
 
 private:
+    HRESULT Ready_Modifier();
+
+private:
     int32 _rootIndex = -1;
 
 public:

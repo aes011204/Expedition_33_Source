@@ -30,6 +30,7 @@ public:
     HRESULT Render_Shadow() override;
 
 private:
+    HRESULT Ready_Modifier();
     uint32 Decide_PassIndex(Shared<Material> mat) override;
 
 private:

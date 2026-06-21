@@ -308,6 +308,7 @@
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GamePlayMenuFade.h" />
     <ClInclude Include="..\Public\BattleWorldUI_CommandCards.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h" />
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h" />
@@ -700,6 +701,7 @@
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_CommandCards.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />

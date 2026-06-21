@@ -14,6 +14,8 @@ public:
 		float windMul{ 1.f };
 		float motionMul{ 1.f };
 		float followMul{ 1.f };
+		float rootOutputMul{ 1.f };
+		float tipOutputMul{ 1.f };
 	};
 
 	struct PoseFollowChainModifierDesc : public AnimationModifierDesc
@@ -77,8 +79,10 @@ private:
 		Vec3 position{ Vec3::Zero };
 		Vec3 prevPosition{ Vec3::Zero };
 		float length{ 0.01f };
+		float debugWriteAlpha{ 0.f };
 		bool isVirtualAnchor{ false };
 		bool hasSmoothedLocalDir{ false };
+		bool debugIsRootNode{ false };
 	};
 
 	struct BoneChain
@@ -88,6 +92,8 @@ private:
 		float windMul{ 1.f };
 		float motionMul{ 1.f };
 		float followMul{ 1.f };
+		float rootOutputMul{ 1.f };
+		float tipOutputMul{ 1.f };
 	};
 
 	struct WorldCapsule
@@ -102,6 +108,20 @@ protected:
 	void On_ActiveChanged(ModelCom* model, bool isActive) override;
 
 public:
+	struct RuntimeDebugNode
+	{
+		size_t groupIndex{ 0 };
+		size_t nodeIndex{ 0 };
+		int32 parentNodeIndex{ -1 };
+		uint32 boneIndex{ 0 };
+		string boneName{};
+		Vec3 posePosition{ Vec3::Zero };
+		Vec3 simulatedPosition{ Vec3::Zero };
+		float writeAlpha{ 0.f };
+		bool isVirtualAnchor{ false };
+		bool isRootNode{ false };
+	};
+
 	void Evaluate_Modifier(ModelCom* model, float timeDelta) override;
 	const ClassReflectionInfo* Get_RuntimeReflectionInfo() const override;
 	void* Get_RuntimeReflectionTarget() override { return &_desc; }
@@ -115,6 +135,8 @@ public:
 	string Get_RuntimeGroupRootBoneName(size_t groupIndex) const;
 	Vec3 Get_RuntimeGroupMultipliers(size_t groupIndex) const;
 	void Set_RuntimeGroupMultipliers(size_t groupIndex, const Vec3& multipliers);
+	void Set_RuntimeTestOwnerMotion(bool enabled, const Vec3& delta);
+	void Build_RuntimeDebugNodes(ModelCom* model, vector<RuntimeDebugNode>& outNodes) const;
 
 private:
 	void Initialize_Chains(ModelCom* model);
@@ -136,6 +158,8 @@ private:
 	bool _chainsInitialized{ false };
 	Vec3 _prevOwnerPos{ Vec3::Zero };
 	Vec3 _prevOwnerForward{ Vec3::UnitZ };
+	bool _runtimeTestOwnerMotionEnabled{ false };
+	Vec3 _runtimeTestOwnerMotionDelta{ Vec3::Zero };
 
 public:
 	static Shared<PoseFollowChainModifier> Create(const PoseFollowChainModifierDesc* desc);
