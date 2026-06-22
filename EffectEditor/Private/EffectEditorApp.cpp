@@ -4,6 +4,7 @@
 #include "ComputeGeneratedBeamEmitter.h"
 #include "ComputeSourceHistoryRibbonEmitter.h"
 #include "ComputeSourceHistorySpriteTrailEmitter.h"
+#include "Content_Browser.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
@@ -16,6 +17,306 @@ NS_BEGIN(EffectEditor)
 namespace Internal
 {
     constexpr long long kStartupResourceInfoThresholdMs = 200;
+
+    bool EndsWith(const string& value, const string& suffix)
+    {
+        if (value.length() < suffix.length())
+            return false;
+
+        return equal(suffix.rbegin(), suffix.rend(), value.rbegin());
+    }
+
+    wstring Build_MetaPath(const wstring& assetPath)
+    {
+        return assetPath + L".meta";
+    }
+
+    bool Is_PathUnderRoot(const fs::path& path, const fs::path& root)
+    {
+        try
+        {
+            if (root.empty())
+                return true;
+
+            const fs::path normalizedPath = fs::absolute(path).lexically_normal();
+            const fs::path normalizedRoot = fs::absolute(root).lexically_normal();
+            const fs::path relativePath = fs::relative(normalizedPath, normalizedRoot);
+
+            if (relativePath.is_absolute())
+                return false;
+
+            if (relativePath.empty())
+                return true;
+
+            const auto firstPart = relativePath.begin();
+            if (firstPart == relativePath.end())
+                return true;
+
+            return *firstPart != L"..";
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    bool Is_IgnoredAssetPath(const fs::path& path, const fs::path& resourceRoot)
+    {
+        static const vector<string> ignoreFolders{ ".git", ".vs", "Fonts", "Data/Assets" };
+
+        const fs::path normalizedPath = path.lexically_normal();
+        const fs::path normalizedRoot = resourceRoot.empty() ? fs::path() : resourceRoot.lexically_normal();
+
+        for (const string& ignoreFolder : ignoreFolders)
+        {
+            const string lowerIgnore = String::ToLowerCopy(ignoreFolder);
+            if (lowerIgnore.find('/') == string::npos && lowerIgnore.find('\\') == string::npos)
+            {
+                for (const fs::path& part : normalizedPath)
+                {
+                    if (String::ToLowerCopy(String::ToString(part.wstring())) == lowerIgnore)
+                        return true;
+                }
+
+                continue;
+            }
+
+            if (normalizedRoot.empty())
+                continue;
+
+            string relativePath = {};
+            try
+            {
+                relativePath = String::ToLowerCopy(fs::relative(normalizedPath, normalizedRoot).generic_string());
+            }
+            catch (...)
+            {
+                continue;
+            }
+
+            if (relativePath == lowerIgnore || 0 == relativePath.find(lowerIgnore + "/"))
+                return true;
+        }
+
+        return false;
+    }
+
+    bool Should_RegisterJsonAsset(const fs::path& path, const fs::path& resourceRoot)
+    {
+        if (resourceRoot.empty())
+            return false;
+
+        string relativePath = {};
+        try
+        {
+            relativePath = String::ToLowerCopy(fs::relative(path, resourceRoot).generic_string());
+        }
+        catch (...)
+        {
+            return false;
+        }
+
+        return 0 == relativePath.find("ui/ui_json/") ||
+               0 == relativePath.find("data/json/animnotifies/") ||
+               0 == relativePath.find("data/json/bt/") ||
+               0 == relativePath.find("data/json/camerapreset/") ||
+               0 == relativePath.find("data/json/cinematics/") ||
+               0 == relativePath.find("data/json/prefabs/") ||
+               0 == relativePath.find("materials/") ||
+               0 == relativePath.find("effects/assets/") ||
+               0 == relativePath.find("effects/materials/");
+    }
+
+    bool Should_RegisterAsset(const fs::path& path, const fs::path& resourceRoot)
+    {
+        const string name = String::ToLowerCopy(String::ToString(path.filename().wstring()));
+        const string extension = String::ToLowerCopy(String::ToString(path.extension().wstring()));
+
+        if (Is_IgnoredAssetPath(path, resourceRoot))
+            return false;
+
+        if (EndsWith(name, ".meta") ||
+            name == "assetregistry.json" ||
+            name == "assetregistry.cache.json" ||
+            extension == ".xlsx" ||
+            extension == ".csv")
+            return false;
+
+        if (extension == ".json")
+            return Should_RegisterJsonAsset(path, resourceRoot);
+
+        return extension == ".model"
+               || extension == ".meshbin"
+               || extension == ".anim"
+               || extension == ".clip"
+               || extension == ".psa"
+               || extension == ".dds"
+               || extension == ".png"
+               || extension == ".jpg"
+               || extension == ".jpeg"
+               || extension == ".tga"
+               || extension == ".hlsl"
+               || extension == ".fx"
+               || extension == ".wav"
+               || extension == ".mp3"
+               || extension == ".ogg"
+               || extension == ".spritefont"
+               || extension == ".ttf"
+               || extension == ".otf";
+    }
+
+    string Detect_AssetType(const fs::path& filePath, const fs::path& resourceRoot)
+    {
+        const string extension = String::ToLowerCopy(String::ToString(filePath.extension().wstring()));
+
+        if (extension == ".json")
+        {
+            string relativePath = String::ToLowerCopy(filePath.generic_string());
+            try
+            {
+                if (!resourceRoot.empty())
+                    relativePath = String::ToLowerCopy(fs::relative(filePath, resourceRoot).generic_string());
+            }
+            catch (...)
+            {
+            }
+
+            if (0 == relativePath.find("ui/ui_json/"))
+                return "UIJson";
+            if (0 == relativePath.find("data/json/animnotifies/"))
+                return "AnimNotify";
+            if (0 == relativePath.find("data/json/bt/"))
+                return "BehaviorTree";
+            if (0 == relativePath.find("data/json/camerapreset/"))
+                return "CameraPreset";
+            if (0 == relativePath.find("data/json/cinematics/"))
+                return "Cinematic";
+            if (0 == relativePath.find("data/json/prefabs/"))
+                return "Prefab";
+            if (0 == relativePath.find("materials/"))
+                return "Material";
+            if (0 == relativePath.find("effects/assets/"))
+                return "Effect";
+            if (0 == relativePath.find("effects/materials/"))
+                return "EffectMaterial";
+
+            return "Json";
+        }
+
+        if (extension == ".model" || extension == ".meshbin")
+            return "Model";
+        if (extension == ".anim" || extension == ".clip" || extension == ".psa")
+            return "Animation";
+        if (extension == ".dds" || extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".tga")
+            return "Texture";
+        if (extension == ".hlsl" || extension == ".fx")
+            return "Shader";
+        if (extension == ".wav" || extension == ".mp3" || extension == ".ogg")
+            return "Sound";
+        if (extension == ".spritefont" || extension == ".ttf" || extension == ".otf")
+            return "Font";
+
+        return "Unknown";
+    }
+
+    bool Try_ReadMetaFile(const fs::path& metaPath, const fs::path& resourceRoot, AssetMeta& outAssetMeta)
+    {
+        try
+        {
+            ifstream file(metaPath);
+            if (!file.is_open())
+                return false;
+
+            json root = {};
+            file >> root;
+            if (!root.contains("guid"))
+                return false;
+
+            const wstring metaPathString = metaPath.wstring();
+            if (!EndsWith(String::ToLowerCopy(String::ToString(metaPath.filename().wstring())), ".meta"))
+                return false;
+
+            const wstring assetPathString = metaPathString.substr(0, metaPathString.length() - wcslen(L".meta"));
+            const fs::path assetPath = fs::absolute(fs::path(assetPathString)).lexically_normal();
+            if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+                return false;
+
+            outAssetMeta = {};
+            outAssetMeta.guid = root.value("guid", "");
+            outAssetMeta.type = root.value("type", Detect_AssetType(assetPath, resourceRoot));
+            outAssetMeta.modelType = root.value("modelType", "");
+            outAssetMeta.fullPath = assetPath.wstring();
+            if (!resourceRoot.empty())
+                outAssetMeta.relativePath = fs::relative(assetPath, resourceRoot).wstring();
+
+            return !outAssetMeta.guid.empty();
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    AssetDeltaScanResult Scan_EffectsAssetDelta(const fs::path& resourceRoot, const fs::path& scanRoot)
+    {
+        AssetDeltaScanResult result{};
+        result.scanRoot = scanRoot.wstring();
+
+        try
+        {
+            if (!fs::exists(scanRoot) || !fs::is_directory(scanRoot))
+                return result;
+
+            fs::recursive_directory_iterator iter(scanRoot);
+            const fs::recursive_directory_iterator end = {};
+
+            for (; iter != end; ++iter)
+            {
+                const fs::directory_entry& entry = *iter;
+                if (entry.is_directory() && Is_IgnoredAssetPath(entry.path(), resourceRoot))
+                {
+                    iter.disable_recursion_pending();
+                    continue;
+                }
+
+                if (!entry.is_regular_file())
+                    continue;
+
+                const fs::path path = fs::absolute(entry.path()).lexically_normal();
+                const string fileName = String::ToLowerCopy(String::ToString(path.filename().wstring()));
+                if (EndsWith(fileName, ".meta"))
+                {
+                    const wstring pathString = path.wstring();
+                    const fs::path assetPath = fs::path(pathString.substr(0, pathString.length() - wcslen(L".meta")));
+                    if (!fs::exists(assetPath))
+                        result.staleAssetPaths.push_back(assetPath.wstring());
+                    continue;
+                }
+
+                if (!Should_RegisterAsset(path, resourceRoot))
+                    continue;
+
+                result.discoveredAssetPaths.push_back(path.wstring());
+
+                const fs::path metaPath = Build_MetaPath(path.wstring());
+                if (fs::exists(metaPath))
+                {
+                    AssetMeta assetMeta{};
+                    if (Try_ReadMetaFile(metaPath, resourceRoot, assetMeta))
+                        result.existingMetaAssets.push_back(assetMeta);
+                }
+                else
+                    result.missingMetaAssetPaths.push_back(path.wstring());
+            }
+
+            result.scanSucceeded = true;
+        }
+        catch (...)
+        {
+        }
+
+        return result;
+    }
 
     bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
     {
@@ -72,12 +373,9 @@ namespace Internal
             prototypeTag == L"Com_Collider_OBB";
     }
 
-    bool Is_EffectEditorPreviewModelAllowed(const wstring& prototypeTag)
+    bool Is_EffectEditorPreviewModelAllowed(const wstring&)
     {
-        return
-            prototypeTag == L"Model_GustaveBody" ||
-            prototypeTag == L"Model_GustaveHead" ||
-            prototypeTag == L"Model_GustaveHair";
+        return false;
     }
 
     bool Is_EffectEditorPreviewGameObjectAllowed(const wstring& prototypeTag)
@@ -192,6 +490,9 @@ HRESULT EffectEditorApp::Initialize()
     if (!fs::exists(assetRootPath) || !fs::is_directory(assetRootPath))
         return E_FAIL;
 
+    _assetRootPath = fs::absolute(assetRootPath).lexically_normal();
+    _effectsAssetScanRoot = _assetRootPath / L"Effects";
+
     RECT clientRect{};
     if (!GetClientRect(g_hWnd, &clientRect))
         return E_FAIL;
@@ -231,7 +532,7 @@ HRESULT EffectEditorApp::Initialize()
     CHECK_FAILED(run_startup_step(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
     const fs::path missingMetaRootPath = assetRootPath / L"Effects";
     CHECK_FAILED(
-        run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring(), true, missingMetaRootPath.wstring()); }),
+        run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring(), false, missingMetaRootPath.wstring()); }),
         E_FAIL
     );
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
@@ -270,6 +571,9 @@ void EffectEditorApp::Priority_Update(float)
 
 void EffectEditorApp::Update(float timeDelta)
 {
+    Queue_EffectsAssetDeltaScan();
+    Commit_PendingAssetDeltaScan();
+
     {
         ENGINE_PROFILE_SCOPE_BASIC("Editor::Update");
         EDITOR->Update_Editor(timeDelta);
@@ -310,6 +614,84 @@ void EffectEditorApp::Update(float timeDelta)
 
 void EffectEditorApp::Late_Update(float)
 {
+}
+
+void EffectEditorApp::Queue_EffectsAssetDeltaScan()
+{
+    if (_assetDeltaScanQueued || _assetDeltaScanCommitted)
+        return;
+
+    _assetDeltaScanQueued = true;
+
+    if (_assetRootPath.empty() || _effectsAssetScanRoot.empty() ||
+        !fs::exists(_effectsAssetScanRoot) || !fs::is_directory(_effectsAssetScanRoot))
+    {
+        LOG_INFO("[AssetDeltaScan] skipped missing Effects root");
+        return;
+    }
+
+    const fs::path assetRootPath = _assetRootPath;
+    const fs::path effectsScanRoot = _effectsAssetScanRoot;
+    const bool enqueued = GAME->Enqueue_ThreadJob(
+        [this, assetRootPath, effectsScanRoot]
+        {
+            const auto scanBegin = chrono::steady_clock::now();
+            AssetDeltaScanResult scanResult = Internal::Scan_EffectsAssetDelta(assetRootPath, effectsScanRoot);
+            const auto elapsedMs = chrono::duration_cast<chrono::milliseconds>(
+                chrono::steady_clock::now() - scanBegin).count();
+
+            LOG_INFO(
+                "[AssetDeltaScan] background scan complete scanRoot={} discovered={} existingMeta={} missingMeta={} stale={} elapsed={}ms",
+                String::ToString(effectsScanRoot.wstring()),
+                static_cast<uint32>(scanResult.discoveredAssetPaths.size()),
+                static_cast<uint32>(scanResult.existingMetaAssets.size()),
+                static_cast<uint32>(scanResult.missingMetaAssetPaths.size()),
+                static_cast<uint32>(scanResult.staleAssetPaths.size()),
+                elapsedMs
+            );
+
+            lock_guard<mutex> lock(_assetDeltaScanMutex);
+            _pendingAssetDeltaScanResult = std::move(scanResult);
+        });
+
+    if (!enqueued)
+    {
+        _assetDeltaScanQueued = false;
+        LOG_WARN("[AssetDeltaScan] failed to enqueue Effects delta scan job");
+    }
+}
+
+void EffectEditorApp::Commit_PendingAssetDeltaScan()
+{
+    optional<AssetDeltaScanResult> scanResult{};
+    {
+        lock_guard<mutex> lock(_assetDeltaScanMutex);
+        if (!_pendingAssetDeltaScanResult.has_value())
+            return;
+
+        scanResult = std::move(_pendingAssetDeltaScanResult);
+        _pendingAssetDeltaScanResult.reset();
+    }
+
+    if (!scanResult.has_value())
+        return;
+
+    const fs::path missingMetaRootPath = _assetRootPath / L"Effects";
+    const HRESULT hr = GAME->Commit_AssetDeltaScan(scanResult.value(), missingMetaRootPath.wstring());
+    if (FAILED(hr))
+    {
+        LOG_WARN("[AssetDeltaScan] commit failed");
+        return;
+    }
+
+    _assetDeltaScanCommitted = true;
+    if (hr != S_OK)
+        return;
+
+    const Shared<Editor_Window> browserWindow = EDITOR->Get_Window(L"Content Browser");
+    const Shared<Content_Browser> contentBrowser = dynamic_pointer_cast<Content_Browser>(browserWindow);
+    if (contentBrowser != nullptr)
+        contentBrowser->Request_RefreshResources();
 }
 
 #ifdef _DEBUG

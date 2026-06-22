@@ -534,14 +534,58 @@ void Inspector::Draw_RuntimeWorldUIPlacementInspector(
         ImGui::EndCombo();
     }
 
+    const uint32 variantCount = target->Get_EditorWorldPlacementVariantCount();
+    if (variantCount > 1)
+    {
+        uint32 selectedVariantIndex = target->Get_EditorWorldPlacementVariantIndex();
+        if (selectedVariantIndex >= variantCount)
+            selectedVariantIndex = 0;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Page");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::BeginCombo(
+            "##RuntimeWorldPlacementVariant",
+            target->Get_EditorWorldPlacementVariantLabel(selectedVariantIndex)))
+        {
+            for (uint32 variantIndex = 0; variantIndex < variantCount; ++variantIndex)
+            {
+                const bool selected = selectedVariantIndex == variantIndex;
+                if (ImGui::Selectable(target->Get_EditorWorldPlacementVariantLabel(variantIndex), selected))
+                {
+                    target->Set_EditorWorldPlacementVariantIndex(variantIndex);
+                    selectedVariantIndex = variantIndex;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+
     Client::RuntimeWorldUIPlacementTuning tuning = target->Get_EditorWorldPlacementTuning();
     bool changed = false;
 
     changed |= Draw_UIVec3Row("Screen Position", "##RuntimeWorldScreenPosition", tuning.screenPosition, 0.01f);
     changed |= Draw_UIVec3Row("Base Offset", "##RuntimeWorldBaseOffset", tuning.baseOffset, 0.01f);
-    changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
-    changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
-    changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    if (tuning.showKeyOffsets)
+    {
+        changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
+        changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
+        changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    }
+
+    for (size_t offsetIndex = 0; offsetIndex < tuning.namedOffsets.size(); ++offsetIndex)
+    {
+        auto& namedOffset = tuning.namedOffsets[offsetIndex];
+        const string label = namedOffset.label.empty() ? namedOffset.id : namedOffset.label;
+        const string controlId = "##RuntimeWorldNamedOffset" + to_string(offsetIndex);
+        changed |= Draw_UIVec3Row(label.c_str(), controlId.c_str(), namedOffset.offset, 0.01f);
+    }
+
     changed |= Draw_UIVec2Row("World Size", "##RuntimeWorldSize", tuning.worldSize, 0.01f);
     changed |= Draw_UIFloatRow("Visual Scale", "##RuntimeWorldVisualScale", tuning.visualScale, 0.01f);
     changed |= Draw_UIFloatRow("Pitch", "##RuntimeWorldPitch", tuning.pitchDegrees, 0.1f);
@@ -1251,6 +1295,14 @@ bool Inspector::Draw_ReflectionProperty(
     const string visibleLabel =
         property.displayName.empty() ? property.name : property.displayName;
     const string hiddenId = "##" + idPrefix + "_" + property.name;
+    const auto drawPropertyLabel = [&visibleLabel]()
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+    };
 
     switch (property.type)
     {
@@ -1258,9 +1310,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         bool* value = static_cast<bool*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         return ImGui::Checkbox(hiddenId.c_str(), value);
     }
 
@@ -1269,9 +1319,7 @@ bool Inspector::Draw_ReflectionProperty(
         int* value = static_cast<int*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
@@ -1289,9 +1337,7 @@ bool Inspector::Draw_ReflectionProperty(
         float* value = static_cast<float*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
@@ -1304,9 +1350,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec2* value = static_cast<Vec2*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_Vec2PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1315,9 +1359,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec3* value = static_cast<Vec3*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_Vec3PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1326,9 +1368,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec4* value = static_cast<Vec4*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_Vec4PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1337,9 +1377,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         Vec4* value = static_cast<Vec4*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_ColorPropertyRow(idPrefix + "_" + property.name, *value);
     }
@@ -1349,9 +1387,7 @@ bool Inspector::Draw_ReflectionProperty(
         std::string* value = static_cast<std::string*>(address);
         bool changed = false;
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         if (property.isBlackboardKey && _btBlackboardKeys != nullptr)
         {
@@ -1405,9 +1441,7 @@ bool Inspector::Draw_ReflectionProperty(
         wstring* value = static_cast<wstring*>(address);
         bool changed = false;
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         if (idPrefix == "EffectCom" && property.name == "_inspectorEffectName")
         {
@@ -1432,9 +1466,7 @@ bool Inspector::Draw_ReflectionProperty(
     {
         int* value = static_cast<int*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         return Draw_EnumPropertyRow(idPrefix + "_" + property.name, property, *value);
     }
@@ -1442,9 +1474,7 @@ bool Inspector::Draw_ReflectionProperty(
     case PropertyType::ReadOnly:
     default:
     {
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::BeginDisabled();
         ImGui::TextUnformatted("Unsupported");
         ImGui::EndDisabled();

@@ -9,6 +9,7 @@ NS_BEGIN(Client)
 
 class SL_Base;
 class SL_Maelle;
+class SoulLikeCamera;
 
 class SL_StateMachineCom;
 
@@ -42,6 +43,7 @@ public:
     bool Begin_Battle();
     void End_Battle();
     void Confirm_Victory();
+    bool Is_DebugKeyStartEnabled() const { return _enableDebugKeyStart; }
 
     bool Is_BattleActive() const
     {
@@ -66,10 +68,27 @@ public:
 
     void End_BattleShotCamera();
 
+    void Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo);
+    void Play_PlayerParryFeedback();
+    void Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo);
+
+    void Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active);
+    void Set_JumpCounterWindowOpen(bool open);
+    bool Try_ConsumeJumpCounterDodge(const Shared<SL_Base>& attacker, const Shared<SL_Maelle>& target);
+    void Apply_JumpCounterDamage();
+
+    // 패링 시 뒤로 밀리기
+    float Get_PlayerHitPushDistance() const { return _playerHitPushDistance; }
+    float Get_PlayerHitPushDuration() const { return _playerHitPushDuration; }
+
+
 private:
-    void    Request_TargetCamera();
+    void    Request_SoulLikeCamera();
     void    Request_BattleShotCamera(const EvtBattlePresentation& event);
-    void    Restore_TargetCamera();
+    void    Restore_GameplayCamera();
+    bool    Ensure_SoulLikeCamera();
+    bool    Ensure_BattleTurnCamera();
+    void    Remove_SoulLikeRuntimeCameras();
     Shared<Character> Resolve_PlayerCameraOpponent(const Shared<SL_Maelle>& player) const;
 
 private:
@@ -87,6 +106,8 @@ private:
 
     void Update_Player(float timeDelta);
     void Update_BaseAttack(const Shared<SL_StateMachineCom>& stateMachine);
+    bool Update_Jump(const Shared<SL_StateMachineCom>& stateMachine);
+    bool Update_Parry(const Shared<SL_StateMachineCom>& stateMachine);
     bool Update_Skill(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
     void Update_Dodge(const Shared<SL_StateMachineCom>& stateMachine, const SL_MoveRequest& moveRequest);
 
@@ -109,12 +130,37 @@ private:
     BattleState _state = BattleState::None;
     Weak<SL_Maelle> _player{};
     Weak<SL_Base> _monster{};
+    Weak<SoulLikeCamera> _soulLikeCamera{};
 
     float _enterFxTimer = 0.f;
     float _victorySlowElapsed = 0.f;
     uint32 _lastVictoryRewardExp = 0;
     bool  _playerSpawned = false;
     FDelegateHandle _editorStopHandle{};
+    uint32 _soulLikeCameraLevelIndex = 0;
+    uint32 _soulLikeBattleTurnCameraLevelIndex = 0;
+    bool _createdSoulLikeBattleTurnCamera = false;
+
+private:
+    /* 패링 */
+    float _playerHitPushDistance = 0.65f;
+    float _playerHitPushDuration = 0.18f;
+
+    // 공격 받았을 때
+    float _playerHitStopTimeScale = 0.05f;
+    float _playerHitStopDuration = 0.08f;
+
+    // 공격할 때
+    float _playerAttackHitStopTimeScale = 0.08f;
+    float _playerAttackHitStopDuration = 0.04f;
+
+    Weak<SL_Base> _jumpCounterAttacker{};
+    bool _jumpCounterThreatOpen = false;
+    bool _jumpCounterJumpSucceeded = false;
+    bool _jumpCounterCounterWindowOpen = false;
+    bool _jumpCounterAttackStarted = false;
+    bool _jumpCounterDamageApplied = false;
+    float _jumpCounterDamageMultiplier = 1.f;
 
 public:
     static Shared<SoulLikeController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

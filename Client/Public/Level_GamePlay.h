@@ -36,6 +36,8 @@ private:
     HRESULT Ready_Layer_Player(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
     HRESULT Ready_Layer_Puzzle(const wstring& strLayerTag);
+    HRESULT Ready_Layer_Trigger(const wstring& strLayerTag);
+    void    Respawn_CinematicTrigger();
 
 private:
     WindowTitleFpsState _windowTitleFps = {};

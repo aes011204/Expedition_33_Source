@@ -5,6 +5,7 @@
 #include "Helper_String.h"
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
+#include "SL_Base.h"
 #include "SL_Maelle.h"
 #include "Body_Player.h"
 #include "ModelCom.h"

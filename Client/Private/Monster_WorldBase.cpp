@@ -141,6 +141,26 @@ void Monster_WorldBase::Update(float timeDelta)
     if (CLIENT->Is_WorldControlSuspended())
         return;
 
+    if (_combatStat)
+        _combatStat->Update(timeDelta);
+
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (_isCinematicDriven)
+    {
+        if (bodyPart)
+        {
+            bodyPart->Play_Animation(timeDelta);
+            _transformCom->Set_SpeedPerSec(0.f);
+        }
+
+        Character_WorldBase::Update(timeDelta);
+
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        return;
+    }
+
     const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
     bool holdStartIdle = false;
 
@@ -160,9 +180,6 @@ void Monster_WorldBase::Update(float timeDelta)
         }
     }
 
-    if (_combatStat)
-        _combatStat->Update(timeDelta);
-
     if (_currentAction != MonsterWorldAnim::Hit)
     {
         if (_isStun)
@@ -175,7 +192,6 @@ void Monster_WorldBase::Update(float timeDelta)
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
     //    Set_CurrentAction(MonsterAction::Move);
 
-    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
     if (_currentAction == MonsterWorldAnim::Hit && bodyPart && bodyPart->Is_AnimationFinished())
     {
         OnHitAnimationFinished();
@@ -329,6 +345,29 @@ void Monster_WorldBase::Apply_Stun(float duration)
 
     _currentAction = MonsterWorldAnim::Hit;
     _hasAppliedAction = false;
+}
+
+void Monster_WorldBase::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
+    if (_movementCom)
+    {
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_transformCom)
+        _transformCom->Set_SpeedPerSec(0.f);
 }
 
 void Monster_WorldBase::OnHitAnimationFinished()

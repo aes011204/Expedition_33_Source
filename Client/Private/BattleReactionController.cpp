@@ -28,6 +28,8 @@ void BattleReactionController::OpenWindow(BattleReactionType type)
 
 void BattleReactionController::CloseWindow(BattleReactionType type)
 {
+    const bool wasOpen = IsWindowOpen(type);
+
     if (type == BattleReactionType::Dodge)
         _isDodgeOpen = false;
     else if (type == BattleReactionType::Parry)
@@ -37,6 +39,9 @@ void BattleReactionController::CloseWindow(BattleReactionType type)
     else if (type == BattleReactionType::JumpCounter)
         _isJumpCounterOpen = false;
     // 성공했을 때 입력은 AN_Attack에서 Consume 소모
+
+    if (wasOpen)
+        OnReactionWindowClosed.Broadcast(type);
 }
 
 void BattleReactionController::Clear()
@@ -129,14 +134,13 @@ void BattleReactionController::NotifyJumpCounterWindowBegin()
     if (_jumpCounterState != JumpCounterState::JumpSucceeded)
         return;
 
-    _isJumpCounterOpen = true;
     _jumpCounterState = JumpCounterState::CounterWindowOpen;
-    OnReactionWindowOpened.Broadcast(BattleReactionType::JumpCounter);
+    OpenWindow(BattleReactionType::JumpCounter);
 }
 
 void BattleReactionController::NotifyJumpCounterWindowEnd()
 {
-    _isJumpCounterOpen = false;
+    CloseWindow(BattleReactionType::JumpCounter);
 
     if (_jumpCounterState == JumpCounterState::CounterWindowOpen)
     {
@@ -161,6 +165,15 @@ bool BattleReactionController::TryStartQueuedJumpCounter(ModelCom* sourceModel)
     }
 
     return false;
+}
+
+bool BattleReactionController::Try_GetJumpCounterTarget(BattleChar& outTarget) const
+{
+    if (_jumpCounterTarget.actor == nullptr || _jumpCounterTarget.statCom == nullptr)
+        return false;
+
+    outTarget = _jumpCounterTarget;
+    return true;
 }
 
 bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex)
@@ -290,7 +303,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
                     battle->Play_BattleHitStop(0.08f, 0.08f);
 
                 PlayEffectDesc effectDesc{};
-                effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+                effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
                 effectDesc.spawnBasisTarget = target.actor;
                 effectDesc.scale = Vec3(0.5f, 0.5f, 0.5f);
                 effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
@@ -816,9 +829,9 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
     if (hitCount > 0)
     {
         PlayEffectDesc effectDesc{};
-        effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+        effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
         effectDesc.spawnBasisTarget = _counterDamageTarget.actor;
-        effectDesc.scale = Vec3(1.2f, 1.2f, 1.2f);
+        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
         effectDesc.localOffset = Vec3(0.f, 1.2f, 0.f);
 
         CLIENT->Play_Effect(effectDesc);
@@ -922,24 +935,22 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
     else if (reactionType == BattleReactionType::Parry)
     {
         animType = BattleAnimType::Parray; // 성공하면 패링 애니메이션
-
-        EvtBattlePresentation event;
-        //
-        //if(_reactionAnimTargets.size() == 1)
-        //{
-        //    event.cameraMode = BattleCameraMode::PARRY;
-        //    event.subject = _reactionAnimTargets.front().actor;
-        //    event.presetId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
-        //    event.clipId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
-        //    event.useClip = true;
-        //}
-        //GAME->Get_EventBus().Publish(event);
-        //
+        
         if (isSuccess && _curSkillData->targetingType.size() - 1 == curAttackIndex)
         {
             _isCounterPending = true;
             _counterDamageTarget = counterTarget;
             _isCounterDamageApplied = false;
+     
+            EvtBattlePresentation event;
+
+            event.cameraMode = BattleCameraMode::PARRY;
+            event.subject = target.actor;
+            event.presetId = magic_enum::enum_name(target.heroId);
+            event.clipId = magic_enum::enum_name(target.heroId);
+            event.useClip = true;
+
+            GAME->Get_EventBus().Publish(event);
         }
     }
     else if (reactionType == BattleReactionType::JumpCounter)
@@ -1076,6 +1087,7 @@ Shared<BattleReactionController> BattleReactionController::Create()
 void BattleReactionController::Free()
 {
     OnReactionWindowOpened.Clear();
+    OnReactionWindowClosed.Clear();
     OnReactionSucceeded.Clear();
     OnCounterStarted.Clear();
 

@@ -62,7 +62,11 @@ private: //## Types::CurveTarget
         CurveTargetIdentity identity{};
         AuthoringEmitter* emitter{};
         AuthoringModule* module{};
-        variant<FloatDistributionData*, Vector2DistributionData*, Vector3DistributionData*, ColorDistributionData*> distribution{};
+        variant<
+            FloatDistributionData*,
+            Vector2DistributionData*,
+            Vector3DistributionData*,
+            ColorDistributionData*> distribution{};
         string label{};
         string propertyLabel{};
         CurveTargetPayloadKind payloadKind{ CurveTargetPayloadKind::Float };
@@ -86,6 +90,17 @@ private: //## Types::CurveTarget
         float startValue{};
         GraphValueRange startRange{};
     };
+
+private: //## Data::CurveEditor
+    vector<PinnedTrack> _pinnedTracks{};
+    optional<CurveTargetIdentity> _activeTrack{};
+    optional<size_t> _selectedKeyIndex{};
+    bool _hasPendingCurveEdit{ false };
+    Emitter_View::AuthoringSnapshot _pendingCurveBeforeSnapshot{};
+    CurveTargetIdentity _pendingCurveTarget{};
+    string _pendingCurveDescription{};
+    GraphDragState _graphDrag{};
+    float _trackListWidth{ 230.f };
 
 private: //## Helper::CurveTarget
     static bool Is_SameIdentity(const CurveTargetIdentity& lhs, const CurveTargetIdentity& rhs);
@@ -205,17 +220,6 @@ private: //## Helper::Render
 
 public:
     static Shared<CurveEditor_View> Create();
-
-private: //## Data::CurveEditor
-    vector<PinnedTrack> _pinnedTracks{};
-    optional<CurveTargetIdentity> _activeTrack{};
-    optional<size_t> _selectedKeyIndex{};
-    bool _hasPendingCurveEdit{ false };
-    Emitter_View::AuthoringSnapshot _pendingCurveBeforeSnapshot{};
-    CurveTargetIdentity _pendingCurveTarget{};
-    string _pendingCurveDescription{};
-    GraphDragState _graphDrag{};
-    float _trackListWidth{ 230.f };
 };
 
 NS_END

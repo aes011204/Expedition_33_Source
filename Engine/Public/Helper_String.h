@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 /*
  * Helper_String.h

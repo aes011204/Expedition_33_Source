@@ -16,6 +16,11 @@ public:
         BattleReactionType /* ANS_Dodge, Parry로 열린 입력창. 튜토리얼 컨트롤러가 Dodge/Parry UI 띄우기 판단용*/
     );
 
+    DECLARE_DELEGATE(
+        FOnReactionWindowClosed,
+        BattleReactionType /* 실패/만료/성공으로 입력창이 닫힌 Reaction 종류 */
+    );
+
     // Reaction 성공 (Dodge, Parry)
     DECLARE_DELEGATE(
         FOnReactionSucceeded,
@@ -107,6 +112,7 @@ public:
     void NotifyJumpCounterWindowBegin();
     void NotifyJumpCounterWindowEnd();
     bool TryStartQueuedJumpCounter(ModelCom* sourceModel);
+    bool Try_GetJumpCounterTarget(BattleChar& outTarget) const;
 
     void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
     void EndCounterTimeSection(ModelCom* sourceModel);
@@ -133,6 +139,7 @@ private:
 
 public:
     FOnReactionWindowOpened OnReactionWindowOpened;
+    FOnReactionWindowClosed OnReactionWindowClosed;
     FOnReactionSucceeded    OnReactionSucceeded;
     FOnCounterStarted       OnCounterStarted;
 

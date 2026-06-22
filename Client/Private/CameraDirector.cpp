@@ -4,6 +4,24 @@
 #include "ClientInstance.h"
 #include "CinematicCamera.h"
 
+namespace
+{
+    bool IsRegisteredCamera(const Shared<Camera>& camera)
+    {
+        if (camera == nullptr)
+            return false;
+
+        const int cameraCount = GAME->Get_CameraCount();
+        for (int i = 0; i < cameraCount; ++i)
+        {
+            if (GAME->Get_Camera(i) == camera)
+                return true;
+        }
+
+        return false;
+    }
+}
+
 CameraDirector::CameraDirector()
 {
 }
@@ -26,6 +44,25 @@ void CameraDirector::Request_GamePlay()
     }
 
     if(GAME->Activate_CameraByType(ObjectType::TargetCamera))
+    {
+        _previousCamera = camera;
+    }
+}
+
+void CameraDirector::Request_SoulLikeCamera()
+{
+    if (GAME->Is_ActiveCameraType(ObjectType::SoulLikeCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if (camera == nullptr)
+    {
+        GAME->Activate_CameraByType(ObjectType::SoulLikeCamera);
+        return;
+    }
+
+    if (GAME->Activate_CameraByType(ObjectType::SoulLikeCamera))
     {
         _previousCamera = camera;
     }
@@ -95,6 +132,13 @@ void CameraDirector::Restore_PreviousCamera()
 
     if(_previousCamera == nullptr)
         return;
+
+    if (!IsRegisteredCamera(_previousCamera))
+    {
+        _previousCamera.reset();
+        GAME->Activate_CameraByType(ObjectType::TargetCamera);
+        return;
+    }
 
     if (const auto targetCamera = dynamic_pointer_cast<TargetCamera>(_previousCamera))
         targetCamera->Change_Mode(TargetCameraMode::NORMAL);

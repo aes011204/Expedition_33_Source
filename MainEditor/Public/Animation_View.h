@@ -4,6 +4,7 @@
 #include "Editor_Window.h"
 #include "AnimNotify_Types.h"
 #include "Editor_Camera_Free.h"
+#include "ANS_Trail.h"
 #include "TrailAnchor_Asset.h"
 #include <unordered_set>
 
@@ -15,6 +16,7 @@ class EffectInstance;
 NS_END
 
 NS_BEGIN(Client)
+class ANS_Trail;
 class SkyBoxFlow;
 class SkyCloudCard;
 class Weapon;
@@ -98,6 +100,27 @@ public:
         int32 trackIndex = 0;
     };
 
+    struct NotifyUndoSnapshot
+    {
+        json assetJson{};
+        string currentAnimationName{};
+        int32 selectedNotifyId = -1;
+        int32 selectedStateId = -1;
+        int32 selectedNotifyTrackIndex = 0;
+        int32 selectedNotifyStateTrackIndex = 0;
+        int32 sequencerCurrentFrame = 0;
+        vector<int32> selectedNotifyIds{};
+    };
+
+    struct LiveModelTarget
+    {
+        wstring objectKey{};
+        wstring componentTag{};
+        string label{};
+        wstring sourceModelPath{};
+        Shared<ModelCom> model{};
+    };
+
 private:
     enum class TrailAnchorSlot : uint8
     {
@@ -111,6 +134,10 @@ private:
         string partTag = "Part_Weapon";
         string modelGuid{};
         float lastTimeSec = -1.f;
+        float offsetPhase = 0.f;
+        Client::ANS_Trail::TipExtendCurve tipExtendCurve{};
+        Client::ANS_Trail::LocalOffsetCurve baseLocalOffsetCurve{};
+        Client::ANS_Trail::LocalOffsetCurve tipLocalOffsetCurve{};
 
         Client::TrailAnchorAsset trailAnchorAsset{};
         Shared<EffectInstance> effect{};
@@ -127,11 +154,11 @@ private:
         string partTag = "Part_Weapon";
         int32 sourceBindingMode = 0;
         string socketName{};
-        int32 sourcePointPolicy = 0;
+        string sourceHistoryAnchorName{ "Source" };
+        Vec3 sourceHistoryLocalOffset{ Vec3::Zero };
         string modelGuid{};
         float lastTimeSec = -1.f;
 
-        Client::TrailAnchorAsset trailAnchorAsset{};
         Shared<EffectInstance> effect{};
         wstring effectName{};
         bool isPlaying = false;
@@ -179,6 +206,9 @@ private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
     void Refresh_LiveAnimationList();
+    void Refresh_LiveModelTargets();
+    void Draw_LiveModelTargetSelector();
+    void Switch_LiveModelTarget(size_t targetIndex);
     void Rebuild_PreviewClone();
     void Reset_PreviewClone();
 
@@ -195,7 +225,9 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry);
     void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
+    void Update_ModifierPreviewMotionTest(float timeDelta);
     void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
     void Draw_TrailAnchorPanel();
     void Draw_EventListPanel();
@@ -221,6 +253,14 @@ private:
     void Delete_SelectedNotifyTrack();
     void Delete_SelectedNotifyStateTrack();
     void Handle_ClipboardShortcuts();
+    void Undo_NotifyEdit();
+    void Redo_NotifyEdit();
+    NotifyUndoSnapshot Capture_NotifyUndoSnapshot() const;
+    void Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot);
+    void Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot);
+    void Begin_PendingNotifyUndo();
+    void Commit_PendingNotifyUndo();
+    void Clear_NotifyUndoHistory();
     void Move_SelectedNotifiesByFrame(int32 frameDelta);
     void Move_SelectedStateByFrame(int32 frameDelta);
     void Copy_SelectedNotify();
@@ -234,6 +274,7 @@ private:
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
 
     Shared<ModelCom> Get_PlaybackModel() const;
+    Shared<ModelCom> Get_ModifierRuntimeModel() const;
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Ensure_PreviewGridResources();
@@ -244,6 +285,7 @@ private:
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
+    void Draw_ModifierChainDebug() const;
     void Draw_TrailAnchorPreview() const;
     void Update_PreviewAnimSpeedStates(float timeDelta);
     void Reset_PreviewAnimSpeedStates();
@@ -288,16 +330,19 @@ private:
         const string& partTag,
         const Client::TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
+    bool Try_ResolvePreviewWeaponAnchorWorldPosition(
+        const string& partTag,
+        const string& anchorName,
+        const Vec3& localOffset,
+        Vec3& outWorldPosition) const;
     bool Try_ResolvePreviewSocketWorldPosition(
         const string& partTag,
         const string& socketName,
+        const Vec3& localOffset,
         Vec3& outWorldPosition) const;
     bool Load_PreviewTrailAnchorAsset(
         const string& partTag,
         PreviewTrailRuntime& outRuntime);
-    bool Load_PreviewSourceHistoryAnchorAsset(
-        const string& partTag,
-        PreviewSourceHistoryRuntime& outRuntime);
     Weapon* Resolve_PreviewWeapon(const wstring& partTag) const;
 
     AnimNotifyData* Get_CurrentAnimation();
@@ -325,6 +370,8 @@ private:
 
     wstring _sourceModelPath{};
     Shared<ModelCom> _liveModelCom{};
+    vector<LiveModelTarget> _liveModelTargets{};
+    int32 _selectedLiveModelTargetIndex = -1;
     Shared<GameObject> _previewRootObject{};
     Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
@@ -376,9 +423,18 @@ private:
     bool _showPreviewSkyBackdrop = true;
     bool _previewSkyBackdropBegunPlay = false;
     bool _isSectionPreviewPlaying = false;
+    bool _showModifierChainDebug = false;
+    wstring _modifierChainDebugTag{};
     float _topSectionHeight = 500.f;
     wstring _previewOwnerObjectKey{};
-    
+    bool _modifierPreviewMotionTestEnabled = false;
+    bool _modifierPreviewMotionTestOscillate = true;
+    wstring _modifierPreviewMotionTestTag{};
+    Vec3 _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+    float _modifierPreviewMotionTestDelta = 0.04f;
+    float _modifierPreviewMotionTestFrequency = 2.f;
+    int32 _modifierPreviewMotionTestAppliedCount = 0;
+
     // 사이즈 조절
     uint32 _previewWidth = 640;
     uint32 _previewHeight = 360;
@@ -410,6 +466,11 @@ private:
     NotifyClipboardKind _notifyClipboardKind = NotifyClipboardKind::None;
     vector<CopiedNotifyEntry> _copiedNotifies{};
     CopiedNotifyStateEntry _copiedNotifyState{};
+
+    vector<NotifyUndoSnapshot> _notifyUndoStack{};
+    vector<NotifyUndoSnapshot> _notifyRedoStack{};
+    NotifyUndoSnapshot _pendingNotifyUndoSnapshot{};
+    bool _hasPendingNotifyUndoSnapshot = false;
 
     Unique<AnimSequencerAdapter> _sequencer{};
 

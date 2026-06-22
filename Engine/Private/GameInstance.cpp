@@ -757,12 +757,14 @@ HRESULT GameInstance::Draw()
 
     //CHECK_FAILED(Update_Picking(), E_FAIL);
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     // Collision Manager
     {
         _collisionManager->Render_Debug();
     }
+#endif
 
+#ifdef _DEBUG
     // Debug Manager
     {
         Draw_ShadowCascadeWorldDebug();
@@ -1886,6 +1888,14 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool 
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
     return S_OK;
+}
+
+HRESULT GameInstance::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Commit_AssetDeltaScan(scanResult, missingMetaRoot);
 }
 
 string GameInstance::Find_AssetGUID(const wstring& filePath) const

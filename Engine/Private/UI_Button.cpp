@@ -107,6 +107,12 @@ void UI_Button::Set_StateAnimationProfile(const UI_StateAnimationProfile& stateA
     _stateAnimationProfile = stateAnimationProfile;
 }
 
+void UI_Button::Suppress_HoverStateAnimationUntilMouseMove()
+{
+    _suppressHoverStateAnimationUntilMouseMove = true;
+    _previousHoveredForState = _isHovered;
+}
+
 void UI_Button::Update_StateAnimationEvents()
 {
     if (_previousDisabledForState != _isDisabled)
@@ -115,8 +121,17 @@ void UI_Button::Update_StateAnimationEvents()
     if (_previousPressedForState != _isPressed)
         Try_PlayStateAnimation(_isPressed ? UI_StateAnimationEvent::PressedEnter : UI_StateAnimationEvent::PressedExit);
 
-    if (_previousHoveredForState != _isHovered)
+    if (_suppressHoverStateAnimationUntilMouseMove)
+    {
+        _previousHoveredForState = _isHovered;
+
+        if (GAME->Get_MouseDelta().LengthSquared() > 0.f)
+            _suppressHoverStateAnimationUntilMouseMove = false;
+    }
+    else if (_previousHoveredForState != _isHovered)
+    {
         Try_PlayStateAnimation(_isHovered ? UI_StateAnimationEvent::HoverEnter : UI_StateAnimationEvent::HoverExit);
+    }
 
     if (_previousFocusedForState != _isFocusedForState)
         Try_PlayStateAnimation(_isFocusedForState ? UI_StateAnimationEvent::FocusedEnter : UI_StateAnimationEvent::FocusedExit);

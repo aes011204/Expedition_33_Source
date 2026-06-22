@@ -237,34 +237,6 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     return S_OK;
 }
 
-static EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulation(
-    const EffectRequiredMaterialRuntimeDesc& baseMaterial,
-    float emitterPhase)
-{
-    auto material = baseMaterial;
-    const auto& modulation = baseMaterial.coreColorRgbModulation;
-    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
-
-    for (uint32 index = 0; index < count; ++index)
-    {
-        const auto& modulator = modulation.modulators[index];
-        if (!modulator.enabled || modulator.timeSource != EffectMaterialScalarModulationTimeSource::EmitterTime)
-            continue;
-
-        const Vec3 fallbackValue{
-            material.coreEmissive.coreColor.x,
-            material.coreEmissive.coreColor.y,
-            material.coreEmissive.coreColor.z
-        };
-        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
-        material.coreEmissive.coreColor.x = coreColorRgb.x;
-        material.coreEmissive.coreColor.y = coreColorRgb.y;
-        material.coreEmissive.coreColor.z = coreColorRgb.z;
-    }
-
-    return material;
-}
-
 static wstring Resolve_TexturePathByGuid(const string& textureGuid)
 {
     if (GAME == nullptr || textureGuid.empty())

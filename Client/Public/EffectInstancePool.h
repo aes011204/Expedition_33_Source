@@ -18,32 +18,28 @@ NS_BEGIN(Client)
 class EffectInstancePool final : public Base
 {
 public: //## Types::Public
-    /**
-     * Acquire()에 전달하는 "이 EffectInstance 1개를 어떻게 준비할지" 입력값이다.
-     * 여기서 instance 단위란 EffectEmitter 1개가 아니라, 여러 emitter를 소유한 EffectInstance root 1개를 뜻한다.
-     */
+
+    /// @brief Acquire()에 전달하는 "이 EffectInstance 1개를 어떻게 준비할지" 입력값이다.
+    /// @note 여기서 instance 단위란 EffectEmitter 1개가 아니라, 여러 emitter를 소유한 EffectInstance root 1개를 뜻한다.
     struct AcquireDesc
     {
-        wstring effectName{};                              // 저장된 effect definition을 찾는 이름이자, pool에서 같은 effect끼리 재사용하기 위한 key다.
-        Shared<const EffectDefinition> definition{};       // effectName lookup을 건너뛰고 이 definition을 직접 재생할 때 쓴다. editor preview 갱신용 입력이다.
-        uint32 layerLevelIndex{ ETOI(LevelType::Static) }; // 새 EffectInstance를 spawn하거나 inactive instance를 제거할 때 접근할 level layer index다.
-        wstring layerTag{};                                // pool에 재사용 가능한 instance가 없을 때 새 EffectInstance를 등록할 layer tag다.
-        Vec3 worldPosition{ Vec3::Zero };                  // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
-        Vec3 scale{ Vec3::One };                           // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
-        Quat worldRotation{ Quat::Identity };              // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
-        [[deprecated("Use worldRotation quaternion instead.")]]
-        Vec3 worldRotationEuler{ Vec3::Zero };                              // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
-        Weak<IEffectTrailSampleProvider> trailSampleProvider{};             // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
-        Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{}; // source history emitter가 단일 source sample을 얻는 provider다.
-        bool autoReleaseOnFinished{ true };                                 // true면 Release_Finished()가 완료된 instance를 자동 반환할 수 있다.
+        wstring effectName{};                                                                          // 저장된 effect definition을 찾는 이름이자, pool에서 같은 effect끼리 재사용하기 위한 key다.
+        Shared<const EffectDefinition> definition{};                                                   // effectName lookup을 건너뛰고 이 definition을 직접 재생할 때 쓴다. editor preview 갱신용 입력이다.
+        uint32 layerLevelIndex{ ETOI(LevelType::Static) };                                             // 새 EffectInstance를 spawn하거나 inactive instance를 제거할 때 접근할 level layer index다.
+        wstring layerTag{};                                                                            // pool에 재사용 가능한 instance가 없을 때 새 EffectInstance를 등록할 layer tag다.
+        Vec3 worldPosition{ Vec3::Zero };                                                              // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
+        Vec3 scale{ Vec3::One };                                                                       // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
+        Quat worldRotation{ Quat::Identity };                                                          // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
+        float playbackSpeed{ 1.f };                                                                    // acquire된 EffectInstance의 emitter 시간 진행 배율이다.
+        [[deprecated("Use worldRotation quaternion instead.")]] Vec3 worldRotationEuler{ Vec3::Zero }; // 이전 Euler 입력 호환용 필드다. pool 준비 경로에서는 소비하지 않는다.
+        Weak<IEffectTrailSampleProvider> trailSampleProvider{};                                        // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
+        Weak<IEffectSourcePointSampleProvider> sourcePointSampleProvider{};                            // source history emitter가 단일 source sample을 얻는 provider다.
+        bool autoReleaseOnFinished{ true };                                                            // true면 Release_Finished()가 완료된 instance를 자동 반환할 수 있다.
     };
 
-    /**
-     * acquire 결과로 caller가 보관하는 외부 handle이다.
-     *
-     * effectObject의 C++ 타입은 GameObject지만, 실제 객체는 EffectInstance다.
-     * 즉 "GameObject 1개"를 들고 있는 동시에 "EffectInstance 1개 단위"를 가리킨다.
-     */
+    /// @brief acquire 결과로 caller가 보관하는 외부 handle이다.
+    /// @note effectObject의 C++ 타입은 GameObject지만, 실제 객체는 EffectInstance다.
+    ///       즉 "GameObject 1개"를 들고 있는 동시에 "EffectInstance 1개 단위"를 가리킨다.
     struct AttachedHandle
     {
         Shared<GameObject> effectObject{};   // acquire된 EffectInstance 1개를 GameObject로 가리킨다. 위치 갱신과 release 대상이다.
@@ -84,10 +80,9 @@ public: //## Debug::EditorSession
     HRESULT Prewarm(const AcquireDesc& desc, uint32 count);
 
 private: //## Types::Pool
-    /**
-     * pool 내부 슬롯 1개다. 슬롯 1개는 재사용 가능한 EffectInstance 1개와, 그 instance를 다시 빌려줘도 되는지 여부를 기록한다.
-     * caller에게는 AttachedHandle만 노출하고, 실제 EffectInstance 소유/재사용 상태는 이 entry가 추적한다.
-     */
+
+    /// @brief pool 내부 슬롯 1개다. 슬롯 1개는 재사용 가능한 EffectInstance 1개와, 그 instance를 다시 빌려줘도 되는지 여부를 기록한다.
+    /// @details caller에게는 AttachedHandle만 노출하고, 실제 EffectInstance 소유/재사용 상태는 이 entry가 추적한다.
     struct PooledInstance
     {
         wstring effectName{};                        // 이 instance가 속한 pool bucket key다.

@@ -2180,7 +2180,7 @@ bool RequiredModuleDetail::Draw(
         }
 
         if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
-            ImGui::TextDisabled("Trail은 v1에서 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지합니다.");
+            ImGui::TextDisabled("Trail은 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지합니다.");
 
         if (ImGui::TreeNodeEx("Advanced", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -2760,6 +2760,180 @@ bool VelocityConeModuleDetail::Draw(
             true,
             nullptr,
             "원뿔 안에서 뽑은 방향에 곱해지는 spawn 시점 초기 속도 크기입니다."
+        );
+    }
+
+    return changed;
+}
+
+bool SourceMotionVelocityModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    SourceMotionVelocityModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SourceMotionVelocityModuleData defaultData{};
+    bool changed = false;
+
+    const auto direction_mode_label = [](SourceMotionVelocityDirectionMode mode)
+    {
+        switch (mode)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return "소스 속도 방향";
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return "소스 속도 방향";
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return "소스 속도 반대";
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return "트레일 접선";
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return "트레일 접선 반대";
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return "접선 측면";
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return "랜덤 접선 측면";
+        default:
+            return "트레일 접선";
+        }
+    };
+    const auto direction_mode_tooltip = [](SourceMotionVelocityDirectionMode mode)
+    {
+        switch (mode)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return "기존 asset 호환용 값입니다. 편집 시 소스 속도 방향으로 정규화됩니다.";
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return "source가 움직인 방향으로 초기 속도를 더합니다.\n속도=0, 소스 속도 상속 배율=1이면 source 속도를 그대로 상속합니다.";
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return "source가 움직인 방향의 반대로 초기 속도를 더합니다.\n일반 Sprite/Mesh에서는 emitter center 이동 방향을 사용합니다.";
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return "SourceHistorySpriteTrail의 source history 접선 방향을 사용합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없으므로 소스 속도 방향 모드를 우선 사용하세요.";
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return "SourceHistorySpriteTrail의 source history 접선 반대 방향을 사용합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return "SourceHistorySpriteTrail 접선의 측면 방향으로 초기 속도를 더합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return "SourceHistorySpriteTrail 접선의 양쪽 측면 중 하나를 랜덤으로 골라 초기 속도를 더합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        default:
+            return "";
+        }
+    };
+    const auto is_trail_tangent_mode = [](SourceMotionVelocityDirectionMode mode)
+    {
+        return mode == SourceMotionVelocityDirectionMode::TrailTangent ||
+               mode == SourceMotionVelocityDirectionMode::TrailTangentOpposite ||
+               mode == SourceMotionVelocityDirectionMode::SideFromTangent ||
+               mode == SourceMotionVelocityDirectionMode::RandomSideFromTangent;
+    };
+
+    const bool sourceMotionVelocityOpen = ImGui::CollapsingHeader("소스 모션 속도", ImGuiTreeNodeFlags_DefaultOpen);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip(
+            "source/trail motion에서 얻은 방향과 속도 크기를 spawn 시점 초기 속도에 더합니다.\n"
+            "InitialVelocity, InitialRadialVelocity, VelocityCone과 누적됩니다."
+        );
+    }
+
+    if (sourceMotionVelocityOpen)
+    {
+        const bool sourceHistorySpriteTrail =
+            emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+
+        if (detailContext.Begin_PropertyTable("SourceMotionVelocity"))
+        {
+            ImGui::PushID("DirectionMode");
+            detailContext.Draw_PropertyLabel(
+                "방향",
+                "Source motion에서 초기 속도 방향을 고르는 방식입니다. 항목 위에 마우스를 올리면 타입별 의미를 볼 수 있습니다."
+            );
+            SourceMotionVelocityDirectionMode nextDirectionMode = data.directionMode;
+            if (ImGui::BeginCombo("##Value", direction_mode_label(nextDirectionMode)))
+            {
+                static constexpr SourceMotionVelocityDirectionMode sourceHistoryCandidates[] = {
+                    SourceMotionVelocityDirectionMode::TrailTangent,
+                    SourceMotionVelocityDirectionMode::TrailTangentOpposite,
+                    SourceMotionVelocityDirectionMode::SideFromTangent,
+                    SourceMotionVelocityDirectionMode::RandomSideFromTangent,
+                    SourceMotionVelocityDirectionMode::SourceVelocityDirection,
+                    SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
+                };
+                static constexpr SourceMotionVelocityDirectionMode sourceVelocityCandidates[] = {
+                    SourceMotionVelocityDirectionMode::SourceVelocityDirection,
+                    SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
+                };
+                const SourceMotionVelocityDirectionMode* candidates =
+                    sourceHistorySpriteTrail ? sourceHistoryCandidates : sourceVelocityCandidates;
+                const size_t candidateCount =
+                    sourceHistorySpriteTrail
+                    ? sizeof(sourceHistoryCandidates) / sizeof(sourceHistoryCandidates[0])
+                    : sizeof(sourceVelocityCandidates) / sizeof(sourceVelocityCandidates[0]);
+                for (size_t index = 0; index < candidateCount; ++index)
+                {
+                    const SourceMotionVelocityDirectionMode candidate = candidates[index];
+                    const bool selected = nextDirectionMode == candidate;
+                    if (ImGui::Selectable(direction_mode_label(candidate), selected))
+                        nextDirectionMode = candidate;
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                        ImGui::SetTooltip("%s", direction_mode_tooltip(candidate));
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("%s", direction_mode_tooltip(nextDirectionMode));
+            if (data.directionMode != nextDirectionMode)
+            {
+                data.directionMode = nextDirectionMode;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            changed |= detailContext.Draw_FloatProperty(
+                "소스 속도 상속 배율",
+                data.sourceSpeedScale,
+                defaultData.sourceSpeedScale,
+                0.01f,
+                "sourceSpeed에 곱해 초기 속도 크기에 추가하는 배율입니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "퍼짐 각도",
+                data.spreadAngleDegrees,
+                defaultData.spreadAngleDegrees,
+                0.1f,
+                "선택한 source motion 방향 주변으로 분산할 half-angle입니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+
+        if (!sourceHistorySpriteTrail && is_trail_tangent_mode(data.directionMode))
+            ImGui::TextDisabled("트레일 접선 계열은 SourceHistorySpriteTrail에서만 명확한 접선 기준을 가집니다.");
+
+        const float clampedSourceSpeedScale = max(0.f, data.sourceSpeedScale);
+        if (data.sourceSpeedScale != clampedSourceSpeedScale)
+        {
+            data.sourceSpeedScale = clampedSourceSpeedScale;
+            changed = true;
+        }
+
+        const float clampedSpreadAngle = clamp(data.spreadAngleDegrees, 0.f, 180.f);
+        if (data.spreadAngleDegrees != clampedSpreadAngle)
+        {
+            data.spreadAngleDegrees = clampedSpreadAngle;
+            changed = true;
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "속도",
+            data.speed,
+            defaultData.speed,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "source motion 방향에 곱해지는 spawn 시점 초기 속도 크기입니다."
         );
     }
 
@@ -3965,7 +4139,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                         {
                             detailContext.Draw_PropertyLabel("연산", "현재 Vec2 modulation은 대상 UV offset에 분포 값을 더하는 Add 연산입니다.");
                             ImGui::TextUnformatted("Add");
-                            detailContext.Draw_PropertyLabel("시간 축", "Vec2 material modulation은 v1에서 EmitterTime만 지원합니다.");
+                            detailContext.Draw_PropertyLabel("시간 축", "Vec2 material modulation은 EmitterTime만 지원합니다.");
                             ImGui::TextUnformatted(Internal::Get_MaterialScalarTimeSourceLabel(modulator.timeSource));
                             if (detailContext.Draw_ResetButton(modulator.timeSource != defaultData.timeSource))
                             {

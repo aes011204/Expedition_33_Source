@@ -57,10 +57,10 @@ HRESULT EffectEditorSkybox::Ready_Components()
 HRESULT EffectEditorSkybox::Bind_ShaderResources()
 {
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    if (activeCamera != nullptr)
+    if (nullptr != activeCamera)
     {
         const Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
-        if (cameraTransform != nullptr)
+        if (nullptr != cameraTransform)
             _transformCom->Set_WorldPosition(cameraTransform->Get_WorldPosition());
     }
 

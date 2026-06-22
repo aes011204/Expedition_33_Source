@@ -146,8 +146,14 @@ void MainEditorApp::Update(float timeDelta)
                     CLIENT->Update_Client(dt);
             });
 
-        if (runtimeDelta <= 0.f && EDITOR->IsPaused())
-            CLIENT->Update_UIPreviewOnly(0.f); // F9 Pause 중에도 UI preview 캐릭터 파츠가 Scene View 렌더 그룹에 다시 올라가게 한다.
+        if (runtimeDelta <= 0.f)
+        {
+            if (CLIENT->Is_CinematicPlaying())
+                CLIENT->Update_CinematicPreview(timeDelta);
+
+            if (EDITOR->IsPaused())
+                CLIENT->Update_UIPreviewOnly(0.f); // F9 Pause 중에도 UI preview 캐릭터 파츠가 Scene View 렌더 그룹에 다시 올라가게 한다.
+        }
     }
 
     const uint32 currentLevelIndex = GAME->Current_LevelIndex();

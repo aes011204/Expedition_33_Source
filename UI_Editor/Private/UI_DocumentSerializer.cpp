@@ -386,6 +386,8 @@ namespace UIEditor
             materialVfx.coreSoftness = Clamp_MaterialVfxCoreSoftness(Read_Float(*iter, "coreSoftness", materialVfx.coreSoftness));
             materialVfx.noiseStrength = Clamp_MaterialVfxNoiseStrength(Read_Float(*iter, "noiseStrength", materialVfx.noiseStrength));
             materialVfx.uvScroll = Read_Vec2(*iter, "uvScroll", materialVfx.uvScroll);
+            materialVfx.flowSpeed = Clamp_MaterialVfxFlowSpeed(Read_Float(*iter, "flowSpeed", materialVfx.flowSpeed));
+            materialVfx.preserveColor = Clamp_MaterialVfxPreserveColor(Read_Float(*iter, "preserveColor", materialVfx.preserveColor));
             materialVfx.edgeWidth = Clamp_MaterialVfxEdgeWidth(Read_Float(*iter, "edgeWidth", materialVfx.edgeWidth));
             materialVfx.edgeSoftness = Clamp_MaterialVfxEdgeSoftness(Read_Float(*iter, "edgeSoftness", materialVfx.edgeSoftness));
             materialVfx.erosion = Clamp_MaterialVfxErosion(Read_Float(*iter, "erosion", materialVfx.erosion));
@@ -419,6 +421,8 @@ namespace UIEditor
             item["coreSoftness"] = Clamp_MaterialVfxCoreSoftness(materialVfx.coreSoftness);
             item["noiseStrength"] = Clamp_MaterialVfxNoiseStrength(materialVfx.noiseStrength);
             item["uvScroll"] = Vec2Float_ToJson(materialVfx.uvScroll);
+            item["flowSpeed"] = Clamp_MaterialVfxFlowSpeed(materialVfx.flowSpeed);
+            item["preserveColor"] = Clamp_MaterialVfxPreserveColor(materialVfx.preserveColor);
             item["edgeWidth"] = Clamp_MaterialVfxEdgeWidth(materialVfx.edgeWidth);
             item["edgeSoftness"] = Clamp_MaterialVfxEdgeSoftness(materialVfx.edgeSoftness);
             item["erosion"] = Clamp_MaterialVfxErosion(materialVfx.erosion);

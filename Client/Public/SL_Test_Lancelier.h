@@ -36,6 +36,9 @@ public:
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
+    // 충돌체 중심점 구하기
+    Vec3 Resolve_ColliderWorldCenter(const Shared<ColliderCom>& collider) const;
+
 public:
     void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 

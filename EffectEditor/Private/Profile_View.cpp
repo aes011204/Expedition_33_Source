@@ -44,7 +44,7 @@ struct Profile_View::ProfilerRuntime
 
 namespace Internal
 {
-    constexpr const char* kProfileSnapshotTag = "EffectEditorProfileSnapshot";
+    constexpr auto kProfileSnapshotTag = "EffectEditorProfileSnapshot";
 
     static const char* Get_Profile_Level_Name()
     {

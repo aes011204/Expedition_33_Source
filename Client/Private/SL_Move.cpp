@@ -4,7 +4,6 @@
 #include "Character.h"
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
-#include "SL_TargetCom.h"
 #include "TransformCom.h"
 
 SL_Move::SL_Move(const Shared<SL_Maelle>& owner)
@@ -33,21 +32,6 @@ bool SL_Move::Request_Move(const SL_MoveRequest& request, float timeDelta)
     }
 
     owner->Apply_MoveInput(request, timeDelta);
-
-    // 타겟팅
-    if (request.lockOn)
-    {
-        Shared<SL_TargetCom> targetCom = owner->Get_Component<SL_TargetCom>();
-        Shared<Character> target = targetCom ? targetCom->Get_LockedTarget() : nullptr;
-
-        if (target)
-        {
-            Vec3 lookPos = target->Get_Transform()->Get_WorldPosition();
-            lookPos.y = owner->Get_Transform()->Get_WorldPosition().y;
-
-            owner->Get_Transform()->LookAt(lookPos);
-        }
-    }
 
     SoulLikeAnim moveAnim = SoulLikeAnim::Run;
 
@@ -78,11 +62,23 @@ bool SL_Move::Request_Dodge(const SL_MoveRequest& request)
     return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Dodge);
 }
 
+bool SL_Move::Request_Parry()
+{
+    return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Parry);
+}
+
 bool SL_Move::Request_Skill(const Skill_Data& skillData, uint32 slotIndex)
 {
     CHECK_NULL(_stateCom , false);
 
     return _stateCom->Change_State(SL_PlayerState::Skill);
+}
+
+bool SL_Move::Request_Jump()
+{
+    CHECK_NULL(_stateCom, false);
+
+    return _stateCom->Change_State(SL_PlayerState::Jump);
 }
 
 Shared<SL_Move> SL_Move::Create(const Shared<SL_Maelle>& owner)

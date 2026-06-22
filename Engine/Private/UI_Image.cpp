@@ -29,6 +29,8 @@ UI_Image::UI_Image(const UI_Image& prototype)
     , _materialVfxCoreSoftness{ prototype._materialVfxCoreSoftness }
     , _materialVfxNoiseStrength{ prototype._materialVfxNoiseStrength }
     , _materialVfxUvScroll{ prototype._materialVfxUvScroll }
+    , _materialVfxFlowSpeed{ prototype._materialVfxFlowSpeed }
+    , _materialVfxPreserveColor{ prototype._materialVfxPreserveColor }
     , _materialVfxEdgeWidth{ prototype._materialVfxEdgeWidth }
     , _materialVfxEdgeSoftness{ prototype._materialVfxEdgeSoftness }
     , _materialVfxErosion{ prototype._materialVfxErosion }
@@ -115,6 +117,8 @@ HRESULT UI_Image::Initialize(void* arg)
         _materialVfxCoreSoftness = max(0.001f, desc->materialVfxCoreSoftness);
         _materialVfxNoiseStrength = min(max(desc->materialVfxNoiseStrength, 0.f), 1.f);
         _materialVfxUvScroll = desc->materialVfxUvScroll;
+        _materialVfxFlowSpeed = min(max(desc->materialVfxFlowSpeed, 0.f), 4.f);
+        _materialVfxPreserveColor = min(max(desc->materialVfxPreserveColor, 0.f), 1.f);
         _materialVfxEdgeWidth = max(0.001f, desc->materialVfxEdgeWidth);
         _materialVfxEdgeSoftness = max(0.001f, desc->materialVfxEdgeSoftness);
         _materialVfxErosion = min(max(desc->materialVfxErosion, 0.f), 1.f);
@@ -320,6 +324,10 @@ HRESULT UI_Image::Render()
         if (FAILED(_shader->Bind_RawValue("g_MaterialVfxNoiseStrength", &_materialVfxNoiseStrength, sizeof(float))))
             return E_FAIL;
         if (FAILED(_shader->Bind_RawValue("g_MaterialVfxUvScroll", &_materialVfxUvScroll, sizeof(Vec2))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxFlowSpeed", &_materialVfxFlowSpeed, sizeof(float))))
+            return E_FAIL;
+        if (FAILED(_shader->Bind_RawValue("g_MaterialVfxPreserveColor", &_materialVfxPreserveColor, sizeof(float))))
             return E_FAIL;
         if (FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeWidth", &_materialVfxEdgeWidth, sizeof(float))))
             return E_FAIL;
