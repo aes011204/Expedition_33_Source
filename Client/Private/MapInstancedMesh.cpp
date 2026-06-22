@@ -58,6 +58,8 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
             return E_FAIL;
         }
 
+        Refresh_HasGlow();
+
         vector<Matrix> matrices;
         matrices.reserve(pDesc->transforms.size());
         for (auto& t : pDesc->transforms)
@@ -105,6 +107,7 @@ void MapInstancedMesh::Priority_Update(float timeDelta)
 
 void MapInstancedMesh::Update(float timeDelta)
 {
+    _accTime += timeDelta;
 }
 
 void MapInstancedMesh::Late_Update(float timeDelta)
@@ -122,6 +125,10 @@ void MapInstancedMesh::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    if (_hasGlow)
+    {
+        GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
+    }
 
     if (Casts_DynamicShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
@@ -131,6 +138,58 @@ HRESULT MapInstancedMesh::Render()
 {
     if (_instanceCount == 0 || !_lodModels[0] || !_shader)
     {
+        return S_OK;
+    }
+
+    if (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow)
+    {
+        if (FAILED(Bind_ShaderResources()))
+        {
+            return E_FAIL;
+        }
+
+        for (int lod = 0; lod < 3; ++lod)
+        {
+            if (!_lodModels[lod])
+            {
+                continue;
+            }
+
+            const uint32 numMeshes = static_cast<uint32>(_lodModels[lod]->Get_NumMeshes());
+            for (uint32 i = 0; i < numMeshes; ++i)
+            {
+                const Shared<Material> material = _lodModels[lod]->Get_Material(i);
+                if (!material)
+                {
+                    continue;
+                }
+
+                if (material->Get_PassIndex() == VtxInstanceMeshExactPassIndex::UnlitFlamePass)
+                {
+                    continue;
+                }
+
+                if (FAILED(_shader->Bind_MaterialTextures(*material)))
+                {
+                    return E_FAIL;
+                }
+
+                if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                {
+                    return E_FAIL;
+                }
+
+                if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::EmissiveGlowPass)))
+                {
+                    return E_FAIL;
+                }
+
+                if (FAILED(_lodModels[lod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+                {
+                    return E_FAIL;
+                }
+            }
+        }
         return S_OK;
     }
 
@@ -336,6 +395,11 @@ HRESULT MapInstancedMesh::Bind_ShaderResources()
 
     Matrix identity = Matrix::Identity;
     if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_fAccTime", &_accTime, sizeof(float))))
     {
         return E_FAIL;
     }
@@ -628,6 +692,30 @@ array<Vec4, 6> MapInstancedMesh::ExtractFrustumPlanes(const Matrix& vp)
     return p;
 }
 
+void MapInstancedMesh::Refresh_HasGlow()
+{
+    _hasGlow = false;
+    if (!_lodModels[0])
+    {
+        return;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        const Shared<Material> mat = _lodModels[0]->Get_Material(i);
+        if (!mat || mat->Get_PassIndex() == VtxInstanceMeshExactPassIndex::UnlitFlamePass)
+        {
+            continue;
+        }
+        if (mat->Get_CB().emissiveIntensity > 0.f)
+        {
+            _hasGlow = true;
+            return;
+        }
+    }
+}
+
 Shared<MapInstancedMesh> MapInstancedMesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<MapInstancedMesh>(device, context);
@@ -709,6 +797,7 @@ void MapInstancedMesh::From_Json(const json& node)
         string pathA = node["model_path"].get<string>();
         _modelPath = String::ToWString(pathA);
         Ready_Components(_modelPath, nullptr);
+        Refresh_HasGlow();
     }
 
     if (node.contains("instance_transforms"))

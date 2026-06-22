@@ -44,6 +44,7 @@ namespace
         constexpr uint32 OpaqueARTwoSidedPass = 8;
         constexpr uint32 IDInstancePass = 9;
         constexpr uint32 EmissiveGlowPass = 10;
+        constexpr uint32 UnlitFlamePass = 11;
     }
 
     namespace VtxCubePassIndex

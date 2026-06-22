@@ -271,6 +271,36 @@ PS_OUT_GLOW PS_GlowOnly(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_UnlitFlame(PS_IN In)
+{
+    PS_OUT Out;
+    
+    const float cols = 4.f;
+    const float rows = 4.f;
+    const float fps = 12.f;
+    
+    float totalFrames = cols * rows;
+    float frame = fmod(floor(g_fAccTime * fps), totalFrames);
+    float col = fmod(frame, cols);
+    float row = floor(frame / cols);
+    
+    float2 cellSize = float2(1.f / cols, 1.f / rows);
+    float2 uv = In.vTexcoord * cellSize + float2(col * cellSize.x, row * cellSize.y);
+    
+    float4 color = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+    
+    float luma = dot(color.rgb, float3(0.299f, 0.587f, 0.114f));
+    if (luma < 0.05f)
+        discard;
+    
+    Out.vDiffuse = float4(color.rgb, 1.f);
+    Out.vNormal = float4(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    Out.vMaterial = float4(1.f, 1.f, 0.f, 1.f);
+    Out.vEmissive = float4(color.rgb * 3.f, 1.f);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
@@ -284,4 +314,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 8
     PASS_RS_DS_BS_VP(IDInstancePass, RS_CullNone, DSS_Default, BS_Default, VS_ID_Instance, PS_ID_Instance) // 9
     PASS_RS_DS_BS_VP(EmissiveGlowPass, RS_Default, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, PS_GlowOnly) // 10
+    PASS_RS_DS_BS_VP(UnlitFlamePass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_UnlitFlame) // 11
 }

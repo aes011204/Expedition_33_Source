@@ -93,6 +93,7 @@ HRESULT MEInstancedMeshActor::Render()
             {
                 const uint32 materialIndex = _lodModels[lod]->Get_MeshMaterialIndex(i);
                 const Shared<Material> material = _lodModels[lod]->Get_Material(materialIndex);
+
                 if (material)
                 {
                     if (FAILED(_shader->Bind_MaterialTextures(*material)))
@@ -190,16 +191,6 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
     {
         return S_OK;
     }
-
-    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-    //{
-    //    return E_FAIL;
-    //}
-
-    //if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-    //{
-    //    return E_FAIL;
-    //}
 
     if (FAILED(GAME->Bind_CameraCB(_shader)))
     {
@@ -654,7 +645,12 @@ void MEInstancedMeshActor::Refresh_HasGlow()
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         const Shared<Material> mat = _lodModels[0]->Get_Material(_lodModels[0]->Get_MeshMaterialIndex(i));
-        if (mat && mat->Get_CB().emissiveIntensity > 0.f)
+        if (!mat)
+        {
+            continue;
+        }
+
+        if (mat->Get_CB().emissiveIntensity > 0.f)
         {
             _hasGlow = true;
             return;

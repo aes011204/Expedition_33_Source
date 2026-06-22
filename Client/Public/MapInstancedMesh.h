@@ -83,6 +83,9 @@ private:
     float _lod1Dist = 40.f;
     float _lod2Dist = 80.f;
 
+    float _accTime = {};
+    bool _hasGlow = false;
+
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);
@@ -91,6 +94,7 @@ private:
     HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
     void DispatchCull();
     static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
+    void Refresh_HasGlow();
 
 public:
     static Shared<MapInstancedMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
