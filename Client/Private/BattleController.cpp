@@ -1,5 +1,6 @@
 ﻿#include "BattleController.h"
 
+#include "ANS_WeaponEcho.h"
 #include "AttackPlaying.h"
 #include "BuffSystem.h"
 #include "Character.h"
@@ -226,6 +227,8 @@ void BattleController::Update(float timeDelta)
 
     if (!_isPendingVictorySlow)
     {
+        _reactionController.Update_EchoReactionWindows(timeDelta);
+
         // 패링, 회피 키인풋
         const auto reactionResult = _reactionController.UpdateInput(_turnAction);
 
@@ -255,6 +258,7 @@ void BattleController::Update(float timeDelta)
 
     // Script 다단히트 적용
     _hitSequenceRunner.Update(timeDelta);
+    Update_DelayedEchoAttackSteps(timeDelta);
 
     if (_isFreeAimShotPlaying)
     {
@@ -663,6 +667,8 @@ void BattleController::StartTurn()
 {
     _isActionExecuting = false; // 선택 대기 상태에서는 executor 완료 여부로 턴을 넘기지 않는다.
     _requestEndTurnOnCurrentActorDeath = false;
+    Clear_DelayedEchoAttackSteps();
+    _reactionController.Clear();
 
     if (_battleActionExe)
         _battleActionExe->Reset();
@@ -1983,6 +1989,26 @@ void BattleController::Clear_FreeAimHitTarget()
     _hasFreeAimHitTarget = false;
 }
 
+void BattleController::Queue_DelayedEchoAttackStep(float delaySec, const BattleChar& attacker,
+    const vector<BattleChar>& targets, const BattleChar& reactionTarget, uint32 sourceStepIndex, uint32 consumeKey,
+    AttackType attackType, float powerMultiplier)
+{
+    if (targets.empty())
+        return;
+
+    DelayedEchoAttackStep step{};
+    step.remainingSec = max(0.f, delaySec);
+    step.attacker = attacker;
+    step.targets = targets;
+    step.reactionTarget = reactionTarget;
+    step.sourceStepIndex = sourceStepIndex;
+    step.consumeKey = consumeKey;
+    step.attackType = attackType;
+    step.powerMultiplier = powerMultiplier;
+
+    _delayedEchoAttackSteps.push_back(step);
+}
+
 bool BattleController::Is_QTEActive() const
 {
     return _qteController != nullptr && _qteController->Is_Active();
@@ -2237,9 +2263,65 @@ void BattleController::Restore_WorldCamera()
     GAME->Set_PlayerInputBlocked(false);
 }
 
+void BattleController::Update_DelayedEchoAttackSteps(float timeDelta)
+{
+    for (size_t i = 0; i < _delayedEchoAttackSteps.size();)
+    {
+        DelayedEchoAttackStep& step = _delayedEchoAttackSteps[i];
+        step.remainingSec -= max(0.f, timeDelta);
+
+        if (step.remainingSec > 0.f)
+        {
+            ++i;
+            continue;
+        }
+
+        Apply_DelayedEchoAttackStep(step);
+        _delayedEchoAttackSteps.erase(_delayedEchoAttackSteps.begin() + i);
+    }
+}
+
+void BattleController::Apply_DelayedEchoAttackStep(const DelayedEchoAttackStep& step)
+{
+    if (!_isBattleActive || _battleEnded)
+        return;
+
+    if (step.attacker.actor == nullptr || step.attacker.statCom == nullptr || step.targets.empty())
+        return;
+
+    const bool guarded =
+        _reactionController.TryConsumeGuard(
+            step.reactionTarget,
+            step.sourceStepIndex,
+            step.consumeKey);
+
+    if (guarded)
+        return;
+
+    // Echo 추가타는 BattleAction step/SkillScript CurIndex를 소비하지 않는 복제 데미지다.
+    const float damage =
+        DamageSystem::CalculatePlayerAttackDamage(
+            step.attacker,
+            step.powerMultiplier);
+
+    DamageSystem::ApplyDamage(
+        damage,
+        step.attacker,
+        step.targets,
+        step.attackType);
+}
+
+void BattleController::Clear_DelayedEchoAttackSteps()
+{
+    _delayedEchoAttackSteps.clear();
+    ANS_WeaponEcho::Clear_ActiveEchoWindows();
+}
+
 void BattleController::Clear_BattleRuntimeState()
 {
     // 전투 종료/ F4로 게임 Stop할 때
+
+    Clear_DelayedEchoAttackSteps();
 
     if (_battleTutorialController)
         _battleTutorialController->Reset_RuntimeState();

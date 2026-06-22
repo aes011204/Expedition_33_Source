@@ -78,4 +78,26 @@ struct SL_DamageInfo
     bool       isKilled = false;
 };
 
+struct SL_SkillCooldownView
+{
+    string skillKey{};
+    float remainingSec = 0.f;
+    float durationSec = 0.f;
+
+    bool Is_OnCooldown() const { return remainingSec > 0.f && durationSec > 0.f; }
+
+    float Get_Ratio() const
+    {
+        return durationSec > 0.f ? clamp(remainingSec / durationSec, 0.f, 1.f) : 0.f;
+    }
+};
+
+struct SL_SkillCooldownRuntime
+{
+    string skillKey{};
+    float remainingSec = 0.f;
+    float durationSec = 0.f;
+};
+
+
 NS_END

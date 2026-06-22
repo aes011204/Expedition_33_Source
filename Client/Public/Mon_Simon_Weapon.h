@@ -1,7 +1,10 @@
 ﻿#pragma once
 
 #include "Client_Defines.h"
+#include "EffectCom.h"
 #include "Monster_Part.h"
+#include "TrailAnchor_Asset.h"
+#include "Weapon.h"
 
 NS_BEGIN(Client)
 
@@ -36,21 +39,70 @@ public:
     void Detach_PreserveWorld();
     void Attach_ToBindings();
 
-    void Begin_WeaponEchoPlayback(float delaySec, float startAlpha, float endAlpha, const Vec4& tintColor);
+    void Begin_WeaponEchoPlayback(
+        float delaySec,
+        uint32 echoCount = 1);
+
     void Record_WeaponEchoSample(float elapsedSec);
     void End_WeaponEchoPlayback();
     bool Has_WeaponEchoPlayback() const;
     void Queue_WeaponEchoRender();
     const wstring& Get_TrailEffectName() const { return _trailEffectName; }
+    vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() { return _sourceHistoryAnchors; }
+    const vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() const { return _sourceHistoryAnchors; }
+    const WeaponSourceHistoryAnchorDesc* Find_SourceHistoryAnchor(const string& anchorName) const;
+    bool Try_GetWeaponEchoTrailSample(uint32 laneIndex, const TrailAnchorAsset& trailAnchorAsset, EffectTrailSample& outSample) const;
+    void Begin_WeaponEchoTrail(
+        const wstring& effectName,
+        const wstring& layerTag,
+        const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
+    void Update_WeaponEchoTrailOffset(const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
 
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
+    json To_Json() const override;
     HRESULT Ready_DefaultComponents();
     HRESULT Ensure_RuntimeComponentsFromJson(const json& data);
 
     void Update_WeaponEchoPlayback(float timeDelta);
-    bool Try_SampleWeaponEchoMatrix(float elapsedSec, Matrix& outWorldMatrix) const;
     HRESULT Render_WeaponEchoPlayback();
+
+    static constexpr uint32 kMaxWeaponEchoLaneCount = 2;
+
+    struct WeaponEchoSample
+    {
+        float elapsedSec = 0.f;
+        Matrix worldMatrix = Matrix::Identity;
+    };
+
+    struct WeaponEchoLane
+    {
+        vector<WeaponEchoSample> samples{};
+        bool active = false;
+        bool recordingEnded = false;
+        float delaySec = 0.2f;
+        float playbackSec = 0.f;
+        float endElapsedSec = 0.f;
+
+        TrailAnchorAsset trailAnchorAsset{};
+        Shared<IEffectTrailSampleProvider> trailSampleProvider{};
+        EffectInstancePool::AttachedHandle trailHandle{};
+        EffectCom::TrailOffsetRuntimeDesc trailOffset{};
+        bool trailStarted = false;
+    };
+
+    void Reset_WeaponEchoLane(WeaponEchoLane& lane);
+    void Push_WeaponEchoSample(WeaponEchoLane& lane, float elapsedSec);
+    bool Has_WeaponEchoPlayback(const WeaponEchoLane& lane) const;
+    bool Try_SampleWeaponEchoMatrix(const WeaponEchoLane& lane, float elapsedSec, Matrix& outWorldMatrix) const;
+    void Start_WeaponEchoTrail(
+        WeaponEchoLane& lane,
+        uint32 laneIndex,
+        const wstring& effectName,
+        const wstring& layerTag,
+        const EffectCom::TrailOffsetRuntimeDesc& offsetDesc);
+    void Stop_WeaponEchoTrail();
+    void Stop_WeaponEchoTrail(WeaponEchoLane& lane);
 
 private:
     const Matrix* _socketMatrix = nullptr;
@@ -59,23 +111,15 @@ private:
     bool _useSocketBinding = true;
     bool _isDetached = false;
 
-    struct WeaponEchoSample
-    {
-        float elapsedSec = 0.f;
-        Matrix worldMatrix = Matrix::Identity;
-    };
-
-    vector<WeaponEchoSample> _weaponEchoSamples{};
-    bool _weaponEchoActive = false;
-    bool _weaponEchoRecordingEnded = false;
-    float _weaponEchoDelaySec = 0.2f;
-    float _weaponEchoPlaybackSec = 0.f;
-    float _weaponEchoEndElapsedSec = 0.f;
-    float _weaponEchoStartAlpha = 0.42f;
-    float _weaponEchoEndAlpha = 0.f;
-    Vec4 _weaponEchoTintColor = Vec4(0.70f, 1.0f, 0.92f, 1.f);
+    array<WeaponEchoLane, kMaxWeaponEchoLaneCount> _weaponEchoLanes{};
+    bool _weaponEchoPendingTrailValid = false;
+    wstring _weaponEchoPendingTrailEffectName{};
+    wstring _weaponEchoPendingTrailLayerTag{};
+    EffectCom::TrailOffsetRuntimeDesc _weaponEchoPendingTrailOffset{};
+    float _weaponEchoPendingTrailAgeSec = 0.f;
 
     wstring _trailEffectName = L"";
+    vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};
 
 public:
     static Shared<Mon_Simon_Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

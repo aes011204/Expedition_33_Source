@@ -7,7 +7,6 @@
 #include "SL_Maelle.h"
 #include "SoulLikeController.h"
 #include "UI_BattleVictory.h"
-#include "UI_BossHpBar.h"
 #include "UI_ReactionResult.h"
 #include "UI_SL_HUD.h"
 #include "UI_Utils.h"
@@ -43,7 +42,6 @@ HRESULT GamePlayUI_SL::Initialize(uint32 levelIndex)
 void GamePlayUI_SL::Update(float timeDelta)
 {
     Update_SLHud(timeDelta);
-	Update_BossHpBar(timeDelta);
     Update_ReactionResult(timeDelta);
     Update_BattleVictory(timeDelta);
 }
@@ -52,9 +50,6 @@ void GamePlayUI_SL::Handle_EditorStopRuntime()
 {
     if (_slHud)
         _slHud->Clear_PlayerHUD();
-
-	if (_bossHpBar)
-        _bossHpBar->Clear_Boss();
 
     if (_reactionResult)
         _reactionResult->Close();
@@ -87,9 +82,6 @@ vector<RuntimeUIEntry> GamePlayUI_SL::Get_RuntimeUIEntries() const
     if (_slHud)
         _slHud->Append_RuntimeUIEntries(entries, "SoulLike", "SLHUD");
 
-    if (_bossHpBar)
-        _bossHpBar->Append_RuntimeUIEntries(entries, "SoulLike", "BossHpBar");
-
     if (_battleVictory)
         _battleVictory->Append_RuntimeUIEntries(entries, "SoulLike", "BattleVictory");
 
@@ -106,15 +98,6 @@ bool GamePlayUI_SL::Ensure_SLHud()
 
     _slHud = UI_SL_HUD::Create(_levelIndex);
     return _slHud != nullptr;
-}
-
-bool GamePlayUI_SL::Ensure_BossHpBar()
-{
-	if (_bossHpBar)
-        return true;
-
-    _bossHpBar = UI_BossHpBar::Create(_levelIndex);
-    return _bossHpBar != nullptr;
 }
 
 bool GamePlayUI_SL::Ensure_BattleVictory()
@@ -137,15 +120,20 @@ bool GamePlayUI_SL::Ensure_ReactionResult()
 
 void GamePlayUI_SL::Show_ParryResult(const Vec3& worldPos)
 {
+    UNREFERENCED_PARAMETER(worldPos);
+
     if (!Ensure_ReactionResult())
         return;
 
-    Vec2 screenPos{};
-    if (!Try_ProjectWorldToScreen(worldPos, screenPos))
+    _reactionResult->Show_Reaction(BattleReactionType::Parry);
+}
+
+void GamePlayUI_SL::Show_BossDamage(float damage)
+{
+    if (!Ensure_SLHud())
         return;
 
-    screenPos += Vec2(24.f, -24.f);
-    _reactionResult->Show_Reaction(BattleReactionType::Parry, screenPos);
+    _slHud->Show_BossDamage(damage);
 }
 
 void GamePlayUI_SL::Update_SLHud(float timeDelta)
@@ -161,6 +149,7 @@ void GamePlayUI_SL::Update_SLHud(float timeDelta)
 
     const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
     const Shared<SL_Maelle> player = controller ? controller->Get_Player() : nullptr;
+    const Shared<SL_Base> monster = controller ? controller->Get_Monster() : nullptr;
 
     if (player == nullptr)
     {
@@ -172,36 +161,8 @@ void GamePlayUI_SL::Update_SLHud(float timeDelta)
     if (!Ensure_SLHud())
         return;
 
-    _slHud->Update_PlayerHUD(player); // The SL HUD owns only player HP and skill-icon display.
-}
-
-void GamePlayUI_SL::Update_BossHpBar(float timeDelta)
-{
-	if (!CLIENT->Is_SoulLikeBattleActive())
-    {
-        if (_bossHpBar)
-            _bossHpBar->Clear_Boss();
-        return;
-    }
-
-    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
-    const Shared<SL_Base> monster = controller ? controller->Get_Monster() : nullptr;
-
-    if (monster == nullptr || monster->Is_Dead())
-    {
-        if (_bossHpBar)
-            _bossHpBar->Clear_Boss();
-        return;
-    }
-
-    if (!Ensure_BossHpBar())
-        return;
-
-    BattleChar boss{};
-    boss.statCom = monster->Get_Stat();
-
-    _bossHpBar->Show_Boss(boss);
-    _bossHpBar->Update(timeDelta);
+    _slHud->Update_PlayerHUD(player);
+    _slHud->Update_BossHUD(monster, timeDelta);
 }
 
 void GamePlayUI_SL::Update_ReactionResult(float timeDelta)
@@ -375,12 +336,6 @@ void GamePlayUI_SL::Free()
     {
         _slHud->Free();
         _slHud.reset();
-    }
-
-    if (_bossHpBar)
-    {
-        _bossHpBar->Free();
-        _bossHpBar.reset();
     }
 
     if (_battleVictory)

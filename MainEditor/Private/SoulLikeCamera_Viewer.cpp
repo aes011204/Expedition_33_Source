@@ -1,6 +1,10 @@
 #include "pch.h"
 #include "SoulLikeCamera_Viewer.h"
 
+#include "Battle_Enum.h"
+#include "BattleCameraClipIO.h"
+#include "BattleCameraClipUtils.h"
+#include "BattleClipSequencerAdapter.h"
 #include "CameraPresetIO.h"
 #include "ClientInstance.h"
 #include "ContainerObject.h"
@@ -22,6 +26,7 @@
 #include "TransformCom.h"
 #include "magic_enum/magic_enum.hpp"
 
+#include <ImSequencer.h>
 #include <algorithm>
 #include <cctype>
 #include <cfloat>
@@ -224,6 +229,7 @@ namespace
 SoulLikeCamera_Viewer::SoulLikeCamera_Viewer()
     : Editor_Window(L"SoulLikeCamera_Viewer")
 {
+    _editingClip.timeMode = BattleCameraClipTimeMode::Independent;
     Set_Open(false);
 }
 
@@ -238,6 +244,8 @@ void SoulLikeCamera_Viewer::Update(float timeDelta)
         _previewTimeSec += timeDelta;
         if (duration > 0.f && _previewTimeSec > duration)
             _previewTimeSec = 0.f;
+
+        Sync_ClipFrameFromPreviewTime();
     }
 }
 
@@ -339,12 +347,74 @@ void SoulLikeCamera_Viewer::Save()
 
 void SoulLikeCamera_Viewer::Refresh_SkillList()
 {
-    if (!_skillKeys.empty())
-        return;
+    string selectedSkillKey{};
+    if (_selectedSkillIndex >= 0 && _selectedSkillIndex < static_cast<int>(_skillKeys.size()))
+        selectedSkillKey = _skillKeys[_selectedSkillIndex];
 
-    _skillKeys = CLIENT->Get_AllSkillIds();
+    vector<string> nextSkillKeys{};
+    auto appendSkillKey = [&nextSkillKeys](const string& skillKey)
+        {
+            if (skillKey.empty())
+                return;
+
+            if (std::find(nextSkillKeys.begin(), nextSkillKeys.end(), skillKey) == nextSkillKeys.end())
+                nextSkillKeys.push_back(skillKey);
+        };
+
+    if (const Shared<Client::SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+    {
+        if (const Shared<Client::SL_Maelle> player = controller->Get_Player())
+        {
+            for (uint32 slotIndex = 0; slotIndex < 4; ++slotIndex)
+            {
+                Skill_Data skillData{};
+                if (player->Try_GetEquippedSkill(slotIndex, skillData))
+                    appendSkillKey(skillData.skillKey);
+            }
+        }
+    }
+
+    if (nextSkillKeys.empty())
+    {
+        const vector<string> allSkillIds = CLIENT->Get_AllSkillIds();
+        for (const string& skillId : allSkillIds)
+        {
+            const Skill_Data* skillData = CLIENT->Get_Skill(skillId);
+            if (skillData == nullptr)
+                continue;
+
+            string characterId = skillData->characterId;
+            std::transform(characterId.begin(), characterId.end(), characterId.begin(),
+                [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+
+            if (characterId != "maelle")
+                continue;
+
+            if (skillData->skillKey == "Maelle_Default_Attack")
+                continue;
+
+            appendSkillKey(skillData->skillKey);
+        }
+    }
+
+    _skillKeys = std::move(nextSkillKeys);
+
+    if (!selectedSkillKey.empty())
+    {
+        const auto iter = std::find(_skillKeys.begin(), _skillKeys.end(), selectedSkillKey);
+        if (iter != _skillKeys.end())
+        {
+            _selectedSkillIndex = static_cast<int>(std::distance(_skillKeys.begin(), iter));
+            return;
+        }
+    }
+
     if (!_skillKeys.empty() && _selectedSkillIndex < 0)
         _selectedSkillIndex = 0;
+    else if (_skillKeys.empty())
+        _selectedSkillIndex = -1;
+    else
+        _selectedSkillIndex = std::clamp(_selectedSkillIndex, 0, static_cast<int>(_skillKeys.size()) - 1);
 }
 
 void SoulLikeCamera_Viewer::Refresh_PlayerAnimationList()
@@ -785,7 +855,108 @@ void SoulLikeCamera_Viewer::Render_PreviewCanvas()
         drawList->AddText(ImVec2(previewPos.x + 12.f, previewPos.y + 12.f), IM_COL32(210, 216, 224, 255), "프리뷰 준비 안 됨");
     }
 
+    Update_PreviewCameraControls(previewPos, previewMax);
+
+    drawList->AddText(
+        ImVec2(previewPos.x + 12.f, previewMax.y - 24.f),
+        _previewCameraControlActive ? IM_COL32(255, 210, 120, 255) : IM_COL32(180, 186, 196, 210),
+        "우클릭 + WASD/QE: 카메라 이동   마우스: 회전   휠: 거리   Shift/Ctrl: 속도");
+
     ImGui::EndChild();
+}
+
+void SoulLikeCamera_Viewer::Update_PreviewCameraControls(const ImVec2& previewMin, const ImVec2& previewMax)
+{
+    const bool canvasHovered = ImGui::IsMouseHoveringRect(previewMin, previewMax, false);
+
+    if (!_previewCameraControlActive && canvasHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+    {
+        _previewCameraControlActive = true;
+        _previewCameraControlStartPreset = _editingPreset;
+    }
+
+    if (!_previewCameraControlActive)
+        return;
+
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Right))
+    {
+        _previewCameraControlActive = false;
+        Push_UndoSnapshot(_previewCameraControlStartPreset);
+        return;
+    }
+
+    const TargetCameraPreset beforeEditPreset = _editingPreset;
+    const ImGuiIO& io = ImGui::GetIO();
+    const float dt = std::max(io.DeltaTime, 0.0001f);
+    float moveSpeed = std::max(0.75f, _editingPreset.distance) * 0.8f;
+
+    if (io.KeyShift)
+        moveSpeed *= 3.f;
+    if (io.KeyCtrl)
+        moveSpeed *= 0.25f;
+
+    const float moveDelta = moveSpeed * dt;
+    bool changed = false;
+
+    if (ImGui::IsKeyDown(ImGuiKey_W))
+    {
+        _editingPreset.distance = std::max(0.1f, _editingPreset.distance - moveDelta);
+        changed = true;
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_S))
+    {
+        _editingPreset.distance += moveDelta;
+        changed = true;
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_A))
+    {
+        _editingPreset.sideOffset -= moveDelta;
+        changed = true;
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_D))
+    {
+        _editingPreset.sideOffset += moveDelta;
+        changed = true;
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_Q))
+    {
+        _editingPreset.heightOffset -= moveDelta;
+        changed = true;
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_E))
+    {
+        _editingPreset.heightOffset += moveDelta;
+        changed = true;
+    }
+
+    if (io.MouseWheel != 0.f)
+    {
+        _editingPreset.distance = std::max(0.1f, _editingPreset.distance - io.MouseWheel * moveSpeed * 0.12f);
+        changed = true;
+    }
+
+    if (io.MouseDelta.x != 0.f || io.MouseDelta.y != 0.f)
+    {
+        constexpr float mouseSensitivity = 0.12f;
+        _editingPreset.yawOffset += io.MouseDelta.x * mouseSensitivity;
+        _editingPreset.pitchOffset = std::clamp(
+            _editingPreset.pitchOffset + io.MouseDelta.y * mouseSensitivity,
+            _editingPreset.pitchMin,
+            _editingPreset.pitchMax);
+        changed = true;
+    }
+
+    if (!changed)
+        return;
+
+    _presetDirty = true;
+    _viewingSavedPreset = false;
+
+    if (!Same_Preset(beforeEditPreset, _editingPreset))
+        _redoStack.clear();
+
+    if (_runtimeFollowEnabled && Is_CurrentProfileRuntimeConnected())
+        Apply_RuntimePreset();
 }
 
 void SoulLikeCamera_Viewer::Render_PresetPanel()
@@ -985,6 +1156,9 @@ void SoulLikeCamera_Viewer::Render_PresetBrowser()
 
 void SoulLikeCamera_Viewer::Render_TimelinePanel()
 {
+    Render_ClipTimelinePanel();
+    return;
+
     ImGui::BeginChild("SoulLikeCameraViewerTimeline", ImVec2(0.f, 0.f), true);
 
     const float duration = Resolve_CurrentAnimationDurationSec();
@@ -1005,6 +1179,207 @@ void SoulLikeCamera_Viewer::Render_TimelinePanel()
     ImGui::SliderFloat("##SoulLikeCameraViewerTime", &_previewTimeSec, 0.f, std::max(0.001f, duration), "%.3f s");
 
     ImGui::EndChild();
+}
+
+void SoulLikeCamera_Viewer::Render_ClipTimelinePanel()
+{
+    ImGui::BeginChild("SoulLikeCameraViewerClipTimeline", ImVec2(0.f, 0.f), true);
+
+    const float duration = std::max(0.001f, Resolve_CurrentAnimationDurationSec());
+    _editingClip.duration = duration;
+    _editingClip.timeMode = BattleCameraClipTimeMode::Independent;
+
+    Handle_ClipShortcuts();
+
+    if (ImGui::Button(_timelinePlaying ? "일시정지" : "재생"))
+        _timelinePlaying = !_timelinePlaying;
+
+    ImGui::SameLine();
+    if (ImGui::Button("처음"))
+    {
+        _previewTimeSec = 0.f;
+        _clipCurrentFrame = 0;
+        _timelinePlaying = false;
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("시간 %.3f / %.3f", _previewTimeSec, duration);
+
+    ImGui::SameLine();
+    if (ImGui::Button("현재 구도 키 삽입(K)"))
+        Insert_CurrentPoseKeysAtFrame(_clipCurrentFrame);
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(_clipSelectedKeyIndex < 0);
+    if (ImGui::Button("선택 키 삭제(Delete)"))
+        Remove_SelectedClipKey();
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    if (ImGui::Button("클립 로드"))
+        Load_CurrentClip();
+
+    ImGui::SameLine();
+    if (ImGui::Button("클립 저장"))
+        Save_CurrentClip();
+
+    ImGui::SameLine();
+    if (ImGui::Button("클립 초기화"))
+    {
+        Reset_CurrentClip();
+        _clipDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (_clipDirty)
+        ImGui::TextColored(ImVec4(1.f, 0.72f, 0.35f, 1.f), "클립 수정됨");
+    else
+        ImGui::TextDisabled("클립 저장됨");
+
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::SliderFloat("##SoulLikeCameraViewerClipTime", &_previewTimeSec, 0.f, duration, "%.3f s"))
+        Sync_ClipFrameFromPreviewTime();
+
+    Render_ClipSequencer();
+    Render_SelectedClipKeyEditor();
+
+    ImGui::EndChild();
+}
+
+void SoulLikeCamera_Viewer::Render_ClipSequencer()
+{
+    bool consumedKeyClick = false;
+    bool requestOpenInsertPopup = false;
+    bool requestRemoveKeyPopup = false;
+    bool previewDirty = false;
+    int sequencerSelectedTrackIndex = _clipSelectedTrackIndex;
+    int displayFrameMax = Get_ClipFrameMax();
+    const int previousFrame = _clipCurrentFrame;
+    const int previousTrackIndex = _clipSelectedTrackIndex;
+    const int previousKeyIndex = _clipSelectedKeyIndex;
+
+    BattleClipSequencerAdapter adapter(
+        &_editingClip,
+        &_clipSelectedTrackIndex,
+        &_clipSelectedKeyIndex,
+        &_clipCurrentFrame,
+        &consumedKeyClick,
+        &requestOpenInsertPopup,
+        &requestRemoveKeyPopup,
+        &_clipContextTrackIndex,
+        &_clipContextFrame,
+        &displayFrameMax,
+        false,
+        &previewDirty,
+        &_clipDistanceEnabled,
+        &_clipFovEnabled,
+        &_clipShakeEnabled,
+        &_clipSideEnabled,
+        &_clipPivotEnabled,
+        &_clipHeightEnabled,
+        &_clipAimEnabled,
+        &_clipLookHeightEnabled,
+        &_clipYawEnabled,
+        &_clipOrbitYawEnabled,
+        &_clipOrbitRadiusEnabled,
+        &_clipOrbitHeightEnabled,
+        &_clipOrbitLookHeightEnabled,
+        &_clipShakeFrequencyXEnabled,
+        &_clipShakeFrequencyYEnabled,
+        &_clipShakeDecayRateXEnabled,
+        &_clipShakeDecayRateEnabled,
+        &_clipShakeVerticalRatioEnabled,
+        &_clipShakeStrengthScaleEnabled);
+
+    static bool expanded = true;
+    static int firstFrame = 0;
+    ImSequencer::Sequencer(&adapter, &_clipCurrentFrame, &expanded, &sequencerSelectedTrackIndex, &firstFrame, ImSequencer::SEQUENCER_CHANGE_FRAME);
+
+    if (!consumedKeyClick)
+        _clipSelectedTrackIndex = sequencerSelectedTrackIndex;
+
+    if (requestOpenInsertPopup)
+        Insert_ClipKeyAtFrame(_clipContextTrackIndex, _clipContextFrame);
+
+    if (requestRemoveKeyPopup)
+        Remove_SelectedClipKey();
+
+    if (previousFrame != _clipCurrentFrame ||
+        previousTrackIndex != _clipSelectedTrackIndex ||
+        previousKeyIndex != _clipSelectedKeyIndex)
+    {
+        Sync_PreviewTimeFromClipFrame();
+    }
+
+    if (previewDirty)
+        _clipDirty = true;
+}
+
+void SoulLikeCamera_Viewer::Render_SelectedClipKeyEditor()
+{
+    CameraTrack* track = Get_ClipTrack(_clipSelectedTrackIndex);
+    if (track == nullptr ||
+        _clipSelectedKeyIndex < 0 ||
+        _clipSelectedKeyIndex >= static_cast<int>(track->keyframes.size()))
+    {
+        ImGui::TextDisabled("선택된 키 없음");
+        return;
+    }
+
+    CameraKeyframe& keyframe = track->keyframes[_clipSelectedKeyIndex];
+    bool changed = false;
+
+    ImGui::Separator();
+    ImGui::Text("선택 키 Track %d / Key %d", _clipSelectedTrackIndex, _clipSelectedKeyIndex);
+
+    ImGui::SetNextItemWidth(160.f);
+    if (ImGui::DragFloat("키 시간", &keyframe.time, 0.01f, 0.f, std::max(0.001f, _editingClip.duration)))
+    {
+        keyframe.time = std::clamp(keyframe.time, 0.f, std::max(0.001f, _editingClip.duration));
+        const float selectedTime = keyframe.time;
+        Sort_ClipTrack(*track);
+        for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+        {
+            if (fabsf(track->keyframes[i].time - selectedTime) <= 0.0001f)
+            {
+                _clipSelectedKeyIndex = i;
+                break;
+            }
+        }
+
+        _clipCurrentFrame = Get_ClipFrameFromTime(selectedTime);
+        Sync_PreviewTimeFromClipFrame();
+        changed = true;
+    }
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(160.f);
+    if (ImGui::DragFloat("키 값", &keyframe.value, 0.01f))
+        changed = true;
+
+    ImGui::SameLine();
+    const char* interpolationLabel = magic_enum::enum_name(keyframe.interpolation).data();
+    ImGui::SetNextItemWidth(180.f);
+    if (ImGui::BeginCombo("보간", interpolationLabel))
+    {
+        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool selected = keyframe.interpolation == mode;
+            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), selected))
+            {
+                keyframe.interpolation = mode;
+                changed = true;
+            }
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    if (changed)
+        _clipDirty = true;
 }
 
 void SoulLikeCamera_Viewer::Load_CurrentPreset(bool loadBaseOnly)
@@ -1032,6 +1407,49 @@ void SoulLikeCamera_Viewer::Load_CurrentPreset(bool loadBaseOnly)
         _statusMessage = "개별 프리셋 없음, 기본값으로 로드";
     else
         _statusMessage = "프리셋 로드 완료";
+    Load_CurrentClip();
+}
+
+void SoulLikeCamera_Viewer::Load_CurrentClip()
+{
+    const string clipKey = Build_CurrentClipKey();
+    Reset_CurrentClip();
+
+    if (Client::BattleCameraClipIO::LoadSoulLikeCameraClipFromFile(clipKey, _editingClip))
+    {
+        _loadedClipKey = clipKey;
+        _clipDirty = false;
+        _clipCurrentFrame = std::clamp(_clipCurrentFrame, 0, Get_ClipFrameMax());
+        Sync_PreviewTimeFromClipFrame();
+        return;
+    }
+
+    _loadedClipKey = clipKey;
+    _clipDirty = false;
+}
+
+void SoulLikeCamera_Viewer::Save_CurrentClip()
+{
+    const string clipKey = Build_CurrentClipKey();
+    _editingClip.duration = std::max(0.001f, Resolve_CurrentAnimationDurationSec());
+    _editingClip.timeMode = BattleCameraClipTimeMode::Independent;
+    Client::BattleCameraClipIO::SaveSoulLikeCameraClipToFile(clipKey, _editingClip);
+    _loadedClipKey = clipKey;
+    _clipDirty = false;
+}
+
+void SoulLikeCamera_Viewer::Reset_CurrentClip()
+{
+    _editingClip = BattleCameraClip{ std::max(0.001f, Resolve_CurrentAnimationDurationSec()) };
+    _editingClip.timeMode = BattleCameraClipTimeMode::Independent;
+    _clipCurrentFrame = std::clamp(_clipCurrentFrame, 0, Get_ClipFrameMax());
+    _clipSelectedTrackIndex = 0;
+    _clipSelectedKeyIndex = -1;
+}
+
+string SoulLikeCamera_Viewer::Build_CurrentClipKey() const
+{
+    return Build_CurrentPresetKey();
 }
 
 void SoulLikeCamera_Viewer::Save_CurrentPreset()
@@ -1043,6 +1461,7 @@ void SoulLikeCamera_Viewer::Save_CurrentPreset()
     _viewingSavedPreset = false;
     _presetBrowserDirty = true;
     _statusMessage = "프리셋 저장 완료";
+    Save_CurrentClip();
 }
 
 string SoulLikeCamera_Viewer::Build_CurrentPresetKey() const
@@ -1139,6 +1558,7 @@ void SoulLikeCamera_Viewer::Load_BrowserPreset(const string& presetKey)
     _viewingSavedPreset = false;
 
     Apply_BrowserPresetContext(presetKey);
+    Load_CurrentClip();
 
     if (_runtimeFollowEnabled)
         Apply_RuntimePreset();
@@ -1464,6 +1884,212 @@ void SoulLikeCamera_Viewer::Redo_Preset()
         Apply_RuntimePreset();
 }
 
+void SoulLikeCamera_Viewer::Handle_ClipShortcuts()
+{
+    if (!_isFocused || ImGui::GetIO().WantTextInput)
+        return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_K))
+        Insert_CurrentPoseKeysAtFrame(_clipCurrentFrame);
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+        Remove_SelectedClipKey();
+}
+
+int SoulLikeCamera_Viewer::Get_ClipFrameMax() const
+{
+    return std::max(1, static_cast<int>(std::lround(std::max(0.001f, _editingClip.duration) * 30.f)));
+}
+
+float SoulLikeCamera_Viewer::Get_ClipTimeFromFrame(int frame) const
+{
+    return std::clamp(static_cast<float>(frame) / 30.f, 0.f, std::max(0.001f, _editingClip.duration));
+}
+
+int SoulLikeCamera_Viewer::Get_ClipFrameFromTime(float timeSec) const
+{
+    return std::clamp(static_cast<int>(std::lround(std::max(0.f, timeSec) * 30.f)), 0, Get_ClipFrameMax());
+}
+
+void SoulLikeCamera_Viewer::Sync_ClipFrameFromPreviewTime()
+{
+    _clipCurrentFrame = Get_ClipFrameFromTime(_previewTimeSec);
+}
+
+void SoulLikeCamera_Viewer::Sync_PreviewTimeFromClipFrame()
+{
+    _clipCurrentFrame = std::clamp(_clipCurrentFrame, 0, Get_ClipFrameMax());
+    _previewTimeSec = Get_ClipTimeFromFrame(_clipCurrentFrame);
+}
+
+CameraTrack* SoulLikeCamera_Viewer::Get_ClipTrack(int trackIndex)
+{
+    switch (trackIndex)
+    {
+    case 0:
+        return &_editingClip.distanceOffset;
+    case 1:
+        return &_editingClip.fovOffset;
+    case 2:
+        return &_editingClip.shakeAmplitude;
+    case 3:
+        return &_editingClip.sideOffset;
+    case 4:
+        return &_editingClip.pivotOffset;
+    case 5:
+        return &_editingClip.heightOffset;
+    case 6:
+        return &_editingClip.aimOffset;
+    case 7:
+        return &_editingClip.lookHeightOffset;
+    case 8:
+        return &_editingClip.yawOffset;
+    case 9:
+        return &_editingClip.orbitYaw;
+    case 10:
+        return &_editingClip.orbitRadius;
+    case 11:
+        return &_editingClip.orbitHeight;
+    case 12:
+        return &_editingClip.orbitLookHeight;
+    case 13:
+        return &_editingClip.shakeFrequencyX;
+    case 14:
+        return &_editingClip.shakeFrequencyY;
+    case 15:
+        return &_editingClip.shakeDecayRateX;
+    case 16:
+        return &_editingClip.shakeDecayRate;
+    case 17:
+        return &_editingClip.shakeVerticalRatio;
+    case 18:
+        return &_editingClip.shakeStrengthScale;
+    default:
+        return nullptr;
+    }
+}
+
+const CameraTrack* SoulLikeCamera_Viewer::Get_ClipTrack(int trackIndex) const
+{
+    return const_cast<SoulLikeCamera_Viewer*>(this)->Get_ClipTrack(trackIndex);
+}
+
+float SoulLikeCamera_Viewer::Get_CurrentClipTrackValue(int trackIndex) const
+{
+    switch (trackIndex)
+    {
+    case 0:
+        return _editingPreset.distance;
+    case 1:
+        return _editingPreset.camera.fovy;
+    case 2:
+        return 0.f;
+    case 3:
+        return _editingPreset.sideOffset;
+    case 4:
+        return _editingPreset.pivotHeight;
+    case 5:
+        return _editingPreset.heightOffset;
+    case 6:
+        return _editingPreset.aimOffset;
+    case 7:
+        return _editingPreset.lookHeight;
+    case 8:
+        return _editingPreset.yawOffset;
+    case 13:
+        return 32.f;
+    case 14:
+        return 47.f;
+    case 16:
+        return 8.f;
+    case 17:
+        return 0.8f;
+    case 18:
+        return 0.05f;
+    default:
+        return 0.f;
+    }
+}
+
+void SoulLikeCamera_Viewer::Sort_ClipTrack(CameraTrack& track)
+{
+    std::sort(track.keyframes.begin(), track.keyframes.end(),
+        [](const CameraKeyframe& lhs, const CameraKeyframe& rhs)
+        {
+            return lhs.time < rhs.time;
+        });
+}
+
+void SoulLikeCamera_Viewer::Insert_ClipKeyAtFrame(int trackIndex, int frame)
+{
+    CameraTrack* track = Get_ClipTrack(trackIndex);
+    if (track == nullptr)
+        return;
+
+    const float keyTime = Get_ClipTimeFromFrame(frame);
+    for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+    {
+        if (fabsf(track->keyframes[i].time - keyTime) <= 0.0001f)
+        {
+            track->keyframes[i].value = Get_CurrentClipTrackValue(trackIndex);
+            _clipSelectedTrackIndex = trackIndex;
+            _clipSelectedKeyIndex = i;
+            _clipCurrentFrame = frame;
+            _clipDirty = true;
+            return;
+        }
+    }
+
+    CameraKeyframe keyframe{};
+    keyframe.time = keyTime;
+    keyframe.value = Get_CurrentClipTrackValue(trackIndex);
+    keyframe.interpolation = InterpolationMode::Linear;
+    track->keyframes.push_back(keyframe);
+    Sort_ClipTrack(*track);
+
+    _clipSelectedTrackIndex = trackIndex;
+    _clipCurrentFrame = frame;
+    _clipDirty = true;
+
+    for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+    {
+        if (fabsf(track->keyframes[i].time - keyTime) <= 0.0001f)
+        {
+            _clipSelectedKeyIndex = i;
+            break;
+        }
+    }
+}
+
+void SoulLikeCamera_Viewer::Insert_CurrentPoseKeysAtFrame(int frame)
+{
+    const int poseTracks[] = { 0, 1, 3, 4, 5, 6, 7, 8 };
+    for (int trackIndex : poseTracks)
+        Insert_ClipKeyAtFrame(trackIndex, frame);
+
+    _clipDirty = true;
+}
+
+void SoulLikeCamera_Viewer::Remove_SelectedClipKey()
+{
+    CameraTrack* track = Get_ClipTrack(_clipSelectedTrackIndex);
+    if (track == nullptr ||
+        _clipSelectedKeyIndex < 0 ||
+        _clipSelectedKeyIndex >= static_cast<int>(track->keyframes.size()))
+    {
+        return;
+    }
+
+    track->keyframes.erase(track->keyframes.begin() + _clipSelectedKeyIndex);
+    _clipSelectedKeyIndex = std::clamp(_clipSelectedKeyIndex, -1, static_cast<int>(track->keyframes.size()) - 1);
+    _clipDirty = true;
+}
+
+bool SoulLikeCamera_Viewer::Has_ClipTrackKeys(const CameraTrack& track, bool enabled) const
+{
+    return enabled && !track.keyframes.empty();
+}
+
 void SoulLikeCamera_Viewer::Apply_PreviewAnimation(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
@@ -1509,8 +2135,28 @@ void SoulLikeCamera_Viewer::Apply_SoulLikeCameraPreviewPose()
     if (playerTransform != nullptr)
         subjectPos = playerTransform->Get_WorldPosition();
 
-    const float finalYaw = _editingPreset.yawOffset;
-    const float finalPitch = _editingPreset.pitchOffset;
+    TargetCameraPreset previewPreset = _editingPreset;
+    const float clipTimeSec = std::clamp(_previewTimeSec, 0.f, std::max(0.001f, _editingClip.duration));
+
+    if (Has_ClipTrackKeys(_editingClip.distanceOffset, _clipDistanceEnabled))
+        previewPreset.distance = Client::Sample_BattleCameraTrack(_editingClip.distanceOffset, clipTimeSec);
+    if (Has_ClipTrackKeys(_editingClip.fovOffset, _clipFovEnabled))
+        previewPreset.camera.fovy = Client::Sample_BattleCameraTrack(_editingClip.fovOffset, clipTimeSec);
+    if (Has_ClipTrackKeys(_editingClip.sideOffset, _clipSideEnabled))
+        previewPreset.sideOffset = Client::Sample_BattleCameraTrack(_editingClip.sideOffset, clipTimeSec);
+    if (Has_ClipTrackKeys(_editingClip.pivotOffset, _clipPivotEnabled))
+        previewPreset.pivotHeight = Client::Sample_BattleCameraTrack(_editingClip.pivotOffset, clipTimeSec);
+    if (Has_ClipTrackKeys(_editingClip.heightOffset, _clipHeightEnabled))
+        previewPreset.heightOffset = Client::Sample_BattleCameraTrack(_editingClip.heightOffset, clipTimeSec);
+    if (Has_ClipTrackKeys(_editingClip.aimOffset, _clipAimEnabled))
+        previewPreset.aimOffset = Client::Sample_BattleCameraTrack(_editingClip.aimOffset, clipTimeSec);
+    if (Has_ClipTrackKeys(_editingClip.lookHeightOffset, _clipLookHeightEnabled))
+        previewPreset.lookHeight = Client::Sample_BattleCameraTrack(_editingClip.lookHeightOffset, clipTimeSec);
+    if (Has_ClipTrackKeys(_editingClip.yawOffset, _clipYawEnabled))
+        previewPreset.yawOffset = Client::Sample_BattleCameraTrack(_editingClip.yawOffset, clipTimeSec);
+
+    const float finalYaw = previewPreset.yawOffset;
+    const float finalPitch = previewPreset.pitchOffset;
 
     const float yawRad = XMConvertToRadians(finalYaw);
     const float pitchRad = XMConvertToRadians(finalPitch);
@@ -1527,24 +2173,40 @@ void SoulLikeCamera_Viewer::Apply_SoulLikeCameraPreviewPose()
     rightDir.z = -sinf(yawRad);
     rightDir.Normalize();
 
-    const Vec3 baseOffset = backDir * _editingPreset.distance;
+    const Vec3 baseOffset = backDir * previewPreset.distance;
     const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
 
-    const Vec3 pivotPos = subjectPos + Vec3::Up * _editingPreset.pivotHeight;
-    const Vec3 framingPos = pivotPos + rightDir * _editingPreset.aimOffset;
-    const Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _editingPreset.heightOffset + rightDir * _editingPreset.sideOffset;
-    const Vec3 lookTarget = framingPos + Vec3::Up * _editingPreset.lookHeight;
+    const Vec3 pivotPos = subjectPos + Vec3::Up * previewPreset.pivotHeight;
+    const Vec3 framingPos = pivotPos + rightDir * previewPreset.aimOffset;
+    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * previewPreset.heightOffset + rightDir * previewPreset.sideOffset;
+    const Vec3 lookTarget = framingPos + Vec3::Up * previewPreset.lookHeight;
 
-    _previewCamera->Set_FovY(_editingPreset.camera.fovy);
-    _previewCamera->Set_Near(_editingPreset.camera.nearPlane);
-    _previewCamera->Set_Far(_editingPreset.camera.farPlane);
+    if (Has_ClipTrackKeys(_editingClip.shakeAmplitude, _clipShakeEnabled))
+    {
+        const BattleCameraClipSample clipSample = Client::Sample_BattleCameraClip(_editingClip, clipTimeSec);
+        desiredPos += Client::Sample_BattleCameraShakeOffset(
+            clipSample.shakeAmplitude,
+            clipSample.shakeVerticalRatio,
+            clipSample.shakeStrengthScale,
+            clipSample.shakeFrequencyX,
+            clipSample.shakeFrequencyY,
+            clipSample.shakeDecayRateX,
+            clipSample.shakeDecayRate,
+            clipTimeSec,
+            rightDir,
+            Vec3::Up);
+    }
+
+    _previewCamera->Set_FovY(previewPreset.camera.fovy);
+    _previewCamera->Set_Near(previewPreset.camera.nearPlane);
+    _previewCamera->Set_Far(previewPreset.camera.farPlane);
 
     if (Shared<TransformCom> transform = _previewCamera->Get_Transform())
     {
         transform->Set_WorldPosition(desiredPos);
         transform->LookAt(lookTarget);
-        transform->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _editingPreset.rollOffset));
+        transform->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, previewPreset.rollOffset));
     }
 }
 

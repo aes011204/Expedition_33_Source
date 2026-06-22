@@ -9,6 +9,7 @@
 
 uint g_iObjectID;
 float4 g_WeaponGhostColor;
+uint g_WeaponGhostBladeMaterial;
 
 //==================================================
 // VS
@@ -442,15 +443,20 @@ PS_OUT PS_WeaponGhost(PS_IN In)
 
     PS_OUT Out;
 
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float4 baseColor = SampleBaseColor(finalUV);
     float3 worldNormal = normalize(In.Normal.xyz);
-    float alpha = saturate(g_WeaponGhostColor.a);
-    float3 color = saturate(g_WeaponGhostColor.rgb);
+    float alpha = 1.f;
+    bool isBladeMaterial = g_WeaponGhostBladeMaterial != 0;
+    float3 color = isBladeMaterial ? saturate(g_WeaponGhostColor.rgb) : saturate(baseColor.rgb);
+    float3 orm = isBladeMaterial ? float3(1.f, 0.35f, 0.f) : SampleOrm(finalUV);
+    float3 emissive = isBladeMaterial ? color * 0.35f : 0.f;
 
     Out.Diffuse = float4(color, alpha);
     Out.Normal = float4(EncodeNormal(worldNormal), alpha);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, alpha);
-    Out.Material = float4(1.f, 0.35f, 0.f, alpha);
-    Out.Emissive = float4(color * 0.35f, alpha);
+    Out.Material = float4(orm, alpha);
+    Out.Emissive = float4(emissive, alpha);
 
     return Out;
 }

@@ -1193,9 +1193,6 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& 
     string modelGuid{};
     if (!Try_GetSelectedWeaponModel(selectedObject, modelCom, modelGuid))
         return;
-    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
-    if (weaponObject == nullptr)
-        return;
 
     if (_selectedWeaponTrailModelGuid != modelGuid)
         Load_SelectedWeaponTrailAnchor(modelGuid, modelCom);
@@ -1229,10 +1226,10 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& 
         MarkDirty();
     }
 
-    Draw_SelectedWeaponSourceAnchorPanel(weaponObject, modelCom);
+    Draw_SelectedWeaponSourceAnchorPanel(selectedObject, modelCom);
 }
 
-void Prefab_View::Draw_SelectedWeaponSourceAnchorPanel(const Shared<Client::Weapon>& weaponObject, const Shared<ModelCom>& modelCom)
+void Prefab_View::Draw_SelectedWeaponSourceAnchorPanel(const Shared<GameObject>& weaponObject, const Shared<ModelCom>& modelCom)
 {
     if (weaponObject == nullptr)
         return;
@@ -1240,7 +1237,20 @@ void Prefab_View::Draw_SelectedWeaponSourceAnchorPanel(const Shared<Client::Weap
     ImGui::Spacing();
     ImGui::SeparatorText("Source Anchors");
 
-    vector<Client::WeaponSourceHistoryAnchorDesc>& anchors = weaponObject->Get_SourceHistoryAnchors();
+    vector<Client::WeaponSourceHistoryAnchorDesc>* anchorsPtr = nullptr;
+    if (Shared<Client::Weapon> weapon = dynamic_pointer_cast<Client::Weapon>(weaponObject))
+        anchorsPtr = &weapon->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(weaponObject))
+        anchorsPtr = &simonWeapon->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_Dualliste_Sword_L> swordL = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(weaponObject))
+        anchorsPtr = &swordL->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(weaponObject))
+        anchorsPtr = &swordR->Get_SourceHistoryAnchors();
+
+    if (anchorsPtr == nullptr)
+        return;
+
+    vector<Client::WeaponSourceHistoryAnchorDesc>& anchors = *anchorsPtr;
     if (ImGui::Button("Add Source Anchor"))
     {
         Client::WeaponSourceHistoryAnchorDesc anchor{};
@@ -2287,8 +2297,17 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
 void Prefab_View::Draw_SelectedWeaponSourceAnchorPreview() const
 {
     Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
-    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
-    if (weaponObject == nullptr || weaponObject->Get_SourceHistoryAnchors().empty())
+    const vector<Client::WeaponSourceHistoryAnchorDesc>* anchors = nullptr;
+    if (Shared<Client::Weapon> weapon = dynamic_pointer_cast<Client::Weapon>(selectedObject))
+        anchors = &weapon->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject))
+        anchors = &simonWeapon->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_Dualliste_Sword_L> swordL = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(selectedObject))
+        anchors = &swordL->Get_SourceHistoryAnchors();
+    else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject))
+        anchors = &swordR->Get_SourceHistoryAnchors();
+
+    if (selectedObject == nullptr || anchors == nullptr || anchors->empty())
         return;
 
     if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
@@ -2317,10 +2336,10 @@ void Prefab_View::Draw_SelectedWeaponSourceAnchorPreview() const
     constexpr float markerSize = 0.1f;
     _previewGridBatch->Begin();
 
-    for (const Client::WeaponSourceHistoryAnchorDesc& anchor : weaponObject->Get_SourceHistoryAnchors())
+    for (const Client::WeaponSourceHistoryAnchorDesc& anchor : *anchors)
     {
         Vec3 sourceWorld{};
-        if (!Try_ResolveSourceAnchorWorldPosition(weaponObject, anchor, sourceWorld))
+        if (!Try_ResolveSourceAnchorWorldPosition(selectedObject, anchor, sourceWorld))
             continue;
 
         _previewGridBatch->DrawLine(
@@ -2613,14 +2632,41 @@ bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
 }
 
 bool Prefab_View::Try_ResolveSourceAnchorWorldPosition(
-    const Shared<Client::Weapon>& weaponObject,
+    const Shared<GameObject>& weaponObject,
     const Client::WeaponSourceHistoryAnchorDesc& anchor,
     Vec3& outWorldPosition) const
 {
     if (weaponObject == nullptr || anchor.boneName.empty())
         return false;
 
-    Shared<ModelCom> modelCom = weaponObject->Get_Model();
+    Shared<ModelCom> modelCom = nullptr;
+    Matrix combinedWorldMatrix = Matrix::Identity;
+
+    if (Shared<Client::Weapon> weapon = dynamic_pointer_cast<Client::Weapon>(weaponObject))
+    {
+        modelCom = weapon->Get_Model();
+        combinedWorldMatrix = weapon->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(weaponObject))
+    {
+        modelCom = simonWeapon->Get_Model();
+        combinedWorldMatrix = simonWeapon->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_Dualliste_Sword_L> swordL = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(weaponObject))
+    {
+        modelCom = swordL->Get_Model();
+        combinedWorldMatrix = swordL->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(weaponObject))
+    {
+        modelCom = swordR->Get_Model();
+        combinedWorldMatrix = swordR->Get_CombinedWorldMatrix();
+    }
+    else
+    {
+        return false;
+    }
+
     if (modelCom == nullptr)
         return false;
 
@@ -2632,7 +2678,7 @@ bool Prefab_View::Try_ResolveSourceAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * weaponObject->Get_CombinedWorldMatrix();
+    const Matrix anchorWorldMatrix = *boneMatrix * combinedWorldMatrix;
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }

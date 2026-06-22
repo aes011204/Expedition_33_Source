@@ -1,7 +1,6 @@
 ﻿#include "GameplayUI_Battle.h"
 
 #include "BuffSystem.h"
-#include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
 #include "BattleWorldUI_CommandCards.h"
 #include "BattleWorldUI_GradientCards.h"
@@ -71,18 +70,7 @@ namespace
         if (panel == nullptr)
             return;
 
-        Shared<UI_Base> root = panel->Get_EditorRootUI();
-        if (root == nullptr)
-            return;
-
-        outEntries.push_back(
-            {
-                "Battle",
-                name,
-                root,
-                panel,
-                panel->Is_EditorPositionDrivenByCode()
-            });
+        panel->Append_RuntimeUIEntries(outEntries, "Battle", name);
     }
 
     void Append_OpenedRuntimePanelEntry(
@@ -281,7 +269,7 @@ void GameplayUI_Battle::Update_Input()
 vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 {
     vector<RuntimeUIEntry> entries{};
-    entries.reserve(36);
+    entries.reserve(160);
 
     Append_RuntimePanelEntry(entries, "BattleTransition", _battleTransition.get());
     Append_RuntimePanelEntry(entries, "BattleCommandHUD", _battleCommandHUD.get());
@@ -1071,21 +1059,7 @@ void GameplayUI_Battle::Handle_ReactionSucceeded(BattleReactionType reactionType
         return;
     }
 
-    Vec3 worldPos{};
-    for (auto& targetChar : target)
-    {
-        if (!Try_GetReactionResultWorldPos(targetChar, worldPos))
-            return;
-
-    }
-
-
-    Vec2 screenPos{};
-    if (!Try_ProjectWorldToScreen(worldPos, screenPos))
-        return;
-
-    screenPos += Vec2(24.f, -24.f);
-    _reactionResult->Show_Reaction(reactionType, screenPos);
+    _reactionResult->Show_Reaction(reactionType);
 }
 
 void GameplayUI_Battle::Handle_ReactionWindowOpened(BattleReactionType reactionType)
@@ -2412,26 +2386,6 @@ bool GameplayUI_Battle::Try_GetBattleCommandHudWorldPos(const BattleChar& actor,
 
     outWorldPos = actor.actor->Get_Transform()->Get_WorldPosition();
     outWorldPos.y += 0.8f;
-
-    return true;
-}
-
-bool GameplayUI_Battle::Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos)
-{
-    if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
-        return false;
-
-    if (auto* battleActor = dynamic_cast<Character_BattleBase*>(target.actor.get()))
-    {
-        if (battleActor->Try_GetDamageFeedbackWorldPosition(outWorldPos))
-        {
-            outWorldPos += Vec3(0.35f, 0.25f, 0.f);
-            return true;
-        }
-    }
-
-    outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
-    outWorldPos += Vec3(0.35f, 1.5f, 0.f);
 
     return true;
 }

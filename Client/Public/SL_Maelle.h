@@ -72,6 +72,14 @@ public:
     bool    Try_GetEquippedSkill(uint32 slotIndex, Skill_Data& outSkillData) const;
     HRESULT Rebuild_WeaponPartFromCurrentStat();
 
+public:
+    // 쿨타임
+    bool    Can_UseSkillSlot(uint32 slotIndex, Skill_Data& outSkillData) const;
+    void    Start_SkillCooldown(uint32 slotIndex, const Skill_Data& skillData);
+    void    Update_SkillCooldown(float timeDelta);
+    void    Clear_SkillCooldowns();
+    SL_SkillCooldownView Get_SkillCooldownView(uint32 slotIndex) const;
+
 private:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
@@ -112,6 +120,9 @@ private: /* 피격 밀림 */
     float _hitPushDistance = 0.f;
     float _hitPushDuration = 0.f;
     float _hitPushElapsed = 0.f;
+
+    // 쿨타임
+    array<SL_SkillCooldownRuntime, 4> _skillCooldowns{};
 
 public:
     static Shared<SL_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

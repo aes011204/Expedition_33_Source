@@ -83,6 +83,7 @@ public:
     float Get_PlayerHitPushDistance() const { return _playerHitPushDistance; }
     float Get_PlayerHitPushDuration() const { return _playerHitPushDuration; }
 
+    uint32 Get_HealingPotionCount() const { return _healingPotionCount; }
 
 private:
     void    Request_SoulLikeCamera();
@@ -112,6 +113,7 @@ private:
     bool Update_Parry(const Shared<SL_StateMachineCom>& stateMachine);
     bool Update_Skill(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
     void Update_Dodge(const Shared<SL_StateMachineCom>& stateMachine, const SL_MoveRequest& moveRequest);
+    bool Update_HealingPotion(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
 
 private:
     string _playerPrefab = "SL_Maelle";
@@ -156,6 +158,7 @@ private:
     float _playerAttackHitStopTimeScale = 0.08f;
     float _playerAttackHitStopDuration = 0.04f;
 
+    // 점프 카운터
     Weak<SL_Base> _jumpCounterAttacker{};
     bool _jumpCounterThreatOpen = false;
     bool _jumpCounterJumpSucceeded = false;
@@ -163,6 +166,11 @@ private:
     bool _jumpCounterAttackStarted = false;
     bool _jumpCounterDamageApplied = false;
     float _jumpCounterDamageMultiplier = 1.f;
+
+    // 포션
+    static constexpr uint32 kMaxHealingPotionCount = 5;
+    static constexpr float  kHealingPotionHealRatio = 0.3f; // 30퍼센트
+    uint32 _healingPotionCount = kMaxHealingPotionCount;
 
 public:
     static Shared<SoulLikeController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

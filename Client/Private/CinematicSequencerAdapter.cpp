@@ -704,6 +704,9 @@ const char* CinematicSequencerAdapter::GetItemLabel(int index) const
 {
     CHECK_NULL(_sequence, "");
 
+    if (index < 0 || index >= GetItemCount())
+        return "";
+
     if (index >= 0 && index < static_cast<int>(_sequence->cinematicTracks.size()))
         return _sequence->cinematicTracks[index].name.c_str();
 
@@ -716,7 +719,10 @@ const char* CinematicSequencerAdapter::GetItemLabel(int index) const
         return _sequence->actorTransformTracks[actorTrackIndex].name.c_str();
     }
 
-    return GetModifierTrackLabel(GetModifierTrackIndex(_sequence, index));
+    if (IsModifierTrackIndex(_sequence, index))
+        return GetModifierTrackLabel(GetModifierTrackIndex(_sequence, index));
+
+    return "";
 }
 
 void CinematicSequencerAdapter::Get(int index, int** start, int** end, int* type, unsigned int* color)
@@ -747,12 +753,17 @@ void CinematicSequencerAdapter::Get(int index, int** start, int** end, int* type
 
 size_t CinematicSequencerAdapter::GetCustomHeight(int index)
 {
-    UNREFERENCED_PARAMETER(index);
+    if (_sequence == nullptr || index < 0 || index >= GetItemCount())
+        return 0;
+
     return 0;
 }
 
 void CinematicSequencerAdapter::CustomDraw(int index, ImDrawList* draw_list, const ImRect& rc, const ImRect& legendRect, const ImRect& clippingRect, const ImRect& legendClippingRect)
 {
+    if (_sequence == nullptr || draw_list == nullptr || index < 0 || index >= GetItemCount())
+        return;
+
     if (bool* enabled = GetPreviewToggleForTrack(
         _sequence,
         index,
@@ -823,6 +834,9 @@ void CinematicSequencerAdapter::CustomDraw(int index, ImDrawList* draw_list, con
 
 void CinematicSequencerAdapter::CustomDrawCompact(int index, ImDrawList* draw_list, const ImRect& rc, const ImRect& clippingRect)
 {
+    if (_sequence == nullptr || draw_list == nullptr || index < 0 || index >= GetItemCount())
+        return;
+
     DrawKeyMarkers(
         _sequence,
         _selectedTrackIndex,

@@ -198,6 +198,12 @@ public: //## Behavior::TrailAndSourceHistory
         uint64 trailNotifyToken,
         EffectTrailSample& outSample) const;
 
+    bool Try_GetActiveTrailEffect(
+        const wstring& partTag,
+        wstring& outEffectName,
+        wstring& outLayerTag,
+        TrailOffsetRuntimeDesc& outOffsetDesc) const;
+
     HRESULT Play_SourceHistoryEffect(
         const wstring& effectName,
         const wstring& partTag,
@@ -267,6 +273,16 @@ private: //## Types::AttachedEffect
         float sourceHistoryDrainDuration = 0.5f;
     };
 
+    struct RecentTrailEffect
+    {
+        bool valid = false;
+        wstring partTag{};
+        wstring effectName{};
+        wstring layerTag{};
+        TrailOffsetRuntimeDesc offsetDesc{};
+        float ageSec = 0.f;
+    };
+
 private: //## Helper::AttachedEffects
     void Play_InspectorEffectIfEnabled();
     // 명시 반환이 필요한 attached effect를 pool로 되돌린다.
@@ -329,10 +345,11 @@ private: //## Helper::AttachedEffects
         const string& socketName,
         const string& sourceHistoryAnchorName,
         const Vec3& sourceHistoryLocalOffset,
+        const TrailAnchorAsset* trailAnchorAsset,
         EffectSourcePointSample& outSample) const;
 
     bool Try_ResolveWeaponAnchorWorldPosition(
-        const Weapon& weaponPart,
+        const PartObject& weaponPart,
         const string& anchorName,
         const Vec3& localOffset,
         Vec3& outWorldPosition) const;
@@ -347,6 +364,8 @@ private: //## Data::DrawFeatures
 
 private: //## Data::Inspector
     bool _vanishComplete = false;
+
+    RecentTrailEffect _recentTrailEffect{};
 
     bool _inspectorAutoPlayEffect = false;
     wstring _inspectorEffectName = L"";

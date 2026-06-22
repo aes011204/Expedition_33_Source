@@ -94,12 +94,73 @@ HRESULT Mon_Dualliste_Sword_L::Render_Shadow()
     return Monster_Part::Render_Shadow();
 }
 
+json Mon_Dualliste_Sword_L::To_Json() const
+{
+    json data = Monster_Part::To_Json();
+    json& customProperties = data["custom_properties"];
+
+    customProperties["_sourceHistoryAnchors"] = json::array();
+    for (const WeaponSourceHistoryAnchorDesc& anchor : _sourceHistoryAnchors)
+    {
+        customProperties["_sourceHistoryAnchors"].push_back(
+            {
+                { "name", anchor.name },
+                { "boneName", anchor.boneName },
+                { "localPosition", { anchor.localPosition.x, anchor.localPosition.y, anchor.localPosition.z } },
+            }
+        );
+    }
+
+    return data;
+}
+
 void Mon_Dualliste_Sword_L::From_Json(const json& data)
 {
     if (FAILED(Ensure_RuntimeComponentsFromJson(data)))
         return;
 
     Monster_Part::From_Json(data);
+
+    _sourceHistoryAnchors.clear();
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        if (customProperties.contains("_sourceHistoryAnchors") && customProperties["_sourceHistoryAnchors"].is_array())
+        {
+            for (const json& anchorJson : customProperties["_sourceHistoryAnchors"])
+            {
+                if (!anchorJson.is_object())
+                    continue;
+
+                WeaponSourceHistoryAnchorDesc anchor{};
+                anchor.name = anchorJson.value("name", string{});
+                anchor.boneName = anchorJson.value("boneName", string{});
+
+                if (anchorJson.contains("localPosition") &&
+                    anchorJson["localPosition"].is_array() &&
+                    anchorJson["localPosition"].size() >= 3)
+                {
+                    anchor.localPosition.x = anchorJson["localPosition"][0].get<float>();
+                    anchor.localPosition.y = anchorJson["localPosition"][1].get<float>();
+                    anchor.localPosition.z = anchorJson["localPosition"][2].get<float>();
+                }
+
+                if (!anchor.name.empty() && !anchor.boneName.empty())
+                    _sourceHistoryAnchors.push_back(std::move(anchor));
+            }
+        }
+    }
+}
+
+const WeaponSourceHistoryAnchorDesc* Mon_Dualliste_Sword_L::Find_SourceHistoryAnchor(const string& anchorName) const
+{
+    for (const WeaponSourceHistoryAnchorDesc& anchor : _sourceHistoryAnchors)
+    {
+        if (anchor.name == anchorName)
+            return &anchor;
+    }
+
+    return nullptr;
 }
 
 uint32 Mon_Dualliste_Sword_L::Decide_PassIndex(Shared<Material> mat)

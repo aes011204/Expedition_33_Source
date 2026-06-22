@@ -1,7 +1,10 @@
 #pragma once
 
 #include "Editor_Window.h"
+#include "BattleCameraClipTypes.h"
 #include "CameraPresetTypes.h"
+
+struct ImVec2;
 
 NS_BEGIN(Engine)
 class GameObject;
@@ -29,7 +32,7 @@ public:
     void Update(float timeDelta) override;
     void Pre_Render() override;
     void Render() override;
-    bool CanSave() const override { return _presetDirty; }
+    bool CanSave() const override { return _presetDirty || _clipDirty; }
     void Save() override;
 
 public:
@@ -59,10 +62,19 @@ private:
     void Render_PreviewCanvas();
     void Render_PresetPanel();
     void Render_TimelinePanel();
+    void Render_ClipTimelinePanel();
+    void Update_PreviewCameraControls(const ImVec2& previewMin, const ImVec2& previewMax);
+    void Render_ClipSequencer();
+    void Render_SelectedClipKeyEditor();
+    void Handle_ClipShortcuts();
 
     void Load_CurrentPreset(bool loadBaseOnly = false);
     void Save_CurrentPreset();
     string Build_CurrentPresetKey() const;
+    void Load_CurrentClip();
+    void Save_CurrentClip();
+    void Reset_CurrentClip();
+    string Build_CurrentClipKey() const;
     void Render_PresetBrowser();
     void Refresh_PresetBrowser();
     void Load_BrowserPreset(const string& presetKey);
@@ -82,6 +94,19 @@ private:
     void Push_UndoSnapshot(const TargetCameraPreset& preset);
     void Undo_Preset();
     void Redo_Preset();
+    int Get_ClipFrameMax() const;
+    float Get_ClipTimeFromFrame(int frame) const;
+    int Get_ClipFrameFromTime(float timeSec) const;
+    void Sync_ClipFrameFromPreviewTime();
+    void Sync_PreviewTimeFromClipFrame();
+    CameraTrack* Get_ClipTrack(int trackIndex);
+    const CameraTrack* Get_ClipTrack(int trackIndex) const;
+    float Get_CurrentClipTrackValue(int trackIndex) const;
+    void Sort_ClipTrack(CameraTrack& track);
+    void Insert_ClipKeyAtFrame(int trackIndex, int frame);
+    void Insert_CurrentPoseKeysAtFrame(int frame);
+    void Remove_SelectedClipKey();
+    bool Has_ClipTrackKeys(const CameraTrack& track, bool enabled) const;
 
     void Apply_PreviewAnimation(float timeDelta);
     void Apply_SoulLikeCameraPreviewPose();
@@ -111,6 +136,33 @@ private:
     TargetCameraPreset _editingPreset{};
     bool _presetDirty = false;
     string _loadedPresetKey{};
+    BattleCameraClip _editingClip{ 1.f };
+    bool _clipDirty = false;
+    int _clipCurrentFrame = 0;
+    int _clipSelectedTrackIndex = 0;
+    int _clipSelectedKeyIndex = -1;
+    int _clipContextTrackIndex = 0;
+    int _clipContextFrame = 0;
+    string _loadedClipKey{};
+    bool _clipDistanceEnabled = true;
+    bool _clipFovEnabled = true;
+    bool _clipShakeEnabled = true;
+    bool _clipSideEnabled = true;
+    bool _clipPivotEnabled = true;
+    bool _clipHeightEnabled = true;
+    bool _clipAimEnabled = true;
+    bool _clipLookHeightEnabled = true;
+    bool _clipYawEnabled = true;
+    bool _clipOrbitYawEnabled = false;
+    bool _clipOrbitRadiusEnabled = false;
+    bool _clipOrbitHeightEnabled = false;
+    bool _clipOrbitLookHeightEnabled = false;
+    bool _clipShakeFrequencyXEnabled = false;
+    bool _clipShakeFrequencyYEnabled = false;
+    bool _clipShakeDecayRateXEnabled = false;
+    bool _clipShakeDecayRateEnabled = false;
+    bool _clipShakeVerticalRatioEnabled = false;
+    bool _clipShakeStrengthScaleEnabled = false;
     string _statusMessage{};
     bool _runtimeFollowEnabled = false;
     bool _autoSyncRuntimeSkill = false;
@@ -139,6 +191,8 @@ private:
     bool _previewObjectsBegunPlay = false;
     bool _playerAnimationListDirty = true;
     bool _monsterAnimationListDirty = true;
+    bool _previewCameraControlActive = false;
+    TargetCameraPreset _previewCameraControlStartPreset{};
 
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};

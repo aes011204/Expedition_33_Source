@@ -28,7 +28,7 @@ void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleAction& a
     auto attacker = action.Get_CurChar();
 
     // 음 그런데 이거 몬스터들은 데미지 배율이 어떻게 되고있는거지
-    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, action.GetCurStepTarget(), attackType);
 
     if (attacker.heroId == HeroId::Gustave &&

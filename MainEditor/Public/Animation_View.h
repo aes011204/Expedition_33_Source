@@ -158,6 +158,7 @@ private:
         string sourceHistoryAnchorName{ "Source" };
         Vec3 sourceHistoryLocalOffset{ Vec3::Zero };
         string modelGuid{};
+        Client::TrailAnchorAsset trailAnchorAsset{};
         float lastTimeSec = -1.f;
 
         Shared<EffectInstance> effect{};
@@ -428,6 +429,7 @@ private:
     int32 _sequencerCurrentFrame = 0;
     int32 _sequencerSelectedRow = -1;
     int32 _sequencerFirstFrame = 0;
+    int32 _sequencerVisibleFrameCount = 0;
     uint32 _pendingDockId = 0;
     bool _sequencerExpanded = true;
 

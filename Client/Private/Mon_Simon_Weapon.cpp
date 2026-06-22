@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "Mon_Simon_Weapon.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
 #include "Material_Types.h"
 #include "ModelCom.h"
@@ -8,6 +9,36 @@
 namespace
 {
     constexpr uint32 kSimonWeaponEchoPassIndex = 15;
+    constexpr const char* kSimonBladeMaterialName = "MI_Simon_Blade_Retake";
+    const Vec4 kSimonBladeGhostColor = Vec4(0.70f, 1.0f, 0.92f, 1.f);
+
+    class SimonWeaponEchoTrailSampleProvider final : public IEffectTrailSampleProvider
+    {
+    public:
+        SimonWeaponEchoTrailSampleProvider(
+            const Weak<Mon_Simon_Weapon>& weapon,
+            uint32 laneIndex,
+            const TrailAnchorAsset& trailAnchorAsset)
+            : _weapon(weapon)
+            , _laneIndex(laneIndex)
+            , _trailAnchorAsset(trailAnchorAsset)
+        {
+        }
+
+        bool Try_GetTrailSample(EffectTrailSample& outSample) const override
+        {
+            const Shared<Mon_Simon_Weapon> weapon = _weapon.lock();
+            if (weapon == nullptr)
+                return false;
+
+            return weapon->Try_GetWeaponEchoTrailSample(_laneIndex, _trailAnchorAsset, outSample);
+        }
+
+    private:
+        Weak<Mon_Simon_Weapon> _weapon{};
+        uint32 _laneIndex = 0;
+        TrailAnchorAsset _trailAnchorAsset{};
+    };
 }
 
 IMPLEMENT_REFLECTION(Mon_Simon_Weapon)
@@ -75,6 +106,8 @@ void Mon_Simon_Weapon::Update(float timeDelta)
     {
         _combinedWorldMatrix = _detachedWorldMatrix;
         Update_WeaponEchoPlayback(timeDelta);
+        if (_partEffectCom)
+            _partEffectCom->Update(timeDelta);
         return;
     }
 
@@ -85,6 +118,8 @@ void Mon_Simon_Weapon::Update(float timeDelta)
 
     Update_CombinedWorldMatrix(worldMatrix);
     Update_WeaponEchoPlayback(timeDelta);
+    if (_partEffectCom)
+        _partEffectCom->Update(timeDelta);
 }
 
 void Mon_Simon_Weapon::Detach_PreserveWorld()
@@ -128,12 +163,73 @@ HRESULT Mon_Simon_Weapon::Render_Shadow()
     return Monster_Part::Render_Shadow();
 }
 
+json Mon_Simon_Weapon::To_Json() const
+{
+    json data = Monster_Part::To_Json();
+    json& customProperties = data["custom_properties"];
+
+    customProperties["_sourceHistoryAnchors"] = json::array();
+    for (const WeaponSourceHistoryAnchorDesc& anchor : _sourceHistoryAnchors)
+    {
+        customProperties["_sourceHistoryAnchors"].push_back(
+            {
+                { "name", anchor.name },
+                { "boneName", anchor.boneName },
+                { "localPosition", { anchor.localPosition.x, anchor.localPosition.y, anchor.localPosition.z } },
+            }
+        );
+    }
+
+    return data;
+}
+
 void Mon_Simon_Weapon::From_Json(const json& data)
 {
     if (FAILED(Ensure_RuntimeComponentsFromJson(data)))
         return;
 
     Monster_Part::From_Json(data);
+
+    _sourceHistoryAnchors.clear();
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        if (customProperties.contains("_sourceHistoryAnchors") && customProperties["_sourceHistoryAnchors"].is_array())
+        {
+            for (const json& anchorJson : customProperties["_sourceHistoryAnchors"])
+            {
+                if (!anchorJson.is_object())
+                    continue;
+
+                WeaponSourceHistoryAnchorDesc anchor{};
+                anchor.name = anchorJson.value("name", string{});
+                anchor.boneName = anchorJson.value("boneName", string{});
+
+                if (anchorJson.contains("localPosition") &&
+                    anchorJson["localPosition"].is_array() &&
+                    anchorJson["localPosition"].size() >= 3)
+                {
+                    anchor.localPosition.x = anchorJson["localPosition"][0].get<float>();
+                    anchor.localPosition.y = anchorJson["localPosition"][1].get<float>();
+                    anchor.localPosition.z = anchorJson["localPosition"][2].get<float>();
+                }
+
+                if (!anchor.name.empty() && !anchor.boneName.empty())
+                    _sourceHistoryAnchors.push_back(std::move(anchor));
+            }
+        }
+    }
+}
+
+const WeaponSourceHistoryAnchorDesc* Mon_Simon_Weapon::Find_SourceHistoryAnchor(const string& anchorName) const
+{
+    for (const WeaponSourceHistoryAnchorDesc& anchor : _sourceHistoryAnchors)
+    {
+        if (anchor.name == anchorName)
+            return &anchor;
+    }
+
+    return nullptr;
 }
 
 uint32 Mon_Simon_Weapon::Decide_PassIndex(Shared<Material> mat)
@@ -227,61 +323,87 @@ HRESULT Mon_Simon_Weapon::Ensure_RuntimeComponentsFromJson(const json& data)
     return S_OK;
 }
 
-void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(float delaySec, float startAlpha, float endAlpha, const Vec4& tintColor)
+void Mon_Simon_Weapon::Begin_WeaponEchoPlayback(float delaySec, uint32 echoCount)
 {
-    _weaponEchoSamples.clear();
-    _weaponEchoActive = true;
-    _weaponEchoRecordingEnded = false;
-    _weaponEchoDelaySec = max(0.f, delaySec);
-    _weaponEchoPlaybackSec = 0.f;
-    _weaponEchoEndElapsedSec = 0.f;
-    _weaponEchoStartAlpha = clamp(startAlpha, 0.f, 1.f);
-    _weaponEchoEndAlpha = clamp(endAlpha, 0.f, 1.f);
-    _weaponEchoTintColor = tintColor;
+    Stop_WeaponEchoTrail();
+
+    for (WeaponEchoLane& lane : _weaponEchoLanes)
+        Reset_WeaponEchoLane(lane);
+
+    const uint32 clampedEchoCount = std::clamp(echoCount, 1u, kMaxWeaponEchoLaneCount);
+    for (uint32 laneIndex = 0; laneIndex < clampedEchoCount; ++laneIndex)
+    {
+        WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
+
+        lane.active = true;
+        lane.recordingEnded = false;
+        lane.delaySec = max(0.f, delaySec) * static_cast<float>(laneIndex + 1);
+        lane.playbackSec = 0.f;
+        lane.endElapsedSec = 0.f;
+    }
+
+    if (_weaponEchoPendingTrailValid)
+    {
+        for (uint32 laneIndex = 0; laneIndex < kMaxWeaponEchoLaneCount; ++laneIndex)
+        {
+            WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
+            if (!lane.active)
+                continue;
+
+            Start_WeaponEchoTrail(
+                lane,
+                laneIndex,
+                _weaponEchoPendingTrailEffectName,
+                _weaponEchoPendingTrailLayerTag,
+                _weaponEchoPendingTrailOffset);
+        }
+    }
 }
 
 void Mon_Simon_Weapon::Record_WeaponEchoSample(float elapsedSec)
 {
-    if (!_weaponEchoActive)
-        return;
-
-    WeaponEchoSample sample{};
-    sample.elapsedSec = max(0.f, elapsedSec);
-    sample.worldMatrix = _combinedWorldMatrix;
-
-    if (!_weaponEchoSamples.empty() && sample.elapsedSec + 1e-4f < _weaponEchoSamples.back().elapsedSec)
-        _weaponEchoSamples.clear();
-
-    if (!_weaponEchoSamples.empty() && fabsf(sample.elapsedSec - _weaponEchoSamples.back().elapsedSec) <= 1e-4f)
+    for (WeaponEchoLane& lane : _weaponEchoLanes)
     {
-        _weaponEchoSamples.back() = sample;
-        _weaponEchoEndElapsedSec = sample.elapsedSec;
-        return;
-    }
+        if (!lane.active)
+            continue;
 
-    _weaponEchoSamples.push_back(sample);
-    _weaponEchoEndElapsedSec = sample.elapsedSec;
+        Push_WeaponEchoSample(lane, elapsedSec);
+    }
 }
 
 void Mon_Simon_Weapon::End_WeaponEchoPlayback()
 {
-    if (!_weaponEchoActive)
-        return;
+    for (WeaponEchoLane& lane : _weaponEchoLanes)
+    {
+        if (!lane.active)
+            continue;
 
-    _weaponEchoRecordingEnded = true;
-    if (!_weaponEchoSamples.empty())
-        _weaponEchoEndElapsedSec = _weaponEchoSamples.back().elapsedSec;
+        lane.recordingEnded = true;
+        if (!lane.samples.empty())
+            lane.endElapsedSec = lane.samples.back().elapsedSec;
+    }
 }
 
 bool Mon_Simon_Weapon::Has_WeaponEchoPlayback() const
 {
-    if (!_weaponEchoActive || _weaponEchoSamples.empty())
+    for (const WeaponEchoLane& lane : _weaponEchoLanes)
+    {
+        if (Has_WeaponEchoPlayback(lane))
+            return true;
+    }
+
+    return false;
+}
+
+bool Mon_Simon_Weapon::Has_WeaponEchoPlayback(const WeaponEchoLane& lane) const
+{
+    if (!lane.active || lane.samples.empty())
         return false;
 
-    if (!_weaponEchoRecordingEnded)
-        return _weaponEchoPlaybackSec >= _weaponEchoDelaySec;
+    if (!lane.recordingEnded)
+        return lane.playbackSec >= lane.delaySec;
 
-    return _weaponEchoPlaybackSec <= _weaponEchoDelaySec + _weaponEchoEndElapsedSec;
+    return lane.playbackSec <= lane.delaySec + lane.endElapsedSec;
 }
 
 void Mon_Simon_Weapon::Queue_WeaponEchoRender()
@@ -306,48 +428,96 @@ void Mon_Simon_Weapon::Queue_WeaponEchoRender()
 
 void Mon_Simon_Weapon::Update_WeaponEchoPlayback(float timeDelta)
 {
-    if (!_weaponEchoActive)
-        return;
-
-    _weaponEchoPlaybackSec += max(0.f, timeDelta);
-
-    if (_weaponEchoRecordingEnded && _weaponEchoPlaybackSec > _weaponEchoDelaySec + _weaponEchoEndElapsedSec)
+    if (_weaponEchoPendingTrailValid)
     {
-        _weaponEchoActive = false;
-        _weaponEchoRecordingEnded = false;
-        _weaponEchoSamples.clear();
-        _weaponEchoPlaybackSec = 0.f;
-        _weaponEchoEndElapsedSec = 0.f;
+        _weaponEchoPendingTrailAgeSec += max(0.f, timeDelta);
+        if (_weaponEchoPendingTrailAgeSec > 0.5f)
+        {
+            _weaponEchoPendingTrailValid = false;
+            _weaponEchoPendingTrailEffectName.clear();
+            _weaponEchoPendingTrailLayerTag.clear();
+            _weaponEchoPendingTrailOffset = {};
+            _weaponEchoPendingTrailAgeSec = 0.f;
+        }
+    }
+
+    for (WeaponEchoLane& lane : _weaponEchoLanes)
+    {
+        if (!lane.active)
+            continue;
+
+        lane.playbackSec += max(0.f, timeDelta);
+
+        if (lane.recordingEnded && lane.playbackSec > lane.delaySec + lane.endElapsedSec)
+        {
+            Stop_WeaponEchoTrail(lane);
+            Reset_WeaponEchoLane(lane);
+        }
     }
 }
 
-bool Mon_Simon_Weapon::Try_SampleWeaponEchoMatrix(float elapsedSec, Matrix& outWorldMatrix) const
+void Mon_Simon_Weapon::Reset_WeaponEchoLane(WeaponEchoLane& lane)
 {
-    if (_weaponEchoSamples.empty())
+    lane.samples.clear();
+    lane.active = false;
+    lane.recordingEnded = false;
+    lane.delaySec = 0.2f;
+    lane.playbackSec = 0.f;
+    lane.endElapsedSec = 0.f;
+    lane.trailAnchorAsset = {};
+    lane.trailSampleProvider.reset();
+    lane.trailHandle = {};
+    lane.trailOffset = {};
+    lane.trailStarted = false;
+}
+
+void Mon_Simon_Weapon::Push_WeaponEchoSample(WeaponEchoLane& lane, float elapsedSec)
+{
+    WeaponEchoSample sample{};
+    sample.elapsedSec = max(0.f, elapsedSec);
+    sample.worldMatrix = _combinedWorldMatrix;
+
+    if (!lane.samples.empty() && sample.elapsedSec + 1e-4f < lane.samples.back().elapsedSec)
+        lane.samples.clear();
+
+    if (!lane.samples.empty() && fabsf(sample.elapsedSec - lane.samples.back().elapsedSec) <= 1e-4f)
+    {
+        lane.samples.back() = sample;
+        lane.endElapsedSec = sample.elapsedSec;
+        return;
+    }
+
+    lane.samples.push_back(sample);
+    lane.endElapsedSec = sample.elapsedSec;
+}
+
+bool Mon_Simon_Weapon::Try_SampleWeaponEchoMatrix(const WeaponEchoLane& lane, float elapsedSec, Matrix& outWorldMatrix) const
+{
+    if (lane.samples.empty())
         return false;
 
-    if (elapsedSec <= _weaponEchoSamples.front().elapsedSec)
+    if (elapsedSec <= lane.samples.front().elapsedSec)
     {
-        outWorldMatrix = _weaponEchoSamples.front().worldMatrix;
+        outWorldMatrix = lane.samples.front().worldMatrix;
         return true;
     }
 
-    if (elapsedSec >= _weaponEchoSamples.back().elapsedSec)
+    if (elapsedSec >= lane.samples.back().elapsedSec)
     {
-        outWorldMatrix = _weaponEchoSamples.back().worldMatrix;
+        outWorldMatrix = lane.samples.back().worldMatrix;
         return true;
     }
 
-    for (size_t i = 1; i < _weaponEchoSamples.size(); ++i)
+    for (size_t i = 1; i < lane.samples.size(); ++i)
     {
-        const WeaponEchoSample& right = _weaponEchoSamples[i];
+        const WeaponEchoSample& right = lane.samples[i];
         if (elapsedSec > right.elapsedSec)
             continue;
 
-        const WeaponEchoSample& left = _weaponEchoSamples[i - 1];
+        const WeaponEchoSample& left = lane.samples[i - 1];
         const float duration = right.elapsedSec - left.elapsedSec;
         const float ratio = duration > 0.0001f
-            ? clamp((elapsedSec - left.elapsedSec) / duration, 0.f, 1.f)
+            ? std::clamp((elapsedSec - left.elapsedSec) / duration, 0.f, 1.f)
             : 1.f;
 
         Vec3 leftScale = Vec3::One;
@@ -381,17 +551,184 @@ bool Mon_Simon_Weapon::Try_SampleWeaponEchoMatrix(float elapsedSec, Matrix& outW
     return false;
 }
 
+bool Mon_Simon_Weapon::Try_GetWeaponEchoTrailSample(
+    uint32 laneIndex,
+    const TrailAnchorAsset& trailAnchorAsset,
+    EffectTrailSample& outSample) const
+{
+    if (laneIndex >= kMaxWeaponEchoLaneCount)
+        return false;
+
+    const WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
+    if (!Has_WeaponEchoPlayback(lane))
+        return false;
+
+    if (_model == nullptr)
+        return false;
+
+    const float echoElapsedSec = lane.playbackSec - lane.delaySec;
+    if (echoElapsedSec < 0.f)
+        return false;
+
+    Matrix echoWorldMatrix = Matrix::Identity;
+    if (!Try_SampleWeaponEchoMatrix(lane, echoElapsedSec, echoWorldMatrix))
+        return false;
+
+    const TrailAnchorAsset sampleAnchorAsset =
+        ANS_Trail::Make_OffsetTrailAnchorAsset(
+            trailAnchorAsset,
+            lane.trailOffset.tipExtendCurve,
+            lane.trailOffset.baseLocalOffsetCurve,
+            lane.trailOffset.tipLocalOffsetCurve,
+            lane.trailOffset.phase);
+
+    auto resolveAnchor =
+        [this, &echoWorldMatrix](const TrailAnchorPointDesc& anchor, Vec3& outWorldPosition) -> bool
+        {
+            if (anchor.boneName.empty())
+                return false;
+
+            const int32 boneIndex = _model->Get_BoneIndex(anchor.boneName);
+            if (boneIndex < 0)
+                return false;
+
+            const Matrix* boneMatrix = _model->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+            if (boneMatrix == nullptr)
+                return false;
+
+            const Matrix anchorWorldMatrix = *boneMatrix * echoWorldMatrix;
+            outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+            return true;
+        };
+
+    return
+        resolveAnchor(sampleAnchorAsset.base, outSample.baseWorldPosition) &&
+        resolveAnchor(sampleAnchorAsset.tip, outSample.tipWorldPosition);
+}
+
+void Mon_Simon_Weapon::Begin_WeaponEchoTrail(
+    const wstring& effectName,
+    const wstring& layerTag,
+    const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
+{
+    _weaponEchoPendingTrailValid = true;
+    _weaponEchoPendingTrailEffectName = effectName;
+    _weaponEchoPendingTrailLayerTag = layerTag;
+    _weaponEchoPendingTrailOffset = offsetDesc;
+    _weaponEchoPendingTrailOffset.phase = std::clamp(_weaponEchoPendingTrailOffset.phase, 0.f, 1.f);
+    _weaponEchoPendingTrailAgeSec = 0.f;
+
+    for (uint32 laneIndex = 0; laneIndex < kMaxWeaponEchoLaneCount; ++laneIndex)
+    {
+        WeaponEchoLane& lane = _weaponEchoLanes[laneIndex];
+        if (!lane.active)
+            continue;
+
+        if (lane.trailStarted)
+        {
+            lane.trailOffset = offsetDesc;
+            lane.trailOffset.phase = std::clamp(lane.trailOffset.phase, 0.f, 1.f);
+            continue;
+        }
+
+        Start_WeaponEchoTrail(lane, laneIndex, effectName, layerTag, offsetDesc);
+    }
+}
+
+void Mon_Simon_Weapon::Update_WeaponEchoTrailOffset(const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
+{
+    if (_weaponEchoPendingTrailValid)
+    {
+        _weaponEchoPendingTrailOffset = offsetDesc;
+        _weaponEchoPendingTrailOffset.phase = std::clamp(_weaponEchoPendingTrailOffset.phase, 0.f, 1.f);
+    }
+
+    for (WeaponEchoLane& lane : _weaponEchoLanes)
+    {
+        if (!lane.active)
+            continue;
+
+        lane.trailOffset = offsetDesc;
+        lane.trailOffset.phase = std::clamp(lane.trailOffset.phase, 0.f, 1.f);
+    }
+}
+
+void Mon_Simon_Weapon::Start_WeaponEchoTrail(
+    WeaponEchoLane& lane,
+    uint32 laneIndex,
+    const wstring& effectName,
+    const wstring& layerTag,
+    const EffectCom::TrailOffsetRuntimeDesc& offsetDesc)
+{
+    if (lane.trailStarted)
+        return;
+
+    if (effectName.empty() || layerTag.empty())
+        return;
+
+    if (_partEffectCom == nullptr || _model == nullptr)
+        return;
+
+    lane.trailOffset = offsetDesc;
+    lane.trailOffset.phase = std::clamp(lane.trailOffset.phase, 0.f, 1.f);
+
+    const wstring& sourceModelPath = _model->Get_SourceModelPath();
+    if (sourceModelPath.empty())
+        return;
+
+    const string modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+    if (modelGuid.empty())
+        return;
+
+    lane.trailAnchorAsset = {};
+    const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
+    if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), lane.trailAnchorAsset))
+        return;
+
+    lane.trailSampleProvider = make_shared<SimonWeaponEchoTrailSampleProvider>(
+        GetSharedPtr<Mon_Simon_Weapon>(),
+        laneIndex,
+        lane.trailAnchorAsset);
+
+    EffectCom::EffectPlayDesc desc{};
+    desc.levelIndex = GAME->Current_LevelIndex();
+    desc.effectName = effectName;
+    desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    desc.layerTag = layerTag;
+    desc.requiresManualRelease = true;
+    desc.trailSampleProvider = lane.trailSampleProvider;
+
+    if (FAILED(_partEffectCom->Play_Effect(desc, &lane.trailHandle)))
+    {
+        lane.trailSampleProvider.reset();
+        lane.trailHandle = {};
+        return;
+    }
+
+    lane.trailStarted = true;
+}
+
+void Mon_Simon_Weapon::Stop_WeaponEchoTrail()
+{
+    for (WeaponEchoLane& lane : _weaponEchoLanes)
+        Stop_WeaponEchoTrail(lane);
+}
+
+void Mon_Simon_Weapon::Stop_WeaponEchoTrail(WeaponEchoLane& lane)
+{
+    if (_partEffectCom != nullptr && lane.trailHandle.effectObject != nullptr)
+        _partEffectCom->Stop_Effect(lane.trailHandle);
+
+    lane.trailHandle = {};
+    lane.trailSampleProvider.reset();
+    lane.trailAnchorAsset = {};
+    lane.trailOffset = {};
+    lane.trailStarted = false;
+}
+
 HRESULT Mon_Simon_Weapon::Render_WeaponEchoPlayback()
 {
     if (!Has_WeaponEchoPlayback())
-        return S_OK;
-
-    const float echoElapsedSec = _weaponEchoPlaybackSec - _weaponEchoDelaySec;
-    if (echoElapsedSec < 0.f)
-        return S_OK;
-
-    Matrix echoWorldMatrix = Matrix::Identity;
-    if (!Try_SampleWeaponEchoMatrix(echoElapsedSec, echoWorldMatrix))
         return S_OK;
 
     if (FAILED(GAME->Bind_CameraCB(_shader)))
@@ -401,38 +738,51 @@ HRESULT Mon_Simon_Weapon::Render_WeaponEchoPlayback()
         return E_FAIL;
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
-    const float duration = max(_weaponEchoEndElapsedSec, 0.0001f);
-    const float ratio = clamp(echoElapsedSec / duration, 0.f, 1.f);
 
-    Vec4 ghostColor = _weaponEchoTintColor;
-    ghostColor.w = std::lerp(_weaponEchoStartAlpha, _weaponEchoEndAlpha, ratio);
-
-    if (ghostColor.w <= 0.001f)
-        return S_OK;
-
-    if (FAILED(_shader->Bind_ObjectCB(echoWorldMatrix)))
-        return E_FAIL;
-
-    if (FAILED(_shader->Bind_RawValue("g_WeaponGhostColor", &ghostColor, sizeof(Vec4))))
-        return E_FAIL;
-
-    for (uint32 i = 0; i < numMeshes; ++i)
+    for (const WeaponEchoLane& lane : _weaponEchoLanes)
     {
-        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
-        const Shared<Material> material = _model->Get_Material(materialIndex);
-        if (material == nullptr)
+        if (!Has_WeaponEchoPlayback(lane))
             continue;
 
-        if (FAILED(_shader->Bind_MaterialTextures(*material)))
+        const float echoElapsedSec = lane.playbackSec - lane.delaySec;
+        if (echoElapsedSec < 0.f)
             continue;
 
-        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+        Matrix echoWorldMatrix = Matrix::Identity;
+        if (!Try_SampleWeaponEchoMatrix(lane, echoElapsedSec, echoWorldMatrix))
+            continue;
+
+        Vec4 ghostColor = kSimonBladeGhostColor;
+
+        if (FAILED(_shader->Bind_ObjectCB(echoWorldMatrix)))
             return E_FAIL;
 
-        if (FAILED(_shader->Begin(kSimonWeaponEchoPassIndex)))
-            return E_FAIL;
+        for (uint32 i = 0; i < numMeshes; ++i)
+        {
+            const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
+            const Shared<Material> material = _model->Get_Material(materialIndex);
+            if (material == nullptr)
+                continue;
 
-        _model->Render(i);
+            const uint32 isBladeMaterial = material->Get_MaterialName() == kSimonBladeMaterialName ? 1u : 0u;
+
+            if (FAILED(_shader->Bind_RawValue("g_WeaponGhostColor", &ghostColor, sizeof(Vec4))))
+                return E_FAIL;
+
+            if (FAILED(_shader->Bind_RawValue("g_WeaponGhostBladeMaterial", &isBladeMaterial, sizeof(uint32))))
+                return E_FAIL;
+
+            if (FAILED(_shader->Bind_MaterialTextures(*material)))
+                continue;
+
+            if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                return E_FAIL;
+
+            if (FAILED(_shader->Begin(kSimonWeaponEchoPassIndex)))
+                return E_FAIL;
+
+            _model->Render(i);
+        }
     }
 
     return S_OK;
@@ -460,5 +810,7 @@ Shared<GameObject> Mon_Simon_Weapon::Clone(void* arg)
 
 void Mon_Simon_Weapon::Free()
 {
+    Stop_WeaponEchoTrail();
+
     Monster_Part::Free();
 }

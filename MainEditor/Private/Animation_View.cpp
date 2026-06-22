@@ -9,6 +9,7 @@
 #include "ContainerObject.h"
 #include "EditorInstance.h"
 #include "Editor_Camera_Free.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "DebugDraw.h"
@@ -1057,6 +1058,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
@@ -1096,6 +1098,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
@@ -1154,6 +1157,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _sequencerCurrentFrame = 0;
     _sequencerSelectedRow = -1;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _selectedBoneIndex = -1;
     Clear_NotifyUndoHistory();
 }
@@ -1565,44 +1569,6 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
     return !outRuntime.trailAnchorAsset.modelGuid.empty();
 }
 
-bool Animation_View::Load_PreviewSourceHistoryAnchorAsset(
-    const string& partTag,
-    PreviewSourceHistoryRuntime& outRuntime)
-{
-    outRuntime.trailAnchorAsset = {};
-    outRuntime.modelGuid.clear();
-
-    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
-    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
-    if (ownerContainer == nullptr)
-        return false;
-
-    const wstring previewPartTag = String::ToWString(partTag);
-    PartObject* trailPart = ownerContainer->Get_PartObject(previewPartTag);
-    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
-        return false;
-
-    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
-    if (weaponModel == nullptr)
-        return false;
-
-    const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
-    if (sourceModelPath.empty())
-        return false;
-
-    outRuntime.modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
-    if (outRuntime.modelGuid.empty())
-        return false;
-
-    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(outRuntime.modelGuid);
-    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), outRuntime.trailAnchorAsset);
-
-    if (outRuntime.trailAnchorAsset.modelGuid.empty())
-        outRuntime.trailAnchorAsset.modelGuid = outRuntime.modelGuid;
-
-    return !outRuntime.trailAnchorAsset.modelGuid.empty();
-}
-
 void Animation_View::Save_NotifyAsset()
 {
     if (_modelGuid.empty())
@@ -1736,6 +1702,7 @@ void Animation_View::Draw_AnimationSelector()
                         _sequencerCurrentFrame = 0;
                         _sequencerSelectedRow = -1;
                         _sequencerFirstFrame = 0;
+                        _sequencerVisibleFrameCount = 0;
                         Clear_NotifyUndoHistory();
 
                         Sync_PreviewAnimationSelection();
@@ -2241,7 +2208,13 @@ void Animation_View::Draw_Sequencer()
         ImSequencer::SEQUENCER_EDIT_STARTEND |
         ImSequencer::SEQUENCER_CHANGE_FRAME;
 
-    _sequencerFirstFrame = 0;
+    const int32 fullFrameMin = 0;
+    const int32 fullFrameMax = max(1, Get_CurrentAnimationFrameMax());
+    const int32 fullFrameRange = max(1, fullFrameMax - fullFrameMin);
+    if (_sequencerVisibleFrameCount <= 0 || _sequencerVisibleFrameCount > fullFrameRange)
+        _sequencerVisibleFrameCount = fullFrameRange;
+    _sequencerFirstFrame = std::clamp(_sequencerFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+
     const ImVec2 sequencerRectMin = ImGui::GetCursorScreenPos();
     if (ImSequencer::Sequencer(
         _sequencer.get(),
@@ -2249,7 +2222,9 @@ void Animation_View::Draw_Sequencer()
         &_sequencerExpanded,
         &_sequencerSelectedRow,
         &_sequencerFirstFrame,
-        sequenceOptions))
+        sequenceOptions,
+        _sequencerFirstFrame,
+        _sequencerFirstFrame + _sequencerVisibleFrameCount))
     {
         Shared<ModelCom> playbackModel = Get_PlaybackModel();
         if (playbackModel != nullptr)
@@ -2265,26 +2240,58 @@ void Animation_View::Draw_Sequencer()
         }
     }
 
+    const ImRect sequencerItemRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    const ImGuiIO& sequencerIO = ImGui::GetIO();
+    if (ImGui::IsItemHovered() && sequencerIO.KeyCtrl && sequencerIO.MouseWheel != 0.f)
+    {
+        const float timelineMinX = sequencerItemRect.Min.x + 200.f;
+        const float timelineMaxX = sequencerItemRect.Max.x;
+        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
+        const float mouseRatio = std::clamp((sequencerIO.MousePos.x - timelineMinX) / timelineWidth, 0.f, 1.f);
+        const int32 oldVisibleFrameCount = std::clamp(_sequencerVisibleFrameCount, 1, fullFrameRange);
+        const int32 mouseFrame = _sequencerFirstFrame + static_cast<int32>(std::round(mouseRatio * static_cast<float>(oldVisibleFrameCount)));
+        const float zoomScale = sequencerIO.MouseWheel > 0.f ? 0.82f : 1.22f;
+        const int32 minVisibleFrameCount = min(fullFrameRange, 8);
+        const int32 newVisibleFrameCount = std::clamp(
+            static_cast<int32>(std::round(static_cast<float>(oldVisibleFrameCount) * zoomScale)),
+            minVisibleFrameCount,
+            fullFrameRange);
+
+        const float pivotRatio = static_cast<float>(mouseFrame - _sequencerFirstFrame) / static_cast<float>(max(1, oldVisibleFrameCount));
+        const int32 requestedFirstFrame = mouseFrame - static_cast<int32>(std::round(pivotRatio * static_cast<float>(newVisibleFrameCount)));
+        _sequencerVisibleFrameCount = newVisibleFrameCount;
+        _sequencerFirstFrame = std::clamp(requestedFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+    }
+
     if (const AnimNotifyData* animationData = Get_CurrentAnimation())
     {
-        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const ImRect sequencerRect = sequencerItemRect;
         const float timelineMinX = sequencerRect.Min.x + 200.f;
         const float timelineMaxX = sequencerRect.Max.x;
         const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
-        const int32 frameMax = max(1, Get_CurrentAnimationFrameMax());
+        const int32 visibleFrameMin = _sequencerFirstFrame;
+        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
+        const int32 visibleFrameRange = max(1, visibleFrameMax - visibleFrameMin);
         const int32 fps = max(1, Get_CurrentAnimationFps());
 
         const int32 startFrame = std::clamp(
             static_cast<int32>(std::round(Get_PlaySectionStartSec(animationData) * static_cast<float>(fps))),
             0,
-            frameMax);
+            fullFrameMax);
         const int32 endFrame = std::clamp(
             static_cast<int32>(std::round(Get_PlaySectionEndSec(animationData) * static_cast<float>(fps))),
             0,
-            frameMax);
+            fullFrameMax);
 
-        const float startX = timelineMinX + timelineWidth * (static_cast<float>(startFrame) / static_cast<float>(frameMax));
-        const float endX = timelineMinX + timelineWidth * (static_cast<float>(endFrame) / static_cast<float>(frameMax));
+        auto frameToX = [&](int32 frame)
+        {
+            return timelineMinX + timelineWidth * (static_cast<float>(frame - visibleFrameMin) / static_cast<float>(visibleFrameRange));
+        };
+
+        const float startX = frameToX(startFrame);
+        const float endX = frameToX(endFrame);
+        const float clampedStartX = std::clamp(startX, timelineMinX, timelineMaxX);
+        const float clampedEndX = std::clamp(endX, timelineMinX, timelineMaxX);
 
         const float markerY = sequencerRect.Min.y + 5.f;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -2292,47 +2299,55 @@ void Animation_View::Draw_Sequencer()
         const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
         const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
 
-        if (startX > timelineMinX)
+        if (startFrame > visibleFrameMin)
         {
             drawList->AddRectFilled(
                 ImVec2(timelineMinX, sequencerRect.Min.y),
-                ImVec2(startX, sequencerRect.Max.y),
+                ImVec2(clampedStartX, sequencerRect.Max.y),
                 sectionOutside);
         }
 
-        if (endX < timelineMaxX)
+        if (endFrame < visibleFrameMax)
         {
             drawList->AddRectFilled(
-                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(clampedEndX, sequencerRect.Min.y),
                 ImVec2(timelineMaxX, sequencerRect.Max.y),
                 sectionOutside);
         }
 
-        if (endX > startX)
+        const int32 sectionOverlapStart = max(startFrame, visibleFrameMin);
+        const int32 sectionOverlapEnd = min(endFrame, visibleFrameMax);
+        if (sectionOverlapEnd > sectionOverlapStart)
         {
             drawList->AddLine(
-                ImVec2(startX, markerY),
-                ImVec2(endX, markerY),
+                ImVec2(frameToX(sectionOverlapStart), markerY),
+                ImVec2(frameToX(sectionOverlapEnd), markerY),
                 sectionLine,
                 2.f);
         }
 
-        drawList->AddLine(
-            ImVec2(startX, sequencerRect.Min.y),
-            ImVec2(startX, sequencerRect.Max.y),
-            sectionGuide,
-            1.f);
+        if (startFrame >= visibleFrameMin && startFrame <= visibleFrameMax)
+        {
+            drawList->AddLine(
+                ImVec2(startX, sequencerRect.Min.y),
+                ImVec2(startX, sequencerRect.Max.y),
+                sectionGuide,
+                1.f);
+        }
 
-        drawList->AddLine(
-            ImVec2(endX, sequencerRect.Min.y),
-            ImVec2(endX, sequencerRect.Max.y),
-            sectionGuide,
-            1.f);
+        if (endFrame >= visibleFrameMin && endFrame <= visibleFrameMax)
+        {
+            drawList->AddLine(
+                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(endX, sequencerRect.Max.y),
+                sectionGuide,
+                1.f);
+        }
     }
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
     {
-        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const ImRect sequencerRect = sequencerItemRect;
         bool isStateTrack = false;
         int32 trackIndex = -1;
         const ImVec2 mousePos = ImGui::GetIO().MousePos;
@@ -2341,7 +2356,9 @@ void Animation_View::Draw_Sequencer()
             (mousePos.x - (sequencerRect.Min.x + 200.f)) / max(1.f, sequencerRect.Max.x - (sequencerRect.Min.x + 200.f)),
             0.f,
             1.f);
-        const int32 clickedFrame = static_cast<int32>(std::round(normalized * static_cast<float>(Get_CurrentAnimationFrameMax())));
+        const int32 visibleFrameMin = _sequencerFirstFrame;
+        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
+        const int32 clickedFrame = visibleFrameMin + static_cast<int32>(std::round(normalized * static_cast<float>(visibleFrameMax - visibleFrameMin)));
         Begin_SequencerContextMenu(clickedFrame, hasTrackContext, isStateTrack, trackIndex);
     }
 
@@ -4528,6 +4545,31 @@ bool Animation_View::Try_GetSourcePointSampleForRuntime(
             runtime.sourceHistoryLocalOffset,
             outSample.worldPosition);
 
+    if (runtime.sourceBindingMode == 3)
+    {
+        Vec3 baseWorld{};
+        Vec3 tipWorld{};
+        if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.base, baseWorld))
+            return false;
+        if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.tip, tipWorld))
+            return false;
+
+        if (runtime.sourceHistoryAnchorName == "Base")
+        {
+            outSample.worldPosition = baseWorld + runtime.sourceHistoryLocalOffset;
+            return true;
+        }
+
+        if (runtime.sourceHistoryAnchorName == "Mid")
+        {
+            outSample.worldPosition = ((baseWorld + tipWorld) * 0.5f) + runtime.sourceHistoryLocalOffset;
+            return true;
+        }
+
+        outSample.worldPosition = tipWorld + runtime.sourceHistoryLocalOffset;
+        return true;
+    }
+
     return Try_ResolvePreviewWeaponAnchorWorldPosition(
         runtime.partTag,
         runtime.sourceHistoryAnchorName,
@@ -4728,6 +4770,60 @@ void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
 
     vector<int32> activeStateIds{};
 
+    auto syncPreviewEchoTrail =
+        [this, animationData, currentTimeSec, previewRootObject](
+            const wstring& echoPartTag,
+            float echoDelaySec)
+        {
+            Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+            if (ownerContainer == nullptr)
+                return;
+
+            Mon_Simon_Weapon* simonWeapon =
+                dynamic_cast<Mon_Simon_Weapon*>(ownerContainer->Get_PartObject(echoPartTag));
+            if (simonWeapon == nullptr)
+                return;
+
+            const string echoPartTagString = String::ToString(echoPartTag);
+            const float sourceTimeSec = currentTimeSec - max(0.f, echoDelaySec);
+            for (const AnimNotifyStateEntry& trailEntry : animationData->notifyStates)
+            {
+                if (trailEntry.notifyState == nullptr)
+                    continue;
+                if (trailEntry.notifyState->Get_TypeName() != "ANS_Trail")
+                    continue;
+                if (sourceTimeSec < trailEntry.startSec)
+                    continue;
+                if (sourceTimeSec > trailEntry.startSec + trailEntry.durationSec)
+                    continue;
+
+                const json trailPayload = trailEntry.notifyState->To_Json();
+                const string trailPartTagString = trailPayload.value("_partTag", string{ "Part_Weapon" });
+                if (trailPartTagString != echoPartTagString)
+                    continue;
+
+                wstring resolvedEffectName{};
+                const string effectNameValue = trailPayload.value("_effectName", string{});
+                if (!Try_ResolvePreviewTrailEffectName(effectNameValue, trailPartTagString, resolvedEffectName))
+                    continue;
+
+                const Client::ANS_Trail* trailNotifyState =
+                    dynamic_cast<const Client::ANS_Trail*>(trailEntry.notifyState.get());
+                if (trailNotifyState == nullptr)
+                    continue;
+
+                EffectCom::TrailOffsetRuntimeDesc offsetDesc{};
+                const float trailDuration = max(trailEntry.durationSec, 0.0001f);
+                offsetDesc.phase = std::clamp((sourceTimeSec - trailEntry.startSec) / trailDuration, 0.f, 1.f);
+                offsetDesc.tipExtendCurve = trailNotifyState->Get_TipExtendCurve();
+                offsetDesc.baseLocalOffsetCurve = trailNotifyState->Get_BaseLocalOffsetCurve();
+                offsetDesc.tipLocalOffsetCurve = trailNotifyState->Get_TipLocalOffsetCurve();
+
+                simonWeapon->Begin_WeaponEchoTrail(resolvedEffectName, L"Layer_Effect", offsetDesc);
+                return;
+            }
+        };
+
     for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
     {
         if (entry.notifyState == nullptr)
@@ -4744,6 +4840,7 @@ void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
         const json payload = entry.notifyState->To_Json();
         const string partTagString = payload.value("_partTag", string{ "Part_Weapon" });
         const wstring partTag = String::ToWString(partTagString);
+        const float delaySec = payload.value("_delaySec", 0.2f);
         const string payloadJson = payload.dump();
 
         AnimNotifyContext stateContext = context;
@@ -4774,6 +4871,7 @@ void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
             runtime = &_previewWeaponEchoRuntimes.back();
 
             runtime->notifyState->On_Begin(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
         }
         else if (runtime->notifyState != entry.notifyState || runtime->payloadJson != payloadJson)
         {
@@ -4788,11 +4886,13 @@ void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
             runtime->partTag = partTag;
             runtime->payloadJson = payloadJson;
             runtime->notifyState->On_Begin(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
         }
         else
         {
             runtime->partTag = partTag;
             runtime->notifyState->On_Tick(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
         }
     }
 
@@ -6122,6 +6222,7 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
+            runtime->trailAnchorAsset = {};
         }
 
         if (runtime->partTag != partTag ||
@@ -6144,6 +6245,16 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
+        }
+
+        if (runtime->sourceBindingMode == 3 && runtime->trailAnchorAsset.modelGuid.empty())
+        {
+            PreviewTrailRuntime trailRuntime{};
+            if (!Load_PreviewTrailAnchorAsset(runtime->partTag, trailRuntime))
+                continue;
+
+            runtime->modelGuid = trailRuntime.modelGuid;
+            runtime->trailAnchorAsset = trailRuntime.trailAnchorAsset;
         }
 
         if (!Ensure_PreviewSourceHistoryEffect(*runtime, resolvedEffectName))
@@ -6736,15 +6847,35 @@ bool Animation_View::Try_ResolvePreviewWeaponAnchorWorldPosition(
         return false;
 
     const wstring previewPartTag = String::ToWString(partTag);
-    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
-    if (weaponPart == nullptr)
-        return false;
+    const PartObject* weaponPart = ownerContainer->Get_PartObject(previewPartTag);
 
-    const Client::WeaponSourceHistoryAnchorDesc* anchor = weaponPart->Find_SourceHistoryAnchor(anchorName);
+    const Client::WeaponSourceHistoryAnchorDesc* anchor = nullptr;
+    Shared<ModelCom> weaponModel = nullptr;
+
+    if (const Weapon* weapon = dynamic_cast<const Weapon*>(weaponPart))
+    {
+        anchor = weapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = weapon->Get_Model();
+    }
+    else if (const Client::Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Client::Mon_Simon_Weapon*>(weaponPart))
+    {
+        anchor = simonWeapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = simonWeapon->Get_Model();
+    }
+    else if (const Client::Mon_Dualliste_Sword_L* swordL = dynamic_cast<const Client::Mon_Dualliste_Sword_L*>(weaponPart))
+    {
+        anchor = swordL->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordL->Get_Model();
+    }
+    else if (const Client::Mon_Dualliste_Sword_R* swordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(weaponPart))
+    {
+        anchor = swordR->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordR->Get_Model();
+    }
+
     if (anchor == nullptr || anchor->boneName.empty())
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
     if (weaponModel == nullptr)
         return false;
 
@@ -6797,7 +6928,7 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
         if (socketMatrix == nullptr)
             return false;
 
-        const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
+        const Matrix socketWorldMatrix = *socketMatrix * partObject->Get_CombinedWorldMatrix();
         outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }

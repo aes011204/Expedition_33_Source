@@ -238,6 +238,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Animation_NameUtils.h" />
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\Public\ImSequencer.h" />
     <ClInclude Include="..\public\AIController_Inspector.h" />
     <ClInclude Include="..\Public\AnimState_View.h" />
     <ClInclude Include="..\public\BT_VIew.h" />

@@ -785,7 +785,7 @@ HRESULT EffectCom::Play_TrailEffect(
     if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
         return E_FAIL;
 
-    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
+    const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(trailPart);
     CHECK_NULL(weaponModel, E_FAIL);
 
     const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
@@ -889,6 +889,13 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
         if (trailNotifyToken != 0 && attached.trailNotifyToken != trailNotifyToken)
             continue;
 
+        _recentTrailEffect.valid = true;
+        _recentTrailEffect.partTag = attached.partTag;
+        _recentTrailEffect.effectName = attached.effectName;
+        _recentTrailEffect.layerTag = attached.layerTag;
+        _recentTrailEffect.offsetDesc = attached.trailOffset;
+        _recentTrailEffect.ageSec = 0.f;
+
         Begin_TrailDrain(attached);
     }
 
@@ -917,6 +924,47 @@ bool EffectCom::Try_GetTrailSampleForPart(
     }
 
     return Try_BuildTrailSample(partTag, trailAnchorAsset, offsetDesc, outSample);
+}
+
+bool EffectCom::Try_GetActiveTrailEffect(
+    const wstring& partTag,
+    wstring& outEffectName,
+    wstring& outLayerTag,
+    TrailOffsetRuntimeDesc& outOffsetDesc) const
+{
+    outEffectName.clear();
+    outLayerTag.clear();
+    outOffsetDesc = {};
+
+    for (const AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.role != AttachedEffectRole::Trail)
+            continue;
+        if (attached.partTag != partTag)
+            continue;
+        if (attached.isTrailDraining)
+            continue;
+        if (attached.poolHandle.effectObject == nullptr)
+            continue;
+
+        outEffectName = attached.effectName;
+        outLayerTag = attached.layerTag;
+        outOffsetDesc = attached.trailOffset;
+        return !outEffectName.empty() && !outLayerTag.empty();
+    }
+
+    constexpr float recentTrailGraceSec = 0.5f;
+    if (_recentTrailEffect.valid &&
+        _recentTrailEffect.partTag == partTag &&
+        _recentTrailEffect.ageSec <= recentTrailGraceSec)
+    {
+        outEffectName = _recentTrailEffect.effectName;
+        outLayerTag = _recentTrailEffect.layerTag;
+        outOffsetDesc = _recentTrailEffect.offsetDesc;
+        return !outEffectName.empty() && !outLayerTag.empty();
+    }
+
+    return false;
 }
 
 HRESULT EffectCom::Play_SourceHistoryEffect(
@@ -963,10 +1011,10 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     attached.sourceHistoryLocalOffset = sourceHistoryLocalOffset;
     attached.sourcePointSampleEnabled = make_shared<bool>(true);
 
-    if (sourceBindingMode == SourceHistorySourceBindingMode::TrailAnchor)
+    if (static_cast<int32>(sourceBindingMode) == 3)
     {
         const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-        if (Resolve_TrailPartModel(trailPart) == nullptr)
+        if (Internal::Resolve_TrailPartModel(trailPart) == nullptr)
         {
             LOG_WARN(
                 "[EffectCom] Play_SourceHistoryEffect failed: weapon part not found. effect={}, part={}, layer={}",
@@ -977,7 +1025,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
             return E_FAIL;
         }
 
-        const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
+        const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(trailPart);
         if (weaponModel == nullptr)
         {
             LOG_WARN(
@@ -1031,6 +1079,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
         socketName,
         sourceHistoryAnchorName,
         sourceHistoryLocalOffset,
+        &attached.trailAnchorAsset,
         initialSample))
     {
         LOG_WARN(
@@ -1139,12 +1188,37 @@ bool EffectCom::Try_GetSourcePointSampleForPart(
     const Vec3& sourceHistoryLocalOffset,
     EffectSourcePointSample& outSample) const
 {
+    const TrailAnchorAsset* trailAnchorAsset = nullptr;
+    if (static_cast<int32>(sourceBindingMode) == 3)
+    {
+        for (const AttachedEffect& attached : _attachedEffects)
+        {
+            if (attached.role != AttachedEffectRole::SourceHistoryPoint)
+                continue;
+            if (attached.partTag != partTag)
+                continue;
+            if (attached.sourceHistorySourceBindingMode != sourceBindingMode)
+                continue;
+            if (attached.socketName != socketName)
+                continue;
+            if (attached.sourceHistoryAnchorName != sourceHistoryAnchorName)
+                continue;
+
+            trailAnchorAsset = &attached.trailAnchorAsset;
+            break;
+        }
+
+        if (trailAnchorAsset == nullptr)
+            return false;
+    }
+
     return Try_BuildSourcePointSample(
         partTag,
         sourceBindingMode,
         socketName,
         sourceHistoryAnchorName,
         sourceHistoryLocalOffset,
+        trailAnchorAsset,
         outSample);
 }
 
@@ -1167,12 +1241,19 @@ bool EffectCom::Try_ResolveTrailEffectName(
         return false;
 
     const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-    outEffectName = Resolve_DefaultTrailEffectName(trailPart);
+    outEffectName = Internal::Resolve_DefaultTrailEffectName(trailPart);
     return !outEffectName.empty();
 }
 
 void EffectCom::Update_AttachedEffects(float timeDelta)
 {
+    if (_recentTrailEffect.valid)
+    {
+        _recentTrailEffect.ageSec += max(0.f, timeDelta);
+        if (_recentTrailEffect.ageSec > 0.5f)
+            _recentTrailEffect = {};
+    }
+
     for (AttachedEffect& attached : _attachedEffects)
     {
         if (attached.poolHandle.effectObject == nullptr)
@@ -1364,9 +1445,9 @@ bool EffectCom::Try_GetSocketWorldMatrix(
         return true;
     }
 
-    if (Resolve_TrailPartModel(partObject) != nullptr)
+    if (Internal::Resolve_TrailPartModel(partObject) != nullptr)
     {
-        const Matrix* socketMatrix = Resolve_TrailPartSocketMatrix(partObject, socketName);
+        const Matrix* socketMatrix = Internal::Resolve_TrailPartSocketMatrix(partObject, socketName);
         if (socketMatrix == nullptr)
             return false;
 
@@ -1405,7 +1486,7 @@ bool EffectCom::Try_BuildTrailSample(
         return false;
 
     const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
-    if (Resolve_TrailPartModel(trailPart) == nullptr)
+    if (Internal::Resolve_TrailPartModel(trailPart) == nullptr)
         return false;
 
     const TrailAnchorAsset sampleAnchorAsset =
@@ -1421,9 +1502,9 @@ bool EffectCom::Try_BuildTrailSample(
     Vec3 baseWorld{};
     Vec3 tipWorld{};
     
-    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, trailAnchorAsset.base, baseWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.base, baseWorld))
         return false;
-    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, trailAnchorAsset.tip, tipWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.tip, tipWorld))
         return false;
 
     outSample.baseWorldPosition = baseWorld;
@@ -1451,6 +1532,7 @@ bool EffectCom::Try_BuildSourcePointSample(
     const string& socketName,
     const string& sourceHistoryAnchorName,
     const Vec3& sourceHistoryLocalOffset,
+    const TrailAnchorAsset* trailAnchorAsset,
     EffectSourcePointSample& outSample) const
 {
     if (sourceBindingMode == SourceHistorySourceBindingMode::Socket)
@@ -1463,12 +1545,39 @@ bool EffectCom::Try_BuildSourcePointSample(
         return true;
     }
 
+    if (static_cast<int32>(sourceBindingMode) == 3)
+    {
+        if (trailAnchorAsset == nullptr)
+            return false;
+
+        EffectTrailSample trailSample{};
+        if (!Try_BuildTrailSample(partTag, *trailAnchorAsset, nullptr, trailSample))
+            return false;
+
+        if (sourceHistoryAnchorName == "Base")
+        {
+            outSample.worldPosition = trailSample.baseWorldPosition + sourceHistoryLocalOffset;
+            return true;
+        }
+
+        if (sourceHistoryAnchorName == "Mid")
+        {
+            outSample.worldPosition =
+                ((trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f) +
+                sourceHistoryLocalOffset;
+            return true;
+        }
+
+        outSample.worldPosition = trailSample.tipWorldPosition + sourceHistoryLocalOffset;
+        return true;
+    }
+
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
     if (ownerContainer == nullptr)
         return false;
 
-    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+    const PartObject* weaponPart = ownerContainer->Get_PartObject(partTag);
     if (weaponPart == nullptr)
         return false;
 
@@ -1484,7 +1593,7 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
     const TrailAnchorPointDesc& anchor,
     Vec3& outWorldPosition) const
 {
-    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(&trailPart);
+    const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(&trailPart);
     if (weaponModel == nullptr || anchor.boneName.empty())
         return false;
 
@@ -1502,16 +1611,38 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
 }
 
 bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
-    const Weapon& weaponPart,
+    const PartObject& weaponPart,
     const string& anchorName,
     const Vec3& localOffset,
     Vec3& outWorldPosition) const
 {
-    const WeaponSourceHistoryAnchorDesc* anchor = weaponPart.Find_SourceHistoryAnchor(anchorName);
+    const WeaponSourceHistoryAnchorDesc* anchor = nullptr;
+    Shared<ModelCom> weaponModel = nullptr;
+
+    if (const Weapon* weapon = dynamic_cast<const Weapon*>(&weaponPart))
+    {
+        anchor = weapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = weapon->Get_Model();
+    }
+    else if (const Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Mon_Simon_Weapon*>(&weaponPart))
+    {
+        anchor = simonWeapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = simonWeapon->Get_Model();
+    }
+    else if (const Mon_Dualliste_Sword_L* swordL = dynamic_cast<const Mon_Dualliste_Sword_L*>(&weaponPart))
+    {
+        anchor = swordL->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordL->Get_Model();
+    }
+    else if (const Mon_Dualliste_Sword_R* swordR = dynamic_cast<const Mon_Dualliste_Sword_R*>(&weaponPart))
+    {
+        anchor = swordR->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordR->Get_Model();
+    }
+
     if (anchor == nullptr || anchor->boneName.empty())
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart.Get_Model();
     if (weaponModel == nullptr)
         return false;
 

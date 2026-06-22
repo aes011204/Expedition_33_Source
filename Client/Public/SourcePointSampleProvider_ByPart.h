@@ -11,6 +11,7 @@ enum class SourceHistorySourceBindingMode
 {
     Socket = 1,
     WeaponAnchor = 2,
+    TrailAnchor = 3,
 };
 
 class SourcePointSampleProvider_ByPart final : public IEffectSourcePointSampleProvider

@@ -269,6 +269,9 @@
     <ClInclude Include="..\Public\AnimSequencerAdapter.h">
       <Filter>97. Utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ImSequencer.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\CombatStat_Inspector.h">
       <Filter>02. Inspector</Filter>
     </ClInclude>

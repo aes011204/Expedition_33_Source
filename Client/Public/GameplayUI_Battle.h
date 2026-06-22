@@ -171,7 +171,6 @@ private:
     // 일단 기능이 비슷하긴한데 나중에 어떻게될지 몰라서 일단 나눠서 사용
     bool    Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const;
     bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
-    bool    Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos);
     bool    Try_GetJumpReactionScreenPos(const BattleChar& target, Vec2& outScreenPos) const;
 #pragma endregion
 
