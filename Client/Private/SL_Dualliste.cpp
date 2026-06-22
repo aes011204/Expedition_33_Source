@@ -62,6 +62,9 @@ void SL_Dualliste::BeginPlay()
 {
     SL_Base::BeginPlay();
 
+    _currentPhase = 1;
+    _phaseChangeTriggered = false;
+    _phaseChangeFinished = false;
     Set_ActionLocked(false);
 
     if (_aiCtrl)
@@ -82,6 +85,7 @@ void SL_Dualliste::BeginPlay()
        _attackLCom->Clear_Overlap();
    }
 
+   Apply_PhaseVisualState();
 
 
    if (_stateMachineCom)
@@ -404,6 +408,7 @@ void SL_Dualliste::Finish_PhaseChange()
 
     _currentPhase = 2;
     _phaseChangeFinished = true;
+    Apply_PhaseVisualState();
 
     if (_aiCtrl)
     {
@@ -448,6 +453,21 @@ bool SL_Dualliste::Try_EnterPhaseChange()
 
     _phaseChangeTriggered = false;
     return false;
+}
+
+void SL_Dualliste::Apply_PhaseVisualState()
+{
+    if (_swordR)
+        _swordR->Set_Visible(true);
+
+    if (_swordL)
+        _swordL->Set_Visible(CanUseLeftSword());
+
+    if (!CanUseLeftSword() && _attackLCom)
+    {
+        _attackLCom->Set_IsActive(false);
+        _attackLCom->Clear_Overlap();
+    }
 }
 
 void SL_Dualliste::Update_StunSystem(float timeDelta)

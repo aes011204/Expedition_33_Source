@@ -4,6 +4,7 @@
 #include "ContainerObject.h"
 #include "GameInstance.h"
 #include "PartObject.h"
+#include "SL_Dualliste.h"
 
 IMPLEMENT_REFLECTION(ANS_SL_PartCollisionEnable)
 {
@@ -80,6 +81,17 @@ void ANS_SL_PartCollisionEnable::Set_ColliderActive(const AnimNotifyContext& con
 
     if (collider == nullptr)
         return;
+
+    if (const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(ownerContainer))
+    {
+        if (_partTag == "Part_Sword_L" && !dualliste->CanUseLeftSword())
+        {
+            collider->Set_IsActive(false);
+            collider->Clear_Overlap();
+            GAME->Unregister_PhysXCollider(collider.get());
+            return;
+        }
+    }
 
     collider->Clear_Overlap();
 
