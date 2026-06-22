@@ -193,6 +193,10 @@ namespace Client::Constants::UI
         L"UI/UI_Json/BattleSystem/UI_JumpCounter.json";
 #pragma endregion
 
+#pragma region SoulLike
+    inline constexpr wchar_t UI_SL_HUD_Path[] = L"UI/UI_Json/Soulslike/UI_SL_HUD.json";
+#pragma endregion
+
 
 
 }
@@ -335,8 +339,6 @@ inline constexpr wchar_t UI_BattlePictosDeactivationAnim_Path[] =
         L"UI/UI_Animations/BattleSystem/JumpCounter_Success";
 #pragma endregion
 
-
-
 }
 
 namespace Client::Constants::Map
@@ -462,6 +464,12 @@ namespace Client::Constants::Prefab
     inline constexpr char Maelle_Medalum[]          = "WP_Maelle_Medalum";
     inline constexpr char Maelle_Baguette[]         = "WP_Maelle_Baguette";
 
+    // 시몬
+    inline constexpr char Simon_Weapon[]            = "WP_Simon";
+
+    inline constexpr char Dualliste_Sword_L[]        = "WP_Dualliste_Sword_L";
+    inline constexpr char Dualliste_Sword_R[]        = "WP_Dualliste_Sword_R";
+
 
 #pragma endregion
 
@@ -469,6 +477,8 @@ namespace Client::Constants::Prefab
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
     inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
+
+    inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기

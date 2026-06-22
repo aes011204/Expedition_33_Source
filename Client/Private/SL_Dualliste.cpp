@@ -1,9 +1,11 @@
 ﻿#include "SL_Dualliste.h"
 
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "Mon_Dualliste_Body.h"
 #include "Mon_Dualliste_Sword_L.h"
 #include "Mon_Dualliste_Sword_R.h"
+#include "WeaponPrefabLoader.h"
 
 IMPLEMENT_REFLECTION(SL_Dualliste)
 {
@@ -98,26 +100,38 @@ HRESULT SL_Dualliste::Ready_PartObjects()
     CHECK_NULL(_body, E_FAIL);
 
     Mon_Dualliste_Sword_L::SWORD_DESC swordLDesc{};
+    WeaponPrefabLoader::LoadedWeaponPrefab swordLPrefab{};
+    if (!WeaponPrefabLoader::Load(Constants::Prefab::Dualliste_Sword_L, swordLPrefab, "Mon_Dualliste_Sword_L"))
+        return E_FAIL;
+
     swordLDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    swordLDesc.modelType = ModelType::NonAnim;
-    swordLDesc.modelTag = L"Model_Dualliste_Sword_L";
+    swordLDesc.modelType = swordLPrefab.modelType;
+    swordLDesc.modelTag = swordLPrefab.modelTag;
     swordLDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon L");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Dualliste_Sword_L"), TEXT("Part_Sword_L"), &swordLDesc), E_FAIL);
 
     _swordL = dynamic_pointer_cast<Mon_Dualliste_Sword_L>(_partObjects[TEXT("Part_Sword_L")]);
     CHECK_NULL(_swordL, E_FAIL);
+    _swordL->From_Json(swordLPrefab.rootJson);
+    _swordL->Set_SourcePrefabName(Constants::Prefab::Dualliste_Sword_L);
 
     Mon_Dualliste_Sword_R::SWORD_DESC swordRDesc{};
+    WeaponPrefabLoader::LoadedWeaponPrefab swordRPrefab{};
+    if (!WeaponPrefabLoader::Load(Constants::Prefab::Dualliste_Sword_R, swordRPrefab, "Mon_Dualliste_Sword_R"))
+        return E_FAIL;
+
     swordRDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    swordRDesc.modelType = ModelType::NonAnim;
-    swordRDesc.modelTag = L"Model_Dualliste_Sword_R";
+    swordRDesc.modelType = swordRPrefab.modelType;
+    swordRDesc.modelTag = swordRPrefab.modelTag;
     swordRDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon R");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Dualliste_Sword_R"), TEXT("Part_Sword_R"), &swordRDesc), E_FAIL);
 
     _swordR = dynamic_pointer_cast<Mon_Dualliste_Sword_R>(_partObjects[TEXT("Part_Sword_R")]);
     CHECK_NULL(_swordR, E_FAIL);
+    _swordR->From_Json(swordRPrefab.rootJson);
+    _swordR->Set_SourcePrefabName(Constants::Prefab::Dualliste_Sword_R);
 
     return S_OK;
 }

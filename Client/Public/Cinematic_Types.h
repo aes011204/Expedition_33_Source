@@ -2,6 +2,7 @@
 
 #include <variant>
 
+#include "Delegate.h"
 #include "ScalarTrackTypes.h"
 #include "CameraModifierTypes.h"
 
@@ -135,3 +136,6 @@ typedef struct CinematicSequence
     int    endFrame = 300;
 
 }CINEMATIC_SEQUENCE;
+
+// 시네마틱이 종료됐을 떄 알림용
+DECLARE_DELEGATE(FOnCinematicCompleted);

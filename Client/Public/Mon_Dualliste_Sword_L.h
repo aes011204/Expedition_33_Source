@@ -29,12 +29,20 @@ public:
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+    void From_Json(const json& data) override;
+
+public:
+    const wstring& Get_TrailEffectName() const { return _trailEffectName; }
+
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
+    HRESULT Ready_DefaultComponents();
+    HRESULT Ensure_RuntimeComponentsFromJson(const json& data);
 
 private:
     const Matrix* _socketMatrix = nullptr;
     Matrix _offsetMatrix = {};
+    wstring _trailEffectName = L"";
 
 public:
     static Shared<Mon_Dualliste_Sword_L> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

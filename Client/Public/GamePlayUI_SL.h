@@ -7,8 +7,8 @@
 NS_BEGIN(Client)
 
 class UI_BossHpBar;
-class UI_BattleSystemHUD;
 class UI_ReactionResult;
+class UI_SL_HUD;
 class GamePlayUI_SL : public Base
 {
 public:
@@ -25,10 +25,10 @@ public:
     vector<RuntimeUIEntry> Get_RuntimeUIEntries() const;
 
 private:
+    bool Ensure_SLHud();
+    void Update_SLHud(float timeDelta);
     bool Ensure_BossHpBar();
     void Update_BossHpBar(float timeDelta);
-    bool Ensure_BattleSystemHUD();
-    void Update_BattleSystemHUD(float timeDelta);
     bool Ensure_BattleVictory();
     void Update_BattleVictory(float timeDelta);
     bool Ensure_ReactionResult();
@@ -38,8 +38,8 @@ private:
 
 private:
     uint32 _levelIndex = 0;
+    Unique<UI_SL_HUD> _slHud{};
     Unique<UI_BossHpBar> _bossHpBar{};
-    Unique<UI_BattleSystemHUD> _battleSystemHUD{};
     Unique<UI_BattleVictory> _battleVictory{};
     Unique<UI_ReactionResult> _reactionResult{};
     bool _isVictoryUiActive = false;

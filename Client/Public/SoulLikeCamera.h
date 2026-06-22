@@ -60,6 +60,7 @@ public:
     const TargetCameraPreset& Get_Preset() const;
     void Set_Preset(const TargetCameraPreset& preset);
     void Apply_PreviewPreset(const TargetCameraPreset& preset);
+    bool Apply_PresetOverride(const string& presetKey);
     bool Apply_SkillPreset(const string& skillKey);
     void Restore_BasePreset();
 
@@ -75,7 +76,7 @@ private:
     TargetCameraPreset _baseSettings{};
     TargetCameraPreset _currentSettings{};
     TargetCameraPreset _targetSettings{};
-    string _activeSkillPresetKey{};
+    string _activePresetKey{};
 
     Weak<TransformCom> _targetTransformCom{};
     Vec3 _smoothedTargetPos = Vec3::Zero;

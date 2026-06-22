@@ -6,10 +6,10 @@
 #include "SL_Base.h"
 #include "SL_Maelle.h"
 #include "SoulLikeController.h"
-#include "UI_BattleSystemHUD.h"
 #include "UI_BattleVictory.h"
 #include "UI_BossHpBar.h"
 #include "UI_ReactionResult.h"
+#include "UI_SL_HUD.h"
 #include "UI_Utils.h"
 
 using namespace UI_Utils;
@@ -42,7 +42,7 @@ HRESULT GamePlayUI_SL::Initialize(uint32 levelIndex)
 
 void GamePlayUI_SL::Update(float timeDelta)
 {
-    Update_BattleSystemHUD(timeDelta);
+    Update_SLHud(timeDelta);
 	Update_BossHpBar(timeDelta);
     Update_ReactionResult(timeDelta);
     Update_BattleVictory(timeDelta);
@@ -50,11 +50,11 @@ void GamePlayUI_SL::Update(float timeDelta)
 
 void GamePlayUI_SL::Handle_EditorStopRuntime()
 {
+    if (_slHud)
+        _slHud->Clear_PlayerHUD();
+
 	if (_bossHpBar)
         _bossHpBar->Clear_Boss();
-
-    if (_battleSystemHUD)
-        _battleSystemHUD->Close();
 
     if (_reactionResult)
         _reactionResult->Close();
@@ -84,11 +84,11 @@ vector<RuntimeUIEntry> GamePlayUI_SL::Get_RuntimeUIEntries() const
 {
 	vector<RuntimeUIEntry> entries{};
 
+    if (_slHud)
+        _slHud->Append_RuntimeUIEntries(entries, "SoulLike", "SLHUD");
+
     if (_bossHpBar)
         _bossHpBar->Append_RuntimeUIEntries(entries, "SoulLike", "BossHpBar");
-
-    if (_battleSystemHUD)
-        _battleSystemHUD->Append_RuntimeUIEntries(entries, "SoulLike", "BattleSystemHUD");
 
     if (_battleVictory)
         _battleVictory->Append_RuntimeUIEntries(entries, "SoulLike", "BattleVictory");
@@ -99,6 +99,15 @@ vector<RuntimeUIEntry> GamePlayUI_SL::Get_RuntimeUIEntries() const
     return entries;
 }
 
+bool GamePlayUI_SL::Ensure_SLHud()
+{
+    if (_slHud)
+        return true;
+
+    _slHud = UI_SL_HUD::Create(_levelIndex);
+    return _slHud != nullptr;
+}
+
 bool GamePlayUI_SL::Ensure_BossHpBar()
 {
 	if (_bossHpBar)
@@ -106,15 +115,6 @@ bool GamePlayUI_SL::Ensure_BossHpBar()
 
     _bossHpBar = UI_BossHpBar::Create(_levelIndex);
     return _bossHpBar != nullptr;
-}
-
-bool GamePlayUI_SL::Ensure_BattleSystemHUD()
-{
-    if (_battleSystemHUD)
-        return true;
-
-    _battleSystemHUD = UI_BattleSystemHUD::Create(_levelIndex);
-    return _battleSystemHUD != nullptr;
 }
 
 bool GamePlayUI_SL::Ensure_BattleVictory()
@@ -148,45 +148,31 @@ void GamePlayUI_SL::Show_ParryResult(const Vec3& worldPos)
     _reactionResult->Show_Reaction(BattleReactionType::Parry, screenPos);
 }
 
-void GamePlayUI_SL::Update_BattleSystemHUD(float timeDelta)
+void GamePlayUI_SL::Update_SLHud(float timeDelta)
 {
+    UNREFERENCED_PARAMETER(timeDelta);
+
     if (!CLIENT->Is_SoulLikeBattleActive())
     {
-        if (_battleSystemHUD)
-            _battleSystemHUD->Close();
+        if (_slHud)
+            _slHud->Clear_PlayerHUD();
         return;
     }
 
     const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
     const Shared<SL_Maelle> player = controller ? controller->Get_Player() : nullptr;
-    const Shared<PlayerStatCom> playerStat = player
-        ? dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat())
-        : nullptr;
 
-    if (playerStat == nullptr)
+    if (player == nullptr)
     {
-        if (_battleSystemHUD)
-            _battleSystemHUD->Close();
+        if (_slHud)
+            _slHud->Clear_PlayerHUD();
         return;
     }
 
-    if (!Ensure_BattleSystemHUD())
+    if (!Ensure_SLHud())
         return;
 
-    _battleSystemHUD->Set_BattleHeroIds({ HeroId::Maelle });
-    _battleSystemHUD->Open();
-    _battleSystemHUD->Clear_GustaveMechanismCharge();
-    _battleSystemHUD->Clear_LuneMechanismStains();
-    _battleSystemHUD->Clear_MaelleMechanismStance();
-
-    _battleSystemHUD->Set_PartyBattleStat(
-        PlayerCharacterType::Maelle,
-        playerStat->Get_CurHp(),
-        playerStat->Get_StatInfo().maxHp,
-        playerStat->Get_CurAP(),
-        playerStat->Get_MaxAP());
-
-    _battleSystemHUD->Update(timeDelta);
+    _slHud->Update_PlayerHUD(player); // The SL HUD owns only player HP and skill-icon display.
 }
 
 void GamePlayUI_SL::Update_BossHpBar(float timeDelta)
@@ -385,6 +371,12 @@ Unique<GamePlayUI_SL> GamePlayUI_SL::Create(uint32 levelIndex)
 
 void GamePlayUI_SL::Free()
 {
+    if (_slHud)
+    {
+        _slHud->Free();
+        _slHud.reset();
+    }
+
     if (_bossHpBar)
     {
         _bossHpBar->Free();
@@ -395,12 +387,6 @@ void GamePlayUI_SL::Free()
     {
         _battleVictory->Free();
         _battleVictory.reset();
-    }
-
-    if (_battleSystemHUD)
-    {
-        _battleSystemHUD->Free();
-        _battleSystemHUD.reset();
     }
 
     if (_reactionResult)

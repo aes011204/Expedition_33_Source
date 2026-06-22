@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include "EffectInstancePool.h"
+#include "PartObject.h"
 #include "PreviewRimFeature.h"
 #include "SourcePointSampleProvider_ByPart.h"
 #include "SwitchDissolveFeature.h"
@@ -287,7 +288,7 @@ private: //## Helper::AttachedEffects
         EffectTrailSample& outSample) const;
 
     bool Try_ResolveTrailAnchorWorldPosition(
-        const Weapon& weaponPart,
+        const PartObject& trailPart,
         const TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
 

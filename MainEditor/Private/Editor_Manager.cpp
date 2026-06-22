@@ -27,6 +27,7 @@
 #include "PostProcess_View.h"
 #include "ScreenFx_View.h"
 #include "SoulLike_Viewer.h"
+#include "SoulLikeCamera_Viewer.h"
 
 namespace fs = std::filesystem;
 
@@ -141,6 +142,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(PostProcess_View::Create());
     Add_Window(ScreenFx_View::Create());
     Add_Window(SoulLike_Viewer::Create());
+    Add_Window(SoulLikeCamera_Viewer::Create());
     return S_OK;
 }
 

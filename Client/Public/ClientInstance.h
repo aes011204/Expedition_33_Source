@@ -149,7 +149,8 @@ public: /* For.Battle_Controller */
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-        const Shared<GameObject>& sourceObject = nullptr);
+        const Shared<GameObject>& sourceObject = nullptr,
+        bool completeImmediately = false);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
@@ -201,6 +202,10 @@ public: /*CinematicSequenceRunner*/
     Shared<GameObject> Get_CinematicBoundActor(const string& targetId) const;
     bool Is_ActorTransformTrackPreviewSuspended() const;
     void Update_CinematicPreview(float timeDelta);
+
+    // 시네마틱 종료됐을 떄 알림
+    FDelegateHandle Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback);
+    void Clear_CinematicCompletedCallbacks();
 
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();

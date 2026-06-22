@@ -131,6 +131,9 @@
     <ClCompile Include="..\Private\SoulLike_Viewer.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\SoulLikeCamera_Viewer.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\PostProcess_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
@@ -279,6 +282,9 @@
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SoulLike_Viewer.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SoulLikeCamera_Viewer.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PostProcess_View.h">

@@ -343,7 +343,8 @@ void BattleController::OnEnterBattleField(
     bool isPlayerAdvantage,
     const vector<HeroId>& heroIds,
     const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-    const Shared<GameObject>& sourceObject)
+    const Shared<GameObject>& sourceObject,
+    bool completeImmediately)
 {
     if (_isBattleActive || _isBattleEntering)
         return;
@@ -377,6 +378,15 @@ void BattleController::OnEnterBattleField(
     // 월드 캐릭터 입력 막기
     GAME->Set_PlayerInputBlocked(true);
     //_worldCamera = GAME->Get_ActiveCamera();
+
+    if (completeImmediately)
+    {
+        CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER); // 즉시 진입도 기존 전투 진입 카메라 요청은 유지한다.
+        _hasRequestedBattleEnterCamera = true;
+        Complete_BattleField(); // 시네마틱 종료 전투는 2초 슬로우 대기 없이 바로 BattleStarted까지 진행한다.
+        return;
+    }
+
     GAME->Slow_WorldTime(_battleEnterSlow.worldTimeScale, _battleEnterSlow.duration);
 }
 

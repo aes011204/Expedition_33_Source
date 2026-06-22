@@ -219,7 +219,7 @@ void SoulLikeCamera::Set_Preset(const TargetCameraPreset& preset)
 {
     _baseSettings = preset;
     _targetSettings = preset;
-    _activeSkillPresetKey.clear();
+    _activePresetKey.clear();
 }
 
 void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
@@ -227,7 +227,7 @@ void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
     _baseSettings = preset;
     _currentSettings = preset;
     _targetSettings = preset;
-    _activeSkillPresetKey.clear();
+    _activePresetKey.clear();
 
     Set_FovY(_currentSettings.camera.fovy);
     Set_Near(_currentSettings.camera.nearPlane);
@@ -238,20 +238,20 @@ void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
     _collisionDistance = -1.f;
 }
 
-bool SoulLikeCamera::Apply_SkillPreset(const string& skillKey)
+bool SoulLikeCamera::Apply_PresetOverride(const string& presetKey)
 {
-    if (skillKey.empty())
+    if (presetKey.empty())
         return false;
 
-    TargetCameraPreset skillPreset = _baseSettings;
-    if (!CameraPresetIO::LoadSoulLikeSkillPresetFromFile(skillKey, skillPreset))
+    TargetCameraPreset overridePreset = _baseSettings;
+    if (!CameraPresetIO::LoadSoulLikePresetFromFile(presetKey, overridePreset))
     {
         Restore_BasePreset();
         return false;
     }
 
-    _targetSettings = skillPreset;
-    _activeSkillPresetKey = skillKey;
+    _targetSettings = overridePreset;
+    _activePresetKey = presetKey;
 
     if (_targetSettings.snapOnEnter)
         _currentSettings = _targetSettings;
@@ -267,12 +267,20 @@ bool SoulLikeCamera::Apply_SkillPreset(const string& skillKey)
     return true;
 }
 
+bool SoulLikeCamera::Apply_SkillPreset(const string& skillKey)
+{
+    if (skillKey.empty())
+        return false;
+
+    return Apply_PresetOverride("PlayerSkill_" + skillKey);
+}
+
 void SoulLikeCamera::Restore_BasePreset()
 {
-    if (_activeSkillPresetKey.empty())
+    if (_activePresetKey.empty())
         return;
 
-    _activeSkillPresetKey.clear();
+    _activePresetKey.clear();
     _targetSettings = _baseSettings;
 
     if (_targetSettings.snapOnEnter)

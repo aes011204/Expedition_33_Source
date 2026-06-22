@@ -572,9 +572,16 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
-                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject)
+                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
+                                        bool completeImmediately)
 {
-    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, battleMonsterSpawnDescs, sourceObject);
+    return _battleController->OnEnterBattleField(
+        FieldID,
+        isPlayerAdvantage,
+        heroIds,
+        battleMonsterSpawnDescs,
+        sourceObject,
+        completeImmediately);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -773,6 +780,22 @@ void ClientInstance::Update_CinematicPreview(float timeDelta)
         return;
 
     _cinematicSequenceRunner->Update(timeDelta, true);
+}
+
+FDelegateHandle ClientInstance::Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return {};
+
+    return _cinematicSequenceRunner->Add_CompletedCallback(callback);
+}
+
+void ClientInstance::Clear_CinematicCompletedCallbacks()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Clear_CompletedCallbacks(); 
 }
 
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()

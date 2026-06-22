@@ -68,7 +68,8 @@ public:
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-        const Shared<GameObject>& sourceObject = nullptr);
+        const Shared<GameObject>& sourceObject = nullptr,
+        bool completeImmediately = false);
     void Cancel_BattleEnterPending();
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);

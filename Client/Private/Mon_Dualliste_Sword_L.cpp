@@ -1,8 +1,24 @@
 #include "Mon_Dualliste_Sword_L.h"
 
 #include "EffectCom.h"
+#include "GameInstance.h"
+#include "ModelCom.h"
+#include "ShaderCom.h"
 
 NS_BEGIN(Client)
+
+IMPLEMENT_REFLECTION(Mon_Dualliste_Sword_L)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.category = "Weapon";
+    info.displayName = "Dualliste_Sword_L";
+
+    PROPERTY_WSTRING("트레일 이펙트", _trailEffectName);
+
+    return true;
+}
 
 Mon_Dualliste_Sword_L::Mon_Dualliste_Sword_L(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Monster_Part(device, context)
@@ -22,15 +38,25 @@ HRESULT Mon_Dualliste_Sword_L::Initialize_Prototype()
 HRESULT Mon_Dualliste_Sword_L::Initialize(void* arg)
 {
     auto* desc = static_cast<SWORD_DESC*>(arg);
-    if (desc == nullptr)
-        return E_FAIL;
-
-    _socketMatrix = desc->socketMatrix;
+    _socketMatrix = (desc != nullptr) ? desc->socketMatrix : nullptr;
 
     _offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f));
 
-    if (FAILED(Monster_Part::Initialize(desc)))
-        return E_FAIL;
+    if (desc != nullptr)
+    {
+        if (FAILED(Monster_Part::Initialize(desc)))
+            return E_FAIL;
+    }
+    else
+    {
+        if (FAILED(PartObject::Initialize(nullptr)))
+            return E_FAIL;
+
+        if (FAILED(Ready_DefaultComponents()))
+            return E_FAIL;
+
+        Set_ShadowCasterType(ShadowCasterType::Dynamic);
+    }
 
     return S_OK;
 }
@@ -42,7 +68,12 @@ void Mon_Dualliste_Sword_L::Priority_Update(float timeDelta)
 
 void Mon_Dualliste_Sword_L::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
+    Matrix worldMatrix = _offsetMatrix * _transformCom->Get_WorldMatrix();
+
+    if (_socketMatrix != nullptr)
+        worldMatrix *= *_socketMatrix;
+
+    Update_CombinedWorldMatrix(worldMatrix);
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
@@ -63,11 +94,104 @@ HRESULT Mon_Dualliste_Sword_L::Render_Shadow()
     return Monster_Part::Render_Shadow();
 }
 
+void Mon_Dualliste_Sword_L::From_Json(const json& data)
+{
+    if (FAILED(Ensure_RuntimeComponentsFromJson(data)))
+        return;
+
+    Monster_Part::From_Json(data);
+}
+
 uint32 Mon_Dualliste_Sword_L::Decide_PassIndex(Shared<Material> mat)
 {
     const int opaquePass = 0;
     UNREFERENCED_PARAMETER(mat);
     return opaquePass;
+}
+
+HRESULT Mon_Dualliste_Sword_L::Ready_DefaultComponents()
+{
+    SWORD_DESC defaultDesc{};
+    defaultDesc.modelType = ModelType::NonAnim;
+    defaultDesc.modelTag = L"Model_Dualliste_Sword_L";
+    defaultDesc.socketMatrix = _socketMatrix;
+
+    return Ready_Components(defaultDesc);
+}
+
+HRESULT Mon_Dualliste_Sword_L::Ensure_RuntimeComponentsFromJson(const json& data)
+{
+    if (!data.contains("components") || !data["components"].is_array())
+        return S_OK;
+
+    auto findComponentTag =
+        [this](const Shared<Component>& targetComponent) -> wstring
+        {
+            if (targetComponent == nullptr)
+                return {};
+
+            wstring foundTag{};
+            Visit_Components(
+                [&foundTag, &targetComponent](const wstring& tag, const Shared<Component>& component)
+                {
+                    if (foundTag.empty() && component == targetComponent)
+                        foundTag = tag;
+                });
+
+            return foundTag;
+        };
+
+    for (const json& componentJson : data["components"])
+    {
+        if (!componentJson.is_object())
+            continue;
+
+        const string prototypeTagString = componentJson.value("prototype_tag", string{});
+        if (prototypeTagString.empty())
+            continue;
+
+        const wstring prototypeTag = String::ToWString(prototypeTagString);
+
+        if (prototypeTag == L"Shader_VtxMesh")
+        {
+            if (_components.find(prototypeTag) != _components.end())
+                continue;
+
+            if (_shader != nullptr)
+            {
+                const wstring currentShaderTag = findComponentTag(static_pointer_cast<Component>(_shader));
+                if (!currentShaderTag.empty())
+                    CHECK_FAILED(Rename_ComponentTag(currentShaderTag, prototypeTag), E_FAIL);
+            }
+            else
+            {
+                CHECK_FAILED(Add_Component(ETOI(LevelType::Static), prototypeTag.c_str(), _shader), E_FAIL);
+            }
+
+            continue;
+        }
+
+        if (componentJson.contains("model_type"))
+        {
+            if (_components.find(prototypeTag) != _components.end())
+                continue;
+
+            if (_model != nullptr)
+            {
+                const wstring currentModelTag = findComponentTag(static_pointer_cast<Component>(_model));
+                if (!currentModelTag.empty())
+                    CHECK_FAILED(Rename_ComponentTag(currentModelTag, prototypeTag), E_FAIL);
+            }
+            else
+            {
+                CHECK_FAILED(Add_Component(ETOI(LevelType::Static), prototypeTag.c_str(), _model), E_FAIL);
+            }
+
+            continue;
+        }
+    }
+
+    return S_OK;
 }
 
 Shared<Mon_Dualliste_Sword_L> Mon_Dualliste_Sword_L::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -1,6 +1,8 @@
 ﻿#include "CameraPresetIO.h"
 #include "TargetCamera.h"
 
+NS_BEGIN(Client)
+
 CameraPresetIO::CameraPresetIO()
 {
 }
@@ -11,9 +13,12 @@ CameraPresetIO::~CameraPresetIO()
 
 namespace
 {
-    string Build_SoulLikeSkillPresetFilePath(const string& skillKey)
+    string Build_SoulLikePresetFilePath(const string& presetKey)
     {
-        return "../../../Client/Bin/Resources/Data/json/CameraPreset/CameraPreset_SOULLIKE_" + skillKey + ".json";
+        if (presetKey.empty())
+            return "../../../Client/Bin/Resources/Data/json/CameraPreset/CameraPreset_SOULLIKE.json";
+
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/CameraPreset_SOULLIKE_" + presetKey + ".json";
     }
 
     string Build_BattlePresetFilePath(BattleCameraMode cameraMode, const string& skillId)
@@ -38,11 +43,8 @@ namespace
     }
 }
 
-void CameraPresetIO::SaveSoulLikeSkillPresetToFile(const string& skillKey, const TargetCameraPreset& preset)
+void CameraPresetIO::SaveSoulLikePresetToFile(const string& presetKey, const TargetCameraPreset& preset)
 {
-    if (skillKey.empty())
-        return;
-
     json jsonData{};
 
     jsonData["snapOnEnter"] = preset.snapOnEnter;
@@ -72,26 +74,23 @@ void CameraPresetIO::SaveSoulLikeSkillPresetToFile(const string& skillKey, const
     jsonData["collisionProbeRadius"] = preset.collisionProbeRadius;
     jsonData["collisionSkin"] = preset.collisionSkin;
 
-    const fs::path savePath = Build_SoulLikeSkillPresetFilePath(skillKey);
+    const fs::path savePath = Build_SoulLikePresetFilePath(presetKey);
     if (!fs::exists(savePath.parent_path()))
         fs::create_directories(savePath.parent_path());
 
     ofstream file(savePath);
     if (!file.is_open())
     {
-        MSG_BOX("Failed to open SoulLike skill camera preset save file.");
+        MSG_BOX("Failed to open SoulLike camera preset save file.");
         return;
     }
 
     file << jsonData.dump(4);
 }
 
-bool CameraPresetIO::LoadSoulLikeSkillPresetFromFile(const string& skillKey, TargetCameraPreset& outPreset)
+bool CameraPresetIO::LoadSoulLikePresetFromFile(const string& presetKey, TargetCameraPreset& outPreset)
 {
-    if (skillKey.empty())
-        return false;
-
-    ifstream file(Build_SoulLikeSkillPresetFilePath(skillKey));
+    ifstream file(Build_SoulLikePresetFilePath(presetKey));
     if (!file.is_open())
         return false;
 
@@ -172,6 +171,22 @@ bool CameraPresetIO::LoadSoulLikeSkillPresetFromFile(const string& skillKey, Tar
 
     outPreset = preset;
     return true;
+}
+
+void CameraPresetIO::SaveSoulLikeSkillPresetToFile(const string& skillKey, const TargetCameraPreset& preset)
+{
+    if (skillKey.empty())
+        return;
+
+    SaveSoulLikePresetToFile("PlayerSkill_" + skillKey, preset);
+}
+
+bool CameraPresetIO::LoadSoulLikeSkillPresetFromFile(const string& skillKey, TargetCameraPreset& outPreset)
+{
+    if (skillKey.empty())
+        return false;
+
+    return LoadSoulLikePresetFromFile("PlayerSkill_" + skillKey, outPreset);
 }
 
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)
@@ -544,3 +559,5 @@ bool CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode mode, BattleCamera
     outProfile = profile;
     return true;
 }
+
+NS_END

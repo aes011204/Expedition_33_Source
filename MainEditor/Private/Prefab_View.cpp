@@ -22,6 +22,9 @@
 #include "Spawn_Prefab.h"
 #include "Transform_Inspector.h"
 #include "Weapon.h"
+#include "Mon_Dualliste_Sword_L.h"
+#include "Mon_Dualliste_Sword_R.h"
+#include "Mon_Simon_Weapon.h"
 #include "PartObject.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
@@ -2145,7 +2148,10 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     if (selectedObject == nullptr)
         return;
 
-    if (dynamic_pointer_cast<Client::Weapon>(selectedObject) == nullptr)
+    if (dynamic_pointer_cast<Client::Weapon>(selectedObject) == nullptr &&
+        dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(selectedObject) == nullptr &&
+        dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject) == nullptr &&
+        dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject) == nullptr)
         return;
 
     if (_selectedWeaponTrailModelGuid.empty())
@@ -2412,11 +2418,17 @@ bool Prefab_View::Try_GetSelectedWeaponModel(const Shared<GameObject>& selectedO
     outModel = nullptr;
     outModelGuid.clear();
 
-    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
-    if (weaponObject == nullptr)
+    if (Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject))
+        outModel = weaponObject->Get_Model();
+    else if (Shared<Client::Mon_Dualliste_Sword_L> swordL = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(selectedObject))
+        outModel = swordL->Get_Model();
+    else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject))
+        outModel = swordR->Get_Model();
+    else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject))
+        outModel = simonWeapon->Get_Model();
+    else
         return false;
 
-    outModel = weaponObject->Get_Model();
     if (outModel == nullptr)
         return false;
 
@@ -2433,11 +2445,37 @@ bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
     const Client::TrailAnchorPointDesc& anchor,
     Vec3& outWorldPosition) const
 {
-    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
-    if (weaponObject == nullptr || anchor.boneName.empty())
+    if (anchor.boneName.empty())
         return false;
 
-    Shared<ModelCom> modelCom = weaponObject->Get_Model();
+    Shared<ModelCom> modelCom = nullptr;
+    Matrix combinedWorldMatrix = Matrix::Identity;
+
+    if (Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject))
+    {
+        modelCom = weaponObject->Get_Model();
+        combinedWorldMatrix = weaponObject->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_Dualliste_Sword_L> swordL = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_L>(selectedObject))
+    {
+        modelCom = swordL->Get_Model();
+        combinedWorldMatrix = swordL->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_Dualliste_Sword_R> swordR = dynamic_pointer_cast<Client::Mon_Dualliste_Sword_R>(selectedObject))
+    {
+        modelCom = swordR->Get_Model();
+        combinedWorldMatrix = swordR->Get_CombinedWorldMatrix();
+    }
+    else if (Shared<Client::Mon_Simon_Weapon> simonWeapon = dynamic_pointer_cast<Client::Mon_Simon_Weapon>(selectedObject))
+    {
+        modelCom = simonWeapon->Get_Model();
+        combinedWorldMatrix = simonWeapon->Get_CombinedWorldMatrix();
+    }
+    else
+    {
+        return false;
+    }
+
     if (modelCom == nullptr)
         return false;
 
@@ -2449,7 +2487,7 @@ bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * weaponObject->Get_CombinedWorldMatrix();
+    const Matrix anchorWorldMatrix = *boneMatrix * combinedWorldMatrix;
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }

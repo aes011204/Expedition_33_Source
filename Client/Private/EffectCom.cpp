@@ -14,6 +14,10 @@
 #include "SourcePointSampleProvider_ByPart.h"
 #include "TrailAnchor_Asset.h"
 #include "TrailSampleProvider_ByPart.h"
+#include "Mon_Dualliste_Sword_L.h"
+#include "Mon_Dualliste_Sword_R.h"
+#include "Mon_Simon_Weapon.h"
+#include "Monster_Part.h"
 #include "Weapon.h"
 
 namespace
@@ -82,6 +86,54 @@ float Resolve_SourceHistoryDrainDuration(const Shared<const EffectDefinition>& d
     }
 
     return max(0.001f, duration + 0.1f);
+}
+
+Shared<ModelCom> Resolve_TrailPartModel(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_Model();
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_Model();
+
+    return nullptr;
+}
+
+const Matrix* Resolve_TrailPartSocketMatrix(const PartObject* partObject, const string& socketName)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_SocketBoneMatrixPtr(socketName);
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_SocketBoneMatrixPtr(socketName);
+
+    return nullptr;
+}
+
+wstring Resolve_DefaultTrailEffectName(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return {};
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_TrailEffectName();
+
+    if (const Client::Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Client::Mon_Simon_Weapon*>(partObject))
+        return simonWeapon->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_L* duallisteSwordL = dynamic_cast<const Client::Mon_Dualliste_Sword_L*>(partObject))
+        return duallisteSwordL->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_R* duallisteSwordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(partObject))
+        return duallisteSwordR->Get_TrailEffectName();
+
+    return {};
 }
 }
 
@@ -722,14 +774,14 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
     CHECK_NULL(ownerContainer, E_FAIL);
 
-    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
-    CHECK_NULL(weaponPart, E_FAIL);
+    const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
+    CHECK_NULL(trailPart, E_FAIL);
 
     wstring resolvedEffectName{};
     if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
         return E_FAIL;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
     CHECK_NULL(weaponModel, E_FAIL);
 
     const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
@@ -855,8 +907,8 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
 
     if (sourceBindingMode == SourceHistorySourceBindingMode::TrailAnchor)
     {
-        const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
-        if (weaponPart == nullptr)
+        const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
+        if (Resolve_TrailPartModel(trailPart) == nullptr)
         {
             LOG_WARN(
                 "[EffectCom] Play_SourceHistoryEffect failed: weapon part not found. effect={}, part={}, layer={}",
@@ -867,7 +919,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
             return E_FAIL;
         }
 
-        const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+        const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(trailPart);
         if (weaponModel == nullptr)
         {
             LOG_WARN(
@@ -1041,11 +1093,8 @@ bool EffectCom::Try_ResolveTrailEffectName(
     if (ownerContainer == nullptr)
         return false;
 
-    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
-    if (weaponPart == nullptr)
-        return false;
-
-    outEffectName = weaponPart->Get_TrailEffectName(); // notify가 비어 있으면 무기 프리펩 기본 Trail을 소비한다.
+    const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
+    outEffectName = Resolve_DefaultTrailEffectName(trailPart);
     return !outEffectName.empty();
 }
 
@@ -1242,13 +1291,13 @@ bool EffectCom::Try_GetSocketWorldMatrix(
         return true;
     }
 
-    if (const auto* weaponPart = dynamic_cast<Weapon*>(partObject))
+    if (Resolve_TrailPartModel(partObject) != nullptr)
     {
-        const Matrix* socketMatrix = weaponPart->Get_SocketBoneMatrixPtr(socketName);
+        const Matrix* socketMatrix = Resolve_TrailPartSocketMatrix(partObject, socketName);
         if (socketMatrix == nullptr)
             return false;
 
-        const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
+        const Matrix socketWorldMatrix = *socketMatrix * partObject->Get_CombinedWorldMatrix();
         outWorldMatrix = socketWorldMatrix;
         return true;
     }
@@ -1281,15 +1330,15 @@ bool EffectCom::Try_BuildTrailSample(
     if (ownerContainer == nullptr)
         return false;
 
-    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
-    if (weaponPart == nullptr)
+    const PartObject* trailPart = ownerContainer->Get_PartObject(partTag);
+    if (Resolve_TrailPartModel(trailPart) == nullptr)
         return false;
 
     Vec3 baseWorld{};
     Vec3 tipWorld{};
-    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, trailAnchorAsset.base, baseWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, trailAnchorAsset.base, baseWorld))
         return false;
-    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, trailAnchorAsset.tip, tipWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, trailAnchorAsset.tip, tipWorld))
         return false;
 
     outSample.baseWorldPosition = baseWorld;
@@ -1349,11 +1398,11 @@ bool EffectCom::Try_BuildSourcePointSample(
 }
 
 bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
-    const Weapon& weaponPart,
+    const PartObject& trailPart,
     const TrailAnchorPointDesc& anchor,
     Vec3& outWorldPosition) const
 {
-    const Shared<ModelCom> weaponModel = weaponPart.Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_TrailPartModel(&trailPart);
     if (weaponModel == nullptr || anchor.boneName.empty())
         return false;
 
@@ -1365,7 +1414,7 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * weaponPart.Get_CombinedWorldMatrix();
+    const Matrix anchorWorldMatrix = *boneMatrix * trailPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }

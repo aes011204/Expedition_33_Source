@@ -29,9 +29,64 @@
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 #include "Weapon.h"
+#include "Mon_Dualliste_Sword_L.h"
+#include "Mon_Dualliste_Sword_R.h"
+#include "Mon_Simon_Weapon.h"
+#include "Monster_Part.h"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+
+namespace
+{
+Shared<ModelCom> Resolve_PreviewTrailPartModel(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_Model();
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_Model();
+
+    return nullptr;
+}
+
+const Matrix* Resolve_PreviewTrailPartSocketMatrix(const PartObject* partObject, const string& socketName)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_SocketBoneMatrixPtr(socketName);
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_SocketBoneMatrixPtr(socketName);
+
+    return nullptr;
+}
+
+wstring Resolve_PreviewDefaultTrailEffectName(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return {};
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_TrailEffectName();
+
+    if (const Client::Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Client::Mon_Simon_Weapon*>(partObject))
+        return simonWeapon->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_L* duallisteSwordL = dynamic_cast<const Client::Mon_Dualliste_Sword_L*>(partObject))
+        return duallisteSwordL->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_R* duallisteSwordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(partObject))
+        return duallisteSwordR->Get_TrailEffectName();
+
+    return {};
+}
+}
 
 namespace
 {
@@ -628,6 +683,7 @@ void Animation_View::Pre_Render()
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
         Update_PreviewSLDodgeMoveStates(dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
+        Update_PreviewWeaponEchoStates(dt);
         Update_PreviewSourceHistoryEffect(dt);
         Update_PreviewTrailEffect(dt);
     }
@@ -822,6 +878,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
@@ -862,6 +919,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
@@ -917,6 +975,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
@@ -978,6 +1037,7 @@ void Animation_View::Reset_PreviewClone()
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewSourceHistoryEffect();
+    Reset_PreviewWeaponEchoStates();
     _previewRootObject.reset();
     _previewModelCom.reset();
     _previewOwnerObjectKey.clear();
@@ -1323,11 +1383,11 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
         return false;
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
-    if (weaponPart == nullptr)
+    PartObject* trailPart = ownerContainer->Get_PartObject(previewTrailPartTag);
+    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
     if (weaponModel == nullptr)
         return false;
 
@@ -1361,11 +1421,11 @@ bool Animation_View::Load_PreviewSourceHistoryAnchorAsset(
         return false;
 
     const wstring previewPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
-    if (weaponPart == nullptr)
+    PartObject* trailPart = ownerContainer->Get_PartObject(previewPartTag);
+    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
     if (weaponModel == nullptr)
         return false;
 
@@ -3203,6 +3263,7 @@ void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapsh
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
 
     _isDirty = true;
 }
@@ -4193,6 +4254,159 @@ void Animation_View::Reset_PreviewWeaponRotateStates()
         if (Weapon* weapon = Resolve_PreviewWeapon(partTag))
             weapon->Update(0.f);
     }
+}
+
+void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_WeaponEcho")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        const json payload = entry.notifyState->To_Json();
+        const string partTagString = payload.value("_partTag", string{ "Part_Weapon" });
+        const wstring partTag = String::ToWString(partTagString);
+        const string payloadJson = payload.dump();
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress =
+            entry.durationSec > 0.f
+            ? clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        PreviewWeaponEchoRuntime* runtime = nullptr;
+        for (PreviewWeaponEchoRuntime& entryRuntime : _previewWeaponEchoRuntimes)
+        {
+            if (entryRuntime.stateId == entry.id)
+            {
+                runtime = &entryRuntime;
+                break;
+            }
+        }
+
+        if (runtime == nullptr)
+        {
+            PreviewWeaponEchoRuntime newRuntime{};
+            newRuntime.stateId = entry.id;
+            newRuntime.notifyState = entry.notifyState;
+            newRuntime.partTag = partTag;
+            newRuntime.payloadJson = payloadJson;
+            _previewWeaponEchoRuntimes.push_back(std::move(newRuntime));
+            runtime = &_previewWeaponEchoRuntimes.back();
+
+            runtime->notifyState->On_Begin(stateContext);
+        }
+        else if (runtime->notifyState != entry.notifyState || runtime->payloadJson != payloadJson)
+        {
+            if (runtime->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtime->notifyState->On_End(endContext);
+            }
+
+            runtime->notifyState = entry.notifyState;
+            runtime->partTag = partTag;
+            runtime->payloadJson = payloadJson;
+            runtime->notifyState->On_Begin(stateContext);
+        }
+        else
+        {
+            runtime->partTag = partTag;
+            runtime->notifyState->On_Tick(stateContext);
+        }
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewWeaponEchoRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewWeaponEchoRuntimes[runtimeIndex].stateId;
+        const bool stillActive =
+            std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+
+        if (stillActive)
+            continue;
+
+        AnimNotifyContext endContext = context;
+        endContext.notifyStateProgress = 1.f;
+        endContext.notifyStateDurationSec = 0.f;
+
+        if (_previewWeaponEchoRuntimes[runtimeIndex].notifyState)
+            _previewWeaponEchoRuntimes[runtimeIndex].notifyState->On_End(endContext);
+
+        _previewWeaponEchoRuntimes.erase(_previewWeaponEchoRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewWeaponEchoStates()
+{
+    if (_previewWeaponEchoRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext endContext{};
+    endContext.owner = previewRootObject.get();
+    endContext.model = playbackModel.get();
+    endContext.modelGuid = _asset.modelGuid;
+    endContext.animationName = _currentAnimationName;
+    endContext.notifyStateProgress = 1.f;
+    endContext.notifyStateDurationSec = 0.f;
+    endContext.isPreview = true;
+
+    for (PreviewWeaponEchoRuntime& runtime : _previewWeaponEchoRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(endContext);
+    }
+
+    _previewWeaponEchoRuntimes.clear();
 }
 
 void Animation_View::Update_PreviewSLDodgeMoveStates(float timeDelta)
@@ -5967,11 +6181,13 @@ bool Animation_View::Try_ResolvePreviewTrailEffectName(
         return true;
     }
 
-    const Weapon* weapon = Resolve_PreviewWeapon(String::ToWString(partTag));
-    if (weapon == nullptr)
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
         return false;
 
-    outEffectName = weapon->Get_TrailEffectName(); // preview도 runtime과 같은 fallback 규칙을 써야 한다.
+    const PartObject* partObject = ownerContainer->Get_PartObject(String::ToWString(partTag));
+    outEffectName = Resolve_PreviewDefaultTrailEffectName(partObject);
     return !outEffectName.empty();
 }
 
@@ -6036,11 +6252,11 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
         return false;
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
-    if (weaponPart == nullptr)
+    PartObject* trailPart = ownerContainer->Get_PartObject(previewTrailPartTag);
+    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
     if (weaponModel == nullptr)
         return false;
 
@@ -6052,7 +6268,7 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    const Matrix anchorWorldMatrix = *boneMatrix * trailPart->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
@@ -6086,13 +6302,13 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
         return true;
     }
 
-    if (const auto* weaponPart = dynamic_cast<Weapon*>(partObject))
+    if (Resolve_PreviewTrailPartModel(partObject) != nullptr)
     {
-        const Matrix* socketMatrix = weaponPart->Get_SocketBoneMatrixPtr(socketName);
+        const Matrix* socketMatrix = Resolve_PreviewTrailPartSocketMatrix(partObject, socketName);
         if (socketMatrix == nullptr)
             return false;
 
-        const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
+        const Matrix socketWorldMatrix = *socketMatrix * partObject->Get_CombinedWorldMatrix();
         outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
         return true;
     }

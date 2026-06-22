@@ -169,6 +169,14 @@ private:
         wstring partTag{};
     };
 
+    struct PreviewWeaponEchoRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        wstring partTag{};
+        string payloadJson{};
+    };
+
     struct PreviewPlayEffectStateRuntime
     {
         int32 stateId = -1;
@@ -289,6 +297,8 @@ private:
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
+    void Update_PreviewWeaponEchoStates(float timeDelta);
+    void Reset_PreviewWeaponEchoStates();
     void Update_PreviewSLDodgeMoveStates(float timeDelta);
     void Reset_PreviewSLDodgeMoveStates();
     void Update_PreviewRootControllerStates(float timeDelta);
@@ -388,6 +398,7 @@ private:
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
+    vector<PreviewWeaponEchoRuntime> _previewWeaponEchoRuntimes{};
     vector<PreviewSLDodgeMoveRuntime> _previewSLDodgeMoveRuntimes{};
     vector<PreviewRootControllerRuntime> _previewRootControllerRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
