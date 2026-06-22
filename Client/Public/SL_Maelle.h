@@ -44,7 +44,7 @@ public:
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
     Shared<CombatStatCom> Get_Stat() const override;
-    Shared<ColliderCom> Get_AttackCollider() const override;
+    Shared<ColliderCom> Get_AttackCollider() const;
     bool    Is_Dead() const override;
     void    Apply_Damage(const SL_DamageInfo& damageInfo) override;
 

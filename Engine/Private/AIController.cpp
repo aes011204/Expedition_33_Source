@@ -13,7 +13,7 @@
 
 namespace Client
 {
-    class MW_Lancelier;
+class MW_Lancelier;
 }
 
 IMPLEMENT_REFLECTION(AIController)
@@ -27,7 +27,7 @@ IMPLEMENT_REFLECTION(AIController)
 }
 
 AIController::AIController(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    :Component(device, context)
+    : Component(device, context)
 {
 }
 
@@ -63,10 +63,11 @@ void AIController::BeginPlay()
 {
     Component::BeginPlay();
 
+    if (_BT)
+        _BT->Bind_Owner(static_pointer_cast<AIController>(shared_from_this()));
+
     if (!_editorStopHandle.IsValid())
-    {
         _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &AIController::On_EditorStopRuntime);
-    }
 }
 
 void AIController::On_EditorStopRuntime()
@@ -76,7 +77,6 @@ void AIController::On_EditorStopRuntime()
 
 void AIController::Update(float timeDelta)
 {
-
     for (auto& service : _services)
     {
         if (service)
@@ -99,53 +99,47 @@ void AIController::Update(float timeDelta)
             _isMoving = _PF->Update(pos, reachDistance, _moveWorldDir);
         }
         else
-        {
             _isMoving = false;
-        }
     }
 }
 
-
 void AIController::From_Json(const json& data)
 {
-	__super::From_Json(data);
+    __super::From_Json(data);
 
-	if (!_behaviorTreeAssetPath.empty())
-		Load_BehaviorTreeAsset();
+    if (!_behaviorTreeAssetPath.empty())
+        Load_BehaviorTreeAsset();
 }
 
 void AIController::Run_BT_Once()
 {
-    
-        if (_BT == nullptr)
-            return;
+    if (_BT == nullptr)
+        return;
 
-        _BT->Update(0.f);
-    
+    _BT->Update(0.f);
 }
 
 void AIController::Set_BehaviorTree(shared_ptr<BehaviorTree> tree)
 {
     _BT = tree;
 
-    if (_BT)
-        _BT->Bind_Owner(static_pointer_cast<AIController>(shared_from_this()));
+  /*  if (_BT)
+        _BT->Bind_Owner(static_pointer_cast<AIController>(shared_from_this()));*/
 }
 
 bool AIController::Is_Finished()
 {
     return _PF->Is_Finished();
-
 }
 
 void AIController::Request_Move(Vec3& target)
 {
-    auto owner = Get_Owner();
+    const auto owner = Get_Owner();
     if (!owner || !_PF)
         return;
 
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
-    _PF->Request_Move(pos,target);
+    _PF->Request_Move(pos, target);
 
     _moveWorldDir = Vec3::Zero;
     _isMoving = true;
@@ -153,7 +147,7 @@ void AIController::Request_Move(Vec3& target)
 
 void AIController::Stop_Move()
 {
-    auto owner = Get_Owner();
+    const auto owner = Get_Owner();
     if (!owner || !_PF)
         return;
 
@@ -161,7 +155,7 @@ void AIController::Stop_Move()
     if (transform == nullptr)
         return;
 
-    Vec3 pos = transform->Get_Position();
+    const Vec3 pos = transform->Get_Position();
     _PF->Stop_Move(pos);
     _moveWorldDir = Vec3::Zero;
     _isMoving = false;
@@ -172,7 +166,7 @@ HRESULT AIController::Load_BehaviorTreeAsset()
     if (_behaviorTreeAssetPath.empty())
         return S_FALSE;
 
-    Shared<BehaviorTree> tree = Instantiate_BehaviorTreeJson(_behaviorTreeAssetPath);
+    const Shared<BehaviorTree> tree = Instantiate_BehaviorTreeJson(_behaviorTreeAssetPath);
     CHECK_NULL(tree, E_FAIL);
 
     Set_BehaviorTree(tree);
@@ -209,6 +203,7 @@ Shared<Component> AIController::Clone(void* arg)
 
     return clone;
 }
+
 void AIController::Free()
 {
     if (_editorStopHandle.IsValid())
@@ -218,8 +213,8 @@ void AIController::Free()
     }
 
     __super::Free();
-
 }
+
 Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& path)
 {
     if (!fs::exists(path))
@@ -266,9 +261,7 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
                 loaded.outputPins.push_back(outputPin.get<uint64>());
         }
         else if (n.contains("outputPin"))
-        {
             loaded.outputPins.push_back(n["outputPin"].get<uint64>());
-        }
 
         loaded.runtimeNode = Create_RuntimeBTNode(n);
 
@@ -372,10 +365,12 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
     tree->Set_Root(rootNode);
     return tree;
 }
+
 Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const string& path)
 {
     return Instantiate_BehaviorTreeJson(fs::path(String::ToWString(path)));
 }
+
 Shared<BNode> AIController::Create_RuntimeBTNode(const json& nodeJson) const
 {
     const string className = nodeJson.value("className", string{});
@@ -408,11 +403,12 @@ Shared<BNode> AIController::Create_RuntimeBTNode(const json& nodeJson) const
 
     return nullptr;
 }
+
 HRESULT AIController::Restore_BTNodeProperties(const Shared<BNode>& node, const json& nodeJson) const
 {
     CHECK_NULL(node, E_FAIL);
 
-    auto& info = node->Get_ReflectionInfo();
+    const auto& info = node->Get_ReflectionInfo();
     char* base = reinterpret_cast<char*>(node.get());
 
     for (const auto& prop : info.properties)

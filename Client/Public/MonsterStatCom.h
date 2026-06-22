@@ -29,6 +29,7 @@ public:
 
         float battleRunMoveSpeed = 0.f;
 
+        float maxBreak = 100.f;
         float breakBarHPPercent = 120.f;
         float breakBarStunDuration = 1.f;
 
@@ -46,6 +47,7 @@ public:
     struct MRuntimeCombatStat : CombatStatCom::RuntimeCombatStat
     {
         bool isBreak = { false };
+        float curBreak = 0.f;
     };
 
 public:
@@ -76,6 +78,11 @@ public:
 
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
+    float Get_CurBreak() const { return _MRuntimeStat.curBreak; }
+    float Get_MaxBreak() const { return _monsterDesc.maxBreak; }
+    void Add_Break(float value);
+    void Set_Break(float value);
+    void Clear_Break();
     bool Is_Boss() const { return _monsterDesc.enemyClass == EEnemyClass::Boss; }
 
     void Set_RuntimeCombatProfile(

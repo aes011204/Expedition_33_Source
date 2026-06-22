@@ -8,6 +8,7 @@
 #include "TypeRegistry.h"
 #include "Debug_Types.h"
 #include "Engine_Constants.h"
+#include "ScreenFx_Manager.h"
 #include <string_view>
 #include <utility>
 #include "DelegateHub.h"
@@ -608,6 +609,7 @@ public: /* For.Event Bus */
 
 public: /* ScreenFx Manager */
     void Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const;
+    bool Is_ScreenFxFinished(const wstring& tag) const;
 
 private:
     Unique<Log_Manager> _logManager{};
