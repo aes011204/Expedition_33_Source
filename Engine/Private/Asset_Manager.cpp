@@ -3,6 +3,7 @@
 #include <objbase.h>
 
 #include "MaterialBuilder.h"
+#include "Material_Types.h"
 #include "Vertex_Types.h"
 
 namespace
@@ -13,6 +14,53 @@ namespace
         int32 parentIndex{ -1 };
         int32 depth{ 0 };
     };
+
+    struct ModelMetaTextureSlotEntry
+    {
+        string path{};
+        string slotName{};
+        uint32 rawTypeIndex{};
+        uint32 textureIndex{};
+        uint32 uvChannel{};
+    };
+
+    struct ModelMetaMaterialEntry
+    {
+        string name{};
+        vector<ModelMetaTextureSlotEntry> slots{};
+    };
+
+    string To_ModelMetaTextureSlotName(MaterialTextureSlot slot)
+    {
+        switch (slot)
+        {
+        case MaterialTextureSlot::BaseColor:
+            return "BaseColor";
+        case MaterialTextureSlot::Normal:
+            return "Normal";
+        case MaterialTextureSlot::Emissive:
+            return "Emissive";
+        case MaterialTextureSlot::OpacityMask:
+            return "OpacityMask";
+        case MaterialTextureSlot::ORM:
+            return "ORM";
+        case MaterialTextureSlot::HairDepth:
+            return "HairDepth";
+        case MaterialTextureSlot::HairID:
+            return "HairID";
+        case MaterialTextureSlot::IrisHeight:
+            return "IrisHeight";
+        case MaterialTextureSlot::IrisMask:
+            return "IrisMask";
+        case MaterialTextureSlot::ORM2:
+            return "ORM2";
+        case MaterialTextureSlot::ORM3:
+            return "ORM3";
+        case MaterialTextureSlot::END:
+        default:
+            return "Unmapped";
+        }
+    }
 
     bool Read_ModelMetaString(ifstream& stream, string& outString)
     {
@@ -56,9 +104,13 @@ namespace
         return cachedDepth;
     }
 
-    bool Try_ReadModelMetaBones(const wstring& modelPath, vector<ModelMetaBoneEntry>& outBones)
+    bool Try_ReadModelMetaSummary(
+        const wstring& modelPath,
+        vector<ModelMetaBoneEntry>& outBones,
+        vector<ModelMetaMaterialEntry>& outMaterials)
     {
         outBones.clear();
+        outMaterials.clear();
 
         ifstream stream(modelPath, ios::binary);
         if (!stream.is_open())
@@ -79,11 +131,14 @@ namespace
         if (!stream.good())
             return false;
 
+        outMaterials.resize(numMaterials);
         for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
         {
             string materialName{};
             if (!Read_ModelMetaString(stream, materialName))
                 return false;
+
+            outMaterials[materialIndex].name = materialName;
 
             if (!Skip_ModelMetaBytes(stream, sizeof(Vec4) * 4 + sizeof(float) * 4))
                 return false;
@@ -93,20 +148,42 @@ namespace
             if (!stream.good())
                 return false;
 
+            outMaterials[materialIndex].slots.resize(numSlots);
             for (uint32 slotIndex = 0; slotIndex < numSlots; ++slotIndex)
             {
                 string texturePath{};
                 if (!Read_ModelMetaString(stream, texturePath))
                     return false;
 
-                if (!Skip_ModelMetaBytes(stream,
-                    sizeof(uint32) * 2 +
-                    sizeof(Vec2) * 2 +
-                    sizeof(float) * 2 +
-                    sizeof(uint32) * 3))
-                {
+                uint32 rawTypeIndex = 0;
+                uint32 textureIndex = 0;
+                Vec2 uvScale{};
+                Vec2 uvOffset{};
+                float uvRotation = 0.f;
+                float blendFactor = 0.f;
+                uint32 blendOp = 0;
+                uint32 uvChannel = 0;
+                uint32 wrapMode = 0;
+
+                stream.read(reinterpret_cast<char*>(&rawTypeIndex), sizeof(uint32));
+                stream.read(reinterpret_cast<char*>(&textureIndex), sizeof(uint32));
+                stream.read(reinterpret_cast<char*>(&uvScale), sizeof(Vec2));
+                stream.read(reinterpret_cast<char*>(&uvOffset), sizeof(Vec2));
+                stream.read(reinterpret_cast<char*>(&uvRotation), sizeof(float));
+                stream.read(reinterpret_cast<char*>(&blendFactor), sizeof(float));
+                stream.read(reinterpret_cast<char*>(&blendOp), sizeof(uint32));
+                stream.read(reinterpret_cast<char*>(&uvChannel), sizeof(uint32));
+                stream.read(reinterpret_cast<char*>(&wrapMode), sizeof(uint32));
+                if (!stream.good())
                     return false;
-                }
+
+                ModelMetaTextureSlotEntry& slot = outMaterials[materialIndex].slots[slotIndex];
+                slot.path = texturePath;
+                slot.rawTypeIndex = rawTypeIndex;
+                slot.textureIndex = textureIndex;
+                slot.uvChannel = uvChannel;
+                slot.slotName = To_ModelMetaTextureSlotName(
+                    ResolveMaterialTextureSlot(static_cast<MaterialRawTextureType>(rawTypeIndex)));
             }
         }
 
@@ -166,6 +243,15 @@ namespace
             outBones[boneIndex].depth = Compute_ModelMetaBoneDepth(boneIndex, outBones, cachedDepths);
 
         return true;
+    }
+
+    bool Is_SameAssetMeta(const AssetMeta& lhs, const AssetMeta& rhs)
+    {
+        return lhs.guid == rhs.guid &&
+            lhs.type == rhs.type &&
+            lhs.modelType == rhs.modelType &&
+            lhs.fullPath == rhs.fullPath &&
+            lhs.relativePath == rhs.relativePath;
     }
 }
 
@@ -425,6 +511,153 @@ void Asset_Manager::Scan_And_Register(const wstring& directory, const wstring& m
     }
 }
 
+HRESULT Asset_Manager::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot)
+{
+    try
+    {
+        if (_resourceRoot.empty() || scanResult.scanRoot.empty() || !scanResult.scanSucceeded)
+            return E_FAIL;
+
+        const fs::path scanRoot = fs::absolute(fs::path(scanResult.scanRoot)).lexically_normal();
+        if (!fs::exists(scanRoot) || !fs::is_directory(scanRoot))
+            return E_FAIL;
+
+        const bool restrictMissingMeta = !missingMetaRoot.empty();
+        const fs::path normalizedMissingMetaRoot = restrictMissingMeta
+            ? fs::absolute(fs::path(missingMetaRoot)).lexically_normal()
+            : fs::path();
+
+        set<wstring> discoveredPathKeys{};
+        for (const wstring& discoveredPath : scanResult.discoveredAssetPaths)
+        {
+            const fs::path normalizedPath = fs::absolute(fs::path(discoveredPath)).lexically_normal();
+            if (Is_PathUnderRoot(normalizedPath, scanRoot))
+                discoveredPathKeys.insert(Normalize_PathKey(normalizedPath.wstring()));
+        }
+
+        uint32 loadedMetaCount = 0;
+        uint32 createdMetaCount = 0;
+        uint32 removedStaleCount = 0;
+
+        for (AssetMeta assetMeta : scanResult.existingMetaAssets)
+        {
+            if (assetMeta.guid.empty() || assetMeta.fullPath.empty())
+                continue;
+
+            const fs::path assetPath = fs::absolute(fs::path(assetMeta.fullPath)).lexically_normal();
+            if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+                continue;
+
+            if (!Is_PathUnderRoot(assetPath, scanRoot) || !Should_RegisterAsset(assetPath))
+                continue;
+
+            assetMeta.fullPath = assetPath.wstring();
+            assetMeta.relativePath = fs::relative(assetPath, fs::path(_resourceRoot)).wstring();
+            if (assetMeta.type.empty())
+                assetMeta.type = Detect_AssetType(assetMeta.fullPath);
+
+            const wstring pathKey = Normalize_PathKey(assetMeta.fullPath);
+            if (const auto existingPath = _pathToGuid.find(pathKey);
+                existingPath != _pathToGuid.end() && existingPath->second != assetMeta.guid)
+            {
+                _guidToMeta.erase(existingPath->second);
+                _assetRegistryDirty = true;
+            }
+
+            const auto existingGuid = _guidToMeta.find(assetMeta.guid);
+            if (existingGuid == _guidToMeta.end() || !Is_SameAssetMeta(existingGuid->second, assetMeta))
+            {
+                _guidToMeta[assetMeta.guid] = assetMeta;
+                _assetRegistryDirty = true;
+                ++loadedMetaCount;
+            }
+
+            _pathToGuid[pathKey] = assetMeta.guid;
+        }
+
+        for (const wstring& missingMetaAssetPath : scanResult.missingMetaAssetPaths)
+        {
+            const fs::path assetPath = fs::absolute(fs::path(missingMetaAssetPath)).lexically_normal();
+            if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+                continue;
+
+            if (!Is_PathUnderRoot(assetPath, scanRoot) || !Should_RegisterAsset(assetPath))
+                continue;
+
+            if (restrictMissingMeta && !Is_PathUnderRoot(assetPath, normalizedMissingMetaRoot))
+                continue;
+
+            if (fs::exists(Build_MetaPath(assetPath.wstring())))
+                continue;
+
+            if (!Register_Asset(assetPath.wstring()).empty())
+                ++createdMetaCount;
+        }
+
+        for (const wstring& staleAssetPath : scanResult.staleAssetPaths)
+        {
+            const fs::path assetPath = fs::absolute(fs::path(staleAssetPath)).lexically_normal();
+            if (!Is_PathUnderRoot(assetPath, scanRoot))
+                continue;
+
+            const wstring pathKey = Normalize_PathKey(assetPath.wstring());
+            if (_pathToGuid.find(pathKey) == _pathToGuid.end())
+                continue;
+
+            Unregister_AssetPath(assetPath.wstring());
+            _assetRegistryDirty = true;
+            ++removedStaleCount;
+        }
+
+        for (auto iter = _guidToMeta.begin(); iter != _guidToMeta.end();)
+        {
+            const fs::path assetPath = fs::absolute(fs::path(iter->second.fullPath)).lexically_normal();
+            if (!Is_PathUnderRoot(assetPath, scanRoot))
+            {
+                ++iter;
+                continue;
+            }
+
+            const wstring pathKey = Normalize_PathKey(assetPath.wstring());
+            if (fs::exists(assetPath) && discoveredPathKeys.find(pathKey) != discoveredPathKeys.end())
+            {
+                ++iter;
+                continue;
+            }
+
+            iter = _guidToMeta.erase(iter);
+            _assetRegistryDirty = true;
+            ++removedStaleCount;
+        }
+
+        Deduplicate_Assets_ByPath();
+        Rebuild_PathIndex();
+
+        const bool registryChanged = _assetRegistryDirty;
+        if (registryChanged)
+        {
+            Save_Registry();
+            Save_Cache();
+        }
+
+        LOG_INFO(
+            "[AssetDeltaScan] commit scanRoot={} discovered={} loadedMeta={} createdMeta={} removedStale={} dirty={}",
+            String::ToString(scanRoot.wstring()),
+            static_cast<uint32>(scanResult.discoveredAssetPaths.size()),
+            loadedMetaCount,
+            createdMetaCount,
+            removedStaleCount,
+            _assetRegistryDirty
+        );
+
+        return registryChanged ? S_OK : S_FALSE;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
+}
+
 void Asset_Manager::Refresh_Cache()
 {
 	 for (auto iter = _guidToMeta.begin(); iter != _guidToMeta.end();)
@@ -525,10 +758,13 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
         assetMeta.type = root.value("type", Detect_AssetType(assetPath));
         assetMeta.modelType = root.value("modelType", "");
         assetMeta.fullPath = fs::absolute(fs::path(assetPath)).lexically_normal().wstring();
-        const bool shouldRefreshModelBoneMeta =
+        const bool shouldRefreshModelMeta =
             assetMeta.type == "Model" &&
             String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring())) == ".model" &&
-            (!root.contains("boneCount") || !root.contains("bones"));
+            (!root.contains("boneCount") ||
+             !root.contains("bones") ||
+             !root.contains("materialCount") ||
+             !root.contains("materials"));
 
         if (!_resourceRoot.empty())
             assetMeta.relativePath = fs::relative(fs::path(assetMeta.fullPath), fs::path(_resourceRoot)).wstring();
@@ -559,7 +795,7 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
         _guidToMeta[assetMeta.guid] = assetMeta;
         _pathToGuid[pathKey] = assetMeta.guid;
 
-        if (shouldRefreshModelBoneMeta)
+        if (shouldRefreshModelMeta)
             Save_Meta(metaPath, assetMeta);
 
         return true;
@@ -589,7 +825,8 @@ bool Asset_Manager::Save_Meta(const wstring& metaPath, const AssetMeta& assetMet
         if (assetMeta.type == "Model" && extension == ".model")
         {
             vector<ModelMetaBoneEntry> bones{};
-            if (Try_ReadModelMetaBones(assetMeta.fullPath, bones))
+            vector<ModelMetaMaterialEntry> materials{};
+            if (Try_ReadModelMetaSummary(assetMeta.fullPath, bones, materials))
             {
                 root["boneCount"] = bones.size();
                 root["bones"] = json::array();
@@ -602,6 +839,36 @@ bool Asset_Manager::Save_Meta(const wstring& metaPath, const AssetMeta& assetMet
                     bone["name"] = bones[boneIndex].name;
                     bone["parentIndex"] = bones[boneIndex].parentIndex;
                     root["bones"].push_back(bone);
+                }
+
+                root["materialCount"] = materials.size();
+                root["materials"] = json::array();
+
+                for (uint32 materialIndex = 0; materialIndex < materials.size(); ++materialIndex)
+                {
+                    const ModelMetaMaterialEntry& material = materials[materialIndex];
+
+                    json materialJson = {};
+                    materialJson["index"] = materialIndex;
+                    materialJson["name"] = material.name;
+                    materialJson["slotCount"] = material.slots.size();
+                    materialJson["slots"] = json::array();
+
+                    for (uint32 slotIndex = 0; slotIndex < material.slots.size(); ++slotIndex)
+                    {
+                        const ModelMetaTextureSlotEntry& slot = material.slots[slotIndex];
+
+                        json slotJson = {};
+                        slotJson["index"] = slotIndex;
+                        slotJson["slot"] = slot.slotName;
+                        slotJson["texturePath"] = slot.path;
+                        slotJson["rawTypeIndex"] = slot.rawTypeIndex;
+                        slotJson["textureIndex"] = slot.textureIndex;
+                        slotJson["uvChannel"] = slot.uvChannel;
+                        materialJson["slots"].push_back(slotJson);
+                    }
+
+                    root["materials"].push_back(materialJson);
                 }
             }
         }

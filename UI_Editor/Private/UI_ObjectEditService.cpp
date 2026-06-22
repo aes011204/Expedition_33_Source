@@ -39,6 +39,8 @@ namespace UIEditor
                 NearlyEqual(lhs.coreSoftness, rhs.coreSoftness) &&
                 NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
                 NearlyEqual(lhs.uvScroll, rhs.uvScroll) &&
+                NearlyEqual(lhs.flowSpeed, rhs.flowSpeed) &&
+                NearlyEqual(lhs.preserveColor, rhs.preserveColor) &&
                 NearlyEqual(lhs.edgeWidth, rhs.edgeWidth) &&
                 NearlyEqual(lhs.edgeSoftness, rhs.edgeSoftness) &&
                 NearlyEqual(lhs.erosion, rhs.erosion) &&
@@ -65,6 +67,8 @@ namespace UIEditor
             materialVfx.coreWidth = Clamp_MaterialVfxCoreWidth(materialVfx.coreWidth);
             materialVfx.coreSoftness = Clamp_MaterialVfxCoreSoftness(materialVfx.coreSoftness);
             materialVfx.noiseStrength = Clamp_MaterialVfxNoiseStrength(materialVfx.noiseStrength);
+            materialVfx.flowSpeed = Clamp_MaterialVfxFlowSpeed(materialVfx.flowSpeed);
+            materialVfx.preserveColor = Clamp_MaterialVfxPreserveColor(materialVfx.preserveColor);
             materialVfx.edgeWidth = Clamp_MaterialVfxEdgeWidth(materialVfx.edgeWidth);
             materialVfx.edgeSoftness = Clamp_MaterialVfxEdgeSoftness(materialVfx.edgeSoftness);
             materialVfx.erosion = Clamp_MaterialVfxErosion(materialVfx.erosion);

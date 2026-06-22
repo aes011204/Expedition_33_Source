@@ -19,6 +19,8 @@ public:
     HRESULT Initialize();
     void Update(float timeDelta);
     void Render();
+    // 메뉴, toolbar, OS 창 닫기 요청이 공유하는 EffectEditor 종료 진입점이다.
+    void Request_Exit();
 
     void Add_Window(const Shared<Editor_Window>& window);
     Shared<Editor_Window> Find_Window(const wstring& windowName) const;
@@ -84,7 +86,6 @@ private: //## Helper::SceneFocus
 
 private: //## Helper::Exit
     void Render_ExitButton(float toolbarHeight);
-    void Request_Exit();
 
 public:
     static Unique<EffectEditor_Manager> Create();

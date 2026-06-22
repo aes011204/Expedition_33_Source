@@ -32,6 +32,12 @@ void FreeAimTargeting::Begin_Play()
 
 bool FreeAimTargeting::EnterInvoke()
 {
+    if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
+    {
+        LOG_DEBUG("FreeAimTargeting: enter blocked because active camera is not BattleTurnCamera");
+        return false;
+    }
+
     Clear_HitTarget();
     _freeAimAnimState = FreeAimAnimState::None;
 

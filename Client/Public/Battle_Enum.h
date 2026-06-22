@@ -523,6 +523,10 @@ namespace Client
         float perfectStartRatio = 61.f / 80.f;  // 노란 구간 시작
         float perfectEndRatio = 1.f;            // 노란 구간 끝
 
+        float failDamageBonusRate = -0.15f;     // 실패 시 다음 공격 피해 -15%
+        float normalDamageBonusRate = 0.f;      // 일반 성공 시 다음 공격 피해 변화 없음
+        float perfectDamageBonusRate = 0.15f;   // Perfect 성공 시 다음 공격 피해 +15%
+
         // QTE 화면 배치. ANS_QTE에서 preset 고르고, request에는 실제 적용값
         BattleQTEPreset placementPreset = BattleQTEPreset::Center;
         Vec2 screenPosition = Vec2(800.f, 450.f);

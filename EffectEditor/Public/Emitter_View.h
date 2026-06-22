@@ -202,6 +202,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_InitialRadialVelocityModule();
     AuthoringModule Make_VelocityConeModule();
+    AuthoringModule Make_SourceMotionVelocityModule();
     AuthoringModule Make_AccelerationModule();
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();
@@ -284,6 +285,7 @@ private: //## Helper::PreviewState
     void Mark_AllPreviewDirty();
     void Sync_EmitterMirror(AuthoringEmitter& emitter);
     void Sync_AllEmitterMirrors();
+    void Sanitize_PreviewTransformState();
 
 private: //## Helper::ModulePicker
     vector<ModulePickerEntry> Build_ModulePickerEntries(const AuthoringEmitter& emitter) const;

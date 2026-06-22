@@ -12,6 +12,25 @@ FOnDamageApplied        DamageSystem::OnDamageApplied{};
 FOnDamageCalculating    DamageSystem::OnDamageCalculating{};
 FOnHealApplied          DamageSystem::OnHealApplied{};
 
+namespace
+{
+    float Consume_NextAttackQTEDamage(float damage, const BattleChar& attacker, AttackType attackType)
+    {
+        if (damage <= 0.f)
+            return damage;
+
+        const auto battleController = CLIENT->Get_BattleController();
+        if (battleController == nullptr)
+            return damage;
+
+        const auto qteController = battleController->Get_QTEController();
+        if (qteController == nullptr)
+            return damage;
+
+        return damage * qteController->Consume_NextAttackDamageMultiplier(attacker, attackType);
+    }
+}
+
 void DamageSystem::Heal(float amount, const BattleChar& target)
 {
     if (amount <= 0.f || target.statCom == nullptr)
@@ -44,6 +63,8 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
 {
     if (damage <= 0.f || target.statCom == nullptr)
         return;
+
+    damage = Consume_NextAttackQTEDamage(damage, attacker, attackType);
 
     if (target.statCom->Get_CurrentShield() != 0)
     {
@@ -119,6 +140,11 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
 void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target,
     AttackType attackType)
 {
+    if (target.empty())
+        return;
+
+    damage = Consume_NextAttackQTEDamage(damage, attacker, attackType);
+
     for (const auto& character : target)
     {
         ApplyDamage(damage, attacker, character, attackType);

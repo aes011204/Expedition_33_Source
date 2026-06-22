@@ -15,6 +15,7 @@ public:
         const Weak<EffectCom>& effectCom,
         wstring partTag,
         const TrailAnchorAsset& trailAnchorAsset,
+        uint64 trailNotifyToken = 0,
         Shared<bool> sampleEnabled = nullptr);
 
     ~TrailSampleProvider_ByPart() override = default;
@@ -26,6 +27,7 @@ private:
     Weak<EffectCom> _effectCom{};
     wstring _partTag{};
     TrailAnchorAsset _trailAnchorAsset{};
+    uint64 _trailNotifyToken = 0;
     Shared<bool> _sampleEnabled{};
 };
 

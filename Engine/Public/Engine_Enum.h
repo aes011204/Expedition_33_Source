@@ -66,6 +66,7 @@ namespace Engine
         PreviewCamera,
         BattleTurnCamera,
         CinematicCamera,
+        SoulLikeCamera,
 
         Terrain,
         Landscape,
@@ -84,6 +85,7 @@ namespace Engine
         BattleStartSpawner,
         PuzzleTarget,
         SoulLikeController,
+        Trigger_Cinematic,
 
     };
 

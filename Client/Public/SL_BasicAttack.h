@@ -17,6 +17,7 @@ public:
 
     bool Request_BasicAttack() override;
     bool Request_Skill(const Skill_Data& skillData, uint32 slotIndex) override;
+    bool Request_Parry() override;
 
 public:
     void Set_ComboWindowEnabled(bool enabled);

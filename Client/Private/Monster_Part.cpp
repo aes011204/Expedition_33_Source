@@ -61,13 +61,13 @@ void Monster_Part::Late_Update(float timeDelta)
 
     if (Casts_DynamicShadow() && Is_Visible())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-
+   
     // 메인 카메라 가시성은 본체 렌더만 막고, shadow 등록은 위에서 분리한다.
     if (!owner->Is_Visible() || !Is_Visible())
     {
         return;
     }
-
+   
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 

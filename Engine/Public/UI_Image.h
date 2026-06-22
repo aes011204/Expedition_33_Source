@@ -64,6 +64,8 @@ public:
         float materialVfxCoreSoftness = 0.05f;
         float materialVfxNoiseStrength = 0.35f;
         Vec2 materialVfxUvScroll{ 0.08f, -0.18f };
+        float materialVfxFlowSpeed = 1.f;
+        float materialVfxPreserveColor = 0.f;
         float materialVfxEdgeWidth = 0.18f;
         float materialVfxEdgeSoftness = 0.08f;
         float materialVfxErosion = 0.18f;
@@ -154,6 +156,8 @@ private:
     float _materialVfxCoreSoftness = 0.05f;
     float _materialVfxNoiseStrength = 0.35f;
     Vec2 _materialVfxUvScroll{ 0.08f, -0.18f };
+    float _materialVfxFlowSpeed = 1.f;
+    float _materialVfxPreserveColor = 0.f;
     float _materialVfxEdgeWidth = 0.18f;
     float _materialVfxEdgeSoftness = 0.08f;
     float _materialVfxErosion = 0.18f;

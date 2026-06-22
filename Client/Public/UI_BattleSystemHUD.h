@@ -60,6 +60,8 @@ public:
     void    Play_PortraitDeactivation(HeroId heroId);
     void    Play_BattleSystemIntro();
 
+    bool    Try_GetPortraitPictosAnchor(HeroId heroId, Vec2& outPosition) const;
+
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();

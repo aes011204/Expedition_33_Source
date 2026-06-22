@@ -18,6 +18,7 @@ public:
 
 public:
     void Set_SkillRequest(const Skill_Data& skillData, uint32 slotIndex);
+    const string& Get_CurrentSkillKey() const { return _skillData.skillKey; }
 
 private:
     SoulLikeAnim Resolve_SkillAnim(uint32 slotIndex) const;

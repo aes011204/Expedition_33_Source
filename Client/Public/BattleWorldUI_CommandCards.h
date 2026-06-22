@@ -19,7 +19,8 @@ public:
         BattleTurnState currentState,
         uint32 curAp,
         uint32 maxAp,
-        HeroId actorHeroId);
+        HeroId actorHeroId,
+        float timeDelta);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

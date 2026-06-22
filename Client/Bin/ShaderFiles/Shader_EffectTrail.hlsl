@@ -24,9 +24,9 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f };         // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };         // x: blackNeutral
-    float4 g_EffectTrailCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };    // x: enabled, y: corePower, z: coreIntensity, w: outerPower
-    float4 g_EffectTrailCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
+    float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };          // x: blackNeutral
+    float4 g_EffectTrailCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };     // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectTrailCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f };  // rgb: coreColor, a: outerIntensity
     float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationMeta[8];
     float4 g_EffectMaterialScalarModulationKeyTimes[8];

@@ -2,6 +2,7 @@
 #include "Animation_NameUtils.h"
 #include "AnimSequencerAdapter.h"
 #include "AnimNotify_Parser.h"
+#include "ANS_Trail.h"
 #include "AnimationModifier.h"
 #include "ChainModifier.h"
 #include "PoseFollowChainModifier.h"
@@ -36,6 +37,162 @@
 namespace
 {
     const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
+    constexpr float kTrailOffsetDuplicatePhaseEpsilon = 0.0001f;
+
+    enum class TrailOffsetMode : int32
+    {
+        None,
+        TipExtend,
+        Advanced
+    };
+
+    TrailOffsetMode Resolve_TrailOffsetMode(const Client::ANS_Trail& trailNotifyState)
+    {
+        const Client::ANS_Trail::LocalOffsetCurve& baseCurve = trailNotifyState.Get_BaseLocalOffsetCurve();
+        const Client::ANS_Trail::LocalOffsetCurve& tipCurve = trailNotifyState.Get_TipLocalOffsetCurve();
+        if (baseCurve.enabled || !baseCurve.keys.empty() || tipCurve.enabled || !tipCurve.keys.empty())
+            return TrailOffsetMode::Advanced;
+
+        const Client::ANS_Trail::TipExtendCurve& extendCurve = trailNotifyState.Get_TipExtendCurve();
+        if (extendCurve.enabled || !extendCurve.keys.empty())
+            return TrailOffsetMode::TipExtend;
+
+        return TrailOffsetMode::None;
+    }
+
+    Client::ANS_Trail::TipExtendInterpolation Draw_TrailOffsetInterpolationCombo(
+        const char* label,
+        Client::ANS_Trail::TipExtendInterpolation interpolation,
+        bool& changed)
+    {
+        const char* names[] = { "Linear", "Constant" };
+        int32 selected = interpolation == Client::ANS_Trail::TipExtendInterpolation::Constant ? 1 : 0;
+        ImGui::SetNextItemWidth(105.f);
+        if (ImGui::Combo(label, &selected, names, IM_ARRAYSIZE(names)))
+            changed = true;
+
+        return selected == 1
+            ? Client::ANS_Trail::TipExtendInterpolation::Constant
+            : Client::ANS_Trail::TipExtendInterpolation::Linear;
+    }
+
+    float Evaluate_TipExtendCurve(const Client::ANS_Trail::TipExtendCurve& curve, float phase)
+    {
+        if (curve.keys.empty())
+            return 0.f;
+
+        phase = std::clamp(phase, 0.f, 1.f);
+        if (phase <= curve.keys.front().phase)
+            return curve.keys.front().value;
+
+        for (size_t keyIndex = 1; keyIndex < curve.keys.size(); ++keyIndex)
+        {
+            const Client::ANS_Trail::TipExtendKey& previous = curve.keys[keyIndex - 1];
+            const Client::ANS_Trail::TipExtendKey& next = curve.keys[keyIndex];
+            if (phase > next.phase)
+                continue;
+
+            if (previous.interpolation == Client::ANS_Trail::TipExtendInterpolation::Constant)
+                return previous.value;
+
+            const float range = max(kTrailOffsetDuplicatePhaseEpsilon, next.phase - previous.phase);
+            const float t = std::clamp((phase - previous.phase) / range, 0.f, 1.f);
+            return std::lerp(previous.value, next.value, t);
+        }
+
+        return curve.keys.back().value;
+    }
+
+    Vec3 Evaluate_LocalOffsetCurve(const Client::ANS_Trail::LocalOffsetCurve& curve, float phase)
+    {
+        if (curve.keys.empty())
+            return Vec3::Zero;
+
+        phase = std::clamp(phase, 0.f, 1.f);
+        if (phase <= curve.keys.front().phase)
+            return curve.keys.front().value;
+
+        for (size_t keyIndex = 1; keyIndex < curve.keys.size(); ++keyIndex)
+        {
+            const Client::ANS_Trail::LocalOffsetKey& previous = curve.keys[keyIndex - 1];
+            const Client::ANS_Trail::LocalOffsetKey& next = curve.keys[keyIndex];
+            if (phase > next.phase)
+                continue;
+
+            if (previous.interpolation == Client::ANS_Trail::TipExtendInterpolation::Constant)
+                return previous.value;
+
+            const float range = max(kTrailOffsetDuplicatePhaseEpsilon, next.phase - previous.phase);
+            const float t = std::clamp((phase - previous.phase) / range, 0.f, 1.f);
+            return Vec3::Lerp(previous.value, next.value, t);
+        }
+
+        return curve.keys.back().value;
+    }
+
+    void Upsert_TipExtendKey(Client::ANS_Trail::TipExtendCurve& curve, float phase, float value)
+    {
+        phase = std::clamp(phase, 0.f, 1.f);
+        for (Client::ANS_Trail::TipExtendKey& key : curve.keys)
+        {
+            if (std::abs(key.phase - phase) <= kTrailOffsetDuplicatePhaseEpsilon)
+            {
+                key.phase = phase;
+                key.value = value;
+                return;
+            }
+        }
+
+        Client::ANS_Trail::TipExtendKey key{};
+        key.phase = phase;
+        key.value = value;
+        curve.keys.push_back(key);
+    }
+
+    void Upsert_LocalOffsetKey(Client::ANS_Trail::LocalOffsetCurve& curve, float phase, const Vec3& value)
+    {
+        phase = std::clamp(phase, 0.f, 1.f);
+        for (Client::ANS_Trail::LocalOffsetKey& key : curve.keys)
+        {
+            if (std::abs(key.phase - phase) <= kTrailOffsetDuplicatePhaseEpsilon)
+            {
+                key.phase = phase;
+                key.value = value;
+                return;
+            }
+        }
+
+        Client::ANS_Trail::LocalOffsetKey key{};
+        key.phase = phase;
+        key.value = value;
+        curve.keys.push_back(key);
+    }
+
+    Client::ANS_Trail::TipExtendCurve Make_DefaultTipExtendCurve()
+    {
+        Client::ANS_Trail::TipExtendCurve curve{};
+        curve.enabled = true;
+        curve.keys = {
+            { 0.f, 0.f, Client::ANS_Trail::TipExtendInterpolation::Linear },
+            { 0.5f, 0.f, Client::ANS_Trail::TipExtendInterpolation::Linear },
+            { 1.f, 0.f, Client::ANS_Trail::TipExtendInterpolation::Linear }
+        };
+        return curve;
+    }
+
+    Client::ANS_Trail::LocalOffsetCurve Make_DefaultLocalOffsetCurve(bool enabled)
+    {
+        Client::ANS_Trail::LocalOffsetCurve curve{};
+        curve.enabled = enabled;
+        if (enabled)
+        {
+            curve.keys = {
+                { 0.f, Vec3::Zero, Client::ANS_Trail::TipExtendInterpolation::Linear },
+                { 1.f, Vec3::Zero, Client::ANS_Trail::TipExtendInterpolation::Linear }
+            };
+        }
+        return curve;
+    }
 
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
@@ -621,7 +778,6 @@ void Animation_View::Pre_Render()
 
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         Update_PreviewRootControllerStates(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
         Update_ModifierPreviewMotionTest(dt);
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
@@ -897,6 +1053,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Ensure_PreviewCamera();
     Fit_PreviewCameraToModel();
     Sync_PreviewAnimationSelection(true);
+    EDITOR->Set_StickyPreviewOwner(PreviewOwner::Animation);
 
     Set_Open(true);
 }
@@ -1324,44 +1481,6 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
     Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
-    if (weaponPart == nullptr)
-        return false;
-
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
-    if (weaponModel == nullptr)
-        return false;
-
-    const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
-    if (sourceModelPath.empty())
-        return false;
-
-    outRuntime.modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
-    if (outRuntime.modelGuid.empty())
-        return false;
-
-    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(outRuntime.modelGuid);
-    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), outRuntime.trailAnchorAsset);
-
-    if (outRuntime.trailAnchorAsset.modelGuid.empty())
-        outRuntime.trailAnchorAsset.modelGuid = outRuntime.modelGuid;
-
-    return !outRuntime.trailAnchorAsset.modelGuid.empty();
-}
-
-bool Animation_View::Load_PreviewSourceHistoryAnchorAsset(
-    const string& partTag,
-    PreviewSourceHistoryRuntime& outRuntime)
-{
-    outRuntime.trailAnchorAsset = {};
-    outRuntime.modelGuid.clear();
-
-    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
-    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
-    if (ownerContainer == nullptr)
-        return false;
-
-    const wstring previewPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
     if (weaponPart == nullptr)
         return false;
 
@@ -2202,6 +2321,9 @@ void Animation_View::Draw_SelectedDetail()
 
                 _isDirty = true;
             }
+
+            if (Client::ANS_Trail* trailNotifyState = dynamic_cast<Client::ANS_Trail*>(notifyState->notifyState.get()))
+                Draw_TrailOffsetPanel(*trailNotifyState, *notifyState);
         }
     }
     else if (playbackModel != nullptr && _selectedBoneIndex >= 0)
@@ -2218,6 +2340,285 @@ void Animation_View::Draw_SelectedDetail()
     Draw_ModifierRuntimePanel(playbackModel);
 
     ImGui::EndChild();
+}
+
+void Animation_View::Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry)
+{
+    auto applyTipExtendCurve = [&](const Client::ANS_Trail::TipExtendCurve& curve, bool commitNow = false)
+        {
+            Begin_PendingNotifyUndo();
+            trailNotifyState.Set_TipExtendCurve(curve);
+            _isDirty = true;
+            if (commitNow || !ImGui::IsAnyItemActive())
+                Commit_PendingNotifyUndo();
+        };
+
+    auto applyBaseLocalOffsetCurve = [&](const Client::ANS_Trail::LocalOffsetCurve& curve, bool commitNow = false)
+        {
+            Begin_PendingNotifyUndo();
+            trailNotifyState.Set_BaseLocalOffsetCurve(curve);
+            _isDirty = true;
+            if (commitNow || !ImGui::IsAnyItemActive())
+                Commit_PendingNotifyUndo();
+        };
+
+    auto applyTipLocalOffsetCurve = [&](const Client::ANS_Trail::LocalOffsetCurve& curve, bool commitNow = false)
+        {
+            Begin_PendingNotifyUndo();
+            trailNotifyState.Set_TipLocalOffsetCurve(curve);
+            _isDirty = true;
+            if (commitNow || !ImGui::IsAnyItemActive())
+                Commit_PendingNotifyUndo();
+        };
+
+    const Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    const float playheadTimeSec = playbackModel != nullptr
+        ? playbackModel->Get_CurrentAnimationTimeSec()
+        : static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(max(1, Get_CurrentAnimationFps()));
+    const float currentPhase = std::clamp(
+        (playheadTimeSec - notifyStateEntry.startSec) / max(0.0001f, notifyStateEntry.durationSec),
+        0.f,
+        1.f);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextUnformatted("Trail Offset");
+
+    int32 selectedMode = static_cast<int32>(Resolve_TrailOffsetMode(trailNotifyState));
+    const char* modeNames[] = { "None", "Tip Extend", "Advanced" };
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::Combo("Mode", &selectedMode, modeNames, IM_ARRAYSIZE(modeNames)))
+    {
+        Begin_PendingNotifyUndo();
+        const TrailOffsetMode newMode = static_cast<TrailOffsetMode>(selectedMode);
+        if (newMode == TrailOffsetMode::None)
+        {
+            trailNotifyState.Set_TipExtendCurve({});
+            trailNotifyState.Set_BaseLocalOffsetCurve({});
+            trailNotifyState.Set_TipLocalOffsetCurve({});
+        }
+        else if (newMode == TrailOffsetMode::TipExtend)
+        {
+            trailNotifyState.Set_TipExtendCurve(Make_DefaultTipExtendCurve());
+            trailNotifyState.Set_BaseLocalOffsetCurve({});
+            trailNotifyState.Set_TipLocalOffsetCurve({});
+        }
+        else
+        {
+            trailNotifyState.Set_TipLocalOffsetCurve(Make_DefaultLocalOffsetCurve(true));
+        }
+
+        _isDirty = true;
+        Commit_PendingNotifyUndo();
+    }
+
+    const TrailOffsetMode mode = static_cast<TrailOffsetMode>(selectedMode);
+    if (mode == TrailOffsetMode::None)
+        return;
+
+    if (mode == TrailOffsetMode::TipExtend)
+    {
+        Client::ANS_Trail::TipExtendCurve curve = trailNotifyState.Get_TipExtendCurve();
+        if (!curve.enabled || curve.keys.empty())
+        {
+            curve = Make_DefaultTipExtendCurve();
+            applyTipExtendCurve(curve, true);
+        }
+
+        float startValue = Evaluate_TipExtendCurve(curve, 0.f);
+        float peakPhase = 0.5f;
+        float peakValue = Evaluate_TipExtendCurve(curve, peakPhase);
+        float endValue = Evaluate_TipExtendCurve(curve, 1.f);
+        Client::ANS_Trail::TipExtendInterpolation interpolation = Client::ANS_Trail::TipExtendInterpolation::Linear;
+
+        for (const Client::ANS_Trail::TipExtendKey& key : curve.keys)
+        {
+            if (key.phase > kTrailOffsetDuplicatePhaseEpsilon && key.phase < 1.f - kTrailOffsetDuplicatePhaseEpsilon)
+            {
+                peakPhase = key.phase;
+                peakValue = key.value;
+                interpolation = key.interpolation;
+                break;
+            }
+        }
+
+        bool simpleChanged = false;
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("Start", &startValue, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("Peak", &peakValue, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("End", &endValue, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("Peak @", &peakPhase, 0.005f, 0.f, 1.f, "%.3f");
+        interpolation = Draw_TrailOffsetInterpolationCombo("Interp", interpolation, simpleChanged);
+
+        if (simpleChanged)
+        {
+            peakPhase = std::clamp(peakPhase, 0.f, 1.f);
+            Client::ANS_Trail::TipExtendCurve simpleCurve{};
+            simpleCurve.enabled = true;
+            simpleCurve.keys = {
+                { 0.f, startValue, interpolation },
+                { peakPhase, peakValue, interpolation },
+                { 1.f, endValue, interpolation }
+            };
+            applyTipExtendCurve(simpleCurve);
+            curve = trailNotifyState.Get_TipExtendCurve();
+        }
+
+        if (ImGui::Button("+ Current"))
+        {
+            Client::ANS_Trail::TipExtendCurve editedCurve = curve;
+            editedCurve.enabled = true;
+            Upsert_TipExtendKey(editedCurve, currentPhase, Evaluate_TipExtendCurve(curve, currentPhase));
+            applyTipExtendCurve(editedCurve, true);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset"))
+            applyTipExtendCurve(Make_DefaultTipExtendCurve(), true);
+
+        Client::ANS_Trail::TipExtendCurve listCurve = trailNotifyState.Get_TipExtendCurve();
+        if (ImGui::TreeNodeEx("Tip Keys", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            for (size_t keyIndex = 0; keyIndex < listCurve.keys.size();)
+            {
+                Client::ANS_Trail::TipExtendKey& key = listCurve.keys[keyIndex];
+                bool keyChanged = false;
+                bool eraseKey = false;
+
+                ImGui::PushID(static_cast<int32>(keyIndex));
+                ImGui::SetNextItemWidth(70.f);
+                keyChanged |= ImGui::DragFloat("P", &key.phase, 0.005f, 0.f, 1.f, "%.3f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(90.f);
+                keyChanged |= ImGui::DragFloat("V", &key.value, 1.f, -10000.f, 10000.f, "%.1f");
+                ImGui::SameLine();
+                key.interpolation = Draw_TrailOffsetInterpolationCombo("##Interp", key.interpolation, keyChanged);
+                ImGui::SameLine();
+                eraseKey = ImGui::SmallButton("X");
+                ImGui::PopID();
+
+                if (eraseKey)
+                {
+                    listCurve.keys.erase(listCurve.keys.begin() + static_cast<ptrdiff_t>(keyIndex));
+                    applyTipExtendCurve(listCurve, true);
+                    continue;
+                }
+
+                if (keyChanged)
+                    applyTipExtendCurve(listCurve);
+
+                ++keyIndex;
+            }
+
+            ImGui::TreePop();
+        }
+    }
+    else if (mode == TrailOffsetMode::Advanced)
+    {
+        auto drawLocalCurve = [&](const char* label, bool isBaseCurve)
+            {
+                Client::ANS_Trail::LocalOffsetCurve curve = isBaseCurve
+                    ? trailNotifyState.Get_BaseLocalOffsetCurve()
+                    : trailNotifyState.Get_TipLocalOffsetCurve();
+
+                if (!ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen))
+                    return;
+
+                bool enabled = curve.enabled;
+                if (ImGui::Checkbox("Enabled", &enabled))
+                {
+                    curve.enabled = enabled;
+                    if (curve.enabled && curve.keys.empty())
+                        curve = Make_DefaultLocalOffsetCurve(true);
+                    if (!curve.enabled)
+                        curve.keys.clear();
+
+                    if (isBaseCurve)
+                        applyBaseLocalOffsetCurve(curve, true);
+                    else
+                        applyTipLocalOffsetCurve(curve, true);
+                }
+
+                if (curve.enabled || !curve.keys.empty())
+                {
+                    if (ImGui::Button("+ Current"))
+                    {
+                        curve.enabled = true;
+                        Upsert_LocalOffsetKey(curve, currentPhase, Evaluate_LocalOffsetCurve(curve, currentPhase));
+                        if (isBaseCurve)
+                            applyBaseLocalOffsetCurve(curve, true);
+                        else
+                            applyTipLocalOffsetCurve(curve, true);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("+ Key"))
+                    {
+                        curve.enabled = true;
+                        Upsert_LocalOffsetKey(curve, 0.5f, Evaluate_LocalOffsetCurve(curve, 0.5f));
+                        if (isBaseCurve)
+                            applyBaseLocalOffsetCurve(curve, true);
+                        else
+                            applyTipLocalOffsetCurve(curve, true);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset"))
+                    {
+                        curve = {};
+                        if (isBaseCurve)
+                            applyBaseLocalOffsetCurve(curve, true);
+                        else
+                            applyTipLocalOffsetCurve(curve, true);
+                    }
+
+                    for (size_t keyIndex = 0; keyIndex < curve.keys.size();)
+                    {
+                        Client::ANS_Trail::LocalOffsetKey& key = curve.keys[keyIndex];
+                        bool keyChanged = false;
+                        bool eraseKey = false;
+
+                        ImGui::PushID(static_cast<int32>(keyIndex));
+                        ImGui::SetNextItemWidth(70.f);
+                        keyChanged |= ImGui::DragFloat("P", &key.phase, 0.005f, 0.f, 1.f, "%.3f");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        keyChanged |= ImGui::DragFloat3("XYZ", &key.value.x, 0.5f, -10000.f, 10000.f, "%.1f");
+                        key.interpolation = Draw_TrailOffsetInterpolationCombo("Interp", key.interpolation, keyChanged);
+                        ImGui::SameLine();
+                        eraseKey = ImGui::SmallButton("X");
+                        ImGui::PopID();
+
+                        if (eraseKey)
+                        {
+                            curve.keys.erase(curve.keys.begin() + static_cast<ptrdiff_t>(keyIndex));
+                            if (isBaseCurve)
+                                applyBaseLocalOffsetCurve(curve, true);
+                            else
+                                applyTipLocalOffsetCurve(curve, true);
+                            continue;
+                        }
+
+                        if (keyChanged)
+                        {
+                            if (isBaseCurve)
+                                applyBaseLocalOffsetCurve(curve);
+                            else
+                                applyTipLocalOffsetCurve(curve);
+                        }
+
+                        ++keyIndex;
+                    }
+                }
+
+                ImGui::TreePop();
+            };
+
+        drawLocalCurve("Base Local", true);
+        drawLocalCurve("Tip Local", false);
+    }
+
+    if (_hasPendingNotifyUndoSnapshot && !ImGui::IsAnyItemActive())
+        Commit_PendingNotifyUndo();
 }
 
 void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel)
@@ -3846,11 +4247,19 @@ bool Animation_View::Try_GetTrailSampleForRuntime(
     const PreviewTrailRuntime& runtime,
     EffectTrailSample& outSample) const
 {
+    const Client::TrailAnchorAsset sampleAnchorAsset =
+        Client::ANS_Trail::Make_OffsetTrailAnchorAsset(
+            runtime.trailAnchorAsset,
+            runtime.tipExtendCurve,
+            runtime.baseLocalOffsetCurve,
+            runtime.tipLocalOffsetCurve,
+            runtime.offsetPhase);
+
     Vec3 baseWorld{};
     Vec3 tipWorld{};
-    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.base, baseWorld))
+    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, sampleAnchorAsset.base, baseWorld))
         return false;
-    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.tip, tipWorld))
+    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, sampleAnchorAsset.tip, tipWorld))
         return false;
 
     outSample.baseWorldPosition = baseWorld;
@@ -3863,31 +4272,17 @@ bool Animation_View::Try_GetSourcePointSampleForRuntime(
     EffectSourcePointSample& outSample) const
 {
     if (runtime.sourceBindingMode == 1)
-    {
-        return Try_ResolvePreviewSocketWorldPosition(runtime.partTag, runtime.socketName, outSample.worldPosition);
-    }
+        return Try_ResolvePreviewSocketWorldPosition(
+            runtime.partTag,
+            runtime.socketName,
+            runtime.sourceHistoryLocalOffset,
+            outSample.worldPosition);
 
-    PreviewTrailRuntime trailRuntime{};
-    trailRuntime.partTag = runtime.partTag;
-    trailRuntime.trailAnchorAsset = runtime.trailAnchorAsset;
-
-    EffectTrailSample trailSample{};
-    if (!Try_GetTrailSampleForRuntime(trailRuntime, trailSample))
-        return false;
-
-    switch (runtime.sourcePointPolicy)
-    {
-    case 1:
-        outSample.worldPosition = trailSample.baseWorldPosition;
-        return true;
-    case 2:
-        outSample.worldPosition = (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f;
-        return true;
-    case 0:
-    default:
-        outSample.worldPosition = trailSample.tipWorldPosition;
-        return true;
-    }
+    return Try_ResolvePreviewWeaponAnchorWorldPosition(
+        runtime.partTag,
+        runtime.sourceHistoryAnchorName,
+        runtime.sourceHistoryLocalOffset,
+        outSample.worldPosition);
 }
 
 void Animation_View::Update_PreviewWeaponRotateStates(float timeDelta)
@@ -5269,9 +5664,22 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
         const json payload = activeState->notifyState->To_Json();
         const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
         const string effectNameValue = payload.value("_effectName", string{});
-        const int32 sourceBindingMode = payload.value("_sourceBindingMode", 0);
+        int32 sourceBindingMode = payload.value("_sourceBindingMode", 2);
+        if (sourceBindingMode == 0)
+            sourceBindingMode = 2;
         const string socketName = payload.value("_socketName", string{});
-        const int32 sourcePointPolicy = payload.value("_sourcePointPolicy", 0);
+        string sourceHistoryAnchorName = payload.value("_sourceHistoryAnchorName", string{ "Source" });
+        if (sourceHistoryAnchorName.empty())
+            sourceHistoryAnchorName = "Source";
+        Vec3 sourceHistoryLocalOffset = Vec3::Zero;
+        if (payload.contains("_sourceHistoryLocalOffset") &&
+            payload["_sourceHistoryLocalOffset"].is_array() &&
+            payload["_sourceHistoryLocalOffset"].size() >= 3)
+        {
+            sourceHistoryLocalOffset.x = payload["_sourceHistoryLocalOffset"][0].get<float>();
+            sourceHistoryLocalOffset.y = payload["_sourceHistoryLocalOffset"][1].get<float>();
+            sourceHistoryLocalOffset.z = payload["_sourceHistoryLocalOffset"][2].get<float>();
+        }
         if (effectNameValue.empty())
             continue;
 
@@ -5294,12 +5702,10 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             newRuntime.partTag = partTag;
             newRuntime.sourceBindingMode = sourceBindingMode;
             newRuntime.socketName = socketName;
-            newRuntime.sourcePointPolicy = sourcePointPolicy;
+            newRuntime.sourceHistoryAnchorName = sourceHistoryAnchorName;
+            newRuntime.sourceHistoryLocalOffset = sourceHistoryLocalOffset;
             _previewSourceHistoryRuntimes.push_back(std::move(newRuntime));
             runtime = &_previewSourceHistoryRuntimes.back();
-
-            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
-                continue;
         }
 
         if (runtime->isDraining)
@@ -5318,7 +5724,8 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
         if (runtime->partTag != partTag ||
             runtime->sourceBindingMode != sourceBindingMode ||
             runtime->socketName != socketName ||
-            runtime->sourcePointPolicy != sourcePointPolicy)
+            runtime->sourceHistoryAnchorName != sourceHistoryAnchorName ||
+            runtime->sourceHistoryLocalOffset != sourceHistoryLocalOffset)
         {
             if (runtime->effect)
                 runtime->effect->Stop();
@@ -5326,20 +5733,15 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->partTag = partTag;
             runtime->sourceBindingMode = sourceBindingMode;
             runtime->socketName = socketName;
-            runtime->sourcePointPolicy = sourcePointPolicy;
+            runtime->sourceHistoryAnchorName = sourceHistoryAnchorName;
+            runtime->sourceHistoryLocalOffset = sourceHistoryLocalOffset;
             runtime->effect.reset();
             runtime->effectName.clear();
             runtime->isPlaying = false;
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
-
-            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
-                continue;
         }
-
-        if (runtime->sourceBindingMode == 0 && runtime->trailAnchorAsset.modelGuid.empty())
-            continue;
 
         if (!Ensure_PreviewSourceHistoryEffect(*runtime, resolvedEffectName))
             continue;
@@ -5555,6 +5957,11 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         if (activeTrailState == nullptr || activeTrailState->notifyState == nullptr)
             continue;
 
+        const Client::ANS_Trail* trailNotifyState =
+            dynamic_cast<const Client::ANS_Trail*>(activeTrailState->notifyState.get());
+        if (trailNotifyState == nullptr)
+            continue;
+
         activeStateIds.push_back(activeTrailState->id);
 
         const json payload = activeTrailState->notifyState->To_Json();
@@ -5618,6 +6025,12 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
 
         if (runtime->trailAnchorAsset.modelGuid.empty())
             continue;
+
+        const float stateDuration = max(activeTrailState->durationSec, 0.0001f);
+        runtime->offsetPhase = std::clamp((currentTimeSec - activeTrailState->startSec) / stateDuration, 0.f, 1.f);
+        runtime->tipExtendCurve = trailNotifyState->Get_TipExtendCurve();
+        runtime->baseLocalOffsetCurve = trailNotifyState->Get_BaseLocalOffsetCurve();
+        runtime->tipLocalOffsetCurve = trailNotifyState->Get_TipLocalOffsetCurve();
 
         if (!Ensure_PreviewTrailEffect(*runtime, resolvedEffectName))
             continue;
@@ -5906,9 +6319,47 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
     return true;
 }
 
+bool Animation_View::Try_ResolvePreviewWeaponAnchorWorldPosition(
+    const string& partTag,
+    const string& anchorName,
+    const Vec3& localOffset,
+    Vec3& outWorldPosition) const
+{
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    const wstring previewPartTag = String::ToWString(partTag);
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
+    if (weaponPart == nullptr)
+        return false;
+
+    const Client::WeaponSourceHistoryAnchorDesc* anchor = weaponPart->Find_SourceHistoryAnchor(anchorName);
+    if (anchor == nullptr || anchor->boneName.empty())
+        return false;
+
+    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    if (weaponModel == nullptr)
+        return false;
+
+    const int32 boneIndex = weaponModel->Get_BoneIndex(anchor->boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = weaponModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
+    return true;
+}
+
 bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
     const string& partTag,
     const string& socketName,
+    const Vec3& localOffset,
     Vec3& outWorldPosition) const
 {
     if (socketName.empty())
@@ -5931,7 +6382,7 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
             return false;
 
         const Matrix socketWorldMatrix = *socketMatrix * playablePart->Get_CombinedWorldMatrix();
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }
 
@@ -5942,7 +6393,7 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
             return false;
 
         const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }
 

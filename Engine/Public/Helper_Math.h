@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 /*
  * Helper_Math.h
@@ -63,12 +63,12 @@ inline float GetEaseInRatio(float ratio, float power = 2.0f)
  * @param pow        적분 가중치 (기본값 2)
  * @return Engine::Vec3 시뮬레이션된 다음 프레임의 위치
  */
-inline Engine::Vec3 SolveVerlet(const Engine::Vec3& currentPos, const Engine::Vec3& prevPos, const Engine::Vec3& force, float damping, float timeDelta, int pow = 2)
+inline Vec3 SolveVerlet(const Vec3& currentPos, const Vec3& prevPos, const Vec3& force, float damping, float timeDelta, int pow = 2)
 {
-    Engine::Vec3 velocity = (currentPos - prevPos) * damping;
-    
+    const Vec3 velocity = (currentPos - prevPos) * damping;
+
     // 최적화: 가장 많이 사용되는 2제곱(dt^2)은 단순 곱셈으로 처리하여 CPU 사이클을 크게 절약합니다.
-    float timeWeight = (pow == 2) ? (timeDelta * timeDelta) : std::pow(timeDelta, static_cast<float>(pow));
+    const float timeWeight = pow == 2 ? timeDelta * timeDelta : std::pow(timeDelta, static_cast<float>(pow));
 
     return currentPos + velocity + force * timeWeight;
 }
@@ -191,27 +191,27 @@ inline float RandNum(float startNum, float endNum, std::mt19937& rng)
  * @param v2 정규화된 목표 벡터
  * @return 두 벡터 사이의 최단 회전을 나타내는 쿼터니언
  */
-inline Engine::Quat CreateRotationBetweenVectors(const Engine::Vec3& v1, const Engine::Vec3& v2)
+inline Quat CreateRotationBetweenVectors(const Vec3& v1, const Vec3& v2)
 {
-    float dot = v1.Dot(v2);
-    
+    const float dot = v1.Dot(v2);
+
     // 두 벡터가 거의 같은 방향일 때
     if (dot >= 1.0f - 1e-6f)
-        return Engine::Quat::Identity;
-        
+        return Quat::Identity;
+
     // 두 벡터가 거의 정반대 방향일 때 (180도 회전)
     if (dot <= -1.0f + 1e-6f)
     {
-        Engine::Vec3 axis = Engine::Vec3::UnitX.Cross(v1);
+        Vec3 axis = Vec3::UnitX.Cross(v1);
         if (axis.LengthSquared() < 1e-6f)
-            axis = Engine::Vec3::UnitY.Cross(v1);
+            axis = Vec3::UnitY.Cross(v1);
         axis.Normalize();
-        return Engine::Quat::CreateFromAxisAngle(axis, DirectX::XM_PI);
+        return Quat::CreateFromAxisAngle(axis, DirectX::XM_PI);
     }
-    
+
     // 일반적인 경우 (최단 경로 회전)
-    Engine::Quat q;
-    Engine::Vec3 cross = v1.Cross(v2);
+    Quat q;
+    const Vec3 cross = v1.Cross(v2);
     q.x = cross.x;
     q.y = cross.y;
     q.z = cross.z;
@@ -219,7 +219,4 @@ inline Engine::Quat CreateRotationBetweenVectors(const Engine::Vec3& v1, const E
     q.Normalize();
     return q;
 }
-
-
-
 }

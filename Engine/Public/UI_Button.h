@@ -34,6 +34,7 @@ public:
     void Set_Focused(bool isFocused);
     void Set_Disabled(bool isDisabled);
     void Set_StateAnimationProfile(const UI_StateAnimationProfile& stateAnimationProfile);
+    void Suppress_HoverStateAnimationUntilMouseMove();
 
 protected:
     Vec4 Resolve_RenderColor() const override;
@@ -54,6 +55,7 @@ private:
     bool _previousPressedForState { false };
     bool _previousFocusedForState { false };
     bool _previousDisabledForState { false };
+    bool _suppressHoverStateAnimationUntilMouseMove { false };
     UI_StateAnimationProfile _stateAnimationProfile = {};
 
 public:

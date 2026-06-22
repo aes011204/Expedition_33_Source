@@ -9,16 +9,16 @@
 cbuffer cbEffectBeamDistortion : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectBeamAxisParams = { 0.f, 1.f, 0.f, 0.f }; // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
+    float4 g_EffectBeamAxisParams = { 0.f, 1.f, 0.f, 0.f };         // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
     float4 g_EffectBeamFallbackAxis = { 1.f, 0.f, 0.f, 0.f };
-    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f }; // x: intensity, y: presence, z: useFlow, w: material time
-    float4 g_EffectBeamAlphaParams = { 0.f, 0.f, 0.f, 1.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: opacityPower
-    float4 g_EffectBeamMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };       // x: intensity, y: presence, z: useFlow, w: material time
+    float4 g_EffectBeamAlphaParams = { 0.f, 0.f, 0.f, 1.f };        // x: alphaCutoff, y: alphaErosion, z: useMask, w: opacityPower
+    float4 g_EffectBeamMainUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
     float4 g_EffectBeamMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
-    float4 g_EffectBeamUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: mask offset
+    float4 g_EffectBeamUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main offset, zw: mask offset
     float4 g_EffectBeamUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main U/V policy, zw: mask U/V policy
     float4 g_EffectBeamUVRotationParams = { 0.f, 0.f, 0.f, 0.f };
-    float4 g_EffectBeamSourceParams = { 0.f, 0.f, 0.f, 0.f }; // x: opacity source, y: mask source, z: mask invert, w: reserved
+    float4 g_EffectBeamSourceParams = { 0.f, 0.f, 0.f, 0.f };       // x: opacity source, y: mask source, z: mask invert, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
     float2 g_FlowUVPolicyParams = { 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };

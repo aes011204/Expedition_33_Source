@@ -19,6 +19,13 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
     _soulLikeUI = GamePlayUI_SL::Create(levelIndex);
     CHECK_NULL(_soulLikeUI, E_FAIL);
 
+    if (!_editorStopHandle.IsValid())
+    {
+        _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+            this,
+            &GameplayUI::Handle_EditorStopRuntime);
+    }
+
     _lastInputMode = Resolve_InputMode();
 
     return S_OK;
@@ -207,6 +214,12 @@ Shared<GameplayUI> GameplayUI::Create(uint32 levelIndex)
 
 void GameplayUI::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     auto Release_UI = [](auto& ui)
         {
             if (ui)

@@ -190,6 +190,30 @@ namespace Internal
         }
     }
 
+    PointParticleSourceMotionVelocityDirectionMode Resolve_SourceMotionVelocityDirectionMode(
+        SourceMotionVelocityDirectionMode value)
+    {
+        switch (value)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity;
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection;
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangent;
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangentOpposite;
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::SideFromTangent;
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::RandomSideFromTangent;
+        default:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangent;
+        }
+    }
+
     fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
         if (nullptr == GAME)
@@ -739,12 +763,19 @@ namespace Internal
         Set_CurveComponent(modes, modesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
-    void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, float time, const Vec3& value)
+    void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, const Vector3CurveKeyData& key)
     {
-        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(time, 0.f, 1.f));
-        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
-        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
-        Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, value.z);
+        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, key.value.x);
+        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, key.value.y);
+        Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, key.value.z);
+        Set_CurveComponent(desc.curveKeyArriveTangentsX, desc.curveKeyArriveTangentsXBlock1, index, key.arriveTangent.x);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsX, desc.curveKeyLeaveTangentsXBlock1, index, key.leaveTangent.x);
+        Set_CurveComponent(desc.curveKeyArriveTangentsY, desc.curveKeyArriveTangentsYBlock1, index, key.arriveTangent.y);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsY, desc.curveKeyLeaveTangentsYBlock1, index, key.leaveTangent.y);
+        Set_CurveComponent(desc.curveKeyArriveTangentsZ, desc.curveKeyArriveTangentsZBlock1, index, key.arriveTangent.z);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsZ, desc.curveKeyLeaveTangentsZBlock1, index, key.leaveTangent.z);
+        Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
     float To_RuntimeCurveInterpolationMode(FloatCurveInterpolationMode mode)
@@ -1312,6 +1343,20 @@ namespace Internal
         desc.curveKeyValuesYBlock1 = Vec4{};
         desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
         desc.curveKeyValuesZBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsZ = Vec4{};
+        desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsZ = Vec4{};
+        desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload))
         {
@@ -1331,8 +1376,22 @@ namespace Internal
             desc.curveKeyValuesYBlock1 = Vec4{};
             desc.curveKeyValuesZ = Vec4{};
             desc.curveKeyValuesZBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsX = Vec4{};
+            desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsX = Vec4{};
+            desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsY = Vec4{};
+            desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsY = Vec4{};
+            desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsZ = Vec4{};
+            desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsZ = Vec4{};
+            desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+            desc.curveKeyModes = Vec4{};
+            desc.curveKeyModesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
-                Fill_MeshVector3CurveComponent(desc, index, keys[index].time, keys[index].value);
+                Fill_MeshVector3CurveComponent(desc, index, keys[index]);
         }
     }
 
@@ -1467,6 +1526,20 @@ namespace Internal
             Evaluate_FloatDistributionMin(data.speed, desc.velocityConeSpeed.x),
             Evaluate_FloatDistributionMax(data.speed, desc.velocityConeSpeed.y)
         };
+    }
+
+    void Fill_SourceMotionVelocityPayload(PointParticleMotionDesc& desc, const SourceMotionVelocityModuleData& data)
+    {
+        desc.enabled = true;
+        desc.sourceMotionVelocityEnabled = true;
+        desc.sourceMotionVelocityDirectionMode = Resolve_SourceMotionVelocityDirectionMode(data.directionMode);
+        desc.sourceMotionVelocitySpeed = Vec2{
+            Evaluate_FloatDistributionMin(data.speed, desc.sourceMotionVelocitySpeed.x),
+            Evaluate_FloatDistributionMax(data.speed, desc.sourceMotionVelocitySpeed.y)
+        };
+        desc.sourceMotionVelocitySeed = Build_RandomSeedDesc(data.speed);
+        desc.sourceMotionVelocitySourceSpeedScale = max(0.f, data.sourceSpeedScale);
+        desc.sourceMotionVelocitySpreadAngleDegrees = clamp(data.spreadAngleDegrees, 0.f, 180.f);
     }
 
     Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
@@ -1896,6 +1969,14 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     {
         Internal::Fill_VelocityConePayload(desc.motion, *velocityCone);
         desc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
     }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
@@ -2603,6 +2684,14 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
         emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
     }
 
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
+    }
+
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
@@ -3131,6 +3220,10 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             emitterDesc.meshTransform.scaleByLife.end.x = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesXBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsX = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsXBlock1 = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsX = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsXBlock1 = Vec4{};
         }
         if (!meshSizeByLife->multiplyY)
         {
@@ -3138,6 +3231,10 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             emitterDesc.meshTransform.scaleByLife.end.y = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesYBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsY = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsYBlock1 = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsY = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsYBlock1 = Vec4{};
         }
         if (!meshSizeByLife->multiplyZ)
         {
@@ -3145,6 +3242,10 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             emitterDesc.meshTransform.scaleByLife.end.z = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesZBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsZ = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsZBlock1 = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsZ = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsZBlock1 = Vec4{};
         }
     }
 
@@ -3182,6 +3283,14 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
     {
         Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
         emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
     }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))

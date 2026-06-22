@@ -18,7 +18,7 @@ namespace Internal
     constexpr float kGraphPadding{ 28.f };
     constexpr float kKeyHitRadius{ 8.f };
     constexpr float kMinimumDragValueRange{ 10.f };
-    constexpr size_t kDistributionCurveMaxKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+    constexpr size_t kDistributionCurveMaxKeys{ kEffectDistributionCurveMaxKeys };
 
     const char* Get_InterpolationLabel(FloatCurveInterpolationMode mode)
     {
@@ -153,25 +153,29 @@ namespace Internal
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<FloatCurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size()
+               ? keys[*selectedKeyIndex].interpolationMode
                : FloatCurveInterpolationMode::Linear;
     }
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<Vector2CurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size()
+               ? keys[*selectedKeyIndex].interpolationMode
                : FloatCurveInterpolationMode::Linear;
     }
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<Vector3CurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size()
+               ? keys[*selectedKeyIndex].interpolationMode
                : FloatCurveInterpolationMode::Linear;
     }
 
     FloatCurveInterpolationMode Get_SelectedKeyInterpolationMode(const vector<ColorCurveKeyData>& keys, optional<size_t> selectedKeyIndex)
     {
-        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size() ? keys[*selectedKeyIndex].interpolationMode
+        return selectedKeyIndex.has_value() && *selectedKeyIndex < keys.size()
+               ? keys[*selectedKeyIndex].interpolationMode
                : FloatCurveInterpolationMode::Linear;
     }
 
@@ -303,7 +307,7 @@ void CurveEditor_View::Pin_ModuleTargets(uint32 emitterId, uint32 moduleId)
 
     AuthoringEmitter* emitter = emitterView->Find_Emitter(emitterId);
     AuthoringModule* module = emitterView->Find_Module(emitterId, moduleId);
-    if (emitter == nullptr || module == nullptr)
+    if (nullptr == emitter || nullptr == module)
         return;
 
     Clear_PinnedTracks();
@@ -318,7 +322,7 @@ bool CurveEditor_View::Convert_AndPin_ModuleTargets(uint32 emitterId, uint32 mod
 
     AuthoringEmitter* emitter = emitterView->Find_Emitter(emitterId);
     AuthoringModule* module = emitterView->Find_Module(emitterId, moduleId);
-    if (emitter == nullptr || module == nullptr)
+    if (nullptr == emitter || nullptr == module)
         return false;
 
     const vector<CurveTarget> targets = Collect_ModuleTargets(*emitter, *module, false);
@@ -597,7 +601,8 @@ float CurveEditor_View::Get_DefaultValue(const FloatDistributionData& distributi
     if (const auto* uniformData = get_if<UniformFloatDistributionData>(&distribution.payload))
         return uniformData->maxValue;
 
-    if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload); curve != nullptr && !curve->keys.empty())
+    if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload);
+        nullptr != curve && !curve->keys.empty())
         return curve->keys.front().value;
 
     return 0.f;
@@ -611,7 +616,8 @@ Vec2 CurveEditor_View::Get_DefaultValue(const Vector2DistributionData& distribut
     if (const auto* uniformData = get_if<UniformVector2DistributionData>(&distribution.payload))
         return uniformData->maxValue;
 
-    if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&distribution.payload); curve != nullptr && !curve->keys.empty())
+    if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&distribution.payload);
+        nullptr != curve && !curve->keys.empty())
         return curve->keys.front().value;
 
     return Vec2{ 1.f, 1.f };
@@ -625,7 +631,8 @@ Vec3 CurveEditor_View::Get_DefaultValue(const Vector3DistributionData& distribut
     if (const auto* uniformData = get_if<UniformVector3DistributionData>(&distribution.payload))
         return uniformData->maxValue;
 
-    if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&distribution.payload); curve != nullptr && !curve->keys.empty())
+    if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&distribution.payload);
+        nullptr != curve && !curve->keys.empty())
         return curve->keys.front().value;
 
     return Vec3{ 0.f, 0.f, 0.f };
@@ -639,7 +646,8 @@ Color CurveEditor_View::Get_DefaultValue(const ColorDistributionData& distributi
     if (const auto* uniformData = get_if<UniformColorDistributionData>(&distribution.payload))
         return uniformData->maxValue;
 
-    if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&distribution.payload); curve != nullptr && !curve->keys.empty())
+    if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&distribution.payload);
+        nullptr != curve && !curve->keys.empty())
         return curve->keys.front().value;
 
     return Color{ 1.f, 1.f, 1.f, 1.f };
@@ -692,10 +700,18 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveFloatDistributionData& c
         if (key.interpolationMode != FloatCurveInterpolationMode::CurveAutoClamped)
             continue;
 
-        const FloatCurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
-        const FloatCurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
-        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
-        const float tangent = dt > 0.f ? (nextKey->value - prevKey->value) / dt : 0.f;
+        const FloatCurveKeyData* prevKey = index > 0
+                                           ? &curve.keys[index - 1]
+                                           : nullptr;
+        const FloatCurveKeyData* nextKey = index + 1 < curve.keys.size()
+                                           ? &curve.keys[index + 1]
+                                           : nullptr;
+        const float dt = nullptr != prevKey && nullptr != nextKey
+                         ? nextKey->time - prevKey->time
+                         : 0.f;
+        const float tangent = dt > 0.f
+                              ? (nextKey->value - prevKey->value) / dt
+                              : 0.f;
         key.arriveTangent = tangent;
         key.leaveTangent = tangent;
     }
@@ -722,7 +738,7 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector2DistributionData&
 
         const Vector2CurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
         const Vector2CurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
-        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
+        const float dt = nullptr != prevKey && nullptr != nextKey ? nextKey->time - prevKey->time : 0.f;
         const Vec2 tangent = dt > 0.f
                              ? Vec2{ (nextKey->value.x - prevKey->value.x) / dt, (nextKey->value.y - prevKey->value.y) / dt }
                              : Vec2{};
@@ -752,13 +768,12 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector3DistributionData&
 
         const Vector3CurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
         const Vector3CurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
-        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
+        const float dt = prevKey == nullptr && nullptr != nextKey ? nextKey->time - prevKey->time : 0.f;
         const Vec3 tangent = dt > 0.f
                              ? Vec3{
                                  (nextKey->value.x - prevKey->value.x) / dt,
                                  (nextKey->value.y - prevKey->value.y) / dt,
-                                 (nextKey->value.z - prevKey->value.z) / dt
-                             }
+                                 (nextKey->value.z - prevKey->value.z) / dt }
                              : Vec3{};
         key.arriveTangent = tangent;
         key.leaveTangent = tangent;
@@ -791,7 +806,7 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveColorDistributionData& c
 
         const ColorCurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
         const ColorCurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
-        const float dt = prevKey != nullptr && nextKey != nullptr ? nextKey->time - prevKey->time : 0.f;
+        const float dt = nullptr != prevKey && nullptr != nextKey ? nextKey->time - prevKey->time : 0.f;
         const Color tangent = dt > 0.f
                               ? Color{
                                   (nextKey->value.x - prevKey->value.x) / dt,
@@ -958,7 +973,7 @@ float CurveEditor_View::Clamp_GraphEditedValue(const CurveTarget& target, float 
 
 Shared<Emitter_View> CurveEditor_View::Resolve_EmitterView() const
 {
-    if (EDITOR == nullptr)
+    if (nullptr == EDITOR)
         return nullptr;
 
     const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
@@ -1018,6 +1033,10 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
     case AuthoringModuleType::VelocityCone:
         if (auto* data = get_if<VelocityConeModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->speed, "speed", "Cone Speed", IM_COL32(245, 205, 95, 255), requireActiveCurve);
+        break;
+    case AuthoringModuleType::SourceMotionVelocity:
+        if (auto* data = get_if<SourceMotionVelocityModuleData>(&module.data))
+            Add_FloatTarget(targets, emitter, module, data->speed, "speed", "Source Motion Speed", IM_COL32(245, 205, 95, 255), requireActiveCurve);
         break;
     case AuthoringModuleType::Drag:
         if (auto* data = get_if<DragModuleData>(&module.data))
@@ -1246,7 +1265,7 @@ optional<CurveEditor_View::CurveTarget> CurveEditor_View::Resolve_Target(const C
 
     AuthoringEmitter* emitter = emitterView->Find_Emitter(identity.emitterId);
     AuthoringModule* module = emitterView->Find_Module(identity.emitterId, identity.moduleId);
-    if (emitter == nullptr || module == nullptr || module->type != identity.moduleType)
+    if (nullptr == emitter || nullptr == module || module->type != identity.moduleType)
         return nullopt;
 
     vector<CurveTarget> targets = Collect_ModuleTargets(*emitter, *module);
@@ -1305,7 +1324,7 @@ void CurveEditor_View::Add_FloatTarget(
     ImU32 color,
     bool requireActiveCurve)
 {
-    if (requireActiveCurve && Resolve_CurvePayload(distribution) == nullptr)
+    if (requireActiveCurve && nullptr == Resolve_CurvePayload(distribution))
         return;
 
     CurveTargetIdentity identity{};
@@ -1339,7 +1358,7 @@ void CurveEditor_View::Add_Vector2Target(
     const string& label,
     bool requireActiveCurve)
 {
-    if (requireActiveCurve && Resolve_CurvePayload(distribution) == nullptr)
+    if (requireActiveCurve && nullptr == Resolve_CurvePayload(distribution))
         return;
 
     for (const CurveTargetChannel channel : { CurveTargetChannel::X, CurveTargetChannel::Y })
@@ -1377,7 +1396,7 @@ void CurveEditor_View::Add_Vector3Target(
     bool allowCurveTarget,
     bool requireActiveCurve)
 {
-    if (!allowCurveTarget || (requireActiveCurve && Resolve_CurvePayload(distribution) == nullptr))
+    if (!allowCurveTarget || (requireActiveCurve && nullptr == Resolve_CurvePayload(distribution)))
         return;
 
     for (const CurveTargetChannel channel : { CurveTargetChannel::X, CurveTargetChannel::Y, CurveTargetChannel::Z })
@@ -1414,7 +1433,7 @@ void CurveEditor_View::Add_ColorTarget(
     const string& label,
     bool requireActiveCurve)
 {
-    if (requireActiveCurve && Resolve_CurvePayload(distribution) == nullptr)
+    if (requireActiveCurve && nullptr == Resolve_CurvePayload(distribution))
         return;
 
     for (const CurveTargetChannel channel : { CurveTargetChannel::R, CurveTargetChannel::G, CurveTargetChannel::B })
@@ -1553,7 +1572,7 @@ bool CurveEditor_View::Execute_CurveAuthoringEdit(const CurveTarget& target, con
     if (!edit())
         return false;
 
-    if (target.emitter != nullptr)
+    if (nullptr != target.emitter)
         target.emitter->previewDirty = true;
     emitterView->MarkDirty();
     MarkDirty();
@@ -1568,7 +1587,7 @@ bool CurveEditor_View::Execute_CurveAuthoringEdit(const CurveTarget& target, con
 
 void CurveEditor_View::Mark_CurveChanged(const CurveTarget& target)
 {
-    if (target.emitter != nullptr)
+    if (nullptr != target.emitter)
         target.emitter->previewDirty = true;
 
     if (const Shared<Emitter_View> emitterView = Resolve_EmitterView())
@@ -1629,7 +1648,7 @@ CurveEditor_View::GraphValueRange CurveEditor_View::Compute_GraphValueRange(cons
         if (auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
         {
             ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             Normalize_CurveKeys(*curve);
@@ -1644,7 +1663,7 @@ CurveEditor_View::GraphValueRange CurveEditor_View::Compute_GraphValueRange(cons
         else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
         {
             ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             Normalize_CurveKeys(*curve);
@@ -1659,7 +1678,7 @@ CurveEditor_View::GraphValueRange CurveEditor_View::Compute_GraphValueRange(cons
         else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
         {
             ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             Normalize_CurveKeys(*curve);
@@ -1674,7 +1693,7 @@ CurveEditor_View::GraphValueRange CurveEditor_View::Compute_GraphValueRange(cons
         else if (auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
         {
             ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             Normalize_CurveKeys(*curve);
@@ -1800,7 +1819,7 @@ void CurveEditor_View::Draw_TrackList(const vector<CurveTarget>& targets)
 
 void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
 {
-    string headerLabel = target.module != nullptr && !target.module->displayName.empty()
+    string headerLabel = nullptr != target.module && !target.module->displayName.empty()
                          ? String::ToString(target.module->displayName)
                          : target.propertyLabel;
     if (target.channel != CurveTargetChannel::Value)
@@ -1978,7 +1997,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
                 {
                     ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution);
-                    if (curve == nullptr)
+                    if (nullptr == curve)
                         return false;
 
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
@@ -1993,7 +2012,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
                 {
                     ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
-                    if (curve == nullptr)
+                    if (nullptr == curve)
                         return false;
 
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
@@ -2008,7 +2027,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
                 {
                     ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
-                    if (curve == nullptr)
+                    if (nullptr == curve)
                         return false;
 
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
@@ -2023,7 +2042,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                 if (const auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
                 {
                     ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution);
-                    if (curve == nullptr)
+                    if (nullptr == curve)
                         return false;
 
                     const float time = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size()
@@ -2194,7 +2213,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         if (auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
         {
             ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             ImVec2 previousPoint = Internal::To_GraphPoint(graphOrigin, graphSize, 0.f, Evaluate_Curve(*curve, 0.f), minValue, maxValue);
@@ -2217,7 +2236,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
         {
             ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             ImVec2 previousPoint = Internal::To_GraphPoint(
@@ -2254,7 +2273,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
         {
             ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             ImVec2 previousPoint = Internal::To_GraphPoint(
@@ -2291,7 +2310,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         else if (auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
         {
             ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution);
-            if (curve == nullptr)
+            if (nullptr == curve)
                 continue;
 
             ImVec2 previousPoint = Internal::To_GraphPoint(
@@ -2531,7 +2550,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
 
         if (auto* floatDistribution = get_if<FloatDistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution); curve != nullptr && index < curve->keys.size())
+            if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution); nullptr != curve && index < curve->keys.size())
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 FloatCurveKeyData& key = curve->keys[index];
@@ -2542,7 +2561,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         }
         else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution); curve != nullptr && index < curve->keys.size())
+            if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution); nullptr != curve && index < curve->keys.size())
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 Vector2CurveKeyData& key = curve->keys[index];
@@ -2553,7 +2572,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         }
         else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution); curve != nullptr && index < curve->keys.size())
+            if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution); nullptr != curve && index < curve->keys.size())
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 Vector3CurveKeyData& key = curve->keys[index];
@@ -2564,7 +2583,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
         }
         else if (auto* colorDistribution = get_if<ColorDistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution); curve != nullptr && index < curve->keys.size())
+            if (ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution); nullptr != curve && index < curve->keys.size())
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 ColorCurveKeyData& key = curve->keys[index];
@@ -2590,7 +2609,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
     if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
     {
         ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution);
-        if (curve == nullptr || *_selectedKeyIndex >= curve->keys.size())
+        if (nullptr == curve || *_selectedKeyIndex >= curve->keys.size())
         {
             ImGui::TextDisabled("No key selected.");
             return;
@@ -2649,7 +2668,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
     if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
     {
         ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
-        if (curve == nullptr || *_selectedKeyIndex >= curve->keys.size())
+        if (nullptr == curve || *_selectedKeyIndex >= curve->keys.size())
         {
             ImGui::TextDisabled("No key selected.");
             return;
@@ -2715,7 +2734,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
     if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
     {
         ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
-        if (curve == nullptr || *_selectedKeyIndex >= curve->keys.size())
+        if (nullptr == curve || *_selectedKeyIndex >= curve->keys.size())
         {
             ImGui::TextDisabled("No key selected.");
             return;
@@ -2786,7 +2805,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
     if (const auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
     {
         ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution);
-        if (curve == nullptr || *_selectedKeyIndex >= curve->keys.size())
+        if (nullptr == curve || *_selectedKeyIndex >= curve->keys.size())
         {
             ImGui::TextDisabled("No key selected.");
             return;

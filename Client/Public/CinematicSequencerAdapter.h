@@ -6,19 +6,27 @@ class CinematicSequencerAdapter : public ImSequencer::SequenceInterface
 {
 public:
     static constexpr int kModifierTrackCount = 7;
+    static constexpr int kEventTrackCount = 1;
 
 public:
     CinematicSequencerAdapter(
         CINEMATIC_SEQUENCE* sequence,
         int* selectedTrackIndex,
         int* selectedKeyIndex,
+        int* selectedEventIndex,
+        int* selectedActorTransformTrackIndex,
+        int* selectedActorTransformKeyIndex,
         int* currentFrame,
         bool* consumedKeyClick,
         bool* requestOpenKeyPopup,
         bool* requestOpenInsertPopup,
         bool* requestRemoveKeyPopup, 
         int* contextTrackIndex,
-        int* contextFrame);
+        int* contextFrame,
+        bool* previewDirty = nullptr,
+        bool* cameraTrackEnabled = nullptr,
+        bool* eventTrackEnabled = nullptr,
+        bool* actorTransformTrackEnabled = nullptr);
 
 public:
     int GetFrameMin() const override;
@@ -34,6 +42,9 @@ private:
     CINEMATIC_SEQUENCE* _sequence = nullptr;
     int* _selectedTrackIndex = nullptr;
     int* _selectedKeyIndex = nullptr;
+    int* _selectedEventIndex = nullptr;
+    int* _selectedActorTransformTrackIndex = nullptr;
+    int* _selectedActorTransformKeyIndex = nullptr;
     int* _currentFrame = nullptr;
     bool* _consumedKeyClick = nullptr;
     bool* _requestOpenKeyPopup = nullptr;
@@ -41,5 +52,9 @@ private:
     bool* _requestRemoveKeyPopup = nullptr;
     int* _contextTrackIndex = nullptr;
     int* _contextFrame = nullptr;
+    bool* _previewDirty = nullptr;
+    bool* _cameraTrackEnabled = nullptr;
+    bool* _eventTrackEnabled = nullptr;
+    bool* _actorTransformTrackEnabled = nullptr;
 };
 

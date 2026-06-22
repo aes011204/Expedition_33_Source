@@ -50,7 +50,7 @@ HRESULT EffectEditorCamera::Initialize_Prototype()
 
 HRESULT EffectEditorCamera::Initialize(void* arg)
 {
-    if (arg == nullptr)
+    if (nullptr == arg)
         return E_FAIL;
 
     const auto desc = static_cast<EffectEditorCameraDesc*>(arg);

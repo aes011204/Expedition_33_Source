@@ -592,6 +592,11 @@ void ClientInstance::Request_GamePlay()
     return _cameraDirector->Request_GamePlay();
 }
 
+void ClientInstance::Request_SoulLikeCamera()
+{
+    return _cameraDirector->Request_SoulLikeCamera();
+}
+
 void ClientInstance::Request_Preview()
 {
     return _cameraDirector->Request_Preview();
@@ -617,14 +622,157 @@ void ClientInstance::Restore_PreviousCamera()
     return _cameraDirector->Restore_PreviousCamera();
 }
 
-bool ClientInstance::Play_Sequence(const wstring& filePath, int trackIndex)
+bool ClientInstance::Play_Sequence(
+    const wstring& filePath,
+    int trackIndex,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
 {
-    return _cinematicSequenceRunner->Play_Sequence(filePath, trackIndex);
+    return _cinematicSequenceRunner->Play_Sequence(
+        filePath,
+        trackIndex,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
+}
+
+bool ClientInstance::Play_Sequence(
+    const CINEMATIC_SEQUENCE& sequence,
+    int trackIndex,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
+{
+    return _cinematicSequenceRunner->Play_Sequence(
+        sequence,
+        trackIndex,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
 }
 
 void ClientInstance::Stop_Sequence()
 {
     return  _cinematicSequenceRunner->Stop_Sequence();
+}
+
+void ClientInstance::Stop_SequenceKeepContext()
+{
+    return _cinematicSequenceRunner->Stop_SequenceKeepContext();
+}
+
+void ClientInstance::Pause_Sequence()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Pause_Sequence();
+}
+
+void ClientInstance::Resume_Sequence(
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Resume_Sequence(
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
+}
+
+void ClientInstance::Set_CurrentSequenceFrame(int frame)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Set_CurrentFrame(frame);
+}
+
+void ClientInstance::Refresh_CurrentSequenceContext()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Refresh_CurrentFrameContext();
+}
+
+void ClientInstance::Preview_CurrentSequenceFrame(
+    int frame,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack,
+    bool forceRebuildContext)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Preview_CurrentFrame(
+        frame,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack,
+        forceRebuildContext);
+}
+
+bool ClientInstance::Sync_CinematicPreviewSequence(
+    const CINEMATIC_SEQUENCE& sequence,
+    int trackIndex)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return false;
+
+    return _cinematicSequenceRunner->Sync_PreviewSequence(sequence, trackIndex);
+}
+
+void ClientInstance::Set_ActorTransformTrackPreviewSuspended(bool suspended)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Set_ActorTransformTrackPreviewSuspended(suspended);
+}
+
+bool ClientInstance::Is_CinematicPlaying() const
+{
+    return _cinematicSequenceRunner && _cinematicSequenceRunner->Is_CinematicPlaying();
+}
+
+bool ClientInstance::Is_CinematicPaused() const
+{
+    return _cinematicSequenceRunner && _cinematicSequenceRunner->Is_CinematicPaused();
+}
+
+int ClientInstance::Get_CurrentSequenceFrame() const
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return 0;
+
+    return _cinematicSequenceRunner->Get_CurrentFrame();
+}
+
+Shared<GameObject> ClientInstance::Get_CinematicBoundActor(const string& targetId) const
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return nullptr;
+
+    return _cinematicSequenceRunner->Get_BoundActor(targetId);
+}
+
+bool ClientInstance::Is_ActorTransformTrackPreviewSuspended() const
+{
+    return _cinematicSequenceRunner && _cinematicSequenceRunner->Is_ActorTransformTrackPreviewSuspended();
+}
+
+void ClientInstance::Update_CinematicPreview(float timeDelta)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Update(timeDelta, true);
 }
 
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()

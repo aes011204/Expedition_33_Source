@@ -60,11 +60,13 @@ public:
 
     void Set_CurrentAction(MonsterWorldAnim action) { _currentAction = action; }
     void Set_DesiredAction(MonsterWorldAnim action) { _desiredAction = action; }
+    void Set_CinematicDriven(bool cinematicDriven);
     void Apply_Stun(float duration);
     void OnHitAnimationFinished();
     MonsterWorldAnim Get_CurrentAction() const { return _currentAction; }
     MonsterWorldAnim Get_DesiredAction() const { return _desiredAction; }
     bool Is_Stunned() const { return _isStun; }
+    bool Is_CinematicDriven() const { return _isCinematicDriven; }
 
     void Set_PatrolPoints(vector<Vec3> patrolPoints) { _PatrolPoints = std::move(patrolPoints); }
     const vector<Vec3>& Get_PatrolPoints() const { return _PatrolPoints; }
@@ -108,6 +110,7 @@ protected:
     vector<Vec3>                 _defaultPatrolPoints;
 
     bool _isStun = { false };
+    bool _isCinematicDriven = false;
     float _maxStunTime = {3.f};
     float _stunTime = {};
 

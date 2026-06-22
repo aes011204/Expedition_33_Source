@@ -1163,9 +1163,20 @@
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
     <ClCompile Include="..\Private\MW_Dualliste.cpp" />
+    <ClCompile Include="..\private\Trigger_Cinematic.cpp">
+      <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_ParryWindow.cpp" />
     <ClCompile Include="..\Private\SL_JumpCounter.cpp" />
+    <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
+    <ClCompile Include="..\Private\UI_GetCharacter.cpp" />
+    <ClCompile Include="..\Private\UI_GetClothes.cpp" />
+    <ClCompile Include="..\Private\UI_GetWeapon.cpp" />
+    <ClCompile Include="..\Private\UI_GetPictos.cpp" />
+    <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
+    <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
+    <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1225,6 +1236,9 @@
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
+    <ClInclude Include="..\public\Trigger_Cinematic.h">
+      <Filter>02.GameObject\Map</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SL_Parry.h" />
     <ClInclude Include="..\Public\ANS_ParryWindow.h" />
     <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h">
@@ -1237,6 +1251,14 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SL_JumpCounter.h" />
+    <ClInclude Include="..\Public\SoulLikeCamera.h" />
+    <ClInclude Include="..\Public\UI_GetCharacter.h" />
+    <ClInclude Include="..\Public\UI_GetClothes.h" />
+    <ClInclude Include="..\Public\UI_GetWeapon.h" />
+    <ClInclude Include="..\Public\UI_GetPictos.h" />
+    <ClInclude Include="..\Public\UI_BattlePictos.h" />
+    <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
+    <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1711,6 +1733,9 @@
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\GameplayUI_Battle.h">
