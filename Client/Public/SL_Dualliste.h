@@ -75,6 +75,7 @@ public:
     void Apply_Damage(const SL_DamageInfo& damageInfo) override;
     bool Change_State(SL_MonState state);
     int Get_CurrentPhase() const { return _currentPhase; }
+    bool CanUseLeftSword() const { return _currentPhase >= 2; }
     bool Is_PhaseChangeFinished() const { return _phaseChangeFinished; }
     void Finish_PhaseChange();
     void Set_ActionLocked(bool isActionLock);
@@ -82,6 +83,7 @@ protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
     bool Try_EnterPhaseChange();
+    void Apply_PhaseVisualState();
     void Update_BlackBoard();
     void Update_StunSystem(float timeDelta);
     float Calculate_BreakDamage(AttackType attackType) const;
