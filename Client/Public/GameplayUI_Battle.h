@@ -13,6 +13,7 @@ NS_BEGIN(Client)
 class BattleWorldUI_CommandCards;
 class BattleWorldUI_GradientCards;
 class BattleWorldUI_ItemCards;
+class BattleWorldUI_MaterialVfxBackground;
 class BattleWorldUI_SkillCards;
 class UI_BattleDefense;
 class UI_CancelAim;
@@ -125,6 +126,13 @@ private:
     void    Update_QTE(float timeDelta);
     void    Update_MarkEffect(float timeDelta);
     void    Update_BattleSystemIntroState(float timeDelta);
+    HRESULT Ensure_BattleWorldMaterialVfxBackground();
+    void    Hide_BattleWorldMaterialVfxBackground();
+    void    Update_BattleWorldMaterialVfxBackground(
+        const Vec3& commandHudWorldPos,
+        BattleTurnState currentState,
+        HeroId actorHeroId,
+        float timeDelta);
     HRESULT Ensure_BattleWorldCommandCards();
     void    Hide_BattleWorldCommandCards();
     void    Update_BattleWorldCommandCards(
@@ -187,6 +195,7 @@ private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
     Unique<UI_BattleSystemHUD>              _battleSystemHUD;
+    Shared<BattleWorldUI_MaterialVfxBackground> _battleWorldMaterialVfxBackground;
     Shared<BattleWorldUI_CommandCards>      _battleWorldCommandCards;
     Shared<BattleWorldUI_ItemCards>         _battleWorldItemCards;
     Shared<BattleWorldUI_SkillCards>        _battleWorldSkillCards;

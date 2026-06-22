@@ -578,6 +578,9 @@
     <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleWorldUI_MaterialVfxBackground.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
@@ -1708,6 +1711,9 @@
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleWorldUI_MaterialVfxBackground.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h">
