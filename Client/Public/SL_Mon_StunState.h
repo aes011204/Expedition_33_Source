@@ -24,11 +24,11 @@ public:
     static Shared<SL_Mon_StunState> Create(const Shared<SL_Dualliste>& owner);
 
 private:
-    bool Is_StunActive() const;
     bool Play_PhaseAnim(Phase phase);
 
 private:
     Phase _phase = Phase::Enter;
+    float _loopElapsed = 0.f;
 };
 
 NS_END

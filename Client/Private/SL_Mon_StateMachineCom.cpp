@@ -7,6 +7,7 @@
 #include "SL_Mon_HitState.h"
 #include "SL_Mon_IdleState.h"
 #include "SL_Mon_IntroState.h"
+#include "SL_Mon_PhaseChangeState.h"
 #include "SL_Mon_StunState.h"
 #include "SL_Mon_State.h"
 
@@ -54,6 +55,7 @@ void SL_Mon_StateMachineCom::BeginPlay()
         return;
 
     CHECK_FAILED(Add_State(SL_MonState::Intro, SL_Mon_IntroState::Create(owner)));
+    CHECK_FAILED(Add_State(SL_MonState::PhaseChange, SL_Mon_PhaseChangeState::Create(owner)));
     CHECK_FAILED(Add_State(SL_MonState::Idle, SL_Mon_IdleState::Create(owner)));
     CHECK_FAILED(Add_State(SL_MonState::Chase, SL_Mon_ChaseState::Create(owner)));
     CHECK_FAILED(Add_State(SL_MonState::Attack, SL_Mon_AttackState::Create(owner)));

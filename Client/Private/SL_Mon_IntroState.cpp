@@ -15,9 +15,9 @@ bool SL_Mon_IntroState::EnterInvoke()
     if (!SL_Mon_State::EnterInvoke())
         return false;
 
-    _phase = Phase::IntroSetup;
+    _phase = Phase::IntroPlay;
+    _hasStarted = false;
     _holdElapsed = 0.f;
-    Play_CurrentPhase();
     return true;
 }
 
@@ -29,19 +29,19 @@ void SL_Mon_IntroState::Play_CurrentPhase()
 
     switch (_phase)
     {
-    case Phase::IntroSetup:
-        //owner->Set_AnimPaused(false);
-        owner->Play_Anim(SL_Dualliste::Anim::Intro, 0.0f, false, 0.0f);
-        //owner->Refresh_AnimPose();
-        //owner->Set_AnimPaused(true);
-        break;
-        break;
+    //case Phase::IntroSetup:
+    //    //owner->Set_AnimPaused(false);
+    //    owner->Play_Anim(SL_Dualliste::Anim::Intro, 0.0f, false, 0.0f);
+    //    //owner->Refresh_AnimPose();
+    //    //owner->Set_AnimPaused(true);
+    //    break;
+    //    break;
 
-    case Phase::IntroHold:
-        break;
+    //case Phase::IntroHold:
+    //    break;
 
     case Phase::IntroPlay:
-        owner->Set_AnimPaused(false);
+        owner->Play_Anim(SL_Dualliste::Anim::Intro, 0.0f, false, 0.0f);
         break;
 
     case Phase::Dash:
@@ -62,22 +62,29 @@ void SL_Mon_IntroState::Update(float timeDelta)
     if (owner == nullptr || _stateCom == nullptr)
         return;
 
+    if (!_hasStarted)
+    {
+        _hasStarted = true;
+        Play_CurrentPhase();
+        return;
+    }
+
     switch (_phase)
     {
-    case Phase::IntroSetup:
-        owner->Set_AnimPaused(true);
-        _holdElapsed = 0.f;
-        _phase = Phase::IntroHold;
-        break;
+    //case Phase::IntroSetup:
+    //    owner->Set_AnimPaused(true);
+    //    _holdElapsed = 0.f;
+    //    _phase = Phase::IntroHold;
+    //    break;
 
-    case Phase::IntroHold:
-        _holdElapsed += timeDelta;
-        if (_holdElapsed < kIntroHoldTime)
-            return;
+    //case Phase::IntroHold:
+    //    _holdElapsed += timeDelta;
+    //    if (_holdElapsed < kIntroHoldTime)
+    //        return;
 
-        _phase = Phase::IntroPlay;
-        Play_CurrentPhase();
-        break;
+    //    _phase = Phase::IntroPlay;
+    //    Play_CurrentPhase();
+    //    break;
 
     case Phase::IntroPlay:
         if (!owner->Is_AnimFinished())

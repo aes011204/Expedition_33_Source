@@ -83,6 +83,17 @@ void Mon_Dualliste_Sword_R::Late_Update(float timeDelta)
     Monster_Part::Late_Update(timeDelta);
 }
 
+void Mon_Dualliste_Sword_R::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    Monster_Part::OnBeginOverlap(self, other);
+
+    const Shared<GameObject> owner = Get_Owner();
+    if (owner == nullptr)
+        return;
+
+    owner->OnBeginOverlap(self, other);
+}
+
 HRESULT Mon_Dualliste_Sword_R::Render()
 {
     return Monster_Part::Render();

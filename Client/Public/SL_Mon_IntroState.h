@@ -9,8 +9,8 @@ class SL_Mon_IntroState final : public SL_Mon_State
 public:
     enum class Phase
     {
-        IntroSetup,
-        IntroHold,
+        //IntroSetup,
+        //IntroHold,
         IntroPlay,
         Dash,
         End
@@ -25,7 +25,8 @@ public:
     void Update(float timeDelta) override;
 
 public:
-    Phase _phase = Phase::IntroSetup;
+    Phase _phase = Phase::IntroPlay;
+    bool _hasStarted = false;
     float _holdElapsed = 0.f;
     static constexpr float kIntroHoldTime = 5.f;
 

@@ -38,6 +38,7 @@ enum class SL_PlayerState
 enum class SL_MonState
 {
     Intro,
+    PhaseChange,
     Idle,
     Chase,
     Attack,
@@ -50,10 +51,15 @@ enum class SL_MonState
 
 enum class SL_MonAttackType
 {
-    DefaultAttack,
-    CloseSlash,
-    DashSlash,
-    JumpAttack,
+    SingleSlash_1,
+    SingleSlash_2,
+    SingleSlash_3,
+    DashBack_Spine,
+    DashIn_Stab,
+    DashIn_Stab_Estoc,
+    Att_Projectile,
+    Combo_1,
+    Combo_2,
 
     End
 };

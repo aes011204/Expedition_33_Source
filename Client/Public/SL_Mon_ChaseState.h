@@ -12,6 +12,7 @@ public:
 
 public:
     bool EnterInvoke() override;
+    void Update(float timeDelta) override;
 
     static Shared<SL_Mon_ChaseState> Create(const Shared<SL_Dualliste>& owner);
 };

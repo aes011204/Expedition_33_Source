@@ -713,6 +713,9 @@
     <ClCompile Include="..\Private\BT_SL_CanAttack.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_CompareBBValue.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
@@ -720,6 +723,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsIntroDone.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsActionLocked.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsStun.cpp">
@@ -1211,6 +1217,9 @@
     <ClCompile Include="..\Private\SL_Mon_IdleState.cpp">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_PhaseChangeState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_Mon_ChaseState.cpp">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClCompile>
@@ -1598,6 +1607,9 @@
     <ClInclude Include="..\Public\BT_SL_CanAttack.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_CompareBBValue.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsDead.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
@@ -1605,6 +1617,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsIntroDone.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsActionLocked.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsStun.h">
@@ -2363,6 +2378,9 @@
       <Filter>03. Component\StateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SL_Mon_IdleState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_PhaseChangeState.h">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SL_Mon_ChaseState.h">

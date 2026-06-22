@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "State.h"
 
@@ -15,11 +15,11 @@ public:
 
 public:
     HRESULT Initialize() override;
-    void Begin_Play() override;
-    bool EnterInvoke() override;
-    void Update(float timeDelta) override;
-    void LateUpdate(float timeDelta) override;
-    void ExitInvoke() override;
+    virtual void Begin_Play() override;
+    virtual bool EnterInvoke() override;
+    virtual void Update(float timeDelta) override;
+    virtual void LateUpdate(float timeDelta) override;
+    virtual void ExitInvoke() override;
 
 protected:
     Weak<SL_Dualliste> _owner{};

@@ -273,6 +273,7 @@ void Monster_WorldBase::Update(float timeDelta)
             MovementCom::FollowMoveCommand command{};
             command.enabled = true;
             command.worldDir = _aiCtrl->Get_MoveWorldDir();
+            command.rotateFollow = false;
 
             _movementCom->Set_FollowMoveCommand(command);
             _movementCom->Apply_Input({});

@@ -14,7 +14,12 @@
 #include "ClientScreenFxManager.h"
 #include "BlackBoard.h"
 #include "ClientInstance.h"
+#include "SoulLikeController.h"
+#include "SL_Maelle.h"
 #include "Player_WorldBase.h"
+#include "MovementCom.h"
+
+
 
 REGISTER_GLOBAL_ENUM(SL_Dualliste::Anim, "SL_DuallisteAnim")
 
@@ -57,6 +62,14 @@ void SL_Dualliste::BeginPlay()
 {
     SL_Base::BeginPlay();
 
+    Set_ActionLocked(false);
+
+    if (_aiCtrl)
+    {
+        if (const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard())
+            bb->Set_Value<int>("CurrentPhase", _currentPhase);
+    }
+ 
    if (_attackRCom)
    {
        _attackRCom->Set_IsActive(false);
@@ -69,10 +82,18 @@ void SL_Dualliste::BeginPlay()
        _attackLCom->Clear_Overlap();
    }
 
-   //_body->Set_AnimationByState(ETOI(Anim::Intro),0.f,1.f);
+
 
    if (_stateMachineCom)
        _stateMachineCom->Change_State(SL_MonState::Intro);
+
+   if (_movementCom)
+   {
+       _movementCom->Sync_RuntimePositionToTransform();
+       _movementCom->Stop_AllMovement();
+       _movementCom->Clear_FollowMoveCommand();
+       _movementCom->Apply_Input({});
+   }
 }
 
 void SL_Dualliste::Priority_Update(float timeDelta)
@@ -88,13 +109,48 @@ void SL_Dualliste::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
+    Update_StunSystem(timeDelta);
+
+    Try_EnterPhaseChange();
+
     Update_BlackBoard();
 
-    if (_aiCtrl && _isIntroDone)
+    const bool isPhaseChanging =
+        _stateMachineCom &&
+        _stateMachineCom->Get_CurrentMonStateType() == SL_MonState::PhaseChange;
+
+    if (_aiCtrl && _isIntroDone && !isPhaseChanging)
         _aiCtrl->Update(timeDelta);
 
-    if (_stateMachineCom)
+    if (_stateMachineCom && CLIENT->Get_ScreenFxManager()->Is_BattleInCounterFxFinished())
         _stateMachineCom->Update_CurrentState(timeDelta);
+
+    if (_movementCom)
+    {
+        const float moveSpeed = max(_transformCom->Get_SpeedPerSec(), 0.f);
+        _movementCom->Set_WalkSpeed(moveSpeed);
+        _movementCom->Set_RunSpeed(moveSpeed);
+        _movementCom->Set_SprintSpeed(moveSpeed);
+
+        if (_isIntroDone && _aiCtrl && _aiCtrl->Has_MoveIntent() && !Is_Dead())
+        {
+            MovementCom::FollowMoveCommand command{};
+            command.enabled = true;
+            command.worldDir = _aiCtrl->Get_MoveWorldDir();
+            command.rotateFollow = false;
+
+            _movementCom->Set_FollowMoveCommand(command);
+            _movementCom->Apply_Input({});
+            _movementCom->Update_Movement(timeDelta);
+        }
+        else
+        {
+            _movementCom->Clear_FollowMoveCommand();
+            _movementCom->Apply_Input({});
+            _movementCom->Stop_HorizontalMovement();
+            _movementCom->Update_Movement(timeDelta);
+        }
+    }
 
     if (_body)
         _body->Play_Animation(timeDelta);
@@ -167,6 +223,16 @@ Shared<ColliderCom> SL_Dualliste::Get_AttackColliderR() const
     return _attackRCom;
 }
 
+Shared<MovementCom> SL_Dualliste::Get_MovementCom() const
+{
+    return _movementCom;
+}
+
+Shared<ModelCom> SL_Dualliste::Get_ModelCom() const
+{
+    return _body ? _body->Get_Model() : nullptr;
+}
+
 bool SL_Dualliste::Play_Anim(Anim anim, float blendDuration, bool loop)
 {
     if (_body == nullptr)
@@ -236,6 +302,32 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
 {
     if (damageInfo.target.get() != this)
         return;
+
+    if (_combatStat == nullptr || _stateMachineCom == nullptr)
+        return;
+
+    if (Is_Dead())
+    {
+        Set_ActionLocked(false);
+        _stateMachineCom->Change_State(SL_MonState::Dead);
+        return;
+    }
+
+    if (_combatStat->IsBreak())
+        return;
+
+    _combatStat->Add_Break(Calculate_BreakDamage(damageInfo.attackType));
+
+    if (_combatStat->Get_CurBreak() >= _combatStat->Get_MaxBreak())
+    {
+        _combatStat->SetBreak(true);
+        _stunElapsed = 0.f;
+        Set_ActionLocked(false);
+        _stateMachineCom->Change_State(SL_MonState::Stun);
+        return;
+    }
+
+    _stateMachineCom->Change_State(SL_MonState::Hit);
 }
 
 void SL_Dualliste::Update_BlackBoard()
@@ -247,9 +339,14 @@ void SL_Dualliste::Update_BlackBoard()
     if (bb == nullptr)
         return;
 
-    bb->Set_Value<bool>("IsDead", Is_Dead());
+    if (!bb->Has_Value("CurrentPhase"))
+        bb->Set_Value<int>("CurrentPhase", _currentPhase);
 
-    const Shared<Player_WorldBase> player = CLIENT->Get_ActiveHero();
+    bb->Set_Value<bool>("IsDead", Is_Dead());
+    bb->Set_Value<bool>("IsStun", _combatStat && _combatStat->IsBreak());
+
+    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+    const Shared<SL_Maelle> player = controller ? controller->Get_Player() : nullptr;
     if (player == nullptr || player->Get_Transform() == nullptr)
     {
         bb->Set_Value<bool>("CanAttack", false);
@@ -260,8 +357,36 @@ void SL_Dualliste::Update_BlackBoard()
     bb->Set_Value<Vec3>("TargetPos", targetPos);
 
     const Vec3 myPos = _transformCom->Get_WorldPosition();
-    const float distanceToTarget = Vec3::Distance(myPos, targetPos);
-    bb->Set_Value<bool>("CanAttack", distanceToTarget <= 3.0f);
+    const Vec3 toTarget = targetPos - myPos;
+    const float distanceToTarget = toTarget.Length();
+    bb->Set_Value<float>("TargetDistance", distanceToTarget);
+    bb->Set_Value<bool>("CanAttack", distanceToTarget <= kCanAttackDistance);
+
+    Vec3 forward = _transformCom->Get_WorldForward();
+    forward.y = 0.f;
+
+    Vec3 flatToTarget = toTarget;
+    flatToTarget.y = 0.f;
+
+    float forwardDot = 1.f;
+    float angleDeg = 0.f;
+
+    if (forward.LengthSquared() > 0.000001f && flatToTarget.LengthSquared() > 0.000001f)
+    {
+        forward.Normalize();
+        flatToTarget.Normalize();
+
+        forwardDot = forward.Dot(flatToTarget);
+        forwardDot = clamp(forwardDot, -1.f, 1.f);
+        angleDeg = XMConvertToDegrees(acosf(forwardDot));
+    }
+
+    bb->Set_Value<float>("TargetForwardDot", forwardDot);
+    bb->Set_Value<float>("TargetAngleDeg", angleDeg);
+
+    const float maxHp = max(_combatStat ? _combatStat->Get_StatInfo().maxHp : 0.f, 0.0001f);
+    const float hpRatio = _combatStat ? clamp(_combatStat->Get_CurHp() / maxHp, 0.f, 1.f) : 0.f;
+    bb->Set_Value<float>("HpRatio", hpRatio);
 }
 
 bool SL_Dualliste::Change_State(SL_MonState state)
@@ -272,11 +397,135 @@ bool SL_Dualliste::Change_State(SL_MonState state)
 	return _stateMachineCom->Change_State(state);
 }
 
+void SL_Dualliste::Finish_PhaseChange()
+{
+    if (_phaseChangeFinished)
+        return;
+
+    _currentPhase = 2;
+    _phaseChangeFinished = true;
+
+    if (_aiCtrl)
+    {
+        if (const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard())
+            bb->Set_Value<int>("CurrentPhase", _currentPhase);
+    }
+}
+
+void SL_Dualliste::Set_ActionLocked(bool isActionLock)
+{
+    if (_aiCtrl == nullptr)
+        return;
+
+    const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+    if (bb == nullptr)
+        return;
+
+    bb->Set_Value<bool>("IsActionLocked", isActionLock);
+}
+
+bool SL_Dualliste::Try_EnterPhaseChange()
+{
+    if (_combatStat == nullptr || _stateMachineCom == nullptr)
+        return false;
+
+    if (_phaseChangeTriggered || _phaseChangeFinished || Is_Dead())
+        return false;
+
+    const float maxHp = max(_combatStat->Get_StatInfo().maxHp, 0.0001f);
+    const float hpRatio = clamp(_combatStat->Get_CurHp() / maxHp, 0.f, 1.f);
+    if (hpRatio > kPhase2HpThreshold)
+        return false;
+
+    const SL_MonState currentState = _stateMachineCom->Get_CurrentMonStateType();
+    if (currentState == SL_MonState::Dead || currentState == SL_MonState::PhaseChange)
+        return false;
+
+    _phaseChangeTriggered = true;
+    Set_ActionLocked(false);
+    if (_stateMachineCom->Change_State(SL_MonState::PhaseChange))
+        return true;
+
+    _phaseChangeTriggered = false;
+    return false;
+}
+
+void SL_Dualliste::Update_StunSystem(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (_combatStat == nullptr)
+        return;
+
+    if (_combatStat->IsBreak())
+    {
+        return;
+    }
+
+    _stunElapsed = 0.f;
+
+    if (_combatStat->Get_CurBreak() <= 0.f)
+        return;
+
+    _combatStat->Set_Break(_combatStat->Get_CurBreak() - _breakRecoverPerSec * timeDelta);
+}
+
+float SL_Dualliste::Calculate_BreakDamage(AttackType attackType) const
+{
+    switch (attackType)
+    {
+    case AttackType::Counter:
+        return 45.f;
+
+    case AttackType::ComboLast:
+        return 25.f;
+
+    case AttackType::SingleSkill:
+    case AttackType::SingleAOE:
+        return 20.f;
+
+    case AttackType::Combo:
+    case AttackType::FreeAimLight:
+        return 15.f;
+
+    case AttackType::BaseAttack:
+    case AttackType::FreeAimWeak:
+        return 20.f;
+
+    case AttackType::BuffEffect:
+    case AttackType::Invalid:
+    default:
+        return 0.f;
+    }
+}
 
 HRESULT SL_Dualliste::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl), E_FAIL);
     _aiCtrl->Set_Owner(static_pointer_cast<SL_Dualliste>(shared_from_this()));
+
+    MovementCom::MoveDesc moveDesc{};
+    moveDesc.walkSpeed = 3.f;
+    moveDesc.runSpeed = 6.f;
+    moveDesc.sprintSpeed = 6.f;
+    moveDesc.turnSpeedDegree = 540.f;
+    moveDesc.turnResponse = 10.f;
+    moveDesc.jumpVelocity = 0.f;
+    moveDesc.gravity = -40.f;
+    moveDesc.backend = MovementCom::MoveBackend::PhysXCCT;
+    moveDesc.sweep.skinWidth = 0.03f;
+    moveDesc.sweep.groundSnapUp = 0.35f;
+    moveDesc.sweep.groundSnapDown = 0.65f;
+    moveDesc.sweep.walkableNormalY = 0.65f;
+    moveDesc.sweep.groundY = 0.f;
+    moveDesc.cct.radius = 0.32f;
+    moveDesc.cct.height = 1.50f;
+    moveDesc.cct.stepOffset = 0.45f;
+    moveDesc.cct.contactOffset = 0.05f;
+    moveDesc.cct.slopeLimitDeg = 55.f;
+    moveDesc.cct.groundLerpSpeed = 15.f;
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_Mon_StateMachine"), _stateMachineCom), E_FAIL);
@@ -318,6 +567,7 @@ HRESULT SL_Dualliste::Ready_PartObjects()
 
     _swordL = dynamic_pointer_cast<Mon_Dualliste_Sword_L>(_partObjects[TEXT("Part_Sword_L")]);
     CHECK_NULL(_swordL, E_FAIL);
+    _attackLCom = _swordL->Get_AttackCollider();
 
     Mon_Dualliste_Sword_R::SWORD_DESC swordRDesc{};
     swordRDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
@@ -329,6 +579,7 @@ HRESULT SL_Dualliste::Ready_PartObjects()
 
     _swordR = dynamic_pointer_cast<Mon_Dualliste_Sword_R>(_partObjects[TEXT("Part_Sword_R")]);
     CHECK_NULL(_swordR, E_FAIL);
+    _attackRCom = _swordR->Get_AttackCollider();
 
     return S_OK;
 }

@@ -240,9 +240,11 @@
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\Public\BT_SL_CanAttack.h" />
+    <ClInclude Include="..\Public\BT_SL_CompareBBValue.h" />
     <ClInclude Include="..\Public\BT_SL_IsDead.h" />
     <ClInclude Include="..\Public\BT_SL_IsHit.h" />
     <ClInclude Include="..\Public\BT_SL_IsIntroDone.h" />
+    <ClInclude Include="..\Public\BT_SL_IsActionLocked.h" />
     <ClInclude Include="..\Public\BT_SL_IsStun.h" />
     <ClInclude Include="..\Public\BT_SL_SetDesiredState.h" />
     <ClInclude Include="..\Public\BT_SL_SetSelectedAttack.h" />
@@ -274,6 +276,7 @@
     <ClInclude Include="..\Public\SL_Mon_DeadState.h" />
     <ClInclude Include="..\Public\SL_Mon_HitState.h" />
     <ClInclude Include="..\Public\SL_Mon_IdleState.h" />
+    <ClInclude Include="..\Public\SL_Mon_PhaseChangeState.h" />
     <ClInclude Include="..\Public\SL_Mon_State.h" />
     <ClInclude Include="..\Public\SL_Mon_StunState.h" />
     <ClInclude Include="..\Public\SL_Mon_StateMachineCom.h" />
@@ -667,6 +670,7 @@
     <ClCompile Include="..\Private\SL_Mon_DeadState.cpp" />
     <ClCompile Include="..\Private\SL_Mon_HitState.cpp" />
     <ClCompile Include="..\Private\SL_Mon_IdleState.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_PhaseChangeState.cpp" />
     <ClCompile Include="..\Private\SL_Mon_State.cpp" />
     <ClCompile Include="..\Private\SL_Mon_StunState.cpp" />
     <ClCompile Include="..\Private\SL_Mon_StateMachineCom.cpp" />
@@ -781,9 +785,11 @@
     <ClCompile Include="..\private\BT_Chase.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\Private\BT_SL_CanAttack.cpp" />
+    <ClCompile Include="..\Private\BT_SL_CompareBBValue.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsHit.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsIntroDone.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsActionLocked.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsStun.cpp" />
     <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp" />
     <ClCompile Include="..\Private\BT_SL_SetSelectedAttack.cpp" />

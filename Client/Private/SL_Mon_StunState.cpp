@@ -1,11 +1,15 @@
 #include "SL_Mon_StunState.h"
 
-#include "AIController.h"
-#include "BlackBoard.h"
+#include "MonsterStatCom.h"
 #include "SL_Dualliste.h"
 #include "SL_Mon_StateMachineCom.h"
 
 NS_BEGIN(Client)
+
+namespace
+{
+constexpr float kStunLoopDuration = 4.0f;
+}
 
 SL_Mon_StunState::SL_Mon_StunState(const Shared<SL_Dualliste>& owner)
     : SL_Mon_State(owner)
@@ -18,6 +22,7 @@ bool SL_Mon_StunState::EnterInvoke()
         return false;
 
     _phase = Phase::Enter;
+    _loopElapsed = 0.f;
 
     return Play_PhaseAnim(_phase);
 }
@@ -42,12 +47,14 @@ void SL_Mon_StunState::Update(float timeDelta)
         if (owner->Is_AnimFinished())
         {
             _phase = Phase::Loop;
+            _loopElapsed = 0.f;
             Play_PhaseAnim(_phase);
         }
         break;
 
     case Phase::Loop:
-        if (!Is_StunActive())
+        _loopElapsed += timeDelta;
+        if (_loopElapsed >= kStunLoopDuration)
         {
             _phase = Phase::Exit;
             Play_PhaseAnim(_phase);
@@ -56,30 +63,18 @@ void SL_Mon_StunState::Update(float timeDelta)
 
     case Phase::Exit:
         if (owner->Is_AnimFinished())
+        {
+            const Shared<MonsterStatCom> stat = dynamic_pointer_cast<MonsterStatCom>(owner->Get_Stat());
+            if (stat != nullptr)
+            {
+                stat->SetBreak(false);
+                stat->Clear_Break();
+            }
+
             _stateCom->Change_State(SL_MonState::Idle);
+        }
         break;
     }
-}
-
-bool SL_Mon_StunState::Is_StunActive() const
-{
-    const Shared<SL_Dualliste> owner = _owner.lock();
-    if (owner == nullptr)
-        return false;
-
-    const Shared<AIController> aiCtrl = owner->Get_Component<AIController>();
-    if (aiCtrl == nullptr)
-        return false;
-
-    const Shared<BlackBoard> bb = aiCtrl->Get_BlackBoard();
-    if (bb == nullptr)
-        return false;
-
-    const any* value = bb->Find_Value("IsStun");
-    if (value == nullptr)
-        return false;
-
-    return any_cast<bool>(*value);
 }
 
 bool SL_Mon_StunState::Play_PhaseAnim(Phase phase)

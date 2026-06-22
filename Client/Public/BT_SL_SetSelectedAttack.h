@@ -19,7 +19,7 @@ public:
     void OnFinish() override;
 
 private:
-    SL_MonAttackType _selectedAttack = SL_MonAttackType::DefaultAttack;
+    SL_MonAttackType _selectedAttack = SL_MonAttackType::SingleSlash_1;
     string _selectedAttackKey = "SelectedAttack";
 
 public:

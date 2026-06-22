@@ -28,8 +28,10 @@ public:
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
+    virtual void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
     HRESULT Ready_Components(const MONSTER_PART_DESC& desc) override;
+    Shared<ColliderCom> Get_AttackCollider() const { return _attackLCom; }
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
 
