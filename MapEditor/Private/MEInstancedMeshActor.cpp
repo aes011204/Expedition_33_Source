@@ -418,7 +418,7 @@ void MEInstancedMeshActor::DispatchCull()
 
     params.totalCount = _instanceCount;
 
-    params.maxDist = 300.f;
+    params.maxDist = 500.f;
     params.lod1Dist = _lodModels[1] ? _lod1Dist : params.maxDist;
     params.lod2Dist = _lodModels[2] ? _lod2Dist : params.maxDist;
 

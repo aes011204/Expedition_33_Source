@@ -25,7 +25,7 @@ class MapInstancedMesh final : public GameObject
     GENERATED_GAMEOBJECT(MapInstancedMesh, ObjectType::StaticMesh)
 
 private:
-    static constexpr float INSTANCE_CULL_DIST = 100.f;
+    static constexpr float INSTANCE_CULL_DIST = 500.f;
 
 public:
     typedef struct tagMapInstancedMeshDesc final : public GameObject::GAMEOBJECT_DESC
@@ -80,8 +80,8 @@ private:
     vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
 
-    float _lod1Dist = 40.f;
-    float _lod2Dist = 80.f;
+    float _lod1Dist = 300.f;
+    float _lod2Dist = 200.f;
 
     float _accTime = {};
     bool _hasGlow = false;

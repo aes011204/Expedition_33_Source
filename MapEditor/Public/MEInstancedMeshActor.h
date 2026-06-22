@@ -57,8 +57,8 @@ private:
     ComPtr<Buffer> _visibleVB[3];
     vector<ComPtr<Buffer>> _indirectArgsBuffers[3];
 
-    float _lod1Dist = 80.f;
-    float _lod2Dist = 200.f;
+    float _lod1Dist = 300.f;
+    float _lod2Dist = 400.f;
 
     bool _hasGlow = false;
     float _accTime = {};
