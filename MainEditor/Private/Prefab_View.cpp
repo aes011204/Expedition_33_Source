@@ -313,6 +313,7 @@ void Prefab_View::Pre_Render()
     Draw_PreviewGrid();
     Draw_MonsterBattleSpawnPreview();
     Draw_SelectedWeaponTrailAnchorPreview();
+    Draw_SelectedWeaponSourceAnchorPreview();
     EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
 
     GAME->Set_Lights(savedLightDescs);
@@ -1192,6 +1193,9 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& 
     string modelGuid{};
     if (!Try_GetSelectedWeaponModel(selectedObject, modelCom, modelGuid))
         return;
+    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
+    if (weaponObject == nullptr)
+        return;
 
     if (_selectedWeaponTrailModelGuid != modelGuid)
         Load_SelectedWeaponTrailAnchor(modelGuid, modelCom);
@@ -1223,6 +1227,69 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& 
     {
         _selectedWeaponTrailAnchor.tip.localPosition = tipLocal;
         MarkDirty();
+    }
+
+    Draw_SelectedWeaponSourceAnchorPanel(weaponObject, modelCom);
+}
+
+void Prefab_View::Draw_SelectedWeaponSourceAnchorPanel(const Shared<Client::Weapon>& weaponObject, const Shared<ModelCom>& modelCom)
+{
+    if (weaponObject == nullptr)
+        return;
+
+    ImGui::Spacing();
+    ImGui::SeparatorText("Source Anchors");
+
+    vector<Client::WeaponSourceHistoryAnchorDesc>& anchors = weaponObject->Get_SourceHistoryAnchors();
+    if (ImGui::Button("Add Source Anchor"))
+    {
+        Client::WeaponSourceHistoryAnchorDesc anchor{};
+        anchor.name = anchors.empty() ? "Source" : "Source" + std::to_string(anchors.size() + 1);
+        if (modelCom != nullptr && modelCom->Get_NumBones() > 0)
+            anchor.boneName = modelCom->Get_BoneName(0);
+        anchors.push_back(std::move(anchor));
+        MarkDirty();
+    }
+
+    for (int32 index = 0; index < static_cast<int32>(anchors.size()); ++index)
+    {
+        Client::WeaponSourceHistoryAnchorDesc& anchor = anchors[index];
+        ImGui::PushID(index);
+
+        ImGui::Separator();
+
+        char nameBuffer[128]{};
+        strncpy_s(nameBuffer, anchor.name.c_str(), _TRUNCATE);
+        if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer)))
+        {
+            anchor.name = nameBuffer;
+            MarkDirty();
+        }
+
+        char boneBuffer[128]{};
+        strncpy_s(boneBuffer, anchor.boneName.c_str(), _TRUNCATE);
+        if (ImGui::InputText("Bone", boneBuffer, sizeof(boneBuffer)))
+        {
+            anchor.boneName = boneBuffer;
+            MarkDirty();
+        }
+
+        Vec3 localPosition = anchor.localPosition;
+        if (ImGui::DragFloat3("Local Position", &localPosition.x, 0.01f))
+        {
+            anchor.localPosition = localPosition;
+            MarkDirty();
+        }
+
+        if (ImGui::Button("Delete"))
+        {
+            anchors.erase(anchors.begin() + index);
+            MarkDirty();
+            ImGui::PopID();
+            break;
+        }
+
+        ImGui::PopID();
     }
 }
 
@@ -2217,6 +2284,59 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     _previewGridBatch->End();
 }
 
+void Prefab_View::Draw_SelectedWeaponSourceAnchorPreview() const
+{
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
+    if (weaponObject == nullptr || weaponObject->Get_SourceHistoryAnchors().empty())
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    constexpr float markerSize = 0.1f;
+    _previewGridBatch->Begin();
+
+    for (const Client::WeaponSourceHistoryAnchorDesc& anchor : weaponObject->Get_SourceHistoryAnchors())
+    {
+        Vec3 sourceWorld{};
+        if (!Try_ResolveSourceAnchorWorldPosition(weaponObject, anchor, sourceWorld))
+            continue;
+
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(sourceWorld + Vec3(-markerSize, 0.f, 0.f), DirectX::Colors::Lime),
+            DirectX::VertexPositionColor(sourceWorld + Vec3(markerSize, 0.f, 0.f), DirectX::Colors::Lime));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(sourceWorld + Vec3(0.f, -markerSize, 0.f), DirectX::Colors::Lime),
+            DirectX::VertexPositionColor(sourceWorld + Vec3(0.f, markerSize, 0.f), DirectX::Colors::Lime));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(sourceWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Lime),
+            DirectX::VertexPositionColor(sourceWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Lime));
+    }
+
+    _previewGridBatch->End();
+}
+
 void Prefab_View::Draw_MonsterBattleSpawnPreview() const
 {
     Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
@@ -2488,6 +2608,31 @@ bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
         return false;
 
     const Matrix anchorWorldMatrix = *boneMatrix * combinedWorldMatrix;
+    outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
+}
+
+bool Prefab_View::Try_ResolveSourceAnchorWorldPosition(
+    const Shared<Client::Weapon>& weaponObject,
+    const Client::WeaponSourceHistoryAnchorDesc& anchor,
+    Vec3& outWorldPosition) const
+{
+    if (weaponObject == nullptr || anchor.boneName.empty())
+        return false;
+
+    Shared<ModelCom> modelCom = weaponObject->Get_Model();
+    if (modelCom == nullptr)
+        return false;
+
+    const int32 boneIndex = modelCom->Get_BoneIndex(anchor.boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = modelCom->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix anchorWorldMatrix = *boneMatrix * weaponObject->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }

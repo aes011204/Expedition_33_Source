@@ -192,10 +192,9 @@ Matrix TrailPreviewWeaponObject::Get_PlayerWorldMatrix() const
 
 Matrix TrailPreviewWeaponObject::Build_WeaponOffsetMatrix() const
 {
-    return
-        Matrix::CreateRotationX(XMConvertToRadians(kWeaponAttachRotationDegrees.x)) *
-        Matrix::CreateRotationY(XMConvertToRadians(kWeaponAttachRotationDegrees.y)) *
-        Matrix::CreateRotationZ(XMConvertToRadians(kWeaponAttachRotationDegrees.z));
+    return Matrix::CreateRotationX(XMConvertToRadians(kWeaponAttachRotationDegrees.x)) *
+           Matrix::CreateRotationY(XMConvertToRadians(kWeaponAttachRotationDegrees.y)) *
+           Matrix::CreateRotationZ(XMConvertToRadians(kWeaponAttachRotationDegrees.z));
 }
 
 void TrailPreviewWeaponObject::Update_WeaponWorldMatrix()

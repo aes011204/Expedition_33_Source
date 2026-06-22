@@ -22,9 +22,9 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectSpriteMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
     float4 g_EffectSpriteUVRotationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };
-    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
-    float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
-    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
+    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };             // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
+    float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f };  // x:mode, y:radius, z:thickness, w:softness
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };        // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
     float2 g_FlowUVPolicyParams = { 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };

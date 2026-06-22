@@ -75,6 +75,10 @@ private: //## Data::Compute
     uint32 _spawnRequest{};                                  // 이번 dispatch에서 inactive slot을 활성화할 요청 수.
     uint32 _spawnSerialBase{};                               // 이번 dispatch 첫 spawn의 replay-local 순번이다.
     uint32 _killActiveParticles{};                           // 이번 dispatch에서 active particle을 모두 죽일지 나타낸다.
+    Vec3 _sourceMotionVelocity{};                            // 이번 dispatch에서 사용할 emitter center delta 기반 source velocity다.
+    Vec3 _previousSourceMotionCenter{};                       // 이전 dispatch의 emitter center다.
+    bool _hasPreviousSourceMotionCenter{ false };             // source velocity 계산에 사용할 이전 center가 있는지 나타낸다.
+    bool _sourceMotionVelocityValid{ false };                 // 이번 dispatch source velocity가 유효한지 나타낸다.
     bool _hasActiveParticles{ false };                       // readback 없이 비활성 emitter submit을 줄이기 위한 CPU-side latch다.
 
 private: //## Data::GPU

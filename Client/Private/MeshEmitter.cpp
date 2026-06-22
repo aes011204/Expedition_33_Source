@@ -150,6 +150,25 @@ Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
     return result;
 }
 
+Vec3 Sample_ConeDirection(const Vec3& axis, float angleDegrees, uint32 seed)
+{
+    const Vec3 normalizedAxis = Normalize_OrFallback(axis, Vec3{ 0.f, 0.f, 1.f });
+    const float clampedAngleDegrees = clamp(angleDegrees, 0.f, 180.f);
+    if (clampedAngleDegrees <= 0.0001f)
+        return normalizedAxis;
+
+    const float cosMax = cosf(XMConvertToRadians(clampedAngleDegrees));
+    const float cosTheta = lerp(1.f, cosMax, Hash01(seed + 1703u));
+    const float sinTheta = sqrtf(max(0.f, 1.f - cosTheta * cosTheta));
+    const float phi = XM_2PI * Hash01(seed + 1721u);
+    const Vec3 helper = fabsf(normalizedAxis.y) < 0.999f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
+    Vec3 tangent = helper.Cross(normalizedAxis);
+    tangent.Normalize();
+    const Vec3 bitangent = normalizedAxis.Cross(tangent);
+
+    return normalizedAxis * cosTheta + (tangent * cosf(phi) + bitangent * sinf(phi)) * sinTheta;
+}
+
 Vec3 Resolve_WorldAxisToEmitterSamplingAxis(const Vec3& worldAxis, const Shared<TransformCom>& emitterTransform)
 {
     if (nullptr == emitterTransform)
@@ -580,12 +599,6 @@ void MeshEmitter::Log_InitializeTiming(
     double bufferMs,
     double totalMs) const
 {
-    (void)shaderMs;
-    (void)resolveModelMs;
-    (void)modelMs;
-    (void)materialMs;
-    (void)bufferMs;
-
     const bool isReloadReuse = std::strcmp(context, "reload_reuse") == 0;
     const double infoThresholdMs = isReloadReuse
                                    ? Internal::kMeshEmitterReloadReuseInfoThresholdMs
@@ -1150,6 +1163,11 @@ void MeshEmitter::Reset_PlaybackRuntime()
     _completedKillDispatched = false;
     _activeInstanceCount = 0u;
     _nextSpawnCursor = 0u;
+    _sourceMotionVelocity = Vec3{};
+    _sourceMotionTangent = Vec3{ 0.f, 0.f, 1.f };
+    _lastSourceMotionCenter = Vec3{};
+    _sourceMotionVelocityValid = false;
+    _hasLastSourceMotionCenter = false;
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
     Resample_LoopSpawnDistributions();
 }
@@ -1157,6 +1175,7 @@ void MeshEmitter::Reset_PlaybackRuntime()
 void MeshEmitter::Advance_Playback(float timeDelta)
 {
     const float safeDeltaTime = max(0.f, timeDelta);
+    Update_SourceMotionVelocity(safeDeltaTime);
     float simulationDeltaTime = 0.f;
     uint32 spawnRequest = 0u;
 
@@ -1446,7 +1465,12 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.position = spawnPosition;
     particle.spawnOffset = spawnOffset;
     particle.spawnPosition = spawnPosition;
-    particle.velocity = Sample_InitialVelocity(spawnPosition, planeRadialSample, seed + 23u);
+    const SourceMotionVelocityContext sourceMotionContext{
+        .sourceVelocity = _sourceMotionVelocity,
+        .tangent = _sourceMotionTangent,
+        .sourceVelocityValid = _sourceMotionVelocityValid
+    };
+    particle.velocity = Sample_InitialVelocity(spawnPosition, planeRadialSample, sourceMotionContext, seed + 23u);
     particle.acceleration = Sample_Acceleration(seed + 29u);
     particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
@@ -1884,7 +1908,11 @@ Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& samp
     return orientation;
 }
 
-Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneRadialSample& planeRadialSample, uint32 seed) const
+Vec3 MeshEmitter::Sample_InitialVelocity(
+    const Vec3& spawnPosition,
+    const PlaneRadialSample& planeRadialSample,
+    const SourceMotionVelocityContext& sourceMotionContext,
+    uint32 seed) const
 {
     Vec3 velocity{};
     const uint32 initialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _effectPlaybackSeed);
@@ -1969,7 +1997,117 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneR
         velocity += coneDirection * coneSpeed;
     }
 
+    if (_desc.motion.sourceMotionVelocityEnabled)
+    {
+        const uint32 sourceMotionSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _effectPlaybackSeed);
+        const bool requiresSourceVelocity =
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity ||
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection ||
+            _desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
+        if (requiresSourceVelocity && !sourceMotionContext.sourceVelocityValid)
+            return velocity;
+
+        const Vec3 fallbackForward = Resolve_LocalVector(Vec3{ 0.f, 0.f, 1.f });
+        const Vec3 sourceDirection = sourceMotionContext.sourceVelocityValid
+                                     ? Internal::Normalize_OrFallback(sourceMotionContext.sourceVelocity, fallbackForward)
+                                     : fallbackForward;
+        const Vec3 tangent = Internal::Normalize_OrFallback(sourceMotionContext.tangent, sourceDirection);
+        const Vec3 worldUp = Resolve_WorldVectorToSimulation(Vec3{ 0.f, 1.f, 0.f });
+        Vec3 side = tangent.Cross(worldUp);
+        if (side.LengthSquared() <= Internal::kPlaneRadialEpsilon * Internal::kPlaneRadialEpsilon)
+            side = tangent.Cross(Resolve_WorldVectorToSimulation(Vec3{ 0.f, 0.f, 1.f }));
+        side = Internal::Normalize_OrFallback(side, Resolve_LocalVector(Vec3{ 1.f, 0.f, 0.f }));
+
+        Vec3 resolvedDirection = tangent;
+        switch (_desc.motion.sourceMotionVelocityDirectionMode)
+        {
+        case PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity:
+        case PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            resolvedDirection = sourceDirection;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            resolvedDirection = -sourceDirection;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            resolvedDirection = -tangent;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::SideFromTangent:
+            resolvedDirection = side;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            resolvedDirection = Internal::Hash01(sourceMotionSeed + 3119u) < 0.5f ? side : -side;
+            break;
+        case PointParticleSourceMotionVelocityDirectionMode::TrailTangent:
+        default:
+            resolvedDirection = tangent;
+            break;
+        }
+
+        resolvedDirection = Internal::Normalize_OrFallback(resolvedDirection, fallbackForward);
+        if (_desc.motion.sourceMotionVelocityDirectionMode != PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity &&
+            _desc.motion.sourceMotionVelocitySpreadAngleDegrees > 0.f)
+        {
+            resolvedDirection = Internal::Sample_ConeDirection(
+                resolvedDirection,
+                _desc.motion.sourceMotionVelocitySpreadAngleDegrees,
+                sourceMotionSeed + 3251u
+            );
+        }
+
+        const float sampledSpeed = RandomRange(
+            min(_desc.motion.sourceMotionVelocitySpeed.x, _desc.motion.sourceMotionVelocitySpeed.y),
+            max(_desc.motion.sourceMotionVelocitySpeed.x, _desc.motion.sourceMotionVelocitySpeed.y),
+            sourceMotionSeed + 2357u
+        );
+        const float sourceSpeed = sourceMotionContext.sourceVelocityValid
+                                  ? sourceMotionContext.sourceVelocity.Length()
+                                  : 0.f;
+
+        if (_desc.motion.sourceMotionVelocityDirectionMode == PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity)
+        {
+            velocity += sourceMotionContext.sourceVelocity * _desc.motion.sourceMotionVelocitySourceSpeedScale;
+            velocity += sourceDirection * sampledSpeed;
+        }
+        else
+        {
+            const float resolvedSpeed =
+                sampledSpeed + sourceSpeed * _desc.motion.sourceMotionVelocitySourceSpeedScale;
+            velocity += resolvedDirection * resolvedSpeed;
+        }
+    }
+
     return velocity;
+}
+
+void MeshEmitter::Update_SourceMotionVelocity(float timeDelta)
+{
+    Vec3 currentCenter{};
+    if (nullptr != _transformCom)
+        currentCenter = _transformCom->Get_WorldPosition();
+
+    _sourceMotionVelocity = Vec3{};
+    _sourceMotionVelocityValid = false;
+
+    if (_hasLastSourceMotionCenter && timeDelta > 0.f)
+    {
+        const Vec3 movement = currentCenter - _lastSourceMotionCenter;
+        if (movement.LengthSquared() > 0.0001f * 0.0001f)
+        {
+            const Vec3 worldVelocity = movement / max(timeDelta, 0.0001f);
+            _sourceMotionVelocity = Resolve_WorldVectorToSimulation(worldVelocity);
+            _sourceMotionTangent = Internal::Normalize_OrFallback(
+                _sourceMotionVelocity,
+                Resolve_LocalVector(Vec3{ 0.f, 0.f, 1.f })
+            );
+            _sourceMotionVelocityValid = true;
+        }
+    }
+
+    if (!_sourceMotionVelocityValid)
+        _sourceMotionTangent = Resolve_LocalVector(Vec3{ 0.f, 0.f, 1.f });
+
+    _lastSourceMotionCenter = currentCenter;
+    _hasLastSourceMotionCenter = true;
 }
 
 Vec3 MeshEmitter::Sample_Acceleration(uint32 seed) const
@@ -2423,6 +2561,12 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
             desc.curveKeyTimesBlock1,
             desc.curveKeyValuesX,
             desc.curveKeyValuesXBlock1,
+            desc.curveKeyArriveTangentsX,
+            desc.curveKeyArriveTangentsXBlock1,
+            desc.curveKeyLeaveTangentsX,
+            desc.curveKeyLeaveTangentsXBlock1,
+            desc.curveKeyModes,
+            desc.curveKeyModesBlock1,
             desc.curveKeyCount,
             lerp(desc.start.x, desc.end.x, lifeProgress)
         ),
@@ -2432,6 +2576,12 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
             desc.curveKeyTimesBlock1,
             desc.curveKeyValuesY,
             desc.curveKeyValuesYBlock1,
+            desc.curveKeyArriveTangentsY,
+            desc.curveKeyArriveTangentsYBlock1,
+            desc.curveKeyLeaveTangentsY,
+            desc.curveKeyLeaveTangentsYBlock1,
+            desc.curveKeyModes,
+            desc.curveKeyModesBlock1,
             desc.curveKeyCount,
             lerp(desc.start.y, desc.end.y, lifeProgress)
         ),
@@ -2441,6 +2591,12 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
             desc.curveKeyTimesBlock1,
             desc.curveKeyValuesZ,
             desc.curveKeyValuesZBlock1,
+            desc.curveKeyArriveTangentsZ,
+            desc.curveKeyArriveTangentsZBlock1,
+            desc.curveKeyLeaveTangentsZ,
+            desc.curveKeyLeaveTangentsZBlock1,
+            desc.curveKeyModes,
+            desc.curveKeyModesBlock1,
             desc.curveKeyCount,
             lerp(desc.start.z, desc.end.z, lifeProgress)
         )

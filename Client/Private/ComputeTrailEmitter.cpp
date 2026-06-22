@@ -96,12 +96,11 @@ Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3,
     const float t2 = ratio * ratio;
     const float t3 = t2 * ratio;
 
-    return (
-               p1 * 2.f +
-               (p2 - p0) * ratio +
-               (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
-               (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
-           ) * 0.5f;
+    return (p1 * 2.f
+            + (p2 - p0) * ratio
+            + (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2
+            + (p1 * 3.f - p0 - p2 * 3.f + p3) * t3)
+           * 0.5f;
 }
 
 EffectTrailSample Catmull_RomTrailSample(

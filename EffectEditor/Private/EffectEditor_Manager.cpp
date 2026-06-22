@@ -17,6 +17,33 @@
 
 NS_BEGIN(EffectEditor)
 
+namespace Internal
+{
+    enum class ExitDirtyChoice
+    {
+        SaveAndExit,
+        ExitWithoutSaving,
+        Cancel,
+    };
+
+    ExitDirtyChoice Confirm_SaveDirtyAuthoringDocumentBeforeExit()
+    {
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        const int result = MessageBoxW(
+            owner,
+            L"저장되지 않은 변경 사항이 있습니다.\n종료하기 전에 저장할까요?",
+            L"Exit EffectEditor",
+            MB_YESNOCANCEL | MB_ICONWARNING
+        );
+
+        if (IDYES == result)
+            return ExitDirtyChoice::SaveAndExit;
+        if (IDNO == result)
+            return ExitDirtyChoice::ExitWithoutSaving;
+        return ExitDirtyChoice::Cancel;
+    }
+}
+
 EffectEditor_Manager::~EffectEditor_Manager()
 {
     Free();
@@ -79,6 +106,26 @@ void EffectEditor_Manager::Render()
         if (window != nullptr)
             window->Render();
     }
+}
+
+void EffectEditor_Manager::Request_Exit()
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    if (emitterView != nullptr && emitterView->Is_Dirty())
+    {
+        const Internal::ExitDirtyChoice choice = Internal::Confirm_SaveDirtyAuthoringDocumentBeforeExit();
+        if (Internal::ExitDirtyChoice::Cancel == choice)
+            return;
+
+        if (Internal::ExitDirtyChoice::SaveAndExit == choice)
+        {
+            Save_EffectDocument();
+            if (emitterView->Is_Dirty())
+                return;
+        }
+    }
+
+    PostQuitMessage(0);
 }
 
 void EffectEditor_Manager::Add_Window(const Shared<Editor_Window>& window)
@@ -441,6 +488,18 @@ void EffectEditor_Manager::Handle_Shortcuts()
         return;
     }
 
+    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space, false))
+    {
+        if (EDITOR->IsPlaying())
+            EDITOR->Pause();
+        else if (EDITOR->IsPaused())
+            EDITOR->Resume();
+        else
+            EDITOR->Play();
+
+        return;
+    }
+
     if (ImGui::IsKeyPressed(ImGuiKey_F5, false))
     {
         if (EDITOR->IsPaused())
@@ -527,6 +586,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             };
 
             draw_section_row("Playback / Runtime");
+            draw_shortcut_row("Space", "Play / Pause");
             draw_shortcut_row("F5", "Play / Resume");
             draw_shortcut_row("R", "Restart Preview");
             draw_shortcut_row("F9", "Pause");
@@ -560,6 +620,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Alt + MMB Drag", "Pan");
             draw_shortcut_row("Alt + RMB Drag", "Dolly");
             draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
+            draw_shortcut_row("Shift + Space", "Toggle Gizmo Local / World");
 
             ImGui::EndTable();
         }
@@ -775,11 +836,6 @@ void EffectEditor_Manager::Render_ExitButton(float toolbarHeight)
     );
 
     ImGui::SetCursorPosY(toolbarHeight);
-}
-
-void EffectEditor_Manager::Request_Exit()
-{
-    PostQuitMessage(0);
 }
 
 Unique<EffectEditor_Manager> EffectEditor_Manager::Create()

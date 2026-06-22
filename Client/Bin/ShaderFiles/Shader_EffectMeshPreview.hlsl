@@ -8,9 +8,9 @@
 cbuffer cbEffectMeshMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMeshParams = { 1.f, 1.f, 0.f, 0.f };       // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectMeshAlphaParams = { 0.f, 0.f, 0.f, 0.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectMeshMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectMeshParams = { 1.f, 1.f, 0.f, 0.f };                 // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMeshAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMeshMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectMeshNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectMeshMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectMeshUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
@@ -287,10 +287,10 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(AlphaBlendPass, RS_Default, DSS_DepthRead, BS_Default, VS_MAIN, PS_ALPHA)          // 0
-    PASS_RS_DS_BS_VP(AdditivePass, RS_Default, DSS_DepthRead, BS_Default, VS_MAIN, PS_ADDITIVE)         // 1
-    PASS_RS_DS_BS_VP(AlphaBlendTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_Default, VS_MAIN, PS_ALPHA) // 2
+    PASS_RS_DS_BS_VP(AlphaBlendPass, RS_Default, DSS_DepthRead, BS_Default, VS_MAIN, PS_ALPHA)           // 0
+    PASS_RS_DS_BS_VP(AdditivePass, RS_Default, DSS_DepthRead, BS_Default, VS_MAIN, PS_ADDITIVE)          // 1
+    PASS_RS_DS_BS_VP(AlphaBlendTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_Default, VS_MAIN, PS_ALPHA)  // 2
     PASS_RS_DS_BS_VP(AdditiveTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_Default, VS_MAIN, PS_ADDITIVE) // 3
-    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_MASKED)               // 4
-    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_MASKED)      // 5
+    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_MASKED)                // 4
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_MASKED)       // 5
 }

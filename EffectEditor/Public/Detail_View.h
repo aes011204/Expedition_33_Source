@@ -1,9 +1,9 @@
 ﻿#pragma once
-
 #include "Editor_Window.h"
-#include "Emitter_View.h"
-#include "EffectAuthoring_Types.h"
+
 #include "DetailPropertyContext.h"
+#include "EffectAuthoring_Types.h"
+#include "Emitter_View.h"
 #include "ModuleDetail_Drawers.h"
 
 NS_BEGIN(EffectEditor)
@@ -75,6 +75,7 @@ private: //## Data::ModuleDetail
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
     InitialRadialVelocityModuleDetail _initialRadialVelocityModuleDetail{};
     VelocityConeModuleDetail _velocityConeModuleDetail{};
+    SourceMotionVelocityModuleDetail _sourceMotionVelocityModuleDetail{};
     AccelerationModuleDetail _accelerationModuleDetail{};
     DragModuleDetail _dragModuleDetail{};
     VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};

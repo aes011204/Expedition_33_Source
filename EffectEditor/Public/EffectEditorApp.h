@@ -56,6 +56,12 @@ private: //## Static Values
 private: //## Data::Core
     ComPtr<Device> _device{};
     ComPtr<Context> _context{};
+    fs::path _assetRootPath{};
+    fs::path _effectsAssetScanRoot{};
+    mutex _assetDeltaScanMutex{};
+    optional<AssetDeltaScanResult> _pendingAssetDeltaScanResult{};
+    bool _assetDeltaScanQueued{ false };
+    bool _assetDeltaScanCommitted{ false };
 #ifdef _DEBUG
     EffectEditorRenderPerfWindow _renderPerfWindow{};
     chrono::steady_clock::time_point _renderPerfWindowStartTime{};
@@ -71,6 +77,8 @@ private: //## Helper::Setup
 
     wstring Get_ClientResourceRoot() const;
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
+    void Queue_EffectsAssetDeltaScan();
+    void Commit_PendingAssetDeltaScan();
 
 #ifdef _DEBUG
 private: //## Helper::RenderPerf

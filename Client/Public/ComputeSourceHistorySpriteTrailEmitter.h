@@ -83,6 +83,13 @@ private: //## Types::PlaybackRuntime
         float pathReplayElapsedTime{};
     };
 
+    struct SourceMotionVelocityContext
+    {
+        Vec3 sourceVelocity{};
+        Vec3 tangent{ 1.f, 0.f, 0.f };
+        bool sourceVelocityValid{};
+    };
+
     struct HistoryLane
     {
         uint32 sourceIndex{};
@@ -192,7 +199,14 @@ private: //## Helper::PlaybackRuntime
         const Vec3& previousPosition,
         const Vec3& currentPosition,
         float timeDelta);
-    void Push_Stamp(vector<Stamp>& stamps, const Vec3& center, const Vec3& tangent, float pathDistanceFromHead, float widthScale, float lengthScale);
+    void Push_Stamp(
+        vector<Stamp>& stamps,
+        const Vec3& center,
+        const Vec3& tangent,
+        const SourceMotionVelocityContext& sourceMotionContext,
+        float pathDistanceFromHead,
+        float widthScale,
+        float lengthScale);
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
 
 private: //## Helper::Setup
@@ -221,7 +235,7 @@ private: //## Helper::Render
     Vec2 Sample_InitialSize(uint32 stampSerial) const;
     float Sample_InitialRotation(uint32 stampSerial) const;
     float Sample_InitialAngularVelocity(uint32 stampSerial) const;
-    Vec3 Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const Vec3& tangent) const;
+    Vec3 Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const SourceMotionVelocityContext& sourceMotionContext) const;
     Vec3 Sample_Acceleration(uint32 stampSerial) const;
     float Sample_Drag(uint32 stampSerial) const;
     float Sample_PathFollowSpeed(uint32 stampSerial) const;

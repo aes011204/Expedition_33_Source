@@ -20,7 +20,7 @@
 #include "Monster_Part.h"
 #include "Weapon.h"
 
-namespace
+namespace Internal
 {
 float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
 {
@@ -247,9 +247,8 @@ void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseStat
         if (effect == nullptr)
             continue;
 
-        const bool alreadyCaptured = any_of(
-            outStates.begin(),
-            outStates.end(),
+        const bool alreadyCaptured = ranges::any_of(
+            outStates,
             [&effect](const AttachedEffectPauseState& state)
             {
                 return state.effect == effect;
@@ -660,8 +659,8 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
                          ? normalize_axis(Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23), Vec3::Up)
                          : Vec3::Up;
     const Vec3 basisLook = transformInheritance.inheritRotation
-                           ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Forward)
-                           : Vec3::Forward;
+                           ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Look)
+                           : Vec3::Look;
 
     Matrix basisWorldMatrix = Matrix::Identity;
     basisWorldMatrix._11 = basisRight.x;
@@ -768,7 +767,12 @@ HRESULT EffectCom::Play_AttachedPartEffect(
     return Play_AttachedPartEffect(levelIndex, effectName, partTag, "", layerTag, localOffset, localRotation, scale);
 }
 
-HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& partTag, const wstring& layerTag)
+HRESULT EffectCom::Play_TrailEffect(
+    const wstring& effectName,
+    const wstring& partTag,
+    const wstring& layerTag,
+    uint64 trailNotifyToken,
+    const TrailOffsetRuntimeDesc& offsetDesc)
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
@@ -797,6 +801,9 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.partTag = partTag;
     attached.layerTag = layerTag;
     attached.role = AttachedEffectRole::Trail;
+    attached.trailNotifyToken = trailNotifyToken;
+    attached.trailOffset = offsetDesc;
+    attached.trailOffset.phase = std::clamp(attached.trailOffset.phase, 0.f, 1.f);
     attached.trailSampleEnabled = make_shared<bool>(true);
 
     const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
@@ -804,13 +811,14 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
         return E_FAIL;
 
     EffectTrailSample initialSample{};
-    if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, initialSample))
+    if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, initialSample))
         return E_FAIL;
 
     attached.trailSampleProvider = make_shared<TrailSampleProvider_ByPart>(
         static_pointer_cast<EffectCom>(GetSharedPtr<EffectCom>()),
         partTag,
         attached.trailAnchorAsset,
+        trailNotifyToken,
         attached.trailSampleEnabled
     );
     CHECK_NULL(attached.trailSampleProvider, E_FAIL);
@@ -826,7 +834,7 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
     acquireDesc.autoReleaseOnFinished = false;
 
-    attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
+    attached.trailDrainDuration = Internal::Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
@@ -835,7 +843,36 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     return S_OK;
 }
 
-void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partTag)
+void EffectCom::Update_TrailEffectOffset(
+    const wstring& effectName,
+    const wstring& partTag,
+    uint64 trailNotifyToken,
+    const TrailOffsetRuntimeDesc& offsetDesc)
+{
+    if (trailNotifyToken == 0)
+        return;
+
+    wstring resolvedEffectName{};
+    if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
+        return;
+
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.role != AttachedEffectRole::Trail)
+            continue;
+        if (attached.effectName != resolvedEffectName)
+            continue;
+        if (attached.partTag != partTag)
+            continue;
+        if (attached.trailNotifyToken != trailNotifyToken)
+            continue;
+
+        attached.trailOffset = offsetDesc;
+        attached.trailOffset.phase = std::clamp(attached.trailOffset.phase, 0.f, 1.f);
+    }
+}
+
+void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partTag, uint64 trailNotifyToken)
 {
     wstring resolvedEffectName{};
     if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
@@ -849,6 +886,8 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
             continue;
         if (attached.partTag != partTag)
             continue;
+        if (trailNotifyToken != 0 && attached.trailNotifyToken != trailNotifyToken)
+            continue;
 
         Begin_TrailDrain(attached);
     }
@@ -859,18 +898,35 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
 bool EffectCom::Try_GetTrailSampleForPart(
     const wstring& partTag,
     const TrailAnchorAsset& trailAnchorAsset,
+    uint64 trailNotifyToken,
     EffectTrailSample& outSample) const
 {
-    return Try_BuildTrailSample(partTag, trailAnchorAsset, outSample);
+    const TrailOffsetRuntimeDesc* offsetDesc = nullptr;
+    if (trailNotifyToken != 0)
+    {
+        for (const AttachedEffect& attached : _attachedEffects)
+        {
+            if (attached.role != AttachedEffectRole::Trail)
+                continue;
+            if (attached.trailNotifyToken != trailNotifyToken)
+                continue;
+
+            offsetDesc = &attached.trailOffset;
+            break;
+        }
+    }
+
+    return Try_BuildTrailSample(partTag, trailAnchorAsset, offsetDesc, outSample);
 }
 
 HRESULT EffectCom::Play_SourceHistoryEffect(
     const wstring& effectName,
     const wstring& partTag,
     const wstring& layerTag,
-    SourceHistorySourcePointPolicy sourcePointPolicy,
     SourceHistorySourceBindingMode sourceBindingMode,
-    const string& socketName)
+    const string& socketName,
+    const string& sourceHistoryAnchorName,
+    const Vec3& sourceHistoryLocalOffset)
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
@@ -903,6 +959,8 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     attached.layerTag = layerTag;
     attached.role = AttachedEffectRole::SourceHistoryPoint;
     attached.sourceHistorySourceBindingMode = sourceBindingMode;
+    attached.sourceHistoryAnchorName = sourceHistoryAnchorName;
+    attached.sourceHistoryLocalOffset = sourceHistoryLocalOffset;
     attached.sourcePointSampleEnabled = make_shared<bool>(true);
 
     if (sourceBindingMode == SourceHistorySourceBindingMode::TrailAnchor)
@@ -967,15 +1025,21 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     }
 
     EffectSourcePointSample initialSample{};
-    if (!Try_BuildSourcePointSample(attached.partTag, sourceBindingMode, socketName, attached.trailAnchorAsset, sourcePointPolicy, initialSample))
+    if (!Try_BuildSourcePointSample(
+        attached.partTag,
+        sourceBindingMode,
+        socketName,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
+        initialSample))
     {
         LOG_WARN(
-            "[EffectCom] Play_SourceHistoryEffect failed: source point sample. effect={}, part={}, binding={}, socket={}, policy={}",
+            "[EffectCom] Play_SourceHistoryEffect failed: source point sample. effect={}, part={}, binding={}, socket={}, anchor={}",
             String::ToString(resolvedEffectName),
             String::ToString(partTag),
             static_cast<int>(sourceBindingMode),
             socketName,
-            static_cast<int>(sourcePointPolicy)
+            sourceHistoryAnchorName
         );
         return E_FAIL;
     }
@@ -985,8 +1049,8 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
         partTag,
         sourceBindingMode,
         socketName,
-        attached.trailAnchorAsset,
-        sourcePointPolicy,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
         attached.sourcePointSampleEnabled
     );
     CHECK_NULL(attached.sourcePointSampleProvider, E_FAIL);
@@ -1012,7 +1076,7 @@ HRESULT EffectCom::Play_SourceHistoryEffect(
     acquireDesc.autoReleaseOnFinished = false;
 
     attached.sourceHistoryDrainDuration =
-        Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
+        Internal::Resolve_SourceHistoryDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(resolvedEffectName));
 
     const HRESULT acquireResult = effectPool->Acquire(acquireDesc, attached.poolHandle);
     if (FAILED(acquireResult))
@@ -1039,7 +1103,8 @@ void EffectCom::Stop_SourceHistoryEffect(
     const wstring& effectName,
     const wstring& partTag,
     SourceHistorySourceBindingMode sourceBindingMode,
-    const string& socketName)
+    const string& socketName,
+    const string& sourceHistoryAnchorName)
 {
     wstring resolvedEffectName{};
     if (!Try_ResolveSourceHistoryEffectName(effectName, resolvedEffectName))
@@ -1057,6 +1122,8 @@ void EffectCom::Stop_SourceHistoryEffect(
             continue;
         if (attached.socketName != socketName)
             continue;
+        if (attached.sourceHistoryAnchorName != sourceHistoryAnchorName)
+            continue;
 
         Begin_SourceHistoryDrain(attached);
     }
@@ -1068,11 +1135,17 @@ bool EffectCom::Try_GetSourcePointSampleForPart(
     const wstring& partTag,
     SourceHistorySourceBindingMode sourceBindingMode,
     const string& socketName,
-    const TrailAnchorAsset& trailAnchorAsset,
-    SourceHistorySourcePointPolicy sourcePointPolicy,
+    const string& sourceHistoryAnchorName,
+    const Vec3& sourceHistoryLocalOffset,
     EffectSourcePointSample& outSample) const
 {
-    return Try_BuildSourcePointSample(partTag, sourceBindingMode, socketName, trailAnchorAsset, sourcePointPolicy, outSample);
+    return Try_BuildSourcePointSample(
+        partTag,
+        sourceBindingMode,
+        socketName,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
+        outSample);
 }
 
 bool EffectCom::Try_ResolveTrailEffectName(
@@ -1132,7 +1205,7 @@ void EffectCom::Update_AttachedEffects(float timeDelta)
         if (attached.role == AttachedEffectRole::Trail)
         {
             EffectTrailSample trailSample{};
-            if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, trailSample))
+            if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, trailSample))
                 continue;
 
             const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
@@ -1323,6 +1396,7 @@ bool EffectCom::Try_GetPartRootWorldMatrix(const wstring& partTag, Matrix& outWo
 bool EffectCom::Try_BuildTrailSample(
     const wstring& partTag,
     const TrailAnchorAsset& trailAnchorAsset,
+    const TrailOffsetRuntimeDesc* offsetDesc,
     EffectTrailSample& outSample) const
 {
     const Shared<GameObject> ownerObject = Get_Owner();
@@ -1334,8 +1408,19 @@ bool EffectCom::Try_BuildTrailSample(
     if (Resolve_TrailPartModel(trailPart) == nullptr)
         return false;
 
+    const TrailAnchorAsset sampleAnchorAsset =
+        offsetDesc != nullptr
+            ? ANS_Trail::Make_OffsetTrailAnchorAsset(
+                trailAnchorAsset,
+                offsetDesc->tipExtendCurve,
+                offsetDesc->baseLocalOffsetCurve,
+                offsetDesc->tipLocalOffsetCurve,
+                offsetDesc->phase)
+            : trailAnchorAsset;
+
     Vec3 baseWorld{};
     Vec3 tipWorld{};
+    
     if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, trailAnchorAsset.base, baseWorld))
         return false;
     if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, trailAnchorAsset.tip, tipWorld))
@@ -1364,8 +1449,8 @@ bool EffectCom::Try_BuildSourcePointSample(
     const wstring& partTag,
     SourceHistorySourceBindingMode sourceBindingMode,
     const string& socketName,
-    const TrailAnchorAsset& trailAnchorAsset,
-    SourceHistorySourcePointPolicy sourcePointPolicy,
+    const string& sourceHistoryAnchorName,
+    const Vec3& sourceHistoryLocalOffset,
     EffectSourcePointSample& outSample) const
 {
     if (sourceBindingMode == SourceHistorySourceBindingMode::Socket)
@@ -1374,27 +1459,24 @@ bool EffectCom::Try_BuildSourcePointSample(
         if (!Try_GetSocketWorldMatrix(partTag, socketName, socketWorldMatrix))
             return false;
 
-        outSample.worldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outSample.worldPosition = Vec3::Transform(sourceHistoryLocalOffset, socketWorldMatrix);
         return true;
     }
 
-    EffectTrailSample trailSample{};
-    if (!Try_BuildTrailSample(partTag, trailAnchorAsset, trailSample))
+    const Shared<GameObject> ownerObject = Get_Owner();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
+    if (ownerContainer == nullptr)
         return false;
 
-    switch (sourcePointPolicy)
-    {
-    case SourceHistorySourcePointPolicy::Base:
-        outSample.worldPosition = trailSample.baseWorldPosition;
-        return true;
-    case SourceHistorySourcePointPolicy::Mid:
-        outSample.worldPosition = (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f;
-        return true;
-    case SourceHistorySourcePointPolicy::Tip:
-    default:
-        outSample.worldPosition = trailSample.tipWorldPosition;
-        return true;
-    }
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+    if (weaponPart == nullptr)
+        return false;
+
+    return Try_ResolveWeaponAnchorWorldPosition(
+        *weaponPart,
+        sourceHistoryAnchorName,
+        sourceHistoryLocalOffset,
+        outSample.worldPosition);
 }
 
 bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
@@ -1416,6 +1498,33 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
 
     const Matrix anchorWorldMatrix = *boneMatrix * trailPart.Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
+}
+
+bool EffectCom::Try_ResolveWeaponAnchorWorldPosition(
+    const Weapon& weaponPart,
+    const string& anchorName,
+    const Vec3& localOffset,
+    Vec3& outWorldPosition) const
+{
+    const WeaponSourceHistoryAnchorDesc* anchor = weaponPart.Find_SourceHistoryAnchor(anchorName);
+    if (anchor == nullptr || anchor->boneName.empty())
+        return false;
+
+    const Shared<ModelCom> weaponModel = weaponPart.Get_Model();
+    if (weaponModel == nullptr)
+        return false;
+
+    const int32 boneIndex = weaponModel->Get_BoneIndex(anchor->boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = weaponModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart.Get_CombinedWorldMatrix();
+    outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
     return true;
 }
 
