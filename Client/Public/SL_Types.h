@@ -37,6 +37,35 @@ enum class SL_PlayerState
     End
 };
 
+enum class SL_MonState
+{
+    Intro,
+    PhaseChange,
+    Idle,
+    Chase,
+    Attack,
+    Hit,
+    Dead,
+    Stun,
+
+    End
+};
+
+enum class SL_MonAttackType
+{
+    SingleSlash_1,
+    SingleSlash_2,
+    SingleSlash_3,
+    DashBack_Spine,
+    DashIn_Stab,
+    DashIn_Stab_Estoc,
+    Att_Projectile,
+    Combo_1,
+    Combo_2,
+
+    End
+};
+
 enum class SoulLikeAnim
 {
     Idle,

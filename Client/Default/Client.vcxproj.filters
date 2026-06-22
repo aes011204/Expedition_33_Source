@@ -288,6 +288,9 @@
     <ClCompile Include="..\private\ANS_Move.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_MoveTo.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\ANS_Parry.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -708,6 +711,33 @@
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_CheckDistance.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_CanAttack.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_CompareBBValue.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsDead.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsHit.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsIntroDone.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsActionLocked.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsStun.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_SetSelectedAttack.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Idle.cpp">
@@ -1192,6 +1222,7 @@
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp">
     <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -1206,6 +1237,36 @@
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\SL_State.cpp" />
     <ClCompile Include="..\Private\SL_Idle.cpp" />
+    <ClCompile Include="..\Private\SL_Mon_StateMachineCom.cpp">
+      <Filter>03. Component\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_State.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_StunState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_IntroState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_IdleState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_PhaseChangeState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_ChaseState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_AttackState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_HitState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SL_Mon_DeadState.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\SL_TargetCom.cpp" />
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
     <ClCompile Include="..\Private\SL_Move.cpp" />
@@ -1417,6 +1478,9 @@
     <ClInclude Include="..\public\ANS_Move.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_MoveTo.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\ANS_Parry.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
@@ -1609,6 +1673,33 @@
     </ClInclude>
     <ClInclude Include="..\public\BT_FinishDecision.h">
       <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_CanAttack.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_CompareBBValue.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsDead.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsHit.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsIntroDone.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsActionLocked.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsStun.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_SetDesiredState.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_SetSelectedAttack.h">
+      <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BT_SetSkill.h">
       <Filter>BehavoirTree\battle</Filter>
@@ -2339,11 +2430,44 @@
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SL_Maelle.h" />
     <ClInclude Include="..\Public\SoulLikeController.h" />
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
     <ClInclude Include="..\Public\SL_State.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
+    <ClInclude Include="..\Public\SL_Mon_StateMachineCom.h">
+      <Filter>03. Component\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_State.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_StunState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_IntroState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_IdleState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_PhaseChangeState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_ChaseState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_AttackState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_HitState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SL_Mon_DeadState.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\SL_TargetCom.h" />
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
     <ClInclude Include="..\Public\SL_Move.h" />

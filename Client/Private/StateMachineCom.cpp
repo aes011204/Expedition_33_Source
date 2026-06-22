@@ -89,23 +89,22 @@ HRESULT StateMachineCom::Remove_State(const wstring& stateName)
 
 bool StateMachineCom::Change_State(const wstring& stateName)
 {
-    if(_states.contains(stateName))
-    {
-        if (_states[stateName]->EnterInvoke())
-        {
-            if (_currentState != nullptr)
-            {
-                _currentState->ExitInvoke();
-            }
+    auto iter = _states.find(stateName);
+    if (iter == _states.end())
+        return false;
 
-            _currentState = _states[stateName];
-            _currentStateName = stateName;
-        }
-
+    if (_currentStateName == stateName || _currentState == iter->second)
         return true;
-    }
 
-    return false;
+    if (!iter->second->EnterInvoke())
+        return false;
+
+    if (_currentState != nullptr)
+        _currentState->ExitInvoke();
+
+    _currentState = iter->second;
+    _currentStateName = stateName;
+    return true;
 }
 
 Shared<StateMachineCom> StateMachineCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

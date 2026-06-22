@@ -13,6 +13,7 @@ HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
     if (desc)
     {
         _passType = desc->passType;
+        _tag = desc->tag;
         _duration = desc->duration;
         _elapsedTime = 0.f;
 

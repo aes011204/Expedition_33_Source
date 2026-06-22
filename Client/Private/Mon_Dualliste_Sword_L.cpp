@@ -1,5 +1,7 @@
-#include "Mon_Dualliste_Sword_L.h"
+﻿#include "Mon_Dualliste_Sword_L.h"
 
+#include "Bounding_OBB.h"
+#include "ColliderCom.h"
 #include "EffectCom.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
@@ -77,11 +79,27 @@ void Mon_Dualliste_Sword_L::Update(float timeDelta)
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
+
+
+    if (_attackLCom)
+        _attackLCom->Update_Collider(Get_CombinedWorldMatrix());
+    GAME->Add_Collider(_attackLCom, Get_CombinedWorldMatrix());
 }
 
 void Mon_Dualliste_Sword_L::Late_Update(float timeDelta)
 {
     Monster_Part::Late_Update(timeDelta);
+}
+
+void Mon_Dualliste_Sword_L::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    Monster_Part::OnBeginOverlap(self, other);
+
+    const Shared<GameObject> owner = Get_Owner();
+    if (owner == nullptr)
+        return;
+
+    owner->OnBeginOverlap(self, other);
 }
 
 HRESULT Mon_Dualliste_Sword_L::Render()

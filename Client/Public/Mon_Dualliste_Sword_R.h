@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "Monster_Part.h"
@@ -29,6 +29,10 @@ public:
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
+    virtual void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+
+    virtual HRESULT Ready_Components(const MONSTER_PART_DESC& desc);
+    Shared<ColliderCom> Get_AttackCollider() const { return _attackRCom; }
 
     void From_Json(const json& data) override;
 
@@ -49,6 +53,7 @@ private:
     Matrix _offsetMatrix = {};
     wstring _trailEffectName = L"";
     vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};
+    Shared<ColliderCom>         _attackRCom={};
 
 public:
     static Shared<Mon_Dualliste_Sword_R> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

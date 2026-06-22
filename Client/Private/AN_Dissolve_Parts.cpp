@@ -29,7 +29,7 @@ void AN_Dissolve_Parts::Execute(const AnimNotifyContext& context)
         Part = context.owner->Get_Owner().get();
     }
     else
-        Part = (dynamic_pointer_cast<Character_BattleBase>(context.owner->Get_Owner()))->Get_PartObject(_partName);
+        Part = (dynamic_pointer_cast<ContainerObject>(context.owner->Get_Owner()))->Get_PartObject(_partName);
 
     if(Part == nullptr)
     {

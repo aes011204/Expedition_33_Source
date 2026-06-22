@@ -16,6 +16,7 @@ public:
     struct ScreenFxDesc
     {
         uint32 passType{};
+        wstring tag{};
         float duration{};
         function<void(bool&)> endPredicate{};
     };
@@ -39,6 +40,7 @@ public:
     
 public:
     uint32 Get_PassIndex() const { return _passType; }
+    const wstring& Get_Tag() const { return _tag; }
     float Get_Duration() const { return _duration; }
     void Set_Duration(float duration) { _duration = duration; }
     float Get_ElapsedTime() const { return _elapsedTime; }
@@ -49,6 +51,7 @@ protected:
     float                   _duration{ 0.f };
     float                   _elapsedTime{ 0.f };
 
+    wstring                 _tag{};
     uint32                  _passType{};
     EndCondition            _endCondition{};
 
