@@ -564,12 +564,13 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
 
 HRESULT MapInstancedMesh::Render_Shadow()
 {
-    if (_shader == nullptr || _lodModels[0] == nullptr || _transformCom == nullptr)
+    if (_shader == nullptr || _lodModels[0] == nullptr || _instanceCount == 0)
     {
         return S_OK;
     }
 
-    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    Matrix identity = Matrix::Identity;
+    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
     {
         return E_FAIL;
     }
@@ -585,7 +586,8 @@ HRESULT MapInstancedMesh::Render_Shadow()
     {
         if (FAILED(_shader->Begin(1)))
             return E_FAIL;
-        _lodModels[0]->Render(i);
+        if (FAILED(_lodModels[0]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+            return E_FAIL;
     }
 
     return S_OK;

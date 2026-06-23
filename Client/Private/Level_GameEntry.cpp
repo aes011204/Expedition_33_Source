@@ -79,7 +79,7 @@ void Level_GameEntry::Handle_Button()
     {
         GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
 
-        if (!CLIENT->Request_LevelTransition(LevelType::Stage01))
+        if (!CLIENT->Request_LevelTransition(LevelType::GestralVillage))
             return;
 
         return;

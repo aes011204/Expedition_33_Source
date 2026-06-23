@@ -54,6 +54,24 @@ VS_OUT VS_MAIN(VS_IN In)
     return Out;
 }
 
+struct VS_SHADOW_OUT
+{
+    float4 vPosition : SV_POSITION;
+    float4 vProjPos : TEXCOORD0;
+};
+
+VS_SHADOW_OUT VS_Shadow_Instance(VS_IN In)
+{
+    VS_SHADOW_OUT Out;
+    float4x4 mWorld = float4x4(In.vWorld0, In.vWorld1, In.vWorld2, In.vWorld3);
+    float4x4 mPreWorld = mul(g_PreTransformMatrix, mWorld);
+
+    Out.vPosition = mul(float4(In.vPosition, 1.f), mul(mPreWorld, mul(g_LightViewMatrix, g_LightProjMatrix)));
+    Out.vProjPos = Out.vPosition;
+
+    return Out;
+}
+
 struct PS_IN
 {
     float4 vPosition : SV_POSITION;
@@ -79,6 +97,7 @@ struct PS_OUT_ID
     vector vColor : SV_TARGET0;
 };
 
+
 PS_OUT PS_Opaque(PS_IN In)
 {
     PS_OUT Out;
@@ -101,6 +120,18 @@ PS_OUT PS_Opaque(PS_IN In)
     Out.vMaterial = float4(orm.xyz, 1.f);
     Out.vEmissive = float4(emissive.xyz, 1.f);
     
+    return Out;
+}
+
+struct PS_OUT_SHADOW
+{
+    float LightDepth : SV_TARGET0;
+};
+
+PS_OUT_SHADOW PS_Shadow(VS_SHADOW_OUT In)
+{
+    PS_OUT_SHADOW Out;
+    Out.LightDepth = In.vProjPos.z / In.vProjPos.w;
     return Out;
 }
 
@@ -304,8 +335,7 @@ PS_OUT PS_UnlitFlame(PS_IN In)
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
-    PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 1 ← dummy
-    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 2
+PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_Shadow_Instance, PS_Shadow) // 1    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 2
     PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 3
     PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 5
