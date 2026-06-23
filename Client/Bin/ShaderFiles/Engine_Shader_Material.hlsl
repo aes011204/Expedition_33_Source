@@ -559,7 +559,7 @@ float SampleHairDepth(float2 uv)
     if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_DEPTH))
         return 0.5f;
 
-    return saturate( g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH].Sample(LinearWrapSampler, uv).r);
+    return saturate(g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH].Sample(LinearWrapSampler, uv).r);
 }
 
 float SampleHairIDValue(float2 uv)

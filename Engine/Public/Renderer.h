@@ -67,14 +67,6 @@ public:
         return _currentGroup;
     }
 
-    void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
-    const FogZoneCB& Get_FogZones() const { return _fogZoneCB; }
-    void Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
-    {
-        _lightShaftZoneCB = lightShaftZoneCB;
-    }
-    const VolumetricLightShaftZoneCB& Get_VolumetricLightShaftZones() const { return _lightShaftZoneCB; }
-
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
 #endif
@@ -151,9 +143,6 @@ private:
     Shared<Texture>                 _iblBrdfLutTexture;
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
-
-    FogZoneCB                       _fogZoneCB{};
-    VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
 
     bool                            _shadowEnabled = true;
     bool                            _renderOnlyPreviewMode = false;

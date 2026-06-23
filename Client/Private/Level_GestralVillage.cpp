@@ -109,6 +109,14 @@ HRESULT Level_GestralVillage::Ready_Lights()
     return S_OK;
 }
 
+HRESULT Level_GestralVillage::Ready_Environments()
+{
+    GAME->Set_FogZoneCullingDistance(30.f);
+    GAME->Set_VolumetricLightShaftZoneCullingDistance(15.f);
+
+    return S_OK;
+}
+
 HRESULT Level_GestralVillage::Ready_Layer_UI(const wstring& strLayerTag)
 {
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GestralVillage)), E_FAIL);

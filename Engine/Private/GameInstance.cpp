@@ -33,6 +33,7 @@
 #include "Picking.h"
 #include "ColliderCom.h"
 #include "Culling_Manager.h"
+#include "Environment_Manager.h"
 #include "ThreadPool.h"
 #include "Helper_String.h"
 #include "Material.h"
@@ -405,6 +406,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_objectManager, E_FAIL);
+
+    _environmentManager = Environment_Manager::Create();
+    CHECK_NULL(_environmentManager, E_FAIL);
 
     _targetManager = Target_Manager::Create(device, context);
     CHECK_NULL(_targetManager, E_FAIL);
@@ -1615,28 +1619,102 @@ RenderGroup GameInstance::Get_CurrentRenderGroup() const
 
 const FogZoneCB& GameInstance::Get_FogZones() const
 {
-    return _renderer->Get_FogZones();
+    return _environmentManager->Get_FogZones();
 }
 
 const VolumetricLightShaftZoneCB& GameInstance::Get_VolumetricLightShaftZones() const
 {
-    return _renderer->Get_VolumetricLightShaftZones();
+    return _environmentManager->Get_VolumetricLightShaftZones();
+}
+
+FogZoneCB GameInstance::Build_ActiveFogZones(const Vec3& cameraPosition)
+{
+    CHECK_NULL(_environmentManager, FogZoneCB{});
+    return _environmentManager->Build_ActiveFogZones(cameraPosition);
+}
+
+VolumetricLightShaftZoneCB GameInstance::Build_ActiveVolumetricLightShaftZones(const Vec3& cameraPosition)
+{
+    CHECK_NULL(_environmentManager, VolumetricLightShaftZoneCB{});
+    return _environmentManager->Build_ActiveVolumetricLightShaftZones(cameraPosition);
 }
 
 void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
 {
-    if (_renderer)
+    if (_environmentManager)
     {
-        _renderer->Set_FogZones(fogZoneCB);
+        _environmentManager->Set_FogZones(fogZoneCB);
     }
 }
 
 void GameInstance::Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
 {
-    if (_renderer)
+    if (_environmentManager)
     {
-        _renderer->Set_VolumetricLightShaftZones(lightShaftZoneCB);
+        _environmentManager->Set_VolumetricLightShaftZones(lightShaftZoneCB);
     }
+}
+
+void GameInstance::Set_FogZoneCullingEnabled(bool enabled)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_FogZoneCullingEnabled(enabled);
+}
+
+bool GameInstance::Is_FogZoneCullingEnabled() const
+{
+    CHECK_NULL(_environmentManager, false);
+    return _environmentManager->Is_FogZoneCullingEnabled();
+}
+
+void GameInstance::Set_FogZoneCullingDistance(float distance)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_FogZoneCullingDistance(distance);
+}
+
+float GameInstance::Get_FogZoneCullingDistance() const
+{
+    CHECK_NULL(_environmentManager, 0.f);
+    return _environmentManager->Get_FogZoneCullingDistance();
+}
+
+void GameInstance::Set_VolumetricLightShaftZoneCullingEnabled(bool enabled)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_VolumetricLightShaftZoneCullingEnabled(enabled);
+}
+
+bool GameInstance::Is_VolumetricLightShaftZoneCullingEnabled() const
+{
+    CHECK_NULL(_environmentManager, false);
+    return _environmentManager->Is_VolumetricLightShaftZoneCullingEnabled();
+}
+
+void GameInstance::Set_VolumetricLightShaftZoneCullingDistance(float distance)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_VolumetricLightShaftZoneCullingDistance(distance);
+}
+
+float GameInstance::Get_VolumetricLightShaftZoneCullingDistance() const
+{
+    CHECK_NULL(_environmentManager, 0.f);
+    return _environmentManager->Get_VolumetricLightShaftZoneCullingDistance();
+}
+
+const vector<uint32>& GameInstance::Get_ActiveFogZoneIndices() const
+{
+    static const vector<uint32> empty{};
+    CHECK_NULL(_environmentManager, empty);
+    return _environmentManager->Get_ActiveFogZoneIndices();
+}
+
+const vector<uint32>& GameInstance::Get_ActiveVolumetricLightShaftZoneIndices() const
+{
+    static const vector<uint32> empty{};
+    CHECK_NULL(_environmentManager, empty);
+    return _environmentManager->Get_ActiveVolumetricLightShaftZoneIndices();
 }
 
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
@@ -3100,6 +3178,7 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
+    ReleaseManager(_environmentManager);
 
     // Free live objects before PhysX so ColliderCom can unregister/release actors while the scene still exists.
     ReleaseManager(_levelManager);

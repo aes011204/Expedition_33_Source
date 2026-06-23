@@ -97,6 +97,7 @@ private:
 
     void RenderFogSection();
     void RenderFroxelSection();
+    void RenderCullingSection();
     void RenderSelectedInspector();
     void RenderVolumeTransformEditor(VolumeTransform& volume);
     void RenderFogEditor(FogEntry& entry);

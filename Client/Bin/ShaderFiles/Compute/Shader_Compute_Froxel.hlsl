@@ -162,7 +162,7 @@ void InjectFroxelBuffer(uint3 dispatchThreadID : SV_DispatchThreadID)
 
     // 모든 Light Shaft Zone 검사
     [loop]
-    for (uint zoneIndex = 0u; zoneIndex < min(g_LightShaftZoneCount, 8u); ++zoneIndex)
+    for (uint zoneIndex = 0u; zoneIndex < min(g_LightShaftZoneCount, 16u); ++zoneIndex)
     {
         const VolumetricLightShaftZoneEntry zone = g_LightShaftZones[zoneIndex];
         const float3 localPosition = mul(float4(froxelPositionWS, 1.f), zone.worldToLocal).xyz;

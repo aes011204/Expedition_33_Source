@@ -16,6 +16,27 @@ namespace MainEditor
                 Matrix::CreateTranslation(volume.position);
             return world.Invert();
         }
+
+        bool ContainsIndex(const vector<uint32>& indices, uint32 index)
+        {
+            return find(indices.begin(), indices.end(), index) != indices.end();
+        }
+
+        const char* ResolveFogEntryName(uint32 index, const vector<EnvironmentView::FogEntry>& entries)
+        {
+            if (index < entries.size())
+                return entries[index].volume.name.c_str();
+
+            return "Runtime Fog Zone";
+        }
+
+        const char* ResolveFroxelEntryName(uint32 index, const vector<EnvironmentView::FroxelEntry>& entries)
+        {
+            if (index < entries.size())
+                return entries[index].volume.name.c_str();
+
+            return "Runtime Froxel Shaft";
+        }
     }
 
     EnvironmentView::EnvironmentView()
@@ -63,6 +84,8 @@ namespace MainEditor
             if (ImGui::Button("Refresh From Runtime"))
                 RefreshFromRuntimeEnvironment();
 
+            ImGui::Separator();
+            RenderCullingSection();
             ImGui::Separator();
             RenderFogSection();
             ImGui::Separator();
@@ -442,10 +465,13 @@ namespace MainEditor
         if (!ImGui::CollapsingHeader("Fog Entries", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
+        const vector<uint32>& activeIndices = GAME->Get_ActiveFogZoneIndices();
         for (int32 i = 0; i < static_cast<int32>(_fogEntries.size()); ++i)
         {
             const bool selected = (_selectedKind == EntryKind::Fog && _selectedIndex == i);
-            if (ImGui::Selectable((_fogEntries[i].volume.name + "##Fog").c_str(), selected))
+            const bool active = ContainsIndex(activeIndices, static_cast<uint32>(i));
+            const string label = _fogEntries[i].volume.name + (active ? " (active)##Fog" : "##Fog");
+            if (ImGui::Selectable(label.c_str(), selected))
                 SelectEntry(EntryKind::Fog, i);
         }
     }
@@ -455,12 +481,55 @@ namespace MainEditor
         if (!ImGui::CollapsingHeader("Froxel Shaft Entries", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
+        const vector<uint32>& activeIndices = GAME->Get_ActiveVolumetricLightShaftZoneIndices();
         for (int32 i = 0; i < static_cast<int32>(_froxelEntries.size()); ++i)
         {
             const bool selected = (_selectedKind == EntryKind::Froxel && _selectedIndex == i);
-            if (ImGui::Selectable((_froxelEntries[i].volume.name + "##Froxel").c_str(), selected))
+            const bool active = ContainsIndex(activeIndices, static_cast<uint32>(i));
+            const string label = _froxelEntries[i].volume.name + (active ? " (active)##Froxel" : "##Froxel");
+            if (ImGui::Selectable(label.c_str(), selected))
                 SelectEntry(EntryKind::Froxel, i);
         }
+    }
+
+    void EnvironmentView::RenderCullingSection()
+    {
+        if (!ImGui::CollapsingHeader("Zone Culling", ImGuiTreeNodeFlags_DefaultOpen))
+            return;
+
+        bool fogCullingEnabled = GAME->Is_FogZoneCullingEnabled();
+        if (ImGui::Checkbox("Fog Culling", &fogCullingEnabled))
+            GAME->Set_FogZoneCullingEnabled(fogCullingEnabled);
+
+        float fogDistance = GAME->Get_FogZoneCullingDistance();
+        if (ImGui::DragFloat("Fog Culling Distance", &fogDistance, 1.f, 0.f, 100000.f))
+            GAME->Set_FogZoneCullingDistance(fogDistance);
+
+        const vector<uint32>& activeFogIndices = GAME->Get_ActiveFogZoneIndices();
+        ImGui::Text("Active Fog: %d / %d", static_cast<int32>(activeFogIndices.size()), static_cast<int32>(_fogEntries.size()));
+        if (ImGui::BeginChild("ActiveFogZones", ImVec2(0.f, 72.f), true))
+        {
+            for (uint32 index : activeFogIndices)
+                ImGui::BulletText("%u: %s", index, ResolveFogEntryName(index, _fogEntries));
+        }
+        ImGui::EndChild();
+
+        bool shaftCullingEnabled = GAME->Is_VolumetricLightShaftZoneCullingEnabled();
+        if (ImGui::Checkbox("Light Shaft Culling", &shaftCullingEnabled))
+            GAME->Set_VolumetricLightShaftZoneCullingEnabled(shaftCullingEnabled);
+
+        float shaftDistance = GAME->Get_VolumetricLightShaftZoneCullingDistance();
+        if (ImGui::DragFloat("Light Shaft Culling Distance", &shaftDistance, 1.f, 0.f, 100000.f))
+            GAME->Set_VolumetricLightShaftZoneCullingDistance(shaftDistance);
+
+        const vector<uint32>& activeShaftIndices = GAME->Get_ActiveVolumetricLightShaftZoneIndices();
+        ImGui::Text("Active Light Shaft: %d / %d", static_cast<int32>(activeShaftIndices.size()), static_cast<int32>(_froxelEntries.size()));
+        if (ImGui::BeginChild("ActiveLightShaftZones", ImVec2(0.f, 72.f), true))
+        {
+            for (uint32 index : activeShaftIndices)
+                ImGui::BulletText("%u: %s", index, ResolveFroxelEntryName(index, _froxelEntries));
+        }
+        ImGui::EndChild();
     }
 
     void EnvironmentView::RenderSelectedInspector()

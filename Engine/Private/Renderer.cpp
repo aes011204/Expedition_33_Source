@@ -703,7 +703,12 @@ void Renderer::Render_Fog()
     if (!_deferredShader || !_viBuffer)
         return;
 
-    if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
+    const Vec4* camPosition = GAME->Get_CamPosition();
+    if (camPosition == nullptr)
+        return;
+
+    FogZoneCB fogZoneCB = GAME->Build_ActiveFogZones(Vec3(camPosition->x, camPosition->y, camPosition->z));
+    if (fogZoneCB.aabbCount + fogZoneCB.sphereCount == 0)
         return;
 
     if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
@@ -727,7 +732,7 @@ void Renderer::Render_Fog()
     if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
         return;
 
-    if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
+    if (FAILED(_deferredShader->Bind_CBufferData(fogZoneCB)))
         return;
 
     if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
@@ -739,7 +744,7 @@ void Renderer::Render_Fog()
     if (FAILED(_viBuffer->Bind_Resources()))
         return;
 
-    auto* noiseTexture = GAME->Get_SRV("T_Perlin_Noise_M");
+    auto* noiseTexture = GAME->Get_SRV("T_Random_56");
     if FAILED(_deferredShader->Bind_SRV("g_FogNoiseTexture", noiseTexture))
         LOG_WARN("Failed to bind noise texutre!");
 
@@ -826,7 +831,9 @@ void Renderer::Render_VolumetricLightShaft()
         GAME->Get_RT_SRV(RT::Depth),
         GAME->Get_RT_SRV(RT::LightDepth));
 
-    if(FAILED(_lightingPipeline->Update_FroxelZone(_lightShaftZoneCB)))
+    VolumetricLightShaftZoneCB lightShaftZoneCB = GAME->Build_ActiveVolumetricLightShaftZones(
+        Vec3(camPosition->x, camPosition->y, camPosition->z));
+    if(FAILED(_lightingPipeline->Update_FroxelZone(lightShaftZoneCB)))
     {
         LOG_WARN("Render_VolumetricLightShaft:FAIL Update_FroxelZone");
         return;

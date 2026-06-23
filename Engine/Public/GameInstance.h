@@ -41,6 +41,7 @@ class Sound_Manager;
 class Log_Manager;
 class Target_Manager;
 class Camera_Manager;
+class Environment_Manager;
 struct ConsoleLogEntry;
 class Component;
 class GameObject;
@@ -250,8 +251,20 @@ public: /* For.Renderer */
     RenderGroup                         Get_CurrentRenderGroup() const;
     const FogZoneCB&                    Get_FogZones() const;
     const VolumetricLightShaftZoneCB&   Get_VolumetricLightShaftZones() const;
+    FogZoneCB                           Build_ActiveFogZones(const Vec3& cameraPosition);
+    VolumetricLightShaftZoneCB          Build_ActiveVolumetricLightShaftZones(const Vec3& cameraPosition);
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
     void                                Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB);
+    void                                Set_FogZoneCullingEnabled(bool enabled);
+    bool                                Is_FogZoneCullingEnabled() const;
+    void                                Set_FogZoneCullingDistance(float distance);
+    float                               Get_FogZoneCullingDistance() const;
+    void                                Set_VolumetricLightShaftZoneCullingEnabled(bool enabled);
+    bool                                Is_VolumetricLightShaftZoneCullingEnabled() const;
+    void                                Set_VolumetricLightShaftZoneCullingDistance(float distance);
+    float                               Get_VolumetricLightShaftZoneCullingDistance() const;
+    const vector<uint32>&               Get_ActiveFogZoneIndices() const;
+    const vector<uint32>&               Get_ActiveVolumetricLightShaftZoneIndices() const;
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -624,6 +637,7 @@ private:
     Unique<Prototype_Manager> _prototypeManager{};
     Unique<UI_Manager> _uiManager{};
     Unique<Object_Manager> _objectManager{};
+    Unique<Environment_Manager> _environmentManager{};
     Unique<Renderer> _renderer{};
     Unique<ScreenFx_Manager> _screenFxManager{};
     Unique<ShaderCom_Controller> _shaderComController{};

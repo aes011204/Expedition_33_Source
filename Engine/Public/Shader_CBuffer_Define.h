@@ -348,7 +348,7 @@ struct alignas(16) FogZoneEntry
 struct alignas(16) FogZoneCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::FogZone;
-    static constexpr int32 MAX_FOG_ZONES = 8;
+    static constexpr int32 MAX_FOG_ZONES = 16;
 
     FogZoneEntry zones[MAX_FOG_ZONES]{};
     int32 aabbCount{ 0 };
@@ -378,7 +378,7 @@ struct alignas(16) VolumetricLightShaftZoneCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::VolumetricLightShaftZone;
 
-    static constexpr uint32 MAX_LIGHT_SHAFT_ZONES = 8;
+    static constexpr uint32 MAX_LIGHT_SHAFT_ZONES = 16;
 
     VolumetricLightShaftZoneEntry zones[MAX_LIGHT_SHAFT_ZONES]{};
 

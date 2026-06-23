@@ -278,7 +278,7 @@ struct FogZoneEntry
 
 cbuffer FogZoneBuffer
 {
-    FogZoneEntry g_FogZones[8];
+    FogZoneEntry g_FogZones[16];
     int g_FogAABBCount;
     int g_FogSphereCount;
     float g_GroundFogMaxDistance;
@@ -380,7 +380,7 @@ cbuffer FroxelBuffer : register(b0)
 // 카메라/Froxel/광원 공통 데이터
 cbuffer VolumetricLightShaftZoneBuffer : register(b1)
 {
-    VolumetricLightShaftZoneEntry g_LightShaftZones[8];
+    VolumetricLightShaftZoneEntry g_LightShaftZones[16];
 
     uint g_LightShaftZoneCount;
     float3 g_LightShaftZonePadding;
