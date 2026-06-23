@@ -1,11 +1,11 @@
 ﻿#include "GameplayUI_Battle.h"
 
 #include "BuffSystem.h"
-#include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
 #include "BattleWorldUI_CommandCards.h"
 #include "BattleWorldUI_GradientCards.h"
 #include "BattleWorldUI_ItemCards.h"
+#include "BattleWorldUI_MaterialVfxBackground.h"
 #include "BattleWorldUI_SkillCards.h"
 #include "PictosBattleSystem.h"
 #include "ClientInstance.h"
@@ -71,18 +71,7 @@ namespace
         if (panel == nullptr)
             return;
 
-        Shared<UI_Base> root = panel->Get_EditorRootUI();
-        if (root == nullptr)
-            return;
-
-        outEntries.push_back(
-            {
-                "Battle",
-                name,
-                root,
-                panel,
-                panel->Is_EditorPositionDrivenByCode()
-            });
+        panel->Append_RuntimeUIEntries(outEntries, "Battle", name);
     }
 
     void Append_OpenedRuntimePanelEntry(
@@ -213,8 +202,17 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 
     Bind_BattleDelegates();
 
+    if (FAILED(Ensure_BattleWorldMaterialVfxBackground()))
+        LOG_WARN("BattleWorldUI material vfx background editor target preload failed.");
+
+    if (FAILED(Ensure_BattleWorldCommandCards()))
+        LOG_WARN("BattleWorldUI command cards editor target preload failed.");
+
     if (FAILED(Ensure_BattleWorldItemCards()))
         LOG_WARN("BattleWorldUI item cards editor target preload failed.");
+
+    if (FAILED(Ensure_BattleWorldSkillCards()))
+        LOG_WARN("BattleWorldUI skill cards editor target preload failed.");
 
     if (FAILED(Ensure_BattleWorldGradientCards()))
         LOG_WARN("BattleWorldUI gradient cards editor target preload failed.");
@@ -281,7 +279,7 @@ void GameplayUI_Battle::Update_Input()
 vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 {
     vector<RuntimeUIEntry> entries{};
-    entries.reserve(36);
+    entries.reserve(160);
 
     Append_RuntimePanelEntry(entries, "BattleTransition", _battleTransition.get());
     Append_RuntimePanelEntry(entries, "BattleCommandHUD", _battleCommandHUD.get());
@@ -299,6 +297,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "BattleVictory", _battleVictory.get());
     Append_RuntimePanelEntry(entries, "TurnOrder", _turnOrder.get());
     Append_RuntimePanelEntry(entries, "BattleMechanism", _battleMechanism.get());
+    Append_RuntimeWorldPlacementEntry(entries, "BattleWorldMaterialVfxBackground", _battleWorldMaterialVfxBackground.get());
     Append_RuntimeWorldPlacementEntry(entries, "BattleWorldCommandCards", _battleWorldCommandCards.get());
     Append_RuntimePanelEntry(entries, "BattleItemPanel", _battleItemPanel.get());
     Append_RuntimeWorldPlacementEntry(entries, "BattleWorldItemCards", _battleWorldItemCards.get());
@@ -583,6 +582,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _activePlayerId = HeroId::END;
     _battleStartVictoryStats.clear();
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
+    _battleWorldWarmupHeroFlags.fill(false);
 
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
 
@@ -666,6 +666,12 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _battleSystemHUD->Open();
         _battleSystemHUD->Play_BattleSystemIntro();
 
+    }
+
+    if (_battleController)
+    {
+        for (const BattleChar& hero : _battleController->Get_BattleHeroes())
+            Warmup_BattleWorldCardsForActor(hero);
     }
 
     Play_BattleEnterTransition(); // 전투 진입 연출은 battle UI 쪽에서 시작한다.
@@ -753,6 +759,8 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
                 _battleSystemHUD->Play_PortraitActivation(actor.heroId);
             }
         }
+
+        Warmup_BattleWorldCardsForActor(actor);
     }
     else
     {
@@ -1071,21 +1079,7 @@ void GameplayUI_Battle::Handle_ReactionSucceeded(BattleReactionType reactionType
         return;
     }
 
-    Vec3 worldPos{};
-    for (auto& targetChar : target)
-    {
-        if (!Try_GetReactionResultWorldPos(targetChar, worldPos))
-            return;
-
-    }
-
-
-    Vec2 screenPos{};
-    if (!Try_ProjectWorldToScreen(worldPos, screenPos))
-        return;
-
-    screenPos += Vec2(24.f, -24.f);
-    _reactionResult->Show_Reaction(reactionType, screenPos);
+    _reactionResult->Show_Reaction(reactionType);
 }
 
 void GameplayUI_Battle::Handle_ReactionWindowOpened(BattleReactionType reactionType)
@@ -1289,12 +1283,14 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 {
     if (_battleCommandHUD == nullptr)
     {
+        Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldCommandCards();
         return;
     }
 
     if (!_isBattleUiActive || !_isPlayerTurnUiActive)
     {
+        Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
@@ -1303,6 +1299,7 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
     const auto battleController = CLIENT->Get_BattleController();
     if (battleController == nullptr || !battleController->Is_BattleStarted())
     {
+        Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
@@ -1312,6 +1309,7 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     if (!_hasCurrentPlayerTurnActor || _currentPlayerTurnActor.statCom == nullptr)
     {
+        Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
@@ -1320,6 +1318,7 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
     Vec3 worldPos{};
     if (!Try_GetBattleCommandHudWorldPos(_currentPlayerTurnActor, worldPos))
     {
+        Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldCommandCards();
         _battleCommandHUD->Close();
         return;
@@ -1328,6 +1327,11 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
     if (currentState == BattleTurnState::ChooseAction)
     {
         _battleCommandHUD->Close();
+        Update_BattleWorldMaterialVfxBackground(
+            worldPos,
+            currentState,
+            _currentPlayerTurnActor.heroId,
+            timeDelta);
         Update_BattleWorldCommandCards(
             worldPos,
             currentState,
@@ -1338,8 +1342,49 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
         return;
     }
 
+    if (currentState != BattleTurnState::ChooseItem &&
+        currentState != BattleTurnState::ChooseSkill &&
+        currentState != BattleTurnState::ChooseGradient)
+    {
+        Hide_BattleWorldMaterialVfxBackground();
+    }
     Hide_BattleWorldCommandCards();
     _battleCommandHUD->Close();
+}
+
+HRESULT GameplayUI_Battle::Ensure_BattleWorldMaterialVfxBackground()
+{
+    if (_battleWorldMaterialVfxBackground != nullptr)
+        return S_OK;
+
+    _battleWorldMaterialVfxBackground =
+        BattleWorldUI_MaterialVfxBackground::Create(GAME->Get_Device(), GAME->Get_Context());
+    CHECK_NULL(_battleWorldMaterialVfxBackground, E_FAIL);
+
+    return S_OK;
+}
+
+void GameplayUI_Battle::Hide_BattleWorldMaterialVfxBackground()
+{
+    if (_battleWorldMaterialVfxBackground)
+        _battleWorldMaterialVfxBackground->Hide();
+}
+
+void GameplayUI_Battle::Update_BattleWorldMaterialVfxBackground(
+    const Vec3& commandHudWorldPos,
+    BattleTurnState currentState,
+    HeroId actorHeroId,
+    float timeDelta)
+{
+    if (FAILED(Ensure_BattleWorldMaterialVfxBackground()))
+        return;
+
+    _battleWorldMaterialVfxBackground->Show_ForBattleState(
+        commandHudWorldPos,
+        currentState,
+        actorHeroId,
+        timeDelta);
+    _battleWorldMaterialVfxBackground->Late_Update(0.f);
 }
 
 HRESULT GameplayUI_Battle::Ensure_BattleWorldCommandCards()
@@ -2085,6 +2130,7 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
         break;
 
     case BattleTurnState::ItemTargeting:
+        Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldItemCards();
         _battleItemPanel->Open_Tooltip(turnRequest.itemType);
         break;
@@ -2138,6 +2184,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         }
         else
         {
+            Hide_BattleWorldMaterialVfxBackground();
             Hide_BattleWorldSkillCards();
             Hide_BattleWorldGradientCards();
             _battleSkillPanel->Close_Immediately();
@@ -2154,6 +2201,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         }
         else
         {
+            Hide_BattleWorldMaterialVfxBackground();
             Hide_BattleWorldSkillCards();
             Hide_BattleWorldGradientCards();
             _battleSkillPanel->Close_Immediately();
@@ -2161,6 +2209,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         break;
 
     case BattleTurnState::SkillTargeting:
+        Hide_BattleWorldMaterialVfxBackground();
         Hide_BattleWorldSkillCards();
         Hide_BattleWorldGradientCards();
         if (GradientSkill::Is_GradientSkill(turnRequest.actor.heroId, turnRequest.skillKey) &&
@@ -2215,6 +2264,8 @@ void GameplayUI_Battle::Update_BattleWorldItemCards(
     if (!Try_GetBattleCommandHudWorldPos(actor, worldPos))
         return;
 
+    Update_BattleWorldMaterialVfxBackground(worldPos, currentState, actor.heroId, timeDelta);
+
     if (FAILED(Ensure_BattleWorldItemCards()))
         return;
 
@@ -2253,6 +2304,8 @@ void GameplayUI_Battle::Update_BattleWorldSkillCards(
     if (!Try_GetBattleCommandHudWorldPos(actor, worldPos))
         return;
 
+    Update_BattleWorldMaterialVfxBackground(worldPos, currentState, actor.heroId, timeDelta);
+
     if (FAILED(Ensure_BattleWorldSkillCards()))
         return;
 
@@ -2289,11 +2342,76 @@ void GameplayUI_Battle::Update_BattleWorldGradientCards(
     if (!Try_GetBattleCommandHudWorldPos(actor, worldPos))
         return;
 
+    Update_BattleWorldMaterialVfxBackground(worldPos, currentState, actor.heroId, timeDelta);
+
     if (FAILED(Ensure_BattleWorldGradientCards()))
         return;
 
     _battleWorldGradientCards->Show_ForBattleState(worldPos, currentState, actor.heroId, timeDelta);
     _battleWorldGradientCards->Late_Update(0.f);
+}
+
+void GameplayUI_Battle::Warmup_BattleWorldCardsForActor(const BattleChar& actor)
+{
+    if (actor.statCom == nullptr || !actor.statCom->Is_Player())
+        return;
+
+    const uint32 heroIndex = static_cast<uint32>(actor.heroId);
+    if (heroIndex >= _battleWorldWarmupHeroFlags.size())
+        return;
+
+    if (_battleWorldWarmupHeroFlags[heroIndex])
+        return;
+
+    if (FAILED(Ensure_BattleWorldMaterialVfxBackground()))
+    {
+        LOG_WARN("BattleWorldUI material vfx background warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldMaterialVfxBackground->Warmup_ForBattleState(actor.heroId)))
+    {
+        LOG_WARN("BattleWorldUI material vfx background warmup failed.");
+    }
+
+    if (FAILED(Ensure_BattleWorldCommandCards()))
+    {
+        LOG_WARN("BattleWorldUI command cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldCommandCards->Warmup_ForBattleState(
+        actor.statCom->Get_CurAP(),
+        actor.statCom->Get_MaxAP(),
+        actor.heroId)))
+    {
+        LOG_WARN("BattleWorldUI command cards warmup failed.");
+    }
+
+    if (FAILED(Ensure_BattleWorldItemCards()))
+    {
+        LOG_WARN("BattleWorldUI item cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldItemCards->Warmup_ForBattleState(BattleItemType::Invalid, actor.heroId)))
+    {
+        LOG_WARN("BattleWorldUI item cards warmup failed.");
+    }
+
+    if (FAILED(Ensure_BattleWorldSkillCards()))
+    {
+        LOG_WARN("BattleWorldUI skill cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldSkillCards->Warmup_ForBattleState(actor, string{}, kBattleSkillPageNormal)))
+    {
+        LOG_WARN("BattleWorldUI skill cards warmup failed.");
+    }
+
+    if (FAILED(Ensure_BattleWorldGradientCards()))
+    {
+        LOG_WARN("BattleWorldUI gradient cards warmup ensure failed.");
+    }
+    else if (FAILED(_battleWorldGradientCards->Warmup_ForBattleState(actor.heroId)))
+    {
+        LOG_WARN("BattleWorldUI gradient cards warmup failed.");
+    }
+
+    _battleWorldWarmupHeroFlags[heroIndex] = true;
 }
 
 void GameplayUI_Battle::Update_BattleAnnounce(float timeDelta)
@@ -2412,26 +2530,6 @@ bool GameplayUI_Battle::Try_GetBattleCommandHudWorldPos(const BattleChar& actor,
 
     outWorldPos = actor.actor->Get_Transform()->Get_WorldPosition();
     outWorldPos.y += 0.8f;
-
-    return true;
-}
-
-bool GameplayUI_Battle::Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos)
-{
-    if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
-        return false;
-
-    if (auto* battleActor = dynamic_cast<Character_BattleBase*>(target.actor.get()))
-    {
-        if (battleActor->Try_GetDamageFeedbackWorldPosition(outWorldPos))
-        {
-            outWorldPos += Vec3(0.35f, 0.25f, 0.f);
-            return true;
-        }
-    }
-
-    outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
-    outWorldPos += Vec3(0.35f, 1.5f, 0.f);
 
     return true;
 }
@@ -2580,6 +2678,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _hasPendingBattleSystemIntroActivation = false;
     _pendingBattleSystemIntroActivationHeroId = HeroId::END;
 
+    Hide_BattleWorldMaterialVfxBackground();
     Hide_BattleWorldCommandCards();
     Hide_BattleWorldItemCards();
     Hide_BattleWorldSkillCards();
@@ -2688,6 +2787,12 @@ Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)
 void GameplayUI_Battle::Free()
 {
     Unbind_BattleDelegates(); // BattleController가 살아있는 동안 dangling handle이 남지 않게 먼저 정리한다.
+
+    if (_battleWorldMaterialVfxBackground)
+    {
+        _battleWorldMaterialVfxBackground->Free();
+        _battleWorldMaterialVfxBackground.reset();
+    }
 
     if (_battleWorldCommandCards)
     {

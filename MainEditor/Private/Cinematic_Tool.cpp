@@ -213,6 +213,7 @@ void Cinematic_Tool::Render()
 
         ImGuiIO& io = ImGui::GetIO();
         if (_isCinematicTabActive &&
+            !io.KeyCtrl &&
             !io.WantTextInput &&
             !ImGui::IsAnyItemActive() &&
             ImGui::IsKeyPressed(ImGuiKey_Space, false))
@@ -1507,6 +1508,14 @@ void Cinematic_Tool::Render_LoadSequencePopup()
 
 void Cinematic_Tool::Render_ImSequencer()
 {
+    Clamp_Selection();
+
+    if (EDITOR->IsPlaying())
+    {
+        ImGui::TextDisabled("Timeline is disabled while editor runtime is playing.");
+        return;
+    }
+
     bool consumedKeyClick = false;
     bool requestOpenKeyPopup = false;
     bool requestOpenInsertPopup = false;
@@ -2298,9 +2307,13 @@ void Cinematic_Tool::Ensure_DefaultTrack()
 void Cinematic_Tool::Clamp_Selection()
 {
     const int cinematicTrackCount = static_cast<int>(_sequence.cinematicTracks.size());
-    const int totalTrackCount = cinematicTrackCount + CinematicSequencerAdapter::kModifierTrackCount;
     const int eventCount = static_cast<int>(_sequence.eventTrack.size());
     const int actorTransformTrackCount = static_cast<int>(_sequence.actorTransformTracks.size());
+    const int totalTrackCount =
+        cinematicTrackCount +
+        CinematicSequencerAdapter::kModifierTrackCount +
+        CinematicSequencerAdapter::kEventTrackCount +
+        actorTransformTrackCount;
 
     if (cinematicTrackCount == 0)
     {

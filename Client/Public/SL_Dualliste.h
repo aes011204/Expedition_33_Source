@@ -1,21 +1,51 @@
 ﻿#pragma once
-
-#include "Character_WorldBase.h"
+#include "SL_Base.h"
+NS_BEGIN(Engine)
+class AIController;
+class ColliderCom;
+class ModelCom;
+class MovementCom;
+NS_END
 
 NS_BEGIN(Client)
-
 class Mon_Dualliste_Body;
 class Mon_Dualliste_Sword_L;
 class Mon_Dualliste_Sword_R;
+class MonsterStatCom;
+class SL_Mon_StateMachineCom;
 
-class SL_Dualliste final : public Character_WorldBase
+class SL_Dualliste final : public SL_Base
 {
     GENERATED_GAMEOBJECT(SL_Dualliste, ObjectType::Monster)
 
 public:
+    enum class Anim
+    {
+        Intro,
+        Idle,
+        Walk,
+        Run,
+        DashIntro,
+        Dash_1,
+        DashBack_Spain,
+        DashIn_Stab,
+        PhaseChange,
+        Stun_Start,
+        Stun_Idle,
+        Stun_End,
+        Attack_Combo_1,
+        Attack_Combo_2,
+        Hit,
+        Dead,
+        SingleSlash_1, SingleSlash_2, SingleSlash_3,
+        Att_Projectile,
+        DashIn_Stab_Estoc
+    };
+
+public:
     SL_Dualliste(const ComPtr<Device>& device, const ComPtr<Context>& context);
     SL_Dualliste(const SL_Dualliste& prototype);
-    virtual ~SL_Dualliste() override = default;
+    ~SL_Dualliste() override = default;
 
 public:
     HRESULT Initialize_Prototype() override;
@@ -29,15 +59,65 @@ public:
 
 public:
     void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
-
+    Shared<CombatStatCom> Get_Stat() const override;
+    Shared<ColliderCom> Get_AttackColliderL() const;
+    Shared<ColliderCom> Get_AttackColliderR() const;
+    void Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride) override;
+    void Clear_AttackHitAnimOverride(const string& colliderTag) override;
+    Shared<MovementCom> Get_MovementCom() const;
+    Shared<ModelCom> Get_ModelCom() const;
+    bool Play_Anim(Anim anim, float blendDuration, bool loop);
+    bool Play_Anim(Anim anim, float blendDuration, bool loop, float startFrame);
+    void Set_AnimPaused(bool paused);
+    void Set_AnimTimeSec(float timeSec);
+    void Refresh_AnimPose();
+    bool Is_AnimFinished() const;
+    bool Is_Dead() const override;
+    void Set_IntroFin(bool isDone) { _isIntroDone = isDone; };
+    void Apply_Damage(const SL_DamageInfo& damageInfo) override;
+    bool Change_State(SL_MonState state);
+    int Get_CurrentPhase() const { return _currentPhase; }
+    bool CanUseLeftSword() const { return _currentPhase >= 2; }
+    bool Is_PhaseChangeFinished() const { return _phaseChangeFinished; }
+    void Finish_PhaseChange();
+    void Set_ActionLocked(bool isActionLock);
 protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
+    bool Try_EnterPhaseChange();
+    void Apply_PhaseVisualState();
+    void Update_BlackBoard();
+    void Update_StunSystem(float timeDelta);
+    float Calculate_BreakDamage(AttackType attackType) const;
 
 private:
+    Shared<MonsterStatCom> _combatStat = {};
+    Shared<ColliderCom> _attackRCom = {};
+    Shared<ColliderCom> _attackLCom = {};
+    SL_HitAnimOverride _attackRHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    SL_HitAnimOverride _attackLHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    Shared<AIController>         _aiCtrl;
+    Shared<MovementCom>         _movementCom = {};
+    Shared<SL_Mon_StateMachineCom> _stateMachineCom = {};
     Shared<Mon_Dualliste_Body> _body = {};
     Shared<Mon_Dualliste_Sword_L> _swordL = {};
     Shared<Mon_Dualliste_Sword_R> _swordR = {};
+    Anim _currentAnim = Anim::Idle;
+    bool _isIntroDone = false;
+    int _currentPhase = 1;
+    bool _phaseChangeTriggered = false;
+    bool _phaseChangeFinished = false;
+    float _breakRecoverPerSec = 3.f;
+    float _stunElapsed = 0.f;
+
+
+    float kCanAttackDistance = 3.0f;
+    float kPhase2HpThreshold = 0.5f;
+    float kLowHpPhaseThreshold = 0.35f;
+    float kOpportunityDistance = 2.2f;
+    float kOpportunityForwardDot = 0.9f;
+   
+
 
 public:
     static Shared<SL_Dualliste> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

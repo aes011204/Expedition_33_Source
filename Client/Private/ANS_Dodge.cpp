@@ -1,5 +1,6 @@
 ﻿#include "ANS_Dodge.h"
 
+#include "ANS_WeaponEcho.h"
 #include "GameInstance.h"
 #include "BattleController.h"
 #include "ClientInstance.h"
@@ -17,11 +18,25 @@ IMPLEMENT_REFLECTION(ANS_Dodge)
 
 void ANS_Dodge::On_Begin(const AnimNotifyContext& context)
 {
-   auto battle = CLIENT->Get_BattleController();
+   if (context.isPreview)
+        return;
+
+    auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;
 
-    battle->Get_ReactionController().OpenWindow(BattleReactionType::Dodge);
+    const BattleAction& turnAction = battle->Get_TurnAction();
+
+    battle->Get_ReactionController().OpenWindow(
+        BattleReactionType::Dodge,
+        turnAction,
+        context.notifyStateDurationSec);
+
+    ANS_WeaponEcho::Queue_EchoReactionWindowsFromNotify(
+        context,
+        BattleReactionType::Dodge,
+        turnAction,
+        context.notifyStateDurationSec);
 }
 
 void ANS_Dodge::On_Tick(const AnimNotifyContext& context)

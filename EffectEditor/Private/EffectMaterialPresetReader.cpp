@@ -408,7 +408,7 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
 string ResolveDisplayName(const fs::path& filePath)
 {
     string fileName = String::ToString(filePath.filename().wstring());
-    constexpr const char* suffix = ".effectmaterial.json";
+    constexpr auto suffix = ".effectmaterial.json";
     if (fileName.ends_with(suffix))
         fileName.erase(fileName.size() - strlen(suffix));
 

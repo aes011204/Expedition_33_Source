@@ -43,7 +43,9 @@ public:
     void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
     Shared<CombatStatCom> Get_Stat() const override;
-    Shared<ColliderCom> Get_AttackCollider() const override;
+    Shared<ColliderCom> Get_AttackCollider() const ;
+    void Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride) override;
+    void Clear_AttackHitAnimOverride(const string& colliderTag) override;
     bool Is_Dead() const override;
     void Apply_Damage(const SL_DamageInfo& damageInfo) override;
 
@@ -63,6 +65,7 @@ private:
 
     Anim _currentAnim = Anim::Idle;
     Anim _nextAttackAnim = Anim::Attack_1;
+    SL_HitAnimOverride _attackHitAnimOverride = SL_HitAnimOverride::Hit_Light;
     float _attackCooldown = 0.f;
     float _attackRange = 2.2f;
     float _attackInterval = 2.0f;

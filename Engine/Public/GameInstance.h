@@ -8,6 +8,7 @@
 #include "TypeRegistry.h"
 #include "Debug_Types.h"
 #include "Engine_Constants.h"
+#include "ScreenFx_Manager.h"
 #include <string_view>
 #include <utility>
 #include "DelegateHub.h"
@@ -322,6 +323,9 @@ public: /* For.Font_Manager */
 public: /* For.Asset_Manager */
     // missingMetaRoot가 비어 있지 않으면 force scan 중 누락 meta 자동 생성 범위를 해당 루트 하위로 제한한다.
     HRESULT Initialize_AssetManager(const wstring& resourceRoot, bool forceScan = false, const wstring& missingMetaRoot = {});
+    // background 파일 조사 결과를 main thread에서 현재 AssetManager에 반영한다.
+    HRESULT Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot = {});
+    HRESULT Refresh_AssetRegistryDirectory(const wstring& directory, const wstring& missingMetaRoot = {});
 
     /* 파일 경로를 GUID로 저장해야 하는 ResourceLoader/Editor 파이프라인에서 호출한다. */
     string Find_AssetGUID(const wstring& filePath) const;
@@ -608,6 +612,7 @@ public: /* For.Event Bus */
 
 public: /* ScreenFx Manager */
     void Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const;
+    bool Is_ScreenFxFinished(const wstring& tag) const;
 
 private:
     Unique<Log_Manager> _logManager{};

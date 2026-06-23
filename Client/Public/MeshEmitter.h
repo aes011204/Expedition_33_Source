@@ -70,29 +70,29 @@ private: //## Types::PlaybackRuntime
 
     struct MeshParticleState
     {
-        bool active{ false };                            // 현재 slot이 살아 있는 particle인지 나타낸다.
-        float age{};                                     // spawn 이후 누적된 particle age다.
-        float lifeMax{ 1.f };                            // 이 particle에 배정된 최대 lifetime이다.
-        Vec3 position{};                                 // local-space면 emitter 기준, world-space면 world 기준 현재 위치다.
-        Vec3 velocity{};                                 // position과 같은 simulation space에서 누적되는 현재 속도다.
-        Vec3 acceleration{};                             // particle별 초기 acceleration sample 값이다.
-        float drag{};                                    // 매 frame velocity 감쇠에 사용할 drag 계수다.
-        Vec3 baseScale{ 1.f, 1.f, 1.f };                 // life curve 적용 전 초기 mesh scale이다.
-        Vec3 spawnOffset{};                              // OrbitOverLife가 회전시킬 emitter-local spawn offset이다.
-        Vec3 spawnPosition{};                            // 기존 motion 누적량을 분리하기 위한 spawn 기준 위치다.
-        Quat spawnOrientation{ Quat::Identity };         // radial orientation module에서 만든 spawn 기준 mesh 회전이다.
-        bool spawnOrientationEnabled{ false };           // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
-        Vec3 rotationRadians{};                          // 현재 particle 회전값이다.
-        Vec3 angularVelocityRadians{};                   // 현재 particle 회전 속도다.
-        Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };           // InitialColor에서 정한 particle 시작 색상이다.
-        Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };             // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
-        uint32 seed{};                                   // particle별 deterministic random sample seed다.
+        bool active{ false };                    // 현재 slot이 살아 있는 particle인지 나타낸다.
+        float age{};                             // spawn 이후 누적된 particle age다.
+        float lifeMax{ 1.f };                    // 이 particle에 배정된 최대 lifetime이다.
+        Vec3 position{};                         // local-space면 emitter 기준, world-space면 world 기준 현재 위치다.
+        Vec3 velocity{};                         // position과 같은 simulation space에서 누적되는 현재 속도다.
+        Vec3 acceleration{};                     // particle별 초기 acceleration sample 값이다.
+        float drag{};                            // 매 frame velocity 감쇠에 사용할 drag 계수다.
+        Vec3 baseScale{ 1.f, 1.f, 1.f };         // life curve 적용 전 초기 mesh scale이다.
+        Vec3 spawnOffset{};                      // OrbitOverLife가 회전시킬 emitter-local spawn offset이다.
+        Vec3 spawnPosition{};                    // 기존 motion 누적량을 분리하기 위한 spawn 기준 위치다.
+        Quat spawnOrientation{ Quat::Identity }; // radial orientation module에서 만든 spawn 기준 mesh 회전이다.
+        bool spawnOrientationEnabled{ false };   // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
+        Vec3 rotationRadians{};                  // 현재 particle 회전값이다.
+        Vec3 angularVelocityRadians{};           // 현재 particle 회전 속도다.
+        Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };   // InitialColor에서 정한 particle 시작 색상이다.
+        Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };     // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
+        uint32 seed{};                           // particle별 deterministic random sample seed다.
     };
 
     struct PlaneRadialSample
     {
-        bool enabled{ false };                 // PlaneRadialLocation이 실제 sample frame을 만들었는지 나타낸다.
-        Vec3 localOffset{};                    // 기존 location module과 더할 emitter-local offset이다.
+        bool enabled{ false }; // PlaneRadialLocation이 실제 sample frame을 만들었는지 나타낸다.
+        Vec3 localOffset{};    // 기존 location module과 더할 emitter-local offset이다.
         Vec3 radialDirection{ 1.f, 0.f, 0.f };
         Vec3 tangentCW{ 0.f, -1.f, 0.f };
         Vec3 tangentCCW{ 0.f, 1.f, 0.f };
@@ -102,9 +102,16 @@ private: //## Types::PlaybackRuntime
 
     struct SphereRadialSample
     {
-        bool enabled{ false };                 // SphereLocation이 실제 sphere sample frame을 만들었는지 나타낸다.
-        Vec3 localOffset{};                    // 기존 location module과 더할 emitter-local offset이다.
+        bool enabled{ false }; // SphereLocation이 실제 sphere sample frame을 만들었는지 나타낸다.
+        Vec3 localOffset{};    // 기존 location module과 더할 emitter-local offset이다.
         Vec3 radialDirection{ 0.f, 0.f, 1.f };
+    };
+
+    struct SourceMotionVelocityContext
+    {
+        Vec3 sourceVelocity{};
+        Vec3 tangent{ 0.f, 0.f, 1.f };
+        bool sourceVelocityValid{ false };
     };
 
 private: //## Static Values
@@ -162,6 +169,11 @@ private: //## Data::ParticleRuntime
     uint32 _nextSpawnCursor{};
     // 현재 instance buffer와 particle 배열 capacity다.
     uint32 _instanceCapacity{};
+    Vec3 _sourceMotionVelocity{};
+    Vec3 _sourceMotionTangent{ 0.f, 0.f, 1.f };
+    Vec3 _lastSourceMotionCenter{};
+    bool _sourceMotionVelocityValid{ false };
+    bool _hasLastSourceMotionCenter{ false };
 
 private: //## Data::SpawnRuntime
     // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
@@ -283,7 +295,12 @@ private: //## Helper::SamplingEvaluation
     // PlaneRadialLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
     Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const;
     // velocity/radial velocity를 합친 초기 속도를 sample한다.
-    Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneRadialSample& planeRadialSample, uint32 seed) const;
+    Vec3 Sample_InitialVelocity(
+        const Vec3& spawnPosition,
+        const PlaneRadialSample& planeRadialSample,
+        const SourceMotionVelocityContext& sourceMotionContext,
+        uint32 seed) const;
+    void Update_SourceMotionVelocity(float timeDelta);
     // OrbitOverLife payload를 lifeProgress 기준 위치 offset으로 평가한다.
     Vec3 Evaluate_OrbitOffset(const MeshParticleState& particle, float lifeProgress) const;
     // motion acceleration range에서 particle acceleration을 sample한다.

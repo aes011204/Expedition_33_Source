@@ -65,6 +65,7 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (_player->Is_CinematicPlaying())
     {
         _player->Stop();
+        Clear_CompletedCallbacks();
         Cleanup_Context();
     }
 
@@ -172,6 +173,7 @@ void CinematicSequenceRunner::Stop_Sequence()
         return;
 
     _player->Stop();
+    Clear_CompletedCallbacks();
     Cleanup_Context();
     CLIENT->Restore_PreviousCamera();
 
@@ -347,6 +349,10 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
 
     if (wasPlaying && !_player->Is_CinematicPlaying())
     {
+        CLIENT->Restore_PreviousCamera(); // 완료 콜백이 전투 카메라를 요청할 수 있으므로, 시네마틱 카메라 복원은 먼저 끝낸다.
+        _onNaturalCompleted.Broadcast();
+        Clear_CompletedCallbacks(); // 완료 콜백
+
         Cleanup_Context();
         CLIENT->Restore_PreviousCamera();
         GAME->Set_LetterboxEnabled(false);
@@ -378,6 +384,16 @@ Shared<GameObject> CinematicSequenceRunner::Get_BoundActor(const string& targetI
         return nullptr;
 
     return iter->second.actor;
+}
+
+FDelegateHandle CinematicSequenceRunner::Add_CompletedCallback(const FOnCinematicCompleted::FunctionType& callback)
+{
+    return _onNaturalCompleted.Add(callback);
+}
+
+void CinematicSequenceRunner::Clear_CompletedCallbacks()
+{
+    _onNaturalCompleted.Clear();
 }
 
 void CinematicSequenceRunner::Execute_EventsUpToFrame(int currentFrame)
@@ -732,6 +748,9 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
     _bindingStates.clear();
     _nextEventIndex = 0;
     _suspendActorTransformTrackPreview = false;
+
+    if (forceRemoveAllSpawned)
+        Clear_CompletedCallbacks();
 }
 
 Unique<CinematicSequenceRunner> CinematicSequenceRunner::Create()

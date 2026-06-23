@@ -339,6 +339,8 @@ namespace
 
         if ("background" == layer)
             return UI_RenderGroup::Background;
+        if ("overlay" == layer)
+            return UI_RenderGroup::Overlay;
 
         return UI_RenderGroup::Foreground;
     }
@@ -1995,6 +1997,12 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     RuntimeUIDocument document{};
     if (!Parse_Document(root, document))
         return E_FAIL;
+
+    if (desc.forceRenderGroup)
+    {
+        for (RuntimeUIObject& object : document.objects)
+            object.renderGroup = desc.renderGroupOverride;
+    }
 
     vector<RuntimeUIAnimationAssetBinding> animationBindings =
         Load_KeyframeAnimationAssetBindings(desc.animationPath);

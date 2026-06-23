@@ -30,6 +30,7 @@ public:
 
     void Play_ScreenEffect(const Shared<ScreenFx_Instance>& effect);
     void Clear_ScreenEffect();
+    bool Is_ScreenEffectFinished(const wstring& tag) const;
 
     // Screen Capture
     void Request_ScreenCapture(bool saveToFile = true);
@@ -46,6 +47,7 @@ private:
 
 private:
     vector<Shared<ScreenFx_Instance>> _activeEffects;
+    unordered_set<wstring> _finishedEffectTags;
 
 public:
 #ifdef _DEBUG

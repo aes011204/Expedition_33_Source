@@ -189,16 +189,15 @@ void EditorInstance::Update_Editor(float timeDelta)
         _notificationManager->Update(timeDelta);
     }
 
-
-    if(GAME->KeyUp(KEY_TYPE::KEY_1))
-    {
-        Toogle_TargetCameraEditMode();
-
-        if(_isTargetCameraEditMode)
-        {
-            GAME->Unlock_Mouse();
-        }
-    }
+    //if(GAME->KeyUp(KEY_TYPE::KEY_1))
+    //{
+    //    Toogle_TargetCameraEditMode();
+    //
+    //    if(_isTargetCameraEditMode)
+    //    {
+    //        GAME->Unlock_Mouse();
+    //    }
+    //}
 }
 
 void EditorInstance::Render_Editor()
@@ -1789,20 +1788,13 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
 void EditorInstance::Toggle_MouseLockOverride()
 {
-    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
     {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
-    }
-    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
-    {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
     }
     else
     {
-        _mouseLockOverrideMode =
-            GAME->Is_MouseLocked()
-            ? MouseLockOverrideMode::Unlocked
-            : MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
     }
 
     if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)

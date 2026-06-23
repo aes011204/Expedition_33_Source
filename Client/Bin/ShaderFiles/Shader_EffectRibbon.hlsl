@@ -8,12 +8,12 @@
 cbuffer cbEffectRibbonMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectRibbonParams = { 1.f, 1.f, 0.f, 0.f };       // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectRibbonAlphaParams = { 0.f, 0.f, 0.f, 0.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectRibbonMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectRibbonParams = { 1.f, 1.f, 0.f, 0.f };                 // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectRibbonAlphaParams = { 0.f, 0.f, 0.f, 0.f };            // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectRibbonMainUVParams = { 1.f, 1.f, 0.f, 0.f };           // xy: scale, zw: scroll speed
     float4 g_EffectRibbonNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectRibbonMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
-    float4 g_EffectRibbonUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
+    float4 g_EffectRibbonUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };         // xy: main offset, zw: noise offset
     float4 g_EffectRibbonMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectRibbonUVModeParams = { 0.f, 0.f, 0.f, 0.f };           // x: main, y: noise, z: mask, w: reserved
     float4 g_EffectRibbonUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
@@ -24,9 +24,9 @@ cbuffer cbEffectRibbonMaterial : register(b2)
     float4 g_EffectRibbonAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectRibbonAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectRibbonAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };
-    float4 g_EffectRibbonCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };    // x: enabled, y: corePower, z: coreIntensity, w: outerPower
-    float4 g_EffectRibbonCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
-    float4 g_EffectRibbonAxisParams = { 0.f, 1.f, 0.f, 0.f };            // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
+    float4 g_EffectRibbonCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };     // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectRibbonCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f };  // rgb: coreColor, a: outerIntensity
+    float4 g_EffectRibbonAxisParams = { 0.f, 1.f, 0.f, 0.f };             // x: renderAxis, y: visibleLength, z: tilingDistance, w: smooth start tangent
     float4 g_EffectRibbonFallbackAxis = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationMeta[8];

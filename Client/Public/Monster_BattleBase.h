@@ -68,8 +68,8 @@ public:
     {
         None,
         Opening,
-        Mid,
-        Critical
+        Mid,      // 1페
+        Critical  // 2페
     };
 
     struct SkillChoiceContext

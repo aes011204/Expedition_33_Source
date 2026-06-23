@@ -20,6 +20,7 @@ public:
         BattleItemType selectedItemType,
         HeroId actorHeroId,
         float timeDelta);
+    HRESULT Warmup_ForBattleState(BattleItemType selectedItemType, HeroId actorHeroId);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

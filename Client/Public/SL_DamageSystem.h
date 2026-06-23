@@ -23,6 +23,14 @@ public:
         AttackType attackType,
         SL_DamageInfo& outInfo);
 
+    static bool Apply_FixedDamage(
+        const Shared<GameObject>& attacker,
+        const Shared<GameObject>& target,
+        const Shared<CombatStatCom>& targetStat,
+        float damage,
+        AttackType attackType,
+        SL_DamageInfo& outInfo);
+
 };
 
 NS_END

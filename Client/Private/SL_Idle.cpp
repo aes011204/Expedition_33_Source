@@ -1,4 +1,5 @@
 ﻿#include "SL_Idle.h"
+#include "SL_Move.h"
 #include "SL_StateMachineCom.h"
 
 SL_Idle::SL_Idle(const Shared<SL_Maelle>& owner)
@@ -27,6 +28,9 @@ bool SL_Idle::Request_Move(const SL_MoveRequest& request, float timeDelta)
 
     if (request.worldDir.LengthSquared() <= 0.f)
         return false;
+
+    if (auto moveState = dynamic_pointer_cast<SL_Move>(_stateCom->Get_State(SL_PlayerState::Run)))
+        moveState->Set_PlayIdleToRun(true);
 
     if (!_stateCom->Change_State(SL_PlayerState::Run))
         return false;

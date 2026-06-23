@@ -8,6 +8,8 @@
 #include "Engine_Shader_Utils.hlsl"
 
 uint g_iObjectID;
+float4 g_WeaponGhostColor;
+uint g_WeaponGhostBladeMaterial;
 
 //==================================================
 // VS
@@ -435,21 +437,46 @@ PS_OUT PS_FaceAccAlphaBlend(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_WeaponGhost(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float4 baseColor = SampleBaseColor(finalUV);
+    float3 worldNormal = normalize(In.Normal.xyz);
+    float alpha = 1.f;
+    bool isBladeMaterial = g_WeaponGhostBladeMaterial != 0;
+    float3 color = isBladeMaterial ? saturate(g_WeaponGhostColor.rgb) : saturate(baseColor.rgb);
+    float3 orm = isBladeMaterial ? float3(1.f, 0.35f, 0.f) : SampleOrm(finalUV);
+    float3 emissive = isBladeMaterial ? color * 0.35f : 0.f;
+
+    Out.Diffuse = float4(color, alpha);
+    Out.Normal = float4(EncodeNormal(worldNormal), alpha);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, alpha);
+    Out.Material = float4(orm, alpha);
+    Out.Emissive = float4(emissive, alpha);
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(DefaultPass,         RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
-    PASS_RS_DS_BS_VP(ShadowPass,          RS_Default,  DSS_Default, BS_Default, VS_Shadow,  PS_Shadow)            // 1
-    PASS_RS_DS_BS_VP(NoTexturePass,       RS_Default,  DSS_Default, BS_Default, VS_Default, PS_NoTexture)         // 2
-    PASS_RS_DS_BS_VP(MaskedPass,          RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Mask)              // 3
-    PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 4
-    PASS_RS_DS_BS_VP(MaskedTwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)              // 5
-    PASS_RS_DS_BS_VP(IDPass,              RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_ID)                // 6
-    PASS_RS_DS_BS_VP(OpaqueARPass,        RS_Default, DSS_Default,  BS_Default, VS_Default, PS_OpaqueAR)          // 7
-    PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)         // 8
-    PASS_RS_DS_BS_VP(PackedAR_NMEPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)          // 9
-    PASS_RS_DS_BS_VP(PackedAR_NMETwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME) // 10
-    PASS_RS_DS_BS_VP(LandscapeBlendPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_LandscapeBlend)      // 11
-    PASS_RS_DS_BS_VP(FaceAccessoryBeardPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_FaceAccessoryBeard) // 12
-    PASS_RS_DS_BS_VP(FaceAccAlphaBlend, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_Default, PS_FaceAccAlphaBlend) // 13
-    PASS_RS_DS_BS_VP(SignDecalPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_SignDecal) // 14
+    PASS_RS_DS_BS_VP(DefaultPass,               RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
+    PASS_RS_DS_BS_VP(ShadowPass,                RS_Default,  DSS_Default, BS_Default, VS_Shadow,  PS_Shadow)            // 1
+    PASS_RS_DS_BS_VP(NoTexturePass,             RS_Default,  DSS_Default, BS_Default, VS_Default, PS_NoTexture)         // 2
+    PASS_RS_DS_BS_VP(MaskedPass,                RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Mask)              // 3
+    PASS_RS_DS_BS_VP(TwoSidedPass,              RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 4
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)              // 5
+    PASS_RS_DS_BS_VP(IDPass,                    RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_ID)                // 6
+    PASS_RS_DS_BS_VP(OpaqueARPass,              RS_Default, DSS_Default,  BS_Default, VS_Default, PS_OpaqueAR)          // 7
+    PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass,      RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)          // 8
+    PASS_RS_DS_BS_VP(PackedAR_NMEPass,          RS_Default, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)       // 9
+    PASS_RS_DS_BS_VP(PackedAR_NMETwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)      // 10
+    PASS_RS_DS_BS_VP(LandscapeBlendPass,        RS_Default, DSS_Default, BS_Default, VS_Default, PS_LandscapeBlend)     // 11
+    PASS_RS_DS_BS_VP(FaceAccessoryBeardPass,    RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_FaceAccessoryBeard)// 12
+    PASS_RS_DS_BS_VP(FaceAccAlphaBlend,         RS_CullNone, DSS_Default, BS_AlphaBlend, VS_Default, PS_FaceAccAlphaBlend) // 13
+    PASS_RS_DS_BS_VP(SignDecalPass,             RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_SignDecal)         // 14
+    PASS_RS_DS_BS_VP(WeaponGhostPass,           RS_CullNone, DSS_None, BS_AlphaBlend, VS_Default, PS_WeaponGhost)       // 15
 }

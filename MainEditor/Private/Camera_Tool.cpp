@@ -13,6 +13,7 @@
 #include "ClientInstance.h"
 #include "Editor_Macro.h"
 #include "EditorInstance.h"
+#include "SoulLikeCamera.h"
 
 namespace
 {
@@ -198,6 +199,7 @@ void Camera_Tool::Render_CommonSettings()
         return;
 
     auto targetCamera = dynamic_pointer_cast<TargetCamera>(camera);
+    auto soulLikeCamera = dynamic_pointer_cast<SoulLikeCamera>(camera);
 
     float fovY = camera->Get_FovY();
     float fNear = camera->Get_Near();
@@ -209,6 +211,14 @@ void Camera_Tool::Render_CommonSettings()
     if (targetCamera != nullptr)
     {
         targetPreset = targetCamera->Get_Preset(_editingCameraState);
+        fovY = targetPreset.camera.fovy;
+        fNear = targetPreset.camera.nearPlane;
+        fFar = targetPreset.camera.farPlane;
+        mouseSensor = targetPreset.camera.mouseSensor;
+    }
+    else if (soulLikeCamera != nullptr)
+    {
+        targetPreset = soulLikeCamera->Get_Preset();
         fovY = targetPreset.camera.fovy;
         fNear = targetPreset.camera.nearPlane;
         fFar = targetPreset.camera.farPlane;
@@ -231,7 +241,7 @@ void Camera_Tool::Render_CommonSettings()
     Draw_SectionHeader("Lens");
     if(ImGui::DragFloat("fovY", &fovY, 0.1f, 0.1f, 3.13f))
     {
-        if (targetCamera != nullptr)
+        if (targetCamera != nullptr || soulLikeCamera != nullptr)
         {
             targetPreset.camera.fovy = fovY;
             isLensChanged = true;
@@ -244,7 +254,7 @@ void Camera_Tool::Render_CommonSettings()
 
     if(ImGui::DragFloat("near", &fNear, 0.01f, 0.01f, fFar - 0.01f))
     {
-        if (targetCamera != nullptr)
+        if (targetCamera != nullptr || soulLikeCamera != nullptr)
         {
             targetPreset.camera.nearPlane = fNear;
             isLensChanged = true;
@@ -257,7 +267,7 @@ void Camera_Tool::Render_CommonSettings()
 
     if(ImGui::DragFloat("far", &fFar, 0.01f, fNear + 0.01f, 10000.f))
     {
-        if (targetCamera != nullptr)
+        if (targetCamera != nullptr || soulLikeCamera != nullptr)
         {
             targetPreset.camera.farPlane = fFar;
             isLensChanged = true;
@@ -271,7 +281,7 @@ void Camera_Tool::Render_CommonSettings()
     Draw_SectionHeader("Input");
     if(ImGui::DragFloat("mouse sensor##CommonCamera", &mouseSensor, 0.01f, 0.01f, 10.f))
     {
-        if (targetCamera != nullptr)
+        if (targetCamera != nullptr || soulLikeCamera != nullptr)
         {
             targetPreset.camera.mouseSensor = mouseSensor;
             isLensChanged = true;
@@ -287,6 +297,11 @@ void Camera_Tool::Render_CommonSettings()
         targetCamera->Set_Preset(_editingCameraState, targetPreset);
         targetCamera->Apply_PreviewPreset(targetPreset);
     }
+    else if (soulLikeCamera != nullptr && isLensChanged)
+    {
+        soulLikeCamera->Set_Preset(targetPreset);
+        soulLikeCamera->Apply_PreviewPreset(targetPreset);
+    }
 }
 
 void Camera_Tool::Render_SpecificSettings()
@@ -296,12 +311,16 @@ void Camera_Tool::Render_SpecificSettings()
         return;
 
     auto targetCamera = dynamic_pointer_cast<TargetCamera>(camera);
+    auto soulLikeCamera = dynamic_pointer_cast<SoulLikeCamera>(camera);
     auto battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
     auto freeCamera = dynamic_pointer_cast<FreeCamera>(camera);
     auto previewCamera = dynamic_pointer_cast<PreviewCamera>(camera);
 
     if (nullptr != targetCamera)
         Render_TargetCameraProperties(targetCamera);
+
+    if (nullptr != soulLikeCamera)
+        Render_SoulLikeCameraProperties(soulLikeCamera);
 
     if (nullptr != battleTurnCamera)
         Render_BattleTurnCameraProperties(battleTurnCamera);
@@ -326,6 +345,12 @@ void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targ
     (void)targetCamera;
     Select_EditingCameraState();
     Edit_TargetCameraPreset();
+}
+
+void Camera_Tool::Render_SoulLikeCameraProperties(const Shared<SoulLikeCamera>& soulLikeCamera)
+{
+    (void)soulLikeCamera;
+    Edit_SoulLikeCameraPreset();
 }
 
 void Camera_Tool::Render_BattleTurnCameraProperties(const Shared<BattleTurnCamera>& battleTurnCamera)
@@ -381,6 +406,41 @@ void Camera_Tool::Edit_TargetCameraPreset()
     if (ImGui::Button("Save Preset"))
     {
         CameraPresetIO::SaveTargetPresetToFile(_editingCameraState, preset);
+    }
+}
+
+void Camera_Tool::Edit_SoulLikeCameraPreset()
+{
+    Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
+
+    auto soulLikeCamera = static_pointer_cast<SoulLikeCamera>(camera);
+
+    auto preset = soulLikeCamera->Get_Preset();
+
+    bool isChanged = Edit_OrbitPresetFields(preset);
+    isChanged |= ImGui::DragFloat("target follow speed##SoulLikeCamera", &preset.targetFollowSpeed, 0.01f, 0.01f, 30.f);
+    isChanged |= ImGui::DragFloat("vertical follow speed##SoulLikeCamera", &preset.verticalFollowSpeed, 0.01f, 0.01f, 30.f);
+
+    BattleCameraTransitionEasing followEasing = preset.targetFollowEasing;
+    Select_PresetEnum("target follow easing##SoulLikeCamera", followEasing);
+    if (followEasing != preset.targetFollowEasing)
+    {
+        preset.targetFollowEasing = followEasing;
+        isChanged = true;
+    }
+
+    isChanged |= ImGui::Checkbox("allow mouse rotation##SoulLikeCamera", &preset.allowMouseRotation);
+
+    if (isChanged)
+    {
+        soulLikeCamera->Set_Preset(preset);
+        soulLikeCamera->Apply_PreviewPreset(preset);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save SoulLike Preset"))
+    {
+        CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode::SOULLIKE, preset);
     }
 }
 

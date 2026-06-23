@@ -383,7 +383,7 @@ bool EffectMaterialPreviewRenderer::Ready_PostProcessTargets()
     constexpr DXGI_FORMAT bloomFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
     const Vec4 clearColor{ 0.f, 0.f, 0.f, 1.f };
 
-    auto readyTarget = [&](Shared<RenderTarget>& target, const wchar_t* tag, uint32 width, uint32 height)
+    auto ready_target = [&](Shared<RenderTarget>& target, const wchar_t* tag, uint32 width, uint32 height)
     {
         if (target != nullptr)
             return true;
@@ -392,12 +392,12 @@ bool EffectMaterialPreviewRenderer::Ready_PostProcessTargets()
         return target != nullptr;
     };
 
-    if (!readyTarget(_bloomHalfA, L"EffectMaterialPreviewBloomHalfA", halfWidth, halfHeight) ||
-        !readyTarget(_bloomHalfB, L"EffectMaterialPreviewBloomHalfB", halfWidth, halfHeight) ||
-        !readyTarget(_bloomQuarterA, L"EffectMaterialPreviewBloomQuarterA", quarterWidth, quarterHeight) ||
-        !readyTarget(_bloomQuarterB, L"EffectMaterialPreviewBloomQuarterB", quarterWidth, quarterHeight) ||
-        !readyTarget(_bloomEighthA, L"EffectMaterialPreviewBloomEighthA", eighthWidth, eighthHeight) ||
-        !readyTarget(_bloomEighthB, L"EffectMaterialPreviewBloomEighthB", eighthWidth, eighthHeight))
+    if (!ready_target(_bloomHalfA, L"EffectMaterialPreviewBloomHalfA", halfWidth, halfHeight) ||
+        !ready_target(_bloomHalfB, L"EffectMaterialPreviewBloomHalfB", halfWidth, halfHeight) ||
+        !ready_target(_bloomQuarterA, L"EffectMaterialPreviewBloomQuarterA", quarterWidth, quarterHeight) ||
+        !ready_target(_bloomQuarterB, L"EffectMaterialPreviewBloomQuarterB", quarterWidth, quarterHeight) ||
+        !ready_target(_bloomEighthA, L"EffectMaterialPreviewBloomEighthA", eighthWidth, eighthHeight) ||
+        !ready_target(_bloomEighthB, L"EffectMaterialPreviewBloomEighthB", eighthWidth, eighthHeight))
     {
         _statusMessage = "Preview postprocess render target creation failed.";
         return false;

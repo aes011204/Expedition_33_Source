@@ -22,7 +22,10 @@ public:
     // Stat Com
     virtual Shared<CombatStatCom> Get_Stat() const = 0;
     // Collider Com
-    virtual Shared<ColliderCom>   Get_AttackCollider() const = 0;
+   // virtual Shared<ColliderCom>   Get_AttackCollider() const = 0;
+
+    virtual void Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride);
+    virtual void Clear_AttackHitAnimOverride(const string& colliderTag);
 
     virtual bool Is_Dead() const = 0;
     virtual void Apply_Damage(const SL_DamageInfo& damageInfo) = 0;

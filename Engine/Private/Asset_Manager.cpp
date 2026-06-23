@@ -244,6 +244,15 @@ namespace
 
         return true;
     }
+
+    bool Is_SameAssetMeta(const AssetMeta& lhs, const AssetMeta& rhs)
+    {
+        return lhs.guid == rhs.guid &&
+            lhs.type == rhs.type &&
+            lhs.modelType == rhs.modelType &&
+            lhs.fullPath == rhs.fullPath &&
+            lhs.relativePath == rhs.relativePath;
+    }
 }
 
 Asset_Manager::Asset_Manager()
@@ -499,6 +508,182 @@ void Asset_Manager::Scan_And_Register(const wstring& directory, const wstring& m
     }
     catch (...)
     {
+    }
+}
+
+HRESULT Asset_Manager::Refresh_RegistryDirectory(const wstring& directory, const wstring& missingMetaRoot)
+{
+    try
+    {
+        if (_resourceRoot.empty())
+            return E_FAIL;
+
+        const fs::path directoryPath = fs::absolute(fs::path(directory)).lexically_normal();
+        if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
+            return E_FAIL;
+
+        // 제한된 디렉터리만 다시 조사해서 새 effect json/meta를 live registry에 반영한다.
+        Scan_And_Register(directoryPath.wstring(), missingMetaRoot);
+        Refresh_Cache();
+
+        if (_assetRegistryDirty)
+        {
+            Save_Registry();
+            Save_Cache();
+        }
+
+        return S_OK;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
+}
+
+HRESULT Asset_Manager::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot)
+{
+    try
+    {
+        if (_resourceRoot.empty() || scanResult.scanRoot.empty() || !scanResult.scanSucceeded)
+            return E_FAIL;
+
+        const fs::path scanRoot = fs::absolute(fs::path(scanResult.scanRoot)).lexically_normal();
+        if (!fs::exists(scanRoot) || !fs::is_directory(scanRoot))
+            return E_FAIL;
+
+        const bool restrictMissingMeta = !missingMetaRoot.empty();
+        const fs::path normalizedMissingMetaRoot = restrictMissingMeta
+            ? fs::absolute(fs::path(missingMetaRoot)).lexically_normal()
+            : fs::path();
+
+        set<wstring> discoveredPathKeys{};
+        for (const wstring& discoveredPath : scanResult.discoveredAssetPaths)
+        {
+            const fs::path normalizedPath = fs::absolute(fs::path(discoveredPath)).lexically_normal();
+            if (Is_PathUnderRoot(normalizedPath, scanRoot))
+                discoveredPathKeys.insert(Normalize_PathKey(normalizedPath.wstring()));
+        }
+
+        uint32 loadedMetaCount = 0;
+        uint32 createdMetaCount = 0;
+        uint32 removedStaleCount = 0;
+
+        for (AssetMeta assetMeta : scanResult.existingMetaAssets)
+        {
+            if (assetMeta.guid.empty() || assetMeta.fullPath.empty())
+                continue;
+
+            const fs::path assetPath = fs::absolute(fs::path(assetMeta.fullPath)).lexically_normal();
+            if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+                continue;
+
+            if (!Is_PathUnderRoot(assetPath, scanRoot) || !Should_RegisterAsset(assetPath))
+                continue;
+
+            assetMeta.fullPath = assetPath.wstring();
+            assetMeta.relativePath = fs::relative(assetPath, fs::path(_resourceRoot)).wstring();
+            if (assetMeta.type.empty())
+                assetMeta.type = Detect_AssetType(assetMeta.fullPath);
+
+            const wstring pathKey = Normalize_PathKey(assetMeta.fullPath);
+            if (const auto existingPath = _pathToGuid.find(pathKey);
+                existingPath != _pathToGuid.end() && existingPath->second != assetMeta.guid)
+            {
+                _guidToMeta.erase(existingPath->second);
+                _assetRegistryDirty = true;
+            }
+
+            const auto existingGuid = _guidToMeta.find(assetMeta.guid);
+            if (existingGuid == _guidToMeta.end() || !Is_SameAssetMeta(existingGuid->second, assetMeta))
+            {
+                _guidToMeta[assetMeta.guid] = assetMeta;
+                _assetRegistryDirty = true;
+                ++loadedMetaCount;
+            }
+
+            _pathToGuid[pathKey] = assetMeta.guid;
+        }
+
+        for (const wstring& missingMetaAssetPath : scanResult.missingMetaAssetPaths)
+        {
+            const fs::path assetPath = fs::absolute(fs::path(missingMetaAssetPath)).lexically_normal();
+            if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+                continue;
+
+            if (!Is_PathUnderRoot(assetPath, scanRoot) || !Should_RegisterAsset(assetPath))
+                continue;
+
+            if (restrictMissingMeta && !Is_PathUnderRoot(assetPath, normalizedMissingMetaRoot))
+                continue;
+
+            if (fs::exists(Build_MetaPath(assetPath.wstring())))
+                continue;
+
+            if (!Register_Asset(assetPath.wstring()).empty())
+                ++createdMetaCount;
+        }
+
+        for (const wstring& staleAssetPath : scanResult.staleAssetPaths)
+        {
+            const fs::path assetPath = fs::absolute(fs::path(staleAssetPath)).lexically_normal();
+            if (!Is_PathUnderRoot(assetPath, scanRoot))
+                continue;
+
+            const wstring pathKey = Normalize_PathKey(assetPath.wstring());
+            if (_pathToGuid.find(pathKey) == _pathToGuid.end())
+                continue;
+
+            Unregister_AssetPath(assetPath.wstring());
+            _assetRegistryDirty = true;
+            ++removedStaleCount;
+        }
+
+        for (auto iter = _guidToMeta.begin(); iter != _guidToMeta.end();)
+        {
+            const fs::path assetPath = fs::absolute(fs::path(iter->second.fullPath)).lexically_normal();
+            if (!Is_PathUnderRoot(assetPath, scanRoot))
+            {
+                ++iter;
+                continue;
+            }
+
+            const wstring pathKey = Normalize_PathKey(assetPath.wstring());
+            if (fs::exists(assetPath) && discoveredPathKeys.find(pathKey) != discoveredPathKeys.end())
+            {
+                ++iter;
+                continue;
+            }
+
+            iter = _guidToMeta.erase(iter);
+            _assetRegistryDirty = true;
+            ++removedStaleCount;
+        }
+
+        Deduplicate_Assets_ByPath();
+        Rebuild_PathIndex();
+
+        const bool registryChanged = _assetRegistryDirty;
+        if (registryChanged)
+        {
+            Save_Registry();
+            Save_Cache();
+        }
+
+        LOG_INFO(
+            "[AssetDeltaScan] commit scanRoot={} discovered={} loadedMeta={} createdMeta={} removedStale={} dirty={}",
+            String::ToString(scanRoot.wstring()),
+            static_cast<uint32>(scanResult.discoveredAssetPaths.size()),
+            loadedMetaCount,
+            createdMetaCount,
+            removedStaleCount,
+            _assetRegistryDirty
+        );
+
+        return registryChanged ? S_OK : S_FALSE;
+    }
+    catch (...)
+    {
+        return E_FAIL;
     }
 }
 

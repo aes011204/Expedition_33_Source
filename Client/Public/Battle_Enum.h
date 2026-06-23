@@ -340,6 +340,7 @@ namespace Client
         int32 maxUseCount = -1;
         int32 coolDownTurn = 0;
 
+        float slCooldownSec = 0.f;
     };
 
     struct Skill_Data_Inst

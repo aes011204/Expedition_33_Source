@@ -29,6 +29,7 @@ public:
         bool applyCameraTrack = true,
         bool applyEventTrack = true,
         bool applyActorTransformTrack = true);
+
     void Pause_Sequence();
     void Resume_Sequence(
         bool applyCameraTrack = true,
@@ -52,6 +53,9 @@ public:
     int  Get_CurrentFrame() const;
     Shared<GameObject> Get_BoundActor(const string& targetId) const;
     bool Is_ActorTransformTrackPreviewSuspended() const { return _suspendActorTransformTrackPreview; }
+
+    FDelegateHandle Add_CompletedCallback(const FOnCinematicCompleted::FunctionType& callback);;
+    void Clear_CompletedCallbacks(); // 시퀀스 교체/수동 중단 전에 오래된 완료 콜백을 제거
 
 private:
     struct BindingRuntimeState
@@ -94,6 +98,8 @@ private:
     bool _applyCameraTrack = true;
     bool _applyEventTrack = true;
     bool _applyActorTransformTrack = true;
+
+    FOnCinematicCompleted _onNaturalCompleted;
 
 public:
     static Unique<CinematicSequenceRunner> Create();

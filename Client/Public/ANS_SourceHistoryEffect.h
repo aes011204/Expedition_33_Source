@@ -19,14 +19,16 @@ public:
     void On_Begin(const AnimNotifyContext& context) override;
     void On_Tick(const AnimNotifyContext& context) override;
     void On_End(const AnimNotifyContext& context) override;
+    void From_Json(const json& data) override;
 
 private:
     wstring _effectName = L"";
     wstring _partTag = L"Part_Weapon";
     wstring _layerTag = L"Layer_Effect";
-    SourceHistorySourceBindingMode _sourceBindingMode{ SourceHistorySourceBindingMode::TrailAnchor };
+    SourceHistorySourceBindingMode _sourceBindingMode{ SourceHistorySourceBindingMode::WeaponAnchor };
     string _socketName{};
-    SourceHistorySourcePointPolicy _sourcePointPolicy{ SourceHistorySourcePointPolicy::Tip };
+    string _sourceHistoryAnchorName{ "Source" };
+    Vec3 _sourceHistoryLocalOffset{ Vec3::Zero };
 };
 
 NS_END

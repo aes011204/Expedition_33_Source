@@ -17,7 +17,7 @@ cbuffer cbEffectMaterialPreviewDistortion : register(b2)
     float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };          // xy: mask offset, zw: reserved
     float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };                // x: main, y: mask, z: flow, w: reserved
     float4 g_EffectMaterialPreviewUVPolicyParams = { 0.f, 0.f, 0.f, 0.f };              // xy: flow U/V policy, zw: reserved
-    float4 g_EffectMaterialPreviewUVRotationParams = { 0.f, 0.f, 0.f, 0.f };                // x: main, y: mask, z: flow, w: reserved
+    float4 g_EffectMaterialPreviewUVRotationParams = { 0.f, 0.f, 0.f, 0.f };            // x: main, y: mask, z: flow, w: reserved
     float4 g_EffectMaterialPreviewSourceParams = { 1.f, 0.f, 0.f, 0.f };                // y: mask source, w: mask invert
     float4 g_EffectMaterialPreviewDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x: intensity, y: presence, z: useFlow, w: time
     float4 g_EffectMaterialPreviewDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x: mode, y: radius, z: thickness, w: softness

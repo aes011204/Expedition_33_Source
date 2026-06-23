@@ -248,8 +248,9 @@ namespace UIEditor
         const bool hasSelectedImage = nullptr != selectedObject && selectedObject->type == UI_ObjectType::Image;
         const bool hasHoverBrushTarget = nullptr != selectedObject &&
             (selectedObject->type == UI_ObjectType::Button || selectedObject->type == UI_ObjectType::Panel);
+        const bool hasBrushAtmosphereTarget = hasSelectedImage || hasHoverBrushTarget;
 
-        if (!hasSelectedImage && !hasHoverBrushTarget)
+        if (!hasBrushAtmosphereTarget)
         {
             ImGui::TextDisabled("Select an Image, Button, or Panel UI object.");
             ImGui::Separator();
@@ -282,6 +283,18 @@ namespace UIEditor
         {
             ImGui::BeginDisabled(true);
             ImGui::Button("Create Button Ink Flow Layer");
+            ImGui::EndDisabled();
+        }
+
+        if (hasBrushAtmosphereTarget && !isLocked)
+        {
+            if (ImGui::Button("Create Brush Atmosphere Layers"))
+                _editorManager.Create_BrushAtmospherePreset(selectedObjectId);
+        }
+        else
+        {
+            ImGui::BeginDisabled(true);
+            ImGui::Button("Create Brush Atmosphere Layers");
             ImGui::EndDisabled();
         }
 

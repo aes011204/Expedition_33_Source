@@ -134,15 +134,15 @@ void SL_Test_Lancelier::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 
     if (Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(target))
     {
-        if (maelle->Try_ConsumeParry(impactWorldPos))
-        {
-            if (_attackColliderCom)
-            {
-                _attackColliderCom->Set_IsActive(false);
-                _attackColliderCom->Clear_Overlap();
-            }
-            return;
-        }
+        //if (maelle->Try_ConsumeParry(impactWorldPos))
+        //{
+        //    if (_attackColliderCom)
+        //    {
+        //        _attackColliderCom->Set_IsActive(false);
+        //        _attackColliderCom->Clear_Overlap();
+        //    }
+        //    return;
+        //}
 
         if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
         {
@@ -172,6 +172,7 @@ void SL_Test_Lancelier::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         return;
     }
 
+    damageInfo.hitAnimOverride = _attackHitAnimOverride;
     target->Apply_Damage(damageInfo);
 }
 
@@ -183,6 +184,18 @@ Shared<CombatStatCom> SL_Test_Lancelier::Get_Stat() const
 Shared<ColliderCom> SL_Test_Lancelier::Get_AttackCollider() const
 {
     return _attackColliderCom;
+}
+
+void SL_Test_Lancelier::Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride)
+{
+    if (colliderTag == "Com_SL_MonsterAttack")
+        _attackHitAnimOverride = hitAnimOverride;
+}
+
+void SL_Test_Lancelier::Clear_AttackHitAnimOverride(const string& colliderTag)
+{
+    if (colliderTag == "Com_SL_MonsterAttack")
+        _attackHitAnimOverride = SL_HitAnimOverride::Hit_Light;
 }
 
 bool SL_Test_Lancelier::Is_Dead() const

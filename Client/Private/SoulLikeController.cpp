@@ -6,6 +6,7 @@
 #include "ClientScreenFxManager.h"
 #include "GameplayUI.h"
 #include "GamePlayUI_SL.h"
+#include "GradientSkill.h"
 #include "GameInstance.h"
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
@@ -22,6 +23,7 @@
 #include "TransformCom.h"
 #include "MonsterStatCom.h"
 #include "SL_Skill.h"
+#include "SL_EstherManager.h"
 
 IMPLEMENT_REFLECTION(SoulLikeController)
 {
@@ -107,6 +109,9 @@ void SoulLikeController::BeginPlay()
             this,
             &SoulLikeController::Handle_EditorStopRuntime);
     }
+
+    if (_estherManager == nullptr)
+        _estherManager = SL_EstherManager::Create(GetSharedPtr<SoulLikeController>());
 }
 
 void SoulLikeController::Update(float timeDelta)
@@ -127,6 +132,9 @@ void SoulLikeController::Update(float timeDelta)
 
     if (_state == BattleState::Playing)
     {
+        if (_estherManager)
+            _estherManager->Update(timeDelta);
+
         Update_Player(timeDelta);
         Check_BattleEnd();
     }
@@ -154,7 +162,11 @@ bool SoulLikeController::Begin_Battle()
     _enterFxTimer = max(0.f, _enterFxDelay);
     _victorySlowElapsed = 0.f;
     _lastVictoryRewardExp = 0;
+    _healingPotionCount = kMaxHealingPotionCount;
     _state = BattleState::EnterFx;
+
+    if (_estherManager)
+        _estherManager->Reset();
 
     if (auto screenFxManager = CLIENT->Get_ScreenFxManager())
     {
@@ -180,6 +192,9 @@ void SoulLikeController::End_Battle()
     _jumpCounterCounterWindowOpen = false;
     _jumpCounterAttackStarted = false;
     _jumpCounterDamageApplied = false;
+
+    if (_estherManager)
+        _estherManager->Reset();
 }
 
 void SoulLikeController::Confirm_Victory()
@@ -243,6 +258,27 @@ void SoulLikeController::End_BattleShotCamera()
         return;
 
     Request_SoulLikeCamera();
+}
+
+void SoulLikeController::Apply_SkillCameraPreset(const string& skillKey)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (skillKey.empty())
+        return;
+
+    if (!Ensure_SoulLikeCamera())
+        return;
+
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        soulLikeCamera->Apply_SkillPreset(skillKey);
+}
+
+void SoulLikeController::Restore_SkillCameraPreset()
+{
+    if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
+        soulLikeCamera->Restore_BasePreset();
 }
 
 void SoulLikeController::Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo)
@@ -385,6 +421,14 @@ void SoulLikeController::Apply_JumpCounterDamage()
     _jumpCounterJumpSucceeded = false;
     _jumpCounterCounterWindowOpen = false;
     _jumpCounterAttackStarted = false;
+}
+
+bool SoulLikeController::Notify_EstherAttack(GameObject* notifyOwner)
+{
+    if (!_estherManager)
+        return false;
+
+    return _estherManager->Notify_Attack(notifyOwner);
 }
 
 void SoulLikeController::Request_SoulLikeCamera()
@@ -575,25 +619,19 @@ bool SoulLikeController::Spawn_Player()
     if (FAILED(player->Apply_WorldStatSnapshot(worldStat->Create_BattleSyncSnapshot())))
         return false;
 
-    // 스킬 세팅 -> 일단은 그냥 4개 꺼내오기. 나중에 그냥 직접 하나하나 세팅해서 고정시키는게 나을듯
     vector<string> soulLikeSkillKeys = worldStat->Get_SkillKeys();
-
     if (soulLikeSkillKeys.empty() && worldSkillTreeCom != nullptr)
         soulLikeSkillKeys = worldSkillTreeCom->Get_UnlockedSkillIds();
 
-    if (soulLikeSkillKeys.size() > 4)
-        soulLikeSkillKeys.resize(4);
-    else
-        soulLikeSkillKeys.resize(4);
+    soulLikeSkillKeys.erase(
+        remove_if(soulLikeSkillKeys.begin(), soulLikeSkillKeys.end(),
+            [](const string& skillKey)
+            {
+                return GradientSkill::Is_GradientSkill(HeroId::Maelle, skillKey);
+            }),
+        soulLikeSkillKeys.end());
 
-    for (string& skillKey : soulLikeSkillKeys)
-    {
-        if (skillKey.empty())
-            continue;
-
-        if (CLIENT->Get_Skill(skillKey) == nullptr)
-            skillKey.clear();
-    }
+    soulLikeSkillKeys.resize(4);
 
     player->Apply_WorldSkillKeys(soulLikeSkillKeys);
 
@@ -733,6 +771,13 @@ void SoulLikeController::Update_Player(float timeDelta)
 
     Update_Dodge(stateMachine, moveRequest);
 
+    // TODO : 포션 먹을 때 간단한 애니메이션 + 이팩트 추가 (이팩트는 그대로)
+    if (Update_HealingPotion(player, stateMachine))
+        return;
+
+    if (Update_Esther())
+        return;
+
     if (Update_Parry(stateMachine))
         return;
 
@@ -871,6 +916,9 @@ void SoulLikeController::Handle_EditorStopRuntime()
     _jumpCounterAttackStarted = false;
     _jumpCounterDamageApplied = false;
 
+    if (_estherManager)
+        _estherManager->Reset();
+
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
 
@@ -947,10 +995,17 @@ bool SoulLikeController::Update_Skill(const Shared<SL_Maelle>& player, const Sha
     else if (GAME->KeyDown(KEY_TYPE::C)) skillSlotIndex = 2;
     else if (GAME->KeyDown(KEY_TYPE::V)) skillSlotIndex = 3;
 
-    if (skillSlotIndex == UINT32_MAX || !player->Try_GetEquippedSkill(skillSlotIndex, skillData))
+    if (skillSlotIndex == UINT32_MAX)
         return false;
 
-    stateMachine->Request_Skill(skillData, skillSlotIndex);
+    if (!player->Can_UseSkillSlot(skillSlotIndex, skillData))
+        return false;
+
+    if (!stateMachine->Request_Skill(skillData, skillSlotIndex))
+        return false;
+
+    player->Start_SkillCooldown(skillSlotIndex, skillData);
+
     return true;
 }
 
@@ -964,6 +1019,59 @@ void SoulLikeController::Update_Dodge(const Shared<SL_StateMachineCom>& stateMac
         stateMachine->Request_Dodge(moveRequest);
         return;
     }
+}
+
+bool SoulLikeController::Update_HealingPotion(const Shared<SL_Maelle>& player,
+    const Shared<SL_StateMachineCom>& stateMachine)
+{
+    if (player == nullptr || stateMachine == nullptr)
+        return false;
+
+    if (!GAME->KeyDown(KEY_TYPE::KEY_1))
+        return false;
+
+    if (_healingPotionCount == 0)
+        return false;
+
+    const SL_PlayerState currentState = stateMachine->Get_CurrentSoulLikeState();
+    if (currentState != SL_PlayerState::Idle &&
+        currentState != SL_PlayerState::Run &&
+        currentState != SL_PlayerState::Sprint)
+    {
+        return false; // 포션은 이동 가능한 기본 상태에서만
+    }
+
+    const Shared<PlayerStatCom> playerStat =
+        dynamic_pointer_cast<PlayerStatCom>(player->Get_Stat());
+
+    if (playerStat == nullptr)
+        return false;
+
+    CombatStatCom::RuntimeCombatStat& runtimeStat = playerStat->Get_RuntimeStat();
+    const float maxHp = max(playerStat->Get_StatInfo().maxHp, 1.f);
+    const float curHp = clamp(runtimeStat.CurHp, 0.f, maxHp);
+
+    if (curHp >= maxHp)
+        return false;
+
+    runtimeStat.CurHp = clamp(curHp + (maxHp * kHealingPotionHealRatio), 0.f, maxHp);
+    --_healingPotionCount;
+
+    return true;
+}
+
+bool SoulLikeController::Update_Esther()
+{
+    if (_estherManager == nullptr)
+        return false;
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_3))
+        return _estherManager->Request_Esther(SL_EstherType::GustaveOvercharge);
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_4))
+        return _estherManager->Request_Esther(SL_EstherType::LuneImmolation);
+
+    return false;
 }
 
 Shared<SoulLikeController> SoulLikeController::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -998,6 +1106,12 @@ void SoulLikeController::Free()
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
         _editorStopHandle.Reset();
+    }
+
+    if (_estherManager)
+    {
+        _estherManager->Free();
+        _estherManager.reset();
     }
 
     GameObject::Free();

@@ -274,6 +274,8 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         skill.minTurn = item.value("minTurn", 0);
         skill.maxUseCount = item.value("maxUseCount", -1);
         skill.coolDownTurn = item.value("coolDownTurn", 0);
+        skill.coolDownTurn = item.value("coolDownTurn", 0);
+		skill.slCooldownSec = item.value("slCooldownSec", 0.f);
 
         const size_t index = _skillDefs.size();
         _skillDefs.push_back(skill);

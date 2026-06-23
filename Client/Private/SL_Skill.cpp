@@ -21,6 +21,9 @@ bool SL_Skill::EnterInvoke()
     owner->Set_CombatLocked(true);
     Stop_Movement();
 
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+        soulLikeController->Apply_SkillCameraPreset(_skillData.skillKey);
+
     _anim = Resolve_SkillAnim(_slotIndex);
     Resolve_PlaySection();
     const float blendDuration = _playSectionStartSec > 0.f ? 0.f : 0.05f;
@@ -41,6 +44,9 @@ void SL_Skill::Update(float timeDelta)
 
 void SL_Skill::ExitInvoke()
 {
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+        soulLikeController->Restore_SkillCameraPreset();
+
     _playSectionStartSec = 0.f;
     _playSectionEndSec = -1.f;
 
@@ -105,7 +111,10 @@ void SL_Skill::Finish_Skill()
         owner->Set_CombatLocked(false);
 
     if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+    {
+        soulLikeController->Restore_SkillCameraPreset();
         soulLikeController->End_BattleShotCamera();
+    }
 
     if (_stateCom)
         _stateCom->Change_State(SL_PlayerState::Idle);

@@ -1,5 +1,6 @@
 ﻿#include "ANS_Parry.h"
 
+#include "ANS_WeaponEcho.h"
 #include "BattleController.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
@@ -17,11 +18,25 @@ IMPLEMENT_REFLECTION(ANS_Parry)
 
 void ANS_Parry::On_Begin(const AnimNotifyContext& context)
 {
+    if (context.isPreview)
+        return;
+
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;
 
-    battle->Get_ReactionController().OpenWindow(BattleReactionType::Parry);
+    const BattleAction& turnAction = battle->Get_TurnAction();
+
+    battle->Get_ReactionController().OpenWindow(
+        BattleReactionType::Parry,
+        turnAction,
+        context.notifyStateDurationSec);
+
+    ANS_WeaponEcho::Queue_EchoReactionWindowsFromNotify(
+        context,
+        BattleReactionType::Parry,
+        turnAction,
+        context.notifyStateDurationSec);
 }
 
 void ANS_Parry::On_Tick(const AnimNotifyContext& context)

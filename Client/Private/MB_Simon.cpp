@@ -5,6 +5,7 @@
 #include "Mon_Simon_Weapon.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
+#include "WeaponPrefabLoader.h"
 
 IMPLEMENT_REFLECTION(MB_Simon)
 {
@@ -40,13 +41,13 @@ HRESULT MB_Simon::Initialize(void* arg)
 
     //_body->Set_Animation("Simon_Idle", 0.3f, true);
 
-    _combatStat->Set_Skill("Simon_SwordGround");
+    //_combatStat->Set_Skill("Simon_SwordGround");
     //_combatStat->Set_Skill("Simon_Debuff");
-    //_combatStat->Set_Skill("Simon_Strong_Combo");
+    _combatStat->Set_Skill("Simon_Strong_Combo");
     //_combatStat->Set_Skill("Simon_Long_Combo");
     //_combatStat->Set_Skill("Simon_Short_Combo");
     //_combatStat->Set_Skill("Simon_Berserk");
-    _combatStat->Set_Skill("Simon_LightSpeed");
+    //_combatStat->Set_Skill("Simon_LightSpeed");
     //_combatStat->Set_Skill("Simon_Sword_Att");
 
     return S_OK;
@@ -61,8 +62,6 @@ void MB_Simon::Update(float timeDelta)
         _body->Play_Animation(timeDelta);
     }
 }
-
-
 
 HRESULT MB_Simon::Ready_PartObjects()
 {
@@ -87,18 +86,31 @@ HRESULT MB_Simon::Ready_PartObjects()
     _hair = dynamic_pointer_cast<Mon_Simon_Hair>(_partObjects[TEXT("Part_Hair")]);
     CHECK_NULL(_hair, E_FAIL);
 
+	WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
+    if (!WeaponPrefabLoader::Load(Constants::Prefab::Simon_Weapon, loadedPrefab, "Mon_Simon_Weapon"))
+        return E_FAIL;
+
     Mon_Simon_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = ModelType::NonAnim;
-    weaponDesc.modelTag = L"Model_Simon_Weapon";
+    weaponDesc.modelType = loadedPrefab.modelType;
+    weaponDesc.modelTag = loadedPrefab.modelTag;
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL); // 배틀 몬스터 무기 파츠도 Static prototype을 재사용한다.
+    CHECK_NULL(weaponDesc.socketMatrix, E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
 
     _weapon = dynamic_pointer_cast<Mon_Simon_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     CHECK_NULL(_weapon, E_FAIL);
 
+    _weapon->From_Json(loadedPrefab.rootJson);
+    _weapon->Set_SourcePrefabName(Constants::Prefab::Simon_Weapon);
+
     return S_OK;
+}
+
+bool MB_Simon::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    return partTag != TEXT("Part_Weapon");
 }
 
 Shared<MB_Simon> MB_Simon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
