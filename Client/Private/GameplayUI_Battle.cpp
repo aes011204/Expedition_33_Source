@@ -2812,6 +2812,12 @@ void GameplayUI_Battle::Free()
         _battleWorldSkillCards.reset();
     }
 
+    if (_battleWorldGradientCards)
+    {
+        _battleWorldGradientCards->Free();
+        _battleWorldGradientCards.reset();
+    }
+
     auto Release_UI = [](auto& ui)
         {
             if (ui)

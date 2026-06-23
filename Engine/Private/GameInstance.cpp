@@ -1431,6 +1431,14 @@ HRESULT GameInstance::Add_UI(uint32 prototypeLevelIndex, const wstring& prototyp
     return _uiManager->Add_UI(prototypeLevelIndex, prototypeTag, arg, outUI);
 }
 
+bool GameInstance::Remove_UI(const Shared<UI_Base>& ui)
+{
+    if (nullptr == _uiManager)
+        return false;
+
+    return _uiManager->Remove_UI(ui);
+}
+
 void GameInstance::Pop_UI()
 {
     _uiManager->Pop_UI();

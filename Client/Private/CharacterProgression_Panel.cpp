@@ -1701,8 +1701,18 @@ void CharacterProgression_Panel::Free()
     if (_root)
         Close_Immediately(false);
 
+    for (AvailableSkillSlotUI& slot : _availableSkillSlots)
+        UI_RuntimeLoader::Release_Document(slot.uiByName);
+
+    if (_abilityPentagonFill)
+    {
+        Shared<UI_Base> abilityPentagonBase = static_pointer_cast<UI_Base>(_abilityPentagonFill);
+        UI_RuntimeLoader::Release_UI(abilityPentagonBase);
+        _abilityPentagonFill.reset();
+    }
+
+    UI_RuntimeLoader::Release_Document(_uiByName);
     _root.reset();
-    _uiByName.clear();
 
     for (auto& button : _characterButtons)
         button.reset();
@@ -1773,11 +1783,6 @@ void CharacterProgression_Panel::Free()
     _currentAgilityText.reset();
     _currentDefensePrimaryText.reset();
     _currentLuckText.reset();
-    if (_abilityPentagonFill)
-    {
-        _abilityPentagonFill->Close();
-        _abilityPentagonFill->Clear_Parent();
-    }
     _abilityPentagonFill.reset();
     _skillPanelRoot.reset();
     _skillTitleRoot.reset();
