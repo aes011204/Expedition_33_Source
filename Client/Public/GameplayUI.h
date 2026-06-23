@@ -36,6 +36,11 @@ public:
     vector<RuntimeUIEntry> Get_WorldRuntimeUIEntries() const;
     vector<RuntimeUIEntry> Get_BattleRuntimeUIEntries() const;
     vector<RuntimeUIEntry> Get_SoulLikeRuntimeUIEntries() const;
+    const vector<RuntimeUIEntry>& Get_CachedWorldRuntimeUIEntries() const;
+    const vector<RuntimeUIEntry>& Get_CachedBattleRuntimeUIEntries() const;
+    const vector<RuntimeUIEntry>& Get_CachedSoulLikeRuntimeUIEntries() const;
+    void Refresh_RuntimeUIEntryCache() const;
+    void Invalidate_RuntimeUIEntryCache();
 
     IRuntimeUI_EditorTarget* Find_RuntimeUIEditorTarget(const Shared<Engine::UI_Base>& rootUI) const; // Battle UI 루트에서 오프셋 소유자를 찾는다.
 
@@ -54,7 +59,18 @@ private:
     // 이번 프레임에 어떤 UI 입력인지. World ? Battle ?
     GameplayUIInputMode Resolve_InputMode() const;
     void                Handle_InputModeChanged(GameplayUIInputMode previousMode, GameplayUIInputMode currentMode);
+    void                Rebuild_RuntimeUIEntryCache() const;
 
+private:
+    struct RuntimeUIEntryCache
+    {
+        vector<RuntimeUIEntry> worldEntries{};
+        vector<RuntimeUIEntry> battleEntries{};
+        vector<RuntimeUIEntry> soulLikeEntries{};
+        umap<Engine::UI_Base*, IRuntimeUI_EditorTarget*> editorTargetsByRoot{};
+        uint64 frameSerial = static_cast<uint64>(-1);
+        bool dirty = true;
+    };
 
 private:
     Unique<GameplayUI_World>    _worldUI;  // 월드 UI는 GameplayUI 하나만 소유
@@ -63,6 +79,8 @@ private:
 
     GameplayUIInputMode         _lastInputMode = GameplayUIInputMode::World;
     FDelegateHandle             _editorStopHandle{};
+    uint64                      _runtimeUIEntryFrameSerial = 0;
+    mutable RuntimeUIEntryCache _runtimeUIEntryCache{};
 
 public:
     static Shared<GameplayUI> Create(uint32 levelIndex);
