@@ -31,7 +31,7 @@ HRESULT NPC_Merchant::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-    _body->Set_Animation("Merchant_BagPack_Idle", 0.3, true);
+    _body->Set_Animation("Merchant_BagPack_Idle", 0.3f, true);
     return S_OK;
 }
 

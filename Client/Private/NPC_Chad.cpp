@@ -32,7 +32,7 @@ HRESULT NPC_Chad::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-    _body->Set_Animation("Chad_Idle", 0.3, true);
+    _body->Set_Animation("Chad_Idle", 0.3f, true);
     return S_OK;
 }
 
