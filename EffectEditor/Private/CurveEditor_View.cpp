@@ -768,7 +768,7 @@ void CurveEditor_View::Normalize_CurveKeys(ConstantCurveVector3DistributionData&
 
         const Vector3CurveKeyData* prevKey = index > 0 ? &curve.keys[index - 1] : nullptr;
         const Vector3CurveKeyData* nextKey = index + 1 < curve.keys.size() ? &curve.keys[index + 1] : nullptr;
-        const float dt = prevKey == nullptr && nullptr != nextKey ? nextKey->time - prevKey->time : 0.f;
+        const float dt = nullptr != prevKey && nullptr != nextKey ? nextKey->time - prevKey->time : 0.f;
         const Vec3 tangent = dt > 0.f
                              ? Vec3{
                                  (nextKey->value.x - prevKey->value.x) / dt,

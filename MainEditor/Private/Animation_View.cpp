@@ -835,7 +835,7 @@ void Animation_View::Pre_Render()
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         Update_PreviewRootControllerStates(dt);
         Update_ModifierPreviewMotionTest(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);

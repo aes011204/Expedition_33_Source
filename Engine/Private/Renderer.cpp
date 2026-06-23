@@ -235,18 +235,20 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
 
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool hasScreenFxSource = _ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR);
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader && hasScreenFxSource;
+    if (useScreenFx)
+    {
+        GAME->Bind_BackBuffer();
+        Render_ScreenFx();
+    }
+
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_ScreenFX:After");
     uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
-
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
-    if (useScreenFx)
-    {
-        Render_ScreenFx();
-    }
 
     if (screenFxManager && screenFxManager->Is_CaptureRequested())
     {
