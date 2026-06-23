@@ -1273,6 +1273,7 @@
     <ClCompile Include="..\Private\ANS_RootController.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
+    <ClCompile Include="..\Private\SL_EstherManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1322,6 +1323,7 @@
     <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
     <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
     <ClInclude Include="..\Public\UI_SL_HUD.h" />
+    <ClInclude Include="..\Public\SL_EstherManager.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

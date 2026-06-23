@@ -995,14 +995,21 @@ void Editor_Manager::Render_ReloadDataButton()
 {
     if (ImGui::SmallButton("Reload Data"))
     {
-        if (FAILED(CLIENT->Reload_GameDataTables()))
+        const bool failedGameData = FAILED(CLIENT->Reload_GameDataTables());
+        const bool failedEffectJsons = FAILED(CLIENT->Reload_EffectJsons());
+
+        if (failedGameData && failedEffectJsons)
+            MSG_BOX("Failed to reload game data tables and effect jsons.");
+        else if (failedGameData)
             MSG_BOX("Failed to reload game data tables.");
+        else if (failedEffectJsons)
+            MSG_BOX("Failed to reload effect jsons.");
     }
 
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Json 데이터 재로드");
+        ImGui::Text("Json 데이터 및 쉬고 있는 effect pool 재로드");
         ImGui::EndTooltip();
     }
 }

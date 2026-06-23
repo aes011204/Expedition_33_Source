@@ -934,6 +934,16 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
     return true;
 }
 
+HRESULT ClientInstance::Reload_EffectJsons()
+{
+    if (_effectInstancePool == nullptr)
+        return E_FAIL;
+
+    // 쉬고 있는 pool entry를 비워 다음 Play_Effect가 최신 .effect.json을 디스크에서 다시 접게 한다.
+    _effectInstancePool->Discard_AllInactive();
+    return S_OK;
+}
+
 bool ClientInstance::Play_AttachPartEffect(
     const Shared<GameObject>& effectOwner,
     const wstring& effectName,

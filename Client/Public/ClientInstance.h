@@ -223,6 +223,7 @@ public: /* Effect 재생 */
 
     // 단발성 1회 재생.
     bool Play_Effect(const PlayEffectDesc& desc);
+    HRESULT Reload_EffectJsons();
 
     // 약점 파츠처럼 모델/소켓이 없을 때
     bool Play_AttachPartEffect(

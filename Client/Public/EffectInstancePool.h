@@ -74,6 +74,8 @@ public: //## Behavior::Pool
 public: //## Debug::EditorSession
     // [Effect Editor용] 같은 key의 inactive entry만 level에서 제거해 mutable preview definition 재사용을 막는다.
     void Discard_Inactive(const wstring& effectName);
+    // [MainEditor Reload Data용] 다음 재생이 디스크의 최신 .effect.json을 다시 읽도록 쉬고 있는 모든 effect entry를 버린다.
+    uint32 Discard_AllInactive();
     DebugSummary Get_DebugSummary() const;
 
     // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기

@@ -272,6 +272,7 @@
     <ClInclude Include="..\Public\SL_DamageSystem.h" />
     <ClInclude Include="..\Public\SL_Dead.h" />
     <ClInclude Include="..\Public\SL_Dodge.h" />
+    <ClInclude Include="..\Public\SL_EstherManager.h" />
     <ClInclude Include="..\Public\SL_Hit.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
     <ClInclude Include="..\Public\SL_Jump.h" />
@@ -684,6 +685,7 @@
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
     <ClCompile Include="..\Private\SL_Dead.cpp" />
     <ClCompile Include="..\Private\SL_Dodge.cpp" />
+    <ClCompile Include="..\Private\SL_EstherManager.cpp" />
     <ClCompile Include="..\Private\SL_Hit.cpp" />
     <ClCompile Include="..\Private\SL_Idle.cpp" />
     <ClCompile Include="..\Private\SL_Jump.cpp" />
