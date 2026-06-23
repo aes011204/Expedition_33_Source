@@ -211,6 +211,31 @@ void EffectInstancePool::Discard_Inactive(const wstring& effectName)
     }
 }
 
+uint32 EffectInstancePool::Discard_AllInactive()
+{
+    uint32 discardedCount = 0;
+
+    erase_if(
+        _entries,
+        [&](const PooledInstance& entry)
+        {
+            if (entry.inUse)
+                return false;
+
+            if (entry.instance)
+            {
+                entry.instance->Stop();
+                GAME->Remove_GameObject(entry.layerLevelIndex, static_pointer_cast<GameObject>(entry.instance));
+            }
+
+            ++discardedCount;
+            return true;
+        }
+    );
+
+    return discardedCount;
+}
+
 EffectInstancePool::DebugSummary EffectInstancePool::Get_DebugSummary() const
 {
     DebugSummary summary{};

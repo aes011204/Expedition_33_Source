@@ -149,7 +149,8 @@ public: /* For.Battle_Controller */
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-        const Shared<GameObject>& sourceObject = nullptr);
+        const Shared<GameObject>& sourceObject = nullptr,
+        bool completeImmediately = false);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
@@ -202,6 +203,10 @@ public: /*CinematicSequenceRunner*/
     bool Is_ActorTransformTrackPreviewSuspended() const;
     void Update_CinematicPreview(float timeDelta);
 
+    // 시네마틱 종료됐을 떄 알림
+    FDelegateHandle Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback);
+    void Clear_CinematicCompletedCallbacks();
+
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
 
@@ -218,6 +223,7 @@ public: /* Effect 재생 */
 
     // 단발성 1회 재생.
     bool Play_Effect(const PlayEffectDesc& desc);
+    HRESULT Reload_EffectJsons();
 
     // 약점 파츠처럼 모델/소켓이 없을 때
     bool Play_AttachPartEffect(

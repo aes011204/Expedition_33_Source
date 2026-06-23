@@ -1,4 +1,7 @@
-﻿#include "Mon_PotatoBag_Shield.h"
+#include "Mon_PotatoBag_Shield.h"
+
+#include "Bounding_OBB.h"
+#include "ColliderCom.h"
 #include "EffectCom.h"
 
 NS_BEGIN(Client)
@@ -25,7 +28,7 @@ HRESULT Mon_PotatoBag_Shield::Initialize(void* arg)
         return E_FAIL;
 
     _socketMatrix = desc->socketMatrix;
-  
+
     if (FAILED(Monster_Part::Initialize(desc)))
         return E_FAIL;
 
@@ -44,6 +47,12 @@ void Mon_PotatoBag_Shield::Update(float timeDelta)
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
+
+    if (_shieldColliderCom)
+    {
+        _shieldColliderCom->Update_Collider(Get_CombinedWorldMatrix());
+        GAME->Add_Collider(_shieldColliderCom, Get_CombinedWorldMatrix());
+    }
 }
 
 void Mon_PotatoBag_Shield::Late_Update(float timeDelta)
@@ -61,9 +70,25 @@ HRESULT Mon_PotatoBag_Shield::Render_Shadow()
     return Monster_Part::Render_Shadow();
 }
 
+HRESULT Mon_PotatoBag_Shield::Ready_Components(const MONSTER_PART_DESC& desc)
+{
+    Bounding_OBB::BoundingOBBDesc shieldObbDesc{};
+    shieldObbDesc.center = Vec3(0.f, 1.0f, 0.f);
+    shieldObbDesc.extents = Vec3(0.75f, 1.0f, 0.35f);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _shieldColliderCom, &shieldObbDesc), E_FAIL);
+    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_PotatoBag_ShieldCollider")), E_FAIL);
+
+    _shieldColliderCom->Set_CollisionPreset(Collision_Preset::Monster_Body);
+    _shieldColliderCom->Clear_Overlap();
+
+    return Monster_Part::Ready_Components(desc);
+}
+
 uint32 Mon_PotatoBag_Shield::Decide_PassIndex(Shared<Material> mat)
 {
     const int OPAQUE_PASS = 0;
+    UNREFERENCED_PARAMETER(mat);
     return OPAQUE_PASS;
 }
 

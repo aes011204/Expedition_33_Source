@@ -32,7 +32,7 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Fire });
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.3f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
@@ -70,7 +70,7 @@ void Skill_Lune_IceGust::Execute(const Skill_Data& skill, const BattleAction& ac
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.2f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
@@ -98,7 +98,7 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Lightning, ElementalType::Light });
 
     const int32 hitCount = skill.AttackCount > 0 ? skill.AttackCount : 6;
-    const float totalDamage = DamageSystem::CalculatePlayerAttackDamage(attacker, 2.f);
+    const float totalDamage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     const float hitDamage = totalDamage / static_cast<float>(hitCount);
 
     BattleHitSequenceRunner::HitEffectDesc effectDesc{};
@@ -140,7 +140,7 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
     if (curTargets.empty())
         return;
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
 }
 
@@ -158,7 +158,7 @@ void Skill_Lune_CripplingTsunami::Execute(const Skill_Data& skill, const BattleA
     if (curTargets.empty())
         return;
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
 }
 
@@ -178,30 +178,15 @@ void Skill_Lune_SkyBreak::Execute(const Skill_Data& skill, const BattleAction& a
     const BattleChar& target = curTargets.front();
 
     if (attacker.mechanismCom)
-        attacker.mechanismCom->Add_LuneStains({ ElementalType::Lightning, ElementalType::Light });
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
-    const int32 hitCount = skill.AttackCount > 0 ? skill.AttackCount : 6;
-    const float totalDamage = DamageSystem::CalculatePlayerAttackDamage(attacker, 2.f);
-    const float hitDamage = totalDamage / static_cast<float>(hitCount);
-
-    DamageSystem::ApplyDamage(hitDamage, attacker, target, attackType); // 첫 타 호출 시점은 AN_Attack
-
-    const int32 remainingHits = hitCount - 1; // hitCount에서 한대 때렸으니까 -1
-    if (remainingHits <= 0)
-        return;
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
+    DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
-    if (battle == nullptr)
-        return;
+    CHECK_NULL(battle);
 
-    battle->Get_HitSequenceRunner().Begin_RepeatedHit(
-        attacker,
-        target,
-        remainingHits, // 이미 첫 타를 넣었으므로 남은 5타만 예약한다.
-        0.3f,
-        hitDamage,
-        attackType
-    );
+    battle->Try_ApplySkillBuff(skill, target);
 }
 
 Shared<Skill_Lune_SkyBreak> Skill_Lune_SkyBreak::Create()

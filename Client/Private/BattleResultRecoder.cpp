@@ -35,6 +35,7 @@ void BattleResultRecoder::Record_ReactionSucceeded(BattleReactionType reactionTy
     if (reactionType == BattleReactionType::Parry)
     {
         ++_victoryStats.parrySuccessCount;
+        LOG_INFO("[Parry] Battle parry success count={}", _victoryStats.parrySuccessCount);
     }
     else if (reactionType == BattleReactionType::Dodge)
     {

@@ -14,7 +14,7 @@ void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const Battle
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.1f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     if (attacker.mechanismCom)
@@ -38,7 +38,7 @@ void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const Battl
     const BattleChar& target = curTargets.front();
 
     // 과충전은 추후에, 게이지 비례한 데미지로 변경 예정
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 3.f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     auto battle = CLIENT->Get_BattleController();
@@ -71,7 +71,7 @@ void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleAct
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.3f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     battle->Apply_Buff(target, Buffs::Mark);
@@ -94,7 +94,7 @@ void Skill_Gustave_Shatter::Execute(const Skill_Data& skill, const BattleAction&
     if (curTargets.empty())
         return;
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
 }
 
@@ -114,7 +114,7 @@ void Skill_Gustave_PerfectBreak::Execute(const Skill_Data& skill, const BattleAc
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.1f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     if (attacker.mechanismCom)
@@ -137,7 +137,7 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
 
     const BattleChar& target = curTargets.front();
 
-    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, 1.1f);
+    const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, target, attackType);
 
     if (attacker.mechanismCom)

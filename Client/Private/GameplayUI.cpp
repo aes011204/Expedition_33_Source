@@ -126,6 +126,12 @@ IRuntimeUI_EditorTarget* GameplayUI::Find_RuntimeUIEditorTarget(const Shared<Eng
             return battleTarget;
     }
 
+    if (_soulLikeUI)
+    {
+        if (IRuntimeUI_EditorTarget* soulLikeTarget = findInEntries(_soulLikeUI->Get_RuntimeUIEntries()))
+            return soulLikeTarget;
+    }
+
     return nullptr;
 }
 

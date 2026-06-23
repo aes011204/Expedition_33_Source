@@ -189,16 +189,15 @@ void EditorInstance::Update_Editor(float timeDelta)
         _notificationManager->Update(timeDelta);
     }
 
-
-    if(GAME->KeyUp(KEY_TYPE::KEY_1))
-    {
-        Toogle_TargetCameraEditMode();
-
-        if(_isTargetCameraEditMode)
-        {
-            GAME->Unlock_Mouse();
-        }
-    }
+    //if(GAME->KeyUp(KEY_TYPE::KEY_1))
+    //{
+    //    Toogle_TargetCameraEditMode();
+    //
+    //    if(_isTargetCameraEditMode)
+    //    {
+    //        GAME->Unlock_Mouse();
+    //    }
+    //}
 }
 
 void EditorInstance::Render_Editor()

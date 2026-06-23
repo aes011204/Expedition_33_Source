@@ -258,6 +258,23 @@ bool Hierarchy_View::Pass_SearchFilter(const Shared<GameObject>& gameObject, uin
     return false;
 }
 
+bool Hierarchy_View::Pass_RuntimeUIEntrySearchFilter(const Client::RuntimeUIEntry& entry, const char* groupLabel) const
+{
+    if (_searchFilter.empty())
+        return true;
+
+    if (groupLabel != nullptr && Match_SearchPattern(groupLabel, _searchFilter))
+        return true;
+
+    if (Match_SearchPattern(entry.category, _searchFilter))
+        return true;
+
+    if (Match_SearchPattern(entry.name, _searchFilter))
+        return true;
+
+    return false;
+}
+
 bool Hierarchy_View::Pass_LightingSearchFilter() const
 {
     if (_searchFilter.empty())
@@ -554,6 +571,28 @@ void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Cl
         childIndicesByParent[parentUI.get()].push_back(i);
     }
 
+    std::function<bool(size_t)> passEntryTreeSearch = [&](size_t entryIndex) -> bool
+    {
+        const Client::RuntimeUIEntry& entry = entries[entryIndex];
+        if (Pass_RuntimeUIEntrySearchFilter(entry, groupLabel))
+            return true;
+
+        if (entry.kind == Client::RuntimeUIEntryKind::WorldPlacement || entry.ui == nullptr)
+            return false;
+
+        const auto childIter = childIndicesByParent.find(entry.ui.get());
+        if (childIter == childIndicesByParent.end())
+            return false;
+
+        for (size_t childIndex : childIter->second)
+        {
+            if (passEntryTreeSearch(childIndex))
+                return true;
+        }
+
+        return false;
+    };
+
     std::function<void(size_t)> drawEntryTree = [&](size_t entryIndex)
     {
         const Client::RuntimeUIEntry& entry = entries[entryIndex];
@@ -575,6 +614,8 @@ void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Cl
         ImGuiTreeNodeFlags itemFlags = ImGuiTreeNodeFlags_SpanAvailWidth;
         if (!hasChildren)
             itemFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        else if (!_searchFilter.empty())
+            itemFlags |= ImGuiTreeNodeFlags_DefaultOpen;
         if (isSelected)
             itemFlags |= ImGuiTreeNodeFlags_Selected;
 
@@ -602,7 +643,10 @@ void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Cl
         if (hasChildren && isOpen)
         {
             for (size_t childIndex : *childIndices)
-                drawEntryTree(childIndex);
+            {
+                if (_searchFilter.empty() || passEntryTreeSearch(childIndex))
+                    drawEntryTree(childIndex);
+            }
 
             ImGui::TreePop();
         }
@@ -611,10 +655,16 @@ void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Cl
     };
 
     for (size_t rootIndex : rootEntryIndices)
-        drawEntryTree(rootIndex);
+    {
+        if (_searchFilter.empty() || passEntryTreeSearch(rootIndex))
+            drawEntryTree(rootIndex);
+    }
 
     for (size_t worldPlacementIndex : worldPlacementIndices)
-        drawEntryTree(worldPlacementIndex);
+    {
+        if (_searchFilter.empty() || passEntryTreeSearch(worldPlacementIndex))
+            drawEntryTree(worldPlacementIndex);
+    }
 
     ImGui::TreePop();
 }

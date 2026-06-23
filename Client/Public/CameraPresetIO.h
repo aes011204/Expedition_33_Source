@@ -23,5 +23,10 @@ public:
     static void SavePreviewToFile(PreviewShotPanel panel, HeroId heroId, const PreviewShotPreset& preset);
     static bool LoadPreviewFromFile(PreviewShotPanel panel, HeroId heroId, PreviewShotPreset& outPreset);
 
+    static void SaveSoulLikePresetToFile(const string& presetKey, const TargetCameraPreset& preset);
+    static bool LoadSoulLikePresetFromFile(const string& presetKey, TargetCameraPreset& outPreset);
+    static void SaveSoulLikeSkillPresetToFile(const string& skillKey, const TargetCameraPreset& preset);
+    static bool LoadSoulLikeSkillPresetFromFile(const string& skillKey, TargetCameraPreset& outPreset);
+
 };
 NS_END
