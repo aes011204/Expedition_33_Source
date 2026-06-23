@@ -33,7 +33,7 @@ HRESULT NPC_Golgra::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-
+    _body->Set_Animation("Idles_Golgra_V2", 0.3, true);
     return S_OK;
 }
 

@@ -4,6 +4,7 @@
 #include "Delegate.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
+#include "Monster_Part.h"
 
 NPC_Base::NPC_Base(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -40,6 +41,9 @@ void NPC_Base::Update(float timeDelta)
 {
     if (CLIENT->Is_WorldControlSuspended())
         return;
+
+    if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
+        bodyPart->Play_Animation(timeDelta);
 
     Character_WorldBase::Update(timeDelta);
 }

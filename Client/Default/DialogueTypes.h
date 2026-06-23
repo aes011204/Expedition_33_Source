@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+NS_BEGIN(Client)
+
 struct DialogueChoice
 {
     string text;
@@ -9,8 +11,10 @@ struct DialogueChoice
 struct DialogueLine
 {
     int lineIndex;
+    wstring text;
     string cameraPresetId;
     vector<DialogueChoice> choices;
+    int nextLineIndex;
 };
 
 struct DialogueData
@@ -22,6 +26,8 @@ struct DialogueData
 struct DialogueRequest
 {
     Shared<GameObject> speaker;
-    string speakerName;
+    string speakerPrefabName;
     string dialogueKey;
 };
+
+NS_END

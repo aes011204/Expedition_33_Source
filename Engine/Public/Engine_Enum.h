@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 #include "EnumFlags.h"
 
 namespace Engine
@@ -13,8 +13,8 @@ namespace Engine
         Shadow,
         NonBlend,
         NonLight,
-        EffectMasked, // Mask ì‹ Effectìš©
-        Distortion,   // Effectìš© Distortion
+        EffectMasked, // Mask ½Ä Effect¿ë
+        Distortion,   // Effect¿ë Distortion
         Blend,
         UI,
         UIEffect,
@@ -23,16 +23,16 @@ namespace Engine
 
     enum class ShadowCasterType : uint8
     {
-        None,       // ê·¸ë¦¼ì X
-        Dynamic,    // ë§¤ í”„ë ˆì„ Shadow Pass
+        None,       // ±×¸²ÀÚ X
+        Dynamic,    // ¸Å ÇÁ·¹ÀÓ Shadow Pass
     };
 
     enum class UI_RenderGroup
     {
-        // UI Render ìˆœì„œ. í•„ìš”í•˜ë‹¤ë©´ ì¶”í›„ì— ë” í™•ì¥
-        Background, // í”Œë ˆì´ì–´ ë’¤ ì—°ì¶œìš© UI
-        Foreground, // depthë¥¼ ë¬´ì‹œí•˜ê³  3D ì”¬ ìœ„ì— ê·¸ë¦¬ëŠ” ì¼ë°˜ UI
-        Overlay,    // UIEffect ì´í›„ ìµœìƒë‹¨ì— ê·¸ë¦¬ëŠ” ìš°ì„  UI
+        // UI Render ¼ø¼­. ÇÊ¿äÇÏ´Ù¸é ÃßÈÄ¿¡ ´õ È®Àå
+        Background, // ÇÃ·¹ÀÌ¾î µÚ ¿¬Ãâ¿ë UI
+        Foreground, // depth¸¦ ¹«½ÃÇÏ°í 3D ¾À À§¿¡ ±×¸®´Â ÀÏ¹İ UI
+        Overlay,    // UIEffect ÀÌÈÄ ÃÖ»ó´Ü¿¡ ±×¸®´Â ¿ì¼± UI
     };
 
     enum class State { Right, Up, Look, Position, END };
@@ -67,6 +67,7 @@ namespace Engine
         PreviewCamera,
         BattleTurnCamera,
         CinematicCamera,
+        DialogueCamera,
         SoulLikeCamera,
 
         Terrain,
@@ -97,7 +98,7 @@ namespace Engine
         Point,
         CombinedHDR,
         CombinedSimple,
-        CombinedPreview = 5, // Previewì—ì„œëŠ” ê·¸ë¦¼ì ê³„ì‚° X
+        CombinedPreview = 5, // Preview¿¡¼­´Â ±×¸²ÀÚ °è»ê X
         SSAO,
         SSAOBlur,
         Fog,
@@ -214,10 +215,10 @@ namespace Engine
 
     enum class GameplayInputMode
     {
-        Normal,         // ê¸°ë³¸ ì›”ë“œ í”Œë ˆì´
-        UIOnly,         // UI ì…ë ¥ë§Œ í—ˆìš©, ì›”ë“œ ì…ë ¥ì°¨ë‹¨
-        Cutscene,       // ì»·ì‹ ì²˜ëŸ¼ ì›”ë“œ ì…ë ¥ ì°¨ë‹¨
-        BattleMenu      // ë°°í‹€ ë©”ë‰´ ì„ íƒ
+        Normal,         // ±âº» ¿ùµå ÇÃ·¹ÀÌ
+        UIOnly,         // UI ÀÔ·Â¸¸ Çã¿ë, ¿ùµå ÀÔ·ÂÂ÷´Ü
+        Cutscene,       // ÄÆ½ÅÃ³·³ ¿ùµå ÀÔ·Â Â÷´Ü
+        BattleMenu      // ¹èÆ² ¸Ş´º ¼±ÅÃ
     };
 
     enum class SoundChannel : uint32
@@ -251,4 +252,5 @@ namespace Engine
 }
 
 template <> struct Enable_Bitmask_Operators<Engine::PostProcessFeature> { static constexpr bool value = true; };
+
 

@@ -1,4 +1,4 @@
-#include "NPC_Noco.h"
+﻿#include "NPC_Noco.h"
 #include "ClientInstance.h"
 #include "NPC_Body.h"
 #include "NPC_Hair.h"
@@ -32,6 +32,7 @@ HRESULT NPC_Noco::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+    _body->Set_Animation("Noco", 0.3, true);
 
     return S_OK;
 }
@@ -84,7 +85,7 @@ HRESULT NPC_Noco::Ready_PartObjects()
 
     NPC_Hair::HEAD_DESC headDesc{};
     headDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    headDesc.modelType = ModelType::NonAnim;
+    headDesc.modelType = ModelType::Anim;
     headDesc.modelTag = L"Model_Noco_Hair";
     headDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("head");
 
