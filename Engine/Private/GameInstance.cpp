@@ -837,6 +837,8 @@ HRESULT GameInstance::Draw_RendererOnly()
         _screenFxManager->Set_ScreenFxActivated(false); // 런타임 화면 효과가 프리뷰 캡처 위를 덮지 않게 한다.
 
     _renderer->Draw();
+    if (_renderer->Is_PreviewLetterboxEnabled())
+        _renderer->Render_Letterbox();
 
     if (_screenFxManager != nullptr)
         _screenFxManager->Set_ScreenFxActivated(savedScreenFxActivated);
@@ -1627,6 +1629,20 @@ void GameInstance::Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneC
     {
         _renderer->Set_VolumetricLightShaftZones(lightShaftZoneCB);
     }
+}
+
+void GameInstance::Set_LetterboxEnabled(bool setLetterboxEnabled)
+{
+    if(_renderer)
+    {
+        _renderer->Set_LetterboxEnabled(setLetterboxEnabled);
+    }
+}
+
+void GameInstance::Set_PreviewLetterboxEnabled(bool enabled)
+{
+    if (_renderer)
+        _renderer->Set_PreviewLetterboxEnabled(enabled);
 }
 
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)

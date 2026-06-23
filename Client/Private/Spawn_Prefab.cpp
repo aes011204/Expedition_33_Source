@@ -220,6 +220,9 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
         prefabName.starts_with("PP_"))
         return assetRoot / Constants::Prefab::Player_Dir / fileName; // 플레이어 프리팹은 Player 폴더로 정규화한다.
 
+    if (prefabName.starts_with("NPC_"))
+        return assetRoot / Constants::Prefab::NPC_Dir / fileName; // NPC 프리팹은 전용 NPC 폴더에서 찾는다.
+
     if (prefabName.starts_with("MW_") || prefabName.starts_with("MB_") || prefabName.starts_with("TW_"))
         return assetRoot / Constants::Prefab::Monster_Dir / fileName; // 튜토리얼 월드 몬스터도 Monster 폴더로 정규화한다.
 

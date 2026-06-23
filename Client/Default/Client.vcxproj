@@ -244,6 +244,11 @@
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
+    <ClInclude Include="..\public\NPC_Base.h" />
+    <ClInclude Include="..\public\NPC_Golgra.h" />
+    <ClInclude Include="..\public\NPC_Body.h" />
+    <ClInclude Include="..\public\NPC_Hair.h" />
+    <ClInclude Include="..\public\NPC_Noco.h" />
     <ClInclude Include="..\Public\PictosBattleSystem.h" />
     <ClInclude Include="..\Public\Pictos_Panel.h" />
     <ClInclude Include="..\Public\PreviewPlayer.h" />
@@ -644,6 +649,11 @@
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
+    <ClCompile Include="..\private\NPC_Base.cpp" />
+    <ClCompile Include="..\private\NPC_Golgra.cpp" />
+    <ClCompile Include="..\private\NPC_Body.cpp" />
+    <ClCompile Include="..\private\NPC_Hair.cpp" />
+    <ClCompile Include="..\private\NPC_Noco.cpp" />
     <ClCompile Include="..\Private\PictosBattleSystem.cpp" />
     <ClCompile Include="..\Private\Pictos_Panel.cpp" />
     <ClCompile Include="..\Private\PreviewPlayer.cpp" />
@@ -971,6 +981,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />

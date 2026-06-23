@@ -59,6 +59,7 @@ namespace Engine
         Player,
         Monster,
         Character,
+        NPC,
 
         FreeCamera,
         TargetCamera,

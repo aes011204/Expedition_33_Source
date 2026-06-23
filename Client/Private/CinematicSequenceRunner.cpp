@@ -100,6 +100,8 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (applyCameraTrack)
         _player->Play();
 
+    GAME->Set_LetterboxEnabled(true);
+
     return true;
 }
 
@@ -155,6 +157,8 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (applyCameraTrack)
         _player->Play();
 
+    GAME->Set_LetterboxEnabled(true);
+
     return true;
 }
 
@@ -170,6 +174,8 @@ void CinematicSequenceRunner::Stop_Sequence()
     _player->Stop();
     Cleanup_Context();
     CLIENT->Restore_PreviousCamera();
+
+    GAME->Set_LetterboxEnabled(false);
 }
 
 void CinematicSequenceRunner::Stop_SequenceKeepContext()
@@ -343,6 +349,7 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
     {
         Cleanup_Context();
         CLIENT->Restore_PreviousCamera();
+        GAME->Set_LetterboxEnabled(false);
     }
 }
 

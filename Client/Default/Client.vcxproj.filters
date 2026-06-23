@@ -271,6 +271,15 @@
     <Filter Include="07. Dialogue">
       <UniqueIdentifier>{b4e7c791-4a1f-4262-9e22-99aa0cde2c18}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\NPC">
+      <UniqueIdentifier>{ebbd389d-6aa3-4fa6-962a-b136fe0639e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC\Golgra">
+      <UniqueIdentifier>{7c00d2d4-305e-4be2-b2cb-f03327d4a45d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC\Noco">
+      <UniqueIdentifier>{ac8b8d8a-0f0a-4bfa-8a91-13a0f6820f77}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -1180,6 +1189,19 @@
     <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
+    <ClCompile Include="..\private\NPC_Base.cpp">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Golgra.cpp">
+      <Filter>02.GameObject\NPC\Golgra</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Body.cpp">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Hair.cpp">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Noco.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1265,6 +1287,19 @@
     <ClInclude Include="DialogueTypes.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\NPC_Base.h">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Golgra.h">
+      <Filter>02.GameObject\NPC\Golgra</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Body.h">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Hair.h">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Noco.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1399,6 +1434,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">

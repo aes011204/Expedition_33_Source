@@ -271,6 +271,10 @@ void EditorInstance::Stop()
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play ||
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
+        CLIENT->Stop_Sequence();
+        GAME->Set_LetterboxEnabled(false);
+        GAME->Set_PreviewLetterboxEnabled(false);
+
         GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
 
         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())

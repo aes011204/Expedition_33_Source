@@ -249,6 +249,8 @@ public: /* For.Renderer */
     RenderGroup                         Get_CurrentRenderGroup() const;
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
     void                                Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB);
+    void                                Set_LetterboxEnabled(bool setLetterboxEnabled = true);
+    void                                Set_PreviewLetterboxEnabled(bool enabled);
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
