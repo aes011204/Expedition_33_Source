@@ -68,6 +68,8 @@ HRESULT UI_SuddenAttack::Load_UI(uint32 levelIndex)
     desc.jsonPath = Constants::UI::UI_FirstStrike_Path;
     desc.animationPath = Constants::UI_Anim::UI_FirstStrikeAnim_Path;
     desc.prototypeTagPrefix = L"SuddenAttack";
+    desc.forceRenderGroup = true;
+    desc.renderGroupOverride = UI_RenderGroup::Overlay;
     desc.outUIByName = &_uiByName;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);

@@ -12,14 +12,16 @@ namespace BattleWorldUI_JsonTextureResolver
         const ComPtr<Context>& context,
         const string& textureGuid,
         const string& texturePath,
-        const string& debugName);
+        const string& debugName,
+        bool ignoreWicSrgb = false);
 
     Shared<Texture> Load_TextureFromUIImage(
         const ComPtr<Device>& device,
         const ComPtr<Context>& context,
         const wstring& uiJsonPath,
         const string& imageName,
-        const string& fallbackTextureGuid);
+        const string& fallbackTextureGuid,
+        bool ignoreWicSrgb = false);
 }
 
 NS_END

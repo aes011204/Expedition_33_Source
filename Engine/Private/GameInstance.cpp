@@ -791,6 +791,10 @@ HRESULT GameInstance::Draw()
     // UI 이후의 모든 화면 효과(ScreenFx, 캡처, UIEffect)를 단일 함수로 캡슐화하여 렌더링
     _renderer->PostDraw();
 
+    // Overlay UI는 UIEffect 이후에 그려 전투 알림처럼 최우선으로 보여야 하는 UI를 보장한다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Overlay)))
+        return E_FAIL;
+
 #ifdef _DEBUG
     _printManager->Render();
 #endif
