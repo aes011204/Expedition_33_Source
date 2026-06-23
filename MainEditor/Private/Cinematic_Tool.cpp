@@ -142,7 +142,7 @@ void Cinematic_Tool::Update(float timeDelta)
     bool wasPlaying = _wasCinematicPlaying;
     bool isPlaying = CLIENT->Is_CinematicPlaying();
 
-    if (isPlaying)
+    if (isPlaying && !CLIENT->Is_CinematicPaused())
     {
         const int playbackFrame = CLIENT->Get_CurrentSequenceFrame();
         if (_currentFrame != playbackFrame)
@@ -168,10 +168,11 @@ void Cinematic_Tool::Update(float timeDelta)
 
     _wasCinematicPlaying = isPlaying;
 
-    if( wasPlaying&& !isPlaying)
+    if (wasPlaying && !isPlaying)
     {
         _isPreviewStoppedForEditing = false;
         EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+        GAME->Set_PreviewLetterboxEnabled(false);
         _isPreviewDirty = true;
     }
 
@@ -245,12 +246,19 @@ void Cinematic_Tool::Toggle_PreviewPlayback()
         Sort_AllActorTransformTrackKeyframes();
         _isPreviewStoppedForEditing = false;
         EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+        GAME->Set_PreviewLetterboxEnabled(true);
         CLIENT->Play_Sequence(
             _sequence,
             previewTrackIndex,
             _previewApplyCameraTrack,
             _previewApplyEventTrack,
             _previewApplyActorTransformTrack);
+
+        if (!_previewApplyCameraTrack)
+        {
+            EDITOR->Set_CinematicPreviewFreeCameraOverride(true);
+            EDITOR->Activate_FreeCamera();
+        }
     }
     else if (isPaused)
     {
@@ -258,7 +266,6 @@ void Cinematic_Tool::Toggle_PreviewPlayback()
             return;
 
         if (_previewApplyCameraTrack &&
-            _useFreeCameraWhilePaused &&
             !GAME->Is_ActiveCameraType(ObjectType::CinematicCamera))
         {
             CLIENT->Request_Cinematic();
@@ -276,25 +283,12 @@ void Cinematic_Tool::Toggle_PreviewPlayback()
             _previewApplyEventTrack,
             _previewApplyActorTransformTrack);
         _isPreviewStoppedForEditing = false;
-        EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+        EDITOR->Set_CinematicPreviewFreeCameraOverride(!_previewApplyCameraTrack);
     }
     else
     {
         CLIENT->Pause_Sequence();
-        _isPreviewStoppedForEditing = false;
-        EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
-        if (_useFreeCameraWhilePaused)
-        {
-            if (_previewApplyCameraTrack)
-                Sync_FreeCameraToCinematicPreviewPose();
-            else
-                EDITOR->Activate_FreeCamera();
-
-            if (EDITOR->IsPlaying())
-                EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
-            else
-                EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
-        }
+        Enter_FreeCameraEditPreview();
     }
 
     _isPreviewDirty = true;
@@ -1546,9 +1540,9 @@ void Cinematic_Tool::Render_ImSequencer()
         &_contextMenuTrackIndex,
         &_contextMenuFrame,
         &_isPreviewDirty,
-        &_previewApplyCameraTrack,
-        &_previewApplyEventTrack,
-        &_previewApplyActorTransformTrack);
+        nullptr,
+        nullptr,
+        nullptr);
 
     static bool expanded = true;
     static int firstFrame = 0;
@@ -1558,11 +1552,19 @@ void Cinematic_Tool::Render_ImSequencer()
     if (!consumedKeyClick)
         _selectedTrackIndex = sequencerSelectedTrackIndex;
 
-    if (previousFrame != _currentFrame && CLIENT->Is_CinematicPlaying())
-        Request_CinematicPreviewRefresh(false);
+    if (previousFrame != _currentFrame)
+    {
+        if (!CLIENT->Is_CinematicPlaying() || CLIENT->Is_CinematicPaused())
+            Enter_FreeCameraEditPreview(false);
+        else
+            Request_CinematicPreviewRefresh(false);
+    }
 
     if (requestOpenKeyPopup)
+    {
         _requestOpenSelectedKeyPopup = true;
+        Enter_FreeCameraEditPreview();
+    }
 
     if (requestOpenInsertPopup)
     {
@@ -1733,6 +1735,7 @@ void Cinematic_Tool::Render_KeyframeList()
                         _sequence.startFrame + static_cast<int>(std::lround(keyframe.time * static_cast<float>(std::max(_sequence.fps, 1)))),
                         _sequence.startFrame,
                         _sequence.endFrame);
+                    Enter_FreeCameraEditPreview();
                     _isPreviewDirty = true;
                 }
 
@@ -1808,6 +1811,7 @@ void Cinematic_Tool::Render_KeyframeList()
             {
                 _selectedKeyIndex = i;
                 _currentFrame = keyframe.frame;
+                Enter_FreeCameraEditPreview();
                 _isPreviewDirty = true;
             }
 
@@ -1841,33 +1845,50 @@ void Cinematic_Tool::Render_SelectedKeyframe()
 
 void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
 {
+    const auto applyEditedKeyframe = [this, &keyframe]()
+    {
+        _currentFrame = keyframe.frame;
+
+        const bool needsEditModeEntry =
+            (CLIENT->Is_CinematicPlaying() && !CLIENT->Is_CinematicPaused()) ||
+            !_isPreviewStoppedForEditing ||
+            !GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
+
+        if (needsEditModeEntry)
+            Enter_FreeCameraEditPreview(false);
+        else
+        {
+            _isPreviewDirty = true;
+            Apply_CurrentFramePose();
+        }
+    };
+
     if (ImGui::DragInt("frame", &keyframe.frame, 1.f, _sequence.startFrame, _sequence.endFrame))
     {
         keyframe.frame = std::clamp(keyframe.frame, _sequence.startFrame, _sequence.endFrame);
-        _currentFrame = keyframe.frame;
-        Request_CinematicPreviewRefresh(false);
+        applyEditedKeyframe();
     }
 
     if(ImGui::DragFloat3("position", &keyframe.camPose.position.x, 0.1f))
-        Request_CinematicPreviewRefresh(false);
+        applyEditedKeyframe();
 
     if(ImGui::DragFloat3("rotation", &keyframe.camPose.rotation.x, 0.1f))
-        Request_CinematicPreviewRefresh(false);
+        applyEditedKeyframe();
     
 
     if(ImGui::DragFloat("fovY", &keyframe.camPose.fovY, 0.01f, 0.1f, 3.13f))
-        Request_CinematicPreviewRefresh(false);
+        applyEditedKeyframe();
 
     if (ImGui::DragFloat("near", &keyframe.camPose.nearPlane, 0.01f, 0.01f, keyframe.camPose.farPlane - 0.01f))
     {
         keyframe.camPose.nearPlane = std::clamp(keyframe.camPose.nearPlane, 0.01f, keyframe.camPose.farPlane - 0.01f);
-        Request_CinematicPreviewRefresh(false);
+        applyEditedKeyframe();
     }
 
     if (ImGui::DragFloat("far", &keyframe.camPose.farPlane, 0.1f, keyframe.camPose.nearPlane + 0.01f, 100000.f))
     {
         keyframe.camPose.farPlane = std::max(keyframe.camPose.farPlane, keyframe.camPose.nearPlane + 0.01f);
-        Request_CinematicPreviewRefresh(false);
+        applyEditedKeyframe();
     }
 
    // const char* interpolationLabels[] = { "Step", "Linear" };
@@ -1889,7 +1910,8 @@ void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
 
             if(ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
             {
-               keyframe.interpolation = mode; 
+                keyframe.interpolation = mode;
+                applyEditedKeyframe();
             }
 
             if(isSelected)
@@ -1946,16 +1968,17 @@ void Cinematic_Tool::Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyfr
 {
     const float maxTime = Evaluate_CinematicSequenceTime(_sequence, _sequence.endFrame);
     bool needsSort = false;
+    bool previewChanged = false;
 
     if (ImGui::DragFloat("time", &keyframe.time, 0.01f, 0.f, maxTime))
     {
         keyframe.time = std::clamp(keyframe.time, 0.f, maxTime);
         needsSort = true;
-        _isPreviewDirty = true;
+        previewChanged = true;
     }
 
     if (ImGui::DragFloat("value", &keyframe.value, 0.01f))
-        _isPreviewDirty = true;
+        previewChanged = true;
 
     const char* interpolationLabel = magic_enum::enum_name(keyframe.interpolation).data();
     if (ImGui::BeginCombo("Interpolation", interpolationLabel))
@@ -1966,7 +1989,7 @@ void Cinematic_Tool::Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyfr
             if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
             {
                 keyframe.interpolation = mode;
-                _isPreviewDirty = true;
+                previewChanged = true;
             }
 
             if (isSelected)
@@ -1987,6 +2010,9 @@ void Cinematic_Tool::Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyfr
                 _sequence.endFrame);
         }
     }
+
+    if (previewChanged)
+        Request_CinematicPreviewRefresh(false);
 }
 
 void Cinematic_Tool::Render_SelectedKeyframePopup()
@@ -2000,8 +2026,13 @@ void Cinematic_Tool::Render_SelectedKeyframePopup()
             _requestOpenSelectedKeyPopup = false;
         }
 
-        if (!ImGui::CollapsingHeader("Selected Modifier Keyframe", ImGuiTreeNodeFlags_None))
+        const bool isEditorOpen = ImGui::CollapsingHeader("Selected Modifier Keyframe", ImGuiTreeNodeFlags_None);
+        const bool enteredEditor = isEditorOpen && ImGui::IsItemToggledOpen();
+        if (!isEditorOpen)
             return;
+
+        if (shouldExpandEditor || enteredEditor)
+            Enter_FreeCameraEditPreview();
 
         if (shouldExpandEditor)
             ImGui::SetScrollHereY();
@@ -2027,8 +2058,13 @@ void Cinematic_Tool::Render_SelectedKeyframePopup()
         _requestOpenSelectedKeyPopup = false;
     }
 
-    if (!ImGui::CollapsingHeader("Selected Keyframe", ImGuiTreeNodeFlags_None))
+    const bool isEditorOpen = ImGui::CollapsingHeader("Selected Keyframe", ImGuiTreeNodeFlags_None);
+    const bool enteredEditor = isEditorOpen && ImGui::IsItemToggledOpen();
+    if (!isEditorOpen)
         return;
+
+    if (shouldExpandEditor || enteredEditor)
+        Enter_FreeCameraEditPreview();
 
     if (shouldExpandEditor)
         ImGui::SetScrollHereY();
@@ -2164,32 +2200,38 @@ void Cinematic_Tool::Render_PreviewState()
     const bool isPlaying = CLIENT->Is_CinematicPlaying();
     const bool isPaused = CLIENT->Is_CinematicPaused();
 
-    if (ImGui::Checkbox("use free camera while paused", &_useFreeCameraWhilePaused) && isPlaying && isPaused)
-    {
-        if (_useFreeCameraWhilePaused)
-        {
-            if (_previewApplyCameraTrack)
-                Sync_FreeCameraToCinematicPreviewPose();
-            else
-                EDITOR->Activate_FreeCamera();
+    const bool cameraTrackChanged = ImGui::Checkbox("Camera", &_previewApplyCameraTrack);
+    ImGui::SameLine();
+    const bool eventTrackChanged = ImGui::Checkbox("Events", &_previewApplyEventTrack);
+    ImGui::SameLine();
+    const bool actorTrackChanged = ImGui::Checkbox("Actor Moves", &_previewApplyActorTransformTrack);
 
-            if (EDITOR->IsPlaying())
-                EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
-            else
-                EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
-        }
-        else
-        {
-            CLIENT->Request_Cinematic();
-            Request_CinematicPreviewRefresh(false);
-        }
+    if (!_previewApplyCameraTrack)
+        ImGui::TextDisabled("Camera OFF: FreeCamera stays fixed while the timeline previews events and actor movement.");
+
+    if (cameraTrackChanged)
+    {
+        if (isPlaying && !isPaused)
+            CLIENT->Pause_Sequence();
+
+        Enter_FreeCameraEditPreview();
+    }
+    else if (eventTrackChanged || actorTrackChanged)
+    {
+        if (isPlaying && !isPaused)
+            CLIENT->Pause_Sequence();
+
+        Request_CinematicPreviewRefresh(true);
     }
 
     ImGui::SetNextItemWidth(120.f);
     if (ImGui::DragInt("current frame", &_currentFrame, 1.f, _sequence.startFrame, _sequence.endFrame))
     {
         _currentFrame = std::clamp(_currentFrame, _sequence.startFrame, _sequence.endFrame);
-        Request_CinematicPreviewRefresh(false);
+        if (!isPlaying || isPaused)
+            Enter_FreeCameraEditPreview(false);
+        else
+            Request_CinematicPreviewRefresh(false);
     }
 
     const char* previewButtonLabel = "Play Preview";
@@ -2209,25 +2251,7 @@ void Cinematic_Tool::Render_PreviewState()
             if (!isPaused)
                 CLIENT->Pause_Sequence();
 
-            if (_useFreeCameraWhilePaused)
-            {
-                if (_previewApplyCameraTrack)
-                    Sync_FreeCameraToCinematicPreviewPose();
-                else
-                    EDITOR->Activate_FreeCamera();
-
-                if (EDITOR->IsPlaying())
-                    EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
-                else
-                    EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
-            }
-            else
-            {
-                CLIENT->Restore_PreviousCamera();
-            }
-
-            _isPreviewStoppedForEditing = true;
-            EDITOR->Set_CinematicPreviewFreeCameraOverride(true);
+            Enter_FreeCameraEditPreview();
         }
 
         ImGui::SameLine();
@@ -2235,6 +2259,7 @@ void Cinematic_Tool::Render_PreviewState()
         {
             _isPreviewStoppedForEditing = false;
             EDITOR->Set_CinematicPreviewFreeCameraOverride(false);
+            GAME->Set_PreviewLetterboxEnabled(false);
             CLIENT->Stop_Sequence();
         }
     }
@@ -2785,7 +2810,26 @@ void Cinematic_Tool::Apply_CurrentFramePose()
     {
         if (CLIENT->Is_CinematicPaused())
         {
-            if (Sync_PreviewSequenceToRunner())
+            if (!_previewApplyCameraTrack)
+            {
+                if (Sync_PreviewSequenceToRunner())
+                {
+                    CLIENT->Preview_CurrentSequenceFrame(
+                        _currentFrame,
+                        false,
+                        _previewApplyEventTrack,
+                        _previewApplyActorTransformTrack,
+                        false);
+                }
+
+                return;
+            }
+
+            const bool useStoppedEditFreeCameraPreview =
+                _isPreviewStoppedForEditing &&
+                GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
+
+            if (!useStoppedEditFreeCameraPreview && Sync_PreviewSequenceToRunner())
             {
                 CLIENT->Preview_CurrentSequenceFrame(
                     _currentFrame,
@@ -2793,9 +2837,14 @@ void Cinematic_Tool::Apply_CurrentFramePose()
                     _previewApplyEventTrack,
                     _previewApplyActorTransformTrack,
                     false);
+
+                return;
             }
         }
-        return;
+        else
+        {
+            return;
+        }
     }
 
     if (!_previewApplyCameraTrack)
@@ -2818,6 +2867,8 @@ void Cinematic_Tool::Apply_CurrentFramePose()
 
     freeCamera->Get_Transform()->Set_WorldPosition(camPose.position);
     freeCamera->Get_Transform()->Set_RotationEuler(camPose.rotation);
+    freeCamera->Set_Pitch(camPose.rotation.x);
+    freeCamera->Set_Yaw(camPose.rotation.y);
     freeCamera->Set_FovY(camPose.fovY);
     freeCamera->Set_Near(camPose.nearPlane);
     freeCamera->Set_Far(camPose.farPlane);
@@ -2854,7 +2905,23 @@ void Cinematic_Tool::Request_CinematicPreviewRefresh(bool rebuildContext)
 {
     _isPreviewDirty = true;
 
-    if (!CLIENT->Is_CinematicPlaying() || !CLIENT->Is_CinematicPaused())
+    const bool isPlaying = CLIENT->Is_CinematicPlaying();
+    const bool isPaused = CLIENT->Is_CinematicPaused();
+    if ((!isPlaying || isPaused) && _previewApplyCameraTrack)
+    {
+        if (!_isPreviewStoppedForEditing ||
+            !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+        {
+            Enter_FreeCameraEditPreview(false);
+        }
+        else
+        {
+            Apply_CurrentFramePose();
+        }
+        return;
+    }
+
+    if (!isPlaying || !isPaused)
         return;
 
     if (!Sync_PreviewSequenceToRunner())
@@ -2866,6 +2933,28 @@ void Cinematic_Tool::Request_CinematicPreviewRefresh(bool rebuildContext)
         _previewApplyEventTrack,
         _previewApplyActorTransformTrack,
         rebuildContext);
+}
+
+void Cinematic_Tool::Enter_FreeCameraEditPreview(bool requestViewportFocus)
+{
+    if (CLIENT->Is_CinematicPlaying() && !CLIENT->Is_CinematicPaused())
+        CLIENT->Pause_Sequence();
+
+    _isPreviewStoppedForEditing = true;
+    EDITOR->Set_CinematicPreviewFreeCameraOverride(true);
+    GAME->Set_PreviewLetterboxEnabled(true);
+    EDITOR->Activate_FreeCamera();
+
+    if (requestViewportFocus)
+    {
+        if (EDITOR->IsPlaying())
+            EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+        else
+            EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
+    }
+
+    _isPreviewDirty = true;
+    Apply_CurrentFramePose();
 }
 
 void Cinematic_Tool::Sort_AllActorTransformTrackKeyframes()

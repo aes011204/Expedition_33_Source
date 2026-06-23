@@ -472,6 +472,7 @@ namespace UIEditor
                 ID3D11ShaderResourceView* previewSRV = nullptr;
                 bool requiresCompositePreview = false;
                 bool drewUIVfxPreview = false;
+                bool usesMaterialVfxPreview = false;
 
                 if (renderObject.type == UI_ObjectType::Image && (!renderObject.textureGuid.empty() || !renderObject.texturePath.empty()))
                 {
@@ -483,8 +484,10 @@ namespace UIEditor
                         previewDesc.texturePath = renderObject.texturePath;
                         previewDesc.maskTextureGuid = renderObject.maskTextureGuid;
                         previewDesc.maskTexturePath = renderObject.maskTexturePath;
+                        previewDesc.renderColor = renderObject.color;
                         previewDesc.materialVfx = renderObject.materialVfx;
                         previewSRV = _editorManager.Get_MaterialVfxPreviewSRV(previewDesc);
+                        usesMaterialVfxPreview = true;
                     }
                     else if (renderObject.imageRenderMode == UI_ImageRenderMode::ButtonSheen)
                     {
@@ -591,6 +594,9 @@ namespace UIEditor
 
                 if (nullptr != previewSRV)
                 {
+                    const ImU32 imageTintColor = usesMaterialVfxPreview
+                        ? IM_COL32(255, 255, 255, 255)
+                        : ImGui::ColorConvertFloat4ToU32(renderObject.color);
                     if (isRotated)
                     {
                         drawList->AddImageQuad(
@@ -603,7 +609,7 @@ namespace UIEditor
                             ImVec2(1.f, 0.f),
                             ImVec2(1.f, 1.f),
                             ImVec2(0.f, 1.f),
-                            ImGui::ColorConvertFloat4ToU32(renderObject.color));
+                            imageTintColor);
                     }
                     else
                     {
@@ -613,7 +619,7 @@ namespace UIEditor
                             objectMax,
                             ImVec2(0.f, 0.f),
                             ImVec2(1.f, 1.f),
-                            ImGui::ColorConvertFloat4ToU32(renderObject.color));
+                            imageTintColor);
                     }
                 }
                 else if (!drewUIVfxPreview && !hasTextContent && (!_previewMode || renderObject.type != UI_ObjectType::Image))

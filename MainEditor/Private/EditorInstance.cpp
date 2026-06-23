@@ -270,6 +270,10 @@ void EditorInstance::Stop()
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play ||
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
+        CLIENT->Stop_Sequence();
+        GAME->Set_LetterboxEnabled(false);
+        GAME->Set_PreviewLetterboxEnabled(false);
+
         GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
 
         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
@@ -1784,20 +1788,13 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
 void EditorInstance::Toggle_MouseLockOverride()
 {
-    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
     {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
-    }
-    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
-    {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
     }
     else
     {
-        _mouseLockOverrideMode =
-            GAME->Is_MouseLocked()
-            ? MouseLockOverrideMode::Unlocked
-            : MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
     }
 
     if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)

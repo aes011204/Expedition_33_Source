@@ -67,6 +67,7 @@ public:
     void Create_UIObject(UI_ObjectType objectType);
     bool Create_PatternOverlayFromImage(ObjectId sourceObjectId);
     bool Create_HoverBrushPreset(ObjectId targetObjectId, bool allowStateAnimationOverwrite = false);
+    bool Create_BrushAtmospherePreset(ObjectId targetObjectId);
     bool Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab);
     void Duplicate_UIObject(ObjectId objectId);
     void Delete_UIObject(ObjectId objectId);

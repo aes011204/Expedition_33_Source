@@ -1024,9 +1024,42 @@ void Renderer::Render_UIEffect()
     _renderGroups[ETOI(RenderGroup::UIEffect)].clear();
 }
 
+void Renderer::Render_Letterbox()
+{
+    if ((!_letterboxEnabled && !_previewLetterboxEnabled) || !_letterboxShader || !_viBuffer)
+        return;
+
+    const float timeDelta = max(GAME->Get_UnscaledTimeDelta(), GAME->Get_FreeCameraTimeDelta());
+    const float speed = 0.35f;
+
+    _letterboxCurrentRatio = min( _letterboxCurrentRatio + timeDelta * speed, _letterboxTargetRatio);
+
+    GAME->Bind_BackBuffer();
+
+    if(FAILED(_letterboxShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+        return;
+
+    if (FAILED(Bind_ScreenSpaceCB(_letterboxShader, _screenSize.width, _screenSize.height)))
+        return;
+
+    if(FAILED(_viBuffer->Bind_Resources()))
+        return;
+
+    if(FAILED(_letterboxShader->Bind_RawValue("g_BarRatio", &_letterboxCurrentRatio, sizeof(float))))
+        return;
+
+    if(FAILED(_letterboxShader->Begin(0)))
+        return;
+
+    _viBuffer->Render();
+
+    Add_RenderCall();
+}
+
 void Renderer::PostDraw()
 {
     Render_UIEffect();
+    Render_Letterbox();
 }
 
 void Renderer::Render_PostProcess()
@@ -1346,6 +1379,10 @@ HRESULT Renderer::Ready_Shaders()
     _screenFxShader = ShaderCom::Create(_device, _context,
         L"../../../Client/Bin/ShaderFiles/Shader_ScreenFx.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
     CHECK_NULL(_screenFxShader, E_FAIL);
+
+    _letterboxShader = ShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_Letterbox.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
+    CHECK_NULL(_letterboxShader, E_FAIL);
 
     _screenSize = {
         GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight()

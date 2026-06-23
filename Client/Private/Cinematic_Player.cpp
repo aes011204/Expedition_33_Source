@@ -1,4 +1,4 @@
-#include "Cinematic_Player.h"
+﻿#include "Cinematic_Player.h"
 
 #include "CinematicCamera.h"
 #include "Cinematic_Utils.h"
@@ -62,7 +62,7 @@ void Cinematic_Player::Update(float timeDelta)
         Play();
 }
 
-void Cinematic_Player::Play()
+void Cinematic_Player:: Play()
 {
     if (_sequence == nullptr || _cinematicTrack == nullptr || _cinematicCamera == nullptr)
         return;

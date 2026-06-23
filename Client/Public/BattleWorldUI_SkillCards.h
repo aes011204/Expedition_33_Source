@@ -21,6 +21,10 @@ public:
         const string& selectedSkillKey,
         uint32 skillPage,
         float timeDelta);
+    HRESULT Warmup_ForBattleState(
+        const BattleChar& actor,
+        const string& selectedSkillKey,
+        uint32 skillPage);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

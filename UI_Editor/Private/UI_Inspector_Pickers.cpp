@@ -21,6 +21,55 @@ namespace UIEditor
             return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
         }
 
+        bool NearlyEqual(const ImVec4& lhs, const ImVec4& rhs)
+        {
+            return NearlyEqual(lhs.x, rhs.x) &&
+                NearlyEqual(lhs.y, rhs.y) &&
+                NearlyEqual(lhs.z, rhs.z) &&
+                NearlyEqual(lhs.w, rhs.w);
+        }
+
+        bool Is_DefaultMaterialVfxDesc(const UI_MaterialVfxDesc& materialVfx)
+        {
+            const UI_MaterialVfxDesc defaultMaterialVfx = Get_DefaultMaterialVfxDesc();
+            return materialVfx.mode == defaultMaterialVfx.mode &&
+                materialVfx.noiseTextureGuid == defaultMaterialVfx.noiseTextureGuid &&
+                materialVfx.noiseTexturePath == defaultMaterialVfx.noiseTexturePath &&
+                NearlyEqual(materialVfx.color, defaultMaterialVfx.color) &&
+                NearlyEqual(materialVfx.coreColor, defaultMaterialVfx.coreColor) &&
+                NearlyEqual(materialVfx.flowColor, defaultMaterialVfx.flowColor) &&
+                NearlyEqual(materialVfx.glow, defaultMaterialVfx.glow) &&
+                NearlyEqual(materialVfx.alpha, defaultMaterialVfx.alpha) &&
+                NearlyEqual(materialVfx.coreStrength, defaultMaterialVfx.coreStrength) &&
+                NearlyEqual(materialVfx.coreWidth, defaultMaterialVfx.coreWidth) &&
+                NearlyEqual(materialVfx.coreSoftness, defaultMaterialVfx.coreSoftness) &&
+                NearlyEqual(materialVfx.noiseStrength, defaultMaterialVfx.noiseStrength) &&
+                NearlyEqual(materialVfx.uvScroll, defaultMaterialVfx.uvScroll) &&
+                NearlyEqual(materialVfx.flowSpeed, defaultMaterialVfx.flowSpeed) &&
+                NearlyEqual(materialVfx.preserveColor, defaultMaterialVfx.preserveColor) &&
+                NearlyEqual(materialVfx.edgeWidth, defaultMaterialVfx.edgeWidth) &&
+                NearlyEqual(materialVfx.edgeSoftness, defaultMaterialVfx.edgeSoftness) &&
+                NearlyEqual(materialVfx.erosion, defaultMaterialVfx.erosion) &&
+                NearlyEqual(materialVfx.flicker, defaultMaterialVfx.flicker) &&
+                NearlyEqual(materialVfx.distortion, defaultMaterialVfx.distortion) &&
+                NearlyEqual(materialVfx.edgeWobbleSpeed, defaultMaterialVfx.edgeWobbleSpeed);
+        }
+
+        bool Is_MaterialVfxUtilityTexturePath(const string& texturePath)
+        {
+            string normalizedPath = String::ToLowerCopy(texturePath);
+            replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+
+            return normalizedPath.find("/ui_vfx/") != string::npos ||
+                normalizedPath.find("/common/paint/") != string::npos ||
+                normalizedPath.find("t_paintbrush_") != string::npos;
+        }
+
+        float Get_DefaultMaterialVfxPreserveColor(const UI_Object& object)
+        {
+            return Is_MaterialVfxUtilityTexturePath(object.texturePath) ? 0.f : 1.f;
+        }
+
         bool Draw_PresetButton(const char* label, bool active, const char* tooltip)
         {
             if (active)
@@ -289,8 +338,17 @@ namespace UIEditor
         currentRenderMode = min(max(currentRenderMode, 0), static_cast<int32>(size(renderModeItems)) - 1);
         if (ImGui::Combo("Image Render Mode", &currentRenderMode, renderModeItems, static_cast<int32>(size(renderModeItems))))
         {
+            const UI_ImageRenderMode previousRenderMode = effectiveRenderMode;
             effectiveRenderMode = static_cast<UI_ImageRenderMode>(currentRenderMode);
             _editorManager.Set_UIObjectImageRenderMode(object.id, effectiveRenderMode);
+            if (previousRenderMode == UI_ImageRenderMode::Normal &&
+                effectiveRenderMode == UI_ImageRenderMode::MaterialVfx &&
+                Is_DefaultMaterialVfxDesc(object.materialVfx))
+            {
+                UI_MaterialVfxDesc materialVfx = object.materialVfx;
+                materialVfx.preserveColor = Get_DefaultMaterialVfxPreserveColor(object);
+                _editorManager.Set_UIObjectMaterialVfx(object.id, materialVfx);
+            }
         }
 
         if (effectiveRenderMode == UI_ImageRenderMode::Normal)
@@ -312,7 +370,7 @@ namespace UIEditor
             preset.noiseStrength = 0.42f;
             preset.uvScroll = ImVec2(0.08f, -0.22f);
             preset.flowSpeed = 1.f;
-            preset.preserveColor = 0.f;
+            preset.preserveColor = Get_DefaultMaterialVfxPreserveColor(object);
             preset.edgeWidth = 0.16f;
             preset.edgeSoftness = 0.055f;
             preset.erosion = 0.16f;

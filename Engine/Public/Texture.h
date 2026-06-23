@@ -12,7 +12,7 @@ public:
 	virtual ~Texture() = default;
 
 public:
-	virtual HRESULT Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs);
+	virtual HRESULT Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs, bool ignoreWicSrgb = false);
 	virtual HRESULT Initialize(void* arg) override;
 
 public:
@@ -25,7 +25,7 @@ private:
 	vector<ComPtr<ID3D11ShaderResourceView>>	_srvs;
 
 public:
-	static Shared<Texture> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs);
+	static Shared<Texture> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs, bool ignoreWicSrgb = false);
 	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 

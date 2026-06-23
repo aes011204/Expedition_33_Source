@@ -19,8 +19,6 @@ using namespace UI_Utils;
 namespace
 {
     constexpr float kBossHpDelayedLerpSpeed = 4.f;
-    constexpr float kBossDamageHoldDuration = 1.5f;
-    constexpr float kBossDamageFadeDuration = 0.5f;
 
     wstring Resolve_SLBossDisplayName(wstring name)
     {
@@ -66,6 +64,9 @@ void UI_SL_HUD::Update_PlayerHUD(const Shared<SL_Maelle>& player)
 
     Open();
 
+    if (_estherSkillRoot)
+        _estherSkillRoot->Open();
+
     Apply_PlayerHp(
         playerStat->Get_CurHp(),
         playerStat->Get_StatInfo().maxHp);
@@ -97,7 +98,6 @@ void UI_SL_HUD::Update_BossHUD(const Shared<SL_Base>& boss, float timeDelta)
     if (boss == nullptr || boss->Is_Dead() || bossStat == nullptr || !bossStat->Is_Boss())
     {
         Clear_BossHUD();
-        Update_BossDamageText(timeDelta);
         return;
     }
 
@@ -108,23 +108,23 @@ void UI_SL_HUD::Update_BossHUD(const Shared<SL_Base>& boss, float timeDelta)
         bossStat->Get_CurHp(),
         bossStat->Get_StatInfo().maxHp,
         timeDelta);
+    Apply_BossBreak(
+        bossStat->Get_CurBreak(),
+        bossStat->Get_MaxBreak());
 
     Apply_BossName(Resolve_SLBossDisplayName(bossStat->Get_MonsterDesc().battleAnnounceName));
-    Update_BossDamageText(timeDelta);
 }
 
 void UI_SL_HUD::Clear_BossHUD()
 {
     if (_bossHpRoot)
     {
-        if (_bossDamageVisible)
-            _bossHpRoot->Open();
-        else
-            _bossHpRoot->Close();
+        _bossHpRoot->Close();
     }
 
     _bossHpDelayedRatio = 1.f;
     Apply_BossHp(0.f, 1.f, 0.f);
+    Apply_BossBreak(0.f, 0.f);
     Apply_BossName(L"");
 }
 
@@ -136,36 +136,7 @@ void UI_SL_HUD::Set_HealingPotionCount(uint32 count)
 
 void UI_SL_HUD::Show_BossDamage(float damage)
 {
-    const uint32 displayDamage = static_cast<uint32>(roundf(max(0.f, damage)));
-    if (displayDamage == 0)
-        return;
-
-    if (!_bossDamageVisible)
-        _bossDamageAccumulated = 0;
-
-    _bossDamageAccumulated += displayDamage;
-
-    const wstring damageText = to_wstring(_bossDamageAccumulated);
-
-    if (_bossHpRoot)
-        _bossHpRoot->Open();
-
-    if (_bossDamageText)
-    {
-        _bossDamageText->Set_Text(damageText);
-        _bossDamageText->Set_AlphaMultiplier(1.f);
-        _bossDamageText->Open();
-    }
-
-    if (_bossDamageBgText)
-    {
-        _bossDamageBgText->Set_Text(damageText);
-        _bossDamageBgText->Set_AlphaMultiplier(1.f);
-        _bossDamageBgText->Open();
-    }
-
-    _bossDamageElapsed = 0.f;
-    _bossDamageVisible = true;
+    UNREFERENCED_PARAMETER(damage);
 }
 
 HRESULT UI_SL_HUD::Load_UI(uint32 levelIndex)
@@ -208,8 +179,8 @@ HRESULT UI_SL_HUD::Bind_UI()
 
     _skillIconBgs[0] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_First_Skill_BG");
     _skillIconBgs[1] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Second_Skill_BG");
-    _skillIconBgs[2] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Third_Skill_Icon_BG");
-    _skillIconBgs[3] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Fourth_Skill_Icon_BG");
+    _skillIconBgs[2] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Third_Skill_BG");
+    _skillIconBgs[3] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Fourth_Skill_BG");
 
     _skillCooldownOverlays[0] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_First_Skill_Cooldown");
     _skillCooldownOverlays[1] = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Second_Skill_Cooldown");
@@ -219,7 +190,7 @@ HRESULT UI_SL_HUD::Bind_UI()
     _skillCooldownTexts[0] = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_First_Skill_Cooldown");
     _skillCooldownTexts[1] = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Second_Skill_Cooldown");
     _skillCooldownTexts[2] = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Third_Skill_Cooldown");
-    _skillCooldownTexts[3] = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Fourth_Skill_Cooldown");
+    _skillCooldownTexts[3] = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Fourtht_Skill_Cooldown");
 
     for (uint32 i = 0; i < _skillIcons.size(); ++i)
     {
@@ -238,37 +209,40 @@ HRESULT UI_SL_HUD::Bind_UI()
     _bossHpRoot = Find_UI(_uiByName, L"Panel_SL_Boss_HP_Bar");
     _bossHpGauge = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Boss_HP_Gauge");
     _bossHpGaugeBg = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Boss_HP_Gauge_BG");
+    _bossBreakRoot = Find_UI(_uiByName, L"Panel_SL_Boss_Break_Bar");
+    _bossBreakGauge = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Boss_Break_Gauge");
     _bossNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Boss_Name");
     _bossNameBgText = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Boss_Name_BG");
-    _bossDamageText = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Boss_Damaged");
-    _bossDamageBgText = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Boss_Damaged_BG");
 
     CHECK_NULL(_bossHpRoot, E_FAIL);
     CHECK_NULL(_bossHpGauge, E_FAIL);
     CHECK_NULL(_bossHpGaugeBg, E_FAIL);
+    CHECK_NULL(_bossBreakRoot, E_FAIL);
+    CHECK_NULL(_bossBreakGauge, E_FAIL);
     CHECK_NULL(_bossNameText, E_FAIL);
     CHECK_NULL(_bossNameBgText, E_FAIL);
-    CHECK_NULL(_bossDamageText, E_FAIL);
-    CHECK_NULL(_bossDamageBgText, E_FAIL);
-
-    _bossDamageText->Set_TextAlign(UI_Text::TextAlign::Right);
-    _bossDamageBgText->Set_TextAlign(UI_Text::TextAlign::Right);
 
     _bossHpGauge->Set_UseFillRatio(true);
     _bossHpGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
     _bossHpGaugeBg->Set_UseFillRatio(true);
     _bossHpGaugeBg->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
+    _bossBreakGauge->Set_UseFillRatio(true);
+    _bossBreakGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
     _bossHpRoot->Close();
-    Clear_BossDamageText();
+    _bossBreakRoot->Close();
 
     _staminaRoot = Find_UI(_uiByName, L"Panel_SL_Character_Stamina_Bar");
-    _potionRoot = Find_UI(_uiByName, L"Panel_SL_Potion");
+    _potionRoot = Find_UI(_uiByName, L"Panel_SL_Healing_Potion");
     _healingPotionCountText = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Healing_Potion_Current_Count");
+    _estherSkillRoot = Find_UI(_uiByName, L"Panel_SL_Esther_Skill");
 
     CHECK_NULL(_healingPotionCountText, E_FAIL);
+    CHECK_NULL(_estherSkillRoot, E_FAIL);
 
     if (_staminaRoot)
         _staminaRoot->Close(); // v1 has no stamina owner yet, so hide the JSON placeholder.
+
+    _estherSkillRoot->Open();
 
     return S_OK;
 }
@@ -316,6 +290,26 @@ void UI_SL_HUD::Apply_BossHp(float curHp, float maxHp, float timeDelta)
         _bossHpGaugeBg->Set_FillRatio(clamp(_bossHpDelayedRatio, 0.f, 1.f));
 }
 
+void UI_SL_HUD::Apply_BossBreak(float curBreak, float maxBreak)
+{
+    if (_bossBreakRoot == nullptr || _bossBreakGauge == nullptr)
+        return;
+
+    if (maxBreak <= 0.f)
+    {
+        _bossBreakGauge->Set_FillRatio(0.f);
+        _bossBreakRoot->Close();
+        return;
+    }
+
+    curBreak = clamp(curBreak, 0.f, maxBreak);
+
+    if (!_bossBreakRoot->Is_Open())
+        _bossBreakRoot->Open();
+
+    _bossBreakGauge->Set_FillRatio(1.f - (curBreak / maxBreak));
+}
+
 void UI_SL_HUD::Apply_BossName(const wstring& name)
 {
     if (_bossNameText && _bossNameText->Get_Text() != name)
@@ -323,50 +317,6 @@ void UI_SL_HUD::Apply_BossName(const wstring& name)
 
     if (_bossNameBgText && _bossNameBgText->Get_Text() != name)
         _bossNameBgText->Set_Text(name);
-}
-
-void UI_SL_HUD::Update_BossDamageText(float timeDelta)
-{
-    if (!_bossDamageVisible)
-        return;
-
-    _bossDamageElapsed += max(0.f, timeDelta);
-
-    if (_bossDamageElapsed <= kBossDamageHoldDuration)
-        return;
-
-    const float fadeElapsed = _bossDamageElapsed - kBossDamageHoldDuration;
-    const float alpha = 1.f - clamp(fadeElapsed / max(kBossDamageFadeDuration, 0.0001f), 0.f, 1.f);
-
-    if (_bossDamageText)
-        _bossDamageText->Set_AlphaMultiplier(alpha);
-
-    if (_bossDamageBgText)
-        _bossDamageBgText->Set_AlphaMultiplier(alpha);
-
-    if (alpha > 0.f)
-        return;
-
-    Clear_BossDamageText();
-}
-
-void UI_SL_HUD::Clear_BossDamageText()
-{
-    _bossDamageAccumulated = 0;
-    _bossDamageElapsed = 0.f;
-    _bossDamageVisible = false;
-
-    if (_bossDamageText)
-    {
-        _bossDamageText->Set_AlphaMultiplier(0.f);
-        _bossDamageText->Close();
-    }
-
-    if (_bossDamageBgText)
-    {
-        _bossDamageBgText->Set_AlphaMultiplier(0.f);
-        _bossDamageBgText->Close();
-    }
 }
 
 void UI_SL_HUD::Apply_SkillIcons(const Shared<SL_Maelle>& player)
@@ -493,17 +443,15 @@ void UI_SL_HUD::Free()
     _bossHpRoot.reset();
     _bossHpGauge.reset();
     _bossHpGaugeBg.reset();
+    _bossBreakRoot.reset();
+    _bossBreakGauge.reset();
     _bossNameText.reset();
     _bossNameBgText.reset();
-    _bossDamageText.reset();
-    _bossDamageBgText.reset();
-    _bossDamageAccumulated = 0;
-    _bossDamageElapsed = 0.f;
-    _bossDamageVisible = false;
 
     _staminaRoot.reset();
     _potionRoot.reset();
     _healingPotionCountText.reset();
+    _estherSkillRoot.reset();
 
     Base::Free();
 }
