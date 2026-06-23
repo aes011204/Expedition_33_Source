@@ -23,6 +23,7 @@
 #include "SoulLikeController.h"
 
 #include "SL_DamageSystem.h"
+#include "SL_Dualliste.h"
 
 REGISTER_GLOBAL_ENUM(SoulLikeAnim, "SL_MaelleAnim")
 
@@ -203,12 +204,13 @@ void SL_Maelle::Reset_ParryConsumed()
     _parryConsumed = false;
 }
 
-bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos)
+bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos)
 {
     if (!_parryWindowOpen || _parryConsumed || Is_Dead())
         return false;
 
-    if (!Is_ParryFrontHit(impactWorldPos))
+    // 패링 전방 판정
+    if (!Is_ParryFrontHit(effectPos))
         return false;
 
     _parryConsumed = true;
@@ -224,7 +226,7 @@ bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos)
     {
         PlayEffectDesc effectDesc{};
         effectDesc.effectName = L"World_FreeAim_Hit_EX.effect.json";
-        effectDesc.worldPosition = impactWorldPos;
+        effectDesc.worldPosition = effectPos;
         effectDesc.scale = Vec3(0.6f, 0.6f, 0.6f);
         CLIENT->Play_Effect(effectDesc);
     }

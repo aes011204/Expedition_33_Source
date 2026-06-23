@@ -74,32 +74,32 @@ void SL_Dualliste::BeginPlay()
         if (const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard())
             bb->Set_Value<int>("CurrentPhase", _currentPhase);
     }
- 
-   if (_attackRCom)
-   {
-       _attackRCom->Set_IsActive(false);
-       _attackRCom->Clear_Overlap();
-   }
 
-   if (_attackLCom)
-   {
-       _attackLCom->Set_IsActive(false);
-       _attackLCom->Clear_Overlap();
-   }
+    if (_attackRCom)
+    {
+        _attackRCom->Set_IsActive(false);
+        _attackRCom->Clear_Overlap();
+    }
 
-   Apply_PhaseVisualState();
+    if (_attackLCom)
+    {
+        _attackLCom->Set_IsActive(false);
+        _attackLCom->Clear_Overlap();
+    }
+
+    Apply_PhaseVisualState();
 
 
-   if (_stateMachineCom)
-       _stateMachineCom->Change_State(SL_MonState::Intro);
+    if (_stateMachineCom)
+        _stateMachineCom->Change_State(SL_MonState::Intro);
 
-   if (_movementCom)
-   {
-       _movementCom->Sync_RuntimePositionToTransform();
-       _movementCom->Stop_AllMovement();
-       _movementCom->Clear_FollowMoveCommand();
-       _movementCom->Apply_Input({});
-   }
+    if (_movementCom)
+    {
+        _movementCom->Sync_RuntimePositionToTransform();
+        _movementCom->Stop_AllMovement();
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+    }
 }
 
 void SL_Dualliste::Priority_Update(float timeDelta)
@@ -198,6 +198,51 @@ void SL_Dualliste::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
     const Shared<SL_Base> target = dynamic_pointer_cast<SL_Base>(other->Get_Owner());
     if (target == nullptr || target.get() == this || target->Is_Dead())
         return;
+
+    if (Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(target))
+    {
+        const Shared<TransformCom> maelleTransform = maelle->Get_Transform();
+        const Vec3 maelleWorldPos = maelleTransform
+            ? maelleTransform->Get_WorldPosition()
+            : Vec3::Zero;
+
+        const Vec3 attackerWorldPos = _transformCom
+            ? _transformCom->Get_WorldPosition()
+            : maelleWorldPos;
+
+        Vec3 effectDir = attackerWorldPos - maelleWorldPos;
+        effectDir.y = 0.f;
+
+        if (effectDir.LengthSquared() > 0.0001f)
+            effectDir.Normalize();
+        else if (maelleTransform)
+            effectDir = maelleTransform->Get_WorldForward();
+
+        effectDir.y = 0.f;
+        if (effectDir.LengthSquared() > 0.0001f)
+            effectDir.Normalize();
+
+        Vec3 parryEffectWorldPos = maelleWorldPos + effectDir * 0.8f;
+        parryEffectWorldPos.y += 1.0f;
+
+        if (maelle->Try_ConsumeParry(attackerWorldPos, parryEffectWorldPos))
+        {
+            self->Set_IsActive(false);
+            self->Clear_Overlap();
+            return;
+        }
+
+        if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        {
+            const Shared<SL_Base> attacker = dynamic_pointer_cast<SL_Base>(GetSharedPtr<GameObject>());
+            if (controller->Try_ConsumeJumpCounterDodge(attacker, maelle))
+            {
+                self->Set_IsActive(false);
+                self->Clear_Overlap();
+                return;
+            }
+        }
+    }
 
     SL_DamageInfo damageInfo{};
     if (!SL_DamageSystem::Apply_Damage(
@@ -397,10 +442,10 @@ void SL_Dualliste::Update_BlackBoard()
 
 bool SL_Dualliste::Change_State(SL_MonState state)
 {
-	if (_stateMachineCom == nullptr)
-		return false;
+    if (_stateMachineCom == nullptr)
+        return false;
 
-	return _stateMachineCom->Change_State(state);
+    return _stateMachineCom->Change_State(state);
 }
 
 void SL_Dualliste::Finish_PhaseChange()
@@ -615,7 +660,7 @@ HRESULT SL_Dualliste::Ready_PartObjects()
     _swordR->From_Json(swordRPrefab.rootJson);
     _swordR->Set_SourcePrefabName(Constants::Prefab::Dualliste_Sword_R);
 
-        _attackRCom = _swordR->Get_AttackCollider();
+    _attackRCom = _swordR->Get_AttackCollider();
 
     return S_OK;
 }

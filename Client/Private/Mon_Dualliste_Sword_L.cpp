@@ -181,6 +181,22 @@ const WeaponSourceHistoryAnchorDesc* Mon_Dualliste_Sword_L::Find_SourceHistoryAn
     return nullptr;
 }
 
+HRESULT Mon_Dualliste_Sword_L::Ready_Components(const MONSTER_PART_DESC& desc)
+{
+    Bounding_OBB::BoundingOBBDesc attackObbDesc{};
+    attackObbDesc.center = Vec3(0.f, 1.0f, 1.0f);
+    attackObbDesc.extents = Vec3(0.55f, 0.65f, 0.95f);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _attackLCom, &attackObbDesc), E_FAIL);
+    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_MonsterSword_L")), E_FAIL);
+
+    _attackLCom->Set_CollisionPreset(Collision_Preset::SL_MonsterAttack);
+    _attackLCom->Set_IsActive(false);
+    _attackLCom->Clear_Overlap();
+
+    return Monster_Part::Ready_Components(desc);
+}
+
 uint32 Mon_Dualliste_Sword_L::Decide_PassIndex(Shared<Material> mat)
 {
     const int opaquePass = 0;

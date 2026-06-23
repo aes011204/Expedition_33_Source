@@ -1207,14 +1207,6 @@
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
     <ClCompile Include="..\Private\Mon_Simon_Weapon.cpp" />
     <ClCompile Include="..\Private\UI_SL_HUD.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\Public\ANS_AnimSpeed.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ANS_CounterTimeScale.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
     <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
@@ -1222,7 +1214,7 @@
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp">
+    <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp" />
     <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -1281,6 +1273,14 @@
     <ClCompile Include="..\Private\ANS_RootController.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_CounterTimeScale.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Unlock_Manager.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
