@@ -48,8 +48,7 @@ public: //## Runtime::TrailSample
 
 private: //## Static Values
     static constexpr auto kWeaponModelRelativePath{
-        L"../../../Client/Bin/Resources/Effects/Models/Editor_TrailPreview/Lanceram_TrailPreview.model"
-    };
+        L"../../../Client/Bin/Resources/Effects/Models/Editor_TrailPreview/Lanceram_TrailPreview.model" };
     static constexpr auto kWeaponSocketName{ "Weapon_R" };
 
     // 이 각도로 돌려야 무기가 제대로 장착된다.

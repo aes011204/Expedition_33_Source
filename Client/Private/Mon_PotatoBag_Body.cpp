@@ -1,5 +1,9 @@
 #include "Mon_PotatoBag_Body.h"
 
+#include "ModelCom.h"
+#include "ChainModifierPreset.h"
+#include "ChainModifier.h"
+
 NS_BEGIN(Client)
 
 Mon_PotatoBag_Body::Mon_PotatoBag_Body(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -19,10 +23,46 @@ HRESULT Mon_PotatoBag_Body::Initialize_Prototype()
 
 HRESULT Mon_PotatoBag_Body::Initialize(void* arg)
 {
-    Monster_Part::Initialize(arg);
+    if (FAILED(Monster_Part::Initialize(arg)))
+        return E_FAIL;
 
     _rootIndex = _model->Get_BoneIndex("root");
     _model->Set_LocalRootNode(_rootIndex);
+
+    CHECK_FAILED(Ready_Modifier(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Mon_PotatoBag_Body::Ready_Modifier()
+{
+    ChainModifier::ChainModifierDesc hairDesc{};
+    ChainModifierPreset::BuildPotatoBagHairDesc(
+        hairDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+
+    if (!hairDesc.groups.empty())
+    {
+        if (auto modifier = ChainModifier::Create(&hairDesc))
+        {
+            _model->Add_AnimModifier(modifier);
+        }
+    }
+
+    ChainModifier::ChainModifierDesc clothBackDesc{};
+    ChainModifierPreset::BuildPotatoBagClothBackDesc(
+        clothBackDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+
+    if (!clothBackDesc.groups.empty())
+    {
+        if (auto modifier = ChainModifier::Create(&clothBackDesc))
+        {
+            _model->Add_AnimModifier(modifier);
+        }
+    }
 
     return S_OK;
 }

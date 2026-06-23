@@ -1,6 +1,8 @@
 ﻿#include "CameraPresetIO.h"
 #include "TargetCamera.h"
 
+NS_BEGIN(Client)
+
 CameraPresetIO::CameraPresetIO()
 {
 }
@@ -11,6 +13,14 @@ CameraPresetIO::~CameraPresetIO()
 
 namespace
 {
+    string Build_SoulLikePresetFilePath(const string& presetKey)
+    {
+        if (presetKey.empty())
+            return "../../../Client/Bin/Resources/Data/json/CameraPreset/CameraPreset_SOULLIKE.json";
+
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/CameraPreset_SOULLIKE_" + presetKey + ".json";
+    }
+
     string Build_BattlePresetFilePath(BattleCameraMode cameraMode, const string& skillId)
     {
         const string modeName = string(magic_enum::enum_name(cameraMode));
@@ -31,6 +41,152 @@ namespace
 
         return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
+}
+
+void CameraPresetIO::SaveSoulLikePresetToFile(const string& presetKey, const TargetCameraPreset& preset)
+{
+    json jsonData{};
+
+    jsonData["snapOnEnter"] = preset.snapOnEnter;
+    jsonData["followSpeed"] = preset.followSpeed;
+    jsonData["targetFollowSpeed"] = preset.targetFollowSpeed;
+    jsonData["verticalFollowSpeed"] = preset.verticalFollowSpeed;
+    jsonData["targetFollowEasing"] = static_cast<int>(preset.targetFollowEasing);
+    jsonData["aimOffset"] = preset.aimOffset;
+    jsonData["pivotHeight"] = preset.pivotHeight;
+    jsonData["sideOffset"] = preset.sideOffset;
+    jsonData["distance"] = preset.distance;
+    jsonData["heightOffset"] = preset.heightOffset;
+    jsonData["lookHeight"] = preset.lookHeight;
+    jsonData["pitchLookScale"] = preset.pitchLookScale;
+    jsonData["pitchMax"] = preset.pitchMax;
+    jsonData["pitchMin"] = preset.pitchMin;
+    jsonData["mouseSensor"] = preset.camera.mouseSensor;
+    jsonData["mouseSensitivity"] = preset.camera.mouseSensitivity;
+    jsonData["yawOffset"] = preset.yawOffset;
+    jsonData["pitchOffset"] = preset.pitchOffset;
+    jsonData["rollOffset"] = preset.rollOffset;
+    jsonData["fovY"] = preset.camera.fovy;
+    jsonData["nearPlane"] = preset.camera.nearPlane;
+    jsonData["farPlane"] = preset.camera.farPlane;
+    jsonData["allowMouseRotation"] = preset.allowMouseRotation;
+    jsonData["doCollisionTest"] = preset.doCollisionTest;
+    jsonData["collisionProbeRadius"] = preset.collisionProbeRadius;
+    jsonData["collisionSkin"] = preset.collisionSkin;
+
+    const fs::path savePath = Build_SoulLikePresetFilePath(presetKey);
+    if (!fs::exists(savePath.parent_path()))
+        fs::create_directories(savePath.parent_path());
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        MSG_BOX("Failed to open SoulLike camera preset save file.");
+        return;
+    }
+
+    file << jsonData.dump(4);
+}
+
+bool CameraPresetIO::LoadSoulLikePresetFromFile(const string& presetKey, TargetCameraPreset& outPreset)
+{
+    ifstream file(Build_SoulLikePresetFilePath(presetKey));
+    if (!file.is_open())
+        return false;
+
+    json jsonData{};
+    file >> jsonData;
+
+    TargetCameraPreset preset = outPreset;
+    const int targetFollowEasing = jsonData.value(
+        "targetFollowEasing",
+        static_cast<int>(BattleCameraTransitionEasing::EaseOut));
+
+    preset.snapOnEnter = jsonData.value("snapOnEnter", preset.snapOnEnter);
+    preset.followSpeed = jsonData.value("followSpeed", preset.followSpeed);
+    preset.targetFollowSpeed = jsonData.value("targetFollowSpeed", preset.targetFollowSpeed);
+    preset.verticalFollowSpeed = jsonData.value("verticalFollowSpeed", preset.verticalFollowSpeed);
+    switch (targetFollowEasing)
+    {
+    case static_cast<int>(BattleCameraTransitionEasing::Linear):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::Linear;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseIn):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseIn;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOut):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOut;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInStrong):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutStrong):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInOutStrong):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInOutStrong;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInCubic):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInCubic;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutCubic):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutCubic;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInExpo):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInExpo;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutExpo):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutExpo;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOutBack):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOutBack;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInOut):
+    default:
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInOut;
+        break;
+    }
+
+    preset.distance = jsonData.value("distance", preset.distance);
+    preset.sideOffset = jsonData.value("sideOffset", preset.sideOffset);
+    preset.heightOffset = jsonData.value("heightOffset", preset.heightOffset);
+    preset.aimOffset = jsonData.value("aimOffset", preset.aimOffset);
+    preset.pivotHeight = jsonData.value("pivotHeight", preset.pivotHeight);
+    preset.pitchLookScale = jsonData.value("pitchLookScale", preset.pitchLookScale);
+    preset.pitchMin = jsonData.value("pitchMin", preset.pitchMin);
+    preset.pitchMax = jsonData.value("pitchMax", preset.pitchMax);
+    preset.lookHeight = jsonData.value("lookHeight", preset.lookHeight);
+    preset.yawOffset = jsonData.value("yawOffset", preset.yawOffset);
+    preset.pitchOffset = jsonData.value("pitchOffset", preset.pitchOffset);
+    preset.rollOffset = jsonData.value("rollOffset", preset.rollOffset);
+    preset.camera.mouseSensor = jsonData.value("mouseSensor", preset.camera.mouseSensor);
+    preset.camera.mouseSensitivity = jsonData.value("mouseSensitivity", preset.camera.mouseSensitivity);
+    preset.camera.fovy = jsonData.value("fovY", preset.camera.fovy);
+    preset.camera.nearPlane = jsonData.value("nearPlane", preset.camera.nearPlane);
+    preset.camera.farPlane = jsonData.value("farPlane", preset.camera.farPlane);
+    preset.allowMouseRotation = jsonData.value("allowMouseRotation", preset.allowMouseRotation);
+    preset.doCollisionTest = jsonData.value("doCollisionTest", preset.doCollisionTest);
+    preset.collisionProbeRadius = jsonData.value("collisionProbeRadius", preset.collisionProbeRadius);
+    preset.collisionSkin = jsonData.value("collisionSkin", preset.collisionSkin);
+
+    outPreset = preset;
+    return true;
+}
+
+void CameraPresetIO::SaveSoulLikeSkillPresetToFile(const string& skillKey, const TargetCameraPreset& preset)
+{
+    if (skillKey.empty())
+        return;
+
+    SaveSoulLikePresetToFile("PlayerSkill_" + skillKey, preset);
+}
+
+bool CameraPresetIO::LoadSoulLikeSkillPresetFromFile(const string& skillKey, TargetCameraPreset& outPreset)
+{
+    if (skillKey.empty())
+        return false;
+
+    return LoadSoulLikePresetFromFile("PlayerSkill_" + skillKey, outPreset);
 }
 
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)
@@ -403,3 +559,5 @@ bool CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode mode, BattleCamera
     outProfile = profile;
     return true;
 }
+
+NS_END

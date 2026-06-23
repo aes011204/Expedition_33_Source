@@ -35,9 +35,12 @@ public:
     bool Has_LastResult() const                         { return _hasLastResult; }
     BattleQTEResult Get_LastResult() const              { return _lastResult; }
     const BattleQTERequest& Get_ActiveRequest() const   { return _activeRequest; }
+    float Consume_NextAttackDamageMultiplier(const BattleChar& attacker, AttackType attackType);
 
 private:
     bool Is_ValidResult(BattleQTEResult result) const;
+    bool Is_NextAttackDamageType(AttackType attackType) const;
+    float Resolve_DamageBonusRate(BattleQTEResult result) const;
 
 public:
     FOnQTEStarted OnQTEStarted;
@@ -48,6 +51,7 @@ private:
     BattleQTEResult  _lastResult = BattleQTEResult::None;
     bool             _isActive = false;
     bool             _hasLastResult = false;
+    float            _pendingNextAttackDamageBonusRate = 0.f;
 
 public:
     static Shared<BattleQTEController> Create();

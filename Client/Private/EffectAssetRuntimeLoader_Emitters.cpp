@@ -41,6 +41,26 @@ namespace EffectAssetRuntimeLoad::Emitters
         return nullptr;
     }
 
+    void Fill_SourceMotionVelocityPayload(PointParticleMotionDesc& desc, const json& sourceMotionVelocity)
+    {
+        desc.enabled = true;
+        desc.sourceMotionVelocityEnabled = true;
+        Read_Enum(sourceMotionVelocity, "directionMode", desc.sourceMotionVelocityDirectionMode);
+        desc.sourceMotionVelocitySourceSpeedScale =
+            max(0.f, Read_Float(sourceMotionVelocity, "sourceSpeedScale", desc.sourceMotionVelocitySourceSpeedScale));
+        desc.sourceMotionVelocitySpreadAngleDegrees =
+            clamp(Read_Float(sourceMotionVelocity, "spreadAngleDegrees", desc.sourceMotionVelocitySpreadAngleDegrees), 0.f, 180.f);
+
+        if (const auto speedIter = sourceMotionVelocity.find("speed"); speedIter != sourceMotionVelocity.end())
+        {
+            desc.sourceMotionVelocitySpeed = Vec2{
+                Evaluate_FloatDistributionMin(*speedIter, desc.sourceMotionVelocitySpeed.x),
+                Evaluate_FloatDistributionMax(*speedIter, desc.sourceMotionVelocitySpeed.y)
+            };
+            desc.sourceMotionVelocitySeed = Read_DistributionRandomSeedDesc(*speedIter, &sourceMotionVelocity);
+        }
+    }
+
     string Resolve_RendererType(const json& emitter)
     {
         string rendererType = Read_String(emitter, "rendererType");
@@ -623,6 +643,9 @@ namespace EffectAssetRuntimeLoad::Emitters
             if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
+
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
 
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
@@ -1268,6 +1291,9 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
 
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
+
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
@@ -1768,16 +1794,28 @@ namespace EffectAssetRuntimeLoad::Emitters
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesXBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsX = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsXBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsX = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsXBlock1 = Vec4{};
                 }
                 if (!Read_Bool(*meshSizeByLife, "multiplyY", true))
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesYBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsY = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsYBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsY = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsYBlock1 = Vec4{};
                 }
                 if (!Read_Bool(*meshSizeByLife, "multiplyZ", true))
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesZBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsZ = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsZBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsZ = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsZBlock1 = Vec4{};
                 }
             }
         }
@@ -1831,6 +1869,9 @@ namespace EffectAssetRuntimeLoad::Emitters
             if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
+
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
 
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {

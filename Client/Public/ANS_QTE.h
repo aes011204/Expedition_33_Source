@@ -32,6 +32,9 @@ private:
     float _progressDuration = 80.f / 120.f;
     float _perfectStartRatio = 61.f / 80.f;
     float _perfectEndRatio = 1.f;
+    float _failDamageBonusRate = -0.15f;
+    float _normalDamageBonusRate = 0.f;
+    float _perfectDamageBonusRate = 0.15f;
 
     BattleQTEPreset _qtePreset = BattleQTEPreset::Center;
 };

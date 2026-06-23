@@ -104,6 +104,16 @@ using AssetMeta = struct tagAssetMeta
     std::wstring relativePath = {}; /* 리소스 루트 기준 상대 경로로, json/테이블에서 사람이 확인하기 쉬운 경로 */
 };
 
+using AssetDeltaScanResult = struct tagAssetDeltaScanResult
+{
+    std::wstring scanRoot = {};
+    std::vector<std::wstring> discoveredAssetPaths = {};
+    std::vector<AssetMeta> existingMetaAssets = {};
+    std::vector<std::wstring> missingMetaAssetPaths = {};
+    std::vector<std::wstring> staleAssetPaths = {};
+    bool scanSucceeded = false;
+};
+
 
 struct DamageEvent
 {

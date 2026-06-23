@@ -27,6 +27,7 @@
 #include "PostProcess_View.h"
 #include "ScreenFx_View.h"
 #include "SoulLike_Viewer.h"
+#include "SoulLikeCamera_Viewer.h"
 
 namespace fs = std::filesystem;
 
@@ -141,6 +142,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(PostProcess_View::Create());
     Add_Window(ScreenFx_View::Create());
     Add_Window(SoulLike_Viewer::Create());
+    Add_Window(SoulLikeCamera_Viewer::Create());
     return S_OK;
 }
 
@@ -782,6 +784,9 @@ void Editor_Manager::Render_RuleStateButtons()
 
     if (ImGui::MenuItem("의상 해금 전체 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::AllCostumes);
+
+    if (ImGui::MenuItem("튜토리얼 후 플레이어 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::FirstTutorialHeroUnlocks);
 }
 
 void Editor_Manager::Render_SaveCheckpointPopup()
@@ -885,10 +890,13 @@ bool Editor_Manager::Save_RuleStatePreset(RuleStatePreset preset)
     _selectedRuleStatePath = ruleStatePath;
 
     Notification_Manager* notification = EDITOR->Get_Notification();
-    const bool saved =
-        (preset == RuleStatePreset::GameStart)
-        ? EDITOR->Save_GameStartRuleState(ruleStatePath)
-        : EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
+    bool saved = false;
+    if (preset == RuleStatePreset::GameStart)
+        saved = EDITOR->Save_GameStartRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::FirstTutorialHeroUnlocks)
+        saved = EDITOR->Save_FirstTutorialHeroUnlockRuleState(ruleStatePath);
+    else
+        saved = EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
 
     if (saved)
     {
@@ -957,6 +965,9 @@ fs::path Editor_Manager::Resolve_RuleStatePath(RuleStatePreset preset) const
     case RuleStatePreset::AllCostumes:
         return ruleStateDir / L"Rule_AllCostumes.rule.bin";
 
+    case RuleStatePreset::FirstTutorialHeroUnlocks:
+        return ruleStateDir / L"Rule_FirstTutorialHeroUnlocks.rule.bin";
+
     default:
         return ruleStateDir / L"Rule_Debug.rule.bin";
     }
@@ -983,15 +994,30 @@ bool Editor_Manager::Pick_RuleStateFile(fs::path& outPath) const
 void Editor_Manager::Render_ReloadDataButton()
 {
     if (ImGui::SmallButton("Reload Data"))
+        ImGui::OpenPopup("ReloadDataPopup");
+    const bool reloadDataHovered = ImGui::IsItemHovered();
+
+    if (ImGui::BeginPopup("ReloadDataPopup"))
     {
-        if (FAILED(CLIENT->Reload_GameDataTables()))
-            MSG_BOX("Failed to reload game data tables.");
+        if (ImGui::MenuItem("GameDataTable"))
+        {
+            if (FAILED(CLIENT->Reload_GameDataTables()))
+                MSG_BOX("Failed to reload game data tables.");
+        }
+
+        if (ImGui::MenuItem("Effect Data"))
+        {
+            if (FAILED(CLIENT->Reload_EffectJsons()))
+                MSG_BOX("Failed to reload effect jsons.");
+        }
+
+        ImGui::EndPopup();
     }
 
-    if (ImGui::IsItemHovered())
+    if (reloadDataHovered)
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Json 데이터 재로드");
+        ImGui::Text("재로드할 데이터 종류 선택");
         ImGui::EndTooltip();
     }
 }

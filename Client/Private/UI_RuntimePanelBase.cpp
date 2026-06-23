@@ -40,6 +40,7 @@ void UI_RuntimePanelBase::Append_RuntimeUIEntries(
     rootEntry.name = rootName;
     rootEntry.ui = _root;
     rootEntry.editorTarget = const_cast<UI_RuntimePanelBase*>(this); // 같은 패널이 소유한 루트/자식들을 하이어라키에서 한 클래스 아래로 묶는다.
+    rootEntry.positionDrivenByCode = Is_EditorPositionDrivenByCode();
     outEntries.push_back(rootEntry);
 
     Append_RuntimeUIMapEntries(

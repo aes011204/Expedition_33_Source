@@ -1,6 +1,9 @@
 ﻿#include "Mon_Simon_Body.h"
 
 #include "ModelCom.h"
+#include "ChainModifierPreset.h"
+#include "ChainModifier.h"
+#include "PoseFollowChainModifier.h"
 
 NS_BEGIN(Client)
 
@@ -26,6 +29,41 @@ HRESULT Mon_Simon_Body::Initialize(void* arg)
 
     _rootIndex = _model->Get_BoneIndex("root");
     _model->Set_LocalRootNode(_rootIndex);
+
+    CHECK_FAILED(Ready_Modifier(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Mon_Simon_Body::Ready_Modifier()
+{
+    ChainModifier::ChainModifierDesc armbandDesc{};
+    ChainModifierPreset::BuildArmbandDesc(
+        armbandDesc,
+        _transformCom.get(),
+        PlayerCharacterType::Gustave);
+
+    if (!armbandDesc.groups.empty())
+    {
+        if (auto modifier = ChainModifier::Create(&armbandDesc))
+        {
+            _model->Add_AnimModifier(modifier);
+        }
+    }
+
+    PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+    ChainModifierPreset::BuildPoseFollowCoatDesc(
+        coatDesc,
+        _transformCom.get(),
+        PlayerCharacterType::None);
+
+    if (!coatDesc.groups.empty())
+    {
+        if (auto modifier = PoseFollowChainModifier::Create(&coatDesc))
+        {
+            _model->Add_AnimModifier(modifier);
+        }
+    }
 
     return S_OK;
 }

@@ -4,6 +4,7 @@
 #include <tchar.h>
 #include <Windows.h>
 #include "EffectEditorApp.h"
+#include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Profile_View.h"
 
@@ -13,8 +14,8 @@ FILE* g_debugConsole = nullptr;
 HWND g_hWnd = nullptr;
 HINSTANCE g_hInst = nullptr;
 
-static const wchar_t* g_windowClassName = L"Expedition158EffectEditor";
-static const wchar_t* g_windowTitle = L"Expedition_158 EffectEditor";
+static auto g_windowClassName = L"Expedition158EffectEditor";
+static auto g_windowTitle = L"Expedition_158 EffectEditor";
 static constexpr DWORD kFullscreenWindowStyle = WS_POPUP | WS_VISIBLE;
 static constexpr DWORD kWindowedWindowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 static constexpr LONG kDefaultWindowedClientWidth = 1600;
@@ -308,7 +309,10 @@ static LRESULT CALLBACK EffectEditor_WndProc(HWND hWnd, UINT message, WPARAM wPa
         break;
 
     case WM_CLOSE:
-        PostQuitMessage(0);
+        if (g_runtimeInitialized)
+            EDITOR->Request_Exit();
+        else
+            PostQuitMessage(0);
         return 0;
 
     case WM_MOUSEWHEEL:

@@ -19,7 +19,10 @@ public:
 
 public:
     static fs::path Resolve_WeaponPrefabPath(const string& weaponPrefabName);
-    static bool     Load(const string& weaponPrefabName, LoadedWeaponPrefab& outPrefab);
+    static bool     Load(
+                        const string& weaponPrefabName,
+                        LoadedWeaponPrefab& outPrefab,
+                        const string& expectedStaticClass = "Weapon");
 
 private:
     static bool Try_ReadModelComponent(

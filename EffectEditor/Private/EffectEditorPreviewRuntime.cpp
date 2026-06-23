@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "EffectEditorInstance.h"
 #include "EffectEditorPreviewDefinitionBuilder.h"
+#include "EffectEmitter.h"
 #include "EffectInstance.h"
 #include "GameInstance.h"
 #include "Level.h"
@@ -117,6 +118,11 @@ namespace Internal
             return max(required->duration, required->durationLow);
 
         return required->duration;
+    }
+
+    const RequiredModuleData* Find_RequiredModuleData(const AuthoringEmitter& emitter)
+    {
+        return Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
     }
 
     float Resolve_TrailPreviewGateDuration(const vector<AuthoringEmitter>& emitters)
@@ -244,6 +250,8 @@ HRESULT EffectEditorPreviewRuntime::Restart_FromAuthoring(const vector<Authoring
     CHECK_NULL(effectPool, E_FAIL);
 
     CHECK_FAILED(Restart_FromDefinition(previewDefinition), E_FAIL);
+    _currentAuthoringEmitters = emitters;
+    Apply_PreviewEmitterTransformOverrides(_currentAuthoringEmitters);
     _currentPreviewDefinition = previewDefinition;
     _currentPreviewTrailDefinition = previewTrailDefinition;
     _wasTrailPreviewGateOpen = false;
@@ -264,7 +272,9 @@ HRESULT EffectEditorPreviewRuntime::Reset_Runtime()
     _wasTrailPreviewGateOpen = false;
     _lastTrailPreviewSourceRatio = 0.f;
     _hasTrailPreviewSourceRatio = false;
-    return Restart_FromDefinition(_currentPreviewDefinition);
+    CHECK_FAILED(Restart_FromDefinition(_currentPreviewDefinition), E_FAIL);
+    Apply_PreviewEmitterTransformOverrides(_currentAuthoringEmitters);
+    return S_OK;
 }
 
 bool EffectEditorPreviewRuntime::Is_Finished() const
@@ -272,6 +282,59 @@ bool EffectEditorPreviewRuntime::Is_Finished() const
     const Shared<EffectInstance> previewInstance =
         dynamic_pointer_cast<EffectInstance>(_previewPoolHandle.effectObject);
     return previewInstance != nullptr && previewInstance->Is_Finished();
+}
+
+void EffectEditorPreviewRuntime::Apply_PreviewEmitterTransformOverrides(const vector<AuthoringEmitter>& emitters)
+{
+    if (EDITOR == nullptr)
+        return;
+
+    const Shared<EffectInstance> previewInstance =
+        dynamic_pointer_cast<EffectInstance>(_previewPoolHandle.effectObject);
+    if (previewInstance == nullptr)
+        return;
+
+    for (const AuthoringEmitter& emitter : emitters)
+    {
+        if (!emitter.enabled)
+            continue;
+
+        const RequiredModuleData* required = Internal::Find_RequiredModuleData(emitter);
+        const Vec3 authoredPosition = required != nullptr ? required->emitterOrigin : Vec3::Zero;
+        const Vec3 authoredRotation = required != nullptr ? required->emitterRotationDegrees : Vec3::Zero;
+        const PreviewEmitterTransformOverride* overrideState =
+            EDITOR->Find_PreviewEmitterTransformOverride(emitter.id);
+        const bool overrideEnabled =
+            EffectEditorInstance::Can_UsePreviewEmitterTransform(emitter) &&
+            overrideState != nullptr &&
+            overrideState->enabled;
+        const Vec3 positionOffset = overrideEnabled ? overrideState->localPositionOffset : Vec3::Zero;
+        const Vec3 rotationOffset = overrideEnabled ? overrideState->localRotationOffsetDegrees : Vec3::Zero;
+
+        const Shared<EffectEmitter> previewEmitter = previewInstance->Find_EmitterById(emitter.id);
+        if (previewEmitter == nullptr)
+            continue;
+
+        previewEmitter->Set_RuntimeLocalTransform(
+            authoredPosition + positionOffset,
+            authoredRotation + rotationOffset
+        );
+    }
+}
+
+bool EffectEditorPreviewRuntime::Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const
+{
+    const Shared<EffectInstance> previewInstance =
+        dynamic_pointer_cast<EffectInstance>(_previewPoolHandle.effectObject);
+    if (previewInstance == nullptr)
+        return false;
+
+    const Shared<EffectEmitter> previewEmitter = previewInstance->Find_EmitterById(emitterId);
+    if (previewEmitter == nullptr || previewEmitter->Get_Transform() == nullptr)
+        return false;
+
+    outWorldMatrix = previewEmitter->Get_Transform()->Get_WorldMatrix();
+    return true;
 }
 
 void EffectEditorPreviewRuntime::Clear()
@@ -283,6 +346,7 @@ void EffectEditorPreviewRuntime::Clear()
     Clear_PreviewTrailStrokes();
     effectPool->Release(_previewPoolHandle);
     _previewPoolHandle = {};
+    _currentAuthoringEmitters.clear();
     effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
     effectPool->Discard_Inactive(Internal::kPreviewTrailStrokePoolKey);
 }

@@ -1894,6 +1894,22 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool 
     return S_OK;
 }
 
+HRESULT GameInstance::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Commit_AssetDeltaScan(scanResult, missingMetaRoot);
+}
+
+HRESULT GameInstance::Refresh_AssetRegistryDirectory(const wstring& directory, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Refresh_RegistryDirectory(directory, missingMetaRoot);
+}
+
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
     if (nullptr == _assetManager)
@@ -3024,6 +3040,14 @@ void GameInstance::Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX
         return;
 
     _screenFxManager->Play_ScreenEffect(screenFX);
+}
+
+bool GameInstance::Is_ScreenFxFinished(const wstring& tag) const
+{
+    if (_screenFxManager == nullptr)
+        return false;
+
+    return _screenFxManager->Is_ScreenEffectFinished(tag);
 }
 
 void GameInstance::Release_Engine()

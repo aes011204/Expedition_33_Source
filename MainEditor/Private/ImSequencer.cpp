@@ -46,7 +46,15 @@ namespace
     }
 }
 
-bool Sequencer(SequenceInterface* sequence, int* currentFrame, bool* expanded, int* selectedEntry, int* firstFrame, int sequenceOptions)
+bool Sequencer(
+    SequenceInterface* sequence,
+    int* currentFrame,
+    bool* expanded,
+    int* selectedEntry,
+    int* firstFrame,
+    int sequenceOptions,
+    int viewFrameMin,
+    int viewFrameMax)
 {
     if (sequence == nullptr)
         return false;
@@ -54,16 +62,20 @@ bool Sequencer(SequenceInterface* sequence, int* currentFrame, bool* expanded, i
     if (expanded != nullptr)
         *expanded = true;
 
-    if (firstFrame != nullptr)
-        *firstFrame = sequence->GetFrameMin();
-
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window == nullptr || window->SkipItems)
         return false;
 
-    const int frameMin = sequence->GetFrameMin();
-    const int frameMax = std::max(frameMin + 1, sequence->GetFrameMax());
+    const int fullFrameMin = sequence->GetFrameMin();
+    const int fullFrameMax = std::max(fullFrameMin + 1, sequence->GetFrameMax());
+    const int requestedFrameMin = viewFrameMin == INT_MIN ? fullFrameMin : viewFrameMin;
+    const int requestedFrameMax = viewFrameMax == INT_MIN ? fullFrameMax : viewFrameMax;
+    const int frameMin = std::clamp<int>(requestedFrameMin, fullFrameMin, fullFrameMax - 1);
+    const int frameMax = std::clamp<int>(requestedFrameMax, frameMin + 1, fullFrameMax);
     const int itemCount = sequence->GetItemCount();
+
+    if (firstFrame != nullptr)
+        *firstFrame = frameMin;
 
     const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
     ImVec2 canvasSize = ImGui::GetContentRegionAvail();
@@ -168,7 +180,7 @@ bool Sequencer(SequenceInterface* sequence, int* currentFrame, bool* expanded, i
 
     if (currentFrame != nullptr)
     {
-        *currentFrame = std::clamp(*currentFrame, frameMin, frameMax);
+        *currentFrame = std::clamp(*currentFrame, fullFrameMin, fullFrameMax);
 
         if ((sequenceOptions & SEQUENCER_CHANGE_FRAME) != 0 && hovered && ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {

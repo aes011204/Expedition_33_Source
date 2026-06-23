@@ -5,6 +5,7 @@
 #include "Body_Player.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
+#include "ChainModifierPreset.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
@@ -47,8 +48,8 @@ HRESULT PW_Maelle::Initialize(void* arg)
     skilltreeCom->ForceUnlock("FleureFury");
 
 	//skilltreeCom->ForceUnlock("FireRise");
-    skilltreeCom->ForceUnlock("Stendhal");
     skilltreeCom->ForceUnlock("SwordBallet");
+    skilltreeCom->ForceUnlock("Stendhal");
 
     // 열분해는 그래디언트로
     skilltreeCom->ForceUnlock("Pyrolyse");
@@ -158,6 +159,41 @@ HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
 			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
 		}
 		else return E_FAIL;
+
+		// --- PoseFollowChainModifier for Scarf ---
+		PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
+		ChainModifierPreset::BuildPoseFollowScarfDesc(
+			scarfDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
+
+		if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(modifier);
+		}
+
+		// --- ChainModifier for Armband ---
+		ChainModifier::ChainModifierDesc armbandDesc{};
+		ChainModifierPreset::BuildArmbandDesc(
+			armbandDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
+
+		if (auto armbandModifier = ChainModifier::Create(&armbandDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(armbandModifier);
+		}
+
+		PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+		ChainModifierPreset::BuildPoseFollowCoatDesc(
+			coatDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
+
+		if (auto coatModifier = PoseFollowChainModifier::Create(&coatDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(coatModifier);
+		}
 
 	return S_OK;
 }

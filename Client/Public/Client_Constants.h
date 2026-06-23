@@ -116,8 +116,87 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_Pictos_Path[] =
         L"UI/UI_Json/CommonSystem/UI_Pictos.json";
+#pragma endregion
+
+#pragma region 해금 시스템
+    inline constexpr wchar_t UI_Get_Character_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/UI_Get_Character.json";
+
+    inline constexpr wchar_t UI_Get_Clothes_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Clothes/UI_Get_Clothes_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Clothes_PotatoBag_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Clothes/UI_Get_Clothes_PotatoBag.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Gustave_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Gustave_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Gustave_Candy_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Gustave_Candy.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Gustave_Lanceram_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Gustave_Lanceram.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Lune_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Lune_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Lune_Colim_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Lune_Colim.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Lune_Snowim_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Lune_Snowim.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Maelle_Baguette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Baguette.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Maelle_Medalum_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Medalum.json";
+
+    inline constexpr wchar_t UI_Get_Weapon_Maelle_Sekarum_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Weapon/UI_Get_Weapon_Maelle_Sekarum.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_AugmentedAim_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_AugmentedAim.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_AugmentedAttack_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_AugmentedAttack.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_EnergisingTurn_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_EnergisingTurn.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_GlassCannon_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_GlassCannon.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_Roulette_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_Roulette.json";
+
+    inline constexpr wchar_t UI_Get_Pictos_WarmingUp_Path[] =
+        L"UI/UI_Json/CommonSystem/Get_Item/Pictos/UI_Get_Pictos_WarmingUp.json";
 
 #pragma endregion
+
+#pragma region 쌍검투사
+    inline constexpr wchar_t UI_Arena_Character_Select_Path[] =
+        L"UI/UI_Json/CommonSystem/UI_Arena_Character_Select.json";
+#pragma endregion
+
+#pragma region 배틀 픽토스
+    inline constexpr wchar_t UI_Battle_Activation_Pictos_Path[] =
+        L"UI/UI_Json/BattleSystem/UI_Battle_Activation_Pictos.json";
+#pragma endregion
+
+#pragma region 배틀 점프 리액션
+    inline constexpr wchar_t UI_Jump_Path[] =
+        L"UI/UI_Json/BattleSystem/UI_Jump.json";
+
+    inline constexpr wchar_t UI_JumpCounter_Path[] =
+        L"UI/UI_Json/BattleSystem/UI_JumpCounter.json";
+#pragma endregion
+
+#pragma region SoulLike
+    inline constexpr wchar_t UI_SL_HUD_Path[] = L"UI/UI_Json/Soulslike/UI_SL_HUD.json";
+#pragma endregion
+
 
 
 }
@@ -221,6 +300,44 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_Tutorial_FreeAimAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_FreeAim";
 #pragma endregion
 
+#pragma region 해금 시스템
+     inline constexpr wchar_t UI_GetCharacterAnim_Path[] =
+        L"UI/UI_Animations/Tutorial/Get_Character";
+
+    inline constexpr wchar_t UI_GetClothesBaguetteIntroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_Baguette_Intro";
+
+    inline constexpr wchar_t UI_GetClothesBaguetteOutroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_Baguette_Outro";
+
+    inline constexpr wchar_t UI_GetClothesPotatoBagIntroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_PotatoBag_Intro";
+
+    inline constexpr wchar_t UI_GetClothesPotatoBagOutroAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Clothes_PotatoBag_Outro";
+
+    inline constexpr wchar_t UI_GetItemAnim_Path[] =
+        L"UI/UI_Animations/Common/Get_Item";
+#pragma endregion
+
+#pragma region 배틀 픽토스
+     inline constexpr wchar_t UI_BattlePictosActivationAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/Battle_Pictos_Activation";
+
+inline constexpr wchar_t UI_BattlePictosDeactivationAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/Battle_Pictos_Deactivation";
+#pragma endregion
+
+#pragma region 배틀 점프 리액션
+    inline constexpr wchar_t UI_JumpTextIntroAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/Jump_Text_Intro";
+
+    inline constexpr wchar_t UI_JumpCounterIntroAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/JumpCounter_Intro";
+
+    inline constexpr wchar_t UI_JumpCounterSuccessAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/JumpCounter_Success";
+#pragma endregion
 
 }
 
@@ -322,12 +439,13 @@ namespace Client::Constants::Prefab
     inline constexpr char MW_PotatoBag[]        = "MW_PotatoBag";
     inline constexpr char MB_PotatoBag[]        = "MB_PotatoBag";
 
+    // 테스트용
+    inline constexpr char SL_Test_Lancelier[]   = "SL_Test_Lancelier";
+
     // 쌍검
-    //inline constexpr char MW_Mime[]         = "MW_Mime";
-    //inline constexpr char MB_Mime[]         = "MB_Mime";
+    inline constexpr char SL_Dualliste[]        = "SL_Dualliste";
 
 
-    inline constexpr char SL_Test_Lancelier[] = "SL_Test_Lancelier";
 #pragma endregion
 
 #pragma region 무기
@@ -345,13 +463,21 @@ namespace Client::Constants::Prefab
     inline constexpr char Maelle_Medalum[]          = "WP_Maelle_Medalum";
     inline constexpr char Maelle_Baguette[]         = "WP_Maelle_Baguette";
 
+    // 시몬
+    inline constexpr char Simon_Weapon[]            = "WP_Simon";
+
+    inline constexpr char Dualliste_Sword_L[]        = "WP_Dualliste_Sword_L";
+    inline constexpr char Dualliste_Sword_R[]        = "WP_Dualliste_Sword_R";
+
 
 #pragma endregion
 
     inline constexpr char Eye_Target[]      = "ETC/EyeTarget";
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
+    inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
 
+    inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -365,7 +491,9 @@ namespace Client::Constants::SoundBGM
 
 namespace Client::Constants::Cinematic
 {
-    inline constexpr wchar_t BridgeCinematic[]= L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";  
+    inline constexpr wchar_t RuntimeJson_Dir[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/";
+    inline constexpr wchar_t BridgeCinematic[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";
+    inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic.json";
 }
 
 namespace Client::Constants::SoundCue

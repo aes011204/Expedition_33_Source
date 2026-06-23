@@ -43,11 +43,16 @@ void ANS_JumpCounter::On_Tick(const AnimNotifyContext& context)
 
 void ANS_JumpCounter::On_End(const AnimNotifyContext& context)
 {
-    UNREFERENCED_PARAMETER(context);
-
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;
+
+    if (!_startedCounter)
+    {
+        // 윈도우 끝 프레임에 입력이 성공하면 다음 Tick이 오기 전에 End가 먼저 올 수 있다.
+        _startedCounter = battle->Get_ReactionController().TryStartQueuedJumpCounter(context.model);
+    }
+
     battle->Get_ReactionController().NotifyJumpCounterWindowEnd();
 
 }

@@ -4,6 +4,7 @@
 #include "Mon_Simon_Hair.h"
 #include "Mon_Simon_Weapon.h"
 #include "MonsterStatCom.h"
+#include "WeaponPrefabLoader.h"
 
 IMPLEMENT_REFLECTION(MW_Simon)
 {
@@ -67,6 +68,11 @@ void MW_Simon::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> othe
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
+bool MW_Simon::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    return partTag != TEXT("Part_Weapon");
+}
+
 HRESULT MW_Simon::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();
@@ -96,19 +102,25 @@ HRESULT MW_Simon::Ready_PartObjects()
     _hair = dynamic_pointer_cast<Mon_Simon_Hair>(_partObjects[TEXT("Part_Hair")]);
     CHECK_NULL(_hair, E_FAIL);
 
+    WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
+    if (!WeaponPrefabLoader::Load(Constants::Prefab::Simon_Weapon, loadedPrefab, "Mon_Simon_Weapon"))
+        return E_FAIL;
 
     Mon_Simon_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = ModelType::NonAnim;
-    weaponDesc.modelTag = L"Model_Simon_Weapon";
+    weaponDesc.modelType = loadedPrefab.modelType;
+    weaponDesc.modelTag = loadedPrefab.modelTag;
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL); // 배틀 몬스터 무기 파츠도 Static prototype을 재사용한다.
+    CHECK_NULL(weaponDesc.socketMatrix, E_FAIL);
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
 
     _weapon = dynamic_pointer_cast<Mon_Simon_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     CHECK_NULL(_weapon, E_FAIL);
 
-
+    _weapon->From_Json(loadedPrefab.rootJson);
+    _weapon->Set_SourcePrefabName(Constants::Prefab::Simon_Weapon);
 
     return S_OK;
 }

@@ -108,6 +108,15 @@ private:
 
     void    Refresh_TargetCamera() const;
 
+    bool Is_HeroUnlocked(HeroId heroId) const;
+    uint32 Find_FirstUnlockedHeroIndex() const;
+    uint32 Find_NextUnlockedHeroIndex(uint32 startIndex) const;
+
+    bool Can_SwitchHero() const;
+
+    void Apply_UnlockedHeroVisibility();
+    void Reset_FollowerRuntime();
+
 private:
     HRESULT Ready_Delegates();
 

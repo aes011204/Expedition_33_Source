@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <array>
 #include "Base.h"
 #include "Battle_Enum.h"
 #include "Delegate.h"
@@ -14,6 +15,11 @@ public:
     DECLARE_DELEGATE(
         FOnReactionWindowOpened,
         BattleReactionType /* ANS_Dodge, Parry로 열린 입력창. 튜토리얼 컨트롤러가 Dodge/Parry UI 띄우기 판단용*/
+    );
+
+    DECLARE_DELEGATE(
+        FOnReactionWindowClosed,
+        BattleReactionType /* 실패/만료/성공으로 입력창이 닫힌 Reaction 종류 */
     );
 
     // Reaction 성공 (Dodge, Parry)
@@ -69,27 +75,65 @@ public:
         float prevRootRatio = 0.f;
     };
 
+    struct ReactionInputContext
+    {
+        BattleReactionType type = BattleReactionType::None;
+        uint32 stepIndex = UINT32_MAX;
+        uint32 consumeKey = UINT32_MAX;
+        vector<BattleChar> targets = {};
+        BattleChar counterTarget = {};
+        bool allowCounterOnSuccess = false;
+        bool isEcho = false;
+    };
+
+    struct ActiveReactionWindowSnapshot
+    {
+        BattleReactionType type = BattleReactionType::None;
+        float elapsedSec = 0.f;
+        float remainingSec = 0.f;
+        ReactionInputContext context = {};
+    };
+
+private:
+    struct DelayedEchoReactionWindow
+    {
+        float delaySec = 0.f;
+        float durationSec = 0.f;
+        ReactionInputContext context = {};
+        bool opened = false;
+        bool inputConsumed = false;
+    };
+
+    struct ConsumedReactionInput
+    {
+        BattleReactionType type = BattleReactionType::None;
+        uint32 consumeKey = UINT32_MAX;
+    };
+
 public:
     BattleReactionController() = default;
     ~BattleReactionController() override = default;
 
 public:
     void OpenWindow(BattleReactionType type);
+    void OpenWindow(BattleReactionType type, const BattleAction& turnAction, float durationSec);
     void CloseWindow(BattleReactionType type);
 
     void Clear();
     void Clear_RuntimeState(); // 전투 종료/초기화
 
-    bool TryInput(BattleReactionType type, uint32 stepIndex);
-    bool TryConsume(BattleReactionType& outResult, uint32 stepIndex);
-    bool TryConsumeGuard(const BattleChar& target, uint32 stepIndex);
+    bool TryInput(BattleReactionType type, uint32 consumeKey);
+    bool TryConsume(BattleReactionType& outResult, uint32 consumeKey);
+    bool TryConsumeGuard(const BattleChar& target, uint32 stepIndex, uint32 consumeKey = UINT32_MAX);
 
     bool IsWindowOpen(BattleReactionType type) const;
-    bool IsConsumed() const { return _isConsumed; }
+    bool IsConsumed() const { return !_consumedReactionInputs.empty(); }
     BattleReactionType Get_Result() const { return _result; }
 
     BattleReactionInputResult SubmitInput(BattleReactionType type, const BattleAction& turnAction);
+    BattleReactionInputResult SubmitInput(const ReactionInputContext& context);
     BattleReactionInputResult UpdateInput(const BattleAction& turnAction);
+
     //BattleReactionInputResult UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex, bool pressedQ, bool pressedE);
     void UpdateAnimation(float timeDelta);
     void Notify_TargetDamaged(const BattleChar& target);
@@ -99,14 +143,28 @@ public:
     void UpdateCounterReturn(float timeDelta);
     void StartCounterReturnAll(ModelCom* sourceModel);
 
+    void Queue_EchoReactionWindow(float delaySec, float durationSec, const ReactionInputContext& context);
+    vector<ActiveReactionWindowSnapshot> Get_ActiveReactionWindowSnapshots() const;
+    void Update_EchoReactionWindows(float timeDelta);
+    void Clear_EchoReactionWindows();
+    void Suppress_CounterForSourceStep(uint32 stepIndex);
+    static uint32 Make_ReactionConsumeKey(uint32 sourceStepIndex, uint32 echoLaneIndex = 0);
+
 public:
-    void Set_CurSkillData(const Skill_Data* curSkillData) { _curSkillData = curSkillData; };
+    void Set_CurSkillData(const Skill_Data* curSkillData)
+    {
+        _curSkillData = curSkillData;
+        ClearConsumedInput();
+        _echoCounterSuppressedSteps.clear();
+        Clear_ParryCounterRuntime();
+    };
 
     void StartCounter(ModelCom* sourceModel);
     void ApplyCounterDamage(ModelCom* sourceModel);
     void NotifyJumpCounterWindowBegin();
     void NotifyJumpCounterWindowEnd();
     bool TryStartQueuedJumpCounter(ModelCom* sourceModel);
+    bool Try_GetJumpCounterTarget(BattleChar& outTarget) const;
 
     void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
     void EndCounterTimeSection(ModelCom* sourceModel);
@@ -116,14 +174,18 @@ public:
 
 private:
     void ResetJumpCounterSequence();
+    void ClearConsumedInput();
+    bool Is_ConsumeKeyPending(uint32 consumeKey) const;
     bool CanReceiveInput(const BattleChar& target) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
+
     void PlayReactionAnimation(
         const BattleChar& target,
         BattleReactionType reactionType,
         bool isSuccess,
         const BattleChar& counterTarget,
-        uint32 curAttackIndex);
+        uint32 curAttackIndex,
+        bool allowCounterOnSuccess);
 
     void FinishReactionAnimation();
     void TryRestoreTargetToSpawnPose(const BattleChar& target) const;
@@ -131,25 +193,41 @@ private:
     bool CanApplyCounterTimeSection(ModelCom* sourceModel) const;
     void ResetCounterTimeSection();
 
+private:
+    ReactionInputContext BuildReactionInputContext(BattleReactionType type, const BattleAction& turnAction) const;
+    const ReactionInputContext* Find_ActiveEchoReactionContext(BattleReactionType type) const;
+    void Mark_EchoReactionInputConsumed(const ReactionInputContext& context);
+    bool Is_LastSkillAttackStep(uint32 stepIndex) const;
+    bool Is_CounterSuppressedForSourceStep(uint32 stepIndex) const;
+    void Register_ParryCounterRequiredKey(uint32 stepIndex, uint32 consumeKey);
+    void Mark_ParryCounterGuardedKey(uint32 stepIndex, uint32 consumeKey);
+    bool Is_ParryCounterGuardChainComplete(uint32 stepIndex) const;
+    void Try_ArmParryCounterAfterGuard(const BattleChar& target, uint32 stepIndex);
+    void Clear_ParryCounterRuntime();
+
 public:
     FOnReactionWindowOpened OnReactionWindowOpened;
+    FOnReactionWindowClosed OnReactionWindowClosed;
     FOnReactionSucceeded    OnReactionSucceeded;
     FOnCounterStarted       OnCounterStarted;
 
 private:
-    bool _isDodgeOpen = false;
-    bool _isParryOpen = false;
-    bool _isJumpOpen = false;
-    bool _isJumpCounterOpen = false;
+    array<uint32, ETOI(BattleReactionType::END)> _reactionWindowOpenCounts = {};
+    array<float, ETOI(BattleReactionType::END)> _reactionWindowElapsedSec = {};
+    array<float, ETOI(BattleReactionType::END)> _reactionWindowRemainingSec = {};
+    array<ReactionInputContext, ETOI(BattleReactionType::END)> _reactionWindowContexts = {};
+    vector<DelayedEchoReactionWindow> _delayedEchoReactionWindows = {};
+    uset<uint32> _echoCounterSuppressedSteps = {};
 
-    bool _isConsumed = false; // 몬스터 애니메이션의 AN_Attack에서 아직 소비되지 않은 상태
+    vector<ConsumedReactionInput> _consumedReactionInputs = {}; // AN_Attack/echo damage에서 아직 소비되지 않은 입력들
     BattleReactionType _result = BattleReactionType::None;
-
-    uint32 _consumedStepIndex = UINT32_MAX;
 
     vector<BattleChar> _reactionAnimTargets = {};  // Reaction 애니메이션 재생 플레이어
     vector<CounterReturnRuntime> _counterReturnRuntimes = {};
     BattleChar _counterDamageTarget = {}; // Parry 성공 후 Counter 데미지를 받을놈
+    BattleChar _pendingParryCounterTarget = {};
+    umap<uint32, uset<uint32>> _parryCounterRequiredConsumeKeys = {};
+    umap<uint32, uset<uint32>> _parryCounterGuardedConsumeKeys = {};
 
     ReactionAnimPhase _animPhase = ReactionAnimPhase::None;
     bool _isCounterPending = false;

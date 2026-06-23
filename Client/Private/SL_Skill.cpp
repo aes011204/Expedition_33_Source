@@ -1,9 +1,11 @@
 ﻿#include "SL_Skill.h"
-
+#include "Event_Bus.h"
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
 #include "Body_Player.h"
 #include "ModelCom.h"
+#include "SoulLikeController.h"
+#include "ClientInstance.h"
 
 SL_Skill::SL_Skill(const Shared<SL_Maelle>& owner)
     : SL_State(owner)
@@ -18,6 +20,9 @@ bool SL_Skill::EnterInvoke()
 
     owner->Set_CombatLocked(true);
     Stop_Movement();
+
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+        soulLikeController->Apply_SkillCameraPreset(_skillData.skillKey);
 
     _anim = Resolve_SkillAnim(_slotIndex);
     Resolve_PlaySection();
@@ -39,6 +44,9 @@ void SL_Skill::Update(float timeDelta)
 
 void SL_Skill::ExitInvoke()
 {
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+        soulLikeController->Restore_SkillCameraPreset();
+
     _playSectionStartSec = 0.f;
     _playSectionEndSec = -1.f;
 
@@ -101,6 +109,12 @@ void SL_Skill::Finish_Skill()
 {
     if (Shared<SL_Maelle> owner = _owner.lock())
         owner->Set_CombatLocked(false);
+
+    if (Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController())
+    {
+        soulLikeController->Restore_SkillCameraPreset();
+        soulLikeController->End_BattleShotCamera();
+    }
 
     if (_stateCom)
         _stateCom->Change_State(SL_PlayerState::Idle);

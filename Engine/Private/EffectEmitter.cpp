@@ -67,6 +67,13 @@ void EffectEmitter::Set_EffectPlaybackSeed(uint32 effectPlaybackSeed)
     _effectPlaybackSeed = effectPlaybackSeed;
 }
 
+void EffectEmitter::Set_RuntimeLocalTransform(const Vec3& localPosition, const Vec3& localRotationDegrees)
+{
+    _localPosition = localPosition;
+    _localRotationDegrees = localRotationDegrees;
+    Sync_FromEffectOwner();
+}
+
 HRESULT EffectEmitter::Reset_ForEffectReplay()
 {
     return S_OK;

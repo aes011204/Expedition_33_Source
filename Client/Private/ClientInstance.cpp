@@ -572,9 +572,16 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
-                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject)
+                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
+                                        bool completeImmediately)
 {
-    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, battleMonsterSpawnDescs, sourceObject);
+    return _battleController->OnEnterBattleField(
+        FieldID,
+        isPlayerAdvantage,
+        heroIds,
+        battleMonsterSpawnDescs,
+        sourceObject,
+        completeImmediately);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -590,6 +597,11 @@ bool ClientInstance::Is_BattleEntering() const
 void ClientInstance::Request_GamePlay()
 {
     return _cameraDirector->Request_GamePlay();
+}
+
+void ClientInstance::Request_SoulLikeCamera()
+{
+    return _cameraDirector->Request_SoulLikeCamera();
 }
 
 void ClientInstance::Request_Preview()
@@ -617,14 +629,173 @@ void ClientInstance::Restore_PreviousCamera()
     return _cameraDirector->Restore_PreviousCamera();
 }
 
-bool ClientInstance::Play_Sequence(const wstring& filePath, int trackIndex)
+bool ClientInstance::Play_Sequence(
+    const wstring& filePath,
+    int trackIndex,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
 {
-    return _cinematicSequenceRunner->Play_Sequence(filePath, trackIndex);
+    return _cinematicSequenceRunner->Play_Sequence(
+        filePath,
+        trackIndex,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
+}
+
+bool ClientInstance::Play_Sequence(
+    const CINEMATIC_SEQUENCE& sequence,
+    int trackIndex,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
+{
+    return _cinematicSequenceRunner->Play_Sequence(
+        sequence,
+        trackIndex,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
 }
 
 void ClientInstance::Stop_Sequence()
 {
     return  _cinematicSequenceRunner->Stop_Sequence();
+}
+
+void ClientInstance::Stop_SequenceKeepContext()
+{
+    return _cinematicSequenceRunner->Stop_SequenceKeepContext();
+}
+
+void ClientInstance::Pause_Sequence()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Pause_Sequence();
+}
+
+void ClientInstance::Resume_Sequence(
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Resume_Sequence(
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack);
+}
+
+void ClientInstance::Set_CurrentSequenceFrame(int frame)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Set_CurrentFrame(frame);
+}
+
+void ClientInstance::Refresh_CurrentSequenceContext()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Refresh_CurrentFrameContext();
+}
+
+void ClientInstance::Preview_CurrentSequenceFrame(
+    int frame,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack,
+    bool forceRebuildContext)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Preview_CurrentFrame(
+        frame,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack,
+        forceRebuildContext);
+}
+
+bool ClientInstance::Sync_CinematicPreviewSequence(
+    const CINEMATIC_SEQUENCE& sequence,
+    int trackIndex)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return false;
+
+    return _cinematicSequenceRunner->Sync_PreviewSequence(sequence, trackIndex);
+}
+
+void ClientInstance::Set_ActorTransformTrackPreviewSuspended(bool suspended)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Set_ActorTransformTrackPreviewSuspended(suspended);
+}
+
+bool ClientInstance::Is_CinematicPlaying() const
+{
+    return _cinematicSequenceRunner && _cinematicSequenceRunner->Is_CinematicPlaying();
+}
+
+bool ClientInstance::Is_CinematicPaused() const
+{
+    return _cinematicSequenceRunner && _cinematicSequenceRunner->Is_CinematicPaused();
+}
+
+int ClientInstance::Get_CurrentSequenceFrame() const
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return 0;
+
+    return _cinematicSequenceRunner->Get_CurrentFrame();
+}
+
+Shared<GameObject> ClientInstance::Get_CinematicBoundActor(const string& targetId) const
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return nullptr;
+
+    return _cinematicSequenceRunner->Get_BoundActor(targetId);
+}
+
+bool ClientInstance::Is_ActorTransformTrackPreviewSuspended() const
+{
+    return _cinematicSequenceRunner && _cinematicSequenceRunner->Is_ActorTransformTrackPreviewSuspended();
+}
+
+void ClientInstance::Update_CinematicPreview(float timeDelta)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Update(timeDelta, true);
+}
+
+FDelegateHandle ClientInstance::Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return {};
+
+    return _cinematicSequenceRunner->Add_CompletedCallback(callback);
+}
+
+void ClientInstance::Clear_CinematicCompletedCallbacks()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Clear_CompletedCallbacks(); 
 }
 
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
@@ -761,6 +932,23 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
     }
 
     return true;
+}
+
+HRESULT ClientInstance::Reload_EffectJsons()
+{
+    if (_effectInstancePool == nullptr)
+        return E_FAIL;
+
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (assetRoot.empty())
+        return E_FAIL;
+
+    const fs::path effectAssetRoot = fs::path(assetRoot) / L"Effects" / L"Assets";
+    CHECK_FAILED(GAME->Refresh_AssetRegistryDirectory(effectAssetRoot.wstring(), effectAssetRoot.wstring()), E_FAIL);
+
+    // 새/수정된 effect registry 반영 뒤, 다음 Play_Effect가 최신 .effect.json을 디스크에서 다시 접게 한다.
+    _effectInstancePool->Discard_AllInactive();
+    return S_OK;
 }
 
 bool ClientInstance::Play_AttachPartEffect(
