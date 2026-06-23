@@ -62,6 +62,8 @@ public:
     Shared<CombatStatCom> Get_Stat() const override;
     Shared<ColliderCom> Get_AttackColliderL() const;
     Shared<ColliderCom> Get_AttackColliderR() const;
+    void Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride) override;
+    void Clear_AttackHitAnimOverride(const string& colliderTag) override;
     Shared<MovementCom> Get_MovementCom() const;
     Shared<ModelCom> Get_ModelCom() const;
     bool Play_Anim(Anim anim, float blendDuration, bool loop);
@@ -92,6 +94,8 @@ private:
     Shared<MonsterStatCom> _combatStat = {};
     Shared<ColliderCom> _attackRCom = {};
     Shared<ColliderCom> _attackLCom = {};
+    SL_HitAnimOverride _attackRHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    SL_HitAnimOverride _attackLHitAnimOverride = SL_HitAnimOverride::Hit_Light;
     Shared<AIController>         _aiCtrl;
     Shared<MovementCom>         _movementCom = {};
     Shared<SL_Mon_StateMachineCom> _stateMachineCom = {};

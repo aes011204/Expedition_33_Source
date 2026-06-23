@@ -15,6 +15,9 @@ public:
     void Update(float timeDelta) override;
     void ExitInvoke() override;
 
+private:
+    SoulLikeAnim Resolve_ParryAnim() const;
+
 public:
     static Shared<SL_Parry> Create(const Shared<SL_Maelle>& owner);
 };

@@ -16,7 +16,7 @@ bool SL_Hit::EnterInvoke()
 
     owner->Set_CombatLocked(true);
 
-    Play_Anim(SoulLikeAnim::Hit_Light, 0.1f, false);
+    Play_Anim(owner->Consume_PendingHitAnim(), 0.1f, false);
 
     return true;
 }

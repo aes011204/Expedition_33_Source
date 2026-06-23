@@ -19,6 +19,7 @@ public:
         BattleTurnState currentState,
         HeroId actorHeroId,
         float timeDelta);
+    HRESULT Warmup_ForBattleState(HeroId actorHeroId);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

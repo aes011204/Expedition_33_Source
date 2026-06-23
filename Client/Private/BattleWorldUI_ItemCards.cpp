@@ -564,6 +564,20 @@ namespace
         return !textureGuid.empty() || !texturePath.empty();
     }
 
+    bool Should_SkipSharedBattleCommandBackgroundPaint(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return false;
+
+        string loweredPath = String::ToLowerCopy(texturePath);
+        replace(loweredPath.begin(), loweredPath.end(), '\\', '/');
+
+        return loweredPath.find("/battle/battlewheel/items/t_bw_items_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/items/t_bw_items_paint_background") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_paint_background") != string::npos;
+    }
+
     BattleWorldItemJsonObject Parse_JsonObject(const json& node, uint32 sequence)
     {
         BattleWorldItemJsonObject object{};
@@ -1113,6 +1127,9 @@ namespace
             Parse_JsonImageRenderMode(object.imageRenderMode);
         const BattleWorldItemMaskTextureMode maskTextureMode =
             Parse_JsonMaskTextureMode(object.maskTextureMode);
+
+        if (Should_SkipSharedBattleCommandBackgroundPaint(object.texturePath))
+            return false;
 
         if (imageRenderMode == BattleWorldItemImageRenderMode::Normal &&
             Has_TextureRef(object.patternMaskTextureGuid, object.patternMaskTexturePath))
@@ -1729,7 +1746,7 @@ namespace
         const float defaultHoleFeather = 0.05f;
         const float defaultViewportAspect = 1.f;
         const float defaultFillRatio = 1.f;
-        const bool disabled = false;
+        const uint32 disabled = 0u;
         const uint32 fillOrigin = 0u;
 
         CHECK_FAILED(shader->Bind_Matrix("g_WorldMatrix", &worldMatrix), E_FAIL);
@@ -1738,13 +1755,13 @@ namespace
         CHECK_FAILED(shader->Bind_RawValue("g_Color", &color, sizeof(Vec4)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvOffset", &defaultPatternOffset, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvScale", &defaultPatternScale, sizeof(Vec2)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -1977,7 +1994,7 @@ namespace
             const float defaultViewportAspect = viewportWidth / viewportHeight;
             const float defaultFillRatio = 1.f;
             const float defaultGrayAmount = 0.f;
-            const bool disabled = false;
+            const uint32 disabled = 0u;
             const uint32 fillOrigin = 0u;
             const Vec2 patternUvOffset =
                 image.imageRenderMode == BattleWorldItemImageRenderMode::PatternOverlay ? image.patternUvOffset : defaultPatternOffset;
@@ -1990,15 +2007,15 @@ namespace
             CHECK_FAILED(_shader->Bind_RawValue("g_Color", &drawColor, sizeof(Vec4)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvOffset", &patternUvOffset, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvScale", &patternUvScale, sizeof(Vec2)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_GrayAmount", &defaultGrayAmount, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_SRV("g_Texture", srvs[0].Get()), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -2141,6 +2158,68 @@ HRESULT BattleWorldUI_ItemCards::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleWorldUI_ItemCards::Warmup_ForBattleState(BattleItemType selectedItemType, HeroId actorHeroId)
+{
+    if (_impl == nullptr)
+        return E_FAIL;
+
+    const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
+    const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+
+    HRESULT result = S_OK;
+    for (uint32 slotIndex = 0; slotIndex < kBattleWorldItemSlotCount; ++slotIndex)
+    {
+        auto& card = _impl->cards[slotIndex];
+
+        const BattleWorldItemSlotDef& slot = kBattleWorldItemSlots[slotIndex];
+        const Item_Data* item = CLIENT->Get_Item(slot.itemType);
+        if (item == nullptr || !item->IsValid())
+        {
+            card.hasContent = false;
+            continue;
+        }
+
+        const BattleWorldItemCardContent content = Build_ItemCardContent(slot, *item);
+        if (!card.hasContent || !Is_SameContent(card.def.content, content))
+        {
+            card.def = Build_ItemCardDef(content, _impl->templates[slotIndex]);
+            card.hasContent = true;
+            card.dirty = true;
+        }
+
+        const BattleWorldItemCardPresentation presentation =
+            Resolve_ItemPresentation(
+                slotIndex,
+                card.def,
+                _impl->placementTunings[placementHeroIndex],
+                BattleTurnState::ChooseItem,
+                selectedItemType);
+
+        if (card.selected != presentation.selected || card.dimmed != presentation.dimmed)
+        {
+            card.selected = presentation.selected;
+            card.dimmed = presentation.dimmed;
+            card.dirty = true;
+        }
+
+        if (!presentation.visible || !card.dirty)
+            continue;
+
+        if (card.surface == nullptr || FAILED(card.surface->Compose(card.def, card.selected, card.dimmed)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        card.dirty = false;
+    }
+
+    return result;
+}
+
 void BattleWorldUI_ItemCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
@@ -2153,11 +2232,6 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
         Hide();
         return;
     }
-
-    Reload_ItemWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
 
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);

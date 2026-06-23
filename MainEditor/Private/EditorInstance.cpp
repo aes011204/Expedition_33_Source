@@ -1788,20 +1788,13 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
 void EditorInstance::Toggle_MouseLockOverride()
 {
-    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
     {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
-    }
-    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
-    {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
     }
     else
     {
-        _mouseLockOverrideMode =
-            GAME->Is_MouseLocked()
-            ? MouseLockOverrideMode::Unlocked
-            : MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
     }
 
     if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)

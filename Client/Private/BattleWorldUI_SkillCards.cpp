@@ -757,6 +757,20 @@ namespace
         return !textureGuid.empty() || !texturePath.empty();
     }
 
+    bool Should_SkipSharedBattleCommandBackgroundPaint(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return false;
+
+        string loweredPath = String::ToLowerCopy(texturePath);
+        replace(loweredPath.begin(), loweredPath.end(), '\\', '/');
+
+        return loweredPath.find("/battle/battlewheel/items/t_bw_items_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/items/t_bw_items_paint_background") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_paint_background") != string::npos;
+    }
+
     BattleWorldSkillJsonObject Parse_JsonObject(const json& node, uint32 sequence)
     {
         BattleWorldSkillJsonObject object{};
@@ -1302,6 +1316,9 @@ namespace
             Parse_JsonImageRenderMode(object.imageRenderMode);
         const BattleWorldSkillMaskTextureMode maskTextureMode =
             Parse_JsonMaskTextureMode(object.maskTextureMode);
+
+        if (Should_SkipSharedBattleCommandBackgroundPaint(object.texturePath))
+            return false;
 
         if (imageRenderMode == BattleWorldSkillImageRenderMode::Unknown)
         {
@@ -2012,7 +2029,7 @@ namespace
         const float defaultHoleFeather = 0.05f;
         const float defaultViewportAspect = 1.f;
         const float defaultFillRatio = 1.f;
-        const bool disabled = false;
+        const uint32 disabled = 0u;
         const uint32 fillOrigin = 0u;
 
         CHECK_FAILED(shader->Bind_Matrix("g_WorldMatrix", &worldMatrix), E_FAIL);
@@ -2021,13 +2038,13 @@ namespace
         CHECK_FAILED(shader->Bind_RawValue("g_Color", &color, sizeof(Vec4)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvOffset", &defaultPatternOffset, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvScale", &defaultPatternScale, sizeof(Vec2)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -2260,7 +2277,7 @@ namespace
             const float defaultViewportAspect = viewportWidth / viewportHeight;
             const float defaultFillRatio = 1.f;
             const float defaultGrayAmount = 0.f;
-            const bool disabled = false;
+            const uint32 disabled = 0u;
             const uint32 fillOrigin = 0u;
             const Vec2 patternUvOffset =
                 image.imageRenderMode == BattleWorldSkillImageRenderMode::PatternOverlay ? image.patternUvOffset : defaultPatternOffset;
@@ -2273,15 +2290,15 @@ namespace
             CHECK_FAILED(_shader->Bind_RawValue("g_Color", &drawColor, sizeof(Vec4)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvOffset", &patternUvOffset, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvScale", &patternUvScale, sizeof(Vec2)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_GrayAmount", &defaultGrayAmount, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_SRV("g_Texture", srvs[0].Get()), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -2475,6 +2492,146 @@ HRESULT BattleWorldUI_SkillCards::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleWorldUI_SkillCards::Warmup_ForBattleState(
+    const BattleChar& actor,
+    const string& selectedSkillKey,
+    uint32 skillPage)
+{
+    if (_impl == nullptr || actor.statCom == nullptr)
+        return E_FAIL;
+
+    const HeroId placementHeroId = Normalize_SkillHeroId(actor.heroId);
+    const uint32 placementHeroIndex = Resolve_SkillHeroIndex(placementHeroId);
+    const uint32 pageIndex = Normalize_SkillPage(skillPage);
+
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+    _impl->activePlacementPage = pageIndex;
+    if (_impl->editorPlacementPage >= kBattleWorldSkillPageCount)
+        _impl->editorPlacementPage = pageIndex;
+
+    const BattleWorldSkillWorldPlacementTuning& placementTuning =
+        _impl->placementTunings[placementHeroIndex][pageIndex];
+
+    HRESULT result = S_OK;
+    for (uint32 surfaceIndex = 0; surfaceIndex < kBattleWorldSkillSurfaceCount; ++surfaceIndex)
+    {
+        auto& card = _impl->cards[surfaceIndex];
+
+        const BattleWorldSkillCardTemplate& cardTemplate =
+            _impl->templates[placementHeroIndex][pageIndex][surfaceIndex];
+        const bool templateChanged =
+            card.templateHeroId != placementHeroId ||
+            card.templatePage != pageIndex ||
+            card.templateSurfaceIndex != surfaceIndex;
+
+        BattleWorldSkillCardPresentation presentation{};
+
+        if (surfaceIndex == kBattleWorldSkillChangeSurfaceIndex)
+        {
+            BattleWorldSkillCardContent content{};
+            content.skillKey = "ChangeSkillPage";
+
+            if (!card.hasContent || !Is_SameContent(card.def.content, content) || templateChanged)
+            {
+                card.def = Build_SkillCardDef(content, cardTemplate);
+                card.hasContent = true;
+                card.templateHeroId = placementHeroId;
+                card.templatePage = pageIndex;
+                card.templateSurfaceIndex = surfaceIndex;
+                card.dirty = true;
+            }
+
+            presentation.visible = true;
+            presentation.screenPosition = placementTuning.screenPosition;
+            presentation.worldOffset = card.def.worldOffset;
+            presentation.worldSize = card.def.worldSize;
+            presentation.visualScale = placementTuning.visualScale;
+            presentation.pitchRadians = placementTuning.pitchRadians;
+            presentation.rollRadians = placementTuning.rollRadians;
+            presentation.yawOffsetRadians = placementTuning.yawOffsetRadians;
+        }
+        else
+        {
+            uint32 actualSkillSlotIndex = 0;
+            if (!Try_ResolveActualSkillSlotIndex(surfaceIndex, actualSkillSlotIndex))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            string skillKey{};
+            if (!actor.statCom->Try_GetSkillKeyBySlot(actualSkillSlotIndex, skillKey))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            const Skill_Data* skill = CLIENT->Get_Skill(skillKey);
+            if (skill == nullptr)
+            {
+                card.hasContent = false;
+                continue;
+            }
+
+            const wstring keyPrompt = Resolve_KeyPromptForPageSlot(pageIndex, actualSkillSlotIndex);
+            const BattleWorldSkillCardContent content = Build_SkillCardContent(keyPrompt, skillKey, *skill);
+
+            if (!card.hasContent || !Is_SameContent(card.def.content, content) || templateChanged)
+            {
+                card.def = Build_SkillCardDef(content, cardTemplate);
+                card.hasContent = true;
+                card.templateHeroId = placementHeroId;
+                card.templatePage = pageIndex;
+                card.templateSurfaceIndex = surfaceIndex;
+                card.dirty = true;
+            }
+
+            presentation =
+                Resolve_SkillPresentation(
+                    surfaceIndex,
+                    card.def,
+                    placementTuning,
+                    BattleTurnState::ChooseSkill,
+                    selectedSkillKey);
+        }
+
+        if (card.selected != presentation.selected || card.dimmed != presentation.dimmed)
+        {
+            card.selected = presentation.selected;
+            card.dimmed = presentation.dimmed;
+            card.dirty = true;
+        }
+
+        if (!presentation.visible || !card.dirty)
+            continue;
+
+        if (FAILED(Ensure_SkillCardSurface(
+            card,
+            surfaceIndex,
+            _device,
+            _context,
+            _impl->shader,
+            _impl->viBuffer,
+            card.def.pixelSize)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        if (card.surface == nullptr || FAILED(card.surface->Compose(card.def, card.selected, card.dimmed)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        card.dirty = false;
+    }
+
+    return result;
+}
+
 void BattleWorldUI_SkillCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
@@ -2488,11 +2645,6 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
         Hide();
         return;
     }
-
-    Reload_SkillWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
 
     const HeroId placementHeroId = Normalize_SkillHeroId(actor.heroId);
     const uint32 placementHeroIndex = Resolve_SkillHeroIndex(placementHeroId);

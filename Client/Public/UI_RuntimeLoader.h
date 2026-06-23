@@ -23,6 +23,8 @@ public:
         vector<wstring> animationPaths{};
         wstring prototypeTagPrefix {};
         wstring outUINamePrefixFilter {};
+        bool forceRenderGroup = false;
+        UI_RenderGroup renderGroupOverride = UI_RenderGroup::Foreground;
 
         umap<wstring, Shared<UI_Base>>* outUIByName = nullptr;
         umap<wstring, vector<Shared<UI_Base>>>* outChildrenByParentName = nullptr;

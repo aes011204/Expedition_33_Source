@@ -31,7 +31,8 @@ namespace Engine
     {
         // UI Render 순서. 필요하다면 추후에 더 확장
         Background, // 플레이어 뒤 연출용 UI
-        Foreground, // depth를 무시하고 화면 최상단에 그리는 UI
+        Foreground, // depth를 무시하고 3D 씬 위에 그리는 일반 UI
+        Overlay,    // UIEffect 이후 최상단에 그리는 우선 UI
     };
 
     enum class State { Right, Up, Look, Position, END };

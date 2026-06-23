@@ -32,6 +32,7 @@ namespace UIEditor
         string texturePath = "";
         string maskTextureGuid = "";
         string maskTexturePath = "";
+        ImVec4 renderColor = ImVec4(1.f, 1.f, 1.f, 1.f);
         UI_MaterialVfxDesc materialVfx = Get_DefaultMaterialVfxDesc();
     };
 
@@ -132,7 +133,8 @@ namespace UIEditor
             const UI_ButtonSheenDesc* buttonSheen,
             float buttonSheenTime,
             unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
-            unordered_set<string>& failedKeys);
+            unordered_set<string>& failedKeys,
+            const Vec4& renderColor = Vec4(1.f, 1.f, 1.f, 1.f));
 
     private:
         ComPtr<Device> _device = nullptr;
