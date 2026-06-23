@@ -6,6 +6,7 @@
 
 #include "Camera.h"
 #include "StaticCollisionData.h"
+#include "ShaderPassFinder.h"
 
 namespace
 {
@@ -240,6 +241,8 @@ void MapStaticMesh::Update(float timeDelta)
 
 void MapStaticMesh::Late_Update(float timeDelta)
 {
+    Refresh_HasEclipseGlow();
+
     UNREFERENCED_PARAMETER(timeDelta);
 
     if (_model == nullptr)
@@ -281,6 +284,9 @@ void MapStaticMesh::Late_Update(float timeDelta)
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 
+    if (_hasEclipseGlow)
+        GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
+
     if (Casts_DynamicShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
@@ -302,7 +308,30 @@ HRESULT MapStaticMesh::Render()
         return E_FAIL;
     }
 
+    const bool isGlowPass = (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow);
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    if (isGlowPass)
+    {
+        for (uint32 i = 0; i < iNumMeshes; i++)
+        {
+            const Shared<Material> material = _model->Get_Material(_model->Get_MeshMaterialIndex(i));
+            if (material)
+            {
+                if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                {
+                    return E_FAIL;
+                }
+            }
+            if (FAILED(_shader->Begin(static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass))))
+            {
+                return E_FAIL;
+            }
+            _model->Render(i);
+        }
+        return S_OK;
+    }
+
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
@@ -322,7 +351,12 @@ HRESULT MapStaticMesh::Render()
             return E_FAIL;
         }
 
-        const uint32 passIndex = static_cast<uint32>(material->Get_PassIndex());
+        uint32 passIndex = static_cast<uint32>(material->Get_PassIndex());
+        if (passIndex == static_cast<uint32>(VtxMeshPassIndex::EclipseSpherePass))
+        {
+            passIndex = static_cast<uint32>(VtxMeshPassIndex::DefaultPass);
+        }
+
         if (FAILED(_shader->Begin(passIndex)))
         {
             return E_FAIL;
@@ -585,6 +619,26 @@ Shared<GameObject> MapStaticMesh::Clone(void* arg)
     }
 
     return clone;
+}
+
+void MapStaticMesh::Refresh_HasEclipseGlow()
+{
+    _hasEclipseGlow = false;
+    if (!_model)
+    {
+        return;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        const Shared<Material> mat = _model->Get_Material(_model->Get_MeshMaterialIndex(i));
+        if (mat && mat->Get_PassIndex() == VtxMeshPassIndex::EclipseSpherePass)
+        {
+            _hasEclipseGlow = true;
+            return;
+        }
+    }
 }
 
 void MapStaticMesh::Free()

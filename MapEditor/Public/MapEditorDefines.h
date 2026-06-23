@@ -197,9 +197,10 @@ namespace MapEditor
     { "MaskedTwoSided", VtxInstanceMeshExactPassIndex::MaskedTwoSidedPass },
     { "OpaqueAR", VtxInstanceMeshExactPassIndex::OpaqueARPass },
     { "OpaqueARTwoSided", VtxInstanceMeshExactPassIndex::OpaqueARTwoSidedPass },
+    { "EmissiveGlow", VtxInstanceMeshExactPassIndex::EmissiveGlowPass },
     { "UnlitFlame", VtxInstanceMeshExactPassIndex::UnlitFlamePass },
     };
-    inline constexpr int32 g_instanceMeshPassOptionCount = 9;
+    inline constexpr int32 g_instanceMeshPassOptionCount = 10;
 
     struct InstanceTransform
     {

@@ -708,7 +708,7 @@ void MapInstancedMesh::Refresh_HasGlow()
         {
             continue;
         }
-        if (mat->Get_CB().emissiveIntensity > 0.f)
+        if (mat->Get_PassIndex() == VtxInstanceMeshExactPassIndex::EmissiveGlowPass)
         {
             _hasGlow = true;
             return;

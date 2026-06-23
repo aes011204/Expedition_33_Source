@@ -65,6 +65,7 @@ private:
     PhysXStaticActorHandle _physxStaticHandle{};
     Shared<StaticCollisionData> _collisionData;
     bool _usesStaticCollision = false;
+    bool _hasEclipseGlow = false;
 
     size_t _sourceStaticMeshIndex = InvalidSourceStaticMeshIndex;
     wstring _sourceStaticMeshId = {};
@@ -77,6 +78,7 @@ private:
     void Register_ModelComponent();
     void Rebuild_StaticCollisionFromModel();
     HRESULT Bind_ShaderResources();
+    void Refresh_HasEclipseGlow();
 
 public:
     static Shared<MapStaticMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

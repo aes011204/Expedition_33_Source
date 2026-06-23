@@ -650,7 +650,7 @@ void MEInstancedMeshActor::Refresh_HasGlow()
             continue;
         }
 
-        if (mat->Get_CB().emissiveIntensity > 0.f)
+        if (mat->Get_ForcedPassIndex() == static_cast<int32>(VtxInstanceMeshExactPassIndex::EmissiveGlowPass))
         {
             _hasGlow = true;
             return;
