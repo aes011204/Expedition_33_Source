@@ -191,6 +191,13 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewScreenFxCueRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
     struct PreviewAnimSpeedStateRuntime
     {
         int32 stateId = -1;
@@ -303,6 +310,8 @@ private:
     void Reset_PreviewAnimSpeedStates();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);
     void Reset_PreviewPlayEffectStates();
+    void Update_PreviewScreenFxCueStates(float timeDelta);
+    void Reset_PreviewScreenFxCueStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
     void Update_PreviewWeaponEchoStates(float timeDelta);
@@ -407,6 +416,7 @@ private:
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
+    vector<PreviewScreenFxCueRuntime> _previewScreenFxCueRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
     vector<PreviewWeaponEchoRuntime> _previewWeaponEchoRuntimes{};

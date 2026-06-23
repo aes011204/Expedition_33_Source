@@ -9,6 +9,7 @@
 #include "ModelCom.h"
 #include "Event_Bus.h"
 #include "TransformCom.h"
+#include "EffectCom.h"
 
 namespace
 {
@@ -25,6 +26,30 @@ namespace
             type == BattleReactionType::Parry ||
             type == BattleReactionType::Jump ||
             type == BattleReactionType::JumpCounter;
+    }
+
+    void Play_TargetOwnerEffect(
+        const BattleChar& target,
+        const wstring& effectName,
+        const Vec3& localOffset,
+        const Vec3& scale)
+    {
+        if (target.actor == nullptr || effectName.empty())
+            return;
+
+        const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
+        if (effectCom == nullptr)
+            return;
+
+        EffectCom::EffectPlayDesc effectDesc{};
+        effectDesc.levelIndex = GAME->Current_LevelIndex();
+        effectDesc.effectName = effectName;
+        effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        effectDesc.localOffset = localOffset;
+        effectDesc.scale = scale;
+        effectDesc.followTarget = false;
+
+        effectCom->Play_Effect(effectDesc);
     }
 }
 
@@ -422,13 +447,11 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
                 if (auto battle = CLIENT->Get_BattleController())
                     battle->Play_BattleHitStop(0.08f, 0.08f);
 
-                PlayEffectDesc effectDesc{};
-                effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
-                effectDesc.spawnBasisTarget = target.actor;
-                effectDesc.scale = Vec3(0.08f, 0.08f, 0.08f); // 얼마나 줄여야하는겨;
-                effectDesc.localOffset = Vec3(0.f, 0.9f, 0.f);
-
-                CLIENT->Play_Effect(effectDesc);
+                Play_TargetOwnerEffect(
+                    target,
+                    L"Effects\\Assets\\Player\\Player_Counter.effect.json",
+                    Vec3(0.f, 0.9f, 0.f),
+                    Vec3(0.08f, 0.08f, 0.08f)); // 얼마나 줄여야하는겨;
             }
 
             if (success &&
@@ -1073,13 +1096,11 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
     // 단체 패링이여도 한번만 들어가게
     if (hitCount > 0)
     {
-        PlayEffectDesc effectDesc{};
-        effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
-        effectDesc.spawnBasisTarget = _counterDamageTarget.actor;
-        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
-        effectDesc.localOffset = Vec3(0.f, 1.2f, 0.f);
-
-        CLIENT->Play_Effect(effectDesc);
+        Play_TargetOwnerEffect(
+            _counterDamageTarget,
+            L"Effects\\Assets\\Player\\Player_Counter.effect.json",
+            Vec3(0.f, 1.2f, 0.f),
+            Vec3(1.f, 1.f, 1.f));
 
         _isCounterDamageApplied = true;
     }

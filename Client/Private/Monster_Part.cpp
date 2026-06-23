@@ -251,6 +251,10 @@ HRESULT Monster_Part::Render()
         if (FAILED(_shader->Begin(passIndex)))
             return E_FAIL;
 
+        // DepthStencil을 사용해서 ScreenFX 에서 제외할지 말지 파악하기 위한 depth 기록
+        const bool depthWrite = passIndex != static_cast<uint32>(VtxAnimMeshPass::HairBlend);
+        CHECK_FAILED_THROTTLED(GAME->Bind_ScreenFxExclusionStencilWriteState(depthWrite), 60, E_FAIL);
+
         _model->Render(i);
     }
 

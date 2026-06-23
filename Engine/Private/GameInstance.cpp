@@ -802,7 +802,7 @@ HRESULT GameInstance::Draw()
     return S_OK;
 }
 
-HRESULT GameInstance::Draw_RendererOnly()
+HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx)
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
@@ -838,14 +838,20 @@ HRESULT GameInstance::Draw_RendererOnly()
     _renderer->Set_ShadowEnabled(false); // 에디터 프리뷰 렌더는 현재 월드의 dynamic shadow 상태를 쓰지 않는다.
     _renderer->Set_RenderOnlyPreviewMode(true); // 프리뷰 렌더는 현재 월드의 fog만 상속하지 않는다.
     if (_screenFxManager != nullptr)
-        _screenFxManager->Set_ScreenFxActivated(false); // 런타임 화면 효과가 프리뷰 캡처 위를 덮지 않게 한다.
+    {
+        _screenFxManager->Set_RenderPreviewEffectsOnly(renderPreviewScreenFx);
+        _screenFxManager->Set_ScreenFxActivated(renderPreviewScreenFx); // 런타임 화면 효과 대신 preview-only ScreenFX stack만 선택적으로 렌더한다.
+    }
 
     _renderer->Draw();
     if (_renderer->Is_PreviewLetterboxEnabled())
         _renderer->Render_Letterbox();
 
     if (_screenFxManager != nullptr)
+    {
+        _screenFxManager->Set_RenderPreviewEffectsOnly(false);
         _screenFxManager->Set_ScreenFxActivated(savedScreenFxActivated);
+    }
     _renderer->Set_RenderOnlyPreviewMode(savedRenderOnlyPreviewMode);
     _renderer->Set_ShadowEnabled(savedShadowEnabled);
 
@@ -2446,7 +2452,7 @@ HRESULT GameInstance::Bind_PlayerStencilWriteState(bool depthWrite)
         desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
         desc.StencilEnable = TRUE;
         desc.StencilReadMask = 0xff;
-        desc.StencilWriteMask = 0xff;
+        desc.StencilWriteMask = 0x03;
         desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
@@ -2458,7 +2464,37 @@ HRESULT GameInstance::Bind_PlayerStencilWriteState(bool depthWrite)
     }
 
     CHECK_NULL(_context, E_FAIL);
-    _context->OMSetDepthStencilState(state.Get(), 1);
+    _context->OMSetDepthStencilState(state.Get(), 0x03);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_ScreenFxExclusionStencilWriteState(bool depthWrite)
+{
+    ComPtr<ID3D11DepthStencilState>& state =
+        depthWrite ? _screenFxExclusionStencilWriteState : _screenFxExclusionStencilWriteDepthReadState;
+
+    if (state == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = TRUE;
+        desc.DepthWriteMask = depthWrite ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0x02;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, state.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(state.Get(), 0x02);
 
     return S_OK;
 }
@@ -2471,7 +2507,7 @@ HRESULT GameInstance::Bind_BackgroundUIBehindPlayerStencilState()
         desc.DepthEnable = FALSE;
         desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
         desc.StencilEnable = TRUE;
-        desc.StencilReadMask = 0xff;
+        desc.StencilReadMask = 0x01;
         desc.StencilWriteMask = 0x00;
         desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
@@ -2484,7 +2520,7 @@ HRESULT GameInstance::Bind_BackgroundUIBehindPlayerStencilState()
     }
 
     CHECK_NULL(_context, E_FAIL);
-    _context->OMSetDepthStencilState(_backgroundUIBehindPlayerStencilState.Get(), 1);
+    _context->OMSetDepthStencilState(_backgroundUIBehindPlayerStencilState.Get(), 0x01);
 
     return S_OK;
 }
@@ -3058,6 +3094,46 @@ void GameInstance::Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX
     _screenFxManager->Play_ScreenEffect(screenFX);
 }
 
+ScreenFxHandle GameInstance::Play_ScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const
+{
+    if (_screenFxManager == nullptr)
+        return {};
+
+    return _screenFxManager->Play_ScreenEffect_WithHandle(screenFX);
+}
+
+void GameInstance::Stop_ScreenFx(ScreenFxHandle handle) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Stop_ScreenEffect(handle);
+}
+
+ScreenFxHandle GameInstance::Play_PreviewScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const
+{
+    if (_screenFxManager == nullptr)
+        return {};
+
+    return _screenFxManager->Play_PreviewScreenEffect_WithHandle(screenFX);
+}
+
+void GameInstance::Evaluate_PreviewScreenFx(ScreenFxHandle handle, float elapsedTime) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Evaluate_PreviewScreenEffect(handle, elapsedTime);
+}
+
+void GameInstance::Stop_PreviewScreenFx(ScreenFxHandle handle) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Stop_PreviewScreenEffect(handle);
+}
+
 bool GameInstance::Is_ScreenFxFinished(const wstring& tag) const
 {
     if (_screenFxManager == nullptr)
@@ -3116,6 +3192,8 @@ void GameInstance::Release_Engine()
 
     _playerStencilWriteState.Reset();
     _playerStencilWriteDepthReadState.Reset();
+    _screenFxExclusionStencilWriteState.Reset();
+    _screenFxExclusionStencilWriteDepthReadState.Reset();
     _backgroundUIBehindPlayerStencilState.Reset();
     _uiNoDepthStencilState.Reset();
 

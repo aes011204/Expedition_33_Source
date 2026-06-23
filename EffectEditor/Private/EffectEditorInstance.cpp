@@ -726,9 +726,8 @@ void EffectEditorInstance::Sanitize_PreviewEmitterTransforms(const vector<Author
     for (auto iter = _previewEmitterTransformOverrides.begin(); iter != _previewEmitterTransformOverrides.end();)
     {
         const uint32 emitterId = iter->first;
-        const auto emitterIter = find_if(
-            emitters.begin(),
-            emitters.end(),
+        const auto emitterIter = ranges::find_if(
+            emitters,
             [emitterId](const AuthoringEmitter& emitter)
             {
                 return emitter.id == emitterId;

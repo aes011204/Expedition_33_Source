@@ -323,6 +323,11 @@ struct alignas(16) ScreenFxCB
     float wipeRadius{ 0.f };
     float edgeSoftness{ 0.05f };
     Vec2 pad;
+
+    // ScreenFX cue shape
+    Vec4 flashColor{ 1.f, 1.f, 1.f, 1.f };
+    Vec4 screenFxShape{ 0.5f, 0.5f, 1.f, 0.05f };
+    Vec4 screenFxParams{ 0.f, 0.f, 0.f, 1.f };
 };
 
 struct alignas(16) FogZoneEntry
