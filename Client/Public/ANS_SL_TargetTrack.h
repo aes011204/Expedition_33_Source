@@ -37,6 +37,7 @@ private:
     bool  _applyRotation = true;
     bool  _stopMovementOnEnd = true;
     float _targetDistance = 1.25f;
+    float _rotationSpeedDegPerSec = 540.f;
 
     Vec3 _startPos = Vec3::Zero;
     Vec3 _goalPos = Vec3::Zero;

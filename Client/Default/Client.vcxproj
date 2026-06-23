@@ -244,6 +244,7 @@
     <ClInclude Include="..\Public\BT_SL_CanAttack.h" />
     <ClInclude Include="..\Public\BT_SL_CompareBBValue.h" />
     <ClInclude Include="..\Public\BT_SL_IsDead.h" />
+    <ClInclude Include="..\Public\BT_SL_IsLastAttack.h" />
     <ClInclude Include="..\Public\BT_SL_IsHit.h" />
     <ClInclude Include="..\Public\BT_SL_IsIntroDone.h" />
     <ClInclude Include="..\Public\BT_SL_IsActionLocked.h" />
@@ -822,6 +823,7 @@
     <ClCompile Include="..\Private\BT_SL_CanAttack.cpp" />
     <ClCompile Include="..\Private\BT_SL_CompareBBValue.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp" />
+    <ClCompile Include="..\Private\BT_SL_IsLastAttack.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsHit.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsIntroDone.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsActionLocked.cpp" />

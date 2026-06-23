@@ -728,6 +728,9 @@
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsLastAttack.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsHit.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
@@ -1692,6 +1695,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsDead.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsLastAttack.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsHit.h">

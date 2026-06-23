@@ -18,6 +18,7 @@ IMPLEMENT_REFLECTION(ANS_SL_TargetTrack)
     PROPERTY_BOOL("Apply Rotation", _applyRotation);
     PROPERTY_BOOL("Stop Movement On End", _stopMovementOnEnd);
     PROPERTY_FLOAT("Target Distance", _targetDistance, 0.f, 10.f, 0.05f);
+    PROPERTY_FLOAT("Rotation Speed Deg Per Sec", _rotationSpeedDegPerSec, 0.f, 3600.f, 1.f);
 
     return true;
 }
@@ -69,17 +70,21 @@ void ANS_SL_TargetTrack::On_Tick(const AnimNotifyContext& context)
 
     if (_applyRotation)
     {
-        float startYaw = _startRot.y;
+        Vec3 currentRot = moveTarget->Get_Transform()->Get_WorldRotationEuler();
+        float currentYaw = currentRot.y;
         float goalYaw = _goalRot.y;
 
-        float deltaYaw = goalYaw - startYaw;
+        float deltaYaw = goalYaw - currentYaw;
         while (deltaYaw > 180.f)
             deltaYaw -= 360.f;
         while (deltaYaw < -180.f)
             deltaYaw += 360.f;
 
-        Vec3 desiredRot = _startRot;
-        desiredRot.y = startYaw + deltaYaw * context.notifyStateProgress;
+        const float maxYawStep = max(_rotationSpeedDegPerSec, 0.f) * context.deltaTime;
+        const float appliedYawStep = clamp(deltaYaw, -maxYawStep, maxYawStep);
+
+        Vec3 desiredRot = currentRot;
+        desiredRot.y = currentYaw + appliedYawStep;
         Apply_Rotation(moveTarget, desiredRot);
     }
 }
@@ -128,15 +133,10 @@ Shared<GameObject> ANS_SL_TargetTrack::Resolve_LockedTarget() const
     if (player == nullptr)
         return nullptr;
 
-    const Shared<SL_TargetCom> targetCom = player->Get_Component<SL_TargetCom>();
-    if (targetCom == nullptr)
+    if (player->Is_MarkDestroy() || player->Get_Transform() == nullptr)
         return nullptr;
 
-    Shared<Character> lockedTarget = targetCom->Get_LockedTarget();
-    if (lockedTarget == nullptr || lockedTarget->Is_MarkDestroy() || lockedTarget->Get_Transform() == nullptr)
-        return nullptr;
-
-    return lockedTarget;
+    return player;
 }
 
 Vec3 ANS_SL_TargetTrack::Resolve_TargetGoalPosition(const Shared<GameObject>& moveTarget, const Shared<GameObject>& lockedTarget) const

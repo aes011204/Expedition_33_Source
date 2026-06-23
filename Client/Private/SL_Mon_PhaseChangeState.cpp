@@ -19,6 +19,7 @@ bool SL_Mon_PhaseChangeState::EnterInvoke()
     if (owner == nullptr)
         return false;
 
+    owner->Begin_PhaseChangeTransition();
     owner->Set_ActionLocked(true);
 
     return owner->Play_Anim(SL_Dualliste::Anim::PhaseChange, 0.1f, false);
@@ -43,6 +44,7 @@ void SL_Mon_PhaseChangeState::Update(float timeDelta)
 
     owner->Set_ActionLocked(false);
     owner->Finish_PhaseChange();
+    owner->End_PhaseChangeTransition();
     _stateCom->Change_State(SL_MonState::Idle);
 }
 
