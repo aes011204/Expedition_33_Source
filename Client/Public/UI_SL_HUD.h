@@ -38,11 +38,10 @@ private:
 
     void    Apply_PlayerHp(float curHp, float maxHp);
     void    Apply_BossHp(float curHp, float maxHp, float timeDelta);
+    void    Apply_BossBreak(float curBreak, float maxBreak);
     void    Apply_BossName(const wstring& name);
     void    Apply_SkillIcons(const Shared<SL_Maelle>& player);
     void    Apply_SkillCooldowns(const Shared<SL_Maelle>& player);
-    void    Update_BossDamageText(float timeDelta);
-    void    Clear_BossDamageText();
     void    Clear_SkillSlot(uint32 slotIndex);
     void    Clear_SkillCooldown(uint32 slotIndex);
     void    Restore_DefaultSkillIcon(uint32 slotIndex);
@@ -62,19 +61,16 @@ private:
     Shared<UI_Base>  _bossHpRoot{};
     Shared<UI_Image> _bossHpGauge{};
     Shared<UI_Image> _bossHpGaugeBg{};
+    Shared<UI_Base>  _bossBreakRoot{};
+    Shared<UI_Image> _bossBreakGauge{};
     Shared<UI_Text>  _bossNameText{};
     Shared<UI_Text>  _bossNameBgText{};
     float            _bossHpDelayedRatio = 1.f;
 
-    Shared<UI_Text> _bossDamageText{};
-    Shared<UI_Text> _bossDamageBgText{};
-    uint32          _bossDamageAccumulated = 0;
-    float           _bossDamageElapsed = 0.f;
-    bool            _bossDamageVisible = false;
-
     Shared<UI_Base> _staminaRoot{};
     Shared<UI_Base> _potionRoot{};
     Shared<UI_Text> _healingPotionCountText{};
+    Shared<UI_Base> _estherSkillRoot{};
 
 public:
     static Unique<UI_SL_HUD> Create(uint32 levelIndex);

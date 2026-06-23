@@ -83,7 +83,7 @@ enum class SoulLikeAnim
     Jump, Jump_Counter,
 
     Dead,
-    Parry,
+    Parry, Parry2,
 
     Idle_To_Run,
     Run_To_Idle,
@@ -94,6 +94,14 @@ enum class SL_DodgeDirection
     Fwd, Back, Left, Right, END
 };
 
+// Hit 애니메이션 ANS_SL_CollisionEnable에서 오버라이드해서 바꿀 수 있게
+enum class SL_HitAnimOverride
+{
+    Hit_Light,
+    // Hit_Middle, 이놈은 안쓸듯
+    Hit_Heavy,
+};
+
 struct SL_DamageInfo
 {
     Shared<GameObject>      attacker{};
@@ -102,6 +110,8 @@ struct SL_DamageInfo
     Shared<CombatStatCom>   targetStat{};
 
     AttackType attackType = AttackType::Invalid;
+    SL_HitAnimOverride hitAnimOverride = SL_HitAnimOverride::Hit_Light;
+
     float      finalDamage = 0.f;
     bool       isCritical = false;
     bool       isKilled = false;

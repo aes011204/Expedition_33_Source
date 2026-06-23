@@ -4,6 +4,7 @@
 #include "ContainerObject.h"
 #include "GameInstance.h"
 #include "PartObject.h"
+#include "SL_Base.h"
 #include "SL_Dualliste.h"
 
 IMPLEMENT_REFLECTION(ANS_SL_PartCollisionEnable)
@@ -16,6 +17,7 @@ IMPLEMENT_REFLECTION(ANS_SL_PartCollisionEnable)
 
     PROPERTY_STRING("Part Tag", _partTag);
     PROPERTY_STRING("Collider Tag", _colliderTag);
+    PROPERTY_ENUM("Hit Reaction", _hitAnimOverride, SL_HitAnimOverride);
 
     return true;
 }
@@ -82,15 +84,28 @@ void ANS_SL_PartCollisionEnable::Set_ColliderActive(const AnimNotifyContext& con
     if (collider == nullptr)
         return;
 
+    const Shared<SL_Base> slOwner = dynamic_pointer_cast<SL_Base>(ownerContainer);
+
     if (const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(ownerContainer))
     {
         if (_partTag == "Part_Sword_L" && !dualliste->CanUseLeftSword())
         {
+            if (slOwner)
+                slOwner->Clear_AttackHitAnimOverride(_colliderTag);
+
             collider->Set_IsActive(false);
             collider->Clear_Overlap();
             GAME->Unregister_PhysXCollider(collider.get());
             return;
         }
+    }
+
+    if (slOwner)
+    {
+        if (active)
+            slOwner->Set_AttackHitAnimOverride(_colliderTag, _hitAnimOverride);
+        else
+            slOwner->Clear_AttackHitAnimOverride(_colliderTag);
     }
 
     collider->Clear_Overlap();

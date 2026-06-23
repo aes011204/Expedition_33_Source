@@ -12,6 +12,7 @@
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "LightingPipeline.h"
+#include "MovementCom.h"
 #include "Spawn_Prefab.h"
 
 //add
@@ -989,6 +990,9 @@ void Scene_View::Render_SelectedObjectGizmo()
     transform->Set_WorldPosition(translation);
     transform->Set_RotationQuaternion(rotation);
     transform->Set_Scale(scale);
+
+    if (Shared<MovementCom> movement = selectedObject->Get_Component<MovementCom>())
+        movement->Sync_RuntimePositionToTransform();
 }
 
 void Scene_View::Set_DragPreviewObject(const string& prefabName)
