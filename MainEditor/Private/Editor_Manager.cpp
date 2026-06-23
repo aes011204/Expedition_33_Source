@@ -994,22 +994,30 @@ bool Editor_Manager::Pick_RuleStateFile(fs::path& outPath) const
 void Editor_Manager::Render_ReloadDataButton()
 {
     if (ImGui::SmallButton("Reload Data"))
-    {
-        const bool failedGameData = FAILED(CLIENT->Reload_GameDataTables());
-        const bool failedEffectJsons = FAILED(CLIENT->Reload_EffectJsons());
+        ImGui::OpenPopup("ReloadDataPopup");
+    const bool reloadDataHovered = ImGui::IsItemHovered();
 
-        if (failedGameData && failedEffectJsons)
-            MSG_BOX("Failed to reload game data tables and effect jsons.");
-        else if (failedGameData)
-            MSG_BOX("Failed to reload game data tables.");
-        else if (failedEffectJsons)
-            MSG_BOX("Failed to reload effect jsons.");
+    if (ImGui::BeginPopup("ReloadDataPopup"))
+    {
+        if (ImGui::MenuItem("GameDataTable"))
+        {
+            if (FAILED(CLIENT->Reload_GameDataTables()))
+                MSG_BOX("Failed to reload game data tables.");
+        }
+
+        if (ImGui::MenuItem("Effect Data"))
+        {
+            if (FAILED(CLIENT->Reload_EffectJsons()))
+                MSG_BOX("Failed to reload effect jsons.");
+        }
+
+        ImGui::EndPopup();
     }
 
-    if (ImGui::IsItemHovered())
+    if (reloadDataHovered)
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Json 데이터 및 쉬고 있는 effect pool 재로드");
+        ImGui::Text("재로드할 데이터 종류 선택");
         ImGui::EndTooltip();
     }
 }

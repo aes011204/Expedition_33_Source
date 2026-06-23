@@ -1898,6 +1898,14 @@ HRESULT GameInstance::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResu
     return _assetManager->Commit_AssetDeltaScan(scanResult, missingMetaRoot);
 }
 
+HRESULT GameInstance::Refresh_AssetRegistryDirectory(const wstring& directory, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Refresh_RegistryDirectory(directory, missingMetaRoot);
+}
+
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
     if (nullptr == _assetManager)

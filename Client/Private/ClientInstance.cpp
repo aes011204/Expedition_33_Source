@@ -939,7 +939,14 @@ HRESULT ClientInstance::Reload_EffectJsons()
     if (_effectInstancePool == nullptr)
         return E_FAIL;
 
-    // 쉬고 있는 pool entry를 비워 다음 Play_Effect가 최신 .effect.json을 디스크에서 다시 접게 한다.
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (assetRoot.empty())
+        return E_FAIL;
+
+    const fs::path effectAssetRoot = fs::path(assetRoot) / L"Effects" / L"Assets";
+    CHECK_FAILED(GAME->Refresh_AssetRegistryDirectory(effectAssetRoot.wstring(), effectAssetRoot.wstring()), E_FAIL);
+
+    // 새/수정된 effect registry 반영 뒤, 다음 Play_Effect가 최신 .effect.json을 디스크에서 다시 접게 한다.
     _effectInstancePool->Discard_AllInactive();
     return S_OK;
 }
