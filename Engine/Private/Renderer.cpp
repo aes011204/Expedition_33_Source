@@ -241,6 +241,7 @@ void Renderer::Draw()
     if (useScreenFx)
     {
         GAME->Bind_BackBuffer();
+        Change_ViewportDesc(_screenSize.width, _screenSize.height);
         Render_ScreenFx();
     }
 

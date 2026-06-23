@@ -15,6 +15,7 @@
 #include "MovementCom.h"
 #include "PlayerStatCom.h"
 #include "Unlock_Manager.h"
+#include "EffectCom.h"
 
 static const HeroSpawnDesc heroSpawnDescs[] =
 {
@@ -276,11 +277,16 @@ void Hero_Manager::Switch_NextHero()
     if (nextIndex == UINT_MAX || nextIndex == _activeIndex)
         return;
 
-    PlayEffectDesc effectDesc{};
-    effectDesc.effectName = L"Player_Change";
-    effectDesc.spawnBasisTarget = oldActive;
-    effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
-    CLIENT->Play_Effect(effectDesc);
+    if (const Shared<EffectCom> effectCom = oldActive->Get_Component<EffectCom>())
+    {
+        EffectCom::EffectPlayDesc effectDesc{};
+        effectDesc.levelIndex = GAME->Current_LevelIndex();
+        effectDesc.effectName = L"Player_Change";
+        effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
+        effectDesc.followTarget = false;
+        effectCom->Play_Effect(effectDesc);
+    }
 
     _activeIndex = nextIndex;
 

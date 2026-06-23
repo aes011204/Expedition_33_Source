@@ -20,6 +20,10 @@ public:
         Ghosting,
         Distortion,
         BattleTransition,
+        Flash,
+        FlashExclude,
+        WorldDesaturate,
+        WorldDesaturateExclude,
     };
 
 private:

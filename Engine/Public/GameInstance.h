@@ -110,7 +110,7 @@ public:
     void Update_Engine(float timeDelta, const function<void(float)>& clientUpdate);
 
     HRESULT Draw();
-    HRESULT Draw_RendererOnly(); // 에디터용
+    HRESULT Draw_RendererOnly(bool renderPreviewScreenFx = false); // 에디터용
     void Backup_RenderGroup();
     void Restore_RenderGroup();
 
@@ -444,6 +444,8 @@ public : /* For.Target_Manager */
 
     HRESULT Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
     HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
+    // Writes bit1 for objects that should preserve original color in ScreenFX exclusion passes.
+    HRESULT Bind_ScreenFxExclusionStencilWriteState(bool depthWrite);
     HRESULT Bind_BackgroundUIBehindPlayerStencilState();
     HRESULT Bind_UINoDepthStencilState();
 
@@ -610,6 +612,11 @@ public: /* For.Event Bus */
 
 public: /* ScreenFx Manager */
     void Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const;
+    ScreenFxHandle Play_ScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const;
+    void Stop_ScreenFx(ScreenFxHandle handle) const;
+    ScreenFxHandle Play_PreviewScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const;
+    void Evaluate_PreviewScreenFx(ScreenFxHandle handle, float elapsedTime) const;
+    void Stop_PreviewScreenFx(ScreenFxHandle handle) const;
     bool Is_ScreenFxFinished(const wstring& tag) const;
 
 private:
@@ -657,6 +664,8 @@ private:
     ComPtr<Context> _context = {};
     ComPtr<ID3D11DepthStencilState> _playerStencilWriteState = {};
     ComPtr<ID3D11DepthStencilState> _playerStencilWriteDepthReadState = {};
+    ComPtr<ID3D11DepthStencilState> _screenFxExclusionStencilWriteState = {};
+    ComPtr<ID3D11DepthStencilState> _screenFxExclusionStencilWriteDepthReadState = {};
     ComPtr<ID3D11DepthStencilState> _backgroundUIBehindPlayerStencilState = {};
     ComPtr<ID3D11DepthStencilState> _uiNoDepthStencilState = {};
 
