@@ -4,6 +4,7 @@
 #include "AnimNotify_Parser.h"
 #include "AnimationModifier.h"
 #include "ChainModifier.h"
+#include "PhysicsModifier.h"
 #include "PoseFollowChainModifier.h"
 #include "ContainerObject.h"
 #include "EditorInstance.h"
@@ -15,6 +16,7 @@
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "Inspector.h"
+#include "ModelPhysicsParser.h"
 #include "ModelCom.h"
 #include "Prefab_View.h"
 #include "PartObject.h"
@@ -278,7 +280,18 @@ namespace
         if (propertyName == "enableCollision"
             || propertyName == "particleCollisionRadius"
             || propertyName == "collisionRadiusPadding"
-            || propertyName == "debugDrawCapsules")
+            || propertyName == "collisionPrimitiveScale"
+            || propertyName == "collisionOutputAlpha"
+            || propertyName == "debugDrawCapsules"
+            || propertyName == "debugActiveChainCount"
+            || propertyName == "debugActiveNodeCount"
+            || propertyName == "debugLoadedCapsuleCount"
+            || propertyName == "debugActiveCapsuleCount"
+            || propertyName == "debugCollisionSource"
+            || propertyName == "debugCollisionHitCount"
+            || propertyName == "debugSegmentCollisionHitCount"
+            || propertyName == "debugFinalCollisionHitCount"
+            || propertyName == "debugMinCollisionMargin")
             return "Collision";
 
         if (propertyName == "windDirection"
@@ -525,7 +538,7 @@ void Animation_View::Update(float timeDelta)
     {
         if (playbackModel->Is_AnimationFinished())
         {
-            // 끝난 클립은 현재 선택된 애니메이션으로 즉시 다시 시작해서 다음 클립으로 넘어가지 않게 한다.
+            // ??硫명뀊 ?????? ?熬곣뫗????ルㅎ臾????ル봾鍮띸춯濡ル뾼???瑜곷さ??嶺뚯빖留?????곕뻣 ??戮곗굚??怨댄맋 ???깅쾳 ??????怨쀬Ŧ ??琉우꽑?띠럾?嶺뚯솘? ??袁⑹벟 ??類ｋ펲.
             Sync_PreviewAnimationSelection();
         }
 
@@ -619,16 +632,16 @@ void Animation_View::Pre_Render()
         if (_showPreviewSkyBackdrop)
             Late_Update_PreviewSkyBackdrop(dt);
 
-        Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
+        Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed??sampling ?熬곣뫖????⑤챷???怨룻뒍 ?熬곣뫗??preview ??繹????쒖┣???꾩룆?餓??꾩룇瑗???類ｋ펲.
         Update_PreviewRootControllerStates(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, 0.f, false);
         Update_ModifierPreviewMotionTest(dt);
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
         Update_PreviewSLDodgeMoveStates(dt);
-        Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
+        Update_PreviewWeaponRotateStates(dt); // preview ?熬곣뫗??WeaponRotate???誘る닔? ?꾩룇瑗????겶???쒕뼬??world?????곕뻣 嶺뚮씮?????trail sample????ｌ뫒亦??類ｋ펲.
         Update_PreviewSourceHistoryEffect(dt);
         Update_PreviewTrailEffect(dt);
     }
@@ -642,7 +655,7 @@ void Animation_View::Pre_Render()
     for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
     {
         if (runtime.effect && runtime.isPlaying)
-            runtime.effect->Late_Update(dt); // preview에서도 활성 trail runtime마다 Late_Update를 따로 돌린다.
+            runtime.effect->Late_Update(dt); // preview????????戮?뎽 trail runtime嶺뚮씭???Late_Update????⑤벡夷????逾??
     }
 
     for (PreviewSourceHistoryRuntime& runtime : _previewSourceHistoryRuntimes)
@@ -657,6 +670,7 @@ void Animation_View::Pre_Render()
     Draw_SelectedBoneMarker();
     Draw_TrailAnchorPreview();
     Draw_ModifierChainDebug();
+    Draw_ModifierCollisionDebug();
     Draw_PreviewGrid();
     EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
     GAME->Set_Lights(savedLightDescs);
@@ -993,7 +1007,7 @@ int32 Animation_View::Get_CurrentAnimationFps() const
 
 void Animation_View::Refresh_PreviewTrailAnchorAsset()
 {
-    Reset_PreviewTrailEffect(); // 현재 활성 runtime들을 비우면 다음 preview frame에 각 trail이 자기 partTag 기준으로 다시 생성된다.
+    Reset_PreviewTrailEffect(); // ?熬곣뫗????戮?뎽 runtime???깅굵 ?????彛????깅쾳 preview frame????trail???????partTag ?リ옇????怨쀬Ŧ ???곕뻣 ??諛댁뎽??類ｋ펲.
     Reset_PreviewSourceHistoryEffect();
 }
 
@@ -1274,6 +1288,169 @@ void Animation_View::Switch_LiveModelTarget(size_t targetIndex)
     _selectedLiveModelTargetIndex = static_cast<int32>(targetIndex);
 }
 
+Shared<ModelCom> Animation_View::Resolve_LiveModelTargetModel(const LiveModelTarget& target) const
+{
+    Shared<ModelCom> targetModel = target.model;
+
+    if (_previewRootObject != nullptr)
+    {
+        const Shared<GameObject> previewOwner =
+            PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
+        Shared<ModelCom> previewModel{};
+        if (previewOwner != nullptr && !target.componentTag.empty())
+            previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
+
+        if (previewModel == nullptr)
+            previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
+
+        if (previewModel != nullptr)
+            targetModel = previewModel;
+    }
+
+    return targetModel;
+}
+
+Shared<ModelCom> Animation_View::Resolve_ModifierCollisionModel(
+    const Shared<ModelCom>& modifierModel,
+    const vector<string>& requiredBoneNames) const
+{
+    if (requiredBoneNames.empty())
+        return nullptr;
+
+    Shared<ModelCom> bestModel{};
+    int32 bestMatchCount = 0;
+    const auto testCandidate = [&](const Shared<ModelCom>& candidate)
+    {
+        if (candidate == nullptr)
+            return;
+
+        int32 matchCount = 0;
+        for (const string& boneName : requiredBoneNames)
+        {
+            if (candidate->Get_BoneIndex(boneName) >= 0)
+                ++matchCount;
+        }
+
+        if (matchCount > bestMatchCount)
+        {
+            bestMatchCount = matchCount;
+            bestModel = candidate;
+        }
+    };
+
+    testCandidate(modifierModel);
+
+    if (_sourceMode == SourceMode::LiveModel)
+    {
+        for (const LiveModelTarget& target : _liveModelTargets)
+            testCandidate(Resolve_LiveModelTargetModel(target));
+    }
+
+    return bestMatchCount > 0 ? bestModel : nullptr;
+}
+
+void Animation_View::Sync_ModifierCollisionSource(const Shared<ModelCom>& modifierModel) const
+{
+    if (modifierModel == nullptr)
+        return;
+
+    const Shared<GameObject> modifierOwner = modifierModel->Get_Owner();
+    const Shared<PartObject> modifierPart = dynamic_pointer_cast<PartObject>(modifierOwner);
+    if (modifierPart == nullptr)
+        return;
+
+    for (const Shared<AnimationModifier>& modifier : modifierModel->Get_Modifiers())
+    {
+        if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+        {
+            auto* desc = static_cast<PoseFollowChainModifier::PoseFollowChainModifierDesc*>(
+                poseFollowModifier->Get_RuntimeReflectionTarget());
+            if (desc == nullptr || desc->physicsAssetPath.empty())
+                continue;
+
+            const ModelCom* collisionModel = desc->collisionModel;
+            Shared<PartObject> collisionPart{};
+            if (collisionModel != nullptr)
+            {
+                collisionPart = dynamic_pointer_cast<PartObject>(collisionModel->Get_Owner());
+            }
+
+            if (collisionModel == nullptr || collisionPart == nullptr)
+            {
+                vector<string> requiredBoneNames = desc->includedCollisionBones;
+                if (requiredBoneNames.empty())
+                {
+                    for (const auto& capsule : ModelPhysicsParser::LoadCapsulesFromJSON(desc->physicsAssetPath))
+                        requiredBoneNames.push_back(capsule.boneName);
+                }
+
+                const Shared<ModelCom> resolvedCollisionModel = Resolve_ModifierCollisionModel(modifierModel, requiredBoneNames);
+                if (resolvedCollisionModel == nullptr)
+                    continue;
+
+                collisionModel = resolvedCollisionModel.get();
+                collisionPart = dynamic_pointer_cast<PartObject>(resolvedCollisionModel->Get_Owner());
+                if (collisionPart == nullptr)
+                    continue;
+            }
+
+            desc->collisionModel = collisionModel;
+            desc->collisionOwnerWorldMatrix = &collisionPart->Get_CombinedWorldMatrix();
+            desc->ownerWorldMatrix = &modifierPart->Get_CombinedWorldMatrix();
+            if (desc->collisionPrimitiveScale >= 0.999f || fabsf(desc->collisionPrimitiveScale - 0.08f) <= 0.001f)
+                desc->collisionPrimitiveScale = 0.025f;
+            if (fabsf(desc->particleCollisionRadius - 0.75f) <= 0.001f)
+                desc->particleCollisionRadius = 0.25f;
+            if (fabsf(desc->collisionRadiusPadding - 0.25f) <= 0.001f)
+                desc->collisionRadiusPadding = 0.05f;
+            if (desc->collisionOutputAlpha <= 0.001f)
+                desc->collisionOutputAlpha = 0.55f;
+            desc->enableCollision = true;
+            continue;
+        }
+
+        if (auto* physicsModifier = dynamic_cast<PhysicsModifier*>(modifier.get()))
+        {
+            auto* desc = static_cast<PhysicsModifier::PhysicsModifierDesc*>(
+                physicsModifier->Get_RuntimeReflectionTarget());
+            if (desc == nullptr || desc->physicsAssetPath.empty())
+                continue;
+
+            const ModelCom* collisionModel = desc->collisionModel;
+            Shared<PartObject> collisionPart{};
+            if (collisionModel != nullptr)
+            {
+                collisionPart = dynamic_pointer_cast<PartObject>(collisionModel->Get_Owner());
+            }
+
+            if (collisionModel == nullptr || collisionPart == nullptr)
+            {
+                vector<string> requiredBoneNames = desc->includedCollisionBones;
+                if (requiredBoneNames.empty())
+                {
+                    for (const auto& capsule : ModelPhysicsParser::LoadCapsulesFromJSON(desc->physicsAssetPath))
+                        requiredBoneNames.push_back(capsule.boneName);
+                }
+
+                const Shared<ModelCom> resolvedCollisionModel = Resolve_ModifierCollisionModel(modifierModel, requiredBoneNames);
+                if (resolvedCollisionModel == nullptr)
+                    continue;
+
+                collisionModel = resolvedCollisionModel.get();
+                collisionPart = dynamic_pointer_cast<PartObject>(resolvedCollisionModel->Get_Owner());
+                if (collisionPart == nullptr)
+                    continue;
+            }
+
+            desc->collisionModel = collisionModel;
+            desc->collisionOwnerWorldMatrix = &collisionPart->Get_CombinedWorldMatrix();
+            desc->ownerWorldMatrix = &modifierPart->Get_CombinedWorldMatrix();
+            desc->enableCollision = true;
+            desc->debugCollisionSource = 1;
+        }
+    }
+}
+
 void Animation_View::Load_NotifyAsset()
 {
     _asset = {};
@@ -1402,11 +1579,11 @@ void Animation_View::Save_NotifyAsset()
     {
         Refresh_OpenModelNotifyAssets();
         _isDirty = false;
-        NOTIFY("애니메이션 노티파이 저장: {}", _currentAnimationName);
+        NOTIFY("Saved notify asset: {}", _currentAnimationName);
     }
     else if (EDITOR->Get_Notification())
     {
-        EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "애니메이션 노티파이 저장 실패: {}", _currentAnimationName);
+        EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "Failed to save notify asset: {}", _currentAnimationName);
     }
 }
 
@@ -1655,7 +1832,7 @@ void Animation_View::Draw_BoneTree()
 
         if (ImGui::BeginPopupContextItem(popupId.c_str()))
         {
-            if (ImGui::MenuItem("뼈 이름 복사"))
+            if (ImGui::MenuItem("Copy Bone Name"))
             {
                 ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
@@ -1663,7 +1840,7 @@ void Animation_View::Draw_BoneTree()
                 _selectedStateId = -1;
             }
 
-            if (ImGui::MenuItem("Trail Base로 지정"))
+            if (ImGui::MenuItem("Set As Trail Base"))
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
@@ -1671,7 +1848,7 @@ void Animation_View::Draw_BoneTree()
                 Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Base);
             }
 
-            if (ImGui::MenuItem("Trail Tip으로 지정"))
+            if (ImGui::MenuItem("Set As Trail Tip"))
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
@@ -1823,7 +2000,7 @@ void Animation_View::Draw_PlaybackToolbar()
         {
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-            playbackModel->Play_Animation(0.f); // 시간은 고정한 채 notify/state만 현재 위치 기준으로 다시 평가한다.
+            playbackModel->Play_Animation(0.f); // ??蹂?뜟?? ??μ쪠???嶺?notify/state嶺??熬곣뫗???熬곣뫚???リ옇????怨쀬Ŧ ???곕뻣 ?????類ｋ펲.
             _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
             _isSectionPreviewPlaying = false;
         }
@@ -2044,7 +2221,7 @@ void Animation_View::Draw_Sequencer()
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
             Update_PreviewRootControllerStates(0.f);
-            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 preview state notify를 같이 갱신한다.
+            playbackModel->Play_Animation(0.f); // ???궰????熬곣뫁?????믨퀡???????preview state notify???띠룇????띠룄????類ｋ펲.
         }
     }
 
@@ -2210,9 +2387,9 @@ void Animation_View::Draw_SelectedDetail()
     }
     else
     {
-        ImGui::TextDisabled("선택된 항목 없음");
+        ImGui::TextDisabled("Nothing selected.");
         ImGui::Spacing();
-        ImGui::TextWrapped("Notify, NotifyState, 또는 Bone을 선택하세요.");
+        ImGui::TextWrapped("Select a Notify, NotifyState, or Bone.");
     }
 
     Draw_ModifierRuntimePanel(playbackModel);
@@ -2236,6 +2413,8 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
         ImGui::TextDisabled("No playback model.");
         return;
     }
+
+    Sync_ModifierCollisionSource(modifierModel);
 
     const auto& modifiers = modifierModel->Get_Modifiers();
     bool hasEditableModifier = false;
@@ -2490,12 +2669,81 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
                     ImGui::TreePop();
                 }
             }
+
+            if (auto* physicsModifier = dynamic_cast<PhysicsModifier*>(modifier.get()))
+            {
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* physicsDesc = static_cast<PhysicsModifier::PhysicsModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            physicsModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 0.4f;
+                        if (physicsDesc != nullptr)
+                        {
+                            const float resetLimit = physicsDesc->teleportDistance > 0.1f ? physicsDesc->teleportDistance * 0.25f : 1.f;
+                            visibleDelta = std::clamp(0.4f, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (physicsDesc != nullptr)
+                    {
+                        ImGui::TextDisabled("Preview owner delta: %.3f", _modifierPreviewMotionTestDelta);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        physicsModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
+            }
         }
         ImGui::PopID();
     }
 
     if (!hasEditableModifier)
-        ImGui::TextDisabled("No ChainModifier or PoseFollowChainModifier on this model.");
+        ImGui::TextDisabled("No ChainModifier, PoseFollowChainModifier, or PhysicsModifier on this model.");
 }
 
 void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
@@ -2532,24 +2780,7 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
     {
         for (const LiveModelTarget& target : _liveModelTargets)
         {
-            Shared<ModelCom> targetModel = target.model;
-            if (_previewRootObject != nullptr)
-            {
-                const Shared<GameObject> previewOwner =
-                    PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
-                Shared<ModelCom> previewModel{};
-                if (previewOwner != nullptr && !target.componentTag.empty())
-                    previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
-
-                if (previewModel == nullptr)
-                    previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
-
-                if (previewModel != nullptr)
-                {
-                    targetModel = previewModel;
-                }
-            }
-
+            Shared<ModelCom> targetModel = Resolve_LiveModelTargetModel(target);
             addModifierModel(targetModel);
         }
     }
@@ -2588,6 +2819,8 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
         if (model == nullptr)
             continue;
 
+        Sync_ModifierCollisionSource(model);
+
         for (const Shared<AnimationModifier>& modifier : model->Get_Modifiers())
         {
             if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
@@ -2610,6 +2843,19 @@ void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
                     poseFollowModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
                 const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
                 poseFollowModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+
+            if (auto* physicsModifier = dynamic_cast<PhysicsModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    physicsModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                physicsModifier->Set_RuntimeTestOwnerMotion(
                     applyToModifier,
                     applyToModifier ? testDelta : Vec3::Zero);
                 if (applyToModifier)
@@ -2695,7 +2941,7 @@ void Animation_View::Draw_EventListPanel()
 {
     if (Get_CurrentAnimation() == nullptr)
     {
-        ImGui::TextDisabled("선택된 애니메이션 없음");
+        ImGui::TextDisabled("No animation selected.");
         return;
     }
 
@@ -2849,12 +3095,12 @@ void Animation_View::Draw_TrackSection()
         return;
     }
 
-    ImGui::SeparatorText("트랙 생성 / 관리");
-    ImGui::TextDisabled("노티파이 트랙");
+    ImGui::SeparatorText("Track Create / Manage");
+    ImGui::TextDisabled("Notify Track");
     char notifyTrackBuffer[128] = {};
     strcpy_s(notifyTrackBuffer, _newNotifyTrackName.c_str());
     ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::InputTextWithHint("##NotifyTrackInput", "새 노티파이 트랙 이름", notifyTrackBuffer, static_cast<size_t>(std::size(notifyTrackBuffer))))
+    if (ImGui::InputTextWithHint("##NotifyTrackInput", "Enter notify track name", notifyTrackBuffer, static_cast<size_t>(std::size(notifyTrackBuffer))))
         _newNotifyTrackName = notifyTrackBuffer;
 
     ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(56, 72, 48, 255));
@@ -2872,19 +3118,19 @@ void Animation_View::Draw_TrackSection()
     }
     ImGui::PopStyleColor(3);
 
-    if (ImGui::Button("노티파이 트랙 생성", ImVec2(-FLT_MIN, 0.f)))
+    if (ImGui::Button("Add Notify Track", ImVec2(-FLT_MIN, 0.f)))
         Add_NotifyTrack(_newNotifyTrackName);
 
-    if (ImGui::Button("노티파이 트랙 삭제", ImVec2(-FLT_MIN, 0.f)))
+    if (ImGui::Button("Delete Notify Track", ImVec2(-FLT_MIN, 0.f)))
         Delete_SelectedNotifyTrack();
 
     ImGui::Spacing();
     ImGui::Separator();
-    ImGui::TextDisabled("노티파이 스테이트 트랙");
+    ImGui::TextDisabled("Notify State Track");
     char notifyStateTrackBuffer[128] = {};
     strcpy_s(notifyStateTrackBuffer, _newNotifyStateTrackName.c_str());
     ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::InputTextWithHint("##NotifyStateTrackInput", "새 노티파이 스테이트 트랙 이름", notifyStateTrackBuffer, static_cast<size_t>(std::size(notifyStateTrackBuffer))))
+    if (ImGui::InputTextWithHint("##NotifyStateTrackInput", "Enter notify state track name", notifyStateTrackBuffer, static_cast<size_t>(std::size(notifyStateTrackBuffer))))
         _newNotifyStateTrackName = notifyStateTrackBuffer;
 
     ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(66, 56, 38, 255));
@@ -2903,10 +3149,10 @@ void Animation_View::Draw_TrackSection()
     }
     ImGui::PopStyleColor(3);
 
-    if (ImGui::Button("노티파이 스테이트 트랙 생성", ImVec2(-FLT_MIN, 0.f)))
+    if (ImGui::Button("Add Notify State Track", ImVec2(-FLT_MIN, 0.f)))
         Add_NotifyStateTrack(_newNotifyStateTrackName);
 
-    if (ImGui::Button("노티파이 스테이트 트랙 삭제", ImVec2(-FLT_MIN, 0.f)))
+    if (ImGui::Button("Delete Notify State Track", ImVec2(-FLT_MIN, 0.f)))
         Delete_SelectedNotifyStateTrack();
 
     ImGui::EndChild();
@@ -3467,7 +3713,7 @@ void Animation_View::Copy_SelectedNotify()
             return a.trackIndex < b.trackIndex;
         });
 
-    NOTIFY("노티파이 복사: {}개", static_cast<int32>(_copiedNotifies.size()));
+    NOTIFY("Copied notifies: {}", static_cast<int32>(_copiedNotifies.size()));
 }
 
 void Animation_View::Copy_SelectedState()
@@ -3485,7 +3731,7 @@ void Animation_View::Copy_SelectedState()
     _copiedNotifyState.durationSec = selectedState->durationSec;
     _copiedNotifyState.trackIndex = selectedState->trackIndex;
 
-    NOTIFY("노티파이 스테이트 복사: {}", _copiedNotifyState.typeName);
+    NOTIFY("Copied notify state: {}", _copiedNotifyState.typeName);
 }
 
 void Animation_View::Paste_CopiedNotify()
@@ -3536,7 +3782,7 @@ void Animation_View::Paste_CopiedNotify()
     _isDirty = true;
 
     if (!_selectedNotifyIds.empty())
-        NOTIFY("노티파이 붙여넣기: {}개", static_cast<int32>(_selectedNotifyIds.size()));
+        NOTIFY("Pasted notifies: {}", static_cast<int32>(_selectedNotifyIds.size()));
 
     Commit_NotifyUndoSnapshot(undoSnapshot);
 }
@@ -3577,7 +3823,7 @@ void Animation_View::Paste_CopiedState()
     _selectedNotifyStateTrackIndex = trackIndex;
     _isDirty = true;
 
-    NOTIFY("노티파이 스테이트 붙여넣기: {}", _copiedNotifyState.typeName);
+    NOTIFY("Pasted notify state: {}", _copiedNotifyState.typeName);
     Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
@@ -3788,15 +4034,7 @@ Shared<ModelCom> Animation_View::Get_ModifierRuntimeModel() const
 
     if (_previewRootObject != nullptr)
     {
-        const Shared<GameObject> previewOwner =
-            PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
-        Shared<ModelCom> previewModel{};
-        if (previewOwner != nullptr && !target.componentTag.empty())
-            previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
-
-        if (previewModel == nullptr)
-            previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
-
+        Shared<ModelCom> previewModel = Resolve_LiveModelTargetModel(target);
         if (previewModel != nullptr)
         {
             return previewModel;
@@ -3813,7 +4051,7 @@ bool Animation_View::Try_GetTrailSample(EffectTrailSample& outSample) const
         if (runtime.stateId != _previewTrailProviderStateId)
             continue;
 
-        return Try_GetTrailSampleForRuntime(runtime, outSample); // 현재 update 중인 runtime의 partTag/anchor로 sample을 계산한다.
+        return Try_GetTrailSampleForRuntime(runtime, outSample); // ?熬곣뫗??update 繞벿살탳??runtime??partTag/anchor??sample????ｌ뫒亦??類ｋ펲.
     }
 
     return false;
@@ -3971,7 +4209,7 @@ void Animation_View::Update_PreviewWeaponRotateStates(float timeDelta)
             _previewWeaponRotateRuntimes.push_back(std::move(newRuntime));
             runtime = &_previewWeaponRotateRuntimes.back();
 
-            runtime->notifyState->On_Begin(stateContext); // preview는 실제 notify 실행 대신 현재 _asset 기준으로 직접 state를 시작한다.
+            runtime->notifyState->On_Begin(stateContext); // preview?????깆젷 notify ???덈뺄 ?????熬곣뫗??_asset ?リ옇????怨쀬Ŧ 嶺뚯쉳???state????戮곗굚??類ｋ펲.
         }
         else
         {
@@ -4005,7 +4243,7 @@ void Animation_View::Update_PreviewWeaponRotateStates(float timeDelta)
     for (const wstring& partTag : touchedPartTags)
     {
         if (Weapon* weapon = Resolve_PreviewWeapon(partTag))
-            weapon->Update(0.f); // notify가 바꾼 로컬 회전을 현재 프레임 combinedWorldMatrix에 바로 반영한다.
+            weapon->Update(0.f); // notify?띠럾? ?꾩룆????β돦裕뉛쭚????????熬곣뫗???熬곣뫁???combinedWorldMatrix???꾩룆?餓??꾩룇瑗???類ｋ펲.
     }
 }
 
@@ -4886,6 +5124,199 @@ void Animation_View::Draw_ModifierChainDebug() const
     _previewGridBatch->End();
 }
 
+void Animation_View::Draw_ModifierCollisionDebug() const
+{
+    Shared<ModelCom> modifierModel = Get_ModifierRuntimeModel();
+    if (modifierModel == nullptr)
+        return;
+
+    Sync_ModifierCollisionSource(modifierModel);
+
+    struct RuntimeCollisionCapsule
+    {
+        Vec3 startPoint{ Vec3::Zero };
+        Vec3 endPoint{ Vec3::Zero };
+        float sourceRadius{ 0.f };
+        float collisionRadius{ 0.f };
+    };
+
+    struct RuntimeCollisionSegment
+    {
+        Vec3 startPoint{ Vec3::Zero };
+        Vec3 endPoint{ Vec3::Zero };
+        bool hasContact{ false };
+        bool hasPush{ false };
+        bool isSolvedSegment{ false };
+    };
+
+    vector<RuntimeCollisionCapsule> capsules{};
+    vector<RuntimeCollisionSegment> segments{};
+    for (const Shared<AnimationModifier>& modifier : modifierModel->Get_Modifiers())
+    {
+        if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+        {
+            auto* desc = static_cast<PoseFollowChainModifier::PoseFollowChainModifierDesc*>(
+                poseFollowModifier->Get_RuntimeReflectionTarget());
+            if (desc == nullptr || !desc->debugDrawCapsules)
+                continue;
+
+            vector<PoseFollowChainModifier::RuntimeDebugCapsule> poseFollowCapsules{};
+            poseFollowModifier->Build_RuntimeDebugCapsules(modifierModel.get(), poseFollowCapsules);
+            for (const auto& capsule : poseFollowCapsules)
+            {
+                capsules.push_back({
+                    capsule.startPoint,
+                    capsule.endPoint,
+                    capsule.sourceRadius,
+                    capsule.collisionRadius });
+            }
+            if (!capsules.empty())
+                break;
+        }
+
+        if (auto* physicsModifier = dynamic_cast<PhysicsModifier*>(modifier.get()))
+        {
+            auto* desc = static_cast<PhysicsModifier::PhysicsModifierDesc*>(
+                physicsModifier->Get_RuntimeReflectionTarget());
+            if (desc == nullptr || (!desc->debugDrawCollisions && !desc->debugDrawNodes))
+                continue;
+
+            if (desc->debugDrawCollisions)
+            {
+                vector<PhysicsModifier::RuntimeDebugCapsule> physicsCapsules{};
+                physicsModifier->Build_RuntimeDebugCapsules(modifierModel.get(), physicsCapsules);
+                for (const auto& capsule : physicsCapsules)
+                {
+                    capsules.push_back({
+                        capsule.startPoint,
+                        capsule.endPoint,
+                        capsule.sourceRadius,
+                        capsule.collisionRadius });
+                }
+            }
+
+            if (desc->debugDrawNodes || desc->debugDrawCollisions)
+            {
+                vector<PhysicsModifier::RuntimeDebugSegment> physicsSegments{};
+                physicsModifier->Build_RuntimeDebugSegments(physicsSegments);
+                for (const auto& segment : physicsSegments)
+                {
+                    segments.push_back({
+                        segment.startPoint,
+                        segment.endPoint,
+                        segment.hasContact,
+                        segment.hasPush,
+                        segment.isSolvedSegment });
+                }
+            }
+
+            if (!capsules.empty() || !segments.empty())
+                break;
+        }
+    }
+
+    if (capsules.empty() && segments.empty())
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    const auto drawLine =
+        [&](const Vec3& start, const Vec3& end, const XMVECTORF32& color)
+    {
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(start, color),
+            DirectX::VertexPositionColor(end, color));
+    };
+
+    const auto drawRing =
+        [&](const Vec3& center, const Vec3& axisA, const Vec3& axisB, float radius, const XMVECTORF32& color)
+    {
+        constexpr int segmentCount = 24;
+        for (int segmentIndex = 0; segmentIndex < segmentCount; ++segmentIndex)
+        {
+            const float t0 = XM_2PI * static_cast<float>(segmentIndex) / static_cast<float>(segmentCount);
+            const float t1 = XM_2PI * static_cast<float>(segmentIndex + 1) / static_cast<float>(segmentCount);
+            const Vec3 point0 = center + axisA * (cosf(t0) * radius) + axisB * (sinf(t0) * radius);
+            const Vec3 point1 = center + axisA * (cosf(t1) * radius) + axisB * (sinf(t1) * radius);
+            drawLine(point0, point1, color);
+        }
+    };
+
+    const auto drawCapsule =
+        [&](const RuntimeCollisionCapsule& capsule)
+    {
+        Vec3 axis = capsule.endPoint - capsule.startPoint;
+        if (capsule.collisionRadius <= 0.f)
+            return;
+
+        if (axis.LengthSquared() <= 0.000001f)
+        {
+            const XMVECTORF32 ringColor = DirectX::Colors::DeepSkyBlue;
+            drawRing(capsule.startPoint, Vec3::UnitX, Vec3::UnitY, capsule.collisionRadius, ringColor);
+            drawRing(capsule.startPoint, Vec3::UnitX, Vec3::UnitZ, capsule.collisionRadius, ringColor);
+            drawRing(capsule.startPoint, Vec3::UnitY, Vec3::UnitZ, capsule.collisionRadius, ringColor);
+            return;
+        }
+
+        axis.Normalize();
+        Vec3 right = axis.Cross(Vec3::UnitY);
+        if (right.LengthSquared() <= 0.000001f)
+            right = axis.Cross(Vec3::UnitX);
+        if (right.LengthSquared() <= 0.000001f)
+            right = Vec3::UnitX;
+        right.Normalize();
+
+        Vec3 up = right.Cross(axis);
+        if (up.LengthSquared() <= 0.000001f)
+            up = Vec3::UnitY;
+        else
+            up.Normalize();
+
+        const XMVECTORF32 axisColor = DirectX::Colors::DeepSkyBlue;
+        const XMVECTORF32 ringColor = DirectX::Colors::DeepSkyBlue;
+        drawLine(capsule.startPoint, capsule.endPoint, axisColor);
+        drawRing(capsule.startPoint, right, up, capsule.collisionRadius, ringColor);
+        drawRing(capsule.endPoint, right, up, capsule.collisionRadius, ringColor);
+        drawLine(capsule.startPoint + right * capsule.collisionRadius, capsule.endPoint + right * capsule.collisionRadius, axisColor);
+        drawLine(capsule.startPoint - right * capsule.collisionRadius, capsule.endPoint - right * capsule.collisionRadius, axisColor);
+        drawLine(capsule.startPoint + up * capsule.collisionRadius, capsule.endPoint + up * capsule.collisionRadius, axisColor);
+        drawLine(capsule.startPoint - up * capsule.collisionRadius, capsule.endPoint - up * capsule.collisionRadius, axisColor);
+    };
+
+    _previewGridBatch->Begin();
+    for (const auto& capsule : capsules)
+        drawCapsule(capsule);
+    for (const auto& segment : segments)
+        drawLine(
+            segment.startPoint,
+            segment.endPoint,
+            segment.hasContact
+                ? DirectX::Colors::Red
+                : (segment.hasPush ? DirectX::Colors::Orange : (segment.isSolvedSegment ? DirectX::Colors::Magenta : DirectX::Colors::Gray)));
+    _previewGridBatch->End();
+}
+
 void Animation_View::Draw_TrailAnchorPreview() const
 {
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
@@ -5016,7 +5447,7 @@ void Animation_View::Update_PreviewAnimSpeedStates(float timeDelta)
             runtime.payloadJson = payloadJson;
             _previewAnimSpeedStateRuntimes.push_back(runtime);
 
-            entry.notifyState->On_Begin(stateContext); // preview sampling 전에 배속을 먼저 세팅한다.
+            entry.notifyState->On_Begin(stateContext); // preview sampling ?熬곣뫖???꾩룄?????誘る닔? ?筌뤿굝???類ｋ펲.
             continue;
         }
 
@@ -5052,12 +5483,19 @@ void Animation_View::Update_PreviewAnimSpeedStates(float timeDelta)
 
         _previewAnimSpeedStateRuntimes.erase(_previewAnimSpeedStateRuntimes.begin() + runtimeIndex);
     }
+
+    if (_previewAnimSpeedStateRuntimes.empty())
+        _previewModelCom->Set_FrameSpeed(1.f);
 }
 
 void Animation_View::Reset_PreviewAnimSpeedStates()
 {
     if (_previewAnimSpeedStateRuntimes.empty())
+    {
+        if (_previewModelCom)
+            _previewModelCom->Set_FrameSpeed(1.f);
         return;
+    }
 
     AnimNotifyContext context{};
     context.owner = _previewModelCom ? _previewModelCom->Get_Owner().get() : nullptr;
@@ -5076,7 +5514,7 @@ void Animation_View::Reset_PreviewAnimSpeedStates()
     _previewAnimSpeedStateRuntimes.clear();
 
     if (_previewModelCom)
-        _previewModelCom->Set_FrameSpeed(1.f); // preview clone이 남아 있을 때 배속 잔류를 정리한다.
+        _previewModelCom->Set_FrameSpeed(1.f); // preview clone????貫?????깅굵 ???꾩룄?????븐뼚泥???筌먲퐘遊??類ｋ펲.
 }
 
 void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta)
@@ -5578,7 +6016,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         {
             PreviewTrailRuntime newRuntime{};
             newRuntime.stateId = activeTrailState->id;
-            newRuntime.partTag = partTag; // 각 ANS_Trail이 지정한 partTag를 자기 runtime에 고정한다.
+            newRuntime.partTag = partTag; // ??ANS_Trail??嶺뚯솘??筌먐삳┰ partTag???????runtime????μ쪠???類ｋ펲.
             _previewTrailRuntimes.push_back(std::move(newRuntime));
             runtime = &_previewTrailRuntimes.back();
 
@@ -5604,7 +6042,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
             if (runtime->effect)
                 runtime->effect->Stop();
 
-            runtime->partTag = partTag;   // 같은 state라도 partTag가 바뀌면 새 무기 기준으로 anchor를 다시 읽는다.
+            runtime->partTag = partTag;   // ?띠룇?? state??怨뺤┣ partTag?띠럾? ?꾩룆??????????쒕뼬???リ옇????怨쀬Ŧ anchor?????곕뻣 ???덈츎??
             runtime->effect.reset();
             runtime->effectName.clear();
             runtime->isPlaying = false;
@@ -5627,7 +6065,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
             currentTimeSec + 1e-4f < runtime->lastTimeSec;
         if (timeMovedBackward)
         {
-            runtime->effect->Stop(); // scrub나 seek으로 시간이 뒤로 가면 해당 runtime history만 버리고 다시 시작한다.
+            runtime->effect->Stop(); // scrub??seek??怨쀬Ŧ ??蹂?뜟?????댁Ŧ ?띠럾?嶺??????runtime history嶺??뺢퀗??怨ヂ????곕뻣 ??戮곗굚??類ｋ펲.
             runtime->isPlaying = false;
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
@@ -5645,7 +6083,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
 
         if (!runtime->isPlaying)
         {
-            runtime->effect->Bind_TrailSampleProvider(static_pointer_cast<IEffectTrailSampleProvider>(GetSharedPtr<Animation_View>())); // preview도 ComputeTrailEmitter가 sample provider를 통해 base/tip을 받아야 history가 쌓인다.
+            runtime->effect->Bind_TrailSampleProvider(static_pointer_cast<IEffectTrailSampleProvider>(GetSharedPtr<Animation_View>())); // preview??ComputeTrailEmitter?띠럾? sample provider???????base/tip???꾩룇猷뉔뇡??history?띠럾? ?癰?逾??
             if (FAILED(runtime->effect->Reset()))
                 continue;
 
@@ -5666,7 +6104,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
             continue;
 
         effectTransform->Set_WorldPosition(trailSample.baseWorldPosition);
-        _previewTrailProviderStateId = runtime->stateId; // 같은 provider를 공유하되, 현재 effect update 전에 어떤 runtime sample을 줄지 지정한다.
+        _previewTrailProviderStateId = runtime->stateId; // ?띠룇?? provider????ㅻ쾴????濡モ뵹, ?熬곣뫗??effect update ?熬곣뫖???????runtime sample??繞벿븐뫒? 嶺뚯솘??筌먐삳┰??
         runtime->effect->Priority_Update(timeDelta);
         runtime->effect->Update(timeDelta);
         runtime->lastTimeSec = currentTimeSec;
@@ -5820,7 +6258,7 @@ bool Animation_View::Try_ResolvePreviewTrailEffectName(
     if (weapon == nullptr)
         return false;
 
-    outEffectName = weapon->Get_TrailEffectName(); // preview도 runtime과 같은 fallback 규칙을 써야 한다.
+    outEffectName = weapon->Get_TrailEffectName(); // preview??runtime???띠룇?? fallback ?잙?裕?????貫????類ｋ펲.
     return !outEffectName.empty();
 }
 
@@ -5967,13 +6405,13 @@ void Animation_View::Validate_SelectedBoneSelection()
 
 string Animation_View::Normalize_DefaultTrackName(const string& trackName)
 {
-    if (trackName == "노티파이")
-        return "Notify";
-    if (trackName == "노티파이 스테이트")
-        return "Notify State";
-    if (trackName == "노티파이 트랙")
+    if (trackName.empty())
+        return trackName;
+
+    if (trackName == "Notify" || trackName == "Notify Track")
         return "Notify Track";
-    if (trackName == "노티파이 스테이트 트랙")
+
+    if (trackName == "Notify State" || trackName == "Notify State Track")
         return "Notify State Track";
 
     return trackName;
@@ -6147,7 +6585,7 @@ void Animation_View::Sync_PreviewAnimationSelection(bool keepCurrentTime)
     playbackModel->Set_Animation(static_cast<uint32>(animationIndex), true);
     playbackModel->Set_AnimationPaused(false);
     playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-    playbackModel->Play_Animation(0.f); // preview 애니메이션 교체 직후에도 현재 시점 notify/state를 한 번 즉시 반영한다.
+    playbackModel->Play_Animation(0.f); // preview ??ル봾鍮띸춯濡ル뾼?????흮??嶺뚯쉳?????利??熬곣뫗????戮곗젍 notify/state??????嶺뚯빖留???꾩룇瑗???類ｋ펲.
     _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
 }
 

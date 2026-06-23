@@ -2,7 +2,8 @@
 
 #include "EffectCom.h"
 #include "ChainModifierPreset.h"
-#include "PoseFollowChainModifier.h"
+#include "PhysicsModifier.h"
+#include "ModelCom.h"
 
 NS_BEGIN(Client)
 
@@ -28,9 +29,17 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
         return E_FAIL;
 
     _socketMatrix = desc->socketMatrix;
+    _collisionModel = desc->collisionModel;
+    _collisionOwnerWorldMatrix = desc->collisionOwnerWorldMatrix;
 
     if (FAILED(Monster_Part::Initialize(desc)))
         return E_FAIL;
+
+    if (_model)
+    {
+        _model->Set_LocalRootNode(_model->Get_BoneIndex("Simon_Strand_Hair_root"));
+        _model->Set_Animation("Simon_Hair", true);
+    }
 
     CHECK_FAILED(Ready_Modifier(), E_FAIL);
 
@@ -39,16 +48,18 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
 
 HRESULT Mon_Simon_Hair::Ready_Modifier()
 {
-    PoseFollowChainModifier::PoseFollowChainModifierDesc hairDesc{};
-    ChainModifierPreset::BuildSimonPoseFollowHairDesc(
+    PhysicsModifier::PhysicsModifierDesc hairDesc{};
+    ChainModifierPreset::BuildSimonPhysicsHairDesc(
         hairDesc,
         _transformCom.get(),
         PlayerCharacterType::None);
     hairDesc.ownerWorldMatrix = &Get_CombinedWorldMatrix();
+    hairDesc.collisionModel = _collisionModel;
+    hairDesc.collisionOwnerWorldMatrix = _collisionOwnerWorldMatrix;
 
-    if (!hairDesc.groups.empty())
+    if (!hairDesc.chains.empty())
     {
-        if (auto modifier = PoseFollowChainModifier::Create(&hairDesc))
+        if (auto modifier = PhysicsModifier::Create(&hairDesc))
         {
             _model->Add_AnimModifier(modifier);
         }

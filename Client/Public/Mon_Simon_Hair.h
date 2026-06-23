@@ -13,6 +13,8 @@ public:
     struct HEAD_DESC : Monster_Part::MONSTER_PART_DESC
     {
         const Matrix* socketMatrix = nullptr;
+        ModelCom* collisionModel = nullptr;
+        const Matrix* collisionOwnerWorldMatrix = nullptr;
     };
 
 public:
@@ -35,6 +37,8 @@ private:
 
 private:
     const Matrix* _socketMatrix = nullptr;
+    ModelCom* _collisionModel = nullptr;
+    const Matrix* _collisionOwnerWorldMatrix = nullptr;
     Matrix _offsetMatrix = {};
 
 public:

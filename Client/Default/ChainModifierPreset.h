@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "ChainModifier.h"
+#include "PhysicsModifier.h"
 #include "PoseFollowChainModifier.h"
 #include "Client_Enum.h"
 
@@ -68,11 +69,11 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_PotatoBagHair");
 
-    static void BuildSimonPoseFollowHairDesc(
-        PoseFollowChainModifier::PoseFollowChainModifierDesc& outDesc,
+    static void BuildSimonPhysicsHairDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,
-        const wstring& modifierTag = L"PoseFollow_SimonHair");
+        const wstring& modifierTag = L"Physics_SimonHair");
 
     static void BuildPotatoBagClothBackDesc(
         ChainModifier::ChainModifierDesc& outDesc,
