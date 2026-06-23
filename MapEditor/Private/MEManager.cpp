@@ -319,6 +319,22 @@ void MEManager::RenderDockSpace()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Shader"))
+        {
+            if (ImGui::MenuItem("Reload VtxMesh Shaders"))
+            {
+                const HRESULT hr = GAME->Reload_ShaderComs();
+                if (hr == S_OK)
+                    _shaderReloadMsg = "Shader_VtxMesh / Shader_VtxMeshInstanceExact 재컴파일 성공";
+                else if (hr == S_FALSE)
+                    _shaderReloadMsg = "Shader reload 부분 성공 (일부 셰이더 이전 버전 유지)";
+                else
+                    _shaderReloadMsg = "Shader reload 실패 (이전 버전 유지)";
+                _shaderReloadPopupOpen = true;
+            }
+            ImGui::EndMenu();
+        }
+
         const float fps = ImGui::GetIO().Framerate;
         const uint32 renderCalls = GAME ? GAME->Get_RenderCall() : 0u;
         const string perfLabel = "FPS: " + to_string(static_cast<int>(fps + 0.5f)) +
@@ -415,6 +431,21 @@ void MEManager::RenderDockSpace()
             _confirmImportOpen = false;
             ImGui::CloseCurrentPopup();
         }
+        ImGui::EndPopup();
+    }
+
+    if (_shaderReloadPopupOpen)
+    {
+        ImGui::OpenPopup("Shader Reload");
+        _shaderReloadPopupOpen = false;
+    }
+
+    if (ImGui::BeginPopupModal("Shader Reload", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("%s", _shaderReloadMsg.c_str());
+        ImGui::Separator();
+        if (ImGui::Button("OK", ImVec2(120, 0)))
+            ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
 

@@ -33,10 +33,12 @@ private:
     Shared<ShaderCom> _shader;
 
     float _cameraFar = 1000.f;
+    bool _hasEclipseGlow = false;
 
 private:
     HRESULT Ready_Components();
     HRESULT Bind_ShaderResources();
+    void Refresh_HasEclipseGlow();
 
 public:
     static Shared<MEStaticMeshActor> Create(ComPtr<Device> device, ComPtr<Context> context);

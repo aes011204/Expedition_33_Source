@@ -43,6 +43,9 @@ private:
     bool _confirmImportOpen = false;
     string _pendingImportMapName;
 
+    bool _shaderReloadPopupOpen = false;
+    string _shaderReloadMsg;
+
 public:
     void AddWindow(Shared<MEWindow> w);
 
