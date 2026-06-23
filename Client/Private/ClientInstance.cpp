@@ -572,9 +572,16 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
-                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject)
+                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
+                                        bool completeImmediately)
 {
-    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, battleMonsterSpawnDescs, sourceObject);
+    return _battleController->OnEnterBattleField(
+        FieldID,
+        isPlayerAdvantage,
+        heroIds,
+        battleMonsterSpawnDescs,
+        sourceObject,
+        completeImmediately);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -775,6 +782,22 @@ void ClientInstance::Update_CinematicPreview(float timeDelta)
     _cinematicSequenceRunner->Update(timeDelta, true);
 }
 
+FDelegateHandle ClientInstance::Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return {};
+
+    return _cinematicSequenceRunner->Add_CompletedCallback(callback);
+}
+
+void ClientInstance::Clear_CinematicCompletedCallbacks()
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Clear_CompletedCallbacks(); 
+}
+
 Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
 {
     if(auto camera = dynamic_pointer_cast<CinematicCamera>(GAME->Get_CameraByType(ObjectType::CinematicCamera)))
@@ -909,6 +932,23 @@ bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
     }
 
     return true;
+}
+
+HRESULT ClientInstance::Reload_EffectJsons()
+{
+    if (_effectInstancePool == nullptr)
+        return E_FAIL;
+
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (assetRoot.empty())
+        return E_FAIL;
+
+    const fs::path effectAssetRoot = fs::path(assetRoot) / L"Effects" / L"Assets";
+    CHECK_FAILED(GAME->Refresh_AssetRegistryDirectory(effectAssetRoot.wstring(), effectAssetRoot.wstring()), E_FAIL);
+
+    // 새/수정된 effect registry 반영 뒤, 다음 Play_Effect가 최신 .effect.json을 디스크에서 다시 접게 한다.
+    _effectInstancePool->Discard_AllInactive();
+    return S_OK;
 }
 
 bool ClientInstance::Play_AttachPartEffect(

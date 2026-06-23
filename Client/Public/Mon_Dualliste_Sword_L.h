@@ -2,6 +2,7 @@
 
 #include "Client_Defines.h"
 #include "Monster_Part.h"
+#include "Weapon.h"
 
 NS_BEGIN(Client)
 
@@ -30,14 +31,27 @@ public:
     virtual HRESULT Render_Shadow() override;
     virtual void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
+    void From_Json(const json& data) override;
+
+public:
+    const wstring& Get_TrailEffectName() const { return _trailEffectName; }
+    vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() { return _sourceHistoryAnchors; }
+    const vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() const { return _sourceHistoryAnchors; }
+    const WeaponSourceHistoryAnchorDesc* Find_SourceHistoryAnchor(const string& anchorName) const;
+
     HRESULT Ready_Components(const MONSTER_PART_DESC& desc) override;
     Shared<ColliderCom> Get_AttackCollider() const { return _attackLCom; }
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
+    json To_Json() const override;
+    HRESULT Ready_DefaultComponents();
+    HRESULT Ensure_RuntimeComponentsFromJson(const json& data);
 
 private:
     const Matrix* _socketMatrix = nullptr;
     Matrix _offsetMatrix = {};
+    wstring _trailEffectName = L"";
+    vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};
 
     Shared<ColliderCom>         _attackLCom{};
 

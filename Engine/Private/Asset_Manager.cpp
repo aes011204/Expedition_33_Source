@@ -511,6 +511,35 @@ void Asset_Manager::Scan_And_Register(const wstring& directory, const wstring& m
     }
 }
 
+HRESULT Asset_Manager::Refresh_RegistryDirectory(const wstring& directory, const wstring& missingMetaRoot)
+{
+    try
+    {
+        if (_resourceRoot.empty())
+            return E_FAIL;
+
+        const fs::path directoryPath = fs::absolute(fs::path(directory)).lexically_normal();
+        if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
+            return E_FAIL;
+
+        // 제한된 디렉터리만 다시 조사해서 새 effect json/meta를 live registry에 반영한다.
+        Scan_And_Register(directoryPath.wstring(), missingMetaRoot);
+        Refresh_Cache();
+
+        if (_assetRegistryDirty)
+        {
+            Save_Registry();
+            Save_Cache();
+        }
+
+        return S_OK;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
+}
+
 HRESULT Asset_Manager::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot)
 {
     try

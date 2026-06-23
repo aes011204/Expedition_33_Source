@@ -13,5 +13,7 @@ public:
 public:
     static void SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip, const string& skillId = "");
     static bool LoadBattleCameraClipFromFile(BattleCameraMode cameraMode, BattleCameraClip& clip, const string& skillId = "");
+    static void SaveSoulLikeCameraClipToFile(const string& presetKey, const BattleCameraClip& clip);
+    static bool LoadSoulLikeCameraClipFromFile(const string& presetKey, BattleCameraClip& clip);
 };
 NS_END

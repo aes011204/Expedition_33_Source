@@ -1,6 +1,8 @@
 ﻿#include "ANS_Trail.h"
 
+#include "ContainerObject.h"
 #include "EffectCom.h"
+#include "Mon_Simon_Weapon.h"
 
 #include <atomic>
 
@@ -36,6 +38,28 @@ namespace
         outVec3.z = value[2].get<float>();
         return true;
     }
+
+    Mon_Simon_Weapon* Resolve_SimonWeapon(const AnimNotifyContext& context, const wstring& partTag)
+    {
+        if (context.owner == nullptr)
+            return nullptr;
+
+        Shared<GameObject> current = context.owner->GetSharedPtr<GameObject>();
+        while (current)
+        {
+            ContainerObject* ownerContainer = dynamic_cast<ContainerObject*>(current.get());
+            if (ownerContainer != nullptr)
+            {
+                Mon_Simon_Weapon* weapon = dynamic_cast<Mon_Simon_Weapon*>(ownerContainer->Get_PartObject(partTag));
+                if (weapon != nullptr)
+                    return weapon;
+            }
+
+            current = current->Get_Owner();
+        }
+
+        return nullptr;
+    }
 }
 
 IMPLEMENT_REFLECTION(ANS_Trail)
@@ -64,6 +88,23 @@ void ANS_Trail::On_Begin(const AnimNotifyContext& context)
     offsetDesc.tipLocalOffsetCurve = _tipLocalOffsetCurve;
 
     effectCom->Play_TrailEffect(_effectName, _partTag, _layerTag, _trailNotifyToken, offsetDesc);
+
+    if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
+    {
+        wstring activeTrailEffectName{};
+        wstring activeTrailLayerTag{};
+        EffectCom::TrailOffsetRuntimeDesc activeTrailOffset{};
+        if (effectCom->Try_GetActiveTrailEffect(_partTag, activeTrailEffectName, activeTrailLayerTag, activeTrailOffset))
+        {
+            simonWeapon->Begin_WeaponEchoTrail(activeTrailEffectName, activeTrailLayerTag, activeTrailOffset);
+        }
+        else
+        {
+            const wstring fallbackEffectName = _effectName.empty() ? simonWeapon->Get_TrailEffectName() : _effectName;
+            if (!fallbackEffectName.empty())
+                simonWeapon->Begin_WeaponEchoTrail(fallbackEffectName, _layerTag, offsetDesc);
+        }
+    }
 }
 
 void ANS_Trail::On_Tick(const AnimNotifyContext& context)
@@ -82,6 +123,9 @@ void ANS_Trail::On_Tick(const AnimNotifyContext& context)
     offsetDesc.tipLocalOffsetCurve = _tipLocalOffsetCurve;
 
     effectCom->Update_TrailEffectOffset(_effectName, _partTag, _trailNotifyToken, offsetDesc);
+
+    if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
+        simonWeapon->Update_WeaponEchoTrailOffset(offsetDesc);
 }
 
 void ANS_Trail::On_End(const AnimNotifyContext& context)

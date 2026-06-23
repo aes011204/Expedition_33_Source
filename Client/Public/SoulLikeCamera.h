@@ -57,6 +57,13 @@ public:
     void SetTargetTransform(Shared<TransformCom> targetTransform);
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
 
+    const TargetCameraPreset& Get_Preset() const;
+    void Set_Preset(const TargetCameraPreset& preset);
+    void Apply_PreviewPreset(const TargetCameraPreset& preset);
+    bool Apply_PresetOverride(const string& presetKey);
+    bool Apply_SkillPreset(const string& skillKey);
+    void Restore_BasePreset();
+
 private:
     void Build_DefaultPreset(const SOULLIKE_CAMERA_DESC& desc);
     void Interpolate_CurrentSettings(float timeDelta);
@@ -66,8 +73,10 @@ private:
     Vec3 Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta);
 
 private:
+    TargetCameraPreset _baseSettings{};
     TargetCameraPreset _currentSettings{};
     TargetCameraPreset _targetSettings{};
+    string _activePresetKey{};
 
     Weak<TransformCom> _targetTransformCom{};
     Vec3 _smoothedTargetPos = Vec3::Zero;

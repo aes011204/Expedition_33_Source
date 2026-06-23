@@ -110,6 +110,7 @@ public:
         int32 selectedNotifyStateTrackIndex = 0;
         int32 sequencerCurrentFrame = 0;
         vector<int32> selectedNotifyIds{};
+        vector<int32> selectedStateIds{};
     };
 
     struct LiveModelTarget
@@ -157,6 +158,7 @@ private:
         string sourceHistoryAnchorName{ "Source" };
         Vec3 sourceHistoryLocalOffset{ Vec3::Zero };
         string modelGuid{};
+        Client::TrailAnchorAsset trailAnchorAsset{};
         float lastTimeSec = -1.f;
 
         Shared<EffectInstance> effect{};
@@ -172,6 +174,14 @@ private:
         int32 stateId = -1;
         Shared<AnimNotifyState> notifyState{};
         wstring partTag{};
+    };
+
+    struct PreviewWeaponEchoRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        wstring partTag{};
+        string payloadJson{};
     };
 
     struct PreviewPlayEffectStateRuntime
@@ -268,7 +278,9 @@ private:
     void Paste_CopiedNotify();
     void Paste_CopiedState();
     void Clear_SelectedNotifySelection();
+    void Clear_SelectedStateSelection();
     bool Is_NotifySelected(int32 notifyId) const;
+    bool Is_StateSelected(int32 stateId) const;
 
     void Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex);
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
@@ -293,6 +305,8 @@ private:
     void Reset_PreviewPlayEffectStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
+    void Update_PreviewWeaponEchoStates(float timeDelta);
+    void Reset_PreviewWeaponEchoStates();
     void Update_PreviewSLDodgeMoveStates(float timeDelta);
     void Reset_PreviewSLDodgeMoveStates();
     void Update_PreviewRootControllerStates(float timeDelta);
@@ -395,6 +409,7 @@ private:
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
+    vector<PreviewWeaponEchoRuntime> _previewWeaponEchoRuntimes{};
     vector<PreviewSLDodgeMoveRuntime> _previewSLDodgeMoveRuntimes{};
     vector<PreviewRootControllerRuntime> _previewRootControllerRuntimes{};
     vector<PreviewTrailRuntime> _previewTrailRuntimes{};
@@ -409,10 +424,12 @@ private:
     int32 _selectedNotifyTrackIndex = 0;
     int32 _selectedNotifyStateTrackIndex = 0;
     std::unordered_set<int32> _selectedNotifyIds{};
+    std::unordered_set<int32> _selectedStateIds{};
 
     int32 _sequencerCurrentFrame = 0;
     int32 _sequencerSelectedRow = -1;
     int32 _sequencerFirstFrame = 0;
+    int32 _sequencerVisibleFrameCount = 0;
     uint32 _pendingDockId = 0;
     bool _sequencerExpanded = true;
 
@@ -465,6 +482,7 @@ private:
 
     NotifyClipboardKind _notifyClipboardKind = NotifyClipboardKind::None;
     vector<CopiedNotifyEntry> _copiedNotifies{};
+    vector<CopiedNotifyStateEntry> _copiedNotifyStates{};
     CopiedNotifyStateEntry _copiedNotifyState{};
 
     vector<NotifyUndoSnapshot> _notifyUndoStack{};

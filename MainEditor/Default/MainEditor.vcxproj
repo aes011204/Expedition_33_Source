@@ -217,6 +217,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\ImSequencer.cpp" />
     <ClCompile Include="..\Private\ScreenFx_View.cpp" />
     <ClCompile Include="..\Private\SoulLike_Viewer.cpp" />
+    <ClCompile Include="..\Private\SoulLikeCamera_Viewer.cpp" />
     <ClCompile Include="..\Private\Transform_Inspector.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -237,6 +238,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Animation_NameUtils.h" />
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\Public\ImSequencer.h" />
     <ClInclude Include="..\public\AIController_Inspector.h" />
     <ClInclude Include="..\Public\AnimState_View.h" />
     <ClInclude Include="..\public\BT_VIew.h" />
@@ -267,6 +269,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Prefab_View.h" />
     <ClInclude Include="..\Public\ScreenFx_View.h" />
     <ClInclude Include="..\Public\SoulLike_Viewer.h" />
+    <ClInclude Include="..\Public\SoulLikeCamera_Viewer.h" />
     <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\Public\MainEditorApp.h" />

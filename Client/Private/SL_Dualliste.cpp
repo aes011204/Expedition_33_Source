@@ -2,6 +2,8 @@
 
 #include "Bounding_OBB.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
+#include "WeaponPrefabLoader.h"
 #include "ColliderCom.h"
 #include "ModelCom.h"
 #include "Mon_Dualliste_Body.h"
@@ -72,32 +74,32 @@ void SL_Dualliste::BeginPlay()
         if (const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard())
             bb->Set_Value<int>("CurrentPhase", _currentPhase);
     }
- 
-   if (_attackRCom)
-   {
-       _attackRCom->Set_IsActive(false);
-       _attackRCom->Clear_Overlap();
-   }
 
-   if (_attackLCom)
-   {
-       _attackLCom->Set_IsActive(false);
-       _attackLCom->Clear_Overlap();
-   }
+    if (_attackRCom)
+    {
+        _attackRCom->Set_IsActive(false);
+        _attackRCom->Clear_Overlap();
+    }
 
-   Apply_PhaseVisualState();
+    if (_attackLCom)
+    {
+        _attackLCom->Set_IsActive(false);
+        _attackLCom->Clear_Overlap();
+    }
+
+    Apply_PhaseVisualState();
 
 
-   if (_stateMachineCom)
-       _stateMachineCom->Change_State(SL_MonState::Intro);
+    if (_stateMachineCom)
+        _stateMachineCom->Change_State(SL_MonState::Intro);
 
-   if (_movementCom)
-   {
-       _movementCom->Sync_RuntimePositionToTransform();
-       _movementCom->Stop_AllMovement();
-       _movementCom->Clear_FollowMoveCommand();
-       _movementCom->Apply_Input({});
-   }
+    if (_movementCom)
+    {
+        _movementCom->Sync_RuntimePositionToTransform();
+        _movementCom->Stop_AllMovement();
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+    }
 }
 
 void SL_Dualliste::Priority_Update(float timeDelta)
@@ -196,6 +198,51 @@ void SL_Dualliste::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
     const Shared<SL_Base> target = dynamic_pointer_cast<SL_Base>(other->Get_Owner());
     if (target == nullptr || target.get() == this || target->Is_Dead())
         return;
+
+    if (Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(target))
+    {
+        const Shared<TransformCom> maelleTransform = maelle->Get_Transform();
+        const Vec3 maelleWorldPos = maelleTransform
+            ? maelleTransform->Get_WorldPosition()
+            : Vec3::Zero;
+
+        const Vec3 attackerWorldPos = _transformCom
+            ? _transformCom->Get_WorldPosition()
+            : maelleWorldPos;
+
+        Vec3 effectDir = attackerWorldPos - maelleWorldPos;
+        effectDir.y = 0.f;
+
+        if (effectDir.LengthSquared() > 0.0001f)
+            effectDir.Normalize();
+        else if (maelleTransform)
+            effectDir = maelleTransform->Get_WorldForward();
+
+        effectDir.y = 0.f;
+        if (effectDir.LengthSquared() > 0.0001f)
+            effectDir.Normalize();
+
+        Vec3 parryEffectWorldPos = maelleWorldPos + effectDir * 0.8f;
+        parryEffectWorldPos.y += 1.0f;
+
+        if (maelle->Try_ConsumeParry(attackerWorldPos, parryEffectWorldPos))
+        {
+            self->Set_IsActive(false);
+            self->Clear_Overlap();
+            return;
+        }
+
+        if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        {
+            const Shared<SL_Base> attacker = dynamic_pointer_cast<SL_Base>(GetSharedPtr<GameObject>());
+            if (controller->Try_ConsumeJumpCounterDodge(attacker, maelle))
+            {
+                self->Set_IsActive(false);
+                self->Clear_Overlap();
+                return;
+            }
+        }
+    }
 
     SL_DamageInfo damageInfo{};
     if (!SL_DamageSystem::Apply_Damage(
@@ -395,10 +442,10 @@ void SL_Dualliste::Update_BlackBoard()
 
 bool SL_Dualliste::Change_State(SL_MonState state)
 {
-	if (_stateMachineCom == nullptr)
-		return false;
+    if (_stateMachineCom == nullptr)
+        return false;
 
-	return _stateMachineCom->Change_State(state);
+    return _stateMachineCom->Change_State(state);
 }
 
 void SL_Dualliste::Finish_PhaseChange()
@@ -578,27 +625,41 @@ HRESULT SL_Dualliste::Ready_PartObjects()
         model->Refresh_AnimStateMappingFromOwnerContext();
 
     Mon_Dualliste_Sword_L::SWORD_DESC swordLDesc{};
+    WeaponPrefabLoader::LoadedWeaponPrefab swordLPrefab{};
+    if (!WeaponPrefabLoader::Load(Constants::Prefab::Dualliste_Sword_L, swordLPrefab, "Mon_Dualliste_Sword_L"))
+        return E_FAIL;
+
     swordLDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    swordLDesc.modelType = ModelType::NonAnim;
-    swordLDesc.modelTag = L"Model_Dualliste_Sword_L";
+    swordLDesc.modelType = swordLPrefab.modelType;
+    swordLDesc.modelTag = swordLPrefab.modelTag;
     swordLDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("weapon_l");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Dualliste_Sword_L"), TEXT("Part_Sword_L"), &swordLDesc), E_FAIL);
 
     _swordL = dynamic_pointer_cast<Mon_Dualliste_Sword_L>(_partObjects[TEXT("Part_Sword_L")]);
     CHECK_NULL(_swordL, E_FAIL);
+    _swordL->From_Json(swordLPrefab.rootJson);
+    _swordL->Set_SourcePrefabName(Constants::Prefab::Dualliste_Sword_L);
+
     _attackLCom = _swordL->Get_AttackCollider();
 
     Mon_Dualliste_Sword_R::SWORD_DESC swordRDesc{};
+    WeaponPrefabLoader::LoadedWeaponPrefab swordRPrefab{};
+    if (!WeaponPrefabLoader::Load(Constants::Prefab::Dualliste_Sword_R, swordRPrefab, "Mon_Dualliste_Sword_R"))
+        return E_FAIL;
+
     swordRDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    swordRDesc.modelType = ModelType::NonAnim;
-    swordRDesc.modelTag = L"Model_Dualliste_Sword_R";
+    swordRDesc.modelType = swordRPrefab.modelType;
+    swordRDesc.modelTag = swordRPrefab.modelTag;
     swordRDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("weapon_r");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Dualliste_Sword_R"), TEXT("Part_Sword_R"), &swordRDesc), E_FAIL);
 
     _swordR = dynamic_pointer_cast<Mon_Dualliste_Sword_R>(_partObjects[TEXT("Part_Sword_R")]);
     CHECK_NULL(_swordR, E_FAIL);
+    _swordR->From_Json(swordRPrefab.rootJson);
+    _swordR->Set_SourcePrefabName(Constants::Prefab::Dualliste_Sword_R);
+
     _attackRCom = _swordR->Get_AttackCollider();
 
     return S_OK;

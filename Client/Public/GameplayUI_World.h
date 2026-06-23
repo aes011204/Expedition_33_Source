@@ -40,6 +40,9 @@ public:
     void    Force_CloseAllMenus();
     void    Handle_EditorStopRuntime();
 
+    // 아레나 UI 열기
+    bool    Request_ArenaCharacterSelect();
+
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
     void    Handle_SavePointInput();

@@ -50,6 +50,9 @@ public:
     void            OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void            On_EditorStopRuntime();
 
+    // 시네마틱을 통한 전투 시작
+    void            Begin_BattleFromCinematic(bool isPlayerAdvantage = false);
+
     // 이 월드 몬스터와 충돌했을 때 생성할 배틀 몬스터 목록을 넘긴다.
     virtual void    Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const;
     vector<HeroId>  Build_BattleHeroIds() const;
@@ -87,6 +90,7 @@ protected:
     virtual HRESULT Ready_Components();
 
 private:
+    bool Request_BattleEnter(bool isPlayerAdvantage, Shared<ColliderCom> self, bool completeImmediately = false); // true면 BattleController의 2초 슬로우 대기를 건너뛴다.
     void Build_DefaultPatrolPoints();
 
     MonsterWorldAnim _desiredAction = MonsterWorldAnim::Idle;

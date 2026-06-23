@@ -13,6 +13,7 @@ NS_BEGIN(Client)
 class BattleTurnCamera;
 class FreeCamera;
 class TargetCamera;
+class SoulLikeCamera;
 class PreviewCamera;
 NS_END
 
@@ -35,11 +36,13 @@ private:
     void Render_BattleTurnCameraProperties(const Shared<Client::BattleTurnCamera>& battleTurnCamera);
     void Render_FreeCameraProperties(const Shared<Client::FreeCamera>& freeCamera);
     void Render_TargetCameraProperties(const Shared<Client::TargetCamera>& targetCamera);
+    void Render_SoulLikeCameraProperties(const Shared<Client::SoulLikeCamera>& soulLikeCamera);
     void Render_PreviewCameraProperties(const Shared<Client::PreviewCamera>& previewCamera);
 
 public:
     void Select_EditingCameraState();
     void Edit_TargetCameraPreset();
+    void Edit_SoulLikeCameraPreset();
     void Select_EditingBattleCameraMode();
     void Edit_BattleTurnCameraPreset();
     void Edit_BattleCameraClip();

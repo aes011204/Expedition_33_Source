@@ -1132,9 +1132,6 @@
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
     <ClCompile Include="ChainModifierPreset.cpp" />
-    <ClCompile Include="Mon_Simon_Weapon.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>98.Default</Filter>
     </ClCompile>
@@ -1190,6 +1187,7 @@
     <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
     <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
     <ClCompile Include="..\Private\AN_WeaponDetach.cpp" />
+    <ClCompile Include="..\Private\ANS_WeaponEcho.cpp" />
     <ClCompile Include="..\Private\AN_JumpCounterStart.cpp" />
     <ClCompile Include="..\Private\SL_Dualliste.cpp" />
     <ClCompile Include="..\Private\Mon_Dualliste_Body.cpp" />
@@ -1210,14 +1208,8 @@
     <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\Public\ANS_AnimSpeed.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ANS_CounterTimeScale.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
+    <ClCompile Include="..\Private\Mon_Simon_Weapon.cpp" />
+    <ClCompile Include="..\Private\UI_SL_HUD.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointService.cpp" />
     <ClCompile Include="..\Private\RuntimeRuleStateIO.cpp" />
@@ -1225,7 +1217,7 @@
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp">
+    <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp" />
     <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -1283,8 +1275,16 @@
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
     <ClCompile Include="..\Private\ANS_RootController.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
-    <ClCompile Include="AN_SL_CameraReturn.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
+    <ClCompile Include="..\Private\SL_EstherManager.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Public\ANS_AnimSpeed.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_CounterTimeScale.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Unlock_Manager.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
@@ -1295,6 +1295,7 @@
     <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
     <ClInclude Include="..\Public\AN_WeaponAttach.h" />
     <ClInclude Include="..\Public\AN_WeaponDetach.h" />
+    <ClInclude Include="..\Public\ANS_WeaponEcho.h" />
     <ClInclude Include="..\Public\AN_JumpCounterStart.h" />
     <ClInclude Include="..\Public\Mon_Dualliste_Body.h" />
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
@@ -1323,6 +1324,9 @@
     <ClInclude Include="..\Public\UI_BattlePictos.h" />
     <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
     <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
+    <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
+    <ClInclude Include="..\Public\UI_SL_HUD.h" />
+    <ClInclude Include="..\Public\SL_EstherManager.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -2373,9 +2377,6 @@
       <Filter>05. BattleSystem</Filter>
     </ClInclude>
     <ClInclude Include="ChainModifierPreset.h" />
-    <ClInclude Include="Mon_Simon_Weapon.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
     <ClInclude Include="Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
     </ClInclude>
@@ -2489,7 +2490,6 @@
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
     <ClInclude Include="..\Public\ANS_RootController.h" />
     <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
-    <ClInclude Include="AN_SL_CameraReturn.h" />
     <ClInclude Include="..\Public\SL_Base.h" />
   </ItemGroup>
   <ItemGroup>

@@ -27,6 +27,7 @@
 #include "PostProcess_View.h"
 #include "ScreenFx_View.h"
 #include "SoulLike_Viewer.h"
+#include "SoulLikeCamera_Viewer.h"
 
 namespace fs = std::filesystem;
 
@@ -141,6 +142,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(PostProcess_View::Create());
     Add_Window(ScreenFx_View::Create());
     Add_Window(SoulLike_Viewer::Create());
+    Add_Window(SoulLikeCamera_Viewer::Create());
     return S_OK;
 }
 
@@ -992,15 +994,30 @@ bool Editor_Manager::Pick_RuleStateFile(fs::path& outPath) const
 void Editor_Manager::Render_ReloadDataButton()
 {
     if (ImGui::SmallButton("Reload Data"))
+        ImGui::OpenPopup("ReloadDataPopup");
+    const bool reloadDataHovered = ImGui::IsItemHovered();
+
+    if (ImGui::BeginPopup("ReloadDataPopup"))
     {
-        if (FAILED(CLIENT->Reload_GameDataTables()))
-            MSG_BOX("Failed to reload game data tables.");
+        if (ImGui::MenuItem("GameDataTable"))
+        {
+            if (FAILED(CLIENT->Reload_GameDataTables()))
+                MSG_BOX("Failed to reload game data tables.");
+        }
+
+        if (ImGui::MenuItem("Effect Data"))
+        {
+            if (FAILED(CLIENT->Reload_EffectJsons()))
+                MSG_BOX("Failed to reload effect jsons.");
+        }
+
+        ImGui::EndPopup();
     }
 
-    if (ImGui::IsItemHovered())
+    if (reloadDataHovered)
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Json 데이터 재로드");
+        ImGui::Text("재로드할 데이터 종류 선택");
         ImGui::EndTooltip();
     }
 }

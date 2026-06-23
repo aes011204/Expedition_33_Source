@@ -91,7 +91,7 @@ private:
     void Open_PendingAnimStateView();
     void Load_SelectedWeaponTrailAnchor(const string& modelGuid, const Shared<ModelCom>& modelCom);
     void Save_SelectedWeaponTrailAnchor() const;
-    void Draw_SelectedWeaponSourceAnchorPanel(const Shared<Client::Weapon>& weaponObject, const Shared<ModelCom>& modelCom);
+    void Draw_SelectedWeaponSourceAnchorPanel(const Shared<GameObject>& weaponObject, const Shared<ModelCom>& modelCom);
     bool Try_GetSelectedWeaponModel(const Shared<GameObject>& selectedObject, Shared<ModelCom>& outModel, string& outModelGuid) const;
     void Rebuild_MonsterBattlePrefabEntries();
     bool Try_ResolveTrailAnchorWorldPosition(
@@ -99,7 +99,7 @@ private:
         const Client::TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
     bool Try_ResolveSourceAnchorWorldPosition(
-        const Shared<Client::Weapon>& weaponObject,
+        const Shared<GameObject>& weaponObject,
         const Client::WeaponSourceHistoryAnchorDesc& anchor,
         Vec3& outWorldPosition) const;
 
