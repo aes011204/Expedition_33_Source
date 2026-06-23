@@ -294,6 +294,31 @@ void GameplayUI_World::Handle_EditorStopRuntime()
     Force_CloseAllMenus();
 }
 
+bool GameplayUI_World::Request_ArenaCharacterSelect()
+{
+    if (_arenaCharacterSelectPanel == nullptr)
+        return false;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return false;
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return false;
+
+    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+    if (controller == nullptr || controller->Is_BattleActive())
+        return false;
+
+    Push_Menu(GameplayMenu::ArenaCharacterSelect);
+    return true;
+}
+
 void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction action)
 {
     switch (action)
@@ -339,29 +364,15 @@ void GameplayUI_World::Handle_SavePointInput()
 
 void GameplayUI_World::Handle_ArenaCharacterSelectInput()
 {
+    // 3번이 아니라, NPC 대화 이후
     if (!GAME->KeyDown(KEY_TYPE::KEY_3))
         return;
 
-    if (_arenaCharacterSelectPanel == nullptr)
-        return;
-
-    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
-        return;
-
-    if (Get_CurrentMenu() != GameplayMenu::None)
-        return;
-
-    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
-        return;
-
-    if (GAME->Is_WorldGameplayInputBlocked())
-        return;
-
     const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
-    if (controller == nullptr || !controller->Is_DebugKeyStartEnabled() || controller->Is_BattleActive())
+    if (controller == nullptr || !controller->Is_DebugKeyStartEnabled())
         return;
 
-    Push_Menu(GameplayMenu::ArenaCharacterSelect);
+    Request_ArenaCharacterSelect();
 }
 
 void GameplayUI_World::Handle_TabInput()

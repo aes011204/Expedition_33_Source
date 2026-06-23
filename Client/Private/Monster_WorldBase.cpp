@@ -289,6 +289,7 @@ void Monster_WorldBase::Update(float timeDelta)
             MovementCom::FollowMoveCommand command{};
             command.enabled = true;
             command.worldDir = _aiCtrl->Get_MoveWorldDir();
+            command.rotateFollow = false;
 
             _movementCom->Set_FollowMoveCommand(command);
             _movementCom->Apply_Input({});
@@ -553,12 +554,32 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         }
     }
 
+    Request_BattleEnter(isPlayerAdvantage, self, false); // 일반 월드 충돌 전투는 기존 2초 슬로우 진입을 유지한다.
+}
+
+void Monster_WorldBase::On_EditorStopRuntime()
+{
+    Restore_AfterBattleExit();
+}
+
+void Monster_WorldBase::Begin_BattleFromCinematic(bool isPlayerAdvantage)
+{
+    if (_isBattleStart)
+        return;
+
+    if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
+        return;
+
+    Request_BattleEnter(isPlayerAdvantage, nullptr, true); // 시네마틱 종료 전투는 ScreenFx 전환으로 바로 진입한다.
+}
+
+bool Monster_WorldBase::Request_BattleEnter(bool isPlayerAdvantage, Shared<ColliderCom> self, bool completeImmediately)
+{
     _isBattleStart = true;
 
     if (self)
         self->Set_IsActive(false);
 
-    // 전투 시작 플레이어 지정
     vector<HeroId> heroes = Build_BattleHeroIds();
 
     vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
@@ -574,18 +595,20 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         if (self)
             self->Set_IsActive(true);
 
-        return;
+        return false;
     }
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
 
-    // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
-    CLIENT->OnEnterBattleField(Get_BattleFieldId(), isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
-}
+    CLIENT->OnEnterBattleField(
+        Get_BattleFieldId(),
+        isPlayerAdvantage,
+        heroes,
+        battleMonsterSpawnDescs,
+        GetSharedPtr<GameObject>(),
+        completeImmediately); // 시네마틱 종료 전투만 true로 들어와 2초 대기를 건너뛴다.
 
-void Monster_WorldBase::On_EditorStopRuntime()
-{
-    Restore_AfterBattleExit();
+    return true;
 }
 
 void Monster_WorldBase::Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const

@@ -16,6 +16,8 @@ public:
 public:
     int GetFrameMin() const override;
     int GetFrameMax() const override;
+    int GetViewFrameMin() const;
+    int GetViewFrameMax() const;
     int GetItemCount() const override;
     const char* GetItemLabel(int index) const override;
     void Get(int index, int** start, int** end, int* type, unsigned int* color) override;

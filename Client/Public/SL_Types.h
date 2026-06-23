@@ -37,6 +37,35 @@ enum class SL_PlayerState
     End
 };
 
+enum class SL_MonState
+{
+    Intro,
+    PhaseChange,
+    Idle,
+    Chase,
+    Attack,
+    Hit,
+    Dead,
+    Stun,
+
+    End
+};
+
+enum class SL_MonAttackType
+{
+    SingleSlash_1,
+    SingleSlash_2,
+    SingleSlash_3,
+    DashBack_Spine,
+    DashIn_Stab,
+    DashIn_Stab_Estoc,
+    Att_Projectile,
+    Combo_1,
+    Combo_2,
+
+    End
+};
+
 enum class SoulLikeAnim
 {
     Idle,
@@ -55,6 +84,9 @@ enum class SoulLikeAnim
 
     Dead,
     Parry,
+
+    Idle_To_Run,
+    Run_To_Idle,
 };
 
 enum class SL_DodgeDirection
@@ -74,5 +106,27 @@ struct SL_DamageInfo
     bool       isCritical = false;
     bool       isKilled = false;
 };
+
+struct SL_SkillCooldownView
+{
+    string skillKey{};
+    float remainingSec = 0.f;
+    float durationSec = 0.f;
+
+    bool Is_OnCooldown() const { return remainingSec > 0.f && durationSec > 0.f; }
+
+    float Get_Ratio() const
+    {
+        return durationSec > 0.f ? clamp(remainingSec / durationSec, 0.f, 1.f) : 0.f;
+    }
+};
+
+struct SL_SkillCooldownRuntime
+{
+    string skillKey{};
+    float remainingSec = 0.f;
+    float durationSec = 0.f;
+};
+
 
 NS_END

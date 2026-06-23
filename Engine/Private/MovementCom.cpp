@@ -367,6 +367,9 @@ void MovementCom::Update_Rotation(float timeDelta)
 {
     if (_input.isLockLook) return;
 
+    if (_followMove.enabled && !_followMove.rotateFollow)
+        return;
+
     Vec3 desiredDir = Vec3::Zero;
 
     if (_isJumping && _jumpStartHorizontalVelocity.LengthSquared() > 0.f)

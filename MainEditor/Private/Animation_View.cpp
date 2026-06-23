@@ -9,6 +9,7 @@
 #include "ContainerObject.h"
 #include "EditorInstance.h"
 #include "Editor_Camera_Free.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "DebugDraw.h"
@@ -30,9 +31,64 @@
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 #include "Weapon.h"
+#include "Mon_Dualliste_Sword_L.h"
+#include "Mon_Dualliste_Sword_R.h"
+#include "Mon_Simon_Weapon.h"
+#include "Monster_Part.h"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+
+namespace
+{
+Shared<ModelCom> Resolve_PreviewTrailPartModel(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_Model();
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_Model();
+
+    return nullptr;
+}
+
+const Matrix* Resolve_PreviewTrailPartSocketMatrix(const PartObject* partObject, const string& socketName)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_SocketBoneMatrixPtr(socketName);
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_SocketBoneMatrixPtr(socketName);
+
+    return nullptr;
+}
+
+wstring Resolve_PreviewDefaultTrailEffectName(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return {};
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_TrailEffectName();
+
+    if (const Client::Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Client::Mon_Simon_Weapon*>(partObject))
+        return simonWeapon->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_L* duallisteSwordL = dynamic_cast<const Client::Mon_Dualliste_Sword_L*>(partObject))
+        return duallisteSwordL->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_R* duallisteSwordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(partObject))
+        return duallisteSwordR->Get_TrailEffectName();
+
+    return {};
+}
+}
 
 namespace
 {
@@ -785,6 +841,7 @@ void Animation_View::Pre_Render()
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
         Update_PreviewSLDodgeMoveStates(dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
+        Update_PreviewWeaponEchoStates(dt);
         Update_PreviewSourceHistoryEffect(dt);
         Update_PreviewTrailEffect(dt);
     }
@@ -979,6 +1036,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
@@ -996,10 +1054,11 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _modelGuid = modelGuid;
     _currentAnimationName = preferredAnimationName;
     Clear_SelectedNotifySelection();
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
@@ -1019,6 +1078,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
@@ -1034,10 +1094,11 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _modelGuid = _sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
     _currentAnimationName = preferredAnimationName;
     Clear_SelectedNotifySelection();
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
@@ -1074,6 +1135,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
@@ -1089,12 +1151,13 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _currentAnimationName.clear();
     _availableAnimations.clear();
     Clear_SelectedNotifySelection();
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerCurrentFrame = 0;
     _sequencerSelectedRow = -1;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _selectedBoneIndex = -1;
     Clear_NotifyUndoHistory();
 }
@@ -1135,6 +1198,7 @@ void Animation_View::Reset_PreviewClone()
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewSourceHistoryEffect();
+    Reset_PreviewWeaponEchoStates();
     _previewRootObject.reset();
     _previewModelCom.reset();
     _previewOwnerObjectKey.clear();
@@ -1480,11 +1544,11 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
         return false;
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
-    if (weaponPart == nullptr)
+    PartObject* trailPart = ownerContainer->Get_PartObject(previewTrailPartTag);
+    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
     if (weaponModel == nullptr)
         return false;
 
@@ -1632,12 +1696,13 @@ void Animation_View::Draw_AnimationSelector()
                         _currentAnimationName = entry.displayName;
                         Find_OrNormalize_NotifyAnimation(_asset, entry);
                         Clear_SelectedNotifySelection();
-                        _selectedStateId = -1;
+                        Clear_SelectedStateSelection();
                         _selectedNotifyTrackIndex = 0;
                         _selectedNotifyStateTrackIndex = 0;
                         _sequencerCurrentFrame = 0;
                         _sequencerSelectedRow = -1;
                         _sequencerFirstFrame = 0;
+                        _sequencerVisibleFrameCount = 0;
                         Clear_NotifyUndoHistory();
 
                         Sync_PreviewAnimationSelection();
@@ -1769,7 +1834,7 @@ void Animation_View::Draw_BoneTree()
         {
             _selectedBoneIndex = static_cast<int32>(boneIndex);
             Clear_SelectedNotifySelection();
-            _selectedStateId = -1;
+            Clear_SelectedStateSelection();
         }
 
         if (ImGui::BeginPopupContextItem(popupId.c_str()))
@@ -1779,14 +1844,14 @@ void Animation_View::Draw_BoneTree()
                 ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
             }
 
             if (ImGui::MenuItem("Trail Base로 지정"))
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
                 Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Base);
             }
 
@@ -1794,7 +1859,7 @@ void Animation_View::Draw_BoneTree()
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
                 Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Tip);
             }
 
@@ -2143,7 +2208,13 @@ void Animation_View::Draw_Sequencer()
         ImSequencer::SEQUENCER_EDIT_STARTEND |
         ImSequencer::SEQUENCER_CHANGE_FRAME;
 
-    _sequencerFirstFrame = 0;
+    const int32 fullFrameMin = 0;
+    const int32 fullFrameMax = max(1, Get_CurrentAnimationFrameMax());
+    const int32 fullFrameRange = max(1, fullFrameMax - fullFrameMin);
+    if (_sequencerVisibleFrameCount <= 0 || _sequencerVisibleFrameCount > fullFrameRange)
+        _sequencerVisibleFrameCount = fullFrameRange;
+    _sequencerFirstFrame = std::clamp(_sequencerFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+
     const ImVec2 sequencerRectMin = ImGui::GetCursorScreenPos();
     if (ImSequencer::Sequencer(
         _sequencer.get(),
@@ -2151,7 +2222,9 @@ void Animation_View::Draw_Sequencer()
         &_sequencerExpanded,
         &_sequencerSelectedRow,
         &_sequencerFirstFrame,
-        sequenceOptions))
+        sequenceOptions,
+        _sequencerFirstFrame,
+        _sequencerFirstFrame + _sequencerVisibleFrameCount))
     {
         Shared<ModelCom> playbackModel = Get_PlaybackModel();
         if (playbackModel != nullptr)
@@ -2167,26 +2240,58 @@ void Animation_View::Draw_Sequencer()
         }
     }
 
+    const ImRect sequencerItemRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    const ImGuiIO& sequencerIO = ImGui::GetIO();
+    if (ImGui::IsItemHovered() && sequencerIO.KeyCtrl && sequencerIO.MouseWheel != 0.f)
+    {
+        const float timelineMinX = sequencerItemRect.Min.x + 200.f;
+        const float timelineMaxX = sequencerItemRect.Max.x;
+        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
+        const float mouseRatio = std::clamp((sequencerIO.MousePos.x - timelineMinX) / timelineWidth, 0.f, 1.f);
+        const int32 oldVisibleFrameCount = std::clamp(_sequencerVisibleFrameCount, 1, fullFrameRange);
+        const int32 mouseFrame = _sequencerFirstFrame + static_cast<int32>(std::round(mouseRatio * static_cast<float>(oldVisibleFrameCount)));
+        const float zoomScale = sequencerIO.MouseWheel > 0.f ? 0.82f : 1.22f;
+        const int32 minVisibleFrameCount = min(fullFrameRange, 8);
+        const int32 newVisibleFrameCount = std::clamp(
+            static_cast<int32>(std::round(static_cast<float>(oldVisibleFrameCount) * zoomScale)),
+            minVisibleFrameCount,
+            fullFrameRange);
+
+        const float pivotRatio = static_cast<float>(mouseFrame - _sequencerFirstFrame) / static_cast<float>(max(1, oldVisibleFrameCount));
+        const int32 requestedFirstFrame = mouseFrame - static_cast<int32>(std::round(pivotRatio * static_cast<float>(newVisibleFrameCount)));
+        _sequencerVisibleFrameCount = newVisibleFrameCount;
+        _sequencerFirstFrame = std::clamp(requestedFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+    }
+
     if (const AnimNotifyData* animationData = Get_CurrentAnimation())
     {
-        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const ImRect sequencerRect = sequencerItemRect;
         const float timelineMinX = sequencerRect.Min.x + 200.f;
         const float timelineMaxX = sequencerRect.Max.x;
         const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
-        const int32 frameMax = max(1, Get_CurrentAnimationFrameMax());
+        const int32 visibleFrameMin = _sequencerFirstFrame;
+        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
+        const int32 visibleFrameRange = max(1, visibleFrameMax - visibleFrameMin);
         const int32 fps = max(1, Get_CurrentAnimationFps());
 
         const int32 startFrame = std::clamp(
             static_cast<int32>(std::round(Get_PlaySectionStartSec(animationData) * static_cast<float>(fps))),
             0,
-            frameMax);
+            fullFrameMax);
         const int32 endFrame = std::clamp(
             static_cast<int32>(std::round(Get_PlaySectionEndSec(animationData) * static_cast<float>(fps))),
             0,
-            frameMax);
+            fullFrameMax);
 
-        const float startX = timelineMinX + timelineWidth * (static_cast<float>(startFrame) / static_cast<float>(frameMax));
-        const float endX = timelineMinX + timelineWidth * (static_cast<float>(endFrame) / static_cast<float>(frameMax));
+        auto frameToX = [&](int32 frame)
+        {
+            return timelineMinX + timelineWidth * (static_cast<float>(frame - visibleFrameMin) / static_cast<float>(visibleFrameRange));
+        };
+
+        const float startX = frameToX(startFrame);
+        const float endX = frameToX(endFrame);
+        const float clampedStartX = std::clamp(startX, timelineMinX, timelineMaxX);
+        const float clampedEndX = std::clamp(endX, timelineMinX, timelineMaxX);
 
         const float markerY = sequencerRect.Min.y + 5.f;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -2194,47 +2299,55 @@ void Animation_View::Draw_Sequencer()
         const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
         const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
 
-        if (startX > timelineMinX)
+        if (startFrame > visibleFrameMin)
         {
             drawList->AddRectFilled(
                 ImVec2(timelineMinX, sequencerRect.Min.y),
-                ImVec2(startX, sequencerRect.Max.y),
+                ImVec2(clampedStartX, sequencerRect.Max.y),
                 sectionOutside);
         }
 
-        if (endX < timelineMaxX)
+        if (endFrame < visibleFrameMax)
         {
             drawList->AddRectFilled(
-                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(clampedEndX, sequencerRect.Min.y),
                 ImVec2(timelineMaxX, sequencerRect.Max.y),
                 sectionOutside);
         }
 
-        if (endX > startX)
+        const int32 sectionOverlapStart = max(startFrame, visibleFrameMin);
+        const int32 sectionOverlapEnd = min(endFrame, visibleFrameMax);
+        if (sectionOverlapEnd > sectionOverlapStart)
         {
             drawList->AddLine(
-                ImVec2(startX, markerY),
-                ImVec2(endX, markerY),
+                ImVec2(frameToX(sectionOverlapStart), markerY),
+                ImVec2(frameToX(sectionOverlapEnd), markerY),
                 sectionLine,
                 2.f);
         }
 
-        drawList->AddLine(
-            ImVec2(startX, sequencerRect.Min.y),
-            ImVec2(startX, sequencerRect.Max.y),
-            sectionGuide,
-            1.f);
+        if (startFrame >= visibleFrameMin && startFrame <= visibleFrameMax)
+        {
+            drawList->AddLine(
+                ImVec2(startX, sequencerRect.Min.y),
+                ImVec2(startX, sequencerRect.Max.y),
+                sectionGuide,
+                1.f);
+        }
 
-        drawList->AddLine(
-            ImVec2(endX, sequencerRect.Min.y),
-            ImVec2(endX, sequencerRect.Max.y),
-            sectionGuide,
-            1.f);
+        if (endFrame >= visibleFrameMin && endFrame <= visibleFrameMax)
+        {
+            drawList->AddLine(
+                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(endX, sequencerRect.Max.y),
+                sectionGuide,
+                1.f);
+        }
     }
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
     {
-        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const ImRect sequencerRect = sequencerItemRect;
         bool isStateTrack = false;
         int32 trackIndex = -1;
         const ImVec2 mousePos = ImGui::GetIO().MousePos;
@@ -2243,7 +2356,9 @@ void Animation_View::Draw_Sequencer()
             (mousePos.x - (sequencerRect.Min.x + 200.f)) / max(1.f, sequencerRect.Max.x - (sequencerRect.Min.x + 200.f)),
             0.f,
             1.f);
-        const int32 clickedFrame = static_cast<int32>(std::round(normalized * static_cast<float>(Get_CurrentAnimationFrameMax())));
+        const int32 visibleFrameMin = _sequencerFirstFrame;
+        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
+        const int32 clickedFrame = visibleFrameMin + static_cast<int32>(std::round(normalized * static_cast<float>(visibleFrameMax - visibleFrameMin)));
         Begin_SequencerContextMenu(clickedFrame, hasTrackContext, isStateTrack, trackIndex);
     }
 
@@ -3177,7 +3292,7 @@ void Animation_View::Draw_NotifyList()
                     _selectedNotifyId = entry.id;
                 }
 
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
                 _selectedNotifyTrackIndex = trackIndex;
             }
         }
@@ -3214,7 +3329,7 @@ void Animation_View::Draw_StateList()
         {
             _selectedNotifyStateTrackIndex = trackIndex;
             Clear_SelectedNotifySelection();
-            _selectedStateId = -1;
+            Clear_SelectedStateSelection();
         }
 
         for (const auto& entry : animationData->notifyStates)
@@ -3225,10 +3340,32 @@ void Animation_View::Draw_StateList()
             const int32 startFrame = static_cast<int32>(std::round(entry.startSec * fps));
             const int32 endFrame = static_cast<int32>(std::round((entry.startSec + entry.durationSec) * fps));
             const string label = entry.notifyState->Get_TypeName() + " (" + to_string(startFrame) + "~" + to_string(endFrame) + ")";
-            const bool isSelected = (_selectedStateId == entry.id);
+            const bool isSelected = Is_StateSelected(entry.id);
             if (ImGui::Selectable((label + "##NotifyStateEntry" + to_string(entry.id)).c_str(), isSelected))
             {
-                _selectedStateId = entry.id;
+                const bool ctrlPressed = ImGui::GetIO().KeyCtrl;
+
+                if (ctrlPressed)
+                {
+                    if (Is_StateSelected(entry.id))
+                    {
+                        _selectedStateIds.erase(entry.id);
+                        if (_selectedStateId == entry.id)
+                            _selectedStateId = _selectedStateIds.empty() ? -1 : *_selectedStateIds.begin();
+                    }
+                    else
+                    {
+                        _selectedStateIds.insert(entry.id);
+                        _selectedStateId = entry.id;
+                    }
+                }
+                else
+                {
+                    _selectedStateIds.clear();
+                    _selectedStateIds.insert(entry.id);
+                    _selectedStateId = entry.id;
+                }
+
                 Clear_SelectedNotifySelection();
                 _selectedNotifyStateTrackIndex = trackIndex;
             }
@@ -3299,7 +3436,7 @@ void Animation_View::Draw_TrackSection()
         {
             _selectedNotifyStateTrackIndex = i;
             Clear_SelectedNotifySelection();
-            _selectedStateId = -1;
+            Clear_SelectedStateSelection();
         }
     }
     ImGui::PopStyleColor(3);
@@ -3416,6 +3553,9 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
 
     animationData->notifyStates.push_back(std::move(entry));
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+    Clear_SelectedNotifySelection();
+    _selectedStateIds.clear();
+    _selectedStateIds.insert(createdId);
     _selectedStateId = createdId;
     _selectedNotifyStateTrackIndex = std::clamp(_sequencerContextHasTrack && _sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
     _isDirty = true;
@@ -3450,7 +3590,7 @@ void Animation_View::Delete_SelectedNotify()
 void Animation_View::Delete_SelectedState()
 {
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedStateId == -1)
+    if (animationData == nullptr || _selectedStateIds.empty())
         return;
 
     const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
@@ -3460,13 +3600,13 @@ void Animation_View::Delete_SelectedState()
         animationData->notifyStates.end(),
         [this](const AnimNotifyStateEntry& entry)
         {
-            return entry.id == _selectedStateId;
+            return Is_StateSelected(entry.id);
         });
 
     if (it != animationData->notifyStates.end())
     {
         animationData->notifyStates.erase(it, animationData->notifyStates.end());
-        _selectedStateId = -1;
+        Clear_SelectedStateSelection();
         _isDirty = true;
         Commit_NotifyUndoSnapshot(undoSnapshot);
     }
@@ -3505,7 +3645,7 @@ void Animation_View::Delete_SelectedNotifyStateTrack()
     Remove_NotifyStateTrackEntries(*animationData, _selectedNotifyStateTrackIndex);
     animationData->notifyStateTracks.erase(animationData->notifyStateTracks.begin() + _selectedNotifyStateTrackIndex);
     _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty() ? 0 : min(_selectedNotifyStateTrackIndex, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _isDirty = true;
     Commit_NotifyUndoSnapshot(undoSnapshot);
 }
@@ -3521,6 +3661,7 @@ Animation_View::NotifyUndoSnapshot Animation_View::Capture_NotifyUndoSnapshot() 
     snapshot.selectedNotifyStateTrackIndex = _selectedNotifyStateTrackIndex;
     snapshot.sequencerCurrentFrame = _sequencerCurrentFrame;
     snapshot.selectedNotifyIds.assign(_selectedNotifyIds.begin(), _selectedNotifyIds.end());
+    snapshot.selectedStateIds.assign(_selectedStateIds.begin(), _selectedStateIds.end());
     return snapshot;
 }
 
@@ -3551,11 +3692,15 @@ void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapsh
     for (const int32 notifyId : snapshot.selectedNotifyIds)
         _selectedNotifyIds.insert(notifyId);
 
+    _selectedStateIds.clear();
+    for (const int32 stateId : snapshot.selectedStateIds)
+        _selectedStateIds.insert(stateId);
+
     if (Find_SelectedNotify() == nullptr)
         Clear_SelectedNotifySelection();
 
     if (Find_SelectedState() == nullptr)
-        _selectedStateId = -1;
+        Clear_SelectedStateSelection();
 
     if (AnimNotifyData* animationData = Get_CurrentAnimation())
     {
@@ -3574,6 +3719,7 @@ void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapsh
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
 
     _isDirty = true;
 }
@@ -3658,7 +3804,7 @@ void Animation_View::Handle_ClipboardShortcuts()
     {
         if (!_selectedNotifyIds.empty())
             Delete_SelectedNotify();
-        else if (_selectedStateId != -1)
+        else if (!_selectedStateIds.empty())
             Delete_SelectedState();
     }
 
@@ -3668,14 +3814,14 @@ void Animation_View::Handle_ClipboardShortcuts()
         {
             if (!_selectedNotifyIds.empty())
                 Move_SelectedNotifiesByFrame(-1);
-            else if (_selectedStateId != -1)
+            else if (!_selectedStateIds.empty())
                 Move_SelectedStateByFrame(-1);
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
         {
             if (!_selectedNotifyIds.empty())
                 Move_SelectedNotifiesByFrame(1);
-            else if (_selectedStateId != -1)
+            else if (!_selectedStateIds.empty())
                 Move_SelectedStateByFrame(1);
         }
     }
@@ -3699,7 +3845,7 @@ void Animation_View::Handle_ClipboardShortcuts()
     {
         if (!_selectedNotifyIds.empty())
             Copy_SelectedNotify();
-        else if (_selectedStateId != -1)
+        else if (!_selectedStateIds.empty())
             Copy_SelectedState();
     }
 
@@ -3794,32 +3940,67 @@ void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
         return;
 
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    AnimNotifyStateEntry* selectedState = Find_SelectedState();
-    if (animationData == nullptr || selectedState == nullptr)
+    if (animationData == nullptr || _selectedStateIds.empty())
         return;
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 maxFrame = max(0, Get_CurrentAnimationFrameMax());
-    const int32 startFrame = std::clamp(
-        static_cast<int32>(std::round(selectedState->startSec * static_cast<float>(fps))),
-        0,
-        maxFrame);
-    const int32 durationFrames = max(
-        1,
-        static_cast<int32>(std::round(selectedState->durationSec * static_cast<float>(fps))));
-    const int32 endFrame = min(maxFrame, startFrame + durationFrames);
-    const int32 clampedDelta = std::clamp(frameDelta, -startFrame, maxFrame - endFrame);
+
+    struct SelectedStateMoveEntry
+    {
+        AnimNotifyStateEntry* state = nullptr;
+        int32 startFrame = 0;
+    };
+
+    vector<SelectedStateMoveEntry> selectedEntries{};
+    selectedEntries.reserve(_selectedStateIds.size());
+
+    int32 minStartFrame = maxFrame;
+    int32 maxEndFrame = 0;
+    for (AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (!Is_StateSelected(entry.id))
+            continue;
+
+        const int32 startFrame = std::clamp(
+            static_cast<int32>(std::round(entry.startSec * static_cast<float>(fps))),
+            0,
+            maxFrame);
+        const int32 durationFrames = max(
+            1,
+            static_cast<int32>(std::round(entry.durationSec * static_cast<float>(fps))));
+        const int32 endFrame = min(maxFrame, startFrame + durationFrames);
+
+        selectedEntries.push_back({ &entry, startFrame });
+        minStartFrame = min(minStartFrame, startFrame);
+        maxEndFrame = max(maxEndFrame, endFrame);
+    }
+
+    if (selectedEntries.empty())
+        return;
+
+    const int32 clampedDelta = std::clamp(frameDelta, -minStartFrame, maxFrame - maxEndFrame);
     if (clampedDelta == 0)
         return;
 
     const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
-    const int32 movedStartFrame = startFrame + clampedDelta;
-    selectedState->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
+    int32 primaryStartFrame = -1;
+    for (const SelectedStateMoveEntry& selectedEntry : selectedEntries)
+    {
+        const int32 movedStartFrame = selectedEntry.startFrame + clampedDelta;
+        selectedEntry.state->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
+
+        if (selectedEntry.state->id == _selectedStateId)
+            primaryStartFrame = movedStartFrame;
+    }
+
+    if (primaryStartFrame < 0)
+        primaryStartFrame = selectedEntries.front().startFrame + clampedDelta;
 
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
 
-    _sequencerCurrentFrame = movedStartFrame;
+    _sequencerCurrentFrame = primaryStartFrame;
 
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
     if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
@@ -3842,6 +4023,7 @@ void Animation_View::Copy_SelectedNotify()
 
     _notifyClipboardKind = NotifyClipboardKind::Notify;
     _copiedNotifies.clear();
+    _copiedNotifyStates.clear();
     _copiedNotifyState = {};
 
     for (const AnimNotifyEventEntry& entry : animationData->notifies)
@@ -3873,20 +4055,43 @@ void Animation_View::Copy_SelectedNotify()
 
 void Animation_View::Copy_SelectedState()
 {
-    AnimNotifyStateEntry* selectedState = Find_SelectedState();
-    if (selectedState == nullptr || selectedState->notifyState == nullptr)
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr || _selectedStateIds.empty())
         return;
 
     _notifyClipboardKind = NotifyClipboardKind::State;
     _copiedNotifies.clear();
+    _copiedNotifyStates.clear();
     _copiedNotifyState = {};
-    _copiedNotifyState.typeName = selectedState->notifyState->Get_TypeName();
-    _copiedNotifyState.payload = selectedState->notifyState->To_Json();
-    _copiedNotifyState.startSec = selectedState->startSec;
-    _copiedNotifyState.durationSec = selectedState->durationSec;
-    _copiedNotifyState.trackIndex = selectedState->trackIndex;
 
-    NOTIFY("노티파이 스테이트 복사: {}", _copiedNotifyState.typeName);
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (!Is_StateSelected(entry.id) || entry.notifyState == nullptr)
+            continue;
+
+        CopiedNotifyStateEntry copiedEntry{};
+        copiedEntry.typeName = entry.notifyState->Get_TypeName();
+        copiedEntry.payload = entry.notifyState->To_Json();
+        copiedEntry.startSec = entry.startSec;
+        copiedEntry.durationSec = entry.durationSec;
+        copiedEntry.trackIndex = entry.trackIndex;
+        _copiedNotifyStates.emplace_back(std::move(copiedEntry));
+    }
+
+    if (_copiedNotifyStates.empty())
+        return;
+
+    std::sort(_copiedNotifyStates.begin(), _copiedNotifyStates.end(),
+        [](const CopiedNotifyStateEntry& a, const CopiedNotifyStateEntry& b)
+        {
+            if (a.startSec != b.startSec)
+                return a.startSec < b.startSec;
+            return a.trackIndex < b.trackIndex;
+        });
+
+    _copiedNotifyState = _copiedNotifyStates.front();
+
+    NOTIFY("노티파이 스테이트 복사: {}개", static_cast<int32>(_copiedNotifyStates.size()));
 }
 
 void Animation_View::Paste_CopiedNotify()
@@ -3901,8 +4106,28 @@ void Animation_View::Paste_CopiedNotify()
         animationData->notifyTracks.push_back({ "Notify" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
-    const float pasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
     const float baseTimeSec = _copiedNotifies.front().timeSec;
+    const float animationLengthSec = Get_CurrentAnimationLengthSec();
+
+    float maxRelativeTimeSec = 0.f;
+    int32 baseTrackIndex = _copiedNotifies.front().trackIndex;
+    int32 maxRelativeTrackIndex = 0;
+    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
+    {
+        maxRelativeTimeSec = max(maxRelativeTimeSec, copiedEntry.timeSec - baseTimeSec);
+        baseTrackIndex = min(baseTrackIndex, copiedEntry.trackIndex);
+    }
+
+    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
+        maxRelativeTrackIndex = max(maxRelativeTrackIndex, copiedEntry.trackIndex - baseTrackIndex);
+
+    const float requestedPasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+    const float maxPasteTimeSec = max(0.f, animationLengthSec - maxRelativeTimeSec);
+    const float pasteBaseTimeSec = std::clamp(requestedPasteTimeSec, 0.f, maxPasteTimeSec);
+
+    const int32 notifyTrackCount = static_cast<int32>(animationData->notifyTracks.size());
+    const int32 maxPasteTrackIndex = max(0, notifyTrackCount - 1 - maxRelativeTrackIndex);
+    const int32 pasteBaseTrackIndex = std::clamp(_selectedNotifyTrackIndex, 0, maxPasteTrackIndex);
 
     _selectedNotifyIds.clear();
     int32 lastCreatedId = -1;
@@ -3918,9 +4143,11 @@ void Animation_View::Paste_CopiedNotify()
 
         AnimNotifyEventEntry entry{};
         const int32 createdId = animationData->nextNotifyId++;
+        const float relativeTimeSec = copiedEntry.timeSec - baseTimeSec;
+        const int32 relativeTrackIndex = copiedEntry.trackIndex - baseTrackIndex;
         entry.id = createdId;
-        entry.timeSec = max(0.f, pasteTimeSec + (copiedEntry.timeSec - baseTimeSec));
-        entry.trackIndex = std::clamp(copiedEntry.trackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+        entry.timeSec = std::clamp(pasteBaseTimeSec + relativeTimeSec, 0.f, animationLengthSec);
+        entry.trackIndex = std::clamp(pasteBaseTrackIndex + relativeTrackIndex, 0, notifyTrackCount - 1);
         entry.notify = notifyInstance;
 
         animationData->notifies.push_back(std::move(entry));
@@ -3932,7 +4159,7 @@ void Animation_View::Paste_CopiedNotify()
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
 
     _selectedNotifyId = lastCreatedId;
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = lastTrackIndex;
     _isDirty = true;
 
@@ -3945,40 +4172,80 @@ void Animation_View::Paste_CopiedNotify()
 void Animation_View::Paste_CopiedState()
 {
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _copiedNotifyState.typeName.empty())
-        return;
-
-    Shared<AnimNotifyState> notifyStateInstance = GAME->Create_AnimNotifyStatePrototype(_copiedNotifyState.typeName);
-    if (notifyStateInstance == nullptr)
+    if (animationData == nullptr || _copiedNotifyStates.empty())
         return;
 
     const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    notifyStateInstance->From_Json(_copiedNotifyState.payload);
 
     if (animationData->notifyStateTracks.empty())
         animationData->notifyStateTracks.push_back({ "Notify State" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
-    const int32 trackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
+    const float animationLengthSec = Get_CurrentAnimationLengthSec();
+    const float baseStartSec = _copiedNotifyStates.front().startSec;
 
-    AnimNotifyStateEntry entry{};
-    const int32 createdId = animationData->nextStateId++;
-    entry.id = createdId;
-    entry.startSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
-    entry.durationSec = max(_copiedNotifyState.durationSec, 1.f / static_cast<float>(fps));
-    entry.trackIndex = trackIndex;
-    entry.notifyState = notifyStateInstance;
+    float maxRelativeEndSec = 0.f;
+    int32 baseTrackIndex = _copiedNotifyStates.front().trackIndex;
+    int32 maxRelativeTrackIndex = 0;
+    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
+    {
+        maxRelativeEndSec = max(maxRelativeEndSec, copiedEntry.startSec - baseStartSec + copiedEntry.durationSec);
+        baseTrackIndex = min(baseTrackIndex, copiedEntry.trackIndex);
+    }
 
-    animationData->notifyStates.push_back(std::move(entry));
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
+        maxRelativeTrackIndex = max(maxRelativeTrackIndex, copiedEntry.trackIndex - baseTrackIndex);
+
+    const float requestedPasteStartSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+    const float maxPasteStartSec = max(0.f, animationLengthSec - maxRelativeEndSec);
+    const float pasteBaseStartSec = std::clamp(requestedPasteStartSec, 0.f, maxPasteStartSec);
+
+    const int32 stateTrackCount = static_cast<int32>(animationData->notifyStateTracks.size());
+    const int32 maxPasteTrackIndex = max(0, stateTrackCount - 1 - maxRelativeTrackIndex);
+    const int32 pasteBaseTrackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, maxPasteTrackIndex);
 
     Clear_SelectedNotifySelection();
-    _selectedStateId = createdId;
-    _selectedNotifyStateTrackIndex = trackIndex;
+    _selectedStateIds.clear();
+    _selectedStateId = -1;
+
+    int32 lastCreatedId = -1;
+    int32 lastTrackIndex = _selectedNotifyStateTrackIndex;
+    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
+    {
+        Shared<AnimNotifyState> notifyStateInstance = GAME->Create_AnimNotifyStatePrototype(copiedEntry.typeName);
+        if (notifyStateInstance == nullptr)
+            continue;
+
+        notifyStateInstance->From_Json(copiedEntry.payload);
+
+        AnimNotifyStateEntry entry{};
+        const int32 createdId = animationData->nextStateId++;
+        const float relativeStartSec = copiedEntry.startSec - baseStartSec;
+        const int32 relativeTrackIndex = copiedEntry.trackIndex - baseTrackIndex;
+        entry.id = createdId;
+        entry.startSec = std::clamp(pasteBaseStartSec + relativeStartSec, 0.f, animationLengthSec);
+        entry.durationSec = max(copiedEntry.durationSec, 1.f / static_cast<float>(fps));
+        entry.trackIndex = std::clamp(pasteBaseTrackIndex + relativeTrackIndex, 0, stateTrackCount - 1);
+        entry.notifyState = notifyStateInstance;
+
+        animationData->notifyStates.push_back(std::move(entry));
+        _selectedStateIds.insert(createdId);
+        lastCreatedId = createdId;
+        lastTrackIndex = entry.trackIndex;
+    }
+
+    if (_selectedStateIds.empty())
+        return;
+
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+
+    _selectedStateId = lastCreatedId;
+    _selectedNotifyStateTrackIndex = lastTrackIndex;
     _isDirty = true;
 
-    NOTIFY("노티파이 스테이트 붙여넣기: {}", _copiedNotifyState.typeName);
+    if (!_selectedStateIds.empty())
+        NOTIFY("노티파이 스테이트 붙여넣기: {}개", static_cast<int32>(_selectedStateIds.size()));
+
     Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
@@ -4278,6 +4545,31 @@ bool Animation_View::Try_GetSourcePointSampleForRuntime(
             runtime.sourceHistoryLocalOffset,
             outSample.worldPosition);
 
+    if (runtime.sourceBindingMode == 3)
+    {
+        Vec3 baseWorld{};
+        Vec3 tipWorld{};
+        if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.base, baseWorld))
+            return false;
+        if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.tip, tipWorld))
+            return false;
+
+        if (runtime.sourceHistoryAnchorName == "Base")
+        {
+            outSample.worldPosition = baseWorld + runtime.sourceHistoryLocalOffset;
+            return true;
+        }
+
+        if (runtime.sourceHistoryAnchorName == "Mid")
+        {
+            outSample.worldPosition = ((baseWorld + tipWorld) * 0.5f) + runtime.sourceHistoryLocalOffset;
+            return true;
+        }
+
+        outSample.worldPosition = tipWorld + runtime.sourceHistoryLocalOffset;
+        return true;
+    }
+
     return Try_ResolvePreviewWeaponAnchorWorldPosition(
         runtime.partTag,
         runtime.sourceHistoryAnchorName,
@@ -4437,6 +4729,217 @@ void Animation_View::Reset_PreviewWeaponRotateStates()
         if (Weapon* weapon = Resolve_PreviewWeapon(partTag))
             weapon->Update(0.f);
     }
+}
+
+void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+
+    auto syncPreviewEchoTrail =
+        [this, animationData, currentTimeSec, previewRootObject](
+            const wstring& echoPartTag,
+            float echoDelaySec)
+        {
+            Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+            if (ownerContainer == nullptr)
+                return;
+
+            Mon_Simon_Weapon* simonWeapon =
+                dynamic_cast<Mon_Simon_Weapon*>(ownerContainer->Get_PartObject(echoPartTag));
+            if (simonWeapon == nullptr)
+                return;
+
+            const string echoPartTagString = String::ToString(echoPartTag);
+            const float sourceTimeSec = currentTimeSec - max(0.f, echoDelaySec);
+            for (const AnimNotifyStateEntry& trailEntry : animationData->notifyStates)
+            {
+                if (trailEntry.notifyState == nullptr)
+                    continue;
+                if (trailEntry.notifyState->Get_TypeName() != "ANS_Trail")
+                    continue;
+                if (sourceTimeSec < trailEntry.startSec)
+                    continue;
+                if (sourceTimeSec > trailEntry.startSec + trailEntry.durationSec)
+                    continue;
+
+                const json trailPayload = trailEntry.notifyState->To_Json();
+                const string trailPartTagString = trailPayload.value("_partTag", string{ "Part_Weapon" });
+                if (trailPartTagString != echoPartTagString)
+                    continue;
+
+                wstring resolvedEffectName{};
+                const string effectNameValue = trailPayload.value("_effectName", string{});
+                if (!Try_ResolvePreviewTrailEffectName(effectNameValue, trailPartTagString, resolvedEffectName))
+                    continue;
+
+                const Client::ANS_Trail* trailNotifyState =
+                    dynamic_cast<const Client::ANS_Trail*>(trailEntry.notifyState.get());
+                if (trailNotifyState == nullptr)
+                    continue;
+
+                EffectCom::TrailOffsetRuntimeDesc offsetDesc{};
+                const float trailDuration = max(trailEntry.durationSec, 0.0001f);
+                offsetDesc.phase = std::clamp((sourceTimeSec - trailEntry.startSec) / trailDuration, 0.f, 1.f);
+                offsetDesc.tipExtendCurve = trailNotifyState->Get_TipExtendCurve();
+                offsetDesc.baseLocalOffsetCurve = trailNotifyState->Get_BaseLocalOffsetCurve();
+                offsetDesc.tipLocalOffsetCurve = trailNotifyState->Get_TipLocalOffsetCurve();
+
+                simonWeapon->Begin_WeaponEchoTrail(resolvedEffectName, L"Layer_Effect", offsetDesc);
+                return;
+            }
+        };
+
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_WeaponEcho")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        const json payload = entry.notifyState->To_Json();
+        const string partTagString = payload.value("_partTag", string{ "Part_Weapon" });
+        const wstring partTag = String::ToWString(partTagString);
+        const float delaySec = payload.value("_delaySec", 0.2f);
+        const string payloadJson = payload.dump();
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress =
+            entry.durationSec > 0.f
+            ? clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        PreviewWeaponEchoRuntime* runtime = nullptr;
+        for (PreviewWeaponEchoRuntime& entryRuntime : _previewWeaponEchoRuntimes)
+        {
+            if (entryRuntime.stateId == entry.id)
+            {
+                runtime = &entryRuntime;
+                break;
+            }
+        }
+
+        if (runtime == nullptr)
+        {
+            PreviewWeaponEchoRuntime newRuntime{};
+            newRuntime.stateId = entry.id;
+            newRuntime.notifyState = entry.notifyState;
+            newRuntime.partTag = partTag;
+            newRuntime.payloadJson = payloadJson;
+            _previewWeaponEchoRuntimes.push_back(std::move(newRuntime));
+            runtime = &_previewWeaponEchoRuntimes.back();
+
+            runtime->notifyState->On_Begin(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
+        }
+        else if (runtime->notifyState != entry.notifyState || runtime->payloadJson != payloadJson)
+        {
+            if (runtime->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtime->notifyState->On_End(endContext);
+            }
+
+            runtime->notifyState = entry.notifyState;
+            runtime->partTag = partTag;
+            runtime->payloadJson = payloadJson;
+            runtime->notifyState->On_Begin(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
+        }
+        else
+        {
+            runtime->partTag = partTag;
+            runtime->notifyState->On_Tick(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
+        }
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewWeaponEchoRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewWeaponEchoRuntimes[runtimeIndex].stateId;
+        const bool stillActive =
+            std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+
+        if (stillActive)
+            continue;
+
+        AnimNotifyContext endContext = context;
+        endContext.notifyStateProgress = 1.f;
+        endContext.notifyStateDurationSec = 0.f;
+
+        if (_previewWeaponEchoRuntimes[runtimeIndex].notifyState)
+            _previewWeaponEchoRuntimes[runtimeIndex].notifyState->On_End(endContext);
+
+        _previewWeaponEchoRuntimes.erase(_previewWeaponEchoRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewWeaponEchoStates()
+{
+    if (_previewWeaponEchoRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext endContext{};
+    endContext.owner = previewRootObject.get();
+    endContext.model = playbackModel.get();
+    endContext.modelGuid = _asset.modelGuid;
+    endContext.animationName = _currentAnimationName;
+    endContext.notifyStateProgress = 1.f;
+    endContext.notifyStateDurationSec = 0.f;
+    endContext.isPreview = true;
+
+    for (PreviewWeaponEchoRuntime& runtime : _previewWeaponEchoRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(endContext);
+    }
+
+    _previewWeaponEchoRuntimes.clear();
 }
 
 void Animation_View::Update_PreviewSLDodgeMoveStates(float timeDelta)
@@ -5719,6 +6222,7 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
+            runtime->trailAnchorAsset = {};
         }
 
         if (runtime->partTag != partTag ||
@@ -5741,6 +6245,16 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
+        }
+
+        if (runtime->sourceBindingMode == 3 && runtime->trailAnchorAsset.modelGuid.empty())
+        {
+            PreviewTrailRuntime trailRuntime{};
+            if (!Load_PreviewTrailAnchorAsset(runtime->partTag, trailRuntime))
+                continue;
+
+            runtime->modelGuid = trailRuntime.modelGuid;
+            runtime->trailAnchorAsset = trailRuntime.trailAnchorAsset;
         }
 
         if (!Ensure_PreviewSourceHistoryEffect(*runtime, resolvedEffectName))
@@ -6229,11 +6743,13 @@ bool Animation_View::Try_ResolvePreviewTrailEffectName(
         return true;
     }
 
-    const Weapon* weapon = Resolve_PreviewWeapon(String::ToWString(partTag));
-    if (weapon == nullptr)
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
         return false;
 
-    outEffectName = weapon->Get_TrailEffectName(); // preview도 runtime과 같은 fallback 규칙을 써야 한다.
+    const PartObject* partObject = ownerContainer->Get_PartObject(String::ToWString(partTag));
+    outEffectName = Resolve_PreviewDefaultTrailEffectName(partObject);
     return !outEffectName.empty();
 }
 
@@ -6298,11 +6814,11 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
         return false;
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
-    if (weaponPart == nullptr)
+    PartObject* trailPart = ownerContainer->Get_PartObject(previewTrailPartTag);
+    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
     if (weaponModel == nullptr)
         return false;
 
@@ -6314,7 +6830,7 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    const Matrix anchorWorldMatrix = *boneMatrix * trailPart->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
@@ -6331,15 +6847,35 @@ bool Animation_View::Try_ResolvePreviewWeaponAnchorWorldPosition(
         return false;
 
     const wstring previewPartTag = String::ToWString(partTag);
-    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
-    if (weaponPart == nullptr)
-        return false;
+    const PartObject* weaponPart = ownerContainer->Get_PartObject(previewPartTag);
 
-    const Client::WeaponSourceHistoryAnchorDesc* anchor = weaponPart->Find_SourceHistoryAnchor(anchorName);
+    const Client::WeaponSourceHistoryAnchorDesc* anchor = nullptr;
+    Shared<ModelCom> weaponModel = nullptr;
+
+    if (const Weapon* weapon = dynamic_cast<const Weapon*>(weaponPart))
+    {
+        anchor = weapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = weapon->Get_Model();
+    }
+    else if (const Client::Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Client::Mon_Simon_Weapon*>(weaponPart))
+    {
+        anchor = simonWeapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = simonWeapon->Get_Model();
+    }
+    else if (const Client::Mon_Dualliste_Sword_L* swordL = dynamic_cast<const Client::Mon_Dualliste_Sword_L*>(weaponPart))
+    {
+        anchor = swordL->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordL->Get_Model();
+    }
+    else if (const Client::Mon_Dualliste_Sword_R* swordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(weaponPart))
+    {
+        anchor = swordR->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordR->Get_Model();
+    }
+
     if (anchor == nullptr || anchor->boneName.empty())
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
     if (weaponModel == nullptr)
         return false;
 
@@ -6386,13 +6922,13 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
         return true;
     }
 
-    if (const auto* weaponPart = dynamic_cast<Weapon*>(partObject))
+    if (Resolve_PreviewTrailPartModel(partObject) != nullptr)
     {
-        const Matrix* socketMatrix = weaponPart->Get_SocketBoneMatrixPtr(socketName);
+        const Matrix* socketMatrix = Resolve_PreviewTrailPartSocketMatrix(partObject, socketName);
         if (socketMatrix == nullptr)
             return false;
 
-        const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
+        const Matrix socketWorldMatrix = *socketMatrix * partObject->Get_CombinedWorldMatrix();
         outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }
@@ -6668,9 +7204,20 @@ void Animation_View::Clear_SelectedNotifySelection()
     _selectedNotifyIds.clear();
 }
 
+void Animation_View::Clear_SelectedStateSelection()
+{
+    _selectedStateId = -1;
+    _selectedStateIds.clear();
+}
+
 bool Animation_View::Is_NotifySelected(int32 notifyId) const
 {
     return _selectedNotifyIds.find(notifyId) != _selectedNotifyIds.end();
+}
+
+bool Animation_View::Is_StateSelected(int32 stateId) const
+{
+    return _selectedStateIds.find(stateId) != _selectedStateIds.end();
 }
 
 Shared<Animation_View> Animation_View::Create()

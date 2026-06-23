@@ -134,15 +134,15 @@ void SL_Test_Lancelier::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 
     if (Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(target))
     {
-        if (maelle->Try_ConsumeParry(impactWorldPos))
-        {
-            if (_attackColliderCom)
-            {
-                _attackColliderCom->Set_IsActive(false);
-                _attackColliderCom->Clear_Overlap();
-            }
-            return;
-        }
+        //if (maelle->Try_ConsumeParry(impactWorldPos))
+        //{
+        //    if (_attackColliderCom)
+        //    {
+        //        _attackColliderCom->Set_IsActive(false);
+        //        _attackColliderCom->Clear_Overlap();
+        //    }
+        //    return;
+        //}
 
         if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
         {

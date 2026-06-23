@@ -3,7 +3,7 @@
 #include "ColliderCom.h"
 #include "Bounding_AABB.h"
 #include "ClientInstance.h"
-
+#include "Monster_WorldBase.h"
 
 IMPLEMENT_REFLECTION(Trigger_Cinematic)
 {
@@ -63,12 +63,34 @@ void Trigger_Cinematic::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 {
     GameObject::OnBeginOverlap(self, other);
 
-    if(self)
+    if (self)
     {
         self->Set_IsActive(false);
         self->Clear_Overlap();
 
         const wstring sequencePath = Constants::Cinematic::RuntimeJson_Dir + _sequenceFileId;
+
+        CLIENT->Clear_CinematicCompletedCallbacks();
+
+        if (_startBattleOnComplete)
+        {
+            const string battleTargetId = _battleTargetId;
+
+            CLIENT->Add_CinematicCompletedCallback(
+                [battleTargetId]()
+                {
+                    const Shared<GameObject> boundActor = CLIENT->Get_CinematicBoundActor(battleTargetId);
+                    const Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(boundActor);
+                    if (worldMonster == nullptr)
+                    {
+                        LOG_WARN("[Trigger_Cinematic] Battle start skipped: cinematic target '{}' is not a world monster.", battleTargetId);
+                        return;
+                    }
+
+                    worldMonster->Begin_BattleFromCinematic(false); // 시네마틱 종료 진입은 월드액션 선공이 아니며, 내부에서 즉시 전투로 들어간다.
+                });
+        }
+
         CLIENT->Play_Sequence(sequencePath, 0);
     }
 }
@@ -89,6 +111,12 @@ HRESULT Trigger_Cinematic::Ready_Components()
 void Trigger_Cinematic::Set_SequenceFileId(const wstring& sequenceFileId)
 {
     _sequenceFileId = sequenceFileId;
+}
+
+void Trigger_Cinematic::Set_StartBattleOnComplete(bool enabled, const string& targetId)
+{
+    _startBattleOnComplete = enabled;
+    _battleTargetId = targetId;
 }
 
 Shared<Trigger_Cinematic> Trigger_Cinematic::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

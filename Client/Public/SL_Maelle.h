@@ -44,7 +44,7 @@ public:
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
     Shared<CombatStatCom> Get_Stat() const override;
-    Shared<ColliderCom> Get_AttackCollider() const override;
+    Shared<ColliderCom> Get_AttackCollider() const;
     bool    Is_Dead() const override;
     void    Apply_Damage(const SL_DamageInfo& damageInfo) override;
 
@@ -61,7 +61,7 @@ public:
     void    Open_ParryWindow();
     void    Close_ParryWindow();
     void    Reset_ParryConsumed();
-    bool    Try_ConsumeParry(const Vec3& impactWorldPos);
+    bool    Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos);
     bool    Is_ParryWindowOpen() const { return _parryWindowOpen; }
 
     Body_Player* Get_Body() const { return _body.get(); }
@@ -71,6 +71,14 @@ public:
 	void    Apply_WorldSkillKeys(const vector<string>& skillKeys);
     bool    Try_GetEquippedSkill(uint32 slotIndex, Skill_Data& outSkillData) const;
     HRESULT Rebuild_WeaponPartFromCurrentStat();
+
+public:
+    // 쿨타임
+    bool    Can_UseSkillSlot(uint32 slotIndex, Skill_Data& outSkillData) const;
+    void    Start_SkillCooldown(uint32 slotIndex, const Skill_Data& skillData);
+    void    Update_SkillCooldown(float timeDelta);
+    void    Clear_SkillCooldowns();
+    SL_SkillCooldownView Get_SkillCooldownView(uint32 slotIndex) const;
 
 private:
     HRESULT Ready_Components();
@@ -112,6 +120,9 @@ private: /* 피격 밀림 */
     float _hitPushDistance = 0.f;
     float _hitPushDuration = 0.f;
     float _hitPushElapsed = 0.f;
+
+    // 쿨타임
+    array<SL_SkillCooldownRuntime, 4> _skillCooldowns{};
 
 public:
     static Shared<SL_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

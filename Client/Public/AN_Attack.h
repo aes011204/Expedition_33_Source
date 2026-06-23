@@ -5,6 +5,7 @@ NS_BEGIN(Client)
 
 class BattleAction;
 enum class AttackType;
+
 class AN_Attack : public AnimNotify
 {
     GENERATED_ANIM_NOTIFY(AN_Attack)

@@ -12,6 +12,8 @@ public:
 
 public:
     bool EnterInvoke() override;
+    void Update(float timeDelta) override;
+    void ExitInvoke() override;
     bool Request_Move(const SL_MoveRequest& request, float timeDelta) override;
     bool Request_BasicAttack() override;
     bool Request_Dodge(const SL_MoveRequest& request) override;
@@ -20,7 +22,15 @@ public:
     bool Request_Jump() override;
 
 public:
+    void Set_PlayIdleToRun(bool play);
+
+public:
     static Shared<SL_Move> Create(const Shared<SL_Maelle>& owner);
+
+private:
+    bool _playIdleToRun = false;
+    bool _idleToRunPlaying = false;
+    bool _runToIdlePlaying = false;
 };
 
 NS_END
