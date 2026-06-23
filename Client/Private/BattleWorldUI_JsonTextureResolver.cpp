@@ -86,12 +86,13 @@ namespace
     Shared<Texture> Load_TextureFromResolvedPath(
         const ComPtr<Device>& device,
         const ComPtr<Context>& context,
-        const wstring& texturePath)
+        const wstring& texturePath,
+        bool ignoreWicSrgb)
     {
         if (texturePath.empty())
             return nullptr;
 
-        return Texture::Create(device, context, texturePath.c_str(), 1);
+        return Texture::Create(device, context, texturePath.c_str(), 1, ignoreWicSrgb);
     }
 }
 
@@ -102,10 +103,15 @@ namespace BattleWorldUI_JsonTextureResolver
         const ComPtr<Context>& context,
         const string& textureGuid,
         const string& texturePath,
-        const string& debugName)
+        const string& debugName,
+        bool ignoreWicSrgb)
     {
         Shared<Texture> texture =
-            Load_TextureFromResolvedPath(device, context, Resolve_TexturePath(textureGuid, texturePath));
+            Load_TextureFromResolvedPath(
+                device,
+                context,
+                Resolve_TexturePath(textureGuid, texturePath),
+                ignoreWicSrgb);
         if (!texture)
         {
             LOG_WARN("BattleWorldUI json texture ref could not be resolved. name='{}', guid='{}', path='{}'",
@@ -122,7 +128,8 @@ namespace BattleWorldUI_JsonTextureResolver
         const ComPtr<Context>& context,
         const wstring& uiJsonPath,
         const string& imageName,
-        const string& fallbackTextureGuid)
+        const string& fallbackTextureGuid,
+        bool ignoreWicSrgb)
     {
         string textureGuid{};
         string texturePath{};
@@ -153,11 +160,19 @@ namespace BattleWorldUI_JsonTextureResolver
         }
 
         Shared<Texture> texture =
-            Load_TextureFromResolvedPath(device, context, Resolve_TexturePath(textureGuid, texturePath));
+            Load_TextureFromResolvedPath(
+                device,
+                context,
+                Resolve_TexturePath(textureGuid, texturePath),
+                ignoreWicSrgb);
         if (texture)
             return texture;
 
-        texture = Load_TextureFromResolvedPath(device, context, Resolve_TexturePath(fallbackTextureGuid, string{}));
+        texture = Load_TextureFromResolvedPath(
+            device,
+            context,
+            Resolve_TexturePath(fallbackTextureGuid, string{}),
+            ignoreWicSrgb);
         if (!texture)
         {
             LOG_WARN("BattleWorldUI fallback texture guid could not be resolved. image='{}', fallbackGuid='{}'",

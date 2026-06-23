@@ -24,6 +24,7 @@ namespace
     constexpr float kBattleWorldVfxBackgroundRadiansToDegrees = 57.29577951308232f;
     constexpr float kBattleWorldVfxBackgroundItemScreenXOffset = -0.55f;
     constexpr float kBattleWorldVfxBackgroundSkillScreenXOffset = -0.35f;
+    constexpr bool kBattleWorldVfxBackgroundIgnoreWicSrgb = true;
     const Vec2 kBattleWorldVfxBackgroundDefaultWorldSize = Vec2(1.f, 1.f);
     const Vec4 kBattleWorldVfxBackgroundWorldColor = Vec4(1.24f, 1.14f, 0.93f, 1.f);
 
@@ -411,7 +412,8 @@ namespace
             context,
             textureGuid,
             texturePath,
-            Read_JsonString(*imageNode, "name", "MaterialVfxBackground"));
+            Read_JsonString(*imageNode, "name", "MaterialVfxBackground"),
+            kBattleWorldVfxBackgroundIgnoreWicSrgb);
         if (!def.baseTexture)
             return false;
 
@@ -424,7 +426,8 @@ namespace
                 context,
                 maskTextureGuid,
                 maskTexturePath,
-                "MaterialVfxBackgroundMask");
+                "MaterialVfxBackgroundMask",
+                kBattleWorldVfxBackgroundIgnoreWicSrgb);
         }
 
         def.pixelSize = Read_JsonVec2(*imageNode, "size", def.pixelSize);
@@ -447,7 +450,8 @@ namespace
                     context,
                     noiseTextureGuid,
                     noiseTexturePath,
-                    "MaterialVfxBackgroundNoise");
+                    "MaterialVfxBackgroundNoise",
+                    kBattleWorldVfxBackgroundIgnoreWicSrgb);
             }
 
             def.materialMode = Parse_MaterialVfxMode(Read_JsonString(materialNode, "mode", "Energy"));
@@ -910,7 +914,6 @@ namespace
             CHECK_TRUE(backgroundDef.valid, E_FAIL);
 
             _materialVfxTime = fmodf(_materialVfxTime + max(0.f, timeDelta), 32.f);
-            const bool preserveBaseColor = backgroundDef.materialPreserveColor >= 0.999f;
 
             const auto& baseSrvs = backgroundDef.baseTexture->Get_SRVs();
             if (baseSrvs.empty() || baseSrvs[0] == nullptr)
@@ -924,9 +927,8 @@ namespace
             if (backgroundDef.noiseTexture)
                 noiseSrvs = &backgroundDef.noiseTexture->Get_SRVs();
 
-            if (!preserveBaseColor &&
-                (maskSrvs->empty() || maskSrvs->at(0) == nullptr ||
-                    noiseSrvs->empty() || noiseSrvs->at(0) == nullptr))
+            if (maskSrvs->empty() || maskSrvs->at(0) == nullptr ||
+                noiseSrvs->empty() || noiseSrvs->at(0) == nullptr)
             {
                 return E_FAIL;
             }
@@ -984,34 +986,31 @@ namespace
             CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
-            const uint32 passIndex = preserveBaseColor ? 0u : 7u;
-            if (!preserveBaseColor)
-            {
-                CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", maskSrvs->at(0).Get()), E_FAIL);
-                CHECK_FAILED(_shader->Bind_SRV("g_PatternMaskTexture", noiseSrvs->at(0).Get()), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxMode", &backgroundDef.materialMode, sizeof(uint32)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxColor", &backgroundDef.materialColor, sizeof(Vec4)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreColor", &backgroundDef.materialCoreColor, sizeof(Vec4)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxFlowColor", &backgroundDef.materialFlowColor, sizeof(Vec4)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxGlow", &backgroundDef.materialGlow, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxAlpha", &backgroundDef.materialAlpha, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreStrength", &backgroundDef.materialCoreStrength, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreWidth", &backgroundDef.materialCoreWidth, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreSoftness", &backgroundDef.materialCoreSoftness, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxNoiseStrength", &backgroundDef.materialNoiseStrength, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxUvScroll", &backgroundDef.materialUvScroll, sizeof(Vec2)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxFlowSpeed", &backgroundDef.materialFlowSpeed, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxPreserveColor", &backgroundDef.materialPreserveColor, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeWidth", &backgroundDef.materialEdgeWidth, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeSoftness", &backgroundDef.materialEdgeSoftness, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxErosion", &backgroundDef.materialErosion, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxFlicker", &backgroundDef.materialFlicker, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxDistortion", &backgroundDef.materialDistortion, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeWobbleSpeed", &backgroundDef.materialEdgeWobbleSpeed, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxTime", &_materialVfxTime, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxUseBaseMask", &materialUseBaseMask, sizeof(float)), E_FAIL);
-                CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxHasNoise", &materialHasNoise, sizeof(float)), E_FAIL);
-            }
+            const uint32 passIndex = 7u;
+            CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", maskSrvs->at(0).Get()), E_FAIL);
+            CHECK_FAILED(_shader->Bind_SRV("g_PatternMaskTexture", noiseSrvs->at(0).Get()), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxMode", &backgroundDef.materialMode, sizeof(uint32)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxColor", &backgroundDef.materialColor, sizeof(Vec4)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreColor", &backgroundDef.materialCoreColor, sizeof(Vec4)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxFlowColor", &backgroundDef.materialFlowColor, sizeof(Vec4)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxGlow", &backgroundDef.materialGlow, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxAlpha", &backgroundDef.materialAlpha, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreStrength", &backgroundDef.materialCoreStrength, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreWidth", &backgroundDef.materialCoreWidth, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxCoreSoftness", &backgroundDef.materialCoreSoftness, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxNoiseStrength", &backgroundDef.materialNoiseStrength, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxUvScroll", &backgroundDef.materialUvScroll, sizeof(Vec2)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxFlowSpeed", &backgroundDef.materialFlowSpeed, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxPreserveColor", &backgroundDef.materialPreserveColor, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeWidth", &backgroundDef.materialEdgeWidth, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeSoftness", &backgroundDef.materialEdgeSoftness, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxErosion", &backgroundDef.materialErosion, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxFlicker", &backgroundDef.materialFlicker, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxDistortion", &backgroundDef.materialDistortion, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxEdgeWobbleSpeed", &backgroundDef.materialEdgeWobbleSpeed, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxTime", &_materialVfxTime, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxUseBaseMask", &materialUseBaseMask, sizeof(float)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_MaterialVfxHasNoise", &materialHasNoise, sizeof(float)), E_FAIL);
 
             CHECK_FAILED(_shader->Begin(passIndex), E_FAIL);
             const float blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
