@@ -459,6 +459,9 @@ PS_OUT_GLOW PS_GlowOnly(PS_IN In)
     float3 hotColor = lerp(g_EmissiveColor.rgb, float3(50.0f, 30.0f, 5.f), sharpCore);
     Out.vColor = float4(hotColor * g_EmissiveIntensity * ring, 0.f);
 
+    return Out;
+}
+
 PS_OUT PS_WeaponGhost(PS_IN In)
 {
     ApplyPlayerNearClip(In.WorldPos);
