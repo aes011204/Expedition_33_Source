@@ -90,13 +90,13 @@ bool SL_EstherManager::Begin_Esther(SL_EstherType estherType)
         runtime.skillKey = kGustaveSkill;
         runtime.animationName = kGustaveAnim;
         runtime.fallbackDamageMultiplier = 2.f;
-        runtime.animationSpeed = 1.f;
+        runtime.animationSpeed = 1.7f;
         break;
     case SL_EstherType::LuneImmolation:
         runtime.skillKey = kLuneSkill;
         runtime.animationName = kLuneAnim;
         runtime.fallbackDamageMultiplier = 1.2f;
-        runtime.animationSpeed = 1.f;
+        runtime.animationSpeed = 1.7f;
         break;
     }
 
