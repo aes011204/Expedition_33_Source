@@ -265,6 +265,9 @@ void SL_Dualliste::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
         return;
     }
 
+    damageInfo.hitAnimOverride = self.get() == _attackLCom.get()
+        ? _attackLHitAnimOverride
+        : _attackRHitAnimOverride;
     target->Apply_Damage(damageInfo);
 }
 
@@ -280,6 +283,30 @@ Shared<ColliderCom> SL_Dualliste::Get_AttackColliderL() const
 Shared<ColliderCom> SL_Dualliste::Get_AttackColliderR() const
 {
     return _attackRCom;
+}
+
+void SL_Dualliste::Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride)
+{
+    if (colliderTag == "Com_SL_MonsterSword_L")
+    {
+        _attackLHitAnimOverride = hitAnimOverride;
+        return;
+    }
+
+    if (colliderTag == "Com_SL_MonsterSword_R")
+        _attackRHitAnimOverride = hitAnimOverride;
+}
+
+void SL_Dualliste::Clear_AttackHitAnimOverride(const string& colliderTag)
+{
+    if (colliderTag == "Com_SL_MonsterSword_L")
+    {
+        _attackLHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+        return;
+    }
+
+    if (colliderTag == "Com_SL_MonsterSword_R")
+        _attackRHitAnimOverride = SL_HitAnimOverride::Hit_Light;
 }
 
 Shared<MovementCom> SL_Dualliste::Get_MovementCom() const

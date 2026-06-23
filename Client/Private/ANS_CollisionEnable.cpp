@@ -3,7 +3,10 @@
 #include "ColliderCom.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "SL_Base.h"
 #include "TransformCom.h"
+
+REGISTER_GLOBAL_ENUM(SL_HitAnimOverride, "SL_HitAnimOverride")
 
 IMPLEMENT_REFLECTION(ANS_CollisionEnable)
 {
@@ -14,6 +17,7 @@ IMPLEMENT_REFLECTION(ANS_CollisionEnable)
     info.category = "SoulLike";
 
     PROPERTY_STRING("Collider Tag", _colliderTag);
+    PROPERTY_ENUM("Hit Reaction", _hitAnimOverride, SL_HitAnimOverride);
 
     return true;
 }
@@ -83,6 +87,14 @@ void ANS_CollisionEnable::Set_ColliderActive(const AnimNotifyContext& context, b
 
     if (owner == nullptr || collider == nullptr)
         return;
+
+    if (const Shared<SL_Base> slOwner = dynamic_pointer_cast<SL_Base>(owner))
+    {
+        if (active)
+            slOwner->Set_AttackHitAnimOverride(_colliderTag, _hitAnimOverride);
+        else
+            slOwner->Clear_AttackHitAnimOverride(_colliderTag);
+    }
 
     collider->Clear_Overlap();
 

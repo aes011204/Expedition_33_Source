@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "AnimNotifyState.h"
+#include "SL_Types.h"
 
 NS_BEGIN(Client)
 
@@ -26,6 +27,8 @@ private:
 
 private:
     string _colliderTag = "Com_SL_PlayerAttack";
+
+    SL_HitAnimOverride _hitAnimOverride = SL_HitAnimOverride::Hit_Light;
 };
 
 NS_END

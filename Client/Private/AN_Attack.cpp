@@ -4,11 +4,18 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "SkillScript.h"
+#include "SoulLikeController.h"
 
 void AN_Attack::Execute(const AnimNotifyContext& context)
 {
     if (context.isPreview)
         return;
+
+    if (auto soulLike = CLIENT->Get_SoulLikeController())
+    {
+        if (soulLike->Notify_EstherAttack(context.owner))
+            return;
+    }
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);

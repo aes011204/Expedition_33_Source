@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AnimNotifyState.h"
+#include "SL_Types.h"
 
 NS_BEGIN(Engine)
 class ColliderCom;
@@ -33,6 +34,7 @@ private:
 private:
     string _partTag = "Part_Weapon";
     string _colliderTag = "Com_SL_MonsterSword_R";
+    SL_HitAnimOverride _hitAnimOverride = SL_HitAnimOverride::Hit_Light;
 };
 
 NS_END

@@ -311,9 +311,14 @@ PS_OUT PS_MATERIAL_BRUSH_FLOW(PS_IN In)
     const float glowBoost = 1.0f + g_MaterialVfxGlow * (0.035f + edgeHeat * 0.05f);
     const float core = pow(saturate(brushCoverage), 1.7f) * g_MaterialVfxCoreStrength * (0.03f + flowDetail * 0.08f);
     const float edgeCore = edgeHeat * g_MaterialVfxCoreStrength * (0.16f + g_MaterialVfxGlow * 0.015f);
-    Out.vColor.rgb = g_MaterialVfxColor.rgb * internalShade * glowBoost + g_MaterialVfxCoreColor.rgb * (core + edgeCore);
+    const float preserveColor = saturate(g_MaterialVfxPreserveColor);
+    const float4 baseColor = fixedBrush * g_Color;
+    const float3 vfxColor = g_MaterialVfxColor.rgb * internalShade * glowBoost + g_MaterialVfxCoreColor.rgb * (core + edgeCore);
     const float preservedAlpha = smoothstep(0.04f, 0.16f, brushCoverage * mask);
-    Out.vColor.a = lerp(alpha, max(alpha, preservedAlpha), saturate(g_MaterialVfxPreserveColor)) * g_Color.a;
+    const float vfxAlpha = lerp(alpha, max(alpha, preservedAlpha), preserveColor);
+    const float3 preservedColor = lerp(baseColor.rgb, vfxColor, saturate(alpha));
+    Out.vColor.rgb = lerp(vfxColor, preservedColor, preserveColor);
+    Out.vColor.a = saturate(max(vfxAlpha * g_Color.a, baseColor.a * mask * preserveColor));
 
     return Out;
 }
@@ -358,8 +363,16 @@ PS_OUT PS_MATERIAL_VFX(PS_IN In)
     float3 edgeColor = g_MaterialVfxColor.rgb * (0.55f + glow);
     float3 noiseColor = lerp(edgeColor, g_MaterialVfxFlowColor.rgb, flowTint);
     float3 coreColor = g_MaterialVfxCoreColor.rgb * coreAlpha;
-    Out.vColor.rgb = noiseColor + coreColor;
-    Out.vColor.a = saturate(max(alpha, preservedAlpha)) * g_Color.a;
+    const float preserveColor = saturate(g_MaterialVfxPreserveColor);
+    const float4 baseSample = g_Texture.Sample(LinearClampSampler, In.vTexcoord);
+    const float4 baseColor = baseSample * g_Color;
+    const float baseMaskCoverage = Sample_MaterialVfxMask(In.vTexcoord);
+    const float basePreserveCoverage = lerp(baseMaskCoverage, 1.0f, saturate(g_MaterialVfxUseBaseMask));
+    const float3 vfxColor = noiseColor + coreColor;
+    const float vfxAlpha = saturate(max(alpha, preservedAlpha));
+    const float3 preservedColor = lerp(baseColor.rgb, vfxColor, saturate(alpha));
+    Out.vColor.rgb = lerp(vfxColor, preservedColor, preserveColor);
+    Out.vColor.a = saturate(max(vfxAlpha * g_Color.a, baseColor.a * basePreserveCoverage * preserveColor));
 
     return Out;
 }

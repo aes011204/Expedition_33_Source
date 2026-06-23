@@ -511,7 +511,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("F4", "Stop");
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
-            DrawShortcutRow("F10", "마우스 락 토글");
+            DrawShortcutRow("F10", "마우스 언락 / 자동 복귀");
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");

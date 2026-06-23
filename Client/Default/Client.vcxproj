@@ -337,6 +337,7 @@
     <ClInclude Include="..\Public\BattleWorldUI_GradientCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_ItemCards.h" />
     <ClInclude Include="..\Public\BattleWorldUI_JsonTextureResolver.h" />
+    <ClInclude Include="..\Public\BattleWorldUI_MaterialVfxBackground.h" />
     <ClInclude Include="..\Public\BattleWorldUI_SkillCards.h" />
     <ClInclude Include="..\Private\BattleWorldUI_SurfaceAnim.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
@@ -754,6 +755,7 @@
     <ClCompile Include="..\Private\BattleWorldUI_GradientCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_ItemCards.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_JsonTextureResolver.cpp" />
+    <ClCompile Include="..\Private\BattleWorldUI_MaterialVfxBackground.cpp" />
     <ClCompile Include="..\Private\BattleWorldUI_SkillCards.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />

@@ -2,6 +2,7 @@
 
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
+#include "GameInstance.h"
 
 SL_Parry::SL_Parry(const Shared<SL_Maelle>& owner)
     : SL_State(owner)
@@ -19,7 +20,7 @@ bool SL_Parry::EnterInvoke()
     owner->Close_ParryWindow(); // 성공 판정은 애니메이션 notify state가 여는 구간에서만 허용한다.
 
     Stop_Movement();
-    Play_Anim(SoulLikeAnim::Parry, 0.05f, false);
+    Play_Anim(Resolve_ParryAnim(), 0.05f, false);
 
     return true;
 }
@@ -50,6 +51,11 @@ void SL_Parry::ExitInvoke()
     }
 
     SL_State::ExitInvoke();
+}
+
+SoulLikeAnim SL_Parry::Resolve_ParryAnim() const
+{
+    return GAME->Random(0.f, 1.f) < 0.5f ? SoulLikeAnim::Parry : SoulLikeAnim::Parry2;
 }
 
 Shared<SL_Parry> SL_Parry::Create(const Shared<SL_Maelle>& owner)

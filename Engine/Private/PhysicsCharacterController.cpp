@@ -116,8 +116,8 @@ CharacterControllerMoveResult PhysicsCharacterController::Move(const Vec3& displ
     Controller_QueryFilterCallback queryFilterCallback(responseFilterData);
     // coarse filter는 PhysX 기본 query AND 필터에 맡기고, 최종 Block/Ignore 판정만 callback에서 처리한다.
     PxControllerFilters filters(&queryFilterData, &queryFilterCallback);
-    // 지금 목적은 월드 지형/고정 충돌체 추종이라 dynamic 후보는 제외해서 query 범위를 줄인다.
-    filters.mFilterFlags = PxQueryFlag::eSTATIC | PxQueryFlag::ePREFILTER;
+    // SL 캐릭터/몬스터 몸체는 kinematic dynamic collider라 이동 차단 후보에 포함해야 한다.
+    filters.mFilterFlags = PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER;
     const PxControllerCollisionFlags flags =
         _controller->move(PxVec3(displacement.x, displacement.y, displacement.z), 0.001f, timeDelta, filters);
 

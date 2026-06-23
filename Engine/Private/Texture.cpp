@@ -15,7 +15,7 @@ Texture::Texture(const Texture& prototype)
     
 }
 
-HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs)
+HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs, bool ignoreWicSrgb)
 {
     if (nullptr == texturePathPattern || L'\0' == *texturePathPattern)
         return E_FAIL;
@@ -46,8 +46,24 @@ HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 
         else if (false == lstrcmp(extensionBuffer, TEXT(".tga")))
             hr = E_FAIL;
 
+        else if (ignoreWicSrgb)
+        {
+            hr = DirectX::CreateWICTextureFromFileEx(
+                _device.Get(),
+                resolvedTexturePath,
+                0,
+                D3D11_USAGE_DEFAULT,
+                D3D11_BIND_SHADER_RESOURCE,
+                0,
+                0,
+                DirectX::WIC_LOADER_IGNORE_SRGB,
+                nullptr,
+                srv.GetAddressOf());
+        }
         else
+        {
             hr = CreateWICTextureFromFile(_device.Get(), resolvedTexturePath, nullptr, srv.GetAddressOf());
+        }
 
         if (FAILED(hr))
             return E_FAIL;
@@ -82,11 +98,11 @@ HRESULT Texture::Bind_ShaderResourceViews(ShaderCom* shader, const char* constan
     return shader->Bind_SRVs(constantName, rawSRVs.empty() ? nullptr : rawSRVs.data(), _numSRVs);
 }
 
-Shared<Texture> Texture::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs)
+Shared<Texture> Texture::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs, bool ignoreWicSrgb)
 {
     auto instance = make_shared<Texture>(device, context);
 
-    if (FAILED(instance->Initialize_Prototype(texturePathPattern, numSRVs)))
+    if (FAILED(instance->Initialize_Prototype(texturePathPattern, numSRVs, ignoreWicSrgb)))
     {
         LOG_WARN(
             "Failed to create Texture: path='{}', count={}",

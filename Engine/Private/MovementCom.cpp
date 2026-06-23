@@ -308,6 +308,12 @@ void MovementCom::Force_SetPositionY(float posY)
 
 void MovementCom::Sync_RuntimePositionToTransform()
 {
+    if (_transformCom == nullptr)
+    {
+        Shared<GameObject> owner = Get_Owner();
+        _transformCom = owner ? owner->Get_Transform() : nullptr;
+    }
+
     CHECK_NULL(_transformCom);
 
     if (_moveDesc.backend != MoveBackend::PhysXCCT)
