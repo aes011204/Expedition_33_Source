@@ -775,10 +775,26 @@ void SL_Maelle::Apply_Damage(const SL_DamageInfo& damageInfo)
 
     Begin_HitPush(damageInfo);
 
+    _pendingHitAnimOverride = damageInfo.hitAnimOverride;
     _combatLocked = true;
 
     if (_stateMachineCom)
         _stateMachineCom->Change_State(SL_PlayerState::Hit);
+}
+
+SoulLikeAnim SL_Maelle::Consume_PendingHitAnim()
+{
+    const SL_HitAnimOverride hitAnimOverride = _pendingHitAnimOverride;
+    _pendingHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+
+    switch (hitAnimOverride)
+    {
+    case SL_HitAnimOverride::Hit_Heavy:
+        return SoulLikeAnim::Hit_Heavy;
+    case SL_HitAnimOverride::Hit_Light:
+    default:
+        return SoulLikeAnim::Hit_Light;
+    }
 }
 
 Shared<SL_Maelle> SL_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -10,8 +10,8 @@ NS_BEGIN(Client)
 class SL_Base;
 class SL_Maelle;
 class SoulLikeCamera;
-
 class SL_StateMachineCom;
+class SL_EstherManager;
 
 class SoulLikeController final : public GameObject
 {
@@ -85,6 +85,8 @@ public:
 
     uint32 Get_HealingPotionCount() const { return _healingPotionCount; }
 
+    bool    Notify_EstherAttack(GameObject* notifyOwner);
+
 private:
     void    Request_SoulLikeCamera();
     void    Request_BattleShotCamera(const EvtBattlePresentation& event);
@@ -114,8 +116,11 @@ private:
     bool Update_Skill(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
     void Update_Dodge(const Shared<SL_StateMachineCom>& stateMachine, const SL_MoveRequest& moveRequest);
     bool Update_HealingPotion(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
+    bool Update_Esther();
 
 private:
+    Shared<SL_EstherManager> _estherManager{};
+
     string _playerPrefab = "SL_Maelle";
     Vec3   _playerSpawnPosition = Vec3(0.f, 0.f, 0.f);
     Vec3   _playerSpawnRotation = Vec3(0.f, 180.f, 0.f);
