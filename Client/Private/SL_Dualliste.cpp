@@ -121,11 +121,13 @@ void SL_Dualliste::Update(float timeDelta)
 
     Update_BlackBoard();
 
+    const SL_MonState currentState =
+        _stateMachineCom ? _stateMachineCom->Get_CurrentMonStateType() : SL_MonState::Idle;
     const bool isPhaseChanging =
-        _stateMachineCom &&
-        _stateMachineCom->Get_CurrentMonStateType() == SL_MonState::PhaseChange;
+        currentState == SL_MonState::PhaseChange;
+    const bool isAttacking = currentState == SL_MonState::Attack;
 
-    if (_aiCtrl && _isIntroDone && !isPhaseChanging)
+    if (_aiCtrl && _isIntroDone && !isPhaseChanging && !isAttacking)
         _aiCtrl->Update(timeDelta);
 
     if (_stateMachineCom && CLIENT->Get_ScreenFxManager()->Is_BattleInCounterFxFinished())
@@ -138,7 +140,13 @@ void SL_Dualliste::Update(float timeDelta)
         _movementCom->Set_RunSpeed(moveSpeed);
         _movementCom->Set_SprintSpeed(moveSpeed);
 
-        if (_isIntroDone && _aiCtrl && _aiCtrl->Has_MoveIntent() && !Is_Dead())
+        if (isAttacking)
+        {
+            _movementCom->Clear_FollowMoveCommand();
+            _movementCom->Apply_Input({});
+            _movementCom->Update_Movement(timeDelta);
+        }
+        else if (_isIntroDone && _aiCtrl && _aiCtrl->Has_MoveIntent() && !Is_Dead())
         {
             MovementCom::FollowMoveCommand command{};
             command.enabled = true;

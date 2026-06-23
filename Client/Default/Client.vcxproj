@@ -248,6 +248,7 @@
     <ClInclude Include="..\Public\BT_SL_IsIntroDone.h" />
     <ClInclude Include="..\Public\BT_SL_IsActionLocked.h" />
     <ClInclude Include="..\Public\BT_SL_IsStun.h" />
+    <ClInclude Include="..\Public\BT_SL_SelectNextAttack.h" />
     <ClInclude Include="..\Public\BT_SL_SetDesiredState.h" />
     <ClInclude Include="..\Public\BT_SL_SetSelectedAttack.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
@@ -823,6 +824,7 @@
     <ClCompile Include="..\Private\BT_SL_IsIntroDone.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsActionLocked.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsStun.cpp" />
+    <ClCompile Include="..\Private\BT_SL_SelectNextAttack.cpp" />
     <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp" />
     <ClCompile Include="..\Private\BT_SL_SetSelectedAttack.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />

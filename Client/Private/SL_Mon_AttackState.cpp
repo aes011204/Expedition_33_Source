@@ -100,6 +100,14 @@ bool SL_Mon_AttackState::EnterInvoke()
     owner->Set_ActionLocked(true);
     _initPlayerPos = Vec3::Zero;
 
+    if (_movementCom)
+    {
+        _movementCom->Set_UseExternalHorizontalVelocity(true);
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_HorizontalMovement();
+    }
+
     if (const Shared<AIController> aiCtrl = owner->Get_Component<AIController>())
     {
         if (const Shared<BlackBoard> bb = aiCtrl->Get_BlackBoard())
@@ -118,7 +126,13 @@ bool SL_Mon_AttackState::EnterInvoke()
 void SL_Mon_AttackState::Update(float timeDelta)
 {
     SL_Mon_State::Update(timeDelta);
-    _movementCom->Set_Velocity(_modelCom->Get_RootTransformVelocity().position);
+
+    if (_movementCom && _modelCom)
+    {
+        Vec3 rootVelocity = _modelCom->Get_RootTransformVelocity().position;
+        rootVelocity.y = _movementCom->Get_Velocity().y;
+        _movementCom->Set_Velocity(rootVelocity);
+    }
 
     const Shared<SL_Dualliste> owner = _owner.lock();
     if (owner == nullptr || _stateCom == nullptr)
@@ -142,6 +156,12 @@ void SL_Mon_AttackState::LateUpdate(float timeDelta)
 }
 void SL_Mon_AttackState::ExitInvoke()
 {
+    if (_movementCom)
+    {
+        _movementCom->Set_UseExternalHorizontalVelocity(false);
+        _movementCom->Stop_HorizontalMovement();
+    }
+
     const Shared<SL_Dualliste> owner = _owner.lock();
     if (owner == nullptr)
         return;
