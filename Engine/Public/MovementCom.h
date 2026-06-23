@@ -134,8 +134,6 @@ public:
     Vec3 Get_Velocity() { return _velocity; }
     const Vec3* Get_VelocityPtr() const { return &_velocity; }
     void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
-    void Set_UseExternalHorizontalVelocity(bool use) { _useExternalHorizontalVelocity = use; }
-    bool Is_UsingExternalHorizontalVelocity() const { return _useExternalHorizontalVelocity; }
 
     void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }
     void Clear_FollowMoveCommand() { _followMove = {}; }
@@ -200,7 +198,6 @@ private:
     bool _isGrounded = true;
     bool _isJumping = false;
     bool _didInputJumpStart = false;
-    bool _useExternalHorizontalVelocity = false;
     Vec3 _jumpStartHorizontalVelocity = Vec3::Zero;
 
     Shared<ColliderCom> _colliderCom;

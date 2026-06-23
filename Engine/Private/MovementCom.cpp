@@ -501,9 +501,7 @@ void MovementCom::Apply_Velocity(float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Movement::ApplyVelocity");
 
-    if (!_useExternalHorizontalVelocity)
-        Update_HorizontalVelocity();
-
+    Update_HorizontalVelocity();
     Update_VerticalVelocity(timeDelta);
 
     const Vec3 displacement = _velocity * timeDelta;
