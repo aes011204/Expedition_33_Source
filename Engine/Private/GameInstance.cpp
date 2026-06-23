@@ -856,6 +856,8 @@ HRESULT GameInstance::Draw_RendererOnly()
     if (hasPostProcessPipeline)
         postProcessPipeline->Set_PostProcessFeatures(savedPostProcessFeatures);
 
+    _renderer->Set_RenderEnvironment(false);
+
     return S_OK;
 }
 
@@ -1715,6 +1717,16 @@ const vector<uint32>& GameInstance::Get_ActiveVolumetricLightShaftZoneIndices() 
     static const vector<uint32> empty{};
     CHECK_NULL(_environmentManager, empty);
     return _environmentManager->Get_ActiveVolumetricLightShaftZoneIndices();
+}
+
+void GameInstance::Set_RenderEnvironment(bool enabled)
+{
+    _renderer->Set_RenderEnvironment(enabled);
+}
+
+bool GameInstance::Is_RenderEnvironment() const
+{
+    return _renderer->Is_RenderEnvironment();
 }
 
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)

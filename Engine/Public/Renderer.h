@@ -38,6 +38,8 @@ public:
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
     bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
+    void    Set_RenderEnvironment(bool enabled) { _renderEnvironment = enabled; }
+    bool    Is_RenderEnvironment() const { return _renderEnvironment; }
 
     const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
@@ -146,6 +148,7 @@ private:
 
     bool                            _shadowEnabled = true;
     bool                            _renderOnlyPreviewMode = false;
+    bool                            _renderEnvironment = true;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;

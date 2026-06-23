@@ -265,6 +265,8 @@ public: /* For.Renderer */
     float                               Get_VolumetricLightShaftZoneCullingDistance() const;
     const vector<uint32>&               Get_ActiveFogZoneIndices() const;
     const vector<uint32>&               Get_ActiveVolumetricLightShaftZoneIndices() const;
+    void                                Set_RenderEnvironment(bool enabled);
+    bool                                Is_RenderEnvironment() const;
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
