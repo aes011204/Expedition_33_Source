@@ -210,6 +210,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\Model_Inspector.cpp" />
     <ClCompile Include="..\Private\MonsterStat_Inspector.cpp" />
     <ClCompile Include="..\Private\Notification_Manager.cpp" />
+    <ClCompile Include="..\Private\PathTool.cpp" />
     <ClCompile Include="..\Private\PlayerStat_Inspector.cpp" />
     <ClCompile Include="..\Private\PostProcess_View.cpp" />
     <ClCompile Include="..\Private\Prefab_View.cpp" />
@@ -262,6 +263,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Model_Inspector.h" />
     <ClInclude Include="..\Public\MonsterStat_Inspector.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
+    <ClInclude Include="..\Public\PathTool.h" />
     <ClInclude Include="..\Public\PlayerStat_Inspector.h" />
     <ClInclude Include="..\Public\PostProcess_View.h" />
     <ClInclude Include="..\Public\Prefab_View.h" />
