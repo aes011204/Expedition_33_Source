@@ -4,6 +4,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// shared preview viewport canvas, gizmo, and viewport toolbar overlay를 그린다.
 class Scene_View final : public Editor_Window
 {
 public:
@@ -41,6 +42,7 @@ private: //## Helper::Viewport
     void Sync_PreviewViewportInput();
     void Render_ViewportCanvas();
     void Handle_FocusRequest();
+    bool Render_SelectedEmitterPreviewGizmo();
     void Render_SelectedObjectGizmo();
 
 public:

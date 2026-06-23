@@ -222,6 +222,7 @@ private:
     string Get_SelectedSkillId() const;
     const char* Get_SlotSideLabel(PreviewSlotSide side) const;
     const PreviewSlot* Get_PreviewSlot(PreviewSlotSide side, int slotIndex) const;
+    float Get_PreviewBattlePlaneYaw() const;
     Vec3 Get_PreviewSlotWorldPosition(PreviewSlotSide side, int slotIndex) const;
     string Get_SelectedHeroPrefabName() const;
     string Get_SelectedEnemyPrefabName() const;

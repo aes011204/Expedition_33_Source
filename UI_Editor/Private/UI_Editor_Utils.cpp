@@ -103,8 +103,12 @@ namespace UIEditor
         {
         case UI_ImageRenderMode::Normal:
             return "Normal";
+        case UI_ImageRenderMode::MaterialVfx:
+            return "MaterialVfx";
         case UI_ImageRenderMode::PatternOverlay:
             return "PatternOverlay";
+        case UI_ImageRenderMode::ButtonSheen:
+            return "ButtonSheen";
         default:
             return "Normal";
         }

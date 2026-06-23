@@ -26,6 +26,7 @@ enum class KEY_TYPE
 	F4 = VK_F4,
 	F5 = VK_F5,
     F6 = VK_F6,
+    F7 = VK_F7,
 	F8 = VK_F8,
 	F9 = VK_F9,
 	F11 = VK_F11,
@@ -43,6 +44,7 @@ enum class KEY_TYPE
     R = 'R',
     T = 'T',
     H = 'H',
+    X = 'X',
 
 	KEY_0 = '0',
 	KEY_1 = '1',

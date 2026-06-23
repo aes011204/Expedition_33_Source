@@ -10,6 +10,7 @@ NS_BEGIN(EffectEditor)
 
 class TrailPreviewWeaponObject;
 
+// Trail preview용 Gustave player visual과 preview weapon 생성을 담당한다.
 class TrailPreviewPlayerObject final : public Player_BattleBase
 {
 public:

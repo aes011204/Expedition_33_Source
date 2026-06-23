@@ -20,10 +20,11 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
     float4 g_EffectSpriteMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
+    float4 g_EffectSpriteUVRotationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };
-    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
-    float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
-    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
+    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };             // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
+    float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f };  // x:mode, y:radius, z:thickness, w:softness
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };        // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
     float2 g_FlowUVPolicyParams = { 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };
@@ -42,6 +43,7 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectMaterialScalarModulationKeyModes[8];
     float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
     float g_FlowUVTilingMode = 0.f;
+    float g_FlowUVRotation = 0.f;
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
     float g_DistortionPadding;
@@ -58,28 +60,52 @@ static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
 
 float Resolve_EffectSpriteAxisUV(float rawValue, float transformedValue, float policy)
 {
-    return policy >= 2.5f ? rawValue : transformedValue;
+    const int mode = (int)(policy + 0.5f);
+    float result = transformedValue;
+    if (mode == 3)
+        result = rawValue;
+    return result;
 }
 
-float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float2 policy)
+float2 Rotate_MaterialUV(float2 uv, float rotation)
 {
+    const int mode = (int)(rotation + 0.5f);
+    float2 result = uv;
+    if (mode == 1)
+        result = float2(1.f - uv.y, uv.x);
+    else if (mode == 2)
+        result = 1.f - uv;
+    else if (mode == 3)
+        result = float2(uv.y, 1.f - uv.x);
+    return result;
+}
+
+float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float2 policy, float rotation)
+{
+    const float2 rotatedUV = Rotate_MaterialUV(baseUV, rotation);
     const float2 transformedUV = baseUV * uvParams.xy + uvOffset + uvParams.zw * g_EffectSpriteMaterialTime;
     return float2(
-        Resolve_EffectSpriteAxisUV(baseUV.x, transformedUV.x, policy.x),
-        Resolve_EffectSpriteAxisUV(baseUV.y, transformedUV.y, policy.y)
+        Resolve_EffectSpriteAxisUV(rotatedUV.x, transformedUV.x, policy.x),
+        Resolve_EffectSpriteAxisUV(rotatedUV.y, transformedUV.y, policy.y)
     );
 }
 
-float Apply_EffectSpriteAxisAddress(float value, float policy)
+float Apply_EffectSpriteAxisAddressValue(float value, float policy)
 {
-    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
+    const int mode = (int)(policy + 0.5f);
+    float result = frac(value);
+    if (mode == 1 || mode == 2)
+        result = saturate(value);
+    else if (mode == 4)
+        result = 1.f - abs(frac(value * 0.5f) * 2.f - 1.f);
+    return result;
 }
 
 float2 Apply_EffectSpriteAxisAddress(float2 uv, float2 policy)
 {
     return float2(
-        Apply_EffectSpriteAxisAddress(uv.x, policy.x),
-        Apply_EffectSpriteAxisAddress(uv.y, policy.y)
+        Apply_EffectSpriteAxisAddressValue(uv.x, policy.x),
+        Apply_EffectSpriteAxisAddressValue(uv.y, policy.y)
     );
 }
 
@@ -106,7 +132,8 @@ float2 Build_EffectSpriteFlowUV(float2 rawUV)
         g_FlowUVOffset,
         g_FlowUVScrollSpeed,
         g_EffectSpriteMaterialTime,
-        g_FlowUVPolicyParams
+        g_FlowUVPolicyParams,
+        g_FlowUVRotation
     );
 }
 
@@ -430,9 +457,9 @@ PS_OUT PS_MAIN(PS_IN In)
     const float2 mainUVPolicy = g_EffectSpriteUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectSpriteUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectSpriteMaskUVAxisPolicyParams.xy;
-    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, mainUVPolicy);
-    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, noiseUVPolicy);
-    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, maskUVPolicy);
+    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, mainUVPolicy, g_EffectSpriteUVRotationParams.x);
+    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, noiseUVPolicy, g_EffectSpriteUVRotationParams.y);
+    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, maskUVPolicy, g_EffectSpriteUVRotationParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, mainUVPolicy);
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     const float resolvedOpacityPower = g_EffectSpriteParams.y

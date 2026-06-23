@@ -978,8 +978,14 @@ uint32 ResourceLoader::Get_LevelIndex_FromString(const string& strLevel)
     if ("MapTest" == strLevel)
         return ETOI(LevelType::MapTest);
 
+    if ("Simon" == strLevel)
+        return ETOI(LevelType::Simon);
+
     if ("Stage01" == strLevel)
         return ETOI(LevelType::Stage01);
+
+    if ("GestralVillage" == strLevel)
+        return ETOI(LevelType::GestralVillage);
 
     if ("Loading" == strLevel) // || "Loading" == strLevel)
         return ETOI(LevelType::Loading);

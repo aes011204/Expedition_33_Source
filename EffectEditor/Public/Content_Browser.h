@@ -9,6 +9,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+// Client resource tree, file grid, thumbnail cache, and content browser settings를 표시한다.
 class Content_Browser final : public Editor_Window, private ContentBrowserCore
 {
 public:
@@ -18,6 +19,7 @@ public:
 public:
     void Update(float timeDelta) override;
     void Render() override;
+    void Request_RefreshResources();
 
 private: //## Types
     enum class IconType
@@ -36,9 +38,8 @@ private: //## Types
     using GridItemRef = ContentBrowserGridItemRef;
 
 private: //## Static Values
-    static constexpr const wchar_t* kContentBrowserSettingsPath{
-        L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json"
-    };
+    static constexpr auto kContentBrowserSettingsPath{
+        L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json" };
 
 private: //## Data
     float _leftPanelWidth{ 300.f };
@@ -60,11 +61,13 @@ private: //## Data
     vector<GridItemRef> _gridItemCache{};
 
     bool _needsInitialRefresh{ true };
+    bool _pendingResourceRefresh{ false };
 
     wstring _selectedFilePath{};
 
 private: //## Helper::Refresh
     void Refresh_Resources();
+    void Refresh_AssetState();
     void Refresh_CurrentFolder();
     void Load_Icons();
 

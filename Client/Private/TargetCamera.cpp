@@ -6,76 +6,79 @@
 #include "PhysX_Types.h"
 #include "CameraPresetTypes.h"
 #include "ClientScreenFxManager.h"
+#include "BattleCameraClipUtils.h"
 
 namespace
 {
-const char* To_TargetCameraModeName(TargetCameraMode mode)
-{
-    switch (mode)
+    const char* To_TargetCameraModeName(TargetCameraMode mode)
     {
-    case TargetCameraMode::NORMAL:
-        return "NORMAL";
-    case TargetCameraMode::AIM:
-        return "AIM";
-    case TargetCameraMode::BATTLE_ENTER:
-        return "BATTLE_ENTER";
-    default:
-        return "UNKNOWN";
-    }
-}
-
-float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
-{
-    t = clamp(t, 0.f, 1.f);
-    constexpr float kBackOvershoot = 1.70158f;
-
-    switch (easing)
-    {
-    case BattleCameraTransitionEasing::Linear:
-        return t;
-
-    case BattleCameraTransitionEasing::EaseIn:
-        return t * t;
-
-    case BattleCameraTransitionEasing::EaseOut:
-        return 1.f - (1.f - t) * (1.f - t);
-
-    case BattleCameraTransitionEasing::EaseInStrong:
-        return t * t * t;
-
-    case BattleCameraTransitionEasing::EaseOutStrong:
-        return 1.f - powf(1.f - t, 3.f);
-
-    case BattleCameraTransitionEasing::EaseInOutStrong:
-        return t < 0.5f
-            ? 4.f * t * t * t
-            : 1.f - powf(-2.f * t + 2.f, 3.f) * 0.5f;
-
-    case BattleCameraTransitionEasing::EaseInCubic:
-        return t * t * t;
-
-    case BattleCameraTransitionEasing::EaseOutCubic:
-        return 1.f - powf(1.f - t, 3.f);
-
-    case BattleCameraTransitionEasing::EaseInExpo:
-        return t <= 0.f ? 0.f : powf(2.f, 10.f * t - 10.f);
-
-    case BattleCameraTransitionEasing::EaseOutExpo:
-        return t >= 1.f ? 1.f : 1.f - powf(2.f, -10.f * t);
-
-    case BattleCameraTransitionEasing::EaseOutBack:
-    {
-        const float x = t - 1.f;
-        return 1.f + (kBackOvershoot + 1.f) * x * x * x + kBackOvershoot * x * x;
+        switch (mode)
+        {
+        case TargetCameraMode::NORMAL:
+            return "NORMAL";
+        case TargetCameraMode::AIM:
+            return "AIM";
+        case TargetCameraMode::BATTLE_ENTER:
+            return "BATTLE_ENTER";
+        case TargetCameraMode::SOULLIKE:
+            return "SOULLIKE";
+        default:
+            return "UNKNOWN";
+        }
     }
 
-    case BattleCameraTransitionEasing::EaseInOut:
-        return t * t * (3.f - 2.f * t);
+    float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
+    {
+        t = clamp(t, 0.f, 1.f);
+        constexpr float kBackOvershoot = 1.70158f;
 
-    default:
-        return t;
+        switch (easing)
+        {
+        case BattleCameraTransitionEasing::Linear:
+            return t;
+
+        case BattleCameraTransitionEasing::EaseIn:
+            return t * t;
+
+        case BattleCameraTransitionEasing::EaseOut:
+            return 1.f - (1.f - t) * (1.f - t);
+
+        case BattleCameraTransitionEasing::EaseInStrong:
+            return t * t * t;
+
+        case BattleCameraTransitionEasing::EaseOutStrong:
+            return 1.f - powf(1.f - t, 3.f);
+
+        case BattleCameraTransitionEasing::EaseInOutStrong:
+            return t < 0.5f
+                ? 4.f * t * t * t
+                : 1.f - powf(-2.f * t + 2.f, 3.f) * 0.5f;
+
+        case BattleCameraTransitionEasing::EaseInCubic:
+            return t * t * t;
+
+        case BattleCameraTransitionEasing::EaseOutCubic:
+            return 1.f - powf(1.f - t, 3.f);
+
+        case BattleCameraTransitionEasing::EaseInExpo:
+            return t <= 0.f ? 0.f : powf(2.f, 10.f * t - 10.f);
+
+        case BattleCameraTransitionEasing::EaseOutExpo:
+            return t >= 1.f ? 1.f : 1.f - powf(2.f, -10.f * t);
+
+        case BattleCameraTransitionEasing::EaseOutBack:
+        {
+            const float x = t - 1.f;
+            return 1.f + (kBackOvershoot + 1.f) * x * x * x + kBackOvershoot * x * x;
+        }
+
+        case BattleCameraTransitionEasing::EaseInOut:
+            return t * t * (3.f - 2.f * t);
+
+        default:
+            return t;
+        }
     }
-}
 }
 
 TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) : Camera{ device, context }
@@ -132,6 +135,7 @@ HRESULT TargetCamera::Initialize(void* arg)
     CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, _normalPreset);
     CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, _aimPreset);
     CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, _battleEnterPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, _soulLikePreset);
 
     _currentState = TargetCameraMode::NORMAL;
     _currentSettings = _normalPreset;
@@ -161,7 +165,8 @@ void TargetCamera::BeginPlay()
 
 void TargetCamera::OnActivated()
 {
-    Refresh_TargetTransform();
+    if (_currentState != TargetCameraMode::SOULLIKE)
+        Refresh_TargetTransform();
 
     Shared<TransformCom> targetTransformCom;
     if (Try_GetTargetTransform(targetTransformCom))
@@ -186,6 +191,9 @@ void TargetCamera::Priority_Update(float timeDelta)
 
         return;
     }
+
+    if (_currentState == TargetCameraMode::SOULLIKE)
+        return;
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
@@ -232,6 +240,10 @@ void TargetCamera::Update(float timeDelta)
     case TargetCameraMode::BATTLE_ENTER:
         Update_BattleEnterState(timeDelta);
         break;
+
+    case TargetCameraMode::SOULLIKE:
+        Update_NormalState(timeDelta);
+        break;
     }
 
 
@@ -253,7 +265,13 @@ HRESULT TargetCamera::Render()
 
 void TargetCamera::Interpolate_CurrentSettings(float timeDelta)
 {
-    const float t = clamp(timeDelta * _targetSettings.followSpeed, 0.f, 1.f);
+    const float rawT = clamp(timeDelta * _targetSettings.followSpeed, 0.f, 1.f);
+    // TargetCamera는 별도 transitionDuration/easing 상태를 두지 않고,
+    // BATTLE_ENTER일 때만 기존 followSpeed 기반 보간값에 easing을 태워
+    // 최소 수정으로 진입 연출의 감속/가속 느낌만 살린다.
+    const float t = _currentState == TargetCameraMode::BATTLE_ENTER
+        ? Evaluate_TargetFollowT(_targetSettings.targetFollowEasing, rawT)
+        : rawT;
 
     _currentSettings.aimOffset = lerp(_currentSettings.aimOffset, _targetSettings.aimOffset, t);
     _currentSettings.distance = lerp(_currentSettings.distance, _targetSettings.distance, t);
@@ -431,6 +449,10 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
         }
     }
 
+    const Vec3 shakeOffset = Sample_RuntimeShake(newPos, lookTarget);
+    newPos += shakeOffset;
+    lookTarget += shakeOffset;
+
     _transformCom->Set_WorldPosition(newPos);
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
@@ -466,6 +488,74 @@ Vec3 TargetCamera::Get_FreeAimQueryDirection() const
 
     direction.Normalize();
     return direction;
+}
+
+void TargetCamera::Play_HitShake(float amplitude, float duration, float strengthScale)
+{
+    Start_RuntimeShake(amplitude, duration, strengthScale);
+}
+
+void TargetCamera::Start_RuntimeShake(float amplitude, float duration, float strengthScale)
+{
+    if (duration <= 0.f || amplitude <= 0.f || strengthScale <= 0.f)
+    {
+        Reset_RuntimeShake();
+        return;
+    }
+
+    _runtimeShake.active = true;
+    _runtimeShake.elapsed = 0.f;
+    _runtimeShake.duration = duration;
+    _runtimeShake.amplitude = amplitude;
+    _runtimeShake.strengthScale = strengthScale;
+}
+
+Vec3 TargetCamera::Sample_RuntimeShake(const Vec3& cameraPos, const Vec3& lookTarget)
+{
+    if (!_runtimeShake.active)
+        return Vec3::Zero;
+
+    _runtimeShake.elapsed += max(0.f, GAME->Get_UnscaledTimeDelta());
+
+    Vec3 forward = lookTarget - cameraPos;
+    if (forward.LengthSquared() <= 0.000001f)
+        return Vec3::Zero;
+
+    forward.Normalize();
+
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.000001f)
+        right = Vec3::Right;
+    else
+        right.Normalize();
+
+    Vec3 up = forward.Cross(right);
+    if (up.LengthSquared() <= 0.000001f)
+        up = Vec3::Up;
+    else
+        up.Normalize();
+
+    const Vec3 shakeOffset = Sample_BattleCameraShakeOffset(
+        _runtimeShake.amplitude,
+        _runtimeShake.verticalRatio,
+        _runtimeShake.strengthScale,
+        _runtimeShake.frequencyX,
+        _runtimeShake.frequencyY,
+        _runtimeShake.decayRateX,
+        _runtimeShake.decayRateY,
+        _runtimeShake.elapsed,
+        right,
+        up);
+
+    if (_runtimeShake.elapsed >= _runtimeShake.duration)
+        _runtimeShake.active = false;
+
+    return shakeOffset;
+}
+
+void TargetCamera::Reset_RuntimeShake()
+{
+    _runtimeShake = {};
 }
 
 void TargetCamera::Update_NormalState(float timeDelta)
@@ -549,7 +639,11 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
     const TargetCameraMode previousMode = _currentState;
     const bool wasBattleEnter = previousMode == TargetCameraMode::BATTLE_ENTER;
 
+    if (previousMode != mode && mode != TargetCameraMode::SOULLIKE)
+        Reset_RuntimeShake();
+
     _currentState = mode;
+
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
     _collisionDistance = -1.f;
@@ -573,6 +667,12 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
         _targetSettings = _battleEnterPreset;
         _currentSettings.followSpeed = _battleEnterPreset.followSpeed;
         break;
+
+    case TargetCameraMode::SOULLIKE:
+        _targetSettings = _soulLikePreset;
+        _currentSettings.followSpeed = _soulLikePreset.followSpeed;
+        break;
+
     }
 
     if (_targetSettings.snapOnEnter)
@@ -616,9 +716,12 @@ void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     _targetTransformCom = targetTransform;
 
-    // 전환 직후 이전 target 위치가 남아 있으면 카메라 보간이 튈 수 있어서
     if (targetTransform)
-        _prevTargetPos = targetTransform->Get_WorldPosition();
+    {
+        const Vec3 targetPos = targetTransform->Get_WorldPosition();
+        _prevTargetPos = targetPos;
+        _smoothedTargetPos = targetPos;
+    }
 
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
@@ -637,9 +740,12 @@ const TargetCameraPreset& TargetCamera::Get_Preset(TargetCameraMode mode) const
 
     case TargetCameraMode::BATTLE_ENTER:
         return _battleEnterPreset;
+
+    case TargetCameraMode::SOULLIKE:
+        return _soulLikePreset;
     }
 
-    LOG_DEBUG("Unknown Camera State");
+    // LOG_DEBUG("Unknown Camera State");
     return _normalPreset;
 }
 
@@ -658,8 +764,12 @@ void TargetCamera::Set_Preset(TargetCameraMode mode, const TargetCameraPreset& p
     case TargetCameraMode::BATTLE_ENTER:
         _battleEnterPreset = preset;
 
+    case TargetCameraMode::SOULLIKE:
+        _soulLikePreset = preset;
+        break;
+
     default:
-        LOG_DEBUG("Unknown Camera State");
+        // LOG_DEBUG("Unknown Camera State");
         break;
     }
 }

@@ -131,6 +131,7 @@ private:
 private:
     HRESULT Ensure_AvailableSkillSlotCount(size_t slotCount);
     void    Apply_AvailableSkillSlot(size_t slotIndex, const string& skillId);
+    void    Refresh_GradientSkillSlot(const Shared<SkillTreeCom>& skillTreeCom);
     void    Set_SkillAreaVisible(bool isVisible);
     void    Show_EquippedSkillSlots(bool isVisible);
     void    Show_AvailableSkillSlots(bool isVisible);

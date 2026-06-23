@@ -71,6 +71,16 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"속도 원뿔",
         L"축 기준 원뿔 초기 속도"
     };
+    static const AuthoringModuleMetadata sourceMotionVelocity{
+        "SourceMotionVelocity",
+        L"소스 모션 속도",
+        L"source/trail motion 기반 초기 속도",
+        true,
+        true,
+        false,
+        false,
+        false
+    };
     static const AuthoringModuleMetadata acceleration{
         "Acceleration",
         L"가속",
@@ -248,6 +258,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return initialRadialVelocity;
     case AuthoringModuleType::VelocityCone:
         return velocityCone;
+    case AuthoringModuleType::SourceMotionVelocity:
+        return sourceMotionVelocity;
     case AuthoringModuleType::Acceleration:
         return acceleration;
     case AuthoringModuleType::Drag:

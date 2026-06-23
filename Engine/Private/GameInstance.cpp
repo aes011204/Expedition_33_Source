@@ -23,6 +23,8 @@
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Renderer_Define.h"
+#include "LightingPipeline.h"
+#include "PostProcessPipeline.h"
 #include "ScreenFx_Manager.h"
 #include "ShaderCom_Controller.h"
 #include "Timer_Manager.h"
@@ -755,12 +757,14 @@ HRESULT GameInstance::Draw()
 
     //CHECK_FAILED(Update_Picking(), E_FAIL);
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     // Collision Manager
     {
         _collisionManager->Render_Debug();
     }
+#endif
 
+#ifdef _DEBUG
     // Debug Manager
     {
         Draw_ShadowCascadeWorldDebug();
@@ -796,7 +800,57 @@ HRESULT GameInstance::Draw()
 
 HRESULT GameInstance::Draw_RendererOnly()
 {
+    const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
+    const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
+    const bool savedScreenFxActivated = (_screenFxManager != nullptr) && _screenFxManager->Is_ScreenFXActivated();
+    Shared<PostProcessPipeline> postProcessPipeline = _renderer->Get_PostProcessPipeline();
+    Shared<LightingPipeline> lightingPipeline = _renderer->Get_LightingPipeline();
+
+    PostProcessFeature savedPostProcessFeatures = PostProcessFeature::None;
+    SSAOCB savedSSAO{};
+    DeferredLightingCB savedDeferredLighting{};
+    const bool hasPostProcessPipeline = (postProcessPipeline != nullptr);
+    const bool hasLightingPipeline = (lightingPipeline != nullptr);
+
+    if (hasPostProcessPipeline)
+    {
+        savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+        postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
+    }
+
+    if (hasLightingPipeline)
+    {
+        savedSSAO = lightingPipeline->Get_Params();
+        savedDeferredLighting = lightingPipeline->Get_DeferredLightingParams();
+        DeferredLightingCB previewDeferredLighting = savedDeferredLighting;
+        previewDeferredLighting.iblEnabled = 1u;
+        previewDeferredLighting.iblIntensity = 1.25f;
+        previewDeferredLighting.iblDiffuseIntensity = 1.18f;
+        previewDeferredLighting.iblSpecularIntensity = 0.45f;
+        lightingPipeline->Set_Enabled(false); // Level_GamePlay의 SSAO만 프리뷰에서 분리한다.
+        lightingPipeline->Set_DeferredLightingParams(previewDeferredLighting); // 프리뷰는 그림자 대신 IBL diffuse로 어두운 면을 살린다.
+    }
+
+    _renderer->Set_ShadowEnabled(false); // 에디터 프리뷰 렌더는 현재 월드의 dynamic shadow 상태를 쓰지 않는다.
+    _renderer->Set_RenderOnlyPreviewMode(true); // 프리뷰 렌더는 현재 월드의 fog만 상속하지 않는다.
+    if (_screenFxManager != nullptr)
+        _screenFxManager->Set_ScreenFxActivated(false); // 런타임 화면 효과가 프리뷰 캡처 위를 덮지 않게 한다.
+
     _renderer->Draw();
+
+    if (_screenFxManager != nullptr)
+        _screenFxManager->Set_ScreenFxActivated(savedScreenFxActivated);
+    _renderer->Set_RenderOnlyPreviewMode(savedRenderOnlyPreviewMode);
+    _renderer->Set_ShadowEnabled(savedShadowEnabled);
+
+    if (hasLightingPipeline)
+    {
+        lightingPipeline->Set_Params(savedSSAO);
+        lightingPipeline->Set_DeferredLightingParams(savedDeferredLighting);
+    }
+
+    if (hasPostProcessPipeline)
+        postProcessPipeline->Set_PostProcessFeatures(savedPostProcessFeatures);
 
     return S_OK;
 }
@@ -1846,6 +1900,22 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool 
     return S_OK;
 }
 
+HRESULT GameInstance::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Commit_AssetDeltaScan(scanResult, missingMetaRoot);
+}
+
+HRESULT GameInstance::Refresh_AssetRegistryDirectory(const wstring& directory, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Refresh_RegistryDirectory(directory, missingMetaRoot);
+}
+
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
     if (nullptr == _assetManager)
@@ -2675,6 +2745,11 @@ void GameInstance::Draw_DebugSphere(const DebugSphereDesc& desc)
     return _debugManager->Draw_Sphere(desc);
 }
 
+void GameInstance::Draw_DebugCapsule(const DebugCapsuleDesc& desc)
+{
+    return _debugManager->Draw_Capsule(desc);
+}
+
 void GameInstance::Draw_DebugLine(const DebugLineDesc& desc)
 {
     return _debugManager->Draw_Line(desc);
@@ -2983,6 +3058,14 @@ void GameInstance::Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX
         return;
 
     _screenFxManager->Play_ScreenEffect(screenFX);
+}
+
+bool GameInstance::Is_ScreenFxFinished(const wstring& tag) const
+{
+    if (_screenFxManager == nullptr)
+        return false;
+
+    return _screenFxManager->Is_ScreenEffectFinished(tag);
 }
 
 void GameInstance::Release_Engine()

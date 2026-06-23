@@ -1,4 +1,4 @@
-#include "SourcePointSampleProvider_ByPart.h"
+﻿#include "SourcePointSampleProvider_ByPart.h"
 
 #include "EffectCom.h"
 
@@ -9,35 +9,36 @@ SourcePointSampleProvider_ByPart::SourcePointSampleProvider_ByPart(
     wstring partTag,
     SourceHistorySourceBindingMode sourceBindingMode,
     string socketName,
-    const TrailAnchorAsset& trailAnchorAsset,
-    SourceHistorySourcePointPolicy sourcePointPolicy,
+    string sourceHistoryAnchorName,
+    Vec3 sourceHistoryLocalOffset,
     Shared<bool> sampleEnabled)
     : _effectCom(effectCom)
     , _partTag(move(partTag))
     , _sourceBindingMode(sourceBindingMode)
     , _socketName(move(socketName))
-    , _trailAnchorAsset(trailAnchorAsset)
-    , _sourcePointPolicy(sourcePointPolicy)
+    , _sourceHistoryAnchorName(move(sourceHistoryAnchorName))
+    , _sourceHistoryLocalOffset(sourceHistoryLocalOffset)
     , _sampleEnabled(move(sampleEnabled))
 {
 }
 
 bool SourcePointSampleProvider_ByPart::Try_GetSourcePointSample(EffectSourcePointSample& outSample) const
 {
-    if (_sampleEnabled != nullptr && !*_sampleEnabled)
+    if (nullptr != _sampleEnabled && !*_sampleEnabled)
         return false;
 
     const Shared<EffectCom> effectCom = _effectCom.lock();
-    if (effectCom == nullptr)
+    if (nullptr == effectCom)
         return false;
 
     return effectCom->Try_GetSourcePointSampleForPart(
         _partTag,
         _sourceBindingMode,
         _socketName,
-        _trailAnchorAsset,
-        _sourcePointPolicy,
-        outSample);
+        _sourceHistoryAnchorName,
+        _sourceHistoryLocalOffset,
+        outSample
+    );
 }
 
 NS_END

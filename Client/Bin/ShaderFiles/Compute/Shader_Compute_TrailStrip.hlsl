@@ -37,7 +37,7 @@ cbuffer TrailComputeParams : register(b0)
     float3 g_TrailParamsPadding;
     float4 g_StartColor;
     float4 g_EndColor;
-    float4 g_ColorOverLifeCurveParams; // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
+    float4 g_ColorOverLifeCurveParams;           // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
     float4 g_ColorOverLifeColorCurveTimes;
     float4 g_ColorOverLifeColorCurveTimesBlock1; // 커브 Key를 4개 -> 8개로 확장하면서 Block1들 추가됨
     float4 g_ColorOverLifeColorCurveValuesR;
@@ -70,13 +70,19 @@ cbuffer TrailComputeParams : register(b0)
     float4 g_ColorOverLifeAlphaCurveLeaveBlock1;
     float4 g_ColorOverLifeAlphaCurveModes;
     float4 g_ColorOverLifeAlphaCurveModesBlock1;
-    float4 g_SizeByLifeParams;     // x/y: width start/end, z: enabled, w: reserved
-    float4 g_SizeByLifeCurveTimes; // scaleOverLife key times
+    float4 g_SizeByLifeParams;                   // x/y: width start/end, z: enabled, w: reserved
+    float4 g_SizeByLifeCurveTimes;               // scaleOverLife key times
     float4 g_SizeByLifeCurveTimesBlock1;
-    float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
+    float4 g_SizeByLifeCurveValuesX;             // scaleOverLife X multipliers
     float4 g_SizeByLifeCurveValuesXBlock1;
-    float4 g_SizeByLifeCurveParams; // x: key count, y: multiplyX, zw: reserved
-    float4 g_LengthParams;          // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved
+    float4 g_SizeByLifeCurveArriveTangentsX;
+    float4 g_SizeByLifeCurveArriveTangentsXBlock1;
+    float4 g_SizeByLifeCurveLeaveTangentsX;
+    float4 g_SizeByLifeCurveLeaveTangentsXBlock1;
+    float4 g_SizeByLifeCurveModes;
+    float4 g_SizeByLifeCurveModesBlock1;
+    float4 g_SizeByLifeCurveParams;              // x: key count, y: multiplyX, zw: reserved
+    float4 g_LengthParams;                       // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved
 };
 
 StructuredBuffer<TrailSamplePayload> HistoryData : register(t0);
@@ -274,38 +280,21 @@ float EvaluateSizeByLifeWidthScale(float lifeProgress)
     float multiplier = 1.0f;
     if (g_SizeByLifeCurveParams.y != 0.0f)
     {
-        multiplier = g_SizeByLifeParams.x;
-
-        if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, 0u))
-            multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, 0u);
-        else
-        {
-            bool found = false;
-            [loop]
-            for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
-            {
-                if (keyIndex >= keyCount || found)
-                    break;
-
-                const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyIndex);
-                if (lifeProgress > rightTime)
-                    continue;
-
-                const float leftTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyIndex - 1u);
-                const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
-                multiplier = lerp(
-                    ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, keyIndex - 1u),
-                    ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, keyIndex),
-                    ratio
-                );
-                found = true;
-                break;
-            }
-
-            const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyCount - 1u);
-            if (!found && lifeProgress > lastTime)
-                multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, g_SizeByLifeCurveValuesXBlock1, keyCount - 1u);
-        }
+        multiplier = EvaluateCompactCurve(
+            lifeProgress,
+            keyCount,
+            g_SizeByLifeCurveTimes,
+            g_SizeByLifeCurveTimesBlock1,
+            g_SizeByLifeCurveValuesX,
+            g_SizeByLifeCurveValuesXBlock1,
+            g_SizeByLifeCurveArriveTangentsX,
+            g_SizeByLifeCurveArriveTangentsXBlock1,
+            g_SizeByLifeCurveLeaveTangentsX,
+            g_SizeByLifeCurveLeaveTangentsXBlock1,
+            g_SizeByLifeCurveModes,
+            g_SizeByLifeCurveModesBlock1,
+            lerp(g_SizeByLifeParams.x, g_SizeByLifeParams.y, lifeProgress)
+        );
     }
 
     return multiplier;

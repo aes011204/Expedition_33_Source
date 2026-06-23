@@ -10,6 +10,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor preview scene skybox를 렌더링한다.
 class EffectEditorSkybox final : public GameObject
 {
 public:
@@ -23,12 +24,12 @@ public:
     void Late_Update(float timeDelta) override;
     HRESULT Render() override;
 
-private:
+private: //## Data::Components
     Shared<ShaderCom> _shader{};
     Shared<VIBuffer_Cube> _viBuffer{};
     Shared<Texture> _texture{};
 
-private:
+private: //## Helper::Render
     HRESULT Ready_Components();
     HRESULT Bind_ShaderResources();
 

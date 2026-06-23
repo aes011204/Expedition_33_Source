@@ -274,6 +274,8 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         skill.minTurn = item.value("minTurn", 0);
         skill.maxUseCount = item.value("maxUseCount", -1);
         skill.coolDownTurn = item.value("coolDownTurn", 0);
+        skill.coolDownTurn = item.value("coolDownTurn", 0);
+		skill.slCooldownSec = item.value("slCooldownSec", 0.f);
 
         const size_t index = _skillDefs.size();
         _skillDefs.push_back(skill);
@@ -717,6 +719,7 @@ HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)
 
         SkillTreeDesc desc{};
         desc.unlockCost = item.value("unlock cost", 0u);
+        desc.useCost = item.value("use cost", 0u);
         desc.portraitTextureName = item.value("portrait", "");
         desc.descUiName = item.value("desc ui", "");
         desc.skillName = String::ToWString(item.value("skill name", ""));

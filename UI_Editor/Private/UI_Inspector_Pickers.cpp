@@ -9,6 +9,8 @@ namespace UIEditor
 {
     namespace
     {
+        constexpr const char* kBrushFlowPaintSlashTexturePath = "../Bin/Resources/Textures/UI/Common/Paint/T_Generic_PaintSlash_Text_Variation3.png";
+
         bool NearlyEqual(float lhs, float rhs)
         {
             return fabsf(lhs - rhs) <= 0.0001f;
@@ -47,6 +49,36 @@ namespace UIEditor
                 extension == ".jpeg" ||
                 extension == ".dds" ||
                 extension == ".tga";
+        }
+
+        bool Try_GetMissingMetaPathForTexture(const string& texturePath, fs::path& outMetaPath)
+        {
+            outMetaPath.clear();
+            if (texturePath.empty())
+                return false;
+
+            const wstring resolvedTexturePath = Resolve_ClientRuntimeResourcePath(texturePath);
+            if (resolvedTexturePath.empty())
+                return false;
+
+            try
+            {
+                const fs::path resolvedPath = fs::path(resolvedTexturePath).lexically_normal();
+                if (!fs::exists(resolvedPath) || !fs::is_regular_file(resolvedPath) || !Is_UITextureFileExtension(resolvedPath))
+                    return false;
+
+                fs::path metaPath = resolvedPath;
+                metaPath += L".meta";
+                if (fs::exists(metaPath))
+                    return false;
+
+                outMetaPath = metaPath;
+                return true;
+            }
+            catch (...)
+            {
+                return false;
+            }
         }
 
         wstring To_LowerW(wstring value)
@@ -251,7 +283,7 @@ namespace UIEditor
     {
         ImGui::Separator();
 
-        const char* renderModeItems[] = { "Normal", "Pattern Overlay" };
+        const char* renderModeItems[] = { "Normal", "Pattern Overlay", "Material VFX", "Legacy Button Sheen" };
         UI_ImageRenderMode effectiveRenderMode = object.imageRenderMode;
         int32 currentRenderMode = static_cast<int32>(effectiveRenderMode);
         currentRenderMode = min(max(currentRenderMode, 0), static_cast<int32>(size(renderModeItems)) - 1);
@@ -266,14 +298,52 @@ namespace UIEditor
             if (ImGui::Button("Create Pattern Overlay From Selected Paint"))
                 outCreatePatternOverlaySourceId = object.id;
         }
+        else if (effectiveRenderMode == UI_ImageRenderMode::MaterialVfx)
+        {
+            UI_MaterialVfxDesc preset = object.materialVfx;
+            preset.mode = UI_MaterialVfxMode::Energy;
+            preset.color = ImVec4(1.f, 0.12f, 0.95f, 1.f);
+            preset.coreColor = ImVec4(1.f, 0.92f, 1.f, 1.f);
+            preset.glow = 5.5f;
+            preset.alpha = 1.2f;
+            preset.coreStrength = 2.8f;
+            preset.coreWidth = 0.12f;
+            preset.coreSoftness = 0.04f;
+            preset.noiseStrength = 0.42f;
+            preset.uvScroll = ImVec2(0.08f, -0.22f);
+            preset.flowSpeed = 1.f;
+            preset.preserveColor = 0.f;
+            preset.edgeWidth = 0.16f;
+            preset.edgeSoftness = 0.055f;
+            preset.erosion = 0.16f;
+            preset.flicker = 0.28f;
+            preset.distortion = 0.018f;
+            preset.edgeWobbleSpeed = 1.f;
+
+            if (ImGui::Button("Purple Energy Preset"))
+                _editorManager.Set_UIObjectMaterialVfx(object.id, preset);
+        }
+        else if (effectiveRenderMode == UI_ImageRenderMode::ButtonSheen)
+        {
+            UI_ButtonSheenDesc preset = Get_DefaultButtonSheenDesc();
+            if (ImGui::Button("Legacy Button Sheen Preset"))
+                _editorManager.Set_UIObjectButtonSheen(object.id, preset);
+        }
 
         ImGui::Separator();
 
         const string popupId = "UITexturePicker##" + to_string(object.id);
         string nextTextureGuid = object.textureGuid;
         string nextTexturePath = object.texturePath;
+        const char* textureLabel = "UI Texture / VFX Base";
+        if (effectiveRenderMode == UI_ImageRenderMode::PatternOverlay)
+            textureLabel = "Pattern Texture";
+        else if (effectiveRenderMode == UI_ImageRenderMode::MaterialVfx && object.materialVfx.mode == UI_MaterialVfxMode::BrushFlow)
+            textureLabel = "Flow Brush Texture";
+        else if (effectiveRenderMode == UI_ImageRenderMode::ButtonSheen)
+            textureLabel = "Legacy Sheen Texture";
         if (Draw_UITextureSlotPicker(
-            effectiveRenderMode == UI_ImageRenderMode::PatternOverlay ? "Pattern Texture" : "UI Texture",
+            textureLabel,
             popupId.c_str(),
             nextTextureGuid,
             nextTexturePath))
@@ -286,8 +356,15 @@ namespace UIEditor
         const string maskPopupId = "UIMaskTexturePicker##" + to_string(object.id);
         string nextMaskTextureGuid = object.maskTextureGuid;
         string nextMaskTexturePath = object.maskTexturePath;
+        const char* maskLabel = "UI Mask Texture / VFX Mask";
+        if (effectiveRenderMode == UI_ImageRenderMode::PatternOverlay)
+            maskLabel = "Paint Mask";
+        else if (effectiveRenderMode == UI_ImageRenderMode::MaterialVfx && object.materialVfx.mode == UI_MaterialVfxMode::BrushFlow)
+            maskLabel = "Optional Button Mask";
+        else if (effectiveRenderMode == UI_ImageRenderMode::ButtonSheen)
+            maskLabel = "Legacy Button Mask";
         if (Draw_UITextureSlotPicker(
-            effectiveRenderMode == UI_ImageRenderMode::PatternOverlay ? "Paint Mask" : "UI Mask Texture",
+            maskLabel,
             maskPopupId.c_str(),
             nextMaskTextureGuid,
             nextMaskTexturePath))
@@ -295,7 +372,7 @@ namespace UIEditor
             _editorManager.Set_UIObjectMaskTextureBinding(object.id, nextMaskTextureGuid, nextMaskTexturePath);
         }
 
-        if (effectiveRenderMode == UI_ImageRenderMode::Normal)
+        if (effectiveRenderMode == UI_ImageRenderMode::Normal || effectiveRenderMode == UI_ImageRenderMode::MaterialVfx)
         {
             const char* maskTextureModeItems[] = { "Alpha", "BlackWhite" };
             int32 currentMaskTextureMode = static_cast<int32>(object.maskTextureMode);
@@ -354,6 +431,273 @@ namespace UIEditor
             {
                 _editorManager.Set_UIObjectPatternUv(object.id, Get_DefaultPatternUvOffset(), Get_DefaultPatternUvScale());
             }
+        }
+
+        if (effectiveRenderMode == UI_ImageRenderMode::MaterialVfx)
+        {
+            ImGui::Separator();
+            ImGui::TextUnformatted("Material VFX");
+
+            UI_MaterialVfxDesc nextMaterialVfx = object.materialVfx;
+            bool materialChanged = false;
+
+            const char* materialVfxModeItems[] = { "Energy", "Brush Flow" };
+            int32 currentMaterialVfxMode = static_cast<int32>(nextMaterialVfx.mode);
+            currentMaterialVfxMode = min(max(currentMaterialVfxMode, 0), static_cast<int32>(size(materialVfxModeItems)) - 1);
+            if (ImGui::Combo("Mode", &currentMaterialVfxMode, materialVfxModeItems, static_cast<int32>(size(materialVfxModeItems))))
+            {
+                nextMaterialVfx.mode = static_cast<UI_MaterialVfxMode>(currentMaterialVfxMode);
+                materialChanged = true;
+            }
+
+            UI_MaterialVfxDesc brushFlowPreset = nextMaterialVfx;
+            brushFlowPreset.mode = UI_MaterialVfxMode::BrushFlow;
+            brushFlowPreset.color = ImVec4(0.025f, 0.021f, 0.018f, 0.92f);
+            brushFlowPreset.coreColor = ImVec4(0.42f, 0.18f, 0.055f, 0.58f);
+            brushFlowPreset.glow = 0.65f;
+            brushFlowPreset.alpha = 1.f;
+            brushFlowPreset.coreStrength = 0.9f;
+            brushFlowPreset.coreWidth = 0.09f;
+            brushFlowPreset.coreSoftness = 0.1f;
+            brushFlowPreset.noiseStrength = 0.82f;
+            brushFlowPreset.uvScroll = ImVec2(0.48f, 0.08f);
+            brushFlowPreset.flowSpeed = 1.f;
+            brushFlowPreset.preserveColor = 0.f;
+            brushFlowPreset.edgeWidth = 0.3f;
+            brushFlowPreset.edgeSoftness = 0.18f;
+            brushFlowPreset.erosion = 0.13f;
+            brushFlowPreset.flicker = 0.28f;
+            brushFlowPreset.distortion = 0.044f;
+            brushFlowPreset.edgeWobbleSpeed = 2.85f;
+
+            if (ImGui::Button("Button Ink Flow Preset"))
+            {
+                _editorManager.Set_UIObjectTextureBinding(object.id, "", kBrushFlowPaintSlashTexturePath);
+                _editorManager.Set_UIObjectMaterialVfx(object.id, brushFlowPreset);
+            }
+
+            if (nextMaterialVfx.mode == UI_MaterialVfxMode::BrushFlow)
+            {
+                if (ImGui::Button("Boost Brush Flow Motion"))
+                {
+                    UI_MaterialVfxDesc dynamicBorder = nextMaterialVfx;
+                    if (dynamicBorder.uvScroll.x < 0.f)
+                        dynamicBorder.uvScroll.x = min(dynamicBorder.uvScroll.x, -0.58f);
+                    else
+                        dynamicBorder.uvScroll.x = max(dynamicBorder.uvScroll.x, 0.58f);
+                    dynamicBorder.uvScroll.y = dynamicBorder.uvScroll.y < 0.f
+                        ? min(dynamicBorder.uvScroll.y, -0.1f)
+                        : max(dynamicBorder.uvScroll.y, 0.1f);
+                    dynamicBorder.noiseStrength = max(dynamicBorder.noiseStrength, 0.88f);
+                    dynamicBorder.edgeWidth = max(dynamicBorder.edgeWidth, 0.34f);
+                    dynamicBorder.edgeSoftness = max(dynamicBorder.edgeSoftness, 0.2f);
+                    dynamicBorder.flicker = max(dynamicBorder.flicker, 0.36f);
+                    dynamicBorder.distortion = max(dynamicBorder.distortion, 0.058f);
+                    dynamicBorder.edgeWobbleSpeed = max(dynamicBorder.edgeWobbleSpeed, 3.35f);
+                    dynamicBorder.glow = max(dynamicBorder.glow, 0.9f);
+                    dynamicBorder.coreStrength = max(dynamicBorder.coreStrength, 1.05f);
+                    _editorManager.Set_UIObjectMaterialVfx(object.id, dynamicBorder);
+                }
+            }
+
+            const string noisePopupId = "UIMaterialVfxNoisePicker##" + to_string(object.id);
+            string nextNoiseTextureGuid = nextMaterialVfx.noiseTextureGuid;
+            string nextNoiseTexturePath = nextMaterialVfx.noiseTexturePath;
+            const char* noiseLabel = nextMaterialVfx.mode == UI_MaterialVfxMode::BrushFlow ? "Optional Noise Texture" : "Noise Texture";
+            if (Draw_UITextureSlotPicker(noiseLabel, noisePopupId.c_str(), nextNoiseTextureGuid, nextNoiseTexturePath))
+            {
+                nextMaterialVfx.noiseTextureGuid = nextNoiseTextureGuid;
+                nextMaterialVfx.noiseTexturePath = nextNoiseTexturePath;
+                materialChanged = true;
+            }
+
+            ImVec4 nextVfxColor = nextMaterialVfx.color;
+            if (ImGui::ColorEdit4("VFX Color", &nextVfxColor.x))
+            {
+                nextMaterialVfx.color = nextVfxColor;
+                materialChanged = true;
+            }
+
+            ImVec4 nextCoreColor = nextMaterialVfx.coreColor;
+            if (ImGui::ColorEdit4("Core Color", &nextCoreColor.x))
+            {
+                nextMaterialVfx.coreColor = nextCoreColor;
+                materialChanged = true;
+            }
+
+            if (nextMaterialVfx.mode == UI_MaterialVfxMode::Energy)
+            {
+                ImVec4 nextFlowColor = nextMaterialVfx.flowColor;
+                if (ImGui::ColorEdit4("Flow Color", &nextFlowColor.x))
+                {
+                    nextMaterialVfx.flowColor = nextFlowColor;
+                    materialChanged = true;
+                }
+            }
+
+            float nextGlow = nextMaterialVfx.glow;
+            if (ImGui::SliderFloat("Glow", &nextGlow, kMaterialVfxGlowMin, kMaterialVfxGlowMax, "%.2f"))
+            {
+                nextMaterialVfx.glow = nextGlow;
+                materialChanged = true;
+            }
+
+            float nextAlpha = nextMaterialVfx.alpha;
+            if (ImGui::SliderFloat("Alpha", &nextAlpha, kMaterialVfxAlphaMin, kMaterialVfxAlphaMax, "%.2f"))
+            {
+                nextMaterialVfx.alpha = nextAlpha;
+                materialChanged = true;
+            }
+
+            float nextCoreStrength = nextMaterialVfx.coreStrength;
+            if (ImGui::SliderFloat("Core Strength", &nextCoreStrength, kMaterialVfxCoreStrengthMin, kMaterialVfxCoreStrengthMax, "%.2f"))
+            {
+                nextMaterialVfx.coreStrength = nextCoreStrength;
+                materialChanged = true;
+            }
+
+            float nextCoreWidth = nextMaterialVfx.coreWidth;
+            if (ImGui::SliderFloat("Core Width", &nextCoreWidth, kMaterialVfxCoreWidthMin, kMaterialVfxCoreWidthMax, "%.3f"))
+            {
+                nextMaterialVfx.coreWidth = nextCoreWidth;
+                materialChanged = true;
+            }
+
+            float nextCoreSoftness = nextMaterialVfx.coreSoftness;
+            if (ImGui::SliderFloat("Core Softness", &nextCoreSoftness, kMaterialVfxCoreSoftnessMin, kMaterialVfxCoreSoftnessMax, "%.3f"))
+            {
+                nextMaterialVfx.coreSoftness = nextCoreSoftness;
+                materialChanged = true;
+            }
+
+            float nextNoiseStrength = nextMaterialVfx.noiseStrength;
+            if (ImGui::SliderFloat("Noise Strength", &nextNoiseStrength, kMaterialVfxNoiseStrengthMin, kMaterialVfxNoiseStrengthMax, "%.2f"))
+            {
+                nextMaterialVfx.noiseStrength = nextNoiseStrength;
+                materialChanged = true;
+            }
+
+            ImVec2 nextUvScroll = nextMaterialVfx.uvScroll;
+            const char* uvScrollLabel = nextMaterialVfx.mode == UI_MaterialVfxMode::BrushFlow ? "Brush UV Scroll" : "Noise UV Scroll";
+            if (ImGui::DragFloat2(uvScrollLabel, &nextUvScroll.x, 0.01f, -2.f, 2.f, "%.3f"))
+            {
+                nextMaterialVfx.uvScroll = nextUvScroll;
+                materialChanged = true;
+            }
+
+            float nextFlowSpeed = nextMaterialVfx.flowSpeed;
+            const char* flowSpeedLabel = nextMaterialVfx.mode == UI_MaterialVfxMode::BrushFlow ? "Brush Flow Speed" : "Noise Flow Speed";
+            if (ImGui::SliderFloat(flowSpeedLabel, &nextFlowSpeed, kMaterialVfxFlowSpeedMin, kMaterialVfxFlowSpeedMax, "%.2f"))
+            {
+                nextMaterialVfx.flowSpeed = nextFlowSpeed;
+                materialChanged = true;
+            }
+
+            float nextPreserveColor = nextMaterialVfx.preserveColor;
+            if (ImGui::SliderFloat("Preserve Color", &nextPreserveColor, kMaterialVfxPreserveColorMin, kMaterialVfxPreserveColorMax, "%.2f"))
+            {
+                nextMaterialVfx.preserveColor = nextPreserveColor;
+                materialChanged = true;
+            }
+
+            float nextEdgeWidth = nextMaterialVfx.edgeWidth;
+            if (ImGui::SliderFloat("Edge Width", &nextEdgeWidth, kMaterialVfxEdgeWidthMin, kMaterialVfxEdgeWidthMax, "%.3f"))
+            {
+                nextMaterialVfx.edgeWidth = nextEdgeWidth;
+                materialChanged = true;
+            }
+
+            float nextEdgeSoftness = nextMaterialVfx.edgeSoftness;
+            if (ImGui::SliderFloat("Edge Softness", &nextEdgeSoftness, kMaterialVfxEdgeSoftnessMin, kMaterialVfxEdgeSoftnessMax, "%.3f"))
+            {
+                nextMaterialVfx.edgeSoftness = nextEdgeSoftness;
+                materialChanged = true;
+            }
+
+            float nextErosion = nextMaterialVfx.erosion;
+            if (ImGui::SliderFloat("Erosion", &nextErosion, kMaterialVfxErosionMin, kMaterialVfxErosionMax, "%.2f"))
+            {
+                nextMaterialVfx.erosion = nextErosion;
+                materialChanged = true;
+            }
+
+            float nextFlicker = nextMaterialVfx.flicker;
+            if (ImGui::SliderFloat("Flicker", &nextFlicker, kMaterialVfxFlickerMin, kMaterialVfxFlickerMax, "%.2f"))
+            {
+                nextMaterialVfx.flicker = nextFlicker;
+                materialChanged = true;
+            }
+
+            float nextDistortion = nextMaterialVfx.distortion;
+            if (ImGui::SliderFloat("Distortion", &nextDistortion, kMaterialVfxDistortionMin, kMaterialVfxDistortionMax, "%.3f"))
+            {
+                nextMaterialVfx.distortion = nextDistortion;
+                materialChanged = true;
+            }
+
+            float nextEdgeWobbleSpeed = nextMaterialVfx.edgeWobbleSpeed;
+            if (ImGui::SliderFloat("Edge Wobble Speed", &nextEdgeWobbleSpeed, kMaterialVfxEdgeWobbleSpeedMin, kMaterialVfxEdgeWobbleSpeedMax, "%.2f"))
+            {
+                nextMaterialVfx.edgeWobbleSpeed = nextEdgeWobbleSpeed;
+                materialChanged = true;
+            }
+
+            if (materialChanged)
+                _editorManager.Set_UIObjectMaterialVfx(object.id, nextMaterialVfx);
+        }
+
+        if (effectiveRenderMode == UI_ImageRenderMode::ButtonSheen)
+        {
+            ImGui::Separator();
+            ImGui::TextUnformatted("Legacy Button Sheen");
+
+            UI_ButtonSheenDesc nextButtonSheen = object.buttonSheen;
+            bool buttonSheenChanged = false;
+
+            ImVec4 nextSheenColor = nextButtonSheen.color;
+            if (ImGui::ColorEdit4("Sheen Color", &nextSheenColor.x))
+            {
+                nextButtonSheen.color = nextSheenColor;
+                buttonSheenChanged = true;
+            }
+
+            float nextSheenSpeed = nextButtonSheen.speed;
+            if (ImGui::SliderFloat("Sheen Speed", &nextSheenSpeed, kButtonSheenSpeedMin, kButtonSheenSpeedMax, "%.2f"))
+            {
+                nextButtonSheen.speed = nextSheenSpeed;
+                buttonSheenChanged = true;
+            }
+
+            float nextSheenWidth = nextButtonSheen.width;
+            if (ImGui::SliderFloat("Sheen Width", &nextSheenWidth, kButtonSheenWidthMin, kButtonSheenWidthMax, "%.3f"))
+            {
+                nextButtonSheen.width = nextSheenWidth;
+                buttonSheenChanged = true;
+            }
+
+            float nextSheenSoftness = nextButtonSheen.softness;
+            if (ImGui::SliderFloat("Sheen Softness", &nextSheenSoftness, kButtonSheenSoftnessMin, kButtonSheenSoftnessMax, "%.3f"))
+            {
+                nextButtonSheen.softness = nextSheenSoftness;
+                buttonSheenChanged = true;
+            }
+
+            float nextSheenAngle = nextButtonSheen.angle;
+            if (ImGui::SliderFloat("Sheen Angle", &nextSheenAngle, kButtonSheenAngleMin, kButtonSheenAngleMax, "%.3f"))
+            {
+                nextButtonSheen.angle = nextSheenAngle;
+                buttonSheenChanged = true;
+            }
+
+            float nextSheenNoiseStrength = nextButtonSheen.noiseStrength;
+            if (ImGui::SliderFloat("Sheen Noise Strength", &nextSheenNoiseStrength, kButtonSheenNoiseStrengthMin, kButtonSheenNoiseStrengthMax, "%.2f"))
+            {
+                nextButtonSheen.noiseStrength = nextSheenNoiseStrength;
+                buttonSheenChanged = true;
+            }
+
+            if (buttonSheenChanged)
+                _editorManager.Set_UIObjectButtonSheen(object.id, nextButtonSheen);
         }
     }
 
@@ -456,6 +800,31 @@ namespace UIEditor
             textureGuid.clear();
             texturePath.clear();
             changed = true;
+        }
+
+        fs::path missingMetaPath = {};
+        if (textureGuid.empty() && Try_GetMissingMetaPathForTexture(texturePath, missingMetaPath))
+        {
+            if (!_editorManager.Is_AssetManagerReady())
+            {
+                ImGui::TextDisabled("Texture meta is missing. Asset registry is not ready.");
+            }
+            else if (ImGui::Button(("Generate Texture Meta##Meta" + string(popupId)).c_str()))
+            {
+                const wstring resolvedTexturePath = Resolve_ClientRuntimeResourcePath(texturePath);
+                const string generatedGuid = GAME->Ensure_AssetGUID(resolvedTexturePath, "Texture");
+                if (!generatedGuid.empty())
+                {
+                    textureGuid = generatedGuid;
+                    _uiTextureAssetCacheDirty = true;
+                    _filteredUITextureAssetsDirty = true;
+                    changed = true;
+                }
+                else
+                {
+                    LOG_WARN("UI texture meta generation failed: {}", String::ToString(resolvedTexturePath));
+                }
+            }
         }
 
         ImGui::EndGroup();

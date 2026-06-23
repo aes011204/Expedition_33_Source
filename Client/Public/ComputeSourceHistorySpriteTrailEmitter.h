@@ -10,6 +10,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Source point history를 sprite stamp trail로 누적하고 렌더링한다.
 class ComputeSourceHistorySpriteTrailEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeSourceHistorySpriteTrailEmitter, ObjectType::EffectEmitter);
@@ -35,7 +36,7 @@ public:
     int32 Get_BlendSortLayer() const override;
     float Get_BlendSortBias() const override;
 
-private:
+private: //## Types::PlaybackRuntime
     enum class PlaybackState : uint8
     {
         Delayed,
@@ -82,6 +83,13 @@ private:
         float pathReplayElapsedTime{};
     };
 
+    struct SourceMotionVelocityContext
+    {
+        Vec3 sourceVelocity{};
+        Vec3 tangent{ 1.f, 0.f, 0.f };
+        bool sourceVelocityValid{};
+    };
+
     struct HistoryLane
     {
         uint32 sourceIndex{};
@@ -114,7 +122,7 @@ private:
         float rotationRadians{};
     };
 
-private:
+private: //## Static Values
     static constexpr auto kShaderId{ L"Shader_EffectSourceHistorySpriteTrail" };
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr uint32 kPointVertexCount{ 1 };
@@ -125,7 +133,7 @@ private:
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
 
-private:
+private: //## Data::PlaybackRuntime
     ComputeSourceHistorySpriteTrailEmitterDesc _desc{};
     PlaybackState _playbackState{ PlaybackState::Delayed };
     bool _finishEmissionAfterUpdate{};
@@ -145,6 +153,7 @@ private:
     uint32 _stampSerialCounter{};
     int _opacitySourceIndex{ kOpacitySourceAlpha };
 
+private: //## Data::Components
     Shared<ShaderCom> _shader{};
     Shared<Texture> _mainTexture{};
     Shared<Texture> _noiseTexture{};
@@ -152,7 +161,7 @@ private:
     ComPtr<Buffer> _pointVB{};
     ComPtr<Buffer> _instanceBuffer{};
 
-private:
+private: //## Helper::PlaybackRuntime
     void Reset_PlaybackRuntime();
     void Reset_LoopScopedRuntime();
     void Advance_Playback(float timeDelta);
@@ -190,13 +199,23 @@ private:
         const Vec3& previousPosition,
         const Vec3& currentPosition,
         float timeDelta);
-    void Push_Stamp(vector<Stamp>& stamps, const Vec3& center, const Vec3& tangent, float pathDistanceFromHead, float widthScale, float lengthScale);
+    void Push_Stamp(
+        vector<Stamp>& stamps,
+        const Vec3& center,
+        const Vec3& tangent,
+        const SourceMotionVelocityContext& sourceMotionContext,
+        float pathDistanceFromHead,
+        float widthScale,
+        float lengthScale);
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
 
+private: //## Helper::Setup
     HRESULT Ready_Components();
     HRESULT Ready_Texture();
     HRESULT Ready_OptionalTexture(Shared<Texture>& outTexture, const string& textureGuid, const string& texturePath);
     HRESULT Ready_DrawBuffers();
+
+private: //## Helper::Render
     HRESULT Update_InstanceBuffer();
     HRESULT Append_StampInstances(const vector<Stamp>& stamps, vector<StampInstanceVertex>& outInstances) const;
     HRESULT Bind_ShaderResources();
@@ -216,7 +235,7 @@ private:
     Vec2 Sample_InitialSize(uint32 stampSerial) const;
     float Sample_InitialRotation(uint32 stampSerial) const;
     float Sample_InitialAngularVelocity(uint32 stampSerial) const;
-    Vec3 Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const Vec3& tangent) const;
+    Vec3 Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const SourceMotionVelocityContext& sourceMotionContext) const;
     Vec3 Sample_Acceleration(uint32 stampSerial) const;
     float Sample_Drag(uint32 stampSerial) const;
     float Sample_PathFollowSpeed(uint32 stampSerial) const;

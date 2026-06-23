@@ -104,7 +104,7 @@ namespace Internal
 
     SourceHistorySpriteTrailArrivalMode Resolve_SourceHistorySpriteTrailArrivalMode(const json& root)
     {
-        SourceHistorySpriteTrailArrivalMode arrivalMode{ SourceHistorySpriteTrailArrivalMode::KillOnArrive };
+        SourceHistorySpriteTrailArrivalMode arrivalMode = SourceHistorySpriteTrailArrivalMode::KillOnArrive;
         if (const auto arrivalModeIter = root.find("arrivalMode"); arrivalModeIter != root.end() &&
                                                                    Try_ReadEnumToken(*arrivalModeIter, arrivalMode))
             return arrivalMode;
@@ -972,21 +972,25 @@ namespace Internal
         root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
         root["mainUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.mainUVPolicy));
         root["mainUVPolicy"] = To_Json(data.mainUVPolicy);
+        root["mainUVRotation"] = To_EnumToken(data.mainUVRotation);
         root["noiseUVScale"] = To_Json(data.noiseUVScale);
         root["noiseUVOffset"] = To_Json(data.noiseUVOffset);
         root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
         root["noiseUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.noiseUVPolicy));
         root["noiseUVPolicy"] = To_Json(data.noiseUVPolicy);
+        root["noiseUVRotation"] = To_EnumToken(data.noiseUVRotation);
         root["maskUVScale"] = To_Json(data.maskUVScale);
         root["maskUVOffset"] = To_Json(data.maskUVOffset);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
         root["maskUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.maskUVPolicy));
         root["maskUVPolicy"] = To_Json(data.maskUVPolicy);
+        root["maskUVRotation"] = To_EnumToken(data.maskUVRotation);
         root["flowUVScale"] = To_Json(data.flowUVScale);
         root["flowUVOffset"] = To_Json(data.flowUVOffset);
         root["flowUVScrollSpeed"] = To_Json(data.flowUVScrollSpeed);
         root["flowUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.flowUVPolicy));
         root["flowUVPolicy"] = To_Json(data.flowUVPolicy);
+        root["flowUVRotation"] = To_EnumToken(data.flowUVRotation);
         root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
@@ -1076,6 +1080,8 @@ namespace Internal
         if (const auto mainUVTilingModeIter = root.find("mainUVTilingMode"); mainUVTilingModeIter != root.end())
             Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
         Read_UVAxisPolicyField(root, "mainUVPolicy", outData.mainUVTilingMode, outData.mainUVPolicy, outData.mainUVTilingMode);
+        if (const auto mainUVRotationIter = root.find("mainUVRotation"); mainUVRotationIter != root.end())
+            Try_ReadEnumToken(*mainUVRotationIter, outData.mainUVRotation);
 
         if (const auto noiseUVScaleIter = root.find("noiseUVScale"); noiseUVScaleIter != root.end())
             Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
@@ -1089,6 +1095,8 @@ namespace Internal
         if (const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode"); noiseUVTilingModeIter != root.end())
             Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
         Read_UVAxisPolicyField(root, "noiseUVPolicy", outData.noiseUVTilingMode, outData.noiseUVPolicy, outData.noiseUVTilingMode);
+        if (const auto noiseUVRotationIter = root.find("noiseUVRotation"); noiseUVRotationIter != root.end())
+            Try_ReadEnumToken(*noiseUVRotationIter, outData.noiseUVRotation);
 
         if (const auto maskUVScaleIter = root.find("maskUVScale"); maskUVScaleIter != root.end())
             Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
@@ -1102,6 +1110,8 @@ namespace Internal
         if (const auto maskUVTilingModeIter = root.find("maskUVTilingMode"); maskUVTilingModeIter != root.end())
             Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
         Read_UVAxisPolicyField(root, "maskUVPolicy", outData.maskUVTilingMode, outData.maskUVPolicy, outData.maskUVTilingMode);
+        if (const auto maskUVRotationIter = root.find("maskUVRotation"); maskUVRotationIter != root.end())
+            Try_ReadEnumToken(*maskUVRotationIter, outData.maskUVRotation);
 
         if (const auto flowUVScaleIter = root.find("flowUVScale"); flowUVScaleIter != root.end())
             Read_Vec2(*flowUVScaleIter, outData.flowUVScale);
@@ -1115,6 +1125,8 @@ namespace Internal
         if (const auto flowUVTilingModeIter = root.find("flowUVTilingMode"); flowUVTilingModeIter != root.end())
             Try_ReadEnumToken(*flowUVTilingModeIter, outData.flowUVTilingMode);
         Read_UVAxisPolicyField(root, "flowUVPolicy", outData.flowUVTilingMode, outData.flowUVPolicy, outData.flowUVTilingMode);
+        if (const auto flowUVRotationIter = root.find("flowUVRotation"); flowUVRotationIter != root.end())
+            Try_ReadEnumToken(*flowUVRotationIter, outData.flowUVRotation);
 
         Read_NumberField(root, "refractionIntensity", outData.refractionIntensity);
         Read_NumberField(root, "refractionPresence", outData.refractionPresence);
@@ -2182,6 +2194,34 @@ namespace Internal
         Apply_LegacyRandomSeedToUniform(outData.speed, legacySeed);
     }
 
+    json To_Json(const SourceMotionVelocityModuleData& data)
+    {
+        json root = json::object();
+        root["directionMode"] = To_EnumToken(data.directionMode);
+        root["speed"] = To_Json(data.speed);
+        root["sourceSpeedScale"] = data.sourceSpeedScale;
+        root["spreadAngleDegrees"] = data.spreadAngleDegrees;
+        return root;
+    }
+
+    void From_Json(const json& root, SourceMotionVelocityModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto directionModeIter = root.find("directionMode"); directionModeIter != root.end())
+            Try_ReadEnumToken(*directionModeIter, outData.directionMode);
+        if (outData.directionMode == SourceMotionVelocityDirectionMode::InheritSourceVelocity)
+            outData.directionMode = SourceMotionVelocityDirectionMode::SourceVelocityDirection;
+        if (const auto speedIter = root.find("speed"); speedIter != root.end())
+            From_Json(*speedIter, outData.speed);
+        Read_NumberField(root, "sourceSpeedScale", outData.sourceSpeedScale);
+        Read_NumberField(root, "spreadAngleDegrees", outData.spreadAngleDegrees);
+        DistributionRandomSeedData legacySeed{};
+        Read_RandomSeedField(root, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.speed, legacySeed);
+    }
+
     json To_Json(const AccelerationModuleData& data)
     {
         json root = json::object();
@@ -2944,6 +2984,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::VelocityCone:
         root["data"] = Internal::To_Json(get<VelocityConeModuleData>(module.data));
         break;
+    case AuthoringModuleType::SourceMotionVelocity:
+        root["data"] = Internal::To_Json(get<SourceMotionVelocityModuleData>(module.data));
+        break;
     case AuthoringModuleType::Acceleration:
         root["data"] = Internal::To_Json(get<AccelerationModuleData>(module.data));
         break;
@@ -3089,6 +3132,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
             break;
         case AuthoringModuleType::VelocityCone:
             Internal::From_Json(*dataIter, get<VelocityConeModuleData>(module.data));
+            break;
+        case AuthoringModuleType::SourceMotionVelocity:
+            Internal::From_Json(*dataIter, get<SourceMotionVelocityModuleData>(module.data));
             break;
         case AuthoringModuleType::Acceleration:
             Internal::From_Json(*dataIter, get<AccelerationModuleData>(module.data));
@@ -3241,6 +3287,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return InitialRadialVelocityModuleData{};
     case AuthoringModuleType::VelocityCone:
         return VelocityConeModuleData{};
+    case AuthoringModuleType::SourceMotionVelocity:
+        return SourceMotionVelocityModuleData{};
     case AuthoringModuleType::Acceleration:
         return AccelerationModuleData{};
     case AuthoringModuleType::Drag:

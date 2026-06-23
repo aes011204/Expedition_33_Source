@@ -1,13 +1,14 @@
 ﻿#include "AN_Attack.h"
 
+#include "ANS_WeaponEcho.h"
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "SkillScript.h"
 
 void AN_Attack::Execute(const AnimNotifyContext& context)
 {
-   if(context.isPreview)
-       return;
+    if (context.isPreview)
+        return;
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
@@ -15,25 +16,24 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
     if (battle->Get_CurrentScript() == nullptr)
         return;
 
-    // Free Aim은 스킵
     if (battle->Is_FreeAimShotPlaying())
         return;
 
     BattleAction& turnAction = battle->Get_TurnAction();
-    if (battle->Get_AliveEnemies().empty()|| battle->Get_AliveHeroes().empty())
-         return;
+    if (battle->Get_AliveEnemies().empty() || battle->Get_AliveHeroes().empty())
+        return;
 
+    const uint32 sourceStepIndex = turnAction.GetCurStepIndex();
     const auto& curTargets = turnAction.GetCurStepTarget();
     const BattleChar reactionTarget =
         !curTargets.empty() ? curTargets.front() : turnAction.GetInitTarget();
 
-    // 회피/패링 성공 입력이 있으면 이번 공격 notify의 데미지를 소비하고 스킵한다.
     const bool guarded =
         battle->Get_ReactionController().TryConsumeGuard(
             reactionTarget,
-            turnAction.GetCurStepIndex());
+            sourceStepIndex);
 
-    AttackType attackType = ResolveAttackType(turnAction, turnAction.GetCurStepIndex());
+    const AttackType attackType = ResolveAttackType(turnAction, sourceStepIndex);
     if (!guarded)
     {
         battle->Get_CurrentScript()->Execute(
@@ -42,7 +42,16 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
             attackType);
     }
 
-    // 어택 한번 한거다 라는 표시
+    // Echo는 원본 공격의 회피/패링 여부와 별개로 별도 판정으로 소비되어야 한다.
+    ANS_WeaponEcho::Queue_EchoAttackSteps(
+        context,
+        turnAction.Get_CurChar(),
+        curTargets,
+        reactionTarget,
+        sourceStepIndex,
+        attackType,
+        turnAction.GetSkillData().powerMultiplier);
+
     turnAction.Spend_AttackStep();
 }
 

@@ -211,6 +211,31 @@ void EffectInstancePool::Discard_Inactive(const wstring& effectName)
     }
 }
 
+uint32 EffectInstancePool::Discard_AllInactive()
+{
+    uint32 discardedCount = 0;
+
+    erase_if(
+        _entries,
+        [&](const PooledInstance& entry)
+        {
+            if (entry.inUse)
+                return false;
+
+            if (entry.instance)
+            {
+                entry.instance->Stop();
+                GAME->Remove_GameObject(entry.layerLevelIndex, static_pointer_cast<GameObject>(entry.instance));
+            }
+
+            ++discardedCount;
+            return true;
+        }
+    );
+
+    return discardedCount;
+}
+
 EffectInstancePool::DebugSummary EffectInstancePool::Get_DebugSummary() const
 {
     DebugSummary summary{};
@@ -289,26 +314,26 @@ HRESULT EffectInstancePool::Acquire_Instance(
         //    String::ToString(desc.effectName),
         //    activeCount,
         //    idleCount);
-        LOG_DEBUG(
-            "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
-            String::ToString(desc.effectName),
-            desc.layerLevelIndex,
-            String::ToString(desc.layerTag),
-            activeCount,
-            idleCount,
-            static_cast<const void*>(outInstance.get())
-        );
+        //LOG_DEBUG(
+        //    "[EffectPool] acquire hit: effect={}, level={}, layer={}, active={}, idle={}, object={}",
+        //    String::ToString(desc.effectName),
+        //    desc.layerLevelIndex,
+        //    String::ToString(desc.layerTag),
+        //    activeCount,
+        //    idleCount,
+        //    static_cast<const void*>(outInstance.get())
+        //);
 
         return S_OK;
     }
 
     //LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
-    LOG_DEBUG(
-        "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
-        String::ToString(desc.effectName),
-        desc.layerLevelIndex,
-        String::ToString(desc.layerTag)
-    );
+    //LOG_DEBUG(
+    //    "[EffectPool] acquire miss: effect={}, level={}, layer={}, spawning new instance.",
+    //    String::ToString(desc.effectName),
+    //    desc.layerLevelIndex,
+    //    String::ToString(desc.layerTag)
+    //);
 
     const HRESULT spawnResult = Spawn_NewInstance(desc, outDefinition, outInstance);
     if (FAILED(spawnResult))
@@ -411,6 +436,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     transform->Set_WorldRotationQuaternion(desc.worldRotation);
     transform->Set_Scale(desc.scale);
 
+    instance->Set_PlaybackSpeed(desc.playbackSpeed);
     CHECK_FAILED(instance->Reset(), E_FAIL);
     CHECK_FAILED(instance->Play(), E_FAIL);
     return S_OK;

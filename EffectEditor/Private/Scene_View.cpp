@@ -2,6 +2,7 @@
 
 #include "Camera.h"
 #include "Editor_Context.h"
+#include "Emitter_View.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
@@ -193,6 +194,29 @@ namespace Internal
 
         return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos);
     }
+
+    static const RequiredModuleData* Find_RequiredModuleData(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != AuthoringModuleType::Required)
+                continue;
+
+            return get_if<RequiredModuleData>(&module.data);
+        }
+
+        return nullptr;
+    }
+
+    static Matrix Build_LocalTransformMatrix(const Vec3& position, const Vec3& rotationDegrees)
+    {
+        const Matrix rotation = Matrix::CreateFromYawPitchRoll(
+            XMConvertToRadians(rotationDegrees.y),
+            XMConvertToRadians(rotationDegrees.x),
+            XMConvertToRadians(rotationDegrees.z)
+        );
+        return rotation * Matrix::CreateTranslation(position);
+    }
 }
 
 Scene_View::Scene_View()
@@ -233,7 +257,8 @@ void Scene_View::Render()
 
         Render_ViewportCanvas();
         Handle_FocusRequest();
-        Render_SelectedObjectGizmo();
+        if (!Render_SelectedEmitterPreviewGizmo())
+            Render_SelectedObjectGizmo();
 
         Render_CameraAxisOverlay();
         Render_ViewportToolbarOverlay();
@@ -283,7 +308,8 @@ void Scene_View::Handle_GizmoShortcut()
         return;
     }
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+    const ImGuiIO& io = ImGui::GetIO();
+    if (!io.KeyCtrl && io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space, false))
         _gizmoMode = _gizmoMode == ImGuizmo::LOCAL ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
 }
 
@@ -720,17 +746,17 @@ void Scene_View::Render_ViewportCanvas()
         drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
-        if (Internal::Is_MouseOverViewportOverlay(
+        const bool mouseOverOverlay = Internal::Is_MouseOverViewportOverlay(
             imageRect.imageMin,
             imageRect.imageMax,
             _isViewportToolbarPinned,
             _isViewportToolbarInteracting
-        ))
-            ImGui::Dummy(_viewportSize);
-        else
-            ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
+        );
 
-        _isViewportHovered = ImGui::IsItemHovered();
+        _isViewportHovered =
+            !mouseOverOverlay &&
+            ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
+            ImGui::IsMouseHoveringRect(imageRect.imageMin, imageRect.imageMax, false);
 
         const ImTextureID textureId =
             static_cast<ImTextureID>(reinterpret_cast<intptr_t>(viewportSrv));
@@ -744,22 +770,24 @@ void Scene_View::Render_ViewportCanvas()
         drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
-        if (Internal::Is_MouseOverViewportOverlay(
+        const bool mouseOverOverlay = Internal::Is_MouseOverViewportOverlay(
             canvasMin,
             canvasMax,
             _isViewportToolbarPinned,
             _isViewportToolbarInteracting
-        ))
-            ImGui::Dummy(_viewportSize);
-        else
-            ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
+        );
 
-        _isViewportHovered = ImGui::IsItemHovered();
+        _isViewportHovered =
+            !mouseOverOverlay &&
+            ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) &&
+            ImGui::IsMouseHoveringRect(canvasMin, canvasMax, false);
 
         drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
         _viewportMin = canvasMin;
         _viewportMax = canvasMax;
     }
+
+    ImGui::SetCursorScreenPos(canvasMax);
 
     RECT viewportLockRect = {};
     viewportLockRect.left = static_cast<LONG>(_viewportMin.x);
@@ -799,6 +827,90 @@ void Scene_View::Handle_FocusRequest()
         return;
 
     previewCamera->Request_Focus(transform->Get_WorldPosition());
+}
+
+bool Scene_View::Render_SelectedEmitterPreviewGizmo()
+{
+    const Editor_Context* context = EDITOR->Get_EditorContext();
+    if (context == nullptr)
+        return false;
+
+    const EffectAuthoringSelection& selection = context->Get_EffectSelection();
+    if (selection.kind != EffectAuthoringSelectionKind::Emitter)
+        return false;
+
+    const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(EDITOR->Get_Window(L"Emitter"));
+    if (emitterView == nullptr)
+        return false;
+
+    const AuthoringEmitter* emitter = emitterView->Find_Emitter(selection.emitterId);
+    if (emitter == nullptr ||
+        !EffectEditorInstance::Can_UsePreviewEmitterTransform(*emitter) ||
+        !EDITOR->Is_PreviewEmitterTransformEnabled(emitter->id))
+        return false;
+
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    if (viewMatrix == nullptr || projMatrix == nullptr)
+        return true;
+
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return true;
+
+    const RequiredModuleData* required = Internal::Find_RequiredModuleData(*emitter);
+    const Vec3 authoredPosition = required != nullptr ? required->emitterOrigin : Vec3::Zero;
+    const Vec3 authoredRotation = required != nullptr ? required->emitterRotationDegrees : Vec3::Zero;
+    const PreviewEmitterTransformOverride* overrideState =
+        EDITOR->Find_PreviewEmitterTransformOverride(emitter->id);
+    const Vec3 positionOffset = overrideState != nullptr ? overrideState->localPositionOffset : Vec3::Zero;
+    const Vec3 rotationOffset = overrideState != nullptr ? overrideState->localRotationOffsetDegrees : Vec3::Zero;
+
+    Matrix worldMatrix = Matrix::Identity;
+    if (!EDITOR->Try_GetPreviewEmitterWorldMatrix(emitter->id, worldMatrix))
+        worldMatrix = Internal::Build_LocalTransformMatrix(authoredPosition + positionOffset, authoredRotation + rotationOffset);
+
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::SetRect(_viewportMin.x, _viewportMin.y, viewportWidth, viewportHeight);
+
+    const ImGuizmo::OPERATION operation =
+        _gizmoOperation == ImGuizmo::SCALE ? ImGuizmo::TRANSLATE : _gizmoOperation;
+    const bool manipulated = ImGuizmo::Manipulate(
+        reinterpret_cast<float*>(const_cast<Matrix*>(viewMatrix)),
+        reinterpret_cast<float*>(const_cast<Matrix*>(projMatrix)),
+        operation,
+        _gizmoMode,
+        reinterpret_cast<float*>(&worldMatrix)
+    );
+
+    if (!manipulated)
+        return true;
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return true;
+
+    if (rotation.LengthSquared() <= 0.0001f)
+        rotation = Quat::Identity;
+    else
+        rotation.Normalize();
+
+    const Vec3 eulerRadians = rotation.ToEuler();
+    const Vec3 rotationDegrees{
+        XMConvertToDegrees(eulerRadians.x),
+        XMConvertToDegrees(eulerRadians.y),
+        XMConvertToDegrees(eulerRadians.z)
+    };
+
+    EDITOR->Set_PreviewEmitterTransformOffsets(
+        emitter->id,
+        translation - authoredPosition,
+        rotationDegrees - authoredRotation
+    );
+    return true;
 }
 
 void Scene_View::Render_SelectedObjectGizmo()

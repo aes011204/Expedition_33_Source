@@ -2,9 +2,14 @@
 #include "Animation_NameUtils.h"
 #include "AnimSequencerAdapter.h"
 #include "AnimNotify_Parser.h"
+#include "ANS_Trail.h"
+#include "AnimationModifier.h"
+#include "ChainModifier.h"
+#include "PoseFollowChainModifier.h"
 #include "ContainerObject.h"
 #include "EditorInstance.h"
 #include "Editor_Camera_Free.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "DebugDraw.h"
@@ -18,14 +23,233 @@
 #include "PlayableParts.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
+#include "SkyBoxFlow.h"
+#include "SkyCloudCard.h"
+#include "TransformCom.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 #include "Weapon.h"
+#include "Mon_Dualliste_Sword_L.h"
+#include "Mon_Dualliste_Sword_R.h"
+#include "Mon_Simon_Weapon.h"
+#include "Monster_Part.h"
+#include <algorithm>
+#include <cctype>
+#include <cstring>
 
 namespace
 {
+Shared<ModelCom> Resolve_PreviewTrailPartModel(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_Model();
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_Model();
+
+    return nullptr;
+}
+
+const Matrix* Resolve_PreviewTrailPartSocketMatrix(const PartObject* partObject, const string& socketName)
+{
+    if (partObject == nullptr)
+        return nullptr;
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_SocketBoneMatrixPtr(socketName);
+
+    if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
+        return monsterPart->Get_SocketBoneMatrixPtr(socketName);
+
+    return nullptr;
+}
+
+wstring Resolve_PreviewDefaultTrailEffectName(const PartObject* partObject)
+{
+    if (partObject == nullptr)
+        return {};
+
+    if (const Weapon* weaponPart = dynamic_cast<const Weapon*>(partObject))
+        return weaponPart->Get_TrailEffectName();
+
+    if (const Client::Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Client::Mon_Simon_Weapon*>(partObject))
+        return simonWeapon->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_L* duallisteSwordL = dynamic_cast<const Client::Mon_Dualliste_Sword_L*>(partObject))
+        return duallisteSwordL->Get_TrailEffectName();
+
+    if (const Client::Mon_Dualliste_Sword_R* duallisteSwordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(partObject))
+        return duallisteSwordR->Get_TrailEffectName();
+
+    return {};
+}
+}
+
+namespace
+{
+    const Vec3 kPreviewSkyCloudLocalOffset = Vec3(28.f, 34.f, 82.f);
+    constexpr float kTrailOffsetDuplicatePhaseEpsilon = 0.0001f;
+
+    enum class TrailOffsetMode : int32
+    {
+        None,
+        TipExtend,
+        Advanced
+    };
+
+    TrailOffsetMode Resolve_TrailOffsetMode(const Client::ANS_Trail& trailNotifyState)
+    {
+        const Client::ANS_Trail::LocalOffsetCurve& baseCurve = trailNotifyState.Get_BaseLocalOffsetCurve();
+        const Client::ANS_Trail::LocalOffsetCurve& tipCurve = trailNotifyState.Get_TipLocalOffsetCurve();
+        if (baseCurve.enabled || !baseCurve.keys.empty() || tipCurve.enabled || !tipCurve.keys.empty())
+            return TrailOffsetMode::Advanced;
+
+        const Client::ANS_Trail::TipExtendCurve& extendCurve = trailNotifyState.Get_TipExtendCurve();
+        if (extendCurve.enabled || !extendCurve.keys.empty())
+            return TrailOffsetMode::TipExtend;
+
+        return TrailOffsetMode::None;
+    }
+
+    Client::ANS_Trail::TipExtendInterpolation Draw_TrailOffsetInterpolationCombo(
+        const char* label,
+        Client::ANS_Trail::TipExtendInterpolation interpolation,
+        bool& changed)
+    {
+        const char* names[] = { "Linear", "Constant" };
+        int32 selected = interpolation == Client::ANS_Trail::TipExtendInterpolation::Constant ? 1 : 0;
+        ImGui::SetNextItemWidth(105.f);
+        if (ImGui::Combo(label, &selected, names, IM_ARRAYSIZE(names)))
+            changed = true;
+
+        return selected == 1
+            ? Client::ANS_Trail::TipExtendInterpolation::Constant
+            : Client::ANS_Trail::TipExtendInterpolation::Linear;
+    }
+
+    float Evaluate_TipExtendCurve(const Client::ANS_Trail::TipExtendCurve& curve, float phase)
+    {
+        if (curve.keys.empty())
+            return 0.f;
+
+        phase = std::clamp(phase, 0.f, 1.f);
+        if (phase <= curve.keys.front().phase)
+            return curve.keys.front().value;
+
+        for (size_t keyIndex = 1; keyIndex < curve.keys.size(); ++keyIndex)
+        {
+            const Client::ANS_Trail::TipExtendKey& previous = curve.keys[keyIndex - 1];
+            const Client::ANS_Trail::TipExtendKey& next = curve.keys[keyIndex];
+            if (phase > next.phase)
+                continue;
+
+            if (previous.interpolation == Client::ANS_Trail::TipExtendInterpolation::Constant)
+                return previous.value;
+
+            const float range = max(kTrailOffsetDuplicatePhaseEpsilon, next.phase - previous.phase);
+            const float t = std::clamp((phase - previous.phase) / range, 0.f, 1.f);
+            return std::lerp(previous.value, next.value, t);
+        }
+
+        return curve.keys.back().value;
+    }
+
+    Vec3 Evaluate_LocalOffsetCurve(const Client::ANS_Trail::LocalOffsetCurve& curve, float phase)
+    {
+        if (curve.keys.empty())
+            return Vec3::Zero;
+
+        phase = std::clamp(phase, 0.f, 1.f);
+        if (phase <= curve.keys.front().phase)
+            return curve.keys.front().value;
+
+        for (size_t keyIndex = 1; keyIndex < curve.keys.size(); ++keyIndex)
+        {
+            const Client::ANS_Trail::LocalOffsetKey& previous = curve.keys[keyIndex - 1];
+            const Client::ANS_Trail::LocalOffsetKey& next = curve.keys[keyIndex];
+            if (phase > next.phase)
+                continue;
+
+            if (previous.interpolation == Client::ANS_Trail::TipExtendInterpolation::Constant)
+                return previous.value;
+
+            const float range = max(kTrailOffsetDuplicatePhaseEpsilon, next.phase - previous.phase);
+            const float t = std::clamp((phase - previous.phase) / range, 0.f, 1.f);
+            return Vec3::Lerp(previous.value, next.value, t);
+        }
+
+        return curve.keys.back().value;
+    }
+
+    void Upsert_TipExtendKey(Client::ANS_Trail::TipExtendCurve& curve, float phase, float value)
+    {
+        phase = std::clamp(phase, 0.f, 1.f);
+        for (Client::ANS_Trail::TipExtendKey& key : curve.keys)
+        {
+            if (std::abs(key.phase - phase) <= kTrailOffsetDuplicatePhaseEpsilon)
+            {
+                key.phase = phase;
+                key.value = value;
+                return;
+            }
+        }
+
+        Client::ANS_Trail::TipExtendKey key{};
+        key.phase = phase;
+        key.value = value;
+        curve.keys.push_back(key);
+    }
+
+    void Upsert_LocalOffsetKey(Client::ANS_Trail::LocalOffsetCurve& curve, float phase, const Vec3& value)
+    {
+        phase = std::clamp(phase, 0.f, 1.f);
+        for (Client::ANS_Trail::LocalOffsetKey& key : curve.keys)
+        {
+            if (std::abs(key.phase - phase) <= kTrailOffsetDuplicatePhaseEpsilon)
+            {
+                key.phase = phase;
+                key.value = value;
+                return;
+            }
+        }
+
+        Client::ANS_Trail::LocalOffsetKey key{};
+        key.phase = phase;
+        key.value = value;
+        curve.keys.push_back(key);
+    }
+
+    Client::ANS_Trail::TipExtendCurve Make_DefaultTipExtendCurve()
+    {
+        Client::ANS_Trail::TipExtendCurve curve{};
+        curve.enabled = true;
+        curve.keys = {
+            { 0.f, 0.f, Client::ANS_Trail::TipExtendInterpolation::Linear },
+            { 0.5f, 0.f, Client::ANS_Trail::TipExtendInterpolation::Linear },
+            { 1.f, 0.f, Client::ANS_Trail::TipExtendInterpolation::Linear }
+        };
+        return curve;
+    }
+
+    Client::ANS_Trail::LocalOffsetCurve Make_DefaultLocalOffsetCurve(bool enabled)
+    {
+        Client::ANS_Trail::LocalOffsetCurve curve{};
+        curve.enabled = enabled;
+        if (enabled)
+        {
+            curve.keys = {
+                { 0.f, Vec3::Zero, Client::ANS_Trail::TipExtendInterpolation::Linear },
+                { 1.f, Vec3::Zero, Client::ANS_Trail::TipExtendInterpolation::Linear }
+            };
+        }
+        return curve;
+    }
+
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
         if (!entry.playbackName.empty())
@@ -193,6 +417,270 @@ namespace
 
         return targetTime > previousTime || targetTime <= currentTime;
     }
+
+    bool Contains_CaseInsensitive(const string& text, const char* filter)
+    {
+        if (filter == nullptr || filter[0] == '\0')
+            return true;
+
+        string source = text;
+        string needle = filter;
+
+        auto toLower = [](unsigned char value)
+        {
+            return static_cast<char>(std::tolower(value));
+        };
+
+        std::transform(source.begin(), source.end(), source.begin(), toLower);
+        std::transform(needle.begin(), needle.end(), needle.begin(), toLower);
+
+        return source.find(needle) != string::npos;
+    }
+
+    struct ModifierPropertySection
+    {
+        const char* title;
+        const char* help;
+    };
+
+    bool Starts_With(const string& text, const char* prefix)
+    {
+        const size_t prefixLength = std::strlen(prefix);
+        return text.size() >= prefixLength && text.compare(0, prefixLength, prefix) == 0;
+    }
+
+    const char* Resolve_ChainModifierSection(const string& propertyName)
+    {
+        if (Starts_With(propertyName, "collision."))
+            return "Collision";
+
+        if (propertyName == "runtime.gravity"
+            || propertyName == "runtime.windDirection"
+            || propertyName == "runtime.windScale"
+            || propertyName == "runtime.windStartRatio"
+            || propertyName == "runtime.windWeightScale")
+            return "Forces";
+
+        if (propertyName == "motion.movementInertiaScale"
+            || propertyName == "motion.ownerMovementInertiaScale"
+            || propertyName == "motion.tipMovementInertiaScale"
+            || propertyName == "motion.maxMovementOffset")
+            return "Motion Input / Limit";
+
+        if (propertyName == "motion.damping"
+            || propertyName == "motion.tipDampingScale"
+            || propertyName == "runtime.constraintDeadzone"
+            || propertyName == "runtime.resetDistance"
+            || propertyName == "runtime.targetFrameRate")
+            return "Damping / Stability";
+
+        if (propertyName == "shape.poseRestoreStrength"
+            || propertyName == "shape.tipPoseRestoreScale"
+            || propertyName == "shape.rootOutputAlpha"
+            || propertyName == "shape.tipOutputAlpha")
+            return "Restore / Output";
+
+        if (Starts_With(propertyName, "shape."))
+            return "Shape / Bend";
+
+        return "Other";
+    }
+
+    const char* Resolve_PoseFollowModifierSection(const string& propertyName)
+    {
+        if (propertyName == "enableCollision"
+            || propertyName == "particleCollisionRadius"
+            || propertyName == "collisionRadiusPadding"
+            || propertyName == "debugDrawCapsules")
+            return "Collision";
+
+        if (propertyName == "windDirection"
+            || propertyName == "windScale"
+            || propertyName == "ownerMotionScale"
+            || propertyName == "animatedMotionScale"
+            || propertyName == "ownerMotionDeadzone"
+            || propertyName == "ownerRotationDeadzoneDegree"
+            || propertyName == "animatedMotionDeadzone"
+            || propertyName == "maxExternalOffset")
+            return "Motion Input / Gates";
+
+        if (propertyName == "damping"
+            || propertyName == "tipDampingScale"
+            || propertyName == "idleSettleStrength"
+            || propertyName == "sleepVelocityThreshold"
+            || propertyName == "sleepPoseDistance")
+            return "Damping / Settle";
+
+        if (propertyName == "poseFollowStrength"
+            || propertyName == "tipFollowScale"
+            || propertyName == "maxBendAngleDegree"
+            || propertyName == "tipBendAngleScale"
+            || propertyName == "bendLimitStrength"
+            || propertyName == "surfaceConstraintStrength")
+            return "Follow / Shape";
+
+        if (propertyName == "rootOutputAlpha"
+            || propertyName == "tipOutputAlpha"
+            || propertyName == "idleOutputAlphaScale"
+            || propertyName == "outputSmoothAlpha"
+            || propertyName == "idleOutputSmoothAlpha"
+            || propertyName == "outputDeadzoneDegree")
+            return "Output / Idle";
+
+        if (propertyName == "solverIterations"
+            || propertyName == "targetFrameRate"
+            || propertyName == "resetDistance")
+            return "Runtime";
+
+        return "Other";
+    }
+
+    const char* Resolve_ModifierPropertySection(const string& className, const string& propertyName)
+    {
+        if (className == "ChainModifierRuntime")
+            return Resolve_ChainModifierSection(propertyName);
+
+        if (className == "PoseFollowChainModifierRuntime")
+            return Resolve_PoseFollowModifierSection(propertyName);
+
+        return nullptr;
+    }
+
+    bool Draw_ModifierRuntimeProperty(
+        AnimationModifier* modifier,
+        ModelCom* model,
+        const ClassReflectionInfo* reflectionInfo,
+        void* reflectionTarget,
+        const PropertyInfo& property)
+    {
+        PropertyInfo drawProperty = property;
+        if (reflectionInfo->className == "ChainModifierRuntime")
+        {
+            if (property.name == "motion.ownerMovementInertiaScale")
+                drawProperty.displayName = "Owner Iner";
+            else if (property.name == "motion.tipMovementInertiaScale")
+                drawProperty.displayName = "Tip Iner";
+            else if (property.name == "shape.poseRestoreStrength")
+                drawProperty.displayName = "Restore";
+            else if (property.name == "shape.tipPoseRestoreScale")
+                drawProperty.displayName = "Tip Restore";
+            else if (property.name == "shape.surfaceConstraintStrength")
+                drawProperty.displayName = "Surface";
+            else if (property.name == "runtime.constraintDeadzone")
+                drawProperty.displayName = "Const Dead";
+            else if (property.name == "runtime.targetFrameRate")
+                drawProperty.displayName = "FPS";
+        }
+        else if (reflectionInfo->className == "PoseFollowChainModifierRuntime")
+        {
+            if (property.name == "ownerRotationDeadzoneDegree")
+                drawProperty.displayName = "Rot Dead";
+            else if (property.name == "animatedMotionDeadzone")
+                drawProperty.displayName = "Anim Dead";
+            else if (property.name == "idleOutputAlphaScale")
+                drawProperty.displayName = "Idle Out";
+            else if (property.name == "idleOutputSmoothAlpha")
+                drawProperty.displayName = "Idle Smooth";
+            else if (property.name == "outputDeadzoneDegree")
+                drawProperty.displayName = "Out Dead";
+            else if (property.name == "sleepVelocityThreshold")
+                drawProperty.displayName = "Sleep Vel";
+            else if (property.name == "solverIterations")
+                drawProperty.displayName = "Solver";
+            else if (property.name == "targetFrameRate")
+                drawProperty.displayName = "FPS";
+        }
+
+        if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, drawProperty))
+        {
+            modifier->On_RuntimeReflectionChanged(model, property);
+            return true;
+        }
+
+        return false;
+    }
+
+    void Draw_ModifierRuntimeProperties(
+        AnimationModifier* modifier,
+        ModelCom* model,
+        const ClassReflectionInfo* reflectionInfo,
+        void* reflectionTarget)
+    {
+        const bool isChain = reflectionInfo->className == "ChainModifierRuntime";
+        const bool isPoseFollow = reflectionInfo->className == "PoseFollowChainModifierRuntime";
+        if (!isChain && !isPoseFollow)
+        {
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                Draw_ModifierRuntimeProperty(modifier, model, reflectionInfo, reflectionTarget, property);
+                ImGui::Spacing();
+            }
+            return;
+        }
+
+        const ModifierPropertySection chainSections[] =
+        {
+            { "Motion Input / Limit", "Inertia adds motion; Move Limit clamps that input." },
+            { "Damping / Stability", "Damping keeps residual velocity; deadzone/reset limit small jitter and teleports." },
+            { "Restore / Output", "Restore pulls toward pose; Root/Tip Out decides how much sim writes to bones." },
+            { "Shape / Bend", "Stiffness and bend constraints decide how much the chain keeps its shape." },
+            { "Forces", "Gravity and wind are continuous forces even when character motion is small." },
+            { "Collision", "Collision changes particle constraints, not the authored bone pose." },
+            { "Other", "" },
+        };
+
+        const ModifierPropertySection poseFollowSections[] =
+        {
+            { "Motion Input / Gates", "Owner/Anim/Wind add external motion; deadzones and Move Limit gate that input." },
+            { "Damping / Settle", "Damping keeps velocity; settle/sleep values calm idle motion." },
+            { "Follow / Shape", "Follow restores pose direction; bend/surface limit how far it can fold." },
+            { "Output / Idle", "Output controls how much sim writes back; idle values reduce no-motion flutter." },
+            { "Collision", "Capsule push-out uses these radius/debug values." },
+            { "Runtime", "Substep, target FPS, and teleport reset controls." },
+            { "Other", "" },
+        };
+
+        const ModifierPropertySection* sections = isChain ? chainSections : poseFollowSections;
+        const size_t sectionCount = isChain
+            ? sizeof(chainSections) / sizeof(chainSections[0])
+            : sizeof(poseFollowSections) / sizeof(poseFollowSections[0]);
+
+        for (size_t sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex)
+        {
+            const ModifierPropertySection& section = sections[sectionIndex];
+            bool hasSectionProperty = false;
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                const char* propertySection = Resolve_ModifierPropertySection(reflectionInfo->className, property.name);
+                if (propertySection != nullptr && std::strcmp(propertySection, section.title) == 0)
+                {
+                    hasSectionProperty = true;
+                    break;
+                }
+            }
+
+            if (!hasSectionProperty)
+                continue;
+
+            if (ImGui::TreeNodeEx(section.title, ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (section.help != nullptr && section.help[0] != '\0')
+                    ImGui::TextDisabled("%s", section.help);
+
+                for (const PropertyInfo& property : reflectionInfo->properties)
+                {
+                    const char* propertySection = Resolve_ModifierPropertySection(reflectionInfo->className, property.name);
+                    if (propertySection == nullptr || std::strcmp(propertySection, section.title) != 0)
+                        continue;
+
+                    Draw_ModifierRuntimeProperty(modifier, model, reflectionInfo, reflectionTarget, property);
+                    ImGui::Spacing();
+                }
+
+                ImGui::TreePop();
+            }
+        }
+    }
 }
 
 Animation_View::Animation_View()
@@ -224,6 +712,28 @@ void Animation_View::Update(float timeDelta)
 
     Validate_SelectedBoneSelection();
 
+    if (_isSectionPreviewPlaying)
+    {
+        const AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData == nullptr)
+        {
+            _isSectionPreviewPlaying = false;
+            return;
+        }
+
+        const float startSec = Get_PlaySectionStartSec(animationData);
+        const float endSec = Get_PlaySectionEndSec(animationData);
+
+        if (playbackModel->Get_CurrentAnimationTimeSec() + 0.0001f >= endSec)
+        {
+            playbackModel->Set_CurrentAnimationTimeSec(startSec);
+            playbackModel->Play_Animation(0.f);
+            playbackModel->Set_AnimationPaused(false);
+            _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+            return;
+        }
+    }
+
     if (!playbackModel->Is_AnimationPaused())
     {
         if (playbackModel->Is_AnimationFinished())
@@ -253,6 +763,13 @@ void Animation_View::Pre_Render()
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
     if (previewRenderObject == nullptr || _previewCamera == nullptr)
         return;
+
+    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
+    if (_previewRenderTarget == nullptr)
+        return;
+
+    if (_showPreviewSkyBackdrop)
+        Ensure_PreviewSkyBackdrop();
 
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
@@ -305,23 +822,34 @@ void Animation_View::Pre_Render()
 
     const float dt = min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
     Lock_PreviewObjectToOrigin(previewRenderObject);
+    if (_showPreviewSkyBackdrop)
+        Update_PreviewSkyBackdrop(dt);
 
     if (_sourceMode == SourceMode::LiveModel)
     {
         const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
         GAME->Backup_RenderGroup();
+        if (_showPreviewSkyBackdrop)
+            Late_Update_PreviewSkyBackdrop(dt);
+
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
+        Update_PreviewRootControllerStates(dt);
+        Update_ModifierPreviewMotionTest(dt);
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
+        Update_PreviewSLDodgeMoveStates(dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
+        Update_PreviewWeaponEchoStates(dt);
         Update_PreviewSourceHistoryEffect(dt);
         Update_PreviewTrailEffect(dt);
     }
     else
     {
         GAME->Backup_RenderGroup();
+        if (_showPreviewSkyBackdrop)
+            Late_Update_PreviewSkyBackdrop(dt);
     }
 
     for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
@@ -341,8 +869,9 @@ void Animation_View::Pre_Render()
     Ensure_PreviewGridResources();
     Draw_SelectedBoneMarker();
     Draw_TrailAnchorPreview();
+    Draw_ModifierChainDebug();
     Draw_PreviewGrid();
-    EDITOR->Capture_BackBuffer_ToPreview();
+    EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
 
@@ -387,7 +916,15 @@ void Animation_View::Render()
         {
             Shared<ModelCom> playbackModel = Get_PlaybackModel();
             if (playbackModel != nullptr)
-                playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+            {
+                if (playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+                else
+                {
+                    playbackModel->Set_AnimationPaused(true);
+                    _isSectionPreviewPlaying = false;
+                }
+            }
         }
 
         Handle_ClipboardShortcuts();
@@ -460,6 +997,13 @@ void Animation_View::Render()
         Draw_CreateNotifyPopup();
         Draw_CreateNotifyStatePopup();
         Draw_SequencerContextMenu();
+
+        if (_hasPendingNotifyUndoSnapshot &&
+            !ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+            !ImGui::IsAnyItemActive())
+        {
+            Commit_PendingNotifyUndo();
+        }
     }
 
     Set_Open(isOpen);
@@ -470,6 +1014,7 @@ void Animation_View::Render()
         Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
         Reset_PreviewSourceHistoryEffect();
+        Reset_PreviewRootControllerStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
     }
@@ -491,6 +1036,9 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -498,20 +1046,24 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _sourceMode = SourceMode::None;
     _sourceModelPath = modelPath;
     _liveModelCom.reset();
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
     _pendingDockId = preferredDockId;
     _requestFocusOnOpen = true;
 
     _modelGuid = modelGuid;
     _currentAnimationName = preferredAnimationName;
     Clear_SelectedNotifySelection();
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 
     Refresh_Source();
     Load_NotifyAsset();
@@ -526,6 +1078,9 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -539,22 +1094,27 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _modelGuid = _sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
     _currentAnimationName = preferredAnimationName;
     Clear_SelectedNotifySelection();
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
     _boneSearchBuffer[0] = '\0';
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 
+    Refresh_LiveModelTargets();
     Refresh_Source();
+
     Rebuild_PreviewClone();
     Load_NotifyAsset();
     Load_TrailAnchorAsset();
     Ensure_PreviewCamera();
     Fit_PreviewCameraToModel();
     Sync_PreviewAnimationSelection(true);
+    EDITOR->Set_StickyPreviewOwner(PreviewOwner::Animation);
 
     Set_Open(true);
 }
@@ -575,6 +1135,9 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
@@ -582,17 +1145,21 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _sourceMode = SourceMode::None;
     _sourceModelPath.clear();
     _liveModelCom.reset();
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
     _modelGuid.clear();
     _currentAnimationName.clear();
     _availableAnimations.clear();
     Clear_SelectedNotifySelection();
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
     _sequencerCurrentFrame = 0;
     _sequencerSelectedRow = -1;
     _sequencerFirstFrame = 0;
+    _sequencerVisibleFrameCount = 0;
     _selectedBoneIndex = -1;
+    Clear_NotifyUndoHistory();
 }
 
 void Animation_View::Rebuild_PreviewClone()
@@ -628,7 +1195,10 @@ void Animation_View::Reset_PreviewClone()
 {
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
     Reset_PreviewSourceHistoryEffect();
+    Reset_PreviewWeaponEchoStates();
     _previewRootObject.reset();
     _previewModelCom.reset();
     _previewOwnerObjectKey.clear();
@@ -771,6 +1341,160 @@ void Animation_View::Refresh_LiveAnimationList()
     }
 }
 
+void Animation_View::Refresh_LiveModelTargets()
+{
+    wstring previousObjectKey{};
+    wstring previousComponentTag{};
+    wstring previousSourceModelPath{};
+    if (_selectedLiveModelTargetIndex >= 0 &&
+        _selectedLiveModelTargetIndex < static_cast<int32>(_liveModelTargets.size()))
+    {
+        const LiveModelTarget& previousTarget = _liveModelTargets[_selectedLiveModelTargetIndex];
+        previousObjectKey = previousTarget.objectKey;
+        previousComponentTag = previousTarget.componentTag;
+        previousSourceModelPath = previousTarget.sourceModelPath;
+    }
+
+    _liveModelTargets.clear();
+    _selectedLiveModelTargetIndex = -1;
+
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+        return;
+
+    const Shared<GameObject> liveRootObject = Resolve_RootPreviewObject(_liveModelCom->Get_Owner());
+    if (liveRootObject == nullptr)
+        return;
+
+    function<void(const Shared<GameObject>&, const wstring&)> collectRecursive =
+        [&](const Shared<GameObject>& gameObject, const wstring& objectKey)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        gameObject->Visit_Components([&](const wstring& componentTag, const Shared<Component>& component)
+        {
+            Shared<ModelCom> modelCom = dynamic_pointer_cast<ModelCom>(component);
+            if (modelCom == nullptr)
+                return;
+
+            LiveModelTarget target{};
+            target.objectKey = objectKey;
+            target.componentTag = componentTag;
+            target.sourceModelPath = modelCom->Get_SourceModelPath();
+            target.model = modelCom;
+
+            string label = String::ToString(objectKey.empty() ? L"Root" : objectKey);
+            if (!componentTag.empty())
+                label += " / " + String::ToString(componentTag);
+
+            const ClassReflectionInfo& ownerInfo = gameObject->Get_ReflectionInfo();
+            if (!ownerInfo.displayName.empty())
+                label += "  [" + ownerInfo.displayName + "]";
+            else if (!ownerInfo.className.empty())
+                label += "  [" + ownerInfo.className + "]";
+
+            vector<string> badges{};
+            if (modelCom->Get_NumAnimations() > 0)
+                badges.push_back("Anim " + to_string(modelCom->Get_NumAnimations()));
+            if (!modelCom->Get_Modifiers().empty())
+                badges.push_back("Modifier " + to_string(modelCom->Get_Modifiers().size()));
+
+            if (!badges.empty())
+            {
+                label += "  (";
+                for (size_t i = 0; i < badges.size(); ++i)
+                {
+                    if (i > 0)
+                        label += ", ";
+                    label += badges[i];
+                }
+                label += ")";
+            }
+
+            target.label = move(label);
+
+            const bool matchesPrevious =
+                !previousObjectKey.empty() &&
+                target.objectKey == previousObjectKey &&
+                target.componentTag == previousComponentTag &&
+                target.sourceModelPath == previousSourceModelPath;
+
+            if (matchesPrevious || (_selectedLiveModelTargetIndex < 0 && modelCom == _liveModelCom))
+                _selectedLiveModelTargetIndex = static_cast<int32>(_liveModelTargets.size());
+
+            _liveModelTargets.push_back(move(target));
+        });
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            if (partObject == nullptr)
+                continue;
+
+            const wstring childKey = objectKey + L"/" + partTag;
+            collectRecursive(partObject, childKey);
+        }
+    };
+
+    collectRecursive(liveRootObject, L"Root");
+}
+
+void Animation_View::Draw_LiveModelTargetSelector()
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelTargets.size() <= 1)
+        return;
+
+    if (_selectedLiveModelTargetIndex < 0 ||
+        _selectedLiveModelTargetIndex >= static_cast<int32>(_liveModelTargets.size()) ||
+        _liveModelTargets[_selectedLiveModelTargetIndex].model == nullptr)
+    {
+        Refresh_LiveModelTargets();
+    }
+
+    if (_liveModelTargets.size() <= 1)
+        return;
+
+    const char* previewLabel = "(select live model)";
+    if (_selectedLiveModelTargetIndex >= 0 &&
+        _selectedLiveModelTargetIndex < static_cast<int32>(_liveModelTargets.size()))
+    {
+        previewLabel = _liveModelTargets[_selectedLiveModelTargetIndex].label.c_str();
+    }
+
+    ImGui::SeparatorText("Modifier Model");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("##LiveModelTarget", previewLabel))
+    {
+        for (int32 i = 0; i < static_cast<int32>(_liveModelTargets.size()); ++i)
+        {
+            const LiveModelTarget& target = _liveModelTargets[i];
+            const bool isSelected = (i == _selectedLiveModelTargetIndex);
+            if (ImGui::Selectable(target.label.c_str(), isSelected))
+                Switch_LiveModelTarget(static_cast<size_t>(i));
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+}
+
+void Animation_View::Switch_LiveModelTarget(size_t targetIndex)
+{
+    if (targetIndex >= _liveModelTargets.size())
+        return;
+
+    const Shared<ModelCom> selectedModel = _liveModelTargets[targetIndex].model;
+    if (selectedModel == nullptr)
+        return;
+
+    _selectedLiveModelTargetIndex = static_cast<int32>(targetIndex);
+}
+
 void Animation_View::Load_NotifyAsset()
 {
     _asset = {};
@@ -820,49 +1544,11 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
         return false;
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
-    if (weaponPart == nullptr)
+    PartObject* trailPart = ownerContainer->Get_PartObject(previewTrailPartTag);
+    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
-    if (weaponModel == nullptr)
-        return false;
-
-    const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
-    if (sourceModelPath.empty())
-        return false;
-
-    outRuntime.modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
-    if (outRuntime.modelGuid.empty())
-        return false;
-
-    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(outRuntime.modelGuid);
-    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), outRuntime.trailAnchorAsset);
-
-    if (outRuntime.trailAnchorAsset.modelGuid.empty())
-        outRuntime.trailAnchorAsset.modelGuid = outRuntime.modelGuid;
-
-    return !outRuntime.trailAnchorAsset.modelGuid.empty();
-}
-
-bool Animation_View::Load_PreviewSourceHistoryAnchorAsset(
-    const string& partTag,
-    PreviewSourceHistoryRuntime& outRuntime)
-{
-    outRuntime.trailAnchorAsset = {};
-    outRuntime.modelGuid.clear();
-
-    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
-    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
-    if (ownerContainer == nullptr)
-        return false;
-
-    const wstring previewPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewPartTag));
-    if (weaponPart == nullptr)
-        return false;
-
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
     if (weaponModel == nullptr)
         return false;
 
@@ -960,6 +1646,7 @@ void Animation_View::Draw_Header()
     ImGui::Text("| Animation");
     ImGui::SameLine();
     ImGui::TextDisabled("%s", previewName);
+
 }
 
 void Animation_View::Draw_AnimationSelector()
@@ -1009,12 +1696,14 @@ void Animation_View::Draw_AnimationSelector()
                         _currentAnimationName = entry.displayName;
                         Find_OrNormalize_NotifyAnimation(_asset, entry);
                         Clear_SelectedNotifySelection();
-                        _selectedStateId = -1;
+                        Clear_SelectedStateSelection();
                         _selectedNotifyTrackIndex = 0;
                         _selectedNotifyStateTrackIndex = 0;
                         _sequencerCurrentFrame = 0;
                         _sequencerSelectedRow = -1;
                         _sequencerFirstFrame = 0;
+                        _sequencerVisibleFrameCount = 0;
+                        Clear_NotifyUndoHistory();
 
                         Sync_PreviewAnimationSelection();
 
@@ -1145,7 +1834,7 @@ void Animation_View::Draw_BoneTree()
         {
             _selectedBoneIndex = static_cast<int32>(boneIndex);
             Clear_SelectedNotifySelection();
-            _selectedStateId = -1;
+            Clear_SelectedStateSelection();
         }
 
         if (ImGui::BeginPopupContextItem(popupId.c_str()))
@@ -1155,14 +1844,14 @@ void Animation_View::Draw_BoneTree()
                 ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
             }
 
             if (ImGui::MenuItem("Trail Base로 지정"))
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
                 Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Base);
             }
 
@@ -1170,7 +1859,7 @@ void Animation_View::Draw_BoneTree()
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 Clear_SelectedNotifySelection();
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
                 Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Tip);
             }
 
@@ -1197,46 +1886,227 @@ void Animation_View::Draw_BoneTree()
     ImGui::EndChild();
 }
 
+float Animation_View::Get_PlaySectionStartSec(const AnimNotifyData* animationData) const
+{
+    if (animationData == nullptr)
+        return 0.f;
+
+    return std::clamp(animationData->playSectionStartSec, 0.f, max(0.f, Get_CurrentAnimationLengthSec()));
+}
+
+float Animation_View::Get_PlaySectionEndSec(const AnimNotifyData* animationData) const
+{
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    if (animationData == nullptr)
+        return animationLengthSec;
+
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = animationData->playSectionEndSec >= 0.f
+        ? animationData->playSectionEndSec
+        : animationLengthSec;
+
+    return std::clamp(endSec, startSec, animationLengthSec);
+}
+
+void Animation_View::Clamp_PlaySection(AnimNotifyData* animationData)
+{
+    if (animationData == nullptr)
+        return;
+
+    const float animationLengthSec = max(0.f, Get_CurrentAnimationLengthSec());
+    animationData->playSectionStartSec = std::clamp(animationData->playSectionStartSec, 0.f, animationLengthSec);
+
+    if (animationData->playSectionEndSec >= 0.f)
+        animationData->playSectionEndSec = std::clamp(animationData->playSectionEndSec, animationData->playSectionStartSec, animationLengthSec);
+}
+
+void Animation_View::Play_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    const float startSec = Get_PlaySectionStartSec(animationData);
+    const float endSec = Get_PlaySectionEndSec(animationData);
+
+    if (endSec <= startSec + 0.0001f)
+    {
+        playbackModel->Set_AnimationPaused(true);
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+        _isSectionPreviewPlaying = false;
+        return;
+    }
+
+    const float currentSec = playbackModel->Get_CurrentAnimationTimeSec();
+    if (currentSec < startSec - 0.0001f || currentSec >= endSec - 0.0001f)
+    {
+        playbackModel->Set_CurrentAnimationTimeSec(startSec);
+        playbackModel->Play_Animation(0.f);
+        _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    }
+
+    playbackModel->Set_AnimationPaused(false);
+    _isSectionPreviewPlaying = true;
+}
+
+void Animation_View::Stop_CurrentSection(const Shared<ModelCom>& playbackModel)
+{
+    if (playbackModel == nullptr)
+        return;
+
+    const float startSec = Get_PlaySectionStartSec(Get_CurrentAnimation());
+    playbackModel->Set_AnimationPaused(true);
+    playbackModel->Set_CurrentAnimationTimeSec(startSec);
+    playbackModel->Play_Animation(0.f);
+    _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
+    _isSectionPreviewPlaying = false;
+}
+
 void Animation_View::Draw_PlaybackToolbar()
 {
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
     const bool hasPlayback = (playbackModel != nullptr);
     const float animationLengthSec = Get_CurrentAnimationLengthSec();
     const float sliderMaxTimeSec = max(0.01f, animationLengthSec);
-    const ImVec2 playbackButtonSize(64.f, 0.f);
+    const ImVec2 playbackButtonSize(58.f, 0.f);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f, 4.f));
 
     if (hasPlayback)
     {
         if (ImGui::Button(playbackModel->Is_AnimationPaused() ? "Play" : "Pause", playbackButtonSize))
-            playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
+        {
+            if (playbackModel->Is_AnimationPaused())
+                Play_CurrentSection(playbackModel);
+            else
+            {
+                playbackModel->Set_AnimationPaused(true);
+                _isSectionPreviewPlaying = false;
+            }
+        }
 
         ImGui::SameLine();
 
         if (ImGui::Button("Stop", playbackButtonSize))
-        {
-            playbackModel->Set_AnimationPaused(true);
-            playbackModel->Set_CurrentAnimationTimeSec(0.f);
-            playbackModel->Play_Animation(0.f); // preview scrub/stop에서도 ANS state 갱신까지 함께 반영한다.
-            _sequencerCurrentFrame = 0;
-        }
+            Stop_CurrentSection(playbackModel);
 
         ImGui::SameLine();
-        ImGui::TextDisabled("Frame %d", _sequencerCurrentFrame);
-        ImGui::SameLine(0.f, 12.f);
-        ImGui::TextDisabled("Max Frame %d", Get_CurrentAnimationFrameMax());
+        ImGui::TextDisabled("Frame %d / %d", _sequencerCurrentFrame, Get_CurrentAnimationFrameMax());
         ImGui::SameLine(0.f, 12.f);
         ImGui::Checkbox("Grid", &_showPreviewGrid);
 
         ImGui::SameLine();
+        ImGui::TextDisabled("Time");
+        ImGui::SameLine();
 
         float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
-        ImGui::SetNextItemWidth(220.f);
+        ImGui::SetNextItemWidth(260.f);
         if (ImGui::SliderFloat("##AnimScrub", &currentTimeSec, 0.f, sliderMaxTimeSec, "%.3f s"))
         {
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
             playbackModel->Play_Animation(0.f); // 시간은 고정한 채 notify/state만 현재 위치 기준으로 다시 평가한다.
             _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
+            _isSectionPreviewPlaying = false;
+        }
+
+        AnimNotifyData* animationData = Get_CurrentAnimation();
+        if (animationData != nullptr)
+        {
+            const float sectionLengthSec = max(0.f, animationLengthSec);
+            float sectionStartSec = Get_PlaySectionStartSec(animationData);
+            float sectionEndSec = Get_PlaySectionEndSec(animationData);
+            const float selectedSectionLengthSec = max(0.f, sectionEndSec - sectionStartSec);
+
+            ImGui::Spacing();
+            ImGui::PushID("PlaySectionControls");
+            ImGui::TextDisabled("Section");
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("Start");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            const NotifyUndoSnapshot sectionStartUndoSnapshot = Capture_NotifyUndoSnapshot();
+            if (ImGui::DragFloat("##SectionStartSec", &sectionStartSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                if (!_hasPendingNotifyUndoSnapshot)
+                {
+                    _pendingNotifyUndoSnapshot = sectionStartUndoSnapshot;
+                    _hasPendingNotifyUndoSnapshot = true;
+                }
+                animationData->playSectionStartSec = std::clamp(sectionStartSec, 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                Commit_PendingNotifyUndo();
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionStartSet"))
+            {
+                const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+                animationData->playSectionStartSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), 0.f, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+                Commit_NotifyUndoSnapshot(undoSnapshot);
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+
+            ImGui::BeginGroup();
+            ImGui::TextDisabled("End");
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(74.f);
+            const NotifyUndoSnapshot sectionEndUndoSnapshot = Capture_NotifyUndoSnapshot();
+            if (ImGui::DragFloat("##SectionEndSec", &sectionEndSec, 0.01f, 0.f, sectionLengthSec, "%.3f"))
+            {
+                if (!_hasPendingNotifyUndoSnapshot)
+                {
+                    _pendingNotifyUndoSnapshot = sectionEndUndoSnapshot;
+                    _hasPendingNotifyUndoSnapshot = true;
+                }
+                animationData->playSectionEndSec = std::clamp(sectionEndSec, animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                Commit_PendingNotifyUndo();
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set##SectionEndSet"))
+            {
+                const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+                animationData->playSectionEndSec = std::clamp(playbackModel->Get_CurrentAnimationTimeSec(), animationData->playSectionStartSec, sectionLengthSec);
+                Clamp_PlaySection(animationData);
+                _isDirty = true;
+                Commit_NotifyUndoSnapshot(undoSnapshot);
+
+                if (!playbackModel->Is_AnimationPaused())
+                    Play_CurrentSection(playbackModel);
+            }
+            ImGui::EndGroup();
+
+            ImGui::SameLine(0.f, 12.f);
+            ImGui::TextDisabled("Len %.3fs", selectedSectionLengthSec);
+            ImGui::PopID();
+
         }
     }
     else
@@ -1258,6 +2128,8 @@ void Animation_View::Draw_PlaybackToolbar()
         ImGui::SliderFloat("##AnimScrub", &dummyTimeSec, 0.f, sliderMaxTimeSec, "%.3f s");
         ImGui::EndDisabled();
     }
+
+    ImGui::PopStyleVar();
 }
 
 void Animation_View::Draw_PreviewPanel()
@@ -1265,6 +2137,8 @@ void Animation_View::Draw_PreviewPanel()
     ImGui::BeginChild("AnimationPreviewPanel", ImVec2(0.f, 0.f), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     ImGui::TextUnformatted("Preview");
+    ImGui::SameLine();
+    ImGui::Checkbox("SkyBox", &_showPreviewSkyBackdrop);
     ImGui::Separator();
 
     ImVec2 previewSize = ImGui::GetContentRegionAvail();
@@ -1290,7 +2164,8 @@ void Animation_View::Draw_PreviewPanel()
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
 
-    ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
+    ID3D11ShaderResourceView* previewSRV =
+        _previewRenderTarget != nullptr ? _previewRenderTarget->Get_SRV() : nullptr;
     if (previewRenderObject != nullptr && playbackModel != nullptr && previewSRV != nullptr)
     {
         ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
@@ -1333,7 +2208,13 @@ void Animation_View::Draw_Sequencer()
         ImSequencer::SEQUENCER_EDIT_STARTEND |
         ImSequencer::SEQUENCER_CHANGE_FRAME;
 
-    _sequencerFirstFrame = 0;
+    const int32 fullFrameMin = 0;
+    const int32 fullFrameMax = max(1, Get_CurrentAnimationFrameMax());
+    const int32 fullFrameRange = max(1, fullFrameMax - fullFrameMin);
+    if (_sequencerVisibleFrameCount <= 0 || _sequencerVisibleFrameCount > fullFrameRange)
+        _sequencerVisibleFrameCount = fullFrameRange;
+    _sequencerFirstFrame = std::clamp(_sequencerFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+
     const ImVec2 sequencerRectMin = ImGui::GetCursorScreenPos();
     if (ImSequencer::Sequencer(
         _sequencer.get(),
@@ -1341,7 +2222,9 @@ void Animation_View::Draw_Sequencer()
         &_sequencerExpanded,
         &_sequencerSelectedRow,
         &_sequencerFirstFrame,
-        sequenceOptions))
+        sequenceOptions,
+        _sequencerFirstFrame,
+        _sequencerFirstFrame + _sequencerVisibleFrameCount))
     {
         Shared<ModelCom> playbackModel = Get_PlaybackModel();
         if (playbackModel != nullptr)
@@ -1352,13 +2235,119 @@ void Animation_View::Draw_Sequencer()
 
             playbackModel->Set_AnimationPaused(true);
             playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 ANS_WeaponRotate 같은 state notify를 같이 갱신한다.
+            Update_PreviewRootControllerStates(0.f);
+            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 preview state notify를 같이 갱신한다.
+        }
+    }
+
+    const ImRect sequencerItemRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    const ImGuiIO& sequencerIO = ImGui::GetIO();
+    if (ImGui::IsItemHovered() && sequencerIO.KeyCtrl && sequencerIO.MouseWheel != 0.f)
+    {
+        const float timelineMinX = sequencerItemRect.Min.x + 200.f;
+        const float timelineMaxX = sequencerItemRect.Max.x;
+        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
+        const float mouseRatio = std::clamp((sequencerIO.MousePos.x - timelineMinX) / timelineWidth, 0.f, 1.f);
+        const int32 oldVisibleFrameCount = std::clamp(_sequencerVisibleFrameCount, 1, fullFrameRange);
+        const int32 mouseFrame = _sequencerFirstFrame + static_cast<int32>(std::round(mouseRatio * static_cast<float>(oldVisibleFrameCount)));
+        const float zoomScale = sequencerIO.MouseWheel > 0.f ? 0.82f : 1.22f;
+        const int32 minVisibleFrameCount = min(fullFrameRange, 8);
+        const int32 newVisibleFrameCount = std::clamp(
+            static_cast<int32>(std::round(static_cast<float>(oldVisibleFrameCount) * zoomScale)),
+            minVisibleFrameCount,
+            fullFrameRange);
+
+        const float pivotRatio = static_cast<float>(mouseFrame - _sequencerFirstFrame) / static_cast<float>(max(1, oldVisibleFrameCount));
+        const int32 requestedFirstFrame = mouseFrame - static_cast<int32>(std::round(pivotRatio * static_cast<float>(newVisibleFrameCount)));
+        _sequencerVisibleFrameCount = newVisibleFrameCount;
+        _sequencerFirstFrame = std::clamp(requestedFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+    }
+
+    if (const AnimNotifyData* animationData = Get_CurrentAnimation())
+    {
+        const ImRect sequencerRect = sequencerItemRect;
+        const float timelineMinX = sequencerRect.Min.x + 200.f;
+        const float timelineMaxX = sequencerRect.Max.x;
+        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
+        const int32 visibleFrameMin = _sequencerFirstFrame;
+        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
+        const int32 visibleFrameRange = max(1, visibleFrameMax - visibleFrameMin);
+        const int32 fps = max(1, Get_CurrentAnimationFps());
+
+        const int32 startFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionStartSec(animationData) * static_cast<float>(fps))),
+            0,
+            fullFrameMax);
+        const int32 endFrame = std::clamp(
+            static_cast<int32>(std::round(Get_PlaySectionEndSec(animationData) * static_cast<float>(fps))),
+            0,
+            fullFrameMax);
+
+        auto frameToX = [&](int32 frame)
+        {
+            return timelineMinX + timelineWidth * (static_cast<float>(frame - visibleFrameMin) / static_cast<float>(visibleFrameRange));
+        };
+
+        const float startX = frameToX(startFrame);
+        const float endX = frameToX(endFrame);
+        const float clampedStartX = std::clamp(startX, timelineMinX, timelineMaxX);
+        const float clampedEndX = std::clamp(endX, timelineMinX, timelineMaxX);
+
+        const float markerY = sequencerRect.Min.y + 5.f;
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImU32 sectionOutside = IM_COL32(255, 72, 72, 24);
+        const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
+        const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
+
+        if (startFrame > visibleFrameMin)
+        {
+            drawList->AddRectFilled(
+                ImVec2(timelineMinX, sequencerRect.Min.y),
+                ImVec2(clampedStartX, sequencerRect.Max.y),
+                sectionOutside);
+        }
+
+        if (endFrame < visibleFrameMax)
+        {
+            drawList->AddRectFilled(
+                ImVec2(clampedEndX, sequencerRect.Min.y),
+                ImVec2(timelineMaxX, sequencerRect.Max.y),
+                sectionOutside);
+        }
+
+        const int32 sectionOverlapStart = max(startFrame, visibleFrameMin);
+        const int32 sectionOverlapEnd = min(endFrame, visibleFrameMax);
+        if (sectionOverlapEnd > sectionOverlapStart)
+        {
+            drawList->AddLine(
+                ImVec2(frameToX(sectionOverlapStart), markerY),
+                ImVec2(frameToX(sectionOverlapEnd), markerY),
+                sectionLine,
+                2.f);
+        }
+
+        if (startFrame >= visibleFrameMin && startFrame <= visibleFrameMax)
+        {
+            drawList->AddLine(
+                ImVec2(startX, sequencerRect.Min.y),
+                ImVec2(startX, sequencerRect.Max.y),
+                sectionGuide,
+                1.f);
+        }
+
+        if (endFrame >= visibleFrameMin && endFrame <= visibleFrameMax)
+        {
+            drawList->AddLine(
+                ImVec2(endX, sequencerRect.Min.y),
+                ImVec2(endX, sequencerRect.Max.y),
+                sectionGuide,
+                1.f);
         }
     }
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
     {
-        const ImRect sequencerRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        const ImRect sequencerRect = sequencerItemRect;
         bool isStateTrack = false;
         int32 trackIndex = -1;
         const ImVec2 mousePos = ImGui::GetIO().MousePos;
@@ -1367,7 +2356,9 @@ void Animation_View::Draw_Sequencer()
             (mousePos.x - (sequencerRect.Min.x + 200.f)) / max(1.f, sequencerRect.Max.x - (sequencerRect.Min.x + 200.f)),
             0.f,
             1.f);
-        const int32 clickedFrame = static_cast<int32>(std::round(normalized * static_cast<float>(Get_CurrentAnimationFrameMax())));
+        const int32 visibleFrameMin = _sequencerFirstFrame;
+        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
+        const int32 clickedFrame = visibleFrameMin + static_cast<int32>(std::round(normalized * static_cast<float>(visibleFrameMax - visibleFrameMin)));
         Begin_SequencerContextMenu(clickedFrame, hasTrackContext, isStateTrack, trackIndex);
     }
 
@@ -1402,12 +2393,53 @@ void Animation_View::Draw_SelectedDetail()
     if (AnimNotifyEventEntry* notify = Find_SelectedNotify())
     {
         if (notify->notify != nullptr)
-            Inspector::Draw_ReflectionSection("SelectedNotify", notify->notify.get(), notify->notify->Get_ReflectionInfo());
+        {
+            const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+            if (Inspector::Draw_ReflectionSection("SelectedNotify", notify->notify.get(), notify->notify->Get_ReflectionInfo()))
+            {
+                if (ImGui::IsAnyItemActive())
+                {
+                    if (!_hasPendingNotifyUndoSnapshot)
+                    {
+                        _pendingNotifyUndoSnapshot = undoSnapshot;
+                        _hasPendingNotifyUndoSnapshot = true;
+                    }
+                }
+                else
+                {
+                    Commit_NotifyUndoSnapshot(undoSnapshot);
+                }
+
+                _isDirty = true;
+            }
+        }
     }
     else if (AnimNotifyStateEntry* notifyState = Find_SelectedState())
     {
         if (notifyState->notifyState != nullptr)
-            Inspector::Draw_ReflectionSection("SelectedNotifyState", notifyState->notifyState.get(), notifyState->notifyState->Get_ReflectionInfo());
+        {
+            const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+            if (Inspector::Draw_ReflectionSection("SelectedNotifyState", notifyState->notifyState.get(), notifyState->notifyState->Get_ReflectionInfo()))
+            {
+                if (ImGui::IsAnyItemActive())
+                {
+                    if (!_hasPendingNotifyUndoSnapshot)
+                    {
+                        _pendingNotifyUndoSnapshot = undoSnapshot;
+                        _hasPendingNotifyUndoSnapshot = true;
+                    }
+                }
+                else
+                {
+                    Commit_NotifyUndoSnapshot(undoSnapshot);
+                }
+
+                _isDirty = true;
+            }
+
+            if (Client::ANS_Trail* trailNotifyState = dynamic_cast<Client::ANS_Trail*>(notifyState->notifyState.get()))
+                Draw_TrailOffsetPanel(*trailNotifyState, *notifyState);
+        }
     }
     else if (playbackModel != nullptr && _selectedBoneIndex >= 0)
     {
@@ -1420,7 +2452,687 @@ void Animation_View::Draw_SelectedDetail()
         ImGui::TextWrapped("Notify, NotifyState, 또는 Bone을 선택하세요.");
     }
 
+    Draw_ModifierRuntimePanel(playbackModel);
+
     ImGui::EndChild();
+}
+
+void Animation_View::Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry)
+{
+    auto applyTipExtendCurve = [&](const Client::ANS_Trail::TipExtendCurve& curve, bool commitNow = false)
+        {
+            Begin_PendingNotifyUndo();
+            trailNotifyState.Set_TipExtendCurve(curve);
+            _isDirty = true;
+            if (commitNow || !ImGui::IsAnyItemActive())
+                Commit_PendingNotifyUndo();
+        };
+
+    auto applyBaseLocalOffsetCurve = [&](const Client::ANS_Trail::LocalOffsetCurve& curve, bool commitNow = false)
+        {
+            Begin_PendingNotifyUndo();
+            trailNotifyState.Set_BaseLocalOffsetCurve(curve);
+            _isDirty = true;
+            if (commitNow || !ImGui::IsAnyItemActive())
+                Commit_PendingNotifyUndo();
+        };
+
+    auto applyTipLocalOffsetCurve = [&](const Client::ANS_Trail::LocalOffsetCurve& curve, bool commitNow = false)
+        {
+            Begin_PendingNotifyUndo();
+            trailNotifyState.Set_TipLocalOffsetCurve(curve);
+            _isDirty = true;
+            if (commitNow || !ImGui::IsAnyItemActive())
+                Commit_PendingNotifyUndo();
+        };
+
+    const Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    const float playheadTimeSec = playbackModel != nullptr
+        ? playbackModel->Get_CurrentAnimationTimeSec()
+        : static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(max(1, Get_CurrentAnimationFps()));
+    const float currentPhase = std::clamp(
+        (playheadTimeSec - notifyStateEntry.startSec) / max(0.0001f, notifyStateEntry.durationSec),
+        0.f,
+        1.f);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextUnformatted("Trail Offset");
+
+    int32 selectedMode = static_cast<int32>(Resolve_TrailOffsetMode(trailNotifyState));
+    const char* modeNames[] = { "None", "Tip Extend", "Advanced" };
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::Combo("Mode", &selectedMode, modeNames, IM_ARRAYSIZE(modeNames)))
+    {
+        Begin_PendingNotifyUndo();
+        const TrailOffsetMode newMode = static_cast<TrailOffsetMode>(selectedMode);
+        if (newMode == TrailOffsetMode::None)
+        {
+            trailNotifyState.Set_TipExtendCurve({});
+            trailNotifyState.Set_BaseLocalOffsetCurve({});
+            trailNotifyState.Set_TipLocalOffsetCurve({});
+        }
+        else if (newMode == TrailOffsetMode::TipExtend)
+        {
+            trailNotifyState.Set_TipExtendCurve(Make_DefaultTipExtendCurve());
+            trailNotifyState.Set_BaseLocalOffsetCurve({});
+            trailNotifyState.Set_TipLocalOffsetCurve({});
+        }
+        else
+        {
+            trailNotifyState.Set_TipLocalOffsetCurve(Make_DefaultLocalOffsetCurve(true));
+        }
+
+        _isDirty = true;
+        Commit_PendingNotifyUndo();
+    }
+
+    const TrailOffsetMode mode = static_cast<TrailOffsetMode>(selectedMode);
+    if (mode == TrailOffsetMode::None)
+        return;
+
+    if (mode == TrailOffsetMode::TipExtend)
+    {
+        Client::ANS_Trail::TipExtendCurve curve = trailNotifyState.Get_TipExtendCurve();
+        if (!curve.enabled || curve.keys.empty())
+        {
+            curve = Make_DefaultTipExtendCurve();
+            applyTipExtendCurve(curve, true);
+        }
+
+        float startValue = Evaluate_TipExtendCurve(curve, 0.f);
+        float peakPhase = 0.5f;
+        float peakValue = Evaluate_TipExtendCurve(curve, peakPhase);
+        float endValue = Evaluate_TipExtendCurve(curve, 1.f);
+        Client::ANS_Trail::TipExtendInterpolation interpolation = Client::ANS_Trail::TipExtendInterpolation::Linear;
+
+        for (const Client::ANS_Trail::TipExtendKey& key : curve.keys)
+        {
+            if (key.phase > kTrailOffsetDuplicatePhaseEpsilon && key.phase < 1.f - kTrailOffsetDuplicatePhaseEpsilon)
+            {
+                peakPhase = key.phase;
+                peakValue = key.value;
+                interpolation = key.interpolation;
+                break;
+            }
+        }
+
+        bool simpleChanged = false;
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("Start", &startValue, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("Peak", &peakValue, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("End", &endValue, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::SetNextItemWidth(120.f);
+        simpleChanged |= ImGui::DragFloat("Peak @", &peakPhase, 0.005f, 0.f, 1.f, "%.3f");
+        interpolation = Draw_TrailOffsetInterpolationCombo("Interp", interpolation, simpleChanged);
+
+        if (simpleChanged)
+        {
+            peakPhase = std::clamp(peakPhase, 0.f, 1.f);
+            Client::ANS_Trail::TipExtendCurve simpleCurve{};
+            simpleCurve.enabled = true;
+            simpleCurve.keys = {
+                { 0.f, startValue, interpolation },
+                { peakPhase, peakValue, interpolation },
+                { 1.f, endValue, interpolation }
+            };
+            applyTipExtendCurve(simpleCurve);
+            curve = trailNotifyState.Get_TipExtendCurve();
+        }
+
+        if (ImGui::Button("+ Current"))
+        {
+            Client::ANS_Trail::TipExtendCurve editedCurve = curve;
+            editedCurve.enabled = true;
+            Upsert_TipExtendKey(editedCurve, currentPhase, Evaluate_TipExtendCurve(curve, currentPhase));
+            applyTipExtendCurve(editedCurve, true);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset"))
+            applyTipExtendCurve(Make_DefaultTipExtendCurve(), true);
+
+        Client::ANS_Trail::TipExtendCurve listCurve = trailNotifyState.Get_TipExtendCurve();
+        if (ImGui::TreeNodeEx("Tip Keys", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            for (size_t keyIndex = 0; keyIndex < listCurve.keys.size();)
+            {
+                Client::ANS_Trail::TipExtendKey& key = listCurve.keys[keyIndex];
+                bool keyChanged = false;
+                bool eraseKey = false;
+
+                ImGui::PushID(static_cast<int32>(keyIndex));
+                ImGui::SetNextItemWidth(70.f);
+                keyChanged |= ImGui::DragFloat("P", &key.phase, 0.005f, 0.f, 1.f, "%.3f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(90.f);
+                keyChanged |= ImGui::DragFloat("V", &key.value, 1.f, -10000.f, 10000.f, "%.1f");
+                ImGui::SameLine();
+                key.interpolation = Draw_TrailOffsetInterpolationCombo("##Interp", key.interpolation, keyChanged);
+                ImGui::SameLine();
+                eraseKey = ImGui::SmallButton("X");
+                ImGui::PopID();
+
+                if (eraseKey)
+                {
+                    listCurve.keys.erase(listCurve.keys.begin() + static_cast<ptrdiff_t>(keyIndex));
+                    applyTipExtendCurve(listCurve, true);
+                    continue;
+                }
+
+                if (keyChanged)
+                    applyTipExtendCurve(listCurve);
+
+                ++keyIndex;
+            }
+
+            ImGui::TreePop();
+        }
+    }
+    else if (mode == TrailOffsetMode::Advanced)
+    {
+        auto drawLocalCurve = [&](const char* label, bool isBaseCurve)
+            {
+                Client::ANS_Trail::LocalOffsetCurve curve = isBaseCurve
+                    ? trailNotifyState.Get_BaseLocalOffsetCurve()
+                    : trailNotifyState.Get_TipLocalOffsetCurve();
+
+                if (!ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen))
+                    return;
+
+                bool enabled = curve.enabled;
+                if (ImGui::Checkbox("Enabled", &enabled))
+                {
+                    curve.enabled = enabled;
+                    if (curve.enabled && curve.keys.empty())
+                        curve = Make_DefaultLocalOffsetCurve(true);
+                    if (!curve.enabled)
+                        curve.keys.clear();
+
+                    if (isBaseCurve)
+                        applyBaseLocalOffsetCurve(curve, true);
+                    else
+                        applyTipLocalOffsetCurve(curve, true);
+                }
+
+                if (curve.enabled || !curve.keys.empty())
+                {
+                    if (ImGui::Button("+ Current"))
+                    {
+                        curve.enabled = true;
+                        Upsert_LocalOffsetKey(curve, currentPhase, Evaluate_LocalOffsetCurve(curve, currentPhase));
+                        if (isBaseCurve)
+                            applyBaseLocalOffsetCurve(curve, true);
+                        else
+                            applyTipLocalOffsetCurve(curve, true);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("+ Key"))
+                    {
+                        curve.enabled = true;
+                        Upsert_LocalOffsetKey(curve, 0.5f, Evaluate_LocalOffsetCurve(curve, 0.5f));
+                        if (isBaseCurve)
+                            applyBaseLocalOffsetCurve(curve, true);
+                        else
+                            applyTipLocalOffsetCurve(curve, true);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset"))
+                    {
+                        curve = {};
+                        if (isBaseCurve)
+                            applyBaseLocalOffsetCurve(curve, true);
+                        else
+                            applyTipLocalOffsetCurve(curve, true);
+                    }
+
+                    for (size_t keyIndex = 0; keyIndex < curve.keys.size();)
+                    {
+                        Client::ANS_Trail::LocalOffsetKey& key = curve.keys[keyIndex];
+                        bool keyChanged = false;
+                        bool eraseKey = false;
+
+                        ImGui::PushID(static_cast<int32>(keyIndex));
+                        ImGui::SetNextItemWidth(70.f);
+                        keyChanged |= ImGui::DragFloat("P", &key.phase, 0.005f, 0.f, 1.f, "%.3f");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        keyChanged |= ImGui::DragFloat3("XYZ", &key.value.x, 0.5f, -10000.f, 10000.f, "%.1f");
+                        key.interpolation = Draw_TrailOffsetInterpolationCombo("Interp", key.interpolation, keyChanged);
+                        ImGui::SameLine();
+                        eraseKey = ImGui::SmallButton("X");
+                        ImGui::PopID();
+
+                        if (eraseKey)
+                        {
+                            curve.keys.erase(curve.keys.begin() + static_cast<ptrdiff_t>(keyIndex));
+                            if (isBaseCurve)
+                                applyBaseLocalOffsetCurve(curve, true);
+                            else
+                                applyTipLocalOffsetCurve(curve, true);
+                            continue;
+                        }
+
+                        if (keyChanged)
+                        {
+                            if (isBaseCurve)
+                                applyBaseLocalOffsetCurve(curve);
+                            else
+                                applyTipLocalOffsetCurve(curve);
+                        }
+
+                        ++keyIndex;
+                    }
+                }
+
+                ImGui::TreePop();
+            };
+
+        drawLocalCurve("Base Local", true);
+        drawLocalCurve("Tip Local", false);
+    }
+
+    if (_hasPendingNotifyUndoSnapshot && !ImGui::IsAnyItemActive())
+        Commit_PendingNotifyUndo();
+}
+
+void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel)
+{
+    ImGui::Separator();
+    ImGui::TextUnformatted("Animation Modifiers");
+
+    Draw_LiveModelTargetSelector();
+
+    Shared<ModelCom> modifierModel = Get_ModifierRuntimeModel();
+    if (modifierModel == nullptr)
+        modifierModel = playbackModel;
+
+    if (modifierModel == nullptr)
+    {
+        ImGui::TextDisabled("No playback model.");
+        return;
+    }
+
+    const auto& modifiers = modifierModel->Get_Modifiers();
+    bool hasEditableModifier = false;
+
+    for (const Shared<AnimationModifier>& modifier : modifiers)
+    {
+        if (modifier == nullptr)
+            continue;
+
+        const ClassReflectionInfo* reflectionInfo = modifier->Get_RuntimeReflectionInfo();
+        void* reflectionTarget = modifier->Get_RuntimeReflectionTarget();
+        if (reflectionInfo == nullptr || reflectionTarget == nullptr || reflectionInfo->properties.empty())
+            continue;
+
+        hasEditableModifier = true;
+
+        const string tag = String::ToString(modifier->Get_ModifierTag());
+        const string typeName = reflectionInfo->displayName.empty() ? reflectionInfo->className : reflectionInfo->displayName;
+        const string headerLabel = (tag.empty() ? typeName : tag + "  [" + typeName + "]");
+
+        ImGui::PushID(modifier.get());
+        if (ImGui::CollapsingHeader(headerLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool active = modifier->Is_Active();
+            if (ImGui::Checkbox("Active", &active))
+                modifier->Set_Active(active);
+
+            ImGui::SameLine();
+            float strengthAlpha = modifier->Get_StrengthAlpha();
+            ImGui::SetNextItemWidth(120.f);
+            if (ImGui::DragFloat("Strength", &strengthAlpha, 0.01f, 0.f, 1.f))
+                modifier->Set_StrengthAlpha(std::clamp(strengthAlpha, 0.f, 1.f));
+
+            if (modifier->Can_RuntimeResetPose())
+            {
+                if (ImGui::Button("Reset Pose"))
+                    modifier->RuntimeResetPose(modifierModel.get());
+            }
+
+            if (modifier->Can_RuntimeRebuild())
+            {
+                ImGui::SameLine();
+                if (ImGui::Button("Rebuild Chains"))
+                    modifier->RuntimeRebuild(modifierModel.get());
+            }
+
+            ImGui::Spacing();
+            Draw_ModifierRuntimeProperties(modifier.get(), modifierModel.get(), reflectionInfo, reflectionTarget);
+
+            if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
+            {
+                const size_t groupCount = chainModifier->Get_RuntimeGroupCount();
+                if (groupCount > 0 && ImGui::TreeNode("Group Root Offsets"))
+                {
+                    ImGui::TextDisabled("Root rotation applies while dragging. Use Rebuild only if bind rest must refresh.");
+                    for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
+                    {
+                        ImGui::PushID(static_cast<int>(groupIndex));
+
+                        const string rootBoneName = chainModifier->Get_RuntimeGroupRootBoneName(groupIndex);
+                        ImGui::TextWrapped("%s", rootBoneName.empty() ? "(empty root)" : rootBoneName.c_str());
+
+                        Vec3 offsetDegrees = chainModifier->Get_RuntimeGroupRootRotationOffset(groupIndex);
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        if (ImGui::DragFloat3("Rot", &offsetDegrees.x, 0.25f, -180.f, 180.f))
+                            chainModifier->Set_RuntimeGroupRootRotationOffset(groupIndex, offsetDegrees);
+
+                        ImGui::Spacing();
+                        ImGui::PopID();
+                    }
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* chainDesc = static_cast<ChainModifier::ChainModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    if (chainDesc != nullptr && chainDesc->motion.maxMovementOffset <= 0.0001f)
+                    {
+                        ImGui::TextColored(ImVec4(1.f, 0.68f, 0.25f, 1.f), "Move Limit is 0, so test motion is clamped.");
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 1.f;
+                        if (chainDesc != nullptr)
+                        {
+                            const float resetLimit = chainDesc->runtime.resetDistance > 0.1f ? chainDesc->runtime.resetDistance * 0.8f : 1.f;
+                            const float ownerScale = std::max(chainDesc->motion.ownerMovementInertiaScale, 0.001f);
+                            visibleDelta = std::clamp(0.05f / ownerScale, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (chainDesc != nullptr)
+                    {
+                        const float estimatedMotion = _modifierPreviewMotionTestDelta * chainDesc->motion.ownerMovementInertiaScale;
+                        ImGui::TextDisabled("Effective owner input: %.3f", estimatedMotion);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        chainModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
+            }
+
+            if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+            {
+                bool debugThisModifier = _showModifierChainDebug
+                    && _modifierChainDebugTag == modifier->Get_ModifierTag();
+                if (ImGui::Checkbox("Debug Chains", &debugThisModifier))
+                {
+                    _showModifierChainDebug = debugThisModifier;
+                    _modifierChainDebugTag = debugThisModifier ? modifier->Get_ModifierTag() : wstring{};
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("Blue: pose, green/yellow: output, red: no output");
+
+                if (ImGui::TreeNode("Preview Motion Test"))
+                {
+                    auto* poseDesc = static_cast<PoseFollowChainModifier::PoseFollowChainModifierDesc*>(reflectionTarget);
+
+                    if (ImGui::Checkbox("Enable Test", &_modifierPreviewMotionTestEnabled))
+                    {
+                        if (!_modifierPreviewMotionTestEnabled)
+                        {
+                            _modifierPreviewMotionTestTag.clear();
+                            poseFollowModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                        }
+                        else
+                        {
+                            _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        }
+                    }
+
+                    if (poseDesc != nullptr && poseDesc->maxExternalOffset <= 0.0001f)
+                    {
+                        ImGui::TextColored(ImVec4(1.f, 0.68f, 0.25f, 1.f), "Move Limit is 0, so test motion is clamped.");
+                    }
+
+                    ImGui::TextDisabled("Test adds preview owner motion only; modifier values are unchanged.");
+                    if (ImGui::Button("Run Motion Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = true;
+                        _modifierPreviewMotionTestTag = modifier->Get_ModifierTag();
+                        float visibleDelta = 1.f;
+                        if (poseDesc != nullptr)
+                        {
+                            const float resetLimit = poseDesc->resetDistance > 0.1f ? poseDesc->resetDistance * 0.8f : 1.f;
+                            const float ownerScale = std::max(poseDesc->ownerMotionScale, 0.001f);
+                            visibleDelta = std::clamp(0.05f / ownerScale, 0.25f, resetLimit);
+                        }
+
+                        _modifierPreviewMotionTestDelta = visibleDelta;
+                        _modifierPreviewMotionTestFrequency = 2.f;
+                        _modifierPreviewMotionTestDirection = Vec3(1.f, 0.f, 0.f);
+                    }
+
+                    if (poseDesc != nullptr)
+                    {
+                        const float estimatedMotion = _modifierPreviewMotionTestDelta * poseDesc->ownerMotionScale;
+                        ImGui::TextDisabled("Effective owner input: %.3f", estimatedMotion);
+                    }
+                    ImGui::TextDisabled("Applied modifiers: %d", _modifierPreviewMotionTestAppliedCount);
+
+                    ImGui::TextDisabled("Direction");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat3("##PreviewMotionTestDir", &_modifierPreviewMotionTestDirection.x, 0.01f, -1.f, 1.f);
+
+                    ImGui::TextDisabled("Delta per frame");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("##PreviewMotionTestDelta", &_modifierPreviewMotionTestDelta, 0.001f, 0.f, 10.f, "%.3f");
+
+                    ImGui::Checkbox("Oscillate", &_modifierPreviewMotionTestOscillate);
+                    if (_modifierPreviewMotionTestOscillate)
+                    {
+                        ImGui::TextDisabled("Frequency");
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::DragFloat("##PreviewMotionTestHz", &_modifierPreviewMotionTestFrequency, 0.05f, 0.f, 20.f, "%.2f");
+                    }
+
+                    if (ImGui::Button("Stop Test"))
+                    {
+                        _modifierPreviewMotionTestEnabled = false;
+                        _modifierPreviewMotionTestTag.clear();
+                        poseFollowModifier->Set_RuntimeTestOwnerMotion(false, Vec3::Zero);
+                    }
+
+                    ImGui::TreePop();
+                }
+
+                const size_t groupCount = poseFollowModifier->Get_RuntimeGroupCount();
+                if (groupCount > 0 && ImGui::TreeNode("Group Multipliers"))
+                {
+                    ImGui::TextDisabled("X: Wind, Y: Motion, Z: Follow");
+                    for (size_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
+                    {
+                        ImGui::PushID(static_cast<int>(groupIndex));
+
+                        const string rootBoneName = poseFollowModifier->Get_RuntimeGroupRootBoneName(groupIndex);
+                        ImGui::TextWrapped("%s", rootBoneName.empty() ? "(empty root)" : rootBoneName.c_str());
+
+                        Vec3 multipliers = poseFollowModifier->Get_RuntimeGroupMultipliers(groupIndex);
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        if (ImGui::DragFloat3("Mul", &multipliers.x, 0.01f, 0.f, 10.f))
+                            poseFollowModifier->Set_RuntimeGroupMultipliers(groupIndex, multipliers);
+
+                        ImGui::Spacing();
+                        ImGui::PopID();
+                    }
+                    ImGui::TreePop();
+                }
+            }
+        }
+        ImGui::PopID();
+    }
+
+    if (!hasEditableModifier)
+        ImGui::TextDisabled("No ChainModifier or PoseFollowChainModifier on this model.");
+}
+
+void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (!_modifierPreviewMotionTestEnabled)
+    {
+        _modifierPreviewMotionTestAppliedCount = 0;
+        return;
+    }
+
+    Shared<ModelCom> selectedModel = Get_ModifierRuntimeModel();
+
+    vector<Shared<ModelCom>> modifierModels{};
+    auto addModifierModel = [&](const Shared<ModelCom>& model)
+    {
+        if (model == nullptr)
+            return;
+
+        const auto exists = std::find_if(
+            modifierModels.begin(),
+            modifierModels.end(),
+            [&](const Shared<ModelCom>& existing)
+            {
+                return existing.get() == model.get();
+            });
+
+        if (exists == modifierModels.end())
+            modifierModels.push_back(model);
+    };
+
+    if (_sourceMode == SourceMode::LiveModel && !_liveModelTargets.empty())
+    {
+        for (const LiveModelTarget& target : _liveModelTargets)
+        {
+            Shared<ModelCom> targetModel = target.model;
+            if (_previewRootObject != nullptr)
+            {
+                const Shared<GameObject> previewOwner =
+                    PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
+                Shared<ModelCom> previewModel{};
+                if (previewOwner != nullptr && !target.componentTag.empty())
+                    previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
+
+                if (previewModel == nullptr)
+                    previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
+
+                if (previewModel != nullptr)
+                {
+                    targetModel = previewModel;
+                }
+            }
+
+            addModifierModel(targetModel);
+        }
+    }
+    else
+    {
+        addModifierModel(Get_PlaybackModel());
+    }
+
+    addModifierModel(selectedModel);
+
+    _modifierPreviewMotionTestAppliedCount = 0;
+
+    Vec3 testDelta = Vec3::Zero;
+    if (_modifierPreviewMotionTestEnabled)
+    {
+        Vec3 direction = _modifierPreviewMotionTestDirection;
+        const float directionLength = direction.Length();
+        if (directionLength > 0.0001f)
+            direction /= directionLength;
+        else
+            direction = Vec3(1.f, 0.f, 0.f);
+
+        float wave = 1.f;
+        if (_modifierPreviewMotionTestOscillate)
+        {
+            constexpr float kTwoPi = 6.28318530718f;
+            const float frequency = std::max(0.f, _modifierPreviewMotionTestFrequency);
+            wave = static_cast<float>(std::sin(ImGui::GetTime() * kTwoPi * frequency));
+        }
+
+        testDelta = direction * (_modifierPreviewMotionTestDelta * wave);
+    }
+
+    for (const Shared<ModelCom>& model : modifierModels)
+    {
+        if (model == nullptr)
+            continue;
+
+        for (const Shared<AnimationModifier>& modifier : model->Get_Modifiers())
+        {
+            if (auto* chainModifier = dynamic_cast<ChainModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    chainModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                chainModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+
+            if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
+            {
+                const bool tagMatches =
+                    _modifierPreviewMotionTestTag.empty() ||
+                    poseFollowModifier->Get_ModifierTag() == _modifierPreviewMotionTestTag;
+                const bool applyToModifier = _modifierPreviewMotionTestEnabled && tagMatches;
+                poseFollowModifier->Set_RuntimeTestOwnerMotion(
+                    applyToModifier,
+                    applyToModifier ? testDelta : Vec3::Zero);
+                if (applyToModifier)
+                    ++_modifierPreviewMotionTestAppliedCount;
+            }
+        }
+    }
 }
 
 void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel)
@@ -1580,7 +3292,7 @@ void Animation_View::Draw_NotifyList()
                     _selectedNotifyId = entry.id;
                 }
 
-                _selectedStateId = -1;
+                Clear_SelectedStateSelection();
                 _selectedNotifyTrackIndex = trackIndex;
             }
         }
@@ -1617,7 +3329,7 @@ void Animation_View::Draw_StateList()
         {
             _selectedNotifyStateTrackIndex = trackIndex;
             Clear_SelectedNotifySelection();
-            _selectedStateId = -1;
+            Clear_SelectedStateSelection();
         }
 
         for (const auto& entry : animationData->notifyStates)
@@ -1628,10 +3340,32 @@ void Animation_View::Draw_StateList()
             const int32 startFrame = static_cast<int32>(std::round(entry.startSec * fps));
             const int32 endFrame = static_cast<int32>(std::round((entry.startSec + entry.durationSec) * fps));
             const string label = entry.notifyState->Get_TypeName() + " (" + to_string(startFrame) + "~" + to_string(endFrame) + ")";
-            const bool isSelected = (_selectedStateId == entry.id);
+            const bool isSelected = Is_StateSelected(entry.id);
             if (ImGui::Selectable((label + "##NotifyStateEntry" + to_string(entry.id)).c_str(), isSelected))
             {
-                _selectedStateId = entry.id;
+                const bool ctrlPressed = ImGui::GetIO().KeyCtrl;
+
+                if (ctrlPressed)
+                {
+                    if (Is_StateSelected(entry.id))
+                    {
+                        _selectedStateIds.erase(entry.id);
+                        if (_selectedStateId == entry.id)
+                            _selectedStateId = _selectedStateIds.empty() ? -1 : *_selectedStateIds.begin();
+                    }
+                    else
+                    {
+                        _selectedStateIds.insert(entry.id);
+                        _selectedStateId = entry.id;
+                    }
+                }
+                else
+                {
+                    _selectedStateIds.clear();
+                    _selectedStateIds.insert(entry.id);
+                    _selectedStateId = entry.id;
+                }
+
                 Clear_SelectedNotifySelection();
                 _selectedNotifyStateTrackIndex = trackIndex;
             }
@@ -1702,7 +3436,7 @@ void Animation_View::Draw_TrackSection()
         {
             _selectedNotifyStateTrackIndex = i;
             Clear_SelectedNotifySelection();
-            _selectedStateId = -1;
+            Clear_SelectedStateSelection();
         }
     }
     ImGui::PopStyleColor(3);
@@ -1722,6 +3456,8 @@ void Animation_View::Add_NotifyTrack(const string& trackName)
     if (animationData == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     AnimNotifyTrackDesc trackDesc{};
     trackDesc.name = trackName.empty()
         ? "Notify"
@@ -1730,6 +3466,7 @@ void Animation_View::Add_NotifyTrack(const string& trackName)
     animationData->notifyTracks.push_back(trackDesc);
     _selectedNotifyTrackIndex = static_cast<int32>(animationData->notifyTracks.size()) - 1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_NotifyStateTrack(const string& trackName)
@@ -1737,6 +3474,8 @@ void Animation_View::Add_NotifyStateTrack(const string& trackName)
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr)
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     AnimNotifyTrackDesc trackDesc{};
     trackDesc.name = trackName.empty()
@@ -1746,6 +3485,7 @@ void Animation_View::Add_NotifyStateTrack(const string& trackName)
     animationData->notifyStateTracks.push_back(trackDesc);
     _selectedNotifyStateTrackIndex = static_cast<int32>(animationData->notifyStateTracks.size()) - 1;
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
@@ -1758,8 +3498,10 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
     if (notifyInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyTracks.empty())
-        Add_NotifyTrack("Notify");
+        animationData->notifyTracks.push_back({ "Notify" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
@@ -1779,6 +3521,7 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
     _selectedNotifyId = createdId;
     _selectedNotifyTrackIndex = std::clamp(_sequencerContextHasTrack && !_sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, const string& typeName)
@@ -1791,8 +3534,10 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
     if (notifyStateInstance == nullptr)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyStateTracks.empty())
-        Add_NotifyStateTrack("Notify State");
+        animationData->notifyStateTracks.push_back({ "Notify State" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 minFrame = min(startFrame, endFrame);
@@ -1808,9 +3553,13 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
 
     animationData->notifyStates.push_back(std::move(entry));
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+    Clear_SelectedNotifySelection();
+    _selectedStateIds.clear();
+    _selectedStateIds.insert(createdId);
     _selectedStateId = createdId;
     _selectedNotifyStateTrackIndex = std::clamp(_sequencerContextHasTrack && _sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Delete_SelectedNotify()
@@ -1818,6 +3567,8 @@ void Animation_View::Delete_SelectedNotify()
     AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr || _selectedNotifyIds.empty())
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     auto it = std::remove_if(
         animationData->notifies.begin(),
@@ -1832,28 +3583,32 @@ void Animation_View::Delete_SelectedNotify()
         animationData->notifies.erase(it, animationData->notifies.end());
         Clear_SelectedNotifySelection();
         _isDirty = true;
+        Commit_NotifyUndoSnapshot(undoSnapshot);
     }
 }
 
 void Animation_View::Delete_SelectedState()
 {
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedStateId == -1)
+    if (animationData == nullptr || _selectedStateIds.empty())
         return;
+
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     auto it = std::remove_if(
         animationData->notifyStates.begin(),
         animationData->notifyStates.end(),
         [this](const AnimNotifyStateEntry& entry)
         {
-            return entry.id == _selectedStateId;
+            return Is_StateSelected(entry.id);
         });
 
     if (it != animationData->notifyStates.end())
     {
         animationData->notifyStates.erase(it, animationData->notifyStates.end());
-        _selectedStateId = -1;
+        Clear_SelectedStateSelection();
         _isDirty = true;
+        Commit_NotifyUndoSnapshot(undoSnapshot);
     }
 }
 
@@ -1866,11 +3621,14 @@ void Animation_View::Delete_SelectedNotifyTrack()
     if (_selectedNotifyTrackIndex < 0 || _selectedNotifyTrackIndex >= static_cast<int32>(animationData->notifyTracks.size()))
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     Remove_NotifyTrackEntries(*animationData, _selectedNotifyTrackIndex);
     animationData->notifyTracks.erase(animationData->notifyTracks.begin() + _selectedNotifyTrackIndex);
     _selectedNotifyTrackIndex = animationData->notifyTracks.empty() ? 0 : min(_selectedNotifyTrackIndex, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     Clear_SelectedNotifySelection();
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Delete_SelectedNotifyStateTrack()
@@ -1882,11 +3640,155 @@ void Animation_View::Delete_SelectedNotifyStateTrack()
     if (_selectedNotifyStateTrackIndex < 0 || _selectedNotifyStateTrackIndex >= static_cast<int32>(animationData->notifyStateTracks.size()))
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     Remove_NotifyStateTrackEntries(*animationData, _selectedNotifyStateTrackIndex);
     animationData->notifyStateTracks.erase(animationData->notifyStateTracks.begin() + _selectedNotifyStateTrackIndex);
     _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty() ? 0 : min(_selectedNotifyStateTrackIndex, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
+}
+
+Animation_View::NotifyUndoSnapshot Animation_View::Capture_NotifyUndoSnapshot() const
+{
+    NotifyUndoSnapshot snapshot{};
+    snapshot.assetJson = AnimNotify_Parser::To_Json(_asset);
+    snapshot.currentAnimationName = _currentAnimationName;
+    snapshot.selectedNotifyId = _selectedNotifyId;
+    snapshot.selectedStateId = _selectedStateId;
+    snapshot.selectedNotifyTrackIndex = _selectedNotifyTrackIndex;
+    snapshot.selectedNotifyStateTrackIndex = _selectedNotifyStateTrackIndex;
+    snapshot.sequencerCurrentFrame = _sequencerCurrentFrame;
+    snapshot.selectedNotifyIds.assign(_selectedNotifyIds.begin(), _selectedNotifyIds.end());
+    snapshot.selectedStateIds.assign(_selectedStateIds.begin(), _selectedStateIds.end());
+    return snapshot;
+}
+
+void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    AnimNotifyAsset restoredAsset{};
+    if (!AnimNotify_Parser::From_Json(snapshot.assetJson, restoredAsset))
+        return;
+
+    _asset = std::move(restoredAsset);
+    if (_asset.modelGuid.empty())
+        _asset.modelGuid = _modelGuid;
+
+    _currentAnimationName = snapshot.currentAnimationName;
+    if (!_currentAnimationName.empty())
+    {
+        if (const AnimationEntry* entry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName))
+            _currentAnimationName = entry->displayName;
+    }
+
+    _selectedNotifyId = snapshot.selectedNotifyId;
+    _selectedStateId = snapshot.selectedStateId;
+    _selectedNotifyTrackIndex = snapshot.selectedNotifyTrackIndex;
+    _selectedNotifyStateTrackIndex = snapshot.selectedNotifyStateTrackIndex;
+    _sequencerCurrentFrame = snapshot.sequencerCurrentFrame;
+
+    _selectedNotifyIds.clear();
+    for (const int32 notifyId : snapshot.selectedNotifyIds)
+        _selectedNotifyIds.insert(notifyId);
+
+    _selectedStateIds.clear();
+    for (const int32 stateId : snapshot.selectedStateIds)
+        _selectedStateIds.insert(stateId);
+
+    if (Find_SelectedNotify() == nullptr)
+        Clear_SelectedNotifySelection();
+
+    if (Find_SelectedState() == nullptr)
+        Clear_SelectedStateSelection();
+
+    if (AnimNotifyData* animationData = Get_CurrentAnimation())
+    {
+        _selectedNotifyTrackIndex = animationData->notifyTracks.empty()
+            ? 0
+            : std::clamp(_selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+        _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty()
+            ? 0
+            : std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
+    }
+
+    Reset_PreviewAnimSpeedStates();
+    Reset_PreviewPlayEffectStates();
+    Reset_PreviewSLDodgeMoveStates();
+    Reset_PreviewRootControllerStates();
+    Reset_PreviewSourceHistoryEffect();
+    Reset_PreviewTrailEffect();
+    Reset_PreviewWeaponRotateStates();
+    Reset_PreviewWeaponEchoStates();
+
+    _isDirty = true;
+}
+
+void Animation_View::Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    const NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    if (snapshot.assetJson == currentSnapshot.assetJson)
+        return;
+
+    static constexpr size_t MaxUndoCount = 64;
+    _notifyUndoStack.push_back(snapshot);
+    if (_notifyUndoStack.size() > MaxUndoCount)
+        _notifyUndoStack.erase(_notifyUndoStack.begin());
+
+    _notifyRedoStack.clear();
+}
+
+void Animation_View::Begin_PendingNotifyUndo()
+{
+    if (_hasPendingNotifyUndoSnapshot)
+        return;
+
+    _pendingNotifyUndoSnapshot = Capture_NotifyUndoSnapshot();
+    _hasPendingNotifyUndoSnapshot = true;
+}
+
+void Animation_View::Commit_PendingNotifyUndo()
+{
+    if (!_hasPendingNotifyUndoSnapshot)
+        return;
+
+    Commit_NotifyUndoSnapshot(_pendingNotifyUndoSnapshot);
+    _pendingNotifyUndoSnapshot = {};
+    _hasPendingNotifyUndoSnapshot = false;
+}
+
+void Animation_View::Clear_NotifyUndoHistory()
+{
+    _notifyUndoStack.clear();
+    _notifyRedoStack.clear();
+    _pendingNotifyUndoSnapshot = {};
+    _hasPendingNotifyUndoSnapshot = false;
+}
+
+void Animation_View::Undo_NotifyEdit()
+{
+    if (_notifyUndoStack.empty())
+        return;
+
+    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    NotifyUndoSnapshot undoSnapshot = std::move(_notifyUndoStack.back());
+    _notifyUndoStack.pop_back();
+    _notifyRedoStack.push_back(std::move(currentSnapshot));
+
+    Restore_NotifyUndoSnapshot(undoSnapshot);
+}
+
+void Animation_View::Redo_NotifyEdit()
+{
+    if (_notifyRedoStack.empty())
+        return;
+
+    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
+    NotifyUndoSnapshot redoSnapshot = std::move(_notifyRedoStack.back());
+    _notifyRedoStack.pop_back();
+    _notifyUndoStack.push_back(std::move(currentSnapshot));
+
+    Restore_NotifyUndoSnapshot(redoSnapshot);
 }
 
 void Animation_View::Handle_ClipboardShortcuts()
@@ -1902,7 +3804,7 @@ void Animation_View::Handle_ClipboardShortcuts()
     {
         if (!_selectedNotifyIds.empty())
             Delete_SelectedNotify();
-        else if (_selectedStateId != -1)
+        else if (!_selectedStateIds.empty())
             Delete_SelectedState();
     }
 
@@ -1912,14 +3814,14 @@ void Animation_View::Handle_ClipboardShortcuts()
         {
             if (!_selectedNotifyIds.empty())
                 Move_SelectedNotifiesByFrame(-1);
-            else if (_selectedStateId != -1)
+            else if (!_selectedStateIds.empty())
                 Move_SelectedStateByFrame(-1);
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
         {
             if (!_selectedNotifyIds.empty())
                 Move_SelectedNotifiesByFrame(1);
-            else if (_selectedStateId != -1)
+            else if (!_selectedStateIds.empty())
                 Move_SelectedStateByFrame(1);
         }
     }
@@ -1927,11 +3829,23 @@ void Animation_View::Handle_ClipboardShortcuts()
     if (!io.KeyCtrl)
         return;
 
+    if (ImGui::IsKeyPressed(ImGuiKey_Z, false))
+    {
+        Undo_NotifyEdit();
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Y, false))
+    {
+        Redo_NotifyEdit();
+        return;
+    }
+
     if (ImGui::IsKeyPressed(ImGuiKey_C, false))
     {
         if (!_selectedNotifyIds.empty())
             Copy_SelectedNotify();
-        else if (_selectedStateId != -1)
+        else if (!_selectedStateIds.empty())
             Copy_SelectedState();
     }
 
@@ -1983,6 +3897,8 @@ void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
     if (clampedDelta == 0)
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     float primaryTimeSec = -1.f;
     for (const auto& [entry, frame] : selectedEntries)
     {
@@ -2015,6 +3931,7 @@ void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
     }
 
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
@@ -2023,30 +3940,67 @@ void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
         return;
 
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    AnimNotifyStateEntry* selectedState = Find_SelectedState();
-    if (animationData == nullptr || selectedState == nullptr)
+    if (animationData == nullptr || _selectedStateIds.empty())
         return;
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
     const int32 maxFrame = max(0, Get_CurrentAnimationFrameMax());
-    const int32 startFrame = std::clamp(
-        static_cast<int32>(std::round(selectedState->startSec * static_cast<float>(fps))),
-        0,
-        maxFrame);
-    const int32 durationFrames = max(
-        1,
-        static_cast<int32>(std::round(selectedState->durationSec * static_cast<float>(fps))));
-    const int32 endFrame = min(maxFrame, startFrame + durationFrames);
-    const int32 clampedDelta = std::clamp(frameDelta, -startFrame, maxFrame - endFrame);
+
+    struct SelectedStateMoveEntry
+    {
+        AnimNotifyStateEntry* state = nullptr;
+        int32 startFrame = 0;
+    };
+
+    vector<SelectedStateMoveEntry> selectedEntries{};
+    selectedEntries.reserve(_selectedStateIds.size());
+
+    int32 minStartFrame = maxFrame;
+    int32 maxEndFrame = 0;
+    for (AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (!Is_StateSelected(entry.id))
+            continue;
+
+        const int32 startFrame = std::clamp(
+            static_cast<int32>(std::round(entry.startSec * static_cast<float>(fps))),
+            0,
+            maxFrame);
+        const int32 durationFrames = max(
+            1,
+            static_cast<int32>(std::round(entry.durationSec * static_cast<float>(fps))));
+        const int32 endFrame = min(maxFrame, startFrame + durationFrames);
+
+        selectedEntries.push_back({ &entry, startFrame });
+        minStartFrame = min(minStartFrame, startFrame);
+        maxEndFrame = max(maxEndFrame, endFrame);
+    }
+
+    if (selectedEntries.empty())
+        return;
+
+    const int32 clampedDelta = std::clamp(frameDelta, -minStartFrame, maxFrame - maxEndFrame);
     if (clampedDelta == 0)
         return;
 
-    const int32 movedStartFrame = startFrame + clampedDelta;
-    selectedState->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
+    int32 primaryStartFrame = -1;
+    for (const SelectedStateMoveEntry& selectedEntry : selectedEntries)
+    {
+        const int32 movedStartFrame = selectedEntry.startFrame + clampedDelta;
+        selectedEntry.state->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
+
+        if (selectedEntry.state->id == _selectedStateId)
+            primaryStartFrame = movedStartFrame;
+    }
+
+    if (primaryStartFrame < 0)
+        primaryStartFrame = selectedEntries.front().startFrame + clampedDelta;
 
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
 
-    _sequencerCurrentFrame = movedStartFrame;
+    _sequencerCurrentFrame = primaryStartFrame;
 
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
     if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
@@ -2058,6 +4012,7 @@ void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
     }
 
     _isDirty = true;
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Copy_SelectedNotify()
@@ -2068,6 +4023,7 @@ void Animation_View::Copy_SelectedNotify()
 
     _notifyClipboardKind = NotifyClipboardKind::Notify;
     _copiedNotifies.clear();
+    _copiedNotifyStates.clear();
     _copiedNotifyState = {};
 
     for (const AnimNotifyEventEntry& entry : animationData->notifies)
@@ -2099,20 +4055,43 @@ void Animation_View::Copy_SelectedNotify()
 
 void Animation_View::Copy_SelectedState()
 {
-    AnimNotifyStateEntry* selectedState = Find_SelectedState();
-    if (selectedState == nullptr || selectedState->notifyState == nullptr)
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr || _selectedStateIds.empty())
         return;
 
     _notifyClipboardKind = NotifyClipboardKind::State;
     _copiedNotifies.clear();
+    _copiedNotifyStates.clear();
     _copiedNotifyState = {};
-    _copiedNotifyState.typeName = selectedState->notifyState->Get_TypeName();
-    _copiedNotifyState.payload = selectedState->notifyState->To_Json();
-    _copiedNotifyState.startSec = selectedState->startSec;
-    _copiedNotifyState.durationSec = selectedState->durationSec;
-    _copiedNotifyState.trackIndex = selectedState->trackIndex;
 
-    NOTIFY("노티파이 스테이트 복사: {}", _copiedNotifyState.typeName);
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (!Is_StateSelected(entry.id) || entry.notifyState == nullptr)
+            continue;
+
+        CopiedNotifyStateEntry copiedEntry{};
+        copiedEntry.typeName = entry.notifyState->Get_TypeName();
+        copiedEntry.payload = entry.notifyState->To_Json();
+        copiedEntry.startSec = entry.startSec;
+        copiedEntry.durationSec = entry.durationSec;
+        copiedEntry.trackIndex = entry.trackIndex;
+        _copiedNotifyStates.emplace_back(std::move(copiedEntry));
+    }
+
+    if (_copiedNotifyStates.empty())
+        return;
+
+    std::sort(_copiedNotifyStates.begin(), _copiedNotifyStates.end(),
+        [](const CopiedNotifyStateEntry& a, const CopiedNotifyStateEntry& b)
+        {
+            if (a.startSec != b.startSec)
+                return a.startSec < b.startSec;
+            return a.trackIndex < b.trackIndex;
+        });
+
+    _copiedNotifyState = _copiedNotifyStates.front();
+
+    NOTIFY("노티파이 스테이트 복사: {}개", static_cast<int32>(_copiedNotifyStates.size()));
 }
 
 void Animation_View::Paste_CopiedNotify()
@@ -2121,12 +4100,34 @@ void Animation_View::Paste_CopiedNotify()
     if (animationData == nullptr || _copiedNotifies.empty())
         return;
 
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
+
     if (animationData->notifyTracks.empty())
-        Add_NotifyTrack("Notify");
+        animationData->notifyTracks.push_back({ "Notify" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
-    const float pasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
     const float baseTimeSec = _copiedNotifies.front().timeSec;
+    const float animationLengthSec = Get_CurrentAnimationLengthSec();
+
+    float maxRelativeTimeSec = 0.f;
+    int32 baseTrackIndex = _copiedNotifies.front().trackIndex;
+    int32 maxRelativeTrackIndex = 0;
+    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
+    {
+        maxRelativeTimeSec = max(maxRelativeTimeSec, copiedEntry.timeSec - baseTimeSec);
+        baseTrackIndex = min(baseTrackIndex, copiedEntry.trackIndex);
+    }
+
+    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
+        maxRelativeTrackIndex = max(maxRelativeTrackIndex, copiedEntry.trackIndex - baseTrackIndex);
+
+    const float requestedPasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+    const float maxPasteTimeSec = max(0.f, animationLengthSec - maxRelativeTimeSec);
+    const float pasteBaseTimeSec = std::clamp(requestedPasteTimeSec, 0.f, maxPasteTimeSec);
+
+    const int32 notifyTrackCount = static_cast<int32>(animationData->notifyTracks.size());
+    const int32 maxPasteTrackIndex = max(0, notifyTrackCount - 1 - maxRelativeTrackIndex);
+    const int32 pasteBaseTrackIndex = std::clamp(_selectedNotifyTrackIndex, 0, maxPasteTrackIndex);
 
     _selectedNotifyIds.clear();
     int32 lastCreatedId = -1;
@@ -2142,9 +4143,11 @@ void Animation_View::Paste_CopiedNotify()
 
         AnimNotifyEventEntry entry{};
         const int32 createdId = animationData->nextNotifyId++;
+        const float relativeTimeSec = copiedEntry.timeSec - baseTimeSec;
+        const int32 relativeTrackIndex = copiedEntry.trackIndex - baseTrackIndex;
         entry.id = createdId;
-        entry.timeSec = max(0.f, pasteTimeSec + (copiedEntry.timeSec - baseTimeSec));
-        entry.trackIndex = std::clamp(copiedEntry.trackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+        entry.timeSec = std::clamp(pasteBaseTimeSec + relativeTimeSec, 0.f, animationLengthSec);
+        entry.trackIndex = std::clamp(pasteBaseTrackIndex + relativeTrackIndex, 0, notifyTrackCount - 1);
         entry.notify = notifyInstance;
 
         animationData->notifies.push_back(std::move(entry));
@@ -2156,49 +4159,94 @@ void Animation_View::Paste_CopiedNotify()
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
 
     _selectedNotifyId = lastCreatedId;
-    _selectedStateId = -1;
+    Clear_SelectedStateSelection();
     _selectedNotifyTrackIndex = lastTrackIndex;
     _isDirty = true;
 
     if (!_selectedNotifyIds.empty())
         NOTIFY("노티파이 붙여넣기: {}개", static_cast<int32>(_selectedNotifyIds.size()));
+
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Paste_CopiedState()
 {
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _copiedNotifyState.typeName.empty())
+    if (animationData == nullptr || _copiedNotifyStates.empty())
         return;
 
-    Shared<AnimNotifyState> notifyStateInstance = GAME->Create_AnimNotifyStatePrototype(_copiedNotifyState.typeName);
-    if (notifyStateInstance == nullptr)
-        return;
-
-    notifyStateInstance->From_Json(_copiedNotifyState.payload);
+    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
 
     if (animationData->notifyStateTracks.empty())
-        Add_NotifyStateTrack("Notify State");
+        animationData->notifyStateTracks.push_back({ "Notify State" });
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
-    const int32 trackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
+    const float animationLengthSec = Get_CurrentAnimationLengthSec();
+    const float baseStartSec = _copiedNotifyStates.front().startSec;
 
-    AnimNotifyStateEntry entry{};
-    const int32 createdId = animationData->nextStateId++;
-    entry.id = createdId;
-    entry.startSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
-    entry.durationSec = max(_copiedNotifyState.durationSec, 1.f / static_cast<float>(fps));
-    entry.trackIndex = trackIndex;
-    entry.notifyState = notifyStateInstance;
+    float maxRelativeEndSec = 0.f;
+    int32 baseTrackIndex = _copiedNotifyStates.front().trackIndex;
+    int32 maxRelativeTrackIndex = 0;
+    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
+    {
+        maxRelativeEndSec = max(maxRelativeEndSec, copiedEntry.startSec - baseStartSec + copiedEntry.durationSec);
+        baseTrackIndex = min(baseTrackIndex, copiedEntry.trackIndex);
+    }
 
-    animationData->notifyStates.push_back(std::move(entry));
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
+        maxRelativeTrackIndex = max(maxRelativeTrackIndex, copiedEntry.trackIndex - baseTrackIndex);
+
+    const float requestedPasteStartSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+    const float maxPasteStartSec = max(0.f, animationLengthSec - maxRelativeEndSec);
+    const float pasteBaseStartSec = std::clamp(requestedPasteStartSec, 0.f, maxPasteStartSec);
+
+    const int32 stateTrackCount = static_cast<int32>(animationData->notifyStateTracks.size());
+    const int32 maxPasteTrackIndex = max(0, stateTrackCount - 1 - maxRelativeTrackIndex);
+    const int32 pasteBaseTrackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, maxPasteTrackIndex);
 
     Clear_SelectedNotifySelection();
-    _selectedStateId = createdId;
-    _selectedNotifyStateTrackIndex = trackIndex;
+    _selectedStateIds.clear();
+    _selectedStateId = -1;
+
+    int32 lastCreatedId = -1;
+    int32 lastTrackIndex = _selectedNotifyStateTrackIndex;
+    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
+    {
+        Shared<AnimNotifyState> notifyStateInstance = GAME->Create_AnimNotifyStatePrototype(copiedEntry.typeName);
+        if (notifyStateInstance == nullptr)
+            continue;
+
+        notifyStateInstance->From_Json(copiedEntry.payload);
+
+        AnimNotifyStateEntry entry{};
+        const int32 createdId = animationData->nextStateId++;
+        const float relativeStartSec = copiedEntry.startSec - baseStartSec;
+        const int32 relativeTrackIndex = copiedEntry.trackIndex - baseTrackIndex;
+        entry.id = createdId;
+        entry.startSec = std::clamp(pasteBaseStartSec + relativeStartSec, 0.f, animationLengthSec);
+        entry.durationSec = max(copiedEntry.durationSec, 1.f / static_cast<float>(fps));
+        entry.trackIndex = std::clamp(pasteBaseTrackIndex + relativeTrackIndex, 0, stateTrackCount - 1);
+        entry.notifyState = notifyStateInstance;
+
+        animationData->notifyStates.push_back(std::move(entry));
+        _selectedStateIds.insert(createdId);
+        lastCreatedId = createdId;
+        lastTrackIndex = entry.trackIndex;
+    }
+
+    if (_selectedStateIds.empty())
+        return;
+
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+
+    _selectedStateId = lastCreatedId;
+    _selectedNotifyStateTrackIndex = lastTrackIndex;
     _isDirty = true;
 
-    NOTIFY("노티파이 스테이트 붙여넣기: {}", _copiedNotifyState.typeName);
+    if (!_selectedStateIds.empty())
+        NOTIFY("노티파이 스테이트 붙여넣기: {}개", static_cast<int32>(_selectedStateIds.size()));
+
+    Commit_NotifyUndoSnapshot(undoSnapshot);
 }
 
 void Animation_View::Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex)
@@ -2247,19 +4295,34 @@ bool Animation_View::Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin
 
 void Animation_View::Draw_CreateNotifyPopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyPopup;
+
     if (_openCreateNotifyPopup)
     {
         _openCreateNotifyPopup = false;
+        _createNotifyFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyPopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyPopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifySearch", "Search notify...", _createNotifyFilter, IM_ARRAYSIZE(_createNotifyFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyTypes([&](const TypeRegistry::AnimNotifyTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_Notify_AtFrame(_requestedCreateNotifyFrame, info.className);
@@ -2269,25 +4332,42 @@ void Animation_View::Draw_CreateNotifyPopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotify types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotify types.");
 
     ImGui::EndPopup();
 }
 
 void Animation_View::Draw_CreateNotifyStatePopup()
 {
+    const bool requestSearchFocus = _openCreateNotifyStatePopup;
+
     if (_openCreateNotifyStatePopup)
     {
         _openCreateNotifyStatePopup = false;
+        _createNotifyStateFilter[0] = '\0';
         ImGui::OpenPopup("CreateNotifyStatePopup");
     }
 
     if (!ImGui::BeginPopup("CreateNotifyStatePopup"))
         return;
 
+    ImGui::SetNextItemWidth(280.f);
+    if (requestSearchFocus)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::InputTextWithHint("##NotifyStateSearch", "Search notify state...", _createNotifyStateFilter, IM_ARRAYSIZE(_createNotifyStateFilter));
+    ImGui::Separator();
+
     bool hasAny = false;
+    bool hasVisible = false;
     GAME->Visit_AnimNotifyStateTypes([&](const TypeRegistry::AnimNotifyStateTypeInfo& info)
     {
         hasAny = true;
+
+        if (!Contains_CaseInsensitive(info.className, _createNotifyStateFilter))
+            return;
+
+        hasVisible = true;
         if (ImGui::Selectable(info.className.c_str()))
         {
             Add_State_ByFrameRange(_requestedCreateStateStartFrame, _requestedCreateStateEndFrame, info.className);
@@ -2297,6 +4377,8 @@ void Animation_View::Draw_CreateNotifyStatePopup()
 
     if (!hasAny)
         ImGui::TextDisabled("No AnimNotifyState types registered.");
+    else if (!hasVisible)
+        ImGui::TextDisabled("No matching AnimNotifyState types.");
 
     ImGui::EndPopup();
 }
@@ -2361,6 +4443,37 @@ Shared<ModelCom> Animation_View::Get_PlaybackModel() const
     return _liveModelCom;
 }
 
+Shared<ModelCom> Animation_View::Get_ModifierRuntimeModel() const
+{
+    if (_sourceMode != SourceMode::LiveModel ||
+        _selectedLiveModelTargetIndex < 0 ||
+        _selectedLiveModelTargetIndex >= static_cast<int32>(_liveModelTargets.size()))
+    {
+        return Get_PlaybackModel();
+    }
+
+    const LiveModelTarget& target = _liveModelTargets[_selectedLiveModelTargetIndex];
+
+    if (_previewRootObject != nullptr)
+    {
+        const Shared<GameObject> previewOwner =
+            PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, target.objectKey);
+        Shared<ModelCom> previewModel{};
+        if (previewOwner != nullptr && !target.componentTag.empty())
+            previewModel = previewOwner->Get_Component<ModelCom>(target.componentTag);
+
+        if (previewModel == nullptr)
+            previewModel = PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwner, target.sourceModelPath);
+
+        if (previewModel != nullptr)
+        {
+            return previewModel;
+        }
+    }
+
+    return target.model != nullptr ? target.model : Get_PlaybackModel();
+}
+
 bool Animation_View::Try_GetTrailSample(EffectTrailSample& outSample) const
 {
     for (const PreviewTrailRuntime& runtime : _previewTrailRuntimes)
@@ -2401,11 +4514,19 @@ bool Animation_View::Try_GetTrailSampleForRuntime(
     const PreviewTrailRuntime& runtime,
     EffectTrailSample& outSample) const
 {
+    const Client::TrailAnchorAsset sampleAnchorAsset =
+        Client::ANS_Trail::Make_OffsetTrailAnchorAsset(
+            runtime.trailAnchorAsset,
+            runtime.tipExtendCurve,
+            runtime.baseLocalOffsetCurve,
+            runtime.tipLocalOffsetCurve,
+            runtime.offsetPhase);
+
     Vec3 baseWorld{};
     Vec3 tipWorld{};
-    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.base, baseWorld))
+    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, sampleAnchorAsset.base, baseWorld))
         return false;
-    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.tip, tipWorld))
+    if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, sampleAnchorAsset.tip, tipWorld))
         return false;
 
     outSample.baseWorldPosition = baseWorld;
@@ -2418,31 +4539,42 @@ bool Animation_View::Try_GetSourcePointSampleForRuntime(
     EffectSourcePointSample& outSample) const
 {
     if (runtime.sourceBindingMode == 1)
+        return Try_ResolvePreviewSocketWorldPosition(
+            runtime.partTag,
+            runtime.socketName,
+            runtime.sourceHistoryLocalOffset,
+            outSample.worldPosition);
+
+    if (runtime.sourceBindingMode == 3)
     {
-        return Try_ResolvePreviewSocketWorldPosition(runtime.partTag, runtime.socketName, outSample.worldPosition);
+        Vec3 baseWorld{};
+        Vec3 tipWorld{};
+        if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.base, baseWorld))
+            return false;
+        if (!Try_ResolvePreviewTrailAnchorWorldPosition(runtime.partTag, runtime.trailAnchorAsset.tip, tipWorld))
+            return false;
+
+        if (runtime.sourceHistoryAnchorName == "Base")
+        {
+            outSample.worldPosition = baseWorld + runtime.sourceHistoryLocalOffset;
+            return true;
+        }
+
+        if (runtime.sourceHistoryAnchorName == "Mid")
+        {
+            outSample.worldPosition = ((baseWorld + tipWorld) * 0.5f) + runtime.sourceHistoryLocalOffset;
+            return true;
+        }
+
+        outSample.worldPosition = tipWorld + runtime.sourceHistoryLocalOffset;
+        return true;
     }
 
-    PreviewTrailRuntime trailRuntime{};
-    trailRuntime.partTag = runtime.partTag;
-    trailRuntime.trailAnchorAsset = runtime.trailAnchorAsset;
-
-    EffectTrailSample trailSample{};
-    if (!Try_GetTrailSampleForRuntime(trailRuntime, trailSample))
-        return false;
-
-    switch (runtime.sourcePointPolicy)
-    {
-    case 1:
-        outSample.worldPosition = trailSample.baseWorldPosition;
-        return true;
-    case 2:
-        outSample.worldPosition = (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f;
-        return true;
-    case 0:
-    default:
-        outSample.worldPosition = trailSample.tipWorldPosition;
-        return true;
-    }
+    return Try_ResolvePreviewWeaponAnchorWorldPosition(
+        runtime.partTag,
+        runtime.sourceHistoryAnchorName,
+        runtime.sourceHistoryLocalOffset,
+        outSample.worldPosition);
 }
 
 void Animation_View::Update_PreviewWeaponRotateStates(float timeDelta)
@@ -2599,6 +4731,503 @@ void Animation_View::Reset_PreviewWeaponRotateStates()
     }
 }
 
+void Animation_View::Update_PreviewWeaponEchoStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewWeaponEchoStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+
+    auto syncPreviewEchoTrail =
+        [this, animationData, currentTimeSec, previewRootObject](
+            const wstring& echoPartTag,
+            float echoDelaySec)
+        {
+            Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+            if (ownerContainer == nullptr)
+                return;
+
+            Mon_Simon_Weapon* simonWeapon =
+                dynamic_cast<Mon_Simon_Weapon*>(ownerContainer->Get_PartObject(echoPartTag));
+            if (simonWeapon == nullptr)
+                return;
+
+            const string echoPartTagString = String::ToString(echoPartTag);
+            const float sourceTimeSec = currentTimeSec - max(0.f, echoDelaySec);
+            for (const AnimNotifyStateEntry& trailEntry : animationData->notifyStates)
+            {
+                if (trailEntry.notifyState == nullptr)
+                    continue;
+                if (trailEntry.notifyState->Get_TypeName() != "ANS_Trail")
+                    continue;
+                if (sourceTimeSec < trailEntry.startSec)
+                    continue;
+                if (sourceTimeSec > trailEntry.startSec + trailEntry.durationSec)
+                    continue;
+
+                const json trailPayload = trailEntry.notifyState->To_Json();
+                const string trailPartTagString = trailPayload.value("_partTag", string{ "Part_Weapon" });
+                if (trailPartTagString != echoPartTagString)
+                    continue;
+
+                wstring resolvedEffectName{};
+                const string effectNameValue = trailPayload.value("_effectName", string{});
+                if (!Try_ResolvePreviewTrailEffectName(effectNameValue, trailPartTagString, resolvedEffectName))
+                    continue;
+
+                const Client::ANS_Trail* trailNotifyState =
+                    dynamic_cast<const Client::ANS_Trail*>(trailEntry.notifyState.get());
+                if (trailNotifyState == nullptr)
+                    continue;
+
+                EffectCom::TrailOffsetRuntimeDesc offsetDesc{};
+                const float trailDuration = max(trailEntry.durationSec, 0.0001f);
+                offsetDesc.phase = std::clamp((sourceTimeSec - trailEntry.startSec) / trailDuration, 0.f, 1.f);
+                offsetDesc.tipExtendCurve = trailNotifyState->Get_TipExtendCurve();
+                offsetDesc.baseLocalOffsetCurve = trailNotifyState->Get_BaseLocalOffsetCurve();
+                offsetDesc.tipLocalOffsetCurve = trailNotifyState->Get_TipLocalOffsetCurve();
+
+                simonWeapon->Begin_WeaponEchoTrail(resolvedEffectName, L"Layer_Effect", offsetDesc);
+                return;
+            }
+        };
+
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_WeaponEcho")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        const json payload = entry.notifyState->To_Json();
+        const string partTagString = payload.value("_partTag", string{ "Part_Weapon" });
+        const wstring partTag = String::ToWString(partTagString);
+        const float delaySec = payload.value("_delaySec", 0.2f);
+        const string payloadJson = payload.dump();
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress =
+            entry.durationSec > 0.f
+            ? clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        PreviewWeaponEchoRuntime* runtime = nullptr;
+        for (PreviewWeaponEchoRuntime& entryRuntime : _previewWeaponEchoRuntimes)
+        {
+            if (entryRuntime.stateId == entry.id)
+            {
+                runtime = &entryRuntime;
+                break;
+            }
+        }
+
+        if (runtime == nullptr)
+        {
+            PreviewWeaponEchoRuntime newRuntime{};
+            newRuntime.stateId = entry.id;
+            newRuntime.notifyState = entry.notifyState;
+            newRuntime.partTag = partTag;
+            newRuntime.payloadJson = payloadJson;
+            _previewWeaponEchoRuntimes.push_back(std::move(newRuntime));
+            runtime = &_previewWeaponEchoRuntimes.back();
+
+            runtime->notifyState->On_Begin(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
+        }
+        else if (runtime->notifyState != entry.notifyState || runtime->payloadJson != payloadJson)
+        {
+            if (runtime->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtime->notifyState->On_End(endContext);
+            }
+
+            runtime->notifyState = entry.notifyState;
+            runtime->partTag = partTag;
+            runtime->payloadJson = payloadJson;
+            runtime->notifyState->On_Begin(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
+        }
+        else
+        {
+            runtime->partTag = partTag;
+            runtime->notifyState->On_Tick(stateContext);
+            syncPreviewEchoTrail(partTag, delaySec);
+        }
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewWeaponEchoRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewWeaponEchoRuntimes[runtimeIndex].stateId;
+        const bool stillActive =
+            std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+
+        if (stillActive)
+            continue;
+
+        AnimNotifyContext endContext = context;
+        endContext.notifyStateProgress = 1.f;
+        endContext.notifyStateDurationSec = 0.f;
+
+        if (_previewWeaponEchoRuntimes[runtimeIndex].notifyState)
+            _previewWeaponEchoRuntimes[runtimeIndex].notifyState->On_End(endContext);
+
+        _previewWeaponEchoRuntimes.erase(_previewWeaponEchoRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewWeaponEchoStates()
+{
+    if (_previewWeaponEchoRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext endContext{};
+    endContext.owner = previewRootObject.get();
+    endContext.model = playbackModel.get();
+    endContext.modelGuid = _asset.modelGuid;
+    endContext.animationName = _currentAnimationName;
+    endContext.notifyStateProgress = 1.f;
+    endContext.notifyStateDurationSec = 0.f;
+    endContext.isPreview = true;
+
+    for (PreviewWeaponEchoRuntime& runtime : _previewWeaponEchoRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(endContext);
+    }
+
+    _previewWeaponEchoRuntimes.clear();
+}
+
+void Animation_View::Update_PreviewSLDodgeMoveStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewSLDodgeMoveStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewSLDodgeMoveStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewSLDodgeMoveStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_SL_DodgeMove")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewSLDodgeMoveRuntimes.begin(),
+            _previewSLDodgeMoveRuntimes.end(),
+            [&](const PreviewSLDodgeMoveRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewSLDodgeMoveRuntimes.end())
+        {
+            PreviewSLDodgeMoveRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewSLDodgeMoveRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            entry.notifyState->On_Tick(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+
+        entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewSLDodgeMoveRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewSLDodgeMoveRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewSLDodgeMoveRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            endContext.notifyStateDurationSec = 0.f;
+            _previewSLDodgeMoveRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewSLDodgeMoveRuntimes.erase(_previewSLDodgeMoveRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewSLDodgeMoveStates()
+{
+    if (_previewSLDodgeMoveRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.notifyStateDurationSec = 0.f;
+    context.isPreview = true;
+
+    for (PreviewSLDodgeMoveRuntime& runtime : _previewSLDodgeMoveRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewSLDodgeMoveRuntimes.clear();
+}
+
+void Animation_View::Update_PreviewRootControllerStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewRootControllerStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_RootController")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewRootControllerRuntimes.begin(),
+            _previewRootControllerRuntimes.end(),
+            [&](const PreviewRootControllerRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewRootControllerRuntimes.end())
+        {
+            PreviewRootControllerRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewRootControllerRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            entry.notifyState->On_Tick(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+        }
+
+        entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewRootControllerRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewRootControllerRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewRootControllerRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            endContext.notifyStateDurationSec = 0.f;
+            _previewRootControllerRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewRootControllerRuntimes.erase(_previewRootControllerRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewRootControllerStates()
+{
+    if (_previewRootControllerRuntimes.empty())
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
+    AnimNotifyContext context{};
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
+    context.modelGuid = _asset.modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.notifyStateDurationSec = 0.f;
+    context.isPreview = true;
+
+    for (PreviewRootControllerRuntime& runtime : _previewRootControllerRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewRootControllerRuntimes.clear();
+}
+
 void Animation_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
 {
     width = max(1u, width);
@@ -2645,6 +5274,104 @@ void Animation_View::Ensure_PreviewCamera()
 
     _previewCamera->Apply_EditorDesc(desc);
     Apply_PreviewCameraTransform(_previewCamera);
+}
+
+void Animation_View::Ensure_PreviewSkyBackdrop()
+{
+    if (_previewSkyBox != nullptr)
+        return;
+
+    Shared<Client::SkyBoxFlow> skyBoxPrototype = Client::SkyBoxFlow::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyBoxPrototype == nullptr)
+        return;
+
+    Client::SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    _previewSkyBox = dynamic_pointer_cast<Client::SkyBoxFlow>(skyBoxPrototype->Clone(&skyBoxDesc));
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Set_Visible(true);
+
+    _previewSkyCloudCards.clear();
+
+    Shared<Client::SkyCloudCard> skyCloudPrototype = Client::SkyCloudCard::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (skyCloudPrototype == nullptr)
+        return;
+
+    Client::SkyCloudCard::SKYCLOUDCARD_DESC cloudDesc{};
+    cloudDesc.modelTag = TEXT("Model_Cloud_Mesh");
+    cloudDesc.shaderTag = TEXT("Shader_SkyCloudCard");
+    cloudDesc.cloudTextureTag = TEXT("Texture_T_Cloud_13_H");
+    cloudDesc.position = kPreviewSkyCloudLocalOffset;
+    cloudDesc.rotation = Vec3(-4.763f, -119.267f, -349.155f);
+    cloudDesc.scale = Vec3(1.5f, 0.9f, 0.9f);
+
+    Shared<Client::SkyCloudCard> skyCloudCard =
+        dynamic_pointer_cast<Client::SkyCloudCard>(skyCloudPrototype->Clone(&cloudDesc));
+    if (skyCloudCard != nullptr)
+    {
+        skyCloudCard->Set_Visible(true);
+        _previewSkyCloudCards.push_back(skyCloudCard);
+    }
+}
+
+void Animation_View::Update_PreviewSkyBackdrop(float timeDelta)
+{
+    if (_previewSkyBox == nullptr)
+        return;
+
+    if (_previewCamera != nullptr)
+    {
+        Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
+        if (cameraTransform != nullptr)
+        {
+            const Vec3 cameraPos = cameraTransform->Get_WorldPosition();
+            for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+            {
+                if (skyCloudCard == nullptr)
+                    continue;
+
+                Shared<TransformCom> cloudTransform = skyCloudCard->Get_Transform();
+                if (cloudTransform != nullptr)
+                    cloudTransform->Set_WorldPosition(cameraPos + kPreviewSkyCloudLocalOffset);
+            }
+        }
+    }
+
+    if (!_previewSkyBackdropBegunPlay)
+    {
+        _previewSkyBox->Try_BeginPlay();
+        for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+        {
+            if (skyCloudCard != nullptr)
+                skyCloudCard->Try_BeginPlay();
+        }
+        _previewSkyBackdropBegunPlay = true;
+    }
+
+    _previewSkyBox->Set_Visible(true);
+    _previewSkyBox->Priority_Update(timeDelta);
+    _previewSkyBox->Update(timeDelta);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard == nullptr)
+            continue;
+
+        skyCloudCard->Set_Visible(true);
+        skyCloudCard->Priority_Update(timeDelta);
+        skyCloudCard->Update(timeDelta);
+    }
+}
+
+void Animation_View::Late_Update_PreviewSkyBackdrop(float timeDelta)
+{
+    if (_previewSkyBox != nullptr)
+        _previewSkyBox->Late_Update(timeDelta);
+
+    for (const Shared<Client::SkyCloudCard>& skyCloudCard : _previewSkyCloudCards)
+    {
+        if (skyCloudCard != nullptr)
+            skyCloudCard->Late_Update(timeDelta);
+    }
 }
 
 Shared<GameObject> Animation_View::Get_PreviewRenderObject() const
@@ -2914,6 +5641,145 @@ void Animation_View::Draw_SelectedBoneMarker() const
     drawAxisLine(rightAxis * axisLength, DirectX::Colors::Red);
     drawAxisLine(upAxis * axisLength, DirectX::Colors::Lime);
     drawAxisLine(forwardAxis * axisLength, DirectX::Colors::DeepSkyBlue);
+
+    _previewGridBatch->End();
+}
+
+void Animation_View::Draw_ModifierChainDebug() const
+{
+    if (!_showModifierChainDebug)
+        return;
+
+    Shared<ModelCom> modifierModel = Get_ModifierRuntimeModel();
+    if (modifierModel == nullptr)
+        return;
+
+    PoseFollowChainModifier* poseFollowModifier = nullptr;
+    for (const Shared<AnimationModifier>& modifier : modifierModel->Get_Modifiers())
+    {
+        if (modifier == nullptr || modifier->Get_ModifierTag() != _modifierChainDebugTag)
+            continue;
+
+        poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get());
+        if (poseFollowModifier != nullptr)
+            break;
+    }
+
+    if (poseFollowModifier == nullptr)
+        return;
+
+    vector<PoseFollowChainModifier::RuntimeDebugNode> nodes{};
+    poseFollowModifier->Build_RuntimeDebugNodes(modifierModel.get(), nodes);
+    if (nodes.empty())
+        return;
+
+    Matrix debugCorrection = Matrix::Identity;
+    if (const Shared<GameObject> modelOwner = modifierModel->Get_Owner())
+    {
+        if (const Shared<PartObject> partOwner = dynamic_pointer_cast<PartObject>(modelOwner))
+        {
+            Matrix sourceWorld = Matrix::Identity;
+            if (const Shared<GameObject> parentOwner = partOwner->Get_Owner())
+            {
+                if (const Shared<TransformCom> parentTransform = parentOwner->Get_Transform())
+                    sourceWorld = parentTransform->Get_WorldMatrix();
+            }
+
+            debugCorrection = sourceWorld.Invert() * partOwner->Get_CombinedWorldMatrix();
+        }
+    }
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    unordered_map<size_t, size_t> nodeLookup{};
+    nodeLookup.reserve(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i)
+    {
+        const uint64 key = (static_cast<uint64>(nodes[i].groupIndex) << 32) | static_cast<uint32>(nodes[i].nodeIndex);
+        nodeLookup.emplace(static_cast<size_t>(key), i);
+    }
+
+    const auto findNode =
+        [&](size_t groupIndex, int32 nodeIndex) -> const PoseFollowChainModifier::RuntimeDebugNode*
+    {
+        if (nodeIndex < 0)
+            return nullptr;
+
+        const uint64 key = (static_cast<uint64>(groupIndex) << 32) | static_cast<uint32>(nodeIndex);
+        const auto it = nodeLookup.find(static_cast<size_t>(key));
+        if (it == nodeLookup.end())
+            return nullptr;
+
+        return &nodes[it->second];
+    };
+
+    const auto drawLine =
+        [&](const Vec3& start, const Vec3& end, const XMVECTORF32& color)
+    {
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(Vec3::Transform(start, debugCorrection), color),
+            DirectX::VertexPositionColor(Vec3::Transform(end, debugCorrection), color));
+    };
+
+    const auto drawCross =
+        [&](const Vec3& center, float radius, const XMVECTORF32& color)
+    {
+        drawLine(center + Vec3(-radius, 0.f, 0.f), center + Vec3(radius, 0.f, 0.f), color);
+        drawLine(center + Vec3(0.f, -radius, 0.f), center + Vec3(0.f, radius, 0.f), color);
+        drawLine(center + Vec3(0.f, 0.f, -radius), center + Vec3(0.f, 0.f, radius), color);
+    };
+
+    _previewGridBatch->Begin();
+
+    for (const auto& node : nodes)
+    {
+        const auto* parent = findNode(node.groupIndex, node.parentNodeIndex);
+        if (parent != nullptr)
+        {
+            drawLine(parent->posePosition, node.posePosition, DirectX::Colors::DeepSkyBlue);
+
+            const float writeAlpha = std::clamp(node.writeAlpha, 0.f, 1.f);
+            XMVECTORF32 simulatedColor = DirectX::Colors::Red;
+            if (node.isVirtualAnchor)
+                simulatedColor = DirectX::Colors::Gray;
+            else if (writeAlpha > 0.02f)
+                simulatedColor = XMVECTORF32{ { 1.f - writeAlpha, 1.f, 0.10f, 1.f } };
+
+            drawLine(parent->simulatedPosition, node.simulatedPosition, simulatedColor);
+        }
+
+        const float pointRadius = node.isRootNode ? 0.055f : 0.035f;
+        XMVECTORF32 pointColor = DirectX::Colors::Lime;
+        if (node.isVirtualAnchor)
+            pointColor = DirectX::Colors::Gray;
+        else if (node.writeAlpha <= 0.02f)
+            pointColor = DirectX::Colors::Red;
+        else if (node.isRootNode)
+            pointColor = DirectX::Colors::Orange;
+
+        drawCross(node.simulatedPosition, pointRadius, pointColor);
+    }
 
     _previewGridBatch->End();
 }
@@ -3301,9 +6167,22 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
         const json payload = activeState->notifyState->To_Json();
         const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
         const string effectNameValue = payload.value("_effectName", string{});
-        const int32 sourceBindingMode = payload.value("_sourceBindingMode", 0);
+        int32 sourceBindingMode = payload.value("_sourceBindingMode", 2);
+        if (sourceBindingMode == 0)
+            sourceBindingMode = 2;
         const string socketName = payload.value("_socketName", string{});
-        const int32 sourcePointPolicy = payload.value("_sourcePointPolicy", 0);
+        string sourceHistoryAnchorName = payload.value("_sourceHistoryAnchorName", string{ "Source" });
+        if (sourceHistoryAnchorName.empty())
+            sourceHistoryAnchorName = "Source";
+        Vec3 sourceHistoryLocalOffset = Vec3::Zero;
+        if (payload.contains("_sourceHistoryLocalOffset") &&
+            payload["_sourceHistoryLocalOffset"].is_array() &&
+            payload["_sourceHistoryLocalOffset"].size() >= 3)
+        {
+            sourceHistoryLocalOffset.x = payload["_sourceHistoryLocalOffset"][0].get<float>();
+            sourceHistoryLocalOffset.y = payload["_sourceHistoryLocalOffset"][1].get<float>();
+            sourceHistoryLocalOffset.z = payload["_sourceHistoryLocalOffset"][2].get<float>();
+        }
         if (effectNameValue.empty())
             continue;
 
@@ -3326,12 +6205,10 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             newRuntime.partTag = partTag;
             newRuntime.sourceBindingMode = sourceBindingMode;
             newRuntime.socketName = socketName;
-            newRuntime.sourcePointPolicy = sourcePointPolicy;
+            newRuntime.sourceHistoryAnchorName = sourceHistoryAnchorName;
+            newRuntime.sourceHistoryLocalOffset = sourceHistoryLocalOffset;
             _previewSourceHistoryRuntimes.push_back(std::move(newRuntime));
             runtime = &_previewSourceHistoryRuntimes.back();
-
-            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
-                continue;
         }
 
         if (runtime->isDraining)
@@ -3345,12 +6222,14 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
+            runtime->trailAnchorAsset = {};
         }
 
         if (runtime->partTag != partTag ||
             runtime->sourceBindingMode != sourceBindingMode ||
             runtime->socketName != socketName ||
-            runtime->sourcePointPolicy != sourcePointPolicy)
+            runtime->sourceHistoryAnchorName != sourceHistoryAnchorName ||
+            runtime->sourceHistoryLocalOffset != sourceHistoryLocalOffset)
         {
             if (runtime->effect)
                 runtime->effect->Stop();
@@ -3358,20 +6237,25 @@ void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
             runtime->partTag = partTag;
             runtime->sourceBindingMode = sourceBindingMode;
             runtime->socketName = socketName;
-            runtime->sourcePointPolicy = sourcePointPolicy;
+            runtime->sourceHistoryAnchorName = sourceHistoryAnchorName;
+            runtime->sourceHistoryLocalOffset = sourceHistoryLocalOffset;
             runtime->effect.reset();
             runtime->effectName.clear();
             runtime->isPlaying = false;
             runtime->isDraining = false;
             runtime->drainElapsed = 0.f;
             runtime->lastTimeSec = -1.f;
-
-            if (runtime->sourceBindingMode == 0 && !Load_PreviewSourceHistoryAnchorAsset(runtime->partTag, *runtime))
-                continue;
         }
 
-        if (runtime->sourceBindingMode == 0 && runtime->trailAnchorAsset.modelGuid.empty())
-            continue;
+        if (runtime->sourceBindingMode == 3 && runtime->trailAnchorAsset.modelGuid.empty())
+        {
+            PreviewTrailRuntime trailRuntime{};
+            if (!Load_PreviewTrailAnchorAsset(runtime->partTag, trailRuntime))
+                continue;
+
+            runtime->modelGuid = trailRuntime.modelGuid;
+            runtime->trailAnchorAsset = trailRuntime.trailAnchorAsset;
+        }
 
         if (!Ensure_PreviewSourceHistoryEffect(*runtime, resolvedEffectName))
             continue;
@@ -3587,6 +6471,11 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         if (activeTrailState == nullptr || activeTrailState->notifyState == nullptr)
             continue;
 
+        const Client::ANS_Trail* trailNotifyState =
+            dynamic_cast<const Client::ANS_Trail*>(activeTrailState->notifyState.get());
+        if (trailNotifyState == nullptr)
+            continue;
+
         activeStateIds.push_back(activeTrailState->id);
 
         const json payload = activeTrailState->notifyState->To_Json();
@@ -3650,6 +6539,12 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
 
         if (runtime->trailAnchorAsset.modelGuid.empty())
             continue;
+
+        const float stateDuration = max(activeTrailState->durationSec, 0.0001f);
+        runtime->offsetPhase = std::clamp((currentTimeSec - activeTrailState->startSec) / stateDuration, 0.f, 1.f);
+        runtime->tipExtendCurve = trailNotifyState->Get_TipExtendCurve();
+        runtime->baseLocalOffsetCurve = trailNotifyState->Get_BaseLocalOffsetCurve();
+        runtime->tipLocalOffsetCurve = trailNotifyState->Get_TipLocalOffsetCurve();
 
         if (!Ensure_PreviewTrailEffect(*runtime, resolvedEffectName))
             continue;
@@ -3848,11 +6743,13 @@ bool Animation_View::Try_ResolvePreviewTrailEffectName(
         return true;
     }
 
-    const Weapon* weapon = Resolve_PreviewWeapon(String::ToWString(partTag));
-    if (weapon == nullptr)
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
         return false;
 
-    outEffectName = weapon->Get_TrailEffectName(); // preview도 runtime과 같은 fallback 규칙을 써야 한다.
+    const PartObject* partObject = ownerContainer->Get_PartObject(String::ToWString(partTag));
+    outEffectName = Resolve_PreviewDefaultTrailEffectName(partObject);
     return !outEffectName.empty();
 }
 
@@ -3917,11 +6814,11 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
         return false;
 
     const wstring previewTrailPartTag = String::ToWString(partTag);
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(previewTrailPartTag));
-    if (weaponPart == nullptr)
+    PartObject* trailPart = ownerContainer->Get_PartObject(previewTrailPartTag);
+    if (Resolve_PreviewTrailPartModel(trailPart) == nullptr)
         return false;
 
-    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    const Shared<ModelCom> weaponModel = Resolve_PreviewTrailPartModel(trailPart);
     if (weaponModel == nullptr)
         return false;
 
@@ -3933,14 +6830,72 @@ bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
     if (boneMatrix == nullptr)
         return false;
 
-    const Matrix anchorWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    const Matrix anchorWorldMatrix = *boneMatrix * trailPart->Get_CombinedWorldMatrix();
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
+}
+
+bool Animation_View::Try_ResolvePreviewWeaponAnchorWorldPosition(
+    const string& partTag,
+    const string& anchorName,
+    const Vec3& localOffset,
+    Vec3& outWorldPosition) const
+{
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    const wstring previewPartTag = String::ToWString(partTag);
+    const PartObject* weaponPart = ownerContainer->Get_PartObject(previewPartTag);
+
+    const Client::WeaponSourceHistoryAnchorDesc* anchor = nullptr;
+    Shared<ModelCom> weaponModel = nullptr;
+
+    if (const Weapon* weapon = dynamic_cast<const Weapon*>(weaponPart))
+    {
+        anchor = weapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = weapon->Get_Model();
+    }
+    else if (const Client::Mon_Simon_Weapon* simonWeapon = dynamic_cast<const Client::Mon_Simon_Weapon*>(weaponPart))
+    {
+        anchor = simonWeapon->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = simonWeapon->Get_Model();
+    }
+    else if (const Client::Mon_Dualliste_Sword_L* swordL = dynamic_cast<const Client::Mon_Dualliste_Sword_L*>(weaponPart))
+    {
+        anchor = swordL->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordL->Get_Model();
+    }
+    else if (const Client::Mon_Dualliste_Sword_R* swordR = dynamic_cast<const Client::Mon_Dualliste_Sword_R*>(weaponPart))
+    {
+        anchor = swordR->Find_SourceHistoryAnchor(anchorName);
+        weaponModel = swordR->Get_Model();
+    }
+
+    if (anchor == nullptr || anchor->boneName.empty())
+        return false;
+
+    if (weaponModel == nullptr)
+        return false;
+
+    const int32 boneIndex = weaponModel->Get_BoneIndex(anchor->boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = weaponModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix sourceWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    outWorldPosition = Vec3::Transform(anchor->localPosition + localOffset, sourceWorldMatrix);
     return true;
 }
 
 bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
     const string& partTag,
     const string& socketName,
+    const Vec3& localOffset,
     Vec3& outWorldPosition) const
 {
     if (socketName.empty())
@@ -3963,18 +6918,18 @@ bool Animation_View::Try_ResolvePreviewSocketWorldPosition(
             return false;
 
         const Matrix socketWorldMatrix = *socketMatrix * playablePart->Get_CombinedWorldMatrix();
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }
 
-    if (const auto* weaponPart = dynamic_cast<Weapon*>(partObject))
+    if (Resolve_PreviewTrailPartModel(partObject) != nullptr)
     {
-        const Matrix* socketMatrix = weaponPart->Get_SocketBoneMatrixPtr(socketName);
+        const Matrix* socketMatrix = Resolve_PreviewTrailPartSocketMatrix(partObject, socketName);
         if (socketMatrix == nullptr)
             return false;
 
-        const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        const Matrix socketWorldMatrix = *socketMatrix * partObject->Get_CombinedWorldMatrix();
+        outWorldPosition = Vec3::Transform(localOffset, socketWorldMatrix);
         return true;
     }
 
@@ -4102,7 +7057,7 @@ Editor_Camera_Free::EDITOR_CAMERA_DESC Animation_View::Build_PreviewCameraDesc(c
     desc.at = XMFLOAT4(0.25f, 1.0f, 0.f, 1.f);
     desc.fovy = XM_PIDIV4;
     desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
+    desc.farPlane = 500.f;
     desc.yaw = 0.f;
     desc.pitch = 0.f;
     desc.mouseSensor = 0.15f;
@@ -4249,9 +7204,20 @@ void Animation_View::Clear_SelectedNotifySelection()
     _selectedNotifyIds.clear();
 }
 
+void Animation_View::Clear_SelectedStateSelection()
+{
+    _selectedStateId = -1;
+    _selectedStateIds.clear();
+}
+
 bool Animation_View::Is_NotifySelected(int32 notifyId) const
 {
     return _selectedNotifyIds.find(notifyId) != _selectedNotifyIds.end();
+}
+
+bool Animation_View::Is_StateSelected(int32 stateId) const
+{
+    return _selectedStateIds.find(stateId) != _selectedStateIds.end();
 }
 
 Shared<Animation_View> Animation_View::Create()

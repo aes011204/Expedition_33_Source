@@ -175,19 +175,19 @@ struct alignas(16) PostProcessCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::PostProcess;
 
-    float exposure = 1.1f;                   // 키우면 밝아짐
+    float exposure = 1.1f;                  // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
-    float gamma = 1.05f;                     // 선형 색상을 sRGB에 가깝게 변환함
+    float gamma = 1.05f;                    // 선형 색상을 sRGB에 가깝게 변환함
     float bloomRadius = 0.5f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
-    float bloomThreshold = 0.95f;            // Bloom 추출 기준
-    float bloomIntensity = 0.13f;            // Bloom 의 강도
+    float bloomThreshold = 0.95f;           // Bloom 추출 기준
+    float bloomIntensity = 0.115f;          // Bloom 의 강도
     float bloomSoftKnee = 0.7f;             // Bloom Threshold 경계선을 부드럽게 만드는 값
     float bloomClamp = 10.f;                // Bloom 추출 시 너무 강하지 않게 제한 값
 
     float bloomScatter = 0.7f;              // Bloom 이 얼마나 퍼져 보일지 조정하는 값
     uint32 toneMapMode = 2;                 // 0: Reinhard, 1: ACES, 2: Uncharted2
-        
+
     uint32 featureMask = 0;                 // 적용할 Feature
     uint32 useBackgroundFallback = 0;       // 0이면 비활성, 1이면 빈 픽셀 fallback 색 적용
     float _pad2[4]{};

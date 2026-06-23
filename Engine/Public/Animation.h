@@ -20,6 +20,7 @@ public:
     float   Get_CurrentTimeSec() const;
 
     void    Set_CurrentTimeSec(float timeSec);
+    void    Set_StartTimeSec(float startSec);
     void    Evaluate_CurrentPose(const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop);
 
     float   Get_Progress() const;

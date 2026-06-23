@@ -25,6 +25,12 @@ enum class Collision_Channel : uint32
     WorldActionTrigger = 1 << 15,
     Monster_WeakPoint = 1 << 16,
 
+    SL_PlayerBody = 1 << 17,
+    SL_PlayerAttack = 1 << 18,
+    SL_MonsterBody = 1 << 19,
+    SL_MonsterAttack = 1 << 20,
+    SL_TargetSensor = 1 << 21,
+
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
 };
@@ -49,6 +55,12 @@ enum class Collision_Preset
     Camera,
     Monster_WeakPoint,
     Player_WeakPointTarget,
+
+    SL_PlayerBody,
+    SL_PlayerAttack,
+    SL_MonsterBody,
+    SL_MonsterAttack,
+    SL_TargetSensor,
 
     END
 };
@@ -202,7 +214,8 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
 
     { Collision_Channel::Trigger,
     /* overlapMask */ ETOI(Collision_Channel::Player) |
-                      ETOI(Collision_Channel::Player_Body),
+                      ETOI(Collision_Channel::Player_Body) |
+                      ETOI(Collision_Channel::Player_WorldBody),
     /* blockMask   */ 0
     },
 
@@ -215,6 +228,8 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Monster_Body) |
                       ETOI(Collision_Channel::Monster_WorldBody) |
+                      ETOI(Collision_Channel::SL_PlayerBody) |
+                      ETOI(Collision_Channel::SL_MonsterBody) |
                       ETOI(Collision_Channel::Camera)
     },
 
@@ -243,6 +258,37 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::Player_Target,
     /* overlapMask */ ETOI(Collision_Channel::Monster_WeakPoint),
     /* blockMask   */ 0
+    },
+
+    // SL_PlayerBody: SL 모드 플레이어 본체/피격용. 월드 전투 진입 preset과 분리한다.
+    { Collision_Channel::SL_PlayerBody,
+      ETOI(Collision_Channel::SL_MonsterAttack),
+      ETOI(Collision_Channel::Enviroment)
+    },
+
+    // SL_PlayerAttack: Maelle 무기/스킬 공격 판정. SL 몬스터 body만 때린다.
+    { Collision_Channel::SL_PlayerAttack,
+      ETOI(Collision_Channel::SL_MonsterBody),
+      0
+    },
+
+    // SL_MonsterBody: SL 몬스터 본체/피격/락온 후보. PlayerAttack과 TargetSensor만 받는다.
+    { Collision_Channel::SL_MonsterBody,
+      ETOI(Collision_Channel::SL_PlayerAttack) |
+      ETOI(Collision_Channel::SL_TargetSensor),
+      ETOI(Collision_Channel::Enviroment)
+    },
+
+    // SL_MonsterAttack: SL 몬스터 공격 판정. SL 플레이어 body만 때린다.
+    { Collision_Channel::SL_MonsterAttack,
+      ETOI(Collision_Channel::SL_PlayerBody),
+      0
+    },
+
+    // SL_TargetSensor: SL_TargetCom의 후보 탐색 sphere. SL 몬스터 body만 찾는다.
+    { Collision_Channel::SL_TargetSensor,
+      ETOI(Collision_Channel::SL_MonsterBody),
+      0
     },
 };
 

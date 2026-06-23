@@ -4,6 +4,7 @@
 #include "Mon_PotatoBag_Shield.h"
 #include "Mon_WeakPoint.h"
 #include "MonsterStatCom.h"
+#include "EffectCom.h"
 
 IMPLEMENT_REFLECTION(MB_PotatoBag)
 {
@@ -37,14 +38,14 @@ HRESULT MB_PotatoBag::Initialize(void* arg)
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
-
     _combatStat->Set_Skill("PotatoBag_AttShield");
     _combatStat->Set_Skill("PotatoBag_AttWeapon");
     _combatStat->Set_Skill("PotatoBag_AttAoE");
     _combatStat->Set_Skill("PotatoBag_AttShieldGun");
     _combatStat->Set_Skill("PotatoBag_Lighting");
+    _combatStat->Set_Skill("PotatoBag_DefenseMod");
 
-	Get_Transform()->Set_SpeedPerSec(4.f);
+    Get_Transform()->Set_SpeedPerSec(4.f);
 
     return S_OK;
 }
@@ -55,6 +56,31 @@ void MB_PotatoBag::Update(float timeDelta)
 
     if (_body)
         _body->Play_Animation(timeDelta);
+}
+
+bool MB_PotatoBag::Try_Consume_FreeAimWeakPoint()
+{
+    const auto Eff = _shield->Get_Component<EffectCom>();
+    if (!Eff)
+        return false;
+    
+    Eff->Start_VanishDissolve(.5f, "T_Perlin_Noise_M",  true);
+    _curPhase = NoShield;
+
+    return Monster_BattleBase::Try_Consume_FreeAimWeakPoint();
+}
+
+Monster_BattleBase::BattlePhase MB_PotatoBag::Get_CurPhase() const
+{
+    if (Get_HpRatio() > 0.9f)
+        return BattlePhase::Opening;
+    if (_curPhase == Defense)
+        return BattlePhase::Mid;
+    else if (_curPhase == NoShield)
+        return BattlePhase::Critical;
+
+
+    return BattlePhase::Opening;
 }
 
 bool MB_PotatoBag::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
@@ -117,6 +143,18 @@ HRESULT MB_PotatoBag::Ready_PartObjects()
     CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
+}
+
+bool MB_PotatoBag::Should_AppendPreTurnEndPhase(const ActionRequest& request) const
+{
+
+
+    if (Get_CurPhase() == BattlePhase::Mid)
+        return true;
+    else
+        return false;
+
+    return false;
 }
 
 Shared<MB_PotatoBag> MB_PotatoBag::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

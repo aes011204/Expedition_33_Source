@@ -1,15 +1,13 @@
-﻿#include "pch.h"
-#include "SkillTargeting.h"
+﻿#include "SkillTargeting.h"
 #include <Battle_Event.h>
 #include "GameInstance.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "CameraPresetTypes.h"
 #include "Event_Bus.h"
+#include "ClientInstance.h"
 
-NS_BEGIN(Client)
-
-    SkillTargeting::SkillTargeting(const Shared<BattleController>& owner)
+SkillTargeting::SkillTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -41,6 +39,16 @@ bool SkillTargeting::EnterInvoke()
     {
         owner->Clear_TargetPreview();
         return false;
+    }
+
+    const auto& request = owner->Get_TurnActionRequest();
+    const Skill_Data* skillData = CLIENT->Get_Skill(request.skillKey);
+    const bool requiresTarget = Requires_SkillTarget(skillData);
+
+    if (!requiresTarget)
+    {
+        owner->Clear_TargetPreview();
+        return Battle_State::EnterInvoke();
     }
 
     owner->Set_TargetPreview(enemies[_targetIndex]);
@@ -75,6 +83,9 @@ void SkillTargeting::Update(float timeDelta)
     if (_targetIndex >= enemies.size())
         _targetIndex = 0;
 
+    const Skill_Data* skillData = CLIENT->Get_Skill(owner->Get_TurnActionRequest().skillKey);
+    const bool requiresManualTarget = Requires_SkillTarget(skillData);
+
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         owner->Clear_TargetPreview();
@@ -88,12 +99,10 @@ void SkillTargeting::Update(float timeDelta)
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::A))
+    if (requiresManualTarget && GAME->KeyDown(KEY_TYPE::A))
     {
         if (Try_MoveTargetIndex(-1, enemies.size()))
             owner->Set_TargetPreview(enemies[_targetIndex]);
-
-        owner->Set_TargetPreview(enemies[_targetIndex]);
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
@@ -103,28 +112,28 @@ void SkillTargeting::Update(float timeDelta)
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::D))
+    if (requiresManualTarget && GAME->KeyDown(KEY_TYPE::D))
     {
         if (Try_MoveTargetIndex(+1, enemies.size()))
             owner->Set_TargetPreview(enemies[_targetIndex]);
-
-        owner->Set_TargetPreview(enemies[_targetIndex]);
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
         event.subject = enemies[_targetIndex].actor;
         event.presetId = enemies[_targetIndex].actor->Get_SourcePrefabName();
         GAME->Get_EventBus().Publish(event);
-
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::F))
     {
-        owner->Set_TargetPreview(enemies[_targetIndex]);
+        if (requiresManualTarget)
+            owner->Set_TargetPreview(enemies[_targetIndex]);
+        else
+            owner->Clear_TargetPreview();
 
         auto& action = owner->Get_TurnActionRequest();
-        action.InitTarget = enemies[_targetIndex]; // 여기서 선택 스킬 + 선택 타겟
+        action.InitTarget = enemies[_targetIndex];
 
         LOG_DEBUG("SkillTargeting: confirm skill={}, targetIndex={}",
             action.skillKey.c_str(),
@@ -159,6 +168,20 @@ bool SkillTargeting::Try_MoveTargetIndex(int32 direction, size_t enemyCount)
     return true;
 }
 
+bool SkillTargeting::Requires_SkillTarget(const Skill_Data* skillData)
+{
+    if (skillData == nullptr)
+        return true;
+
+    for (TargetType targetType : skillData->targetingType)
+    {
+        if (targetType == TargetType::Primary || targetType == TargetType::PrimaryJump)
+            return true; // Primary 계열만 Targeting이 되도록
+    }
+
+    return false;
+}
+
 void SkillTargeting::Free()
 {
     Battle_State::Free();
@@ -173,5 +196,3 @@ Shared<SkillTargeting> SkillTargeting::Create(const Shared<BattleController>& ow
 
     return instance;
 }
-
-NS_END

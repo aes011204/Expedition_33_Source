@@ -10,6 +10,9 @@ NS_END
 
 NS_BEGIN(Client)
 
+class SL_Base;
+class CombatStatCom;
+
 class UI_BossHpBar final : public UI_RuntimePanelBase
 {
 public:

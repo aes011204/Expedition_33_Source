@@ -34,9 +34,7 @@ HRESULT ColliderCom::Initialize_Prototype()
 {
     CHECK_FAILED(Component::Initialize_Prototype(), E_FAIL);
 
-#ifdef _DEBUG
     CHECK_FAILED(Ready_DebugRenderResources(), E_FAIL);
-#endif
 
     return S_OK;
 }
@@ -54,10 +52,8 @@ HRESULT ColliderCom::Initialize(void* arg)
 {
     CHECK_FAILED(Component::Initialize(arg), E_FAIL);
 
-#ifdef _DEBUG
     if (nullptr == _batch || nullptr == _effect || nullptr == _inputLayout)
         CHECK_FAILED(Ready_DebugRenderResources(), E_FAIL);
-#endif
 
     if (nullptr == arg)
         return E_FAIL;
@@ -384,7 +380,6 @@ void ColliderCom::Set_ShapeDesc(const ColliderShapeDesc& shapeDesc)
     }
 }
 
-#ifdef _DEBUG
 HRESULT ColliderCom::Ready_DebugRenderResources()
 {
     static constexpr D3D11_INPUT_ELEMENT_DESC kDebugInputElements[] =
@@ -418,8 +413,6 @@ HRESULT ColliderCom::Ready_DebugRenderResources()
 
     return S_OK;
 }
-
-#endif
 
 void ColliderCom::Release_PhysX()
 {
@@ -689,7 +682,6 @@ void ColliderCom::Update_PhysXGeometry(const Matrix& worldMatrix)
     }
 }
 
-#ifdef _DEBUG
 HRESULT ColliderCom::Render_Debug()
 {
     if (nullptr == _bounding || nullptr == _batch || nullptr == _effect || nullptr == _inputLayout)
@@ -731,7 +723,6 @@ HRESULT ColliderCom::Render_Debug()
 
     return S_OK;
 }
-#endif
 
 Shared<ColliderCom> ColliderCom::Create(
     const ComPtr<Device>& device,
@@ -774,9 +765,7 @@ void ColliderCom::Free()
     _bounding = nullptr;
     _overlapSet.clear();
 
-#ifdef _DEBUG
     _batch.reset();
     _effect.reset();
     _inputLayout.Reset();
-#endif
 }

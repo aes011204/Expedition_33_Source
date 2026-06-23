@@ -12,12 +12,12 @@
 NS_BEGIN(Engine)
 class Character;
 class Camera;
-class BattleAction;
 NS_END
 
 NS_BEGIN(Client)
 
 class SkillScript;
+class BattleAction;
 
 class BattleActionExecutor;
 
@@ -68,7 +68,9 @@ public:
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-        const Shared<GameObject>& sourceObject = nullptr);
+        const Shared<GameObject>& sourceObject = nullptr,
+        bool completeImmediately = false);
+    void Cancel_BattleEnterPending();
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
@@ -110,6 +112,7 @@ public:
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AllEnemies() { return _enemies; };
     vector<BattleChar> Get_AliveHeroes();
+    bool Will_NextScheduledTurnBePlayer(const BattleChar& currentActor) const;
 
     BattleReactionController& Get_ReactionController() { return _reactionController; }
     const BattleReactionController& Get_ReactionController() const { return _reactionController; }
@@ -179,6 +182,15 @@ public:
 
     // 스킬 스크립트가 다단히트를 예약할 때 사용
     BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
+    void Queue_DelayedEchoAttackStep(
+            float delaySec,
+            const BattleChar& attacker,
+            const vector<BattleChar>& targets,
+            const BattleChar& reactionTarget,
+            uint32 sourceStepIndex,
+            uint32 consumeKey,
+            AttackType attackType,
+            float powerMultiplier);
 
     bool Is_QTEActive() const;
     bool Has_LastQTEResult() const;
@@ -242,7 +254,21 @@ private:
     bool Try_BeginTurnStartStatusAnnounce();
     void Continue_StartTurnAfterStatusEffects();
 
+    struct DelayedEchoAttackStep
+    {
+        float remainingSec = 0.f;
+        BattleChar attacker = {};
+        vector<BattleChar> targets = {};
+        BattleChar reactionTarget = {};
+        uint32 sourceStepIndex = UINT32_MAX;
+        uint32 consumeKey = UINT32_MAX;
+        AttackType attackType = AttackType::BaseAttack;
+        float powerMultiplier = 1.f;
+    };
 
+    void Update_DelayedEchoAttackSteps(float timeDelta);
+    void Apply_DelayedEchoAttackStep(const DelayedEchoAttackStep& step);
+    void Clear_DelayedEchoAttackSteps();
 
 private:
     using BattleReactionInputResult = BattleReactionController::BattleReactionInputResult;
@@ -333,6 +359,7 @@ private:
     Shared<BattleQTEController>  _qteController{};
     BattleReactionController     _reactionController{};
     BattleHitSequenceRunner      _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
+    vector<DelayedEchoAttackStep> _delayedEchoAttackSteps{};
     Shared<BattleResultRecoder>  _battleResultRecoder{};
 
     Shared<PictosBattleSystem>   _pictosBattleSystem{};  // 픽토스
@@ -386,6 +413,8 @@ private:
 
     vector<Buffs> _processedTurnStartStatuses = {};
     bool          _isWaitingTurnStartStatusHit = false;
+
+    uint32      _activeBattleFieldID = 0;
 
 public:
     static Shared<BattleController> Create();

@@ -19,6 +19,7 @@
 #include "UI_Text.h"
 #include "UI_Utils.h"
 #include "UIPreviewManager.h"
+#include "GradientSkill.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -75,7 +76,7 @@ namespace
     {
         const auto previewLayout = Build_ChangeSkillPreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);
-        CLIENT->Show_Preview(heroId, PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(heroId, PreviewShotPanel::ChangeSkill);
     }
 
     // 스킬 장착 틴트 색
@@ -117,7 +118,7 @@ void ChangeSkill_Panel::Open()
     if (_selectedHeroId == HeroId::END)
         _selectedHeroId = Get_DefaultSelectedHeroId();
 
-    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree); // Character Progression 하위 메뉴도 같은 preview shot을 이어서 쓴다.
+    CLIENT->Begin_Preview(PreviewShotPanel::ChangeSkill); // Character Progression 하위 메뉴도 같은 preview shot을 이어서 쓴다.
     Show_ChangeSkillPreview(_selectedHeroId);
     CLIENT->Play_PreviewAnimation(_selectedHeroId, PreviewAnimState::Skill_Intro, PreviewAnimState::Skill_Idle);
 
@@ -454,7 +455,7 @@ void ChangeSkill_Panel::Refresh_CurrentSkills(const Shared<PlayerStatCom>& statC
             _currentSkillEmptyLines[i]->Close();
     }
 
-    // 6번째 슬롯은 일반 스킬 overflow가 아니라 추후 Gradient 스킬 전용 슬롯으로 비워 둔다.
+    Refresh_GradientSkillSlot(Resolve_SelectedSkillTree()); // 6번째 슬롯은 교체 대상이 아니라 고정 Gradient 표시 슬롯
 }
 
 Shared<PlayerStatCom> ChangeSkill_Panel::Resolve_SelectedPlayerStat() const
@@ -519,7 +520,15 @@ void ChangeSkill_Panel::Refresh_AvailableSkills()
         return;
     }
 
-    const vector<string>& unlockedSkillIds = skillTreeCom->Get_UnlockedSkillIds();
+    vector<string> unlockedSkillIds = skillTreeCom->Get_UnlockedSkillIds();
+    unlockedSkillIds.erase(
+        remove_if(unlockedSkillIds.begin(), unlockedSkillIds.end(),
+            [this](const string& skillId)
+            {
+                return GradientSkill::Is_GradientSkill(_selectedHeroId, skillId);
+            }),
+        unlockedSkillIds.end());
+
     if (FAILED(Ensure_AvailableSkillSlotCount(unlockedSkillIds.size())))
         return;
 
@@ -697,11 +706,15 @@ vector<string> ChangeSkill_Panel::Build_CurrentNormalSkillKeys(const Shared<Play
             skillKeys = skillTreeCom->Get_UnlockedSkillIds(); // UI 표시와 전투 초기 장착 기준을 같은 데이터로 맞춘다.
     }
 
-    if (skillKeys.size() > NormalSkillSlotCount)
-        skillKeys.resize(NormalSkillSlotCount);
-    else
-        skillKeys.resize(NormalSkillSlotCount);
+    skillKeys.erase(
+        remove_if(skillKeys.begin(), skillKeys.end(),
+            [this](const string& skillKey)
+            {
+                return GradientSkill::Is_GradientSkill(_selectedHeroId, skillKey);
+            }),
+        skillKeys.end());
 
+    skillKeys.resize(GradientSkill::NormalSkillSlotCount);
     return skillKeys;
 }
 
@@ -736,6 +749,29 @@ void ChangeSkill_Panel::Refresh_CurrentSkillButtonFocus()
 
     if (_gradientButton)
         _gradientButton->Set_Focused(false);
+}
+
+void ChangeSkill_Panel::Refresh_GradientSkillSlot(const Shared<SkillTreeCom>& skillTreeCom)
+{
+    const char* gradientSkillKey = GradientSkill::Resolve_SkillKey(_selectedHeroId);
+    if (gradientSkillKey[0] == '\0' || skillTreeCom == nullptr || !skillTreeCom->IsUnlocked(gradientSkillKey))
+        return;
+
+    const GameDataTable::SkillTreeDesc* skillTreeDesc = CLIENT->Get_SkillTreeDesc(gradientSkillKey);
+
+    Set_Text(_gradientText, skillTreeDesc ? skillTreeDesc->skillName : String::ToWString(gradientSkillKey));
+    Set_IntText(_gradientGpText, skillTreeDesc ? skillTreeDesc->useCost : 0);
+    Set_IntText(_gradientGpBgText, skillTreeDesc ? skillTreeDesc->useCost : 0);
+
+    const wstring portraitPath = Resolve_SkillPortraitTexturePath(_selectedHeroId, skillTreeDesc);
+    if (_gradientIconImage && !portraitPath.empty())
+    {
+        _gradientIconImage->Set_TexturePath(portraitPath);
+        _gradientIconImage->Open();
+    }
+
+    if (_gradientEmptyLine)
+        _gradientEmptyLine->Close();
 }
 
 void ChangeSkill_Panel::Apply_PreviewOverrides()

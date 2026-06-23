@@ -41,6 +41,26 @@ namespace EffectAssetRuntimeLoad::Emitters
         return nullptr;
     }
 
+    void Fill_SourceMotionVelocityPayload(PointParticleMotionDesc& desc, const json& sourceMotionVelocity)
+    {
+        desc.enabled = true;
+        desc.sourceMotionVelocityEnabled = true;
+        Read_Enum(sourceMotionVelocity, "directionMode", desc.sourceMotionVelocityDirectionMode);
+        desc.sourceMotionVelocitySourceSpeedScale =
+            max(0.f, Read_Float(sourceMotionVelocity, "sourceSpeedScale", desc.sourceMotionVelocitySourceSpeedScale));
+        desc.sourceMotionVelocitySpreadAngleDegrees =
+            clamp(Read_Float(sourceMotionVelocity, "spreadAngleDegrees", desc.sourceMotionVelocitySpreadAngleDegrees), 0.f, 180.f);
+
+        if (const auto speedIter = sourceMotionVelocity.find("speed"); speedIter != sourceMotionVelocity.end())
+        {
+            desc.sourceMotionVelocitySpeed = Vec2{
+                Evaluate_FloatDistributionMin(*speedIter, desc.sourceMotionVelocitySpeed.x),
+                Evaluate_FloatDistributionMax(*speedIter, desc.sourceMotionVelocitySpeed.y)
+            };
+            desc.sourceMotionVelocitySeed = Read_DistributionRandomSeedDesc(*speedIter, &sourceMotionVelocity);
+        }
+    }
+
     string Resolve_RendererType(const json& emitter)
     {
         string rendererType = Read_String(emitter, "rendererType");
@@ -624,6 +644,9 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
 
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
+
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
@@ -1088,6 +1111,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                     Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
                 };
+                Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, *lifeTimeIter, desc.lifetime.lifeTime.y);
                 desc.lifetimeSeed = Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
             }
         }
@@ -1266,6 +1290,9 @@ namespace EffectAssetRuntimeLoad::Emitters
             if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
                 desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
+
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
 
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
@@ -1501,8 +1528,10 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.subUVFrameOverLife.randomStartPhase =
                 Read_Bool(*subUvFrameOverLife, "randomStartPhase", desc.subUVFrameOverLife.randomStartPhase);
             if (!hasRandomStartPhase)
+            {
                 desc.subUVFrameOverLife.randomStartPhase =
                     Read_Bool(*subUvFrameOverLife, "perStripSubUVVariation", desc.subUVFrameOverLife.randomStartPhase);
+            }
             desc.usePerStripSubUVVariation = desc.subUVFrameOverLife.randomStartPhase;
 
             const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
@@ -1651,6 +1680,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                 const Vec3 maxSize = Evaluate_Vector3DistributionMax(*sizeIter, desc.meshTransform.initialScaleMax);
                 desc.meshTransform.initialScaleMin = Vec3{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y), min(minSize.z, maxSize.z) };
                 desc.meshTransform.initialScaleMax = Vec3{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y), max(minSize.z, maxSize.z) };
+                desc.meshTransform.initialScaleSeed = Read_DistributionRandomSeedDesc(*sizeIter, initialMeshSize);
             }
         }
 
@@ -1672,6 +1702,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     max(minOffset.y, maxOffset.y),
                     max(minOffset.z, maxOffset.z)
                 };
+                desc.initialLocationSeed = Read_DistributionRandomSeedDesc(*locationIter, initialLocation);
             }
         }
 
@@ -1702,6 +1733,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
                 };
                 Fill_FloatCurvePayload(desc.lifetime.lifeTimeCurve, *lifeTimeIter, desc.lifetime.lifeTime.y);
+                desc.lifetimeSeed = Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
             }
         }
 
@@ -1712,6 +1744,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             {
                 desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
                 desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+                desc.initialColor.colorSeed = Read_DistributionRandomSeedDesc(*colorIter, initialColor);
             }
 
             const auto alphaIter = initialColor->find("alpha");
@@ -1721,6 +1754,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
                 desc.initialColor.startColorMax.w =
                     clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+                desc.initialColor.alphaSeed = Read_DistributionRandomSeedDesc(*alphaIter, initialColor);
             }
 
             desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
@@ -1734,6 +1768,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             {
                 desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
                 desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+                desc.colorOverLife.colorSeed = Read_DistributionRandomSeedDesc(*colorIter, colorOverLife);
             }
 
             const auto alphaIter = colorOverLife->find("alphaOverLife");
@@ -1743,6 +1778,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
                 desc.colorOverLife.endColorMax.w =
                     clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+                desc.colorOverLife.alphaSeed = Read_DistributionRandomSeedDesc(*alphaIter, colorOverLife);
             }
 
             Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
@@ -1758,16 +1794,28 @@ namespace EffectAssetRuntimeLoad::Emitters
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesXBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsX = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsXBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsX = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsXBlock1 = Vec4{};
                 }
                 if (!Read_Bool(*meshSizeByLife, "multiplyY", true))
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesYBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsY = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsYBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsY = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsYBlock1 = Vec4{};
                 }
                 if (!Read_Bool(*meshSizeByLife, "multiplyZ", true))
                 {
                     desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
                     desc.meshTransform.scaleByLife.curveKeyValuesZBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsZ = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyArriveTangentsZBlock1 = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsZ = Vec4{};
+                    desc.meshTransform.scaleByLife.curveKeyLeaveTangentsZBlock1 = Vec4{};
                 }
             }
         }
@@ -1783,6 +1831,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             {
                 desc.motion.initialVelocityMin = Evaluate_Vector3DistributionMin(*velocityIter, desc.motion.initialVelocityMin);
                 desc.motion.initialVelocityMax = Evaluate_Vector3DistributionMax(*velocityIter, desc.motion.initialVelocityMax);
+                desc.motion.initialVelocitySeed = Read_DistributionRandomSeedDesc(*velocityIter, initialVelocity);
             }
         }
 
@@ -1809,6 +1858,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     Evaluate_FloatDistributionMin(*speedIter, desc.motion.radialSpeed.x),
                     Evaluate_FloatDistributionMax(*speedIter, desc.motion.radialSpeed.y)
                 };
+                desc.motion.initialRadialVelocitySeed = Read_DistributionRandomSeedDesc(*speedIter, initialRadialVelocity);
             }
         }
 
@@ -1816,7 +1866,12 @@ namespace EffectAssetRuntimeLoad::Emitters
         {
             desc.motion.enabled = true;
             Fill_VelocityConePayload(desc.motion, *velocityCone);
+            if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
+                desc.motion.velocityConeSeed = Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
         }
+
+        if (const json* sourceMotionVelocity = Find_ModuleData(emitter, "SourceMotionVelocity"))
+            Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
 
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
@@ -1827,6 +1882,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
                 desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
                 Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
+                desc.motion.accelerationSeed = Read_DistributionRandomSeedDesc(*accelerationIter, acceleration);
             }
         }
 
@@ -1840,6 +1896,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                     max(0.f, Evaluate_FloatDistributionMin(*dragIter, desc.motion.drag.x)),
                     max(0.f, Evaluate_FloatDistributionMax(*dragIter, desc.motion.drag.y))
                 };
+                desc.motion.dragSeed = Read_DistributionRandomSeedDesc(*dragIter, drag);
             }
         }
 
@@ -1866,6 +1923,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.meshTransform.initialRotationDegreesMax = Vec3{
                     max(minRotation.x, maxRotation.x), max(minRotation.y, maxRotation.y), max(minRotation.z, maxRotation.z)
                 };
+                desc.meshTransform.initialRotationSeed = Read_DistributionRandomSeedDesc(*rotationIter, initialMeshRotation);
             }
         }
 
@@ -1894,6 +1952,7 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.meshTransform.rotationEnabled = true;
                 desc.meshTransform.initialAngularVelocityDegreesMin = Vec3{ min(minRate.x, maxRate.x), min(minRate.y, maxRate.y), min(minRate.z, maxRate.z) };
                 desc.meshTransform.initialAngularVelocityDegreesMax = Vec3{ max(minRate.x, maxRate.x), max(minRate.y, maxRate.y), max(minRate.z, maxRate.z) };
+                desc.meshTransform.initialAngularVelocitySeed = Read_DistributionRandomSeedDesc(*rotationRateIter, initialMeshRotationRate);
             }
         }
 

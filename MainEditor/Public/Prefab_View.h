@@ -10,6 +10,13 @@ class ModelCom;
 class RenderTarget;
 NS_END
 
+NS_BEGIN(Client)
+class SkyBoxFlow;
+class SkyCloudCard;
+class Weapon;
+struct WeaponSourceHistoryAnchorDesc;
+NS_END
+
 NS_BEGIN(MainEditor)
 
 class Prefab_View : public Editor_Window
@@ -64,6 +71,9 @@ private:
 private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewGridResources();
+    void Ensure_PreviewSkyBackdrop();
+    void Update_PreviewSkyBackdrop(float timeDelta);
+    void Late_Update_PreviewSkyBackdrop(float timeDelta);
 
     void Reset_PreviewCameraPose();
     void Lock_PreviewObjectToOrigin();
@@ -72,6 +82,7 @@ private:
     void Draw_PreviewGrid() const;
     void Draw_MonsterBattleSpawnPreview() const;
     void Draw_SelectedWeaponTrailAnchorPreview() const;
+    void Draw_SelectedWeaponSourceAnchorPreview() const;
 
     Shared<ModelCom> Find_FirstModelComponent() const;
     void Prepare_AnimationViewSiblingDock();
@@ -80,11 +91,16 @@ private:
     void Open_PendingAnimStateView();
     void Load_SelectedWeaponTrailAnchor(const string& modelGuid, const Shared<ModelCom>& modelCom);
     void Save_SelectedWeaponTrailAnchor() const;
+    void Draw_SelectedWeaponSourceAnchorPanel(const Shared<GameObject>& weaponObject, const Shared<ModelCom>& modelCom);
     bool Try_GetSelectedWeaponModel(const Shared<GameObject>& selectedObject, Shared<ModelCom>& outModel, string& outModelGuid) const;
     void Rebuild_MonsterBattlePrefabEntries();
     bool Try_ResolveTrailAnchorWorldPosition(
         const Shared<GameObject>& selectedObject,
         const Client::TrailAnchorPointDesc& anchor,
+        Vec3& outWorldPosition) const;
+    bool Try_ResolveSourceAnchorWorldPosition(
+        const Shared<GameObject>& weaponObject,
+        const Client::WeaponSourceHistoryAnchorDesc& anchor,
         Vec3& outWorldPosition) const;
 
 private:
@@ -105,6 +121,8 @@ private:
     Shared<GameObject>  _previewObject{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
+    Shared<Client::SkyBoxFlow> _previewSkyBox{};
+    vector<Shared<Client::SkyCloudCard>> _previewSkyCloudCards{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
@@ -131,6 +149,7 @@ private:
     uint32              _previewWidth = 512;
     uint32              _previewHeight = 512;
     bool                _previewHasBegunPlay = false;
+    bool                _previewSkyBackdropBegunPlay = false;
     bool                _requestResetPreviewCamera = false;
     ImVec2              _previewCanvasMin = {};
     ImVec2              _previewCanvasMax = {};
@@ -140,6 +159,7 @@ private:
     SelectionType       _selectionType = SelectionType::None;
     bool                _showPrefabCollider = false;
     bool                _showPreviewGrid = true;
+    bool                _showPreviewSkyBackdrop = true;
 
     wstring _selectedObjectKey{};
     wstring _selectedComponentKey{};

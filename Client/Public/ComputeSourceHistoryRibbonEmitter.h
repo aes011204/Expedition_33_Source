@@ -12,6 +12,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Source point history를 ribbon strip payload로 낮춰 렌더링한다.
 class ComputeSourceHistoryRibbonEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(ComputeSourceHistoryRibbonEmitter, ObjectType::EffectEmitter);
@@ -37,7 +38,7 @@ public:
     int32 Get_BlendSortLayer() const override;
     float Get_BlendSortBias() const override;
 
-private:
+private: //## Types::PlaybackRuntime
     enum class PlaybackState : uint8
     {
         Delayed,
@@ -112,7 +113,7 @@ private:
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{};
-        Vec4 segmentParams{}; // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
+        Vec4 segmentParams{};    // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
     };
 
     struct DrawIndexedInstancedIndirectArgs
@@ -124,7 +125,7 @@ private:
         uint32 startInstanceLocation{};
     };
 
-private:
+private: //## Static Values
     static constexpr auto kRibbonShaderId{ L"Shader_EffectRibbon" };
     static constexpr auto kRibbonDistortionShaderId{ L"Shader_EffectRibbonDistortion" };
     static constexpr auto kRibbonComputeShaderId{ L"ComputeShader_RibbonStrip" };
@@ -137,7 +138,7 @@ private:
     static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
     static constexpr float kMinRenderableRibbonLength{ 0.0001f };
 
-private:
+private: //## Data::PlaybackRuntime
     ComputeRibbonEmitterDesc _desc{};
     PlaybackState _playbackState{ PlaybackState::Delayed };
     bool _finishEmissionAfterHistoryUpdate{};
@@ -156,6 +157,7 @@ private:
     uint32 _drawSegmentCount{};
     uint32 _randomSubUVFrameIndex{};
 
+private: //## Data::Components
     Shared<ShaderCom> _shader{};
     Shared<ComputeShaderCom> _computeShader{};
     Shared<Texture> _mainTexture{};
@@ -171,7 +173,7 @@ private:
     Shared<ComputeStructuredBuffer> _computeOutput{};
     Shared<ComputeStructuredBuffer> _computeArgsOutput{};
 
-private:
+private: //## Helper::PlaybackRuntime
     void Reset_PlaybackRuntime();
     void Advance_Playback(float timeDelta);
     bool Is_UpdatingHistory() const;
@@ -200,6 +202,7 @@ private:
     void Update_RetiredLoopStrokes(float timeDelta);
     void Refresh_VisibleRibbonLengthFromRetired();
 
+private: //## Helper::Setup
     HRESULT Ready_Components();
     HRESULT Ready_Texture();
     HRESULT Ready_NoiseTexture();
@@ -207,6 +210,8 @@ private:
     HRESULT Ready_FlowTexture();
     HRESULT Ready_DrawBuffers();
     HRESULT Ready_ComputeBuffers();
+
+private: //## Helper::Render
     HRESULT Dispatch_Compute();
     HRESULT Update_ComputeInput();
     HRESULT Update_ComputeConstants();

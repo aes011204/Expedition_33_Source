@@ -36,6 +36,8 @@ public:
     uint32  Get_RenderCall() const;
     void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
+    void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
+    bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
 
     const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
@@ -154,6 +156,7 @@ private:
     VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
 
     bool                            _shadowEnabled = true;
+    bool                            _renderOnlyPreviewMode = false;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;

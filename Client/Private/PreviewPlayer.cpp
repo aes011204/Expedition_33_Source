@@ -326,6 +326,7 @@ HRESULT PreviewPlayer::Ready_DefaultCostumeParts()
         hairDesc.modelType = ModelType::Anim;
         hairDesc.modelTag = hairModelTag;
         hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+        hairDesc.usePoseFollowModifier = true;
         hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
         CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
     }
@@ -883,6 +884,7 @@ Shared<Hair_Player> PreviewPlayer::Create_CostumeHairVariant(const wstring& mode
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.usePoseFollowModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
@@ -1096,7 +1098,8 @@ const wchar_t* PreviewPlayer::Get_DefaultBeardModelTag() const
     switch (_heroId)
     {
     case HeroId::Gustave:
-        return L"Model_GustaveBeard";
+        // return L"Model_GustaveBeard";
+        return nullptr;
     default:
         return nullptr;
     }
@@ -1107,7 +1110,8 @@ const wchar_t* PreviewPlayer::Get_DefaultMustacheModelTag() const
     switch (_heroId)
     {
     case HeroId::Gustave:
-        return L"Model_GustaveMustache";
+        // return L"Model_GustaveMustache";
+        return nullptr;
     default:
         return nullptr;
     }

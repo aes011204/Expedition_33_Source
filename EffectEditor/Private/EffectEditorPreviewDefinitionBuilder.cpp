@@ -1,4 +1,4 @@
-#include "EffectEditorPreviewDefinitionBuilder.h"
+﻿#include "EffectEditorPreviewDefinitionBuilder.h"
 
 #include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterialPresetReader.h"
@@ -187,6 +187,30 @@ namespace Internal
         case SourceHistorySpriteTrailArrivalMode::KillOnArrive:
         default:
             return EffectSourceHistorySpriteTrailArrivalMode::KillOnArrive;
+        }
+    }
+
+    PointParticleSourceMotionVelocityDirectionMode Resolve_SourceMotionVelocityDirectionMode(
+        SourceMotionVelocityDirectionMode value)
+    {
+        switch (value)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return PointParticleSourceMotionVelocityDirectionMode::InheritSourceVelocity;
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return PointParticleSourceMotionVelocityDirectionMode::SourceVelocityDirection;
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return PointParticleSourceMotionVelocityDirectionMode::SourceVelocityOpposite;
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangent;
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangentOpposite;
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::SideFromTangent;
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return PointParticleSourceMotionVelocityDirectionMode::RandomSideFromTangent;
+        default:
+            return PointParticleSourceMotionVelocityDirectionMode::TrailTangent;
         }
     }
 
@@ -691,36 +715,67 @@ namespace Internal
         Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
-    void Fill_RotationOverLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, float time, float value)
+    void Fill_RotationOverLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, const FloatCurveKeyData& key)
     {
-        Set_CurveComponent(desc.rotationOverLifeCurveTimes, desc.rotationOverLifeCurveTimesBlock1, index, clamp(time, 0.f, 1.f));
-        Set_CurveComponent(desc.rotationOverLifeCurveValues, desc.rotationOverLifeCurveValuesBlock1, index, value);
+        Set_CurveComponent(desc.rotationOverLifeCurveTimes, desc.rotationOverLifeCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.rotationOverLifeCurveValues, desc.rotationOverLifeCurveValuesBlock1, index, key.value);
+        Set_CurveComponent(desc.rotationOverLifeCurveArriveTangents, desc.rotationOverLifeCurveArriveTangentsBlock1, index, key.arriveTangent);
+        Set_CurveComponent(desc.rotationOverLifeCurveLeaveTangents, desc.rotationOverLifeCurveLeaveTangentsBlock1, index, key.leaveTangent);
+        Set_CurveComponent(desc.rotationOverLifeCurveModes, desc.rotationOverLifeCurveModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
-    void Fill_RotationRateScaleByLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, float time, float value)
+    void Fill_RotationRateScaleByLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, const FloatCurveKeyData& key)
     {
-        Set_CurveComponent(desc.rotationRateScaleByLifeCurveTimes, desc.rotationRateScaleByLifeCurveTimesBlock1, index, clamp(time, 0.f, 1.f));
-        Set_CurveComponent(desc.rotationRateScaleByLifeCurveValues, desc.rotationRateScaleByLifeCurveValuesBlock1, index, value);
+        Set_CurveComponent(desc.rotationRateScaleByLifeCurveTimes, desc.rotationRateScaleByLifeCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.rotationRateScaleByLifeCurveValues, desc.rotationRateScaleByLifeCurveValuesBlock1, index, key.value);
+        Set_CurveComponent(desc.rotationRateScaleByLifeCurveArriveTangents, desc.rotationRateScaleByLifeCurveArriveTangentsBlock1, index, key.arriveTangent);
+        Set_CurveComponent(desc.rotationRateScaleByLifeCurveLeaveTangents, desc.rotationRateScaleByLifeCurveLeaveTangentsBlock1, index, key.leaveTangent);
+        Set_CurveComponent(desc.rotationRateScaleByLifeCurveModes, desc.rotationRateScaleByLifeCurveModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
-    void Fill_VelocityScaleByLifeCurveComponent(PointParticleMotionDesc& desc, uint32 index, float time, float value)
+    void Fill_VelocityScaleByLifeCurveComponent(PointParticleMotionDesc& desc, uint32 index, const FloatCurveKeyData& key)
     {
-        Set_CurveComponent(desc.velocityScaleByLifeCurveTimes, desc.velocityScaleByLifeCurveTimesBlock1, index, clamp(time, 0.f, 1.f));
-        Set_CurveComponent(desc.velocityScaleByLifeCurveValues, desc.velocityScaleByLifeCurveValuesBlock1, index, value);
+        Set_CurveComponent(desc.velocityScaleByLifeCurveTimes, desc.velocityScaleByLifeCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.velocityScaleByLifeCurveValues, desc.velocityScaleByLifeCurveValuesBlock1, index, key.value);
+        Set_CurveComponent(desc.velocityScaleByLifeCurveArriveTangents, desc.velocityScaleByLifeCurveArriveTangentsBlock1, index, key.arriveTangent);
+        Set_CurveComponent(desc.velocityScaleByLifeCurveLeaveTangents, desc.velocityScaleByLifeCurveLeaveTangentsBlock1, index, key.leaveTangent);
+        Set_CurveComponent(desc.velocityScaleByLifeCurveModes, desc.velocityScaleByLifeCurveModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
-    void Fill_OrbitFloatCurveComponent(Vec4& times, Vec4& timesBlock1, Vec4& values, Vec4& valuesBlock1, uint32 index, float time, float value)
+    void Fill_OrbitFloatCurveComponent(
+        Vec4& times,
+        Vec4& timesBlock1,
+        Vec4& values,
+        Vec4& valuesBlock1,
+        Vec4& arriveTangents,
+        Vec4& arriveTangentsBlock1,
+        Vec4& leaveTangents,
+        Vec4& leaveTangentsBlock1,
+        Vec4& modes,
+        Vec4& modesBlock1,
+        uint32 index,
+        const FloatCurveKeyData& key)
     {
-        Set_CurveComponent(times, timesBlock1, index, clamp(time, 0.f, 1.f));
-        Set_CurveComponent(values, valuesBlock1, index, value);
+        Set_CurveComponent(times, timesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(values, valuesBlock1, index, key.value);
+        Set_CurveComponent(arriveTangents, arriveTangentsBlock1, index, key.arriveTangent);
+        Set_CurveComponent(leaveTangents, leaveTangentsBlock1, index, key.leaveTangent);
+        Set_CurveComponent(modes, modesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
-    void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, float time, const Vec3& value)
+    void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, const Vector3CurveKeyData& key)
     {
-        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(time, 0.f, 1.f));
-        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
-        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
-        Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, value.z);
+        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, key.value.x);
+        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, key.value.y);
+        Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, key.value.z);
+        Set_CurveComponent(desc.curveKeyArriveTangentsX, desc.curveKeyArriveTangentsXBlock1, index, key.arriveTangent.x);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsX, desc.curveKeyLeaveTangentsXBlock1, index, key.leaveTangent.x);
+        Set_CurveComponent(desc.curveKeyArriveTangentsY, desc.curveKeyArriveTangentsYBlock1, index, key.arriveTangent.y);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsY, desc.curveKeyLeaveTangentsYBlock1, index, key.leaveTangent.y);
+        Set_CurveComponent(desc.curveKeyArriveTangentsZ, desc.curveKeyArriveTangentsZBlock1, index, key.arriveTangent.z);
+        Set_CurveComponent(desc.curveKeyLeaveTangentsZ, desc.curveKeyLeaveTangentsZBlock1, index, key.leaveTangent.z);
+        Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
     float To_RuntimeCurveInterpolationMode(FloatCurveInterpolationMode mode)
@@ -774,6 +829,7 @@ namespace Internal
         desc.curveKeyLeaveTangentsBlock1 = Vec4{};
         desc.curveKeyModes = Vec4{};
         desc.curveKeyModesBlock1 = Vec4{};
+
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const FloatCurveKeyData& key = keys[index];
@@ -1027,6 +1083,12 @@ namespace Internal
         desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
         desc.rotationOverLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
         desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
+        desc.rotationOverLifeCurveArriveTangents = Vec4{};
+        desc.rotationOverLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.rotationOverLifeCurveLeaveTangents = Vec4{};
+        desc.rotationOverLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.rotationOverLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.rotationOverLifeCurveModesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.rotationOverLife.payload))
         {
@@ -1042,8 +1104,14 @@ namespace Internal
             desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
             desc.rotationOverLifeCurveValues = Vec4{};
             desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
+            desc.rotationOverLifeCurveArriveTangents = Vec4{};
+            desc.rotationOverLifeCurveArriveTangentsBlock1 = Vec4{};
+            desc.rotationOverLifeCurveLeaveTangents = Vec4{};
+            desc.rotationOverLifeCurveLeaveTangentsBlock1 = Vec4{};
+            desc.rotationOverLifeCurveModes = Vec4{};
+            desc.rotationOverLifeCurveModesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
-                Fill_RotationOverLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+                Fill_RotationOverLifeCurveComponent(desc, index, keys[index]);
         }
     }
 
@@ -1057,6 +1125,12 @@ namespace Internal
         desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.rotationRateScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
         desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveArriveTangents = Vec4{};
+        desc.rotationRateScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveLeaveTangents = Vec4{};
+        desc.rotationRateScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveModesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.scaleOverLife.payload))
         {
@@ -1072,8 +1146,14 @@ namespace Internal
             desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
             desc.rotationRateScaleByLifeCurveValues = Vec4{};
             desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
+            desc.rotationRateScaleByLifeCurveArriveTangents = Vec4{};
+            desc.rotationRateScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+            desc.rotationRateScaleByLifeCurveLeaveTangents = Vec4{};
+            desc.rotationRateScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+            desc.rotationRateScaleByLifeCurveModes = Vec4{};
+            desc.rotationRateScaleByLifeCurveModesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
-                Fill_RotationRateScaleByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+                Fill_RotationRateScaleByLifeCurveComponent(desc, index, keys[index]);
         }
     }
 
@@ -1098,6 +1178,12 @@ namespace Internal
         Vec4& timesBlock1,
         Vec4& values,
         Vec4& valuesBlock1,
+        Vec4& arriveTangents,
+        Vec4& arriveTangentsBlock1,
+        Vec4& leaveTangents,
+        Vec4& leaveTangentsBlock1,
+        Vec4& modes,
+        Vec4& modesBlock1,
         const FloatDistributionData& distribution,
         float fallbackValue)
     {
@@ -1109,6 +1195,12 @@ namespace Internal
         timesBlock1 = Vec4{};
         values = Vec4{ startValue, endValue, 0.f, 0.f };
         valuesBlock1 = Vec4{};
+        arriveTangents = Vec4{};
+        arriveTangentsBlock1 = Vec4{};
+        leaveTangents = Vec4{};
+        leaveTangentsBlock1 = Vec4{};
+        modes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        modesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload))
         {
@@ -1124,8 +1216,29 @@ namespace Internal
             timesBlock1 = Vec4{};
             values = Vec4{};
             valuesBlock1 = Vec4{};
+            arriveTangents = Vec4{};
+            arriveTangentsBlock1 = Vec4{};
+            leaveTangents = Vec4{};
+            leaveTangentsBlock1 = Vec4{};
+            modes = Vec4{};
+            modesBlock1 = Vec4{};
             for (uint32 index = 0; index < clampedKeyCount; ++index)
-                Fill_OrbitFloatCurveComponent(times, timesBlock1, values, valuesBlock1, index, keys[index].time, keys[index].value);
+            {
+                Fill_OrbitFloatCurveComponent(
+                    times,
+                    timesBlock1,
+                    values,
+                    valuesBlock1,
+                    arriveTangents,
+                    arriveTangentsBlock1,
+                    leaveTangents,
+                    leaveTangentsBlock1,
+                    modes,
+                    modesBlock1,
+                    index,
+                    keys[index]
+                );
+            }
         }
     }
 
@@ -1141,6 +1254,12 @@ namespace Internal
             desc.angleCurveTimesBlock1,
             desc.angleCurveValues,
             desc.angleCurveValuesBlock1,
+            desc.angleCurveArriveTangents,
+            desc.angleCurveArriveTangentsBlock1,
+            desc.angleCurveLeaveTangents,
+            desc.angleCurveLeaveTangentsBlock1,
+            desc.angleCurveModes,
+            desc.angleCurveModesBlock1,
             data.angleDegreesOverLife,
             0.f
         );
@@ -1151,6 +1270,12 @@ namespace Internal
             desc.radiusScaleCurveTimesBlock1,
             desc.radiusScaleCurveValues,
             desc.radiusScaleCurveValuesBlock1,
+            desc.radiusScaleCurveArriveTangents,
+            desc.radiusScaleCurveArriveTangentsBlock1,
+            desc.radiusScaleCurveLeaveTangents,
+            desc.radiusScaleCurveLeaveTangentsBlock1,
+            desc.radiusScaleCurveModes,
+            desc.radiusScaleCurveModesBlock1,
             data.radiusScaleOverLife,
             1.f
         );
@@ -1218,6 +1343,20 @@ namespace Internal
         desc.curveKeyValuesYBlock1 = Vec4{};
         desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
         desc.curveKeyValuesZBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsZ = Vec4{};
+        desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsZ = Vec4{};
+        desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload))
         {
@@ -1237,8 +1376,22 @@ namespace Internal
             desc.curveKeyValuesYBlock1 = Vec4{};
             desc.curveKeyValuesZ = Vec4{};
             desc.curveKeyValuesZBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsX = Vec4{};
+            desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsX = Vec4{};
+            desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsY = Vec4{};
+            desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsY = Vec4{};
+            desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+            desc.curveKeyArriveTangentsZ = Vec4{};
+            desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+            desc.curveKeyLeaveTangentsZ = Vec4{};
+            desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+            desc.curveKeyModes = Vec4{};
+            desc.curveKeyModesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
-                Fill_MeshVector3CurveComponent(desc, index, keys[index].time, keys[index].value);
+                Fill_MeshVector3CurveComponent(desc, index, keys[index]);
         }
     }
 
@@ -1254,6 +1407,20 @@ namespace Internal
         desc.accelerationCurveValuesYBlock1 = Vec4{};
         desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
         desc.accelerationCurveValuesZBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsX = Vec4{};
+        desc.accelerationCurveArriveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsX = Vec4{};
+        desc.accelerationCurveLeaveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsY = Vec4{};
+        desc.accelerationCurveArriveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsY = Vec4{};
+        desc.accelerationCurveLeaveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsZ = Vec4{};
+        desc.accelerationCurveArriveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsZ = Vec4{};
+        desc.accelerationCurveLeaveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.accelerationCurveModesBlock1 = Vec4{};
 
         const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload);
         if (nullptr == curve)
@@ -1276,12 +1443,33 @@ namespace Internal
         desc.accelerationCurveValuesYBlock1 = Vec4{};
         desc.accelerationCurveValuesZ = Vec4{};
         desc.accelerationCurveValuesZBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsX = Vec4{};
+        desc.accelerationCurveArriveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsX = Vec4{};
+        desc.accelerationCurveLeaveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsY = Vec4{};
+        desc.accelerationCurveArriveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsY = Vec4{};
+        desc.accelerationCurveLeaveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsZ = Vec4{};
+        desc.accelerationCurveArriveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsZ = Vec4{};
+        desc.accelerationCurveLeaveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveModes = Vec4{};
+        desc.accelerationCurveModesBlock1 = Vec4{};
         for (uint32 index = 0; index < keyCount; ++index)
         {
             Set_CurveComponent(desc.accelerationCurveTimes, desc.accelerationCurveTimesBlock1, index, clamp(keys[index].time, 0.f, 1.f));
             Set_CurveComponent(desc.accelerationCurveValuesX, desc.accelerationCurveValuesXBlock1, index, keys[index].value.x);
             Set_CurveComponent(desc.accelerationCurveValuesY, desc.accelerationCurveValuesYBlock1, index, keys[index].value.y);
             Set_CurveComponent(desc.accelerationCurveValuesZ, desc.accelerationCurveValuesZBlock1, index, keys[index].value.z);
+            Set_CurveComponent(desc.accelerationCurveArriveTangentsX, desc.accelerationCurveArriveTangentsXBlock1, index, keys[index].arriveTangent.x);
+            Set_CurveComponent(desc.accelerationCurveLeaveTangentsX, desc.accelerationCurveLeaveTangentsXBlock1, index, keys[index].leaveTangent.x);
+            Set_CurveComponent(desc.accelerationCurveArriveTangentsY, desc.accelerationCurveArriveTangentsYBlock1, index, keys[index].arriveTangent.y);
+            Set_CurveComponent(desc.accelerationCurveLeaveTangentsY, desc.accelerationCurveLeaveTangentsYBlock1, index, keys[index].leaveTangent.y);
+            Set_CurveComponent(desc.accelerationCurveArriveTangentsZ, desc.accelerationCurveArriveTangentsZBlock1, index, keys[index].arriveTangent.z);
+            Set_CurveComponent(desc.accelerationCurveLeaveTangentsZ, desc.accelerationCurveLeaveTangentsZBlock1, index, keys[index].leaveTangent.z);
+            Set_CurveComponent(desc.accelerationCurveModes, desc.accelerationCurveModesBlock1, index, To_RuntimeCurveInterpolationMode(keys[index].interpolationMode));
         }
     }
 
@@ -1295,6 +1483,12 @@ namespace Internal
         desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.velocityScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
         desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveArriveTangents = Vec4{};
+        desc.velocityScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveLeaveTangents = Vec4{};
+        desc.velocityScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveModesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
         {
@@ -1310,8 +1504,14 @@ namespace Internal
             desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
             desc.velocityScaleByLifeCurveValues = Vec4{};
             desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
+            desc.velocityScaleByLifeCurveArriveTangents = Vec4{};
+            desc.velocityScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+            desc.velocityScaleByLifeCurveLeaveTangents = Vec4{};
+            desc.velocityScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+            desc.velocityScaleByLifeCurveModes = Vec4{};
+            desc.velocityScaleByLifeCurveModesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
-                Fill_VelocityScaleByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+                Fill_VelocityScaleByLifeCurveComponent(desc, index, keys[index]);
         }
     }
 
@@ -1326,6 +1526,20 @@ namespace Internal
             Evaluate_FloatDistributionMin(data.speed, desc.velocityConeSpeed.x),
             Evaluate_FloatDistributionMax(data.speed, desc.velocityConeSpeed.y)
         };
+    }
+
+    void Fill_SourceMotionVelocityPayload(PointParticleMotionDesc& desc, const SourceMotionVelocityModuleData& data)
+    {
+        desc.enabled = true;
+        desc.sourceMotionVelocityEnabled = true;
+        desc.sourceMotionVelocityDirectionMode = Resolve_SourceMotionVelocityDirectionMode(data.directionMode);
+        desc.sourceMotionVelocitySpeed = Vec2{
+            Evaluate_FloatDistributionMin(data.speed, desc.sourceMotionVelocitySpeed.x),
+            Evaluate_FloatDistributionMax(data.speed, desc.sourceMotionVelocitySpeed.y)
+        };
+        desc.sourceMotionVelocitySeed = Build_RandomSeedDesc(data.speed);
+        desc.sourceMotionVelocitySourceSpeedScale = max(0.f, data.sourceSpeedScale);
+        desc.sourceMotionVelocitySpreadAngleDegrees = clamp(data.spreadAngleDegrees, 0.f, 180.f);
     }
 
     Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
@@ -1755,6 +1969,14 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     {
         Internal::Fill_VelocityConePayload(desc.motion, *velocityCone);
         desc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
     }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
@@ -2277,6 +2499,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
+        Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
         emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
@@ -2459,6 +2682,14 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
     {
         Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
         emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
     }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
@@ -2853,6 +3084,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinSize.y, meshMaxSize.y),
             max(meshMinSize.z, meshMaxSize.z)
         };
+        emitterDesc.meshTransform.initialScaleSeed = Internal::Build_RandomSeedDesc(initialMeshSize->size);
     }
 
     if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
@@ -2870,6 +3102,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(minOffset.y, maxOffset.y),
             max(minOffset.z, maxOffset.z)
         };
+        emitterDesc.initialLocationSeed = Internal::Build_RandomSeedDesc(initialLocation->location);
     }
 
     if (const auto* sphereLocation = Internal::Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
@@ -2894,6 +3127,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
         Internal::Fill_FloatCurvePayload(emitterDesc.lifetime.lifeTimeCurve, lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.lifetimeSeed = Internal::Build_RandomSeedDesc(lifetime->lifeTime);
     }
 
     if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
@@ -2929,6 +3163,8 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
 
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
@@ -2966,6 +3202,8 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
         Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
@@ -2982,6 +3220,10 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             emitterDesc.meshTransform.scaleByLife.end.x = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesXBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsX = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsXBlock1 = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsX = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsXBlock1 = Vec4{};
         }
         if (!meshSizeByLife->multiplyY)
         {
@@ -2989,6 +3231,10 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             emitterDesc.meshTransform.scaleByLife.end.y = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesYBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsY = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsYBlock1 = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsY = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsYBlock1 = Vec4{};
         }
         if (!meshSizeByLife->multiplyZ)
         {
@@ -2996,6 +3242,10 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             emitterDesc.meshTransform.scaleByLife.end.z = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesZBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsZ = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyArriveTangentsZBlock1 = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsZ = Vec4{};
+            emitterDesc.meshTransform.scaleByLife.curveKeyLeaveTangentsZBlock1 = Vec4{};
         }
     }
 
@@ -3008,6 +3258,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, emitterDesc.motion.initialVelocityMin);
         emitterDesc.motion.initialVelocityMax =
             Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, emitterDesc.motion.initialVelocityMax);
+        emitterDesc.motion.initialVelocitySeed = Internal::Build_RandomSeedDesc(initialVelocity->velocity);
     }
 
     if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
@@ -3025,10 +3276,22 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
             Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)
         };
+        emitterDesc.motion.initialRadialVelocitySeed = Internal::Build_RandomSeedDesc(initialRadialVelocity->speed);
     }
 
     if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+    {
         Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
+        emitterDesc.motion.velocityConeSeed = Internal::Build_RandomSeedDesc(velocityCone->speed);
+    }
+
+    if (const auto* sourceMotionVelocity = Internal::Find_ModuleData<SourceMotionVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::SourceMotionVelocity
+    ))
+    {
+        Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
+    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
@@ -3038,6 +3301,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitterDesc.motion.accelerationMax =
             Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
+        emitterDesc.motion.accelerationSeed = Internal::Build_RandomSeedDesc(acceleration->acceleration);
     }
 
     if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
@@ -3047,6 +3311,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(0.f, Internal::Evaluate_FloatDistributionMin(drag->drag, emitterDesc.motion.drag.x)),
             max(0.f, Internal::Evaluate_FloatDistributionMax(drag->drag, emitterDesc.motion.drag.y))
         };
+        emitterDesc.motion.dragSeed = Internal::Build_RandomSeedDesc(drag->drag);
     }
 
     if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
@@ -3073,6 +3338,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinRotation.y, meshMaxRotation.y),
             max(meshMinRotation.z, meshMaxRotation.z)
         };
+        emitterDesc.meshTransform.initialRotationSeed = Internal::Build_RandomSeedDesc(initialMeshRotation->rotationDegrees);
     }
 
     if (const auto* sphereRadialOrientation = Internal::Find_ModuleData<SphereRadialOrientationModuleData>(
@@ -3107,6 +3373,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinRate.y, meshMaxRate.y),
             max(meshMinRate.z, meshMaxRate.z)
         };
+        emitterDesc.meshTransform.initialAngularVelocitySeed = Internal::Build_RandomSeedDesc(initialMeshRotationRate->rotationRateDegrees);
     }
 
     if (const auto* meshRotationRateScaleByLife = Internal::Find_ModuleData<MeshRotationRateScaleByLifeModuleData>(

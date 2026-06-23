@@ -183,11 +183,11 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
-    // fog
-    Render_Fog();
-
-    // 하 짜증나죽겠네ㅐ 진짜 좀 
-    Render_VolumetricLightShaft();
+    if (!_renderOnlyPreviewMode)
+    {
+        Render_Fog(); // 에디터 프리뷰는 현재 월드의 fog volume을 상속하지 않는다.
+        Render_VolumetricLightShaft();
+    }
 
     // ========================================= //
     Render_NonLight();

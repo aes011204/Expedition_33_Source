@@ -16,6 +16,7 @@ NS_BEGIN(EffectEditor)
 
 class TrailPreviewPlayerObject;
 
+// Trail preview weapon mesh와 trail/source sample provider를 구현한다.
 class TrailPreviewWeaponObject final : public PartObject, public IEffectTrailSampleProvider, public IEffectSourcePointSampleProvider
 {
 public:
@@ -47,11 +48,11 @@ public: //## Runtime::TrailSample
 
 private: //## Static Values
     static constexpr auto kWeaponModelRelativePath{
-        L"../../../Client/Bin/Resources/Effects/Models/Editor_TrailPreview/Lanceram_TrailPreview.model"
-    };
+        L"../../../Client/Bin/Resources/Effects/Models/Editor_TrailPreview/Lanceram_TrailPreview.model" };
     static constexpr auto kWeaponSocketName{ "Weapon_R" };
 
-    inline static const Vec3 kWeaponAttachRotationDegrees{ -90.f, -60.f, 210.f }; // 이 각도로 돌려야 무기가 제대로 장착된다.
+    // 이 각도로 돌려야 무기가 제대로 장착된다.
+    inline static const Vec3 kWeaponAttachRotationDegrees{ -90.f, -60.f, 210.f };
     inline static const Vec3 kFallbackLocalPosition{ 0.65f, 0.9f, 0.15f };
     inline static const float kTrailAnchorMarkerRadius{ 0.03f };
 

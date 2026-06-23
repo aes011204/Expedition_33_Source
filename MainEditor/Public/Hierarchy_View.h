@@ -25,6 +25,7 @@ private:
     void    Draw_RuntimeUIGroup(const char* groupLabel, const vector<Client::RuntimeUIEntry>& entries);
     void    Sync_RuntimeUISelection(const vector<Client::RuntimeUIEntry>& worldEntries, const vector<Client::RuntimeUIEntry>& battleEntries);
     bool    Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const;
+    bool    Pass_RuntimeUIEntrySearchFilter(const Client::RuntimeUIEntry& entry, const char* groupLabel) const;
     bool    Pass_LightingSearchFilter() const;
     bool    Pass_SkyBoxRootSearchFilter() const;
     bool    Is_SkyBoxObject(const Shared<GameObject>& gameObject) const;

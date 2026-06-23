@@ -51,7 +51,10 @@ void PanelInspector::Render()
                 curSelected->_type == EObjectType::InstancedMesh &&
                 !curSelected->_instancedTransforms.empty())
             {
-                curSelected->_selectedInstanceIdx = 0;
+                if (curSelected->_selectedInstanceIdx < 0)
+                {
+                    curSelected->_selectedInstanceIdx = 0;
+                }
             }
 
             _prevSelectedShared = _ctx->_selected;
@@ -88,7 +91,14 @@ void PanelInspector::Render()
 
         if (ImGui::Button("Focus"))
         {
-            _camera->FocusOn(obj->_position);
+            if (obj->_type == EObjectType::InstancedMesh && obj->_selectedInstanceIdx >= 0 && obj->_selectedInstanceIdx < static_cast<int>(obj->_instancedTransforms.size()))
+            {
+                _camera->FocusOn(obj->_instancedTransforms[obj->_selectedInstanceIdx]._position);
+            }
+            else
+            {
+                _camera->FocusOn(obj->_position);
+            }
         }
 
         if (!obj->_isDefaultLight)

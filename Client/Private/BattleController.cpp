@@ -1,5 +1,6 @@
 ﻿#include "BattleController.h"
 
+#include "ANS_WeaponEcho.h"
 #include "AttackPlaying.h"
 #include "BuffSystem.h"
 #include "Character.h"
@@ -8,6 +9,7 @@
 #include "AttackTargeting.h"
 #include "BattleStateMachine.h"
 #include "ChooseAction.h"
+#include "ChooseGradient.h"
 #include "ChooseItem.h"
 #include "ChooseSkill.h"
 #include "ChooseUltimate.h"
@@ -49,8 +51,10 @@
 #include "BattleTutorialController.h"
 #include "PlayerInventory.h"
 #include "PostProcessPipeline.h"
-
+#include "TransformCom.h"
+#include "GradientSkill.h"
 #include "PictosBattleSystem.h"
+#include "Unlock_Manager.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
@@ -118,6 +122,12 @@ void BattleController::Update(float timeDelta)
 
     if (Update_BattleTutorialGate(timeDelta))
         return;
+
+    if (_isBattleEntering && CLIENT->Is_SoulLikeBattleActive())
+    {
+        Cancel_BattleEnterPending();
+        return;
+    }
 
     if (_isBattleEntering)
     {
@@ -199,8 +209,9 @@ void BattleController::Update(float timeDelta)
 
             OnExitBattleField(EBattleEndResult::Victory);
             _battleEnded = true;
-            return;
         }
+
+        return; // 승리 확정 후에는 남은 액션 phase(Dash_Out/Return)를 더 진행하지 않는다.
     }
 
     if (!_isPendingVictorySlow && _requestEndTurnOnCurrentActorDeath)
@@ -216,6 +227,8 @@ void BattleController::Update(float timeDelta)
 
     if (!_isPendingVictorySlow)
     {
+        _reactionController.Update_EchoReactionWindows(timeDelta);
+
         // 패링, 회피 키인풋
         const auto reactionResult = _reactionController.UpdateInput(_turnAction);
 
@@ -245,6 +258,7 @@ void BattleController::Update(float timeDelta)
 
     // Script 다단히트 적용
     _hitSequenceRunner.Update(timeDelta);
+    Update_DelayedEchoAttackSteps(timeDelta);
 
     if (_isFreeAimShotPlaying)
     {
@@ -284,7 +298,24 @@ void BattleController::Update(float timeDelta)
         if (_reactionController.IsBusy())
             return;
 
+        const BattleChar actor = _turnAction.Get_CurChar();
+        const bool isMonsterFreeTurnSkill =
+            actor.actor != nullptr &&
+            actor.statCom != nullptr &&
+            !actor.statCom->Is_Player() &&
+            _turnAction.GetType() == EBattleContext::Skill &&
+            _turnAction.GetSkillData().apCost < 0;
+
         _isActionExecuting = false;
+
+        if (isMonsterFreeTurnSkill)
+        {
+            // 몬스터 전용 free-turn 스킬은 턴을 유지한 채 다음 스킬 선택으로 다시 진입한다.
+            Play_EnemyTargetedEnd();
+            Run_EnemyTurn();
+            return;
+        }
+
         EndTurn();
         return;
     }
@@ -316,7 +347,8 @@ void BattleController::OnEnterBattleField(
     bool isPlayerAdvantage,
     const vector<HeroId>& heroIds,
     const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-    const Shared<GameObject>& sourceObject)
+    const Shared<GameObject>& sourceObject,
+    bool completeImmediately)
 {
     if (_isBattleActive || _isBattleEntering)
         return;
@@ -350,7 +382,41 @@ void BattleController::OnEnterBattleField(
     // 월드 캐릭터 입력 막기
     GAME->Set_PlayerInputBlocked(true);
     //_worldCamera = GAME->Get_ActiveCamera();
+
+    if (completeImmediately)
+    {
+        CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER); // 즉시 진입도 기존 전투 진입 카메라 요청은 유지한다.
+        _hasRequestedBattleEnterCamera = true;
+        Complete_BattleField(); // 시네마틱 종료 전투는 2초 슬로우 대기 없이 바로 BattleStarted까지 진행한다.
+        return;
+    }
+
     GAME->Slow_WorldTime(_battleEnterSlow.worldTimeScale, _battleEnterSlow.duration);
+}
+
+void BattleController::Cancel_BattleEnterPending()
+{
+    if (!_isBattleEntering || _isBattleActive)
+        return;
+
+    GAME->Stop_WorldTimeSlow();
+    GAME->Set_WorldTimeScale(1.f);
+    GAME->Set_PlayerInputBlocked(false);
+
+    if (_battleSpawnRegistry)
+    {
+        if (Shared<Monster_WorldBase> worldMonster =
+            dynamic_pointer_cast<Monster_WorldBase>(_battleSpawnRegistry->Get_SourceWorldObject()))
+        {
+            worldMonster->Restore_AfterBattleExit();
+        }
+
+        _battleSpawnRegistry->Clear_SourceWorldObject();
+    }
+
+    _battleEnded = false;
+    _pendingNextTurn = false;
+    Clear_BattleEnterPending();
 }
 
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
@@ -360,11 +426,48 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     if (result == EBattleEndResult::Victory && _battleSpawnRegistry)
     {
         _lastVictoryRewardExp = _battleSpawnRegistry->Get_BattleRewardExp();
-        Apply_VictoryRewardExp(_lastVictoryRewardExp);
+        Apply_VictoryRewardExp(_lastVictoryRewardExp); // 경험치 지급
 
+        // 크로마 지급
         if (auto inventory = CLIENT->Get_PlayerInventory())
         {
             inventory->Add_Chroma(_battleSpawnRegistry->Get_BattleRewardChroma());
+        }
+
+        if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+        {
+            vector<string> defeatedEnemyKeys{};
+            defeatedEnemyKeys.reserve(_enemies.size());
+
+            for (const BattleChar& enemy : _enemies)
+            {
+                if (enemy.actor == nullptr)
+                    continue;
+
+                const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
+                if (sourcePrefabName.empty())
+                    continue;
+
+                defeatedEnemyKeys.emplace_back(sourcePrefabName);
+            }
+
+            Vec3 rewardOrigin = Vec3::Zero;
+            const Vec3* rewardOriginPtr = nullptr;
+            if (const Shared<GameObject> sourceObject = _battleSpawnRegistry->Get_SourceWorldObject())
+            {
+                if (const Shared<TransformCom> sourceTransform = sourceObject->Get_Transform())
+                {
+                    rewardOrigin = sourceTransform->Get_WorldPosition();
+                    rewardOriginPtr = &rewardOrigin;
+                }
+            }
+
+            const uint32 rewardLevelIndex = _battleSpawnRegistry->Get_SourceWorldObjectLevelIndex();
+            unlockManager->Handle_BattleVictory(
+                defeatedEnemyKeys,
+                _activeBattleFieldID,
+                rewardLevelIndex,
+                rewardOriginPtr);
         }
     }
 
@@ -428,12 +531,15 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         _battleSpawnRegistry->Clear_SourceWorldObject(); // Neutral은 참조만 비우고, MW 오브젝트는 남겨야한다.
     }
 
+
+
     Clear_BattleRuntimeState();
 
     _heroes.clear();
     _enemies.clear();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
@@ -445,9 +551,6 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
 void BattleController::ExecuteAction(const BattleAction& turnAction)
 {
-    if (_qteController)
-        _qteController->Clear();  // 새 액션 시작 시 이전 QTE 결과가 다음 스킬에 섞이지 않게 초기화한다.
-
     const auto BattleChar = turnAction.Get_CurChar();
     if (!BattleChar.actor)
         return;
@@ -564,6 +667,8 @@ void BattleController::StartTurn()
 {
     _isActionExecuting = false; // 선택 대기 상태에서는 executor 완료 여부로 턴을 넘기지 않는다.
     _requestEndTurnOnCurrentActorDeath = false;
+    Clear_DelayedEchoAttackSteps();
+    _reactionController.Clear();
 
     if (_battleActionExe)
         _battleActionExe->Reset();
@@ -1031,8 +1136,49 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
     return alive;
 }
 
+bool BattleController::Will_NextScheduledTurnBePlayer(const BattleChar& currentActor) const
+{
+    auto queueCopy = _turnQueue;
+    uint64 previewNextTurnEntrySeq = _nextTurnEntrySeq;
+
+    if (currentActor.actor != nullptr &&
+        currentActor.statCom != nullptr &&
+        currentActor.statCom->Get_CurAliveState() == EAliveStatus::Alive)
+    {
+        TurnEntry nextEntry{};
+        nextEntry.hero = currentActor;
+        nextEntry.nextTime =
+            _battleTime + 100.f / max(currentActor.statCom->Get_Speed(), 1.f);
+        nextEntry.orderSeq = previewNextTurnEntrySeq++;
+        queueCopy.push(nextEntry);
+    }
+
+    while (!queueCopy.empty())
+    {
+        const TurnEntry entry = queueCopy.top();
+        queueCopy.pop();
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.statCom->Get_CurAliveState() != EAliveStatus::Alive)
+            continue;
+
+        return entry.hero.statCom->Is_Player();
+    }
+
+    return false;
+}
+
 void BattleController::Handle_EditorStopRuntime()
 {
+    const bool hadBattleRuntime =
+        _isBattleEntering ||
+        _isWaitingBattleTransition ||
+        _isBattleActive ||
+        _isPendingVictorySlow ||
+        _isWaitingVictoryConfirm;
+
     GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
     CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
@@ -1062,9 +1208,12 @@ void BattleController::Handle_EditorStopRuntime()
     _battleTurnCamera.reset();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
+
     // DOF_MODIFY 
     End_BattleDOFOverride();
-    Restore_WorldCamera();
+    if (hadBattleRuntime)
+        Restore_WorldCamera();
 
     if (_battleFSM)
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
@@ -1554,6 +1703,9 @@ void BattleController::Finish_FreeAimShot()
 
 void BattleController::OnActionEndNotify()
 {
+    if (_isPendingVictorySlow || _battleEnded)
+        return; // 마지막 몬스터 사망 후에는 공격자의 다음 phase로 넘기지 않는다.
+
     if (_isFreeAimShotPlaying)
     {
         Finish_FreeAimShot();
@@ -1719,6 +1871,7 @@ void BattleController::Confirm_Victory()
     _enemies.clear();
 
     Clear_BattleEnterPending();
+    _activeBattleFieldID = 0;
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
@@ -1834,6 +1987,26 @@ void BattleController::Clear_FreeAimHitTarget()
 {
     _freeAimHitTarget = {};
     _hasFreeAimHitTarget = false;
+}
+
+void BattleController::Queue_DelayedEchoAttackStep(float delaySec, const BattleChar& attacker,
+    const vector<BattleChar>& targets, const BattleChar& reactionTarget, uint32 sourceStepIndex, uint32 consumeKey,
+    AttackType attackType, float powerMultiplier)
+{
+    if (targets.empty())
+        return;
+
+    DelayedEchoAttackStep step{};
+    step.remainingSec = max(0.f, delaySec);
+    step.attacker = attacker;
+    step.targets = targets;
+    step.reactionTarget = reactionTarget;
+    step.sourceStepIndex = sourceStepIndex;
+    step.consumeKey = consumeKey;
+    step.attackType = attackType;
+    step.powerMultiplier = powerMultiplier;
+
+    _delayedEchoAttackSteps.push_back(step);
 }
 
 bool BattleController::Is_QTEActive() const
@@ -2090,9 +2263,65 @@ void BattleController::Restore_WorldCamera()
     GAME->Set_PlayerInputBlocked(false);
 }
 
+void BattleController::Update_DelayedEchoAttackSteps(float timeDelta)
+{
+    for (size_t i = 0; i < _delayedEchoAttackSteps.size();)
+    {
+        DelayedEchoAttackStep& step = _delayedEchoAttackSteps[i];
+        step.remainingSec -= max(0.f, timeDelta);
+
+        if (step.remainingSec > 0.f)
+        {
+            ++i;
+            continue;
+        }
+
+        Apply_DelayedEchoAttackStep(step);
+        _delayedEchoAttackSteps.erase(_delayedEchoAttackSteps.begin() + i);
+    }
+}
+
+void BattleController::Apply_DelayedEchoAttackStep(const DelayedEchoAttackStep& step)
+{
+    if (!_isBattleActive || _battleEnded)
+        return;
+
+    if (step.attacker.actor == nullptr || step.attacker.statCom == nullptr || step.targets.empty())
+        return;
+
+    const bool guarded =
+        _reactionController.TryConsumeGuard(
+            step.reactionTarget,
+            step.sourceStepIndex,
+            step.consumeKey);
+
+    if (guarded)
+        return;
+
+    // Echo 추가타는 BattleAction step/SkillScript CurIndex를 소비하지 않는 복제 데미지다.
+    const float damage =
+        DamageSystem::CalculatePlayerAttackDamage(
+            step.attacker,
+            step.powerMultiplier);
+
+    DamageSystem::ApplyDamage(
+        damage,
+        step.attacker,
+        step.targets,
+        step.attackType);
+}
+
+void BattleController::Clear_DelayedEchoAttackSteps()
+{
+    _delayedEchoAttackSteps.clear();
+    ANS_WeaponEcho::Clear_ActiveEchoWindows();
+}
+
 void BattleController::Clear_BattleRuntimeState()
 {
     // 전투 종료/ F4로 게임 Stop할 때
+
+    Clear_DelayedEchoAttackSteps();
 
     if (_battleTutorialController)
         _battleTutorialController->Reset_RuntimeState();
@@ -2166,6 +2395,8 @@ void BattleController::Complete_BattleField()
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
     const uint32 battleFieldId = _pendingBattleFieldID;
+    _activeBattleFieldID = battleFieldId;
+
     const bool isPlayerAdvantage = _pendingBattleIsPlayerAdvantage;
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
@@ -2224,6 +2455,7 @@ void BattleController::Complete_BattleField()
         _heroes.clear();
         _enemies.clear();
         Clear_BattleEnterPending();
+        _activeBattleFieldID = 0;
         return;
     }
 
@@ -2353,10 +2585,28 @@ void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<
     if (battleSkillKeys.empty() && worldSkillTreeCom)
         battleSkillKeys = worldSkillTreeCom->Get_UnlockedSkillIds(); // 장착값이 아직 없으면 해금 순서를 초기 5칸으로 사용한다.
 
-    if (battleSkillKeys.size() > 5)
-        battleSkillKeys.resize(5); // 6번째 Gradient 슬롯은 일반 battle skill 입력에 넣지 않는다.
+    battleSkillKeys.erase(
+        remove_if(battleSkillKeys.begin(), battleSkillKeys.end(),
+            [heroId](const string& skillKey)
+            {
+                return GradientSkill::Is_GradientSkill(heroId, skillKey);
+            }), battleSkillKeys.end());
+
+    // 5칸만 세팅
+    battleSkillKeys.resize(GradientSkill::NormalSkillSlotCount);
+
+    const char* gradientSkillKey = GradientSkill::Resolve_SkillKey(heroId);
+    if (gradientSkillKey[0] != '\0' &&
+        worldSkillTreeCom != nullptr &&
+        worldSkillTreeCom->IsUnlocked(gradientSkillKey) &&
+        CLIENT->Get_Skill(gradientSkillKey) != nullptr)
+    {
+        battleSkillKeys.push_back(gradientSkillKey); // 6번째 슬롯은 BattleCommand Q 전용 Gradient로 소비한다.
+    }
     else
-        battleSkillKeys.resize(5);
+    {
+        battleSkillKeys.push_back(""); // 잠긴 Gradient도 slot index를 유지한다.
+    }
 
     for (string& skillKey : battleSkillKeys)
     {
@@ -2513,6 +2763,7 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
         EvtBattlePresentation event{};
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
+        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from BattleController::Continue_StartTurnAfterStatusEffects");
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
@@ -2535,6 +2786,7 @@ void BattleController::Set_BattleFSM()
     _battleFSM = BattleStateMachine::Create();
 
     _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseGradient, ChooseGradient::Create(GetSharedPtr<BattleController>()));
     _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(GetSharedPtr<BattleController>()));
     _battleFSM->Add_State(BattleTurnState::AttackPlaying, AttackPlaying::Create(GetSharedPtr<BattleController>()));
     _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(GetSharedPtr<BattleController>()));
@@ -2642,11 +2894,14 @@ void BattleController::HitAction(BattleChar target, AttackType attackType, bool 
         break;
 
     case AttackType::SingleAOE:
-    case AttackType::FreeAimWeak:
+
     case AttackType::ComboLast:
         target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
         break;
-
+    case AttackType::FreeAimWeak:
+        if (false == target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Weak), 0.3f, false))
+            target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
+        break;
     case AttackType::Counter:
         break;
     }

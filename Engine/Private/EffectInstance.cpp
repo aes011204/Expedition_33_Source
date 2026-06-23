@@ -1,15 +1,15 @@
 ﻿#include "EffectInstance.h"
 
-namespace
+namespace Internal
 {
-    uint32 Generate_EffectPlaybackSeed()
-    {
-        static uint32 state{ 0x9E3779B9u };
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        return state != 0u ? state : 0xA341316Cu;
-    }
+uint32 Generate_EffectPlaybackSeed()
+{
+    static uint32 state{ 0x9E3779B9u };
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state != 0u ? state : 0xA341316Cu;
+}
 }
 
 IMPLEMENT_REFLECTION(EffectInstance)
@@ -48,7 +48,7 @@ HRESULT EffectInstance::Initialize(void* arg)
         _desc = *static_cast<EffectInstanceDesc*>(arg);
 
     _definition = _desc.definition;
-    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
+    _effectPlaybackSeed = Internal::Generate_EffectPlaybackSeed();
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Emitters(), E_FAIL);
@@ -79,10 +79,11 @@ void EffectInstance::Priority_Update(float timeDelta)
     if (_isPlaybackPaused)
         return; // pause 중에도 transform/visible 동기화는 유지하고 emitter tick만 막는다.
 
+    const float effectTimeDelta = timeDelta * _playbackSpeed;
     for (const auto& emitter : _emitters)
     {
         if (emitter && emitter->Is_EmitterEnabled())
-            emitter->Priority_Update(timeDelta);
+            emitter->Priority_Update(effectTimeDelta);
     }
 }
 
@@ -96,10 +97,11 @@ void EffectInstance::Update(float timeDelta)
     if (_isPlaybackPaused)
         return; // 트레일/파티클 history와 material elapsed를 현재 프레임에 고정한다.
 
+    const float effectTimeDelta = timeDelta * _playbackSpeed;
     for (const auto& emitter : _emitters)
     {
         if (emitter && emitter->Is_EmitterEnabled())
-            emitter->Update(timeDelta);
+            emitter->Update(effectTimeDelta);
     }
 }
 
@@ -124,10 +126,11 @@ void EffectInstance::Late_Update(float timeDelta)
         return;
     }
 
+    const float effectTimeDelta = timeDelta * _playbackSpeed;
     for (const auto& emitter : _emitters)
     {
         if (emitter && emitter->Is_EmitterEnabled())
-            emitter->Late_Update(timeDelta);
+            emitter->Late_Update(effectTimeDelta);
     }
 
     Evaluate_Finished();
@@ -160,7 +163,7 @@ void EffectInstance::Stop()
 
 HRESULT EffectInstance::Reset()
 {
-    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
+    _effectPlaybackSeed = Internal::Generate_EffectPlaybackSeed();
     _playbackState = EffectPlaybackState::Stopped;
     _isPlaybackPaused = false; // Reset 이후 새 재생은 pause되지 않은 상태로 시작한다.
     Set_Visible(false);
@@ -200,6 +203,11 @@ bool EffectInstance::Is_Playing() const
 bool EffectInstance::Is_Finished() const
 {
     return EffectPlaybackState::Finished == _playbackState;
+}
+
+void EffectInstance::Set_PlaybackSpeed(float speed)
+{
+    _playbackSpeed = speed < 0.f ? 0.f : (speed > 10.f ? 10.f : speed);
 }
 
 void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)

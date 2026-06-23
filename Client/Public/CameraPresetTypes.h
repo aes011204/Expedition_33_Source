@@ -5,9 +5,13 @@ enum class PreviewShotPanel
     CharacterStatus,
     SkillTree,
     CharacterProgression,
+    ChangeWeapon,
+    ChangeSkill,
+    Pictos,
+    Wardrobe,
 };
 
-enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER };
+enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER, SOULLIKE, };
 enum class BattleCameraMode
 { WIDE,
   BATTLEINTRO,

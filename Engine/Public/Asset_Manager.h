@@ -24,6 +24,9 @@ public:
 	string  Register_Asset(const wstring& filePath, const string& type = "");
 	/* missingMetaRoot가 비어 있지 않으면 기존 meta는 로드하되, 누락 meta 생성은 해당 루트 하위 파일만 허용한다. */
 	void    Scan_And_Register(const wstring& directory, const wstring& missingMetaRoot = {});
+    HRESULT Refresh_RegistryDirectory(const wstring& directory, const wstring& missingMetaRoot = {});
+    /* background 파일 조사 결과를 main thread에서 live registry/cache에 반영한다. */
+    HRESULT Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot = {});
 	void    Refresh_Cache();
     uint32  Clear_OrphanMeta(const wstring& directory);
 

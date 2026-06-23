@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Editor_Defines.h"
+#include "CameraPresetTypes.h"
 #include "PlayerStatCom.h"
 
 NS_BEGIN(Engine)
@@ -78,6 +79,7 @@ public: /* For.Window */
 public: /* For.Preview */
     PreviewOwner            Get_ActivePreviewOwner() const;
     bool                    Is_ActivePreviewOwner(PreviewOwner owner) const;
+    void                    Set_StickyPreviewOwner(PreviewOwner owner);
 
 public: /* For.Editor Selection */
     const Editor_Context*   Get_EditorContext() const { return _editorContext.get(); }
@@ -115,6 +117,12 @@ public: /* For.Editor Focus */
 public: /* For.Editor World */
     HRESULT Save_CurrentLevelSnapShot(const fs::path& path) const;
     HRESULT Load_CurrentLevelSnapShot(const fs::path& path);
+    bool    Capture_DemoCheckpoint(const fs::path& path) const;
+    bool    Load_DemoCheckpointInEditor(const fs::path& path);
+    bool    Save_GameStartRuleState(const fs::path& path) const;
+    bool    Save_CostumeUnlockRuleState(const fs::path& path, bool unlockBaguette, bool unlockPotato) const;
+    bool    Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const;
+    bool    Load_RuleStateInEditor(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
 
 public: /* For.Inspector */
@@ -174,6 +182,8 @@ public: // for targetCamera edit mode
     void Toogle_TargetCameraEditMode();
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable;}
     const bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
+    void Set_CinematicPreviewFreeCameraOverride(bool enable) { _isCinematicPreviewFreeCameraOverride = enable; }
+    bool Is_CinematicPreviewFreeCameraOverride() const { return _isCinematicPreviewFreeCameraOverride; }
 
 private:
     void Focus_GameView();
@@ -242,6 +252,7 @@ private: /* 저장 */
 
 private:
     bool                        _isTargetCameraEditMode = false;
+    bool                        _isCinematicPreviewFreeCameraOverride = false;
     MouseLockOverrideMode       _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
 
 private: /* Core Data */
@@ -286,6 +297,8 @@ private: /* Runtime Data */
     bool _hasPlayStartHeroStatSnapshots = false;
     CameraPoseSnapshot _playStartCameraPose = {};
     Weak<Camera> _cameraBeforeFreeCamera = {};
+    bool _hasTargetCameraModeBeforeFreeCamera = false;
+    TargetCameraMode _targetCameraModeBeforeFreeCamera = TargetCameraMode::NORMAL;
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;

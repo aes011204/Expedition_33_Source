@@ -1,6 +1,8 @@
-﻿#include "Animation.h"
+#include "pch.h"
+#include "Animation.h"
 #include "Channel.h"
 #include "Bone.h"
+#include <unordered_set>
 #include "Debug_Profile.h"
 #include <cmath>
 
@@ -64,6 +66,11 @@ void Animation::Set_CurrentTimeSec(float timeSec)
 
     for (auto& ch : _channels)
         ch->ResetVelocityState();
+}
+
+void Animation::Set_StartTimeSec(float startSec)
+{
+    Set_CurrentTimeSec(startSec);
 }
 
 void Animation::Evaluate_CurrentPose(const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
@@ -192,6 +199,9 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
 	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
 		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
 
+    // 어떤 뼈가 현재 애니메이션 루프에서 처리되었는지 기록 (해시셋 대신 vector<bool> 사용으로 메모리/속도 최적화)
+    vector<bool> isBoneBlended(bones.size(), false);
+
     // 블렌딩 수행
     for (uint32 i = 0; i < _numChannels; ++i)
     {
@@ -200,6 +210,8 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
 
         if (boneIndex < 0 || boneIndex >= bones.size())
             continue;
+
+        isBoneBlended[boneIndex] = true;
 
         _channels[i]->Get_ChannelTransform(_currentTrackPosition, _currentKeyFrameIndices[i], _duration, isLoop, curTrans);
 
@@ -216,6 +228,8 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
         }
         else
         {
+            // 다음 애니메이션에 없는 채널이라면, 이전 값 유지가 아닌 초기 포즈나 이전 값을 씀
+            // (여기선 기존 방식대로 일단 curTrans 유지)
             nextTrans = curTrans;
         }
 
@@ -239,6 +253,50 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
 
             if (nextChannelIndex != -1)
                 nextAnim->_channels[nextChannelIndex]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
+        }
+    }
+
+    // 2. 다음 애니메이션에는 있지만 현재 애니메이션에는 없는 뼈 처리 (스냅 방지)
+    for (uint32 i = 0; i < nextAnim->_numChannels; ++i)
+    {
+        int32 boneIndex = nextAnim->_channels[i]->Get_BoneIndex();
+
+        if (boneIndex < 0 || boneIndex >= bones.size())
+            continue;
+
+        if (!isBoneBlended[boneIndex])
+        {
+            RootMotionFrame curTrans{}, nextTrans{};
+
+            // 현재 뼈의 이전 프레임 로컬 상태를 curTrans로 삼는다 (스냅 방지 및 부드러운 전환)
+            Matrix curMatrix = bones[boneIndex]->Get_TransformationMatrix();
+            curMatrix.Decompose(curTrans.scale, curTrans.rotation, curTrans.position);
+
+            nextAnim->_channels[i]->Get_ChannelTransform(
+                nextAnim->_currentTrackPosition,
+                nextAnim->_currentKeyFrameIndices[i],
+                nextAnim->_duration,
+                isLoop,
+                nextTrans);
+
+            Vec3 transScale = Vec3::Lerp(curTrans.scale, nextTrans.scale, blendRatio);
+            Quat transRotation = Quat::Slerp(curTrans.rotation, nextTrans.rotation, blendRatio);
+            Vec3 transPosition = Vec3::Lerp(curTrans.position, nextTrans.position, blendRatio);
+
+            Matrix targetMatrix{};
+            if (boneIndex == rootNodeIndex) {
+                targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, Vec3::Zero);
+            }
+            else {
+                targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, transPosition);
+            }
+
+            bones[boneIndex]->Update_TransformationMatrix(targetMatrix);
+
+            if (boneIndex == rootNodeIndex)
+            {
+                nextAnim->_channels[i]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
+            }
         }
     }
 }

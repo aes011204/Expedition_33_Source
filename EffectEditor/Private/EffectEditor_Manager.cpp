@@ -17,6 +17,33 @@
 
 NS_BEGIN(EffectEditor)
 
+namespace Internal
+{
+    enum class ExitDirtyChoice
+    {
+        SaveAndExit,
+        ExitWithoutSaving,
+        Cancel,
+    };
+
+    ExitDirtyChoice Confirm_SaveDirtyAuthoringDocumentBeforeExit()
+    {
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        const int result = MessageBoxW(
+            owner,
+            L"저장되지 않은 변경 사항이 있습니다.\n종료하기 전에 저장할까요?",
+            L"Exit EffectEditor",
+            MB_YESNOCANCEL | MB_ICONWARNING
+        );
+
+        if (IDYES == result)
+            return ExitDirtyChoice::SaveAndExit;
+        if (IDNO == result)
+            return ExitDirtyChoice::ExitWithoutSaving;
+        return ExitDirtyChoice::Cancel;
+    }
+}
+
 EffectEditor_Manager::~EffectEditor_Manager()
 {
     Free();
@@ -79,6 +106,26 @@ void EffectEditor_Manager::Render()
         if (window != nullptr)
             window->Render();
     }
+}
+
+void EffectEditor_Manager::Request_Exit()
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    if (emitterView != nullptr && emitterView->Is_Dirty())
+    {
+        const Internal::ExitDirtyChoice choice = Internal::Confirm_SaveDirtyAuthoringDocumentBeforeExit();
+        if (Internal::ExitDirtyChoice::Cancel == choice)
+            return;
+
+        if (Internal::ExitDirtyChoice::SaveAndExit == choice)
+        {
+            Save_EffectDocument();
+            if (emitterView->Is_Dirty())
+                return;
+        }
+    }
+
+    PostQuitMessage(0);
 }
 
 void EffectEditor_Manager::Add_Window(const Shared<Editor_Window>& window)
@@ -374,14 +421,23 @@ void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 d
     const ImGuiID consoleDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.16f, nullptr, &emitterDockId);
     const ImGuiID browserDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.36f, nullptr, &emitterDockId);
 
-    ImGui::DockBuilderDockWindow("Scene", sceneDockId);
-    ImGui::DockBuilderDockWindow("Inspector", detailDockId);
-    ImGui::DockBuilderDockWindow("Hierarchy", detailDockId);
-    ImGui::DockBuilderDockWindow("Profile", detailDockId);
-    ImGui::DockBuilderDockWindow("Emitter", emitterDockId);
-    ImGui::DockBuilderDockWindow("Content Browser", browserDockId);
-    ImGui::DockBuilderDockWindow("Curve Editor", browserDockId);
-    ImGui::DockBuilderDockWindow("Console", consoleDockId);
+    const auto dock_registered_window = [this](const wstring& windowName, ImGuiID targetDockId)
+    {
+        const Shared<Editor_Window> window = Find_Window(windowName);
+        if (window == nullptr)
+            return;
+
+        ImGui::DockBuilderDockWindow(window->Get_ImGuiWindowName().c_str(), targetDockId);
+    };
+
+    dock_registered_window(L"Scene", sceneDockId);
+    dock_registered_window(L"Detail", detailDockId);
+    dock_registered_window(L"Hierarchy", detailDockId);
+    dock_registered_window(L"Profile", detailDockId);
+    dock_registered_window(L"Emitter", emitterDockId);
+    dock_registered_window(L"Content Browser", browserDockId);
+    dock_registered_window(L"Curve Editor", browserDockId);
+    dock_registered_window(L"Console", consoleDockId);
 
     ImGui::DockBuilderFinish(dockSpaceId);
 }
@@ -393,13 +449,12 @@ void EffectEditor_Manager::Build_SceneFocusDockLayout(ImGuiID dockSpaceId, ImVec
 
     _sceneFocusDockLayoutBuilt = true;
     const Shared<Editor_Window> sceneWindow = Find_Window(L"Scene");
-    const char* sceneWindowName =
-        sceneWindow != nullptr ? sceneWindow->Get_ImGuiWindowName().c_str() : "Scene";
 
     ImGui::DockBuilderRemoveNode(dockSpaceId);
     ImGui::DockBuilderAddNode(dockSpaceId, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dockSpaceId, dockSpaceSize);
-    ImGui::DockBuilderDockWindow(sceneWindowName, dockSpaceId);
+    if (sceneWindow != nullptr)
+        ImGui::DockBuilderDockWindow(sceneWindow->Get_ImGuiWindowName().c_str(), dockSpaceId);
     ImGui::DockBuilderFinish(dockSpaceId);
 }
 
@@ -430,6 +485,18 @@ void EffectEditor_Manager::Handle_Shortcuts()
     if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_R, false))
     {
         EDITOR->Request_RestartPreview();
+        return;
+    }
+
+    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space, false))
+    {
+        if (EDITOR->IsPlaying())
+            EDITOR->Pause();
+        else if (EDITOR->IsPaused())
+            EDITOR->Resume();
+        else
+            EDITOR->Play();
+
         return;
     }
 
@@ -519,6 +586,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             };
 
             draw_section_row("Playback / Runtime");
+            draw_shortcut_row("Space", "Play / Pause");
             draw_shortcut_row("F5", "Play / Resume");
             draw_shortcut_row("R", "Restart Preview");
             draw_shortcut_row("F9", "Pause");
@@ -552,6 +620,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Alt + MMB Drag", "Pan");
             draw_shortcut_row("Alt + RMB Drag", "Dolly");
             draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
+            draw_shortcut_row("Shift + Space", "Toggle Gizmo Local / World");
 
             ImGui::EndTable();
         }
@@ -630,6 +699,8 @@ void EffectEditor_Manager::Toggle_SceneFocusMode()
 
 void EffectEditor_Manager::Enter_SceneFocusMode()
 {
+    ImGuiIO& io = ImGui::GetIO();
+
     _sceneFocusWindowOpenSnapshot.clear();
     for (const auto& [windowName, window] : _windows)
     {
@@ -645,6 +716,10 @@ void EffectEditor_Manager::Enter_SceneFocusMode()
         _sceneFocusDockSettingsSnapshot.assign(dockSettingsData, dockSettingsSize);
     else
         _sceneFocusDockSettingsSnapshot.clear();
+
+    _sceneFocusHadIniFilenameSnapshot = io.IniFilename != nullptr;
+    _sceneFocusIniFilenameSnapshot = _sceneFocusHadIniFilenameSnapshot ? io.IniFilename : "";
+    io.IniFilename = nullptr;
 
     _sceneFocusPreviewViewportSnapshot.mode = EDITOR->Get_PreviewViewportMode();
     _sceneFocusPreviewViewportSnapshot.width = max(1u, GAME->Get_ViewportWidth());
@@ -672,6 +747,8 @@ void EffectEditor_Manager::Enter_SceneFocusMode()
 
 void EffectEditor_Manager::Exit_SceneFocusMode()
 {
+    ImGuiIO& io = ImGui::GetIO();
+
     if (!_sceneFocusDockSettingsSnapshot.empty())
         ImGui::LoadIniSettingsFromMemory(_sceneFocusDockSettingsSnapshot.c_str(), _sceneFocusDockSettingsSnapshot.size());
 
@@ -703,6 +780,9 @@ void EffectEditor_Manager::Exit_SceneFocusMode()
     _sceneFocusDockLayoutBuilt = false;
     _sceneFocusDockSettingsSnapshot.clear();
     _sceneFocusWindowOpenSnapshot.clear();
+    io.IniFilename = _sceneFocusHadIniFilenameSnapshot ? _sceneFocusIniFilenameSnapshot.c_str() : nullptr;
+    _sceneFocusHadIniFilenameSnapshot = false;
+    _sceneFocusIniFilenameSnapshot.clear();
     _isSceneFocusModeActive = false;
 }
 
@@ -756,11 +836,6 @@ void EffectEditor_Manager::Render_ExitButton(float toolbarHeight)
     );
 
     ImGui::SetCursorPosY(toolbarHeight);
-}
-
-void EffectEditor_Manager::Request_Exit()
-{
-    PostQuitMessage(0);
 }
 
 Unique<EffectEditor_Manager> EffectEditor_Manager::Create()

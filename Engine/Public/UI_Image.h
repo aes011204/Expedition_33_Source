@@ -21,6 +21,14 @@ public:
     {
         Normal,
         PatternOverlay,
+        MaterialVfx,
+        ButtonSheen,
+    };
+
+    enum class MaterialVfxMode : uint8
+    {
+        Energy,
+        BrushFlow,
     };
 
     enum class MaskTextureMode : uint8
@@ -44,6 +52,32 @@ public:
         wstring patternMaskTexturePath{};
         Vec2 patternUvOffset{ 0.f, 0.f };
         Vec2 patternUvScale{ 1.f, 1.f };
+        MaterialVfxMode materialVfxMode = MaterialVfxMode::Energy;
+        wstring materialVfxNoiseTexturePath{};
+        Vec4 materialVfxColor{ 1.f, 0.12f, 0.95f, 1.f };
+        Vec4 materialVfxCoreColor{ 1.f, 0.92f, 1.f, 1.f };
+        Vec4 materialVfxFlowColor{ 1.f, 1.f, 1.f, 0.f };
+        float materialVfxGlow = 4.f;
+        float materialVfxAlpha = 1.f;
+        float materialVfxCoreStrength = 2.2f;
+        float materialVfxCoreWidth = 0.13f;
+        float materialVfxCoreSoftness = 0.05f;
+        float materialVfxNoiseStrength = 0.35f;
+        Vec2 materialVfxUvScroll{ 0.08f, -0.18f };
+        float materialVfxFlowSpeed = 1.f;
+        float materialVfxPreserveColor = 0.f;
+        float materialVfxEdgeWidth = 0.18f;
+        float materialVfxEdgeSoftness = 0.08f;
+        float materialVfxErosion = 0.18f;
+        float materialVfxFlicker = 0.22f;
+        float materialVfxDistortion = 0.015f;
+        float materialVfxEdgeWobbleSpeed = 1.f;
+        Vec4 buttonSheenColor{ 1.f, 0.960784f, 0.882353f, 0.588235f };
+        float buttonSheenSpeed = 0.75f;
+        float buttonSheenWidth = 0.18f;
+        float buttonSheenSoftness = 0.12f;
+        float buttonSheenAngle = -0.08f;
+        float buttonSheenNoiseStrength = 0.35f;
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         uint32 shaderPrototypeLevelIndex{ 0 };
         wstring shaderPrototypeTag{ L"Shader_UI" };
@@ -110,6 +144,34 @@ private:
     wstring _patternMaskTexturePath{};
     Vec2 _patternUvOffset{ 0.f, 0.f };
     Vec2 _patternUvScale{ 1.f, 1.f };
+    MaterialVfxMode _materialVfxMode = MaterialVfxMode::Energy;
+    wstring _materialVfxNoiseTexturePath{};
+    Vec4 _materialVfxColor{ 1.f, 0.12f, 0.95f, 1.f };
+    Vec4 _materialVfxCoreColor{ 1.f, 0.92f, 1.f, 1.f };
+    Vec4 _materialVfxFlowColor{ 1.f, 1.f, 1.f, 0.f };
+    float _materialVfxGlow = 4.f;
+    float _materialVfxAlpha = 1.f;
+    float _materialVfxCoreStrength = 2.2f;
+    float _materialVfxCoreWidth = 0.13f;
+    float _materialVfxCoreSoftness = 0.05f;
+    float _materialVfxNoiseStrength = 0.35f;
+    Vec2 _materialVfxUvScroll{ 0.08f, -0.18f };
+    float _materialVfxFlowSpeed = 1.f;
+    float _materialVfxPreserveColor = 0.f;
+    float _materialVfxEdgeWidth = 0.18f;
+    float _materialVfxEdgeSoftness = 0.08f;
+    float _materialVfxErosion = 0.18f;
+    float _materialVfxFlicker = 0.22f;
+    float _materialVfxDistortion = 0.015f;
+    float _materialVfxEdgeWobbleSpeed = 1.f;
+    float _materialVfxTime = 0.f;
+    Vec4 _buttonSheenColor{ 1.f, 0.960784f, 0.882353f, 0.588235f };
+    float _buttonSheenSpeed = 0.75f;
+    float _buttonSheenWidth = 0.18f;
+    float _buttonSheenSoftness = 0.12f;
+    float _buttonSheenAngle = -0.08f;
+    float _buttonSheenNoiseStrength = 0.35f;
+    float _buttonSheenTime = 0.f;
     Vec4    _color{ 1.f, 1.f, 1.f, 1.f };
 
     uint32 _shaderPrototypeLevelIndex{ 0 };
@@ -120,6 +182,7 @@ private:
     ComPtr<ShaderResourceView> _srv{};
     ComPtr<ShaderResourceView> _maskSrv{};
     ComPtr<ShaderResourceView> _patternMaskSrv{};
+    ComPtr<ShaderResourceView> _materialVfxNoiseSrv{};
 
     Shared<ShaderCom> _shader{};
     Shared<VIBuffer_Rect> _viBuffer{};

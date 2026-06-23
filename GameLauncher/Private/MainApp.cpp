@@ -5,6 +5,8 @@
 #include "ClientInstance.h"
 #include "Level_Loading.h"
 #include "ResourceLoader.h"
+#include "RuntimeCheckpointService.h"
+#include <shellapi.h>
 
 using namespace Engine;
 
@@ -14,7 +16,7 @@ MainApp::MainApp()
 {
 }
 
-HRESULT MainApp::Initialize()
+HRESULT MainApp::Initialize(const wstring& commandLine)
 {
     const fs::path assetRootPath(Get_ClientResourceRoot());
     if (!fs::exists(assetRootPath) || !fs::is_directory(assetRootPath))
@@ -42,7 +44,19 @@ HRESULT MainApp::Initialize()
     if (FAILED(Ready_Fonts()))
         return E_FAIL;
 
-    if (FAILED(Ready_StartLevel(LevelType::MainTitle)))
+    Parse_CommandLine(commandLine);
+
+    LevelType startLevel = LevelType::MainTitle;
+    if (!_startupCheckpointPath.empty())
+    {
+        _hasStartupCheckpoint = Client::RuntimeCheckpointIO::Load_Msgpack(_startupCheckpointPath, _startupCheckpoint);
+        if (_hasStartupCheckpoint)
+            startLevel = _startupCheckpoint.levelType;
+        else
+            LOG_WARN("[GameLauncher] checkpoint load failed: {}", String::ToString(_startupCheckpointPath.wstring()));
+    }
+
+    if (FAILED(Ready_StartLevel(startLevel)))
         return E_FAIL;
 
     return S_OK;
@@ -54,6 +68,8 @@ void MainApp::Update(float fTimeDelta)
     {
         CLIENT->Update_Client(dt);
     });
+
+    Try_ApplyStartupCheckpoint();
 }
 
 HRESULT MainApp::Render()
@@ -109,6 +125,51 @@ HRESULT MainApp::Ready_StartLevel(LevelType eStartLevelID)
     return S_OK;
 }
 
+void MainApp::Parse_CommandLine(const wstring& commandLine)
+{
+    _startupCheckpointPath.clear();
+    _hasStartupCheckpoint = false;
+    _startupCheckpointApplied = false;
+
+    if (commandLine.empty())
+        return;
+
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(commandLine.c_str(), &argc);
+    if (argv == nullptr)
+        return;
+
+    for (int i = 0; i < argc; ++i)
+    {
+        if (wcscmp(argv[i], L"--checkpoint") != 0)
+            continue;
+
+        if (i + 1 >= argc)
+            break;
+
+        _startupCheckpointPath = fs::path(argv[i + 1]);
+        break;
+    }
+
+    LocalFree(argv);
+}
+
+void MainApp::Try_ApplyStartupCheckpoint()
+{
+    if (!_hasStartupCheckpoint || _startupCheckpointApplied)
+        return;
+
+    if (GAME->Current_LevelIndex() != ETOI(_startupCheckpoint.levelType))
+        return;
+
+    if (Client::RuntimeCheckpointService::Apply_ToCurrentLevel(_startupCheckpoint))
+    {
+        _startupCheckpointApplied = true;
+        LOG_INFO("[GameLauncher] startup checkpoint applied: {}",
+            String::ToString(_startupCheckpointPath.wstring()));
+    }
+}
+
 wstring MainApp::Get_ClientResourceRoot() const
 {
     wchar_t modulePath[MAX_PATH] = {};
@@ -127,11 +188,11 @@ wstring MainApp::Get_ClientResourcePath(const wchar_t* relativePath) const
     return (fs::path(Get_ClientResourceRoot()) / relativePath).lexically_normal().wstring();
 }
 
-Unique<MainApp> MainApp::Create()
+Unique<MainApp> MainApp::Create(const wstring& commandLine)
 {
     Unique<MainApp> pInstance{ new MainApp() };
 
-    if (FAILED(pInstance->Initialize()))
+    if (FAILED(pInstance->Initialize(commandLine)))
     {
         MSG_BOX("Failed to Created : GameLauncher MainApp");
         pInstance->Free();

@@ -4,6 +4,8 @@
 #include "ModelCom.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
+#include <algorithm>
+#include <cmath>
 
 NS_BEGIN(MainEditor)
 
@@ -56,6 +58,17 @@ namespace
         return normalized;
     }
 
+    int32 Resolve_TrackIndexFromMouseY(int32 currentTrackIndex, int32 trackCount, const ImRect& currentRowRect, float mouseY)
+    {
+        if (trackCount <= 1)
+            return 0;
+
+        const float rowHeight = max(1.f, currentRowRect.Max.y - currentRowRect.Min.y);
+        const float firstTrackTop = currentRowRect.Min.y - static_cast<float>(currentTrackIndex) * rowHeight;
+        const int32 hoveredTrackIndex = static_cast<int32>(std::floor((mouseY - firstTrackTop) / rowHeight));
+        return std::clamp(hoveredTrackIndex, 0, trackCount - 1);
+    }
+
 }
 
 AnimSequencerAdapter::AnimSequencerAdapter(Animation_View* view)
@@ -74,6 +87,33 @@ int AnimSequencerAdapter::GetFrameMax() const
         return 1;
 
     return max(1, _view->Get_CurrentAnimationFrameMax());
+}
+
+int AnimSequencerAdapter::GetViewFrameMin() const
+{
+    if (_view == nullptr)
+        return GetFrameMin();
+
+    const int32 frameMin = GetFrameMin();
+    const int32 frameMax = GetFrameMax();
+    const int32 fullRange = max(1, frameMax - frameMin);
+    const int32 visibleRange = _view->_sequencerVisibleFrameCount <= 0
+        ? fullRange
+        : std::clamp(_view->_sequencerVisibleFrameCount, 1, fullRange);
+
+    return std::clamp(_view->_sequencerFirstFrame, frameMin, max(frameMin, frameMax - visibleRange));
+}
+
+int AnimSequencerAdapter::GetViewFrameMax() const
+{
+    const int32 frameMax = GetFrameMax();
+    const int32 viewFrameMin = GetViewFrameMin();
+    const int32 fullRange = max(1, frameMax - GetFrameMin());
+    const int32 visibleRange = _view == nullptr || _view->_sequencerVisibleFrameCount <= 0
+        ? fullRange
+        : std::clamp(_view->_sequencerVisibleFrameCount, 1, fullRange);
+
+    return std::clamp(viewFrameMin + visibleRange, viewFrameMin + 1, frameMax);
 }
 
 int AnimSequencerAdapter::GetItemCount() const
@@ -262,7 +302,9 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
     const int32 fps = max(1, _view->Get_CurrentAnimationFps());
     const float animationLengthSec = _view->Get_CurrentAnimationLengthSec();
     const float width = rc.Max.x - rc.Min.x;
-    const float pixelsPerFrame = width / static_cast<float>(max(1, GetFrameMax() - GetFrameMin()));
+    const int32 viewFrameMin = GetViewFrameMin();
+    const int32 viewFrameMax = max(viewFrameMin + 1, GetViewFrameMax());
+    const float pixelsPerFrame = width / static_cast<float>(max(1, viewFrameMax - viewFrameMin));
     const bool isSelectedTrack = (_view->_selectedNotifyTrackIndex == trackIndex);
 
     ImGuiIO& io = ImGui::GetIO();
@@ -280,17 +322,25 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
             3.f);
     }
 
+    drawList->PushClipRect(rc.Min, rc.Max, true);
+
     for (auto& entry : animationData->notifies)
     {
         if (entry.trackIndex != trackIndex)
             continue;
 
         const int32 frame = TimeSec_ToFrame(entry.timeSec, fps);
-        const float x = rc.Min.x + static_cast<float>(frame - GetFrameMin()) * pixelsPerFrame;
-        const float markerWidth = 88.f;
+        if (frame < viewFrameMin || frame > viewFrameMax)
+            continue;
+
+        const float x = rc.Min.x + static_cast<float>(frame - viewFrameMin) * pixelsPerFrame;
+        const float markerWidth = min(88.f, max(12.f, width));
         const float markerHeight = (rc.Max.y - rc.Min.y) - 6.f;
         const bool anchorRight = (x + markerWidth > rc.Max.x);
-        const float markerMinX = anchorRight ? (x - markerWidth) : x;
+        const float markerMinX = std::clamp(
+            anchorRight ? (x - markerWidth) : x,
+            rc.Min.x,
+            max(rc.Min.x, rc.Max.x - markerWidth));
 
         ImRect itemRect(
             ImVec2(markerMinX, rc.Min.y + 3.f),
@@ -339,6 +389,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
         {
             clickedAnyItem = true;
             const bool ctrlPressed = io.KeyCtrl;
+            _view->Begin_PendingNotifyUndo();
 
             if (ctrlPressed)
             {
@@ -361,7 +412,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
                 _view->_selectedNotifyId = entry.id;
             }
 
-            _view->_selectedStateId = -1;
+            _view->Clear_SelectedStateSelection();
             _view->_selectedNotifyTrackIndex = trackIndex;
             _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + trackIndex;
             _draggingNotifyId = entry.id;
@@ -371,16 +422,24 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
         {
             const float clampedX = std::clamp(mousePos.x, rc.Min.x, rc.Max.x);
             const float relative = clampedX - rc.Min.x;
-            const int32 draggedFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+            const int32 draggedFrame = viewFrameMin + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
             const int32 maxNotifyFrame = max(GetFrameMin(), GetFrameMax() - 1);
             const int32 clampedFrame = std::clamp(draggedFrame, GetFrameMin(), maxNotifyFrame);
+            const int32 targetTrackIndex = Resolve_TrackIndexFromMouseY(
+                trackIndex,
+                Get_NotifyTrackCount(animationData),
+                rc,
+                mousePos.y);
 
             entry.timeSec = std::clamp(
                 Frame_ToTimeSec(clampedFrame, fps),
                 0.f,
                 animationLengthSec);
+            entry.trackIndex = targetTrackIndex;
 
             _view->_sequencerCurrentFrame = clampedFrame;
+            _view->_selectedNotifyTrackIndex = targetTrackIndex;
+            _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + targetTrackIndex;
             _view->_isDirty = true;
 
             Shared<ModelCom> playbackModel = _view->Get_PlaybackModel();
@@ -393,16 +452,19 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
         }
     }
 
+    drawList->PopClipRect();
+
     if (_draggingNotifyId != -1 && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
     {
         AnimNotify_Parser::Sort_And_Clamp(*animationData, animationLengthSec);
         _draggingNotifyId = -1;
+        _view->Commit_PendingNotifyUndo();
     }
 
     if (!clickedAnyItem && rowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
         _view->Clear_SelectedNotifySelection();
-        _view->_selectedStateId = -1;
+        _view->Clear_SelectedStateSelection();
         _view->_selectedNotifyTrackIndex = trackIndex;
         _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + trackIndex;
     }
@@ -420,7 +482,9 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
     const int32 fps = max(1, _view->Get_CurrentAnimationFps());
     const float animationLengthSec = _view->Get_CurrentAnimationLengthSec();
     const float width = rc.Max.x - rc.Min.x;
-    const float pixelsPerFrame = width / static_cast<float>(max(1, GetFrameMax() - GetFrameMin()));
+    const int32 viewFrameMin = GetViewFrameMin();
+    const int32 viewFrameMax = max(viewFrameMin + 1, GetViewFrameMax());
+    const float pixelsPerFrame = width / static_cast<float>(max(1, viewFrameMax - viewFrameMin));
     const bool isSelectedTrack = (_view->_selectedNotifyStateTrackIndex == trackIndex);
 
     ImGuiIO& io = ImGui::GetIO();
@@ -438,6 +502,8 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             3.f);
     }
 
+    drawList->PushClipRect(rc.Min, rc.Max, true);
+
     for (auto& entry : animationData->notifyStates)
     {
         if (entry.trackIndex != trackIndex)
@@ -445,15 +511,21 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
 
         const int32 startFrame = TimeSec_ToFrame(entry.startSec, fps);
         const int32 endFrame = max(startFrame + 1, TimeSec_ToFrame(entry.startSec + entry.durationSec, fps));
+        if (endFrame <= viewFrameMin || startFrame >= viewFrameMax)
+            continue;
+
         const string typeName = entry.notifyState ? entry.notifyState->Get_TypeName() : string{};
-        const float startX = rc.Min.x + static_cast<float>(startFrame - GetFrameMin()) * pixelsPerFrame;
-        const float endX = rc.Min.x + static_cast<float>(endFrame - GetFrameMin()) * pixelsPerFrame;
+        const float startX = rc.Min.x + static_cast<float>(startFrame - viewFrameMin) * pixelsPerFrame;
+        const float endX = rc.Min.x + static_cast<float>(endFrame - viewFrameMin) * pixelsPerFrame;
         const float visualMinWidth = max(2.f, pixelsPerFrame);
         const float visualEndX = max(endX, startX + visualMinWidth);
+        const float drawStartX = std::clamp(startX, rc.Min.x, rc.Max.x);
+        const float drawEndX = std::clamp(visualEndX, rc.Min.x, rc.Max.x);
 
         ImRect itemRect(
-            ImVec2(startX, rc.Min.y + 4.f),
-            ImVec2(visualEndX, rc.Max.y - 4.f));
+            ImVec2(drawStartX, rc.Min.y + 4.f),
+            ImVec2(max(drawStartX + visualMinWidth, drawEndX), rc.Max.y - 4.f));
+        itemRect.Max.x = min(itemRect.Max.x, rc.Max.x);
 
         ImRect interactionRect = itemRect;
         const float interactionMinWidth = 18.f;
@@ -463,12 +535,16 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             interactionRect.Min.x -= expand;
             interactionRect.Max.x += expand;
         }
+        interactionRect.Min.x = max(interactionRect.Min.x, rc.Min.x);
+        interactionRect.Max.x = min(interactionRect.Max.x, rc.Max.x);
 
-        const bool selected = (_view->_selectedStateId == entry.id);
+        const bool selected = _view->Is_StateSelected(entry.id);
         const bool hovered = interactionRect.Contains(mousePos);
 
         const float drawHandleWidth = min(10.f, max(4.f, (itemRect.Max.x - itemRect.Min.x) * 0.35f));
         const float hitHandleWidth = max(drawHandleWidth, 10.f);
+        const bool canDrawLeftHandle = startFrame >= viewFrameMin;
+        const bool canDrawRightHandle = endFrame <= viewFrameMax;
         ImRect leftHandleDraw(
             ImVec2(itemRect.Min.x, itemRect.Min.y),
             ImVec2(itemRect.Min.x + drawHandleWidth, itemRect.Max.y));
@@ -485,8 +561,8 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             ImVec2(interactionRect.Max.x - hitHandleWidth, interactionRect.Min.y),
             ImVec2(interactionRect.Max.x, interactionRect.Max.y));
 
-        const bool hoverLeft = leftHandleHit.Contains(mousePos);
-        const bool hoverRight = rightHandleHit.Contains(mousePos);
+        const bool hoverLeft = canDrawLeftHandle && leftHandleHit.Contains(mousePos);
+        const bool hoverRight = canDrawRightHandle && rightHandleHit.Contains(mousePos);
 
         const ImU32 fillColor = hovered
             ? TrackColors::StateHover
@@ -498,8 +574,10 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
 
         drawList->AddRectFilled(itemRect.Min, itemRect.Max, fillColor, 3.f);
         drawList->AddRect(itemRect.Min, itemRect.Max, borderColor, 3.f, 0, selected ? 2.5f : 1.0f);
-        drawList->AddRectFilled(leftHandleDraw.Min, leftHandleDraw.Max, hoverLeft ? TrackColors::StateHandleHover : TrackColors::StateHandle);
-        drawList->AddRectFilled(rightHandleDraw.Min, rightHandleDraw.Max, hoverRight ? TrackColors::StateHandleHover : TrackColors::StateHandle);
+        if (canDrawLeftHandle)
+            drawList->AddRectFilled(leftHandleDraw.Min, leftHandleDraw.Max, hoverLeft ? TrackColors::StateHandleHover : TrackColors::StateHandle);
+        if (canDrawRightHandle)
+            drawList->AddRectFilled(rightHandleDraw.Min, rightHandleDraw.Max, hoverRight ? TrackColors::StateHandleHover : TrackColors::StateHandle);
 
         if (!typeName.empty())
         {
@@ -526,7 +604,30 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
         if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
             clickedAnyItem = true;
-            _view->_selectedStateId = entry.id;
+            _view->Begin_PendingNotifyUndo();
+            const bool ctrlPressed = io.KeyCtrl;
+
+            if (ctrlPressed)
+            {
+                if (_view->Is_StateSelected(entry.id))
+                {
+                    _view->_selectedStateIds.erase(entry.id);
+                    if (_view->_selectedStateId == entry.id)
+                        _view->_selectedStateId = _view->_selectedStateIds.empty() ? -1 : *_view->_selectedStateIds.begin();
+                }
+                else
+                {
+                    _view->_selectedStateIds.insert(entry.id);
+                    _view->_selectedStateId = entry.id;
+                }
+            }
+            else
+            {
+                _view->_selectedStateIds.clear();
+                _view->_selectedStateIds.insert(entry.id);
+                _view->_selectedStateId = entry.id;
+            }
+
             _view->Clear_SelectedNotifySelection();
             _view->_selectedNotifyStateTrackIndex = trackIndex;
             _view->_sequencerSelectedRow = Get_StateHeaderRow(animationData) + 1 + trackIndex;
@@ -537,7 +638,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             _stateDragOffsetX = mousePos.x - itemRect.Min.x;
         }
 
-        if (_draggingStateId == entry.id && isLeftDragging && rowHovered)
+        if (_draggingStateId == entry.id && isLeftDragging)
         {
             const int32 currentStartFrame = TimeSec_ToFrame(entry.startSec, fps);
             const int32 currentDurationFrame = max(1, TimeSec_ToFrame(entry.durationSec, fps));
@@ -547,7 +648,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             {
                 const float clampedX = std::clamp(mousePos.x, rc.Min.x, rc.Max.x);
                 const float relative = clampedX - rc.Min.x;
-                const int32 draggedFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+                const int32 draggedFrame = viewFrameMin + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
                 const int32 newStartFrame = std::clamp(draggedFrame, GetFrameMin(), currentEndFrame - 1);
                 entry.startSec = Frame_ToTimeSec(newStartFrame, fps);
                 entry.durationSec = Frame_ToTimeSec(currentEndFrame - newStartFrame, fps);
@@ -556,7 +657,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             {
                 const float clampedX = std::clamp(mousePos.x, rc.Min.x, rc.Max.x);
                 const float relative = clampedX - rc.Min.x;
-                const int32 draggedFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+                const int32 draggedFrame = viewFrameMin + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
                 const int32 newEndFrame = std::clamp(draggedFrame, currentStartFrame + 1, GetFrameMax());
                 entry.durationSec = Frame_ToTimeSec(newEndFrame - currentStartFrame, fps);
             }
@@ -564,9 +665,21 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             {
                 const float localX = std::clamp(mousePos.x - _stateDragOffsetX, rc.Min.x, rc.Max.x);
                 const float relative = localX - rc.Min.x;
-                const int32 draggedFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+                const int32 draggedFrame = viewFrameMin + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
                 const int32 newStartFrame = std::clamp(draggedFrame, GetFrameMin(), max(GetFrameMin(), GetFrameMax() - currentDurationFrame));
                 entry.startSec = Frame_ToTimeSec(newStartFrame, fps);
+            }
+
+            if (_stateDragMode == EStateDragMode::Move)
+            {
+                const int32 targetTrackIndex = Resolve_TrackIndexFromMouseY(
+                    trackIndex,
+                    Get_StateTrackCount(animationData),
+                    rc,
+                    mousePos.y);
+                entry.trackIndex = targetTrackIndex;
+                _view->_selectedNotifyStateTrackIndex = targetTrackIndex;
+                _view->_sequencerSelectedRow = Get_StateHeaderRow(animationData) + 1 + targetTrackIndex;
             }
 
             _view->_sequencerCurrentFrame = TimeSec_ToFrame(entry.startSec, fps);
@@ -584,7 +697,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
 
     if (!clickedAnyItem && rowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        _view->_selectedStateId = -1;
+        _view->Clear_SelectedStateSelection();
         _view->Clear_SelectedNotifySelection();
         _view->_selectedNotifyStateTrackIndex = trackIndex;
         _view->_sequencerSelectedRow = Get_StateHeaderRow(animationData) + 1 + trackIndex;
@@ -596,8 +709,14 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
     {
         const int32 startFrame = min(_view->_sequencerMarkStartFrame, _view->_sequencerMarkEndFrame);
         const int32 endFrame = max(_view->_sequencerMarkStartFrame, _view->_sequencerMarkEndFrame);
-        const float startX = rc.Min.x + static_cast<float>(startFrame - GetFrameMin()) * pixelsPerFrame;
-        const float endX = rc.Min.x + static_cast<float>(endFrame - GetFrameMin()) * pixelsPerFrame;
+        const float startX = std::clamp(
+            rc.Min.x + static_cast<float>(startFrame - viewFrameMin) * pixelsPerFrame,
+            rc.Min.x,
+            rc.Max.x);
+        const float endX = std::clamp(
+            rc.Min.x + static_cast<float>(endFrame - viewFrameMin) * pixelsPerFrame,
+            rc.Min.x,
+            rc.Max.x);
 
         drawList->AddRectFilled(
             ImVec2(startX, rc.Min.y + 3.f),
@@ -614,12 +733,15 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             2.f);
     }
 
+    drawList->PopClipRect();
+
     if (_draggingStateId != -1 && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
     {
         AnimNotify_Parser::Sort_And_Clamp(*animationData, animationLengthSec);
         _draggingStateId = -1;
         _stateDragMode = EStateDragMode::None;
         _stateDragOffsetX = 0.f;
+        _view->Commit_PendingNotifyUndo();
     }
 }
 
@@ -636,7 +758,9 @@ void AnimSequencerAdapter::Handle_StateMarkGesture(int32 trackIndex, const ImRec
         return;
 
     const float width = rc.Max.x - rc.Min.x;
-    const float pixelsPerFrame = width / static_cast<float>(max(1, GetFrameMax() - GetFrameMin()));
+    const int32 viewFrameMin = GetViewFrameMin();
+    const int32 viewFrameMax = max(viewFrameMin + 1, GetViewFrameMax());
+    const float pixelsPerFrame = width / static_cast<float>(max(1, viewFrameMax - viewFrameMin));
 
     if (!_view->_sequencerMarkingState &&
         io.KeyShift &&
@@ -648,7 +772,7 @@ void AnimSequencerAdapter::Handle_StateMarkGesture(int32 trackIndex, const ImRec
         _view->_sequencerContextHasTrack = true;
         const float clampedX = std::clamp(io.MousePos.x, rc.Min.x, rc.Max.x);
         const float relative = clampedX - rc.Min.x;
-        const int32 startFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+        const int32 startFrame = viewFrameMin + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
         _view->_sequencerMarkStartFrame = startFrame;
         _view->_sequencerMarkEndFrame = startFrame;
         return;
@@ -661,7 +785,7 @@ void AnimSequencerAdapter::Handle_StateMarkGesture(int32 trackIndex, const ImRec
     {
         const float clampedX = std::clamp(io.MousePos.x, rc.Min.x, rc.Max.x);
         const float relative = clampedX - rc.Min.x;
-        _view->_sequencerMarkEndFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+        _view->_sequencerMarkEndFrame = viewFrameMin + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
         return;
     }
 
@@ -672,7 +796,7 @@ void AnimSequencerAdapter::Handle_StateMarkGesture(int32 trackIndex, const ImRec
     {
         const float clampedX = std::clamp(io.MousePos.x, rc.Min.x, rc.Max.x);
         const float relative = clampedX - rc.Min.x;
-        _view->_sequencerMarkEndFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+        _view->_sequencerMarkEndFrame = viewFrameMin + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
         _view->_sequencerMarkingState = false;
     }
 }

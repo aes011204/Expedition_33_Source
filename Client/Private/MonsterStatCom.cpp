@@ -16,6 +16,10 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("Base Defense", _monsterDesc.physicalDefense, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Base Speed", _monsterDesc.speed, 0.f, 999999.f, 1.f);
     PROPERTY_FLOAT("Battle Run Move Speed", _monsterDesc.battleRunMoveSpeed, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Max Break", _monsterDesc.maxBreak, 0.f, 999999.f, 1.f);
+    PROPERTY_FLOAT("Break Stun Duration", _monsterDesc.breakBarStunDuration, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Current Break", _MRuntimeStat.curBreak, 0.f, 999999.f, 0.1f);
+    PROPERTY_BOOL("Is Break", _MRuntimeStat.isBreak);
 
     PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
     PROPERTY_INT("Reward Chroma", _monsterDesc.chroma, 0.f, 9999999.f, 1.f);
@@ -100,6 +104,7 @@ void MonsterStatCom::From_Json(const json& data)
     _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
     _MRuntimeStat.CurSpeed = _monsterDesc.speed;
     _MRuntimeStat.isBreak = false;
+    _MRuntimeStat.curBreak = 0.f;
 }
 
 void MonsterStatCom::Update(float timeDelta)
@@ -107,6 +112,24 @@ void MonsterStatCom::Update(float timeDelta)
 #ifdef _DEBUG
     //GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f));
 #endif
+}
+
+void MonsterStatCom::Add_Break(float value)
+{
+    if (value <= 0.f)
+        return;
+
+    Set_Break(_MRuntimeStat.curBreak + value);
+}
+
+void MonsterStatCom::Set_Break(float value)
+{
+    _MRuntimeStat.curBreak = clamp(value, 0.f, _monsterDesc.maxBreak);
+}
+
+void MonsterStatCom::Clear_Break()
+{
+    _MRuntimeStat.curBreak = 0.f;
 }
 
 void MonsterStatCom::Rebuild_SkillRuntimeState()
@@ -206,6 +229,9 @@ void MonsterStatCom::Set_RuntimeCombatProfile(float maxHp, uint32 maxAp, float p
     _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
     _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
     _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+
+  _monsterDesc._criticalRatio = _monsterDesc._criticalRatio;
+  _monsterDesc._midRatio = _monsterDesc._midRatio;
 }
 
 BattleMonsterStatSnapshot MonsterStatCom::Create_BattleSyncSnapshot() const
@@ -219,6 +245,8 @@ BattleMonsterStatSnapshot MonsterStatCom::Create_BattleSyncSnapshot() const
     snapshot.physicalDefense = _monsterDesc.physicalDefense;
     snapshot.speed = _monsterDesc.speed;
     snapshot.battleRunMoveSpeed = _monsterDesc.battleRunMoveSpeed;
+    snapshot.maxBreak = _monsterDesc.maxBreak;
+    snapshot.breakBarStunDuration = _monsterDesc.breakBarStunDuration;
 
     snapshot.shieldPointsAtSpawn = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
     snapshot.exp = _monsterDesc.exp;
@@ -240,6 +268,8 @@ void MonsterStatCom::Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& s
     _monsterDesc.physicalDefense = snapshot.physicalDefense;
     _monsterDesc.speed = snapshot.speed;
     _monsterDesc.battleRunMoveSpeed = snapshot.battleRunMoveSpeed;
+    _monsterDesc.maxBreak = snapshot.maxBreak;
+    _monsterDesc.breakBarStunDuration = snapshot.breakBarStunDuration;
 
     _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn = snapshot.shieldPointsAtSpawn;
     _monsterDesc.exp = snapshot.exp;
@@ -255,6 +285,7 @@ void MonsterStatCom::Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& s
     _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
     _MRuntimeStat.CurSpeed = _monsterDesc.speed;
     _MRuntimeStat.isBreak = false;
+    _MRuntimeStat.curBreak = 0.f;
 }
 
 Shared<MonsterStatCom> MonsterStatCom::Create(

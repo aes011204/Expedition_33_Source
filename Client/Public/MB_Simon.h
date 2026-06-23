@@ -4,14 +4,22 @@
 NS_BEGIN(Client)
 
 class Mon_Simon_Body;
+class Mon_Simon_Hair;
 class Mon_Simon_Weapon;
 
-class MB_Simon :
-    public Monster_BattleBase
+class MB_Simon : public Monster_BattleBase
 {
     GENERATED_GAMEOBJECT(MB_Simon, ObjectType::Monster)
 
 public:
+    struct LoadedWeaponPrefab
+    {
+        json        rootJson  {};
+        wstring     modelTag  {};
+        string      modelGuid {};
+        ModelType   modelType { ModelType::NonAnim };
+    };
+
 public:
     MB_Simon(const ComPtr<Device>& device, const ComPtr<Context>& context);
     MB_Simon(const MB_Simon& prototype);
@@ -24,9 +32,11 @@ public:
 
 protected:
     HRESULT Ready_PartObjects();
+    bool    Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
 
 private:
     Shared<Mon_Simon_Body> _body = {};
+    Shared<Mon_Simon_Hair> _hair = {};
     Shared<Mon_Simon_Weapon> _weapon = {};
 
 public:

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "EffectAuthoring_Types.h"
 #include "Engine_Enum.h"
 #include "Shader_CBuffer_Define.h"
 
@@ -41,6 +42,13 @@ struct EffectEditorPostProcessOptions
     PostProcessCB params{};
 };
 
+struct PreviewEmitterTransformOverride
+{
+    bool enabled{ false };
+    Vec3 localPositionOffset{ 0.f, 0.f, 0.f };
+    Vec3 localRotationOffsetDegrees{ 0.f, 0.f, 0.f };
+};
+
 enum class EffectEditorPostProcessPreset
 {
     PreviewFriendly,
@@ -48,6 +56,7 @@ enum class EffectEditorPostProcessPreset
     Custom,
 };
 
+// EffectEditor singleton으로 editor subsystem, preview viewport, runtime state, and session options를 조율한다.
 class EffectEditorInstance final : public Base
 {
     DECLARE_SINGLETON(EffectEditorInstance)
@@ -62,6 +71,7 @@ public:
 
     void Update_Editor(float timeDelta);
     void Render_Editor(EffectEditorRenderPerfSample* outPerfSample = nullptr);
+    void Request_Exit();
 
 public: //## Accessor::Graphics
     ComPtr<Device> Get_Device() const { return _device; }
@@ -138,6 +148,10 @@ public: //## Accessor::PreviewOption
     bool Has_ClientPostProcessSnapshot() const { return _hasClientPostProcessSnapshot; }
     const EffectEditorPostProcessOptions& Get_ClientPostProcessSnapshot() const { return _clientPostProcessSnapshot; }
     EffectEditorPostProcessPreset Get_PostProcessPreset() const { return _postProcessPreset; }
+    static bool Can_UsePreviewEmitterTransform(const AuthoringEmitter& emitter);
+    const PreviewEmitterTransformOverride* Find_PreviewEmitterTransformOverride(uint32 emitterId) const;
+    bool Is_PreviewEmitterTransformEnabled(uint32 emitterId) const;
+    bool Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const;
 
 public: //## Accessor::InputPolicy
     bool Is_PreviewCameraControlEnabled() const { return _isPreviewCameraControlEnabled; }
@@ -189,6 +203,12 @@ public: //## Behavior::PreviewOption
     void Set_SourceHistorySpriteTrailPreviewSourceLocalOffset(const Vec3& sourceLocalOffset);
     // Trail Preview 조정값을 기본 weapon-local marker 위치로 되돌린다.
     void Reset_TrailPreviewLocalOffsets();
+    void Set_PreviewEmitterTransformEnabled(uint32 emitterId, bool enabled);
+    void Set_PreviewEmitterTransformOffsets(uint32 emitterId, const Vec3& localPositionOffset, const Vec3& localRotationOffsetDegrees);
+    void Reset_PreviewEmitterTransformOffsets();
+    void Clear_PreviewEmitterTransform(uint32 emitterId);
+    void Sanitize_PreviewEmitterTransforms(const vector<AuthoringEmitter>& emitters);
+    void Apply_PreviewEmitterTransformOverrides();
     void Apply_PostProcessOptions(const EffectEditorPostProcessOptions& options);
     void Capture_ClientPostProcessSnapshot(const EffectEditorPostProcessOptions& options);
     void Set_PostProcessFeature(PostProcessFeature feature, bool enabled);
@@ -315,6 +335,7 @@ private: //## Data::PreviewOption
     Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
     Vec3 _trailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };
     Vec3 _sourceHistorySpriteTrailPreviewSourceLocalOffset{ kDefaultTrailPreviewSourceLocalOffset };
+    unordered_map<uint32, PreviewEmitterTransformOverride> _previewEmitterTransformOverrides{};
     EffectEditorPostProcessOptions _postProcessOptions{};
     bool _hasClientPostProcessSnapshot{ false };
     EffectEditorPostProcessOptions _clientPostProcessSnapshot{};

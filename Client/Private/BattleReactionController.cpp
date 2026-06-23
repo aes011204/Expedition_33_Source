@@ -10,40 +10,100 @@
 #include "Event_Bus.h"
 #include "TransformCom.h"
 
+namespace
+{
+    constexpr uint32 kReactionConsumeKeyStride = 16;
+
+    size_t ReactionIndex(BattleReactionType type)
+    {
+        return static_cast<size_t>(ETOI(type));
+    }
+
+    bool IsWindowManagedReaction(BattleReactionType type)
+    {
+        return type == BattleReactionType::Dodge ||
+            type == BattleReactionType::Parry ||
+            type == BattleReactionType::Jump ||
+            type == BattleReactionType::JumpCounter;
+    }
+}
+
+uint32 BattleReactionController::Make_ReactionConsumeKey(uint32 sourceStepIndex, uint32 echoLaneIndex)
+{
+    if (sourceStepIndex == UINT32_MAX)
+        return UINT32_MAX;
+
+    return sourceStepIndex * kReactionConsumeKeyStride + echoLaneIndex;
+}
+
 void BattleReactionController::OpenWindow(BattleReactionType type)
 {
-    if (type == BattleReactionType::Dodge)
-        _isDodgeOpen = true;
-    else if (type == BattleReactionType::Parry)
-        _isParryOpen = true;
-    else
+    if (!IsWindowManagedReaction(type))
         return;
+
+    const size_t index = ReactionIndex(type);
+
+    ++_reactionWindowOpenCounts[index];
 
     OnReactionWindowOpened.Broadcast(type);
 }
 
+void BattleReactionController::OpenWindow(BattleReactionType type, const BattleAction& turnAction, float durationSec)
+{
+    if (!IsWindowManagedReaction(type))
+        return;
+
+    OpenWindow(type);
+
+    const size_t index = ReactionIndex(type);
+    _reactionWindowElapsedSec[index] = 0.f;
+    _reactionWindowRemainingSec[index] = max(0.f, durationSec);
+    _reactionWindowContexts[index] = BuildReactionInputContext(type, turnAction);
+}
+
 void BattleReactionController::CloseWindow(BattleReactionType type)
 {
-    if (type == BattleReactionType::Dodge)
-        _isDodgeOpen = false;
-    else if (type == BattleReactionType::Parry)
-        _isParryOpen = false;
+    if (!IsWindowManagedReaction(type))
+        return;
 
-    // 성공했을 때 입력은 AN_Attack에서 Consume 소모
+    const size_t index = ReactionIndex(type);
+    if (_reactionWindowOpenCounts[index] == 0)
+        return;
+
+    --_reactionWindowOpenCounts[index];
+
+    if (_reactionWindowOpenCounts[index] > 0)
+        return;
+
+    _reactionWindowElapsedSec[index] = 0.f;
+    _reactionWindowRemainingSec[index] = 0.f;
+    _reactionWindowContexts[index] = {};
+
+    OnReactionWindowClosed.Broadcast(type);
 }
 
 void BattleReactionController::Clear()
 {
-    _isDodgeOpen = false;
-    _isParryOpen = false;
-    _isConsumed = false;
-    _result = BattleReactionType::None;
-    _consumedStepIndex = UINT32_MAX;
+    const bool keepJumpCounterWindow =
+        _jumpCounterState == JumpCounterState::CounterWindowOpen;
+
+    // 초기화
+    _reactionWindowOpenCounts.fill(0);
+    _reactionWindowElapsedSec.fill(0.f);
+    _reactionWindowRemainingSec.fill(0.f);
+    _reactionWindowContexts.fill({});
+
+    if (keepJumpCounterWindow)
+        _reactionWindowOpenCounts[ReactionIndex(BattleReactionType::JumpCounter)] = 1;
+
+    ClearConsumedInput();
+    Clear_ParryCounterRuntime();
 }
 
 void BattleReactionController::Clear_RuntimeState()
 {
     Clear();
+    Clear_EchoReactionWindows();
     ResetCounterTimeSection();
 
     for (const BattleChar& target : _reactionAnimTargets)
@@ -51,50 +111,155 @@ void BattleReactionController::Clear_RuntimeState()
         if (target.ModelCom)
             target.ModelCom->Set_FrameSpeed(1.f);
     }
+
     _reactionAnimTargets.clear();
     _counterReturnRuntimes.clear();
     _counterDamageTarget = {};
+    _pendingParryCounterTarget = {};
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
     _reactionAnimElapsed = 0.f;
+
+    ResetJumpCounterSequence();
 }
 
-bool BattleReactionController::TryInput(BattleReactionType type, uint32 stepIndex)
+bool BattleReactionController::TryInput(BattleReactionType type, uint32 consumeKey)
 {
-    if (_isConsumed)
+    if (Is_ConsumeKeyPending(consumeKey))
         return false;
 
     if (!IsWindowOpen(type))
         return false;
 
-    _isConsumed = true;
+    _consumedReactionInputs.push_back({ type, consumeKey });
     _result = type;
-    _consumedStepIndex = stepIndex;
+
+    if (type == BattleReactionType::Jump)
+        GAME->Set_WorldTimeScale(.1f);
+
     return true;
 }
 
-bool BattleReactionController::TryConsume(BattleReactionType& outResult, uint32 stepIndex)
+bool BattleReactionController::TryConsume(BattleReactionType& outResult, uint32 consumeKey)
 {
-    if (!_isConsumed)
-        return false;
-
-    if (_consumedStepIndex != stepIndex)
+    for (size_t i = 0; i < _consumedReactionInputs.size();)
     {
-        // 저장된 입력이 이미 지난 step용이면 버린다.
-        if (_consumedStepIndex < stepIndex)
-            Clear();
+        const ConsumedReactionInput& input = _consumedReactionInputs[i];
 
-        return false;
+        if (input.consumeKey == consumeKey)
+        {
+            outResult = input.type;
+            _consumedReactionInputs.erase(_consumedReactionInputs.begin() + i);
+            if (_consumedReactionInputs.empty())
+                _result = BattleReactionType::None;
+
+            return outResult == BattleReactionType::Dodge ||
+                outResult == BattleReactionType::Parry ||
+                outResult == BattleReactionType::Jump ||
+                outResult == BattleReactionType::JumpCounter;
+        }
+
+        // 현재 데미지보다 앞선 입력은 더 이상 소비될 수 없으므로 버린다.
+        if (input.consumeKey < consumeKey)
+        {
+            _consumedReactionInputs.erase(_consumedReactionInputs.begin() + i);
+            continue;
+        }
+
+        ++i;
     }
 
-    outResult = _result;
-    Clear();
+    if (_consumedReactionInputs.empty())
+        _result = BattleReactionType::None;
 
-    return outResult == BattleReactionType::Dodge || outResult == BattleReactionType::Parry;
+    return false;
 }
 
-bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex)
+void BattleReactionController::ClearConsumedInput()
+{
+    _consumedReactionInputs.clear();
+    _result = BattleReactionType::None;
+}
+
+bool BattleReactionController::Is_ConsumeKeyPending(uint32 consumeKey) const
+{
+    for (const ConsumedReactionInput& input : _consumedReactionInputs)
+    {
+        if (input.consumeKey == consumeKey)
+            return true;
+    }
+
+    return false;
+}
+
+void BattleReactionController::ResetJumpCounterSequence()
+{
+    const size_t index = ReactionIndex(BattleReactionType::JumpCounter);
+    const bool wasOpen = _reactionWindowOpenCounts[index] > 0;
+
+    _reactionWindowOpenCounts[index] = 0;
+    _reactionWindowElapsedSec[index] = 0.f;
+    _reactionWindowRemainingSec[index] = 0.f;
+    _reactionWindowContexts[index] = {};
+
+    if (wasOpen)
+        OnReactionWindowClosed.Broadcast(BattleReactionType::JumpCounter);
+
+    _jumpCounterState = JumpCounterState::None;
+    _jumpCounterStepIndex = UINT32_MAX;
+    _jumpCounterTarget = {};
+    _jumpCounterStarted = false;
+}
+
+void BattleReactionController::NotifyJumpCounterWindowBegin()
+{
+    if (_jumpCounterState != JumpCounterState::JumpSucceeded)
+        return;
+
+    _jumpCounterState = JumpCounterState::CounterWindowOpen;
+    OpenWindow(BattleReactionType::JumpCounter);
+}
+
+void BattleReactionController::NotifyJumpCounterWindowEnd()
+{
+    CloseWindow(BattleReactionType::JumpCounter);
+
+    if (_jumpCounterState == JumpCounterState::CounterWindowOpen)
+    {
+        GAME->Set_WorldTimeScale(1.f);
+        ResetJumpCounterSequence();
+    }
+}
+
+bool BattleReactionController::TryStartQueuedJumpCounter(ModelCom* sourceModel)
+{
+    if (_jumpCounterState != JumpCounterState::CounterSucceeded || _jumpCounterStarted)
+        return false;
+
+    GAME->Set_WorldTimeScale(1.f);
+
+    StartCounter(sourceModel);
+
+    if (_jumpCounterState == JumpCounterState::Started)
+    {
+        _jumpCounterStarted = true;
+        return true;
+    }
+
+    return false;
+}
+
+bool BattleReactionController::Try_GetJumpCounterTarget(BattleChar& outTarget) const
+{
+    if (_jumpCounterTarget.actor == nullptr || _jumpCounterTarget.statCom == nullptr)
+        return false;
+
+    outTarget = _jumpCounterTarget;
+    return true;
+}
+
+bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex, uint32 consumeKey)
 {
     if (target.actor == nullptr || target.statCom == nullptr)
         return false;
@@ -103,21 +268,45 @@ bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 
         return false;
 
     BattleReactionType result = BattleReactionType::None;
+    const uint32 resolvedConsumeKey =
+        consumeKey == UINT32_MAX ? Make_ReactionConsumeKey(stepIndex) : consumeKey;
 
-    return TryConsume(result, stepIndex);
+    if (!TryConsume(result, resolvedConsumeKey))
+        return false;
+
+    if (result == BattleReactionType::Jump ||
+        result == BattleReactionType::JumpCounter)
+    {
+        if (_curSkillData == nullptr)
+            return false;
+
+        if (stepIndex >= _curSkillData->targetingType.size())
+            return false;
+
+        const TargetType currentTargetType = _curSkillData->targetingType[stepIndex];
+        return currentTargetType == TargetType::PrimaryJump ||
+            currentTargetType == TargetType::AllEnemiesJump;
+    }
+
+    const bool guarded =
+        result == BattleReactionType::Dodge ||
+        result == BattleReactionType::Parry;
+
+    if (guarded && result == BattleReactionType::Parry)
+    {
+        Mark_ParryCounterGuardedKey(stepIndex, resolvedConsumeKey);
+        Try_ArmParryCounterAfterGuard(target, stepIndex);
+    }
+
+    return guarded;
 }
 
 bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
 {
-    switch (type)
-    {
-    case BattleReactionType::Dodge:
-        return _isDodgeOpen;
-    case BattleReactionType::Parry:
-        return _isParryOpen;
-    default:
+    if (!IsWindowManagedReaction(type))
         return false;
-    }
+
+    return _reactionWindowOpenCounts[ReactionIndex(type)] > 0;
 }
 
 BattleReactionController::BattleReactionInputResult BattleReactionController::SubmitInput(BattleReactionType type,
@@ -131,44 +320,79 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
     if (turnAction.GetSteps().size() <= turnAction.GetCurStepIndex())
         return result;
 
-    const auto& curTargets = turnAction.GetCurStepTarget();
-    if (curTargets.empty())
+    ReactionInputContext context = BuildReactionInputContext(type, turnAction);
+    if (context.targets.empty())
         return result;
 
-    if (IsConsumed())
+    return SubmitInput(context);
+}
+
+BattleReactionController::BattleReactionInputResult BattleReactionController::SubmitInput(const ReactionInputContext& context)
+{
+    BattleReactionInputResult result{};
+
+    if (_curSkillData == nullptr)
         return result;
 
-    const BattleChar& counterTarget = turnAction.Get_CurChar();
-    const uint32 curStepIndex = turnAction.GetCurStepIndex();
+    if (context.targets.empty())
+        return result;
 
-    if (type == BattleReactionType::Dodge)
+    if (context.type != BattleReactionType::JumpCounter && Is_ConsumeKeyPending(context.consumeKey))
+        return result;
+
+    vector<BattleChar> inputTargets{};
+    if (context.type == BattleReactionType::JumpCounter)
     {
-        const bool success = TryInput(BattleReactionType::Dodge, curStepIndex);
+        inputTargets = context.targets;
+    }
+    else
+    {
+        for (const BattleChar& target : context.targets)
+        {
+            if (CanReceiveInput(target))
+                inputTargets.push_back(target);
+        }
+
+        if (inputTargets.empty())
+            return result;
+    }
+
+    const bool allowCounterOnSuccess =
+        context.allowCounterOnSuccess &&
+        (context.isEcho || !Is_CounterSuppressedForSourceStep(context.stepIndex));
+
+    if (context.type == BattleReactionType::Dodge)
+    {
+        const bool success = TryInput(BattleReactionType::Dodge, context.consumeKey);
 
         result.hasInput = true;
         result.type = BattleReactionType::Dodge;
         result.success = success;
 
-        for (const BattleChar& target : curTargets)
-        {
-            if (!CanReceiveInput(target))
-                continue;
+        if (success && context.isEcho)
+            Mark_EchoReactionInputConsumed(context);
 
+        for (const BattleChar& target : inputTargets)
+        {
             PlayReactionAnimation(
                 target,
                 BattleReactionType::Dodge,
                 success,
                 {},
-                curStepIndex);
+                context.stepIndex,
+                false);
         }
     }
-    else if (type == BattleReactionType::Parry)
+    else if (context.type == BattleReactionType::Parry)
     {
-        const bool success = TryInput(BattleReactionType::Parry, curStepIndex);
+        const bool success = TryInput(BattleReactionType::Parry, context.consumeKey);
 
         result.hasInput = true;
         result.type = BattleReactionType::Parry;
         result.success = success;
+
+        if (success && context.isEcho)
+            Mark_EchoReactionInputConsumed(context);
 
         if (success)
         {
@@ -178,31 +402,31 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
             _isCounterPending = false;
             _isCounterDamageApplied = false;
             _animPhase = ReactionAnimPhase::None;
+
+            if (allowCounterOnSuccess)
+                _pendingParryCounterTarget = context.counterTarget;
         }
 
-        for (const BattleChar& target : curTargets)
+        for (const BattleChar& target : inputTargets)
         {
-            if (!CanReceiveInput(target))
-                continue;
-
             PlayReactionAnimation(
                 target,
                 BattleReactionType::Parry,
                 success,
-                counterTarget,
-                curStepIndex);
+                context.counterTarget,
+                context.stepIndex,
+                allowCounterOnSuccess);
 
             if (success && target.actor != nullptr)
             {
-                // 패링 성공 시 짧게
                 if (auto battle = CLIENT->Get_BattleController())
                     battle->Play_BattleHitStop(0.08f, 0.08f);
 
                 PlayEffectDesc effectDesc{};
-                effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+                effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
                 effectDesc.spawnBasisTarget = target.actor;
-                effectDesc.scale = Vec3(0.5f, 0.5f, 0.5f);
-                effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
+                effectDesc.scale = Vec3(0.08f, 0.08f, 0.08f); // 얼마나 줄여야하는겨;
+                effectDesc.localOffset = Vec3(0.f, 0.9f, 0.f);
 
                 CLIENT->Play_Effect(effectDesc);
             }
@@ -219,9 +443,62 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Su
             }
         }
     }
+    else if (context.type == BattleReactionType::Jump)
+    {
+        const bool success = TryInput(BattleReactionType::Jump, context.consumeKey);
+
+        result.hasInput = true;
+        result.type = BattleReactionType::Jump;
+        result.success = success;
+
+        if (success)
+        {
+            _jumpCounterState = JumpCounterState::JumpSucceeded;
+            _jumpCounterStepIndex = context.stepIndex;
+            _jumpCounterTarget = context.counterTarget;
+            _jumpCounterStarted = false;
+            LOG_INFO("JUMP success step={}", context.stepIndex);
+        }
+        else
+        {
+            ResetJumpCounterSequence();
+        }
+
+        for (const BattleChar& target : inputTargets)
+        {
+            PlayReactionAnimation(
+                target,
+                BattleReactionType::Jump,
+                success,
+                {},
+                context.stepIndex,
+                false);
+        }
+    }
+    else if (context.type == BattleReactionType::JumpCounter)
+    {
+        result.hasInput = true;
+        result.type = BattleReactionType::JumpCounter;
+
+        if (_jumpCounterState != JumpCounterState::CounterWindowOpen ||
+            _jumpCounterStepIndex != context.stepIndex ||
+            !IsWindowOpen(BattleReactionType::JumpCounter))
+        {
+            return result;
+        }
+
+        result.success = true;
+        _jumpCounterState = JumpCounterState::CounterSucceeded;
+        _counterDamageTarget = _jumpCounterTarget;
+        _isCounterPending = true;
+        _isCounterDamageApplied = false;
+        _jumpCounterStarted = false;
+        CloseWindow(BattleReactionType::JumpCounter);
+        LOG_INFO("JUMPCOUNTER success step={}", context.stepIndex);
+    }
 
     if (result.success)
-        OnReactionSucceeded.Broadcast(result.type, turnAction.GetCurStepTarget());
+        OnReactionSucceeded.Broadcast(result.type, inputTargets);
 
     return result;
 }
@@ -248,7 +525,7 @@ void BattleReactionController::Notify_TargetDamaged(const BattleChar& target)
     for (auto it = _counterReturnRuntimes.begin(); it != _counterReturnRuntimes.end(); )
     {
         if (it->target.actor == target.actor)
-            it = _counterReturnRuntimes.erase(it);
+            it = _counterReturnRuntimes.erase(it); 
         else
             ++it;
     }
@@ -260,18 +537,36 @@ void BattleReactionController::Notify_TargetDamaged(const BattleChar& target)
 
     _counterReturnRuntimes.clear();
     _counterDamageTarget = {};
+    Clear_ParryCounterRuntime();
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+    ResetJumpCounterSequence();
 }
 
 BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
 {
+    if (GAME->KeyDown(KEY_TYPE::LBUTTON))
+        return SubmitInput(BattleReactionType::JumpCounter, turnAction);
+
     if (GAME->KeyDown(KEY_TYPE::Q))
+    {
+        if (const ReactionInputContext* echoContext = Find_ActiveEchoReactionContext(BattleReactionType::Dodge))
+            return SubmitInput(*echoContext);
+
         return SubmitInput(BattleReactionType::Dodge, turnAction);
+    }
 
     if (GAME->KeyDown(KEY_TYPE::E))
+    {
+        if (const ReactionInputContext* echoContext = Find_ActiveEchoReactionContext(BattleReactionType::Parry))
+            return SubmitInput(*echoContext);
+
         return SubmitInput(BattleReactionType::Parry, turnAction);
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::SPACE))
+        return SubmitInput(BattleReactionType::Jump, turnAction);
 
     return {};
 }
@@ -288,13 +583,6 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
     if (_animPhase == ReactionAnimPhase::CounterReturn)
     {
         UpdateCounterReturn(timeDelta);
-        return;
-    }
-
-    // Dodge/Parry reaction anim이 비정상적으로 종료되지 않아도 턴이 영구 정지되지 않게 fail-safe를 둔다.
-    if (_animPhase == ReactionAnimPhase::Reaction && _reactionAnimElapsed >= 1.25f)
-    {
-        FinishReactionAnimation();
         return;
     }
 
@@ -571,10 +859,135 @@ void BattleReactionController::StartCounterReturnAll(ModelCom* sourceModel)
     StartCounterReturn();
 }
 
+void BattleReactionController::Queue_EchoReactionWindow(float delaySec, float durationSec,
+    const ReactionInputContext& context)
+{
+    if (context.type != BattleReactionType::Dodge &&
+        context.type != BattleReactionType::Parry)
+        return;
+
+    if (context.targets.empty())
+        return;
+
+    DelayedEchoReactionWindow window{};
+    window.delaySec = max(0.f, delaySec);
+    window.durationSec = max(0.f, durationSec);
+    window.context = context;
+    window.context.isEcho = true;
+
+    _delayedEchoReactionWindows.push_back(window);
+
+    if (window.context.type == BattleReactionType::Parry)
+        Register_ParryCounterRequiredKey(window.context.stepIndex, window.context.consumeKey);
+}
+
+vector<BattleReactionController::ActiveReactionWindowSnapshot> BattleReactionController::
+        Get_ActiveReactionWindowSnapshots() const
+{
+    vector<ActiveReactionWindowSnapshot> snapshots{};
+
+    for (BattleReactionType type : { BattleReactionType::Dodge, BattleReactionType::Parry })
+    {
+        const size_t index = ReactionIndex(type);
+        if (_reactionWindowOpenCounts[index] == 0)
+            continue;
+
+        const ReactionInputContext& context = _reactionWindowContexts[index];
+        if (context.targets.empty())
+            continue;
+
+        ActiveReactionWindowSnapshot snapshot{};
+        snapshot.type = type;
+        snapshot.elapsedSec = _reactionWindowElapsedSec[index];
+        snapshot.remainingSec = _reactionWindowRemainingSec[index];
+        snapshot.context = context;
+        snapshots.push_back(snapshot);
+    }
+
+    return snapshots;
+}
+
+void BattleReactionController::Update_EchoReactionWindows(float timeDelta)
+{
+    const float dt = max(0.f, timeDelta);
+
+    for (BattleReactionType type : { BattleReactionType::Dodge, BattleReactionType::Parry })
+    {
+        const size_t index = ReactionIndex(type);
+        if (_reactionWindowOpenCounts[index] == 0)
+            continue;
+
+        _reactionWindowElapsedSec[index] += dt;
+        if (_reactionWindowRemainingSec[index] > 0.f)
+            _reactionWindowRemainingSec[index] = max(0.f, _reactionWindowRemainingSec[index] - dt);
+    }
+
+    for (size_t i = 0; i < _delayedEchoReactionWindows.size();)
+    {
+        DelayedEchoReactionWindow& window = _delayedEchoReactionWindows[i];
+
+        if (!window.opened)
+        {
+            window.delaySec -= dt;
+
+            if (window.delaySec <= 0.f)
+            {
+                window.opened = true;
+                OpenWindow(window.context.type);
+            }
+        }
+
+        if (window.opened)
+        {
+            if (window.inputConsumed)
+            {
+                _delayedEchoReactionWindows.erase(_delayedEchoReactionWindows.begin() + i);
+                continue;
+            }
+
+            window.durationSec -= dt;
+
+            if (window.durationSec <= 0.f)
+            {
+                CloseWindow(window.context.type);
+                _delayedEchoReactionWindows.erase(_delayedEchoReactionWindows.begin() + i);
+                continue;
+            }
+        }
+
+        ++i;
+    }
+}
+
+void BattleReactionController::Clear_EchoReactionWindows()
+{
+    for (const DelayedEchoReactionWindow& window : _delayedEchoReactionWindows)
+    {
+        if (window.opened)
+            CloseWindow(window.context.type);
+    }
+
+    _delayedEchoReactionWindows.clear();
+    _echoCounterSuppressedSteps.clear();
+    Clear_ParryCounterRuntime();
+}
+
+void BattleReactionController::Suppress_CounterForSourceStep(uint32 stepIndex)
+{
+    _echoCounterSuppressedSteps.insert(stepIndex);
+    Register_ParryCounterRequiredKey(stepIndex, Make_ReactionConsumeKey(stepIndex));
+}
+
 void BattleReactionController::StartCounter(ModelCom* sourceModel)
 {
     if (!_isCounterPending)
         return;
+
+    const BattleAnimType counterAnimType =
+        _jumpCounterState == JumpCounterState::CounterSucceeded ||
+        _jumpCounterState == JumpCounterState::Started
+        ? BattleAnimType::JumpCounter
+        : BattleAnimType::Counter;
 
     for (const BattleChar& target : _reactionAnimTargets)
     {
@@ -618,13 +1031,15 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
         }
         target.ModelCom->Set_RootMotionEnabled(true);
 
-        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
+        if (!target.ModelCom->Set_AnimationByState(ETOI(counterAnimType), 0.12f, false))
             return;
     }
 
     _isCounterPending = false;
     _isCounterDamageApplied = false;
     _animPhase = ReactionAnimPhase::Counter;
+    if (counterAnimType == BattleAnimType::JumpCounter)
+        _jumpCounterState = JumpCounterState::Started;
 
     OnCounterStarted.Broadcast(_reactionAnimTargets);
 }
@@ -659,9 +1074,9 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
     if (hitCount > 0)
     {
         PlayEffectDesc effectDesc{};
-        effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+        effectDesc.effectName = L"Effects\\Assets\\Player\\Player_Counter.effect.json";
         effectDesc.spawnBasisTarget = _counterDamageTarget.actor;
-        effectDesc.scale = Vec3(1.2f, 1.2f, 1.2f);
+        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
         effectDesc.localOffset = Vec3(0.f, 1.2f, 0.f);
 
         CLIENT->Play_Effect(effectDesc);
@@ -744,8 +1159,11 @@ bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) co
 }
 
 void BattleReactionController::PlayReactionAnimation(const BattleChar& target, BattleReactionType reactionType,
-    bool isSuccess, const BattleChar& counterTarget, uint32 curAttackIndex)
+    bool isSuccess, const BattleChar& counterTarget, uint32 curAttackIndex, bool allowCounterOnSuccess)
 {
+    UNREFERENCED_PARAMETER(curAttackIndex);
+    UNREFERENCED_PARAMETER(allowCounterOnSuccess);
+
     if (target.ModelCom == nullptr)
         return;
 
@@ -758,23 +1176,19 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
     {
         animType = BattleAnimType::Dodge;
     }
+    else if (reactionType == BattleReactionType::Jump)
+    {
+        animType = BattleAnimType::Jump;
+    }
     else if (reactionType == BattleReactionType::Parry)
     {
         animType = BattleAnimType::Parray; // 성공하면 패링 애니메이션
+    }
+    else if (reactionType == BattleReactionType::JumpCounter)
+    {
+        animType = BattleAnimType::JumpCounter;
 
-        EvtBattlePresentation event;
-        //
-        //if(_reactionAnimTargets.size() == 1)
-        //{
-        //    event.cameraMode = BattleCameraMode::PARRY;
-        //    event.subject = _reactionAnimTargets.front().actor;
-        //    event.presetId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
-        //    event.clipId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
-        //    event.useClip = true;
-        //}
-        //GAME->Get_EventBus().Publish(event);
-        //
-        if (isSuccess && _curSkillData->targetingType.size() - 1 == curAttackIndex)
+        if (isSuccess)
         {
             _isCounterPending = true;
             _counterDamageTarget = counterTarget;
@@ -786,7 +1200,9 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
         return;
     }
 
-    const bool useRootMotion = (reactionType != BattleReactionType::Dodge);
+    const bool useRootMotion =
+        reactionType != BattleReactionType::Dodge &&
+        reactionType != BattleReactionType::Jump;
     target.ModelCom->Set_RootMotionEnabled(useRootMotion);
 
     if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
@@ -834,10 +1250,13 @@ void BattleReactionController::FinishReactionAnimation()
     _reactionAnimTargets.clear();
     _counterReturnRuntimes.clear();
     _counterDamageTarget = {};
+    Clear_ParryCounterRuntime();
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
     _reactionAnimElapsed = 0.f;
+    GAME->Set_WorldTimeScale(1.f);
+    ResetJumpCounterSequence();
 }
 
 void BattleReactionController::TryRestoreTargetToSpawnPose(const BattleChar& target) const
@@ -892,6 +1311,154 @@ void BattleReactionController::ResetCounterTimeSection()
     _counterTimeSectionModel = nullptr;
 }
 
+BattleReactionController::ReactionInputContext BattleReactionController::BuildReactionInputContext(
+    BattleReactionType type, const BattleAction& turnAction) const
+{
+    ReactionInputContext context{};
+    context.type = type;
+    context.stepIndex = turnAction.GetCurStepIndex();
+    context.consumeKey = Make_ReactionConsumeKey(context.stepIndex);
+    context.targets = turnAction.GetCurStepTarget();
+    context.counterTarget = turnAction.Get_CurChar();
+
+    context.allowCounterOnSuccess =
+        type == BattleReactionType::Parry &&
+        Is_LastSkillAttackStep(context.stepIndex) &&
+        !Is_CounterSuppressedForSourceStep(context.stepIndex);
+
+    context.isEcho = false;
+
+    return context;
+}
+
+const BattleReactionController::ReactionInputContext* BattleReactionController::Find_ActiveEchoReactionContext(
+    BattleReactionType type) const
+{
+    for (const DelayedEchoReactionWindow& window : _delayedEchoReactionWindows)
+    {
+        if (!window.opened)
+            continue;
+
+        if (window.inputConsumed)
+            continue;
+
+        if (window.context.type == type)
+            return &window.context;
+    }
+
+    return nullptr;
+}
+
+void BattleReactionController::Mark_EchoReactionInputConsumed(const ReactionInputContext& context)
+{
+    for (DelayedEchoReactionWindow& window : _delayedEchoReactionWindows)
+    {
+        if (!window.opened || window.inputConsumed)
+            continue;
+
+        if (window.context.type != context.type ||
+            window.context.consumeKey != context.consumeKey)
+            continue;
+
+        window.inputConsumed = true;
+        CloseWindow(window.context.type);
+        return;
+    }
+}
+
+bool BattleReactionController::Is_LastSkillAttackStep(uint32 stepIndex) const
+{
+    return _curSkillData != nullptr &&
+        !_curSkillData->targetingType.empty() &&
+        stepIndex + 1 >= _curSkillData->targetingType.size();
+}
+
+bool BattleReactionController::Is_CounterSuppressedForSourceStep(uint32 stepIndex) const
+{
+    return _echoCounterSuppressedSteps.find(stepIndex) != _echoCounterSuppressedSteps.end();
+}
+
+void BattleReactionController::Register_ParryCounterRequiredKey(uint32 stepIndex, uint32 consumeKey)
+{
+    if (stepIndex == UINT32_MAX || consumeKey == UINT32_MAX)
+        return;
+
+    _parryCounterRequiredConsumeKeys[stepIndex].insert(consumeKey);
+}
+
+void BattleReactionController::Mark_ParryCounterGuardedKey(uint32 stepIndex, uint32 consumeKey)
+{
+    if (stepIndex == UINT32_MAX || consumeKey == UINT32_MAX)
+        return;
+
+    _parryCounterGuardedConsumeKeys[stepIndex].insert(consumeKey);
+
+    const auto requiredIt = _parryCounterRequiredConsumeKeys.find(stepIndex);
+    const size_t requiredCount =
+        requiredIt != _parryCounterRequiredConsumeKeys.end() ? requiredIt->second.size() : 1;
+    const size_t guardedCount = _parryCounterGuardedConsumeKeys[stepIndex].size();
+
+    LOG_INFO("PARRY guarded step={} count={}/{}", stepIndex, guardedCount, requiredCount);
+}
+
+bool BattleReactionController::Is_ParryCounterGuardChainComplete(uint32 stepIndex) const
+{
+    const auto requiredIt = _parryCounterRequiredConsumeKeys.find(stepIndex);
+    if (requiredIt == _parryCounterRequiredConsumeKeys.end())
+        return true;
+
+    const auto guardedIt = _parryCounterGuardedConsumeKeys.find(stepIndex);
+    if (guardedIt == _parryCounterGuardedConsumeKeys.end())
+        return false;
+
+    for (const uint32 requiredKey : requiredIt->second)
+    {
+        if (guardedIt->second.find(requiredKey) == guardedIt->second.end())
+            return false;
+    }
+
+    return true;
+}
+
+void BattleReactionController::Try_ArmParryCounterAfterGuard(const BattleChar& target, uint32 stepIndex)
+{
+    if (!Is_LastSkillAttackStep(stepIndex))
+        return;
+
+    if (_pendingParryCounterTarget.actor == nullptr ||
+        _pendingParryCounterTarget.statCom == nullptr)
+        return;
+
+    if (!Is_ParryCounterGuardChainComplete(stepIndex))
+        return;
+
+    _isCounterPending = true;
+    _counterDamageTarget = _pendingParryCounterTarget;
+    _isCounterDamageApplied = false;
+
+    EvtBattlePresentation event;
+    event.cameraMode = BattleCameraMode::PARRY;
+    event.subject = target.actor;
+    event.presetId = magic_enum::enum_name(target.heroId);
+    event.clipId = magic_enum::enum_name(target.heroId);
+    event.useClip = true;
+
+    GAME->Get_EventBus().Publish(event);
+
+    LOG_INFO("PARRY counter armed step={}", stepIndex);
+
+    _pendingParryCounterTarget = {};
+    _parryCounterRequiredConsumeKeys.erase(stepIndex);
+    _parryCounterGuardedConsumeKeys.erase(stepIndex);
+}
+
+void BattleReactionController::Clear_ParryCounterRuntime()
+{
+    _pendingParryCounterTarget = {};
+    _parryCounterRequiredConsumeKeys.clear();
+    _parryCounterGuardedConsumeKeys.clear();
+}
+
 Shared<BattleReactionController> BattleReactionController::Create()
 {
     return make_shared<BattleReactionController>();
@@ -900,6 +1467,7 @@ Shared<BattleReactionController> BattleReactionController::Create()
 void BattleReactionController::Free()
 {
     OnReactionWindowOpened.Clear();
+    OnReactionWindowClosed.Clear();
     OnReactionSucceeded.Clear();
     OnCounterStarted.Clear();
 

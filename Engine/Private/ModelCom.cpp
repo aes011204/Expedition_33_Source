@@ -175,7 +175,7 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop, float startFrame)
     _isAnimLoop = isLoop;
     _isBlending = false;
     _isFinished = false;
-    _animations[_currentAnimIndex]->Set_StartFrame(startFrame);
+    Apply_StartFrameWithPlaySection(_currentAnimIndex, _isAnimLoop, startFrame);
 
     Mark_BoneMatricesDirty();
 }
@@ -199,7 +199,7 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startF
     _isAnimLoop = isLoop;
     _isBlending = false;
     _isFinished = false;
-    _animations[_currentAnimIndex]->Set_StartFrame(startFrame);
+    Apply_StartFrameWithPlaySection(_currentAnimIndex, _isAnimLoop, startFrame);
 
     Mark_BoneMatricesDirty();
     return true;
@@ -219,7 +219,7 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop,
     _blendDuration = blendDuration;
     _blendElapsedTime = 0.f;
     _isFinished = false;
-    _animations[_nextAnimIndex]->Set_StartFrame(startFrame);
+    Apply_StartFrameWithPlaySection(_nextAnimIndex, _isAnimLoop, startFrame);
 
     Mark_BoneMatricesDirty();
 }
@@ -267,7 +267,46 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
     _blendDuration = blendDuration;
     _blendElapsedTime = 0.f;
     _isFinished = false;
-    _animations[_nextAnimIndex]->Set_StartFrame(startFrame);
+    Apply_StartFrameWithPlaySection(_nextAnimIndex, _isAnimLoop, startFrame);
+
+    Mark_BoneMatricesDirty();
+    return true;
+}
+
+bool ModelCom::Set_AnimationByStateTimeSec(uint32 stateIndex, float blendDuration, bool isLoop, float startTimeSec)
+{
+    if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
+        return false;
+
+    const uint32 animIndex = _stateAnimIndices[stateIndex];
+
+    if (blendDuration <= 0.f)
+    {
+        _hasExplicitAnimation = true;
+        _skipInitialBlendSourceNotify = false;
+        _currentAnimStateIndex = stateIndex;
+        _nextAnimStateIndex = UINT32_MAX;
+        _currentAnimIndex = animIndex;
+        _isAnimLoop = isLoop;
+        _isBlending = false;
+        _isFinished = false;
+        Apply_StartTimeSecWithPlaySection(_currentAnimIndex, _isAnimLoop, startTimeSec);
+
+        Mark_BoneMatricesDirty();
+        return true;
+    }
+
+    _skipInitialBlendSourceNotify =
+        !_hasExplicitAnimation && _currentAnimIndex != animIndex;
+    _hasExplicitAnimation = true;
+    _nextAnimStateIndex = stateIndex;
+    _nextAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = true;
+    _blendDuration = blendDuration;
+    _blendElapsedTime = 0.f;
+    _isFinished = false;
+    Apply_StartTimeSecWithPlaySection(_nextAnimIndex, _isAnimLoop, startTimeSec);
 
     Mark_BoneMatricesDirty();
     return true;
@@ -1525,6 +1564,22 @@ void ModelCom::Refresh_CurrentAnimationPose()
     Mark_BoneMatricesDirty();
 }
 
+const AnimNotifyData* ModelCom::Find_AnimNotifyDataByState(uint32 stateIndex)
+{
+    if (!Ensure_AnimNotifyAssetLoaded())
+        return nullptr;
+
+    if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
+        return nullptr;
+
+    const uint32 animIndex = _stateAnimIndices[stateIndex];
+    const char* animationName = Get_AnimationName(animIndex);
+    if (animationName == nullptr)
+        return nullptr;
+
+    return AnimNotify_Parser::Find_Animation(_animNotifyAsset, animationName);
+}
+
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
 {
     if (_isAnimNotifyAssetLoaded)
@@ -1570,6 +1625,102 @@ const AnimNotifyData* ModelCom::Find_CurrentNotifyAnimation() const
     }
 
     return AnimNotify_Parser::Find_Animation(_animNotifyAsset, animationName);
+}
+
+bool ModelCom::Try_GetPlaySection(uint32 animIndex, float& outStartSec, float& outEndSec)
+{
+    outStartSec = 0.f;
+    outEndSec = -1.f;
+
+    if (animIndex >= _animations.size())
+        return false;
+
+    if (!Ensure_AnimNotifyAssetLoaded())
+        return false;
+
+    const char* animationName = Get_AnimationName(animIndex);
+    if (animationName == nullptr)
+        return false;
+
+    const AnimNotifyData* animationData = AnimNotify_Parser::Find_Animation(_animNotifyAsset, animationName);
+    if (animationData == nullptr)
+        return false;
+
+    outStartSec = max(0.f, animationData->playSectionStartSec);
+    outEndSec = animationData->playSectionEndSec;
+    return true;
+}
+
+void ModelCom::Apply_StartFrameWithPlaySection(uint32 animIndex, bool isLoop, float startFrame)
+{
+    if (animIndex >= _animations.size())
+        return;
+
+    if (isLoop || startFrame > 0.f)
+    {
+        _animations[animIndex]->Set_StartFrame(startFrame);
+        return;
+    }
+
+    float sectionStartSec = 0.f;
+    float sectionEndSec = -1.f;
+    if (Try_GetPlaySection(animIndex, sectionStartSec, sectionEndSec) && sectionStartSec > 0.f)
+    {
+        _animations[animIndex]->Set_StartTimeSec(sectionStartSec);
+        return;
+    }
+
+    _animations[animIndex]->Set_StartFrame(startFrame);
+}
+
+void ModelCom::Apply_StartTimeSecWithPlaySection(uint32 animIndex, bool isLoop, float startTimeSec)
+{
+    if (animIndex >= _animations.size())
+        return;
+
+    if (isLoop || startTimeSec > 0.f)
+    {
+        _animations[animIndex]->Set_StartTimeSec(startTimeSec);
+        return;
+    }
+
+    float sectionStartSec = 0.f;
+    float sectionEndSec = -1.f;
+    if (Try_GetPlaySection(animIndex, sectionStartSec, sectionEndSec) && sectionStartSec > 0.f)
+    {
+        _animations[animIndex]->Set_StartTimeSec(sectionStartSec);
+        return;
+    }
+
+    _animations[animIndex]->Set_StartTimeSec(startTimeSec);
+}
+
+bool ModelCom::Apply_CurrentPlaySectionEnd(const AnimPipelineContext& context)
+{
+    if (_isBlending || _isAnimLoop || _currentAnimIndex >= _animations.size())
+        return false;
+
+    float sectionStartSec = 0.f;
+    float sectionEndSec = -1.f;
+    if (!Try_GetPlaySection(_currentAnimIndex, sectionStartSec, sectionEndSec))
+        return false;
+
+    if (sectionEndSec < 0.f)
+        return false;
+
+    const float animationLengthSec = _animations[_currentAnimIndex]->Get_DurationSec();
+    const float clampedEndSec = clamp(sectionEndSec, sectionStartSec, animationLengthSec);
+    if (_animations[_currentAnimIndex]->Get_CurrentTimeSec() + 0.0001f < clampedEndSec)
+        return false;
+
+    _animations[_currentAnimIndex]->Set_CurrentTimeSec(clampedEndSec);
+    _animations[_currentAnimIndex]->Evaluate_CurrentPose(_bones, context.rootIndex, _isAnimLoop);
+    _rootOriginalFrameVelocity =
+        (context.rootIndex >= 0)
+        ? _animations[_currentAnimIndex]->Get_TransformVelocity(context.rootIndex)
+        : RootMotionFrame{};
+    _isFinished = true;
+    return true;
 }
 
 void ModelCom::Stop_AllNotifyStates(bool executeEndCheck)
@@ -2118,6 +2269,8 @@ bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
             : RootMotionFrame{};
     }
 
+    Apply_CurrentPlaySectionEnd(context);
+
     return _isFinished;
 }
 
@@ -2128,9 +2281,14 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
         _rootOriginalFrameVelocity.position =
             Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalRotationMatrix);
 
-        const float temp = _rootOriginalFrameVelocity.position.z;
+        const float tempZ = _rootOriginalFrameVelocity.position.z;
+
         _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
-        _rootOriginalFrameVelocity.position.y = temp;
+        _rootOriginalFrameVelocity.position.y = tempZ;
+
+
+
+
     }
 
     Mark_BoneMatricesDirty();
@@ -2517,9 +2675,16 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
             }
 
             string animName = entry.path().stem().string();
-            _mappedAnimIndices[animName] = trueAnimIndex;
+            Shared<Animation> animation = Animation::Create(animData, channels);
+            if (!animation)
+            {
+                LOG_WARN("[ModelCom] Skipped invalid animation: {}", animName);
+                stream.close();
+                continue;
+            }
 
-            _animations.push_back(Animation::Create(animData, channels));
+            _mappedAnimIndices[animName] = trueAnimIndex;
+            _animations.push_back(animation);
             stream.close();
             ++trueAnimIndex;
         }

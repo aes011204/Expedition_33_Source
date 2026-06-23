@@ -13,6 +13,15 @@ public:
         Release
     };
 
+    enum class RuleStatePreset
+    {
+        GameStart,
+        MimeCostumeOnly,
+        PotatoCostumeOnly,
+        AllCostumes,
+        FirstTutorialHeroUnlocks,
+    };
+
 public:
     Editor_Manager();
 	~Editor_Manager() = default;
@@ -42,7 +51,19 @@ private:
 
     // GameLauncher 실행
     void Render_LauncherButton();
-    bool Launch_GameLauncher();
+    void Render_CheckpointButtons();
+    void Render_RuleStateButtons();
+    void Render_SaveCheckpointPopup();
+    void Open_SaveCheckpointPopup();
+    bool Save_CheckpointToPath(const fs::path& checkpointPath);
+    bool Save_RuleStatePreset(RuleStatePreset preset);
+    fs::path Resolve_DefaultCheckpointPath() const;
+    fs::path Resolve_CheckpointPathFromName(const string& checkpointName) const;
+    fs::path Resolve_DefaultRuleStatePath() const;
+    fs::path Resolve_RuleStatePath(RuleStatePreset preset) const;
+    bool Pick_CheckpointFile(fs::path& outPath) const;
+    bool Pick_RuleStateFile(fs::path& outPath) const;
+    bool Launch_GameLauncher(const fs::path* checkpointPath = nullptr);
     void Render_ReloadDataButton();
     void Render_SoundCheck();
 
@@ -52,6 +73,10 @@ private:
     map<wstring, bool> _focusModeWindowStates = {};
     bool _isFocusMode = false;
     LauncherConfig _launcherConfig = LauncherConfig::Debug;
+    fs::path _selectedCheckpointPath = {};
+    fs::path _selectedRuleStatePath = {};
+    bool _openSaveCheckpointPopup = false;
+    char _checkpointSaveNameBuffer[128] = "Demo";
 
 public:
 	static Unique<Editor_Manager> Create();

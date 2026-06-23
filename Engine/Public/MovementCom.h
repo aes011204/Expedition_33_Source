@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 //#include "PhysX_Types.h"
@@ -83,6 +83,7 @@ public:
         Vec3 worldDir = Vec3::Zero;
         bool walkFollow = false;     // follower가 active hero의 Walk 속도를 따라야 하는지
         bool sprintFollow = false;   // 거리 벌어져서 sprint로 전환?
+        bool rotateFollow = true;
     };
 
 public:
@@ -96,6 +97,7 @@ public:
     void    BeginPlay() override;
 
     void    Update_Movement(float timeDelta);
+    void    Move_ExternalDisplacement(const Vec3& displacement, float timeDelta);
 
 public:
     void Apply_Input(const MovementInput& input) { _input = input; }
@@ -130,6 +132,7 @@ public:
     void Stop_VerticalMovement();
 
     Vec3 Get_Velocity() { return _velocity; }
+    const Vec3* Get_VelocityPtr() const { return &_velocity; }
     void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
 
     void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }

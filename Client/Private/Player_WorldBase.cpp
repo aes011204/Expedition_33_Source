@@ -76,7 +76,7 @@ void Player_WorldBase::BeginPlay()
 
 void Player_WorldBase::Priority_Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return;
 
     __super::Priority_Update(timeDelta);
@@ -128,7 +128,7 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
 void Player_WorldBase::Update(float timeDelta)
 {
-      if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
         return;
 
     __super::Update(timeDelta);
@@ -140,9 +140,15 @@ void Player_WorldBase::Update(float timeDelta)
 
 void Player_WorldBase::Late_Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+    if (CLIENT->Is_WorldControlSuspended())
     {
         Set_Visible(false);
+        return;
+    }
+
+    if (!_partyVisibilityAllowed)
+    {
+        Set_Visible(false); // 잠긴 파티원은 Character_WorldBase::Update_Culling이 다시 켜기 전에 차단한다.
         return;
     }
 
@@ -154,6 +160,14 @@ void Player_WorldBase::Late_Update(float timeDelta)
 HRESULT Player_WorldBase::Render()
 {
     return S_OK;
+}
+
+void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)
+{
+    _partyVisibilityAllowed = allowed;
+
+    if (!allowed)
+        Set_Visible(false);
 }
 
 void Player_WorldBase::Update_StatusPreview(float timeDelta)
@@ -588,6 +602,8 @@ HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
         _playerStateMachineCom->Refresh_BodyPlayerForStates();
     }
 
+    CHECK_FAILED(Ready_BodyModifiers(body), E_FAIL);
+
     Head_Player* head = Add_CostumeHead(preset.parts.headModelTag, body);
     CHECK_NULL(head, E_FAIL);
     Apply_CostumePartTransform(TEXT("Part_Head"), restorePartTransforms, preset.parts.headTransform);
@@ -786,6 +802,7 @@ Shared<Hair_Player> Player_WorldBase::Create_CostumeHairVariant(const wstring& m
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.usePoseFollowModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     Shared<PartObject> clonedPart = static_pointer_cast<PartObject>(
@@ -879,6 +896,7 @@ HRESULT Player_WorldBase::Add_CostumeHair(const wstring& modelTag, const Head_Pl
     hairDesc.modelType = ModelType::Anim;
     hairDesc.modelTag = modelTag;
     hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.usePoseFollowModifier = true;
     hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     CHECK_FAILED(__super::Add_PartObject(
@@ -1040,6 +1058,7 @@ HRESULT Player_WorldBase::Ready_PartObjects()
     hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairPartDesc.usePoseFollowModifier = true;
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(

@@ -535,6 +535,28 @@ namespace EffectAssetRuntimeLoad::Curves
         return 1.f;
     }
 
+    void Fill_FloatCurveKeyComponent(
+        Vec4& times,
+        Vec4& timesBlock1,
+        Vec4& values,
+        Vec4& valuesBlock1,
+        Vec4& arriveTangents,
+        Vec4& arriveTangentsBlock1,
+        Vec4& leaveTangents,
+        Vec4& leaveTangentsBlock1,
+        Vec4& modes,
+        Vec4& modesBlock1,
+        uint32 index,
+        const json& key,
+        float fallbackValue = 0.f)
+    {
+        Set_CurveComponent(times, timesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_CurveComponent(values, valuesBlock1, index, Read_Float(key, "value", fallbackValue));
+        Set_CurveComponent(arriveTangents, arriveTangentsBlock1, index, Read_Float(key, "arriveTangent"));
+        Set_CurveComponent(leaveTangents, leaveTangentsBlock1, index, Read_Float(key, "leaveTangent"));
+        Set_CurveComponent(modes, modesBlock1, index, Resolve_CurveInterpolationMode(key));
+    }
+
     void Fill_ColorOverLifeCurvePayload(
         PointParticleColorOverLifeCurveDesc& desc,
         const json& colorOverLife)
@@ -903,6 +925,12 @@ namespace EffectAssetRuntimeLoad::Curves
             desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
             desc.rotationOverLifeCurveValues = Vec4{ desc.rotationOverLifeDegrees.x, desc.rotationOverLifeDegrees.y, 0.f, 0.f };
             desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
+            desc.rotationOverLifeCurveArriveTangents = Vec4{};
+            desc.rotationOverLifeCurveArriveTangentsBlock1 = Vec4{};
+            desc.rotationOverLifeCurveLeaveTangents = Vec4{};
+            desc.rotationOverLifeCurveLeaveTangentsBlock1 = Vec4{};
+            desc.rotationOverLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+            desc.rotationOverLifeCurveModesBlock1 = Vec4{};
             return;
         }
 
@@ -914,6 +942,12 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
         desc.rotationOverLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
         desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
+        desc.rotationOverLifeCurveArriveTangents = Vec4{};
+        desc.rotationOverLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.rotationOverLifeCurveLeaveTangents = Vec4{};
+        desc.rotationOverLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.rotationOverLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.rotationOverLifeCurveModesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(*rotationOverLifeIter);
         if (payload == nullptr || "ConstantCurve" != Read_String(*rotationOverLifeIter, "mode"))
@@ -941,21 +975,29 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
         desc.rotationOverLifeCurveValues = Vec4{};
         desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
+        desc.rotationOverLifeCurveArriveTangents = Vec4{};
+        desc.rotationOverLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.rotationOverLifeCurveLeaveTangents = Vec4{};
+        desc.rotationOverLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.rotationOverLifeCurveModes = Vec4{};
+        desc.rotationOverLifeCurveModesBlock1 = Vec4{};
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const json& key = *keys[index];
-            Set_CurveComponent(
+            Fill_FloatCurveKeyComponent(
                 desc.rotationOverLifeCurveTimes,
                 desc.rotationOverLifeCurveTimesBlock1,
-                index,
-                clamp(Read_Float(key, "time"), 0.f, 1.f)
-            );
-            Set_CurveComponent(
                 desc.rotationOverLifeCurveValues,
                 desc.rotationOverLifeCurveValuesBlock1,
+                desc.rotationOverLifeCurveArriveTangents,
+                desc.rotationOverLifeCurveArriveTangentsBlock1,
+                desc.rotationOverLifeCurveLeaveTangents,
+                desc.rotationOverLifeCurveLeaveTangentsBlock1,
+                desc.rotationOverLifeCurveModes,
+                desc.rotationOverLifeCurveModesBlock1,
                 index,
-                Read_Float(key, "value")
+                key
             );
         }
     }
@@ -974,6 +1016,12 @@ namespace EffectAssetRuntimeLoad::Curves
             desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
             desc.rotationRateScaleByLifeCurveValues = Vec4{ desc.rotationRateScaleByLife.x, desc.rotationRateScaleByLife.y, 0.f, 0.f };
             desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
+            desc.rotationRateScaleByLifeCurveArriveTangents = Vec4{};
+            desc.rotationRateScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+            desc.rotationRateScaleByLifeCurveLeaveTangents = Vec4{};
+            desc.rotationRateScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+            desc.rotationRateScaleByLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+            desc.rotationRateScaleByLifeCurveModesBlock1 = Vec4{};
             return;
         }
 
@@ -985,6 +1033,12 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.rotationRateScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
         desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveArriveTangents = Vec4{};
+        desc.rotationRateScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveLeaveTangents = Vec4{};
+        desc.rotationRateScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveModesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
         if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
@@ -1012,21 +1066,30 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.rotationRateScaleByLifeCurveValues = Vec4{};
         desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveArriveTangents = Vec4{};
+        desc.rotationRateScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveLeaveTangents = Vec4{};
+        desc.rotationRateScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.rotationRateScaleByLifeCurveModes = Vec4{};
+        desc.rotationRateScaleByLifeCurveModesBlock1 = Vec4{};
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const json& key = *keys[index];
-            Set_CurveComponent(
+            Fill_FloatCurveKeyComponent(
                 desc.rotationRateScaleByLifeCurveTimes,
                 desc.rotationRateScaleByLifeCurveTimesBlock1,
-                index,
-                clamp(Read_Float(key, "time"), 0.f, 1.f)
-            );
-            Set_CurveComponent(
                 desc.rotationRateScaleByLifeCurveValues,
                 desc.rotationRateScaleByLifeCurveValuesBlock1,
+                desc.rotationRateScaleByLifeCurveArriveTangents,
+                desc.rotationRateScaleByLifeCurveArriveTangentsBlock1,
+                desc.rotationRateScaleByLifeCurveLeaveTangents,
+                desc.rotationRateScaleByLifeCurveLeaveTangentsBlock1,
+                desc.rotationRateScaleByLifeCurveModes,
+                desc.rotationRateScaleByLifeCurveModesBlock1,
                 index,
-                Read_Float(key, "value", 1.f)
+                key,
+                1.f
             );
         }
     }
@@ -1045,6 +1108,12 @@ namespace EffectAssetRuntimeLoad::Curves
             desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
             desc.velocityScaleByLifeCurveValues = Vec4{ desc.velocityScaleByLife.x, desc.velocityScaleByLife.y, 0.f, 0.f };
             desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
+            desc.velocityScaleByLifeCurveArriveTangents = Vec4{};
+            desc.velocityScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+            desc.velocityScaleByLifeCurveLeaveTangents = Vec4{};
+            desc.velocityScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+            desc.velocityScaleByLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+            desc.velocityScaleByLifeCurveModesBlock1 = Vec4{};
             return;
         }
 
@@ -1056,6 +1125,12 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.velocityScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
         desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveArriveTangents = Vec4{};
+        desc.velocityScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveLeaveTangents = Vec4{};
+        desc.velocityScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveModesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
         if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
@@ -1083,21 +1158,30 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.velocityScaleByLifeCurveValues = Vec4{};
         desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveArriveTangents = Vec4{};
+        desc.velocityScaleByLifeCurveArriveTangentsBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveLeaveTangents = Vec4{};
+        desc.velocityScaleByLifeCurveLeaveTangentsBlock1 = Vec4{};
+        desc.velocityScaleByLifeCurveModes = Vec4{};
+        desc.velocityScaleByLifeCurveModesBlock1 = Vec4{};
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const json& key = *keys[index];
-            Set_CurveComponent(
+            Fill_FloatCurveKeyComponent(
                 desc.velocityScaleByLifeCurveTimes,
                 desc.velocityScaleByLifeCurveTimesBlock1,
-                index,
-                clamp(Read_Float(key, "time"), 0.f, 1.f)
-            );
-            Set_CurveComponent(
                 desc.velocityScaleByLifeCurveValues,
                 desc.velocityScaleByLifeCurveValuesBlock1,
+                desc.velocityScaleByLifeCurveArriveTangents,
+                desc.velocityScaleByLifeCurveArriveTangentsBlock1,
+                desc.velocityScaleByLifeCurveLeaveTangents,
+                desc.velocityScaleByLifeCurveLeaveTangentsBlock1,
+                desc.velocityScaleByLifeCurveModes,
+                desc.velocityScaleByLifeCurveModesBlock1,
                 index,
-                Read_Float(key, "value", 1.f)
+                key,
+                1.f
             );
         }
     }
@@ -1134,6 +1218,20 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.accelerationCurveValuesYBlock1 = Vec4{};
         desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
         desc.accelerationCurveValuesZBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsX = Vec4{};
+        desc.accelerationCurveArriveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsX = Vec4{};
+        desc.accelerationCurveLeaveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsY = Vec4{};
+        desc.accelerationCurveArriveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsY = Vec4{};
+        desc.accelerationCurveLeaveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsZ = Vec4{};
+        desc.accelerationCurveArriveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsZ = Vec4{};
+        desc.accelerationCurveLeaveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.accelerationCurveModesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(distribution);
         if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
@@ -1160,18 +1258,45 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.accelerationCurveValuesYBlock1 = Vec4{};
         desc.accelerationCurveValuesZ = Vec4{};
         desc.accelerationCurveValuesZBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsX = Vec4{};
+        desc.accelerationCurveArriveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsX = Vec4{};
+        desc.accelerationCurveLeaveTangentsXBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsY = Vec4{};
+        desc.accelerationCurveArriveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsY = Vec4{};
+        desc.accelerationCurveLeaveTangentsYBlock1 = Vec4{};
+        desc.accelerationCurveArriveTangentsZ = Vec4{};
+        desc.accelerationCurveArriveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveLeaveTangentsZ = Vec4{};
+        desc.accelerationCurveLeaveTangentsZBlock1 = Vec4{};
+        desc.accelerationCurveModes = Vec4{};
+        desc.accelerationCurveModesBlock1 = Vec4{};
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const json& key = *keys[index];
             Vec3 value{};
+            Vec3 arriveTangent{};
+            Vec3 leaveTangent{};
             if (const auto valueIter = key.find("value"); valueIter != key.end())
                 Read_Vec3(*valueIter, value);
+            if (const auto arriveIter = key.find("arriveTangent"); arriveIter != key.end())
+                Read_Vec3(*arriveIter, arriveTangent);
+            if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
+                Read_Vec3(*leaveIter, leaveTangent);
 
             Set_CurveComponent(desc.accelerationCurveTimes, desc.accelerationCurveTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
             Set_CurveComponent(desc.accelerationCurveValuesX, desc.accelerationCurveValuesXBlock1, index, value.x);
             Set_CurveComponent(desc.accelerationCurveValuesY, desc.accelerationCurveValuesYBlock1, index, value.y);
             Set_CurveComponent(desc.accelerationCurveValuesZ, desc.accelerationCurveValuesZBlock1, index, value.z);
+            Set_CurveComponent(desc.accelerationCurveArriveTangentsX, desc.accelerationCurveArriveTangentsXBlock1, index, arriveTangent.x);
+            Set_CurveComponent(desc.accelerationCurveLeaveTangentsX, desc.accelerationCurveLeaveTangentsXBlock1, index, leaveTangent.x);
+            Set_CurveComponent(desc.accelerationCurveArriveTangentsY, desc.accelerationCurveArriveTangentsYBlock1, index, arriveTangent.y);
+            Set_CurveComponent(desc.accelerationCurveLeaveTangentsY, desc.accelerationCurveLeaveTangentsYBlock1, index, leaveTangent.y);
+            Set_CurveComponent(desc.accelerationCurveArriveTangentsZ, desc.accelerationCurveArriveTangentsZBlock1, index, arriveTangent.z);
+            Set_CurveComponent(desc.accelerationCurveLeaveTangentsZ, desc.accelerationCurveLeaveTangentsZBlock1, index, leaveTangent.z);
+            Set_CurveComponent(desc.accelerationCurveModes, desc.accelerationCurveModesBlock1, index, Resolve_CurveInterpolationMode(key));
         }
     }
 
@@ -1187,6 +1312,12 @@ namespace EffectAssetRuntimeLoad::Curves
             Vec4& timesBlock1,
             Vec4& values,
             Vec4& valuesBlock1,
+            Vec4& arriveTangents,
+            Vec4& arriveTangentsBlock1,
+            Vec4& leaveTangents,
+            Vec4& leaveTangentsBlock1,
+            Vec4& modes,
+            Vec4& modesBlock1,
             const json& distribution,
             float fallbackValue)
         {
@@ -1198,6 +1329,12 @@ namespace EffectAssetRuntimeLoad::Curves
             timesBlock1 = Vec4{};
             values = Vec4{ startValue, endValue, 0.f, 0.f };
             valuesBlock1 = Vec4{};
+            arriveTangents = Vec4{};
+            arriveTangentsBlock1 = Vec4{};
+            leaveTangents = Vec4{};
+            leaveTangentsBlock1 = Vec4{};
+            modes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+            modesBlock1 = Vec4{};
 
             const json* payload = Find_DistributionPayload(distribution);
             if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
@@ -1219,11 +1356,30 @@ namespace EffectAssetRuntimeLoad::Curves
             timesBlock1 = Vec4{};
             values = Vec4{};
             valuesBlock1 = Vec4{};
+            arriveTangents = Vec4{};
+            arriveTangentsBlock1 = Vec4{};
+            leaveTangents = Vec4{};
+            leaveTangentsBlock1 = Vec4{};
+            modes = Vec4{};
+            modesBlock1 = Vec4{};
             for (uint32 index = 0; index < clampedKeyCount; ++index)
             {
                 const json& key = *keys[index];
-                Set_CurveComponent(times, timesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-                Set_CurveComponent(values, valuesBlock1, index, Read_Float(key, "value", fallbackValue));
+                Fill_FloatCurveKeyComponent(
+                    times,
+                    timesBlock1,
+                    values,
+                    valuesBlock1,
+                    arriveTangents,
+                    arriveTangentsBlock1,
+                    leaveTangents,
+                    leaveTangentsBlock1,
+                    modes,
+                    modesBlock1,
+                    index,
+                    key,
+                    fallbackValue
+                );
             }
         };
 
@@ -1236,6 +1392,12 @@ namespace EffectAssetRuntimeLoad::Curves
                 desc.angleCurveTimesBlock1,
                 desc.angleCurveValues,
                 desc.angleCurveValuesBlock1,
+                desc.angleCurveArriveTangents,
+                desc.angleCurveArriveTangentsBlock1,
+                desc.angleCurveLeaveTangents,
+                desc.angleCurveLeaveTangentsBlock1,
+                desc.angleCurveModes,
+                desc.angleCurveModesBlock1,
                 *angleIter,
                 0.f
             );
@@ -1250,6 +1412,12 @@ namespace EffectAssetRuntimeLoad::Curves
                 desc.radiusScaleCurveTimesBlock1,
                 desc.radiusScaleCurveValues,
                 desc.radiusScaleCurveValuesBlock1,
+                desc.radiusScaleCurveArriveTangents,
+                desc.radiusScaleCurveArriveTangentsBlock1,
+                desc.radiusScaleCurveLeaveTangents,
+                desc.radiusScaleCurveLeaveTangentsBlock1,
+                desc.radiusScaleCurveModes,
+                desc.radiusScaleCurveModesBlock1,
                 *radiusIter,
                 1.f
             );
@@ -1357,6 +1525,20 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.curveKeyValuesYBlock1 = Vec4{};
         desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
         desc.curveKeyValuesZBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsZ = Vec4{};
+        desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsZ = Vec4{};
+        desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(distribution);
         if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
@@ -1382,18 +1564,45 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.curveKeyValuesYBlock1 = Vec4{};
         desc.curveKeyValuesZ = Vec4{};
         desc.curveKeyValuesZBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsZ = Vec4{};
+        desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsZ = Vec4{};
+        desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const json& key = *keys[index];
             Vec3 value = fallbackValue;
+            Vec3 arriveTangent{};
+            Vec3 leaveTangent{};
             if (const auto valueIter = key.find("value"); valueIter != key.end())
                 Read_Vec3(*valueIter, value);
+            if (const auto arriveIter = key.find("arriveTangent"); arriveIter != key.end())
+                Read_Vec3(*arriveIter, arriveTangent);
+            if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
+                Read_Vec3(*leaveIter, leaveTangent);
 
             Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
             Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
             Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
             Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, value.z);
+            Set_CurveComponent(desc.curveKeyArriveTangentsX, desc.curveKeyArriveTangentsXBlock1, index, arriveTangent.x);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsX, desc.curveKeyLeaveTangentsXBlock1, index, leaveTangent.x);
+            Set_CurveComponent(desc.curveKeyArriveTangentsY, desc.curveKeyArriveTangentsYBlock1, index, arriveTangent.y);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsY, desc.curveKeyLeaveTangentsYBlock1, index, leaveTangent.y);
+            Set_CurveComponent(desc.curveKeyArriveTangentsZ, desc.curveKeyArriveTangentsZBlock1, index, arriveTangent.z);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsZ, desc.curveKeyLeaveTangentsZBlock1, index, leaveTangent.z);
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, Resolve_CurveInterpolationMode(key));
         }
     }
 }

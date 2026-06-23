@@ -25,6 +25,7 @@ namespace Client
     {
         None,
         ChooseSkill,
+        ChooseGradient,     // BattleCommand Q opens the Gradient selection state.
         AttackTargeting,
         AttackPlaying,      // 타겟 선택 끝나고, 평타 or 스킬 실행중일 때
         ChooseItem,
@@ -339,6 +340,7 @@ namespace Client
         int32 maxUseCount = -1;
         int32 coolDownTurn = 0;
 
+        float slCooldownSec = 0.f;
     };
 
     struct Skill_Data_Inst
@@ -354,6 +356,9 @@ namespace Client
     };
 
     //------------------------------------
+    inline constexpr uint32 kBattleSkillPageNormal = 0;
+    inline constexpr uint32 kBattleSkillPageSecond = 1;
+
     struct ActionRequest
     {
         EBattleContext type = EBattleContext::Invalid;
@@ -363,7 +368,7 @@ namespace Client
         string skillKey = "";
         BattleItemType itemType = BattleItemType::Invalid;
 
-        uint32 skillPage = 0; // Choose Skill에서 스킬 패널이 왼쪽 오른쪽인지 페이즈 구별용
+        uint32 skillPage = kBattleSkillPageNormal; // Choose Skill에서 스킬 패널이 왼쪽 오른쪽인지 페이즈 구별용
     };
 
     //
@@ -463,11 +468,15 @@ namespace Client
         Waiting_LookAround_1,
         Waiting_LookAround_2,
 
+        Jump,
+        JumpCounter,
+
+        Hit_Weak
     };
 
     enum class BattleReactionType
     {
-        None, Parry, Dodge, QTE, END
+        None, Parry, Dodge, QTE, Jump, JumpCounter, END
     };
 
     enum class BattleQTEResult
@@ -514,6 +523,10 @@ namespace Client
         float progressDuration = 80.f / 120.f;  // QTE_Progress.uianim 기준
         float perfectStartRatio = 61.f / 80.f;  // 노란 구간 시작
         float perfectEndRatio = 1.f;            // 노란 구간 끝
+
+        float failDamageBonusRate = -0.15f;     // 실패 시 다음 공격 피해 -15%
+        float normalDamageBonusRate = 0.f;      // 일반 성공 시 다음 공격 피해 변화 없음
+        float perfectDamageBonusRate = 0.15f;   // Perfect 성공 시 다음 공격 피해 +15%
 
         // QTE 화면 배치. ANS_QTE에서 preset 고르고, request에는 실제 적용값
         BattleQTEPreset placementPreset = BattleQTEPreset::Center;

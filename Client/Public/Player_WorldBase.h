@@ -54,6 +54,7 @@ public:
     void    Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim);
     Vec3    Get_MovementVelocity() const;
     void    Start_SwitchDissolve(float durationSec, const string& noiseName);
+    void    Set_PartyVisibilityAllowed(bool allowed);
 
     HRESULT Apply_CostumePreset(const CostumePreset& preset);
     HRESULT Prewarm_CostumeVariants(); // 옷장 첫 교체 프레임 전에 모든 costume variant를 미리 만든다.
@@ -61,6 +62,11 @@ public:
 protected:
     HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
+    virtual HRESULT Ready_BodyModifiers(Body_Player* body)
+    {
+        UNREFERENCED_PARAMETER(body);
+        return S_OK;
+    }
 
     virtual HeroId Get_HeroId() const { return HeroId::END; }
 
@@ -148,6 +154,7 @@ protected:
     umap<string, CostumeVariantParts> _costumeVariantsByPreset{};
     string                          _activeCostumePresetId{};
     float                           _fallStateEnterAcc = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
+    bool                            _partyVisibilityAllowed = true; // 파티 해금 전에는 culling이 다시 켜도 월드 렌더를 막는다.
 
 private:
     Shared<Engine::FacialClip>       _gameMenuFacialClip{};

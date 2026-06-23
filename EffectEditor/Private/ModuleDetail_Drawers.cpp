@@ -3,10 +3,10 @@
 #include "EffectEditorInstance.h"
 #include "EffectEditor_Macro.h"
 #include "EffectMaterialInstance_View.h"
+#include "EffectMaterialPresetReader.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterial_View.h"
-#include "EffectMaterialPresetReader.h"
 #include "Helper_EffectAuthoring.h"
 #include "Notification_Manager.h"
 
@@ -208,6 +208,11 @@ namespace Internal
             "켜면 이 이펙트를 재생할 때마다 생성되는 seed를 이 랜덤값 샘플에 섞습니다."
         );
         changed |= ImGui::Checkbox("##Value", &data.useInstanceSeed);
+        if (data.useInstanceSeed)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("켜짐");
+        }
         ImGui::PopID();
 
         detailContext.End_PropertyTable();
@@ -1323,24 +1328,28 @@ namespace Internal
             lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
             lhs.mainUVPolicy.uPolicy == rhs.mainUVPolicy.uPolicy &&
             lhs.mainUVPolicy.vPolicy == rhs.mainUVPolicy.vPolicy &&
+            lhs.mainUVRotation == rhs.mainUVRotation &&
             Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
             Is_SameVec2(lhs.noiseUVOffset, rhs.noiseUVOffset) &&
             Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
             lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
             lhs.noiseUVPolicy.uPolicy == rhs.noiseUVPolicy.uPolicy &&
             lhs.noiseUVPolicy.vPolicy == rhs.noiseUVPolicy.vPolicy &&
+            lhs.noiseUVRotation == rhs.noiseUVRotation &&
             Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
             Is_SameVec2(lhs.maskUVOffset, rhs.maskUVOffset) &&
             Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
             lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
             lhs.maskUVPolicy.uPolicy == rhs.maskUVPolicy.uPolicy &&
             lhs.maskUVPolicy.vPolicy == rhs.maskUVPolicy.vPolicy &&
+            lhs.maskUVRotation == rhs.maskUVRotation &&
             Is_SameVec2(lhs.flowUVScale, rhs.flowUVScale) &&
             Is_SameVec2(lhs.flowUVOffset, rhs.flowUVOffset) &&
             Is_SameVec2(lhs.flowUVScrollSpeed, rhs.flowUVScrollSpeed) &&
             lhs.flowUVTilingMode == rhs.flowUVTilingMode &&
             lhs.flowUVPolicy.uPolicy == rhs.flowUVPolicy.uPolicy &&
             lhs.flowUVPolicy.vPolicy == rhs.flowUVPolicy.vPolicy &&
+            lhs.flowUVRotation == rhs.flowUVRotation &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&
@@ -2171,7 +2180,7 @@ bool RequiredModuleDetail::Draw(
         }
 
         if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
-            ImGui::TextDisabled("Trail은 v1에서 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지합니다.");
+            ImGui::TextDisabled("Trail은 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지합니다.");
 
         if (ImGui::TreeNodeEx("Advanced", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -2363,13 +2372,16 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
 
     if (ImGui::CollapsingHeader("파티클 생존 시간", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        const bool supportsLifetimeConstantCurve =
+            emitter.typeData.kind != AuthoringTypeDataKind::Trail &&
+            emitter.typeData.kind != AuthoringTypeDataKind::Ribbon;
         changed |= detailContext.Draw_FloatDistributionGroup(
             "파티클 생존 시간",
             data.lifeTime,
             defaultData.lifeTime,
             0.01f,
             true,
-            true,
+            supportsLifetimeConstantCurve,
             Find_AuthoringValueRange(module.type, "lifeTime"),
             "spawn window가 아니라 태어난 particle 개별 생존 시간입니다."
         );
@@ -2381,10 +2393,12 @@ bool LifetimeModuleDetail::Draw(const AuthoringEmitter& emitter, const Authoring
         }
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             ImGui::TextDisabled("Mesh ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
-        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail ||
-                 emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
-                 emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
-            ImGui::TextDisabled("Trail/Ribbon/SourceHistorySpriteTrail ConstantCurve sampling axis는 이번 Sprite/Mesh/Beam 구현 범위 밖입니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Sprite Trail ConstantCurve: stamp 생성 시점의 현재 loop 진행률로 stamp lifetime을 한 번 샘플합니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+            ImGui::TextDisabled("Trail ConstantCurve: segment별 lifetime 저장이 없어 아직 비지원입니다. Constant/Uniform 수명은 계속 지원됩니다.");
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+            ImGui::TextDisabled("Ribbon ConstantCurve: sample별 lifetime 저장이 없어 아직 비지원입니다. Constant/Uniform 수명은 계속 지원됩니다.");
         else
             ImGui::TextDisabled("Sprite ConstantCurve: particle spawn 시점의 현재 loop 진행률로 최대 수명을 한 번 샘플합니다.");
     }
@@ -2752,7 +2766,181 @@ bool VelocityConeModuleDetail::Draw(
     return changed;
 }
 
-bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
+bool SourceMotionVelocityModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    SourceMotionVelocityModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SourceMotionVelocityModuleData defaultData{};
+    bool changed = false;
+
+    const auto direction_mode_label = [](SourceMotionVelocityDirectionMode mode)
+    {
+        switch (mode)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return "소스 속도 방향";
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return "소스 속도 방향";
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return "소스 속도 반대";
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return "트레일 접선";
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return "트레일 접선 반대";
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return "접선 측면";
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return "랜덤 접선 측면";
+        default:
+            return "트레일 접선";
+        }
+    };
+    const auto direction_mode_tooltip = [](SourceMotionVelocityDirectionMode mode)
+    {
+        switch (mode)
+        {
+        case SourceMotionVelocityDirectionMode::InheritSourceVelocity:
+            return "기존 asset 호환용 값입니다. 편집 시 소스 속도 방향으로 정규화됩니다.";
+        case SourceMotionVelocityDirectionMode::SourceVelocityDirection:
+            return "source가 움직인 방향으로 초기 속도를 더합니다.\n속도=0, 소스 속도 상속 배율=1이면 source 속도를 그대로 상속합니다.";
+        case SourceMotionVelocityDirectionMode::SourceVelocityOpposite:
+            return "source가 움직인 방향의 반대로 초기 속도를 더합니다.\n일반 Sprite/Mesh에서는 emitter center 이동 방향을 사용합니다.";
+        case SourceMotionVelocityDirectionMode::TrailTangent:
+            return "SourceHistorySpriteTrail의 source history 접선 방향을 사용합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없으므로 소스 속도 방향 모드를 우선 사용하세요.";
+        case SourceMotionVelocityDirectionMode::TrailTangentOpposite:
+            return "SourceHistorySpriteTrail의 source history 접선 반대 방향을 사용합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        case SourceMotionVelocityDirectionMode::SideFromTangent:
+            return "SourceHistorySpriteTrail 접선의 측면 방향으로 초기 속도를 더합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        case SourceMotionVelocityDirectionMode::RandomSideFromTangent:
+            return "SourceHistorySpriteTrail 접선의 양쪽 측면 중 하나를 랜덤으로 골라 초기 속도를 더합니다.\n일반 Sprite/Mesh에는 별도 trail 접선이 없습니다.";
+        default:
+            return "";
+        }
+    };
+    const auto is_trail_tangent_mode = [](SourceMotionVelocityDirectionMode mode)
+    {
+        return mode == SourceMotionVelocityDirectionMode::TrailTangent ||
+               mode == SourceMotionVelocityDirectionMode::TrailTangentOpposite ||
+               mode == SourceMotionVelocityDirectionMode::SideFromTangent ||
+               mode == SourceMotionVelocityDirectionMode::RandomSideFromTangent;
+    };
+
+    const bool sourceMotionVelocityOpen = ImGui::CollapsingHeader("소스 모션 속도", ImGuiTreeNodeFlags_DefaultOpen);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip(
+            "source/trail motion에서 얻은 방향과 속도 크기를 spawn 시점 초기 속도에 더합니다.\n"
+            "InitialVelocity, InitialRadialVelocity, VelocityCone과 누적됩니다."
+        );
+    }
+
+    if (sourceMotionVelocityOpen)
+    {
+        const bool sourceHistorySpriteTrail =
+            emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+
+        if (detailContext.Begin_PropertyTable("SourceMotionVelocity"))
+        {
+            ImGui::PushID("DirectionMode");
+            detailContext.Draw_PropertyLabel(
+                "방향",
+                "Source motion에서 초기 속도 방향을 고르는 방식입니다. 항목 위에 마우스를 올리면 타입별 의미를 볼 수 있습니다."
+            );
+            SourceMotionVelocityDirectionMode nextDirectionMode = data.directionMode;
+            if (ImGui::BeginCombo("##Value", direction_mode_label(nextDirectionMode)))
+            {
+                static constexpr SourceMotionVelocityDirectionMode sourceHistoryCandidates[] = {
+                    SourceMotionVelocityDirectionMode::TrailTangent,
+                    SourceMotionVelocityDirectionMode::TrailTangentOpposite,
+                    SourceMotionVelocityDirectionMode::SideFromTangent,
+                    SourceMotionVelocityDirectionMode::RandomSideFromTangent,
+                    SourceMotionVelocityDirectionMode::SourceVelocityDirection,
+                    SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
+                };
+                static constexpr SourceMotionVelocityDirectionMode sourceVelocityCandidates[] = {
+                    SourceMotionVelocityDirectionMode::SourceVelocityDirection,
+                    SourceMotionVelocityDirectionMode::SourceVelocityOpposite,
+                };
+                const SourceMotionVelocityDirectionMode* candidates =
+                    sourceHistorySpriteTrail ? sourceHistoryCandidates : sourceVelocityCandidates;
+                const size_t candidateCount =
+                    sourceHistorySpriteTrail
+                    ? sizeof(sourceHistoryCandidates) / sizeof(sourceHistoryCandidates[0])
+                    : sizeof(sourceVelocityCandidates) / sizeof(sourceVelocityCandidates[0]);
+                for (size_t index = 0; index < candidateCount; ++index)
+                {
+                    const SourceMotionVelocityDirectionMode candidate = candidates[index];
+                    const bool selected = nextDirectionMode == candidate;
+                    if (ImGui::Selectable(direction_mode_label(candidate), selected))
+                        nextDirectionMode = candidate;
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                        ImGui::SetTooltip("%s", direction_mode_tooltip(candidate));
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("%s", direction_mode_tooltip(nextDirectionMode));
+            if (data.directionMode != nextDirectionMode)
+            {
+                data.directionMode = nextDirectionMode;
+                changed = true;
+            }
+            ImGui::PopID();
+
+            changed |= detailContext.Draw_FloatProperty(
+                "소스 속도 상속 배율",
+                data.sourceSpeedScale,
+                defaultData.sourceSpeedScale,
+                0.01f,
+                "sourceSpeed에 곱해 초기 속도 크기에 추가하는 배율입니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "퍼짐 각도",
+                data.spreadAngleDegrees,
+                defaultData.spreadAngleDegrees,
+                0.1f,
+                "선택한 source motion 방향 주변으로 분산할 half-angle입니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+
+        if (!sourceHistorySpriteTrail && is_trail_tangent_mode(data.directionMode))
+            ImGui::TextDisabled("트레일 접선 계열은 SourceHistorySpriteTrail에서만 명확한 접선 기준을 가집니다.");
+
+        const float clampedSourceSpeedScale = max(0.f, data.sourceSpeedScale);
+        if (data.sourceSpeedScale != clampedSourceSpeedScale)
+        {
+            data.sourceSpeedScale = clampedSourceSpeedScale;
+            changed = true;
+        }
+
+        const float clampedSpreadAngle = clamp(data.spreadAngleDegrees, 0.f, 180.f);
+        if (data.spreadAngleDegrees != clampedSpreadAngle)
+        {
+            data.spreadAngleDegrees = clampedSpreadAngle;
+            changed = true;
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "속도",
+            data.speed,
+            defaultData.speed,
+            0.01f,
+            true,
+            true,
+            nullptr,
+            "source motion 방향에 곱해지는 spawn 시점 초기 속도 크기입니다."
+        );
+    }
+
+    return changed;
+}
+
+bool AccelerationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
 {
     const AccelerationModuleData defaultData{};
     bool changed = false;
@@ -2769,6 +2957,8 @@ bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Acceler
             nullptr,
             "매 frame 현재 속도에 누적되는 가속도 벡터입니다."
         );
+        if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+            ImGui::TextDisabled("Sprite Trail에서 Path Follow/Replay가 켜지면 path module이 stamp 중심 위치를 소유합니다.");
     }
 
     return changed;
@@ -3943,15 +4133,13 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 structureChanged = true;
                             }
                             else
-                            {
                                 modulator.targetField = nextSelection.vec2Target;
-                            }
                         }
                         if (!structureChanged)
                         {
                             detailContext.Draw_PropertyLabel("연산", "현재 Vec2 modulation은 대상 UV offset에 분포 값을 더하는 Add 연산입니다.");
                             ImGui::TextUnformatted("Add");
-                            detailContext.Draw_PropertyLabel("시간 축", "Vec2 material modulation은 v1에서 EmitterTime만 지원합니다.");
+                            detailContext.Draw_PropertyLabel("시간 축", "Vec2 material modulation은 EmitterTime만 지원합니다.");
                             ImGui::TextUnformatted(Internal::Get_MaterialScalarTimeSourceLabel(modulator.timeSource));
                             if (detailContext.Draw_ResetButton(modulator.timeSource != defaultData.timeSource))
                             {

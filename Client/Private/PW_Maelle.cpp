@@ -5,10 +5,13 @@
 #include "Body_Player.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
+#include "ChainModifierPreset.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
+#include "MovementCom.h"
+#include "TransformCom.h"
 
 IMPLEMENT_REFLECTION(PW_Maelle)
 {
@@ -45,8 +48,8 @@ HRESULT PW_Maelle::Initialize(void* arg)
     skilltreeCom->ForceUnlock("FleureFury");
 
 	//skilltreeCom->ForceUnlock("FireRise");
-    skilltreeCom->ForceUnlock("Stendhal");
     skilltreeCom->ForceUnlock("SwordBallet");
+    skilltreeCom->ForceUnlock("Stendhal");
 
     // 열분해는 그래디언트로
     skilltreeCom->ForceUnlock("Pyrolyse");
@@ -64,8 +67,16 @@ void PW_Maelle::BeginPlay()
 
 HRESULT PW_Maelle::Ready_Modifier()
 {
-	if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-	{
+	auto* body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body")));
+	CHECK_NULL(body, E_FAIL);
+
+	return Ready_BodyModifiers(body);
+}
+
+HRESULT PW_Maelle::Ready_BodyModifiers(Body_Player* body)
+{
+	CHECK_NULL(body, E_FAIL);
+
 		OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
 		aimOffsetDesc.baseModelCom = body->Get_Model().get();
 		aimOffsetDesc.animName = "Maelle_IdleFreeAim_LoopingWorld_Sweep";
@@ -104,6 +115,8 @@ HRESULT PW_Maelle::Ready_Modifier()
 		}
 		else return E_FAIL;
 
+		wOffsetDesc.animName = "Maelle_Walk_B";
+		wOffsetDesc.modifierTag = L"Walk_B";
 		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
 		{
 			modifier->Set_Active(false);
@@ -146,9 +159,41 @@ HRESULT PW_Maelle::Ready_Modifier()
 			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
 		}
 		else return E_FAIL;
-	}
-	else
-		return E_FAIL;
+
+		// --- PoseFollowChainModifier for Scarf ---
+		PoseFollowChainModifier::PoseFollowChainModifierDesc scarfDesc{};
+		ChainModifierPreset::BuildPoseFollowScarfDesc(
+			scarfDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
+
+		if (auto modifier = PoseFollowChainModifier::Create(&scarfDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(modifier);
+		}
+
+		// --- ChainModifier for Armband ---
+		ChainModifier::ChainModifierDesc armbandDesc{};
+		ChainModifierPreset::BuildArmbandDesc(
+			armbandDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
+
+		if (auto armbandModifier = ChainModifier::Create(&armbandDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(armbandModifier);
+		}
+
+		PoseFollowChainModifier::PoseFollowChainModifierDesc coatDesc{};
+		ChainModifierPreset::BuildPoseFollowCoatDesc(
+			coatDesc,
+			Get_Transform().get(),
+			PlayerCharacterType::Maelle);
+
+		if (auto coatModifier = PoseFollowChainModifier::Create(&coatDesc))
+		{
+			body->Get_Model()->Add_AnimModifier(coatModifier);
+		}
 
 	return S_OK;
 }

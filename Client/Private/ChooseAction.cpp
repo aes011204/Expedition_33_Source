@@ -8,6 +8,8 @@
 #include "CameraPresetTypes.h"
 #include "Event_Bus.h"
 #include "BattleAnimUtils.h"
+#include "CombatStatCom.h"
+#include "GradientSkill.h"
 
 NS_BEGIN(Client)
 
@@ -72,7 +74,7 @@ void ChooseAction::Update(float timeDelta)
             event.presetId = enemies[0].actor->Get_SourcePrefabName();
             GAME->Get_EventBus().Publish(event);
         }
-  
+
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
     }
@@ -80,6 +82,29 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::C)) // ㅌㅌ
     {
         owner->Request_EscapeBattle();
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::Q))
+    {
+        string gradientSkillKey{};
+        if (owner->Get_TurnActionRequest().actor.statCom == nullptr ||
+            !owner->Get_TurnActionRequest().actor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey))
+        {
+            LOG_DEBUG("ChooseAction: gradient skill is locked or empty");
+            return;
+        }
+
+        owner->Get_TurnActionRequest().type = EBattleContext::Skill;
+        battleFSM->Change_State(BattleTurnState::ChooseGradient);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::SELECTSKILL;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+        event.useClip = true;
+        GAME->Get_EventBus().Publish(event);
+
         return;
     }
 
@@ -113,8 +138,14 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
+        if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
+        {
+            LOG_DEBUG("ChooseAction: FreeAimTargeting blocked because active camera is not BattleTurnCamera");
+            return;
+        }
+
         owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
-        
+
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::AIM;
         event.subject = owner->Get_TurnActionRequest().actor.actor;

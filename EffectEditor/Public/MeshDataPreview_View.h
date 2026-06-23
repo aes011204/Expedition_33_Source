@@ -11,6 +11,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+// Mesh TypeData의 model/material/transform 값을 검사하고 preview한다.
 class MeshDataPreview_View final : public Editor_Window
 {
 public:
@@ -22,10 +23,10 @@ public:
     void Render() override;
     void Open_Target(uint32 emitterId);
 
-private:
+private: //## Types
     struct PreviewRenderer;
 
-private:
+private: //## Helper::Target
     Shared<Emitter_View> Resolve_EmitterView() const;
     AuthoringEmitter* Find_TargetEmitter(const Shared<Emitter_View>& emitterView) const;
     MeshTypeData* Find_TargetMeshData(AuthoringEmitter* emitter) const;
@@ -37,6 +38,8 @@ private:
     bool Render_MaterialInstanceSection(const AuthoringEmitter& emitter, MeshTypeData& meshData, bool* outRestartPreview);
     void Render_ValidationSummary(const MeshTypeData& meshData);
     void Apply_MeshDataChanged(Emitter_View& emitterView, AuthoringEmitter& emitter);
+
+private: //## Helper::AuthoringHistory
     void Begin_PendingAuthoringEdit(
         Emitter_View& emitterView,
         const Emitter_View::AuthoringSnapshot& beforeSnapshot,
@@ -44,7 +47,7 @@ private:
     void Commit_PendingAuthoringEditIfIdle(Emitter_View& emitterView);
     void Commit_PendingAuthoringEdit(Emitter_View& emitterView);
 
-private:
+private: //## Data::Preview
     Unique<PreviewRenderer> _previewRenderer{};
     DetailPropertyContext _detailPropertyContext{};
     map<string, Shared<Texture>> _textureThumbnailCache{};

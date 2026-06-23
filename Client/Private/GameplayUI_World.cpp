@@ -7,10 +7,17 @@
 #include "ChangeWeapon_Panel.h"
 #include "ExpeditionStat_Panel.h"
 #include "UI_CrossHair.h"
+#include "UI_GetCharacter.h"
+#include "UI_GetClothes.h"
+#include "UI_GetWeapon.h"
+#include "UI_GetPictos.h"
 #include "ClientInstance.h"
 #include "Player_FreeAim.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
+#include "SoulLikeController.h"
+#include "Unlock_Manager.h"
+#include "UI_ArenaCharacterSelect.h"
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
 
@@ -87,6 +94,21 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _crossHair = UI_CrossHair::Create(levelIndex);
     CHECK_NULL(_crossHair, E_FAIL);
 
+    _getCharacterPanel = UI_GetCharacter::Create(levelIndex);
+    CHECK_NULL(_getCharacterPanel, E_FAIL);
+
+    _getClothesPanel = UI_GetClothes::Create(levelIndex);
+    CHECK_NULL(_getClothesPanel, E_FAIL);
+
+    _getWeaponPanel = UI_GetWeapon::Create(levelIndex);
+    CHECK_NULL(_getWeaponPanel, E_FAIL);
+
+    _getPictosPanel = UI_GetPictos::Create(levelIndex);
+    CHECK_NULL(_getPictosPanel, E_FAIL);
+
+    _arenaCharacterSelectPanel = UI_ArenaCharacterSelect::Create(levelIndex);
+    CHECK_NULL(_arenaCharacterSelectPanel, E_FAIL);
+
     return S_OK;
 }
 
@@ -119,10 +141,44 @@ void GameplayUI_World::Update(float timeDelta)
     if (_expeditionStatPanel)
         _expeditionStatPanel->Update(timeDelta);
 
+    if (_getCharacterPanel)
+        _getCharacterPanel->Update(timeDelta);
+
+    if (_getClothesPanel)
+        _getClothesPanel->Update(timeDelta);
+
+    if (_getWeaponPanel)
+        _getWeaponPanel->Update(timeDelta);
+
+    if (_getPictosPanel)
+        _getPictosPanel->Update(timeDelta);
+
+    if (_arenaCharacterSelectPanel)
+        _arenaCharacterSelectPanel->Update(timeDelta);
+
     Update_CrossHair(timeDelta);
 
     if (!CLIENT->Is_FadeTransitionPlaying())
     {
+        Try_ShowPendingGetCharacter();
+
+        if (Is_GetCharacterOpen())
+            return; // Get Character가 떠 있는 동안 다른 월드 메뉴 액션을 소비하지 않는다.
+
+        Try_ShowPendingGetClothes();
+
+        if (Is_GetClothesOpen())
+            return; // Get Clothes가 떠 있는 동안 다른 월드 메뉴 액션을 소비하지 않는다.
+
+        if (Is_GetWeaponOpen())
+            return; // Get Weapon은 아직 자동 획득 소비 없이, 열려 있을 때 월드 메뉴 액션만 막는다.
+
+        if (Is_GetPictosOpen())
+            return; // Get Pictos도 코드 패널만 준비하고, 열린 동안 월드 메뉴 액션만 막는다.
+
+        if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
+            Handle_ArenaCharacterSelectAction(_arenaCharacterSelectPanel->Consume_LastAction());
+
         if (_savePointPanel && _savePointPanel->Is_Open() && !_savePointPanel->Is_ClosingWithOutro())
             Handle_SavePointAction(_savePointPanel->Consume_LastAction());
 
@@ -139,6 +195,19 @@ void GameplayUI_World::Update_Input()
     if (_savePointPanel && _savePointPanel->Is_ClosingWithOutro())
         return;
 
+    if (Is_GetCharacterOpen())
+        return; // 닫기 입력은 UI_GetCharacter::Update가 처리하고, 월드 메뉴 입력은 막는다.
+
+    if (Is_GetClothesOpen())
+        return; // 닫기 입력은 UI_GetClothes::Update가 처리하고, 월드 메뉴 입력은 막는다.
+
+    if (Is_GetWeaponOpen())
+        return; // 닫기 입력은 UI_GetWeapon::Update가 처리하고, 월드 메뉴 입력은 막는다.
+
+    if (Is_GetPictosOpen())
+        return; // 닫기 입력은 UI_GetPictos::Update가 처리하고, 월드 메뉴 입력은 막는다.
+
+    Handle_ArenaCharacterSelectInput();
     Handle_SavePointInput();
     Handle_TabInput();
     Handle_BackInput();
@@ -167,6 +236,16 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
         _changeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "ChangeWeaponPanel");
     if (_expeditionStatPanel)
         _expeditionStatPanel->Append_RuntimeUIEntries(entries, "World", "ExpeditionStatPanel");
+    if (_getCharacterPanel)
+        _getCharacterPanel->Append_RuntimeUIEntries(entries, "World", "GetCharacterPanel");
+    if (_getClothesPanel)
+        _getClothesPanel->Append_RuntimeUIEntries(entries, "World", "GetClothesPanel");
+    if (_getWeaponPanel)
+        _getWeaponPanel->Append_RuntimeUIEntries(entries, "World", "GetWeaponPanel");
+    if (_getPictosPanel)
+        _getPictosPanel->Append_RuntimeUIEntries(entries, "World", "GetPictosPanel");
+    if (_arenaCharacterSelectPanel)
+        _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
     Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
 
     return entries;
@@ -174,7 +253,12 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 
 bool GameplayUI_World::Is_AnyMenuOpen() const
 {
-    return !_menuStack.empty() || (_savePointPanel && _savePointPanel->Is_ClosingWithOutro());
+    return Is_GetCharacterOpen() ||
+        Is_GetClothesOpen() ||
+        Is_GetWeaponOpen() ||
+        Is_GetPictosOpen() ||
+        !_menuStack.empty() ||
+        (_savePointPanel && _savePointPanel->Is_ClosingWithOutro());
 }
 
 GameplayMenu GameplayUI_World::Get_CurrentMenu() const
@@ -188,11 +272,51 @@ GameplayMenu GameplayUI_World::Get_CurrentMenu() const
 void GameplayUI_World::Force_CloseAllMenus()
 {
     Close_AllMenus(true); // 배틀 진입 시 월드 메뉴가 남아 있지 않게 강제 정리
+
+    if (_getCharacterPanel && _getCharacterPanel->Is_Open())
+        _getCharacterPanel->Close_Immediately();
+
+    if (_getClothesPanel && _getClothesPanel->Is_Open())
+        _getClothesPanel->Close_Immediately();
+
+    if (_getWeaponPanel && _getWeaponPanel->Is_Open())
+        _getWeaponPanel->Close_Immediately();
+
+    if (_getPictosPanel && _getPictosPanel->Is_Open())
+        _getPictosPanel->Close_Immediately();
+
+    if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
+        _arenaCharacterSelectPanel->Close_Immediately();
 }
 
 void GameplayUI_World::Handle_EditorStopRuntime()
 {
     Force_CloseAllMenus();
+}
+
+bool GameplayUI_World::Request_ArenaCharacterSelect()
+{
+    if (_arenaCharacterSelectPanel == nullptr)
+        return false;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return false;
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return false;
+
+    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+    if (controller == nullptr || controller->Is_BattleActive())
+        return false;
+
+    Push_Menu(GameplayMenu::ArenaCharacterSelect);
+    return true;
 }
 
 void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction action)
@@ -236,6 +360,19 @@ void GameplayUI_World::Handle_SavePointInput()
         return; // 다른 월드 메뉴가 열려 있으면 SavePoint 중복 진입을 막는다.
 
     Push_Menu(GameplayMenu::SavePoint);
+}
+
+void GameplayUI_World::Handle_ArenaCharacterSelectInput()
+{
+    // 3번이 아니라, NPC 대화 이후
+    if (!GAME->KeyDown(KEY_TYPE::KEY_3))
+        return;
+
+    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+    if (controller == nullptr || !controller->Is_DebugKeyStartEnabled())
+        return;
+
+    Request_ArenaCharacterSelect();
 }
 
 void GameplayUI_World::Handle_TabInput()
@@ -342,6 +479,45 @@ void GameplayUI_World::Handle_CharacterProgressionAction(CharacterProgression_Pa
         break;
 
     case CharacterProgression_Panel::Action::None:
+    default:
+        break;
+    }
+}
+
+void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect::Action action)
+{
+    switch (action)
+    {
+    case UI_ArenaCharacterSelect::Action::SelectGustave:
+        LOG_INFO("ArenaCharacterSelect: Gustave selected. SoulLike entry is disabled.");
+        break;
+
+    case UI_ArenaCharacterSelect::Action::SelectLune:
+        LOG_INFO("ArenaCharacterSelect: Lune selected. SoulLike entry is disabled.");
+        break;
+
+    case UI_ArenaCharacterSelect::Action::SelectMaelle:
+    {
+        const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+        if (controller == nullptr)
+        {
+            LOG_WARN("ArenaCharacterSelect: SoulLikeController is missing.");
+            return;
+        }
+
+        Close_AllMenus(true); // 마엘 선택만 기존 3번키 전투 진입 로직으로 연결한다.
+
+        if (!controller->Begin_Battle())
+            LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+
+        break;
+    }
+
+    case UI_ArenaCharacterSelect::Action::Back:
+        Close_AllMenus();
+        break;
+
+    case UI_ArenaCharacterSelect::Action::None:
     default:
         break;
     }
@@ -484,12 +660,113 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
             _skillTreePanel->Close();
         break;
 
+    case GameplayMenu::ArenaCharacterSelect:
+        if (_arenaCharacterSelectPanel)
+        {
+            if (restoreWorldControl)
+                _arenaCharacterSelectPanel->Close();
+            else
+                _arenaCharacterSelectPanel->Close_ForMenuTransition();
+        }
+        break;
+
     case GameplayMenu::None:
     default:
         break;
     }
 
 
+}
+
+void GameplayUI_World::Try_ShowPendingGetCharacter()
+{
+    if (_getCharacterPanel == nullptr || _getCharacterPanel->Is_Open())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return; // 다른 시스템이 입력을 막은 상태에서는 pending을 소비하지 않는다.
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    vector<HeroId> pendingHeroes = unlockManager->Consume_GetCharacterHeroes();
+    if (pendingHeroes.empty())
+        return;
+
+    _getCharacterPanel->Open_ForHeroes(pendingHeroes);
+}
+
+bool GameplayUI_World::Is_GetCharacterOpen() const
+{
+    return _getCharacterPanel && _getCharacterPanel->Is_Open();
+}
+
+void GameplayUI_World::Try_ShowPendingGetClothes()
+{
+    if (_getClothesPanel == nullptr || _getClothesPanel->Is_Open())
+        return;
+
+    if (Is_GetCharacterOpen())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return; // 다른 시스템이 입력을 막은 상태에서는 pending을 소비하지 않는다.
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    vector<string> pendingPresetIds = unlockManager->Consume_GetClothesPresetIds();
+    if (pendingPresetIds.empty())
+        return;
+
+    _getClothesPanel->Open_ForPresetIds(pendingPresetIds);
+}
+
+bool GameplayUI_World::Is_GetClothesOpen() const
+{
+    return _getClothesPanel && _getClothesPanel->Is_Open();
+}
+
+bool GameplayUI_World::Is_GetWeaponOpen() const
+{
+    return _getWeaponPanel && _getWeaponPanel->Is_Open();
+}
+
+bool GameplayUI_World::Is_GetPictosOpen() const
+{
+    return _getPictosPanel && _getPictosPanel->Is_Open();
 }
 
 void GameplayUI_World::Update_CrossHair(float timeDelta)
@@ -594,6 +871,8 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
             _wardrobePanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::WeaponUpgrade && _changeWeaponPanel)
             _changeWeaponPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::ArenaCharacterSelect && _arenaCharacterSelectPanel)
+            _arenaCharacterSelectPanel->Close_Immediately();
         else
             Close_Menu(menu, true);
 
@@ -655,6 +934,11 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
             _skillTreePanel->Open();
         break;
 
+    case GameplayMenu::ArenaCharacterSelect:
+        if (_arenaCharacterSelectPanel)
+            _arenaCharacterSelectPanel->Open();
+        break;
+
     case GameplayMenu::None:
     default:
         break;
@@ -664,7 +948,7 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
 bool GameplayUI_World::Is_WorldFreeAimActive() const
 {
     // 배틀 중 아닐 때.
-    if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
         return false;
 
     // 월드 입력이 막혀 있으면 조준 UI도 같이 숨긴다.
@@ -724,6 +1008,11 @@ void GameplayUI_World::Free()
     Release_Panel(_skillTreePanel);
     Release_Panel(_changeWeaponPanel);
     Release_Panel(_expeditionStatPanel);
+    Release_Panel(_getCharacterPanel);
+    Release_Panel(_getClothesPanel);
+    Release_Panel(_getWeaponPanel);
+    Release_Panel(_getPictosPanel);
+    Release_Panel(_arenaCharacterSelectPanel);
 
     Base::Free();
 }

@@ -11,6 +11,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+// Mesh particle runtime을 CPU에서 시뮬레이션하고 instanced mesh effect를 제출한다.
 class MeshEmitter final : public EffectEmitter
 {
     GENERATED_GAMEOBJECT(MeshEmitter, ObjectType::EffectEmitter);
@@ -38,13 +39,18 @@ public:
     bool Is_EffectFinished() const override;
     bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const override;
     // follower ribbon이 따라갈 active mesh particle 위치를 제공한다.
-    bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // active mesh particle의 카메라 기준 대표 표면점을 Blend 정렬 위치로 반환한다.
-    EffectSortPolicy Get_BlendSortPolicy() const override;                      // Required Sort Policy authoring 값을 반환한다.
-    int32 Get_BlendSortLayer() const override;                                  // Required Sort Layer authoring 값을 반환한다.
-    float Get_BlendSortBias() const override;                                   // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
+    // active mesh particle의 카메라 기준 대표 표면점을 Blend 정렬 위치로 반환한다.
+    bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
+    // Required Sort Policy authoring 값을 반환한다.
+    EffectSortPolicy Get_BlendSortPolicy() const override;
+    // Required Sort Layer authoring 값을 반환한다.
+    int32 Get_BlendSortLayer() const override;
+    // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
+    float Get_BlendSortBias() const override;
 
-protected:
-    void On_EffectTransformSynced() override; // root/local-space sync 직후 active instance world matrix를 다시 계산한다.
+protected: //## Hook
+    // root/local-space sync 직후 active instance world matrix를 다시 계산한다.
+    void On_EffectTransformSynced() override;
 
 private: //## Types::PlaybackRuntime
     enum class PlaybackState : uint8
@@ -56,10 +62,10 @@ private: //## Types::PlaybackRuntime
 
     struct MeshInstanceVertex
     {
-        Matrix world{};                   // instanced mesh draw가 읽는 particle world matrix다.
-        Vec4 color{ 1.f, 1.f, 1.f, 1.f }; // life 평가까지 반영된 최종 particle color다.
-        Vec2 lifeTime{};                  // x: particle 수명, y: 현재 age다.
-        Vec2 padding{};                   // instance layout 16-byte 정렬 유지용 padding이다.
+        Matrix world{};                         // instanced mesh draw가 읽는 particle world matrix다.
+        Vec4 color{ 1.f, 1.f, 1.f, 1.f };       // life 평가까지 반영된 최종 particle color다.
+        Vec2 lifeTime{};                        // x: particle 수명, y: 현재 age다.
+        Vec2 padding{};                         // instance layout 16-byte 정렬 유지용 padding이다.
     };
 
     struct MeshParticleState
@@ -101,6 +107,13 @@ private: //## Types::PlaybackRuntime
         Vec3 radialDirection{ 0.f, 0.f, 1.f };
     };
 
+    struct SourceMotionVelocityContext
+    {
+        Vec3 sourceVelocity{};
+        Vec3 tangent{ 0.f, 0.f, 1.f };
+        bool sourceVelocityValid{ false };
+    };
+
 private: //## Static Values
     // mesh effect draw shader id다.
     static constexpr auto kEffectMeshShaderId{ "Shader_EffectMesh" };
@@ -116,41 +129,71 @@ private: //## Static Values
     static constexpr int kOpacitySourceLuminance{ 2 };
 
 private: //## Data::Components
-    Shared<ModelCom> _model{};           // instanced draw에 사용할 non-anim model component다.
-    Shared<ShaderCom> _shader{};         // mesh effect material shader component다.
-    wstring _loadedShaderPrototypeTag{}; // 현재 material family에 맞춰 선택된 shader prototype tag다.
-    Shared<Texture> _texture{};          // mesh effect main texture다.
-    Shared<Texture> _noiseTexture{};     // 선택 noise texture. 없으면 material noise를 비활성화한다.
-    Shared<Texture> _maskTexture{};      // 선택 mask texture. 없으면 mask alpha 소비를 비활성화한다.
-    Shared<Texture> _flowTexture{};      // 선택 distortion flow texture. 없으면 distortion offset을 0으로 처리한다.
-    ComPtr<Buffer> _instanceBuffer{};    // MeshInstanceVertex payload를 GPU에 제출하는 dynamic instance buffer다.
+    // instanced draw에 사용할 non-anim model component다.
+    Shared<ModelCom> _model{};
+    // mesh effect material shader component다.
+    Shared<ShaderCom> _shader{};
+    // 현재 material family에 맞춰 선택된 shader prototype tag다.
+    wstring _loadedShaderPrototypeTag{};
+    // mesh effect main texture다.
+    Shared<Texture> _texture{};
+    // 선택 noise texture. 없으면 material noise를 비활성화한다.
+    Shared<Texture> _noiseTexture{};
+    // 선택 mask texture. 없으면 mask alpha 소비를 비활성화한다.
+    Shared<Texture> _maskTexture{};
+    // 선택 distortion flow texture. 없으면 distortion offset을 0으로 처리한다.
+    Shared<Texture> _flowTexture{};
+    // MeshInstanceVertex payload를 GPU에 제출하는 dynamic instance buffer다.
+    ComPtr<Buffer> _instanceBuffer{};
 
 private: //## Data::Desc
-    MeshEmitterDesc _desc{};                                          // clone 생성 시 전달받은 mesh emitter runtime 규칙이다.
-    int _opacitySourceIndex{ kOpacitySourceAlpha };                   // shader opacity source selector다.
-    bool _isReady{ false };                                           // model/shader/buffer가 모두 준비돼 render 가능한지 나타낸다.
-    mutable bool _sphereRadialMeshOrientationFallbackLogged{ false }; // sphere radial mesh axis fallback warning을 emitter당 한 번만 남긴다.
-    mutable bool _planeRadialMeshOrientationFallbackLogged{ false };  // mesh axis fallback warning을 emitter당 한 번만 남긴다.
+    // clone 생성 시 전달받은 mesh emitter runtime 규칙이다.
+    MeshEmitterDesc _desc{};
+    // shader opacity source selector다.
+    int _opacitySourceIndex{ kOpacitySourceAlpha };
+    // model/shader/buffer가 모두 준비돼 render 가능한지 나타낸다.
+    bool _isReady{ false };
+    // sphere radial mesh axis fallback warning을 emitter당 한 번만 남긴다.
+    mutable bool _sphereRadialMeshOrientationFallbackLogged{ false };
+    // mesh axis fallback warning을 emitter당 한 번만 남긴다.
+    mutable bool _planeRadialMeshOrientationFallbackLogged{ false };
 
 private: //## Data::ParticleRuntime
-    vector<MeshParticleState> _particles{};        // active/inactive mesh particle slot 배열이다.
-    vector<MeshInstanceVertex> _instancePayload{}; // draw 직전 GPU instance buffer에 복사할 CPU payload다.
-    uint32 _activeInstanceCount{};                 // 이번 frame에 실제로 그릴 active instance 수다.
-    uint32 _nextSpawnCursor{};                     // ring-style slot 재사용을 위한 다음 spawn 시작 index다.
-    uint32 _instanceCapacity{};                    // 현재 instance buffer와 particle 배열 capacity다.
+    // active/inactive mesh particle slot 배열이다.
+    vector<MeshParticleState> _particles{};
+    // draw 직전 GPU instance buffer에 복사할 CPU payload다.
+    vector<MeshInstanceVertex> _instancePayload{};
+    // 이번 frame에 실제로 그릴 active instance 수다.
+    uint32 _activeInstanceCount{};
+    // ring-style slot 재사용을 위한 다음 spawn 시작 index다.
+    uint32 _nextSpawnCursor{};
+    // 현재 instance buffer와 particle 배열 capacity다.
+    uint32 _instanceCapacity{};
+    Vec3 _sourceMotionVelocity{};
+    Vec3 _sourceMotionTangent{ 0.f, 0.f, 1.f };
+    Vec3 _lastSourceMotionCenter{};
+    bool _sourceMotionVelocityValid{ false };
+    bool _hasLastSourceMotionCenter{ false };
 
 private: //## Data::SpawnRuntime
-    vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
-    float _emitterElapsedTime{};   // spawn/material time 평가에 사용할 emitter-local 누적 시간이다.
-    float _spawnAccumulator{};     // fractional spawn rate를 프레임 사이에 보존한다.
+    // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
+    vector<bool> _burstExecuted{};
+    // spawn/material time 평가에 사용할 emitter-local 누적 시간이다.
+    float _emitterElapsedTime{};
+    // fractional spawn rate를 프레임 사이에 보존한다.
+    float _spawnAccumulator{};
     float _sampledSpawnRate{ 10.f };
     float _sampledSpawnRateScale{ 1.f };
 
 private: //## Data::PlaybackRuntime
-    PlaybackState _playbackState{ PlaybackState::Delayed }; // delay/playing/completed 중 현재 emitter 재생 상태다.
-    float _loopElapsedTime{};                               // 현재 loop 안에서 delay를 포함해 흐른 시간이다.
-    uint32 _loopIndex{};                                    // 0부터 시작하는 현재 loop index다.
-    bool _completedKillDispatched{};                        // 완료 kill 요청을 한 번만 보내기 위한 latch다.
+    // delay/playing/completed 중 현재 emitter 재생 상태다.
+    PlaybackState _playbackState{ PlaybackState::Delayed };
+    // 현재 loop 안에서 delay를 포함해 흐른 시간이다.
+    float _loopElapsedTime{};
+    // 0부터 시작하는 현재 loop index다.
+    uint32 _loopIndex{};
+    // 완료 kill 요청을 한 번만 보내기 위한 latch다.
+    bool _completedKillDispatched{};
 
 private: //## Helper::ReloadDesc
     // 현재 mesh runtime desc 핵심 payload를 로그로 남긴다.
@@ -189,26 +232,42 @@ private: //## Helper::Setup
     // effect material texture guid/path를 실제 resource 경로로 resolve한다.
     wstring Resolve_MaterialTexturePath(const string& textureGuid, const string& texturePath) const;
 
-private:                                                                  //## Helper::Render
-    HRESULT Bind_EffectMaterialResources();                               // mesh effect shader에 texture와 material 파라미터를 바인딩한다.
-    HRESULT Bind_DistortionResources();                                   // mesh distortion field shader에 flow 파라미터를 바인딩한다.
-    bool Is_DistortionFamily() const;                                     // 현재 material family가 mesh distortion 경로인지 확인한다.
-    Matrix Build_InstanceMatrix(const MeshParticleState& particle) const; // particle state를 instanced draw world matrix로 변환한다.
+private: //## Helper::Render
+    // mesh effect shader에 texture와 material 파라미터를 바인딩한다.
+    HRESULT Bind_EffectMaterialResources();
+    // mesh distortion field shader에 flow 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();
+    // 현재 material family가 mesh distortion 경로인지 확인한다.
+    bool Is_DistortionFamily() const;
+    // particle state를 instanced draw world matrix로 변환한다.
+    Matrix Build_InstanceMatrix(const MeshParticleState& particle) const;
     Vec3 Resolve_ParticleWorldPosition(const MeshParticleState& particle) const;
-    RenderGroup Resolve_RenderGroup() const; // material family/blend mode에 맞는 render group을 반환한다.
-    uint32 Resolve_ShaderPassIndex() const;  // 현재 shader에서 사용할 mesh effect pass index를 반환한다.
-    int Resolve_OpacitySourceIndex() const;  // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    // material family/blend mode에 맞는 render group을 반환한다.
+    RenderGroup Resolve_RenderGroup() const;
+    // 현재 shader에서 사용할 mesh effect pass index를 반환한다.
+    uint32 Resolve_ShaderPassIndex() const;
+    // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    int Resolve_OpacitySourceIndex() const;
 
 private: //## Helper::PlaybackRuntime
-    void Reset_PlaybackRuntime();           // emitter timing/burst/playback runtime state를 초기화한다.
-    void Advance_Playback(float timeDelta); // delay/duration/loop 정책을 진행하고 particle simulation을 갱신한다.
-    void Start_NextLoop();                  // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.
-    float Resolve_CurrentLoopDelay() const; // 현재 loop에 적용할 delay를 반환한다.
-    float Resolve_Duration() const;         // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
-    bool Has_NextLoop() const;              // loopCount 정책상 다음 loop가 있는지 확인한다.
-    bool Can_SubmitRender() const;          // delay/completed kill 정책상 render 제출 가능한지 확인한다.
+    // emitter timing/burst/playback runtime state를 초기화한다.
+    void Reset_PlaybackRuntime();
+    // delay/duration/loop 정책을 진행하고 particle simulation을 갱신한다.
+    void Advance_Playback(float timeDelta);
+    // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.
+    void Start_NextLoop();
+    // 현재 loop에 적용할 delay를 반환한다.
+    float Resolve_CurrentLoopDelay() const;
+    // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
+    float Resolve_Duration() const;
+    // loopCount 정책상 다음 loop가 있는지 확인한다.
+    bool Has_NextLoop() const;
+    // delay/completed kill 정책상 render 제출 가능한지 확인한다.
+    bool Can_SubmitRender() const;
 
 private: //## Helper::ParticleRuntime
+    // 완료 판정에 사용할 실제 active particle 수를 반환한다.
+    uint32 Count_ActiveParticles() const;
     // 이번 frame에 새로 활성화할 particle 수를 계산한다.
     uint32 Consume_SpawnRequest(float timeDelta);
     void Resample_LoopSpawnDistributions();
@@ -236,7 +295,12 @@ private: //## Helper::SamplingEvaluation
     // PlaneRadialLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
     Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const;
     // velocity/radial velocity를 합친 초기 속도를 sample한다.
-    Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneRadialSample& planeRadialSample, uint32 seed) const;
+    Vec3 Sample_InitialVelocity(
+        const Vec3& spawnPosition,
+        const PlaneRadialSample& planeRadialSample,
+        const SourceMotionVelocityContext& sourceMotionContext,
+        uint32 seed) const;
+    void Update_SourceMotionVelocity(float timeDelta);
     // OrbitOverLife payload를 lifeProgress 기준 위치 offset으로 평가한다.
     Vec3 Evaluate_OrbitOffset(const MeshParticleState& particle, float lifeProgress) const;
     // motion acceleration range에서 particle acceleration을 sample한다.
@@ -244,7 +308,12 @@ private: //## Helper::SamplingEvaluation
     // motion drag range에서 particle drag를 sample한다.
     float Sample_Drag(uint32 seed) const;
     // min/max color 범위에서 particle color를 sample한다.
-    Vec4 Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint32 seed) const;
+    Vec4 Sample_Color(
+        const Vec4& minColor,
+        const Vec4& maxColor,
+        const PointParticleRandomSeedRuntimeDesc& colorSeed,
+        const PointParticleRandomSeedRuntimeDesc& alphaSeed,
+        uint32 seed) const;
     // mesh initial scale range에서 base scale을 sample한다.
     Vec3 Sample_InitialScale(uint32 seed) const;
     // mesh initial rotation range에서 시작 회전을 sample한다.

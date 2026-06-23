@@ -9,6 +9,7 @@
 #include "SkyBoxFlow.h"
 #include "SkyCloudCard.h"
 #include "Spawn_Prefab.h"
+#include "SoulLikeController.h"
 
 Level_MapTest::Level_MapTest(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -136,6 +137,22 @@ HRESULT Level_MapTest::Ready_Layer_BackGround(const wstring& strLayerTag)
     //    Vec3(3.002f, 469.630f, -358.078f),
     //    Vec3(622.793f, 396.934f, 402.847f)), E_FAIL);
 
+    // 임시 - 추후에 제스트랄 마을에 스폰해줄 것
+    {
+        const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
+            .AtLevel(ETOI(LevelType::MapTest))
+            .InLayer(strLayerTag)
+            .Spawn();
+
+        CHECK_NULL(controllerObject, E_FAIL);
+
+        const Shared<SoulLikeController> soulLikeController =
+            dynamic_pointer_cast<SoulLikeController>(controllerObject);
+
+        CHECK_NULL(soulLikeController, E_FAIL);
+        CLIENT->Set_SoulLikeController(soulLikeController);
+    }
+
     return S_OK;
 }
 
@@ -215,7 +232,7 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
         .Spawn();
     CHECK_NULL(spawner1, E_FAIL);
 
-	// 전투 시작 위치
+    // 전투 시작 위치
     const Shared<GameObject> spawner2 = Spawn_Prefab::Prefab("BSS_MapTest")
         .AtLevel(ETOI(LevelType::MapTest))
         .InLayer(TEXT("Layer_BattleStartSpawner"))
@@ -252,6 +269,8 @@ void Level_MapTest::Free()
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Remove(_editorPlayRuntimeHandle);
         _editorPlayRuntimeHandle.Reset();
     }
+
+    CLIENT->Clear_GameplayUI();
 
     __super::Free();
 }

@@ -96,6 +96,15 @@ void Weapon::Late_Update(float timeDelta)
     if (_shader == nullptr || _model == nullptr)
         return;
 
+    if (!Is_Visible())
+        return;
+
+    if (const Shared<GameObject> owner = Get_Owner())
+    {
+        if (!owner->Is_Visible())
+            return;
+    }
+
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 
     if (Casts_DynamicShadow())
@@ -220,12 +229,62 @@ HRESULT Weapon::Render_Shadow()
     return S_OK;
 }
 
+json Weapon::To_Json() const
+{
+    json data = PartObject::To_Json();
+    json& customProperties = data["custom_properties"];
+
+    customProperties["_sourceHistoryAnchors"] = json::array();
+    for (const WeaponSourceHistoryAnchorDesc& anchor : _sourceHistoryAnchors)
+    {
+        customProperties["_sourceHistoryAnchors"].push_back(
+            {
+                { "name", anchor.name },
+                { "boneName", anchor.boneName },
+                { "localPosition", { anchor.localPosition.x, anchor.localPosition.y, anchor.localPosition.z } },
+            }
+        );
+    }
+
+    return data;
+}
+
 void Weapon::From_Json(const json& data)
 {
     if (FAILED(Ensure_RuntimeComponentsFromJson(data)))
         return;
 
     PartObject::From_Json(data);
+
+    _sourceHistoryAnchors.clear();
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        if (customProperties.contains("_sourceHistoryAnchors") && customProperties["_sourceHistoryAnchors"].is_array())
+        {
+            for (const json& anchorJson : customProperties["_sourceHistoryAnchors"])
+            {
+                if (!anchorJson.is_object())
+                    continue;
+
+                WeaponSourceHistoryAnchorDesc anchor{};
+                anchor.name = anchorJson.value("name", string{});
+                anchor.boneName = anchorJson.value("boneName", string{});
+
+                if (anchorJson.contains("localPosition") &&
+                    anchorJson["localPosition"].is_array() &&
+                    anchorJson["localPosition"].size() >= 3)
+                {
+                    anchor.localPosition.x = anchorJson["localPosition"][0].get<float>();
+                    anchor.localPosition.y = anchorJson["localPosition"][1].get<float>();
+                    anchor.localPosition.z = anchorJson["localPosition"][2].get<float>();
+                }
+
+                if (!anchor.name.empty() && !anchor.boneName.empty())
+                    _sourceHistoryAnchors.push_back(std::move(anchor));
+            }
+        }
+    }
 
     if (_applyAttachScaleCompensation)
         Apply_AttachScale(); // Battle/ChangeWeapon 장착 runtime에서만 WP prefab authoring scale 0.1을 x10 보정한다.
@@ -237,6 +296,17 @@ const Matrix* Weapon::Get_SocketBoneMatrixPtr(const string& boneName) const
         return nullptr;
 
     return _model->Get_BoneMatrixPtr(boneName.c_str());
+}
+
+const WeaponSourceHistoryAnchorDesc* Weapon::Find_SourceHistoryAnchor(const string& anchorName) const
+{
+    for (const WeaponSourceHistoryAnchorDesc& anchor : _sourceHistoryAnchors)
+    {
+        if (anchor.name == anchorName)
+            return &anchor;
+    }
+
+    return nullptr;
 }
 
 bool Weapon::Begin_NotifyRotation()

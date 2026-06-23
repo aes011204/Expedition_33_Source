@@ -52,12 +52,12 @@ void Level_Loading::Update(float fTimeDelta)
         return;
 
     const size_t maxMainThreadCreatePerFrame =
-        _postFirstRenderFrameCount < 5 ? 1 : 2;
+        _postFirstRenderFrameCount < 5 ? 2 : 6;
 
     const chrono::milliseconds maxMainThreadCreateTime =
-        _postFirstRenderFrameCount < 5 ? chrono::milliseconds(1) : chrono::milliseconds(3);
+        _postFirstRenderFrameCount < 5 ? chrono::milliseconds(2) : chrono::milliseconds(8);
 
-    CHECK_FAILED(_loader->Process_PendingLoadJobs(8, maxMainThreadCreatePerFrame, maxMainThreadCreateTime));
+    CHECK_FAILED(_loader->Process_PendingLoadJobs(24, maxMainThreadCreatePerFrame, maxMainThreadCreateTime));
 
     ++_postFirstRenderFrameCount;
 

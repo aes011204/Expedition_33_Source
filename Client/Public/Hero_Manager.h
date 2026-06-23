@@ -58,6 +58,7 @@ public:
     // 현재 플레이중인 Hero
     HeroPartySlot Get_ActiveHeroSlot() const;
     Shared<Player_WorldBase> Get_ActiveHero() const;
+    void Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot);
 
     // 스테이터스 찍을 때 Front로 들어간 구스타브 포커싱되게
     Shared<Player_WorldBase> Get_FrontHero() const;
@@ -106,6 +107,15 @@ private:
                 float timeDelta);
 
     void    Refresh_TargetCamera() const;
+
+    bool Is_HeroUnlocked(HeroId heroId) const;
+    uint32 Find_FirstUnlockedHeroIndex() const;
+    uint32 Find_NextUnlockedHeroIndex(uint32 startIndex) const;
+
+    bool Can_SwitchHero() const;
+
+    void Apply_UnlockedHeroVisibility();
+    void Reset_FollowerRuntime();
 
 private:
     HRESULT Ready_Delegates();

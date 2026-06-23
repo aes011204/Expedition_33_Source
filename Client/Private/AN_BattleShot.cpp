@@ -1,11 +1,12 @@
 ﻿#include "AN_BattleShot.h"
-#include <GameObject.h>
+#include "GameObject.h"
 #include "Battle_Event.h"
 #include "GameInstance.h"
 #include "Event_Bus.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "PlayableParts.h"
+#include "SoulLikeController.h"
 
 namespace
 {
@@ -57,7 +58,25 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
 
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr || !battle->Is_BattleStarted())
+    {
+        if (!CLIENT->Is_SoulLikeBattleActive())
+            return;
+
+        Shared<SoulLikeController> soulLikeController = CLIENT->Get_SoulLikeController();
+        if (soulLikeController == nullptr)
+            return;
+
+        soulLikeController->Handle_BattleShotNotify(
+            context,
+            _cameraMode,
+            _presetId,
+            _clipId,
+            _useClip,
+            _restartClip,
+            _keepCurrentClip);
+
         return;
+    }
 
     if (!Is_BattleRosterModel(*battle, context.model))
         return;
@@ -75,6 +94,11 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         battle->Get_ReactionController().Is_GroupParryActive())
     {
         return; // 단체 패링 중에는 ReactionController 상태를 보고 중복 Parry 막기
+    }
+
+    if( _cameraMode == BattleCameraMode::BATTLEINTRO)
+    {
+        return;
     }
 
     event.subject = character;
@@ -108,16 +132,17 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     event.restartClip = _restartClip;
     event.keepCurrentClip = _keepCurrentClip;
 
-    const string modeName = string(magic_enum::enum_name(_cameraMode));
-    LOG_INFO(
-        "[BattleCamTrace] AN_BattleShot animation={} timeSec={:.3f} mode={} prefab={} useClip={} presetId={} clipId={}",
-        context.animationName.c_str(),
-        context.currentTimeSec,
-        modeName.c_str(),
-        character->Get_SourcePrefabName().c_str(),
-        _useClip,
-        event.presetId.c_str(),
-        event.clipId.c_str());
+    //const string modeName = string(magic_enum::enum_name(_cameraMode));
+    //LOG_INFO(
+    //    "[BattleCamTrace] AN_BattleShot animation={} timeSec={:.3f} mode={} prefab={} useClip={} presetId={} clipId={}",
+    //    context.animationName.c_str(),
+    //    context.currentTimeSec,
+    //    modeName.c_str(),
+    //    character->Get_SourcePrefabName().c_str(),
+    //    _useClip,
+    //    event.presetId.c_str(),
+    //    event.clipId.c_str());
 
     GAME->Get_EventBus().Publish(event);
+
 }

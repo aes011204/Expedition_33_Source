@@ -4,7 +4,7 @@
 namespace Engine::Internal
 {
 constexpr float transformEpsilon = 1e-6f;      // transform 연산에서 0 비교에 쓰는 허용 오차
-constexpr float minEditableScale = 1e-3f;      // basis 붕괴를 막기 위해 scale 0 근처를 피하는 최소값
+constexpr float minEditableScale = 1e-4f;      // basis 붕괴를 막기 위해 scale 0 근처를 피하는 최소값
 constexpr float minEditableSpeedPerSec = 0.f;  // 이동 속도 하한
 constexpr float minEditableDegreePerSec = 0.f; // 회전 속도 입력값(deg/s) 하한
 

@@ -92,7 +92,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -108,13 +108,12 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;Comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib /WHOLEARCHIVE:Engine.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
@@ -125,7 +124,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -141,13 +140,12 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;Comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib /WHOLEARCHIVE:Engine.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
@@ -156,7 +154,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -173,7 +171,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_EDITOR;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -218,6 +216,8 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
     <ClCompile Include="..\Private\ImSequencer.cpp" />
     <ClCompile Include="..\Private\ScreenFx_View.cpp" />
+    <ClCompile Include="..\Private\SoulLike_Viewer.cpp" />
+    <ClCompile Include="..\Private\SoulLikeCamera_Viewer.cpp" />
     <ClCompile Include="..\Private\Transform_Inspector.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -239,6 +239,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Animation_NameUtils.h" />
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\Public\ImSequencer.h" />
     <ClInclude Include="..\public\AIController_Inspector.h" />
     <ClInclude Include="..\Public\AnimState_View.h" />
     <ClInclude Include="..\public\BT_VIew.h" />
@@ -268,6 +269,8 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\PostProcess_View.h" />
     <ClInclude Include="..\Public\Prefab_View.h" />
     <ClInclude Include="..\Public\ScreenFx_View.h" />
+    <ClInclude Include="..\Public\SoulLike_Viewer.h" />
+    <ClInclude Include="..\Public\SoulLikeCamera_Viewer.h" />
     <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\Public\MainEditorApp.h" />

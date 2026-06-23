@@ -47,6 +47,32 @@ inline float GetEaseInRatio(float ratio, float power = 2.0f)
     return std::clamp(easeRatio, 0.0f, 1.0f);
 }
 
+/**
+ * @brief 베를레 적분 (Verlet Integration)
+ *
+ * 속도 대신 이전 위치 저장: 명시적인 속도 변수(v)를 저장하는 대신,
+ * 직전 위치와 현재 위치를 저장하여 움직임을 표현합니다.
+ * 물리 법칙 시뮬레이션: 관성, 가속도, 질량 등을 비교적 간단한 연산만으로 처리할 수 있어
+ * 래그돌, 로프, 천(Cloth) 등의 물리 표현에 탁월합니다.
+ *
+ * @param currentPos 현재 위치
+ * @param prevPos    직전 프레임의 위치
+ * @param force      가해지는 총 힘 (중력 + 관성 + 복원력 등)
+ * @param damping    감쇠 계수 (1.0에 가까울수록 감속 없음, 보통 0.5~0.9)
+ * @param timeDelta  델타 타임 (프레임 진행 시간)
+ * @param pow        적분 가중치 (기본값 2)
+ * @return Engine::Vec3 시뮬레이션된 다음 프레임의 위치
+ */
+inline Vec3 SolveVerlet(const Vec3& currentPos, const Vec3& prevPos, const Vec3& force, float damping, float timeDelta, int pow = 2)
+{
+    const Vec3 velocity = (currentPos - prevPos) * damping;
+
+    // 최적화: 가장 많이 사용되는 2제곱(dt^2)은 단순 곱셈으로 처리하여 CPU 사이클을 크게 절약합니다.
+    const float timeWeight = pow == 2 ? timeDelta * timeDelta : std::pow(timeDelta, static_cast<float>(pow));
+
+    return currentPos + velocity + force * timeWeight;
+}
+
 inline float GetSmoothStepRatio(float ratio, float power = 2.0f)
 {
     ratio = std::clamp(ratio, 0.f, 1.f);
@@ -157,5 +183,40 @@ inline float RandNum(float startNum, float endNum, std::mt19937& rng)
 {
     std::uniform_real_distribution<float> dist(startNum, endNum);
     return dist(rng);
+}
+
+/**
+ * @brief 두 방향 벡터 사이의 회전을 나타내는 쿼터니언을 생성합니다. (DirectX SimpleMath 기반)
+ * @param v1 정규화된 시작 벡터
+ * @param v2 정규화된 목표 벡터
+ * @return 두 벡터 사이의 최단 회전을 나타내는 쿼터니언
+ */
+inline Quat CreateRotationBetweenVectors(const Vec3& v1, const Vec3& v2)
+{
+    const float dot = v1.Dot(v2);
+
+    // 두 벡터가 거의 같은 방향일 때
+    if (dot >= 1.0f - 1e-6f)
+        return Quat::Identity;
+
+    // 두 벡터가 거의 정반대 방향일 때 (180도 회전)
+    if (dot <= -1.0f + 1e-6f)
+    {
+        Vec3 axis = Vec3::UnitX.Cross(v1);
+        if (axis.LengthSquared() < 1e-6f)
+            axis = Vec3::UnitY.Cross(v1);
+        axis.Normalize();
+        return Quat::CreateFromAxisAngle(axis, DirectX::XM_PI);
+    }
+
+    // 일반적인 경우 (최단 경로 회전)
+    Quat q;
+    const Vec3 cross = v1.Cross(v2);
+    q.x = cross.x;
+    q.y = cross.y;
+    q.z = cross.z;
+    q.w = 1.0f + dot;
+    q.Normalize();
+    return q;
 }
 }

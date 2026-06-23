@@ -6,6 +6,7 @@
 
 NS_BEGIN(EffectEditor)
 
+// EffectEditor frame/profile/memory counters를 수집하고 profile window로 표시한다.
 class Profile_View final : public Editor_Window
 {
 public:

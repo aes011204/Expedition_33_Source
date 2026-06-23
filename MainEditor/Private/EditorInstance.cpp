@@ -27,6 +27,11 @@
 #include <fstream>
 #include "ClientInstance.h"
 #include "GameplayUI.h"
+#include "RuntimeCheckpointIO.h"
+#include "RuntimeCheckpointService.h"
+#include "RuntimeRuleStateIO.h"
+#include "RuntimeRuleStateService.h"
+#include "TargetCamera.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -69,6 +74,7 @@ void Sync_RestoredMovementRuntimePosition(const Shared<GameObject>& gameObject)
 
     movement->Sync_RuntimePositionToTransform();
 }
+
 }
 
 EditorInstance::EditorInstance()
@@ -184,16 +190,15 @@ void EditorInstance::Update_Editor(float timeDelta)
         _notificationManager->Update(timeDelta);
     }
 
-
-    if(GAME->KeyUp(KEY_TYPE::KEY_1))
-    {
-        Toogle_TargetCameraEditMode();
-
-        if(_isTargetCameraEditMode)
-        {
-            GAME->Unlock_Mouse();
-        }
-    }
+    //if(GAME->KeyUp(KEY_TYPE::KEY_1))
+    //{
+    //    Toogle_TargetCameraEditMode();
+    //
+    //    if(_isTargetCameraEditMode)
+    //    {
+    //        GAME->Unlock_Mouse();
+    //    }
+    //}
 }
 
 void EditorInstance::Render_Editor()
@@ -638,6 +643,71 @@ HRESULT EditorInstance::Load_CurrentLevelSnapShot(const fs::path& path)
     return Restore_CurrentLevelObjects(snapshots, selectedIndex);
 }
 
+bool EditorInstance::Capture_DemoCheckpoint(const fs::path& path) const
+{
+    Client::RuntimeCheckpointIO::Checkpoint checkpoint{};
+    if (!Client::RuntimeCheckpointService::Capture_Current(checkpoint))
+        return false;
+
+    return Client::RuntimeCheckpointIO::Save_Msgpack(path, checkpoint);
+}
+
+bool EditorInstance::Load_DemoCheckpointInEditor(const fs::path& path)
+{
+    Client::RuntimeCheckpointIO::Checkpoint checkpoint{};
+    if (!Client::RuntimeCheckpointIO::Load_Msgpack(path, checkpoint))
+        return false;
+
+    if (checkpoint.levelType != static_cast<LevelType>(GAME->Current_LevelIndex()))
+    {
+        LOG_WARN("[EditorInstance] checkpoint level mismatch. current={}, checkpoint={}",
+            GAME->Current_LevelIndex(), magic_enum::enum_name(checkpoint.levelType));
+        return false;
+    }
+
+    if (IsPlaying() || IsPaused())
+        Stop();
+
+    Clear_SelectedObject();
+    return Client::RuntimeCheckpointService::Apply_ToCurrentLevel(checkpoint);
+}
+
+bool EditorInstance::Save_GameStartRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_GameStart();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Save_CostumeUnlockRuleState(
+    const fs::path& path,
+    bool unlockBaguette,
+    bool unlockPotato) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_CostumeUnlocks(unlockBaguette, unlockPotato);
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_FirstTutorialHeroUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Load_RuleStateInEditor(const fs::path& path)
+{
+    Client::RuntimeRuleStateIO::RuleState ruleState{};
+    if (!Client::RuntimeRuleStateIO::Load_Msgpack(path, ruleState))
+        return false;
+
+    return Client::RuntimeRuleStateService::Apply_ToCurrentRuntime(ruleState);
+}
+
 void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath)
 {
     if (prefabName.empty())
@@ -788,6 +858,11 @@ bool EditorInstance::Is_ActivePreviewOwner(PreviewOwner owner) const
     return Get_ActivePreviewOwner() == owner;
 }
 
+void EditorInstance::Set_StickyPreviewOwner(PreviewOwner owner)
+{
+    _stickyPreviewOwner = owner;
+}
+
 void EditorInstance::Execute_Command(const Shared<ICommand>& command)
 {
     if (_commandHistory && command)
@@ -817,10 +892,18 @@ void EditorInstance::Activate_TargetCamera()
 void EditorInstance::Activate_FreeCamera()
 {
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    _hasTargetCameraModeBeforeFreeCamera = false;
+
     if (activeCamera != nullptr &&
         activeCamera->Get_ObjectType() != ObjectType::FreeCamera)
     {
         _cameraBeforeFreeCamera = activeCamera;
+
+        if (Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(activeCamera))
+        {
+            _targetCameraModeBeforeFreeCamera = targetCamera->Get_CurrentMode();
+            _hasTargetCameraModeBeforeFreeCamera = true;
+        }
     }
 
     CameraPoseSnapshot activeCameraPose{};
@@ -839,9 +922,27 @@ void EditorInstance::Restore_PreviousCameraOrTarget()
 {
     if (Shared<Camera> previousCamera = _cameraBeforeFreeCamera.lock())
     {
+        if (_hasTargetCameraModeBeforeFreeCamera)
+        {
+            if (Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(previousCamera))
+                targetCamera->Change_Mode(_targetCameraModeBeforeFreeCamera);
+        }
+
         GAME->Change_ActiveCamera(previousCamera);
         _cameraBeforeFreeCamera.reset();
+        _hasTargetCameraModeBeforeFreeCamera = false;
         return;
+    }
+
+    if (_hasTargetCameraModeBeforeFreeCamera)
+    {
+        if (Shared<TargetCamera> targetCamera =
+            dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+        {
+            targetCamera->Change_Mode(_targetCameraModeBeforeFreeCamera);
+        }
+
+        _hasTargetCameraModeBeforeFreeCamera = false;
     }
 
     Activate_TargetCamera();
@@ -1246,8 +1347,12 @@ void EditorInstance::Restore_PlayStartHeroStatSnapshots()
         if (stat == nullptr)
             continue;
 
+        const auto equippedPictosIds = stat->Get_EquippedPictosIds(); // F4 Stop은 HP/AP/Shield만 되돌리고, play 중 장착한 픽토스는 유지한다.
         stat->Apply_BattleSyncSnapshot(snapshot.statSnapshot);
         stat->Set_AliveStatus(snapshot.aliveStatus);
+
+        for (size_t slotIndex = 0; slotIndex < equippedPictosIds.size(); ++slotIndex)
+            stat->Set_EquippedPictos(slotIndex, equippedPictosIds[slotIndex]);
     }
 
     _playStartHeroStatSnapshots.clear();
@@ -1557,6 +1662,9 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
     const bool gameFocusedActual =
         gameView && gameView->Is_Open() && gameView->Is_Focused();
+    const bool gameInteractive =
+        gameView && gameView->Is_Open() &&
+        (gameView->Is_Focused() || gameView->Is_Hovered());
 
     const bool hasPendingGameFocus =
         _hasPendingWindowFocus &&
@@ -1580,6 +1688,21 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     const bool isMenuAutoPlayLevel =
         GAME->Current_LevelIndex() == ETOI(LevelType::MainTitle) ||
         GAME->Current_LevelIndex() == ETOI(LevelType::GameEntry);
+
+    if (_isCinematicPreviewFreeCameraOverride && isFreeCamera)
+    {
+        const bool freeCameraControl = GAME->KeyPress(KEY_TYPE::RBUTTON);
+        GAME->Set_PlayerInputBlocked(false);
+        GAME->Set_FreeCameraInputEnabled(true);
+
+        if (freeCameraControl)
+            GAME->Lock_Mouse();
+        else
+            GAME->Unlock_Mouse();
+
+        applyMouseLockOverride();
+        return;
+    }
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
@@ -1622,7 +1745,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         if (isFreeCamera)
         {
             const bool freeCameraControl =
-                gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
+                (gameFocused || gameInteractive) && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
             GAME->Set_PlayerInputBlocked(false); // Play 중 FreeCamera에 잠깐 남아 있어도 이전 blocked 상태를 끌고 가지 않게 바로 푼다.
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);

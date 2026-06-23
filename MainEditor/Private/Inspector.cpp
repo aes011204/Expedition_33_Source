@@ -534,14 +534,58 @@ void Inspector::Draw_RuntimeWorldUIPlacementInspector(
         ImGui::EndCombo();
     }
 
+    const uint32 variantCount = target->Get_EditorWorldPlacementVariantCount();
+    if (variantCount > 1)
+    {
+        uint32 selectedVariantIndex = target->Get_EditorWorldPlacementVariantIndex();
+        if (selectedVariantIndex >= variantCount)
+            selectedVariantIndex = 0;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Page");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::BeginCombo(
+            "##RuntimeWorldPlacementVariant",
+            target->Get_EditorWorldPlacementVariantLabel(selectedVariantIndex)))
+        {
+            for (uint32 variantIndex = 0; variantIndex < variantCount; ++variantIndex)
+            {
+                const bool selected = selectedVariantIndex == variantIndex;
+                if (ImGui::Selectable(target->Get_EditorWorldPlacementVariantLabel(variantIndex), selected))
+                {
+                    target->Set_EditorWorldPlacementVariantIndex(variantIndex);
+                    selectedVariantIndex = variantIndex;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+
     Client::RuntimeWorldUIPlacementTuning tuning = target->Get_EditorWorldPlacementTuning();
     bool changed = false;
 
     changed |= Draw_UIVec3Row("Screen Position", "##RuntimeWorldScreenPosition", tuning.screenPosition, 0.01f);
     changed |= Draw_UIVec3Row("Base Offset", "##RuntimeWorldBaseOffset", tuning.baseOffset, 0.01f);
-    changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
-    changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
-    changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    if (tuning.showKeyOffsets)
+    {
+        changed |= Draw_UIVec3Row("Q Offset", "##RuntimeWorldQOffset", tuning.qOffset, 0.01f);
+        changed |= Draw_UIVec3Row("W Offset", "##RuntimeWorldWOffset", tuning.wOffset, 0.01f);
+        changed |= Draw_UIVec3Row("E Offset", "##RuntimeWorldEOffset", tuning.eOffset, 0.01f);
+    }
+
+    for (size_t offsetIndex = 0; offsetIndex < tuning.namedOffsets.size(); ++offsetIndex)
+    {
+        auto& namedOffset = tuning.namedOffsets[offsetIndex];
+        const string label = namedOffset.label.empty() ? namedOffset.id : namedOffset.label;
+        const string controlId = "##RuntimeWorldNamedOffset" + to_string(offsetIndex);
+        changed |= Draw_UIVec3Row(label.c_str(), controlId.c_str(), namedOffset.offset, 0.01f);
+    }
+
     changed |= Draw_UIVec2Row("World Size", "##RuntimeWorldSize", tuning.worldSize, 0.01f);
     changed |= Draw_UIFloatRow("Visual Scale", "##RuntimeWorldVisualScale", tuning.visualScale, 0.01f);
     changed |= Draw_UIFloatRow("Pitch", "##RuntimeWorldPitch", tuning.pitchDegrees, 0.1f);
@@ -1205,37 +1249,42 @@ bool Inspector::Draw_Vec2PropertyRow(const string& idPrefix, const PropertyInfo&
     return changed;
 }
 
-void Inspector::Draw_ReflectionSection(
+bool Inspector::Draw_ReflectionSection(
     const string& headerId,
     void* instance,
     const ClassReflectionInfo& info)
 {
     if (instance == nullptr || info.properties.empty())
-        return;
+        return false;
 
     const char* sectionLabel =
         info.displayName.empty() ? info.className.c_str() : info.displayName.c_str();
 
     if (!ImGui::CollapsingHeader(sectionLabel, ImGuiTreeNodeFlags_DefaultOpen))
-        return;
+        return false;
 
     ImGui::PushID(headerId.c_str());
-    Draw_ReflectionProperties(instance, info);
+    const bool changed = Draw_ReflectionProperties(instance, info);
     ImGui::PopID();
+
+    return changed;
 }
 
-void Inspector::Draw_ReflectionProperties(
+bool Inspector::Draw_ReflectionProperties(
     void* instance,
     const ClassReflectionInfo& info)
 {
+    bool changed = false;
     for (const PropertyInfo& property : info.properties)
     {
-        Draw_ReflectionProperty(info.className, instance, property);
+        changed |= Draw_ReflectionProperty(info.className, instance, property);
         ImGui::Spacing();
     }
+
+    return changed;
 }
 
-void Inspector::Draw_ReflectionProperty(
+bool Inspector::Draw_ReflectionProperty(
     const string& idPrefix,
     void* instance,
     const PropertyInfo& property)
@@ -1246,6 +1295,14 @@ void Inspector::Draw_ReflectionProperty(
     const string visibleLabel =
         property.displayName.empty() ? property.name : property.displayName;
     const string hiddenId = "##" + idPrefix + "_" + property.name;
+    const auto drawPropertyLabel = [&visibleLabel]()
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+    };
 
     switch (property.type)
     {
@@ -1253,11 +1310,8 @@ void Inspector::Draw_ReflectionProperty(
     {
         bool* value = static_cast<bool*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
-        ImGui::Checkbox(hiddenId.c_str(), value);
-        break;
+        drawPropertyLabel();
+        return ImGui::Checkbox(hiddenId.c_str(), value);
     }
 
     case PropertyType::Int:
@@ -1265,22 +1319,17 @@ void Inspector::Draw_ReflectionProperty(
         int* value = static_cast<int*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
         {
             const int minValue = static_cast<int>(property.minVal);
             const int maxValue = static_cast<int>(property.maxVal);
-            ImGui::DragInt(hiddenId.c_str(), value, property.dragSpeed, minValue, maxValue);
+            return ImGui::DragInt(hiddenId.c_str(), value, property.dragSpeed, minValue, maxValue);
         }
-        else
-        {
-            ImGui::DragInt(hiddenId.c_str(), value, property.dragSpeed);
-        }
-        break;
+
+        return ImGui::DragInt(hiddenId.c_str(), value, property.dragSpeed);
     }
 
     case PropertyType::Float:
@@ -1288,74 +1337,57 @@ void Inspector::Draw_ReflectionProperty(
         float* value = static_cast<float*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
-            ImGui::DragFloat(hiddenId.c_str(), value, property.dragSpeed, property.minVal, property.maxVal);
-        else
-            ImGui::DragFloat(hiddenId.c_str(), value, property.dragSpeed);
+            return ImGui::DragFloat(hiddenId.c_str(), value, property.dragSpeed, property.minVal, property.maxVal);
 
-        break;
+        return ImGui::DragFloat(hiddenId.c_str(), value, property.dragSpeed);
     }
 
     case PropertyType::Vec2:
     {
         Vec2* value = static_cast<Vec2*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
-        Draw_Vec2PropertyRow(idPrefix + "_" + property.name, property, *value);
-        break;
+        return Draw_Vec2PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
 
     case PropertyType::Vec3:
     {
         Vec3* value = static_cast<Vec3*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
-        Draw_Vec3PropertyRow(idPrefix + "_" + property.name, property, *value);
-        break;
+        return Draw_Vec3PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
 
     case PropertyType::Vec4:
     {
         Vec4* value = static_cast<Vec4*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
-        Draw_Vec4PropertyRow(idPrefix + "_" + property.name, property, *value);
-        break;
+        return Draw_Vec4PropertyRow(idPrefix + "_" + property.name, property, *value);
     }
 
     case PropertyType::Color:
     {
         Vec4* value = static_cast<Vec4*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
-        Draw_ColorPropertyRow(idPrefix + "_" + property.name, *value);
-        break;
+        return Draw_ColorPropertyRow(idPrefix + "_" + property.name, *value);
     }
 
     case PropertyType::String:
     {
         std::string* value = static_cast<std::string*>(address);
+        bool changed = false;
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         if (property.isBlackboardKey && _btBlackboardKeys != nullptr)
         {
@@ -1373,7 +1405,10 @@ void Inspector::Draw_ReflectionProperty(
                     const bool isSelected = (*value == key.name);
 
                     if (ImGui::Selectable(key.name.c_str(), isSelected))
+                    {
                         *value = key.name;
+                        changed = true;
+                    }
 
                     if (isSelected)
                         ImGui::SetItemDefaultFocus();
@@ -1384,7 +1419,7 @@ void Inspector::Draw_ReflectionProperty(
         }
         else if (idPrefix == "AN_SpawnActor" && property.name == "_staticClass")
         {
-            Draw_SpawnActorClassPropertyRow(hiddenId, *value);
+            changed |= Draw_SpawnActorClassPropertyRow(hiddenId, *value);
         }
         else
         {
@@ -1393,23 +1428,24 @@ void Inspector::Draw_ReflectionProperty(
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+            {
                 *value = buffer;
+                changed = true;
+            }
         }
-        break;
+        return changed;
     }
 
     case PropertyType::WString:
     {
         wstring* value = static_cast<wstring*>(address);
+        bool changed = false;
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
         if (idPrefix == "EffectCom" && property.name == "_inspectorEffectName")
         {
-            Draw_EffectAssetPickerRow(hiddenId, *value);
-            break;
+            return Draw_EffectAssetPickerRow(hiddenId, *value);
         }
 
         string valueText = String::ToString(*value);
@@ -1418,35 +1454,35 @@ void Inspector::Draw_ReflectionProperty(
 
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+        {
             *value = String::ToWString(buffer);
+            changed = true;
+        }
 
-        break;
+        return changed;
     }
 
     case PropertyType::Enum:
     {
         int* value = static_cast<int*>(address);
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
 
-        Draw_EnumPropertyRow(idPrefix + "_" + property.name, property, *value);
-        break;
+        return Draw_EnumPropertyRow(idPrefix + "_" + property.name, property, *value);
     }
 
     case PropertyType::ReadOnly:
     default:
     {
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(InspectorLabelWidth);
+        drawPropertyLabel();
         ImGui::BeginDisabled();
         ImGui::TextUnformatted("Unsupported");
         ImGui::EndDisabled();
-        break;
+        return false;
     }
     }
+
+    return false;
 }
 
 bool Inspector::Draw_SpawnActorClassPropertyRow(

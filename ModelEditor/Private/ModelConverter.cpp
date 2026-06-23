@@ -5,6 +5,101 @@
 
 namespace ModelEditor
 {
+	namespace
+	{
+		constexpr double kAnimationKeyTimeEpsilon = 1e-6;
+
+		float Calculate_KeyRatio(double trackTime, double startTime, double endTime)
+		{
+			const double range = endTime - startTime;
+			if (range <= kAnimationKeyTimeEpsilon)
+				return 0.f;
+
+			return static_cast<float>((trackTime - startTime) / range);
+		}
+
+		aiVector3D Sample_VectorKey(const aiVectorKey* keys, uint32 numKeys, double trackTime, const aiVector3D& fallback)
+		{
+			if (keys == nullptr || numKeys == 0)
+				return fallback;
+
+			if (numKeys == 1 || trackTime <= keys[0].mTime)
+				return keys[0].mValue;
+
+			const uint32 lastIndex = numKeys - 1;
+			if (trackTime >= keys[lastIndex].mTime)
+				return keys[lastIndex].mValue;
+
+			for (uint32 i = 0; i + 1 < numKeys; ++i)
+			{
+				if (trackTime <= keys[i + 1].mTime)
+				{
+					const float ratio = Calculate_KeyRatio(trackTime, keys[i].mTime, keys[i + 1].mTime);
+					return keys[i].mValue + (keys[i + 1].mValue - keys[i].mValue) * ratio;
+				}
+			}
+
+			return keys[lastIndex].mValue;
+		}
+
+		aiQuaternion Sample_QuaternionKey(const aiQuatKey* keys, uint32 numKeys, double trackTime, const aiQuaternion& fallback)
+		{
+			if (keys == nullptr || numKeys == 0)
+				return fallback;
+
+			if (numKeys == 1 || trackTime <= keys[0].mTime)
+				return keys[0].mValue;
+
+			const uint32 lastIndex = numKeys - 1;
+			if (trackTime >= keys[lastIndex].mTime)
+				return keys[lastIndex].mValue;
+
+			for (uint32 i = 0; i + 1 < numKeys; ++i)
+			{
+				if (trackTime <= keys[i + 1].mTime)
+				{
+					const float ratio = Calculate_KeyRatio(trackTime, keys[i].mTime, keys[i + 1].mTime);
+					aiQuaternion result{};
+					aiQuaternion::Interpolate(result, keys[i].mValue, keys[i + 1].mValue, ratio);
+					result.Normalize();
+					return result;
+				}
+			}
+
+			return keys[lastIndex].mValue;
+		}
+
+		vector<double> Build_ChannelKeyTimes(const aiNodeAnim* animNode)
+		{
+			vector<double> keyTimes;
+			keyTimes.reserve(
+				static_cast<size_t>(animNode->mNumPositionKeys) +
+				static_cast<size_t>(animNode->mNumRotationKeys) +
+				static_cast<size_t>(animNode->mNumScalingKeys));
+
+			for (uint32 keyIndex = 0; keyIndex < animNode->mNumPositionKeys; ++keyIndex)
+				keyTimes.push_back(animNode->mPositionKeys[keyIndex].mTime);
+
+			for (uint32 keyIndex = 0; keyIndex < animNode->mNumRotationKeys; ++keyIndex)
+				keyTimes.push_back(animNode->mRotationKeys[keyIndex].mTime);
+
+			for (uint32 keyIndex = 0; keyIndex < animNode->mNumScalingKeys; ++keyIndex)
+				keyTimes.push_back(animNode->mScalingKeys[keyIndex].mTime);
+
+			ranges::sort(keyTimes);
+			auto uniqueEnd = ranges::unique(keyTimes, [](double left, double right) {
+				return std::abs(left - right) <= kAnimationKeyTimeEpsilon;
+			});
+			keyTimes.erase(uniqueEnd.begin(), uniqueEnd.end());
+
+			if (keyTimes.empty())
+				keyTimes.push_back(0.0);
+
+			return keyTimes;
+		}
+
+	}
+
 	LRESULT CALLBACK ModelConverter::DragDropWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 	{
 		ModelConverter* thisPointer = reinterpret_cast<ModelConverter*>(dwRefData);
@@ -901,25 +996,23 @@ namespace ModelEditor
 
 				channelData.boneIndex = static_cast<int32>(boneIt->second);
 
-				uint32 numKeys = max({ animNode->mNumPositionKeys, animNode->mNumRotationKeys, animNode->mNumScalingKeys });
+				vector<double> keyTimes = Build_ChannelKeyTimes(animNode);
+				uint32 numKeys = static_cast<uint32>(keyTimes.size());
 				channelData.numKeyframes = numKeys;
 
 				vector<KEYFRAME> frames(numKeys);
 				for (uint32 k = 0; k < numKeys; ++k)
 				{
-					uint32 posIdx = min(k, animNode->mNumPositionKeys - 1);
-					uint32 rotIdx = min(k, animNode->mNumRotationKeys - 1);
-					uint32 scaleIdx = min(k, animNode->mNumScalingKeys - 1);
+					const double trackTime = keyTimes[k]; // position/rotation/scale 중 실제 존재하는 모든 key time을 보존한다.
+					frames[k].trackPosition = static_cast<float>(trackTime);
 
-					frames[k].trackPosition = static_cast<float>(animNode->mPositionKeys[posIdx].mTime);
-
-					aiVector3D pos = animNode->mPositionKeys[posIdx].mValue;
+					aiVector3D pos = Sample_VectorKey(animNode->mPositionKeys, animNode->mNumPositionKeys, trackTime, aiVector3D(0.f, 0.f, 0.f));
 					frames[k].translation = Vec3{ pos.x, pos.y, pos.z };
 
-					aiQuaternion rot = animNode->mRotationKeys[rotIdx].mValue;
+					aiQuaternion rot = Sample_QuaternionKey(animNode->mRotationKeys, animNode->mNumRotationKeys, trackTime, aiQuaternion());
 					frames[k].rotation = Quat{ rot.x, rot.y, rot.z, rot.w };
 
-					aiVector3D scale = animNode->mScalingKeys[scaleIdx].mValue;
+					aiVector3D scale = Sample_VectorKey(animNode->mScalingKeys, animNode->mNumScalingKeys, trackTime, aiVector3D(1.f, 1.f, 1.f));
 					frames[k].scale = Vec3{ scale.x, scale.y, scale.z };
 				}
 

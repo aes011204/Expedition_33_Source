@@ -29,6 +29,11 @@ void BT_Chase::OnStart()
         monster->Set_DesiredAction(Monster_WorldBase::MonsterWorldAnim::Chase);
 
     const auto bb = Get_Owner()->Get_BlackBoard();
+    if (!bb || _targetKey.empty() || !bb->Has_Value(_targetKey))
+    {
+        LOG_WARN("BT_Chase::OnStart missing target key='{}'", _targetKey);
+        return;
+    }
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     Get_Owner()->Request_Move(target);
@@ -42,6 +47,11 @@ void BT_Chase::OnStart()
 BNode::NODE_STATE BT_Chase::Logic_Update(float deltaTime)
 {
     const auto bb = Get_Owner()->Get_BlackBoard();
+    if (!bb || _targetKey.empty() || !bb->Has_Value(_targetKey))
+    {
+        LOG_WARN("BT_Chase::Logic_Update missing target key='{}'", _targetKey);
+        return BNode::NODE_STATE::FAILED;
+    }
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     const auto ownerPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();

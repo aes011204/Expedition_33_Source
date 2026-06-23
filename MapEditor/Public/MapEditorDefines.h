@@ -186,8 +186,9 @@ namespace MapEditor
     { "OpaqueAR", VtxMeshPassIndex::OpaqueARPass },
     { "OpaqueARTwoSided", VtxMeshPassIndex::OpaqueARTwoSidedPass },
     { "LandscapeBlend", VtxMeshPassIndex::LandscapeBlendPass },
+    { "SignDecal", VtxMeshPassIndex::SignDecalPass },
     };
-    inline constexpr int32 g_staticMeshPassOptionCount = 9;
+    inline constexpr int32 g_staticMeshPassOptionCount = 10;
 
     inline constexpr pair<const char*, uint32> g_instanceMeshPassOptions[] = {
     { "Default", VtxInstanceMeshExactPassIndex::DefaultPass },

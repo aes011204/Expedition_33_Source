@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 
 NS_BEGIN(EffectEditor)
 
+// level object hierarchy를 검색 가능한 tree/list window로 표시한다.
 class Hierarchy_View final : public Editor_Window
 {
 public:
@@ -16,7 +17,7 @@ public:
     void Pre_Render() override;
     void Render() override;
 
-private:
+private: //## Data::HierarchyCache
     map<wstring, vector<Shared<GameObject>>> _groupedObjects{};
     char _searchBuffer[128]{};
     string _searchFilter{};
@@ -25,7 +26,7 @@ private:
     uint64 _cachedObjectRevision{ UINT64_MAX };
     bool _dirtyHierarchyCache{ true };
 
-private:
+private: //## Helper::HierarchyView
     void Draw_SearchBar();
     void Rebuild_Cache();
     void Handle_Shortcuts();

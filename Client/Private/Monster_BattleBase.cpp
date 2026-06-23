@@ -13,6 +13,7 @@
 #include "EffectCom.h"
 #include "Mon_WeakPoint.h"
 #include "BlackBoard.h"
+#include "DamageSystem.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -166,6 +167,17 @@ void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vect
     }
 
     ActionFromDecision(request, decision, heroes);
+
+    if (!request.skillKey.empty())
+    {
+        LOG_INFO(
+            "[MonsterAI] selected skill. monster={}, skillKey={}, skillIndex={}, targetIndex={}, actionType={}",
+            Get_SourcePrefabName().c_str(),
+            request.skillKey.c_str(),
+            decision.skillIndex,
+            decision.targetIndex,
+            magic_enum::enum_name(request.type));
+    }
 }
 
 bool Monster_BattleBase::Try_Consume_FreeAimWeakPoint()
@@ -186,7 +198,7 @@ void Monster_BattleBase::Reset_FreeAimWeakPoint()
         weakPoint->Reset_BattleWeakPoint();
 }
 
-float Monster_BattleBase::Get_HpRatio()
+float Monster_BattleBase::Get_HpRatio() const
 {
 
     if (_combatStat == nullptr) return 1.f;
@@ -196,7 +208,7 @@ float Monster_BattleBase::Get_HpRatio()
 
 }
 
-Monster_BattleBase::BattlePhase Monster_BattleBase::Get_CurPhase()
+Monster_BattleBase::BattlePhase Monster_BattleBase::Get_CurPhase() const
 {
     float hpRatio = Get_HpRatio();
 
@@ -220,13 +232,11 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
            continue;
 
            if (i == 0) repeatPenalty -= 6.f;
-           else if (i == 1) repeatPenalty -= 3.f;
-           else if (i == 2) repeatPenalty -= 1.f;
+           else if (i == 1) repeatPenalty -= 4.f;
+           else if (i == 2) repeatPenalty -= 2.f;
    }
 
     score += repeatPenalty;
-
-    //
 
 
     if (skill->skillKey == context.lastSkillIndex)
@@ -253,11 +263,11 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
         {
         case AITargetStyle::ComboAoE:
         case AITargetStyle::SingleAoE:
-            score += 2.f;
+            score += 1.f;
             break;
 
-        case AITargetStyle::Single:
-            score -= 2.f;
+        //case AITargetStyle::Single:
+        //    score -= 1.f;
             break;
         }
 
@@ -266,13 +276,13 @@ float Monster_BattleBase::Score_Skill(const Skill_Data* skill, const SkillChoice
     {
         switch (skill->targetStyle)
         {
-        case AITargetStyle::ComboAoE:
-        case AITargetStyle::SingleAoE:
-            score -= 2.f;
+        //case AITargetStyle::ComboAoE:
+        //case AITargetStyle::SingleAoE:
+        //    score -= 1.f;
             break;
 
         case AITargetStyle::Single:
-            score += 2.f;
+            score += 1.f;
             break;
         }
     }
@@ -391,30 +401,30 @@ float Monster_BattleBase::Score_Target(
         else if (i == 2) score -= 1.f;
     }
 
-    switch (skill->targetStyle)
-    {
-    case AITargetStyle::Single:
-        score += (1.f - hpRatio) * 8.f;
-        break;
+    //switch (skill->targetStyle)
+    //{
+    //case AITargetStyle::Single:
+    //    score += (1.f - hpRatio) * 8.f;
+    //    break;
 
-    case AITargetStyle::SingleAoE:
-    case AITargetStyle::ComboAoE:
-        score += (1.f - hpRatio) * 4.f;
-        break;
+    //case AITargetStyle::SingleAoE:
+    //case AITargetStyle::ComboAoE:
+    //    score += (1.f - hpRatio) * 4.f;
+    //    break;
 
-    case AITargetStyle::Mix:
-        score += (1.f - hpRatio) * 5.f;
-        score += static_cast<float>(target.statCom->Get_CurAP()) * 0.5f;
-        break;
+    //case AITargetStyle::Mix:
+    //    score += (1.f - hpRatio) * 5.f;
+    //    score += static_cast<float>(target.statCom->Get_CurAP()) * 0.5f;
+    //    break;
 
-    case AITargetStyle::RandomEnemy:
-        score += Math::RandNum(0.f, 2.f);
-        break;
+    //case AITargetStyle::RandomEnemy:
+    //    score += Math::RandNum(0.f, 2.f);
+    //    break;
 
-    default:
-        score += (1.f - hpRatio) * 3.f;
-        break;
-    }
+    //default:
+    //    score += (1.f - hpRatio) * 3.f;
+    //    break;
+    //}
 
     const float estimatedDamage = Estimate_SkillDamage(skill, target);
     const float effectiveHp =
@@ -422,7 +432,7 @@ float Monster_BattleBase::Score_Target(
         static_cast<float>(target.statCom->Get_CurrentShield());
 
     if (estimatedDamage >= effectiveHp)
-        score += 8.f;
+        score += 5.f;
 
     return score;
 }
@@ -431,41 +441,16 @@ float Monster_BattleBase::Estimate_SkillDamage(const Skill_Data* skill, const Ba
     if (_combatStat == nullptr || skill == nullptr || target.statCom == nullptr)
         return 0.f;
 
-    const float attackerAtk = _combatStat->Get_RuntimeStat().physicalAttack;
-    const float targetDef = target.statCom->Get_RuntimeStat().physicalDefense;
+    
+    BattleChar attacker{};
+    attacker.statCom = _combatStat;
 
-    float damageScale = 1.f;
+    const int32 hitCount = max(1, static_cast<int32>(skill->targetingType.size()));
+    const float oneHitDamage =
+        DamageSystem::CalculatePlayerAttackDamage(attacker, skill->powerMultiplier);
 
-    switch (skill->targetStyle)
-    {
-    case AITargetStyle::Single:
-        damageScale = 1.0f;
-        break;
-
-    case AITargetStyle::Combo:
-        damageScale = 1.2f;
-        break;
-
-    case AITargetStyle::SingleAoE:
-        damageScale = 0.9f;
-        break;
-
-    case AITargetStyle::ComboAoE:
-        damageScale = 1.1f;
-        break;
-
-    case AITargetStyle::Mix:
-        damageScale = 1.15f;
-        break;
-
-    case AITargetStyle::ETC:
-    default:
-        damageScale = 1.0f;
-        break;
-    }
-
-    const float rawDamage = attackerAtk * damageScale;
-    return max(rawDamage - targetDef, 1.f);
+    const float totalExpectedDamage = oneHitDamage * static_cast<float>(hitCount);
+    return max(totalExpectedDamage, 1.f);
 }
 void Monster_BattleBase::Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes)
 {

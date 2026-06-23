@@ -1,13 +1,14 @@
 ﻿#pragma once
-
 #include "Editor_Window.h"
-#include "Emitter_View.h"
-#include "EffectAuthoring_Types.h"
+
 #include "DetailPropertyContext.h"
+#include "EffectAuthoring_Types.h"
+#include "Emitter_View.h"
 #include "ModuleDetail_Drawers.h"
 
 NS_BEGIN(EffectEditor)
 
+// 선택된 particle system, emitter, TypeData, module의 detail inspector를 그린다.
 class Detail_View final : public Editor_Window
 {
 public:
@@ -59,9 +60,11 @@ private: //## Helper::EffectAuthoring
 
 private: //## Data::ModuleDetail
     DetailPropertyContext _detailPropertyContext{};
-    float _detailTimeDelta{}; // Detail view의 draw helper가 update tick 시간을 명시적으로 소비할 때 사용한다.
+    // Detail view의 draw helper가 update tick 시간을 명시적으로 소비할 때 사용한다.
+    float _detailTimeDelta{};
 
-    RequiredModuleDetail _requiredModuleDetail{}; // module data 자체가 아니라 module type별 detail row UI를 그리는 drawer 상태다.
+    // module data 자체가 아니라 module type별 detail row UI를 그리는 drawer 상태다.
+    RequiredModuleDetail _requiredModuleDetail{};
     SpawnModuleDetail _spawnModuleDetail{};
     LifetimeModuleDetail _lifetimeModuleDetail{};
     InitialLocationModuleDetail _initialLocationModuleDetail{};
@@ -72,6 +75,7 @@ private: //## Data::ModuleDetail
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
     InitialRadialVelocityModuleDetail _initialRadialVelocityModuleDetail{};
     VelocityConeModuleDetail _velocityConeModuleDetail{};
+    SourceMotionVelocityModuleDetail _sourceMotionVelocityModuleDetail{};
     AccelerationModuleDetail _accelerationModuleDetail{};
     DragModuleDetail _dragModuleDetail{};
     VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};

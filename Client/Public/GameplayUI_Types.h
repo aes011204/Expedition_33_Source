@@ -18,11 +18,20 @@ enum class RuntimeUIEntryKind
 
 struct RuntimeWorldUIPlacementTuning
 {
+    struct NamedOffset
+    {
+        string id{};
+        string label{};
+        Vec3 offset = Vec3::Zero;
+    };
+
     Vec3 screenPosition = Vec3::Zero;
     Vec3 baseOffset = Vec3::Zero;
     Vec3 qOffset = Vec3::Zero;
     Vec3 wOffset = Vec3::Zero;
     Vec3 eOffset = Vec3::Zero;
+    bool showKeyOffsets = true;
+    vector<NamedOffset> namedOffsets{};
     Vec2 worldSize = Vec2::Zero;
     float visualScale = 1.f;
     float pitchDegrees = 0.f;
@@ -37,6 +46,10 @@ public:
 
     virtual HeroId Get_EditorWorldPlacementHeroId() const { return HeroId::END; }
     virtual void Set_EditorWorldPlacementHeroId(HeroId) {}
+    virtual uint32 Get_EditorWorldPlacementVariantCount() const { return 0; }
+    virtual uint32 Get_EditorWorldPlacementVariantIndex() const { return 0; }
+    virtual const char* Get_EditorWorldPlacementVariantLabel(uint32) const { return ""; }
+    virtual void Set_EditorWorldPlacementVariantIndex(uint32) {}
     virtual RuntimeWorldUIPlacementTuning Get_EditorWorldPlacementTuning() const = 0;
     virtual void Set_EditorWorldPlacementTuning(
         const RuntimeWorldUIPlacementTuning& tuning,
@@ -55,7 +68,7 @@ enum class GameplayMenu
     CharacterProgression,   // Tab 루트 메뉴
     ChangeSkill,            // 스킬 변경
     Wardrobe,               // 옷장
-    
+    ArenaCharacterSelect,
 
     END
 };

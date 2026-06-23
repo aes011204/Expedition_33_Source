@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
 #include "GameplayUI_Battle.h"
+#include "GamePlayUI_SL.h"
 #include "GameplayUI_World.h"
 
 GameplayUI::~GameplayUI() = default;
@@ -15,6 +16,16 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
     _battleUI = GameplayUI_Battle::Create(levelIndex); // battle delegate/HUD/transition 전용 컨트롤러
     CHECK_NULL(_battleUI, E_FAIL);
 
+    _soulLikeUI = GamePlayUI_SL::Create(levelIndex);
+    CHECK_NULL(_soulLikeUI, E_FAIL);
+
+    if (!_editorStopHandle.IsValid())
+    {
+        _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+            this,
+            &GameplayUI::Handle_EditorStopRuntime);
+    }
+
     _lastInputMode = Resolve_InputMode();
 
     return S_OK;
@@ -24,18 +35,21 @@ void GameplayUI::Update(float timeDelta)
 {
     const GameplayUIInputMode currentInputMode = Resolve_InputMode();
 
-    if (_worldUI)
-        _worldUI->Update(timeDelta);
-
-    if (_battleUI && _battleUI->Needs_RuntimeUpdate())
-        _battleUI->Update(timeDelta);
-
     if (currentInputMode != _lastInputMode)
     {
         // 월드 -> 배틀 진입 시 월드 메뉴를 경계에서 정리
         Handle_InputModeChanged(_lastInputMode, currentInputMode); 
         _lastInputMode = currentInputMode;
     }
+
+    if (_worldUI)
+        _worldUI->Update(timeDelta);
+
+    if (_battleUI && _battleUI->Needs_RuntimeUpdate())
+        _battleUI->Update(timeDelta);
+
+    if (_soulLikeUI)
+        _soulLikeUI->Update(timeDelta);
 
     switch (currentInputMode)
     {
@@ -47,6 +61,10 @@ void GameplayUI::Update(float timeDelta)
     case GameplayUIInputMode::Battle:
         if (_battleUI)
             _battleUI->Update_Input();
+        break;
+
+    case GameplayUIInputMode::SoulLike:
+        // SL 키 입력은 SoulLikeController::Update_Player()에서 처리한다.
         break;
 
     default:
@@ -68,6 +86,14 @@ vector<RuntimeUIEntry> GameplayUI::Get_BattleRuntimeUIEntries() const
         return {};
 
     return _battleUI->Get_RuntimeUIEntries();
+}
+
+vector<RuntimeUIEntry> GameplayUI::Get_SoulLikeRuntimeUIEntries() const
+{
+    if (_soulLikeUI == nullptr)
+        return {};
+
+    return _soulLikeUI->Get_RuntimeUIEntries();
 }
 
 IRuntimeUI_EditorTarget* GameplayUI::Find_RuntimeUIEditorTarget(const Shared<Engine::UI_Base>& rootUI) const
@@ -98,6 +124,12 @@ IRuntimeUI_EditorTarget* GameplayUI::Find_RuntimeUIEditorTarget(const Shared<Eng
     {
         if (IRuntimeUI_EditorTarget* battleTarget = findInEntries(_battleUI->Get_RuntimeUIEntries()))
             return battleTarget;
+    }
+
+    if (_soulLikeUI)
+    {
+        if (IRuntimeUI_EditorTarget* soulLikeTarget = findInEntries(_soulLikeUI->Get_RuntimeUIEntries()))
+            return soulLikeTarget;
     }
 
     return nullptr;
@@ -138,16 +170,20 @@ GameplayUI::GameplayUIInputMode GameplayUI::Resolve_InputMode() const
     if (CLIENT->Is_BattleEntering() || CLIENT->Is_BattleActive())
         return GameplayUIInputMode::Battle;
 
+    if (CLIENT->Is_SoulLikeBattleActive())
+        return GameplayUIInputMode::SoulLike;
+
     return GameplayUIInputMode::World;
 }
 
 void GameplayUI::Handle_InputModeChanged(GameplayUIInputMode previousMode, GameplayUIInputMode currentMode)
 {
-    if (previousMode == GameplayUIInputMode::World && currentMode == GameplayUIInputMode::Battle)
-    {
-        if (_worldUI)
-            _worldUI->Force_CloseAllMenus();
-    }
+    const bool leavingWorld =
+        previousMode == GameplayUIInputMode::World &&
+        currentMode != GameplayUIInputMode::World;
+
+    if (leavingWorld && _worldUI)
+        _worldUI->Force_CloseAllMenus();
 }
 
 void GameplayUI::Handle_EditorStopRuntime()
@@ -160,6 +196,11 @@ void GameplayUI::Handle_EditorStopRuntime()
     if (_battleUI)
     {
         _battleUI->Handle_EditorStopRuntime();
+    }
+
+    if (_soulLikeUI)
+    {
+        _soulLikeUI->Handle_EditorStopRuntime();
     }
 }
 
@@ -179,6 +220,12 @@ Shared<GameplayUI> GameplayUI::Create(uint32 levelIndex)
 
 void GameplayUI::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     auto Release_UI = [](auto& ui)
         {
             if (ui)
@@ -190,6 +237,7 @@ void GameplayUI::Free()
 
     Release_UI(_worldUI);
     Release_UI(_battleUI);
+    Release_UI(_soulLikeUI);
 
     Base::Free();
 }

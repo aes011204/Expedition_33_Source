@@ -7,12 +7,44 @@
 
 using namespace UI_Utils;
 
+namespace
+{
+    constexpr const wchar_t* kReactionResultIntroAnimationPath =
+        L"UI/UI_Animations/BattleSystem/Status/StatusEffect_Intro";
+    constexpr const wchar_t* kReactionResultIntroAnimationName = L"StatusEffect_Intro";
+
+    constexpr Vec2 kReactionResultDodgeTransformOffset = Vec2(0.f, 0.f);
+    constexpr Vec2 kReactionResultParryTransformOffset = Vec2(0.f, 200.f);
+
+    Vec2 Resolve_ReactionResultTransformOffset(BattleReactionType reactionType)
+    {
+        switch (reactionType)
+        {
+        case BattleReactionType::Dodge:
+            return kReactionResultDodgeTransformOffset;
+
+        case BattleReactionType::Parry:
+            return kReactionResultParryTransformOffset;
+
+        default:
+            return Vec2::Zero;
+        }
+    }
+}
+
 HRESULT UI_ReactionResult::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
 
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
+
+    UI_KeyframeAnimationAsset introAnimation{};
+    if (UI_RuntimeLoader::Load_PublicAnimationAsset(kReactionResultIntroAnimationPath, introAnimation))
+    {
+        _dodgeRoot->Add_UIAnimationAsset(introAnimation);
+        _parryRoot->Add_UIAnimationAsset(introAnimation);
+    }
 
     Close();
 
@@ -43,14 +75,47 @@ void UI_ReactionResult::Close()
     UI_RuntimePanelBase::Close();
 
     if (_dodgeRoot)
+    {
         _dodgeRoot->Close();
+        if (_hasDodgeBaseTransformPosition && _dodgeRoot->Get_Transform() != nullptr)
+            _dodgeRoot->Get_Transform()->Set_Position(_dodgeBaseTransformPosition);
+    }
 
     if (_parryRoot)
+    {
         _parryRoot->Close();
+        if (_hasParryBaseTransformPosition && _parryRoot->Get_Transform() != nullptr)
+            _parryRoot->Get_Transform()->Set_Position(_parryBaseTransformPosition);
+    }
 }
 
-void UI_ReactionResult::Show_Reaction(BattleReactionType reactionType, const Vec2& screenPos)
+void UI_ReactionResult::Append_RuntimeUIEntries(
+    vector<RuntimeUIEntry>& outEntries,
+    const string& category,
+    const string& rootName) const
 {
+    auto appendRoot = [&](const string& name, const Shared<UI_Base>& root)
+    {
+        if (root == nullptr)
+            return;
+
+        RuntimeUIEntry entry{};
+        entry.category = category;
+        entry.name = name;
+        entry.ui = root;
+        entry.editorTarget = const_cast<UI_ReactionResult*>(this);
+        entry.positionDrivenByCode = Is_EditorPositionDrivenByCode();
+        outEntries.push_back(entry);
+    };
+
+    appendRoot(rootName + "_Dodge", _dodgeRoot);
+    appendRoot(rootName + "_Parry", _parryRoot);
+}
+
+void UI_ReactionResult::Show_Reaction(BattleReactionType reactionType)
+{
+    const bool wasShowing = _isShowing;
+
     Open();
     _isShowing = true; // 위치 기반 리액션 텍스트의 표시 시간을 Update에서 관리한다.
     _elapsed = 0.f;
@@ -62,22 +127,42 @@ void UI_ReactionResult::Show_Reaction(BattleReactionType reactionType, const Vec
         _parryRoot->Close();
 
     Shared<UI_Base> selectedRoot{};
+    Vec2* baseTransformPosition = nullptr;
+    bool* hasBaseTransformPosition = nullptr;
 
     if (reactionType == BattleReactionType::Dodge)
+    {
         selectedRoot = _dodgeRoot;
+        baseTransformPosition = &_dodgeBaseTransformPosition;
+        hasBaseTransformPosition = &_hasDodgeBaseTransformPosition;
+    }
     else if (reactionType == BattleReactionType::Parry)
+    {
         selectedRoot = _parryRoot;
+        baseTransformPosition = &_parryBaseTransformPosition;
+        hasBaseTransformPosition = &_hasParryBaseTransformPosition;
+    }
 
-    if (selectedRoot == nullptr || selectedRoot->Get_Transform() == nullptr)
+    if (selectedRoot == nullptr ||
+        selectedRoot->Get_Transform() == nullptr ||
+        baseTransformPosition == nullptr ||
+        hasBaseTransformPosition == nullptr)
     {
         Close();
         return;
     }
 
-    Vec2 finalScreenPos = screenPos;
-    Apply_EditorOffsets(finalScreenPos);
-    selectedRoot->Get_Transform()->Set_Position(finalScreenPos);
+    if (!*hasBaseTransformPosition || !wasShowing)
+    {
+        *baseTransformPosition = selectedRoot->Get_Transform()->Get_Position();
+        *hasBaseTransformPosition = true;
+    }
+
+    const Vec2 finalScreenPos = *baseTransformPosition + Resolve_ReactionResultTransformOffset(reactionType);
     selectedRoot->Open();
+    selectedRoot->Get_Transform()->Set_Position(finalScreenPos);
+    if (selectedRoot->Play_UIAnimation(kReactionResultIntroAnimationName, true))
+        selectedRoot->Update(0.f);
 }
 
 HRESULT UI_ReactionResult::Load_UI(uint32 levelIndex)
@@ -121,6 +206,18 @@ HRESULT UI_ReactionResult::Bind_UI()
 
     CHECK_NULL(_dodgeRoot, E_FAIL);
     CHECK_NULL(_parryRoot, E_FAIL);
+
+    if (_dodgeRoot->Get_Transform() != nullptr)
+    {
+        _dodgeBaseTransformPosition = _dodgeRoot->Get_Transform()->Get_Position();
+        _hasDodgeBaseTransformPosition = true;
+    }
+
+    if (_parryRoot->Get_Transform() != nullptr)
+    {
+        _parryBaseTransformPosition = _parryRoot->Get_Transform()->Get_Position();
+        _hasParryBaseTransformPosition = true;
+    }
 
     return S_OK;
 }

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "EffectAuthoring_Types.h"
 #include "EffectInstancePool.h"
@@ -8,6 +8,7 @@ NS_BEGIN(EffectEditor)
 
 class TrailPreviewController;
 
+// authoring preview definition과 preview effect instance lifecycle을 관리한다.
 class EffectEditorPreviewRuntime final
 {
 public:
@@ -21,10 +22,12 @@ public:
     HRESULT Restart_FromAuthoring(const vector<AuthoringEmitter>& emitters);
     HRESULT Reset_Runtime();
     bool Is_Finished() const;
+    void Apply_PreviewEmitterTransformOverrides(const vector<AuthoringEmitter>& emitters);
+    bool Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const;
 
     void Clear();
 
-private:
+private: //## Types::TrailPreview
     struct PreviewTrailStrokeRuntime
     {
         EffectInstancePool::AttachedHandle poolHandle{};
@@ -35,7 +38,7 @@ private:
         float drainDuration{ 0.25f };
     };
 
-private:
+private: //## Helper::PreviewRuntime
     HRESULT Restart_FromDefinition(const Shared<const EffectDefinition>& previewDefinition);
     void Update_PreviewTrailStrokes(float timeDelta);
     HRESULT Start_PreviewTrailStroke();
@@ -43,12 +46,13 @@ private:
     void Drain_ActivePreviewTrailStrokes();
     void Clear_PreviewTrailStrokes();
 
-private:
+private: //## Data::PreviewRuntime
     wstring _layerTag{};
     EffectInstancePool::AttachedHandle _previewPoolHandle{};
     Shared<const EffectDefinition> _currentPreviewDefinition{};
     Shared<const EffectDefinition> _currentPreviewTrailDefinition{};
     vector<PreviewTrailStrokeRuntime> _previewTrailStrokes{};
+    vector<AuthoringEmitter> _currentAuthoringEmitters{};
     bool _wasTrailPreviewGateOpen{ false };
     float _lastTrailPreviewSourceRatio{ 0.f };
     bool _hasTrailPreviewSourceRatio{ false };
