@@ -364,6 +364,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
+    outSession.materialsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
@@ -399,6 +400,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             std::lock_guard<std::mutex> lock(g_globalCacheMutex);
             g_globalModelCache.clear();
             g_globalCollisionCache.clear();
+            g_globalMaterialSignatureByModel.clear();
             g_currentLevelIndex = levelIndex;
         }
         MapAdapter::Clear_MaterialCache();
@@ -567,6 +569,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
         outSession.primitiveCollisionCache);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
+    outSession.materialsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
@@ -608,7 +611,8 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
             outSession.context,
             outSession.modelFolder,
             modelPathStr,
-            outSession.modelOverrides);
+            outSession.modelOverrides,
+            false);
 
         if (!model)
         {
@@ -648,7 +652,8 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
                 outSession.context,
                 outSession.modelFolder,
                 modelPathStr,
-                outSession.modelOverrides);
+                outSession.modelOverrides,
+                false);
 
             if (!model)
                 continue;
@@ -680,7 +685,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
     chrono::milliseconds maxTimePerFrame, bool& outFinished)
 {
     // 처리 순서는 의도된 계약이다.
-    // preload -> 전역 one-shot 시스템 -> water -> static -> instanced -> prefab 순서를 유지해야
+    // preload -> material -> 전역 one-shot 시스템 -> water -> static -> instanced -> prefab 순서를 유지해야
     // 기존 통합 맵과 신규 split 맵의 동작 차이를 줄일 수 있다.
     outFinished = false;
     ++session.processCallCount;
@@ -726,10 +731,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.modelFolder,
             modelPathStr,
             session.modelOverrides,
+            false,
             &session.modelCreateDuration,
             &session.modelCreateCount,
-            &session.materialApplyDuration,
-            &session.materialApplyCount);
+            nullptr,
+            nullptr);
 
         if (!model)
         {
@@ -738,6 +744,46 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         session.preloadedModelCache[modelPathStr] = model;
 
+        ++processedCount;
+    }
+
+    while (!session.materialsDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextMaterialApplyModelIndex >= session.preloadModelPaths.size())
+        {
+            session.materialsDone = true;
+            break;
+        }
+
+        const string modelPathStr = session.preloadModelPaths[session.nextMaterialApplyModelIndex++];
+        if (modelPathStr.empty())
+            continue;
+
+        auto it = session.preloadedModelCache.find(modelPathStr);
+        Shared<ModelCom> model = (it != session.preloadedModelCache.end()) ? it->second : nullptr;
+
+        if (model == nullptr)
+        {
+            model = GetOrLoadModel(
+                session.device,
+                session.context,
+                session.modelFolder,
+                modelPathStr,
+                session.modelOverrides,
+                true,
+                &session.modelCreateDuration,
+                &session.modelCreateCount,
+                &session.materialApplyDuration,
+                &session.materialApplyCount);
+
+            if (model != nullptr)
+                session.preloadedModelCache[modelPathStr] = model;
+        }
+
+        ApplySessionModelMaterials(session, modelPathStr, model);
         ++processedCount;
     }
 
@@ -827,10 +873,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 session.modelFolder,
                 modelPathStr,
                 session.modelOverrides,
+                false,
                 &session.modelCreateDuration,
                 &session.modelCreateCount,
-                &session.materialApplyDuration,
-                &session.materialApplyCount);
+                nullptr,
+                nullptr);
 
             if (!model)
             {
@@ -936,6 +983,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 session.modelFolder,
                 modelPathStr,
                 session.modelOverrides,
+                true,
                 &session.modelCreateDuration,
                 &session.modelCreateCount,
                 &session.materialApplyDuration,
@@ -1121,12 +1169,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
     outFinished =
         session.preloadModelsDone &&
+        session.materialsDone &&
         session.staticMeshesDone &&
         session.instancedMeshesDone &&
         session.postProcessVolumesDone &&
         session.shaftVolumesDone &&
         session.watersDone &&
-        session.prefabInstancesDone;
+        session.prefabInstancesDone &&
+        session.authoredObjectsDone;
 
     if (outFinished && !session.summaryLogged)
     {
@@ -1231,6 +1281,23 @@ void MapLoader::MarkSessionModelMaterialsApplied(LoadSession& session, const str
     session.materialAppliedModelPaths.push_back(modelPathStr);
 }
 
+void MapLoader::MarkGlobalModelMaterialsApplied(
+    const string& modelFolder,
+    const string& modelPathStr,
+    const unordered_map<string, ModelOverrideEntry>& modelOverrides)
+{
+    if (modelPathStr.empty())
+        return;
+
+    const string fullPathA = MapAdapter::ResolveMapModelPath(modelFolder, modelPathStr);
+    const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
+    const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(modelOverrides, modelPathStr);
+    const string materialSignature = BuildMaterialSignature(modelFolder, fullPathA, overrideEntry);
+
+    std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+    g_globalMaterialSignatureByModel[cacheKey] = materialSignature;
+}
+
 void MapLoader::ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model)
 {
     if (model == nullptr || modelPathStr.empty())
@@ -1252,6 +1319,7 @@ void MapLoader::ApplySessionModelMaterials(LoadSession& session, const string& m
     ++session.materialApplyCount;
 
     MarkSessionModelMaterialsApplied(session, modelPathStr);
+    MarkGlobalModelMaterialsApplied(session.modelFolder, modelPathStr, session.modelOverrides);
 }
 
 HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
@@ -1357,6 +1425,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     const string& modelFolder,
     const string& modelPathStr,
     const unordered_map<string, ModelOverrideEntry>& modelOverrides,
+    bool applyMaterials,
     chrono::milliseconds* outCreateDuration,
     size_t* outCreateCount,
     chrono::milliseconds* outMaterialDuration,
@@ -1389,7 +1458,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     if (cachedModel != nullptr)
     {
-        if (needsMaterialApply)
+        if (applyMaterials && needsMaterialApply)
         {
             const auto materialBegin = chrono::steady_clock::now();
             ApplyMaterials(cachedModel, modelFolder, fullPathA, overrideEntry);
@@ -1398,8 +1467,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
             if (outMaterialDuration) *outMaterialDuration += materialMs;
             if (outMaterialCount) (*outMaterialCount)++;
 
-            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-            g_globalMaterialSignatureByModel[cacheKey] = materialSignature;
+            MarkGlobalModelMaterialsApplied(modelFolder, modelPathStr, modelOverrides);
         }
 
         return cachedModel;
@@ -1429,18 +1497,22 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         return nullptr;
     }
 
-    const auto materialBegin = chrono::steady_clock::now();
-    ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
-    const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+    if (applyMaterials)
+    {
+        const auto materialBegin = chrono::steady_clock::now();
+        ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
+        const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
 
-    if (outMaterialDuration) *outMaterialDuration += materialMs;
-    if (outMaterialCount) (*outMaterialCount)++;
+        if (outMaterialDuration) *outMaterialDuration += materialMs;
+        if (outMaterialCount) (*outMaterialCount)++;
+
+        MarkGlobalModelMaterialsApplied(modelFolder, modelPathStr, modelOverrides);
+    }
 
     // 3단계: 로드가 완료된 새 모델을 전역 캐시에 안전하게 등록
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         g_globalModelCache[cacheKey] = model;
-        g_globalMaterialSignatureByModel[cacheKey] = materialSignature;
     }
 
     return model;

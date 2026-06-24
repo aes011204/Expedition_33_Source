@@ -488,6 +488,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
     constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
+
+    constexpr const wchar_t* DuallisteBattlePhase1Main =
+        L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
+    constexpr const wchar_t* DuallisteBattlePhase2Main =
+        L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase2_Main.wav";
 }
 
 namespace Client::Constants::Cinematic

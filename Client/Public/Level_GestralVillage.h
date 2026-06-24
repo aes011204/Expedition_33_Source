@@ -25,6 +25,7 @@ private:
     HRESULT Ready_Layer_Player(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
+    HRESULT Ready_Layer_ETC(const wstring& strLayerTag);
 
 private:
     WindowTitleFpsState _windowTitleFps = {};

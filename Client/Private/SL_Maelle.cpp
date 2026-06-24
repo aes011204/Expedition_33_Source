@@ -27,6 +27,18 @@
 
 REGISTER_GLOBAL_ENUM(SoulLikeAnim, "SL_MaelleAnim")
 
+namespace
+{
+    Shared<GameObject> Resolve_SLHitSourceObject(const Shared<GameObject>& source)
+    {
+        Shared<GameObject> resolved = source;
+        while (resolved != nullptr && resolved->Get_Owner() != nullptr)
+            resolved = resolved->Get_Owner();
+
+        return resolved;
+    }
+}
+
 IMPLEMENT_REFLECTION(SL_Maelle)
 {
     auto& info = GetStaticReflectionInfo();
@@ -630,9 +642,10 @@ void SL_Maelle::Begin_HitPush(const SL_DamageInfo& damageInfo)
 
     Vec3 pushDir = Vec3::Zero;
 
-    if (damageInfo.attacker && damageInfo.attacker->Get_Transform())
+    const Shared<GameObject> attackerObject = Resolve_SLHitSourceObject(damageInfo.attacker);
+    if (attackerObject && attackerObject->Get_Transform())
     {
-        pushDir = _transformCom->Get_WorldPosition() - damageInfo.attacker->Get_Transform()->Get_WorldPosition();
+        pushDir = _transformCom->Get_WorldPosition() - attackerObject->Get_Transform()->Get_WorldPosition();
         pushDir.y = 0.f;
     }
 
@@ -772,9 +785,10 @@ void SL_Maelle::Apply_Damage(const SL_DamageInfo& damageInfo)
     if (_stateMachineCom && _stateMachineCom->Get_CurrentSoulLikeState() == SL_PlayerState::Skill)
         return;
 
-    if (damageInfo.attacker)
+    const Shared<GameObject> attackerObject = Resolve_SLHitSourceObject(damageInfo.attacker);
+    if (attackerObject && attackerObject->Get_Transform())
     {
-        Vec3 lookDir = damageInfo.attacker->Get_Transform()->Get_WorldForward() - _transformCom->Get_WorldPosition();
+        Vec3 lookDir = attackerObject->Get_Transform()->Get_WorldPosition() - _transformCom->Get_WorldPosition();
         lookDir.y = 0.f;
 
         if (lookDir.LengthSquared() > 0.0001f)

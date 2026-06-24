@@ -2,7 +2,9 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "SkyBoxFlow.h"
+#include "Spawn_Prefab.h"
 #include "TargetCamera.h"
+#include "SoulLikeController.h"
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -24,6 +26,9 @@ HRESULT Level_GestralVillage::Initialize()
         return E_FAIL;
 
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
+        return E_FAIL;
+
+    if (FAILED(Ready_Layer_ETC(TEXT("Layer_ETC"))))
         return E_FAIL;
 
     GAME->Set_RenderEnvironment(true);
@@ -215,6 +220,26 @@ HRESULT Level_GestralVillage::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 {
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
+{
+    {
+        const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
+            .AtLevel(ETOI(LevelType::GestralVillage))
+            .InLayer(strLayerTag)
+            .Spawn();
+
+        CHECK_NULL(controllerObject, E_FAIL);
+
+        const Shared<SoulLikeController> soulLikeController =
+            dynamic_pointer_cast<SoulLikeController>(controllerObject);
+
+        CHECK_NULL(soulLikeController, E_FAIL);
+        CLIENT->Set_SoulLikeController(soulLikeController);
+    }
 
     return S_OK;
 }

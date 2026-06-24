@@ -28,6 +28,12 @@ public:
         Finished,
     };
 
+    enum class DuallisteBGMPhase
+    {
+        Phase1,
+        Phase2,
+    };
+
 public:
     SoulLikeController(const ComPtr<Device>& device, const ComPtr<Context>& context);
     SoulLikeController(const SoulLikeController& prototype);
@@ -74,6 +80,7 @@ public:
     void Play_PlayerParryFeedback();
     void Notify_PlayerParrySuccess();
     void Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo);
+    void Play_DuallisteBGM(DuallisteBGMPhase phase);
 
     void Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active);
     void Set_JumpCounterWindowOpen(bool open);
@@ -112,6 +119,10 @@ private:
     void Apply_VictoryRewardExp();
     void Sync_PlayerResultToWorld();
     void Handle_EditorStopRuntime();
+    void Capture_PreSoulLikeBGM();
+    void Restore_PreSoulLikeBGM();
+    bool Is_DuallisteBattle() const;
+    const wchar_t* Resolve_DuallisteBGM(DuallisteBGMPhase phase) const;
 
     void Update_Player(float timeDelta);
     void Update_BaseAttack(const Shared<SL_StateMachineCom>& stateMachine);
@@ -148,6 +159,8 @@ private:
     float _enterFxTimer = 0.f;
     float _victorySlowElapsed = 0.f;
     uint32 _lastVictoryRewardExp = 0;
+    wstring _preSoulLikeBGM{};
+    bool _hasPreSoulLikeBGM = false;
     bool  _playerSpawned = false;
     FDelegateHandle _editorStopHandle{};
     uint32 _soulLikeCameraLevelIndex = 0;
