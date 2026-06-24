@@ -2,6 +2,8 @@
 #include "Base.h"
 
 NS_BEGIN(Client)
+
+struct DialogueRequest;
 struct DialogueData;
 struct DialogueLine;
 class DialogueManager : public Base
@@ -11,7 +13,7 @@ public:
     virtual ~DialogueManager() = default;
 
 public:
-    void StartDialogue(const string& dialogueKey);
+    void StartDialogue(const DialogueRequest& request);
     void ContinueDialogue();
     void EndDialogue();
     void MoveToLine(int lineIndex);
@@ -32,6 +34,9 @@ private:
     int                 _selectIndex = 0;
     bool                _isActive = false;
     bool                _waitInteractKeyRelease = false;
+
+    Shared<GameObject>  _dialoguePlayerObject;
+    Shared<GameObject>  _dialogueNpcObject;
 
 public:
     static Unique<DialogueManager> Create();

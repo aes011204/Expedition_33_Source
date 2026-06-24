@@ -162,6 +162,7 @@ private:
     void Load_BattlePresetForMode(BattleCameraMode mode, bool loadBase = false);
     void Load_BattlePresetForCurrentMode(bool loadBase = false);
     void Load_DialoguePreset(const string& presetId);
+    void Load_DialogueClip(const string& clipId);
     void Load_BattleDriftForMode(BattleCameraMode mode);
     void Load_BattleDriftForCurrentMode();
     void Load_BattleClipForMode(BattleCameraMode mode, bool loadBase = false, bool resetTimeline = false);
@@ -242,6 +243,7 @@ private:
     float Get_DefaultBattleClipValue(int trackIndex);
     void Resolve_TransitionSequenceTime(float time, int& outStepIndex, float& outStepLocalTime);
     void Scrub_TransitionSequence(float timeSec);
+    bool Is_PreviewSideInUse(PreviewSlotSide side) const;
 
     Vec3 Resolve_PhaseGoalPosition(const PreviewContext& context, const Client::BattleActionPhase& phase);
     Vec3 Resolve_AnchorPosition(const PreviewContext& context, Client::BattleTargetAnchor anchor);
@@ -315,6 +317,7 @@ private:
     string _manualBattleAuthoringPresetId{};
     string _manualBattleAuthoringClipId{};
     string _manualDialoguePresetId{};
+    string _manualDialogueClipId{};
     bool _previewDialoguePresetEnabled = false;
     bool _useSkillShotTimeline = true;
     bool _previewAttackMovementEnabled = false;
@@ -325,6 +328,7 @@ private:
     float _previewShotDragOriginalEndSec = 0.f;
     BattleCameraPreset _editingBattlePreset{};
     DialogueCameraPreset _editingDialoguePreset{};
+    DialogueCameraClip _editingDialogueClip{};
     BattleCameraDriftProfile _editingBattleDrift{};
     bool _battlePresetDirty = false;
     bool _dialoguePresetDirty = false;
@@ -334,6 +338,8 @@ private:
     bool _hasLoadedBattlePreset = false;
     string _loadedDialoguePresetId{};
     bool _hasLoadedDialoguePreset = false;
+    string _loadedDialogueClipId{};
+    bool _hasLoadedDialogueClip = false;
     BattleCameraMode _loadedBattleDriftMode = BattleCameraMode::PLAYERATTACK;
     bool _loadedBattleDriftBossVariant = false;
     bool _hasLoadedBattleDrift = false;

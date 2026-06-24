@@ -1,29 +1,37 @@
 ﻿#include "DialogueManager.h"
 #include <DialogueTypes.h>
 #include "ClientInstance.h"
+#include "DialogueCamera.h"
+//#include "GameObject.h"
+#include "Player_WorldBase.h"
 
 DialogueManager::DialogueManager() = default;
 
-void DialogueManager::StartDialogue(const string& dialogueKey)
+void DialogueManager::StartDialogue(const DialogueRequest& request)
 {
     if(_isActive || _waitInteractKeyRelease)
         return;
 
-    const DialogueData* dialogueData = CLIENT->FindDialogueData(dialogueKey);
+    const DialogueData* dialogueData = CLIENT->FindDialogueData(request.dialogueKey);
 
     if(dialogueData == nullptr || dialogueData->lines.empty())
         return;
 
     LOG_INFO("========대화 시작========");
 
-    _currentDialogueKey = dialogueKey;
+    _currentDialogueKey = request.dialogueKey;
     _currentDialogueData = dialogueData;
     _currentLineIndex = 0;
     _selectIndex = 0;
     _isActive = true;
     _waitInteractKeyRelease = true;
+    _dialogueNpcObject = request.speaker;
+    _dialoguePlayerObject = static_pointer_cast<GameObject>(CLIENT->Get_ActiveHero());
+     
+    GAME->Set_GameplayInputMode(GameplayInputMode::UIOnly);
 
-    GAME->Set_PlayerInputBlocked(true);
+    CLIENT->Request_DialogueCamera();
+
     ApplyCurrentLine();
 }
 
@@ -66,7 +74,7 @@ void DialogueManager::EndDialogue()
     _isActive = false;
     _waitInteractKeyRelease = true;
 
-    GAME->Set_PlayerInputBlocked(false);
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 }
 
 void DialogueManager::Update()
@@ -192,6 +200,29 @@ void DialogueManager::ApplyCurrentLine()
         EndDialogue();
         return;
     }
+
+    Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera));
+
+    if(dialogueCamera == nullptr)
+        return;
+
+    Shared<GameObject> speakerObject = nullptr;
+    Shared<GameObject> listenerObject = nullptr;
+
+    if (currentLine->speakerRole == DialogueActorRole::Npc)
+    {
+        speakerObject = _dialogueNpcObject;
+        listenerObject = _dialoguePlayerObject;
+    }
+    else
+    {
+        speakerObject = _dialoguePlayerObject;
+        listenerObject = _dialogueNpcObject;
+    }
+
+    dialogueCamera->Set_CameraPresetId(currentLine->cameraPresetId);
+    dialogueCamera->Set_SpeakerTransform(speakerObject->Get_Transform());
+    dialogueCamera->Set_ListenerTransform(listenerObject->Get_Transform());
 
     LOG_INFO("Dialogue Line : {}", String::ToString(currentLine->text));
 

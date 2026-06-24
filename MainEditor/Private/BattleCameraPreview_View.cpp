@@ -32,6 +32,8 @@
 
 namespace
 {
+constexpr string_view kDialoguePresetPlayerId = "Player";
+constexpr string_view kDialoguePresetNpcId = "NPC";
 constexpr float kBattleClipPreviewFps = 30.f;
 constexpr float kBattleAnimationPreviewFps = 60.f;
 constexpr float kLeftPanelComboWidth = 170.f;
@@ -83,8 +85,9 @@ string Resolve_WorldMonsterPrefabName(const string& battlePrefabName)
 vector<string> Load_NpcPreviewPrefabNames()
 {
     vector<string> prefabNames{};
+    constexpr string_view kPrefabJsonSuffix = ".prefab.json";
 
-    const fs::path npcPrefabDir = Client::Spawn_Prefab::Resolve_PrefabPath("NPC_Golgra").parent_path();
+    const fs::path npcPrefabDir = fs::path(GAME->Get_AssetRoot()) / Client::Constants::Prefab::NPC_Dir;
     std::error_code ec{};
     if (!fs::exists(npcPrefabDir, ec))
         return prefabNames;
@@ -98,10 +101,11 @@ vector<string> Load_NpcPreviewPrefabNames()
             continue;
 
         const fs::path prefabPath = entry.path();
-        if (!prefabPath.has_extension() || prefabPath.extension() != ".prefab")
+        const string fileName = prefabPath.filename().string();
+        if (!fileName.ends_with(kPrefabJsonSuffix))
             continue;
 
-        prefabNames.push_back(prefabPath.stem().string());
+        prefabNames.push_back(fileName.substr(0, fileName.size() - kPrefabJsonSuffix.size()));
     }
 
     std::sort(prefabNames.begin(), prefabNames.end());
@@ -112,7 +116,9 @@ vector<string> Load_NpcPreviewPrefabNames()
 enum class BattleAuthoringFileKind : uint8
 {
     Preset,
-    Clip
+    Clip,
+    DialoguePreset,
+    DialogueClip
 };
 
 struct ParsedBattleAuthoringFile
@@ -120,6 +126,7 @@ struct ParsedBattleAuthoringFile
     BattleAuthoringFileKind kind = BattleAuthoringFileKind::Preset;
     BattleCameraMode mode = BattleCameraMode::PLAYERATTACK;
     string skillId{};
+    string presetId{};
 };
 
 int Get_BattleClipFrameMax(const BattleCameraClip& clip)
@@ -551,6 +558,31 @@ bool Try_PickBattleCameraJsonFileDialog(const wchar_t* title, const wstring& def
 std::optional<ParsedBattleAuthoringFile> Try_ParseBattleAuthoringFileName(const fs::path& filePath)
 {
     const string stem = filePath.stem().string();
+
+    if (StartsWith(stem, "DialoguePreset_"))
+    {
+        const string presetId = stem.substr(string("DialoguePreset_").size());
+        if (presetId.empty())
+            return std::nullopt;
+
+        ParsedBattleAuthoringFile parsed{};
+        parsed.kind = BattleAuthoringFileKind::DialoguePreset;
+        parsed.presetId = presetId;
+        return parsed;
+    }
+
+    if (StartsWith(stem, "DialogueClip_"))
+    {
+        const string presetId = stem.substr(string("DialogueClip_").size());
+        if (presetId.empty())
+            return std::nullopt;
+
+        ParsedBattleAuthoringFile parsed{};
+        parsed.kind = BattleAuthoringFileKind::DialogueClip;
+        parsed.presetId = presetId;
+        return parsed;
+    }
+
     auto parseWithPrefix = [&stem](std::string_view prefix, BattleAuthoringFileKind kind) -> std::optional<ParsedBattleAuthoringFile>
     {
         if (!StartsWith(stem, prefix))
@@ -1219,13 +1251,13 @@ void BattleCameraPreview_View::Rebuild_PreviewObjects()
     const string enemyPrefabName = Get_SelectedEnemyPrefabName();
     const string npcPrefabName = Get_SelectedNpcPrefabName();
 
-    if (!heroPrefabName.empty())
+    if (Is_PreviewSideInUse(PreviewSlotSide::Hero) && !heroPrefabName.empty())
         _previewHeroObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(heroPrefabName));
 
-    if (!enemyPrefabName.empty())
+    if (Is_PreviewSideInUse(PreviewSlotSide::Enemy) && !enemyPrefabName.empty())
         _previewEnemyObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(enemyPrefabName));
 
-    if (!npcPrefabName.empty())
+    if (Is_PreviewSideInUse(PreviewSlotSide::Npc) && !npcPrefabName.empty())
         _previewNpcObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(npcPrefabName));
 
     _previewObjectsDirty = false;
@@ -1467,6 +1499,9 @@ void BattleCameraPreview_View::Render_PreviewActorSelector()
     ImGui::Separator();
     ImGui::TextDisabled("Preview Actors");
 
+    if (_npcPrefabNames.empty())
+        _npcPrefabNames = Load_NpcPreviewPrefabNames();
+
     if (Select_EnumCombo("Hero", _selectedHeroId, kLeftPanelComboWidth))
     {
         _previewObjectsDirty = true;
@@ -1517,6 +1552,9 @@ void BattleCameraPreview_View::Render_PreviewActorSelector()
 
         ImGui::EndCombo();
     }
+
+    if (_npcPrefabNames.empty())
+        ImGui::TextDisabled("NPC prefab list is empty.");
 }
 
 void BattleCameraPreview_View::Render_SlotSelector(const char* label, PreviewSlotSide& side, int& slotIndex)
@@ -1534,6 +1572,7 @@ void BattleCameraPreview_View::Render_SlotSelector(const char* label, PreviewSlo
             if (ImGui::Selectable(Get_SlotSideLabel(value), isSelected))
             {
                 side = value;
+                _previewObjectsDirty = true;
                 _previewDirty = true;
                 _animationListDirty = true;
             }
@@ -2145,6 +2184,8 @@ void BattleCameraPreview_View::Render_DialoguePresetEditor()
 
     if (!_hasLoadedDialoguePreset)
         Load_DialoguePreset(_manualDialoguePresetId);
+    if (!_hasLoadedDialogueClip)
+        Load_DialogueClip(_manualDialogueClipId);
 
     if (ImGui::Button("Load Dialogue Preset"))
     {
@@ -2158,6 +2199,99 @@ void BattleCameraPreview_View::Render_DialoguePresetEditor()
         Client::CameraPresetIO::SaveDialoguePresetToFile(_manualDialoguePresetId, _editingDialoguePreset);
         _dialoguePresetDirty = false;
     }
+
+    if (ImGui::Button("Load Player Preset"))
+    {
+        _manualDialoguePresetId = string(kDialoguePresetPlayerId);
+        Load_DialoguePreset(_manualDialoguePresetId);
+        _previewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Player Preset"))
+    {
+        _manualDialoguePresetId = string(kDialoguePresetPlayerId);
+        Client::CameraPresetIO::SaveDialoguePresetToFile(_manualDialoguePresetId, _editingDialoguePreset);
+        _loadedDialoguePresetId = _manualDialoguePresetId;
+        _hasLoadedDialoguePreset = true;
+        _dialoguePresetDirty = false;
+    }
+
+    if (ImGui::Button("Load NPC Preset"))
+    {
+        _manualDialoguePresetId = string(kDialoguePresetNpcId);
+        Load_DialoguePreset(_manualDialoguePresetId);
+        _previewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save NPC Preset"))
+    {
+        _manualDialoguePresetId = string(kDialoguePresetNpcId);
+        Client::CameraPresetIO::SaveDialoguePresetToFile(_manualDialoguePresetId, _editingDialoguePreset);
+        _loadedDialoguePresetId = _manualDialoguePresetId;
+        _hasLoadedDialoguePreset = true;
+        _dialoguePresetDirty = false;
+    }
+
+    char clipIdBuffer[128] = {};
+    const size_t clipIdLength = std::min(_manualDialogueClipId.size(), static_cast<size_t>(127));
+    memcpy(clipIdBuffer, _manualDialogueClipId.data(), clipIdLength);
+    clipIdBuffer[clipIdLength] = '\0';
+    if (ImGui::InputText("Dialogue Clip Id", clipIdBuffer, IM_ARRAYSIZE(clipIdBuffer)))
+    {
+        _manualDialogueClipId = clipIdBuffer;
+        _hasLoadedDialogueClip = false;
+    }
+
+    if (ImGui::Button("Load Dialogue Clip"))
+        Load_DialogueClip(_manualDialogueClipId);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Dialogue Clip"))
+        Client::BattleCameraClipIO::SaveDialogueCameraClipToFile(_manualDialogueClipId, _editingDialogueClip);
+
+    if (ImGui::Button("Load Player Clip"))
+        Load_DialogueClip(string(kDialoguePresetPlayerId));
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Player Clip"))
+        Client::BattleCameraClipIO::SaveDialogueCameraClipToFile(string(kDialoguePresetPlayerId), _editingDialogueClip);
+
+    if (ImGui::Button("Load NPC Clip"))
+        Load_DialogueClip(string(kDialoguePresetNpcId));
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save NPC Clip"))
+        Client::BattleCameraClipIO::SaveDialogueCameraClipToFile(string(kDialoguePresetNpcId), _editingDialogueClip);
+
+    const int totalDialogueClipKeys =
+        static_cast<int>(_editingDialogueClip.distanceOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.fovOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.yawOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.sideOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.pivotOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.heightOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.aimOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.lookHeightOffset.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.orbitYaw.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.orbitRadius.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.orbitHeight.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.orbitLookHeight.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.shakeAmplitude.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.shakeFrequencyX.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.shakeFrequencyY.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.shakeDecayRateX.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.shakeDecayRate.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.shakeVerticalRatio.keyframes.size()) +
+        static_cast<int>(_editingDialogueClip.shakeStrengthScale.keyframes.size());
+
+    ImGui::TextDisabled(
+        "Dialogue Clip Loaded : %s | TimeMode : %s | Duration : %.3f | Keys : %d",
+        _loadedDialogueClipId.empty() ? "(none)" : _loadedDialogueClipId.c_str(),
+        _editingDialogueClip.timeMode == DialogueCameraClipTimeMode::AnimationSync ? "AnimationSync" : "Independent",
+        _editingDialogueClip.duration,
+        totalDialogueClipKeys);
 
     bool changed = false;
     auto dragFloat = [&changed](const char* label, float& value, float speed, float minValue, float maxValue, const char* format = "%.3f")
@@ -3555,6 +3689,17 @@ void BattleCameraPreview_View::Load_DialoguePreset(const string& presetId)
     _dialoguePresetDirty = false;
 }
 
+void BattleCameraPreview_View::Load_DialogueClip(const string& clipId)
+{
+    _editingDialogueClip = DialogueCameraClip{};
+    _editingDialogueClip.timeMode = DialogueCameraClipTimeMode::Independent;
+    _editingDialogueClip.duration = 1.f;
+    Client::BattleCameraClipIO::LoadDialogueCameraClipFromFile(clipId, _editingDialogueClip);
+    _manualDialogueClipId = clipId;
+    _loadedDialogueClipId = clipId;
+    _hasLoadedDialogueClip = true;
+}
+
 void BattleCameraPreview_View::Load_BattleDriftForMode(BattleCameraMode mode)
 {
     _editingBattleDrift = BattleCameraDriftProfile{};
@@ -3651,6 +3796,22 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     if (!parsed.has_value())
         return false;
 
+    if (parsed->kind == BattleAuthoringFileKind::DialoguePreset)
+    {
+        _manualDialoguePresetId = parsed->presetId;
+        Load_DialoguePreset(_manualDialoguePresetId);
+        _previewDialoguePresetEnabled = true;
+        _previewDirty = true;
+        return true;
+    }
+
+    if (parsed->kind == BattleAuthoringFileKind::DialogueClip)
+    {
+        _manualDialogueClipId = parsed->presetId;
+        Load_DialogueClip(_manualDialogueClipId);
+        return true;
+    }
+
     Apply_AuthoringFileContext(parsed->mode, parsed->kind == BattleAuthoringFileKind::Preset, parsed->skillId);
     Try_AutoSelectPreviewActorAndAnimation();
     Load_BattlePresetForCurrentMode();
@@ -3667,6 +3828,11 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     Apply_PreviewContext();
     _previewDirty = false;
     return true;
+}
+
+bool BattleCameraPreview_View::Is_PreviewSideInUse(PreviewSlotSide side) const
+{
+    return _previewContext.subjectSide == side || _previewContext.opponentSide == side;
 }
 
 void BattleCameraPreview_View::Apply_AuthoringFileContext(BattleCameraMode mode, bool isPresetFile, const string& authoringId)

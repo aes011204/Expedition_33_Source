@@ -4,6 +4,7 @@
 #include "Delegate.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
+#include "DialogueTypes.h"
 #include "Monster_Part.h"
 
 NPC_Base::NPC_Base(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -135,11 +136,17 @@ void NPC_Base::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other
 
     if(GAME->KeyDown(KEY_TYPE::F))
     {
-        CLIENT->StartDialogue(Get_SourcePrefabName());
+        DialogueRequest request {};
+
+        request.dialogueKey = Get_SourcePrefabName();
+        request.speaker = GetSharedPtr<GameObject>();
+        request.speakerPrefabName = Get_SourcePrefabName();
+       
+        CLIENT->StartDialogue(request);
     }
 }
 
-void NPC_Base::On_EditorStopRuntime()
+void NPC_Base::On_EditorStopRuntime() 
 {
     Restore_AfterBattleExit();
 }

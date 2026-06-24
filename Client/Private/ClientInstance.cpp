@@ -1138,9 +1138,9 @@ const DialogueData* ClientInstance::FindDialogueData(const string& dialogueKey) 
     return _dialogueDB->FindDialogueData(dialogueKey);
 }
 
-void ClientInstance::StartDialogue(const string& dialogueKey)
+void ClientInstance::StartDialogue(const DialogueRequest& request)
 {
-    _dialogueManager->StartDialogue(dialogueKey);
+    _dialogueManager->StartDialogue(request);
 }
 
 bool ClientInstance::IsDialogueActive() const

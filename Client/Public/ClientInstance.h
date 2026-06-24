@@ -14,10 +14,11 @@ NS_END
 
 NS_BEGIN(Client)
 
-class DialogueCamera;
+struct DialogueRequest;
 
-    class DialogueManager;
-    struct DialogueData;
+    class DialogueCamera;
+class DialogueManager;
+struct DialogueData;
 class DialogueDB;
 class CinematicSequenceRunner;
 class CinematicCamera;
@@ -278,7 +279,7 @@ public:
     const DialogueData* FindDialogueData(const string& dialogueKey) const;
 
   public:
-    void StartDialogue(const string& dialogueKey);
+    void StartDialogue(const DialogueRequest& request);
     bool IsDialogueActive() const;
     bool IsDialogueInteractLocked() const;
 

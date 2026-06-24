@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Camera.h"
+#include "CameraPresetTypes.h"
 
 NS_BEGIN(Client)
 
@@ -30,7 +31,7 @@ public:
     void Update(float timeDelta) override;
 
 public:
-    void Set_CameraPresetId(const string& cameraPresetId) { _cameraPresetId = cameraPresetId; }
+    void Set_CameraPresetId(const string& cameraPresetId);
     const string& Get_CameraPresetId() const { return _cameraPresetId; }
 
     void Set_SpeakerTransform(const Shared<TransformCom>& transformCom) { _speakerTransformCom = transformCom; }
@@ -41,6 +42,7 @@ public:
     void Apply_ImmediatePose(const Vec3& eye, const Vec3& lookAt);
 
 private:
+    void Load_PresetFromId();
     bool Try_ResolveDialoguePose(Vec3& outEye, Vec3& outLookAt) const;
 
 private:
@@ -48,11 +50,8 @@ private:
     Weak<TransformCom> _listenerTransformCom;
 
     string _cameraPresetId;
-
-    float _distance = 2.5f;
-    float _sideOffset = 0.35f;
-    float _heightOffset = 1.2f;
     float _blendSpeed = 6.f;
+    DialogueCameraPreset _currentPreset{};
 
 public:
     static Shared<DialogueCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
