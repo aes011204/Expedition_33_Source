@@ -93,13 +93,33 @@ bool SL_Move::Request_Move(const SL_MoveRequest& request, float timeDelta)
 
     if (request.lockOn)
     {
-        const float absMoveX = fabsf(request.moveX);
-        const float absMoveZ = fabsf(request.moveZ);
+        const float moveX = request.moveX;
+        const float moveZ = request.moveZ;
+        const float absMoveX = fabsf(moveX);
+        const float absMoveZ = fabsf(moveZ);
 
-        if (absMoveZ >= absMoveX)
-            moveAnim = request.moveZ >= 0.f ? SoulLikeAnim::Target_Run_Fwd : SoulLikeAnim::Target_Run_Back;
+        if (absMoveX <= 0.001f)
+        {
+            moveAnim = moveZ >= 0.f ? SoulLikeAnim::TargetWalk_F : SoulLikeAnim::TargetWalk_B;
+        }
+        else if (absMoveZ <= 0.001f)
+        {
+            moveAnim = moveX >= 0.f ? SoulLikeAnim::TargetWalk_FR90 : SoulLikeAnim::TargetWalk_FL90;
+        }
+        else if (moveZ >= 0.f)
+        {
+            if (moveX < 0.f)
+                moveAnim = absMoveX > absMoveZ ? SoulLikeAnim::TargetWalk_FL90 : SoulLikeAnim::TargetWalk_FL45;
+            else
+                moveAnim = absMoveX > absMoveZ ? SoulLikeAnim::TargetWalk_FR90 : SoulLikeAnim::TargetWalk_FR45;
+        }
         else
-            moveAnim = request.moveX >= 0.f ? SoulLikeAnim::Target_Run_Right : SoulLikeAnim::Target_Run_Left;
+        {
+            if (moveX < 0.f)
+                moveAnim = absMoveX > absMoveZ ? SoulLikeAnim::TargetWalk_BL90 : SoulLikeAnim::TargetWalk_BL45;
+            else
+                moveAnim = absMoveX > absMoveZ ? SoulLikeAnim::TargetWalk_BR90 : SoulLikeAnim::TargetWalk_BR45;
+        }
     }
 
     if (_body != nullptr && _body->Get_AnimationStateIndex() != ETOI(moveAnim))

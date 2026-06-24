@@ -123,8 +123,8 @@ void AIController::Set_BehaviorTree(shared_ptr<BehaviorTree> tree)
 {
     _BT = tree;
 
-  /*  if (_BT)
-        _BT->Bind_Owner(static_pointer_cast<AIController>(shared_from_this()));*/
+    if (_BT)
+        _BT->Bind_Owner(static_pointer_cast<AIController>(shared_from_this()));
 }
 
 bool AIController::Is_Finished()

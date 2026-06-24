@@ -47,6 +47,7 @@ namespace UIEditor
             {
                 ObjectId createPatternOverlaySourceId = 0;
                 ObjectId createHoverBrushPresetTargetId = 0;
+                ObjectId createBrushAtmospherePresetTargetId = 0;
                 ImGui::PushID(static_cast<int32>(selectedObject->id));
 
                 ImGui::Text("ID: %u", selectedObject->id);
@@ -130,6 +131,8 @@ namespace UIEditor
                 if (selectedObject->type == UI_ObjectType::Image)
                 {
                     Render_TexturePicker(*selectedObject, createPatternOverlaySourceId);
+                    if (ImGui::Button("Create Brush Atmosphere Layers"))
+                        createBrushAtmospherePresetTargetId = selectedObject->id;
                 }
                 else if (Is_ContainerObjectType(selectedObject->type))
                 {
@@ -147,6 +150,8 @@ namespace UIEditor
                     {
                         if (ImGui::Button("Create Button Ink Flow Layer"))
                             createHoverBrushPresetTargetId = selectedObject->id;
+                        if (ImGui::Button("Create Brush Atmosphere Layers"))
+                            createBrushAtmospherePresetTargetId = selectedObject->id;
                     }
 
                     if (selectedObject->type == UI_ObjectType::Button)
@@ -219,6 +224,9 @@ namespace UIEditor
 
                 if (createHoverBrushPresetTargetId != 0)
                     _editorManager.Create_HoverBrushPreset(createHoverBrushPresetTargetId);
+
+                if (createBrushAtmospherePresetTargetId != 0)
+                    _editorManager.Create_BrushAtmospherePreset(createBrushAtmospherePresetTargetId);
             }
             else
             {

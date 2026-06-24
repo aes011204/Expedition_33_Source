@@ -1298,7 +1298,11 @@ bool Inspector::Draw_ReflectionProperty(
     const auto drawPropertyLabel = [&visibleLabel]()
     {
         ImGui::AlignTextToFramePadding();
+        const ImVec2 textPos = ImGui::GetCursorScreenPos();
+        const float labelRight = textPos.x + InspectorLabelWidth - ImGui::GetStyle().ItemSpacing.x;
+        ImGui::PushClipRect(textPos, ImVec2(labelRight, textPos.y + ImGui::GetTextLineHeightWithSpacing()), true);
         ImGui::TextDisabled("%s", visibleLabel.c_str());
+        ImGui::PopClipRect();
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", visibleLabel.c_str());
         ImGui::SameLine(InspectorLabelWidth);

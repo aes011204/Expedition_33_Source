@@ -310,6 +310,60 @@ PS_OUT_COLOR PS_DistortionResolve(PS_IN In)
     return Out;
 }
 
+float ComputeFroxelSliceRatioFromViewDepth(float viewZ)
+{
+    const float nearZ = max(g_FroxelNear, 0.01f);
+    const float farZ = max(g_FroxelFar, nearZ + 0.01f);
+
+    viewZ = clamp(viewZ, nearZ, farZ);
+
+    return saturate(log(viewZ / nearZ) / log(farZ / nearZ));
+}
+
+float3 SampleIntegratedFroxelLighting(float2 uv)
+{
+    const float froxelRange = max(g_FroxelFar - g_FroxelNear, EPSILON);
+    const float sliceTexel = 1.f / max((float) g_FroxelDepth, 1.f);
+    float viewZ = g_DepthTexture.Sample(PointClampSampler, uv).y * g_DeferredFar;
+    if (viewZ <= EPSILON)
+        viewZ = g_FroxelFar;
+
+    const float sliceRatio = ComputeFroxelSliceRatioFromViewDepth(viewZ);
+    const float2 clampedUV = saturate(uv);
+    const float3 froxelUVW0 = float3(clampedUV, saturate(sliceRatio - sliceTexel * 2.f));
+    const float3 froxelUVW1 = float3(clampedUV, saturate(sliceRatio - sliceTexel));
+    const float3 froxelUVW2 = float3(clampedUV, sliceRatio);
+    const float3 froxelUVW3 = float3(clampedUV, saturate(sliceRatio + sliceTexel));
+    const float3 froxelUVW4 = float3(clampedUV, saturate(sliceRatio + sliceTexel * 2.f));
+
+    const float4 froxelLighting0 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW0);
+    const float4 froxelLighting1 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW1);
+    const float4 froxelLighting2 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW2);
+    const float4 froxelLighting3 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW3);
+    const float4 froxelLighting4 = g_FroxelIntegratedTexture.Sample(LinearClampSampler, froxelUVW4);
+    const float4 froxelLighting =
+        (froxelLighting0 + froxelLighting1 * 4.f + froxelLighting2 * 6.f + froxelLighting3 * 4.f + froxelLighting4) * 0.0625f;
+
+    const float densityMask = smoothstep(0.03f, 0.35f, saturate(froxelLighting.a));
+    const float nearFade = smoothstep(g_FroxelNear, g_FroxelNear + froxelRange * 0.15f, viewZ);
+    const float farFade = 1.f - smoothstep(g_FroxelFar * 0.7f, g_FroxelFar, viewZ);
+    const float depthFade = nearFade * max(farFade, 0.2f);
+    const float3 compressedLighting = 1.f - exp(-max(froxelLighting.rgb, 0.f) * 0.12f);
+
+    return compressedLighting * densityMask * depthFade * g_FroxelCompositeIntensity;
+}
+
+PS_OUT_COLOR PS_FroxelCompositeHDR(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float4 baseColor = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float3 froxelLighting = SampleIntegratedFroxelLighting(In.Texcoord);
+
+    Out.Color = float4(baseColor.rgb + froxelLighting, baseColor.a);
+    return Out;
+}
+
 PS_OUT_DOF_PREFILTER PS_DOFPreFilterHalf(PS_IN In)
 {
     PS_OUT_DOF_PREFILTER Out;
@@ -421,11 +475,12 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(BloomUpsampleAdd,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomUpsampleAdd)        // 5
     PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 6
     PASS_RS_DS_BS_VP(DistortionResolve, RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_DistortionResolve)       // 7
-    PASS_RS_DS_BS_VP(LightShaftMaskHalf, RS_Default, DSS_None,  BS_Default, VS_MAIN,    PS_LightShaftMaskHalf)      // 8
-    PASS_RS_DS_BS_VP(LightShaftRadialBlurHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftRadialBlurHalf) // 9
-    PASS_RS_DS_BS_VP(LightShaftCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftCompositeHDR)  // 10
-    PASS_RS_DS_BS_VP(DOFPreFilterHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFPreFilterHalf)              // 11
-    PASS_RS_DS_BS_VP(DOFBlurNearHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurNearHalf)                // 12
-    PASS_RS_DS_BS_VP(DOFBlurFarHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurFarHalf)                  // 13
-    PASS_RS_DS_BS_VP(DOFCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFCompositeHDR)                // 14
+    PASS_RS_DS_BS_VP(FroxelCompositeHDR, RS_Default, DSS_None,  BS_Default, VS_MAIN,    PS_FroxelCompositeHDR)      // 8
+    PASS_RS_DS_BS_VP(LightShaftMaskHalf, RS_Default, DSS_None,  BS_Default, VS_MAIN,    PS_LightShaftMaskHalf)      // 9
+    PASS_RS_DS_BS_VP(LightShaftRadialBlurHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftRadialBlurHalf) // 10
+    PASS_RS_DS_BS_VP(LightShaftCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftCompositeHDR)  // 11
+    PASS_RS_DS_BS_VP(DOFPreFilterHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFPreFilterHalf)              // 12
+    PASS_RS_DS_BS_VP(DOFBlurNearHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurNearHalf)                // 13
+    PASS_RS_DS_BS_VP(DOFBlurFarHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurFarHalf)                  // 14
+    PASS_RS_DS_BS_VP(DOFCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFCompositeHDR)                // 15
 }

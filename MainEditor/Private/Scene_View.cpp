@@ -11,7 +11,9 @@
 #include "Client_Defines.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
+#include "EnvironmentView.h"
 #include "LightingPipeline.h"
+#include "MovementCom.h"
 #include "Spawn_Prefab.h"
 
 //add
@@ -258,6 +260,7 @@ void Scene_View::Pre_Render()
         return;
 
     Tick_DragPreview(ImGui::GetIO().DeltaTime);
+    EnvironmentView::DrawDebugVolumes();
 }
 
 void Scene_View::Render()
@@ -591,6 +594,10 @@ void Scene_View::Render_MRTDebugPopup()
     Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
     if (lightingPipeline)
     {
+        int froxelDebugMode = static_cast<int>(lightingPipeline->Get_DebugFroxelMode());
+        if (ImGui::Combo("Froxel Debug Mode", &froxelDebugMode, "Integrated\0Raw Injection\0"))
+            lightingPipeline->Set_DebugFroxelMode(static_cast<LightingPipeline::FroxelDebugMode>(froxelDebugMode));
+
         int froxelSlice = static_cast<int>(lightingPipeline->Get_DebugFroxelSlice());
         const int maxFroxelSlice = static_cast<int>(max(1u, lightingPipeline->Get_DebugFroxelDepth()) - 1u);
         if (ImGui::SliderInt("Froxel Slice", &froxelSlice, 0, maxFroxelSlice))
@@ -897,6 +904,19 @@ void Scene_View::Render_SelectedObjectGizmo()
 {
     _gizmoMode = Internal::Resolve_GizmoModeFromTransformSpace();
 
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    if (EnvironmentView::ManipulateSelectedEntry(
+        viewMatrix,
+        projMatrix,
+        _viewportMin,
+        _viewportMax,
+        _gizmoOperation,
+        _gizmoMode))
+    {
+        return;
+    }
+
     Shared<GameObject> selectedObject = EDITOR->Selected_Object();
     if (selectedObject == nullptr)
         return;
@@ -905,8 +925,6 @@ void Scene_View::Render_SelectedObjectGizmo()
     if (transform == nullptr)
         return;
 
-    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
-    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
     if (viewMatrix == nullptr || projMatrix == nullptr)
         return;
 
@@ -989,6 +1007,9 @@ void Scene_View::Render_SelectedObjectGizmo()
     transform->Set_WorldPosition(translation);
     transform->Set_RotationQuaternion(rotation);
     transform->Set_Scale(scale);
+
+    if (Shared<MovementCom> movement = selectedObject->Get_Component<MovementCom>())
+        movement->Sync_RuntimePositionToTransform();
 }
 
 void Scene_View::Set_DragPreviewObject(const string& prefabName)

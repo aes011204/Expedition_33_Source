@@ -43,6 +43,9 @@
     <ClCompile Include="..\Private\Scene_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EnvironmentView.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Profile_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
@@ -75,6 +78,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Component_Inspector.cpp">
       <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimationNotifyEditor.cpp">
+      <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Animation_View.cpp">
       <Filter>01. View</Filter>
@@ -190,6 +196,9 @@
     <ClInclude Include="..\Public\Scene_View.h">
       <Filter>01. View</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EnvironmentView.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Profile_View.h">
       <Filter>01. View</Filter>
     </ClInclude>
@@ -264,6 +273,9 @@
       <Filter>03. System\PickingSystem</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Console_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimationNotifyEditor.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Animation_View.h">

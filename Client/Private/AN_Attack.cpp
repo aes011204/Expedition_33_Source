@@ -4,11 +4,18 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "SkillScript.h"
+#include "SoulLikeController.h"
 
 void AN_Attack::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
+
+    if (auto soulLike = CLIENT->Get_SoulLikeController())
+    {
+        if (soulLike->Notify_EstherAttack(context.owner))
+            return;
+    }
 
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
@@ -24,6 +31,9 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
         return;
 
     const uint32 sourceStepIndex = turnAction.GetCurStepIndex();
+    if (sourceStepIndex >= turnAction.GetSteps().size())
+        return;
+
     const auto& curTargets = turnAction.GetCurStepTarget();
     const BattleChar reactionTarget =
         !curTargets.empty() ? curTargets.front() : turnAction.GetInitTarget();

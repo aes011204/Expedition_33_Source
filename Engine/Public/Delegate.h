@@ -50,7 +50,7 @@ public:
                 }
             };
 
-        _functions.push_back({ handle, boundFunc, nullptr, true, weakObj });
+        _functions.push_back({ handle, boundFunc, obj, true, weakObj });
 
         return handle;
     }

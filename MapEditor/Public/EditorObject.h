@@ -47,6 +47,11 @@ struct EditorObject
     float _ppGroundFogNearFadeDistance = 12.f;
     float _ppGroundFogNearMinFactor = 0.65f;
 
+    float _shaftDensity = 1.f;
+    Vec4 _shaftLightColor = Vec4(1.f, 0.95f, 0.8f, 1.f);
+    float _shaftEdgeFade = 0.5f;
+    float _shaftIntensity = 1.f;
+
     LightType _lightType = LightType::Directional;
     Vec4 _lightDiffuse = { 1.f, 1.f, 1.f, 1.f };
     Vec4 _lightAmbient = { 0.1f, 0.1f, 0.1f, 1.f };

@@ -33,6 +33,7 @@ public:
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
         vector<json> postProcessVolumes = {};
+        vector<json> shaftVolumes = {};
         vector<json> waters = {};
         vector<json> prefabInstances = {};
         vector<json> authoredObjects = {};
@@ -65,6 +66,7 @@ public:
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
         bool postProcessVolumesDone = false;
+        bool shaftVolumesDone = false;
         bool watersDone = false;
         bool prefabInstancesDone = false;
         bool authoredObjectsDone = false;

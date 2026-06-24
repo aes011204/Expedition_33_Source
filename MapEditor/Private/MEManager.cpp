@@ -30,6 +30,7 @@ namespace
         return fs::exists(path / "StaticMesh") ||
             fs::exists(path / "InstanceMesh") ||
             fs::exists(path / "PostProcessVolume") ||
+            fs::exists(path / "ShaftVolume") ||
             fs::exists(path / "Water") ||
             fs::exists(path / "ETC");
     }

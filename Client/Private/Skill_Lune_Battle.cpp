@@ -2,6 +2,8 @@
 #include "BattleMechanismCom.h"
 #include "DamageSystem.h"
 #include "ClientInstance.h"
+#include "EffectCom.h"
+#include "GameInstance.h"
 
 namespace Internal
 {
@@ -10,12 +12,20 @@ void Play_TargetHitEffect(const BattleChar& target, const BattleHitSequenceRunne
     if (!hitEffect.Is_Valid() || target.actor == nullptr)
         return;
 
-    PlayEffectDesc effectDesc{};
-    effectDesc.effectName = hitEffect.effectName;
-    effectDesc.spawnBasisTarget = target.actor;
-    effectDesc.localOffset = hitEffect.localOffset;
+    const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
+    if (effectCom == nullptr)
+        return;
 
-    CLIENT->Play_Effect(effectDesc);
+    EffectCom::EffectPlayDesc effectDesc{};
+    effectDesc.levelIndex = GAME->Current_LevelIndex();
+    effectDesc.effectName = hitEffect.effectName;
+    effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    effectDesc.localOffset = hitEffect.localOffset;
+    effectDesc.localRotation = hitEffect.localRotation;
+    effectDesc.scale = hitEffect.scale;
+    effectDesc.followTarget = false;
+
+    effectCom->Play_Effect(effectDesc);
 }
 }
 
@@ -43,12 +53,11 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
     // TEMP. 이거 일단 임시. 프로토 타입 이후 제대로 구조잡기. 근데 그냥 이렇게 코드로 제어해도 될거같기도 하고
     if (target.actor != nullptr)
     {
-        PlayEffectDesc effectDesc{};
+        BattleHitSequenceRunner::HitEffectDesc effectDesc{};
         effectDesc.effectName = L"Lune_Immolation_Hit";
-        effectDesc.spawnBasisTarget = target.actor;
         effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
 
-        CLIENT->Play_Effect(effectDesc);
+        Internal::Play_TargetHitEffect(target, effectDesc);
     }
 }
 
@@ -103,6 +112,7 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction
 
     BattleHitSequenceRunner::HitEffectDesc effectDesc{};
     effectDesc.effectName = L"Lune_ThunderFall_Attack";
+    effectDesc.scale = { 1.3f, 1.3f, 1.3f };
 
     DamageSystem::ApplyDamage(hitDamage, attacker, target, attackType); // 첫 타 호출 시점은 AN_Attack
     Internal::Play_TargetHitEffect(target, effectDesc);

@@ -62,6 +62,8 @@ public:
     Shared<CombatStatCom> Get_Stat() const override;
     Shared<ColliderCom> Get_AttackColliderL() const;
     Shared<ColliderCom> Get_AttackColliderR() const;
+    void Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride) override;
+    void Clear_AttackHitAnimOverride(const string& colliderTag) override;
     Shared<MovementCom> Get_MovementCom() const;
     Shared<ModelCom> Get_ModelCom() const;
     bool Play_Anim(Anim anim, float blendDuration, bool loop);
@@ -71,13 +73,18 @@ public:
     void Refresh_AnimPose();
     bool Is_AnimFinished() const;
     bool Is_Dead() const override;
+    bool Is_DamageBlocked() const override { return Is_PhaseChangeInvincible(); }
     void Set_IntroFin(bool isDone) { _isIntroDone = isDone; };
     void Apply_Damage(const SL_DamageInfo& damageInfo) override;
     bool Change_State(SL_MonState state);
     int Get_CurrentPhase() const { return _currentPhase; }
     bool CanUseLeftSword() const { return _currentPhase >= 2; }
     bool Is_PhaseChangeFinished() const { return _phaseChangeFinished; }
+    bool Is_PhaseChangeInvincible() const { return _isPhaseChangeInvincible; }
+    bool Should_SkipPhaseChangeStunStart() const { return _skipPhaseChangeStunStart; }
+    void Begin_PhaseChangeTransition();
     void Finish_PhaseChange();
+    void End_PhaseChangeTransition();
     void Set_ActionLocked(bool isActionLock);
 protected:
     HRESULT Ready_Components();
@@ -87,11 +94,14 @@ protected:
     void Update_BlackBoard();
     void Update_StunSystem(float timeDelta);
     float Calculate_BreakDamage(AttackType attackType) const;
+    void Clear_BreakState();
 
 private:
     Shared<MonsterStatCom> _combatStat = {};
     Shared<ColliderCom> _attackRCom = {};
     Shared<ColliderCom> _attackLCom = {};
+    SL_HitAnimOverride _attackRHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    SL_HitAnimOverride _attackLHitAnimOverride = SL_HitAnimOverride::Hit_Light;
     Shared<AIController>         _aiCtrl;
     Shared<MovementCom>         _movementCom = {};
     Shared<SL_Mon_StateMachineCom> _stateMachineCom = {};
@@ -103,6 +113,8 @@ private:
     int _currentPhase = 1;
     bool _phaseChangeTriggered = false;
     bool _phaseChangeFinished = false;
+    bool _isPhaseChangeInvincible = false;
+    bool _skipPhaseChangeStunStart = false;
     float _breakRecoverPerSec = 3.f;
     float _stunElapsed = 0.f;
 

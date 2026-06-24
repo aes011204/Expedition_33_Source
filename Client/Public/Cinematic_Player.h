@@ -26,9 +26,12 @@ public:
 
 public:
     void  Ready_CinematicPlayer(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack, const Shared<CinematicCamera>& camera, bool playerOnOff, bool applyCameraTrack = true);
-    bool  Is_CinematicPlaying() {return _isCinematicPlaying;}
-    bool  Is_CinematicPaused() {return _isCinematicPaused;}
-    int   Get_CurrentFrame() {return _currentFrame;}
+    bool  Is_CinematicPlaying() const { return _isCinematicPlaying; }
+    bool  Is_CinematicPaused() const { return _isCinematicPaused; }
+
+    int   Get_CurrentFrame() const { return _currentFrame; }
+    float Get_CurrentFrameExact() const { return _currentFrameExact; }
+
     void  Set_ApplyCameraTrack(bool applyCameraTrack) { _applyCameraTrack = applyCameraTrack; }
     bool  Get_ApplyCameraTrack() const { return _applyCameraTrack; }
 
@@ -39,7 +42,10 @@ private:
     CINEMATIC_KEYFRAME*          _rightKey = nullptr;
     Shared<CinematicCamera>      _cinematicCamera; //추후 별도 카메라 구현 예정
     CINEMATIC_TRACK*             _cinematicTrack = nullptr;
+
     int                          _currentFrame = 0;
+    float                        _currentFrameExact = 0.f;
+
     bool                         _isCinematicPlaying = false;
     bool                         _isCinematicPaused = false;
     bool                         _applyCameraTrack = true;

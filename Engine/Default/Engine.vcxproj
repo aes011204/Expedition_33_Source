@@ -241,6 +241,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\EffectRuntime_Lowering.h" />
     <ClInclude Include="..\Public\EffectRuntime_Types.h" />
     <ClInclude Include="..\Public\Engine_Constants.h" />
+    <ClInclude Include="..\Public\Environment_Manager.h" />
     <ClInclude Include="..\Public\EnumFlags.h" />
     <ClInclude Include="..\Public\Event_Bus.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
@@ -403,6 +404,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\EffectEmitter.cpp" />
     <ClCompile Include="..\Private\EffectEmitterFactory.cpp" />
     <ClCompile Include="..\Private\EffectInstance.cpp" />
+    <ClCompile Include="..\Private\Environment_Manager.cpp" />
     <ClCompile Include="..\Private\Event_Manager.cpp" />
     <ClCompile Include="..\Private\ICommand.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />

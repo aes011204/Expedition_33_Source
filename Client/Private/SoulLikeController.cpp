@@ -23,6 +23,7 @@
 #include "TransformCom.h"
 #include "MonsterStatCom.h"
 #include "SL_Skill.h"
+#include "SL_EstherManager.h"
 
 IMPLEMENT_REFLECTION(SoulLikeController)
 {
@@ -108,6 +109,9 @@ void SoulLikeController::BeginPlay()
             this,
             &SoulLikeController::Handle_EditorStopRuntime);
     }
+
+    if (_estherManager == nullptr)
+        _estherManager = SL_EstherManager::Create(GetSharedPtr<SoulLikeController>());
 }
 
 void SoulLikeController::Update(float timeDelta)
@@ -128,6 +132,9 @@ void SoulLikeController::Update(float timeDelta)
 
     if (_state == BattleState::Playing)
     {
+        if (_estherManager)
+            _estherManager->Update(timeDelta);
+
         Update_Player(timeDelta);
         Check_BattleEnd();
     }
@@ -158,6 +165,9 @@ bool SoulLikeController::Begin_Battle()
     _healingPotionCount = kMaxHealingPotionCount;
     _state = BattleState::EnterFx;
 
+    if (_estherManager)
+        _estherManager->Reset();
+
     if (auto screenFxManager = CLIENT->Get_ScreenFxManager())
     {
         screenFxManager->Play_BattleInCounterFx();
@@ -182,6 +192,9 @@ void SoulLikeController::End_Battle()
     _jumpCounterCounterWindowOpen = false;
     _jumpCounterAttackStarted = false;
     _jumpCounterDamageApplied = false;
+
+    if (_estherManager)
+        _estherManager->Reset();
 }
 
 void SoulLikeController::Confirm_Victory()
@@ -408,6 +421,14 @@ void SoulLikeController::Apply_JumpCounterDamage()
     _jumpCounterJumpSucceeded = false;
     _jumpCounterCounterWindowOpen = false;
     _jumpCounterAttackStarted = false;
+}
+
+bool SoulLikeController::Notify_EstherAttack(GameObject* notifyOwner)
+{
+    if (!_estherManager)
+        return false;
+
+    return _estherManager->Notify_Attack(notifyOwner);
 }
 
 void SoulLikeController::Request_SoulLikeCamera()
@@ -750,7 +771,11 @@ void SoulLikeController::Update_Player(float timeDelta)
 
     Update_Dodge(stateMachine, moveRequest);
 
+    // TODO : 포션 먹을 때 간단한 애니메이션 + 이팩트 추가 (이팩트는 그대로)
     if (Update_HealingPotion(player, stateMachine))
+        return;
+
+    if (Update_Esther())
         return;
 
     if (Update_Parry(stateMachine))
@@ -890,6 +915,9 @@ void SoulLikeController::Handle_EditorStopRuntime()
     _jumpCounterCounterWindowOpen = false;
     _jumpCounterAttackStarted = false;
     _jumpCounterDamageApplied = false;
+
+    if (_estherManager)
+        _estherManager->Reset();
 
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
@@ -1032,6 +1060,20 @@ bool SoulLikeController::Update_HealingPotion(const Shared<SL_Maelle>& player,
     return true;
 }
 
+bool SoulLikeController::Update_Esther()
+{
+    if (_estherManager == nullptr)
+        return false;
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_3))
+        return _estherManager->Request_Esther(SL_EstherType::GustaveOvercharge);
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_4))
+        return _estherManager->Request_Esther(SL_EstherType::LuneImmolation);
+
+    return false;
+}
+
 Shared<SoulLikeController> SoulLikeController::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<SoulLikeController>(device, context);
@@ -1064,6 +1106,12 @@ void SoulLikeController::Free()
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
         _editorStopHandle.Reset();
+    }
+
+    if (_estherManager)
+    {
+        _estherManager->Free();
+        _estherManager.reset();
     }
 
     GameObject::Free();

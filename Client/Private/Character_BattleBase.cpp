@@ -39,6 +39,21 @@ void Character_BattleBase::Late_Update(float timeDelta)
     Update_Collider();
 }
 
+void Character_BattleBase::Adjust_IncomingBattleDamage(const BattleChar& attacker, float& damage,
+    AttackType attackType) const
+{
+    UNREFERENCED_PARAMETER(attacker);
+    UNREFERENCED_PARAMETER(damage);
+    UNREFERENCED_PARAMETER(attackType);
+}
+
+bool Character_BattleBase::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
+{
+    UNREFERENCED_PARAMETER(info);
+
+    return false;
+}
+
 void Character_BattleBase::Set_BattleColliderActive(bool isActive)
 {
     if (_colliderCom == nullptr)

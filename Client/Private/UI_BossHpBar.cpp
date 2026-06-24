@@ -72,6 +72,8 @@ void UI_BossHpBar::Close()
     _hasDisplayTarget = false;
     _hpRatio = 1.f;
     _delayedHpRatio = 1.f;
+    if (_breakGauge)
+        _breakGauge->Set_FillRatio(0.f);
     _maxShield = 0;
     _lastShieldIconCount = 0;
     _hasShieldIconState = false;
@@ -99,6 +101,7 @@ void UI_BossHpBar::Show_Boss(const BattleChar& target)
         _maxShield = Resolve_MaxShield(target);
         Apply_HpGauge(_hpRatio);
         Apply_DelayedHpGauge(_delayedHpRatio);
+        Apply_BreakGauge(target);
         Apply_ShieldGauge(target);
     }
 }
@@ -130,6 +133,7 @@ void UI_BossHpBar::Show_DamagedBoss(const BattleChar& target, float damage)
 
     Apply_HpGauge(_hpRatio);
     Apply_DelayedHpGauge(_delayedHpRatio);
+    Apply_BreakGauge(target);
     Apply_ShieldGauge(target);
 }
 
@@ -219,7 +223,12 @@ HRESULT UI_BossHpBar::Bind_UI()
     _shieldGauge->Close();
 
     if (_breakGauge)
+    {
+        _breakGauge->Set_UseFillRatio(true);
+        _breakGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
+        _breakGauge->Set_FillRatio(0.f);
         _breakGauge->Close();
+    }
 
     return S_OK;
 }
@@ -232,6 +241,7 @@ void UI_BossHpBar::Sync_BossState(const BattleChar& target)
     _hpRatio = curHp / maxHp;
     _maxShield = max(_maxShield, Resolve_MaxShield(target));
     Apply_HpGauge(_hpRatio);
+    Apply_BreakGauge(target);
     Apply_ShieldGauge(target);
 
     const Shared<MonsterStatCom> monsterStat =
@@ -256,6 +266,30 @@ void UI_BossHpBar::Apply_DelayedHpGauge(float ratio)
 {
     if (_hpGaugeBG)
         _hpGaugeBG->Set_FillRatio(clamp(ratio, 0.f, 1.f));
+}
+
+void UI_BossHpBar::Apply_BreakGauge(const BattleChar& target)
+{
+    if (_breakGauge == nullptr)
+        return;
+
+    const Shared<MonsterStatCom> monsterStat =
+        dynamic_pointer_cast<MonsterStatCom>(target.statCom);
+
+    if (monsterStat == nullptr || monsterStat->Get_MaxBreak() <= 0.f)
+    {
+        _breakGauge->Set_FillRatio(0.f);
+        _breakGauge->Close();
+        return;
+    }
+
+    if (!_breakGauge->Is_Open())
+        _breakGauge->Open();
+
+    const float ratio =
+        clamp(monsterStat->Get_CurBreak() / monsterStat->Get_MaxBreak(), 0.f, 1.f);
+
+    _breakGauge->Set_FillRatio(ratio); // 일반 몬스터 HP 바와 같은 방향으로, 누적된 파괴량만큼 채운다.
 }
 
 void UI_BossHpBar::Apply_ShieldGauge(const BattleChar& target)

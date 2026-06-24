@@ -8,6 +8,10 @@ NS_END
 
 NS_BEGIN(Client)
 
+enum class AttackType;
+struct BattleChar;
+struct DamageAppliedInfo;
+
 class Character_BattleBase abstract : public Character
 {
 public:
@@ -22,6 +26,13 @@ public:
     void    Late_Update(float timeDelta) override;
 
 public:
+    virtual void Adjust_IncomingBattleDamage(
+        const BattleChar& attacker,
+        float& damage,
+        AttackType attackType) const;
+
+    virtual bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info);
+
     void    Set_BattleColliderActive(bool isActive);
     bool    Is_BattleColliderActive() const;
 

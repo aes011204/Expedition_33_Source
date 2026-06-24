@@ -9,7 +9,128 @@
 #include "EffectCom.h"
 #include "SwitchDissolveFeature.h"
 
+#include <filesystem>
+
 NS_BEGIN(Client)
+
+namespace
+{
+    namespace fs = std::filesystem;
+
+    ModelType Parse_ModelTypeString(const string& modelTypeString, ModelType fallbackType)
+    {
+        if (modelTypeString == "ANIM" || modelTypeString == "Anim")
+            return ModelType::Anim;
+
+        if (modelTypeString == "NONANIM" || modelTypeString == "NonAnim")
+            return ModelType::NonAnim;
+
+        return fallbackType;
+    }
+
+    wstring Resolve_ModelTablePath(const wstring& rawPath)
+    {
+        if (rawPath.empty())
+            return {};
+
+        const fs::path inputPath(rawPath);
+        if (inputPath.is_absolute())
+            return inputPath.lexically_normal().wstring();
+
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
+            return fs::absolute(inputPath).lexically_normal().wstring();
+
+        const fs::path assetRootPath(assetRoot);
+        const fs::path clientBinPath = assetRootPath.parent_path();
+
+        wstring normalized = rawPath;
+        for (wchar_t& ch : normalized)
+        {
+            if (ch == L'/')
+                ch = L'\\';
+            else
+                ch = static_cast<wchar_t>(towlower(ch));
+        }
+
+        constexpr const wchar_t* kResourcesPrefix = L"..\\bin\\resources\\";
+        if (normalized.starts_with(kResourcesPrefix))
+        {
+            const wstring suffix = rawPath.substr(wcslen(kResourcesPrefix));
+            return (assetRootPath / fs::path(suffix)).lexically_normal().wstring();
+        }
+
+        constexpr const wchar_t* kResourcesRootPrefix = L"..\\resources\\";
+        if (normalized.starts_with(kResourcesRootPrefix))
+        {
+            const wstring suffix = rawPath.substr(wcslen(kResourcesRootPrefix));
+            return (assetRootPath / fs::path(suffix)).lexically_normal().wstring();
+        }
+
+        return (clientBinPath / inputPath).lexically_normal().wstring();
+    }
+
+    Shared<ModelCom> Try_CreateModelFromDT(
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        const wstring& modelTag,
+        ModelType fallbackType)
+    {
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
+            return nullptr;
+
+        const fs::path dtPath = fs::path(assetRoot) / L"Data" / L"json" / L"DT_Model.json";
+        const json root = GAME->Load_JsonFile(dtPath);
+        if (!root.is_object())
+            return nullptr;
+
+        const json* modelArray = nullptr;
+        if (root.contains("DT_Model") && root["DT_Model"].is_array())
+            modelArray = &root["DT_Model"];
+        else if (root.contains("ModelCom") && root["ModelCom"].is_array())
+            modelArray = &root["ModelCom"];
+
+        if (modelArray == nullptr)
+            return nullptr;
+
+        const string modelTagString = String::ToString(modelTag);
+        for (const json& modelNode : *modelArray)
+        {
+            if (!modelNode.is_object())
+                continue;
+
+            if (modelNode.value("Id", string{}) != modelTagString)
+                continue;
+
+            const string modelPathString = modelNode.value("Path", string{});
+            if (modelPathString.empty())
+                return nullptr;
+
+            const ModelType modelType =
+                Parse_ModelTypeString(modelNode.value("ModelType", string{}), fallbackType);
+
+            const Matrix preLocalTransform =
+                XMMatrixScaling(
+                    modelNode.value("ScaleX", 1.f),
+                    modelNode.value("ScaleY", 1.f),
+                    modelNode.value("ScaleZ", 1.f)) *
+                XMMatrixRotationX(XMConvertToRadians(modelNode.value("RotX", 0.f))) *
+                XMMatrixRotationY(XMConvertToRadians(modelNode.value("RotY", 0.f))) *
+                XMMatrixRotationZ(XMConvertToRadians(modelNode.value("RotZ", 0.f)));
+
+            const wstring resolvedPath = Resolve_ModelTablePath(String::ToWString(modelPathString));
+            return ModelCom::Create(
+                device,
+                context,
+                modelType,
+                String::ToString(resolvedPath).c_str(),
+                preLocalTransform);
+        }
+
+        return nullptr;
+    }
+}
 
 Monster_Part::Monster_Part(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PartObject(device, context)
@@ -129,6 +250,10 @@ HRESULT Monster_Part::Render()
         const uint32 passIndex = Decide_PassIndex(material);
         if (FAILED(_shader->Begin(passIndex)))
             return E_FAIL;
+
+        // DepthStencil을 사용해서 ScreenFX 에서 제외할지 말지 파악하기 위한 depth 기록
+        const bool depthWrite = passIndex != static_cast<uint32>(VtxAnimMeshPass::HairBlend);
+        CHECK_FAILED_THROTTLED(GAME->Bind_ScreenFxExclusionStencilWriteState(depthWrite), 60, E_FAIL);
 
         _model->Render(i);
     }
@@ -264,8 +389,17 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
 
     if (FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _model))) // 몬스터 파츠가 참조하는 모델 prototype은 Static에 둔다.
     {
-        if (!desc.allowMissingModel)
-            return E_FAIL;
+        _model = Try_CreateModelFromDT(_device, _context, desc.modelTag, desc.modelType);
+        if (_model == nullptr)
+        {
+            if (!desc.allowMissingModel)
+                return E_FAIL;
+        }
+        else
+        {
+            _model->Set_Owner(this->GetSharedPtr<GameObject>());
+            _components.emplace(desc.modelTag, _model);
+        }
 
         //LOG_WARN("Monster_Part: missing model allowed. modelTag={}",
         //    String::ToString(desc.modelTag).c_str());

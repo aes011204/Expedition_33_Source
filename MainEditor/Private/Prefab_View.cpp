@@ -15,6 +15,7 @@
 #include "ModelCom.h"
 #include "Mon_WeakPoint.h"
 #include "Monster_WorldBase.h"
+#include "MovementCom.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
 #include "SkyBoxFlow.h"
@@ -153,6 +154,26 @@ bool Try_EvaluateMonsterWidePreviewPose(
         wideHeightOffset,
         wideLookHeightOffset,
         outWidePose);
+}
+
+void Refresh_PreviewPartMatricesAfterGizmo(const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return;
+
+    // Prefab View gizmo is applied after preview capture. Re-run Update only,
+    // so PartObject subclasses rebuild _combinedWorldMatrix without registering render groups.
+    gameObject->Update(0.f);
+
+    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+    if (container == nullptr)
+        return;
+
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+        Refresh_PreviewPartMatricesAfterGizmo(partObject);
+    }
 }
 }
 
@@ -882,13 +903,11 @@ void Prefab_View::Draw_PreviewPanel()
     _previewCanvasMin = previewPos;
     _previewCanvasMax = ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y);
 
-    ImGui::InvisibleButton(
-        "PrefabPreviewCanvas",
-        previewSize,
-        ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
-
+    // Scene View처럼 평소 preview canvas는 입력을 선점하지 않는다.
+    // InvisibleButton이 먼저 active되면 ImGuizmo가 drag 시작을 못 잡는다.
+    ImGui::Dummy(previewSize);
     _isPreviewHovered = ImGui::IsItemHovered();
-    _isPreviewActive = ImGui::IsItemActive();
+    _isPreviewActive = _isPreviewHovered && ImGui::IsMouseDown(ImGuiMouseButton_Right);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -1001,8 +1020,12 @@ void Prefab_View::Render_SelectedObjectGizmo()
         transform->Set_WorldPosition(translation);
         transform->Set_RotationQuaternion(rotation);
         transform->Set_Scale(scale);
+
+        if (Shared<MovementCom> movement = selectedObject->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
     }
 
+    Refresh_PreviewPartMatricesAfterGizmo(selectedObject);
     MarkDirty();
 }
 

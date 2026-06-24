@@ -92,6 +92,7 @@ void PanelViewport::Render()
                     ImGui::SetNextItemWidth(160.f);
                     ImGui::SliderFloat("Rotate", &sens, 0.001f, 0.01f, "%.4f");
                     ImGui::Checkbox("BBox", &_ctx->_objectBBoxMode);
+                    ImGui::Checkbox("Volume Bounds", &_ctx->_showVolumeBounds);
                     ImGui::Checkbox("Instance 숨기기", &_ctx->_hideInstancedMesh);
                     ImGui::Checkbox("Instanced Spawn", &_spawnAsInstanced);
 
