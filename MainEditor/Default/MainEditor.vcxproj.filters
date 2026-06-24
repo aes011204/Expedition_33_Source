@@ -43,6 +43,9 @@
     <ClCompile Include="..\Private\Scene_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EnvironmentView.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Profile_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
@@ -188,6 +191,9 @@
       <Filter>02. Inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EnvironmentView.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Profile_View.h">

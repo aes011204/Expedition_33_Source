@@ -89,6 +89,7 @@ public:
 protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
+    bool Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
     bool Try_EnterPhaseChange();
     void Apply_PhaseVisualState();
     void Update_BlackBoard();

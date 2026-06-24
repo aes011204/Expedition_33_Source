@@ -78,6 +78,7 @@ private:
 
     void SyncSceneLights();
     void SyncFogZones();
+    void SyncVolumetricLightShaftZones();
     void Update_RenderHandles();
     void Update_StaticMeshHandles();
     void Update_InstancedMeshHandles();

@@ -227,6 +227,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\EditorInstance.cpp" />
     <ClCompile Include="..\Private\Editor_Window.cpp" />
     <ClCompile Include="..\Private\Editor_Manager.cpp" />
+    <ClCompile Include="..\Private\EnvironmentView.cpp" />
     <ClCompile Include="..\Private\Profile_View.cpp" />
     <ClCompile Include="..\Private\Scene_View.cpp" />
     <ClCompile Include="..\Private\Game_View.cpp" />
@@ -279,6 +280,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Editor_Window.h" />
     <ClInclude Include="..\Public\Editor_Defines.h" />
     <ClInclude Include="..\Public\IconsFontAwesome6.h" />
+    <ClInclude Include="..\Public\EnvironmentView.h" />
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Editor_Manager.h" />
     <ClInclude Include="..\Public\Profile_View.h" />

@@ -406,10 +406,13 @@ namespace
         }
     }
 
-    bool Is_PreviewNotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped)
+    bool Is_PreviewNotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped, bool includeStartEdge)
     {
         if (!wrapped)
         {
+            if (includeStartEdge)
+                return previousTime <= targetTime + 1e-4f && targetTime <= currentTime + 1e-4f;
+
             if (previousTime <= 1e-4f && targetTime <= 1e-4f)
                 return targetTime <= currentTime;
 
@@ -733,6 +736,7 @@ void Animation_View::Update(float timeDelta)
             playbackModel->Set_CurrentAnimationTimeSec(startSec);
             playbackModel->Play_Animation(0.f);
             playbackModel->Set_AnimationPaused(false);
+            _previewPlayEffectIncludeStartEdge = true;
             _sequencerCurrentFrame = static_cast<int32>(std::round(startSec * static_cast<float>(Get_CurrentAnimationFps())));
             return;
         }
@@ -801,6 +805,7 @@ void Animation_View::Pre_Render()
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
     GAME->UpdateFrustum(previewView, previewProj);
+    GAME->Update_SoundListenerFromActiveCamera();
 
     vector<LIGHT_DESC> previewLightDescs{};
     previewLightDescs.reserve(2);
@@ -839,7 +844,7 @@ void Animation_View::Pre_Render()
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         Update_PreviewRootControllerStates(dt);
         Update_ModifierPreviewMotionTest(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false, true);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
         Update_PreviewScreenFxCueStates(dt);
@@ -886,6 +891,7 @@ void Animation_View::Pre_Render()
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
     GAME->UpdateFrustum(savedView, savedProj);
+    GAME->Update_SoundListenerFromActiveCamera();
     EDITOR->Apply_PreviewViewportSizeImmediate(savedViewportWidth, savedViewportHeight);
 }
 
@@ -1958,6 +1964,7 @@ void Animation_View::Play_CurrentSection(const Shared<ModelCom>& playbackModel)
     }
 
     playbackModel->Set_AnimationPaused(false);
+    _previewPlayEffectIncludeStartEdge = true;
     _isSectionPreviewPlaying = true;
 }
 
@@ -2149,6 +2156,8 @@ void Animation_View::Draw_PreviewPanel()
     ImGui::TextUnformatted("Preview");
     ImGui::SameLine();
     ImGui::Checkbox("SkyBox", &_showPreviewSkyBackdrop);
+    ImGui::SameLine();
+    ImGui::Checkbox("사운드", &_previewSoundEnabled);
     ImGui::Separator();
 
     ImVec2 previewSize = ImGui::GetContentRegionAvail();
@@ -4808,6 +4817,7 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
     if (timeAdvanced)
     {
         const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+        const bool includeStartEdge = _previewPlayEffectIncludeStartEdge;
 
         for (const AnimNotifyEventEntry& entry : animationData->notifies)
         {
@@ -4816,7 +4826,9 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
             const string typeName = entry.notify->Get_TypeName();
             if (typeName != "AN_PlayEffect" && typeName != "AN_PlaySound")
                 continue;
-            if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped))
+            if (typeName == "AN_PlaySound" && !_previewSoundEnabled)
+                continue;
+            if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped, includeStartEdge))
                 continue;
 
             AnimNotifyContext notifyContext = context;
@@ -4825,6 +4837,8 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
 
             entry.notify->Execute(notifyContext);
         }
+
+        _previewPlayEffectIncludeStartEdge = false;
     }
 
     vector<int32> activeStateIds{};
@@ -4908,6 +4922,8 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
 
 void Animation_View::Reset_PreviewPlayEffectStates()
 {
+    _previewPlayEffectIncludeStartEdge = false;
+
     if (_previewPlayEffectStateRuntimes.empty())
         return;
 
@@ -6071,6 +6087,7 @@ void Animation_View::Sync_PreviewAnimationSelection(bool keepCurrentTime)
     playbackModel->Set_AnimationPaused(false);
     playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
     playbackModel->Play_Animation(0.f); // preview 애니메이션 교체 직후에도 현재 시점 notify/state를 한 번 즉시 반영한다.
+    _previewPlayEffectIncludeStartEdge = true;
     _sequencerCurrentFrame = static_cast<int32>(std::round(currentTimeSec * static_cast<float>(Get_CurrentAnimationFps())));
 }
 

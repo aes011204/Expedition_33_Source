@@ -679,6 +679,15 @@ void Sound_Manager::Load_SoundCues()
     LOG_INFO("Sound cues loaded: {}", static_cast<int32>(_soundCues.size()));
 }
 
+HRESULT Sound_Manager::Reload_SoundCues()
+{
+    if (_system == nullptr)
+        return E_FAIL;
+
+    Load_SoundCues(); // DT_SoundCue.json만 다시 읽어서 _soundCues 캐시를 갱신한다.
+    return S_OK;
+}
+
 fs::path Sound_Manager::Get_SoundCueTablePath() const
 {
     const fs::path soundRoot = _soundRootPath;

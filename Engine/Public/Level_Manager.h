@@ -17,7 +17,7 @@ public:
 	HRESULT Render();
 
 public:
-	HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
+	HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes = true);
 
     uint32  Get_CurrentLevelIndex() { return _currentLevelIndex; }
     Shared<Level> Get_CurrentLevelType() { return _currentLevel; }

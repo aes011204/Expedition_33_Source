@@ -109,10 +109,12 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     Apply_UnlockedHeroVisibility();
 
     auto activeHero = Get_ActiveHero();
-    CHECK_NULL(activeHero);
+    if (activeHero)
+        return;
 
     auto state = activeHero->Get_Component<PlayerStateMachineCom>();
-    CHECK_NULL(state);
+    if (state)
+        return;
 
     // 구스타브만 있을 때에는 키가 아예 안눌리도록
     if (Can_SwitchHero() && GAME->KeyDown(KEY_TYPE::T))

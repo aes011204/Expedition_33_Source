@@ -1,6 +1,7 @@
 ﻿#include "Level_GestralVillage.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "GameObject.h"
 #include "SkyBoxFlow.h"
 #include "TargetCamera.h"
 
@@ -26,6 +27,10 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
+    if (FAILED(Ready_Layer_ETC(TEXT("Layer_ETC"))))
+        return E_FAIL;
+
+    GAME->Set_RenderEnvironment(true);
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
@@ -45,6 +50,8 @@ HRESULT Level_GestralVillage::Render()
 
 HRESULT Level_GestralVillage::Ready_Lights()
 {
+    GAME->Clear_Lights();
+
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
@@ -105,6 +112,14 @@ HRESULT Level_GestralVillage::Ready_Lights()
         if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
     }
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Environments()
+{
+    GAME->Set_FogZoneCullingDistance(30.f);
+    GAME->Set_VolumetricLightShaftZoneCullingDistance(15.f);
 
     return S_OK;
 }
@@ -204,6 +219,13 @@ HRESULT Level_GestralVillage::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 {
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
+{
+    UNREFERENCED_PARAMETER(strLayerTag);
 
     return S_OK;
 }

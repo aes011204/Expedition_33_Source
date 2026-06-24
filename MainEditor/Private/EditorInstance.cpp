@@ -23,6 +23,7 @@
 #include "Material_View.h"
 #include "Model_Inspector.h"
 #include "EditorPickingSystem.h"
+#include "EnvironmentView.h"
 #include <fstream>
 #include "ClientInstance.h"
 #include "GameplayUI.h"
@@ -449,6 +450,7 @@ string EditorInstance::Selected_RuntimeWorldUIDisplayName() const
 
 void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
 {
+    EnvironmentView::ClearSelection();
     return _editorContext->Set_SelectObject(gameObject);
 }
 
@@ -458,6 +460,7 @@ void EditorInstance::Select_UI(
     const string& displayName,
     bool positionDrivenByCode)
 {
+    EnvironmentView::ClearSelection();
     return _editorContext->Set_SelectUI(ui, groupName, displayName, positionDrivenByCode);
 }
 
@@ -466,6 +469,7 @@ void EditorInstance::Select_RuntimeWorldUI(
     const string& groupName,
     const string& displayName)
 {
+    EnvironmentView::ClearSelection();
     return _editorContext->Set_SelectRuntimeWorldUI(target, groupName, displayName);
 }
 

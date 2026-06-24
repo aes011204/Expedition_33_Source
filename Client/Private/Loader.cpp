@@ -159,32 +159,8 @@ HRESULT Loader::Loading()
         hr = E_FAIL;
     }
 
-    if (SUCCEEDED(hr))
-    {
-        // 맵 백그라운드 프리로드 수행 (메인 스레드 대기 차단 및 멀티스레드 활용)
-        const LevelMapLoadDesc* desc = Find_MapLoadDesc();
-        if (desc != nullptr)
-        {
-            lstrcpy(_loadingText, TEXT("Map Resources Preloading..."));
-
-            for (size_t i = 0; i < desc->mapPathCount; ++i)
-            {
-                if (desc->mapPaths[i] == nullptr)
-                    continue;
-
-                MapLoader::LoadSession session{};
-                session.preloadedModelCache = _mapPreloadedModelCache;
-                session.preloadedCollisionCache = _mapPreloadedCollisionCache;
-
-                if (SUCCEEDED(MapLoader::Preload_SessionData(_device, _context, desc->mapPaths[i],
-                    ETOI(desc->level), desc->layerTag, session)))
-                {
-                    _mapPreloadedModelCache.insert(session.preloadedModelCache.begin(), session.preloadedModelCache.end());
-                    _mapPreloadedCollisionCache.insert(session.preloadedCollisionCache.begin(), session.preloadedCollisionCache.end());
-                }
-            }
-        }
-    }
+    // 맵 모델/material 생성은 로딩 화면 Update의 프레임 예산 안에서 처리한다.
+    // worker에서 ModelCom::Create까지 돌리면 D3D 리소스 생성이 렌더/UI 애니메이션을 같이 붙잡을 수 있다.
 
     // 로딩 끝난 시간
     const auto end = std::chrono::steady_clock::now();
@@ -739,14 +715,14 @@ HRESULT Loader::Try_FinishLoading()
         _includedStaticJobs.store(false);
     }
 
-    // 백그라운드 프리로드가 끝난 후, 메인 스레드 스폰 단계를 60 FPS(16ms) 예산에 맞춰 점진적 수행하여 화면 멈춤 제거
-    chrono::milliseconds mapLoadBudgetMs = chrono::milliseconds(24);
-    size_t mapLoadMeshesPerFrame = 80;
+    // 부드러운 로딩 애니메이션을 우선해서 맵 모델 생성/material 적용/스폰을 작게 나눠 처리한다.
+    chrono::milliseconds mapLoadBudgetMs = chrono::milliseconds(6);
+    size_t mapLoadMeshesPerFrame = 4;
 
     if (_nextLevel == LevelType::MapTest)
     {
-        mapLoadMeshesPerFrame = 20;             // TestMap은 로딩 화면 hitch를 줄이기 위해 더 잘게 쪼갠다.
-        mapLoadBudgetMs = chrono::milliseconds(12);
+        mapLoadMeshesPerFrame = 2;              // TestMap은 로딩 화면 hitch를 줄이기 위해 더 잘게 쪼갠다.
+        mapLoadBudgetMs = chrono::milliseconds(4);
     }
 
     CHECK_FAILED(Process_LevelMapLoad(mapLoadMeshesPerFrame, mapLoadBudgetMs), E_FAIL);
