@@ -315,6 +315,9 @@
     <ClCompile Include="..\Private\ANS_SL_MoveTo.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\ANS_Parry.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -761,6 +764,9 @@
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsLastAttack.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsHit.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
@@ -771,6 +777,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsStun.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_SelectNextAttack.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp">
@@ -1790,6 +1799,9 @@
     <ClInclude Include="..\Public\BT_SL_IsDead.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsLastAttack.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsHit.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
@@ -1800,6 +1812,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsStun.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_SelectNextAttack.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_SetDesiredState.h">
@@ -2547,6 +2562,9 @@
     <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_TargetTrack.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h">

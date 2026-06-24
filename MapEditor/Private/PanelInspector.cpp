@@ -314,7 +314,8 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
     if (obj->_type != EObjectType::EncounterZone &&
         obj->_type != EObjectType::TriggerVolume &&
         obj->_type != EObjectType::CameraZone &&
-        obj->_type != EObjectType::PostProcessVolume)
+        obj->_type != EObjectType::PostProcessVolume &&
+        obj->_type != EObjectType::ShaftVolume)
     {
         return;
     }
@@ -324,22 +325,27 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
         return;
     }
 
-    int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
-    const bool forceBoxShape = (obj->_type == EObjectType::PostProcessVolume);
-    if (forceBoxShape)
+    if (obj->_type == EObjectType::PostProcessVolume)
     {
-        obj->_zoneShape = EZoneShape::Box;
-        shapeIdx = 0;
-        ImGui::BeginDisabled();
-        ImGui::Combo("Shape", &shapeIdx, _shapes, 1);
-        ImGui::EndDisabled();
+        int shapeIdx = (obj->_zoneShape == EZoneShape::OBB) ? 1 : 0;
+        if (ImGui::Combo("Shape", &shapeIdx, "AABB\0OBB\0"))
+        {
+            obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::OBB : EZoneShape::Box;
+        }
     }
-    else if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
+    else
     {
-        obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
+        if (obj->_zoneShape == EZoneShape::OBB)
+            obj->_zoneShape = EZoneShape::Box;
+
+        int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
+        if (ImGui::Combo("Shape", &shapeIdx, "Box\0Sphere\0"))
+        {
+            obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
+        }
     }
 
-    if (obj->_zoneShape == EZoneShape::Box)
+    if (obj->_zoneShape != EZoneShape::Sphere)
     {
         float ext[3] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
         if (ImGui::DragFloat3("Extent", ext, 0.1f, 0.01f, 1000.f))
@@ -432,6 +438,21 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             if (ImGui::ColorEdit3("Fog Color", fogColor))
             {
                 obj->_ppFogColor = { fogColor[0], fogColor[1], fogColor[2] };
+            }
+        }
+        break;
+
+    case EObjectType::ShaftVolume:
+        if (ImGui::CollapsingHeader("Froxel Shaft", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::DragFloat("Density", &obj->_shaftDensity, 0.01f, 0.f, 10.f);
+            ImGui::DragFloat("Edge Fade", &obj->_shaftEdgeFade, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Intensity", &obj->_shaftIntensity, 0.01f, 0.f, 100.f);
+
+            float shaftColor[4] = { obj->_shaftLightColor.x, obj->_shaftLightColor.y, obj->_shaftLightColor.z, obj->_shaftLightColor.w };
+            if (ImGui::ColorEdit4("Light Color", shaftColor))
+            {
+                obj->_shaftLightColor = Vec4(shaftColor[0], shaftColor[1], shaftColor[2], shaftColor[3]);
             }
         }
         break;

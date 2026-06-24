@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -60,6 +61,7 @@ public:
     HRESULT Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* viewName, const char* projName);
 
     HRESULT Bind_ShadowCB(Shared<ShaderCom> shader);
+    ShadowCB Build_ShadowCB() const;
     HRESULT Set_ActiveCascade(uint32 cascadeIndex);
 
     void    Clear();

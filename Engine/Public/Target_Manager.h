@@ -44,6 +44,7 @@ public :
     HRESULT Copy_RTV_ArraySlice(const wstring& srcTargetTag, uint32 arraySlice, const wstring& dstTargetTag);
 
     HRESULT Copy_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
+    ID3D11ShaderResourceView* Get_RT_SRV(const wstring& targetTag);
 
 private :
     Shared<RenderTarget>        Find_RenderTarget(const wstring& targetTag);

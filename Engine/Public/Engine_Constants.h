@@ -24,6 +24,7 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view FogZone      = "FogZoneBuffer";
     inline constexpr ::string_view Water        = "WaterBuffer";
     inline constexpr ::string_view PlayerRender = "PlayerRenderBuffer";
+    inline constexpr ::string_view Froxel = "FroxelBuffer";
     inline constexpr ::string_view FroxelDebug = "FroxelDebugBuffer";
     inline constexpr ::string_view VolumetricLightShaftZone = "VolumetricLightShaftZoneBuffer";
 
@@ -45,6 +46,7 @@ namespace Engine::ShaderCB
         Water,
         LightShaft,
         PlayerRender,
+        Froxel,
         FroxelDebug,
         VolumetricLightShaftZone
     };

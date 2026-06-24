@@ -26,6 +26,7 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
+    GAME->Set_RenderEnvironment(true);
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
@@ -107,6 +108,14 @@ HRESULT Level_GestralVillage::Ready_Lights()
         if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
     }
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Environments()
+{
+    GAME->Set_FogZoneCullingDistance(30.f);
+    GAME->Set_VolumetricLightShaftZoneCullingDistance(15.f);
 
     return S_OK;
 }
