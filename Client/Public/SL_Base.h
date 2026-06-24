@@ -24,6 +24,8 @@ public:
     // Collider Com
    // virtual Shared<ColliderCom>   Get_AttackCollider() const = 0;
 
+    virtual bool Is_DamageBlocked() const { return false; }
+
     virtual void Set_AttackHitAnimOverride(const string& colliderTag, SL_HitAnimOverride hitAnimOverride);
     virtual void Clear_AttackHitAnimOverride(const string& colliderTag);
 

@@ -110,6 +110,12 @@ bool SL_Mon_AttackState::EnterInvoke()
     }
 
     const SL_MonAttackType selectedAttack = Resolve_SelectedAttack(owner);
+    if (const Shared<AIController> aiCtrl = owner->Get_Component<AIController>())
+    {
+        if (const Shared<BlackBoard> bb = aiCtrl->Get_BlackBoard())
+            bb->Set_Value<int>("LastAttack", static_cast<int>(selectedAttack));
+    }
+
     const SL_Dualliste::Anim attackAnim = Resolve_AttackAnim(selectedAttack);
 
     return owner->Play_Anim(attackAnim, 0.1f, false);

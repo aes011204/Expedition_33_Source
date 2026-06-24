@@ -34,6 +34,7 @@ HRESULT Mon_Dualliste_Body::Initialize(void* arg)
          _model->Set_LocalRootNode(_rootIndex);
      }
 
+     _model->Set_RootMotionEnabled(true);
     return S_OK;
 }
 

@@ -46,6 +46,7 @@ public:
     Shared<CombatStatCom> Get_Stat() const override;
     Shared<ColliderCom> Get_AttackCollider() const;
     bool    Is_Dead() const override;
+    bool    Is_DamageBlocked() const override { return Is_Invincible(); }
     void    Apply_Damage(const SL_DamageInfo& damageInfo) override;
 
 public:
