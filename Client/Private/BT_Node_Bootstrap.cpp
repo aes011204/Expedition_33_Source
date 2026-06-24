@@ -8,6 +8,7 @@
 #include "BT_RotateToTarget.h"
 #include "BT_SetSkill.h"
 #include "BT_Set_Target.h"
+#include "BT_SL_SelectNextAttack.h"
 
 NS_BEGIN(Client)
 
@@ -22,6 +23,7 @@ void Force_Register_ClientBTNodes()
     (void)BT_Set_Target::StaticClassNameA();
     (void)BT_SetSkill::StaticClassNameA();
     (void)BT_LookRange::StaticClassNameA();
+    (void)BT_SL_SelectNextAttack::StaticClassNameA();
 }
 
 NS_END

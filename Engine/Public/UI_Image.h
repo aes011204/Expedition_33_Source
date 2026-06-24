@@ -86,7 +86,6 @@ public:
         ImageRenderMode imageRenderMode = ImageRenderMode::Normal;
         MaskTextureMode maskTextureMode = MaskTextureMode::Alpha;
 
-        // 인수: 원형 마스크 추가
         MaskMode maskMode = MaskMode::None;
         Vec2 holeCenterUV{ 0.5f, 0.5f }; // 화면 중앙
         float holeRadius = 0.f;
@@ -130,6 +129,9 @@ public:
 
     HRESULT Set_TexturePath(const wstring& texturePath);
     HRESULT Set_TextureGuid(const string& textureGuid);
+
+    HRESULT Set_ExternalShaderResource(ShaderResourceView* srv);
+    void    Clear_ExternalShaderResource();
 
 private:
     HRESULT Ready_RenderResources();

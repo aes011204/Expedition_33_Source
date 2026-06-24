@@ -60,6 +60,14 @@ HRESULT SL_Dualliste::Initialize(void* arg)
     return S_OK;
 }
 
+bool SL_Dualliste::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    UNREFERENCED_PARAMETER(partObjectJson);
+
+    return partTag != TEXT("Part_Sword_L") &&
+        partTag != TEXT("Part_Sword_R");
+}
+
 void SL_Dualliste::BeginPlay()
 {
     SL_Base::BeginPlay();
@@ -384,6 +392,9 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
     if (_combatStat == nullptr || _stateMachineCom == nullptr)
         return;
 
+    if (_isPhaseChangeInvincible)
+        return;
+
     if (Is_Dead())
     {
         Set_ActionLocked(false);
@@ -421,7 +432,7 @@ void SL_Dualliste::Update_BlackBoard()
         bb->Set_Value<int>("CurrentPhase", _currentPhase);
 
     bb->Set_Value<bool>("IsDead", Is_Dead());
-    bb->Set_Value<bool>("IsStun", _combatStat && _combatStat->IsBreak());
+    bb->Set_Value<bool>("IsStun", _combatStat && _combatStat->IsBreak() && !_isPhaseChangeInvincible);
 
     const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
     const Shared<SL_Maelle> player = controller ? controller->Get_Player() : nullptr;
@@ -475,6 +486,12 @@ bool SL_Dualliste::Change_State(SL_MonState state)
     return _stateMachineCom->Change_State(state);
 }
 
+void SL_Dualliste::Begin_PhaseChangeTransition()
+{
+    _isPhaseChangeInvincible = true;
+    Clear_BreakState();
+}
+
 void SL_Dualliste::Finish_PhaseChange()
 {
     if (_phaseChangeFinished)
@@ -484,11 +501,20 @@ void SL_Dualliste::Finish_PhaseChange()
     _phaseChangeFinished = true;
     Apply_PhaseVisualState();
 
+    if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        controller->Play_DuallisteBGM(SoulLikeController::DuallisteBGMPhase::Phase2);
+
     if (_aiCtrl)
     {
         if (const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard())
             bb->Set_Value<int>("CurrentPhase", _currentPhase);
     }
+}
+
+void SL_Dualliste::End_PhaseChangeTransition()
+{
+    _isPhaseChangeInvincible = false;
+    _skipPhaseChangeStunStart = false;
 }
 
 void SL_Dualliste::Set_ActionLocked(bool isActionLock)
@@ -521,10 +547,14 @@ bool SL_Dualliste::Try_EnterPhaseChange()
         return false;
 
     _phaseChangeTriggered = true;
+    _skipPhaseChangeStunStart = currentState == SL_MonState::Stun;
+    Begin_PhaseChangeTransition();
     Set_ActionLocked(false);
     if (_stateMachineCom->Change_State(SL_MonState::PhaseChange))
         return true;
 
+    End_PhaseChangeTransition();
+    _skipPhaseChangeStunStart = false;
     _phaseChangeTriggered = false;
     return false;
 }
@@ -591,6 +621,16 @@ float SL_Dualliste::Calculate_BreakDamage(AttackType attackType) const
     default:
         return 0.f;
     }
+}
+
+void SL_Dualliste::Clear_BreakState()
+{
+    if (_combatStat == nullptr)
+        return;
+
+    _combatStat->SetBreak(false);
+    _combatStat->Clear_Break();
+    _stunElapsed = 0.f;
 }
 
 HRESULT SL_Dualliste::Ready_Components()

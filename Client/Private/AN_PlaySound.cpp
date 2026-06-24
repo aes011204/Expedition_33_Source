@@ -10,7 +10,8 @@ IMPLEMENT_REFLECTION(AN_PlaySound)
 
     PROPERTY_WSTRING("Sound Cue", _soundCue);
     PROPERTY_FLOAT("Volume", _volume, 0.f, 10.f, 0.01f);
-    PROPERTY_FLOAT("Pitch", _pitch, 0.1f, 3.f, 0.01f);
+    PROPERTY_FLOAT("Speed", _speed, 0.1f, 3.f, 0.01f);
+    PROPERTY_FLOAT("Start Ratio", _startRatio, 0.f, 0.99f, 0.01f);
 
     return true;
 }
@@ -38,7 +39,7 @@ void AN_PlaySound::Execute(const AnimNotifyContext& context)
     if (_soundCue.empty())
         return;
 
-    GAME->Play_SoundCue(_soundCue, soundPosition, _volume, _pitch);
+    GAME->Play_SoundCue(_soundCue, soundPosition, _volume, _speed, _startRatio);
 }
 
 void AN_PlaySound::From_Json(const json& data)
@@ -49,18 +50,22 @@ void AN_PlaySound::From_Json(const json& data)
         return;
 
     const bool hasVolume = data.contains("_volume");
-    const bool hasPitch = data.contains("_pitch");
-    if (hasVolume && hasPitch)
+    const bool hasSpeed = data.contains("_speed");
+    const bool hasLegacyPitch = data.contains("_pitch");
+    if (!hasSpeed && hasLegacyPitch)
+        _speed = data["_pitch"].get<float>(); // 기존 notify의 _pitch 값은 이제 피치가 아니라 재생 속도로 승계한다.
+
+    if (hasVolume && (hasSpeed || hasLegacyPitch))
         return;
 
     float cueVolume = 1.f;
-    float cuePitch = 1.f;
-    if (!GAME->Try_GetSoundCueDefaultVolumePitch(_soundCue, cueVolume, cuePitch))
+    float cueSpeed = 1.f;
+    if (!GAME->Try_GetSoundCueDefaultVolumeSpeed(_soundCue, cueVolume, cueSpeed))
         return;
 
     if (!hasVolume)
         _volume = cueVolume; // 예전 notify는 cue 테이블 값을 최초 커스텀 기본값으로 받아온다.
 
-    if (!hasPitch)
-        _pitch = cuePitch;
+    if (!hasSpeed && !hasLegacyPitch)
+        _speed = cueSpeed;
 }

@@ -7,6 +7,7 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "PictosBattleSystem.h"
+#include "Character_BattleBase.h"
 
 FOnDamageApplied        DamageSystem::OnDamageApplied{};
 FOnDamageCalculating    DamageSystem::OnDamageCalculating{};
@@ -66,6 +67,7 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
 
     damage = Consume_NextAttackQTEDamage(damage, attacker, attackType);
 
+    // 쉴드
     if (target.statCom->Get_CurrentShield() != 0)
     {
         const uint32 prevShield = target.statCom->Get_CurrentShield();
@@ -117,6 +119,12 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
 
     if (isCritical)
         damage *= 1.5f;
+
+    if (target.actor)
+        target.actor->Adjust_IncomingBattleDamage(attacker, damage, attackType);
+
+    if (damage <= 0.f)
+        return; // 감소된 피해 다시 확인
 
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
     runtimeStat.CurHp -= damage;

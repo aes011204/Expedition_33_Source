@@ -19,9 +19,40 @@ bool SL_Mon_PhaseChangeState::EnterInvoke()
     if (owner == nullptr)
         return false;
 
+    owner->Begin_PhaseChangeTransition();
     owner->Set_ActionLocked(true);
 
-    return owner->Play_Anim(SL_Dualliste::Anim::PhaseChange, 0.1f, false);
+    _phase = owner->Should_SkipPhaseChangeStunStart()
+        ? Phase::StunEnd
+        : Phase::StunStart;
+    _hasStarted = false;
+
+    return true;
+}
+
+void SL_Mon_PhaseChangeState::Play_CurrentPhase()
+{
+    const Shared<SL_Dualliste> owner = _owner.lock();
+    if (owner == nullptr)
+        return;
+
+    switch (_phase)
+    {
+    case Phase::StunStart:
+        owner->Play_Anim(SL_Dualliste::Anim::Stun_Start, 0.1f, false);
+        break;
+
+    case Phase::StunEnd:
+        owner->Play_Anim(SL_Dualliste::Anim::Stun_End, 0.1f, false);
+        break;
+
+    case Phase::PhaseChange:
+        owner->Play_Anim(SL_Dualliste::Anim::PhaseChange, 0.1f, false);
+        break;
+
+    case Phase::End:
+        break;
+    }
 }
 
 void SL_Mon_PhaseChangeState::Update(float timeDelta)
@@ -38,12 +69,39 @@ void SL_Mon_PhaseChangeState::Update(float timeDelta)
         return;
     }
 
+    if (!_hasStarted)
+    {
+        _hasStarted = true;
+        Play_CurrentPhase();
+        return;
+    }
+
     if (!owner->Is_AnimFinished())
         return;
 
-    owner->Set_ActionLocked(false);
-    owner->Finish_PhaseChange();
-    _stateCom->Change_State(SL_MonState::Idle);
+    switch (_phase)
+    {
+    case Phase::StunStart:
+        _phase = Phase::StunEnd;
+        Play_CurrentPhase();
+        return;
+
+    case Phase::StunEnd:
+        _phase = Phase::PhaseChange;
+        Play_CurrentPhase();
+        return;
+
+    case Phase::PhaseChange:
+        owner->Set_ActionLocked(false);
+        owner->Finish_PhaseChange();
+        owner->End_PhaseChangeTransition();
+        _phase = Phase::End;
+        _stateCom->Change_State(SL_MonState::Idle);
+        return;
+
+    case Phase::End:
+        return;
+    }
 }
 
 Shared<SL_Mon_PhaseChangeState> SL_Mon_PhaseChangeState::Create(const Shared<SL_Dualliste>& owner)

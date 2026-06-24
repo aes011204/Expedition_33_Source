@@ -979,6 +979,14 @@ bool PhysX_Manager::Sweep_Collider(ColliderCom* collider, const Matrix& worldMat
     outHit.position = Vec3(block.position.x, block.position.y, block.position.z);
     outHit.normal = Vec3(block.normal.x, block.normal.y, block.normal.z);
 
+    ColliderCom* hitCollider = nullptr;
+    if (block.shape != nullptr)
+        hitCollider = static_cast<ColliderCom*>(block.shape->userData);
+
+    outHit.collider = hitCollider;
+    outHit.owner = (hitCollider != nullptr && hitCollider->Get_Owner() != nullptr)
+        ? hitCollider->Get_Owner().get() : nullptr;
+
     return true;
 }
 

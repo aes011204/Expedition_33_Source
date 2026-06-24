@@ -67,6 +67,10 @@ private:
         uint32 effectPoolEntryCount = 0;
         uint32 effectPoolActiveCount = 0;
         uint32 effectPoolIdleCount = 0;
+        size_t editorPlayBindings = 0;
+        size_t editorPauseBindings = 0;
+        size_t editorResumeBindings = 0;
+        size_t editorStopBindings = 0;
         bool hasData = false;
     };
 

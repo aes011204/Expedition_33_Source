@@ -698,7 +698,7 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
         Insert_TrailSamplesForFrame(trailSample);
     }
 
-    if (!sampleAccepted)
+    if (!sampleAccepted && (provider == nullptr || !_history.empty() || _drawSegmentCount > 0))
     {
         LOG_WARN_THROTTLED(
             120,

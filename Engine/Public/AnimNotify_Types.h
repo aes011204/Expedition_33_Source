@@ -27,6 +27,7 @@ struct AnimNotifyContext
     bool        isLooping = false;  // 반복할지
     bool        wrapped = false;    // 
     bool        isPreview = false;  // 프리뷰 (애니메이션 뷰) 인지
+    bool        isCinematic = false;
 };
 
 struct AnimNotifyTrackDesc

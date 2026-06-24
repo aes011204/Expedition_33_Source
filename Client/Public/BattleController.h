@@ -137,14 +137,22 @@ public:
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
     void                Clear_TargetPreview();
-    const BattleChar* Get_TargetPreview() const;
+    const BattleChar*   Get_TargetPreview() const;
+
+    bool    Ensure_EnemyTargetPreview();
+    bool    Move_EnemyTargetPreview(int32 direction);
+    void    Publish_TargetPreviewEnemyFocus() const;
 
 public:
     bool                Is_PlayerTurnActive() const;
     BattleTurnState     Get_CurrentTurnState() const;
+    void                Set_AutoParryEnabled(bool enabled) { _autoParryEnabled = enabled; }
+    bool                Is_AutoParryEnabled() const { return _autoParryEnabled; }
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
     Shared<BattleSpawnRegistry> Get_BattleSpawnRegistry() const { return _battleSpawnRegistry; }
+
+    bool Should_UpdateRuntime() const;
 
 public:
     // 부활
@@ -241,6 +249,8 @@ private:
 
     bool    Update_BattleTutorialGate(float timeDelta);
 
+    int32 Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const;
+
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 스킬 세팅
     void Configure_BattlePlayerSkills(
@@ -299,6 +309,7 @@ private:
     bool _isBattleActive = { false };
     bool _isBattleEntering = { false };
     bool _hasRequestedBattleEnterCamera = false;
+    bool _autoParryEnabled = false;
 
     int currentTurnIndex = {};
 

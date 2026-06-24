@@ -4,6 +4,7 @@
 #include "Cinematic_Utils.h"
 #include "FreeCamera.h"
 #include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -44,18 +45,32 @@ Cinematic_Player::~Cinematic_Player()
 
 void Cinematic_Player::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
-    if(!_isCinematicPlaying)
+    if (!_isCinematicPlaying)
         return;
 
-    if (!_isCinematicPaused)
-        _currentFrame += 1;
-
-    if(_sequence != nullptr && _currentFrame >= _sequence->endFrame)
+    if (!_isCinematicPaused && _sequence != nullptr)
     {
-        _currentFrame = _sequence->endFrame;
-        Stop();
+        const float sequenceFps = static_cast<float>(std::max(_sequence->fps, 1));
+
+        _currentFrameExact += std::max(timeDelta, 0.f) * sequenceFps;
+
+        if (_currentFrameExact >= static_cast<float>(_sequence->endFrame))
+        {
+            _currentFrameExact = static_cast<float>(_sequence->endFrame);
+            _currentFrame = _sequence->endFrame;
+
+            if (_applyCameraTrack)
+                Play();
+
+            _isCinematicPlaying = false;
+            _isCinematicPaused = false;
+            return;
+        }
+
+        _currentFrame = std::clamp(
+            static_cast<int>(std::floor(_currentFrameExact)),
+            _sequence->startFrame,
+            _sequence->endFrame);
     }
 
     if (_applyCameraTrack)
@@ -93,6 +108,7 @@ void Cinematic_Player::Stop()
     _isCinematicPlaying = false;
     _isCinematicPaused = false;
     _currentFrame = _sequence ? _sequence->startFrame : 0;
+    _currentFrameExact = static_cast<float>(_currentFrame);
 }
 
 void Cinematic_Player::Set_CurrentFrame(int frame, bool applyCamera)
@@ -101,6 +117,7 @@ void Cinematic_Player::Set_CurrentFrame(int frame, bool applyCamera)
         return;
 
     _currentFrame = std::clamp(frame, _sequence->startFrame, _sequence->endFrame);
+    _currentFrameExact = static_cast<float>(_currentFrame);
     if (applyCamera)
         Play();
 }
@@ -115,7 +132,17 @@ void Cinematic_Player::Rebind_Sequence(
     _rightKey = nullptr;
 
     if (_sequence != nullptr)
-        _currentFrame = std::clamp(_currentFrame, _sequence->startFrame, _sequence->endFrame);
+    {
+        _currentFrameExact = std::clamp(
+            _currentFrameExact,
+            static_cast<float>(_sequence->startFrame),
+            static_cast<float>(_sequence->endFrame));
+
+        _currentFrame = std::clamp(
+            static_cast<int>(std::floor(_currentFrameExact)),
+            _sequence->startFrame,
+            _sequence->endFrame);
+    }
 }
 
 void Cinematic_Player::Ready_CinematicPlayer(
@@ -132,6 +159,7 @@ void Cinematic_Player::Ready_CinematicPlayer(
     _isCinematicPaused = false;
     _applyCameraTrack = applyCameraTrack;
     _currentFrame = _sequence ? _sequence->startFrame : 0;
+    _currentFrameExact = static_cast<float>(_currentFrame);
 }
 
 Shared<Cinematic_Player> Cinematic_Player::Create()

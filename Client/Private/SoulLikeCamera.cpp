@@ -1,9 +1,10 @@
-#include "SoulLikeCamera.h"
-
+﻿#include "SoulLikeCamera.h"
+#include "ClientInstance.h"
 #include "CameraPresetIO.h"
 #include "Collision_Define.h"
 #include "GameInstance.h"
 #include "PhysX_Types.h"
+#include "SoulLikeController.h"
 
 namespace
 {
@@ -153,7 +154,15 @@ void SoulLikeCamera::Update(float timeDelta)
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
-    if (_targetSettings.allowMouseRotation && !GAME->Is_WorldGameplayInputBlocked())
+    bool blockMouseRotation = false;
+    if (const auto controller = CLIENT->Get_SoulLikeController())
+    {
+        blockMouseRotation = controller->Is_VictoryCameraBlocked();
+    }
+
+    if (_targetSettings.allowMouseRotation &&
+        !blockMouseRotation &&  // 승리 시 카메라 움직임 불가능
+        !GAME->Is_WorldGameplayInputBlocked())
     {
         const Vec2 mouseDelta = GAME->Get_MouseDelta();
 

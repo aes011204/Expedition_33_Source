@@ -16,6 +16,7 @@
 std::mutex MapLoader::g_globalCacheMutex;
 umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
+umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
 MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
@@ -104,8 +105,65 @@ namespace
                 hasGroundFogGlobals = true;
             }
 
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            Vec3 extent{ 5.f, 5.f, 5.f };
+            if (e.contains("Extent"))
+            {
+                auto& ex = e["Extent"];
+                extent = Vec3(ex[0], ex[1], ex[2]);
+            }
+
+            Quat rotation = Quat::Identity;
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                rotation = Quat(r[0], r[1], r[2], r[3]);
+            }
+
+            const string shape = e.value("Shape", "Box");
+            if (shape == "OBB")
+            {
+                if (fogCB.obbCount >= FogZoneCB::MAX_FOG_OBB_ZONES)
+                    continue;
+
+                FogOBBZoneEntry entry{};
+                const Matrix world =
+                    Matrix::CreateFromQuaternion(rotation) *
+                    Matrix::CreateTranslation(position);
+
+                entry.worldToLocal = world.Invert();
+                entry.halfExtents = extent;
+                if (e.contains("FogColor"))
+                {
+                    auto& c = e["FogColor"];
+                    entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+                }
+
+                entry.fogDensity = density;
+                entry.baseHeight = e.value("BaseHeight", 0.f);
+                entry.topFadeStart = e.value("TopFadeStart", 0.4f);
+                entry.topHeight = e.value("TopHeight", 0.9f);
+                entry.edgeFade = e.value("EdgeFade", 1.f);
+                entry.noiseScale = e.value("NoiseScale", 0.0025f);
+                if (e.contains("NoiseSpeed"))
+                {
+                    auto& speed = e["NoiseSpeed"];
+                    entry.noiseSpeed = Vec2(speed[0], speed[1]);
+                }
+                entry.noiseStrength = e.value("NoiseStrength", 0.9f);
+                entry.noiseMin = e.value("NoiseMin", 0.38f);
+                fogCB.obbZones[fogCB.obbCount++] = entry;
+                continue;
+            }
+
             if (fogCB.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-                break;
+                continue;
 
             FogZoneEntry entry{};
             if (e.contains("FogColor"))
@@ -127,12 +185,35 @@ namespace
             }
             entry.noiseStrength = e.value("NoiseStrength", 0.9f);
             entry.noiseMin = e.value("NoiseMin", 0.38f);
+            entry.zoneMin = position - extent;
+            entry.zoneMax = position + extent;
+            fogCB.aabbZones[fogCB.aabbCount++] = entry;
+        }
+
+        GAME->Set_FogZones(fogCB);
+    }
+
+    void Apply_ShaftVolumes(const vector<json>& shaftVolumes)
+    {
+        VolumetricLightShaftZoneCB shaftCB{};
+
+        for (const auto& e : shaftVolumes)
+        {
+            if (shaftCB.zoneCount >= VolumetricLightShaftZoneCB::MAX_LIGHT_SHAFT_ZONES)
+                break;
 
             Vec3 position{};
             if (e.contains("Position"))
             {
                 auto& p = e["Position"];
                 position = Vec3(p[0], p[1], p[2]);
+            }
+
+            Quat rotation = Quat::Identity;
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                rotation = Quat(r[0], r[1], r[2], r[3]);
             }
 
             Vec3 extent{ 5.f, 5.f, 5.f };
@@ -142,12 +223,27 @@ namespace
                 extent = Vec3(ex[0], ex[1], ex[2]);
             }
 
-            entry.zoneMin = position - extent;
-            entry.zoneMax = position + extent;
-            fogCB.zones[fogCB.aabbCount++] = entry;
+            const float radius = e.value("Radius", 5.f);
+            const string shape = e.value("Shape", "Box");
+
+            VolumetricLightShaftZoneEntry entry{};
+            const Matrix world =
+                Matrix::CreateFromQuaternion(rotation) *
+                Matrix::CreateTranslation(position);
+            entry.worldToLocal = world.Invert();
+            entry.halfExtents = (shape == "Sphere") ? Vec3(radius, radius, radius) : extent;
+            entry.density = e.value("Density", 1.f);
+            if (e.contains("LightColor"))
+            {
+                auto& c = e["LightColor"];
+                entry.lightColor = Vec4(c[0], c[1], c[2], c.size() > 3 ? static_cast<float>(c[3]) : 1.f);
+            }
+            entry.edgeFade = e.value("EdgeFade", 0.5f);
+            entry.intensity = e.value("Intensity", 1.f);
+            shaftCB.zones[shaftCB.zoneCount++] = entry;
         }
 
-        GAME->Set_FogZones(fogCB);
+        GAME->Set_VolumetricLightShaftZones(shaftCB);
     }
 
     HRESULT Add_WaterObject(
@@ -261,15 +357,18 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.staticMeshes = std::move(splitData.staticMeshes);
     outSession.instancedMeshes = std::move(splitData.instancedMeshes);
     outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
+    outSession.shaftVolumes = std::move(splitData.shaftVolumes);
     outSession.waters = std::move(splitData.waters);
     outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
     outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
     outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
+    outSession.materialsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = true;
 
@@ -277,12 +376,13 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
     LOG_DEBUG(
-        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} waters={} preloadModels={} modelOverrides={}",
+        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} shaftVolumes={} waters={} preloadModels={} modelOverrides={}",
         splitData.root.generic_string(),
         outSession.modelFolder,
         outSession.staticMeshes.size(),
         outSession.instancedMeshes.size(),
         outSession.postProcessVolumes.size(),
+        outSession.shaftVolumes.size(),
         outSession.waters.size(),
         outSession.preloadModelPaths.size(),
         outSession.modelOverrides.size());
@@ -300,6 +400,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             std::lock_guard<std::mutex> lock(g_globalCacheMutex);
             g_globalModelCache.clear();
             g_globalCollisionCache.clear();
+            g_globalMaterialSignatureByModel.clear();
             g_currentLevelIndex = levelIndex;
         }
         MapAdapter::Clear_MaterialCache();
@@ -409,6 +510,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.modelFolder = mapData.value("ModelFolder", string{});
 
     Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
+    Append_JsonArray(mapData, "ShaftVolumes", outSession.shaftVolumes);
     Append_JsonArray(mapData, "Waters", outSession.waters);
 
     MapAdapter::AppendModelOverrides(mapData, outSession.modelOverrides);
@@ -467,9 +569,11 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
         outSession.primitiveCollisionCache);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
+    outSession.materialsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.authoredObjectsDone = outSession.authoredObjects.empty();
@@ -507,7 +611,8 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
             outSession.context,
             outSession.modelFolder,
             modelPathStr,
-            outSession.modelOverrides);
+            outSession.modelOverrides,
+            false);
 
         if (!model)
         {
@@ -547,7 +652,8 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
                 outSession.context,
                 outSession.modelFolder,
                 modelPathStr,
-                outSession.modelOverrides);
+                outSession.modelOverrides,
+                false);
 
             if (!model)
                 continue;
@@ -579,7 +685,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
     chrono::milliseconds maxTimePerFrame, bool& outFinished)
 {
     // 처리 순서는 의도된 계약이다.
-    // preload -> 전역 one-shot 시스템 -> water -> static -> instanced -> prefab 순서를 유지해야
+    // preload -> material -> 전역 one-shot 시스템 -> water -> static -> instanced -> prefab 순서를 유지해야
     // 기존 통합 맵과 신규 split 맵의 동작 차이를 줄일 수 있다.
     outFinished = false;
     ++session.processCallCount;
@@ -625,10 +731,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.modelFolder,
             modelPathStr,
             session.modelOverrides,
+            false,
             &session.modelCreateDuration,
             &session.modelCreateCount,
-            &session.materialApplyDuration,
-            &session.materialApplyCount);
+            nullptr,
+            nullptr);
 
         if (!model)
         {
@@ -640,6 +747,46 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
+    while (!session.materialsDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextMaterialApplyModelIndex >= session.preloadModelPaths.size())
+        {
+            session.materialsDone = true;
+            break;
+        }
+
+        const string modelPathStr = session.preloadModelPaths[session.nextMaterialApplyModelIndex++];
+        if (modelPathStr.empty())
+            continue;
+
+        auto it = session.preloadedModelCache.find(modelPathStr);
+        Shared<ModelCom> model = (it != session.preloadedModelCache.end()) ? it->second : nullptr;
+
+        if (model == nullptr)
+        {
+            model = GetOrLoadModel(
+                session.device,
+                session.context,
+                session.modelFolder,
+                modelPathStr,
+                session.modelOverrides,
+                true,
+                &session.modelCreateDuration,
+                &session.modelCreateCount,
+                &session.materialApplyDuration,
+                &session.materialApplyCount);
+
+            if (model != nullptr)
+                session.preloadedModelCache[modelPathStr] = model;
+        }
+
+        ApplySessionModelMaterials(session, modelPathStr, model);
+        ++processedCount;
+    }
+
     if (!session.staticAutoInstancingPrepared)
     {
         Prepare_StaticAutoInstancing(session);
@@ -647,6 +794,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.staticMeshesDone = session.staticMeshes.empty();
         session.instancedMeshesDone = session.instancedMeshes.empty();
         session.postProcessVolumesDone = session.postProcessVolumes.empty();
+        session.shaftVolumesDone = session.shaftVolumes.empty();
         session.watersDone = session.waters.empty();
         session.prefabInstancesDone = session.prefabInstances.empty();
         session.authoredObjectsDone = session.authoredObjects.empty();
@@ -659,6 +807,16 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         Apply_PostProcessVolumes(session.postProcessVolumes);
         session.postProcessVolumesDone = true;
+        ++processedCount;
+    }
+
+    if (!session.shaftVolumesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        Apply_ShaftVolumes(session.shaftVolumes);
+        session.shaftVolumesDone = true;
         ++processedCount;
     }
 
@@ -715,10 +873,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 session.modelFolder,
                 modelPathStr,
                 session.modelOverrides,
+                false,
                 &session.modelCreateDuration,
                 &session.modelCreateCount,
-                &session.materialApplyDuration,
-                &session.materialApplyCount);
+                nullptr,
+                nullptr);
 
             if (!model)
             {
@@ -824,6 +983,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 session.modelFolder,
                 modelPathStr,
                 session.modelOverrides,
+                true,
                 &session.modelCreateDuration,
                 &session.modelCreateCount,
                 &session.materialApplyDuration,
@@ -1009,11 +1169,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
     outFinished =
         session.preloadModelsDone &&
+        session.materialsDone &&
         session.staticMeshesDone &&
         session.instancedMeshesDone &&
         session.postProcessVolumesDone &&
+        session.shaftVolumesDone &&
         session.watersDone &&
-        session.prefabInstancesDone;
+        session.prefabInstancesDone &&
+        session.authoredObjectsDone;
 
     if (outFinished && !session.summaryLogged)
     {
@@ -1065,6 +1228,45 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
     MapAdapter::ApplyMaterial(*model, MapAdapter::BuildMaterialApplyDesc(modelFolder, modelFullPath, overrideEntry));
 }
 
+string MapLoader::BuildMaterialSignature(const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
+{
+    string signature = String::ToLowerCopy(modelFolder);
+    signature += '|';
+    signature += String::ToLowerCopy(fs::path(modelFullPath).lexically_normal().generic_string());
+
+    if (overrideEntry == nullptr)
+        return signature;
+
+    signature += "|override";
+
+    vector<pair<int32, string>> textureSlots;
+    textureSlots.reserve(overrideEntry->textureSlots.size());
+    for (const auto& [slot, path] : overrideEntry->textureSlots)
+        textureSlots.emplace_back(slot, path);
+
+    sort(textureSlots.begin(), textureSlots.end(),
+        [](const pair<int32, string>& lhs, const pair<int32, string>& rhs)
+        {
+            return lhs.first < rhs.first;
+        });
+
+    for (const auto& [slot, path] : textureSlots)
+    {
+        signature += '|';
+        signature += std::to_string(slot);
+        signature += '=';
+        signature += String::ToLowerCopy(path);
+    }
+
+    if (!overrideEntry->modelJson.is_null() && !overrideEntry->modelJson.empty())
+    {
+        signature += "|json=";
+        signature += overrideEntry->modelJson.dump();
+    }
+
+    return signature;
+}
+
 void MapLoader::MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr)
 {
     if (modelPathStr.empty())
@@ -1077,6 +1279,23 @@ void MapLoader::MarkSessionModelMaterialsApplied(LoadSession& session, const str
     }
 
     session.materialAppliedModelPaths.push_back(modelPathStr);
+}
+
+void MapLoader::MarkGlobalModelMaterialsApplied(
+    const string& modelFolder,
+    const string& modelPathStr,
+    const unordered_map<string, ModelOverrideEntry>& modelOverrides)
+{
+    if (modelPathStr.empty())
+        return;
+
+    const string fullPathA = MapAdapter::ResolveMapModelPath(modelFolder, modelPathStr);
+    const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
+    const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(modelOverrides, modelPathStr);
+    const string materialSignature = BuildMaterialSignature(modelFolder, fullPathA, overrideEntry);
+
+    std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+    g_globalMaterialSignatureByModel[cacheKey] = materialSignature;
 }
 
 void MapLoader::ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model)
@@ -1100,6 +1319,7 @@ void MapLoader::ApplySessionModelMaterials(LoadSession& session, const string& m
     ++session.materialApplyCount;
 
     MarkSessionModelMaterialsApplied(session, modelPathStr);
+    MarkGlobalModelMaterialsApplied(session.modelFolder, modelPathStr, session.modelOverrides);
 }
 
 HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
@@ -1205,6 +1425,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     const string& modelFolder,
     const string& modelPathStr,
     const unordered_map<string, ModelOverrideEntry>& modelOverrides,
+    bool applyMaterials,
     chrono::milliseconds* outCreateDuration,
     size_t* outCreateCount,
     chrono::milliseconds* outMaterialDuration,
@@ -1217,24 +1438,37 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
     const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(modelOverrides, modelPathStr);
+    const string materialSignature = BuildMaterialSignature(modelFolder, fullPathA, overrideEntry);
 
     // 1단계: 스레드 안전하게 전역 캐시에서 동일 모델 존재 확인
     Shared<ModelCom> cachedModel = nullptr;
+    bool needsMaterialApply = true;
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         auto it = g_globalModelCache.find(cacheKey);
         if (it != g_globalModelCache.end())
+        {
             cachedModel = it->second;
+
+            const auto materialIt = g_globalMaterialSignatureByModel.find(cacheKey);
+            if (materialIt != g_globalMaterialSignatureByModel.end() && materialIt->second == materialSignature)
+                needsMaterialApply = false;
+        }
     }
 
     if (cachedModel != nullptr)
     {
-        const auto materialBegin = chrono::steady_clock::now();
-        ApplyMaterials(cachedModel, modelFolder, fullPathA, overrideEntry);
-        const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+        if (applyMaterials && needsMaterialApply)
+        {
+            const auto materialBegin = chrono::steady_clock::now();
+            ApplyMaterials(cachedModel, modelFolder, fullPathA, overrideEntry);
+            const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
 
-        if (outMaterialDuration) *outMaterialDuration += materialMs;
-        if (outMaterialCount) (*outMaterialCount)++;
+            if (outMaterialDuration) *outMaterialDuration += materialMs;
+            if (outMaterialCount) (*outMaterialCount)++;
+
+            MarkGlobalModelMaterialsApplied(modelFolder, modelPathStr, modelOverrides);
+        }
 
         return cachedModel;
     }
@@ -1263,12 +1497,17 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         return nullptr;
     }
 
-    const auto materialBegin = chrono::steady_clock::now();
-    ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
-    const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+    if (applyMaterials)
+    {
+        const auto materialBegin = chrono::steady_clock::now();
+        ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
+        const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
 
-    if (outMaterialDuration) *outMaterialDuration += materialMs;
-    if (outMaterialCount) (*outMaterialCount)++;
+        if (outMaterialDuration) *outMaterialDuration += materialMs;
+        if (outMaterialCount) (*outMaterialCount)++;
+
+        MarkGlobalModelMaterialsApplied(modelFolder, modelPathStr, modelOverrides);
+    }
 
     // 3단계: 로드가 완료된 새 모델을 전역 캐시에 안전하게 등록
     {
@@ -1285,6 +1524,7 @@ void MapLoader::Clear_GlobalCache()
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         g_globalModelCache.clear();
         g_globalCollisionCache.clear();
+        g_globalMaterialSignatureByModel.clear();
     }
     MapAdapter::Clear_MaterialCache();
 }

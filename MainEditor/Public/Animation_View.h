@@ -24,9 +24,11 @@ NS_END
 
 NS_BEGIN(MainEditor)
 
+class AnimationNotifyEditor;
 class AnimSequencerAdapter;
 class Animation_View final : public Editor_Window, public Engine::IEffectTrailSampleProvider, public Engine::IEffectSourcePointSampleProvider
 {
+    friend class AnimationNotifyEditor;
     friend class AnimSequencerAdapter;
 
 public:
@@ -38,7 +40,7 @@ public:
 
 public:
     Animation_View();
-    ~Animation_View() override = default;
+    ~Animation_View() override;
 
 public:
     void Update(float timeDelta) override;
@@ -448,6 +450,8 @@ private:
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;
     bool _showPreviewSkyBackdrop = true;
+    bool _previewSoundEnabled = true;
+    bool _previewPlayEffectIncludeStartEdge = false;
     bool _previewSkyBackdropBegunPlay = false;
     bool _isSectionPreviewPlaying = false;
     bool _showModifierChainDebug = false;
@@ -500,6 +504,7 @@ private:
     NotifyUndoSnapshot _pendingNotifyUndoSnapshot{};
     bool _hasPendingNotifyUndoSnapshot = false;
 
+    Unique<AnimationNotifyEditor> _notifyEditor{};
     Unique<AnimSequencerAdapter> _sequencer{};
 
 public:

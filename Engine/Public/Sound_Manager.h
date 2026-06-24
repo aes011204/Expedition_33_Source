@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "FMOD/fmod_common.h"
+#include "FMOD/fmod_dsp_effects.h"
 #include "FMOD/fmod.h"
 
 NS_BEGIN(Engine)
@@ -16,6 +18,12 @@ public:
         SoundChannel   channelType = SoundChannel::Effect;
     };
 
+    struct FChannelSpeedDspInfo
+    {
+        FMOD_CHANNEL* channel = nullptr;
+        FMOD_DSP* dsp = nullptr;
+    };
+
     struct SoundCueDesc
     {
         wstring cueId{};
@@ -29,8 +37,8 @@ public:
 
         float volumeMin = 1.f;
         float volumeMax = 1.f;
-        float pitchMin = 1.f;
-        float pitchMax = 1.f;
+        float speedMin = 1.f;
+        float speedMax = 1.f;
 
         int32 lastPlayedIndex = -1; // 같은 cue에서 직전 wav가 반복 막기용
     };
@@ -45,10 +53,10 @@ public:
 
 public:
     // 1회 재생
-    bool    Play_Once(const wstring& soundFile, SoundChannel channel, float volume = 1.f);
+    bool    Play_Once(const wstring& soundFile, SoundChannel channel, float volume = 1.f, float startRatio = 0.f);
 
-    // 1회 재생 + 피치 조절
-    bool    Play_Once_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch);
+    // 1회 재생 + 재생 속도 조절
+    bool    Play_Once_WithSpeed(const wstring& soundFile, SoundChannel channel, float volume, float speed, float startRatio = 0.f);
 
     // BGM 반복 재생
     bool    Play_BGM(const wstring& soundFile,
@@ -80,16 +88,18 @@ public:
 #pragma region 사운드 큐
 public:
     bool Play_Cue(const wstring& cueId, const Vec3* worldPosition = nullptr);
-    bool Play_Cue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch);
-    bool Try_GetCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const;
+    bool Play_Cue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio = 0.f);
+    bool Try_GetCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const;
+    HRESULT Reload_SoundCues();
     bool Play_Once_3D(
         const wstring& soundFile,
         SoundChannel channel,
         const Vec3& worldPosition,
         float volume,
-        float pitch,
+        float speed,
         float minDistance,
-        float maxDistance);
+        float maxDistance,
+        float startRatio = 0.f);
 
     void Set_ListenerAttributes(const Vec3& position, const Vec3& forward, const Vec3& up);
 
@@ -108,6 +118,8 @@ private:
 
 private:
     HRESULT Create_ChannelGroups();
+    void    Apply_ChannelPlaybackSpeed(SoundChannel channel, float speed);
+    void    Apply_ChannelPlaybackSpeed(FMOD_CHANNEL* fmodChannel, float speed);
     void    Load_SoundFiles();
 
     wstring Normalize_SoundKey(const wstring& soundFile) const;
@@ -119,6 +131,7 @@ private:
 
     void    Register_ActiveChannel(SoundChannel channel, FMOD_CHANNEL* fmodChannel);
     void    Cleanup_StoppedChannels();
+    void    Cleanup_StoppedChannelSpeedDsps();
     void    Cleanup_StoppedBGMChannels();
 
     void    Add_FadeChannel(FMOD_CHANNEL* fmodChannel, SoundChannel channelType, float fadeOutDuration);
@@ -132,6 +145,7 @@ private:
     FMOD_SYSTEM* _system = nullptr;
 
     array<FMOD_CHANNELGROUP*, ETOI(SoundChannel::END)> _channelGroups = {};
+    array<FMOD_DSP*, ETOI(SoundChannel::END)>          _pitchShiftDsps = {};
     array<float, ETOI(SoundChannel::END)>              _channelVolumes = {};
     float                                              _globalPitch = 1.f;
     bool                                               _globalPitchIncludesBGM = false;
@@ -148,6 +162,7 @@ private:
     wstring _currentBGM{};
 
     list<FFadeChannelInfo> _fadeChannels;
+    list<FChannelSpeedDspInfo> _channelSpeedDsps;
 
     wstring _soundRootPath;
     int32   _maxChannels = 128;

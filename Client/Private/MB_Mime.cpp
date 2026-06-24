@@ -3,7 +3,16 @@
 #include "Mon_Mime_Bagutte.h"
 #include "MonsterStatCom.h"
 #include "Mon_WeakPoint.h"
+#include "BattleController.h"
+#include "ClientInstance.h"
+#include "ModelCom.h"
 
+namespace
+{
+    constexpr float kMimeUnbrokenDamageMultiplier = 0.3f; // 파괴 전에는 최종피해 감소
+    constexpr float kMimeBreakDamageRate = 1.f;           // 데미지 1 : 파괴 게이지 1
+}
+    
 IMPLEMENT_REFLECTION(MB_Mime)
 {
     auto& info = GetStaticReflectionInfo();
@@ -50,6 +59,58 @@ void MB_Mime::Update(float timeDelta)
 
     if (_body)
         _body->Play_Animation(timeDelta);
+}
+
+void MB_Mime::Adjust_IncomingBattleDamage(const BattleChar& attacker, float& damage, AttackType attackType) const
+{
+    UNREFERENCED_PARAMETER(attacker);
+    UNREFERENCED_PARAMETER(attackType);
+
+    if (damage <= 0.f || _combatStat == nullptr)
+        return;
+
+    // 파괴 한번 됐으면, 데미지 감소 미적용
+    if (_combatStat->IsBreak())
+        return;
+
+    damage *= kMimeUnbrokenDamageMultiplier;
+}
+
+bool MB_Mime::Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info)
+{
+    if (_combatStat == nullptr || info.damage <= 0.f)
+        return false;
+
+    if (info.target.actor.get() != this)
+        return false;
+
+    if (_combatStat->Get_AliveStatus() == EAliveStatus::Dead)
+        return false;
+
+    if (_combatStat->IsBreak())
+        return false;
+
+    _combatStat->Add_Break(info.damage * kMimeBreakDamageRate); // 실제로 깎인 HP 피해량만큼 파괴 게이지를 누적한다.
+
+    if (_combatStat->Get_CurBreak() < _combatStat->Get_MaxBreak())
+        return false;
+
+    _combatStat->SetBreak(true);
+    _combatStat->Set_Break(_combatStat->Get_MaxBreak());
+
+    if (const auto battle = CLIENT->Get_BattleController())
+        battle->Apply_Buff(info.target, Buffs::Stun, 1, 1);
+
+    if (info.target.ModelCom != nullptr)
+    {
+        const bool playedBreakEnter =
+            info.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Stun_Enter), 0.2f, false);
+
+        if (!playedBreakEnter)
+            info.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Idle_Stun), 0.2f, true); // Mime animmap에는 현재 Idle_Stun만 확인됨.
+    }
+
+    return true;
 }
 
 bool MB_Mime::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
