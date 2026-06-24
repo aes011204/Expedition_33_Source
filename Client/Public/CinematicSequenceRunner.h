@@ -66,15 +66,20 @@ private:
         bool hasActivePlayAnim = false;
         CinematicPlayAnimEventData activePlayAnim{};
         int activePlayAnimEventFrame = 0;
+        float pendingPlayAnimInitialAdvanceSec = -1.f;
         bool hasCinematicNotifyContextOverride = false;
         bool previousCinematicNotifyContext = false;
     };
 
-    void Execute_EventsUpToFrame(int currentFrame);
-    void Execute_Event(const CINEMATIC_EVENT& event);
+    void Execute_EventsUpToFrame(int currentFrame, float currentFrameExact);
+    void Execute_Event(const CINEMATIC_EVENT& event, float currentFrameExact);
 
     bool Execute_SpawnEvent(const string& targetId, const CinematicSpawnEventData& payload);
-    bool Execute_PlayAnimEvent(int eventFrame, const string& targetId, const CinematicPlayAnimEventData& payload);
+    bool Execute_PlayAnimEvent(
+        int eventFrame,
+        float currentFrameExact,
+        const string& targetId,
+        const CinematicPlayAnimEventData& payload);
     bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload);
 
     void Apply_ActorTransformTracks(int currentFrame);
