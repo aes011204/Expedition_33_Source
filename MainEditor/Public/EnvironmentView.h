@@ -19,6 +19,7 @@ public:
     enum class ZoneShape : uint8
     {
         Box,
+        OBB,
         Sphere
     };
 
@@ -94,12 +95,16 @@ private:
     static void AddFroxelEntry();
     static Vec3 ResolveExtent(const VolumeTransform& volume);
     static Matrix BuildVolumeWorldMatrix(const VolumeTransform& volume);
+    static bool IsFogOBBShape(ZoneShape shape) { return shape == ZoneShape::OBB; }
+    static int32 GetFogRuntimeIndex(int32 editorIndex, ZoneShape shape);
+    static const FogEntry* FindFogEntryByRuntimeIndex(ZoneShape shape, uint32 runtimeIndex);
 
     void RenderFogSection();
     void RenderFroxelSection();
     void RenderCullingSection();
     void RenderSelectedInspector();
     void RenderVolumeTransformEditor(VolumeTransform& volume);
+    void RenderFogVolumeTransformEditor(FogEntry& entry);
     void RenderFogEditor(FogEntry& entry);
     void RenderFroxelEditor(FroxelEntry& entry);
 

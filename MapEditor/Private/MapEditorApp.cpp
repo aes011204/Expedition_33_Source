@@ -733,6 +733,39 @@ void MapEditorApp::SyncFogZones()
             hasGroundFogGlobals = true;
         }
 
+        if (obj->_zoneShape == EZoneShape::OBB)
+        {
+            if (cb.obbCount >= FogZoneCB::MAX_FOG_OBB_ZONES)
+            {
+                continue;
+            }
+
+            FogOBBZoneEntry entry{};
+            const Matrix world =
+                Matrix::CreateFromQuaternion(obj->_rotation) *
+                Matrix::CreateTranslation(obj->_position);
+
+            entry.worldToLocal = world.Invert();
+            entry.halfExtents = obj->_zoneExtent;
+            entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
+            entry.fogDensity = obj->_ppFogDensity;
+            entry.baseHeight = obj->_ppFogBaseHeight;
+            entry.topFadeStart = obj->_ppFogTopFadeStart;
+            entry.topHeight = obj->_ppFogTopHeight;
+            entry.edgeFade = obj->_ppFogEdgeFade;
+            entry.noiseScale = obj->_ppFogNoiseScale;
+            entry.noiseSpeed = obj->_ppFogNoiseSpeed;
+            entry.noiseStrength = obj->_ppFogNoiseStrength;
+            entry.noiseMin = obj->_ppFogNoiseMin;
+            cb.obbZones[cb.obbCount++] = entry;
+            continue;
+        }
+
+        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
+        {
+            continue;
+        }
+
         FogZoneEntry entry{};
         entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
         entry.fogDensity = obj->_ppFogDensity;
@@ -744,15 +777,9 @@ void MapEditorApp::SyncFogZones()
         entry.noiseSpeed = obj->_ppFogNoiseSpeed;
         entry.noiseStrength = obj->_ppFogNoiseStrength;
         entry.noiseMin = obj->_ppFogNoiseMin;
-
-        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-        {
-            continue;
-        }
-
         entry.zoneMin = obj->_position - obj->_zoneExtent;
         entry.zoneMax = obj->_position + obj->_zoneExtent;
-        cb.zones[cb.aabbCount++] = entry;
+        cb.aabbZones[cb.aabbCount++] = entry;
     }
 
     GAME->Set_FogZones(cb);

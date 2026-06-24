@@ -104,6 +104,20 @@ namespace
         return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
     }
 
+    const char* ZoneShapeName(EZoneShape shape)
+    {
+        switch (shape)
+        {
+        case EZoneShape::OBB:
+            return "OBB";
+        case EZoneShape::Sphere:
+            return "Sphere";
+        case EZoneShape::Box:
+        default:
+            return "Box";
+        }
+    }
+
     json Serialize_CollisionProxy(const ModelCollisionProxy& proxy)
     {
         json node = json::object();
@@ -344,7 +358,7 @@ namespace
 
     void Serialize_PostProcessVolume(json& e, const EditorObject& obj)
     {
-        e["Shape"] = (obj._zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+        e["Shape"] = obj._zoneShape == EZoneShape::OBB ? "OBB" : "Box";
         e["Extent"] = { obj._zoneExtent.x, obj._zoneExtent.y, obj._zoneExtent.z };
         e["Radius"] = obj._zoneRadius;
         e["BloomIntensity"] = obj._ppBloomIntensity;
@@ -407,7 +421,7 @@ namespace
 
     void Serialize_ShaftVolume(json& e, const EditorObject& obj)
     {
-        e["Shape"] = (obj._zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+        e["Shape"] = obj._zoneShape == EZoneShape::Sphere ? "Sphere" : "Box";
         e["Extent"] = { obj._zoneExtent.x, obj._zoneExtent.y, obj._zoneExtent.z };
         e["Radius"] = obj._zoneRadius;
         e["Density"] = obj._shaftDensity;
@@ -699,7 +713,7 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::EncounterZone:
-            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Shape"] = ZoneShapeName(obj->_zoneShape);
             e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
             e["Radius"] = obj->_zoneRadius;
             e["EnemyGroupId"] = obj->_zoneId;
@@ -707,7 +721,7 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::TriggerVolume:
-            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Shape"] = ZoneShapeName(obj->_zoneShape);
             e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
             e["Radius"] = obj->_zoneRadius;
             e["EventId"] = obj->_zoneId;
@@ -715,7 +729,7 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::CameraZone:
-            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Shape"] = ZoneShapeName(obj->_zoneShape);
             e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
             e["Radius"] = obj->_zoneRadius;
             e["FOV"] = obj->_cameraFov;
@@ -1278,6 +1292,16 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
 
     auto obj = EditorObject::Create(name, type);
     obj->_position = pos;
+    if (j.contains("Rotation"))
+    {
+        auto& rot = j["Rotation"];
+        obj->_rotation = { rot[0], rot[1], rot[2], rot[3] };
+    }
+    if (j.contains("Scale"))
+    {
+        auto& scale = j["Scale"];
+        obj->_scale = { scale[0], scale[1], scale[2] };
+    }
 
     switch (type)
     {
@@ -1324,7 +1348,7 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
     case EObjectType::ShaftVolume:
     {
         string shapeStr = j.value("Shape", "Box");
-        obj->_zoneShape = (shapeStr == "Sphere") ? EZoneShape::Sphere : EZoneShape::Box;
+        obj->_zoneShape = magic_enum::enum_cast<EZoneShape>(shapeStr).value_or(EZoneShape::Box);
 
         if (j.contains("Extent"))
         {

@@ -22,14 +22,6 @@ namespace MainEditor
             return find(indices.begin(), indices.end(), index) != indices.end();
         }
 
-        const char* ResolveFogEntryName(uint32 index, const vector<EnvironmentView::FogEntry>& entries)
-        {
-            if (index < entries.size())
-                return entries[index].volume.name.c_str();
-
-            return "Runtime Fog Zone";
-        }
-
         const char* ResolveFroxelEntryName(uint32 index, const vector<EnvironmentView::FroxelEntry>& entries)
         {
             if (index < entries.size())
@@ -150,7 +142,13 @@ namespace MainEditor
         };
 
         for (int32 i = 0; i < static_cast<int32>(_fogEntries.size()); ++i)
-            drawVolume(_fogEntries[i].volume, _selectedKind == EntryKind::Fog && _selectedIndex == i, Color(0.35f, 0.8f, 1.f, 1.f));
+        {
+            VolumeTransform volume = _fogEntries[i].volume;
+            if (!IsFogOBBShape(volume.shape))
+                volume.rotation = Quat::Identity;
+
+            drawVolume(volume, _selectedKind == EntryKind::Fog && _selectedIndex == i, Color(0.35f, 0.8f, 1.f, 1.f));
+        }
 
         for (int32 i = 0; i < static_cast<int32>(_froxelEntries.size()); ++i)
             drawVolume(_froxelEntries[i].volume, _selectedKind == EntryKind::Froxel && _selectedIndex == i, Color(1.f, 0.85f, 0.3f, 1.f));
@@ -227,13 +225,50 @@ namespace MainEditor
         const FogZoneCB& fogCB = GAME->Get_FogZones();
         for (int32 i = 0; i < fogCB.aabbCount; ++i)
         {
-            const FogZoneEntry& zone = fogCB.zones[i];
+            const FogZoneEntry& zone = fogCB.aabbZones[i];
 
             FogEntry entry{};
             entry.volume.name = "FogZone_" + to_string(i);
             entry.volume.shape = ZoneShape::Box;
             entry.volume.position = (zone.zoneMin + zone.zoneMax) * 0.5f;
             entry.volume.extent = (zone.zoneMax - zone.zoneMin) * 0.5f;
+            entry.fogColor = Vec3(zone.fogColor.x, zone.fogColor.y, zone.fogColor.z);
+            entry.fogDensity = zone.fogDensity;
+            entry.baseHeight = zone.baseHeight;
+            entry.topFadeStart = zone.topFadeStart;
+            entry.topHeight = zone.topHeight;
+            entry.edgeFade = zone.edgeFade;
+            entry.noiseScale = zone.noiseScale;
+            entry.noiseSpeed = zone.noiseSpeed;
+            entry.noiseStrength = zone.noiseStrength;
+            entry.noiseMin = zone.noiseMin;
+            entry.groundFogMaxDistance = fogCB.groundFogMaxDistance;
+            entry.groundFogMinAccumulationDistance = fogCB.groundFogMinAccumulationDistance;
+            entry.groundFogDistanceInfluence = fogCB.groundFogDistanceInfluence;
+            entry.groundFogNearFadeDistance = fogCB.groundFogNearFadeDistance;
+            entry.groundFogNearMinFactor = fogCB.groundFogNearMinFactor;
+            _fogEntries.push_back(entry);
+        }
+
+        for (int32 i = 0; i < fogCB.obbCount; ++i)
+        {
+            const FogOBBZoneEntry& zone = fogCB.obbZones[i];
+
+            FogEntry entry{};
+            entry.volume.name = "FogOBBZone_" + to_string(i);
+            entry.volume.shape = ZoneShape::OBB;
+
+            Matrix localToWorld = zone.worldToLocal.Invert();
+            Vec3 scale = Vec3::One;
+            Quat rotation = Quat::Identity;
+            Vec3 translation = Vec3::Zero;
+            if (localToWorld.Decompose(scale, rotation, translation))
+            {
+                entry.volume.position = translation;
+                entry.volume.rotation = rotation;
+            }
+
+            entry.volume.extent = zone.halfExtents;
             entry.fogColor = Vec3(zone.fogColor.x, zone.fogColor.y, zone.fogColor.z);
             entry.fogDensity = zone.fogDensity;
             entry.baseHeight = zone.baseHeight;
@@ -289,7 +324,7 @@ namespace MainEditor
         const VolumetricLightShaftZoneCB& shaftCB = GAME->Get_VolumetricLightShaftZones();
 
         const bool hasRuntimeEnvironment =
-            (fogCB.aabbCount > 0 || fogCB.sphereCount > 0 || shaftCB.zoneCount > 0);
+            (fogCB.aabbCount > 0 || fogCB.obbCount > 0 || shaftCB.zoneCount > 0);
 
         if (!_runtimeImported)
         {
@@ -307,7 +342,7 @@ namespace MainEditor
             return;
         }
 
-        if (static_cast<int32>(_fogEntries.size()) != fogCB.aabbCount ||
+        if (static_cast<int32>(_fogEntries.size()) != fogCB.aabbCount + fogCB.obbCount ||
             static_cast<uint32>(_froxelEntries.size()) != shaftCB.zoneCount)
         {
             RefreshFromRuntimeEnvironment();
@@ -334,11 +369,34 @@ namespace MainEditor
                 hasGroundFogGlobals = true;
             }
 
+            const Vec3 extent = ResolveExtent(entry.volume);
+
+            if (IsFogOBBShape(entry.volume.shape))
+            {
+                if (fogCB.obbCount >= FogZoneCB::MAX_FOG_OBB_ZONES)
+                    continue;
+
+                FogOBBZoneEntry zone{};
+                zone.worldToLocal = BuildWorldToLocal(entry.volume);
+                zone.halfExtents = extent;
+                zone.baseHeight = entry.baseHeight;
+                zone.topFadeStart = entry.topFadeStart;
+                zone.fogColor = Vec4(entry.fogColor.x, entry.fogColor.y, entry.fogColor.z, 1.f);
+                zone.fogDensity = entry.fogDensity;
+                zone.topHeight = entry.topHeight;
+                zone.edgeFade = entry.edgeFade;
+                zone.noiseScale = entry.noiseScale;
+                zone.noiseSpeed = entry.noiseSpeed;
+                zone.noiseStrength = entry.noiseStrength;
+                zone.noiseMin = entry.noiseMin;
+                fogCB.obbZones[fogCB.obbCount++] = zone;
+                continue;
+            }
+
             if (fogCB.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-                break;
+                continue;
 
             FogZoneEntry zone{};
-            const Vec3 extent = ResolveExtent(entry.volume);
             zone.zoneMin = entry.volume.position - extent;
             zone.zoneMax = entry.volume.position + extent;
             zone.baseHeight = entry.baseHeight;
@@ -351,7 +409,7 @@ namespace MainEditor
             zone.noiseSpeed = entry.noiseSpeed;
             zone.noiseStrength = entry.noiseStrength;
             zone.noiseMin = entry.noiseMin;
-            fogCB.zones[fogCB.aabbCount++] = zone;
+            fogCB.aabbZones[fogCB.aabbCount++] = zone;
         }
 
         VolumetricLightShaftZoneCB shaftCB{};
@@ -460,16 +518,73 @@ namespace MainEditor
             Matrix::CreateTranslation(volume.position);
     }
 
+    int32 EnvironmentView::GetFogRuntimeIndex(int32 editorIndex, ZoneShape shape)
+    {
+        if (editorIndex < 0 || editorIndex >= static_cast<int32>(_fogEntries.size()))
+            return -1;
+
+        const bool wantOBB = IsFogOBBShape(shape);
+        int32 runtimeIndex = 0;
+        for (int32 i = 0; i <= editorIndex; ++i)
+        {
+            if (_fogEntries[i].fogDensity <= 0.f)
+            {
+                if (i == editorIndex)
+                    return -1;
+                continue;
+            }
+
+            const bool isOBB = IsFogOBBShape(_fogEntries[i].volume.shape);
+            if (isOBB != wantOBB)
+                continue;
+
+            if (i == editorIndex)
+                return runtimeIndex;
+
+            ++runtimeIndex;
+        }
+
+        return -1;
+    }
+
+    const EnvironmentView::FogEntry* EnvironmentView::FindFogEntryByRuntimeIndex(ZoneShape shape, uint32 runtimeIndex)
+    {
+        const bool wantOBB = IsFogOBBShape(shape);
+        uint32 currentIndex = 0;
+        for (const FogEntry& entry : _fogEntries)
+        {
+            if (entry.fogDensity <= 0.f)
+                continue;
+
+            const bool isOBB = IsFogOBBShape(entry.volume.shape);
+            if (isOBB != wantOBB)
+                continue;
+
+            if (currentIndex == runtimeIndex)
+                return &entry;
+
+            ++currentIndex;
+        }
+
+        return nullptr;
+    }
+
     void EnvironmentView::RenderFogSection()
     {
         if (!ImGui::CollapsingHeader("Fog Entries", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
-        const vector<uint32>& activeIndices = GAME->Get_ActiveFogZoneIndices();
+        const vector<uint32>& activeAABBIndices = GAME->Get_ActiveFogAABBZoneIndices();
+        const vector<uint32>& activeOBBIndices = GAME->Get_ActiveFogOBBZoneIndices();
         for (int32 i = 0; i < static_cast<int32>(_fogEntries.size()); ++i)
         {
             const bool selected = (_selectedKind == EntryKind::Fog && _selectedIndex == i);
-            const bool active = ContainsIndex(activeIndices, static_cast<uint32>(i));
+            const bool isOBB = IsFogOBBShape(_fogEntries[i].volume.shape);
+            const int32 runtimeIndex = GetFogRuntimeIndex(i, _fogEntries[i].volume.shape);
+            const bool withinOBBLimit = !isOBB || runtimeIndex < FogZoneCB::MAX_FOG_OBB_ZONES;
+            const bool active = runtimeIndex >= 0 && withinOBBLimit && ContainsIndex(
+                isOBB ? activeOBBIndices : activeAABBIndices,
+                static_cast<uint32>(runtimeIndex));
             const string label = _fogEntries[i].volume.name + (active ? " (active)##Fog" : "##Fog");
             if (ImGui::Selectable(label.c_str(), selected))
                 SelectEntry(EntryKind::Fog, i);
@@ -505,12 +620,23 @@ namespace MainEditor
         if (ImGui::DragFloat("Fog Culling Distance", &fogDistance, 1.f, 0.f, 100000.f))
             GAME->Set_FogZoneCullingDistance(fogDistance);
 
-        const vector<uint32>& activeFogIndices = GAME->Get_ActiveFogZoneIndices();
-        ImGui::Text("Active Fog: %d / %d", static_cast<int32>(activeFogIndices.size()), static_cast<int32>(_fogEntries.size()));
+        const vector<uint32>& activeFogAABBIndices = GAME->Get_ActiveFogAABBZoneIndices();
+        const vector<uint32>& activeFogOBBIndices = GAME->Get_ActiveFogOBBZoneIndices();
+        ImGui::Text("Active Fog: %d AABB, %d OBB",
+            static_cast<int32>(activeFogAABBIndices.size()),
+            static_cast<int32>(activeFogOBBIndices.size()));
         if (ImGui::BeginChild("ActiveFogZones", ImVec2(0.f, 72.f), true))
         {
-            for (uint32 index : activeFogIndices)
-                ImGui::BulletText("%u: %s", index, ResolveFogEntryName(index, _fogEntries));
+            for (uint32 index : activeFogAABBIndices)
+            {
+                const FogEntry* entry = FindFogEntryByRuntimeIndex(ZoneShape::Box, index);
+                ImGui::BulletText("AABB %u: %s", index, entry != nullptr ? entry->volume.name.c_str() : "Runtime Fog Zone");
+            }
+            for (uint32 index : activeFogOBBIndices)
+            {
+                const FogEntry* entry = FindFogEntryByRuntimeIndex(ZoneShape::OBB, index);
+                ImGui::BulletText("OBB %u: %s", index, entry != nullptr ? entry->volume.name.c_str() : "Runtime Fog OBB Zone");
+            }
         }
         ImGui::EndChild();
 
@@ -586,10 +712,51 @@ namespace MainEditor
         }
     }
 
+    void EnvironmentView::RenderFogVolumeTransformEditor(FogEntry& entry)
+    {
+        VolumeTransform& volume = entry.volume;
+
+        char nameBuffer[128] = {};
+        strncpy_s(nameBuffer, volume.name.c_str(), _TRUNCATE);
+        if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer)))
+        {
+            volume.name = nameBuffer;
+            _runtimeDirty = true;
+        }
+
+        int shapeIndex = IsFogOBBShape(volume.shape) ? 1 : 0;
+        if (ImGui::Combo("Shape", &shapeIndex, "AABB\0OBB\0"))
+        {
+            volume.shape = shapeIndex == 1 ? ZoneShape::OBB : ZoneShape::Box;
+            _runtimeDirty = true;
+        }
+
+        if (ImGui::DragFloat3("Position", &volume.position.x, 0.1f))
+            _runtimeDirty = true;
+
+        Vec3 eulerDeg = volume.rotation.ToEuler() * (180.f / XM_PI);
+        if (ImGui::DragFloat3("Rotation", &eulerDeg.x, 0.5f))
+        {
+            const Vec3 eulerRad = eulerDeg * (XM_PI / 180.f);
+            volume.rotation = Quat::CreateFromYawPitchRoll(eulerRad.y, eulerRad.x, eulerRad.z);
+            _runtimeDirty = true;
+        }
+
+        if (ImGui::DragFloat3("Extent", &volume.extent.x, 0.1f, 0.01f, 10000.f))
+            _runtimeDirty = true;
+
+        if (IsFogOBBShape(volume.shape))
+        {
+            const int32 runtimeIndex = GetFogRuntimeIndex(_selectedIndex, ZoneShape::OBB);
+            if (runtimeIndex >= FogZoneCB::MAX_FOG_OBB_ZONES)
+                ImGui::TextDisabled("OBB limit exceeded. This fog will not be sent to shader.");
+        }
+    }
+
     void EnvironmentView::RenderFogEditor(FogEntry& entry)
     {
         ImGui::Text("Fog");
-        RenderVolumeTransformEditor(entry.volume);
+        RenderFogVolumeTransformEditor(entry);
         if (ImGui::ColorEdit3("Fog Color", &entry.fogColor.x))
             _runtimeDirty = true;
         _runtimeDirty |= ImGui::DragFloat("Fog Density", &entry.fogDensity, 0.001f, 0.f, 1.f);

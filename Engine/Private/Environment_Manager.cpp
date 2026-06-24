@@ -14,25 +14,40 @@ const FogZoneCB& Environment_Manager::Get_FogZones() const
 
 FogZoneCB Environment_Manager::Build_ActiveFogZones(const Vec3& cameraPosition)
 {
-    _activeFogZoneIndices.clear();
+    _activeFogAABBZoneIndices.clear();
+    _activeFogOBBZoneIndices.clear();
 
     FogZoneCB activeCB = _fogZoneCB;
     activeCB.aabbCount = 0;
-    activeCB.sphereCount = 0;
+    activeCB.obbCount = 0;
 
     const float cullingDistanceSq = _fogZoneCullingDistance * _fogZoneCullingDistance;
-    const int32 sourceCount = min(_fogZoneCB.aabbCount, FogZoneCB::MAX_FOG_ZONES);
-    for (int32 i = 0; i < sourceCount; ++i)
+    const int32 sourceAABBCount = min(_fogZoneCB.aabbCount, FogZoneCB::MAX_FOG_ZONES);
+    for (int32 i = 0; i < sourceAABBCount; ++i)
     {
-        const FogZoneEntry& zone = _fogZoneCB.zones[i];
+        const FogZoneEntry& zone = _fogZoneCB.aabbZones[i];
         const bool visible = !_fogZoneCullingEnabled ||
             DistanceSqToAABB(cameraPosition, zone.zoneMin, zone.zoneMax) <= cullingDistanceSq;
 
         if (!visible)
             continue;
 
-        activeCB.zones[activeCB.aabbCount++] = zone;
-        _activeFogZoneIndices.push_back(static_cast<uint32>(i));
+        activeCB.aabbZones[activeCB.aabbCount++] = zone;
+        _activeFogAABBZoneIndices.push_back(static_cast<uint32>(i));
+    }
+
+    const int32 sourceOBBCount = min(_fogZoneCB.obbCount, FogZoneCB::MAX_FOG_OBB_ZONES);
+    for (int32 i = 0; i < sourceOBBCount; ++i)
+    {
+        const FogOBBZoneEntry& zone = _fogZoneCB.obbZones[i];
+        const bool visible = !_fogZoneCullingEnabled ||
+            DistanceSqToLocalAABB(cameraPosition, zone.worldToLocal, zone.halfExtents) <= cullingDistanceSq;
+
+        if (!visible)
+            continue;
+
+        activeCB.obbZones[activeCB.obbCount++] = zone;
+        _activeFogOBBZoneIndices.push_back(static_cast<uint32>(i));
     }
 
     return activeCB;

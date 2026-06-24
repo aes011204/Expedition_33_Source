@@ -31,7 +31,8 @@ public:
     void Set_VolumetricLightShaftZoneCullingDistance(float distance) { _lightShaftZoneCullingDistance = distance < 0.f ? 0.f : distance; }
     float Get_VolumetricLightShaftZoneCullingDistance() const { return _lightShaftZoneCullingDistance; }
 
-    const vector<uint32>& Get_ActiveFogZoneIndices() const { return _activeFogZoneIndices; }
+    const vector<uint32>& Get_ActiveFogAABBZoneIndices() const { return _activeFogAABBZoneIndices; }
+    const vector<uint32>& Get_ActiveFogOBBZoneIndices() const { return _activeFogOBBZoneIndices; }
     const vector<uint32>& Get_ActiveVolumetricLightShaftZoneIndices() const { return _activeLightShaftZoneIndices; }
 
     static Unique<Environment_Manager> Create();
@@ -49,7 +50,8 @@ private:
     bool                            _lightShaftZoneCullingEnabled = true;
     float                           _fogZoneCullingDistance = 100.f;
     float                           _lightShaftZoneCullingDistance = 20.f;
-    vector<uint32>                  _activeFogZoneIndices{};
+    vector<uint32>                  _activeFogAABBZoneIndices{};
+    vector<uint32>                  _activeFogOBBZoneIndices{};
     vector<uint32>                  _activeLightShaftZoneIndices{};
 };
 

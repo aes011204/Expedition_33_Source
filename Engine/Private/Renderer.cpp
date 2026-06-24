@@ -700,6 +700,9 @@ void Renderer::Render_CombinedHDR()
 
 void Renderer::Render_Fog()
 {
+    if (!Is_RenderEnvironment())
+        return;
+
     if (!_deferredShader || !_viBuffer)
         return;
 
@@ -708,41 +711,52 @@ void Renderer::Render_Fog()
         return;
 
     FogZoneCB fogZoneCB = GAME->Build_ActiveFogZones(Vec3(camPosition->x, camPosition->y, camPosition->z));
-    if (fogZoneCB.aabbCount + fogZoneCB.sphereCount == 0)
+    if (fogZoneCB.aabbCount + fogZoneCB.obbCount == 0)
         return;
 
-    if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
-        return;
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_Fog:FAIL Begin_MRT(HDR)");
 
-    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_Fog:FAIL Bind_ObjectCB");
 
-    if (FAILED(GAME->Bind_PrimaryShadowLightCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_PrimaryShadowLightCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_PrimaryShadowLightCB");
 
-    if (FAILED(GAME->Bind_CameraCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_CameraCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_CameraCB");
 
-    if (FAILED(GAME->Bind_ShadowCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_ShadowCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_ShadowCB");
 
-    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_Fog:FAIL Bind_ObjectCB(Repeat)");
 
-    if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_ScreenSpaceCB");
 
-    if (FAILED(_deferredShader->Bind_CBufferData(fogZoneCB)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_CBufferData(fogZoneCB),
+        L"Render_Fog:FAIL Bind_CBufferData(FogZoneCB)");
 
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth),
+        L"Render_Fog:FAIL Bind_RT_ShaderResource(g_DepthTexture)");
 
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth),
+        L"Render_Fog:FAIL Bind_RT_ShaderResource(g_LightDepthTexture)");
 
-    if (FAILED(_viBuffer->Bind_Resources()))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_Fog:FAIL Bind_Resources");
 
     auto* noiseTexture = GAME->Get_SRV("T_Random_56");
     if FAILED(_deferredShader->Bind_SRV("g_FogNoiseTexture", noiseTexture))
@@ -755,11 +769,13 @@ void Renderer::Render_Fog()
         LOG_WARN("Failed to bind noise texutre!");
 
 
-    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Begin(ETOI(DeferredPass::Fog)),
+        L"Render_Fog:FAIL ShaderBegin(Fog)");
 
-    if (FAILED(_viBuffer->Render()))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_Fog:FAIL RenderRect");
 
     GAME->End_MRT();
     Add_RenderCall();

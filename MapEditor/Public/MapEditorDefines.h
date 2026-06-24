@@ -51,6 +51,7 @@ namespace MapEditor
     enum class EZoneShape
     {
         Box,
+        OBB,
         Sphere
     };
 

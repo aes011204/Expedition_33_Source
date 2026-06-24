@@ -345,14 +345,38 @@ struct alignas(16) FogZoneEntry
     float noiseMin{ 0.38f };
 };
 
+struct alignas(16) FogOBBZoneEntry
+{
+    Matrix worldToLocal;
+
+    Vec3 halfExtents{ 5.f, 5.f, 5.f };
+    float baseHeight{ 0.f };
+
+    Vec4 fogColor{ 0.6f, 0.6f, 0.6f, 1.f };
+
+    float fogDensity{ 1.f };
+    float topFadeStart{ 0.4f };
+    float topHeight{ 0.9f };
+    float edgeFade{ 1.f };
+
+    float noiseScale{ 0.0025f };
+    Vec2 noiseSpeed{ 0.005f, 0.003f };
+    float noiseStrength{ 0.9f };
+
+    float noiseMin{ 0.38f };
+    float _pad0[3]{};
+};
+
 struct alignas(16) FogZoneCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::FogZone;
     static constexpr int32 MAX_FOG_ZONES = 16;
+    static constexpr int32 MAX_FOG_OBB_ZONES = 2;
 
-    FogZoneEntry zones[MAX_FOG_ZONES]{};
+    FogZoneEntry aabbZones[MAX_FOG_ZONES]{};
+    FogOBBZoneEntry obbZones[MAX_FOG_OBB_ZONES]{};
     int32 aabbCount{ 0 };
-    int32 sphereCount{ 0 };
+    int32 obbCount{ 0 };
     float groundFogMaxDistance{ 100.f };
     float groundFogMinAccumulationDistance{ 10.f };
 
@@ -488,6 +512,8 @@ static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 static_assert(sizeof(ScreenFxCB) % 16 == 0);
+static_assert(sizeof(FogZoneEntry) % 16 == 0);
+static_assert(sizeof(FogOBBZoneEntry) % 16 == 0);
 static_assert(sizeof(FogZoneCB) % 16 == 0);
 static_assert(sizeof(WaterCB) % 16 == 0);
 static_assert(sizeof(PlayerRenderCB) % 16 == 0);

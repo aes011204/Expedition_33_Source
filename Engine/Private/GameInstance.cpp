@@ -1709,11 +1709,18 @@ float GameInstance::Get_VolumetricLightShaftZoneCullingDistance() const
     return _environmentManager->Get_VolumetricLightShaftZoneCullingDistance();
 }
 
-const vector<uint32>& GameInstance::Get_ActiveFogZoneIndices() const
+const vector<uint32>& GameInstance::Get_ActiveFogAABBZoneIndices() const
 {
     static const vector<uint32> empty{};
     CHECK_NULL(_environmentManager, empty);
-    return _environmentManager->Get_ActiveFogZoneIndices();
+    return _environmentManager->Get_ActiveFogAABBZoneIndices();
+}
+
+const vector<uint32>& GameInstance::Get_ActiveFogOBBZoneIndices() const
+{
+    static const vector<uint32> empty{};
+    CHECK_NULL(_environmentManager, empty);
+    return _environmentManager->Get_ActiveFogOBBZoneIndices();
 }
 
 const vector<uint32>& GameInstance::Get_ActiveVolumetricLightShaftZoneIndices() const

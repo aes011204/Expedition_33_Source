@@ -263,7 +263,8 @@ public: /* For.Renderer */
     bool                                Is_VolumetricLightShaftZoneCullingEnabled() const;
     void                                Set_VolumetricLightShaftZoneCullingDistance(float distance);
     float                               Get_VolumetricLightShaftZoneCullingDistance() const;
-    const vector<uint32>&               Get_ActiveFogZoneIndices() const;
+    const vector<uint32>&               Get_ActiveFogAABBZoneIndices() const;
+    const vector<uint32>&               Get_ActiveFogOBBZoneIndices() const;
     const vector<uint32>&               Get_ActiveVolumetricLightShaftZoneIndices() const;
     void                                Set_RenderEnvironment(bool enabled);
     bool                                Is_RenderEnvironment() const;
@@ -631,6 +632,10 @@ public: /* ScreenFx Manager */
     void Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const;
     bool Is_ScreenFxFinished(const wstring& tag) const;
 
+public :
+    bool Is_EnableWorldRendering() const { return _enableWorldRendering; }
+    void Enable_WorldRendering(bool enable) { _enableWorldRendering = enable; }
+
 private:
     Unique<Log_Manager> _logManager{};
     Unique<Graphic_Device> _graphicDevice{};
@@ -692,6 +697,8 @@ private:
     // 월드 시간 제어
     float _worldTimeScale = 1.f;
     float _unscaledTimeDelta = 0.f;
+
+    bool    _enableWorldRendering = false;
 
 #ifdef _DEBUG
 private:

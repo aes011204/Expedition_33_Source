@@ -26,6 +26,7 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
+    GAME->Set_RenderEnvironment(true);
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;

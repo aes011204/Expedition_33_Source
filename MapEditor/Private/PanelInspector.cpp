@@ -325,22 +325,27 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
         return;
     }
 
-    int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
-    const bool forceBoxShape = (obj->_type == EObjectType::PostProcessVolume);
-    if (forceBoxShape)
+    if (obj->_type == EObjectType::PostProcessVolume)
     {
-        obj->_zoneShape = EZoneShape::Box;
-        shapeIdx = 0;
-        ImGui::BeginDisabled();
-        ImGui::Combo("Shape", &shapeIdx, _shapes, 1);
-        ImGui::EndDisabled();
+        int shapeIdx = (obj->_zoneShape == EZoneShape::OBB) ? 1 : 0;
+        if (ImGui::Combo("Shape", &shapeIdx, "AABB\0OBB\0"))
+        {
+            obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::OBB : EZoneShape::Box;
+        }
     }
-    else if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
+    else
     {
-        obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
+        if (obj->_zoneShape == EZoneShape::OBB)
+            obj->_zoneShape = EZoneShape::Box;
+
+        int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
+        if (ImGui::Combo("Shape", &shapeIdx, "Box\0Sphere\0"))
+        {
+            obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
+        }
     }
 
-    if (obj->_zoneShape == EZoneShape::Box)
+    if (obj->_zoneShape != EZoneShape::Sphere)
     {
         float ext[3] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
         if (ImGui::DragFloat3("Extent", ext, 0.1f, 0.01f, 1000.f))

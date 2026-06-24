@@ -148,7 +148,7 @@ private:
 
     bool                            _shadowEnabled = true;
     bool                            _renderOnlyPreviewMode = false;
-    bool                            _renderEnvironment = true;
+    bool                            _renderEnvironment = false;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;

@@ -276,11 +276,34 @@ struct FogZoneEntry
     float noiseMin;
 };
 
+struct FogOBBZoneEntry
+{
+    row_major float4x4 worldToLocal;
+
+    float3 halfExtents;
+    float baseHeight;
+
+    float4 fogColor;
+
+    float fogDensity;
+    float topFadeStart;
+    float topHeight;
+    float edgeFade;
+
+    float noiseScale;
+    float2 noiseSpeed;
+    float noiseStrength;
+
+    float noiseMin;
+    float3 padding;
+};
+
 cbuffer FogZoneBuffer
 {
-    FogZoneEntry g_FogZones[16];
+    FogZoneEntry g_FogAABBZones[16];
+    FogOBBZoneEntry g_FogOBBZones[2];
     int g_FogAABBCount;
-    int g_FogSphereCount;
+    int g_FogOBBCount;
     float g_GroundFogMaxDistance;
     float g_GroundFogMinAccumulationDistance;
 

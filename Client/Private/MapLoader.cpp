@@ -104,8 +104,65 @@ namespace
                 hasGroundFogGlobals = true;
             }
 
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            Vec3 extent{ 5.f, 5.f, 5.f };
+            if (e.contains("Extent"))
+            {
+                auto& ex = e["Extent"];
+                extent = Vec3(ex[0], ex[1], ex[2]);
+            }
+
+            Quat rotation = Quat::Identity;
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                rotation = Quat(r[0], r[1], r[2], r[3]);
+            }
+
+            const string shape = e.value("Shape", "Box");
+            if (shape == "OBB")
+            {
+                if (fogCB.obbCount >= FogZoneCB::MAX_FOG_OBB_ZONES)
+                    continue;
+
+                FogOBBZoneEntry entry{};
+                const Matrix world =
+                    Matrix::CreateFromQuaternion(rotation) *
+                    Matrix::CreateTranslation(position);
+
+                entry.worldToLocal = world.Invert();
+                entry.halfExtents = extent;
+                if (e.contains("FogColor"))
+                {
+                    auto& c = e["FogColor"];
+                    entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+                }
+
+                entry.fogDensity = density;
+                entry.baseHeight = e.value("BaseHeight", 0.f);
+                entry.topFadeStart = e.value("TopFadeStart", 0.4f);
+                entry.topHeight = e.value("TopHeight", 0.9f);
+                entry.edgeFade = e.value("EdgeFade", 1.f);
+                entry.noiseScale = e.value("NoiseScale", 0.0025f);
+                if (e.contains("NoiseSpeed"))
+                {
+                    auto& speed = e["NoiseSpeed"];
+                    entry.noiseSpeed = Vec2(speed[0], speed[1]);
+                }
+                entry.noiseStrength = e.value("NoiseStrength", 0.9f);
+                entry.noiseMin = e.value("NoiseMin", 0.38f);
+                fogCB.obbZones[fogCB.obbCount++] = entry;
+                continue;
+            }
+
             if (fogCB.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-                break;
+                continue;
 
             FogZoneEntry entry{};
             if (e.contains("FogColor"))
@@ -127,24 +184,9 @@ namespace
             }
             entry.noiseStrength = e.value("NoiseStrength", 0.9f);
             entry.noiseMin = e.value("NoiseMin", 0.38f);
-
-            Vec3 position{};
-            if (e.contains("Position"))
-            {
-                auto& p = e["Position"];
-                position = Vec3(p[0], p[1], p[2]);
-            }
-
-            Vec3 extent{ 5.f, 5.f, 5.f };
-            if (e.contains("Extent"))
-            {
-                auto& ex = e["Extent"];
-                extent = Vec3(ex[0], ex[1], ex[2]);
-            }
-
             entry.zoneMin = position - extent;
             entry.zoneMax = position + extent;
-            fogCB.zones[fogCB.aabbCount++] = entry;
+            fogCB.aabbZones[fogCB.aabbCount++] = entry;
         }
 
         GAME->Set_FogZones(fogCB);
