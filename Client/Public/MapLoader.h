@@ -44,6 +44,12 @@ public:
         size_t nextMaterialApplyModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
+
+        size_t nextInstancedMeshGroupIndex = 0;
+        bool instancedMeshGroupsBuilt = false;
+        vector<string> instancedMeshModelOrder;
+        umap<string, vector<size_t>> instancedMeshGroups;
+
         size_t nextWaterIndex = 0;
         size_t nextPrefabInstanceIndex = 0;
         size_t nextAuthoredObjectIndex = 0;

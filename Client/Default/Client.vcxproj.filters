@@ -1565,6 +1565,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
   </ItemGroup>
   <ItemGroup>

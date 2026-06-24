@@ -6,6 +6,7 @@
 
 #include "Camera.h"
 #include "StaticCollisionData.h"
+#include "ShaderPassFinder.h"
 
 namespace
 {
@@ -194,6 +195,9 @@ HRESULT MapStaticMesh::Initialize(void* arg)
     _collisionData = pDesc->collisionData;
     _usesStaticCollision = (_collisionData != nullptr);
     _sourceStaticMeshIndex = pDesc->sourceStaticMeshIndex;
+    _visible = pDesc->visible;
+    _cullEnabled = pDesc->cullEnabled;
+    _castShadow = pDesc->castShadow;
     _sourceStaticMeshId = pDesc->name;
     _sourceStaticMeshModelPath = pDesc->modelPath;
     _sourceMapPath = pDesc->sourceMapPath;
@@ -240,9 +244,11 @@ void MapStaticMesh::Update(float timeDelta)
 
 void MapStaticMesh::Late_Update(float timeDelta)
 {
+    Refresh_HasEclipseGlow();
+
     UNREFERENCED_PARAMETER(timeDelta);
 
-    if (_model == nullptr)
+    if (!_visible || _model == nullptr)
         return;
 
     if (g_toggleOwner == nullptr)
@@ -260,9 +266,9 @@ void MapStaticMesh::Late_Update(float timeDelta)
         BoundingBox worldBox{};
         localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
 
-        if (!GAME->IsVisible(worldBox))
+        if (_cullEnabled && !GAME->IsVisible(worldBox))
         {
-            if (Casts_DynamicShadow())
+            if (_castShadow && Casts_DynamicShadow())
                 GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
             return;
         }
@@ -281,7 +287,10 @@ void MapStaticMesh::Late_Update(float timeDelta)
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 
-    if (Casts_DynamicShadow())
+    if (_hasEclipseGlow)
+        GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
+
+    if (_castShadow && Casts_DynamicShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
@@ -302,7 +311,30 @@ HRESULT MapStaticMesh::Render()
         return E_FAIL;
     }
 
+    const bool isGlowPass = (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow);
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    if (isGlowPass)
+    {
+        for (uint32 i = 0; i < iNumMeshes; i++)
+        {
+            const Shared<Material> material = _model->Get_Material(_model->Get_MeshMaterialIndex(i));
+            if (material)
+            {
+                if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                {
+                    return E_FAIL;
+                }
+            }
+            if (FAILED(_shader->Begin(static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass))))
+            {
+                return E_FAIL;
+            }
+            _model->Render(i);
+        }
+        return S_OK;
+    }
+
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
@@ -322,7 +354,12 @@ HRESULT MapStaticMesh::Render()
             return E_FAIL;
         }
 
-        const uint32 passIndex = static_cast<uint32>(material->Get_PassIndex());
+        uint32 passIndex = static_cast<uint32>(material->Get_PassIndex());
+        if (passIndex == static_cast<uint32>(VtxMeshPassIndex::EclipseSpherePass))
+        {
+            passIndex = static_cast<uint32>(VtxMeshPassIndex::DefaultPass);
+        }
+
         if (FAILED(_shader->Begin(passIndex)))
         {
             return E_FAIL;
@@ -515,6 +552,9 @@ json MapStaticMesh::To_Json() const
 {
     json root = __super::To_Json();
     root["map_static_collision_enabled"] = _usesStaticCollision;
+    root["Visible"] = _visible;
+    root["CullEnabled"] = _cullEnabled;
+    root["CastShadow"] = _castShadow;
 
     bool hasModelComponentJson = false;
     if (root.contains("components") && root["components"].is_array())
@@ -549,6 +589,9 @@ json MapStaticMesh::To_Json() const
 void MapStaticMesh::From_Json(const json& data)
 {
     _usesStaticCollision = data.value("map_static_collision_enabled", false);
+    _visible = data.value("Visible", true);
+    _cullEnabled = data.value("CullEnabled", true);
+    _castShadow = data.value("CastShadow", true);
 
     __super::From_Json(data);
 
@@ -585,6 +628,26 @@ Shared<GameObject> MapStaticMesh::Clone(void* arg)
     }
 
     return clone;
+}
+
+void MapStaticMesh::Refresh_HasEclipseGlow()
+{
+    _hasEclipseGlow = false;
+    if (!_model)
+    {
+        return;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        const Shared<Material> mat = _model->Get_Material(_model->Get_MeshMaterialIndex(i));
+        if (mat && mat->Get_PassIndex() == VtxMeshPassIndex::EclipseSpherePass)
+        {
+            _hasEclipseGlow = true;
+            return;
+        }
+    }
 }
 
 void MapStaticMesh::Free()

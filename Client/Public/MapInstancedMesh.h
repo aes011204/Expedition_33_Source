@@ -25,7 +25,8 @@ class MapInstancedMesh final : public GameObject
     GENERATED_GAMEOBJECT(MapInstancedMesh, ObjectType::StaticMesh)
 
 private:
-    static constexpr float INSTANCE_CULL_DIST = 100.f;
+    static constexpr float INSTANCE_CULL_DIST = 500.f;
+    static constexpr float LARGE_OBJECT_HEIGHT = 5.f;
 
 public:
     typedef struct tagMapInstancedMeshDesc final : public GameObject::GAMEOBJECT_DESC
@@ -34,6 +35,9 @@ public:
         Shared<StaticCollisionData> collisionData = nullptr;
         wstring modelPath = {};
         vector<InstanceTransform> transforms;
+        bool visible = true;
+        bool cullEnabled = true;
+        bool castShadow = true;
     } MAPINSTANCEDMESH_DESC;
 
 public:
@@ -80,8 +84,25 @@ private:
     vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
 
-    float _lod1Dist = 40.f;
-    float _lod2Dist = 80.f;
+    // Shadow compute shader
+    Shared<ComputeShaderCom> _shadowCullShader;
+    ComPtr<Buffer> _shadowCullCB;
+    ComPtr<Buffer> _shadowVisibleStructured;
+    ComPtr<UnorderedAccessView> _shadowVisibleUAV;
+    ComPtr<Buffer> _shadowVisibleVB;
+    vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers;
+
+    float _lod1Dist = 300.f;
+    float _lod2Dist = 200.f;
+
+    float _accTime = {};
+    bool _hasGlow = false;
+    bool _visible = true;   
+    bool _cullEnabled = true;
+    bool _castShadow = true;
+
+    // test
+    uint32 _maxShadowCascade = 3u;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
@@ -90,7 +111,9 @@ private:
 
     HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
     void DispatchCull();
+    void DispatchShadowCull(uint32 cascadeIndex);
     static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
+    void Refresh_HasGlow();
 
 public:
     static Shared<MapInstancedMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

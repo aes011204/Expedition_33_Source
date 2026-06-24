@@ -21,6 +21,7 @@
 #include "MEMaterialApplicator.h"
 #include "MEWaterActor.h"
 #include "CmdDeleteObject.h"
+#include "CmdAddInstance.h"
 
 // test
 #include "METerrainActor.h"
@@ -236,6 +237,11 @@ HRESULT MapEditorApp::Render()
         }
     }
 
+    if (Shared<IEditorCommand> deleteCmd = _viewport->ConsumeDeleteCommand())
+    {
+        _scene.PushCommand(deleteCmd);
+    }
+
     if (_viewport->ConsumeCursorSet(mousePos, vpPos, vpSize))
     {
         _pickingSystem->SetCursorAt(_scene, *_camera, mousePos, vpPos, vpSize, *_rt);
@@ -331,7 +337,7 @@ HRESULT MapEditorApp::Render()
                 }
 
                 obj->_instancedChunkHandles[ci]->Set_CameraFar(_camera->GetFar());
-                obj->_instancedChunkHandles[ci]->Late_Update(0.f);
+                obj->_instancedChunkHandles[ci]->Late_Update(_timeDelta);
             }
         }
     }
@@ -371,7 +377,8 @@ HRESULT MapEditorApp::Render()
 
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
-    CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
+
+    CHECK_FAILED(GAME->Draw_RendererOnly(false, true), E_FAIL);
     GAME->Set_RenderEnvironment(true);
 
     _debugRenderer->Draw(_scene);
@@ -439,6 +446,7 @@ void MapEditorApp::Update_StaticMeshHandles()
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
         _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename, obj->_position, String::ToString(obj->_modelPath));
 
+        actor->Set_Visible(obj->_visible);
         obj->_renderHandle = actor;
         _scene._octreeDirty = true;
     }
@@ -523,8 +531,11 @@ void MapEditorApp::Update_InstancedMeshHandles()
                 _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
                 const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
                 _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
+
+                actor->Refresh_HasGlow();
             }
 
+            actor->Set_Visible(obj->_visible);
             obj->_instancedChunkHandles.push_back(actor);
             obj->_instancedChunkAABBs.push_back(aabb);
             obj->_instancedChunkGlobalIndices.push_back(move(globalIndices));
@@ -613,7 +624,22 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
     {
         if (_viewport->IsSpawnAsInstanced())
         {
-            spawned = _scene.SpawnInstancedObject(String::ToWString(modelPath), _scene._cursorPos);
+            error_code ec;
+            fs::path canonicalPath = fs::weakly_canonical(fs::path(modelPath), ec);
+            const wstring instancedModelPath = (!ec && !canonicalPath.empty()) ? canonicalPath.wstring() : String::ToWString(modelPath);
+            if (Shared<EditorObject> existing = _scene.FindInstancedObjectByModelPath(instancedModelPath))
+            {
+                InstanceTransform transform{};
+                transform._position = _scene._cursorPos;
+                transform._scale = Vec3(1.f, 1.f, 1.f);
+                transform._rotation = Quat::Identity;
+
+                const int32 insertIndex = static_cast<int32>(existing->_instancedTransforms.size());
+                _scene.PushCommand(CmdAddInstance::Create(existing, transform, insertIndex));
+                return;
+            }
+
+            spawned = _scene.SpawnInstancedObject(instancedModelPath, _scene._cursorPos);
         }
         else
         {
