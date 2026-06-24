@@ -32,6 +32,7 @@
 #include "SoulLikeController.h"
 #include "Unlock_Manager.h"
 #include "DialogueDB.h"
+#include "DialogueManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -156,6 +157,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     CHECK_NULL(_dialogueDB, E_FAIL);
 
    _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
+
+   _dialogueManager = DialogueManager::Create();
+    CHECK_NULL(_dialogueManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -1084,6 +1088,16 @@ bool ClientInstance::Is_SoulLikeBattleActive() const
 bool ClientInstance::Is_WorldControlSuspended() const
 {
     return Is_BattleActive() || Is_SoulLikeBattleActive();
+}
+
+const DialogueData* ClientInstance::FindDialogueData(const string& dialogueKey) const
+{
+    return _dialogueDB->FindDialogueData(dialogueKey);
+}
+
+void ClientInstance::StartDialogue(const string& dialogueKey)
+{
+    _dialogueManager->StartDialogue(dialogueKey);
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

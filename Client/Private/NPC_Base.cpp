@@ -124,6 +124,8 @@ void NPC_Base::From_Json(const json& data)
 void NPC_Base::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
 {
     Character_WorldBase::OnBeginOverlap(self, other);
+
+    CLIENT->StartDialogue(Get_SourcePrefabName());
 }
 
 void NPC_Base::On_EditorStopRuntime()

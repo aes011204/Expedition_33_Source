@@ -14,6 +14,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class DialogueManager;
+    struct DialogueData;
 class DialogueDB;
 class CinematicSequenceRunner;
 class CinematicCamera;
@@ -268,6 +270,12 @@ public: /* SoulLike */
 public: /* Unlock Manager */
     Unlock_Manager* Get_UnlockManager() const { return _unlockManager.get(); }
 
+public:
+    const DialogueData* FindDialogueData(const string& dialogueKey) const;
+
+public:
+    void StartDialogue(const string& dialogueKey);
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -295,7 +303,7 @@ private:
     Unique<LevelTransitionFade>         _levelTransitionFade;
     Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;
     Unique<DialogueDB>                  _dialogueDB;
-
+    Unique<DialogueManager>             _dialogueManager;
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;
     Unique<Hero_Manager>                _heroManager;

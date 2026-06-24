@@ -5,6 +5,7 @@ NS_BEGIN(Client)
 struct DialogueChoice
 {
     string text;
+    string action;
     int nextLineIndex;
 };
 
