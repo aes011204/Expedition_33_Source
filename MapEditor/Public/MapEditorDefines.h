@@ -39,6 +39,7 @@ namespace MapEditor
         TriggerVolume,
         CameraZone,
         PostProcessVolume,
+        ShaftVolume,
         Light,
         InstancedMesh,
         Terrain,
@@ -50,6 +51,7 @@ namespace MapEditor
     enum class EZoneShape
     {
         Box,
+        OBB,
         Sphere
     };
 
@@ -69,6 +71,8 @@ namespace MapEditor
             return "[CZ]";
         case MapEditor::EObjectType::PostProcessVolume:
             return "[PP]";
+        case MapEditor::EObjectType::ShaftVolume:
+            return "[SV]";
         case MapEditor::EObjectType::Light:
             return "[LT]";
         case MapEditor::EObjectType::InstancedMesh:

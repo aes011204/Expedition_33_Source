@@ -217,6 +217,12 @@ HRESULT Shadow::Bind_ShadowCB(Shared<ShaderCom> shader)
 {
     CHECK_NULL(shader, E_FAIL);
 
+    const ShadowCB shadowCB = Build_ShadowCB();
+    return shader->Bind_CBufferData(shadowCB);
+}
+
+ShadowCB Shadow::Build_ShadowCB() const
+{
     ShadowCB shadowCB{};
 
     shadowCB.lightViewMatrix = _viewMatrix;
@@ -227,6 +233,7 @@ HRESULT Shadow::Bind_ShadowCB(Shared<ShaderCom> shader)
         shadowCB.cascadeLightViewMatrices[cascadeIndex] = _cascadeViewMatrices[cascadeIndex];
         shadowCB.cascadeLightProjMatrices[cascadeIndex] = _cascadeProjMatrices[cascadeIndex];
     }
+
     shadowCB.cascadeSplits = Vec4(
         _cascadeSplits[0],
         _cascadeSplits[1],
@@ -240,7 +247,7 @@ HRESULT Shadow::Bind_ShadowCB(Shared<ShaderCom> shader)
     shadowCB.cascadeCount = CascadeCount;
     shadowCB.activeCascadeIndex = _activeCascadeIndex;
 
-    return shader->Bind_CBufferData(shadowCB);
+    return shadowCB;
 }
 
 HRESULT Shadow::Set_ActiveCascade(uint32 cascadeIndex)

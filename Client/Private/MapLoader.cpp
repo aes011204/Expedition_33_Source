@@ -104,8 +104,65 @@ namespace
                 hasGroundFogGlobals = true;
             }
 
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            Vec3 extent{ 5.f, 5.f, 5.f };
+            if (e.contains("Extent"))
+            {
+                auto& ex = e["Extent"];
+                extent = Vec3(ex[0], ex[1], ex[2]);
+            }
+
+            Quat rotation = Quat::Identity;
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                rotation = Quat(r[0], r[1], r[2], r[3]);
+            }
+
+            const string shape = e.value("Shape", "Box");
+            if (shape == "OBB")
+            {
+                if (fogCB.obbCount >= FogZoneCB::MAX_FOG_OBB_ZONES)
+                    continue;
+
+                FogOBBZoneEntry entry{};
+                const Matrix world =
+                    Matrix::CreateFromQuaternion(rotation) *
+                    Matrix::CreateTranslation(position);
+
+                entry.worldToLocal = world.Invert();
+                entry.halfExtents = extent;
+                if (e.contains("FogColor"))
+                {
+                    auto& c = e["FogColor"];
+                    entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+                }
+
+                entry.fogDensity = density;
+                entry.baseHeight = e.value("BaseHeight", 0.f);
+                entry.topFadeStart = e.value("TopFadeStart", 0.4f);
+                entry.topHeight = e.value("TopHeight", 0.9f);
+                entry.edgeFade = e.value("EdgeFade", 1.f);
+                entry.noiseScale = e.value("NoiseScale", 0.0025f);
+                if (e.contains("NoiseSpeed"))
+                {
+                    auto& speed = e["NoiseSpeed"];
+                    entry.noiseSpeed = Vec2(speed[0], speed[1]);
+                }
+                entry.noiseStrength = e.value("NoiseStrength", 0.9f);
+                entry.noiseMin = e.value("NoiseMin", 0.38f);
+                fogCB.obbZones[fogCB.obbCount++] = entry;
+                continue;
+            }
+
             if (fogCB.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-                break;
+                continue;
 
             FogZoneEntry entry{};
             if (e.contains("FogColor"))
@@ -127,12 +184,35 @@ namespace
             }
             entry.noiseStrength = e.value("NoiseStrength", 0.9f);
             entry.noiseMin = e.value("NoiseMin", 0.38f);
+            entry.zoneMin = position - extent;
+            entry.zoneMax = position + extent;
+            fogCB.aabbZones[fogCB.aabbCount++] = entry;
+        }
+
+        GAME->Set_FogZones(fogCB);
+    }
+
+    void Apply_ShaftVolumes(const vector<json>& shaftVolumes)
+    {
+        VolumetricLightShaftZoneCB shaftCB{};
+
+        for (const auto& e : shaftVolumes)
+        {
+            if (shaftCB.zoneCount >= VolumetricLightShaftZoneCB::MAX_LIGHT_SHAFT_ZONES)
+                break;
 
             Vec3 position{};
             if (e.contains("Position"))
             {
                 auto& p = e["Position"];
                 position = Vec3(p[0], p[1], p[2]);
+            }
+
+            Quat rotation = Quat::Identity;
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                rotation = Quat(r[0], r[1], r[2], r[3]);
             }
 
             Vec3 extent{ 5.f, 5.f, 5.f };
@@ -142,12 +222,27 @@ namespace
                 extent = Vec3(ex[0], ex[1], ex[2]);
             }
 
-            entry.zoneMin = position - extent;
-            entry.zoneMax = position + extent;
-            fogCB.zones[fogCB.aabbCount++] = entry;
+            const float radius = e.value("Radius", 5.f);
+            const string shape = e.value("Shape", "Box");
+
+            VolumetricLightShaftZoneEntry entry{};
+            const Matrix world =
+                Matrix::CreateFromQuaternion(rotation) *
+                Matrix::CreateTranslation(position);
+            entry.worldToLocal = world.Invert();
+            entry.halfExtents = (shape == "Sphere") ? Vec3(radius, radius, radius) : extent;
+            entry.density = e.value("Density", 1.f);
+            if (e.contains("LightColor"))
+            {
+                auto& c = e["LightColor"];
+                entry.lightColor = Vec4(c[0], c[1], c[2], c.size() > 3 ? static_cast<float>(c[3]) : 1.f);
+            }
+            entry.edgeFade = e.value("EdgeFade", 0.5f);
+            entry.intensity = e.value("Intensity", 1.f);
+            shaftCB.zones[shaftCB.zoneCount++] = entry;
         }
 
-        GAME->Set_FogZones(fogCB);
+        GAME->Set_VolumetricLightShaftZones(shaftCB);
     }
 
     HRESULT Add_WaterObject(
@@ -261,6 +356,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.staticMeshes = std::move(splitData.staticMeshes);
     outSession.instancedMeshes = std::move(splitData.instancedMeshes);
     outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
+    outSession.shaftVolumes = std::move(splitData.shaftVolumes);
     outSession.waters = std::move(splitData.waters);
     outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
     outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
@@ -270,6 +366,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = true;
 
@@ -277,12 +374,13 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
     LOG_DEBUG(
-        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} waters={} preloadModels={} modelOverrides={}",
+        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} shaftVolumes={} waters={} preloadModels={} modelOverrides={}",
         splitData.root.generic_string(),
         outSession.modelFolder,
         outSession.staticMeshes.size(),
         outSession.instancedMeshes.size(),
         outSession.postProcessVolumes.size(),
+        outSession.shaftVolumes.size(),
         outSession.waters.size(),
         outSession.preloadModelPaths.size(),
         outSession.modelOverrides.size());
@@ -409,6 +507,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.modelFolder = mapData.value("ModelFolder", string{});
 
     Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
+    Append_JsonArray(mapData, "ShaftVolumes", outSession.shaftVolumes);
     Append_JsonArray(mapData, "Waters", outSession.waters);
 
     MapAdapter::AppendModelOverrides(mapData, outSession.modelOverrides);
@@ -470,6 +569,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.authoredObjectsDone = outSession.authoredObjects.empty();
@@ -647,6 +747,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.staticMeshesDone = session.staticMeshes.empty();
         session.instancedMeshesDone = session.instancedMeshes.empty();
         session.postProcessVolumesDone = session.postProcessVolumes.empty();
+        session.shaftVolumesDone = session.shaftVolumes.empty();
         session.watersDone = session.waters.empty();
         session.prefabInstancesDone = session.prefabInstances.empty();
         session.authoredObjectsDone = session.authoredObjects.empty();
@@ -659,6 +760,16 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         Apply_PostProcessVolumes(session.postProcessVolumes);
         session.postProcessVolumesDone = true;
+        ++processedCount;
+    }
+
+    if (!session.shaftVolumesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        Apply_ShaftVolumes(session.shaftVolumes);
+        session.shaftVolumesDone = true;
         ++processedCount;
     }
 
@@ -1012,6 +1123,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.staticMeshesDone &&
         session.instancedMeshesDone &&
         session.postProcessVolumesDone &&
+        session.shaftVolumesDone &&
         session.watersDone &&
         session.prefabInstancesDone;
 

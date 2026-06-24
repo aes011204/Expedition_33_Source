@@ -60,6 +60,7 @@ HRESULT Level_GamePlay::Initialize()
     if(FAILED(Ready_Layer_BattleStartSpawner(TEXT("Layer_BattleStartSpawner"))))
         return E_FAIL;
 
+    GAME->Set_RenderEnvironment(true);
     GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
@@ -329,6 +330,12 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
     skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
     skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
     skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_CleasTower");
     skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
 

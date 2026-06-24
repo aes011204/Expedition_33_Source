@@ -38,6 +38,8 @@ public:
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
     bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
+    void    Set_RenderEnvironment(bool enabled) { _renderEnvironment = enabled; }
+    bool    Is_RenderEnvironment() const { return _renderEnvironment; }
 
     const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
@@ -66,12 +68,7 @@ public:
     {
         return _currentGroup;
     }
-
-    void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
-    void Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
-    {
-        _lightShaftZoneCB = lightShaftZoneCB;
-    }
+    
     void Set_LetterboxEnabled(bool setLetterboxEnabled)
     {
         const bool wasActive = _letterboxEnabled || _previewLetterboxEnabled;
@@ -129,6 +126,7 @@ private :
     HRESULT Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
     HRESULT Render_LightShaftPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
+    HRESULT Render_FroxelCompositePass();
     HRESULT Render_LightShaftCompositePass();
     HRESULT Render_DOFPreFilterPass();
     HRESULT Render_DOFBlurPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
@@ -169,11 +167,9 @@ private:
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
-    FogZoneCB                       _fogZoneCB{};
-    VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
-
     bool                            _shadowEnabled = true;
     bool                            _renderOnlyPreviewMode = false;
+    bool                            _renderEnvironment = false;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;
