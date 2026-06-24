@@ -93,7 +93,6 @@ HRESULT Mon_Simon_Hair::Render_Shadow()
 
 uint32 Mon_Simon_Hair::Decide_PassIndex(Shared<Material> mat)
 {
-    UNREFERENCED_PARAMETER(mat);
     return mat->Get_PassIndex();
 }
 

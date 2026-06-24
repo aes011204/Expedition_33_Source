@@ -234,8 +234,7 @@ const WeaponSourceHistoryAnchorDesc* Mon_Simon_Weapon::Find_SourceHistoryAnchor(
 
 uint32 Mon_Simon_Weapon::Decide_PassIndex(Shared<Material> mat)
 {
-    const int OPAQUE_PASS = 0;
-    return OPAQUE_PASS;
+    return mat->Get_PassIndex();
 }
 
 HRESULT Mon_Simon_Weapon::Ready_DefaultComponents()

@@ -461,6 +461,129 @@ PS_OUT PS_WeaponGhost(PS_IN In)
     return Out;
 }
 
+
+PS_OUT PS_WeaponAlpha(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+
+    float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    
+    if (baseColor.a < 0.3f)
+        baseColor.rgb = float3(0.f, 0.f, 0.f);
+    else 
+        baseColor.rgb *= g_BaseColorTint.rgb;
+    baseColor.a = 1.f;
+
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+
+    float3 orm = SampleOrm(finalUV);
+    Out.Material = float4(orm.xyz, 1.f);
+
+    float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+    Out.Emissive = float4(emissive.xyz, 1.f);
+
+    return Out;
+}
+
+PS_OUT PS_CharacterHair(PS_IN In, bool IsFrontFace : SV_IsFrontFace)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
+
+    float hairMask = SampleHairMask(finalUV);
+    float hairDepth = SampleHairDepth(finalUV);
+    float hairIDValue = SampleHairIDValue(finalUV);
+    float hairMaskDensity = SampleHairMaskDensity(finalUV);
+    float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+
+    float facing = saturate(abs(dot(normalize(In.Normal.xyz), viewDir)));
+    float edgeFade = smoothstep(0.08f, 0.42f, facing);
+
+    const float hairCoreStart = 0.22f;
+    const float hairCoreEnd = 0.50f;
+
+    float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
+    
+    coreMask *= lerp(0.42f, 1.0f, edgeFade);
+
+    // 고립된 얇은 선은 GBuffer 본체 패스에서 더 강하게 제거한다.
+    float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);
+    float isolatedStrandWeight = lerp(0.55f, 1.0f, clumpDensity);
+    float coverage = coreMask * isolatedStrandWeight;
+
+    clip(coverage - 0.14f);
+
+    float3 hairBSDFColor = Compute_BlenderHairColor(finalUV);
+
+    float3 normalW = IsFrontFace ? In.Normal.xyz : -In.Normal.xyz;
+    float3 tangentW = IsFrontFace ? In.Tangent.xyz : -In.Tangent.xyz;
+    float3 binormalW = IsFrontFace ? In.Binormal.xyz : -In.Binormal.xyz;
+
+    float3 worldNormal = ComputeWorldNormal(normalW, tangentW, binormalW, finalUV);
+    worldNormal = normalize(worldNormal);
+    // 카드 평면 느낌을 줄이기 위해 노멀을 약간 카메라 쪽으로 평균화한다.
+    worldNormal = normalize(worldNormal);
+
+    const float hairAO = 1.f;
+    float hairRoughness = g_RoughnessScale;
+
+    // 얇은 부분 roughness 증가를 너무 세게 주지 않는다.
+    const float hairMetalness = 0.f;
+
+    Out.Diffuse = float4(hairBSDFColor, 1.f);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(hairAO, hairRoughness, hairMetalness, 1.f);
+
+    float3 emissive = float3(0.f, 0.f, 0.f);
+
+    // emissive로 약하게 보강해 실제 머리카락 같은 결을 먼저 만든다.
+    float3 tangentWS = normalize(In.Tangent.xyz);
+    float tangentView = abs(dot(tangentWS, viewDir));
+    float strandSheen = pow(saturate(1.f - tangentView), 10.f);
+    strandSheen *= lerp(0.35f, 1.0f, hairDepth);
+    strandSheen *= lerp(0.55f, 1.0f, coreMask);
+    strandSheen *= saturate(hairMask);
+
+    strandSheen *= lerp(0.45f, 1.0f, clumpDensity);
+    emissive += (hairBSDFColor * 0.06f + float3(1.0f, 0.96f, 0.90f) * 0.025f) * strandSheen;
+
+    if (HasPreviewRim())
+    {
+        float3 rimNormal = normalize(worldNormal);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        float edgeMask = saturate(1.f - coreMask);
+        float hairRim = rim * saturate(hairMask) * lerp(0.35f, 1.0f, edgeMask);
+        emissive += GetPreviewRimColor() * (hairRim * GetPreviewRimIntensity() * GetPreviewHairRimIntensity());
+    }
+
+    Out.Emissive = float4(emissive, 1.f);
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass,               RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
@@ -479,4 +602,6 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(FaceAccAlphaBlend,         RS_CullNone, DSS_Default, BS_AlphaBlend, VS_Default, PS_FaceAccAlphaBlend) // 13
     PASS_RS_DS_BS_VP(SignDecalPass,             RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_SignDecal)         // 14
     PASS_RS_DS_BS_VP(WeaponGhostPass,           RS_CullNone, DSS_None, BS_AlphaBlend, VS_Default, PS_WeaponGhost)       // 15
+    PASS_RS_DS_BS_VP(WeaponAlphaPass,           RS_CullNone, DSS_None, BS_Default, VS_Default, PS_WeaponAlpha)       // 16
+    PASS_RS_DS_BS_VP(HairMesh,                  RS_CullNone, DSS_None, BS_Default, VS_Default, PS_CharacterHair)       // 17
 }
