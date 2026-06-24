@@ -1,11 +1,24 @@
 ﻿#include "UI_GradientSkillPreviewTest.h"
 
+#include "BattleTurnCamera.h"
+#include "Body_Player.h"
 #include "Camera.h"
+#include "Character_BattleBase.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
+#include "ContainerObject.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
+#include "LightingPipeline.h"
+#include "ModelCom.h"
+#include "Monster_BattleBase.h"
+#include "PartObject.h"
+#include "PostProcessPipeline.h"
 #include "PreviewCamera.h"
 #include "PreviewPlayer.h"
 #include "RenderTarget.h"
+#include "Spawn_Prefab.h"
+#include "TransformCom.h"
 #include "UI_Base.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
@@ -27,6 +40,20 @@ namespace
 
     constexpr uint32 kGradientPreviewTestWidth = 960;
     constexpr uint32 kGradientPreviewTestHeight = 540;
+
+    constexpr Vec3 kPreviewLightDirection = Vec3(-0.42f, -0.78f, 0.46f);
+    constexpr Vec4 kPreviewLightDiffuse = Vec4(0.92f, 0.89f, 0.84f, 1.f);
+    constexpr Vec4 kPreviewLightAmbient = Vec4(0.16f, 0.16f, 0.18f, 1.f);
+    constexpr Vec4 kPreviewLightSpecular = Vec4(0.75f, 0.72f, 0.68f, 1.f);
+    constexpr float kPreviewShadowIntensity = 0.58f;
+
+    constexpr Vec3 kPreviewRimColor = Vec3(0.82f, 0.81f, 0.78f);
+    constexpr float kPreviewRimIntensity = 0.24f;
+    constexpr float kPreviewRimPower = 2.7f;
+    constexpr float kPreviewHairRimIntensity = 0.11f;
+    constexpr float kPreviewSkillPhaseMaxSec = 3.0f;
+    constexpr float kPreviewSkillLoopDelaySec = 0.35f;
+    constexpr wchar_t kPreviewDioramaLayerTag[] = L"Layer_UIPreview";
 
     uint32 Pack_RGBA(uint8 r, uint8 g, uint8 b, uint8 a = 255)
     {
@@ -101,6 +128,44 @@ namespace
     private:
         Shared<Camera> _previousCamera{};
     };
+
+    float Resolve_BattleTurnGradientPreviewFovY(float fallbackFovY)
+    {
+        const Shared<BattleTurnCamera> battleTurnCamera =
+            dynamic_pointer_cast<BattleTurnCamera>(GAME->Get_CameraByType(ObjectType::BattleTurnCamera));
+        if (battleTurnCamera == nullptr)
+            return fallbackFovY;
+
+        return battleTurnCamera->Get_Preset(BattleCameraMode::PLAYERATTACK).camera.fovy;
+    }
+
+    Body_Player* Get_BattleHeroBody(const Shared<Character_BattleBase>& battleHero)
+    {
+        if (battleHero == nullptr)
+            return nullptr;
+
+        return dynamic_cast<Body_Player*>(battleHero->Get_PartObject(TEXT("Part_Body")));
+    }
+
+    void Play_BattleHeroAnimation(
+        const Shared<Character_BattleBase>& battleHero,
+        const vector<string>& animationKeys,
+        size_t phaseIndex)
+    {
+        if (phaseIndex >= animationKeys.size())
+            return;
+
+        Body_Player* body = Get_BattleHeroBody(battleHero);
+        if (body == nullptr)
+            return;
+
+        const Shared<ModelCom> model = body->Get_Model();
+        if (model == nullptr)
+            return;
+
+        // UI 설명용 프리뷰라 실제 BattleActionExecutor/피해/턴 처리는 호출하지 않는다.
+        model->Set_Animation(animationKeys[phaseIndex], 0.15f, false, 0.f);
+    }
 }
 
 HRESULT UI_GradientSkillPreviewTest::Initialize(uint32 levelIndex)
@@ -152,7 +217,9 @@ void UI_GradientSkillPreviewTest::Close()
 
 void UI_GradientSkillPreviewTest::Close_Immediately()
 {
+    Restore_PreviewRenderOverrides();
     Clear_RenderTargetImage();
+    Clear_PreviewDioramaActors();
 
     UI_RuntimePanelBase::Close();
 
@@ -166,7 +233,10 @@ void UI_GradientSkillPreviewTest::Close_Immediately()
 
     _elapsedSec = 0.f;
     _previewResourcesPrepared = false;
-    _previewAnimationStarted = false;
+    _previewSkillKeys.clear();
+    _previewSkillPhaseIndex = 0;
+    _previewSkillTimer = 0.f;
+    _previewSkillPlaying = false;
 
     GAME->Set_GameplayPaused(false);
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
@@ -261,39 +331,35 @@ bool UI_GradientSkillPreviewTest::Try_RenderPreviewHeroToTarget(float timeDelta)
         _previewResourcesPrepared = true;
     }
 
-    Shared<PreviewPlayer> previewPlayer{};
-    HeroId previewHeroId = HeroId::END;
-    for (const UIPreviewManager::PreviewHeroEntry& previewHero : previewManager->Get_PreviewHeroes())
-    {
-        if (previewHero.player == nullptr)
-            continue;
-
-        previewPlayer = previewHero.player;
-        previewHeroId = previewHero.heroId;
-        break;
-    }
-
     const Shared<PreviewCamera> previewCamera = previewManager->Get_PreviewCamera();
-    if (previewPlayer == nullptr || previewCamera == nullptr || previewPlayer->Get_Transform() == nullptr)
+    if (previewCamera == nullptr)
         return false;
 
-    if (!_previewAnimationStarted)
-    {
-        previewPlayer->Play_PreviewAnimation(PreviewAnimState::Skill_Intro, PreviewAnimState::Skill_Idle);
-        _previewAnimationStarted = true;
-    }
+    if (FAILED(Ensure_PreviewDioramaActors()))
+        return false;
 
-    const bool wasVisible = previewPlayer->Is_Visible();
-    previewPlayer->Set_Visible(true);
-    previewPlayer->Update_Preview(timeDelta, false);
+    if (_previewBattleHero == nullptr ||
+        _previewPotatoBag == nullptr ||
+        _previewBattleHero->Get_Transform() == nullptr)
+        return false;
 
-    const PreviewShotPreset preset = CLIENT->Get_Preset(previewHeroId, PreviewShotPanel::ChangeSkill);
-    previewCamera->Set_Preset(preset);
-    previewCamera->Set_TargetTransform(previewPlayer->Get_Transform());
+    Update_PreviewDioramaActors(timeDelta);
+
+    previewCamera->Set_Distance(5.8f);
+    previewCamera->Set_LookOffset(Vec3(1.0f, 1.25f, 0.f));
+    previewCamera->Set_FollowSpeed(30.f);
+    previewCamera->Set_FovY(Resolve_BattleTurnGradientPreviewFovY(previewCamera->Get_FovY()));
+    previewCamera->Set_TargetTransform(_previewBattleHero->Get_Transform());
     previewCamera->Update(timeDelta);
+
+    const bool wasHeroVisible = _previewBattleHero->Is_Visible();
+    const bool wasPotatoBagVisible = _previewPotatoBag->Is_Visible();
+    _previewBattleHero->Set_Visible(true);
+    _previewPotatoBag->Set_Visible(true);
 
     ScopedRenderTargetState restoreRenderState{ GAME->Get_Context() };
     ScopedActiveCamera restoreCamera{ static_pointer_cast<Camera>(previewCamera) };
+    Apply_PreviewRenderOverrides();
 
     ID3D11ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
     GAME->Get_Context()->VSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
@@ -301,17 +367,226 @@ bool UI_GradientSkillPreviewTest::Try_RenderPreviewHeroToTarget(float timeDelta)
 
     if (FAILED(_previewTarget->Begin(true, true)))
     {
-        previewPlayer->Set_Visible(wasVisible);
+        Restore_PreviewRenderOverrides();
+        _previewBattleHero->Set_Visible(wasHeroVisible);
+        _previewPotatoBag->Set_Visible(wasPotatoBagVisible);
         return false;
     }
 
-    const HRESULT renderResult = previewPlayer->Render_PreviewParts();
+    HRESULT renderResult = Render_PreviewActorParts(_previewPotatoBag.get());
+    if (SUCCEEDED(renderResult))
+        renderResult = Render_PreviewActorParts(_previewBattleHero.get());
 
     GAME->Get_Context()->VSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
     GAME->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
 
-    previewPlayer->Set_Visible(wasVisible);
+    Restore_PreviewRenderOverrides();
+    _previewBattleHero->Set_Visible(wasHeroVisible);
+    _previewPotatoBag->Set_Visible(wasPotatoBagVisible);
     return SUCCEEDED(renderResult);
+}
+
+HRESULT UI_GradientSkillPreviewTest::Ensure_PreviewDioramaActors()
+{
+    if (_previewBattleHero && _previewPotatoBag)
+        return S_OK;
+
+    Clear_PreviewDioramaActors();
+
+    _previewBattleHero = dynamic_pointer_cast<Character_BattleBase>(
+        Spawn_Prefab::Prefab(Constants::Prefab::PB_Maelle)
+        .AtLevel(ETOI(LevelType::Static))
+        .InLayer(kPreviewDioramaLayerTag)
+        .Position(Vec3(-1.1f, 0.f, 0.f))
+        .Rotation(Vec3(0.f, 90.f, 0.f))
+        .Spawn());
+
+    _previewPotatoBag = dynamic_pointer_cast<Monster_BattleBase>(
+        Spawn_Prefab::Prefab(Constants::Prefab::MB_PotatoBag)
+        .AtLevel(ETOI(LevelType::Static))
+        .InLayer(kPreviewDioramaLayerTag)
+        .Position(Vec3(1.25f, 0.f, 0.f))
+        .Rotation(Vec3(0.f, -90.f, 0.f))
+        .Spawn());
+
+    if (_previewBattleHero == nullptr || _previewPotatoBag == nullptr)
+    {
+        Clear_PreviewDioramaActors();
+        return E_FAIL;
+    }
+
+    _previewBattleHero->Set_BattleColliderActive(false);
+    _previewPotatoBag->Set_BattleColliderActive(false);
+    _previewBattleHero->Set_Visible(false);
+    _previewPotatoBag->Set_Visible(false);
+
+    Layout_PreviewDioramaActors();
+    Start_PreviewSkillPlayback();
+
+    return S_OK;
+}
+
+void UI_GradientSkillPreviewTest::Clear_PreviewDioramaActors()
+{
+    if (_previewBattleHero)
+    {
+        _previewBattleHero->Set_Visible(false);
+        if (const Shared<EffectCom> effectCom = _previewBattleHero->Get_Component<EffectCom>())
+        {
+            effectCom->Clear_PreviewRim();
+            effectCom->Stop_AllAttachedEffects();
+        }
+
+        GAME->Remove_GameObject(ETOI(LevelType::Static), _previewBattleHero);
+        _previewBattleHero.reset();
+    }
+
+    if (_previewPotatoBag)
+    {
+        _previewPotatoBag->Set_Visible(false);
+        if (const Shared<EffectCom> effectCom = _previewPotatoBag->Get_Component<EffectCom>())
+        {
+            effectCom->Clear_PreviewRim();
+            effectCom->Stop_AllAttachedEffects();
+        }
+
+        GAME->Remove_GameObject(ETOI(LevelType::Static), _previewPotatoBag);
+        _previewPotatoBag.reset();
+    }
+}
+
+void UI_GradientSkillPreviewTest::Layout_PreviewDioramaActors()
+{
+    if (_previewBattleHero && _previewBattleHero->Get_Transform())
+    {
+        _previewBattleHero->Get_Transform()->Set_WorldPosition(Vec3(-1.1f, 0.f, 0.f));
+        _previewBattleHero->Get_Transform()->Set_WorldRotationEuler(Vec3(0.f, 90.f, 0.f));
+        _previewBattleHero->Get_Transform()->Update_WorldMatrix();
+    }
+
+    if (_previewPotatoBag && _previewPotatoBag->Get_Transform())
+    {
+        _previewPotatoBag->Get_Transform()->Set_WorldPosition(Vec3(1.25f, 0.f, 0.f));
+        _previewPotatoBag->Get_Transform()->Set_WorldRotationEuler(Vec3(0.f, -90.f, 0.f));
+        _previewPotatoBag->Get_Transform()->Update_WorldMatrix();
+    }
+}
+
+void UI_GradientSkillPreviewTest::Update_PreviewDioramaActors(float timeDelta)
+{
+    const float safeDelta = max(0.f, timeDelta);
+    Update_PreviewSkillPlayback(safeDelta);
+
+    const auto updateActor = [safeDelta](const Shared<Character_BattleBase>& actor)
+    {
+        if (actor == nullptr)
+            return;
+
+        actor->Try_BeginPlay();
+
+        if (actor->Get_Transform())
+            actor->Get_Transform()->Update_WorldMatrix();
+
+        for (const auto& [partTag, partObject] : actor->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+
+            if (partObject == nullptr)
+                continue;
+
+            partObject->Try_BeginPlay();
+            partObject->Priority_Update(safeDelta);
+            partObject->Update(safeDelta);
+            partObject->Late_Update(safeDelta);
+        }
+
+        if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
+            effectCom->Tick_AttachedEffectInstances(safeDelta);
+    };
+
+    updateActor(_previewBattleHero);
+    updateActor(_previewPotatoBag);
+}
+
+void UI_GradientSkillPreviewTest::Start_PreviewSkillPlayback()
+{
+    _previewSkillKeys = Build_PreviewAnimationKeys(_previewSkillKey);
+    _previewSkillPhaseIndex = 0;
+    _previewSkillTimer = 0.f;
+    _previewSkillPlaying = !_previewSkillKeys.empty();
+
+    if (!_previewSkillPlaying)
+        return;
+
+    Play_BattleHeroAnimation(_previewBattleHero, _previewSkillKeys, _previewSkillPhaseIndex);
+}
+
+void UI_GradientSkillPreviewTest::Update_PreviewSkillPlayback(float timeDelta)
+{
+    if (!_previewSkillPlaying || _previewSkillKeys.empty())
+        return;
+
+    _previewSkillTimer += timeDelta;
+
+    Body_Player* body = Get_BattleHeroBody(_previewBattleHero);
+    const bool phaseFinished =
+        (body != nullptr && body->Is_AnimationFinished()) ||
+        _previewSkillTimer >= kPreviewSkillPhaseMaxSec;
+    if (!phaseFinished)
+        return;
+
+    if (_previewSkillPhaseIndex + 1 >= _previewSkillKeys.size())
+    {
+        if (_previewSkillTimer < kPreviewSkillPhaseMaxSec + kPreviewSkillLoopDelaySec)
+            return;
+
+        _previewSkillPhaseIndex = 0;
+    }
+    else
+    {
+        ++_previewSkillPhaseIndex;
+    }
+
+    _previewSkillTimer = 0.f;
+    Play_BattleHeroAnimation(_previewBattleHero, _previewSkillKeys, _previewSkillPhaseIndex);
+}
+
+vector<string> UI_GradientSkillPreviewTest::Build_PreviewAnimationKeys(const string& skillKey) const
+{
+    vector<string> animationKeys{};
+
+    const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
+    if (skillData == nullptr)
+        return animationKeys;
+
+    animationKeys.reserve(skillData->AnimPhases.size());
+    for (const BattleActionPhase& phase : skillData->AnimPhases)
+    {
+        if (!phase.animationKey.empty())
+            animationKeys.push_back(phase.animationKey);
+    }
+
+    return animationKeys;
+}
+
+HRESULT UI_GradientSkillPreviewTest::Render_PreviewActorParts(Engine::ContainerObject* actor)
+{
+    if (actor == nullptr)
+        return E_FAIL;
+
+    actor->Try_BeginPlay();
+
+    for (const auto& [partTag, partObject] : actor->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+
+        if (partObject == nullptr || !partObject->Is_Visible())
+            continue;
+
+        CHECK_FAILED(partObject->Render(), E_FAIL);
+    }
+
+    return S_OK;
 }
 
 void UI_GradientSkillPreviewTest::Update_TestPatternRenderTarget(float timeDelta)
@@ -387,6 +662,217 @@ void UI_GradientSkillPreviewTest::Clear_RenderTargetImage()
 {
     if (_previewImage)
         _previewImage->Clear_ExternalShaderResource();
+}
+
+void UI_GradientSkillPreviewTest::Apply_PreviewRenderOverrides()
+{
+    const Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    const LIGHT_DESC* primaryLightDesc = GAME->Get_PrimaryShadowLightDesc();
+    const ShadowLightDesc* shadowLightDesc = GAME->Get_ShadowLightDesc();
+
+    if (primaryLightDesc == nullptr)
+    {
+        const uint32 lightCount = GAME->Get_LightCount();
+        for (uint32 lightIndex = 0; lightIndex < lightCount; ++lightIndex)
+        {
+            const LIGHT_DESC* lightDesc = GAME->Get_LightDesc(lightIndex);
+            if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
+                continue;
+
+            primaryLightDesc = lightDesc;
+            break;
+        }
+    }
+
+    if (!_previewRenderOverrideState.isCaptured)
+    {
+        _previewRenderOverrideState.isCaptured = true;
+        _previewRenderOverrideState.cascadeLevel = GAME->Get_ShadowCascadeLevel();
+        _previewRenderOverrideState.hasPrimaryLight = (primaryLightDesc != nullptr);
+        _previewRenderOverrideState.hasShadowLight = (shadowLightDesc != nullptr);
+        _previewRenderOverrideState.hasPostProcess = (postProcessPipeline != nullptr);
+        _previewRenderOverrideState.hasLighting = (lightingPipeline != nullptr);
+
+        if (primaryLightDesc != nullptr)
+            _previewRenderOverrideState.primaryLight = *primaryLightDesc;
+
+        if (shadowLightDesc != nullptr)
+            _previewRenderOverrideState.shadowLight = *shadowLightDesc;
+
+        if (postProcessPipeline != nullptr)
+        {
+            _previewRenderOverrideState.postProcess = postProcessPipeline->Get_PostProcessParams();
+            _previewRenderOverrideState.postProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+        }
+
+        if (lightingPipeline != nullptr)
+        {
+            _previewRenderOverrideState.deferredLighting = lightingPipeline->Get_DeferredLightingParams();
+            _previewRenderOverrideState.iblEnabled = lightingPipeline->Is_IBLEnabled();
+        }
+    }
+
+    if (_previewRenderOverrideState.hasPrimaryLight)
+    {
+        LIGHT_DESC previewLight = _previewRenderOverrideState.primaryLight;
+        Vec3 previewLightDir = kPreviewLightDirection;
+        if (previewLightDir.LengthSquared() > 0.0001f)
+            previewLightDir.Normalize();
+
+        previewLight.direction = Vec4(previewLightDir.x, previewLightDir.y, previewLightDir.z, 0.f);
+        previewLight.diffuse = kPreviewLightDiffuse;
+        previewLight.ambient = kPreviewLightAmbient;
+        previewLight.specular = kPreviewLightSpecular;
+        GAME->Update_PrimaryShadowLightDesc(previewLight);
+        GAME->Set_ShadowCascadeLevel(Engine::CascadeLevel::Close);
+    }
+
+    if (_previewRenderOverrideState.hasShadowLight)
+    {
+        ShadowLightDesc previewShadow = _previewRenderOverrideState.shadowLight;
+        previewShadow.intensity = max(previewShadow.intensity, kPreviewShadowIntensity);
+        GAME->Update_ShadowLight(previewShadow);
+    }
+
+    if (_previewRenderOverrideState.hasPostProcess && postProcessPipeline != nullptr)
+    {
+        Engine::PostProcessCB previewPostProcess = _previewRenderOverrideState.postProcess;
+        previewPostProcess.exposure = 0.60f;
+        previewPostProcess.gamma = 1.33f;
+        previewPostProcess.bloomThreshold = 0.78f;
+        previewPostProcess.bloomIntensity = 0.64f;
+        previewPostProcess.bloomScatter = 0.88f;
+        postProcessPipeline->Set_PostProcessFeatures(
+            Engine::PostProcessFeature::HDR |
+            Engine::PostProcessFeature::ToneMapping |
+            Engine::PostProcessFeature::Exposure |
+            Engine::PostProcessFeature::Bloom |
+            Engine::PostProcessFeature::Gamma);
+        postProcessPipeline->Set_PostProcessParams(previewPostProcess);
+    }
+
+    if (_previewRenderOverrideState.hasLighting && lightingPipeline != nullptr)
+    {
+        Engine::DeferredLightingCB previewDeferredLighting = _previewRenderOverrideState.deferredLighting;
+        previewDeferredLighting.iblIntensity = 0.64f;
+        previewDeferredLighting.iblDiffuseIntensity = 0.34f;
+        previewDeferredLighting.iblSpecularIntensity = 1.18f;
+        lightingPipeline->Set_DeferredLightingParams(previewDeferredLighting);
+        lightingPipeline->Set_IBLEnabled(true);
+    }
+
+    Apply_PreviewRimState();
+}
+
+void UI_GradientSkillPreviewTest::Restore_PreviewRenderOverrides()
+{
+    if (!_previewRenderOverrideState.isCaptured)
+        return;
+
+    Clear_PreviewRimState();
+
+    const Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+
+    if (_previewRenderOverrideState.hasPrimaryLight)
+    {
+        GAME->Update_PrimaryShadowLightDesc(_previewRenderOverrideState.primaryLight);
+        GAME->Set_ShadowCascadeLevel(_previewRenderOverrideState.cascadeLevel);
+    }
+
+    if (_previewRenderOverrideState.hasShadowLight)
+        GAME->Update_ShadowLight(_previewRenderOverrideState.shadowLight);
+
+    if (_previewRenderOverrideState.hasPostProcess && postProcessPipeline != nullptr)
+    {
+        postProcessPipeline->Set_PostProcessFeatures(_previewRenderOverrideState.postProcessFeatures);
+        postProcessPipeline->Set_PostProcessParams(_previewRenderOverrideState.postProcess);
+    }
+
+    if (_previewRenderOverrideState.hasLighting && lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_DeferredLightingParams(_previewRenderOverrideState.deferredLighting);
+        lightingPipeline->Set_IBLEnabled(_previewRenderOverrideState.iblEnabled);
+    }
+
+    _previewRenderOverrideState = PreviewRenderOverrideState{};
+}
+
+void UI_GradientSkillPreviewTest::Apply_PreviewRimState()
+{
+    const auto applyPreviewRim = [](const Shared<Character_BattleBase>& actor)
+    {
+        if (actor == nullptr)
+            return;
+
+        const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>();
+        if (effectCom == nullptr)
+            return;
+
+        if (actor->Is_Visible())
+            effectCom->Set_PreviewRim(
+                kPreviewRimColor,
+                kPreviewRimIntensity,
+                kPreviewRimPower,
+                kPreviewHairRimIntensity);
+        else
+            effectCom->Clear_PreviewRim();
+    };
+
+    applyPreviewRim(_previewBattleHero);
+    applyPreviewRim(_previewPotatoBag);
+
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        const Shared<EffectCom> effectCom = previewHero.player->Get_Component<EffectCom>();
+        if (effectCom == nullptr)
+            continue;
+
+        if (previewHero.player->Is_Visible())
+            effectCom->Set_PreviewRim(
+                kPreviewRimColor,
+                kPreviewRimIntensity,
+                kPreviewRimPower,
+                kPreviewHairRimIntensity);
+        else
+            effectCom->Clear_PreviewRim();
+    }
+}
+
+void UI_GradientSkillPreviewTest::Clear_PreviewRimState()
+{
+    const auto clearPreviewRim = [](const Shared<Character_BattleBase>& actor)
+    {
+        if (actor == nullptr)
+            return;
+
+        if (const Shared<EffectCom> effectCom = actor->Get_Component<EffectCom>())
+            effectCom->Clear_PreviewRim();
+    };
+
+    clearPreviewRim(_previewBattleHero);
+    clearPreviewRim(_previewPotatoBag);
+
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        if (const Shared<EffectCom> effectCom = previewHero.player->Get_Component<EffectCom>())
+            effectCom->Clear_PreviewRim();
+    }
 }
 
 Unique<UI_GradientSkillPreviewTest> UI_GradientSkillPreviewTest::Create(uint32 levelIndex)

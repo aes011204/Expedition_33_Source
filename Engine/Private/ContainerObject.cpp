@@ -3,6 +3,118 @@
 
 #include "PartObject.h"
 
+namespace
+{
+#ifdef _DEBUG
+struct ContainerPartUpdatePerfStats
+{
+    uint64 samples = 0;
+    double accumulatedMs = 0.0;
+    double maxMs = 0.0;
+};
+
+map<string, ContainerPartUpdatePerfStats> g_containerPartUpdatePerfStats;
+chrono::steady_clock::time_point g_containerPartUpdatePerfWindowBegin{};
+bool g_hasContainerPartUpdatePerfWindow = false;
+
+string Resolve_DebugClassName(GameObject& gameObject)
+{
+    ClassReflectionInfo& reflectionInfo = gameObject.Get_ReflectionInfo();
+    if (!reflectionInfo.className.empty())
+        return reflectionInfo.className;
+
+    return "<unreflected>";
+}
+
+string Resolve_DebugPartTag(const ContainerObject& container, const Shared<PartObject>& partObject)
+{
+    if (partObject == nullptr)
+        return "<null>";
+
+    for (const auto& [partTag, registeredPart] : container.Get_PartObjects())
+    {
+        if (registeredPart == partObject)
+            return String::ToString(partTag);
+    }
+
+    return "<unregistered>";
+}
+
+string Make_ContainerPartPerfKey(ContainerObject& container, const Shared<PartObject>& partObject)
+{
+    string key = fmt::format(
+        "owner={} owner_prefab={} part={}",
+        Resolve_DebugClassName(container),
+        container.Get_SourcePrefabName().empty() ? "<none>" : container.Get_SourcePrefabName(),
+        Resolve_DebugPartTag(container, partObject));
+
+    if (partObject != nullptr)
+    {
+        key += fmt::format(
+            " part_class={} part_prefab={}",
+            Resolve_DebugClassName(*partObject),
+            partObject->Get_SourcePrefabName().empty() ? "<none>" : partObject->Get_SourcePrefabName());
+    }
+
+    return key;
+}
+
+void Accumulate_ContainerPartUpdatePerf(const string& key, double elapsedMs)
+{
+    if (!g_hasContainerPartUpdatePerfWindow)
+    {
+        g_containerPartUpdatePerfWindowBegin = chrono::steady_clock::now();
+        g_hasContainerPartUpdatePerfWindow = true;
+    }
+
+    ContainerPartUpdatePerfStats& stats = g_containerPartUpdatePerfStats[key];
+    ++stats.samples;
+    stats.accumulatedMs += elapsedMs;
+    stats.maxMs = max(stats.maxMs, elapsedMs);
+}
+
+void Try_Log_ContainerPartUpdatePerf()
+{
+    if (!g_hasContainerPartUpdatePerfWindow)
+        return;
+
+    const chrono::steady_clock::time_point now = chrono::steady_clock::now();
+    const double windowSec = chrono::duration<double>(now - g_containerPartUpdatePerfWindowBegin).count();
+    if (windowSec < 5.0)
+        return;
+
+    const auto topIter = max_element(
+        g_containerPartUpdatePerfStats.begin(),
+        g_containerPartUpdatePerfStats.end(),
+        [](const auto& lhs, const auto& rhs)
+        {
+            return lhs.second.accumulatedMs < rhs.second.accumulatedMs;
+        });
+
+    if (topIter != g_containerPartUpdatePerfStats.end() && topIter->second.samples > 0)
+    {
+        const ContainerPartUpdatePerfStats& stats = topIter->second;
+        const double avgMs = stats.accumulatedMs / static_cast<double>(stats.samples);
+
+        GAME->Log_FileOnly(
+            spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+            spdlog::level::trace,
+            fmt::format(
+                "[ContainerPartUpdatePerf] window_sec={:.2f} top=\"{}\" avg_ms={:.3f} max_ms={:.3f} total_ms={:.3f} samples={}",
+                windowSec,
+                topIter->first,
+                avgMs,
+                stats.maxMs,
+                stats.accumulatedMs,
+                stats.samples));
+    }
+
+    g_containerPartUpdatePerfStats.clear();
+    g_containerPartUpdatePerfWindowBegin = now;
+}
+#endif
+}
+
 ContainerObject::ContainerObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
@@ -98,7 +210,23 @@ void ContainerObject::Priority_Update(float timeDelta)
 void ContainerObject::Update(float timeDelta)
 {
 	for (auto& partObject : _partObjectUpdateOrder)
+    {
+#ifdef _DEBUG
+        const string perfKey = Make_ContainerPartPerfKey(*this, partObject);
+        const chrono::steady_clock::time_point updateBegin = chrono::steady_clock::now();
+#endif
+
         partObject->Update(timeDelta);
+
+#ifdef _DEBUG
+        const double elapsedMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
+        Accumulate_ContainerPartUpdatePerf(perfKey, elapsedMs);
+#endif
+    }
+
+#ifdef _DEBUG
+    Try_Log_ContainerPartUpdatePerf();
+#endif
 }
 
 void ContainerObject::Late_Update(float timeDelta)

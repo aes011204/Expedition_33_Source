@@ -315,6 +315,8 @@ void SoulLikeController::Play_PlayerAttackHitFeedback(const SL_DamageInfo& damag
     if (_state != BattleState::Playing)
         return;
 
+    GAME->Play_SoundCue(L"SFX_Hits_Sword");
+
     if (_playerAttackHitStopDuration <= 0.f)
         return;
 
