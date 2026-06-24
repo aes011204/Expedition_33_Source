@@ -164,6 +164,17 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
         0.f };
+    const Vec4 effectMeshUVAxisPolicyParams{
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Wrap)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Wrap)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)) };
+    const Vec4 effectMeshMaskUVAxisPolicyParams{
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
+        0.f,
+        0.f };
+    const Vec4 effectMeshUVRotationParams{ 0.f, 0.f, 0.f, 0.f };
     const Vec4 effectMeshSourceParams{ 1.f, 0.f, 0.f, 0.f };
     const Vec4 effectMeshAdditiveParams{ 0.f, 0.f, 0.f, 1.f };
     const Vec4 effectMeshAdditiveColor{ 1.f, 1.f, 1.f, 1.f };
@@ -182,6 +193,9 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVRotationParams", &effectMeshUVRotationParams, sizeof(effectMeshUVRotationParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialTime, sizeof(materialTime)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);

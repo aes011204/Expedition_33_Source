@@ -839,9 +839,10 @@ void Animation_View::Pre_Render()
         Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed는 sampling 전에 적용해야 현재 preview 재생 속도에 바로 반영된다.
         Update_PreviewRootControllerStates(dt);
         Update_ModifierPreviewMotionTest(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
         Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
+        Update_PreviewScreenFxCueStates(dt);
         PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
         Update_PreviewSLDodgeMoveStates(dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
@@ -868,7 +869,7 @@ void Animation_View::Pre_Render()
             runtime.effect->Late_Update(dt);
     }
 
-    GAME->Draw_RendererOnly();
+    GAME->Draw_RendererOnly(true);
     GAME->Restore_RenderGroup();
     Ensure_PreviewGridResources();
     Draw_SelectedBoneMarker();
@@ -1017,6 +1018,7 @@ void Animation_View::Render()
     {
         Reset_PreviewAnimSpeedStates();
         Reset_PreviewPlayEffectStates();
+        Reset_PreviewScreenFxCueStates();
         Reset_PreviewSourceHistoryEffect();
         Reset_PreviewRootControllerStates();
         Reset_PreviewWeaponRotateStates();
@@ -1044,6 +1046,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewScreenFxCueStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
@@ -1086,6 +1089,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewScreenFxCueStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
@@ -1143,6 +1147,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewScreenFxCueStates();
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewClone();
 
@@ -1199,6 +1204,7 @@ void Animation_View::Reset_PreviewClone()
 {
     Reset_PreviewAnimSpeedStates();
     Reset_PreviewPlayEffectStates();
+    Reset_PreviewScreenFxCueStates();
     Reset_PreviewSLDodgeMoveStates();
     Reset_PreviewRootControllerStates();
     Reset_PreviewSourceHistoryEffect();
@@ -4923,6 +4929,144 @@ void Animation_View::Reset_PreviewPlayEffectStates()
     }
 
     _previewPlayEffectStateRuntimes.clear();
+}
+
+void Animation_View::Update_PreviewScreenFxCueStates(float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewScreenFxCueStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewScreenFxCueStates();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel == nullptr)
+    {
+        Reset_PreviewScreenFxCueStates();
+        return;
+    }
+
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
+
+    AnimNotifyContext context{};
+    context.owner = playbackModel->Get_Owner().get();
+    context.model = playbackModel.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.currentTimeSec = currentTimeSec;
+    context.previousTimeSec = max(0.f, currentTimeSec - max(0.f, timeDelta));
+    context.deltaTime = timeDelta;
+    context.isLooping = true;
+    context.wrapped = false;
+    context.isPreview = true;
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_ScreenFxCue")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewScreenFxCueRuntimes.begin(),
+            _previewScreenFxCueRuntimes.end(),
+            [&](const PreviewScreenFxCueRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewScreenFxCueRuntimes.end())
+        {
+            PreviewScreenFxCueRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewScreenFxCueRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+            continue;
+        }
+
+        entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewScreenFxCueRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewScreenFxCueRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewScreenFxCueRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            endContext.notifyStateDurationSec = 0.f;
+            _previewScreenFxCueRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewScreenFxCueRuntimes.erase(_previewScreenFxCueRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewScreenFxCueStates()
+{
+    if (_previewScreenFxCueRuntimes.empty())
+        return;
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom ? _previewModelCom->Get_Owner().get() : nullptr;
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.isPreview = true;
+
+    for (PreviewScreenFxCueRuntime& runtime : _previewScreenFxCueRuntimes)
+    {
+        if (runtime.notifyState)
+            runtime.notifyState->On_End(context);
+    }
+
+    _previewScreenFxCueRuntimes.clear();
 }
 
 void Animation_View::Update_PreviewSourceHistoryEffect(float timeDelta)
