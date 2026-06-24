@@ -117,6 +117,14 @@ namespace
         return TrailOffsetMode::None;
     }
 
+    bool Is_SameVec3(const Vec3& lhs, const Vec3& rhs)
+    {
+        return
+            lhs.x == rhs.x &&
+            lhs.y == rhs.y &&
+            lhs.z == rhs.z;
+    }
+
     Client::ANS_Trail::TipExtendInterpolation Draw_TrailOffsetInterpolationCombo(
         const char* label,
         Client::ANS_Trail::TipExtendInterpolation interpolation,
@@ -1554,6 +1562,17 @@ bool Animation_View::Load_PreviewTrailAnchorAsset(
     outRuntime.trailAnchorAsset = {};
     outRuntime.modelGuid.clear();
 
+    if (outRuntime.trailAnchorSource == Client::ANS_Trail::TrailAnchorSource::NotifyBonePair)
+    {
+        outRuntime.trailAnchorAsset = {};
+        outRuntime.trailAnchorAsset.modelGuid.clear();
+        outRuntime.trailAnchorAsset.base.boneName = outRuntime.baseBoneName;
+        outRuntime.trailAnchorAsset.base.localPosition = outRuntime.baseLocalOffset;
+        outRuntime.trailAnchorAsset.tip.boneName = outRuntime.tipBoneName;
+        outRuntime.trailAnchorAsset.tip.localPosition = outRuntime.tipLocalOffset;
+        return true;
+    }
+
     const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
     if (ownerContainer == nullptr)
@@ -2473,7 +2492,10 @@ void Animation_View::Draw_SelectedDetail()
             }
 
             if (Client::ANS_Trail* trailNotifyState = dynamic_cast<Client::ANS_Trail*>(notifyState->notifyState.get()))
+            {
+                Draw_NotifyTrailAnchorPanel(*trailNotifyState);
                 Draw_TrailOffsetPanel(*trailNotifyState, *notifyState);
+            }
         }
     }
     else if (playbackModel != nullptr && _selectedBoneIndex >= 0)
@@ -2490,6 +2512,104 @@ void Animation_View::Draw_SelectedDetail()
     Draw_ModifierRuntimePanel(playbackModel);
 
     ImGui::EndChild();
+}
+
+void Animation_View::Draw_NotifyTrailAnchorPanel(Client::ANS_Trail& trailNotifyState)
+{
+    auto getSelectedBoneName = [&]() -> string
+        {
+            const Shared<ModelCom> playbackModel = Get_PlaybackModel();
+            if (playbackModel == nullptr || _selectedBoneIndex < 0)
+                return {};
+
+            const uint32 boneIndex = static_cast<uint32>(_selectedBoneIndex);
+            if (boneIndex >= playbackModel->Get_NumBones())
+                return {};
+
+            return playbackModel->Get_BoneName(boneIndex);
+        };
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextUnformatted("Notify Trail Anchor");
+
+    Client::ANS_Trail::TrailAnchorSource source = trailNotifyState.Get_TrailAnchorSource();
+    int32 selectedSource = source == Client::ANS_Trail::TrailAnchorSource::NotifyBonePair ? 1 : 0;
+    const char* sourceNames[] = { "Model Default", "Notify Bone Pair" };
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::Combo("Source##NotifyTrailAnchorSource", &selectedSource, sourceNames, IM_ARRAYSIZE(sourceNames)))
+    {
+        Begin_PendingNotifyUndo();
+        trailNotifyState.Set_TrailAnchorSource(
+            selectedSource == 1
+                ? Client::ANS_Trail::TrailAnchorSource::NotifyBonePair
+                : Client::ANS_Trail::TrailAnchorSource::ModelDefault);
+        _isDirty = true;
+        Commit_PendingNotifyUndo();
+    }
+
+    source = trailNotifyState.Get_TrailAnchorSource();
+    if (source != Client::ANS_Trail::TrailAnchorSource::NotifyBonePair)
+        return;
+
+    const string selectedBoneName = getSelectedBoneName();
+    const bool canUseSelectedBone = !selectedBoneName.empty();
+
+    ImGui::Text("Selected Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", canUseSelectedBone ? selectedBoneName.c_str() : "(None)");
+
+    ImGui::Text("Base Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", trailNotifyState.Get_BaseBoneName().empty() ? "(None)" : trailNotifyState.Get_BaseBoneName().c_str());
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!canUseSelectedBone);
+    if (ImGui::SmallButton("Use Selected Bone##NotifyTrailBaseBone"))
+    {
+        Begin_PendingNotifyUndo();
+        trailNotifyState.Set_BaseBoneName(selectedBoneName);
+        trailNotifyState.Set_BaseLocalOffset(Vec3::Zero);
+        _isDirty = true;
+        Commit_PendingNotifyUndo();
+    }
+    ImGui::EndDisabled();
+
+    Vec3 baseLocal = trailNotifyState.Get_BaseLocalOffset();
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragFloat3("Base Local##NotifyTrailBaseLocal", &baseLocal.x, 0.5f))
+    {
+        Begin_PendingNotifyUndo();
+        trailNotifyState.Set_BaseLocalOffset(baseLocal);
+        _isDirty = true;
+        if (!ImGui::IsAnyItemActive())
+            Commit_PendingNotifyUndo();
+    }
+
+    ImGui::Text("Tip Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", trailNotifyState.Get_TipBoneName().empty() ? "(None)" : trailNotifyState.Get_TipBoneName().c_str());
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!canUseSelectedBone);
+    if (ImGui::SmallButton("Use Selected Bone##NotifyTrailTipBone"))
+    {
+        Begin_PendingNotifyUndo();
+        trailNotifyState.Set_TipBoneName(selectedBoneName);
+        trailNotifyState.Set_TipLocalOffset(Vec3::Zero);
+        _isDirty = true;
+        Commit_PendingNotifyUndo();
+    }
+    ImGui::EndDisabled();
+
+    Vec3 tipLocal = trailNotifyState.Get_TipLocalOffset();
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragFloat3("Tip Local##NotifyTrailTipLocal", &tipLocal.x, 0.5f))
+    {
+        Begin_PendingNotifyUndo();
+        trailNotifyState.Set_TipLocalOffset(tipLocal);
+        _isDirty = true;
+        if (!ImGui::IsAnyItemActive())
+            Commit_PendingNotifyUndo();
+    }
 }
 
 void Animation_View::Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry)
@@ -5433,6 +5553,11 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         const json payload = activeTrailState->notifyState->To_Json();
         const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
         const string effectNameValue = payload.value("_effectName", string{});
+        const Client::ANS_Trail::TrailAnchorSource trailAnchorSource = trailNotifyState->Get_TrailAnchorSource();
+        const string baseBoneName = trailNotifyState->Get_BaseBoneName();
+        const Vec3 baseLocalOffset = trailNotifyState->Get_BaseLocalOffset();
+        const string tipBoneName = trailNotifyState->Get_TipBoneName();
+        const Vec3 tipLocalOffset = trailNotifyState->Get_TipLocalOffset();
         wstring resolvedEffectName{};
         if (!Try_ResolvePreviewTrailEffectName(effectNameValue, partTag, resolvedEffectName))
             continue;
@@ -5452,6 +5577,11 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
             PreviewTrailRuntime newRuntime{};
             newRuntime.stateId = activeTrailState->id;
             newRuntime.partTag = partTag; // 각 ANS_Trail이 지정한 partTag를 자기 runtime에 고정한다.
+            newRuntime.trailAnchorSource = trailAnchorSource;
+            newRuntime.baseBoneName = baseBoneName;
+            newRuntime.baseLocalOffset = baseLocalOffset;
+            newRuntime.tipBoneName = tipBoneName;
+            newRuntime.tipLocalOffset = tipLocalOffset;
             _previewTrailRuntimes.push_back(std::move(newRuntime));
             runtime = &_previewTrailRuntimes.back();
 
@@ -5472,12 +5602,24 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
             runtime->lastTimeSec = -1.f;
         }
 
-        if (runtime->partTag != partTag)
+        const bool anchorSourceChanged =
+            runtime->partTag != partTag ||
+            runtime->trailAnchorSource != trailAnchorSource ||
+            runtime->baseBoneName != baseBoneName ||
+            !Is_SameVec3(runtime->baseLocalOffset, baseLocalOffset) ||
+            runtime->tipBoneName != tipBoneName ||
+            !Is_SameVec3(runtime->tipLocalOffset, tipLocalOffset);
+        if (anchorSourceChanged)
         {
             if (runtime->effect)
                 runtime->effect->Stop();
 
             runtime->partTag = partTag;   // 같은 state라도 partTag가 바뀌면 새 무기 기준으로 anchor를 다시 읽는다.
+            runtime->trailAnchorSource = trailAnchorSource;
+            runtime->baseBoneName = baseBoneName;
+            runtime->baseLocalOffset = baseLocalOffset;
+            runtime->tipBoneName = tipBoneName;
+            runtime->tipLocalOffset = tipLocalOffset;
             runtime->effect.reset();
             runtime->effectName.clear();
             runtime->isPlaying = false;
@@ -5489,7 +5631,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
                 continue;
         }
 
-        if (runtime->trailAnchorAsset.modelGuid.empty())
+        if (runtime->trailAnchorSource == Client::ANS_Trail::TrailAnchorSource::ModelDefault &&
+            runtime->trailAnchorAsset.modelGuid.empty())
             continue;
 
         const float stateDuration = max(activeTrailState->durationSec, 0.0001f);

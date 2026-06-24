@@ -138,6 +138,11 @@ private:
         string modelGuid{};
         float lastTimeSec = -1.f;
         float offsetPhase = 0.f;
+        Client::ANS_Trail::TrailAnchorSource trailAnchorSource = Client::ANS_Trail::TrailAnchorSource::ModelDefault;
+        string baseBoneName{};
+        Vec3 baseLocalOffset{ Vec3::Zero };
+        string tipBoneName{};
+        Vec3 tipLocalOffset{ Vec3::Zero };
         Client::ANS_Trail::TipExtendCurve tipExtendCurve{};
         Client::ANS_Trail::LocalOffsetCurve baseLocalOffsetCurve{};
         Client::ANS_Trail::LocalOffsetCurve tipLocalOffsetCurve{};
@@ -244,6 +249,7 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_NotifyTrailAnchorPanel(Client::ANS_Trail& trailNotifyState);
     void Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry);
     void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
     void Update_ModifierPreviewMotionTest(float timeDelta);
