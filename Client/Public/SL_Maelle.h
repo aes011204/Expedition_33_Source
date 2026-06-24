@@ -61,7 +61,6 @@ public:
 
     void    Open_ParryWindow();
     void    Close_ParryWindow();
-    void    Reset_ParryConsumed();
     bool    Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos);
     bool    Is_ParryWindowOpen() const { return _parryWindowOpen; }
 
@@ -113,9 +112,8 @@ private:
     Shared<ColliderCom>         _attackColliderCom{};
 
     float _invincibleRemain = 0.f;
-    bool  _combatLocked = false; // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true
+    bool  _combatLocked = false;    // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true
     bool  _parryWindowOpen = false;
-    bool  _parryConsumed = false;
     SL_HitAnimOverride _pendingHitAnimOverride = SL_HitAnimOverride::Hit_Light;
 
 private: /* 피격 밀림 */

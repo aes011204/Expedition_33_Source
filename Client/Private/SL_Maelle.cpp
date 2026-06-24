@@ -178,7 +178,6 @@ void SL_Maelle::Reset_CombatHp(float maxHp)
     _invincibleRemain = 0.f;
     _combatLocked = false;
     _parryWindowOpen = false;
-    _parryConsumed = false;
 
     _hitPushDir = Vec3::Zero;
     _hitPushDistance = 0.f;
@@ -199,28 +198,17 @@ void SL_Maelle::Close_ParryWindow()
     _parryWindowOpen = false;
 }
 
-void SL_Maelle::Reset_ParryConsumed()
-{
-    _parryConsumed = false;
-}
-
 bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos)
 {
-    if (!_parryWindowOpen || _parryConsumed || Is_Dead())
+    if (!_parryWindowOpen || Is_Dead())
         return false;
 
     // 패링 전방 판정
     if (!Is_ParryFrontHit(effectPos))
         return false;
 
-    _parryConsumed = true;
-
-    static uint32 s_soulLikeParrySuccessCount = 0;
-    ++s_soulLikeParrySuccessCount;
-    LOG_INFO("[Parry] SoulLike parry success count={}", s_soulLikeParrySuccessCount);
-
     // 패링 성공하면, 무적
-    Set_InvincibleTime(0.2f);
+    // Set_InvincibleTime(0.2f);
 
     // 패링 Hit Effect. 크기 조절좀 해야할듯
     {
@@ -233,17 +221,6 @@ bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectP
 
     if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
         controller->Play_PlayerParryFeedback();
-
-    // 쳐내기 UI. 필요한가?
-    //if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
-    //{
-    //    if (GamePlayUI_SL* soulLikeUI = gameplayUI->Get_SoulLikeUI())
-    //    {
-    //        Vec3 worldPos = _transformCom ? _transformCom->Get_WorldPosition() : Vec3::Zero;
-    //        worldPos.y += 1.4f;
-    //        soulLikeUI->Show_ParryResult(worldPos);
-    //    }
-    //}
 
     return true;
 }
@@ -715,11 +692,31 @@ void SL_Maelle::Apply_MoveInput(const SL_MoveRequest& request, float timeDelta)
     {
         input.moveX = request.moveX;
         input.moveZ = request.moveZ;
-        input.isRunPressed = request.sprint;
+        input.isRunPressed = request.lockOn ? false : request.sprint;
+        input.isWalkDown = request.lockOn;
     }
 
     _movementCom->Apply_Input(input);
     _movementCom->Update_Movement(timeDelta);
+
+    if (request.lockOn && _targetCom != nullptr && _transformCom != nullptr)
+    {
+        const Shared<Character> target = _targetCom->Get_LockedTarget();
+        const Shared<TransformCom> targetTransform = target ? target->Get_Transform() : nullptr;
+
+        if (targetTransform != nullptr)
+        {
+            Vec3 lookDir = targetTransform->Get_WorldPosition() - _transformCom->Get_WorldPosition();
+            lookDir.y = 0.f;
+
+            if (lookDir.LengthSquared() > 0.0001f)
+            {
+                lookDir.Normalize();
+                const float yaw = XMConvertToDegrees(atan2f(lookDir.x, lookDir.z));
+                _transformCom->Set_WorldRotationEuler(Vec3(0.f, yaw, 0.f));
+            }
+        }
+    }
 }
 
 void SL_Maelle::Stop_Move()

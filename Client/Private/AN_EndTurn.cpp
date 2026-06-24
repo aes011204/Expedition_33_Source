@@ -16,7 +16,7 @@ IMPLEMENT_REFLECTION(AN_EndTurn)
 
 void AN_EndTurn::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     const auto battle = CLIENT->Get_BattleController();

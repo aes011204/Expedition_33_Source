@@ -38,6 +38,7 @@ private:
     void    Sync_BossState(const BattleChar& target);
     void    Apply_HpGauge(float ratio);
     void    Apply_DelayedHpGauge(float ratio);
+    void    Apply_BreakGauge(const BattleChar& target);
     void    Apply_ShieldGauge(const BattleChar& target);
     void    Apply_ShieldIcons(uint32 currentShield);
     void    Reset_ShieldIconDefaultVisual(uint32 iconIndex);

@@ -35,22 +35,14 @@ bool AttackTargeting::EnterInvoke()
 {
     LOG_DEBUG("AttackTargeting::EnterInvoke");
 
-    LOG_DEBUG("TARGETTING {}", TargetIndex);
-
     auto owner = Get_Owner();
     if (!owner)
         return false;
 
-    TargetIndex = 0;
+    if (!owner->Ensure_EnemyTargetPreview())
+        return false;
 
-    const auto enemies = owner->Get_AliveEnemies();
-    if (!enemies.empty())
-    {
-        TargetIndex %= enemies.size();
-        owner->Set_TargetPreview(enemies[TargetIndex]);
-    }
-
-
+    owner->Publish_TargetPreviewEnemyFocus();
     return Battle_State::EnterInvoke();
 }
 
@@ -65,38 +57,38 @@ void AttackTargeting::Update(float timeDelta)
         return;
 
     const auto enemies = owner->Get_AliveEnemies();
-    const auto heroes = owner->Get_AliveHeroes();
 
     if (enemies.empty())
         return;
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        owner->Clear_TargetPreview();
-        battleFSM->Change_State(BattleTurnState::ChooseAction);
-
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = owner->Get_TurnActionRequest().actor.actor;
-        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from AttackTargeting::Update ESC");
         GAME->Get_EventBus().Publish(event);
 
+        battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::F))
     {
-        owner->Set_TargetPreview(enemies[TargetIndex]);
+        if (!owner->Ensure_EnemyTargetPreview())
+            return;
+
+        const BattleChar* target = owner->Get_TargetPreview();
+        if (target == nullptr)
+            return;
 
         auto& request = owner->Get_TurnActionRequest();
-        request.InitTarget = enemies[TargetIndex];
+        request.InitTarget = *target;
 
         owner->Request_WidePresentationMode();
 
         auto data = CLIENT->Get_Skill(request.actor.statCom->Get_FirstSkill());
         request.skillKey = data ? data->skillKey : "";
 
-        LOG_DEBUG("AttackTargeting: confirm target index={}", TargetIndex);
         LOG_DEBUG("AttackTargeting: selected skill={}", request.skillKey.c_str());
 
         battleFSM->Change_State(BattleTurnState::AttackPlaying);
@@ -106,39 +98,19 @@ void AttackTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::A))
     {
-        // 왼쪽 끝
-        if (Try_MoveTargetIndex(-1, enemies.size()) == false)
+        if (owner->Move_EnemyTargetPreview(-1) == false)
             return;
 
-        owner->Set_TargetPreview(enemies[TargetIndex]);
-
-        EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-        event.subject = enemies[TargetIndex].actor;
-        event.presetId = enemies[TargetIndex].actor->Get_SourcePrefabName();
-        GAME->Get_EventBus().Publish(event);
-
-        LOG_DEBUG("TARGETTING {}", TargetIndex);
-
-        // 임시 기본 공격은 무조건 적 공격 이라는 가정 / 동료 치료 불가
+        owner->Publish_TargetPreviewEnemyFocus();
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::D))
     {
-        // 오른쪽 끝
-        if (Try_MoveTargetIndex(+1, enemies.size()) == false)
+        if (owner->Move_EnemyTargetPreview(+1) == false)
             return;
 
-        owner->Set_TargetPreview(enemies[TargetIndex]);
-
-        EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-        event.subject = enemies[TargetIndex].actor;
-        event.presetId = enemies[TargetIndex].actor->Get_SourcePrefabName();
-        GAME->Get_EventBus().Publish(event);
-
-        LOG_DEBUG("TARGETTING {}", TargetIndex);
+        owner->Publish_TargetPreviewEnemyFocus();
         return;
     }
 }
@@ -156,26 +128,6 @@ void AttackTargeting::ExitInvoke()
     //    owner->Clear_TargetPreview();
 
     Battle_State::ExitInvoke();
-}
-
-bool AttackTargeting::Try_MoveTargetIndex(int32 direction, size_t enemyCount)
-{
-    if (enemyCount == 0)
-        return false;
-
-    int32 nextIndex = static_cast<int32>(TargetIndex);
-
-    while (true)
-    {
-        nextIndex += direction; // A면 왼쪽, D면 오른쪽
-
-        // 범위 밖으로 나가면 막기
-        if (nextIndex < 0 || nextIndex >= static_cast<int32>(enemyCount))
-            return false;
-
-        TargetIndex = static_cast<uint32>(nextIndex);
-        return true;
-    }
 }
 
 void AttackTargeting::Free()

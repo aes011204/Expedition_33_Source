@@ -395,6 +395,7 @@ namespace Client::Constants::Charcter
 namespace Client::Constants::Prefab
 {
     inline constexpr wchar_t Root_Dir[] = L"Data/json/Prefabs";
+    inline constexpr wchar_t NPC_Dir[] = L"Data/json/Prefabs/NPC";
     inline constexpr wchar_t Player_Dir[] = L"Data/json/Prefabs/Player";
     inline constexpr wchar_t Monster_Dir[] = L"Data/json/Prefabs/Monster";
     inline constexpr wchar_t Weapon_Dir[] = L"Data/json/Prefabs/Weapons";

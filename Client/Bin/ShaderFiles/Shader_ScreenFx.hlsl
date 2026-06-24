@@ -224,6 +224,60 @@ PS_OUT_BACKBUFFER PS_CircularWipeTransition(PS_IN In)
 
 }
 
+float Compute_ScreenFxShapeMask(float2 texcoord)
+{
+    float shapeMode = g_screenFxParams.y;
+    float invertShape = g_screenFxParams.z;
+    float mask = 1.f;
+
+    if (shapeMode >= 0.5f)
+    {
+        float aspect = g_ScreenSize.x / max(1.0f, g_ScreenSize.y);
+        float2 diff = texcoord - g_screenFxShape.xy;
+        diff.x *= aspect;
+
+        float dist = length(diff);
+        float radius = max(0.f, g_screenFxShape.z);
+        float softness = max(0.001f, g_screenFxShape.w);
+        mask = 1.f - smoothstep(radius, radius + softness, dist);
+    }
+
+    if (invertShape >= 0.5f)
+        mask = 1.f - mask;
+
+    return saturate(mask);
+}
+
+PS_OUT_BACKBUFFER PS_Flash(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    float4 sceneColor = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
+    float shapeMask = Compute_ScreenFxShapeMask(In.Texcoord);
+    float amount = saturate(g_screenFxParams.x * shapeMask);
+    float3 flashColor = g_flashColor.rgb * max(0.f, g_screenFxParams.w);
+
+    Out.Color = sceneColor;
+    Out.Color.rgb = lerp(sceneColor.rgb, flashColor, amount);
+
+    return Out;
+}
+
+PS_OUT_BACKBUFFER PS_WorldDesaturate(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    float4 sceneColor = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
+    float shapeMask = Compute_ScreenFxShapeMask(In.Texcoord);
+    float amount = saturate(g_screenFxParams.x * shapeMask);
+    float grayscale = dot(sceneColor.rgb, float3(0.299f, 0.587f, 0.114f));
+
+    Out.Color = sceneColor;
+    Out.Color.rgb = lerp(sceneColor.rgb, grayscale.xxx, amount);
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(Vignette,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)
@@ -233,5 +287,8 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(Ghosting,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Ghosting)
     PASS_RS_DS_BS_VP(Distortion,                RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Distortion)
     PASS_RS_DS_BS_VP(PS_CircularWipeTransition, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_CircularWipeTransition)
+    PASS_RS_DS_BS_VP(Flash,                     RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Flash)
+    PASS_RS_DS_BS_VP(FlashExclude,              RS_Default, DSS_ScreenFxExclude, BS_Default, VS_MAIN, PS_Flash)
+    PASS_RS_DS_BS_VP(WorldDesaturate,           RS_Default, DSS_None, BS_Default, VS_MAIN, PS_WorldDesaturate)
+    PASS_RS_DS_BS_VP(WorldDesaturateExclude,    RS_Default, DSS_ScreenFxExclude, BS_Default, VS_MAIN, PS_WorldDesaturate)
 }
-

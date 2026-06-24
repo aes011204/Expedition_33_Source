@@ -25,6 +25,9 @@ IMPLEMENT_REFLECTION(AN_SpawnLineGroundEffect)
 
 void AN_SpawnLineGroundEffect::Execute(const AnimNotifyContext& context)
 {
+    if (context.isCinematic)
+        return;
+
     if (context.owner == nullptr)
         return;
 
@@ -33,7 +36,11 @@ void AN_SpawnLineGroundEffect::Execute(const AnimNotifyContext& context)
         return;
 
 
-    auto& turnAction = CLIENT->Get_BattleController()->Get_TurnAction();
+    const auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
+
+    auto& turnAction = battle->Get_TurnAction();
 
     const auto& steps = turnAction.GetSteps();
     const uint32 curStepIndex = turnAction.GetCurStepIndex();

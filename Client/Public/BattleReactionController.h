@@ -132,7 +132,7 @@ public:
 
     BattleReactionInputResult SubmitInput(BattleReactionType type, const BattleAction& turnAction);
     BattleReactionInputResult SubmitInput(const ReactionInputContext& context);
-    BattleReactionInputResult UpdateInput(const BattleAction& turnAction);
+    BattleReactionInputResult UpdateInput(const BattleAction& turnAction, bool autoParryEnabled = false);
 
     //BattleReactionInputResult UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex, bool pressedQ, bool pressedE);
     void UpdateAnimation(float timeDelta);

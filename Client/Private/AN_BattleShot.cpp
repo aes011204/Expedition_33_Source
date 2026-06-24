@@ -48,7 +48,7 @@ IMPLEMENT_REFLECTION(AN_BattleShot)
 
 void AN_BattleShot::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     auto owner = context.owner;
