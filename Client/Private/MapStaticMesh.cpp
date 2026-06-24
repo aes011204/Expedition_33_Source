@@ -195,6 +195,9 @@ HRESULT MapStaticMesh::Initialize(void* arg)
     _collisionData = pDesc->collisionData;
     _usesStaticCollision = (_collisionData != nullptr);
     _sourceStaticMeshIndex = pDesc->sourceStaticMeshIndex;
+    _visible = pDesc->visible;
+    _cullEnabled = pDesc->cullEnabled;
+    _castShadow = pDesc->castShadow;
     _sourceStaticMeshId = pDesc->name;
     _sourceStaticMeshModelPath = pDesc->modelPath;
     _sourceMapPath = pDesc->sourceMapPath;
@@ -245,7 +248,7 @@ void MapStaticMesh::Late_Update(float timeDelta)
 
     UNREFERENCED_PARAMETER(timeDelta);
 
-    if (_model == nullptr)
+    if (!_visible || _model == nullptr)
         return;
 
     if (g_toggleOwner == nullptr)
@@ -263,9 +266,9 @@ void MapStaticMesh::Late_Update(float timeDelta)
         BoundingBox worldBox{};
         localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
 
-        if (!GAME->IsVisible(worldBox))
+        if (_cullEnabled && !GAME->IsVisible(worldBox))
         {
-            if (Casts_DynamicShadow())
+            if (_castShadow && Casts_DynamicShadow())
                 GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
             return;
         }
@@ -549,6 +552,9 @@ json MapStaticMesh::To_Json() const
 {
     json root = __super::To_Json();
     root["map_static_collision_enabled"] = _usesStaticCollision;
+    root["Visible"] = _visible;
+    root["CullEnabled"] = _cullEnabled;
+    root["CastShadow"] = _castShadow;
 
     bool hasModelComponentJson = false;
     if (root.contains("components") && root["components"].is_array())
@@ -583,6 +589,9 @@ json MapStaticMesh::To_Json() const
 void MapStaticMesh::From_Json(const json& data)
 {
     _usesStaticCollision = data.value("map_static_collision_enabled", false);
+    _visible = data.value("Visible", true);
+    _cullEnabled = data.value("CullEnabled", true);
+    _castShadow = data.value("CastShadow", true);
 
     __super::From_Json(data);
 

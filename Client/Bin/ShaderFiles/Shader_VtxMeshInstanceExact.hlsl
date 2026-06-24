@@ -335,7 +335,8 @@ PS_OUT PS_UnlitFlame(PS_IN In)
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
-PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_Shadow_Instance, PS_Shadow) // 1    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 2
+    PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_Shadow_Instance, PS_Shadow) // 1
+    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 2
     PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 3
     PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 5

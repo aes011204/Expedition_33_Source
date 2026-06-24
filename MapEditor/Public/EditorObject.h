@@ -70,6 +70,10 @@ struct EditorObject
     bool _instancedHasCollision = false;
     int32 _selectedInstanceIdx = -1;
 
+    bool _visible = true;
+    bool _cullEnabled = true;
+    bool _castShadow = true;
+
     float _scatterRadius = 5.f;
     int32 _scatterCount = 5;
     float _scatterScaleMin = 0.8f;

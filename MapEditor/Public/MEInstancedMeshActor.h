@@ -30,6 +30,7 @@ public:
     void Set_CullShader(Shared<ComputeShaderCom> shader) { _cullShader = shader; }
     void Set_LodModel(int lod, Shared<ModelCom> model);
     void Set_HasGlow(bool hasGlow) { _hasGlow = hasGlow; }
+    void Set_Visible(bool visible) { _visible = visible; }
 
 public:
     virtual HRESULT Initialize(void* arg) override;
@@ -62,6 +63,7 @@ private:
 
     bool _hasGlow = false;
     float _accTime = {};
+    bool _visible = true;
 
 private:
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);

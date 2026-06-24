@@ -27,6 +27,11 @@ HRESULT MEStaticMeshActor::Initialize(void* arg)
 
 void MEStaticMeshActor::Late_Update(float timeDelta)
 {
+    if (!_visible)
+    {
+        return;
+    }
+
     Refresh_HasEclipseGlow();
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 

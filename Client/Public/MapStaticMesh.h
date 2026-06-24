@@ -29,6 +29,9 @@ public:
         Vec3 scale = Vec3::One;
         size_t sourceStaticMeshIndex = InvalidSourceStaticMeshIndex;
         wstring sourceMapPath = {};
+        bool visible = true;
+        bool cullEnabled = true;
+        bool castShadow = true;
     } MAPSTATICMESH_DESC;
 
 public:
@@ -66,6 +69,10 @@ private:
     Shared<StaticCollisionData> _collisionData;
     bool _usesStaticCollision = false;
     bool _hasEclipseGlow = false;
+
+    bool _visible = true;
+    bool _cullEnabled = true;
+    bool _castShadow = true;
 
     size_t _sourceStaticMeshIndex = InvalidSourceStaticMeshIndex;
     wstring _sourceStaticMeshId = {};

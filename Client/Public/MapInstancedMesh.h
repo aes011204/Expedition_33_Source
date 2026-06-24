@@ -34,6 +34,9 @@ public:
         Shared<StaticCollisionData> collisionData = nullptr;
         wstring modelPath = {};
         vector<InstanceTransform> transforms;
+        bool visible = true;
+        bool cullEnabled = true;
+        bool castShadow = true;
     } MAPINSTANCEDMESH_DESC;
 
 public:
@@ -85,6 +88,9 @@ private:
 
     float _accTime = {};
     bool _hasGlow = false;
+    bool _visible = true;
+    bool _cullEnabled = true;
+    bool _castShadow = true;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

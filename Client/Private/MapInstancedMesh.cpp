@@ -52,6 +52,9 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         _modelPath = pDesc->modelPath;
         _transforms = pDesc->transforms;
         _collisionData = pDesc->collisionData;
+        _visible = pDesc->visible;
+        _cullEnabled = pDesc->cullEnabled;
+        _castShadow = pDesc->castShadow;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -112,14 +115,14 @@ void MapInstancedMesh::Update(float timeDelta)
 
 void MapInstancedMesh::Late_Update(float timeDelta)
 {
-    if (_instanceCount == 0)
+    if (!_visible || _instanceCount == 0)
     {
         return;
     }
 
-    if (!GAME->IsVisible(_groupBounds))
+    if (_cullEnabled && !GAME->IsVisible(_groupBounds))
     {
-        if (Casts_DynamicShadow())
+        if (_castShadow && Casts_DynamicShadow())
             GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
         return;
     }
@@ -130,7 +133,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
     }
 
-    if (Casts_DynamicShadow())
+    if (_castShadow && Casts_DynamicShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
@@ -775,6 +778,9 @@ json MapInstancedMesh::To_Json() const
     json root = GameObject::To_Json();
 
     root["model_path"] = String::ToString(_modelPath);
+    root["Visible"] = _visible;
+    root["CullEnabled"] = _cullEnabled;
+    root["CastShadow"] = _castShadow;
 
     json transformsArray = json::array();
     for (const auto& t : _transforms)
@@ -793,6 +799,10 @@ json MapInstancedMesh::To_Json() const
 void MapInstancedMesh::From_Json(const json& node)
 {
     GameObject::From_Json(node);
+
+    _visible = node.value("Visible", true);
+    _cullEnabled = node.value("CullEnabled", true);
+    _castShadow = node.value("CastShadow", true);
 
     if (node.contains("model_path"))
     {

@@ -8,6 +8,8 @@
 #include "CmdAddInstance.h"
 #include "CmdEraseInstances.h"
 #include "MEWaterActor.h"
+#include "MEStaticMeshActor.h"
+#include "MEInstancedMeshActor.h"
 #include "CmdConvertToInstanced.h"
 #include "CmdConvertAllToStatic.h"
 #include "CmdConvertOneToStatic.h"
@@ -407,6 +409,19 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             DrawMaterialOverrides(obj);
         }
+
+        if (ImGui::CollapsingHeader("Render Settings##static", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::Checkbox("Visible##static", &obj->_visible))
+            {
+                if (obj->_renderHandle)
+                {
+                    obj->_renderHandle->Set_Visible(obj->_visible);
+                }
+            }
+            ImGui::Checkbox("Cull Enabled##static", &obj->_cullEnabled);
+            ImGui::Checkbox("Cast Shadow##static", &obj->_castShadow);
+        }
         break;
 
     case EObjectType::EncounterZone:
@@ -552,6 +567,19 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             }
 
             ImGui::Checkbox("Has Collision", &obj->_instancedHasCollision);
+
+            if (ImGui::Checkbox("Visible##instanced", &obj->_visible))
+            {
+                for (auto& handle : obj->_instancedChunkHandles)
+                {
+                    if (handle)
+                    {
+                        handle->Set_Visible(obj->_visible);
+                    }
+                }
+            }
+            ImGui::Checkbox("Cull Enabled##instanced", &obj->_cullEnabled);
+            ImGui::Checkbox("Cast Shadow##instanced", &obj->_castShadow);
 
             ImGui::Separator();
             int32 instCount = static_cast<int32>(obj->_instancedTransforms.size());

@@ -699,6 +699,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         desc.name = String::ToWString(e.value("Id", string{}));
         desc.sourceStaticMeshIndex = sourceStaticMeshIndex;
         desc.sourceMapPath = session.sourceMapPath;
+        desc.visible = e.value("Visible", true);
+        desc.cullEnabled = e.value("CullEnabled", true);
+        desc.castShadow = e.value("CastShadow", true);
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
@@ -806,6 +809,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             continue;
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
+        desc.visible = e.value("Visible", true);
+        desc.cullEnabled = e.value("CullEnabled", true);
+        desc.castShadow = e.value("CastShadow", true);
 
         desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
@@ -922,6 +928,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chunkDesc.model = desc.model;
             chunkDesc.collisionData = desc.collisionData;
             chunkDesc.transforms = chunkTransforms;
+            chunkDesc.visible = desc.visible;
+            chunkDesc.cullEnabled = desc.cullEnabled;
+            chunkDesc.castShadow = desc.castShadow;
 
             Shared<GameObject> spawnedObject = nullptr;
             const HRESULT addResult = GAME->Add_GameObject(

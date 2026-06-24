@@ -20,6 +20,7 @@ public:
     Shared<ModelCom> GetModel() const { return _model; }
     void Set_Model(Shared<ModelCom> model);
     void Set_CameraFar(float camfar) { _cameraFar = camfar; }
+    void Set_Visible(bool visible) { _visible = visible; }
 
 public:
     virtual HRESULT Initialize(void* arg) override;
@@ -34,6 +35,7 @@ private:
 
     float _cameraFar = 1000.f;
     bool _hasEclipseGlow = false;
+    bool _visible = true;
 
 private:
     HRESULT Ready_Components();

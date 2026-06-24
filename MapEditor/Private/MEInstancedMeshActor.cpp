@@ -52,7 +52,7 @@ HRESULT MEInstancedMeshActor::Initialize(void* arg)
 
 void MEInstancedMeshActor::Late_Update(float timeDelta)
 {
-    if (_instanceCount == 0)
+    if (!_visible || _instanceCount == 0)
     {
         return;
     }
