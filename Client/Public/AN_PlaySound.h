@@ -20,7 +20,8 @@ public:
 private:
     wstring _soundCue = L"";
     float _volume = 1.f;
-    float _pitch = 1.f;
+    float _speed = 1.f;
+    float _startRatio = 0.f;
 };
 
 NS_END

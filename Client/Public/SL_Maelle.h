@@ -44,8 +44,9 @@ public:
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
     Shared<CombatStatCom> Get_Stat() const override;
-    Shared<ColliderCom> Get_AttackCollider() const override;
+    Shared<ColliderCom> Get_AttackCollider() const;
     bool    Is_Dead() const override;
+    bool    Is_DamageBlocked() const override { return Is_Invincible(); }
     void    Apply_Damage(const SL_DamageInfo& damageInfo) override;
 
 public:
@@ -60,17 +61,25 @@ public:
 
     void    Open_ParryWindow();
     void    Close_ParryWindow();
-    void    Reset_ParryConsumed();
-    bool    Try_ConsumeParry(const Vec3& impactWorldPos);
+    bool    Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos);
     bool    Is_ParryWindowOpen() const { return _parryWindowOpen; }
 
     Body_Player* Get_Body() const { return _body.get(); }
+    SoulLikeAnim Consume_PendingHitAnim();
     void    Reset_CombatHp(float maxHp);
 
     HRESULT Apply_WorldStatSnapshot(const PlayerStatCom::BattleSyncSnapshot& snapshot);
 	void    Apply_WorldSkillKeys(const vector<string>& skillKeys);
     bool    Try_GetEquippedSkill(uint32 slotIndex, Skill_Data& outSkillData) const;
     HRESULT Rebuild_WeaponPartFromCurrentStat();
+
+public:
+    // 쿨타임
+    bool    Can_UseSkillSlot(uint32 slotIndex, Skill_Data& outSkillData) const;
+    void    Start_SkillCooldown(uint32 slotIndex, const Skill_Data& skillData);
+    void    Update_SkillCooldown(float timeDelta);
+    void    Clear_SkillCooldowns();
+    SL_SkillCooldownView Get_SkillCooldownView(uint32 slotIndex) const;
 
 private:
     HRESULT Ready_Components();
@@ -103,15 +112,18 @@ private:
     Shared<ColliderCom>         _attackColliderCom{};
 
     float _invincibleRemain = 0.f;
-    bool  _combatLocked = false; // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true
+    bool  _combatLocked = false;    // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true
     bool  _parryWindowOpen = false;
-    bool  _parryConsumed = false;
+    SL_HitAnimOverride _pendingHitAnimOverride = SL_HitAnimOverride::Hit_Light;
 
 private: /* 피격 밀림 */
     Vec3  _hitPushDir = Vec3::Zero;
     float _hitPushDistance = 0.f;
     float _hitPushDuration = 0.f;
     float _hitPushElapsed = 0.f;
+
+    // 쿨타임
+    array<SL_SkillCooldownRuntime, 4> _skillCooldowns{};
 
 public:
     static Shared<SL_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

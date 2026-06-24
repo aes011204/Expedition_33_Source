@@ -43,6 +43,7 @@ public:
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
         vector<json> postProcessVolumes = {};
+        vector<json> shaftVolumes = {};
         vector<json> waters = {};
         vector<string> preloadModelPaths = {};
         MapCollisionAdapter::CookedCollisionCache cookedCollisionCache = {};

@@ -141,6 +141,23 @@ void Monster_WorldBase::Update(float timeDelta)
     if (CLIENT->Is_WorldControlSuspended())
         return;
 
+    if (_combatStat)
+        _combatStat->Update(timeDelta);
+
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (_isCinematicDriven)
+    {
+        if (bodyPart)
+            _transformCom->Set_SpeedPerSec(0.f);
+
+        Character_WorldBase::Update(timeDelta);
+
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        return;
+    }
+
     const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
     bool holdStartIdle = false;
 
@@ -160,9 +177,6 @@ void Monster_WorldBase::Update(float timeDelta)
         }
     }
 
-    if (_combatStat)
-        _combatStat->Update(timeDelta);
-
     if (_currentAction != MonsterWorldAnim::Hit)
     {
         if (_isStun)
@@ -175,7 +189,6 @@ void Monster_WorldBase::Update(float timeDelta)
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
     //    Set_CurrentAction(MonsterAction::Move);
 
-    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
     if (_currentAction == MonsterWorldAnim::Hit && bodyPart && bodyPart->Is_AnimationFinished())
     {
         OnHitAnimationFinished();
@@ -273,6 +286,7 @@ void Monster_WorldBase::Update(float timeDelta)
             MovementCom::FollowMoveCommand command{};
             command.enabled = true;
             command.worldDir = _aiCtrl->Get_MoveWorldDir();
+            command.rotateFollow = false;
 
             _movementCom->Set_FollowMoveCommand(command);
             _movementCom->Apply_Input({});
@@ -328,6 +342,29 @@ void Monster_WorldBase::Apply_Stun(float duration)
 
     _currentAction = MonsterWorldAnim::Hit;
     _hasAppliedAction = false;
+}
+
+void Monster_WorldBase::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
+    if (_movementCom)
+    {
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_transformCom)
+        _transformCom->Set_SpeedPerSec(0.f);
 }
 
 void Monster_WorldBase::OnHitAnimationFinished()
@@ -514,12 +551,32 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         }
     }
 
+    Request_BattleEnter(isPlayerAdvantage, self, false); // 일반 월드 충돌 전투는 기존 2초 슬로우 진입을 유지한다.
+}
+
+void Monster_WorldBase::On_EditorStopRuntime()
+{
+    Restore_AfterBattleExit();
+}
+
+void Monster_WorldBase::Begin_BattleFromCinematic(bool isPlayerAdvantage)
+{
+    if (_isBattleStart)
+        return;
+
+    if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
+        return;
+
+    Request_BattleEnter(isPlayerAdvantage, nullptr, true); // 시네마틱 종료 전투는 ScreenFx 전환으로 바로 진입한다.
+}
+
+bool Monster_WorldBase::Request_BattleEnter(bool isPlayerAdvantage, Shared<ColliderCom> self, bool completeImmediately)
+{
     _isBattleStart = true;
 
     if (self)
         self->Set_IsActive(false);
 
-    // 전투 시작 플레이어 지정
     vector<HeroId> heroes = Build_BattleHeroIds();
 
     vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
@@ -535,18 +592,20 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         if (self)
             self->Set_IsActive(true);
 
-        return;
+        return false;
     }
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
 
-    // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
-    CLIENT->OnEnterBattleField(Get_BattleFieldId(), isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
-}
+    CLIENT->OnEnterBattleField(
+        Get_BattleFieldId(),
+        isPlayerAdvantage,
+        heroes,
+        battleMonsterSpawnDescs,
+        GetSharedPtr<GameObject>(),
+        completeImmediately); // 시네마틱 종료 전투만 true로 들어와 2초 대기를 건너뛴다.
 
-void Monster_WorldBase::On_EditorStopRuntime()
-{
-    Restore_AfterBattleExit();
+    return true;
 }
 
 void Monster_WorldBase::Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const

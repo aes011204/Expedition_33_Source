@@ -2,6 +2,7 @@
 
 #include "CombatStatCom.h"
 #include "GameInstance.h"
+#include "SL_Base.h"
 
 float SL_DamageSystem::Calculate_PhysicalDamage(const Shared<CombatStatCom>& attackerStat, float multiplier)
 {
@@ -26,6 +27,12 @@ bool SL_DamageSystem::Apply_Damage(const Shared<GameObject>& attacker, const Sha
     if (target == nullptr || targetStat == nullptr)
         return false;
 
+    if (const Shared<SL_Base> targetActor = dynamic_pointer_cast<SL_Base>(target))
+    {
+        if (targetActor->Is_DamageBlocked())
+            return false;
+    }
+
     if (targetStat->Get_AliveStatus() == EAliveStatus::Dead)
         return false;
 
@@ -41,6 +48,42 @@ bool SL_DamageSystem::Apply_Damage(const Shared<GameObject>& attacker, const Sha
 
     if (outInfo.isCritical)
         damage *= 1.5f;
+
+    auto& runtimeStat = targetStat->Get_RuntimeStat();
+    runtimeStat.CurHp = max(0.f, runtimeStat.CurHp - damage);
+
+    if (runtimeStat.CurHp <= 0.f)
+        runtimeStat.CurAliveState = EAliveStatus::Dead;
+
+    outInfo.finalDamage = damage;
+    outInfo.isKilled = runtimeStat.CurAliveState == EAliveStatus::Dead;
+
+    return true;
+}
+
+bool SL_DamageSystem::Apply_FixedDamage(const Shared<GameObject>& attacker, const Shared<GameObject>& target,
+    const Shared<CombatStatCom>& targetStat, float damage, AttackType attackType, SL_DamageInfo& outInfo)
+{
+    outInfo = {};
+    outInfo.attacker = attacker;
+    outInfo.target = target;
+    outInfo.targetStat = targetStat;
+    outInfo.attackType = attackType;
+
+    if (target == nullptr || targetStat == nullptr)
+        return false;
+
+    if (const Shared<SL_Base> targetActor = dynamic_pointer_cast<SL_Base>(target))
+    {
+        if (targetActor->Is_DamageBlocked())
+            return false;
+    }
+
+    if (targetStat->Get_AliveStatus() == EAliveStatus::Dead)
+        return false;
+
+    if (damage <= 0.f)
+        return false;
 
     auto& runtimeStat = targetStat->Get_RuntimeStat();
     runtimeStat.CurHp = max(0.f, runtimeStat.CurHp - damage);

@@ -32,8 +32,6 @@ bool SkillTargeting::EnterInvoke()
     if (!owner)
         return false;
 
-    _targetIndex = 0;
-
     const auto enemies = owner->Get_AliveEnemies();
     if (enemies.empty())
     {
@@ -47,18 +45,14 @@ bool SkillTargeting::EnterInvoke()
 
     if (!requiresTarget)
     {
-        owner->Clear_TargetPreview();
+        owner->Ensure_EnemyTargetPreview();
         return Battle_State::EnterInvoke();
     }
 
-    owner->Set_TargetPreview(enemies[_targetIndex]);
+    if (!owner->Ensure_EnemyTargetPreview())
+        return false;
 
-    EvtBattlePresentation event;
-    event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-    event.subject = enemies[_targetIndex].actor;
-    event.presetId = enemies[_targetIndex].actor->Get_SourcePrefabName();
-    GAME->Get_EventBus().Publish(event);
-
+    owner->Publish_TargetPreviewEnemyFocus();
     return Battle_State::EnterInvoke();
 }
 
@@ -80,18 +74,13 @@ void SkillTargeting::Update(float timeDelta)
         return;
     }
 
-    if (_targetIndex >= enemies.size())
-        _targetIndex = 0;
-
     const Skill_Data* skillData = CLIENT->Get_Skill(owner->Get_TurnActionRequest().skillKey);
     const bool requiresManualTarget = Requires_SkillTarget(skillData);
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        owner->Clear_TargetPreview();
-
         EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::SELECTSKILL;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 
@@ -101,43 +90,46 @@ void SkillTargeting::Update(float timeDelta)
 
     if (requiresManualTarget && GAME->KeyDown(KEY_TYPE::A))
     {
-        if (Try_MoveTargetIndex(-1, enemies.size()))
-            owner->Set_TargetPreview(enemies[_targetIndex]);
-
-        EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-        event.subject = enemies[_targetIndex].actor;
-        event.presetId = enemies[_targetIndex].actor->Get_SourcePrefabName();
-        GAME->Get_EventBus().Publish(event);
+        if (owner->Move_EnemyTargetPreview(-1))
+            owner->Publish_TargetPreviewEnemyFocus();
         return;
     }
 
     if (requiresManualTarget && GAME->KeyDown(KEY_TYPE::D))
     {
-        if (Try_MoveTargetIndex(+1, enemies.size()))
-            owner->Set_TargetPreview(enemies[_targetIndex]);
-
-        EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-        event.subject = enemies[_targetIndex].actor;
-        event.presetId = enemies[_targetIndex].actor->Get_SourcePrefabName();
-        GAME->Get_EventBus().Publish(event);
+        if (owner->Move_EnemyTargetPreview(+1))
+            owner->Publish_TargetPreviewEnemyFocus();
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::F))
     {
+        const BattleChar* target = nullptr;
+
         if (requiresManualTarget)
-            owner->Set_TargetPreview(enemies[_targetIndex]);
+        {
+            if (!owner->Ensure_EnemyTargetPreview())
+                return;
+
+            target = owner->Get_TargetPreview();
+        }
         else
-            owner->Clear_TargetPreview();
+        {
+            owner->Ensure_EnemyTargetPreview();
+            target = owner->Get_TargetPreview();
+
+            if (target == nullptr)
+                target = &enemies.front();
+        }
+
+        if (target == nullptr)
+            return;
 
         auto& action = owner->Get_TurnActionRequest();
-        action.InitTarget = enemies[_targetIndex];
+        action.InitTarget = *target;
 
-        LOG_DEBUG("SkillTargeting: confirm skill={}, targetIndex={}",
-            action.skillKey.c_str(),
-            _targetIndex);
+        LOG_DEBUG("SkillTargeting: confirm skill={}",
+            action.skillKey.c_str());
 
         battleFSM->Change_State(BattleTurnState::AttackPlaying);
         owner->ExecuteActionRequest(action);
@@ -153,19 +145,6 @@ void SkillTargeting::LateUpdate(float timeDelta)
 void SkillTargeting::ExitInvoke()
 {
     Battle_State::ExitInvoke();
-}
-
-bool SkillTargeting::Try_MoveTargetIndex(int32 direction, size_t enemyCount)
-{
-    if (enemyCount == 0)
-        return false;
-
-    const int32 nextIndex = static_cast<int32>(_targetIndex) + direction;
-    if (nextIndex < 0 || nextIndex >= static_cast<int32>(enemyCount))
-        return false; // 끝에서 더 넘어가지 않게 막는다.
-
-    _targetIndex = static_cast<uint32>(nextIndex);
-    return true;
 }
 
 bool SkillTargeting::Requires_SkillTarget(const Skill_Data* skillData)

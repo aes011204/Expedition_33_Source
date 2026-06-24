@@ -21,6 +21,10 @@ inline constexpr float kMaterialVfxAlphaMin = 0.f;
 inline constexpr float kMaterialVfxAlphaMax = 2.f;
 inline constexpr float kMaterialVfxNoiseStrengthMin = 0.f;
 inline constexpr float kMaterialVfxNoiseStrengthMax = 1.f;
+inline constexpr float kMaterialVfxFlowSpeedMin = 0.f;
+inline constexpr float kMaterialVfxFlowSpeedMax = 4.f;
+inline constexpr float kMaterialVfxPreserveColorMin = 0.f;
+inline constexpr float kMaterialVfxPreserveColorMax = 1.f;
 inline constexpr float kMaterialVfxEdgeWidthMin = 0.001f;
 inline constexpr float kMaterialVfxEdgeWidthMax = 0.5f;
 inline constexpr float kMaterialVfxEdgeSoftnessMin = 0.001f;
@@ -85,6 +89,8 @@ struct UI_MaterialVfxDesc
     float coreSoftness = 0.05f;
     float noiseStrength = 0.35f;
     ImVec2 uvScroll = ImVec2(0.08f, -0.18f);
+    float flowSpeed = 1.f;
+    float preserveColor = 0.f;
     float edgeWidth = 0.18f;
     float edgeSoftness = 0.08f;
     float erosion = 0.18f;
@@ -145,6 +151,16 @@ inline float Clamp_MaterialVfxAlpha(float value)
 inline float Clamp_MaterialVfxNoiseStrength(float value)
 {
     return min(max(value, kMaterialVfxNoiseStrengthMin), kMaterialVfxNoiseStrengthMax);
+}
+
+inline float Clamp_MaterialVfxFlowSpeed(float value)
+{
+    return min(max(value, kMaterialVfxFlowSpeedMin), kMaterialVfxFlowSpeedMax);
+}
+
+inline float Clamp_MaterialVfxPreserveColor(float value)
+{
+    return min(max(value, kMaterialVfxPreserveColorMin), kMaterialVfxPreserveColorMax);
 }
 
 inline float Clamp_MaterialVfxEdgeWidth(float value)

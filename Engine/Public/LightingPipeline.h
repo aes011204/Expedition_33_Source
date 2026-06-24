@@ -10,6 +10,13 @@ class ComputeShaderCom;
 class ENGINE_DLL LightingPipeline : public Base
 {
 public:
+    enum class FroxelDebugMode : uint8
+    {
+        Integrated = 0,
+        RawInjection,
+    };
+
+public:
     explicit LightingPipeline(ComPtr<Device> device, ComPtr<Context> context);
     virtual ~LightingPipeline() = default;
 
@@ -34,18 +41,29 @@ public:
     // Froxel
     HRESULT Update_FroxelZone(const VolumetricLightShaftZoneCB& vlsz);
     HRESULT Update_Froxel(const FroxelCB& forxel);
-    HRESULT Dispatch_Froxel();
+    HRESULT Update_FroxelShadow(const ShadowCB& shadowCB);
+    void Bind_FroxelInputSRVs(ID3D11ShaderResourceView* depthSRV, ID3D11ShaderResourceView* shadowSRV);
+    HRESULT Dispatch_FroxelInject();
+    HRESULT Dispatch_FroxelBlur();
+    HRESULT Dispatch_FroxelAccumulate();
+    HRESULT Dispatch_FroxelTemporal();
     HRESULT Reload_FroxelComputeShader();
+    void Invalidate_FroxelFrameData();
+    bool Has_FroxelFrameData() const;
 
     ID3D11ShaderResourceView* Get_DebugFroxelSRV() const;
+    ID3D11ShaderResourceView* Get_FroxelIntegratedSRV() const;
+    const FroxelCB& Get_FroxelParams() const;
     uint32 Get_DebugFroxelWidth() const;
     uint32 Get_DebugFroxelHeight() const;
     uint32 Get_DebugFroxelDepth() const;
     void Set_DebugFroxelSlice(uint32 debugSlice);
     uint32 Get_DebugFroxelSlice() const;
+    void Set_DebugFroxelMode(FroxelDebugMode debugMode);
+    FroxelDebugMode Get_DebugFroxelMode() const;
 
 private :
-    HRESULT Ready_FroxelTexture();
+    HRESULT Ready_FroxelTextures();
     HRESULT Ready_FroxelBuffer();
     HRESULT Ready_FroxelComputeShader();
 
@@ -56,20 +74,42 @@ private:
     SSAOCB _ssaoCB{};
     DeferredLightingCB _deferredLightingCB{};
 
-    const uint32    _froxelWidth = 160;
-    const uint32    _froxelHeight = 90;
-    const uint32    _froxelDepth = 64;
+    const uint32    _froxelWidth = 240;
+    const uint32    _froxelHeight = 135;
+    const uint32    _froxelDepth = 128;
 
-    Shared<ComputeShaderCom>            _froxelComputeShader;
+    Shared<ComputeShaderCom>            _froxelInjectComputeShader;
+    Shared<ComputeShaderCom>            _froxelBlurComputeShader;
+    Shared<ComputeShaderCom>            _froxelAccumulateComputeShader;
+    Shared<ComputeShaderCom>            _froxelTemporalComputeShader;
 
-    ComPtr<ID3D11Texture3D>             _froxelTexture;
-    ComPtr<ID3D11UnorderedAccessView>   _froxelUAV;
-    ComPtr<ID3D11ShaderResourceView>    _froxelSRV;
+    ComPtr<ID3D11Texture3D>             _froxelInjectionTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelInjectionUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelInjectionSRV;
+    ComPtr<ID3D11Texture3D>             _froxelBlurTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelBlurUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelBlurSRV;
+    ComPtr<ID3D11Texture3D>             _froxelIntegratedTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelIntegratedUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelIntegratedSRV;
+    ComPtr<ID3D11Texture3D>             _froxelHistoryTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelHistoryUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelHistorySRV;
+    ComPtr<ID3D11Texture3D>             _froxelTemporalTexture;
+    ComPtr<ID3D11UnorderedAccessView>   _froxelTemporalUAV;
+    ComPtr<ID3D11ShaderResourceView>    _froxelTemporalSRV;
 
     ComPtr<ID3D11Buffer>                _froxelZoneBuffer;
     ComPtr<ID3D11Buffer>                _froxelBuffer;
+    ComPtr<ID3D11Buffer>                _froxelShadowBuffer;
+    FroxelCB                            _froxelCB{};
+
+    ID3D11ShaderResourceView*           _froxelDepthSRV = nullptr;
+    ID3D11ShaderResourceView*           _froxelShadowSRV = nullptr;
+    bool                                _hasFroxelFrameData = false;
 
     uint32                              _froxelDebugSlice = 0;
+    FroxelDebugMode                     _froxelDebugMode = FroxelDebugMode::Integrated;
 
 public:
     static Shared<LightingPipeline> Create(ComPtr<Device> device, ComPtr<Context> context);

@@ -41,6 +41,8 @@ HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
     if (nullptr == _loader)
         return E_FAIL;
 
+    GAME->Set_RenderEnvironment(false);
+
     return S_OK;
 }
 

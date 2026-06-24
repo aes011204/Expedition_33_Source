@@ -7,10 +7,30 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "PictosBattleSystem.h"
+#include "Character_BattleBase.h"
 
 FOnDamageApplied        DamageSystem::OnDamageApplied{};
 FOnDamageCalculating    DamageSystem::OnDamageCalculating{};
 FOnHealApplied          DamageSystem::OnHealApplied{};
+
+namespace
+{
+    float Consume_NextAttackQTEDamage(float damage, const BattleChar& attacker, AttackType attackType)
+    {
+        if (damage <= 0.f)
+            return damage;
+
+        const auto battleController = CLIENT->Get_BattleController();
+        if (battleController == nullptr)
+            return damage;
+
+        const auto qteController = battleController->Get_QTEController();
+        if (qteController == nullptr)
+            return damage;
+
+        return damage * qteController->Consume_NextAttackDamageMultiplier(attacker, attackType);
+    }
+}
 
 void DamageSystem::Heal(float amount, const BattleChar& target)
 {
@@ -45,6 +65,9 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
     if (damage <= 0.f || target.statCom == nullptr)
         return;
 
+    damage = Consume_NextAttackQTEDamage(damage, attacker, attackType);
+
+    // 쉴드
     if (target.statCom->Get_CurrentShield() != 0)
     {
         const uint32 prevShield = target.statCom->Get_CurrentShield();
@@ -97,6 +120,12 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
     if (isCritical)
         damage *= 1.5f;
 
+    if (target.actor)
+        target.actor->Adjust_IncomingBattleDamage(attacker, damage, attackType);
+
+    if (damage <= 0.f)
+        return; // 감소된 피해 다시 확인
+
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
     runtimeStat.CurHp -= damage;
 
@@ -119,6 +148,11 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
 void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target,
     AttackType attackType)
 {
+    if (target.empty())
+        return;
+
+    damage = Consume_NextAttackQTEDamage(damage, attacker, attackType);
+
     for (const auto& character : target)
     {
         ApplyDamage(damage, attacker, character, attackType);

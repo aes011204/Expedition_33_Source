@@ -6,6 +6,7 @@
 #include "Editor_Window.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditor_Manager.h"
+#include "Emitter_View.h"
 #include "EffectEmitterRegistration.h"
 #include "GameInstance.h"
 #include "ImGui_Manager.h"
@@ -239,6 +240,12 @@ void EffectEditorInstance::Render_Editor(EffectEditorRenderPerfSample* outPerfSa
         outPerfSample->imguiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 }
 
+void EffectEditorInstance::Request_Exit()
+{
+    if (_editorManager)
+        _editorManager->Request_Exit();
+}
+
 Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
 {
     if (nullptr == _editorManager)
@@ -331,6 +338,32 @@ EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptio
 
     options.params.featureMask = To_Underlying(options.features);
     return options;
+}
+
+bool EffectEditorInstance::Can_UsePreviewEmitterTransform(const AuthoringEmitter& emitter)
+{
+    return emitter.typeData.kind != AuthoringTypeDataKind::Trail &&
+           emitter.typeData.kind != AuthoringTypeDataKind::Ribbon &&
+           emitter.typeData.kind != AuthoringTypeDataKind::SourceHistorySpriteTrail;
+}
+
+const PreviewEmitterTransformOverride* EffectEditorInstance::Find_PreviewEmitterTransformOverride(uint32 emitterId) const
+{
+    const auto iter = _previewEmitterTransformOverrides.find(emitterId);
+    return iter != _previewEmitterTransformOverrides.end() ? &iter->second : nullptr;
+}
+
+bool EffectEditorInstance::Is_PreviewEmitterTransformEnabled(uint32 emitterId) const
+{
+    const PreviewEmitterTransformOverride* overrideState = Find_PreviewEmitterTransformOverride(emitterId);
+    return overrideState != nullptr && overrideState->enabled;
+}
+
+bool EffectEditorInstance::Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const
+{
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    return effectEditorLevel != nullptr && effectEditorLevel->Try_GetPreviewEmitterWorldMatrix(emitterId, outWorldMatrix);
 }
 
 ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
@@ -449,6 +482,8 @@ bool EffectEditorInstance::Consume_FrameStep()
 
 void EffectEditorInstance::Request_RestartPreview()
 {
+    Reset_PreviewEmitterTransformOffsets();
+
     const Shared<Level> currentLevel = GAME->Current_LevelType();
     const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
     if (nullptr == effectEditorLevel)
@@ -511,18 +546,48 @@ void EffectEditorInstance::Set_AutoReplayPreviewEnabled(bool enabled)
 
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
+    if (!visible)
+    {
+        _isTrailPreviewVisible = false;
+        return;
+    }
+
     const bool becameVisible = visible && !_isTrailPreviewVisible;
-    if (becameVisible)
-        Reset_TrailPreviewGate();
-
-    _isTrailPreviewVisible = visible;
-
     if (!becameVisible)
         return;
 
     const Shared<Level> currentLevel = GAME->Current_LevelType();
     const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
-    if (effectEditorLevel != nullptr && FAILED(effectEditorLevel->Reset_PreviewRuntime()))
+    if (nullptr == effectEditorLevel)
+    {
+        LOG_ERROR("Failed to enable trail preview: EffectEditor level is not available.");
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Trail Preview를 준비할 수 없습니다. EffectEditor level이 없습니다."
+            );
+        }
+        return;
+    }
+
+    if (FAILED(effectEditorLevel->Ensure_TrailPreviewFixture()))
+    {
+        LOG_ERROR("Failed to initialize trail preview fixture.");
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Trail Preview 리소스 준비에 실패했습니다."
+            );
+        }
+        return;
+    }
+
+    Reset_TrailPreviewGate();
+    _isTrailPreviewVisible = true;
+
+    if (FAILED(effectEditorLevel->Reset_PreviewRuntime()))
         LOG_ERROR("Failed to reset EffectEditor preview runtime after enabling trail preview.");
 }
 
@@ -613,6 +678,84 @@ void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
     _trailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
     _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
     _sourceHistorySpriteTrailPreviewSourceLocalOffset = kDefaultTrailPreviewSourceLocalOffset;
+}
+
+void EffectEditorInstance::Set_PreviewEmitterTransformEnabled(uint32 emitterId, bool enabled)
+{
+    if (!enabled)
+    {
+        Clear_PreviewEmitterTransform(emitterId);
+        return;
+    }
+
+    PreviewEmitterTransformOverride& overrideState = _previewEmitterTransformOverrides[emitterId];
+    overrideState.enabled = true;
+    Apply_PreviewEmitterTransformOverrides();
+}
+
+void EffectEditorInstance::Set_PreviewEmitterTransformOffsets(
+    uint32 emitterId,
+    const Vec3& localPositionOffset,
+    const Vec3& localRotationOffsetDegrees)
+{
+    PreviewEmitterTransformOverride& overrideState = _previewEmitterTransformOverrides[emitterId];
+    overrideState.enabled = true;
+    overrideState.localPositionOffset = localPositionOffset;
+    overrideState.localRotationOffsetDegrees = localRotationOffsetDegrees;
+    Apply_PreviewEmitterTransformOverrides();
+}
+
+void EffectEditorInstance::Reset_PreviewEmitterTransformOffsets()
+{
+    for (auto& pair : _previewEmitterTransformOverrides)
+    {
+        PreviewEmitterTransformOverride& overrideState = pair.second;
+        overrideState.localPositionOffset = Vec3::Zero;
+        overrideState.localRotationOffsetDegrees = Vec3::Zero;
+    }
+}
+
+void EffectEditorInstance::Clear_PreviewEmitterTransform(uint32 emitterId)
+{
+    _previewEmitterTransformOverrides.erase(emitterId);
+    Apply_PreviewEmitterTransformOverrides();
+}
+
+void EffectEditorInstance::Sanitize_PreviewEmitterTransforms(const vector<AuthoringEmitter>& emitters)
+{
+    for (auto iter = _previewEmitterTransformOverrides.begin(); iter != _previewEmitterTransformOverrides.end();)
+    {
+        const uint32 emitterId = iter->first;
+        const auto emitterIter = ranges::find_if(
+            emitters,
+            [emitterId](const AuthoringEmitter& emitter)
+            {
+                return emitter.id == emitterId;
+            }
+        );
+
+        if (emitterIter == emitters.end() || !Can_UsePreviewEmitterTransform(*emitterIter))
+            iter = _previewEmitterTransformOverrides.erase(iter);
+        else
+            ++iter;
+    }
+
+    Apply_PreviewEmitterTransformOverrides();
+}
+
+void EffectEditorInstance::Apply_PreviewEmitterTransformOverrides()
+{
+    const Shared<Editor_Window> emitterWindow = Get_Window(L"Emitter");
+    const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
+    if (emitterView == nullptr)
+        return;
+
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    if (effectEditorLevel == nullptr)
+        return;
+
+    effectEditorLevel->Apply_PreviewEmitterTransformOverrides(emitterView->Get_Emitters());
 }
 
 void EffectEditorInstance::Apply_PostProcessOptions(const EffectEditorPostProcessOptions& options)

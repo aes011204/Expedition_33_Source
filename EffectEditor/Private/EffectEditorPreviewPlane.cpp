@@ -36,10 +36,10 @@ HRESULT EffectEditorPreviewPlane::Initialize(void* arg)
 
 void EffectEditorPreviewPlane::Late_Update(float)
 {
-    if (EDITOR == nullptr || !EDITOR->Is_PreviewPlaneVisible())
+    if (nullptr == EDITOR || !EDITOR->Is_PreviewPlaneVisible())
         return;
 
-    if (_model == nullptr || _shader == nullptr || _texture == nullptr || _instanceBuffer == nullptr)
+    if (nullptr == _model || nullptr == _shader || nullptr == _texture || nullptr == _instanceBuffer)
         return;
 
     GAME->Add_RenderGroup(RenderGroup::EffectMasked, GetSharedPtr<GameObject>());
@@ -47,7 +47,7 @@ void EffectEditorPreviewPlane::Late_Update(float)
 
 HRESULT EffectEditorPreviewPlane::Render()
 {
-    if (EDITOR == nullptr || !EDITOR->Is_PreviewPlaneVisible())
+    if (nullptr == EDITOR || !EDITOR->Is_PreviewPlaneVisible())
         return S_OK;
 
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
@@ -132,11 +132,11 @@ HRESULT EffectEditorPreviewPlane::Ready_InstanceBuffer()
 
 wstring EffectEditorPreviewPlane::Resolve_ResourcePath(const wchar_t* relativePath) const
 {
-    if (relativePath == nullptr || relativePath[0] == L'\0')
+    if (nullptr == relativePath || relativePath[0] == L'\0')
         return {};
 
     fs::path resourcePath{ relativePath };
-    if (resourcePath.is_relative() && GAME != nullptr)
+    if (resourcePath.is_relative() && nullptr != GAME)
         resourcePath = fs::path(GAME->Get_AssetRoot()) / resourcePath;
 
     resourcePath = resourcePath.lexically_normal();
@@ -163,8 +163,18 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Wrap)),
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
         static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
-        0.f
-    };
+        0.f };
+    const Vec4 effectMeshUVAxisPolicyParams{
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Wrap)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Wrap)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)) };
+    const Vec4 effectMeshMaskUVAxisPolicyParams{
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
+        static_cast<float>(static_cast<uint32>(EffectTextureUVTilingMode::Stretch)),
+        0.f,
+        0.f };
+    const Vec4 effectMeshUVRotationParams{ 0.f, 0.f, 0.f, 0.f };
     const Vec4 effectMeshSourceParams{ 1.f, 0.f, 0.f, 0.f };
     const Vec4 effectMeshAdditiveParams{ 0.f, 0.f, 0.f, 1.f };
     const Vec4 effectMeshAdditiveColor{ 1.f, 1.f, 1.f, 1.f };
@@ -183,6 +193,9 @@ HRESULT EffectEditorPreviewPlane::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshUVRotationParams", &effectMeshUVRotationParams, sizeof(effectMeshUVRotationParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialTime, sizeof(materialTime)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);

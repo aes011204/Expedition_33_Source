@@ -33,6 +33,8 @@ public: //## Behavior::RootBinding
     void Sync_FromEffectOwner();
     // root replay seed를 child emitter에 갱신한다.
     void Set_EffectPlaybackSeed(uint32 effectPlaybackSeed);
+    // editor/runtime preview가 definition 재생성 없이 emitter local transform만 임시 갱신할 때 사용한다.
+    void Set_RuntimeLocalTransform(const Vec3& localPosition, const Vec3& localRotationDegrees);
 
 public: //## Behavior::Lifecycle
     // effect root가 재사용 전에 emitter runtime 상태를 초기화할 때 호출한다.

@@ -17,9 +17,13 @@ public:
 
     void    Open() override;
     void    Close() override;
+    void    Append_RuntimeUIEntries(
+        vector<RuntimeUIEntry>& outEntries,
+        const string& category,
+        const string& rootName) const override;
 
 public:
-    void    Show_Reaction(BattleReactionType reactionType, const Vec2& screenPos);
+    void    Show_Reaction(BattleReactionType reactionType);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -32,6 +36,10 @@ private:
 private:
     Shared<UI_Base> _dodgeRoot{};
     Shared<UI_Base> _parryRoot{};
+    Vec2 _dodgeBaseTransformPosition = Vec2::Zero;
+    Vec2 _parryBaseTransformPosition = Vec2::Zero;
+    bool _hasDodgeBaseTransformPosition = false;
+    bool _hasParryBaseTransformPosition = false;
 
     bool  _isShowing = false; // 성공 텍스트가 자동 닫힘 타이머로 관리되는 중인지
     float _elapsed = 0.f;

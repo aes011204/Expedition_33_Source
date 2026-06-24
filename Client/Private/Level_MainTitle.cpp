@@ -21,6 +21,8 @@ HRESULT Level_MainTitle::Initialize()
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
 
+    GAME->Set_RenderEnvironment(false);
+
     return S_OK;
 }
 

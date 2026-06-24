@@ -1,6 +1,7 @@
 ﻿#include "Level_EffectEditor.h"
 
 #include "Camera.h"
+#include "ClientInstance.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "EffectEditorPreviewPlane.h"
@@ -10,11 +11,22 @@
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "ResourceLoader.h"
 #include "TrailPreviewController.h"
 #include "TrailPreviewPlayerObject.h"
 #include "TrailPreviewWeaponObject.h"
 
 NS_BEGIN(EffectEditor)
+
+namespace Internal
+{
+    bool Is_TrailPreviewModelResource(const wstring& prototypeTag)
+    {
+        return prototypeTag == L"Model_GustaveBody" ||
+               prototypeTag == L"Model_GustaveHead" ||
+               prototypeTag == L"Model_GustaveHair";
+    }
+}
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -45,6 +57,11 @@ void Level_EffectEditor::Update(float timeDelta)
     _previewRuntime->Update(timeDelta);
 
     __super::Update(timeDelta);
+
+    const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
+    const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
+    if (emitterView != nullptr)
+        _previewRuntime->Apply_PreviewEmitterTransformOverrides(emitterView->Get_Emitters());
 }
 
 HRESULT Level_EffectEditor::Render()
@@ -82,6 +99,77 @@ bool Level_EffectEditor::Is_PreviewFinished() const
     return _previewRuntime->Is_Finished();
 }
 
+void Level_EffectEditor::Apply_PreviewEmitterTransformOverrides(const vector<AuthoringEmitter>& emitters)
+{
+    _previewRuntime->Apply_PreviewEmitterTransformOverrides(emitters);
+}
+
+bool Level_EffectEditor::Try_GetPreviewEmitterWorldMatrix(uint32 emitterId, Matrix& outWorldMatrix) const
+{
+    return _previewRuntime->Try_GetPreviewEmitterWorldMatrix(emitterId, outWorldMatrix);
+}
+
+HRESULT Level_EffectEditor::Ensure_TrailPreviewFixture()
+{
+    if (_trailPreviewFixtureReady)
+        return S_OK;
+
+    CHECK_NULL(_previewRuntime, E_FAIL);
+
+    const Shared<ResourceLoader> resourceLoader = CLIENT->Get_ResourceLoader();
+    CHECK_NULL(resourceLoader, E_FAIL);
+
+    vector<FLoadJob> loadJobs;
+    CHECK_FAILED(resourceLoader->Build_LevelJobs(LevelType::Static, loadJobs), E_FAIL);
+
+    uint32 registeredModelCount = 0;
+    for (const FLoadJob& loadJob : loadJobs)
+    {
+        if (loadJob.eType != ELoadJobType::Model ||
+            !Internal::Is_TrailPreviewModelResource(loadJob.strPrototypeTag))
+            continue;
+
+        CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
+        ++registeredModelCount;
+    }
+
+    if (registeredModelCount < 3)
+    {
+        LOG_ERROR("[TrailPreview] failed to find all visual fixture model resources. registered={}", registeredModelCount);
+        return E_FAIL;
+    }
+
+    const Shared<TrailPreviewPlayerObject> trailPreviewPlayer =
+        TrailPreviewPlayerObject::Create(_device, _context);
+    CHECK_NULL(trailPreviewPlayer, E_FAIL);
+    CHECK_FAILED(trailPreviewPlayer->Initialize(nullptr), E_FAIL);
+
+    const Shared<TrailPreviewWeaponObject> trailPreviewWeapon = trailPreviewPlayer->Get_PreviewWeapon();
+    if (nullptr == trailPreviewWeapon)
+    {
+        LOG_ERROR("[TrailPreview] TrailPreviewPlayerObject did not create Part_Weapon.");
+        return E_FAIL;
+    }
+
+    TrailPreviewController::PreviewDesc controllerDesc{};
+    controllerDesc.player = trailPreviewPlayer;
+
+    const Shared<TrailPreviewController> trailPreviewController =
+        TrailPreviewController::Create(_device, _context);
+    CHECK_NULL(trailPreviewController, E_FAIL);
+    CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), kPreviewLayerTag, trailPreviewPlayer), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), kPreviewLayerTag, trailPreviewController), E_FAIL);
+
+    _previewRuntime->Bind_TrailPreviewSources(trailPreviewWeapon, trailPreviewWeapon, trailPreviewController);
+    _trailPreviewFixtureReady = true;
+
+    LOG_INFO("[TrailPreview] lazy fixture initialized.");
+
+    return S_OK;
+}
+
 HRESULT Level_EffectEditor::Ready_Lights()
 {
     LIGHT_DESC lightDesc{};
@@ -100,9 +188,9 @@ HRESULT Level_EffectEditor::Ready_Lights()
 HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 {
     EffectEditorCamera::EffectEditorCameraDesc cameraDesc{};
-    cameraDesc.speedPerSec = 5.f; //!! 초기 카메라 속도
+    cameraDesc.speedPerSec = 5.f;                // 초기 카메라 속도
     cameraDesc.degreePerSec = 180.f;
-    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f); //!! 초기 카메라 거리
+    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f); // 초기 카메라 거리
     cameraDesc.at = Vec4(0.f, 0.f, 0.f, 1.f);
     cameraDesc.fovy = XMConvertToRadians(60.f);
     cameraDesc.nearPlane = 0.1f;
@@ -162,29 +250,6 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     CHECK_NULL(previewPlane, E_FAIL);
     CHECK_FAILED(previewPlane->Initialize(nullptr), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, previewPlane), E_FAIL);
-
-    const Shared<TrailPreviewPlayerObject> trailPreviewPlayer =
-        TrailPreviewPlayerObject::Create(_device, _context);
-    CHECK_NULL(trailPreviewPlayer, E_FAIL);
-    CHECK_FAILED(trailPreviewPlayer->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewPlayer), E_FAIL);
-
-    const Shared<TrailPreviewWeaponObject> trailPreviewWeapon = trailPreviewPlayer->Get_PreviewWeapon();
-    if (nullptr == trailPreviewWeapon)
-    {
-        LOG_ERROR("[TrailPreview] TrailPreviewPlayerObject did not create Part_Weapon.");
-        return E_FAIL;
-    }
-
-    TrailPreviewController::PreviewDesc controllerDesc{};
-    controllerDesc.player = trailPreviewPlayer;
-
-    const Shared<TrailPreviewController> trailPreviewController =
-        TrailPreviewController::Create(_device, _context);
-    CHECK_NULL(trailPreviewController, E_FAIL);
-    CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewController), E_FAIL);
-    _previewRuntime->Bind_TrailPreviewSources(trailPreviewWeapon, trailPreviewWeapon, trailPreviewController);
 
     return S_OK;
 }

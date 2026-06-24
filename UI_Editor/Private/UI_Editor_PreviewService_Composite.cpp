@@ -394,6 +394,7 @@ namespace UIEditor
             Make_TexturePreviewGuidKey(previewDesc.materialVfx.noiseTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.materialVfx.noiseTexturePath)) + "|" +
             to_string(timeFrame) + "|" +
             to_string(static_cast<int32>(previewDesc.materialVfx.mode)) + "|" +
+            to_string(previewDesc.renderColor.x) + "," + to_string(previewDesc.renderColor.y) + "," + to_string(previewDesc.renderColor.z) + "," + to_string(previewDesc.renderColor.w) + "|" +
             to_string(previewDesc.materialVfx.color.x) + "," + to_string(previewDesc.materialVfx.color.y) + "," + to_string(previewDesc.materialVfx.color.z) + "," + to_string(previewDesc.materialVfx.color.w) + "|" +
             to_string(previewDesc.materialVfx.coreColor.x) + "," + to_string(previewDesc.materialVfx.coreColor.y) + "," + to_string(previewDesc.materialVfx.coreColor.z) + "," + to_string(previewDesc.materialVfx.coreColor.w) + "|" +
             to_string(previewDesc.materialVfx.flowColor.x) + "," + to_string(previewDesc.materialVfx.flowColor.y) + "," + to_string(previewDesc.materialVfx.flowColor.z) + "," + to_string(previewDesc.materialVfx.flowColor.w) + "|" +
@@ -404,6 +405,8 @@ namespace UIEditor
             to_string(previewDesc.materialVfx.coreSoftness) + "|" +
             to_string(previewDesc.materialVfx.noiseStrength) + "|" +
             to_string(previewDesc.materialVfx.uvScroll.x) + "," + to_string(previewDesc.materialVfx.uvScroll.y) + "|" +
+            to_string(previewDesc.materialVfx.flowSpeed) + "|" +
+            to_string(previewDesc.materialVfx.preserveColor) + "|" +
             to_string(previewDesc.materialVfx.edgeWidth) + "|" +
             to_string(previewDesc.materialVfx.edgeSoftness) + "|" +
             to_string(previewDesc.materialVfx.erosion) + "|" +
@@ -450,7 +453,8 @@ namespace UIEditor
             nullptr,
             0.f,
             _materialVfxPreviewCache,
-            _materialVfxPreviewFailedKeys);
+            _materialVfxPreviewFailedKeys,
+            Vec4(previewDesc.renderColor.x, previewDesc.renderColor.y, previewDesc.renderColor.z, previewDesc.renderColor.w));
     }
 
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_ButtonSheenPreviewSRV(
@@ -591,7 +595,8 @@ namespace UIEditor
         const UI_ButtonSheenDesc* buttonSheen,
         float buttonSheenTime,
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
-        unordered_set<string>& failedKeys)
+        unordered_set<string>& failedKeys,
+        const Vec4& renderColor)
     {
         if (cacheKey.empty() || nullptr == textureSRV)
             return nullptr;
@@ -671,7 +676,6 @@ namespace UIEditor
         Matrix viewMatrix = Matrix::Identity;
         Matrix projMatrix;
         XMStoreFloat4x4(&projMatrix, XMMatrixOrthographicLH(static_cast<float>(previewWidth), static_cast<float>(previewHeight), 0.f, 1.f));
-        const Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
         const float clampedFillRatio = Clamp_FillRatio(fillRatio);
         const uint32 fillOriginValue = static_cast<uint32>(fillOrigin);
 
@@ -679,7 +683,7 @@ namespace UIEditor
             SUCCEEDED(_imagePreviewShader->Bind_Matrix("g_WorldMatrix", &worldMatrix)) &&
             SUCCEEDED(_imagePreviewShader->Bind_Matrix("g_ViewMatrix", &viewMatrix)) &&
             SUCCEEDED(_imagePreviewShader->Bind_Matrix("g_ProjMatrix", &projMatrix)) &&
-            SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_Color", &color, sizeof(Vec4))) &&
+            SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_Color", &renderColor, sizeof(Vec4))) &&
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_PatternUvOffset", &patternUvOffset, sizeof(ImVec2))) &&
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_PatternUvScale", &patternUvScale, sizeof(ImVec2))) &&
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_UseFillRatio", &useFillRatio, sizeof(bool))) &&
@@ -717,6 +721,8 @@ namespace UIEditor
             const float materialCoreWidth = Clamp_MaterialVfxCoreWidth(materialVfx->coreWidth);
             const float materialCoreSoftness = Clamp_MaterialVfxCoreSoftness(materialVfx->coreSoftness);
             const float materialNoiseStrength = Clamp_MaterialVfxNoiseStrength(materialVfx->noiseStrength);
+            const float materialFlowSpeed = Clamp_MaterialVfxFlowSpeed(materialVfx->flowSpeed);
+            const float materialPreserveColor = Clamp_MaterialVfxPreserveColor(materialVfx->preserveColor);
             const float materialEdgeWidth = Clamp_MaterialVfxEdgeWidth(materialVfx->edgeWidth);
             const float materialEdgeSoftness = Clamp_MaterialVfxEdgeSoftness(materialVfx->edgeSoftness);
             const float materialErosion = Clamp_MaterialVfxErosion(materialVfx->erosion);
@@ -739,6 +745,8 @@ namespace UIEditor
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxCoreSoftness", &materialCoreSoftness, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxNoiseStrength", &materialNoiseStrength, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxUvScroll", &materialUvScroll, sizeof(Vec2))) &&
+                SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxFlowSpeed", &materialFlowSpeed, sizeof(float))) &&
+                SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxPreserveColor", &materialPreserveColor, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxEdgeWidth", &materialEdgeWidth, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxEdgeSoftness", &materialEdgeSoftness, sizeof(float))) &&
                 SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_MaterialVfxErosion", &materialErosion, sizeof(float))) &&

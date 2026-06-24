@@ -42,6 +42,7 @@ private: //## Helper::Viewport
     void Sync_PreviewViewportInput();
     void Render_ViewportCanvas();
     void Handle_FocusRequest();
+    bool Render_SelectedEmitterPreviewGizmo();
     void Render_SelectedObjectGizmo();
 
 public:

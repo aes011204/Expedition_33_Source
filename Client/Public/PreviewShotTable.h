@@ -1,5 +1,7 @@
 ﻿#pragma once
+
 #include "Base.h"
+#include "Client_Enum.h"
 #include "CameraPresetTypes.h"
 
 NS_BEGIN(Client)

@@ -260,10 +260,11 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* blockMask   */ 0
     },
 
-    // SL_PlayerBody: SL 모드 플레이어 본체/피격용. 월드 전투 진입 preset과 분리한다.
+    // SL_PlayerBody: SL 모드 플레이어 본체/피격용. 몬스터 몸체와 환경물은 이동을 막는다.
     { Collision_Channel::SL_PlayerBody,
       ETOI(Collision_Channel::SL_MonsterAttack),
-      ETOI(Collision_Channel::Enviroment)
+      ETOI(Collision_Channel::Enviroment) |
+      ETOI(Collision_Channel::SL_MonsterBody)
     },
 
     // SL_PlayerAttack: Maelle 무기/스킬 공격 판정. SL 몬스터 body만 때린다.
@@ -272,11 +273,12 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
       0
     },
 
-    // SL_MonsterBody: SL 몬스터 본체/피격/락온 후보. PlayerAttack과 TargetSensor만 받는다.
+    // SL_MonsterBody: SL 몬스터 본체/피격/락온 후보. 플레이어 몸체와 환경물은 이동을 막는다.
     { Collision_Channel::SL_MonsterBody,
       ETOI(Collision_Channel::SL_PlayerAttack) |
       ETOI(Collision_Channel::SL_TargetSensor),
-      ETOI(Collision_Channel::Enviroment)
+      ETOI(Collision_Channel::Enviroment) |
+      ETOI(Collision_Channel::SL_PlayerBody)
     },
 
     // SL_MonsterAttack: SL 몬스터 공격 판정. SL 플레이어 body만 때린다.

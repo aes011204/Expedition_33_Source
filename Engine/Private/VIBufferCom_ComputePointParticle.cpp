@@ -212,6 +212,10 @@ struct ComputePointParticleParams
     Vec4 planeRadialCameraFacingUp{};                // xyz: camera up axis in emitter-local sampling space.
     Vec4 planeRadialCameraFacingNormal{};            // xyz: camera look axis in emitter-local sampling space.
     XMUINT4 spawnSerialParams{};                     // x: replay-local spawn serial base, y/z/w: unused.
+    Vec4 sourceMotionVelocity{};                     // xyz: emitter center delta velocity in world space, w: valid.
+    Vec4 sourceMotionVelocityParams{};               // x: enabled, y: direction mode, z: spread angle degrees, w: source speed scale.
+    Vec4 sourceMotionVelocitySpeed{};                // x/y: speed min/max, z/w: unused.
+    XMUINT4 sourceMotionVelocitySeedSalts{};         // x: SourceMotionVelocity, y/z/w: unused.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -365,6 +369,17 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
     _spawnSerialBase = spawnSerialBase;
     _lifetimeSamplePhase = clamp(lifetimeSamplePhase, 0.f, 1.f);
     _killActiveParticles = killActiveParticles ? 1u : 0u;
+    _sourceMotionVelocity = Vec3{};
+    _sourceMotionVelocityValid = false;
+    if (_hasPreviousSourceMotionCenter && _deltaTime > 0.f)
+    {
+        const Vec3 movement = _desc.center - _previousSourceMotionCenter;
+        if (movement.LengthSquared() > 0.0001f * 0.0001f)
+        {
+            _sourceMotionVelocity = movement / max(_deltaTime, 0.0001f);
+            _sourceMotionVelocityValid = true;
+        }
+    }
 
     CHECK_FAILED(Update_ConstantBuffer());
     CHECK_FAILED(_computeShader->Bind_UAV(0, _computeOutput->Get_UAV()));
@@ -376,6 +391,9 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
     CHECK_FAILED(_computeShader->Dispatch((_instanceCount + kThreadCountX - 1) / kThreadCountX, 1, 1));
     CHECK_FAILED(Copy_OutputToInstanceVB());
     CHECK_FAILED(Copy_OutputToIndirectArgs());
+
+    _previousSourceMotionCenter = _desc.center;
+    _hasPreviousSourceMotionCenter = true;
 }
 
 void VIBufferCom_ComputePointParticle::Update_RuntimeDesc(const ComputePointParticleDesc& desc)
@@ -411,6 +429,10 @@ HRESULT VIBufferCom_ComputePointParticle::Reset_ForEffectReplay()
     _spawnRequest = 0u;
     _spawnSerialBase = 0u;
     _killActiveParticles = 0u;
+    _sourceMotionVelocity = Vec3{};
+    _previousSourceMotionCenter = _desc.center;
+    _hasPreviousSourceMotionCenter = false;
+    _sourceMotionVelocityValid = false;
     _hasActiveParticles = false;
 
     CHECK_FAILED(Ready_ResetBaseline(), E_FAIL);
@@ -1033,7 +1055,31 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .planeRadialCameraFacingRight = Vec4{ cameraFacingRight.x, cameraFacingRight.y, cameraFacingRight.z, 0.f },
         .planeRadialCameraFacingUp = Vec4{ cameraFacingUp.x, cameraFacingUp.y, cameraFacingUp.z, 0.f },
         .planeRadialCameraFacingNormal = Vec4{ cameraFacingNormal.x, cameraFacingNormal.y, cameraFacingNormal.z, 0.f },
-        .spawnSerialParams = XMUINT4{ _spawnSerialBase, 0u, 0u, 0u }
+        .spawnSerialParams = XMUINT4{ _spawnSerialBase, 0u, 0u, 0u },
+        .sourceMotionVelocity = Vec4{
+            _sourceMotionVelocity.x,
+            _sourceMotionVelocity.y,
+            _sourceMotionVelocity.z,
+            _sourceMotionVelocityValid ? 1.f : 0.f
+        },
+        .sourceMotionVelocityParams = Vec4{
+            _desc.motion.sourceMotionVelocityEnabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.motion.sourceMotionVelocityDirectionMode)),
+            clamp(_desc.motion.sourceMotionVelocitySpreadAngleDegrees, 0.f, 180.f),
+            max(0.f, _desc.motion.sourceMotionVelocitySourceSpeedScale)
+        },
+        .sourceMotionVelocitySpeed = Vec4{
+            _desc.motion.sourceMotionVelocitySpeed.x,
+            _desc.motion.sourceMotionVelocitySpeed.y,
+            0.f,
+            0.f
+        },
+        .sourceMotionVelocitySeedSalts = XMUINT4{
+            Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _desc.effectPlaybackSeed),
+            0u,
+            0u,
+            0u
+        }
     };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);

@@ -1,8 +1,6 @@
 ﻿#pragma once
 
-/*
- * Effect authoring/material instance 값을 runtime desc와 runtime policy로 접는 공용 helper를 정의한다.
- */
+// Effect authoring/material instance 값을 runtime desc와 runtime policy로 접는 공용 helper를 정의한다.
 
 #include "EffectMaterial_Types.h"
 #include "EffectRuntime_Types.h"

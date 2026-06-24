@@ -1,6 +1,7 @@
 #include "BattleWorldUI_ItemCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
 #include "RenderTarget.h"
@@ -163,6 +164,8 @@ namespace
         BattleWorldItemCardDef def{};
         Unique<IWorldUIItemCardSurface> surface{};
         Matrix worldMatrix = Matrix::Identity;
+        BattleWorldSurfaceAnimState introAnim{};
+        Vec3 introStartOffset = Vec3::Zero;
         bool hasContent = false;
         bool visible = false;
         bool selected = false;
@@ -559,6 +562,20 @@ namespace
     bool Has_TextureRef(const string& textureGuid, const string& texturePath)
     {
         return !textureGuid.empty() || !texturePath.empty();
+    }
+
+    bool Should_SkipSharedBattleCommandBackgroundPaint(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return false;
+
+        string loweredPath = String::ToLowerCopy(texturePath);
+        replace(loweredPath.begin(), loweredPath.end(), '\\', '/');
+
+        return loweredPath.find("/battle/battlewheel/items/t_bw_items_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/items/t_bw_items_paint_background") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_paint_background") != string::npos;
     }
 
     BattleWorldItemJsonObject Parse_JsonObject(const json& node, uint32 sequence)
@@ -1110,6 +1127,9 @@ namespace
             Parse_JsonImageRenderMode(object.imageRenderMode);
         const BattleWorldItemMaskTextureMode maskTextureMode =
             Parse_JsonMaskTextureMode(object.maskTextureMode);
+
+        if (Should_SkipSharedBattleCommandBackgroundPaint(object.texturePath))
+            return false;
 
         if (imageRenderMode == BattleWorldItemImageRenderMode::Normal &&
             Has_TextureRef(object.patternMaskTextureGuid, object.patternMaskTexturePath))
@@ -1726,7 +1746,7 @@ namespace
         const float defaultHoleFeather = 0.05f;
         const float defaultViewportAspect = 1.f;
         const float defaultFillRatio = 1.f;
-        const bool disabled = false;
+        const uint32 disabled = 0u;
         const uint32 fillOrigin = 0u;
 
         CHECK_FAILED(shader->Bind_Matrix("g_WorldMatrix", &worldMatrix), E_FAIL);
@@ -1735,13 +1755,13 @@ namespace
         CHECK_FAILED(shader->Bind_RawValue("g_Color", &color, sizeof(Vec4)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvOffset", &defaultPatternOffset, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvScale", &defaultPatternScale, sizeof(Vec2)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -1974,7 +1994,7 @@ namespace
             const float defaultViewportAspect = viewportWidth / viewportHeight;
             const float defaultFillRatio = 1.f;
             const float defaultGrayAmount = 0.f;
-            const bool disabled = false;
+            const uint32 disabled = 0u;
             const uint32 fillOrigin = 0u;
             const Vec2 patternUvOffset =
                 image.imageRenderMode == BattleWorldItemImageRenderMode::PatternOverlay ? image.patternUvOffset : defaultPatternOffset;
@@ -1987,15 +2007,15 @@ namespace
             CHECK_FAILED(_shader->Bind_RawValue("g_Color", &drawColor, sizeof(Vec4)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvOffset", &patternUvOffset, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvScale", &patternUvScale, sizeof(Vec2)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_GrayAmount", &defaultGrayAmount, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_SRV("g_Texture", srvs[0].Get()), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -2069,6 +2089,10 @@ struct BattleWorldUI_ItemCards::Impl
     bool hasPlacementTuningFile = false;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
+    BattleTurnState introState = BattleTurnState::None;
+    HeroId introHeroId = HeroId::END;
+    BattleItemType introItemType = BattleItemType::Invalid;
+    bool hasIntroKey = false;
 };
 
 BattleWorldUI_ItemCards::BattleWorldUI_ItemCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -2134,11 +2158,74 @@ HRESULT BattleWorldUI_ItemCards::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleWorldUI_ItemCards::Warmup_ForBattleState(BattleItemType selectedItemType, HeroId actorHeroId)
+{
+    if (_impl == nullptr)
+        return E_FAIL;
+
+    const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
+    const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+
+    HRESULT result = S_OK;
+    for (uint32 slotIndex = 0; slotIndex < kBattleWorldItemSlotCount; ++slotIndex)
+    {
+        auto& card = _impl->cards[slotIndex];
+
+        const BattleWorldItemSlotDef& slot = kBattleWorldItemSlots[slotIndex];
+        const Item_Data* item = CLIENT->Get_Item(slot.itemType);
+        if (item == nullptr || !item->IsValid())
+        {
+            card.hasContent = false;
+            continue;
+        }
+
+        const BattleWorldItemCardContent content = Build_ItemCardContent(slot, *item);
+        if (!card.hasContent || !Is_SameContent(card.def.content, content))
+        {
+            card.def = Build_ItemCardDef(content, _impl->templates[slotIndex]);
+            card.hasContent = true;
+            card.dirty = true;
+        }
+
+        const BattleWorldItemCardPresentation presentation =
+            Resolve_ItemPresentation(
+                slotIndex,
+                card.def,
+                _impl->placementTunings[placementHeroIndex],
+                BattleTurnState::ChooseItem,
+                selectedItemType);
+
+        if (card.selected != presentation.selected || card.dimmed != presentation.dimmed)
+        {
+            card.selected = presentation.selected;
+            card.dimmed = presentation.dimmed;
+            card.dirty = true;
+        }
+
+        if (!presentation.visible || !card.dirty)
+            continue;
+
+        if (card.surface == nullptr || FAILED(card.surface->Compose(card.def, card.selected, card.dimmed)))
+        {
+            result = E_FAIL;
+            continue;
+        }
+
+        card.dirty = false;
+    }
+
+    return result;
+}
+
 void BattleWorldUI_ItemCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
     BattleItemType selectedItemType,
-    HeroId actorHeroId)
+    HeroId actorHeroId,
+    float timeDelta)
 {
     if (_impl == nullptr || !Should_ShowBattleWorldItemCards(currentState))
     {
@@ -2146,16 +2233,29 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
         return;
     }
 
-    Reload_ItemWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
-
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
     _impl->activePlacementHeroId = placementHeroId;
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
+
+    const bool restartIntro =
+        !_impl->hasIntroKey ||
+        _impl->introState != currentState ||
+        _impl->introHeroId != placementHeroId ||
+        _impl->introItemType != selectedItemType;
+    if (restartIntro)
+    {
+        _impl->introState = currentState;
+        _impl->introHeroId = placementHeroId;
+        _impl->introItemType = selectedItemType;
+        _impl->hasIntroKey = true;
+        for (uint32 slotIndex = 0; slotIndex < kBattleWorldItemSlotCount; ++slotIndex)
+            Restart_BattleWorldSurfaceAnim(_impl->cards[slotIndex].introAnim, slotIndex);
+    }
+
+    for (auto& card : _impl->cards)
+        Advance_BattleWorldSurfaceAnim(card.introAnim, timeDelta);
 
     bool anyVisible = false;
     for (uint32 slotIndex = 0; slotIndex < kBattleWorldItemSlotCount; ++slotIndex)
@@ -2209,6 +2309,8 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
             anchorWorldPos +
             Resolve_CameraScreenPositionDelta(presentation.screenPosition) +
             presentation.worldOffset;
+        const float introOutwardX = presentation.worldOffset.x < 0.f ? -0.04f : 0.04f;
+        card.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(introOutwardX, -0.06f, 0.f));
         const Vec2 aspectWorldSize = Resolve_AspectWorldSize(presentation.worldSize, card.def.pixelSize);
         card.worldMatrix =
             Matrix::CreateScale(
@@ -2234,6 +2336,7 @@ void BattleWorldUI_ItemCards::Hide()
     if (_impl == nullptr)
         return;
 
+    _impl->hasIntroKey = false;
     for (auto& card : _impl->cards)
         card.visible = false;
 }
@@ -2356,7 +2459,9 @@ HRESULT BattleWorldUI_ItemCards::Render()
         if (!card.visible || card.surface == nullptr)
             continue;
 
-        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), card.worldMatrix, color), E_FAIL);
+        const BattleWorldSurfaceAnimRenderState renderState =
+            Apply_BattleWorldSurfaceAnim(card.introAnim, card.worldMatrix, color, card.introStartOffset);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(card.surface->Bind_ShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);

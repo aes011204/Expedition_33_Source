@@ -2,7 +2,6 @@
 #include "Client_Defines.h"
 #include "EffectEmitter.h"
 #include "EffectRuntime_Types.h"
-#include "Particle_Types.h"
 
 NS_BEGIN(Engine)
 class ComputeShaderCom;
@@ -102,10 +101,10 @@ private: //## Types::TrailRuntime
         Vec4 colorOverLifeAlphaCurveLeaveBlock1{};
         Vec4 colorOverLifeAlphaCurveModes{};
         Vec4 colorOverLifeAlphaCurveModesBlock1{};
-        Vec4 sizeByLifeParams{};     // x/y: width start/end, z: enabled, w: reserved.
-        Vec4 sizeByLifeCurveTimes{}; // SizeByLife scaleOverLife key times다.
+        Vec4 sizeByLifeParams{};         // x/y: width start/end, z: enabled, w: reserved.
+        Vec4 sizeByLifeCurveTimes{};     // SizeByLife scaleOverLife key times다.
         Vec4 sizeByLifeCurveTimesBlock1{};
-        Vec4 sizeByLifeCurveValuesX{}; // SizeByLife scaleOverLife X multiplier 값이다.
+        Vec4 sizeByLifeCurveValuesX{};   // SizeByLife scaleOverLife X multiplier 값이다.
         Vec4 sizeByLifeCurveValuesXBlock1{};
         Vec4 sizeByLifeCurveArriveTangentsX{};
         Vec4 sizeByLifeCurveArriveTangentsXBlock1{};
@@ -113,8 +112,8 @@ private: //## Types::TrailRuntime
         Vec4 sizeByLifeCurveLeaveTangentsXBlock1{};
         Vec4 sizeByLifeCurveModes{};
         Vec4 sizeByLifeCurveModesBlock1{};
-        Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, zw: reserved.
-        Vec4 lengthParams{};          // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved.
+        Vec4 sizeByLifeCurveParams{};    // x: key count, y: multiplyX, zw: reserved.
+        Vec4 lengthParams{};             // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved.
     };
 
     struct DrawIndexedInstancedIndirectArgs

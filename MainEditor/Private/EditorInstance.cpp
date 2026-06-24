@@ -23,6 +23,7 @@
 #include "Material_View.h"
 #include "Model_Inspector.h"
 #include "EditorPickingSystem.h"
+#include "EnvironmentView.h"
 #include <fstream>
 #include "ClientInstance.h"
 #include "GameplayUI.h"
@@ -189,16 +190,15 @@ void EditorInstance::Update_Editor(float timeDelta)
         _notificationManager->Update(timeDelta);
     }
 
-
-    if(GAME->KeyUp(KEY_TYPE::KEY_1))
-    {
-        Toogle_TargetCameraEditMode();
-
-        if(_isTargetCameraEditMode)
-        {
-            GAME->Unlock_Mouse();
-        }
-    }
+    //if(GAME->KeyUp(KEY_TYPE::KEY_1))
+    //{
+    //    Toogle_TargetCameraEditMode();
+    //
+    //    if(_isTargetCameraEditMode)
+    //    {
+    //        GAME->Unlock_Mouse();
+    //    }
+    //}
 }
 
 void EditorInstance::Render_Editor()
@@ -271,6 +271,10 @@ void EditorInstance::Stop()
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play ||
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
+        CLIENT->Stop_Sequence();
+        GAME->Set_LetterboxEnabled(false);
+        GAME->Set_PreviewLetterboxEnabled(false);
+
         GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
 
         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
@@ -446,6 +450,7 @@ string EditorInstance::Selected_RuntimeWorldUIDisplayName() const
 
 void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
 {
+    EnvironmentView::ClearSelection();
     return _editorContext->Set_SelectObject(gameObject);
 }
 
@@ -455,6 +460,7 @@ void EditorInstance::Select_UI(
     const string& displayName,
     bool positionDrivenByCode)
 {
+    EnvironmentView::ClearSelection();
     return _editorContext->Set_SelectUI(ui, groupName, displayName, positionDrivenByCode);
 }
 
@@ -463,6 +469,7 @@ void EditorInstance::Select_RuntimeWorldUI(
     const string& groupName,
     const string& displayName)
 {
+    EnvironmentView::ClearSelection();
     return _editorContext->Set_SelectRuntimeWorldUI(target, groupName, displayName);
 }
 
@@ -688,6 +695,14 @@ bool EditorInstance::Save_CostumeUnlockRuleState(
     return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
 }
 
+bool EditorInstance::Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_FirstTutorialHeroUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
 bool EditorInstance::Load_RuleStateInEditor(const fs::path& path)
 {
     Client::RuntimeRuleStateIO::RuleState ruleState{};
@@ -845,6 +860,11 @@ PreviewOwner EditorInstance::Get_ActivePreviewOwner() const
 bool EditorInstance::Is_ActivePreviewOwner(PreviewOwner owner) const
 {
     return Get_ActivePreviewOwner() == owner;
+}
+
+void EditorInstance::Set_StickyPreviewOwner(PreviewOwner owner)
+{
+    _stickyPreviewOwner = owner;
 }
 
 void EditorInstance::Execute_Command(const Shared<ICommand>& command)
@@ -1331,8 +1351,12 @@ void EditorInstance::Restore_PlayStartHeroStatSnapshots()
         if (stat == nullptr)
             continue;
 
+        const auto equippedPictosIds = stat->Get_EquippedPictosIds(); // F4 Stop은 HP/AP/Shield만 되돌리고, play 중 장착한 픽토스는 유지한다.
         stat->Apply_BattleSyncSnapshot(snapshot.statSnapshot);
         stat->Set_AliveStatus(snapshot.aliveStatus);
+
+        for (size_t slotIndex = 0; slotIndex < equippedPictosIds.size(); ++slotIndex)
+            stat->Set_EquippedPictos(slotIndex, equippedPictosIds[slotIndex]);
     }
 
     _playStartHeroStatSnapshots.clear();
@@ -1642,6 +1666,9 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
     const bool gameFocusedActual =
         gameView && gameView->Is_Open() && gameView->Is_Focused();
+    const bool gameInteractive =
+        gameView && gameView->Is_Open() &&
+        (gameView->Is_Focused() || gameView->Is_Hovered());
 
     const bool hasPendingGameFocus =
         _hasPendingWindowFocus &&
@@ -1665,6 +1692,21 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     const bool isMenuAutoPlayLevel =
         GAME->Current_LevelIndex() == ETOI(LevelType::MainTitle) ||
         GAME->Current_LevelIndex() == ETOI(LevelType::GameEntry);
+
+    if (_isCinematicPreviewFreeCameraOverride && isFreeCamera)
+    {
+        const bool freeCameraControl = GAME->KeyPress(KEY_TYPE::RBUTTON);
+        GAME->Set_PlayerInputBlocked(false);
+        GAME->Set_FreeCameraInputEnabled(true);
+
+        if (freeCameraControl)
+            GAME->Lock_Mouse();
+        else
+            GAME->Unlock_Mouse();
+
+        applyMouseLockOverride();
+        return;
+    }
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
@@ -1707,7 +1749,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         if (isFreeCamera)
         {
             const bool freeCameraControl =
-                gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
+                (gameFocused || gameInteractive) && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
             GAME->Set_PlayerInputBlocked(false); // Play 중 FreeCamera에 잠깐 남아 있어도 이전 blocked 상태를 끌고 가지 않게 바로 푼다.
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);
@@ -1750,20 +1792,13 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
 void EditorInstance::Toggle_MouseLockOverride()
 {
-    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
     {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
-    }
-    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
-    {
-        _mouseLockOverrideMode = MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
     }
     else
     {
-        _mouseLockOverrideMode =
-            GAME->Is_MouseLocked()
-            ? MouseLockOverrideMode::Unlocked
-            : MouseLockOverrideMode::Locked;
+        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
     }
 
     if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)

@@ -69,6 +69,9 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     float physicalDefense = desc.physicalDefense;
     float speed = desc.speed;
     float battleRunMoveSpeed = desc.battleRunMoveSpeed;
+    float maxBreak = desc.maxBreak;
+    float breakStunDuration = desc.breakBarStunDuration;
+    float currentBreak = runtime.curBreak;
     bool isBreak = runtime.isBreak;
 
     ImGui::Spacing();
@@ -145,6 +148,31 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     if (ImGui::DragFloat("##MonsterBattleRunMoveSpeed", &battleRunMoveSpeed, 0.1f, 0.f, 30.f))
     {
         stat->Set_BattleRunMoveSpeed(battleRunMoveSpeed);
+    }
+
+    ImGui::TextDisabled("Max Break");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragFloat("##MonsterMaxBreak", &maxBreak, 0.1f, 0.f, 999999.f))
+    {
+        desc.maxBreak = maxBreak;
+        runtime.curBreak = min(runtime.curBreak, desc.maxBreak);
+    }
+
+    ImGui::TextDisabled("Break Stun Duration");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragFloat("##MonsterBreakStunDuration", &breakStunDuration, 0.1f, 0.f, 30.f))
+    {
+        desc.breakBarStunDuration = breakStunDuration;
+    }
+
+    ImGui::TextDisabled("Current Break");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::DragFloat("##MonsterCurrentBreak", &currentBreak, 0.1f, 0.f, max(0.f, desc.maxBreak)))
+    {
+        stat->Set_Break(currentBreak);
     }
 
     ImGui::TextDisabled("Break");

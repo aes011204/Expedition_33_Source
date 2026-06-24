@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "BattleMonsterSpawnDesc.h"
+#include "Cinematic_Types.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
@@ -148,7 +149,8 @@ public: /* For.Battle_Controller */
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-        const Shared<GameObject>& sourceObject = nullptr);
+        const Shared<GameObject>& sourceObject = nullptr,
+        bool completeImmediately = false);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
@@ -157,6 +159,7 @@ public: /* For.Battle_Controller */
 
 public: /*For.Camera Director*/
     void Request_GamePlay();
+    void Request_SoulLikeCamera();
     void Request_Preview();
     void Request_BattleTurn();
     Shared<CinematicCamera> Request_Cinematic();
@@ -164,8 +167,45 @@ public: /*For.Camera Director*/
     void Restore_PreviousCamera();
 
 public: /*CinematicSequenceRunner*/
-    bool Play_Sequence(const wstring& filePath, int trackIndex);
+    bool Play_Sequence(
+        const wstring& filePath,
+        int trackIndex,
+        bool applyCameraTrack = true,
+        bool applyEventTrack = true,
+        bool applyActorTransformTrack = true);
+    bool Play_Sequence(
+        const CINEMATIC_SEQUENCE& sequence,
+        int trackIndex,
+        bool applyCameraTrack = true,
+        bool applyEventTrack = true,
+        bool applyActorTransformTrack = true);
+    void Pause_Sequence();
+    void Resume_Sequence(
+        bool applyCameraTrack = true,
+        bool applyEventTrack = true,
+        bool applyActorTransformTrack = true);
+    void Set_CurrentSequenceFrame(int frame);
+    void Refresh_CurrentSequenceContext();
+    void Preview_CurrentSequenceFrame(
+        int frame,
+        bool applyCameraTrack,
+        bool applyEventTrack,
+        bool applyActorTransformTrack,
+        bool forceRebuildContext = false);
+    bool Sync_CinematicPreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
+    void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
+    void Stop_SequenceKeepContext();
+    bool Is_CinematicPlaying() const;
+    bool Is_CinematicPaused() const;
+    int Get_CurrentSequenceFrame() const;
+    Shared<GameObject> Get_CinematicBoundActor(const string& targetId) const;
+    bool Is_ActorTransformTrackPreviewSuspended() const;
+    void Update_CinematicPreview(float timeDelta);
+
+    // 시네마틱 종료됐을 떄 알림
+    FDelegateHandle Add_CinematicCompletedCallback(const FOnCinematicCompleted::FunctionType& callback);
+    void Clear_CinematicCompletedCallbacks();
 
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
@@ -183,6 +223,7 @@ public: /* Effect 재생 */
 
     // 단발성 1회 재생.
     bool Play_Effect(const PlayEffectDesc& desc);
+    HRESULT Reload_EffectJsons();
 
     // 약점 파츠처럼 모델/소켓이 없을 때
     bool Play_AttachPartEffect(

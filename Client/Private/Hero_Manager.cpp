@@ -14,6 +14,8 @@
 #include "PhysX_Types.h"
 #include "MovementCom.h"
 #include "PlayerStatCom.h"
+#include "Unlock_Manager.h"
+#include "EffectCom.h"
 
 static const HeroSpawnDesc heroSpawnDescs[] =
 {
@@ -77,6 +79,13 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
     Set_ActiveTrail(_recordInterval);
     Refresh_TargetCamera();
 
+    _activeIndex = Find_FirstUnlockedHeroIndex();
+    if (_activeIndex == UINT_MAX)
+        _activeIndex = 0;
+
+    Apply_UnlockedHeroVisibility();
+    Apply_ControlRoles();
+
     return S_OK;
 }
 
@@ -88,10 +97,25 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     if (_heroes.empty())
         return;
 
-    auto state = Get_ActiveHero()->Get_Component<PlayerStateMachineCom>();
+    if (_activeIndex >= _heroes.size() || !Is_HeroUnlocked(_heroes[_activeIndex].heroId))
+    {
+        const uint32 fallbackIndex = Find_FirstUnlockedHeroIndex();
+        _activeIndex = (fallbackIndex != UINT_MAX) ? fallbackIndex : 0;
+        Apply_ControlRoles();
+        Reset_FollowerRuntime();
+        Refresh_TargetCamera();
+    }
+
+    Apply_UnlockedHeroVisibility();
+
+    auto activeHero = Get_ActiveHero();
+    CHECK_NULL(activeHero);
+
+    auto state = activeHero->Get_Component<PlayerStateMachineCom>();
     CHECK_NULL(state);
 
-    if (GAME->KeyDown(KEY_TYPE::T))
+    // 구스타브만 있을 때에는 키가 아예 안눌리도록
+    if (Can_SwitchHero() && GAME->KeyDown(KEY_TYPE::T))
     {
         // 점프 도중에는 막기
         if (state->Get_CurrentPlayerState() == PlayerState::Jump)
@@ -99,7 +123,7 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
 
         Switch_NextHero();
 
-        // 이제는, 탭눌러서 옷장에서 바꾸세요
+        // 이제는 탭눌러서 옷장에서 바꾸세요
         //Toggle_CostumeForTest();
     }
 
@@ -129,6 +153,8 @@ void Hero_Manager::Clear_Party()
     {
         if (!entry.hero)
             continue;
+
+        entry.hero->Set_PartyVisibilityAllowed(true);
 
         auto movement = entry.hero->Get_Component<MovementCom>();
         if (movement)
@@ -180,11 +206,18 @@ void Hero_Manager::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
     if (index >= _heroes.size())
         return;
 
-    _activeIndex = index;
+    // 체크포인트 슬롯이 아직 잠긴 Hero를 가리키면 현재 해금된 첫 Hero로 복구한다.
+    if (Is_HeroUnlocked(_heroes[index].heroId))
+        _activeIndex = index;
+    else
+    {
+        const uint32 fallbackIndex = Find_FirstUnlockedHeroIndex();
+        _activeIndex = (fallbackIndex != UINT_MAX) ? fallbackIndex : 0;
+    }
+
     Apply_ControlRoles();
 
-    for (FollowerRuntime& runtime : _followerRuntime)
-        runtime = {};
+    Reset_FollowerRuntime();
 
     _activeTrail.clear();
     _recordTimer = 0.f;
@@ -224,11 +257,8 @@ const HeroSpawnDesc* Hero_Manager::Find_HeroSpawnDesc(HeroId heroId)
 
 void Hero_Manager::Switch_NextHero()
 {
-    if (_heroes.size() < 2)
+    if (!Can_SwitchHero())
         return;
-
-    const uint32 newIndex =
-        (_activeIndex + 1) % static_cast<uint32>(_heroes.size());
 
     // 전환 전 active Hero의 위치/회전을 기준점으로 세팅
     auto oldActive = Get_ActiveHero();
@@ -242,13 +272,23 @@ void Hero_Manager::Switch_NextHero()
     const Vec3 anchorForward = oldActiveTr->Get_WorldForward();
     const Vec3 anchorRight = oldActiveTr->Get_WorldRight();
 
-    PlayEffectDesc effectDesc{};
-    effectDesc.effectName = L"Player_Change";
-    effectDesc.spawnBasisTarget = oldActive;
-    effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
-    CLIENT->Play_Effect(effectDesc);
+    // 잠긴 Hero는 건너뛰기
+    const uint32 nextIndex = Find_NextUnlockedHeroIndex(_activeIndex);
+    if (nextIndex == UINT_MAX || nextIndex == _activeIndex)
+        return;
 
-    _activeIndex = newIndex;
+    if (const Shared<EffectCom> effectCom = oldActive->Get_Component<EffectCom>())
+    {
+        EffectCom::EffectPlayDesc effectDesc{};
+        effectDesc.levelIndex = GAME->Current_LevelIndex();
+        effectDesc.effectName = L"Player_Change";
+        effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
+        effectDesc.followTarget = false;
+        effectCom->Play_Effect(effectDesc);
+    }
+
+    _activeIndex = nextIndex;
 
     Apply_ControlRoles();
 
@@ -259,16 +299,16 @@ void Hero_Manager::Switch_NextHero()
         if (i == _activeIndex)
             continue;
 
+        if (!Is_HeroUnlocked(_heroes[i].heroId))
+            continue;
+
         if (const Shared<Player_WorldBase>& hero = _heroes[i].hero)
         {
             hero->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
         }
     }
 
-    for (uint32 i = 0; i < _heroes.size(); ++i)
-    {
-        _followerRuntime[i] = {};
-    }
+    Reset_FollowerRuntime();
 
     Reset_AllHeroesToIdle(); // 전환 직후 모든 hero를 Idle 상태로 정리
 
@@ -302,6 +342,21 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
         auto hero = _heroes[i].hero;
         if (hero == nullptr || hero->Get_Transform() == nullptr)
             continue;
+
+        if (!Is_HeroUnlocked(_heroes[i].heroId))
+        {
+            if (auto movement = hero->Get_Component<MovementCom>())
+            {
+                movement->Clear_FollowMoveCommand();
+                movement->Apply_Input({});
+                movement->Stop_AllMovement();
+            }
+
+            if (auto controller = hero->Get_Component<PlayerControllerCom>())
+                controller->Clear_FollowControl();
+
+            continue;
+        }
 
         auto tr = hero->Get_Transform();
 
@@ -476,29 +531,34 @@ Vec3 Hero_Manager::Resolve_FollowTargetPosition(const Shared<Player_WorldBase>& 
 
 void Hero_Manager::Apply_ControlRoles()
 {
+    Apply_UnlockedHeroVisibility();
+
     for (uint32 i = 0; i < _heroes.size(); ++i)
     {
         auto hero = _heroes[i].hero;
         if (!hero)
             continue;
 
-        auto controller = hero->Get_Component<PlayerControllerCom>();
-        if (!controller)
-            continue;
+        const bool unlocked = Is_HeroUnlocked(_heroes[i].heroId);
+        const bool isActive = unlocked && (i == _activeIndex);
 
-        const bool isActive = (i == _activeIndex);
-        controller->Set_ControlEnabled(isActive);
+        if (auto controller = hero->Get_Component<PlayerControllerCom>())
+        {
+            controller->Set_ControlEnabled(isActive);
 
-        auto movement = hero->Get_Component<MovementCom>();
-        if (movement)
+            if (isActive || !unlocked)
+                controller->Clear_FollowControl();
+        }
+
+        if (auto movement = hero->Get_Component<MovementCom>())
         {
             movement->Clear_FollowMoveCommand();
             movement->Apply_Input({});
             movement->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
-        }
 
-        if (isActive)
-            controller->Clear_FollowControl();
+            if (!unlocked)
+                movement->Stop_AllMovement();
+        }
     }
 }
 
@@ -545,6 +605,26 @@ void Hero_Manager::Update_Followers(float timeDelta)
     {
         if (i == _activeIndex)
             continue;
+
+        if (!Is_HeroUnlocked(_heroes[i].heroId))
+        {
+            _followerRuntime[i] = {};
+
+            if (auto hero = _heroes[i].hero)
+            {
+                if (auto controller = hero->Get_Component<PlayerControllerCom>())
+                    controller->Clear_FollowControl();
+
+                if (auto movement = hero->Get_Component<MovementCom>())
+                {
+                    movement->Clear_FollowMoveCommand();
+                    movement->Apply_Input({});
+                    movement->Stop_AllMovement();
+                }
+            }
+
+            continue;
+        }
 
         const float delay = followerSlot == 0 ? _followerDelayA : _followerDelayB;
         const TrailPoint trailPoint = Get_TrailPoint(delay);
@@ -723,6 +803,78 @@ void Hero_Manager::Refresh_TargetCamera() const
     camera->SetTargetTransform(active->Get_Transform());
 }
 
+bool Hero_Manager::Is_HeroUnlocked(HeroId heroId) const
+{
+    if (heroId == HeroId::Gustave)
+        return true;
+
+    if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
+        return unlockManager->Is_HeroUnlocked(heroId);
+
+    return false;
+}
+
+uint32 Hero_Manager::Find_FirstUnlockedHeroIndex() const
+{
+    for (uint32 i = 0; i < _heroes.size(); i++)
+    {
+        if (Is_HeroUnlocked(_heroes[i].heroId))
+            return i;
+    }
+
+    return UINT_MAX;
+}
+
+uint32 Hero_Manager::Find_NextUnlockedHeroIndex(uint32 startIndex) const
+{
+    if (_heroes.empty())
+        return UINT_MAX;
+
+    for (uint32 offset = 1; offset < _heroes.size(); offset++)
+    {
+        const uint32 index = (startIndex + offset) % static_cast<uint32>(_heroes.size());
+        if (Is_HeroUnlocked(_heroes[index].heroId))
+            return index;
+    }
+
+    return UINT_MAX;
+}
+
+bool Hero_Manager::Can_SwitchHero() const
+{
+    uint32 unlockedCount = 0;
+
+    for (const HeroPartyEntry& entry : _heroes)
+    {
+        if (!Is_HeroUnlocked(entry.heroId))
+            continue;
+
+        ++unlockedCount;
+        if (unlockedCount >= 2)
+            return true;
+    }
+
+    return false;
+}
+
+void Hero_Manager::Apply_UnlockedHeroVisibility()
+{
+    for (HeroPartyEntry& entry : _heroes)
+    {
+        if (entry.hero == nullptr)
+            continue;
+
+        const bool unlocked = Is_HeroUnlocked(entry.heroId);
+        entry.hero->Set_PartyVisibilityAllowed(unlocked);
+    }
+}
+
+void Hero_Manager::Reset_FollowerRuntime()
+{
+    for (FollowerRuntime& runtime : _followerRuntime)
+        runtime = {};
+}
+
 HRESULT Hero_Manager::Ready_Delegates()
 {
     _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
@@ -791,6 +943,14 @@ void Hero_Manager::Handle_EditorStopRuntime()
 
 void Hero_Manager::Restore_PartyFormationAfterEditorStop()
 {
+    if (_activeIndex >= _heroes.size() || !Is_HeroUnlocked(_heroes[_activeIndex].heroId))
+    {
+        const uint32 fallbackIndex = Find_FirstUnlockedHeroIndex();
+        _activeIndex = (fallbackIndex != UINT_MAX) ? fallbackIndex : 0;
+    }
+
+    Apply_ControlRoles();
+
     auto active = Get_ActiveHero();
     if (active == nullptr || active->Get_Transform() == nullptr)
     {
@@ -798,10 +958,7 @@ void Hero_Manager::Restore_PartyFormationAfterEditorStop()
         return;
     }
 
-    for (uint32 i = 0; i < _followerRuntime.size(); ++i)
-    {
-        _followerRuntime[i] = {};
-    }
+    Reset_FollowerRuntime();
 
     auto activeTr = active->Get_Transform();
     const Vec3 anchorPos = activeTr->Get_WorldPosition();

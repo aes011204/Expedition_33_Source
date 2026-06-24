@@ -1,6 +1,7 @@
 #include "BattleWorldUI_GradientCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
 #include "RenderTarget.h"
@@ -142,6 +143,8 @@ namespace
         BattleWorldGradientPanelTemplate panelTemplate{};
         Unique<IWorldUIGradientSurface> surface{};
         Matrix worldMatrix = Matrix::Identity;
+        BattleWorldSurfaceAnimState introAnim{};
+        Vec3 introStartOffset = Vec3::Zero;
         bool visible = false;
         bool dirty = true;
     };
@@ -431,6 +434,20 @@ namespace
     bool Has_TextureRef(const string& textureGuid, const string& texturePath)
     {
         return !textureGuid.empty() || !texturePath.empty();
+    }
+
+    bool Should_SkipSharedBattleCommandBackgroundPaint(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return false;
+
+        string loweredPath = String::ToLowerCopy(texturePath);
+        replace(loweredPath.begin(), loweredPath.end(), '\\', '/');
+
+        return loweredPath.find("/battle/battlewheel/items/t_bw_items_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/items/t_bw_items_paint_background") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_backgroundpaint") != string::npos ||
+            loweredPath.find("/battle/battlewheel/gradientattack/t_bw_gradientattack_paint_background") != string::npos;
     }
 
     BattleWorldGradientJsonObject Parse_JsonObject(const json& node, uint32 sequence)
@@ -741,6 +758,9 @@ namespace
             Parse_JsonImageRenderMode(object.imageRenderMode);
         const BattleWorldGradientMaskTextureMode maskTextureMode =
             Parse_JsonMaskTextureMode(object.maskTextureMode);
+
+        if (Should_SkipSharedBattleCommandBackgroundPaint(object.texturePath))
+            return false;
 
         if (imageRenderMode == BattleWorldGradientImageRenderMode::Normal &&
             Has_TextureRef(object.patternMaskTextureGuid, object.patternMaskTexturePath))
@@ -1297,7 +1317,7 @@ namespace
         const float defaultViewportAspect = 1.f;
         const float defaultFillRatio = 1.f;
         const float defaultGrayAmount = 0.f;
-        const bool disabled = false;
+        const uint32 disabled = 0u;
         const uint32 fillOrigin = 0u;
 
         CHECK_FAILED(shader->Bind_Matrix("g_WorldMatrix", &worldMatrix), E_FAIL);
@@ -1306,14 +1326,14 @@ namespace
         CHECK_FAILED(shader->Bind_RawValue("g_Color", &color, sizeof(Vec4)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvOffset", &defaultPatternOffset, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_PatternUvScale", &defaultPatternScale, sizeof(Vec2)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_GrayAmount", &defaultGrayAmount, sizeof(float)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -1538,7 +1558,7 @@ namespace
             const float defaultViewportAspect = viewportWidth / viewportHeight;
             const float defaultFillRatio = 1.f;
             const float defaultGrayAmount = 0.f;
-            const bool disabled = false;
+            const uint32 disabled = 0u;
             const uint32 fillOrigin = 0u;
             const Vec2 patternUvOffset =
                 image.imageRenderMode == BattleWorldGradientImageRenderMode::PatternOverlay ? image.patternUvOffset : defaultPatternOffset;
@@ -1551,15 +1571,15 @@ namespace
             CHECK_FAILED(_shader->Bind_RawValue("g_Color", &image.color, sizeof(Vec4)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvOffset", &patternUvOffset, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_PatternUvScale", &patternUvScale, sizeof(Vec2)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseGrayScale", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_GrayAmount", &defaultGrayAmount, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_IsOverlay", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_SRV("g_Texture", srvs[0].Get()), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleCenterUV", &defaultHoleCenter, sizeof(Vec2)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleRadius", &defaultHoleRadius, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_HoleFeather", &defaultHoleFeather, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_ViewportAspect", &defaultViewportAspect, sizeof(float)), E_FAIL);
-            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(bool)), E_FAIL);
+            CHECK_FAILED(_shader->Bind_RawValue("g_UseFillRatio", &disabled, sizeof(uint32)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillRatio", &defaultFillRatio, sizeof(float)), E_FAIL);
             CHECK_FAILED(_shader->Bind_RawValue("g_FillOrigin", &fillOrigin, sizeof(uint32)), E_FAIL);
 
@@ -1629,6 +1649,9 @@ struct BattleWorldUI_GradientCards::Impl
     bool hasPlacementTuningFile = false;
     HeroId activePlacementHeroId = HeroId::END;
     HeroId editorPlacementHeroId = HeroId::END;
+    BattleTurnState introState = BattleTurnState::None;
+    HeroId introHeroId = HeroId::END;
+    bool hasIntroKey = false;
 };
 
 BattleWorldUI_GradientCards::BattleWorldUI_GradientCards(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -1677,21 +1700,10 @@ HRESULT BattleWorldUI_GradientCards::Initialize(void* arg)
     return S_OK;
 }
 
-void BattleWorldUI_GradientCards::Show_ForBattleState(
-    const Vec3& anchorWorldPos,
-    BattleTurnState currentState,
-    HeroId actorHeroId)
+HRESULT BattleWorldUI_GradientCards::Warmup_ForBattleState(HeroId actorHeroId)
 {
-    if (_impl == nullptr || !Should_ShowBattleWorldGradientCards(currentState))
-    {
-        Hide();
-        return;
-    }
-
-    Reload_GradientWorldPlacementTuningIfNeeded(
-        _impl->placementTunings,
-        _impl->placementTuningWriteTime,
-        _impl->hasPlacementTuningFile);
+    if (_impl == nullptr)
+        return E_FAIL;
 
     const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
     const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
@@ -1699,8 +1711,53 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     if (_impl->editorPlacementHeroId == HeroId::END)
         _impl->editorPlacementHeroId = placementHeroId;
 
+    BattleWorldGradientPanelInstance& panel = _impl->panels[placementHeroIndex];
+    if (!panel.panelTemplate.valid || panel.surface == nullptr)
+        return E_FAIL;
+
+    if (!panel.dirty)
+        return S_OK;
+
+    CHECK_FAILED(panel.surface->Compose(panel.panelTemplate), E_FAIL);
+    panel.dirty = false;
+    return S_OK;
+}
+
+void BattleWorldUI_GradientCards::Show_ForBattleState(
+    const Vec3& anchorWorldPos,
+    BattleTurnState currentState,
+    HeroId actorHeroId,
+    float timeDelta)
+{
+    if (_impl == nullptr || !Should_ShowBattleWorldGradientCards(currentState))
+    {
+        Hide();
+        return;
+    }
+
+    const HeroId placementHeroId = Normalize_PlacementHeroId(actorHeroId);
+    const uint32 placementHeroIndex = Resolve_PlacementHeroIndex(placementHeroId);
+    _impl->activePlacementHeroId = placementHeroId;
+    if (_impl->editorPlacementHeroId == HeroId::END)
+        _impl->editorPlacementHeroId = placementHeroId;
+
+    const bool restartIntro =
+        !_impl->hasIntroKey ||
+        _impl->introState != currentState ||
+        _impl->introHeroId != placementHeroId;
+    if (restartIntro)
+    {
+        _impl->introState = currentState;
+        _impl->introHeroId = placementHeroId;
+        _impl->hasIntroKey = true;
+        Restart_BattleWorldSurfaceAnim(_impl->panels[placementHeroIndex].introAnim, 0);
+    }
+
     for (auto& panel : _impl->panels)
+    {
         panel.visible = false;
+        Advance_BattleWorldSurfaceAnim(panel.introAnim, timeDelta);
+    }
 
     BattleWorldGradientPanelInstance& panel = _impl->panels[placementHeroIndex];
     if (!panel.panelTemplate.valid || panel.surface == nullptr)
@@ -1726,6 +1783,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
         placementTuning.baseOffset;
+    panel.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(0.f, -0.08f, 0.f));
     const Vec2 aspectWorldSize = Resolve_AspectWorldSize(
         placementTuning.worldSize,
         panel.panelTemplate.pixelSize);
@@ -1752,6 +1810,7 @@ void BattleWorldUI_GradientCards::Hide()
     if (_impl == nullptr)
         return;
 
+    _impl->hasIntroKey = false;
     for (auto& panel : _impl->panels)
         panel.visible = false;
 }
@@ -1874,7 +1933,9 @@ HRESULT BattleWorldUI_GradientCards::Render()
         if (!panel.visible || panel.surface == nullptr)
             continue;
 
-        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), panel.worldMatrix, color), E_FAIL);
+        const BattleWorldSurfaceAnimRenderState renderState =
+            Apply_BattleWorldSurfaceAnim(panel.introAnim, panel.worldMatrix, color, panel.introStartOffset);
+        CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(panel.surface->Bind_ShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
         CHECK_FAILED(_impl->viBuffer->Bind_Resources(), E_FAIL);

@@ -8,7 +8,7 @@ fs::path WeaponPrefabLoader::Resolve_WeaponPrefabPath(const string& weaponPrefab
         (String::ToWString(weaponPrefabName) + L".prefab.json");
 }
 
-bool WeaponPrefabLoader::Load(const string& weaponPrefabName, LoadedWeaponPrefab& outPrefab)
+bool WeaponPrefabLoader::Load(const string& weaponPrefabName, LoadedWeaponPrefab& outPrefab, const string& expectedStaticClass)
 {
     outPrefab = {};
 
@@ -24,14 +24,13 @@ bool WeaponPrefabLoader::Load(const string& weaponPrefabName, LoadedWeaponPrefab
         return false;
 
     const string staticClass = rootJson.value("static_class", string{});
-    if (staticClass != "Weapon")
+    if (staticClass != expectedStaticClass)
         return false;
 
     wstring modelTag{};
     string modelGuid{};
     ModelType modelType = ModelType::NonAnim;
 
-    // Weapon 루트 JSON에서 실제 무기 모델 component를 찾아 런타임 생성 인자로 쓴다.
     if (!Try_ReadModelComponent(rootJson, modelTag, modelGuid, modelType))
         return false;
 

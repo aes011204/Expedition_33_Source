@@ -11,6 +11,7 @@ namespace
 {
     constexpr const char* kRuleMimeCostume = "kill_mime_unlock_baguette_costume";
     constexpr const char* kRulePotatoCostume = "kill_potatobag_unlock_potato_costume";
+    constexpr const char* kRuleFirstTutorialUnlockParty = "kill_tw_lancelier_unlock_party";
 
     json Build_CostumeSaveJson(bool unlockBaguette, bool unlockPotato)
     {
@@ -56,6 +57,27 @@ namespace
 
         return root;
     }
+
+    json Build_HeroUnlockSaveJson(
+        const vector<string>& completedRuleIds,
+        const vector<HeroId>& unlockedHeroIds)
+    {
+        json root = json::object();
+        root["completed_rule_ids"] = json::array();
+        root["unlocked_hero_ids"] = json::array();
+
+        for (const string& ruleId : completedRuleIds)
+        {
+            root["completed_rule_ids"].emplace_back(ruleId);
+        }
+
+        for (HeroId heroId : unlockedHeroIds)
+        {
+            root["unlocked_hero_ids"].emplace_back(static_cast<int>(heroId));
+        }
+
+        return root;
+    }
 }
 
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GameStart()
@@ -68,6 +90,16 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_CostumeUnlocks(bool
     RuntimeRuleStateIO::RuleState ruleState{};
     ruleState.costumeJson = Build_CostumeSaveJson(unlockBaguette, unlockPotato);
     ruleState.unlockManagerJson = Build_UnlockManagerSaveJson(unlockBaguette, unlockPotato);
+    return ruleState;
+}
+
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_FirstTutorialHeroUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+    ruleState.costumeJson = Build_CostumeSaveJson(false, false);
+    ruleState.unlockManagerJson = Build_HeroUnlockSaveJson(
+        { kRuleFirstTutorialUnlockParty },
+        { HeroId::Gustave, HeroId::Lune, HeroId::Maelle });
     return ruleState;
 }
 

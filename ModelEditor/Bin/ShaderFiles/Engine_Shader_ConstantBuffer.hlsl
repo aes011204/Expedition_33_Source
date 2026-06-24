@@ -254,6 +254,10 @@ cbuffer ScreenFxBuffer
     float g_wipeRadius;
     float g_edgeSoftness;
     float2 pad;
+
+    float4 g_flashColor;
+    float4 g_screenFxShape;
+    float4 g_screenFxParams;
 };
 
 struct FogZoneEntry
@@ -276,11 +280,34 @@ struct FogZoneEntry
     float noiseMin;
 };
 
+struct FogOBBZoneEntry
+{
+    row_major float4x4 worldToLocal;
+
+    float3 halfExtents;
+    float baseHeight;
+
+    float4 fogColor;
+
+    float fogDensity;
+    float topFadeStart;
+    float topHeight;
+    float edgeFade;
+
+    float noiseScale;
+    float2 noiseSpeed;
+    float noiseStrength;
+
+    float noiseMin;
+    float3 padding;
+};
+
 cbuffer FogZoneBuffer
 {
-    FogZoneEntry g_FogZones[8];
+    FogZoneEntry g_FogAABBZones[16];
+    FogOBBZoneEntry g_FogOBBZones[2];
     int g_FogAABBCount;
-    int g_FogSphereCount;
+    int g_FogOBBCount;
     float g_GroundFogMaxDistance;
     float g_GroundFogMinAccumulationDistance;
 
@@ -328,6 +355,9 @@ cbuffer FroxelDebugBuffer
     uint g_FroxelDebugHeight;
     uint g_FroxelDebugDepth;
     uint g_FroxelDebugSlice;
+    uint g_FroxelDebugMode;
+    float g_FroxelDebugGain;
+    float2 g_FroxelDebugPad0;
 };
 
 struct VolumetricLightShaftZoneEntry
@@ -353,23 +383,53 @@ cbuffer FroxelBuffer : register(b0)
     float g_FroxelNear;
 
     float g_FroxelFar;
-    float3 froxelPadding;
+    float g_FroxelCompositeIntensity;
+    float g_FroxelDepthBias;
+    float g_FroxelShadowStrength;
+    float g_FroxelCameraFar;
+    float3 g_FroxelPadding;
 
     row_major float4x4 g_FroxelInvView;
     row_major float4x4 g_FroxelInvProjection;
+    row_major float4x4 g_FroxelPrevView;
+    row_major float4x4 g_FroxelPrevProjection;
 
     float4 g_FroxelLightDirection;
     float4 g_FroxelLightColor;
     float4 g_FroxelCamPosition;
+
+    float g_FroxelTemporalBlend;
+    float g_FroxelJitterZ;
+    float g_FroxelTemporalDepthReject;
+    uint g_FroxelHistoryValid;
 }
 
 // 카메라/Froxel/광원 공통 데이터
 cbuffer VolumetricLightShaftZoneBuffer : register(b1)
 {
-    VolumetricLightShaftZoneEntry g_LightShaftZones[8];
+    VolumetricLightShaftZoneEntry g_LightShaftZones[16];
 
     uint g_LightShaftZoneCount;
     float3 g_LightShaftZonePadding;
 }
+
+cbuffer FroxelShadowBuffer : register(b2)
+{
+    row_major float4x4 g_FroxelLightViewMatrix;
+    row_major float4x4 g_FroxelLightProjMatrix;
+
+    row_major float4x4 g_FroxelCascadeLightViewMatrices[4];
+    row_major float4x4 g_FroxelCascadeLightProjMatrices[4];
+
+    float4 g_FroxelCascadeSplits;
+    float g_FroxelCascadeBlendDistance;
+    float g_FroxelLightFar;
+    float g_FroxelShadowBias;
+
+    float g_FroxelShadowIntensity;
+    uint g_FroxelShadowCascadeCount;
+    uint g_FroxelActiveShadowCascadeIndex;
+    float g_FroxelShadowPadding0;
+};
 
 #endif

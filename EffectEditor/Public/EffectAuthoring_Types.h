@@ -18,6 +18,7 @@ enum class AuthoringModuleType : uint8
     InitialVelocity,
     InitialRadialVelocity,
     VelocityCone,
+    SourceMotionVelocity,
     Acceleration,
     Drag,
     VelocityOverLife,
@@ -146,19 +147,18 @@ enum class FloatCurveInterpolationMode : uint8
     CurveAuto,        // 후속 지원 예정인 자동 tangent curve 모드다.
     CurveUser,        // 후속 지원 예정인 수동 tangent curve 모드다.
     CurveBreak,       // 후속 지원 예정인 좌우 tangent 분리 모드다.
-    CurveAutoClamped, // v1에서 실제 지원할 안전한 자동 curve 모드다.
+    CurveAutoClamped, // 실제 지원할 안전한 자동 curve 모드다.
 };
 
 // 분포 플로트 상수 커브의 필요 값들이다.
 struct FloatCurveKeyData
 {
-    float time{ 0.f };          // 0..1 공통축에서 이 key의 위치다.
-    float value{ 0.f };         // 이 key 시점의 출력값이다.
-    float arriveTangent{ 0.f }; // key로 들어오는 곡선 기울기다.
-    float leaveTangent{ 0.f };  // key에서 나가는 곡선 기울기다.
+    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
+    float value{ 0.f };                        // 이 key 시점의 출력값이다.
+    float arriveTangent{ 0.f };                // key로 들어오는 곡선 기울기다.
+    float leaveTangent{ 0.f };                 // key에서 나가는 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear
-    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
 };
 
 // 분포 플로트 상수 커브의 보간 key 목록을 보관한다.
@@ -174,13 +174,12 @@ struct ConstantCurveFloatDistributionData
 // 분포 Vec2 상수 커브의 필요 값들이다.
 struct Vector2CurveKeyData
 {
-    float time{ 0.f };      // 0..1 공통축에서 이 key의 위치다.
-    Vec2 value{ 0.f, 0.f }; // 이 key 시점의 X/Y 출력값이다.
-    Vec2 arriveTangent{};   // key로 들어오는 X/Y 곡선 기울기다.
-    Vec2 leaveTangent{};    // key에서 나가는 X/Y 곡선 기울기다.
+    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
+    Vec2 value{ 0.f, 0.f };                    // 이 key 시점의 X/Y 출력값이다.
+    Vec2 arriveTangent{};                      // key로 들어오는 X/Y 곡선 기울기다.
+    Vec2 leaveTangent{};                       // key에서 나가는 X/Y 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear
-    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
 };
 
 // 분포 Vec2 상수 커브의 보간 key 목록을 보관한다.
@@ -196,13 +195,12 @@ struct ConstantCurveVector2DistributionData
 // 분포 Vec3 상수 커브의 필요 값들이다.
 struct Vector3CurveKeyData
 {
-    float time{ 0.f };           // 0..1 공통축에서 이 key의 위치다.
-    Vec3 value{ 0.f, 0.f, 0.f }; // 이 key 시점의 X/Y/Z 출력값이다.
-    Vec3 arriveTangent{};        // key로 들어오는 X/Y/Z 곡선 기울기다.
-    Vec3 leaveTangent{};         // key에서 나가는 X/Y/Z 곡선 기울기다.
+    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
+    Vec3 value{ 0.f, 0.f, 0.f };               // 이 key 시점의 X/Y/Z 출력값이다.
+    Vec3 arriveTangent{};                      // key로 들어오는 X/Y/Z 곡선 기울기다.
+    Vec3 leaveTangent{};                       // key에서 나가는 X/Y/Z 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear
-    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
 };
 
 // 분포 Vec3 상수 커브의 보간 key 목록을 보관한다.
@@ -218,13 +216,12 @@ struct ConstantCurveVector3DistributionData
 // Color 분포는 alpha를 별도 Float distribution에서 유지하므로 curve key의 w는 저장/편집하지 않는다.
 struct ColorCurveKeyData
 {
-    float time{ 0.f };                 // 0..1 공통축에서 이 key의 위치다.
-    Color value{ 1.f, 1.f, 1.f, 1.f }; // 이 key 시점의 RGB 출력값이다. alpha는 별도 분포가 정본이다.
-    Color arriveTangent{};             // key로 들어오는 RGB 곡선 기울기다.
-    Color leaveTangent{};              // key에서 나가는 RGB 곡선 기울기다.
+    float time{ 0.f };                         // 0..1 공통축에서 이 key의 위치다.
+    Color value{ 1.f, 1.f, 1.f, 1.f };         // 이 key 시점의 RGB 출력값이다. alpha는 별도 분포가 정본이다.
+    Color arriveTangent{};                     // key로 들어오는 RGB 곡선 기울기다.
+    Color leaveTangent{};                      // key에서 나가는 RGB 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
-        FloatCurveInterpolationMode::Linear
-    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+        FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
 };
 
 // Color RGB 상수 커브의 보간 key 목록을 보관한다.
@@ -607,8 +604,8 @@ enum class SourceHistorySpriteTrailDirectionMode : uint8
 // Source History Ribbon이 어떤 source position history를 따라갈지 결정하는 editor 저장 payload다.
 struct RibbonTypeData
 {
-    // SelfRoot면 emitter root, ParticleEmitter면 다른 particle lane을 source로 쓴다.
-    SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
+    SourceHistoryRibbonSourceMode sourceMode{
+        SourceHistoryRibbonSourceMode::SelfRoot };                // SelfRoot면 emitter root, ParticleEmitter면 다른 particle lane을 source로 쓴다.
     uint32 sourceEmitterId{};                                     // ParticleEmitter mode에서 따라갈 source emitter id다.
     uint32 followerLaneCount{ 1 };                                // ParticleEmitter mode에서 동시에 추적할 representative lane 상한이다.
     RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic }; // sampleSpacing/sampleInterval preset 선택값이다.
@@ -659,15 +656,16 @@ struct TrailTypeData
     float width{ 1.f };
     float segmentLifetime{ 0.25f };
     uint32 historyCount{ 32 };
-    float uvTiling{ 1.f };                                      // body/mask가 아니라 noise/breakup 길이 방향 반복 밀도다.
-    float maxTrailLength{ 0.f };                                // 0 이하면 head 기준 최대 표시 길이를 제한하지 않는다.
-    float tailFadeLength{ 0.1f };                               // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
-    bool autoLifeFade{ true };                                  // sample age 기준 자동 alpha fade를 적용할지 결정한다.
-    TrailCurveQuality curveQuality{ TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
-    float sampleSpacing{ 0.08f };                               // 이동 거리 기준 중간 sample 삽입 간격이다.
-    uint32 curveSubdivision{ 4 };                               // 한 frame에서 보강할 최대 중간 sample 수다.
-    bool smoothTangent{ true };                                 // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
-    float sideFade{ 0.08f };                                    // 폭 방향 alpha edge 감소 강도다.
+    float uvTiling{ 1.f };          // body/mask가 아니라 noise/breakup 길이 방향 반복 밀도다.
+    float maxTrailLength{ 0.f };    // 0 이하면 head 기준 최대 표시 길이를 제한하지 않는다.
+    float tailFadeLength{ 0.1f };   // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
+    bool autoLifeFade{ true };      // sample age 기준 자동 alpha fade를 적용할지 결정한다.
+    TrailCurveQuality curveQuality{
+        TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
+    float sampleSpacing{ 0.08f };   // 이동 거리 기준 중간 sample 삽입 간격이다.
+    uint32 curveSubdivision{ 4 };   // 한 frame에서 보강할 최대 중간 sample 수다.
+    bool smoothTangent{ true };     // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
+    float sideFade{ 0.08f };        // 폭 방향 alpha edge 감소 강도다.
 };
 
 struct MeshTypeData
@@ -704,13 +702,13 @@ struct RequiredModuleData
     Vec3 emitterOrigin{ 0.f, 0.f, 0.f };
     Vec3 emitterRotationDegrees{ 0.f, 0.f, 0.f };
 
-    EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::FacingCameraPosition };
-    // AwayFromCenter/Velocity에서 기준 방향을 look으로 쓸지 texture 축으로 쓸지 결정한다.
-    EmitterDirectionalAlignmentMode directionalAlignmentMode{ EmitterDirectionalAlignmentMode::TextureAxis };
-    // TextureAxis mode에서 기준 방향에 맞출 texture 축이다.
-    EmitterSpriteTextureAxis spriteTextureAxis{ EmitterSpriteTextureAxis::Y };
-    // texture authored orientation 보정용 정적 roll offset이다.
-    float spriteRollOffsetDegrees{ 0.f };
+    EmitterScreenAlignment screenAlignment{
+        EmitterScreenAlignment::FacingCameraPosition };
+    EmitterDirectionalAlignmentMode directionalAlignmentMode{
+        EmitterDirectionalAlignmentMode::TextureAxis }; // AwayFromCenter/Velocity에서 기준 방향을 look으로 쓸지 texture 축으로 쓸지 결정한다.
+    EmitterSpriteTextureAxis spriteTextureAxis{
+        EmitterSpriteTextureAxis::Y };                  // TextureAxis mode에서 기준 방향에 맞출 texture 축이다.
+    float spriteRollOffsetDegrees{ 0.f };               // texture authored orientation 보정용 정적 roll offset이다.
 
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
@@ -721,8 +719,7 @@ struct RequiredModuleData
     float sortBias{ 0.f };
     float cameraMotionBlurAmount{ 0.f };
     bool clearExistingParticlesOnInit{ false };
-    // Cascade: Emitter Loops. 0 means infinite looping.
-    uint32 loopCount{ 0 };
+    uint32 loopCount{ 0 };                              // Cascade: Emitter 루프 횟수. 0 은 무한 루프이다.
     float duration{ 1.f };
     float durationLow{ 0.f };
     bool useDurationRange{ false };
@@ -909,6 +906,25 @@ struct VelocityConeModuleData
     float angleDegrees{ 30.f };
     FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     bool inWorldSpace{ false };
+};
+
+enum class SourceMotionVelocityDirectionMode : uint8
+{
+    InheritSourceVelocity,
+    SourceVelocityDirection,
+    SourceVelocityOpposite,
+    TrailTangent,
+    TrailTangentOpposite,
+    SideFromTangent,
+    RandomSideFromTangent,
+};
+
+struct SourceMotionVelocityModuleData
+{
+    SourceMotionVelocityDirectionMode directionMode{ SourceMotionVelocityDirectionMode::TrailTangent };
+    FloatDistributionData speed{ FloatDistributionData::Make_Constant(0.f) };
+    float sourceSpeedScale{ 0.f };
+    float spreadAngleDegrees{ 0.f };
 };
 
 struct AccelerationModuleData
@@ -1176,6 +1192,7 @@ using AuthoringModuleData = variant<
     InitialVelocityModuleData,
     InitialRadialVelocityModuleData,
     VelocityConeModuleData,
+    SourceMotionVelocityModuleData,
     AccelerationModuleData,
     DragModuleData,
     VelocityOverLifeModuleData,

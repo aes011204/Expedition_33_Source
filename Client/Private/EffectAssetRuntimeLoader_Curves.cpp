@@ -1525,6 +1525,20 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.curveKeyValuesYBlock1 = Vec4{};
         desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
         desc.curveKeyValuesZBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsZ = Vec4{};
+        desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsZ = Vec4{};
+        desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.curveKeyModesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(distribution);
         if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
@@ -1550,18 +1564,45 @@ namespace EffectAssetRuntimeLoad::Curves
         desc.curveKeyValuesYBlock1 = Vec4{};
         desc.curveKeyValuesZ = Vec4{};
         desc.curveKeyValuesZBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsX = Vec4{};
+        desc.curveKeyArriveTangentsXBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsX = Vec4{};
+        desc.curveKeyLeaveTangentsXBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsY = Vec4{};
+        desc.curveKeyArriveTangentsYBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsY = Vec4{};
+        desc.curveKeyLeaveTangentsYBlock1 = Vec4{};
+        desc.curveKeyArriveTangentsZ = Vec4{};
+        desc.curveKeyArriveTangentsZBlock1 = Vec4{};
+        desc.curveKeyLeaveTangentsZ = Vec4{};
+        desc.curveKeyLeaveTangentsZBlock1 = Vec4{};
+        desc.curveKeyModes = Vec4{};
+        desc.curveKeyModesBlock1 = Vec4{};
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const json& key = *keys[index];
             Vec3 value = fallbackValue;
+            Vec3 arriveTangent{};
+            Vec3 leaveTangent{};
             if (const auto valueIter = key.find("value"); valueIter != key.end())
                 Read_Vec3(*valueIter, value);
+            if (const auto arriveIter = key.find("arriveTangent"); arriveIter != key.end())
+                Read_Vec3(*arriveIter, arriveTangent);
+            if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
+                Read_Vec3(*leaveIter, leaveTangent);
 
             Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
             Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
             Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
             Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, value.z);
+            Set_CurveComponent(desc.curveKeyArriveTangentsX, desc.curveKeyArriveTangentsXBlock1, index, arriveTangent.x);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsX, desc.curveKeyLeaveTangentsXBlock1, index, leaveTangent.x);
+            Set_CurveComponent(desc.curveKeyArriveTangentsY, desc.curveKeyArriveTangentsYBlock1, index, arriveTangent.y);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsY, desc.curveKeyLeaveTangentsYBlock1, index, leaveTangent.y);
+            Set_CurveComponent(desc.curveKeyArriveTangentsZ, desc.curveKeyArriveTangentsZBlock1, index, arriveTangent.z);
+            Set_CurveComponent(desc.curveKeyLeaveTangentsZ, desc.curveKeyLeaveTangentsZBlock1, index, leaveTangent.z);
+            Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, Resolve_CurveInterpolationMode(key));
         }
     }
 }

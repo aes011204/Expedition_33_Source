@@ -33,6 +33,7 @@
 #include "Picking.h"
 #include "ColliderCom.h"
 #include "Culling_Manager.h"
+#include "Environment_Manager.h"
 #include "ThreadPool.h"
 #include "Helper_String.h"
 #include "Material.h"
@@ -405,6 +406,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_objectManager, E_FAIL);
+
+    _environmentManager = Environment_Manager::Create();
+    CHECK_NULL(_environmentManager, E_FAIL);
 
     _targetManager = Target_Manager::Create(device, context);
     CHECK_NULL(_targetManager, E_FAIL);
@@ -791,6 +795,10 @@ HRESULT GameInstance::Draw()
     // UI 이후의 모든 화면 효과(ScreenFx, 캡처, UIEffect)를 단일 함수로 캡슐화하여 렌더링
     _renderer->PostDraw();
 
+    // Overlay UI는 UIEffect 이후에 그려 전투 알림처럼 최우선으로 보여야 하는 UI를 보장한다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Overlay)))
+        return E_FAIL;
+
 #ifdef _DEBUG
     _printManager->Render();
 #endif
@@ -798,7 +806,7 @@ HRESULT GameInstance::Draw()
     return S_OK;
 }
 
-HRESULT GameInstance::Draw_RendererOnly()
+HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx)
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
@@ -834,12 +842,20 @@ HRESULT GameInstance::Draw_RendererOnly()
     _renderer->Set_ShadowEnabled(false); // 에디터 프리뷰 렌더는 현재 월드의 dynamic shadow 상태를 쓰지 않는다.
     _renderer->Set_RenderOnlyPreviewMode(true); // 프리뷰 렌더는 현재 월드의 fog만 상속하지 않는다.
     if (_screenFxManager != nullptr)
-        _screenFxManager->Set_ScreenFxActivated(false); // 런타임 화면 효과가 프리뷰 캡처 위를 덮지 않게 한다.
+    {
+        _screenFxManager->Set_RenderPreviewEffectsOnly(renderPreviewScreenFx);
+        _screenFxManager->Set_ScreenFxActivated(renderPreviewScreenFx); // 런타임 화면 효과 대신 preview-only ScreenFX stack만 선택적으로 렌더한다.
+    }
 
     _renderer->Draw();
+    if (_renderer->Is_PreviewLetterboxEnabled())
+        _renderer->Render_Letterbox();
 
     if (_screenFxManager != nullptr)
+    {
+        _screenFxManager->Set_RenderPreviewEffectsOnly(false);
         _screenFxManager->Set_ScreenFxActivated(savedScreenFxActivated);
+    }
     _renderer->Set_RenderOnlyPreviewMode(savedRenderOnlyPreviewMode);
     _renderer->Set_ShadowEnabled(savedShadowEnabled);
 
@@ -851,6 +867,8 @@ HRESULT GameInstance::Draw_RendererOnly()
 
     if (hasPostProcessPipeline)
         postProcessPipeline->Set_PostProcessFeatures(savedPostProcessFeatures);
+
+    _renderer->Set_RenderEnvironment(false);
 
     return S_OK;
 }
@@ -1613,20 +1631,135 @@ RenderGroup GameInstance::Get_CurrentRenderGroup() const
     return _renderer->Get_CurrentGroup();
 }
 
+const FogZoneCB& GameInstance::Get_FogZones() const
+{
+    return _environmentManager->Get_FogZones();
+}
+
+const VolumetricLightShaftZoneCB& GameInstance::Get_VolumetricLightShaftZones() const
+{
+    return _environmentManager->Get_VolumetricLightShaftZones();
+}
+
+FogZoneCB GameInstance::Build_ActiveFogZones(const Vec3& cameraPosition)
+{
+    CHECK_NULL(_environmentManager, FogZoneCB{});
+    return _environmentManager->Build_ActiveFogZones(cameraPosition);
+}
+
+VolumetricLightShaftZoneCB GameInstance::Build_ActiveVolumetricLightShaftZones(const Vec3& cameraPosition)
+{
+    CHECK_NULL(_environmentManager, VolumetricLightShaftZoneCB{});
+    return _environmentManager->Build_ActiveVolumetricLightShaftZones(cameraPosition);
+}
+
 void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
 {
-    if (_renderer)
+    if (_environmentManager)
     {
-        _renderer->Set_FogZones(fogZoneCB);
+        _environmentManager->Set_FogZones(fogZoneCB);
     }
 }
 
 void GameInstance::Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
 {
-    if (_renderer)
+    if (_environmentManager)
     {
-        _renderer->Set_VolumetricLightShaftZones(lightShaftZoneCB);
+        _environmentManager->Set_VolumetricLightShaftZones(lightShaftZoneCB);
     }
+}
+
+void GameInstance::Set_FogZoneCullingEnabled(bool enabled)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_FogZoneCullingEnabled(enabled);
+}
+
+bool GameInstance::Is_FogZoneCullingEnabled() const
+{
+    CHECK_NULL(_environmentManager, false);
+    return _environmentManager->Is_FogZoneCullingEnabled();
+}
+
+void GameInstance::Set_FogZoneCullingDistance(float distance)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_FogZoneCullingDistance(distance);
+}
+
+float GameInstance::Get_FogZoneCullingDistance() const
+{
+    CHECK_NULL(_environmentManager, 0.f);
+    return _environmentManager->Get_FogZoneCullingDistance();
+}
+
+void GameInstance::Set_VolumetricLightShaftZoneCullingEnabled(bool enabled)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_VolumetricLightShaftZoneCullingEnabled(enabled);
+}
+
+bool GameInstance::Is_VolumetricLightShaftZoneCullingEnabled() const
+{
+    CHECK_NULL(_environmentManager, false);
+    return _environmentManager->Is_VolumetricLightShaftZoneCullingEnabled();
+}
+
+void GameInstance::Set_VolumetricLightShaftZoneCullingDistance(float distance)
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Set_VolumetricLightShaftZoneCullingDistance(distance);
+}
+
+float GameInstance::Get_VolumetricLightShaftZoneCullingDistance() const
+{
+    CHECK_NULL(_environmentManager, 0.f);
+    return _environmentManager->Get_VolumetricLightShaftZoneCullingDistance();
+}
+
+const vector<uint32>& GameInstance::Get_ActiveFogAABBZoneIndices() const
+{
+    static const vector<uint32> empty{};
+    CHECK_NULL(_environmentManager, empty);
+    return _environmentManager->Get_ActiveFogAABBZoneIndices();
+}
+
+const vector<uint32>& GameInstance::Get_ActiveFogOBBZoneIndices() const
+{
+    static const vector<uint32> empty{};
+    CHECK_NULL(_environmentManager, empty);
+    return _environmentManager->Get_ActiveFogOBBZoneIndices();
+}
+
+const vector<uint32>& GameInstance::Get_ActiveVolumetricLightShaftZoneIndices() const
+{
+    static const vector<uint32> empty{};
+    CHECK_NULL(_environmentManager, empty);
+    return _environmentManager->Get_ActiveVolumetricLightShaftZoneIndices();
+}
+
+void GameInstance::Set_RenderEnvironment(bool enabled)
+{
+    _renderer->Set_RenderEnvironment(enabled);
+}
+
+bool GameInstance::Is_RenderEnvironment() const
+{
+    return _renderer->Is_RenderEnvironment();
+}
+
+void GameInstance::Set_LetterboxEnabled(bool setLetterboxEnabled)
+{
+    if(_renderer)
+    {
+        _renderer->Set_LetterboxEnabled(setLetterboxEnabled);
+    }
+}
+
+void GameInstance::Set_PreviewLetterboxEnabled(bool enabled)
+{
+    if (_renderer)
+        _renderer->Set_PreviewLetterboxEnabled(enabled);
 }
 
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
@@ -1890,6 +2023,22 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool 
     return S_OK;
 }
 
+HRESULT GameInstance::Commit_AssetDeltaScan(const AssetDeltaScanResult& scanResult, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Commit_AssetDeltaScan(scanResult, missingMetaRoot);
+}
+
+HRESULT GameInstance::Refresh_AssetRegistryDirectory(const wstring& directory, const wstring& missingMetaRoot)
+{
+    if (nullptr == _assetManager)
+        return E_FAIL;
+
+    return _assetManager->Refresh_RegistryDirectory(directory, missingMetaRoot);
+}
+
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
     if (nullptr == _assetManager)
@@ -1947,9 +2096,9 @@ bool GameInstance::Play_Sound(const wstring& soundFile, SoundChannel channel, fl
     return _soundManager ? _soundManager->Play_Once(soundFile, channel, volume) : false;
 }
 
-bool GameInstance::Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
+bool GameInstance::Play_Sound_WithSpeed(const wstring& soundFile, SoundChannel channel, float volume, float speed)
 {
-    return _soundManager ? _soundManager->Play_Once_Pitched(soundFile, channel, volume, pitch) : false;
+    return _soundManager ? _soundManager->Play_Once_WithSpeed(soundFile, channel, volume, speed) : false;
 }
 
 bool GameInstance::Play_BGM(const wstring& soundFile, float volume, bool stopPrevBGM, float fadeOutDuration)
@@ -2035,14 +2184,14 @@ bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition
     return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition) : false;
 }
 
-bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch)
+bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio)
 {
-    return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition, volume, pitch) : false;
+    return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition, volume, speed, startRatio) : false;
 }
 
-bool GameInstance::Try_GetSoundCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const
+bool GameInstance::Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const
 {
-    return _soundManager ? _soundManager->Try_GetCueDefaultVolumePitch(cueId, outVolume, outPitch) : false;
+    return _soundManager ? _soundManager->Try_GetCueDefaultVolumeSpeed(cueId, outVolume, outSpeed) : false;
 }
 
 void GameInstance::Update_SoundListenerFromActiveCamera()
@@ -2377,6 +2526,11 @@ HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const cha
     return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
 }
 
+ID3D11ShaderResourceView* GameInstance::Get_RT_SRV(const wstring& targetTag)
+{
+    return _targetManager->Get_RT_SRV(targetTag);
+}
+
 HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
 {
     return _targetManager->Copy_CurrentRTV_To(targetTag);
@@ -2410,7 +2564,7 @@ HRESULT GameInstance::Bind_PlayerStencilWriteState(bool depthWrite)
         desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
         desc.StencilEnable = TRUE;
         desc.StencilReadMask = 0xff;
-        desc.StencilWriteMask = 0xff;
+        desc.StencilWriteMask = 0x03;
         desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
@@ -2422,7 +2576,37 @@ HRESULT GameInstance::Bind_PlayerStencilWriteState(bool depthWrite)
     }
 
     CHECK_NULL(_context, E_FAIL);
-    _context->OMSetDepthStencilState(state.Get(), 1);
+    _context->OMSetDepthStencilState(state.Get(), 0x03);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_ScreenFxExclusionStencilWriteState(bool depthWrite)
+{
+    ComPtr<ID3D11DepthStencilState>& state =
+        depthWrite ? _screenFxExclusionStencilWriteState : _screenFxExclusionStencilWriteDepthReadState;
+
+    if (state == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = TRUE;
+        desc.DepthWriteMask = depthWrite ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0x02;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, state.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(state.Get(), 0x02);
 
     return S_OK;
 }
@@ -2435,7 +2619,7 @@ HRESULT GameInstance::Bind_BackgroundUIBehindPlayerStencilState()
         desc.DepthEnable = FALSE;
         desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
         desc.StencilEnable = TRUE;
-        desc.StencilReadMask = 0xff;
+        desc.StencilReadMask = 0x01;
         desc.StencilWriteMask = 0x00;
         desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
@@ -2448,7 +2632,7 @@ HRESULT GameInstance::Bind_BackgroundUIBehindPlayerStencilState()
     }
 
     CHECK_NULL(_context, E_FAIL);
-    _context->OMSetDepthStencilState(_backgroundUIBehindPlayerStencilState.Get(), 1);
+    _context->OMSetDepthStencilState(_backgroundUIBehindPlayerStencilState.Get(), 0x01);
 
     return S_OK;
 }
@@ -2488,6 +2672,13 @@ HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowCB(shader);
+}
+
+HRESULT GameInstance::Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    outShadowCB = _shadow->Build_ShadowCB();
+    return S_OK;
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
@@ -3022,6 +3213,54 @@ void GameInstance::Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX
     _screenFxManager->Play_ScreenEffect(screenFX);
 }
 
+ScreenFxHandle GameInstance::Play_ScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const
+{
+    if (_screenFxManager == nullptr)
+        return {};
+
+    return _screenFxManager->Play_ScreenEffect_WithHandle(screenFX);
+}
+
+void GameInstance::Stop_ScreenFx(ScreenFxHandle handle) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Stop_ScreenEffect(handle);
+}
+
+ScreenFxHandle GameInstance::Play_PreviewScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const
+{
+    if (_screenFxManager == nullptr)
+        return {};
+
+    return _screenFxManager->Play_PreviewScreenEffect_WithHandle(screenFX);
+}
+
+void GameInstance::Evaluate_PreviewScreenFx(ScreenFxHandle handle, float elapsedTime) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Evaluate_PreviewScreenEffect(handle, elapsedTime);
+}
+
+void GameInstance::Stop_PreviewScreenFx(ScreenFxHandle handle) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Stop_PreviewScreenEffect(handle);
+}
+
+bool GameInstance::Is_ScreenFxFinished(const wstring& tag) const
+{
+    if (_screenFxManager == nullptr)
+        return false;
+
+    return _screenFxManager->Is_ScreenEffectFinished(tag);
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
@@ -3054,6 +3293,7 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
+    ReleaseManager(_environmentManager);
 
     // Free live objects before PhysX so ColliderCom can unregister/release actors while the scene still exists.
     ReleaseManager(_levelManager);
@@ -3072,6 +3312,8 @@ void GameInstance::Release_Engine()
 
     _playerStencilWriteState.Reset();
     _playerStencilWriteDepthReadState.Reset();
+    _screenFxExclusionStencilWriteState.Reset();
+    _screenFxExclusionStencilWriteDepthReadState.Reset();
     _backgroundUIBehindPlayerStencilState.Reset();
     _uiNoDepthStencilState.Reset();
 

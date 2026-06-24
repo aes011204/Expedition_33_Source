@@ -25,8 +25,11 @@
 #include "AnimState_View.h"
 #include "ClientInstance.h"
 #include "PostProcess_View.h"
+#include "EnvironmentView.h"
 #include "ScreenFx_View.h"
 #include "SoulLike_Viewer.h"
+#include "SoulLikeCamera_Viewer.h"
+#include "BattleController.h"
 
 namespace fs = std::filesystem;
 
@@ -139,8 +142,14 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Material_View::Create());
     Add_Window(AnimState_View::Create());
     Add_Window(PostProcess_View::Create());
+    Add_Window(EnvironmentView::Create());
     Add_Window(ScreenFx_View::Create());
     Add_Window(SoulLike_Viewer::Create());
+    Add_Window(SoulLikeCamera_Viewer::Create());
+
+    if (FAILED(CLIENT->Reload_EffectJsons()))
+        LOG_WARN("MainEditor startup effect reload failed.");
+
     return S_OK;
 }
 
@@ -285,6 +294,8 @@ void Editor_Manager::Render_RuntimeToolbar()
     ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.f, 4.f));
 
+    Render_AutoParryCheck();
+    ImGui::SameLine(0.f, 10.f);
     Render_SoundCheck();
     ImGui::SameLine(0.f, 10.f);
 
@@ -509,7 +520,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("F4", "Stop");
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
-            DrawShortcutRow("F10", "마우스 락 토글");
+            DrawShortcutRow("F10", "마우스 언락 / 자동 복귀");
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
@@ -782,6 +793,9 @@ void Editor_Manager::Render_RuleStateButtons()
 
     if (ImGui::MenuItem("의상 해금 전체 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::AllCostumes);
+
+    if (ImGui::MenuItem("튜토리얼 후 플레이어 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::FirstTutorialHeroUnlocks);
 }
 
 void Editor_Manager::Render_SaveCheckpointPopup()
@@ -885,10 +899,13 @@ bool Editor_Manager::Save_RuleStatePreset(RuleStatePreset preset)
     _selectedRuleStatePath = ruleStatePath;
 
     Notification_Manager* notification = EDITOR->Get_Notification();
-    const bool saved =
-        (preset == RuleStatePreset::GameStart)
-        ? EDITOR->Save_GameStartRuleState(ruleStatePath)
-        : EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
+    bool saved = false;
+    if (preset == RuleStatePreset::GameStart)
+        saved = EDITOR->Save_GameStartRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::FirstTutorialHeroUnlocks)
+        saved = EDITOR->Save_FirstTutorialHeroUnlockRuleState(ruleStatePath);
+    else
+        saved = EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
 
     if (saved)
     {
@@ -957,6 +974,9 @@ fs::path Editor_Manager::Resolve_RuleStatePath(RuleStatePreset preset) const
     case RuleStatePreset::AllCostumes:
         return ruleStateDir / L"Rule_AllCostumes.rule.bin";
 
+    case RuleStatePreset::FirstTutorialHeroUnlocks:
+        return ruleStateDir / L"Rule_FirstTutorialHeroUnlocks.rule.bin";
+
     default:
         return ruleStateDir / L"Rule_Debug.rule.bin";
     }
@@ -983,29 +1003,91 @@ bool Editor_Manager::Pick_RuleStateFile(fs::path& outPath) const
 void Editor_Manager::Render_ReloadDataButton()
 {
     if (ImGui::SmallButton("Reload Data"))
+        ImGui::OpenPopup("ReloadDataPopup");
+    const bool reloadDataHovered = ImGui::IsItemHovered();
+
+    if (ImGui::BeginPopup("ReloadDataPopup"))
     {
-        if (FAILED(CLIENT->Reload_GameDataTables()))
-            MSG_BOX("Failed to reload game data tables.");
+        if (ImGui::MenuItem("GameDataTable"))
+        {
+            if (FAILED(CLIENT->Reload_GameDataTables()))
+                MSG_BOX("Failed to reload game data tables.");
+        }
+
+        if (ImGui::MenuItem("Effect Data"))
+        {
+            if (FAILED(CLIENT->Reload_EffectJsons()))
+                MSG_BOX("Failed to reload effect jsons.");
+        }
+
+        ImGui::EndPopup();
     }
 
-    if (ImGui::IsItemHovered())
+    if (reloadDataHovered)
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Json 데이터 재로드");
+        ImGui::Text("재로드할 데이터 종류 선택");
         ImGui::EndTooltip();
     }
 }
 
 void Editor_Manager::Render_SoundCheck()
 {
-    bool muted = GAME->Is_AllSoundMuted();
-    if (ImGui::Checkbox("사운드 차단", &muted))
-        GAME->Set_AllSoundMuted(muted);
+    if (!_soundVolumePercentInitialized)
+    {
+        _soundVolumePercent = GAME->Get_SoundChannelVolume(SoundChannel::BGM) * 100.f;
+        _soundVolumePercentInitialized = true;
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.42f, 0.72f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.50f, 0.82f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.09f, 0.32f, 0.58f, 1.f));
+    if (ImGui::Button("사운드 세팅"))
+        ImGui::OpenPopup("SoundSettingsPopup");
+    ImGui::PopStyleColor(3);
 
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("체크 시 모든 사운드 재생을 차단합니다.");
+        ImGui::Text("사운드 차단과 전체 볼륨 Percent를 조절합니다.");
+        ImGui::EndTooltip();
+    }
+
+    if (ImGui::BeginPopup("SoundSettingsPopup"))
+    {
+        bool muted = GAME->Is_AllSoundMuted();
+        if (ImGui::Checkbox("사운드 차단", &muted))
+            GAME->Set_AllSoundMuted(muted);
+
+        ImGui::Separator();
+
+        ImGui::SetNextItemWidth(180.f);
+        if (ImGui::SliderFloat("Percent", &_soundVolumePercent, 0.f, 100.f, "%.0f%%"))
+        {
+            const float volume = clamp(_soundVolumePercent / 100.f, 0.f, 1.f);
+            for (uint32 i = 0; i < ETOI(SoundChannel::END); ++i)
+                GAME->Set_SoundChannelVolume(static_cast<SoundChannel>(i), volume);
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void Editor_Manager::Render_AutoParryCheck()
+{
+    Shared<Client::BattleController> battle = CLIENT != nullptr ? CLIENT->Get_BattleController() : nullptr;
+    bool enabled = battle != nullptr && battle->Is_AutoParryEnabled();
+
+    if (ImGui::Checkbox("Auto Parry", &enabled))
+    {
+        if (battle)
+            battle->Set_AutoParryEnabled(enabled);
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("몬스터 공격의 Parry 입력창이 열리면 자동으로 Parry를 입력합니다.");
         ImGui::EndTooltip();
     }
 }

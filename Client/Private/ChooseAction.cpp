@@ -39,8 +39,8 @@ bool ChooseAction::EnterInvoke()
         return false;
 
     const BattleChar& actor = owner->Get_TurnActionRequest().actor;
-
     BattleAnimUtils::Play_BattleIdle(actor, 0.2f);
+    owner->Ensure_EnemyTargetPreview();
 
     return Battle_State::EnterInvoke();
 }
@@ -61,19 +61,24 @@ void ChooseAction::Update(float timeDelta)
         return;
     }
 
+    if (GAME->KeyDown(KEY_TYPE::A))
+    {
+        owner->Move_EnemyTargetPreview(-1);
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::D))
+    {
+        owner->Move_EnemyTargetPreview(+1);
+        return;
+    }
+
     if (GAME->KeyDown(KEY_TYPE::F)) // 기본 공격
     {
         owner->Get_TurnActionRequest().type = EBattleContext::BaseAttack;
 
-        const auto enemies = owner->Get_AliveEnemies();
-        if (!enemies.empty())
-        {
-            EvtBattlePresentation event;
-            event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-            event.subject = enemies[0].actor;
-            event.presetId = enemies[0].actor->Get_SourcePrefabName();
-            GAME->Get_EventBus().Publish(event);
-        }
+        if (!owner->Ensure_EnemyTargetPreview())
+            return;
 
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
@@ -111,6 +116,7 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::E)) // 스킬
     {
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
+        owner->Ensure_EnemyTargetPreview();
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
 
         EvtBattlePresentation event;
@@ -138,6 +144,12 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
+        if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
+        {
+            LOG_DEBUG("ChooseAction: FreeAimTargeting blocked because active camera is not BattleTurnCamera");
+            return;
+        }
+
         owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
 
         EvtBattlePresentation event;

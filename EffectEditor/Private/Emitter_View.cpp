@@ -23,7 +23,22 @@ namespace Internal
     constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr auto kEffectAuthoringExtension = L".effect.json";
+    constexpr auto kPreviewTransformIcon = ICON_FA_UP_DOWN_LEFT_RIGHT;
     constexpr ImU32 kCurveEditorFocusBarColor = IM_COL32(80, 170, 205, 255);
+
+    const char* Build_PreviewTransformTooltip(const AuthoringEmitter& emitter, bool canUse)
+    {
+        if (!canUse)
+        {
+            if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon ||
+                emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail)
+                return "SourceHistory 계열은 source sample history가 정본입니다.\nSelfRoot/ParticleEmitter/Preview Object source 정책에 따라 움직임이 결정되므로 PT를 비활성화합니다.";
+
+            return "Trail source는 Preview Object의 base/tip sample이 정본입니다.\nEmitter root transform은 Trail source 이동 테스트가 아니므로 PT를 비활성화합니다.";
+        }
+
+        return "저장되지 않는 Preview Transform입니다.\nScene 뷰 gizmo로 emitter 위치/회전을 프리뷰에서만 조정합니다.\nRestart Preview 시 authoring 값으로 돌아갑니다.";
+    }
 
     fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
     {
@@ -621,6 +636,7 @@ void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
     _nextAuthoringId = snapshot.nextAuthoringId;
 
     Sync_AllEmitterMirrors();
+    Sanitize_PreviewTransformState();
     Mark_AllPreviewDirty();
     Clamp_Selection();
     Sync_SelectionContext();
@@ -681,6 +697,7 @@ bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
     _nextAuthoringId = nextAuthoringId;
 
     Sync_AllEmitterMirrors();
+    Sanitize_PreviewTransformState();
     Mark_AllPreviewDirty();
     Clamp_Selection();
     Sync_SelectionContext();
@@ -773,6 +790,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_InitialRadialVelocityModule();
     case AuthoringModuleType::VelocityCone:
         return Make_VelocityConeModule();
+    case AuthoringModuleType::SourceMotionVelocity:
+        return Make_SourceMotionVelocityModule();
     case AuthoringModuleType::Acceleration:
         return Make_AccelerationModule();
     case AuthoringModuleType::Drag:
@@ -942,6 +961,17 @@ AuthoringModule Emitter_View::Make_VelocityConeModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = VelocityConeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SourceMotionVelocityModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SourceMotionVelocity;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SourceMotionVelocityModuleData{};
     return module;
 }
 
@@ -1238,6 +1268,7 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         case AuthoringModuleType::InitialVelocity:
         case AuthoringModuleType::InitialRadialVelocity:
         case AuthoringModuleType::VelocityCone:
+        case AuthoringModuleType::SourceMotionVelocity:
         case AuthoringModuleType::Acceleration:
         case AuthoringModuleType::Drag:
         case AuthoringModuleType::VelocityOverLife:
@@ -1283,6 +1314,10 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
     case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
     case AuthoringModuleType::SourceHistorySpriteTrailPathReplay:
         return emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+    case AuthoringModuleType::SourceMotionVelocity:
+        return emitter.typeData.kind == AuthoringTypeDataKind::None ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh ||
+               emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialMeshRotation:
     case AuthoringModuleType::MeshRotationOverLife:
@@ -1318,6 +1353,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::InitialVelocity:
     case AuthoringModuleType::InitialRadialVelocity:
     case AuthoringModuleType::VelocityCone:
+    case AuthoringModuleType::SourceMotionVelocity:
     case AuthoringModuleType::Acceleration:
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
@@ -1392,6 +1428,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::VelocityCone:
         module = Make_VelocityConeModule();
+        break;
+    case AuthoringModuleType::SourceMotionVelocity:
+        module = Make_SourceMotionVelocityModule();
         break;
     case AuthoringModuleType::Acceleration:
         module = Make_AccelerationModule();
@@ -1635,6 +1674,7 @@ void Emitter_View::Paste_EmitterAfter(size_t emitterIndex)
         Clone_Emitter(_clipboardEmitter.value())
     );
     Select_Emitter(insertIndex);
+    Sanitize_PreviewTransformState();
     MarkDirty();
 }
 
@@ -1647,6 +1687,7 @@ void Emitter_View::Paste_EmitterToEnd()
     const size_t insertIndex = _emitters.size();
     _emitters.push_back(Clone_Emitter(_clipboardEmitter.value()));
     Select_Emitter(insertIndex);
+    Sanitize_PreviewTransformState();
     MarkDirty();
 }
 
@@ -2077,6 +2118,7 @@ void Emitter_View::Delete_Emitter(size_t emitterIndex)
         Select_Emitter(nextIndex);
     }
 
+    Sanitize_PreviewTransformState();
     MarkDirty();
 }
 
@@ -2092,6 +2134,7 @@ void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
         Clone_Emitter(_emitters[emitterIndex])
     );
     Select_Emitter(insertIndex);
+    Sanitize_PreviewTransformState();
     MarkDirty();
 }
 
@@ -2108,6 +2151,7 @@ void Emitter_View::Append_ImportedEmitters(const vector<AuthoringEmitter>& sourc
         _emitters.push_back(Clone_Emitter(sourceEmitter));
 
     Select_Emitter(firstImportedIndex);
+    Sanitize_PreviewTransformState();
     MarkDirty();
 }
 
@@ -2117,6 +2161,7 @@ void Emitter_View::Insert_NewEmitter(size_t insertIndex)
     const size_t clampedIndex = min(insertIndex, _emitters.size());
     _emitters.insert(_emitters.begin() + static_cast<ptrdiff_t>(clampedIndex), Make_DefaultSpriteEmitter());
     Select_Emitter(clampedIndex);
+    Sanitize_PreviewTransformState();
     MarkDirty();
 }
 
@@ -2314,6 +2359,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = VelocityConeModuleData{};
         break;
 
+    case AuthoringModuleType::SourceMotionVelocity:
+        module.data = SourceMotionVelocityModuleData{};
+        break;
+
     case AuthoringModuleType::Acceleration:
         module.data = AccelerationModuleData{};
         break;
@@ -2406,6 +2455,7 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     }
 
     Sync_EmitterMirror(emitter);
+    Sanitize_PreviewTransformState();
     emitter.previewDirty = true;
     MarkDirty();
 }
@@ -2477,6 +2527,7 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
     }
 
     Sync_EmitterMirror(emitter);
+    Sanitize_PreviewTransformState();
     emitter.previewDirty = true;
     MarkDirty();
 }
@@ -2489,7 +2540,7 @@ void Emitter_View::Process_PendingTypeDataAction()
 
     const PendingTypeDataAction action = _pendingTypeDataAction;
     const size_t emitterIndex = _pendingTypeDataEmitterIndex.value();
-    const char* description = "Edit TypeData";
+    auto description = "Edit TypeData";
     switch (action)
     {
     case PendingTypeDataAction::AddTrail:
@@ -2572,6 +2623,12 @@ void Emitter_View::Sync_AllEmitterMirrors()
 {
     for (AuthoringEmitter& emitter : _emitters)
         Sync_EmitterMirror(emitter);
+}
+
+void Emitter_View::Sanitize_PreviewTransformState()
+{
+    if (EDITOR != nullptr)
+        EDITOR->Sanitize_PreviewEmitterTransforms(_emitters);
 }
 
 vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(const AuthoringEmitter& emitter) const
@@ -2676,6 +2733,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityCone),
             ""
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SourceMotionVelocity,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SourceMotionVelocity),
+            "Sprite / Mesh / Sprite Trail TypeData 전용"
         )
     );
     entries.push_back(
@@ -2883,7 +2948,7 @@ void Emitter_View::Close_ModulePicker()
 
 void Emitter_View::Draw_ModulePickerPopup()
 {
-    constexpr const char* modalPopupId = "새 모듈##ModuleAddPopup";
+    constexpr auto modalPopupId = "새 모듈##ModuleAddPopup";
 
     if (_modulePickerPendingOpen)
     {
@@ -3304,6 +3369,48 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
         Execute_AuthoringSnapshotCommand(beforeEmitterEnabledSnapshot, afterSnapshot, "Toggle Emitter Enabled");
     }
+    ImGui::PopID();
+
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::PushID("PreviewTransform");
+    const bool canUsePreviewTransform = EffectEditorInstance::Can_UsePreviewEmitterTransform(emitter);
+    const bool previewTransformEnabled = EDITOR != nullptr && EDITOR->Is_PreviewEmitterTransformEnabled(emitter.id);
+    const float badgeSize = ImGui::GetFrameHeight();
+    if (previewTransformEnabled)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.82f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.50f, 0.92f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.36f, 0.72f, 1.f));
+    }
+    if (!canUsePreviewTransform)
+        ImGui::BeginDisabled();
+    if (ImGui::Button("##PreviewTransformButton", ImVec2(badgeSize, badgeSize)) && canUsePreviewTransform && EDITOR != nullptr)
+    {
+        Select_Emitter(emitterIndex);
+        EDITOR->Set_PreviewEmitterTransformEnabled(emitter.id, !previewTransformEnabled);
+    }
+    const ImVec2 badgeMin = ImGui::GetItemRectMin();
+    const ImVec2 badgeMax = ImGui::GetItemRectMax();
+    const ImVec2 iconSize = ImGui::CalcTextSize(Internal::kPreviewTransformIcon);
+    const ImVec2 iconPos{
+        badgeMin.x + (badgeMax.x - badgeMin.x - iconSize.x) * 0.5f,
+        badgeMin.y + (badgeMax.y - badgeMin.y - iconSize.y) * 0.5f
+    };
+    const ImVec4 iconColor =
+        canUsePreviewTransform
+        ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+        : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+    ImGui::GetWindowDrawList()->AddText(
+        iconPos,
+        ImGui::ColorConvertFloat4ToU32(iconColor),
+        Internal::kPreviewTransformIcon
+    );
+    if (!canUsePreviewTransform)
+        ImGui::EndDisabled();
+    if (previewTransformEnabled)
+        ImGui::PopStyleColor(3);
+    if (ImGui::IsItemHovered(canUsePreviewTransform ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", Internal::Build_PreviewTransformTooltip(emitter, canUsePreviewTransform));
     ImGui::PopID();
 
     ImGui::SetCursorPos(moduleStackCursor);

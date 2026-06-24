@@ -183,7 +183,7 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
-    if (!_renderOnlyPreviewMode)
+    if (_renderEnvironment)
     {
         Render_Fog(); // 에디터 프리뷰는 현재 월드의 fog volume을 상속하지 않는다.
         Render_VolumetricLightShaft();
@@ -235,18 +235,21 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
 
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool hasScreenFxSource = _ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR);
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader && hasScreenFxSource;
+    if (useScreenFx)
+    {
+        GAME->Bind_BackBuffer();
+        Change_ViewportDesc(_screenSize.width, _screenSize.height);
+        Render_ScreenFx();
+    }
+
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_ScreenFX:After");
     uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
-
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
-    if (useScreenFx)
-    {
-        Render_ScreenFx();
-    }
 
     if (screenFxManager && screenFxManager->Is_CaptureRequested())
     {
@@ -700,46 +703,65 @@ void Renderer::Render_CombinedHDR()
 
 void Renderer::Render_Fog()
 {
+    if (!Is_RenderEnvironment())
+        return;
+
     if (!_deferredShader || !_viBuffer)
         return;
 
-    if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
+    const Vec4* camPosition = GAME->Get_CamPosition();
+    if (camPosition == nullptr)
         return;
 
-    if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
+    FogZoneCB fogZoneCB = GAME->Build_ActiveFogZones(Vec3(camPosition->x, camPosition->y, camPosition->z));
+    if (fogZoneCB.aabbCount + fogZoneCB.obbCount == 0)
         return;
 
-    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-        return;
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_Fog:FAIL Begin_MRT(HDR)");
 
-    if (FAILED(GAME->Bind_PrimaryShadowLightCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_Fog:FAIL Bind_ObjectCB");
 
-    if (FAILED(GAME->Bind_CameraCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_PrimaryShadowLightCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_PrimaryShadowLightCB");
 
-    if (FAILED(GAME->Bind_ShadowCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_CameraCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_CameraCB");
 
-    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_ShadowCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_ShadowCB");
 
-    if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_Fog:FAIL Bind_ObjectCB(Repeat)");
 
-    if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_deferredShader),
+        L"Render_Fog:FAIL Bind_ScreenSpaceCB");
 
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_CBufferData(fogZoneCB),
+        L"Render_Fog:FAIL Bind_CBufferData(FogZoneCB)");
 
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth)))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth),
+        L"Render_Fog:FAIL Bind_RT_ShaderResource(g_DepthTexture)");
 
-    if (FAILED(_viBuffer->Bind_Resources()))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth),
+        L"Render_Fog:FAIL Bind_RT_ShaderResource(g_LightDepthTexture)");
 
-    auto* noiseTexture = GAME->Get_SRV("T_Perlin_Noise_M");
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_Fog:FAIL Bind_Resources");
+
+    auto* noiseTexture = GAME->Get_SRV("T_Random_56");
     if FAILED(_deferredShader->Bind_SRV("g_FogNoiseTexture", noiseTexture))
         LOG_WARN("Failed to bind noise texutre!");
 
@@ -750,11 +772,13 @@ void Renderer::Render_Fog()
         LOG_WARN("Failed to bind noise texutre!");
 
 
-    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _deferredShader->Begin(ETOI(DeferredPass::Fog)),
+        L"Render_Fog:FAIL ShaderBegin(Fog)");
 
-    if (FAILED(_viBuffer->Render()))
-        return;
+    ENDMRT_RETURN_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_Fog:FAIL RenderRect");
 
     GAME->End_MRT();
     Add_RenderCall();
@@ -765,36 +789,70 @@ void Renderer::Render_VolumetricLightShaft()
     if (!_lightingPipeline)
         return ;
 
+    _lightingPipeline->Invalidate_FroxelFrameData();
+
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
 
+    const Matrix* view = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projection = GAME->Get_Transform(D3DTS::Proj);
     const Matrix* inverseView = GAME->Get_Transform_Inverse(D3DTS::View);
     const Matrix* inverseProjection = GAME->Get_Transform_Inverse(D3DTS::Proj);
 
     const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    const ShadowLightDesc* shadowLightDesc = GAME->Get_ShadowLightDesc();
     if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
         return ;
 
     const Vec4* camPosition = GAME->Get_CamPosition();
-    if (activeCamera == nullptr || inverseView == nullptr || inverseProjection == nullptr || camPosition == nullptr)
+    if (activeCamera == nullptr || view == nullptr || projection == nullptr ||
+        inverseView == nullptr || inverseProjection == nullptr || camPosition == nullptr)
         return;
+
+    static bool hasFroxelHistory = false;
+    static Matrix previousFroxelView{};
+    static Matrix previousFroxelProjection{};
 
     FroxelCB froxelCB{};
     froxelCB.froxelWidth = _lightingPipeline->Get_DebugFroxelWidth();
     froxelCB.froxelHeight = _lightingPipeline->Get_DebugFroxelHeight();
     froxelCB.froxelDepth = _lightingPipeline->Get_DebugFroxelDepth();
     froxelCB.froxelNear = activeCamera->Get_Near();
-    froxelCB.froxelFar = 100.f;
+    froxelCB.froxelFar = (shadowLightDesc != nullptr && shadowLightDesc->zf > froxelCB.froxelNear)
+        ? shadowLightDesc->zf
+        : activeCamera->Get_Far();
+    froxelCB.compositeIntensity = 0.35f;
+    froxelCB.depthBias = 0.05f;
+    froxelCB.shadowStrength = 1.f;
+    froxelCB.cameraFar = activeCamera->Get_Far();
 
     froxelCB.inverseView = *inverseView;
     froxelCB.inverseProjection = *inverseProjection;
-    froxelCB.froxelPadding = Vec3(0.f, 0.f, 0.f);
+    froxelCB.previousView = hasFroxelHistory ? previousFroxelView : *view;
+    froxelCB.previousProjection = hasFroxelHistory ? previousFroxelProjection : *projection;
 
     froxelCB.lightDirection = lightDesc->direction;
     froxelCB.lightColor = lightDesc->diffuse;
 
     froxelCB.camPosition = *GAME->Get_CamPosition();
+    froxelCB.temporalBlend = hasFroxelHistory ? 0.65f : 0.f;
+    froxelCB.jitterZ = 0.f;
+    froxelCB.temporalDepthReject = 0.25f;
+    froxelCB.historyValid = hasFroxelHistory ? 1u : 0u;
 
-    if(FAILED(_lightingPipeline->Update_FroxelZone(_lightShaftZoneCB)))
+    ShadowCB shadowCB{};
+    if (FAILED(GAME->Get_ShadowCBSnapshot(shadowCB)))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Get_ShadowCBSnapshot");
+        return;
+    }
+
+    _lightingPipeline->Bind_FroxelInputSRVs(
+        GAME->Get_RT_SRV(RT::Depth),
+        GAME->Get_RT_SRV(RT::LightDepth));
+
+    VolumetricLightShaftZoneCB lightShaftZoneCB = GAME->Build_ActiveVolumetricLightShaftZones(
+        Vec3(camPosition->x, camPosition->y, camPosition->z));
+    if(FAILED(_lightingPipeline->Update_FroxelZone(lightShaftZoneCB)))
     {
         LOG_WARN("Render_VolumetricLightShaft:FAIL Update_FroxelZone");
         return;
@@ -806,11 +864,39 @@ void Renderer::Render_VolumetricLightShaft()
         return;
     }
 
-    if(FAILED(_lightingPipeline->Dispatch_Froxel()))
+    if (FAILED(_lightingPipeline->Update_FroxelShadow(shadowCB)))
     {
-        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_Froxel");
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Update_FroxelShadow");
         return;
     }
+
+    if(FAILED(_lightingPipeline->Dispatch_FroxelInject()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelInject");
+        return;
+    }
+
+    if (FAILED(_lightingPipeline->Dispatch_FroxelBlur()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelBlur");
+        return;
+    }
+
+    if (FAILED(_lightingPipeline->Dispatch_FroxelAccumulate()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelAccumulate");
+        return;
+    }
+
+    if (FAILED(_lightingPipeline->Dispatch_FroxelTemporal()))
+    {
+        LOG_WARN("Render_VolumetricLightShaft:FAIL Dispatch_FroxelTemporal");
+        return;
+    }
+
+    previousFroxelView = *view;
+    previousFroxelProjection = *projection;
+    hasFroxelHistory = true;
 }
 
 void Renderer::Render_NonLight()
@@ -1021,9 +1107,42 @@ void Renderer::Render_UIEffect()
     _renderGroups[ETOI(RenderGroup::UIEffect)].clear();
 }
 
+void Renderer::Render_Letterbox()
+{
+    if ((!_letterboxEnabled && !_previewLetterboxEnabled) || !_letterboxShader || !_viBuffer)
+        return;
+
+    const float timeDelta = max(GAME->Get_UnscaledTimeDelta(), GAME->Get_FreeCameraTimeDelta());
+    const float speed = 0.35f;
+
+    _letterboxCurrentRatio = min( _letterboxCurrentRatio + timeDelta * speed, _letterboxTargetRatio);
+
+    GAME->Bind_BackBuffer();
+
+    if(FAILED(_letterboxShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+        return;
+
+    if (FAILED(Bind_ScreenSpaceCB(_letterboxShader, _screenSize.width, _screenSize.height)))
+        return;
+
+    if(FAILED(_viBuffer->Bind_Resources()))
+        return;
+
+    if(FAILED(_letterboxShader->Bind_RawValue("g_BarRatio", &_letterboxCurrentRatio, sizeof(float))))
+        return;
+
+    if(FAILED(_letterboxShader->Begin(0)))
+        return;
+
+    _viBuffer->Render();
+
+    Add_RenderCall();
+}
+
 void Renderer::PostDraw()
 {
     Render_UIEffect();
+    Render_Letterbox();
 }
 
 void Renderer::Render_PostProcess()
@@ -1117,6 +1236,23 @@ void Renderer::Render_PostProcess()
         RETURN_LOG_IF_FAILED(
             Render_LightShaftCompositePass(),
             L"Render_PostProcess:FAIL Render_LightShaftCompositePass");
+    }
+
+    if (_lightingPipeline && _lightingPipeline->Has_FroxelFrameData() && _lightingPipeline->Get_FroxelIntegratedSRV())
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Render::FroxelComposite");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+            L"Render_PostProcess:FAIL Copy_RTV(HDRColor -> DistortionSource:Froxel)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(FroxelComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_FroxelCompositePass(),
+            L"Render_PostProcess:FAIL Render_FroxelCompositePass");
     }
 
     const bool useDOF = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::DOF);
@@ -1343,6 +1479,10 @@ HRESULT Renderer::Ready_Shaders()
     _screenFxShader = ShaderCom::Create(_device, _context,
         L"../../../Client/Bin/ShaderFiles/Shader_ScreenFx.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
     CHECK_NULL(_screenFxShader, E_FAIL);
+
+    _letterboxShader = ShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_Letterbox.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
+    CHECK_NULL(_letterboxShader, E_FAIL);
 
     _screenSize = {
         GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight()
@@ -1848,6 +1988,37 @@ HRESULT Renderer::Render_DistortionResolve()
     return S_OK;
 }
 
+HRESULT Renderer::Render_FroxelCompositePass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(HDR,FroxelComposite)");
+
+    const bool hasFailed =
+        FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource)) ||
+        FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DepthTexture", RT::Depth)) ||
+        FAILED(_postprocessShader->Bind_SRV("g_FroxelIntegratedTexture", _lightingPipeline->Get_FroxelIntegratedSRV())) ||
+        FAILED(_postprocessShader->Bind_CBufferData(_lightingPipeline->Get_FroxelParams())) ||
+        FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())) ||
+        FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::FroxelCompositeHDR))) ||
+        FAILED(_viBuffer->Render());
+
+    if (hasFailed)
+    {
+        _postprocessShader->Bind_SRV("g_FroxelIntegratedTexture", nullptr);
+        GAME->End_MRT();
+        return E_FAIL;
+    }
+
+    _postprocessShader->Bind_SRV("g_FroxelIntegratedTexture", nullptr);
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(HDR,FroxelComposite)");
+
+    return S_OK;
+}
+
 bool Renderer::Try_BuildLightShaftParams(LightShaftCB& outParams) const
 {
     outParams.lightVisible = 0.f;
@@ -2236,7 +2407,9 @@ void Renderer::Render_Debug()
                 _lightingPipeline->Get_DebugFroxelWidth(),
                 _lightingPipeline->Get_DebugFroxelHeight(),
                 _lightingPipeline->Get_DebugFroxelDepth(),
-                _lightingPipeline->Get_DebugFroxelSlice()
+                _lightingPipeline->Get_DebugFroxelSlice(),
+                static_cast<uint32>(_lightingPipeline->Get_DebugFroxelMode()),
+                _lightingPipeline->Get_DebugFroxelMode() == LightingPipeline::FroxelDebugMode::RawInjection ? 48.f : 1.f
             };
 
             if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)) ||

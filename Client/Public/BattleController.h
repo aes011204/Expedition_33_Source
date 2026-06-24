@@ -12,12 +12,12 @@
 NS_BEGIN(Engine)
 class Character;
 class Camera;
-class BattleAction;
 NS_END
 
 NS_BEGIN(Client)
 
 class SkillScript;
+class BattleAction;
 
 class BattleActionExecutor;
 
@@ -68,7 +68,9 @@ public:
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
-        const Shared<GameObject>& sourceObject = nullptr);
+        const Shared<GameObject>& sourceObject = nullptr,
+        bool completeImmediately = false);
+    void Cancel_BattleEnterPending();
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
@@ -135,14 +137,22 @@ public:
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
     void                Clear_TargetPreview();
-    const BattleChar* Get_TargetPreview() const;
+    const BattleChar*   Get_TargetPreview() const;
+
+    bool    Ensure_EnemyTargetPreview();
+    bool    Move_EnemyTargetPreview(int32 direction);
+    void    Publish_TargetPreviewEnemyFocus() const;
 
 public:
     bool                Is_PlayerTurnActive() const;
     BattleTurnState     Get_CurrentTurnState() const;
+    void                Set_AutoParryEnabled(bool enabled) { _autoParryEnabled = enabled; }
+    bool                Is_AutoParryEnabled() const { return _autoParryEnabled; }
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
     Shared<BattleSpawnRegistry> Get_BattleSpawnRegistry() const { return _battleSpawnRegistry; }
+
+    bool Should_UpdateRuntime() const;
 
 public:
     // 부활
@@ -180,6 +190,15 @@ public:
 
     // 스킬 스크립트가 다단히트를 예약할 때 사용
     BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
+    void Queue_DelayedEchoAttackStep(
+            float delaySec,
+            const BattleChar& attacker,
+            const vector<BattleChar>& targets,
+            const BattleChar& reactionTarget,
+            uint32 sourceStepIndex,
+            uint32 consumeKey,
+            AttackType attackType,
+            float powerMultiplier);
 
     bool Is_QTEActive() const;
     bool Has_LastQTEResult() const;
@@ -230,6 +249,8 @@ private:
 
     bool    Update_BattleTutorialGate(float timeDelta);
 
+    int32 Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const;
+
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 스킬 세팅
     void Configure_BattlePlayerSkills(
@@ -243,7 +264,21 @@ private:
     bool Try_BeginTurnStartStatusAnnounce();
     void Continue_StartTurnAfterStatusEffects();
 
+    struct DelayedEchoAttackStep
+    {
+        float remainingSec = 0.f;
+        BattleChar attacker = {};
+        vector<BattleChar> targets = {};
+        BattleChar reactionTarget = {};
+        uint32 sourceStepIndex = UINT32_MAX;
+        uint32 consumeKey = UINT32_MAX;
+        AttackType attackType = AttackType::BaseAttack;
+        float powerMultiplier = 1.f;
+    };
 
+    void Update_DelayedEchoAttackSteps(float timeDelta);
+    void Apply_DelayedEchoAttackStep(const DelayedEchoAttackStep& step);
+    void Clear_DelayedEchoAttackSteps();
 
 private:
     using BattleReactionInputResult = BattleReactionController::BattleReactionInputResult;
@@ -274,6 +309,7 @@ private:
     bool _isBattleActive = { false };
     bool _isBattleEntering = { false };
     bool _hasRequestedBattleEnterCamera = false;
+    bool _autoParryEnabled = false;
 
     int currentTurnIndex = {};
 
@@ -334,6 +370,7 @@ private:
     Shared<BattleQTEController>  _qteController{};
     BattleReactionController     _reactionController{};
     BattleHitSequenceRunner      _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
+    vector<DelayedEchoAttackStep> _delayedEchoAttackSteps{};
     Shared<BattleResultRecoder>  _battleResultRecoder{};
 
     Shared<PictosBattleSystem>   _pictosBattleSystem{};  // 픽토스
@@ -387,6 +424,8 @@ private:
 
     vector<Buffs> _processedTurnStartStatuses = {};
     bool          _isWaitingTurnStartStatusHit = false;
+
+    uint32      _activeBattleFieldID = 0;
 
 public:
     static Shared<BattleController> Create();

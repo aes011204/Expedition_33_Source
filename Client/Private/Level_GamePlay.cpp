@@ -8,6 +8,17 @@
 #include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
+#include "Trigger_Cinematic.h"
+
+namespace
+{
+    // 시네마틱 연출 트리거 위치
+    constexpr Vec3 kCinematicTriggerSpawnPosition = Vec3(78.61f, 22.06f, -14.58f);
+
+    // 보스 전투 시작 위치
+    constexpr Vec3 kBossBattlePosition = Vec3(134.35f, 21.82f, -1.11f);
+    constexpr Vec3 kBossBattleRotation = Vec3(0.f, 67.5f, 0.f);
+}
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : StreamingLevel{ device, context }
@@ -40,9 +51,16 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
-    if(FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle"))))
+    if(FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle")))) 
+        return E_FAIL;
+    
+    if(FAILED(Ready_Layer_Trigger(TEXT("Layer_Trigger"))))
         return E_FAIL;
 
+    if(FAILED(Ready_Layer_BattleStartSpawner(TEXT("Layer_BattleStartSpawner"))))
+        return E_FAIL;
+
+    GAME->Set_RenderEnvironment(true);
     GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
@@ -56,7 +74,8 @@ void Level_GamePlay::BeginPlay()
 void Level_GamePlay::Update(float fTimeDelta)
 {
     //Update_MapStreaming(fTimeDelta);
-    
+    if (GAME->KeyPress(KEY_TYPE::F7))
+        Respawn_CinematicTrigger();
 
 }
 
@@ -188,6 +207,71 @@ HRESULT Level_GamePlay::Ready_Layer_Puzzle(const wstring& strLayerTag)
     return S_OK;
 }
 
+HRESULT Level_GamePlay::Ready_Layer_Trigger(const wstring& strLayerTag)
+{
+    Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(L"Layer_GameObject")
+        .Position(kCinematicTriggerSpawnPosition)
+        .Spawn();
+
+    const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(spawned);
+    if (trigger != nullptr)
+    {
+        trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
+        trigger->Set_StartBattleOnComplete(true, "Boss");
+    }
+
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_BattleStartSpawner(const wstring& strLayerTag)
+{
+    // 전투 시작 스포너
+    auto battleStart = Spawn_Prefab::Prefab(Constants::Prefab::BattleStartSpawner_Boss)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Position(kBossBattlePosition)
+        .Rotation(kBossBattleRotation)
+        .Spawn();
+
+    return S_OK;
+}
+
+void Level_GamePlay::Respawn_CinematicTrigger()
+{
+    vector<Shared<GameObject>> triggersToRemove{};
+
+    GAME->Visit_LevelObjects(
+        ETOI(LevelType::GamePlay),
+        [&](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            if (dynamic_pointer_cast<Trigger_Cinematic>(gameObject) == nullptr)
+                return;
+
+            triggersToRemove.push_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& triggerObject : triggersToRemove)
+        GAME->Remove_GameObject(ETOI(LevelType::GamePlay), triggerObject);
+
+    GAME->Flush_RemovedGameObjects();
+
+    Shared<GameObject> spawned = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_Cinematic)
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(L"Layer_GameObject")
+        .Position(kCinematicTriggerSpawnPosition)
+        .Spawn();
+
+    const Shared<Trigger_Cinematic> trigger = dynamic_pointer_cast<Trigger_Cinematic>(spawned);
+    if (trigger != nullptr)
+    {
+        trigger->Set_SequenceFileId(Constants::Cinematic::BishopCinematicFileId);
+        trigger->Set_StartBattleOnComplete(true, "Boss");
+    }
+
+}
+
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
@@ -246,6 +330,12 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
     skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
     skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
+    // =======================================================================================
     skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_CleasTower");
     skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
 

@@ -68,7 +68,7 @@ enum class GameplayMenu
     CharacterProgression,   // Tab 루트 메뉴
     ChangeSkill,            // 스킬 변경
     Wardrobe,               // 옷장
-    
+    ArenaCharacterSelect,
 
     END
 };

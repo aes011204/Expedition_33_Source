@@ -11,6 +11,13 @@ NS_END
 
 NS_BEGIN(Client)
 
+struct WeaponSourceHistoryAnchorDesc
+{
+    string name{ "Source" };
+    string boneName{};
+    Vec3 localPosition{ Vec3::Zero };
+};
+
 class Weapon final : public PartObject
 {
     GENERATED_GAMEOBJECT(Weapon, ObjectType::Weapon)
@@ -45,12 +52,16 @@ public:
     Matrix  Get_GizmoWorldMatrix() const override;
     bool    Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
 
+    json    To_Json() const override;
     void    From_Json(const json& data) override;
 
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     Shared<ModelCom> Get_Model() const { return _model; }
     const wstring& Get_TrailEffectName() const { return _trailEffectName; }
+    vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() { return _sourceHistoryAnchors; }
+    const vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() const { return _sourceHistoryAnchors; }
+    const WeaponSourceHistoryAnchorDesc* Find_SourceHistoryAnchor(const string& anchorName) const;
 
     // 구스타브 총돌리기
     bool    Begin_NotifyRotation();
@@ -80,6 +91,7 @@ private:
     bool                _applyAttachScaleCompensation = false;
 
     wstring             _trailEffectName = L""; // 무기 프리펩이 들고 있는 기본 Trail 이펙트 이름
+    vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};
 
     bool _notifyRotationActive = false;
     Quat _notifyRotationBaseLocal = Quat::Identity;

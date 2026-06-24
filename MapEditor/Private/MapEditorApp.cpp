@@ -256,6 +256,7 @@ HRESULT MapEditorApp::Render()
 
     SyncSceneLights();
     SyncFogZones();
+    SyncVolumetricLightShaftZones();
 
     GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
 
@@ -371,6 +372,7 @@ HRESULT MapEditorApp::Render()
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
     CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
+    GAME->Set_RenderEnvironment(true);
 
     _debugRenderer->Draw(_scene);
     GAME->Render_DebugDepth();
@@ -731,6 +733,39 @@ void MapEditorApp::SyncFogZones()
             hasGroundFogGlobals = true;
         }
 
+        if (obj->_zoneShape == EZoneShape::OBB)
+        {
+            if (cb.obbCount >= FogZoneCB::MAX_FOG_OBB_ZONES)
+            {
+                continue;
+            }
+
+            FogOBBZoneEntry entry{};
+            const Matrix world =
+                Matrix::CreateFromQuaternion(obj->_rotation) *
+                Matrix::CreateTranslation(obj->_position);
+
+            entry.worldToLocal = world.Invert();
+            entry.halfExtents = obj->_zoneExtent;
+            entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
+            entry.fogDensity = obj->_ppFogDensity;
+            entry.baseHeight = obj->_ppFogBaseHeight;
+            entry.topFadeStart = obj->_ppFogTopFadeStart;
+            entry.topHeight = obj->_ppFogTopHeight;
+            entry.edgeFade = obj->_ppFogEdgeFade;
+            entry.noiseScale = obj->_ppFogNoiseScale;
+            entry.noiseSpeed = obj->_ppFogNoiseSpeed;
+            entry.noiseStrength = obj->_ppFogNoiseStrength;
+            entry.noiseMin = obj->_ppFogNoiseMin;
+            cb.obbZones[cb.obbCount++] = entry;
+            continue;
+        }
+
+        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
+        {
+            continue;
+        }
+
         FogZoneEntry entry{};
         entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
         entry.fogDensity = obj->_ppFogDensity;
@@ -742,18 +777,43 @@ void MapEditorApp::SyncFogZones()
         entry.noiseSpeed = obj->_ppFogNoiseSpeed;
         entry.noiseStrength = obj->_ppFogNoiseStrength;
         entry.noiseMin = obj->_ppFogNoiseMin;
-
-        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-        {
-            continue;
-        }
-
         entry.zoneMin = obj->_position - obj->_zoneExtent;
         entry.zoneMax = obj->_position + obj->_zoneExtent;
-        cb.zones[cb.aabbCount++] = entry;
+        cb.aabbZones[cb.aabbCount++] = entry;
     }
 
     GAME->Set_FogZones(cb);
+}
+
+void MapEditorApp::SyncVolumetricLightShaftZones()
+{
+    VolumetricLightShaftZoneCB cb{};
+
+    for (const auto& obj : _scene._shaftVolumes)
+    {
+        if (!obj)
+            continue;
+
+        if (cb.zoneCount >= VolumetricLightShaftZoneCB::MAX_LIGHT_SHAFT_ZONES)
+            break;
+
+        VolumetricLightShaftZoneEntry entry{};
+        const Matrix world =
+            Matrix::CreateFromQuaternion(obj->_rotation) *
+            Matrix::CreateTranslation(obj->_position);
+
+        entry.worldToLocal = world.Invert();
+        entry.halfExtents = obj->_zoneShape == EZoneShape::Sphere
+            ? Vec3(obj->_zoneRadius, obj->_zoneRadius, obj->_zoneRadius)
+            : obj->_zoneExtent;
+        entry.density = obj->_shaftDensity;
+        entry.lightColor = obj->_shaftLightColor;
+        entry.edgeFade = obj->_shaftEdgeFade;
+        entry.intensity = obj->_shaftIntensity;
+        cb.zones[cb.zoneCount++] = entry;
+    }
+
+    GAME->Set_VolumetricLightShaftZones(cb);
 }
 
 HRESULT MapEditorApp::Ready_Light()

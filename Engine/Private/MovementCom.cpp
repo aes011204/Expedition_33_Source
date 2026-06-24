@@ -308,6 +308,12 @@ void MovementCom::Force_SetPositionY(float posY)
 
 void MovementCom::Sync_RuntimePositionToTransform()
 {
+    if (_transformCom == nullptr)
+    {
+        Shared<GameObject> owner = Get_Owner();
+        _transformCom = owner ? owner->Get_Transform() : nullptr;
+    }
+
     CHECK_NULL(_transformCom);
 
     if (_moveDesc.backend != MoveBackend::PhysXCCT)
@@ -366,6 +372,9 @@ void MovementCom::Start_Jump()
 void MovementCom::Update_Rotation(float timeDelta)
 {
     if (_input.isLockLook) return;
+
+    if (_followMove.enabled && !_followMove.rotateFollow)
+        return;
 
     Vec3 desiredDir = Vec3::Zero;
 

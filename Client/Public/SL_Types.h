@@ -37,11 +37,51 @@ enum class SL_PlayerState
     End
 };
 
+enum class SL_MonState
+{
+    Intro,
+    PhaseChange,
+    Idle,
+    Chase,
+    Attack,
+    Hit,
+    Dead,
+    Stun,
+
+    End
+};
+
+enum class SL_MonAttackType
+{
+    SingleSlash_1,
+    SingleSlash_2,
+    SingleSlash_3,
+    DashBack_Spine,
+    DashIn_Stab,
+    DashIn_Stab_Estoc,
+    Att_Projectile,
+    Combo_1,
+    Combo_2,
+
+    End
+};
+
 enum class SoulLikeAnim
 {
     Idle,
     Run,
-    Target_Run_Fwd, Target_Run_Back, Target_Run_Left, Target_Run_Right,
+
+    TargetWalk_F,
+    TargetWalk_FL45,
+    TargetWalk_FL90,
+    TargetWalk_BL90,
+    TargetWalk_BL45,
+    TargetWalk_B,
+    TargetWalk_BR45,
+    TargetWalk_BR90,
+    TargetWalk_FR90,
+    TargetWalk_FR45,
+
     Sprint,
     Attack_1, Attack_2, Attack_3,
 
@@ -54,12 +94,23 @@ enum class SoulLikeAnim
     Jump, Jump_Counter,
 
     Dead,
-    Parry,
+    Parry, Parry2,
+
+    Idle_To_Run,
+    Run_To_Idle,
 };
 
 enum class SL_DodgeDirection
 {
     Fwd, Back, Left, Right, END
+};
+
+// Hit 애니메이션 ANS_SL_CollisionEnable에서 오버라이드해서 바꿀 수 있게
+enum class SL_HitAnimOverride
+{
+    Hit_Light,
+    // Hit_Middle, 이놈은 안쓸듯
+    Hit_Heavy,
 };
 
 struct SL_DamageInfo
@@ -70,9 +121,33 @@ struct SL_DamageInfo
     Shared<CombatStatCom>   targetStat{};
 
     AttackType attackType = AttackType::Invalid;
+    SL_HitAnimOverride hitAnimOverride = SL_HitAnimOverride::Hit_Light;
+
     float      finalDamage = 0.f;
     bool       isCritical = false;
     bool       isKilled = false;
 };
+
+struct SL_SkillCooldownView
+{
+    string skillKey{};
+    float remainingSec = 0.f;
+    float durationSec = 0.f;
+
+    bool Is_OnCooldown() const { return remainingSec > 0.f && durationSec > 0.f; }
+
+    float Get_Ratio() const
+    {
+        return durationSec > 0.f ? clamp(remainingSec / durationSec, 0.f, 1.f) : 0.f;
+    }
+};
+
+struct SL_SkillCooldownRuntime
+{
+    string skillKey{};
+    float remainingSec = 0.f;
+    float durationSec = 0.f;
+};
+
 
 NS_END

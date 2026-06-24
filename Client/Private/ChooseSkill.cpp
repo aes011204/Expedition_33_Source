@@ -1,6 +1,5 @@
 ﻿#include "pch.h"
 #include "ChooseSkill.h"
-#include <Battle_Event.h>
 #include "BattleAnimutils.h"
 #include "Input_Manager.h"
 #include "GameInstance.h"
@@ -8,7 +7,6 @@
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "CombatStatCom.h"
-#include "Event_Bus.h"
 
 ChooseSkill::ChooseSkill(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -52,6 +50,8 @@ bool ChooseSkill::EnterInvoke()
         }
     }
 
+    owner->Ensure_EnemyTargetPreview();
+
     return Battle_State::EnterInvoke();
 }
 
@@ -69,21 +69,25 @@ void ChooseSkill::Update(float timeDelta)
     if (request.actor.statCom == nullptr)
         return;
 
-    const auto enemies = owner->Get_AliveEnemies();
-
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         request.skillKey.clear(); // 스킬 메뉴 취소
         request.skillPage = 0;
         BattleAnimUtils::Play_BattleIdle(request.actor, 0.3f);
 
-        EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
-        event.subject = owner->Get_TurnActionRequest().actor.actor;
-        LOG_INFO("[BattleCamTrace] Publish PLAYERFOCUS from ChooseSkill::Update ESC");
-        GAME->Get_EventBus().Publish(event);
-
         battleFSM->Change_State(BattleTurnState::ChooseAction);
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::A))
+    {
+        owner->Move_EnemyTargetPreview(-1);
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::D))
+    {
+        owner->Move_EnemyTargetPreview(+1);
         return;
     }
 
@@ -141,6 +145,7 @@ void ChooseSkill::Update(float timeDelta)
 
     request.type = EBattleContext::Skill;
     request.skillKey = skillData->skillKey; // SkillTargeting에서 target까지 확정한 뒤 Execute_Skill로 넘긴다.
+    owner->Ensure_EnemyTargetPreview();
 
     battleFSM->Change_State(BattleTurnState::SkillTargeting);
 

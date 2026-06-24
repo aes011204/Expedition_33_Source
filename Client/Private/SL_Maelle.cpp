@@ -23,6 +23,7 @@
 #include "SoulLikeController.h"
 
 #include "SL_DamageSystem.h"
+#include "SL_Dualliste.h"
 
 REGISTER_GLOBAL_ENUM(SoulLikeAnim, "SL_MaelleAnim")
 
@@ -89,6 +90,7 @@ void SL_Maelle::Update(float timeDelta)
     // 무적 시간
     _invincibleRemain = max(0.f, _invincibleRemain - timeDelta);
 
+    Update_SkillCooldown(timeDelta);
     Update_HitPush(timeDelta);
 
     if (_targetCom)
@@ -156,6 +158,12 @@ void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     controller->Play_PlayerAttackHitFeedback(damageInfo);
 
     target->Apply_Damage(damageInfo);
+
+    if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+    {
+        if (GamePlayUI_SL* soulLikeUI = gameplayUI->Get_SoulLikeUI())
+            soulLikeUI->Show_BossDamage(damageInfo.finalDamage);
+    }
 }
 
 void SL_Maelle::Reset_CombatHp(float maxHp)
@@ -170,7 +178,6 @@ void SL_Maelle::Reset_CombatHp(float maxHp)
     _invincibleRemain = 0.f;
     _combatLocked = false;
     _parryWindowOpen = false;
-    _parryConsumed = false;
 
     _hitPushDir = Vec3::Zero;
     _hitPushDistance = 0.f;
@@ -191,46 +198,29 @@ void SL_Maelle::Close_ParryWindow()
     _parryWindowOpen = false;
 }
 
-void SL_Maelle::Reset_ParryConsumed()
+bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos)
 {
-    _parryConsumed = false;
-}
-
-bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos)
-{
-    if (!_parryWindowOpen || _parryConsumed || Is_Dead())
+    if (!_parryWindowOpen || Is_Dead())
         return false;
 
-    if (!Is_ParryFrontHit(impactWorldPos))
+    // 패링 전방 판정
+    if (!Is_ParryFrontHit(effectPos))
         return false;
-
-    _parryConsumed = true;
 
     // 패링 성공하면, 무적
-    Set_InvincibleTime(0.2f);
+    // Set_InvincibleTime(0.2f);
 
     // 패링 Hit Effect. 크기 조절좀 해야할듯
     {
         PlayEffectDesc effectDesc{};
         effectDesc.effectName = L"World_FreeAim_Hit_EX.effect.json";
-        effectDesc.worldPosition = impactWorldPos;
+        effectDesc.worldPosition = effectPos;
         effectDesc.scale = Vec3(0.6f, 0.6f, 0.6f);
         CLIENT->Play_Effect(effectDesc);
     }
 
     if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
         controller->Play_PlayerParryFeedback();
-
-    // 쳐내기 UI. 필요한가?
-    //if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
-    //{
-    //    if (GamePlayUI_SL* soulLikeUI = gameplayUI->Get_SoulLikeUI())
-    //    {
-    //        Vec3 worldPos = _transformCom ? _transformCom->Get_WorldPosition() : Vec3::Zero;
-    //        worldPos.y += 1.4f;
-    //        soulLikeUI->Show_ParryResult(worldPos);
-    //    }
-    //}
 
     return true;
 }
@@ -401,6 +391,80 @@ HRESULT SL_Maelle::Rebuild_WeaponPartFromCurrentStat()
 
     CHECK_FAILED(Ready_WeaponPart(body), E_FAIL);
     return S_OK;
+}
+
+bool SL_Maelle::Can_UseSkillSlot(uint32 slotIndex, Skill_Data& outSkillData) const
+{
+    // 장착 확인
+    if (!Try_GetEquippedSkill(slotIndex, outSkillData))
+        return false;
+
+    if (slotIndex >= _skillCooldowns.size())
+        return false;
+
+    // 쿨타임 확인
+    const SL_SkillCooldownRuntime& cooldown = _skillCooldowns[slotIndex];
+
+    if (cooldown.skillKey == outSkillData.skillKey && cooldown.remainingSec > 0.f)
+        return false;
+
+    return true;
+}
+
+void SL_Maelle::Start_SkillCooldown(uint32 slotIndex, const Skill_Data& skillData)
+{
+    if (slotIndex >= _skillCooldowns.size())
+        return;
+
+    SL_SkillCooldownRuntime& cooldown = _skillCooldowns[slotIndex];
+    cooldown.skillKey = skillData.skillKey;
+    cooldown.durationSec = skillData.slCooldownSec > 0.f ? skillData.slCooldownSec : 3.f;
+    cooldown.remainingSec = cooldown.durationSec;
+}
+
+void SL_Maelle::Update_SkillCooldown(float timeDelta)
+{
+    const float dt = max(0.f, timeDelta);
+
+    for (SL_SkillCooldownRuntime& cooldown : _skillCooldowns)
+    {
+        if (cooldown.remainingSec <= 0.f)
+            continue;
+
+        cooldown.remainingSec = max(0.f, cooldown.remainingSec - dt);
+    }
+}
+
+void SL_Maelle::Clear_SkillCooldowns()
+{
+    for (SL_SkillCooldownRuntime& cooldown : _skillCooldowns)
+    {
+        cooldown = {};   
+    }
+        
+}
+
+SL_SkillCooldownView SL_Maelle::Get_SkillCooldownView(uint32 slotIndex) const
+{
+    SL_SkillCooldownView view{};
+
+    if (_combatStatCom == nullptr || slotIndex >= _skillCooldowns.size())
+        return view;
+
+    string skillKey{};
+    if (!_combatStatCom->Try_GetSkillKeyBySlot(slotIndex, skillKey))
+        return view;
+
+    view.skillKey = skillKey;
+
+    const SL_SkillCooldownRuntime& cooldown = _skillCooldowns[slotIndex];
+    if (cooldown.skillKey != skillKey)
+        return view;
+
+    view.remainingSec = cooldown.remainingSec;
+    view.durationSec = cooldown.durationSec;
+
+    return view;
 }
 
 HRESULT SL_Maelle::Ready_WeaponPart(Body_Player* body)
@@ -628,11 +692,31 @@ void SL_Maelle::Apply_MoveInput(const SL_MoveRequest& request, float timeDelta)
     {
         input.moveX = request.moveX;
         input.moveZ = request.moveZ;
-        input.isRunPressed = request.sprint;
+        input.isRunPressed = request.lockOn ? false : request.sprint;
+        input.isWalkDown = request.lockOn;
     }
 
     _movementCom->Apply_Input(input);
     _movementCom->Update_Movement(timeDelta);
+
+    if (request.lockOn && _targetCom != nullptr && _transformCom != nullptr)
+    {
+        const Shared<Character> target = _targetCom->Get_LockedTarget();
+        const Shared<TransformCom> targetTransform = target ? target->Get_Transform() : nullptr;
+
+        if (targetTransform != nullptr)
+        {
+            Vec3 lookDir = targetTransform->Get_WorldPosition() - _transformCom->Get_WorldPosition();
+            lookDir.y = 0.f;
+
+            if (lookDir.LengthSquared() > 0.0001f)
+            {
+                lookDir.Normalize();
+                const float yaw = XMConvertToDegrees(atan2f(lookDir.x, lookDir.z));
+                _transformCom->Set_WorldRotationEuler(Vec3(0.f, yaw, 0.f));
+            }
+        }
+    }
 }
 
 void SL_Maelle::Stop_Move()
@@ -680,15 +764,34 @@ void SL_Maelle::Apply_Damage(const SL_DamageInfo& damageInfo)
         runtimeStat.CurAliveState = EAliveStatus::Alive;
     }
 
-    Begin_HitPush(damageInfo);
-
     if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
         controller->Play_PlayerHitFeedback(damageInfo);
 
+    if (_stateMachineCom && _stateMachineCom->Get_CurrentSoulLikeState() == SL_PlayerState::Skill)
+        return;
+
+    Begin_HitPush(damageInfo);
+
+    _pendingHitAnimOverride = damageInfo.hitAnimOverride;
     _combatLocked = true;
 
     if (_stateMachineCom)
         _stateMachineCom->Change_State(SL_PlayerState::Hit);
+}
+
+SoulLikeAnim SL_Maelle::Consume_PendingHitAnim()
+{
+    const SL_HitAnimOverride hitAnimOverride = _pendingHitAnimOverride;
+    _pendingHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+
+    switch (hitAnimOverride)
+    {
+    case SL_HitAnimOverride::Hit_Heavy:
+        return SoulLikeAnim::Hit_Heavy;
+    case SL_HitAnimOverride::Hit_Light:
+    default:
+        return SoulLikeAnim::Hit_Light;
+    }
 }
 
 Shared<SL_Maelle> SL_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

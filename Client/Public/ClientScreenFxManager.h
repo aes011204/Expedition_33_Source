@@ -20,6 +20,10 @@ public:
         Ghosting,
         Distortion,
         BattleTransition,
+        Flash,
+        FlashExclude,
+        WorldDesaturate,
+        WorldDesaturateExclude,
     };
 
 private:
@@ -27,6 +31,7 @@ private:
 
 public:
     void Play_BattleInCounterFx();
+    bool Is_BattleInCounterFxFinished() const;
     void Transition_To_BattleField();
 
 private:

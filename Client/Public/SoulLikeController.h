@@ -9,8 +9,9 @@ NS_BEGIN(Client)
 
 class SL_Base;
 class SL_Maelle;
-
+class SoulLikeCamera;
 class SL_StateMachineCom;
+class SL_EstherManager;
 
 class SoulLikeController final : public GameObject
 {
@@ -42,6 +43,7 @@ public:
     bool Begin_Battle();
     void End_Battle();
     void Confirm_Victory();
+    bool Is_DebugKeyStartEnabled() const { return _enableDebugKeyStart; }
 
     bool Is_BattleActive() const
     {
@@ -65,6 +67,8 @@ public:
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
     void End_BattleShotCamera();
+    void Apply_SkillCameraPreset(const string& skillKey);
+    void Restore_SkillCameraPreset();
 
     void Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo);
     void Play_PlayerParryFeedback();
@@ -79,11 +83,17 @@ public:
     float Get_PlayerHitPushDistance() const { return _playerHitPushDistance; }
     float Get_PlayerHitPushDuration() const { return _playerHitPushDuration; }
 
+    uint32 Get_HealingPotionCount() const { return _healingPotionCount; }
+
+    bool    Notify_EstherAttack(GameObject* notifyOwner);
 
 private:
-    void    Request_TargetCamera();
+    void    Request_SoulLikeCamera();
     void    Request_BattleShotCamera(const EvtBattlePresentation& event);
-    void    Restore_TargetCamera();
+    void    Restore_GameplayCamera();
+    bool    Ensure_SoulLikeCamera();
+    bool    Ensure_BattleTurnCamera();
+    void    Remove_SoulLikeRuntimeCameras();
     Shared<Character> Resolve_PlayerCameraOpponent(const Shared<SL_Maelle>& player) const;
 
 private:
@@ -105,8 +115,12 @@ private:
     bool Update_Parry(const Shared<SL_StateMachineCom>& stateMachine);
     bool Update_Skill(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
     void Update_Dodge(const Shared<SL_StateMachineCom>& stateMachine, const SL_MoveRequest& moveRequest);
+    bool Update_HealingPotion(const Shared<SL_Maelle>& player, const Shared<SL_StateMachineCom>& stateMachine);
+    bool Update_Esther();
 
 private:
+    Shared<SL_EstherManager> _estherManager{};
+
     string _playerPrefab = "SL_Maelle";
     Vec3   _playerSpawnPosition = Vec3(0.f, 0.f, 0.f);
     Vec3   _playerSpawnRotation = Vec3(0.f, 180.f, 0.f);
@@ -125,12 +139,16 @@ private:
     BattleState _state = BattleState::None;
     Weak<SL_Maelle> _player{};
     Weak<SL_Base> _monster{};
+    Weak<SoulLikeCamera> _soulLikeCamera{};
 
     float _enterFxTimer = 0.f;
     float _victorySlowElapsed = 0.f;
     uint32 _lastVictoryRewardExp = 0;
     bool  _playerSpawned = false;
     FDelegateHandle _editorStopHandle{};
+    uint32 _soulLikeCameraLevelIndex = 0;
+    uint32 _soulLikeBattleTurnCameraLevelIndex = 0;
+    bool _createdSoulLikeBattleTurnCamera = false;
 
 private:
     /* 패링 */
@@ -145,10 +163,7 @@ private:
     float _playerAttackHitStopTimeScale = 0.08f;
     float _playerAttackHitStopDuration = 0.04f;
 
-    float _playerHitShakeAmplitude = 1.0f;
-    float _playerHitShakeDuration = 0.12f;
-    float _playerHitShakeStrength = 0.035f;
-
+    // 점프 카운터
     Weak<SL_Base> _jumpCounterAttacker{};
     bool _jumpCounterThreatOpen = false;
     bool _jumpCounterJumpSucceeded = false;
@@ -156,6 +171,11 @@ private:
     bool _jumpCounterAttackStarted = false;
     bool _jumpCounterDamageApplied = false;
     float _jumpCounterDamageMultiplier = 1.f;
+
+    // 포션
+    static constexpr uint32 kMaxHealingPotionCount = 5;
+    static constexpr float  kHealingPotionHealRatio = 0.3f; // 30퍼센트
+    uint32 _healingPotionCount = kMaxHealingPotionCount;
 
 public:
     static Shared<SoulLikeController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -546,6 +546,9 @@ void ChainModifierPreset::BuildBindPoseHairDesc(
     PlayerCharacterType characterType,
     const wstring& modifierTag)
 {
+    if (characterType == PlayerCharacterType::Gustave)
+        return;
+
     auto& desc = outDesc;
     desc = {};
     desc.modifierTag = modifierTag;
