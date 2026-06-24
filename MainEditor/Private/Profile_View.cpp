@@ -550,7 +550,8 @@ void Profile_View::Log_Snapshot() const
             "resource textures={} textures_mb={:.1f} texture_srvs={} "
             "models={} models_mb={:.1f} model_meshes={} model_materials={} model_bones={} model_anims={} "
             "standalone_buffers={} standalone_buffers_mb={:.1f} objects={} components={} "
-            "effect_pool_entries={} effect_pool_active={} effect_pool_idle={}",
+            "effect_pool_entries={} effect_pool_active={} effect_pool_idle={} "
+            "editor_delegate_bindings(play={}, pause={}, resume={}, stop={})",
             summary.texturePrototypeCount,
             Bytes_To_Mb(summary.textureEstimatedBytes),
             summary.textureSrvCount,
@@ -566,7 +567,11 @@ void Profile_View::Log_Snapshot() const
             summary.currentLevelComponentCount,
             _resourceMemory.effectPoolEntryCount,
             _resourceMemory.effectPoolActiveCount,
-            _resourceMemory.effectPoolIdleCount));
+            _resourceMemory.effectPoolIdleCount,
+            _resourceMemory.editorPlayBindings,
+            _resourceMemory.editorPauseBindings,
+            _resourceMemory.editorResumeBindings,
+            _resourceMemory.editorStopBindings));
     }
     else if (_hasResourceMemorySample)
     {
@@ -684,6 +689,22 @@ void Profile_View::Draw_Resource_Memory()
                 "{} active / {} idle",
                 _resourceMemory.effectPoolActiveCount,
                 _resourceMemory.effectPoolIdleCount));
+
+        drawRow(
+            "Editor Delegates",
+            fmt::format(
+                "{} bindings",
+                _resourceMemory.editorPlayBindings +
+                _resourceMemory.editorPauseBindings +
+                _resourceMemory.editorResumeBindings +
+                _resourceMemory.editorStopBindings),
+            "N/A",
+            fmt::format(
+                "play {} / pause {} / resume {} / stop {}",
+                _resourceMemory.editorPlayBindings,
+                _resourceMemory.editorPauseBindings,
+                _resourceMemory.editorResumeBindings,
+                _resourceMemory.editorStopBindings));
 
         ImGui::EndTable();
     }
@@ -832,6 +853,12 @@ Profile_View::Resource_Memory Profile_View::Get_Resource_Memory() const
 {
     Resource_Memory result{};
     result.hasData = GAME->Build_DebugResourceMemorySummary(result.engine);
+
+    Engine::DelegateHub& delegateHub = GAME->Get_DelegateHub();
+    result.editorPlayBindings = delegateHub.OnEditorPlayRuntime.GetBindingCount();
+    result.editorPauseBindings = delegateHub.OnEditorPauseRuntime.GetBindingCount();
+    result.editorResumeBindings = delegateHub.OnEditorResumeRuntime.GetBindingCount();
+    result.editorStopBindings = delegateHub.OnEditorStopRuntime.GetBindingCount();
 
     const Shared<Client::ClientInstance>& client = Client::ClientInstance::GetInstance();
     if (client && client->Get_EffectInstancePool())

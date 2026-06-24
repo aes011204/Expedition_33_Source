@@ -8,7 +8,7 @@
 
 void AN_Attack::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (auto soulLike = CLIENT->Get_SoulLikeController())
@@ -31,6 +31,9 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
         return;
 
     const uint32 sourceStepIndex = turnAction.GetCurStepIndex();
+    if (sourceStepIndex >= turnAction.GetSteps().size())
+        return;
+
     const auto& curTargets = turnAction.GetCurStepTarget();
     const BattleChar reactionTarget =
         !curTargets.empty() ? curTargets.front() : turnAction.GetInitTarget();

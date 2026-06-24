@@ -23,11 +23,32 @@ namespace
 
         return value;
     }
+
+    void Apply_StartRatio(FMOD_SOUND* fmodSound, FMOD_CHANNEL* fmodChannel, float startRatio)
+    {
+        if (!fmodSound || !fmodChannel)
+            return;
+
+        const float safeRatio = clamp(startRatio, 0.f, 0.99f);
+        if (safeRatio <= 0.f)
+            return;
+
+        unsigned int lengthMs = 0;
+        if (FMOD_Sound_GetLength(fmodSound, &lengthMs, FMOD_TIMEUNIT_MS) != FMOD_OK || lengthMs <= 1u)
+            return;
+
+        const unsigned int startMs = min<unsigned int>(
+            lengthMs - 1u,
+            static_cast<unsigned int>(static_cast<float>(lengthMs) * safeRatio));
+
+        FMOD_Channel_SetPosition(fmodChannel, startMs, FMOD_TIMEUNIT_MS);
+    }
 }
 
 Sound_Manager::Sound_Manager()
 {
     _channelGroups.fill(nullptr);
+    _pitchShiftDsps.fill(nullptr);
     _channelVolumes.fill(1.f);
 }
 
@@ -71,10 +92,11 @@ void Sound_Manager::Update(float timeDelta)
 
     Update_FadeChannels(timeDelta);
     Cleanup_StoppedChannels();
+    Cleanup_StoppedChannelSpeedDsps();
     Cleanup_StoppedBGMChannels();
 }
 
-bool Sound_Manager::Play_Once(const wstring& soundFile, SoundChannel channel, float volume)
+bool Sound_Manager::Play_Once(const wstring& soundFile, SoundChannel channel, float volume, float startRatio)
 {
     if (!_system || _allSoundMuted || !Validate_Channel(channel))
         return false;
@@ -102,6 +124,7 @@ bool Sound_Manager::Play_Once(const wstring& soundFile, SoundChannel channel, fl
     // 일회성 사운드이므로 루프 끄기
     FMOD_Channel_SetMode(fmodChannel, FMOD_LOOP_OFF);
     FMOD_Channel_SetVolume(fmodChannel, clamp(volume, 0.f, 1.f));
+    Apply_StartRatio(fmodSound, fmodChannel, startRatio);
     FMOD_Channel_SetPaused(fmodChannel, FALSE);
 
     Register_ActiveChannel(channel, fmodChannel);
@@ -109,7 +132,7 @@ bool Sound_Manager::Play_Once(const wstring& soundFile, SoundChannel channel, fl
     return true;
 }
 
-bool Sound_Manager::Play_Once_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
+bool Sound_Manager::Play_Once_WithSpeed(const wstring& soundFile, SoundChannel channel, float volume, float speed, float startRatio)
 {
     if (!_system || _allSoundMuted || !Validate_Channel(channel))
         return false;
@@ -129,14 +152,15 @@ bool Sound_Manager::Play_Once_Pitched(const wstring& soundFile, SoundChannel cha
 
     if (result != FMOD_OK || !fmodChannel)
     {
-        LOG_WARN("Play_Once_Pitched failed. sound='{}', result={}",
+        LOG_WARN("Play_Once_WithSpeed failed. sound='{}', result={}",
             String::ToString(soundFile), static_cast<int32>(result));
         return false;
     }
 
     FMOD_Channel_SetMode(fmodChannel, FMOD_LOOP_OFF);
     FMOD_Channel_SetVolume(fmodChannel, clamp(volume, 0.f, 1.f));
-    FMOD_Channel_SetPitch(fmodChannel, max(0.01f, pitch));
+    Apply_ChannelPlaybackSpeed(fmodChannel, speed);
+    Apply_StartRatio(fmodSound, fmodChannel, startRatio);
     FMOD_Channel_SetPaused(fmodChannel, FALSE);
 
     Register_ActiveChannel(channel, fmodChannel);
@@ -299,12 +323,9 @@ void Sound_Manager::Set_GlobalPitch(float pitch, bool includeBGM)
 
     for (uint32 i = 0; i < ETOI(SoundChannel::END); ++i)
     {
-        if (!_channelGroups[i])
-            continue;
-
         const SoundChannel channel = static_cast<SoundChannel>(i);
         const float channelPitch = (channel == SoundChannel::BGM && !_globalPitchIncludesBGM) ? 1.f : _globalPitch;
-        FMOD_ChannelGroup_SetPitch(_channelGroups[i], channelPitch);
+        Apply_ChannelPlaybackSpeed(channel, channelPitch);
     }
 }
 
@@ -415,7 +436,7 @@ bool Sound_Manager::Play_Cue(const wstring& cueId, const Vec3* worldPosition)
 
     const wstring& soundFile = cue.sounds[static_cast<size_t>(index)];
     const float volume = Random_Range(cue.volumeMin, cue.volumeMax);
-    const float pitch = Random_Range(cue.pitchMin, cue.pitchMax);
+    const float speed = Random_Range(cue.speedMin, cue.speedMax);
 
     if (cue.spatial && worldPosition != nullptr)
     {
@@ -424,18 +445,18 @@ bool Sound_Manager::Play_Cue(const wstring& cueId, const Vec3* worldPosition)
             cue.channel,
             *worldPosition,
             volume,
-            pitch,
+            speed,
             cue.minDistance,
             cue.maxDistance);
     }
 
-    if (pitch == 1.f)
+    if (speed == 1.f)
         return Play_Once(soundFile, cue.channel, volume);
 
-    return Play_Once_Pitched(soundFile, cue.channel, volume, pitch);
+    return Play_Once_WithSpeed(soundFile, cue.channel, volume, speed);
 }
 
-bool Sound_Manager::Play_Cue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch)
+bool Sound_Manager::Play_Cue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio)
 {
     auto iter = _soundCues.find(Normalize_SoundKey(cueId));
     if (iter == _soundCues.end())
@@ -458,18 +479,19 @@ bool Sound_Manager::Play_Cue(const wstring& cueId, const Vec3* worldPosition, fl
             cue.channel,
             *worldPosition,
             volume,
-            pitch,
+            speed,
             cue.minDistance,
-            cue.maxDistance);
+            cue.maxDistance,
+            startRatio);
     }
 
-    if (pitch == 1.f)
-        return Play_Once(soundFile, cue.channel, volume);
+    if (speed == 1.f)
+        return Play_Once(soundFile, cue.channel, volume, startRatio);
 
-    return Play_Once_Pitched(soundFile, cue.channel, volume, pitch);
+    return Play_Once_WithSpeed(soundFile, cue.channel, volume, speed, startRatio);
 }
 
-bool Sound_Manager::Try_GetCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const
+bool Sound_Manager::Try_GetCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const
 {
     auto iter = _soundCues.find(Normalize_SoundKey(cueId));
     if (iter == _soundCues.end())
@@ -482,18 +504,18 @@ bool Sound_Manager::Try_GetCueDefaultVolumePitch(const wstring& cueId, float& ou
     if (volumeMax < volumeMin)
         std::swap(volumeMin, volumeMax);
 
-    float pitchMin = cue.pitchMin;
-    float pitchMax = cue.pitchMax;
-    if (pitchMax < pitchMin)
-        std::swap(pitchMin, pitchMax);
+    float speedMin = cue.speedMin;
+    float speedMax = cue.speedMax;
+    if (speedMax < speedMin)
+        std::swap(speedMin, speedMax);
 
     outVolume = (volumeMin + volumeMax) * 0.5f; // notify 기본값은 cue 랜덤 범위의 중앙값으로 초기화한다.
-    outPitch = (pitchMin + pitchMax) * 0.5f;
+    outSpeed = (speedMin + speedMax) * 0.5f;
     return true;
 }
 
 bool Sound_Manager::Play_Once_3D(const wstring& soundFile, SoundChannel channel, const Vec3& worldPosition,
-    float volume, float pitch, float minDistance, float maxDistance)
+    float volume, float speed, float minDistance, float maxDistance, float startRatio)
 {
     if (!_system || _allSoundMuted || !Validate_Channel(channel))
         return false;
@@ -520,7 +542,8 @@ bool Sound_Manager::Play_Once_3D(const wstring& soundFile, SoundChannel channel,
     FMOD_Channel_Set3DAttributes(fmodChannel, &pos, &vel);
     FMOD_Channel_Set3DMinMaxDistance(fmodChannel, max(0.01f, minDistance), max(minDistance, maxDistance));
     FMOD_Channel_SetVolume(fmodChannel, clamp(volume, 0.f, 1.f));
-    FMOD_Channel_SetPitch(fmodChannel, max(0.01f, pitch));
+    Apply_ChannelPlaybackSpeed(fmodChannel, speed);
+    Apply_StartRatio(fmodSound, fmodChannel, startRatio);
     FMOD_Channel_SetPaused(fmodChannel, FALSE);
 
     Register_ActiveChannel(channel, fmodChannel);
@@ -615,8 +638,8 @@ void Sound_Manager::Load_SoundCues()
         cue.maxDistance = item.value("maxDistance", cue.maxDistance);
         cue.volumeMin = item.value("volumeMin", cue.volumeMin);
         cue.volumeMax = item.value("volumeMax", cue.volumeMax);
-        cue.pitchMin = item.value("pitchMin", cue.pitchMin);
-        cue.pitchMax = item.value("pitchMax", cue.pitchMax);
+        cue.speedMin = item.value("speedMin", item.value("pitchMin", cue.speedMin));
+        cue.speedMax = item.value("speedMax", item.value("pitchMax", cue.speedMax));
         cue.sounds = Split_SoundList(item.value("sounds", ""));
 
         if (cue.sounds.empty())
@@ -631,13 +654,13 @@ void Sound_Manager::Load_SoundCues()
         if (cue.volumeMax < cue.volumeMin)
             std::swap(cue.volumeMin, cue.volumeMax);
 
-        if (cue.pitchMax < cue.pitchMin)
-            std::swap(cue.pitchMin, cue.pitchMax);
+        if (cue.speedMax < cue.speedMin)
+            std::swap(cue.speedMin, cue.speedMax);
 
         cue.volumeMin = clamp(cue.volumeMin, 0.f, 1.f);
         cue.volumeMax = clamp(cue.volumeMax, 0.f, 1.f);
-        cue.pitchMin = max(0.01f, cue.pitchMin);
-        cue.pitchMax = max(0.01f, cue.pitchMax);
+        cue.speedMin = max(0.01f, cue.speedMin);
+        cue.speedMax = max(0.01f, cue.speedMax);
         cue.minDistance = max(0.01f, cue.minDistance);
         cue.maxDistance = max(cue.minDistance, cue.maxDistance);
 
@@ -809,11 +832,94 @@ HRESULT Sound_Manager::Create_ChannelGroups()
 
         FMOD_ChannelGroup_SetVolume(_channelGroups[i], _channelVolumes[i]);
         FMOD_ChannelGroup_SetMute(_channelGroups[i], _allSoundMuted ? TRUE : FALSE);
+
+        FMOD_DSP* pitchShiftDsp = nullptr;
+        result = FMOD_System_CreateDSPByType(_system, FMOD_DSP_TYPE_PITCHSHIFT, &pitchShiftDsp);
+        if (result == FMOD_OK && pitchShiftDsp)
+        {
+            FMOD_DSP_SetParameterFloat(pitchShiftDsp, FMOD_DSP_PITCHSHIFT_PITCH, 1.f);
+            FMOD_DSP_SetBypass(pitchShiftDsp, TRUE);
+
+            result = FMOD_ChannelGroup_AddDSP(_channelGroups[i], 0, pitchShiftDsp);
+            if (result == FMOD_OK)
+            {
+                _pitchShiftDsps[i] = pitchShiftDsp;
+            }
+            else
+            {
+                LOG_WARN("Channel pitch-shift DSP attach failed. index={}, result={}", i, static_cast<int32>(result));
+                FMOD_DSP_Release(pitchShiftDsp);
+            }
+        }
+        else
+        {
+            LOG_WARN("Channel pitch-shift DSP create failed. index={}, result={}", i, static_cast<int32>(result));
+        }
     }
 
     Set_GlobalPitch(_globalPitch, _globalPitchIncludesBGM);
 
     return S_OK;
+}
+
+void Sound_Manager::Apply_ChannelPlaybackSpeed(SoundChannel channel, float speed)
+{
+    if (!Validate_Channel(channel))
+        return;
+
+    const uint32 index = ETOI(channel);
+    if (!_channelGroups[index])
+        return;
+
+    const float safeSpeed = max(0.01f, speed);
+
+    // ChannelGroup pitch changes playback speed. PitchShift DSP cancels the audible pitch change.
+    FMOD_ChannelGroup_SetPitch(_channelGroups[index], safeSpeed);
+
+    FMOD_DSP* pitchShiftDsp = _pitchShiftDsps[index];
+    if (!pitchShiftDsp)
+        return;
+
+    const bool needsPitchCompensation = fabsf(safeSpeed - 1.f) > 0.001f;
+    FMOD_DSP_SetBypass(pitchShiftDsp, needsPitchCompensation ? FALSE : TRUE);
+    FMOD_DSP_SetParameterFloat(pitchShiftDsp, FMOD_DSP_PITCHSHIFT_PITCH, 1.f / safeSpeed);
+}
+
+void Sound_Manager::Apply_ChannelPlaybackSpeed(FMOD_CHANNEL* fmodChannel, float speed)
+{
+    if (!fmodChannel)
+        return;
+
+    const float safeSpeed = max(0.01f, speed);
+
+    // Per-sound channel speed is compensated here so AN_PlaySound Speed does not raise pitch.
+    FMOD_Channel_SetPitch(fmodChannel, safeSpeed);
+
+    if (fabsf(safeSpeed - 1.f) <= 0.001f)
+        return;
+
+    FMOD_DSP* pitchShiftDsp = nullptr;
+    FMOD_RESULT result = FMOD_System_CreateDSPByType(_system, FMOD_DSP_TYPE_PITCHSHIFT, &pitchShiftDsp);
+    if (result != FMOD_OK || !pitchShiftDsp)
+    {
+        LOG_WARN("Channel speed pitch-shift DSP create failed. result={}", static_cast<int32>(result));
+        return;
+    }
+
+    FMOD_DSP_SetParameterFloat(pitchShiftDsp, FMOD_DSP_PITCHSHIFT_PITCH, 1.f / safeSpeed);
+
+    result = FMOD_Channel_AddDSP(fmodChannel, 0, pitchShiftDsp);
+    if (result != FMOD_OK)
+    {
+        LOG_WARN("Channel speed pitch-shift DSP attach failed. result={}", static_cast<int32>(result));
+        FMOD_DSP_Release(pitchShiftDsp);
+        return;
+    }
+
+    FChannelSpeedDspInfo dspInfo{};
+    dspInfo.channel = fmodChannel;
+    dspInfo.dsp = pitchShiftDsp;
+    _channelSpeedDsps.push_back(dspInfo);
 }
 
 void Sound_Manager::Load_SoundFiles()
@@ -996,6 +1102,32 @@ void Sound_Manager::Cleanup_StoppedChannels()
     }
 }
 
+void Sound_Manager::Cleanup_StoppedChannelSpeedDsps()
+{
+    auto iter = _channelSpeedDsps.begin();
+    while (iter != _channelSpeedDsps.end())
+    {
+        bool shouldRelease = iter->channel == nullptr || iter->dsp == nullptr;
+
+        if (!shouldRelease)
+        {
+            FMOD_BOOL isPlaying = FALSE;
+            shouldRelease = FMOD_Channel_IsPlaying(iter->channel, &isPlaying) != FMOD_OK || isPlaying == FALSE;
+        }
+
+        if (shouldRelease)
+        {
+            if (iter->dsp)
+                FMOD_DSP_Release(iter->dsp);
+
+            iter = _channelSpeedDsps.erase(iter);
+            continue;
+        }
+
+        ++iter;
+    }
+}
+
 void Sound_Manager::Cleanup_StoppedBGMChannels()
 {
     _bgmChannels.erase(
@@ -1083,6 +1215,22 @@ void Sound_Manager::Release_AllSounds()
 
 void Sound_Manager::Release_ChannelGroups()
 {
+    for (FChannelSpeedDspInfo& dspInfo : _channelSpeedDsps)
+    {
+        if (dspInfo.dsp)
+            FMOD_DSP_Release(dspInfo.dsp);
+    }
+    _channelSpeedDsps.clear();
+
+    for (FMOD_DSP*& pitchShiftDsp : _pitchShiftDsps)
+    {
+        if (pitchShiftDsp)
+        {
+            FMOD_DSP_Release(pitchShiftDsp);
+            pitchShiftDsp = nullptr;
+        }
+    }
+
     for (FMOD_CHANNELGROUP*& fmodGroup : _channelGroups)
     {
         if (fmodGroup)

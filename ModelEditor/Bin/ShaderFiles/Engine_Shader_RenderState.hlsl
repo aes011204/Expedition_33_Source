@@ -44,6 +44,23 @@ DepthStencilState DSS_None
     DepthWriteMask = zero;    
 };
 
+DepthStencilState DSS_ScreenFxExclude
+{
+    DepthEnable = false;
+    DepthWriteMask = zero;
+    StencilEnable = true;
+    StencilReadMask = 0x02;
+    StencilWriteMask = 0x00;
+    FrontFaceStencilFail = keep;
+    FrontFaceStencilDepthFail = keep;
+    FrontFaceStencilPass = keep;
+    FrontFaceStencilFunc = equal;
+    BackFaceStencilFail = keep;
+    BackFaceStencilDepthFail = keep;
+    BackFaceStencilPass = keep;
+    BackFaceStencilFunc = equal;
+};
+
 BlendState BS_Default
 {
     BlendEnable[0] = false;    

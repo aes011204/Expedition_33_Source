@@ -12,6 +12,8 @@ public:
     {
         wstring effectName{};
         Vec3 localOffset{ Vec3::Zero };
+        Vec3 localRotation{ Vec3::Zero };
+        Vec3 scale{ Vec3::One };
 
         bool Is_Valid() const { return !effectName.empty(); }
     };

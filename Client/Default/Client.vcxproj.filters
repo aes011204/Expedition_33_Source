@@ -91,6 +91,9 @@
     <Filter Include="02.GameObject\Camera\Cinematic">
       <UniqueIdentifier>{1a0eb9ee-9543-3061-4431-04c3791022fd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Dialogue">
+      <UniqueIdentifier>{6d7f4a59-5db8-4d58-a7d0-9f8b6ea6dd31}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\EyeTarget">
       <UniqueIdentifier>{8b816668-ca52-327c-556d-39666782facc}</UniqueIdentifier>
     </Filter>
@@ -268,6 +271,27 @@
     <Filter Include="02.GameObject\ModifierPreset">
       <UniqueIdentifier>{c6888c1b-89f3-4e18-8210-91cb8f4646b0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="07. Dialogue">
+      <UniqueIdentifier>{b4e7c791-4a1f-4262-9e22-99aa0cde2c18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC">
+      <UniqueIdentifier>{ebbd389d-6aa3-4fa6-962a-b136fe0639e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC\Chad">
+      <UniqueIdentifier>{2c64b402-3f49-4d29-b0f3-0b73d5fb7489}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC\Golgra">
+      <UniqueIdentifier>{7c00d2d4-305e-4be2-b2cb-f03327d4a45d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC\Merchant">
+      <UniqueIdentifier>{7b2ed0f8-fbef-4cc1-8d4f-3fb2ea8283a9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC\Noco">
+      <UniqueIdentifier>{ac8b8d8a-0f0a-4bfa-8a91-13a0f6820f77}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\NPC\Sumo">
+      <UniqueIdentifier>{28eb853a-06c8-49a5-a5f2-a50edbf6f645}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -291,6 +315,9 @@
     <ClCompile Include="..\Private\ANS_SL_MoveTo.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\ANS_Parry.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -298,6 +325,9 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ANS_QTE.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_ScreenFxCue.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp">
@@ -539,7 +569,16 @@
     <ClCompile Include="..\Private\ClientScreenFxManager.cpp">
       <Filter>02.GameObject\UI\ScreenFx</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\DialogueCamera.cpp">
+      <Filter>02.GameObject\Camera\Dialogue</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Flash_ScreenFx.cpp">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp">
       <Filter>02.GameObject\UI\ScreenFx</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectCom.cpp">
@@ -725,6 +764,9 @@
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsLastAttack.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsHit.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
@@ -735,6 +777,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsStun.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_SelectNextAttack.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp">
@@ -1208,6 +1253,27 @@
     <ClCompile Include="..\Private\UI_BattlePictos.cpp" />
     <ClCompile Include="..\Private\UI_BattleJumpReaction.cpp" />
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />
+    <ClCompile Include="..\private\NPC_Base.cpp">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Chad.cpp">
+      <Filter>02.GameObject\NPC\Chad</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Golgra.cpp">
+      <Filter>02.GameObject\NPC\Golgra</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Body.cpp">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Hair.cpp">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Merchant.cpp">
+      <Filter>02.GameObject\NPC\Merchant</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\NPC_Sumo.cpp">
+      <Filter>02.GameObject\NPC\Sumo</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Mon_Simon_Weapon.cpp" />
     <ClCompile Include="..\Private\UI_SL_HUD.cpp" />
     <ClCompile Include="..\Private\RuntimeCheckpointIO.cpp" />
@@ -1277,6 +1343,12 @@
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_EstherManager.cpp" />
+    <ClCompile Include="..\private\NPC_Noco.cpp">
+      <Filter>02.GameObject\NPC\Noco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\DialogueDB.cpp">
+      <Filter>07. Dialogue</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1324,9 +1396,39 @@
     <ClInclude Include="..\Public\UI_BattlePictos.h" />
     <ClInclude Include="..\Public\UI_BattleJumpReaction.h" />
     <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
+    <ClInclude Include="DialogueTypes.h">
+      <Filter>07. Dialogue</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Base.h">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Chad.h">
+      <Filter>02.GameObject\NPC\Chad</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Golgra.h">
+      <Filter>02.GameObject\NPC\Golgra</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Body.h">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Hair.h">
+      <Filter>02.GameObject\NPC</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Merchant.h">
+      <Filter>02.GameObject\NPC\Merchant</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\NPC_Sumo.h">
+      <Filter>02.GameObject\NPC\Sumo</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
     <ClInclude Include="..\Public\UI_SL_HUD.h" />
     <ClInclude Include="..\Public\SL_EstherManager.h" />
+    <ClInclude Include="..\public\NPC_Noco.h">
+      <Filter>02.GameObject\NPC\Noco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\DialogueDB.h">
+      <Filter>07. Dialogue</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1461,6 +1563,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
@@ -1493,6 +1596,9 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ANS_QTE.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_ScreenFxCue.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h">
@@ -1658,6 +1764,9 @@
     <ClInclude Include="..\Public\CameraDirector.h">
       <Filter>02.GameObject\Camera</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\DialogueCamera.h">
+      <Filter>02.GameObject\Camera\Dialogue</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\CameraPresetIO.h">
       <Filter>02.GameObject\Camera</Filter>
     </ClInclude>
@@ -1688,6 +1797,9 @@
     <ClInclude Include="..\Public\BT_SL_IsDead.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsLastAttack.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsHit.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
@@ -1698,6 +1810,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsStun.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_SelectNextAttack.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_SetDesiredState.h">
@@ -1741,6 +1856,15 @@
       <Filter>96. Manager</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Distortion_ScreenFx.h">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Flash_ScreenFx.h">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ScreenFxCueTypes.h">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h">
       <Filter>02.GameObject\UI\ScreenFx</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectCom.h">
@@ -2436,6 +2560,9 @@
     <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_TargetTrack.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h">

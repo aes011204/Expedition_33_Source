@@ -68,6 +68,26 @@ public:
     {
         return _currentGroup;
     }
+    
+    void Set_LetterboxEnabled(bool setLetterboxEnabled)
+    {
+        const bool wasActive = _letterboxEnabled || _previewLetterboxEnabled;
+        _letterboxEnabled = setLetterboxEnabled;
+        const bool isActive = _letterboxEnabled || _previewLetterboxEnabled;
+        if (!wasActive && isActive)
+            _letterboxCurrentRatio = 0.f;
+        _letterboxTargetRatio = isActive ? 0.12f : 0.f;
+    }
+    void Set_PreviewLetterboxEnabled(bool enabled)
+    {
+        const bool wasActive = _letterboxEnabled || _previewLetterboxEnabled;
+        _previewLetterboxEnabled = enabled;
+        const bool isActive = _letterboxEnabled || _previewLetterboxEnabled;
+        if (!wasActive && isActive)
+            _letterboxCurrentRatio = 0.f;
+        _letterboxTargetRatio = isActive ? 0.12f : 0.f;
+    }
+    bool Is_PreviewLetterboxEnabled() const { return _previewLetterboxEnabled; }
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
@@ -75,6 +95,7 @@ public:
 
 public:
     void PostDraw();
+    void Render_Letterbox();
 
 private:
 	void Render_Priority();
@@ -86,7 +107,7 @@ private:
     void Render_NonLight();
     void Render_EffectMasked(); // alpha cutout effect를 HDR에 depth-write opaque-like로 출력한다.
     void Render_Distortion(); // HDRColor snapshot과 distortion field를 사용해 fullscreen 왜곡 resolve를 수행한다.
-	void Render_Blend();
+    void Render_Blend();
     void Render_ScreenFx();
     void Render_UIEffect();
 
@@ -156,6 +177,13 @@ private:
     uint32                          iDrawCall = 0;
 
     bool                            _useRTVDump = false;
+
+    /* letterbox용 */
+    float             _letterboxCurrentRatio = 0.f;
+    float             _letterboxTargetRatio = 0.12f;
+    Shared<ShaderCom> _letterboxShader;
+    bool              _letterboxEnabled = false;
+    bool              _previewLetterboxEnabled = false;
 
 private:
     uint64                          _shadowFrameIndex = 0;

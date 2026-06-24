@@ -110,15 +110,8 @@ HRESULT BattleController::Initialize()
 
 void BattleController::Update(float timeDelta)
 {
-    const bool shouldUpdateBattleRuntime =
-        _isBattleEntering ||
-        _isWaitingBattleTransition ||
-        _isBattleActive ||
-        _isPendingVictorySlow ||
-        _isWaitingVictoryConfirm;
-
-    if (!shouldUpdateBattleRuntime)
-        return; // 월드 상태에서는 전투 튜토리얼/리액션/FSM 업데이트를 아예 돌리지 않는다.
+    if (!Should_UpdateRuntime())
+        return;
 
     if (Update_BattleTutorialGate(timeDelta))
         return;
@@ -230,7 +223,7 @@ void BattleController::Update(float timeDelta)
         _reactionController.Update_EchoReactionWindows(timeDelta);
 
         // 패링, 회피 키인풋
-        const auto reactionResult = _reactionController.UpdateInput(_turnAction);
+        const auto reactionResult = _reactionController.UpdateInput(_turnAction, _autoParryEnabled);
 
         Apply_ReactionApReward(reactionResult);
 
@@ -1296,6 +1289,87 @@ const BattleChar* BattleController::Get_TargetPreview() const
     return &_targetPreview;
 }
 
+bool BattleController::Ensure_EnemyTargetPreview()
+{
+    auto aliveEnemies = Get_AliveEnemies();
+
+    if (aliveEnemies.empty())
+    {
+        Clear_TargetPreview();
+        return false;
+    }
+
+    if (Find_EnemyTargetPreviewIndex(aliveEnemies) >= 0)
+	{
+		return true;
+	}
+
+    const size_t index = min<size_t>(1, aliveEnemies.size() - 1);
+	Set_TargetPreview(aliveEnemies[index]);
+
+	return true;
+}
+
+bool BattleController::Move_EnemyTargetPreview(int32 direction)
+{
+    if (direction == 0)
+		return Ensure_EnemyTargetPreview();
+
+	const vector<BattleChar> aliveEnemies = Get_AliveEnemies();
+
+	if (aliveEnemies.empty())
+	{
+		Clear_TargetPreview();
+		return false;
+	}
+
+	int32 currentIndex = Find_EnemyTargetPreviewIndex(aliveEnemies);
+
+	if (currentIndex < 0)
+		currentIndex = 0;
+
+	const int32 nextIndex = currentIndex + direction;
+
+	if (nextIndex < 0 || nextIndex >= static_cast<int32>(aliveEnemies.size()))
+		return false;
+
+	Set_TargetPreview(aliveEnemies[nextIndex]);
+	return true;
+}
+
+void BattleController::Publish_TargetPreviewEnemyFocus() const
+{
+    const BattleChar* target = Get_TargetPreview();
+
+	if (target == nullptr || target->actor == nullptr)
+		return;
+
+	EvtBattlePresentation event{};
+	event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+	event.subject = target->actor;
+	event.presetId = target->actor->Get_SourcePrefabName();
+
+	GAME->Get_EventBus().Publish(event);
+}
+
+int32 BattleController::Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const
+{
+    const BattleChar* preview = Get_TargetPreview();
+
+    if (preview == nullptr || preview->actor == nullptr)
+		return -1;
+
+    for (int32 i = 0; i < static_cast<int32>(aliveEnemies.size()); ++i)
+	{
+        if (aliveEnemies[i].actor == preview->actor)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 bool BattleController::Is_PlayerTurnActive() const
 {
     if (!_isBattleActive || _battleEnded)
@@ -1500,6 +1574,16 @@ void BattleController::Execute_Item()
     Clear_TargetPreview();
 }
 
+
+bool BattleController::Should_UpdateRuntime() const
+{
+    return
+        _isBattleEntering ||
+        _isWaitingBattleTransition ||
+        _isBattleActive ||
+        _isPendingVictorySlow ||
+        _isWaitingVictoryConfirm;
+}
 
 void BattleController::Revive_BattleMon(const BattleChar& battleChar, float MultipleHp)
 {
@@ -1886,8 +1970,13 @@ void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
 
     if (info.damage > 0.f && info.target.actor)
     {
+        const bool enteredBreak =
+            info.target.actor->Try_ApplyBattleBreakOnDamage(info);
+
         _reactionController.Notify_TargetDamaged(info.target);
-        HitAction(info.target, info.attackType, info.isCritical);
+
+        if (!enteredBreak)
+            HitAction(info.target, info.attackType, info.isCritical);
     }
 
     if (info.damage > 0.f &&

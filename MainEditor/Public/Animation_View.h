@@ -24,9 +24,11 @@ NS_END
 
 NS_BEGIN(MainEditor)
 
+class AnimationNotifyEditor;
 class AnimSequencerAdapter;
 class Animation_View final : public Editor_Window, public Engine::IEffectTrailSampleProvider, public Engine::IEffectSourcePointSampleProvider
 {
+    friend class AnimationNotifyEditor;
     friend class AnimSequencerAdapter;
 
 public:
@@ -38,7 +40,7 @@ public:
 
 public:
     Animation_View();
-    ~Animation_View() override = default;
+    ~Animation_View() override;
 
 public:
     void Update(float timeDelta) override;
@@ -191,6 +193,13 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewScreenFxCueRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
     struct PreviewAnimSpeedStateRuntime
     {
         int32 stateId = -1;
@@ -303,6 +312,8 @@ private:
     void Reset_PreviewAnimSpeedStates();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);
     void Reset_PreviewPlayEffectStates();
+    void Update_PreviewScreenFxCueStates(float timeDelta);
+    void Reset_PreviewScreenFxCueStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
     void Update_PreviewWeaponEchoStates(float timeDelta);
@@ -407,6 +418,7 @@ private:
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
+    vector<PreviewScreenFxCueRuntime> _previewScreenFxCueRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
     vector<PreviewWeaponEchoRuntime> _previewWeaponEchoRuntimes{};
@@ -490,6 +502,7 @@ private:
     NotifyUndoSnapshot _pendingNotifyUndoSnapshot{};
     bool _hasPendingNotifyUndoSnapshot = false;
 
+    Unique<AnimationNotifyEditor> _notifyEditor{};
     Unique<AnimSequencerAdapter> _sequencer{};
 
 public:

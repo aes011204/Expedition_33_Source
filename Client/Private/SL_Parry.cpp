@@ -16,7 +16,6 @@ bool SL_Parry::EnterInvoke()
         return false;
 
     owner->Set_CombatLocked(true);
-    owner->Reset_ParryConsumed();
     owner->Close_ParryWindow(); // 성공 판정은 애니메이션 notify state가 여는 구간에서만 허용한다.
 
     Stop_Movement();

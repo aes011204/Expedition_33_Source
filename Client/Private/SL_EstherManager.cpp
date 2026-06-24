@@ -18,7 +18,7 @@ namespace
     constexpr char kLuneSkill[] = "Immolation";
 
     constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
-    constexpr char kLuneAnim[] = "Lune_Unstable_Fire";
+    constexpr char kLuneAnim[] = "Lune_Unstable_Fire"; // 루네는 하늘파괴 or 천둥내림. 그런데 천둥내림은 좀 힘들거같기도하고
 }
 
 HRESULT SL_EstherManager::Initialize(const Shared<SoulLikeController>& controller)
@@ -90,13 +90,13 @@ bool SL_EstherManager::Begin_Esther(SL_EstherType estherType)
         runtime.skillKey = kGustaveSkill;
         runtime.animationName = kGustaveAnim;
         runtime.fallbackDamageMultiplier = 2.f;
-        runtime.animationSpeed = 1.7f;
+        runtime.animationSpeed = 2.f;
         break;
     case SL_EstherType::LuneImmolation:
         runtime.skillKey = kLuneSkill;
         runtime.animationName = kLuneAnim;
         runtime.fallbackDamageMultiplier = 1.2f;
-        runtime.animationSpeed = 1.7f;
+        runtime.animationSpeed = 2.f;
         break;
     }
 

@@ -254,6 +254,10 @@ cbuffer ScreenFxBuffer
     float g_wipeRadius;
     float g_edgeSoftness;
     float2 pad;
+
+    float4 g_flashColor;
+    float4 g_screenFxShape;
+    float4 g_screenFxParams;
 };
 
 struct FogZoneEntry

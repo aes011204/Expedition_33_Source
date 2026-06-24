@@ -12,13 +12,95 @@ ScreenFx_Manager::~ScreenFx_Manager()
 
 void ScreenFx_Manager::Play_ScreenEffect(const Shared<ScreenFx_Instance>& effect)
 {
+    Play_ScreenEffect_WithHandle(effect);
+}
+
+ScreenFxHandle ScreenFx_Manager::Play_ScreenEffect_WithHandle(const Shared<ScreenFx_Instance>& effect)
+{
     if (effect == nullptr)
-        return;
+        return {};
 
     if (!effect->Get_Tag().empty())
         _finishedEffectTags.erase(effect->Get_Tag());
 
-    _activeEffects.push_back(effect);
+    ScreenFxHandle handle{};
+    handle.id = _nextEffectHandleId++;
+    if (_nextEffectHandleId == 0)
+        _nextEffectHandleId = 1;
+
+    _activeEffects.push_back({ handle, effect });
+    return handle;
+}
+
+void ScreenFx_Manager::Stop_ScreenEffect(ScreenFxHandle handle)
+{
+    if (!handle.Is_Valid())
+        return;
+
+    const auto iter = std::find_if(
+        _activeEffects.begin(),
+        _activeEffects.end(),
+        [handle](const ActiveEffectEntry& entry)
+        {
+            return entry.handle.id == handle.id;
+        });
+
+    if (iter == _activeEffects.end())
+        return;
+
+    _activeEffects.erase(iter);
+}
+
+ScreenFxHandle ScreenFx_Manager::Play_PreviewScreenEffect_WithHandle(const Shared<ScreenFx_Instance>& effect)
+{
+    if (effect == nullptr)
+        return {};
+
+    ScreenFxHandle handle{};
+    handle.id = _nextEffectHandleId++;
+    if (_nextEffectHandleId == 0)
+        _nextEffectHandleId = 1;
+
+    _previewEffects.push_back({ handle, effect });
+    return handle;
+}
+
+void ScreenFx_Manager::Evaluate_PreviewScreenEffect(ScreenFxHandle handle, float elapsedTime)
+{
+    if (!handle.Is_Valid())
+        return;
+
+    const auto iter = std::find_if(
+        _previewEffects.begin(),
+        _previewEffects.end(),
+        [handle](const ActiveEffectEntry& entry)
+        {
+            return entry.handle.id == handle.id;
+        });
+
+    if (iter == _previewEffects.end() || iter->effect == nullptr)
+        return;
+
+    iter->effect->Evaluate_At(max(0.f, elapsedTime));
+}
+
+void ScreenFx_Manager::Stop_PreviewScreenEffect(ScreenFxHandle handle)
+{
+    if (!handle.Is_Valid())
+        return;
+
+    const auto iter = std::find_if(
+        _previewEffects.begin(),
+        _previewEffects.end(),
+        [handle](const ActiveEffectEntry& entry)
+        {
+            return entry.handle.id == handle.id;
+        });
+
+    if (iter == _previewEffects.end())
+        return;
+
+    _previewEffects.erase(iter);
 }
 
 void ScreenFx_Manager::Clear_ScreenEffect()
@@ -38,31 +120,44 @@ void ScreenFx_Manager::Update(float timeDelta)
 {
     if (!_activeFx) return;
 
-    for (int32 i = 0; i < static_cast<int32>(_activeEffects.size()); )
+    auto updateEffects = [&](vector<ActiveEffectEntry>& effects, bool recordFinishedTags)
     {
-        _activeEffects[i]->Update_ScreenFx(timeDelta);
-
-        if (_activeEffects[i]->Check_EndCondition())
+        for (int32 i = 0; i < static_cast<int32>(effects.size()); )
         {
-            if (!_activeEffects[i]->Get_Tag().empty())
-                _finishedEffectTags.insert(_activeEffects[i]->Get_Tag());
+            Shared<ScreenFx_Instance>& effect = effects[i].effect;
+            if (effect == nullptr)
+            {
+                effects.erase(effects.begin() + i);
+                continue;
+            }
 
-            _activeEffects.erase(_activeEffects.begin() + i);
+            effect->Update_ScreenFx(timeDelta);
+
+            if (effect->Check_EndCondition())
+            {
+                if (recordFinishedTags && !effect->Get_Tag().empty())
+                    _finishedEffectTags.insert(effect->Get_Tag());
+
+                effects.erase(effects.begin() + i);
+            }
+            else
+            {
+                ++i;
+            }
         }
-        else
-        {
-            ++i;
-        }
-    }
+    };
+
+    updateEffects(_activeEffects, true);
 }
 
 HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& rtBuffer)
 {
     if (!shader || !rtBuffer) return E_FAIL;
     
-    bool hasActiveEffects = !_activeEffects.empty();
+    vector<ActiveEffectEntry>& effects = _renderPreviewEffectsOnly ? _previewEffects : _activeEffects;
+    bool hasActiveEffects = !effects.empty();
 #ifdef _DEBUG
-    if (_previewEffect) hasActiveEffects = true;
+    if (!_renderPreviewEffectsOnly && _previewEffect) hasActiveEffects = true;
 #endif
 
     if (!_activeFx || !hasActiveEffects) return S_OK;
@@ -71,10 +166,13 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
         return E_FAIL;
     bool readFromA = true;
 
-    for (size_t i = 0; i < _activeEffects.size(); ++i)
+    for (size_t i = 0; i < effects.size(); ++i)
     {
-        auto& effect = _activeEffects[i];
-        bool isLast = (i == _activeEffects.size() - 1);
+        auto& effect = effects[i].effect;
+        if (effect == nullptr)
+            continue;
+
+        bool isLast = (i == effects.size() - 1);
 
         if (isLast && _captureRequested)
         {
@@ -134,7 +232,7 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
     }
 
 #ifdef _DEBUG
-    if (_previewEffect)
+    if (!_renderPreviewEffectsOnly && _previewEffect)
     {
         const wchar_t* readRT = readFromA ? RT::ScreenFxColorA : RT::ScreenFxColorB;
         GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT);
