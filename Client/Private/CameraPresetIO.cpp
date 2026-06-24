@@ -41,6 +41,15 @@ namespace
 
         return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
+
+    string Build_DialoguePresetFilePath(const string& presetId)
+    {
+        string fileName = "DialoguePreset";
+        if (!presetId.empty())
+            fileName += "_" + presetId;
+
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
+    }
 }
 
 void CameraPresetIO::SaveSoulLikePresetToFile(const string& presetKey, const TargetCameraPreset& preset)
@@ -187,6 +196,74 @@ bool CameraPresetIO::LoadSoulLikeSkillPresetFromFile(const string& skillKey, Tar
         return false;
 
     return LoadSoulLikePresetFromFile("PlayerSkill_" + skillKey, outPreset);
+}
+
+void CameraPresetIO::SaveDialoguePresetToFile(const string& presetId, const DialogueCameraPreset& preset)
+{
+    json jsonData{};
+
+    jsonData["distance"] = preset.distance;
+    jsonData["sideOffset"] = preset.sideOffset;
+    jsonData["heightOffset"] = preset.heightOffset;
+    jsonData["aimOffset"] = preset.aimOffset;
+    jsonData["pitchLookScale"] = preset.pitchLookScale;
+    jsonData["pitchMin"] = preset.pitchMin;
+    jsonData["pitchMax"] = preset.pitchMax;
+    jsonData["yawOffset"] = preset.yawOffset;
+    jsonData["pitchOffset"] = preset.pitchOffset;
+    jsonData["rollOffset"] = preset.rollOffset;
+    jsonData["lookHeight"] = preset.lookHeight;
+    jsonData["pivotHeight"] = preset.pivotHeight;
+    jsonData["mouseSensor"] = preset.camera.mouseSensor;
+    jsonData["mouseSensitivity"] = preset.camera.mouseSensitivity;
+    jsonData["fovY"] = preset.camera.fovy;
+    jsonData["nearPlane"] = preset.camera.nearPlane;
+    jsonData["farPlane"] = preset.camera.farPlane;
+
+    const fs::path savePath = Build_DialoguePresetFilePath(presetId);
+    if (!fs::exists(savePath.parent_path()))
+        fs::create_directories(savePath.parent_path());
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        MSG_BOX("Failed to open dialogue preset save file.");
+        return;
+    }
+
+    file << jsonData.dump(4);
+}
+
+bool CameraPresetIO::LoadDialoguePresetFromFile(const string& presetId, DialogueCameraPreset& outPreset)
+{
+    ifstream file(Build_DialoguePresetFilePath(presetId));
+    if (!file.is_open())
+        return false;
+
+    json jsonData{};
+    file >> jsonData;
+
+    DialogueCameraPreset preset = outPreset;
+    preset.distance = jsonData.value("distance", preset.distance);
+    preset.sideOffset = jsonData.value("sideOffset", preset.sideOffset);
+    preset.heightOffset = jsonData.value("heightOffset", preset.heightOffset);
+    preset.aimOffset = jsonData.value("aimOffset", preset.aimOffset);
+    preset.pitchLookScale = jsonData.value("pitchLookScale", preset.pitchLookScale);
+    preset.pitchMin = jsonData.value("pitchMin", preset.pitchMin);
+    preset.pitchMax = jsonData.value("pitchMax", preset.pitchMax);
+    preset.yawOffset = jsonData.value("yawOffset", preset.yawOffset);
+    preset.pitchOffset = jsonData.value("pitchOffset", preset.pitchOffset);
+    preset.rollOffset = jsonData.value("rollOffset", preset.rollOffset);
+    preset.lookHeight = jsonData.value("lookHeight", preset.lookHeight);
+    preset.pivotHeight = jsonData.value("pivotHeight", preset.pivotHeight);
+    preset.camera.mouseSensor = jsonData.value("mouseSensor", preset.camera.mouseSensor);
+    preset.camera.mouseSensitivity = jsonData.value("mouseSensitivity", preset.camera.mouseSensitivity);
+    preset.camera.fovy = jsonData.value("fovY", preset.camera.fovy);
+    preset.camera.nearPlane = jsonData.value("nearPlane", preset.camera.nearPlane);
+    preset.camera.farPlane = jsonData.value("farPlane", preset.camera.farPlane);
+
+    outPreset = preset;
+    return true;
 }
 
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)

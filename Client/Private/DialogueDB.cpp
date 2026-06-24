@@ -56,7 +56,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
                     {
                         DialogueChoice choice{};
                         choice.text = choiceJson.value("text", "");
-                        choice.action = lineJson.value("action", "");
+                        choice.action = choiceJson.value("action", "");
                         choice.nextLineIndex = choiceJson.value("nextLineIndex", -1);
                         line.choices.push_back(move(choice));
                     }

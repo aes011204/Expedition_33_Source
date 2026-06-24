@@ -80,6 +80,35 @@ string Resolve_WorldMonsterPrefabName(const string& battlePrefabName)
     return battlePrefabName;
 }
 
+vector<string> Load_NpcPreviewPrefabNames()
+{
+    vector<string> prefabNames{};
+
+    const fs::path npcPrefabDir = Client::Spawn_Prefab::Resolve_PrefabPath("NPC_Golgra").parent_path();
+    std::error_code ec{};
+    if (!fs::exists(npcPrefabDir, ec))
+        return prefabNames;
+
+    for (const fs::directory_entry& entry : fs::directory_iterator(npcPrefabDir, ec))
+    {
+        if (ec)
+            break;
+
+        if (!entry.is_regular_file())
+            continue;
+
+        const fs::path prefabPath = entry.path();
+        if (!prefabPath.has_extension() || prefabPath.extension() != ".prefab")
+            continue;
+
+        prefabNames.push_back(prefabPath.stem().string());
+    }
+
+    std::sort(prefabNames.begin(), prefabNames.end());
+    prefabNames.erase(std::unique(prefabNames.begin(), prefabNames.end()), prefabNames.end());
+    return prefabNames;
+}
+
 enum class BattleAuthoringFileKind : uint8
 {
     Preset,
@@ -239,6 +268,71 @@ BattleCameraPreset Make_FallbackBattleCameraPreset()
     preset.lookHeight = 1.1f;
     preset.pivotHeight = 1.f;
     return preset;
+}
+
+DialogueCameraPreset Make_FallbackDialogueCameraPreset()
+{
+    DialogueCameraPreset preset{};
+    preset.camera.fovy = XMConvertToRadians(45.f);
+    preset.camera.nearPlane = 0.1f;
+    preset.camera.farPlane = 500.f;
+    preset.camera.mouseSensor = 0.29f;
+    preset.camera.mouseSensitivity = 0.23f;
+    preset.distance = 3.2f;
+    preset.sideOffset = 0.45f;
+    preset.heightOffset = 0.75f;
+    preset.aimOffset = 0.f;
+    preset.pitchLookScale = 0.f;
+    preset.pitchMin = -45.f;
+    preset.pitchMax = 45.f;
+    preset.yawOffset = 180.f;
+    preset.pitchOffset = 6.f;
+    preset.rollOffset = 0.f;
+    preset.lookHeight = 0.85f;
+    preset.pivotHeight = 0.75f;
+    return preset;
+}
+
+bool Evaluate_DialoguePreviewPose(
+    const Vec3& speakerPos,
+    const Vec3& listenerPos,
+    const DialogueCameraPreset& preset,
+    Client::BattleTurnCameraEvaluatedPose& outPose)
+{
+    Vec3 dialogueDir = listenerPos - speakerPos;
+    dialogueDir.y = 0.f;
+    if (dialogueDir.LengthSquared() <= 0.0001f)
+        return false;
+
+    dialogueDir.Normalize();
+
+    Vec3 rightDir = Vec3::Up.Cross(dialogueDir);
+    if (rightDir.LengthSquared() <= 0.0001f)
+        rightDir = Vec3::Right;
+    else
+        rightDir.Normalize();
+
+    Vec3 backDir = -dialogueDir;
+    const float yawRad = XMConvertToRadians(preset.yawOffset);
+    Vec3 yawAdjustedBack = backDir * cosf(yawRad) + rightDir * sinf(yawRad);
+    if (yawAdjustedBack.LengthSquared() <= 0.0001f)
+        yawAdjustedBack = backDir;
+    else
+        yawAdjustedBack.Normalize();
+
+    const Vec3 anchorPos = Vec3::Lerp(speakerPos, listenerPos, 0.5f);
+    const Vec3 pivotPos = anchorPos + Vec3::Up * preset.pivotHeight;
+    const Vec3 framingPos = pivotPos + rightDir * preset.aimOffset;
+
+    const Vec3 baseOffset = yawAdjustedBack * preset.distance;
+    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, XMConvertToRadians(preset.pitchOffset));
+    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+
+    outPose.cameraPos = framingPos + orbitOffset + Vec3::Up * preset.heightOffset + rightDir * preset.sideOffset;
+    outPose.lookTarget = framingPos + Vec3::Up * preset.lookHeight;
+    outPose.fovY = preset.camera.fovy;
+    outPose.rollOffset = preset.rollOffset;
+    return true;
 }
 
 void Apply_PreviewProceduralDrift(
@@ -507,6 +601,7 @@ BattleCameraPreview_View::BattleCameraPreview_View()
 {
     Reset_DefaultFormation();
     _enemyPrefabNames = { "MB_Bishop", "MB_Lancelier", "MB_Portier", "MB_Volester", "MB_Mime", "MB_Abbest", "MB_PotatoBag", "MB_Simon" };
+    _npcPrefabNames = Load_NpcPreviewPrefabNames();
     Set_Open(false);
 }
 
@@ -647,6 +742,15 @@ void BattleCameraPreview_View::Pre_Render()
         _previewEnemyObject->Update(dt);
     }
 
+    if (_previewNpcObject != nullptr)
+    {
+        if (!_previewObjectsBegunPlay)
+            _previewNpcObject->Try_BeginPlay();
+
+        _previewNpcObject->Priority_Update(dt);
+        _previewNpcObject->Update(dt);
+    }
+
     if (_previewSkyBox != nullptr)
     {
         if (!_previewObjectsBegunPlay)
@@ -679,6 +783,9 @@ void BattleCameraPreview_View::Pre_Render()
 
     if (_previewEnemyObject != nullptr)
         _previewEnemyObject->Late_Update(dt);
+
+    if (_previewNpcObject != nullptr)
+        _previewNpcObject->Late_Update(dt);
 
     if (_previewSkyBox != nullptr)
         _previewSkyBox->Late_Update(dt);
@@ -1110,12 +1217,16 @@ void BattleCameraPreview_View::Rebuild_PreviewObjects()
 
     const string heroPrefabName = Get_SelectedHeroPrefabName();
     const string enemyPrefabName = Get_SelectedEnemyPrefabName();
+    const string npcPrefabName = Get_SelectedNpcPrefabName();
 
     if (!heroPrefabName.empty())
         _previewHeroObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(heroPrefabName));
 
     if (!enemyPrefabName.empty())
         _previewEnemyObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(enemyPrefabName));
+
+    if (!npcPrefabName.empty())
+        _previewNpcObject = GAME->Instantiate_GameObjectJson(Client::Spawn_Prefab::Resolve_PrefabPath(npcPrefabName));
 
     _previewObjectsDirty = false;
     _previewObjectsBegunPlay = false;
@@ -1130,6 +1241,7 @@ void BattleCameraPreview_View::Clear_PreviewObjects()
 {
     _previewHeroObject.reset();
     _previewEnemyObject.reset();
+    _previewNpcObject.reset();
     _previewObjectsBegunPlay = false;
 }
 
@@ -1149,6 +1261,13 @@ void BattleCameraPreview_View::Position_PreviewObjects() const
     else if (_previewContext.opponentSide == PreviewSlotSide::Enemy)
         enemySlot = _previewContext.opponentSlot;
 
+    PreviewSlotSide npcSide = PreviewSlotSide::Npc;
+    int npcSlot = 1;
+    if (_previewContext.subjectSide == PreviewSlotSide::Npc)
+        npcSlot = _previewContext.subjectSlot;
+    else if (_previewContext.opponentSide == PreviewSlotSide::Npc)
+        npcSlot = _previewContext.opponentSlot;
+
     if (_previewHeroObject != nullptr)
     {
         if (Shared<TransformCom> transform = _previewHeroObject->Get_Transform())
@@ -1166,6 +1285,17 @@ void BattleCameraPreview_View::Position_PreviewObjects() const
         {
             transform->Set_WorldPosition(Get_PreviewSlotWorldPosition(enemySide, enemySlot));
             const PreviewSlot* slot = Get_PreviewSlot(enemySide, enemySlot);
+            if (slot != nullptr)
+                transform->Set_WorldRotationEuler(slot->rotation);
+        }
+    }
+
+    if (_previewNpcObject != nullptr)
+    {
+        if (Shared<TransformCom> transform = _previewNpcObject->Get_Transform())
+        {
+            transform->Set_WorldPosition(Get_PreviewSlotWorldPosition(npcSide, npcSlot));
+            const PreviewSlot* slot = Get_PreviewSlot(npcSide, npcSlot);
             if (slot != nullptr)
                 transform->Set_WorldRotationEuler(slot->rotation);
         }
@@ -1365,6 +1495,28 @@ void BattleCameraPreview_View::Render_PreviewActorSelector()
 
         ImGui::EndCombo();
     }
+
+    const char* currentNpcLabel = Get_SelectedNpcPrefabName().empty() ? "None" : Get_SelectedNpcPrefabName().c_str();
+    ImGui::SetNextItemWidth(kLeftPanelComboWidth);
+    if (ImGui::BeginCombo("NPC", currentNpcLabel))
+    {
+        for (int i = 0; i < static_cast<int>(_npcPrefabNames.size()); ++i)
+        {
+            const bool isSelected = _selectedNpcPrefabIndex == i;
+            if (ImGui::Selectable(_npcPrefabNames[i].c_str(), isSelected))
+            {
+                _selectedNpcPrefabIndex = i;
+                _previewObjectsDirty = true;
+                _animationListDirty = true;
+                _previewDirty = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
 }
 
 void BattleCameraPreview_View::Render_SlotSelector(const char* label, PreviewSlotSide& side, int& slotIndex)
@@ -1375,7 +1527,7 @@ void BattleCameraPreview_View::Render_SlotSelector(const char* label, PreviewSlo
     ImGui::SetNextItemWidth(kSlotSideComboWidth);
     if (ImGui::BeginCombo("Side", Get_SlotSideLabel(side)))
     {
-        const PreviewSlotSide sides[] = { PreviewSlotSide::Hero, PreviewSlotSide::Enemy };
+        const PreviewSlotSide sides[] = { PreviewSlotSide::Hero, PreviewSlotSide::Enemy, PreviewSlotSide::Npc };
         for (PreviewSlotSide value : sides)
         {
             const bool isSelected = side == value;
@@ -1557,6 +1709,7 @@ void BattleCameraPreview_View::Render_PreviewPanel()
     ImGui::Text("Clip Id : %s", Get_CurrentBattleClipAuthoringOverrideId().empty() ? "(default)" : Get_CurrentBattleClipAuthoringOverrideId().c_str());
     ImGui::Text("Hero Prefab : %s", Get_SelectedHeroPrefabName().empty() ? "(none)" : Get_SelectedHeroPrefabName().c_str());
     ImGui::Text("Enemy Prefab : %s", Get_SelectedEnemyPrefabName().empty() ? "(none)" : Get_SelectedEnemyPrefabName().c_str());
+    ImGui::Text("NPC Prefab : %s", Get_SelectedNpcPrefabName().empty() ? "(none)" : Get_SelectedNpcPrefabName().c_str());
 
     const PreviewSlot* subjectSlot = Get_PreviewSlot(_previewContext.subjectSide, _previewContext.subjectSlot);
     const PreviewSlot* opponentSlot = Get_PreviewSlot(_previewContext.opponentSide, _previewContext.opponentSlot);
@@ -1590,6 +1743,7 @@ void BattleCameraPreview_View::Render_PreviewPanel()
     }
 
     Render_BattlePresetEditor();
+    Render_DialoguePresetEditor();
 
     ImGui::EndChild();
 }
@@ -1965,6 +2119,94 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
 
         _battlePresetDirty = true;
         _battleDriftDirty = true;
+        _previewDirty = true;
+    }
+}
+
+void BattleCameraPreview_View::Render_DialoguePresetEditor()
+{
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextDisabled("Dialogue Preset Editor");
+    ImGui::TextDisabled("Uses current preview subject as speaker and opponent as listener.");
+
+    char presetIdBuffer[128] = {};
+    const size_t presetIdLength = std::min(_manualDialoguePresetId.size(), static_cast<size_t>(127));
+    memcpy(presetIdBuffer, _manualDialoguePresetId.data(), presetIdLength);
+    presetIdBuffer[presetIdLength] = '\0';
+    if (ImGui::InputText("Dialogue Preset Id", presetIdBuffer, IM_ARRAYSIZE(presetIdBuffer)))
+    {
+        _manualDialoguePresetId = presetIdBuffer;
+        _hasLoadedDialoguePreset = false;
+    }
+
+    if (ImGui::Checkbox("Preview Dialogue Preset", &_previewDialoguePresetEnabled))
+        _previewDirty = true;
+
+    if (!_hasLoadedDialoguePreset)
+        Load_DialoguePreset(_manualDialoguePresetId);
+
+    if (ImGui::Button("Load Dialogue Preset"))
+    {
+        Load_DialoguePreset(_manualDialoguePresetId);
+        _previewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Dialogue Preset"))
+    {
+        Client::CameraPresetIO::SaveDialoguePresetToFile(_manualDialoguePresetId, _editingDialoguePreset);
+        _dialoguePresetDirty = false;
+    }
+
+    bool changed = false;
+    auto dragFloat = [&changed](const char* label, float& value, float speed, float minValue, float maxValue, const char* format = "%.3f")
+    {
+        ImGui::SetNextItemWidth(kPresetInputWidth);
+        if (ImGui::DragFloat(label, &value, speed, minValue, maxValue, format))
+            changed = true;
+    };
+
+    float fovDeg = XMConvertToDegrees(_editingDialoguePreset.camera.fovy);
+    ImGui::SetNextItemWidth(kPresetInputWidth);
+    if (ImGui::DragFloat("Dialogue FOV Deg", &fovDeg, 0.1f, 10.f, 120.f, "%.2f"))
+    {
+        _editingDialoguePreset.camera.fovy = XMConvertToRadians(fovDeg);
+        changed = true;
+    }
+
+    dragFloat("Dialogue Distance", _editingDialoguePreset.distance, 0.01f, 0.1f, 50.f);
+    dragFloat("Dialogue Side Offset", _editingDialoguePreset.sideOffset, 0.01f, -20.f, 20.f);
+    dragFloat("Dialogue Height Offset", _editingDialoguePreset.heightOffset, 0.01f, -20.f, 20.f);
+    dragFloat("Dialogue Aim Offset", _editingDialoguePreset.aimOffset, 0.01f, -20.f, 20.f);
+    dragFloat("Dialogue Look Height", _editingDialoguePreset.lookHeight, 0.01f, -10.f, 20.f);
+    dragFloat("Dialogue Pivot Height", _editingDialoguePreset.pivotHeight, 0.01f, -10.f, 20.f);
+
+    ImGui::Separator();
+    dragFloat("Dialogue Yaw Offset", _editingDialoguePreset.yawOffset, 0.05f, -360.f, 360.f);
+    dragFloat("Dialogue Pitch Offset", _editingDialoguePreset.pitchOffset, 0.05f, -89.f, 89.f);
+    dragFloat("Dialogue Roll Offset", _editingDialoguePreset.rollOffset, 0.001f, -XM_PI, XM_PI);
+    dragFloat("Dialogue Pitch Min", _editingDialoguePreset.pitchMin, 0.05f, -89.f, 89.f);
+    dragFloat("Dialogue Pitch Max", _editingDialoguePreset.pitchMax, 0.05f, -89.f, 89.f);
+    dragFloat("Dialogue Pitch Look Scale", _editingDialoguePreset.pitchLookScale, 0.01f, -5.f, 5.f);
+
+    ImGui::Separator();
+    dragFloat("Dialogue Near Plane", _editingDialoguePreset.camera.nearPlane, 0.001f, 0.001f, 10.f);
+    dragFloat("Dialogue Far Plane", _editingDialoguePreset.camera.farPlane, 1.f, 10.f, 5000.f, "%.1f");
+    dragFloat("Dialogue Mouse Sensor", _editingDialoguePreset.camera.mouseSensor, 0.001f, 0.f, 5.f);
+    dragFloat("Dialogue Mouse Sensitivity", _editingDialoguePreset.camera.mouseSensitivity, 0.001f, 0.f, 5.f);
+
+    if (changed)
+    {
+        _editingDialoguePreset.distance = std::max(0.1f, _editingDialoguePreset.distance);
+        if (_editingDialoguePreset.pitchMin > _editingDialoguePreset.pitchMax)
+            std::swap(_editingDialoguePreset.pitchMin, _editingDialoguePreset.pitchMax);
+
+        _editingDialoguePreset.pitchOffset = std::clamp(
+            _editingDialoguePreset.pitchOffset,
+            _editingDialoguePreset.pitchMin,
+            _editingDialoguePreset.pitchMax);
+        _dialoguePresetDirty = true;
         _previewDirty = true;
     }
 }
@@ -2942,6 +3184,14 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
     if (_previewCamera == nullptr)
         return;
 
+    if (_previewDialoguePresetEnabled)
+    {
+        if (!_hasLoadedDialoguePreset)
+            Load_DialoguePreset(_manualDialoguePresetId);
+        Apply_DialogueCameraPreviewPose();
+        return;
+    }
+
     Ensure_BattlePresetLoaded();
     const BattleCameraMode previewMode = _previewContext.mode;
     const BattleCameraPreset& preset = _editingBattlePreset;
@@ -3296,6 +3546,15 @@ void BattleCameraPreview_View::Load_BattlePresetForCurrentMode(bool loadBase)
     Load_BattlePresetForMode(_previewContext.mode, loadBase);
 }
 
+void BattleCameraPreview_View::Load_DialoguePreset(const string& presetId)
+{
+    _editingDialoguePreset = Make_FallbackDialogueCameraPreset();
+    Client::CameraPresetIO::LoadDialoguePresetFromFile(presetId, _editingDialoguePreset);
+    _loadedDialoguePresetId = presetId;
+    _hasLoadedDialoguePreset = true;
+    _dialoguePresetDirty = false;
+}
+
 void BattleCameraPreview_View::Load_BattleDriftForMode(BattleCameraMode mode)
 {
     _editingBattleDrift = BattleCameraDriftProfile{};
@@ -3468,10 +3727,93 @@ void BattleCameraPreview_View::Update_BattlePresetAuthoringInput(float timeDelta
     if (_previewCamera == nullptr || !_isPreviewHovered)
         return;
 
+    ImGuiIO& io = ImGui::GetIO();
+
+    if (_previewDialoguePresetEnabled)
+    {
+        if (!_hasLoadedDialoguePreset)
+            Load_DialoguePreset(_manualDialoguePresetId);
+
+        bool changed = false;
+
+        if (io.MouseWheel != 0.f)
+        {
+            const float wheelStep = 0.4f;
+            _editingDialoguePreset.distance += (io.MouseWheel > 0.f) ? -wheelStep : wheelStep;
+            changed = true;
+        }
+
+        const float moveStep = 3.f * timeDelta;
+        if (ImGui::IsKeyDown(ImGuiKey_W))
+        {
+            _editingDialoguePreset.distance -= moveStep;
+            changed = true;
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_S))
+        {
+            _editingDialoguePreset.distance += moveStep;
+            changed = true;
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_A))
+        {
+            _editingDialoguePreset.aimOffset -= moveStep;
+            changed = true;
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_D))
+        {
+            _editingDialoguePreset.aimOffset += moveStep;
+            changed = true;
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_Q))
+        {
+            _editingDialoguePreset.pivotHeight -= moveStep;
+            changed = true;
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_E))
+        {
+            _editingDialoguePreset.pivotHeight += moveStep;
+            changed = true;
+        }
+
+        const bool isRightMouseDragging = ImGui::IsMouseDown(ImGuiMouseButton_Right);
+        const bool isCtrlDown = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
+        if (isRightMouseDragging)
+        {
+            if (isCtrlDown)
+            {
+                _editingDialoguePreset.lookHeight += io.MouseDelta.y * _editingDialoguePreset.camera.mouseSensor;
+                _editingDialoguePreset.rollOffset += io.MouseDelta.x * _editingDialoguePreset.camera.mouseSensor * _editingDialoguePreset.camera.mouseSensitivity;
+            }
+            else
+            {
+                _editingDialoguePreset.yawOffset += io.MouseDelta.x * _editingDialoguePreset.camera.mouseSensor;
+                _editingDialoguePreset.pitchOffset += io.MouseDelta.y * _editingDialoguePreset.camera.mouseSensor * _editingDialoguePreset.camera.mouseSensitivity;
+            }
+
+            changed = true;
+        }
+
+        if (!changed)
+            return;
+
+        _editingDialoguePreset.distance = std::max(0.1f, _editingDialoguePreset.distance);
+        _editingDialoguePreset.pitchOffset = std::clamp(
+            _editingDialoguePreset.pitchOffset,
+            _editingDialoguePreset.pitchMin,
+            _editingDialoguePreset.pitchMax);
+        _dialoguePresetDirty = true;
+        _previewDirty = true;
+        return;
+    }
+
     Ensure_BattlePresetLoaded();
 
     bool changed = false;
-    ImGuiIO& io = ImGui::GetIO();
 
     if (io.MouseWheel != 0.f)
     {
@@ -3521,9 +3863,6 @@ void BattleCameraPreview_View::Update_BattlePresetAuthoringInput(float timeDelta
     const bool isRightMouseDragging = ImGui::IsMouseDown(ImGuiMouseButton_Right);
     const bool isCtrlDown = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
 
-    // Preview authoring uses target-relative preset values, not free-camera world transforms.
-    // Keep the shortcut mapping here explicit so designers can retune the controls without
-    // hunting through the pose-calculation code.
     if (isRightMouseDragging)
     {
         if (isCtrlDown)
@@ -4360,7 +4699,7 @@ void BattleCameraPreview_View::Apply_PreviewSkillContext(const string& skillId)
 
 bool BattleCameraPreview_View::Has_UnsavedBattleAuthoringChanges() const
 {
-    return _battlePresetDirty || _battleDriftDirty || _battleClipDirty;
+    return _battlePresetDirty || _dialoguePresetDirty || _battleDriftDirty || _battleClipDirty;
 }
 
 void BattleCameraPreview_View::Request_SkillOverrideChange(bool useSkillOverride, int selectedSkillIndex)
@@ -4592,6 +4931,27 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
         nullptr,
         previewTimeSec,
         outPose);
+}
+
+void BattleCameraPreview_View::Apply_DialogueCameraPreviewPose() const
+{
+    if (_previewCamera == nullptr)
+        return;
+
+    const Vec3 speakerPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
+    const Vec3 listenerPos = Get_PreviewSlotWorldPosition(_previewContext.opponentSide, _previewContext.opponentSlot);
+
+    Client::BattleTurnCameraEvaluatedPose pose{};
+    if (!Evaluate_DialoguePreviewPose(speakerPos, listenerPos, _editingDialoguePreset, pose))
+        return;
+
+    _previewCamera->Set_FovY(pose.fovY);
+    if (Shared<TransformCom> transform = _previewCamera->Get_Transform())
+    {
+        transform->Set_WorldPosition(pose.cameraPos);
+        transform->LookAt(pose.lookTarget);
+        transform->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, pose.rollOffset));
+    }
 }
 
 void BattleCameraPreview_View::Apply_PreviewEvaluatedPose(const Client::BattleTurnCameraEvaluatedPose& pose)
@@ -4880,7 +5240,7 @@ void BattleCameraPreview_View::Update_PreviewAttackActorMotion(float previewTime
     subjectTransform->Set_WorldPosition(desiredPos);
 }
 
-Shared<GameObject> BattleCameraPreview_View::Resolve_PreviewBattleActor(PreviewSlotSide side)
+Shared<GameObject> BattleCameraPreview_View::Resolve_PreviewBattleActor(PreviewSlotSide side) const
 {
     switch (side)
     {
@@ -4889,6 +5249,9 @@ Shared<GameObject> BattleCameraPreview_View::Resolve_PreviewBattleActor(PreviewS
 
     case PreviewSlotSide::Enemy:
         return _previewEnemyObject;
+
+    case PreviewSlotSide::Npc:
+        return _previewNpcObject;
 
     default:
         return nullptr;
@@ -4906,8 +5269,7 @@ Shared<Client::BattleTurnCamera> BattleCameraPreview_View::Get_BattleTurnCamera(
 
 Shared<ModelCom> BattleCameraPreview_View::Resolve_PreviewSubjectModel() const
 {
-    Shared<GameObject> subjectObject =
-        (_previewContext.subjectSide == PreviewSlotSide::Hero) ? _previewHeroObject : _previewEnemyObject;
+    Shared<GameObject> subjectObject = Resolve_PreviewBattleActor(_previewContext.subjectSide);
 
     if (subjectObject == nullptr)
         return nullptr;
@@ -4958,6 +5320,8 @@ const char* BattleCameraPreview_View::Get_SlotSideLabel(PreviewSlotSide side) co
         return "Hero";
     case PreviewSlotSide::Enemy:
         return "Enemy";
+    case PreviewSlotSide::Npc:
+        return "NPC";
     default:
         return "Unknown";
     }
@@ -4972,6 +5336,7 @@ const BattleCameraPreview_View::PreviewSlot* BattleCameraPreview_View::Get_Previ
     case PreviewSlotSide::Hero:
         return &_previewFormation.heroes[slotIndex];
     case PreviewSlotSide::Enemy:
+    case PreviewSlotSide::Npc:
         return &_previewFormation.enemies[slotIndex];
     default:
         return nullptr;
@@ -5014,6 +5379,14 @@ string BattleCameraPreview_View::Get_SelectedEnemyPrefabName() const
         return "";
 
     return _enemyPrefabNames[_selectedEnemyPrefabIndex];
+}
+
+string BattleCameraPreview_View::Get_SelectedNpcPrefabName() const
+{
+    if (_selectedNpcPrefabIndex < 0 || _selectedNpcPrefabIndex >= static_cast<int>(_npcPrefabNames.size()))
+        return "";
+
+    return _npcPrefabNames[_selectedNpcPrefabIndex];
 }
 
 vector<Client::BattleMonsterSpawnDesc> BattleCameraPreview_View::Resolve_SelectedEnemySpawnDescs() const

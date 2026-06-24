@@ -16,6 +16,9 @@ public:
     void EndDialogue();
     void MoveToLine(int lineIndex);
     void Update();
+    bool IsActive() const { return _isActive; }
+    bool IsInteractLocked() const { return _waitInteractKeyRelease; }
+
 private:
     void SelectChoice();
     void ApplyChoice();
@@ -27,6 +30,8 @@ private:
     const DialogueData* _currentDialogueData;
     int                 _currentLineIndex = 0;
     int                 _selectIndex = 0;
+    bool                _isActive = false;
+    bool                _waitInteractKeyRelease = false;
 
 public:
     static Unique<DialogueManager> Create();

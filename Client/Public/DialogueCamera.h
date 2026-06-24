@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Camera.h"
 
@@ -15,7 +15,7 @@ public:
         float sideOffset = 0.35f;
         float heightOffset = 1.2f;
         float blendSpeed = 6.f;
-    } DIALOGUE_CAMERA_DESC;
+    } DIALOGUECAMERA_DESC;
 
 public:
     DialogueCamera(const ComPtr<Device>& device, const ComPtr<Context>& context);

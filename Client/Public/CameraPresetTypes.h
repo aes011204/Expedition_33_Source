@@ -61,6 +61,29 @@ struct CommonCameraPreset
     float        mouseSensitivity = 0.1f;
 };
 
+struct DialogueCameraPreset
+{
+    CommonCameraPreset camera;
+
+    float        distance;
+
+    float        sideOffset;
+    float        heightOffset;
+    float        aimOffset;
+
+    float        pitchLookScale;
+
+    float        pitchMin;
+    float        pitchMax;
+
+    float        yawOffset = 0.f;
+    float        pitchOffset = 0.f;
+    float        rollOffset = 0.f;
+
+    float        lookHeight;
+    float        pivotHeight;
+};
+
 struct TargetCameraPreset
 {
     CommonCameraPreset camera;

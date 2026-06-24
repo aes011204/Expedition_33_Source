@@ -124,8 +124,19 @@ void NPC_Base::From_Json(const json& data)
 void NPC_Base::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
 {
     Character_WorldBase::OnBeginOverlap(self, other);
+}
 
-    CLIENT->StartDialogue(Get_SourcePrefabName());
+void NPC_Base::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    Character_WorldBase::OnStayOverlap(self, other);
+
+    if (CLIENT->IsDialogueActive() || CLIENT->IsDialogueInteractLocked())
+        return;
+
+    if(GAME->KeyDown(KEY_TYPE::F))
+    {
+        CLIENT->StartDialogue(Get_SourcePrefabName());
+    }
 }
 
 void NPC_Base::On_EditorStopRuntime()
@@ -159,7 +170,7 @@ HRESULT NPC_Base::Ready_Components()
 {
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.6f, 0.f);
-    obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
+    obbDesc.extents = Vec3(0.7f, 1.f, 0.7f);
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Monster_WorldBody), E_FAIL);
 

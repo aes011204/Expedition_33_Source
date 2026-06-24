@@ -14,6 +14,8 @@ public:
 public:
     static void SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset);
     static bool LoadTargetPresetFromFile(TargetCameraMode cameraMode, TargetCameraPreset& outPreset);
+    static void SaveDialoguePresetToFile(const string& presetId, const DialogueCameraPreset& preset);
+    static bool LoadDialoguePresetFromFile(const string& presetId, DialogueCameraPreset& outPreset);
 
     static void SaveBattlePresetToFile(BattleCameraMode cameraMode, const BattleCameraPreset& preset, const string& skillId = "");
     static bool LoadBattlePresetFromFile(BattleCameraMode cameraMode, BattleCameraPreset& outPreset, const string& skillId = "");

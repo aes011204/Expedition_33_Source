@@ -37,7 +37,8 @@ private:
     enum class PreviewSlotSide : uint8
     {
         Hero,
-        Enemy
+        Enemy,
+        Npc
     };
 
     struct PreviewSlot
@@ -128,6 +129,7 @@ private:
     void Render_PreviewPanel();
     void Render_TransitionPreviewPanel();
     void Render_BattlePresetEditor();
+    void Render_DialoguePresetEditor();
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
     void Render_SelectedBattleClipKeyframe();
@@ -159,6 +161,7 @@ private:
     void Ensure_BattlePresetLoaded();
     void Load_BattlePresetForMode(BattleCameraMode mode, bool loadBase = false);
     void Load_BattlePresetForCurrentMode(bool loadBase = false);
+    void Load_DialoguePreset(const string& presetId);
     void Load_BattleDriftForMode(BattleCameraMode mode);
     void Load_BattleDriftForCurrentMode();
     void Load_BattleClipForMode(BattleCameraMode mode, bool loadBase = false, bool resetTimeline = false);
@@ -168,6 +171,7 @@ private:
     bool Apply_AuthoringFileSelection(const fs::path& filePath);
     void Apply_AuthoringFileContext(BattleCameraMode mode, bool isPresetFile, const string& authoringId);
     void Update_BattlePresetAuthoringInput(float timeDelta);
+    void Apply_DialogueCameraPreviewPose() const;
     void Refresh_SelectedBattleClipKey();
     void Reset_PreviewPoseState();
     void Apply_DefaultPreviewSlotsForMode(BattleCameraMode mode, bool resetPoseState = true);
@@ -215,7 +219,7 @@ private:
     void Fit_SelectedPreviewShotBlockToActivePhase();
     void Select_PreviewShotBlock(int blockIndex, bool syncPreviewTime = false);
     float Snap_PreviewShotTime(float timeSec, float timelineDurationSec) const;
-    Shared<GameObject> Resolve_PreviewBattleActor(PreviewSlotSide side);
+    Shared<GameObject> Resolve_PreviewBattleActor(PreviewSlotSide side) const;
 
     Shared<Client::BattleTurnCamera> Get_BattleTurnCamera() const;
     Shared<ModelCom> Resolve_PreviewSubjectModel() const;
@@ -226,6 +230,7 @@ private:
     Vec3 Get_PreviewSlotWorldPosition(PreviewSlotSide side, int slotIndex) const;
     string Get_SelectedHeroPrefabName() const;
     string Get_SelectedEnemyPrefabName() const;
+    string Get_SelectedNpcPrefabName() const;
     vector<Client::BattleMonsterSpawnDesc> Resolve_SelectedEnemySpawnDescs() const;
     BattleCameraMode Get_CurrentBattleAuthoringMode() const;
     string Get_CurrentPreviewPresetId() const;
@@ -247,9 +252,11 @@ private:
     vector<string>   _skillIds{};
     string _skillSearchText{};
     vector<string>   _enemyPrefabNames{};
+    vector<string>   _npcPrefabNames{};
     Client::HeroId   _selectedHeroId = Client::HeroId::Gustave;
 
     int _selectedEnemyPrefabIndex = 0;
+    int _selectedNpcPrefabIndex = 0;
     int _selectedSkillIndex = -1;
     bool _useSkillOverride = false;
     bool _autoPreview = false;
@@ -296,6 +303,7 @@ private:
     ComPtr<ID3D11BlendState> _previewGridBlendState{};
     Shared<GameObject> _previewHeroObject{};
     Shared<GameObject> _previewEnemyObject{};
+    Shared<GameObject> _previewNpcObject{};
     vector<string> _previewAnimationNames{};
     string _previewAnimationSearchText{};
     int _selectedPreviewAnimationIndex = -1;
@@ -306,6 +314,8 @@ private:
     bool _useManualBattleAuthoringTarget = false;
     string _manualBattleAuthoringPresetId{};
     string _manualBattleAuthoringClipId{};
+    string _manualDialoguePresetId{};
+    bool _previewDialoguePresetEnabled = false;
     bool _useSkillShotTimeline = true;
     bool _previewAttackMovementEnabled = false;
     PreviewShotDragMode _previewShotDragMode = PreviewShotDragMode::None;
@@ -314,12 +324,16 @@ private:
     float _previewShotDragOriginalStartSec = 0.f;
     float _previewShotDragOriginalEndSec = 0.f;
     BattleCameraPreset _editingBattlePreset{};
+    DialogueCameraPreset _editingDialoguePreset{};
     BattleCameraDriftProfile _editingBattleDrift{};
     bool _battlePresetDirty = false;
+    bool _dialoguePresetDirty = false;
     bool _battleDriftDirty = false;
     BattleCameraMode _loadedBattlePresetMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattlePresetSkillId{};
     bool _hasLoadedBattlePreset = false;
+    string _loadedDialoguePresetId{};
+    bool _hasLoadedDialoguePreset = false;
     BattleCameraMode _loadedBattleDriftMode = BattleCameraMode::PLAYERATTACK;
     bool _loadedBattleDriftBossVariant = false;
     bool _hasLoadedBattleDrift = false;

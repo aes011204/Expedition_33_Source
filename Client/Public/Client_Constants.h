@@ -197,7 +197,9 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_SL_HUD_Path[] = L"UI/UI_Json/Soulslike/UI_SL_HUD.json";
 #pragma endregion
 
-
+#pragma region Dialogue
+   // inline constexpr wchar_t UI_Dialogue[] = L""
+#pragma endregion
 
 }
 

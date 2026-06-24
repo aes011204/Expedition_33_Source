@@ -324,6 +324,7 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\Flash_ScreenFx.h" />
     <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
+    <ClInclude Include="..\public\UI_Dialogue.h" />
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
@@ -772,6 +773,7 @@
     <ClCompile Include="..\Private\DialogueCamera.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
+    <ClCompile Include="..\private\UI_Dialogue.cpp" />
     <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />

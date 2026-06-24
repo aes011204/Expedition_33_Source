@@ -575,12 +575,6 @@
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp">
       <Filter>02. GameObject\UI\ScreenFx</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Flash_ScreenFx.cpp">
-      <Filter>02.GameObject\UI\ScreenFx</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp">
-      <Filter>02.GameObject\UI\ScreenFx</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\EffectCom.cpp">
       <Filter>06. Effect System\Component Bridge</Filter>
     </ClCompile>
@@ -1350,6 +1344,9 @@
       <Filter>07. Dialogue</Filter>
     </ClCompile>
     <ClCompile Include="..\private\DialogueManager.cpp" />
+    <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
+    <ClCompile Include="..\private\UI_Dialogue.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1431,6 +1428,10 @@
     <ClInclude Include="..\Public\DialogueTypes.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Flash_ScreenFx.h" />
+    <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
+    <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
+    <ClInclude Include="..\public\UI_Dialogue.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1859,15 +1860,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Distortion_ScreenFx.h">
       <Filter>02. GameObject\UI\ScreenFx</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Flash_ScreenFx.h">
-      <Filter>02.GameObject\UI\ScreenFx</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ScreenFxCueTypes.h">
-      <Filter>02.GameObject\UI\ScreenFx</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h">
-      <Filter>02.GameObject\UI\ScreenFx</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectCom.h">
       <Filter>06. Effect System\Component Bridge</Filter>

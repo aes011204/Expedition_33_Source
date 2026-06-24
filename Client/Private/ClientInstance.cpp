@@ -33,6 +33,7 @@
 #include "Unlock_Manager.h"
 #include "DialogueDB.h"
 #include "DialogueManager.h"
+#include "DialogueCamera.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -219,6 +220,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if(_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta, true);
+
+    if(_dialogueManager)
+        _dialogueManager->Update();
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
@@ -631,6 +635,11 @@ Shared<CinematicCamera> ClientInstance::Request_Cinematic()
     return _cameraDirector->Request_Cinematic();
 }
 
+Shared<DialogueCamera> ClientInstance::Request_DialogueCamera()
+{
+    return _cameraDirector->Request_DialogueCamera();
+}
+
 void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
 {
     return _cameraDirector->Request_ChangeTargetCameraMode(cameraMode);
@@ -835,11 +844,45 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
     }
 
     Shared<CinematicCamera> cinematicCamera = dynamic_pointer_cast<CinematicCamera>(gameObject);
+
     if(cinematicCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(cinematicCamera);
     return cinematicCamera;
+}
+
+Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
+{
+    if(auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+    {
+        return camera;  
+    }
+
+    Shared<GameObject> gameObject;
+
+    DialogueCamera::DIALOGUECAMERA_DESC desc{};
+    desc.speedPerSec = 10.f;
+    desc.degreePerSec = 180.f;
+    desc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(60.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 500.f;
+    desc.mouseSensor = 0.05f;
+
+    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    {
+        return nullptr;
+    }
+
+    Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(gameObject);
+
+    if(dialogueCamera == nullptr)
+        return nullptr;
+
+    GAME->Add_Camera(dialogueCamera);
+    return dialogueCamera;
 }
 
 Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
@@ -1098,6 +1141,16 @@ const DialogueData* ClientInstance::FindDialogueData(const string& dialogueKey) 
 void ClientInstance::StartDialogue(const string& dialogueKey)
 {
     _dialogueManager->StartDialogue(dialogueKey);
+}
+
+bool ClientInstance::IsDialogueActive() const
+{
+    return _dialogueManager && _dialogueManager->IsActive();
+}
+
+bool ClientInstance::IsDialogueInteractLocked() const
+{
+    return _dialogueManager && _dialogueManager->IsInteractLocked();
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

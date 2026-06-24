@@ -24,6 +24,7 @@ public:
 
 public:
     void            OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void            OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void            On_EditorStopRuntime();
 
     bool Is_CinematicDriven() const { return _isCinematicDriven; }

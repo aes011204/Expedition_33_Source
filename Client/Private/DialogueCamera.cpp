@@ -1,4 +1,4 @@
-#include "DialogueCamera.h"
+﻿#include "DialogueCamera.h"
 
 #include "GameInstance.h"
 
@@ -39,7 +39,7 @@ HRESULT DialogueCamera::Initialize(void* arg)
     if (arg == nullptr)
         return E_FAIL;
 
-    const auto* desc = static_cast<DIALOGUE_CAMERA_DESC*>(arg);
+    const auto* desc = static_cast<DIALOGUECAMERA_DESC*>(arg);
 
     if (FAILED(__super::Initialize(arg)))
         return E_FAIL;
