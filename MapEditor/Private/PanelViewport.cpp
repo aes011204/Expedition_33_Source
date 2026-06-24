@@ -128,7 +128,8 @@ void PanelViewport::Render()
 
             const bool sculptActive = _sculptState && _sculptState->mode != ESculptMode::None;
             const bool gizmoRendered = _camera && _ctx && _ctx->_selected && !_ctx->_boxScatterMode;
-            const bool gizmoBlocksPick = gizmoRendered && (ImGuizmo::IsOver() || ImGuizmo::IsUsing());
+            const bool gizmoBlocksPick = (_ctx && _ctx->_boxScatterMode) ||
+                (gizmoRendered && (ImGuizmo::IsOver() || ImGuizmo::IsUsing()));
 
             if (_ctx && ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !gizmoBlocksPick && sculptActive)
             {

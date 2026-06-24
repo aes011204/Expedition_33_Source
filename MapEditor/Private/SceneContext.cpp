@@ -2325,7 +2325,10 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     string modelPathStr = e.value("ModelPath", "");
                     if (!modelPathStr.empty())
                     {
-                        obj->_instancedModelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
+                        fs::path resolved = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
+                        error_code ec;
+                        fs::path canonical = fs::weakly_canonical(resolved, ec);
+                        obj->_instancedModelPath = (!ec && !canonical.empty()) ? canonical.wstring() : resolved.wstring();
                     }
                     obj->_instancedHasCollision = e.value("HasCollision", false);
                     obj->_visible = e.value("Visible", true);

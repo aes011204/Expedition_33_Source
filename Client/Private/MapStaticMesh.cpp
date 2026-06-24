@@ -290,7 +290,7 @@ void MapStaticMesh::Late_Update(float timeDelta)
     if (_hasEclipseGlow)
         GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
 
-    if (Casts_DynamicShadow())
+    if (_castShadow && Casts_DynamicShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 

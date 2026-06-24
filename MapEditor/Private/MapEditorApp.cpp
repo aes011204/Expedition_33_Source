@@ -446,6 +446,7 @@ void MapEditorApp::Update_StaticMeshHandles()
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
         _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename, obj->_position, String::ToString(obj->_modelPath));
 
+        actor->Set_Visible(obj->_visible);
         obj->_renderHandle = actor;
         _scene._octreeDirty = true;
     }
@@ -534,6 +535,7 @@ void MapEditorApp::Update_InstancedMeshHandles()
                 actor->Refresh_HasGlow();
             }
 
+            actor->Set_Visible(obj->_visible);
             obj->_instancedChunkHandles.push_back(actor);
             obj->_instancedChunkAABBs.push_back(aabb);
             obj->_instancedChunkGlobalIndices.push_back(move(globalIndices));
@@ -622,7 +624,9 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
     {
         if (_viewport->IsSpawnAsInstanced())
         {
-            const wstring instancedModelPath = String::ToWString(modelPath);
+            error_code ec;
+            fs::path canonicalPath = fs::weakly_canonical(fs::path(modelPath), ec);
+            const wstring instancedModelPath = (!ec && !canonicalPath.empty()) ? canonicalPath.wstring() : String::ToWString(modelPath);
             if (Shared<EditorObject> existing = _scene.FindInstancedObjectByModelPath(instancedModelPath))
             {
                 InstanceTransform transform{};
