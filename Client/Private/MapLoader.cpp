@@ -857,6 +857,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         desc.name = String::ToWString(e.value("Id", string{}));
         desc.sourceStaticMeshIndex = sourceStaticMeshIndex;
         desc.sourceMapPath = session.sourceMapPath;
+        desc.visible = e.value("Visible", true);
+        desc.cullEnabled = e.value("CullEnabled", true);
+        desc.castShadow = e.value("CastShadow", true);
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
@@ -953,18 +956,39 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         if (IsBudgetExceeded())
             return S_OK;
 
-        if (session.nextInstancedMeshIndex >= session.instancedMeshes.size())
+        if (!session.instancedMeshGroupsBuilt)
+        {
+            for (size_t i = 0; i < session.instancedMeshes.size(); ++i)
+            {
+                const string mp = session.instancedMeshes[i].value("ModelPath", string{});
+                if (mp.empty())
+                {
+                    continue;
+                }
+
+                if (session.instancedMeshGroups.find(mp) == session.instancedMeshGroups.end())
+                {
+                    session.instancedMeshModelOrder.push_back(mp);
+                }
+                session.instancedMeshGroups[mp].push_back(i);
+            }
+            session.instancedMeshGroupsBuilt = true;
+        }
+
+        if (session.nextInstancedMeshGroupIndex >= session.instancedMeshModelOrder.size())
         {
             session.instancedMeshesDone = true;
             break;
         }
 
-        const json& e = session.instancedMeshes[session.nextInstancedMeshIndex++];
-        const string modelPathStr = e.value("ModelPath", string{});
-        if (modelPathStr.empty())
-            continue;
+        const string& modelPathStr = session.instancedMeshModelOrder[session.nextInstancedMeshGroupIndex++];
+        const vector<size_t>& groupIndices = session.instancedMeshGroups.at(modelPathStr);
+        const json& firstEntry = session.instancedMeshes[groupIndices[0]];
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
+        desc.visible = firstEntry.value("Visible", true);
+        desc.cullEnabled = firstEntry.value("CullEnabled", true);
+        desc.castShadow = firstEntry.value("CastShadow", true);
 
         desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
@@ -1005,64 +1029,29 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.model,
             modelPathStr);
 
-        if (e.contains("Instances"))
+        const auto instancedTransformBegin = chrono::steady_clock::now();
+        for (size_t idx : groupIndices)
         {
-            const auto instancedTransformBegin = chrono::steady_clock::now();
+            const json& e = session.instancedMeshes[idx];
+            if (!e.contains("Instances"))
+            {
+                continue;
+            }
+
             for (const auto& inst : e["Instances"])
             {
                 InstanceTransform t{};
-
                 const auto& p = inst["Position"];
-                t._position = Vec3(
-                    p[0].get<float>(),
-                    p[1].get<float>(),
-                    p[2].get<float>());
-
+                t._position = Vec3(p[0].get<float>(), p[1].get<float>(), p[2].get<float>());
                 const auto& r = inst["Rotation"];
-                t._rotation = Vec4(
-                    r[0].get<float>(),
-                    r[1].get<float>(),
-                    r[2].get<float>(),
-                    r[3].get<float>());
-
+                t._rotation = Vec4(r[0].get<float>(), r[1].get<float>(), r[2].get<float>(), r[3].get<float>());
                 const auto& s = inst["Scale"];
-                t._scale = Vec3(
-                    s[0].get<float>(),
-                    s[1].get<float>(),
-                    s[2].get<float>());
-
+                t._scale = Vec3(s[0].get<float>(), s[1].get<float>(), s[2].get<float>());
                 desc.transforms.push_back(t);
             }
-            session.instancedTransformDuration +=
-                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
         }
-
-        //    Shared<GameObject> spawnedObject = nullptr;
-
-        //    const auto instancedAddBegin = chrono::steady_clock::now();
-        //    const HRESULT addResult = GAME->Add_GameObject(
-        //        ETOI(LevelType::Static),
-        //        TEXT("GameObject_MapInstancedMesh"),
-        //        session.levelIndex,
-        //        session.layerTag,
-        //        spawnedObject,
-        //        &desc);
-        //    const auto instancedAddMs =
-        //        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
-        //    session.instancedAddDuration += instancedAddMs;
-        //    ++session.instancedAddCount;
-
-        //    if (FAILED(addResult))
-        //    {
-        //        continue;
-        //    }
-        //    if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
-        //    {
-        //        session.spawnedObjects->push_back(spawnedObject);
-        //    }
-
-        //    ++processedCount;
-        //}
+        session.instancedTransformDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
 
         static constexpr float CHUNK_SIZE = 100.f;
 
@@ -1082,6 +1071,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chunkDesc.model = desc.model;
             chunkDesc.collisionData = desc.collisionData;
             chunkDesc.transforms = chunkTransforms;
+            chunkDesc.visible = desc.visible;
+            chunkDesc.cullEnabled = desc.cullEnabled;
+            chunkDesc.castShadow = desc.castShadow;
 
             Shared<GameObject> spawnedObject = nullptr;
             const HRESULT addResult = GAME->Add_GameObject(
@@ -1100,9 +1092,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
             ++session.instancedAddCount;
         }
-        const auto instancedAddMs =
+        session.instancedAddDuration +=
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
-        session.instancedAddDuration += instancedAddMs;
 
         ++processedCount;
     }
@@ -1218,6 +1209,7 @@ void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
     // 개별 하이어라키/피킹/충돌 확인이 우선이라 런타임 static auto-instancing은 잠시 끈다.
     session.nextStaticMeshIndex = 0;
     session.nextInstancedMeshIndex = 0;
+    session.nextInstancedMeshGroupIndex = 0;
 }
 
 void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)

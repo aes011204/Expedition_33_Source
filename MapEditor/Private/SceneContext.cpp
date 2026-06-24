@@ -703,6 +703,9 @@ void SceneContext::SaveToFile(const string& filePath)
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
 
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             staticMeshes.push_back(e);
 
             break;
@@ -787,6 +790,9 @@ void SceneContext::SaveToFile(const string& filePath)
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
 
             e["HasCollision"] = obj->_instancedHasCollision;
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
 
@@ -984,6 +990,9 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
                 + _modelFolder + L"/"
                 + String::ToWString(modelPathStr);
 
+            obj->_visible = e.value("Visible", true);
+            obj->_cullEnabled = e.value("CullEnabled", true);
+            obj->_castShadow = e.value("CastShadow", true);
             LoadTransform(e, *obj);
             Add(obj);
         }
@@ -1152,6 +1161,9 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             obj->_type = EObjectType::InstancedMesh;
             obj->_name = String::ToWString(e["Id"].get<string>());
             obj->_instancedHasCollision = e.value("HasCollision", false);
+            obj->_visible = e.value("Visible", true);
+            obj->_cullEnabled = e.value("CullEnabled", true);
+            obj->_castShadow = e.value("CastShadow", true);
 
             string modelPathStr = e.value("ModelPath", string{});
             if (!modelPathStr.empty())
@@ -1241,7 +1253,9 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
             t._rotation = Quat::Identity;
             obj->_instancedTransforms.push_back(t);
             obj->_instancedParamsDirty = true;
+            obj->_selectedInstanceIdx = static_cast<int32>(obj->_instancedTransforms.size()) - 1;
             _dirtyRenderHandles = true;
+            _selected = obj;
             return obj;
         }
     }
@@ -1261,6 +1275,7 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
     t._scale = Vec3(1.f, 1.f, 1.f);
     t._rotation = Quat::Identity;
     obj->_instancedTransforms.push_back(t);
+    obj->_selectedInstanceIdx = 0;
 
     obj->UpdateWorldMatrix();
     obj->_instancedParamsDirty = true;
@@ -1268,6 +1283,19 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
     _dirtyRenderHandles = true;
     Add(obj);
     return obj;
+}
+
+Shared<EditorObject> SceneContext::FindInstancedObjectByModelPath(const wstring& modelPath)
+{
+    for (auto& obj : _instancedMeshes)
+    {
+        if (obj && obj->_instancedModelPath == modelPath)
+        {
+            return obj;
+        }
+    }
+
+    return nullptr;
 }
 
 Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, const Vec3& pos)
@@ -2058,6 +2086,9 @@ void SceneContext::Export_MapInstance(const string& mapName)
         {
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             Export_ObjectJson(staticDir, st_idx++, e);
             if (obj->_renderHandle && obj->_renderHandle->GetModel())
                 staticCollisionModels[obj->_modelPath] = obj->_renderHandle->GetModel();
@@ -2067,6 +2098,9 @@ void SceneContext::Export_MapInstance(const string& mapName)
         {
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
             e["HasCollision"] = obj->_instancedHasCollision;
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             json instArr = json::array();
             for (auto& transform : obj->_instancedTransforms)
             {
@@ -2259,7 +2293,10 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     {
                         obj->_modelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
                     }
-                    
+
+                    obj->_visible = e.value("Visible", true);
+                    obj->_cullEnabled = e.value("CullEnabled", true);
+                    obj->_castShadow = e.value("CastShadow", true);
                     obj->UpdateWorldMatrix();
                     Add(obj);
                 }
@@ -2291,7 +2328,10 @@ void SceneContext::Import_MapInstance(const string& mapName)
                         obj->_instancedModelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
                     }
                     obj->_instancedHasCollision = e.value("HasCollision", false);
-                    
+                    obj->_visible = e.value("Visible", true);
+                    obj->_cullEnabled = e.value("CullEnabled", true);
+                    obj->_castShadow = e.value("CastShadow", true);
+
                     if (e.contains("Instances"))
                     {
                         for (const auto& instJson : e["Instances"])
