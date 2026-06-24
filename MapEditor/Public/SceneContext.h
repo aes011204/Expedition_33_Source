@@ -70,6 +70,7 @@ struct SceneContext
     int32 _activeLandscapeIdx = -1;
 
     bool _objectBBoxMode = false;
+    bool _showVolumeBounds = true;
     bool _boxScatterMode = false;
     bool _hideInstancedMesh = false;
 

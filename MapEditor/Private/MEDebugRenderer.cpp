@@ -17,6 +17,9 @@ void MapEditor::MEDebugRenderer::Draw(const SceneContext& scene)
         case EObjectType::PostProcessVolume:
         case EObjectType::ShaftVolume:
         {
+            if (!scene._showVolumeBounds)
+                break;
+
             if (obj->_zoneShape == EZoneShape::Box)
             {
                 DebugBoxDesc desc;
