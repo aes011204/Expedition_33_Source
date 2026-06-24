@@ -2,6 +2,7 @@
 
 #include "CombatStatCom.h"
 #include "GameInstance.h"
+#include "SL_Base.h"
 
 float SL_DamageSystem::Calculate_PhysicalDamage(const Shared<CombatStatCom>& attackerStat, float multiplier)
 {
@@ -25,6 +26,12 @@ bool SL_DamageSystem::Apply_Damage(const Shared<GameObject>& attacker, const Sha
 
     if (target == nullptr || targetStat == nullptr)
         return false;
+
+    if (const Shared<SL_Base> targetActor = dynamic_pointer_cast<SL_Base>(target))
+    {
+        if (targetActor->Is_DamageBlocked())
+            return false;
+    }
 
     if (targetStat->Get_AliveStatus() == EAliveStatus::Dead)
         return false;
@@ -65,6 +72,12 @@ bool SL_DamageSystem::Apply_FixedDamage(const Shared<GameObject>& attacker, cons
 
     if (target == nullptr || targetStat == nullptr)
         return false;
+
+    if (const Shared<SL_Base> targetActor = dynamic_pointer_cast<SL_Base>(target))
+    {
+        if (targetActor->Is_DamageBlocked())
+            return false;
+    }
 
     if (targetStat->Get_AliveStatus() == EAliveStatus::Dead)
         return false;

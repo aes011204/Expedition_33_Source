@@ -503,6 +503,7 @@ void SL_Dualliste::Finish_PhaseChange()
 void SL_Dualliste::End_PhaseChangeTransition()
 {
     _isPhaseChangeInvincible = false;
+    _skipPhaseChangeStunStart = false;
 }
 
 void SL_Dualliste::Set_ActionLocked(bool isActionLock)
@@ -535,12 +536,14 @@ bool SL_Dualliste::Try_EnterPhaseChange()
         return false;
 
     _phaseChangeTriggered = true;
+    _skipPhaseChangeStunStart = currentState == SL_MonState::Stun;
     Begin_PhaseChangeTransition();
     Set_ActionLocked(false);
     if (_stateMachineCom->Change_State(SL_MonState::PhaseChange))
         return true;
 
     End_PhaseChangeTransition();
+    _skipPhaseChangeStunStart = false;
     _phaseChangeTriggered = false;
     return false;
 }

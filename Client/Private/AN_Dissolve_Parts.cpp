@@ -31,7 +31,6 @@ void AN_Dissolve_Parts::Execute(const AnimNotifyContext& context)
     else
         Part = (dynamic_pointer_cast<ContainerObject>(context.owner->Get_Owner()))->Get_PartObject(_partName);
 
-    if(Part == nullptr)
     {
         assert("Errer_NOKey");
     }
