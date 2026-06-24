@@ -18,14 +18,27 @@ IMPLEMENT_REFLECTION(ANS_Parry)
 
 void ANS_Parry::On_Begin(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
+        return;
+
+    if (context.owner == nullptr || context.model == nullptr)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-    if (battle == nullptr)
+    if (battle == nullptr || battle->Is_BattleStarted() == false)
         return;
 
     const BattleAction& turnAction = battle->Get_TurnAction();
+    const BattleChar& actionActor = turnAction.Get_CurChar();
+
+    if (actionActor.actor == nullptr || actionActor.ModelCom.get() != context.model)
+        return;
+
+    if (dynamic_pointer_cast<GameObject>(actionActor.actor) != context.owner->Get_Owner())
+        return;
+
+    if (turnAction.GetCurStepIndex() >= turnAction.GetSteps().size())
+        return;
 
     battle->Get_ReactionController().OpenWindow(
         BattleReactionType::Parry,
@@ -47,6 +60,9 @@ void ANS_Parry::On_Tick(const AnimNotifyContext& context)
 
 void ANS_Parry::On_End(const AnimNotifyContext& context)
 {
+    if (context.isCinematic || context.owner == nullptr || context.model == nullptr)
+        return;
+
     auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr)
         return;

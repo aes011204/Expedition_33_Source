@@ -95,7 +95,7 @@ bool CinematicSequenceRunner::Play_Sequence(
 
     _player->Ready_CinematicPlayer(&_sequence, &_sequence.cinematicTracks[trackIndex], cinematicCamera, true, applyCameraTrack);
     if (_applyEventTrack)
-        Execute_EventsUpToFrame(_sequence.startFrame);
+        Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
         Apply_ActorTransformTracks(_sequence.startFrame);
     if (applyCameraTrack)
@@ -152,7 +152,7 @@ bool CinematicSequenceRunner::Play_Sequence(
 
    _player->Ready_CinematicPlayer(&_sequence, &_sequence.cinematicTracks[trackIndex], cinematicCamera, true, applyCameraTrack);
     if (_applyEventTrack)
-        Execute_EventsUpToFrame(_sequence.startFrame);
+        Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
         Apply_ActorTransformTracks(_sequence.startFrame);
     if (applyCameraTrack)
@@ -233,7 +233,7 @@ void CinematicSequenceRunner::Set_CurrentFrame(int frame)
 
     _player->Set_CurrentFrame(targetFrame, _applyCameraTrack);
     if (_applyEventTrack)
-        Execute_EventsUpToFrame(targetFrame);
+        Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
         Apply_ActorTransformTracks(targetFrame);
     if (_applyEventTrack)
@@ -254,7 +254,7 @@ void CinematicSequenceRunner::Refresh_CurrentFrameContext()
 
     _player->Set_CurrentFrame(currentFrame, _applyCameraTrack);
     if (_applyEventTrack)
-        Execute_EventsUpToFrame(currentFrame);
+        Execute_EventsUpToFrame(currentFrame, static_cast<float>(currentFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
         Apply_ActorTransformTracks(currentFrame);
     if (_applyEventTrack)
@@ -294,7 +294,7 @@ void CinematicSequenceRunner::Preview_CurrentFrame(
     _player->Set_CurrentFrame(targetFrame, applyCameraTrack);
 
     if (applyEventTrack)
-        Execute_EventsUpToFrame(targetFrame);
+        Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
 
     if (applyEventTrack && applyActorTransformTrack && !_suspendActorTransformTrackPreview)
         Apply_ActorTransformTracks(targetFrame);
@@ -339,12 +339,17 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
         return;
 
     _player->Update(timeDelta);
-    if (_applyEventTrack)
-        Execute_EventsUpToFrame(_player->Get_CurrentFrame());
-    if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(_player->Get_CurrentFrame());
 
-    if (tickBoundAnimationsManually && !_player->Is_CinematicPaused())
+    const int currentFrame = _player->Get_CurrentFrame();
+    const float currentFrameExact = _player->Get_CurrentFrameExact();
+    const bool isPlayingAfterUpdate = _player->Is_CinematicPlaying();
+
+    if (_applyEventTrack)
+        Execute_EventsUpToFrame(currentFrame, currentFrameExact);
+    if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
+        Apply_ActorTransformTracks(currentFrame);
+
+    if (tickBoundAnimationsManually && isPlayingAfterUpdate && !_player->Is_CinematicPaused())
         Update_BoundActorAnimations(timeDelta);
 
     if (wasPlaying && !_player->Is_CinematicPlaying())
@@ -396,7 +401,7 @@ void CinematicSequenceRunner::Clear_CompletedCallbacks()
     _onNaturalCompleted.Clear();
 }
 
-void CinematicSequenceRunner::Execute_EventsUpToFrame(int currentFrame)
+void CinematicSequenceRunner::Execute_EventsUpToFrame(int currentFrame, float currentFrameExact)
 {
     while (_nextEventIndex < static_cast<int>(_sequence.eventTrack.size()))
     {
@@ -404,12 +409,12 @@ void CinematicSequenceRunner::Execute_EventsUpToFrame(int currentFrame)
         if (event.frame > currentFrame)
             break;
 
-        Execute_Event(event);
+        Execute_Event(event, currentFrameExact);
         ++_nextEventIndex;
     }
 }
 
-void CinematicSequenceRunner::Execute_Event(const CINEMATIC_EVENT& event)
+void CinematicSequenceRunner::Execute_Event(const CINEMATIC_EVENT& event, float currentFrameExact)
 {
     if (const auto* spawn = get_if<CinematicSpawnEventData>(&event.payload))
     {
@@ -417,7 +422,7 @@ void CinematicSequenceRunner::Execute_Event(const CINEMATIC_EVENT& event)
     }
     else if (const auto* playAnim = get_if<CinematicPlayAnimEventData>(&event.payload))
     {
-        Execute_PlayAnimEvent(event.frame, event.targetId, *playAnim);
+        Execute_PlayAnimEvent(event.frame, currentFrameExact, event.targetId, *playAnim);
     }
     else if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
     {
@@ -468,6 +473,14 @@ bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const C
     state.actor = actor;
     state.spawnedBySequence = true;
     state.cleanupPolicy = payload.cleanupPolicy;
+
+    if (Shared<ModelCom> model = Find_TargetModel(actor))
+    {
+        state.hasCinematicNotifyContextOverride = true;
+        state.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
+        model->Set_CinematicNotifyContext(true);
+    }
+
     _bindingStates[targetId] = state;
 
     if (const auto worldMonster = dynamic_pointer_cast<Monster_WorldBase>(actor))
@@ -486,6 +499,7 @@ bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const C
 
 bool CinematicSequenceRunner::Execute_PlayAnimEvent(
     int eventFrame,
+    float currentFrameExact,
     const string& targetId,
     const CinematicPlayAnimEventData& payload)
 {
@@ -521,6 +535,14 @@ bool CinematicSequenceRunner::Execute_PlayAnimEvent(
         return false;
     }
 
+    if (auto iter = _bindingStates.find(targetId); iter != _bindingStates.end() &&
+        !iter->second.hasCinematicNotifyContextOverride)
+    {
+        iter->second.hasCinematicNotifyContextOverride = true;
+        iter->second.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
+        model->Set_CinematicNotifyContext(true);
+    }
+
     if (payload.blendDuration > 0.f)
         model->Set_Animation(payload.animName, payload.blendDuration, payload.loop, payload.startFrame);
     else
@@ -531,9 +553,13 @@ bool CinematicSequenceRunner::Execute_PlayAnimEvent(
 
     if (auto iter = _bindingStates.find(targetId); iter != _bindingStates.end())
     {
+        const float sequenceFps = static_cast<float>(std::max(_sequence.fps, 1));
+        const float frameOvershoot = std::max(currentFrameExact - static_cast<float>(eventFrame), 0.f);
+
         iter->second.hasActivePlayAnim = true;
         iter->second.activePlayAnim = payload;
         iter->second.activePlayAnimEventFrame = eventFrame;
+        iter->second.pendingPlayAnimInitialAdvanceSec = frameOvershoot > 0.f ? frameOvershoot / sequenceFps : -1.f;
     }
       
     LOG_INFO("[CinematicSequenceRunner] PlayAnimEvent success: target='{}' anim='{}' blend={:.2f} loop={} startFrame={:.2f} frame={}",
@@ -563,6 +589,12 @@ bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const
             targetId,
             Get_CurrentFrame());
         return false;
+    }
+
+    if (iter->second.hasCinematicNotifyContextOverride)
+    {
+        if (Shared<ModelCom> model = Find_TargetModel(iter->second.actor))
+            model->Set_CinematicNotifyContext(iter->second.previousCinematicNotifyContext);
     }
 
     if (iter->second.spawnedBySequence)
@@ -708,7 +740,7 @@ void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
     if (timeDelta <= 0.f)
         return;
 
-    for (const auto& [targetId, state] : _bindingStates)
+    for (auto& [targetId, state] : _bindingStates)
     {
         UNREFERENCED_PARAMETER(targetId);
 
@@ -719,7 +751,14 @@ void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
         if (model == nullptr)
             continue;
 
-        model->Play_Animation(timeDelta);
+        float animationDelta = timeDelta;
+        if (state.pendingPlayAnimInitialAdvanceSec >= 0.f)
+        {
+            animationDelta = state.pendingPlayAnimInitialAdvanceSec;
+            state.pendingPlayAnimInitialAdvanceSec = -1.f;
+        }
+
+        model->Play_Animation(animationDelta);
 
         if (PartObject* animPart = Find_TargetAnimPart(state.actor))
             animPart->Update(0.f);
@@ -732,7 +771,16 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
     {
         UNREFERENCED_PARAMETER(targetId);
 
-        if (!state.spawnedBySequence || state.actor == nullptr)
+        if (state.actor == nullptr)
+            continue;
+
+        if (state.hasCinematicNotifyContextOverride)
+        {
+            if (Shared<ModelCom> model = Find_TargetModel(state.actor))
+                model->Set_CinematicNotifyContext(state.previousCinematicNotifyContext);
+        }
+
+        if (!state.spawnedBySequence)
             continue;
 
         if (!forceRemoveAllSpawned && state.cleanupPolicy == CinematicCleanupPolicy::Keep)

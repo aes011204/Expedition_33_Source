@@ -186,6 +186,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\Action_Command.cpp" />
+    <ClCompile Include="..\Private\AnimationNotifyEditor.cpp" />
     <ClCompile Include="..\Private\Animation_View.cpp" />
     <ClCompile Include="..\Private\AnimSequencerAdapter.cpp" />
     <ClCompile Include="..\private\AIController_Inspector.cpp" />
@@ -235,6 +236,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
+    <ClInclude Include="..\Public\AnimationNotifyEditor.h" />
     <ClInclude Include="..\Public\Animation_NameUtils.h" />
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />

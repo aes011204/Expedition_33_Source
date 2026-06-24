@@ -12,6 +12,7 @@
 #include "UI_GetWeapon.h"
 #include "UI_GetPictos.h"
 #include "ClientInstance.h"
+#include "GameplayUI.h"
 #include "Player_FreeAim.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
@@ -316,6 +317,7 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
         return false;
 
     Push_Menu(GameplayMenu::ArenaCharacterSelect);
+
     return true;
 }
 

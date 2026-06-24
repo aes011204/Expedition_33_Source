@@ -14,6 +14,14 @@ class ANS_SL_MoveTo final : public AnimNotifyState
     GENERATED_ANIM_NOTIFY_STATE(ANS_SL_MoveTo)
 
 public:
+    enum class MoveMode
+    {
+        TargetForwardOffset,
+        ForwardDistance,
+        BackwardDistance,
+    };
+
+public:
     ANS_SL_MoveTo() = default;
     ~ANS_SL_MoveTo() override = default;
 
@@ -25,10 +33,13 @@ public:
 
 private:
     Shared<GameObject> Resolve_MoveTarget(GameObject* notifyOwner) const;
+    Vec3 Resolve_GoalPosition(const Shared<GameObject>& moveTarget, const Shared<GameObject>& target) const;
     void Apply_Position(const AnimNotifyContext& context, const Shared<GameObject>& target, const Vec3& desiredWorldPos) const;
 
 private:
+    MoveMode _moveMode = MoveMode::TargetForwardOffset;
     float _forwardOffset = 3.f;
+    float _distance = 2.f;
     Vec3 _startPos = Vec3::Zero;
     Vec3 _goalPos = Vec3::Zero;
 };

@@ -66,6 +66,7 @@ private:
     bool Launch_GameLauncher(const fs::path* checkpointPath = nullptr);
     void Render_ReloadDataButton();
     void Render_SoundCheck();
+    void Render_AutoParryCheck();
 
 private:
     /* 창 이름을 키로 보관하는 에디터 뷰 목록. */
@@ -77,6 +78,8 @@ private:
     fs::path _selectedRuleStatePath = {};
     bool _openSaveCheckpointPopup = false;
     char _checkpointSaveNameBuffer[128] = "Demo";
+    float _soundVolumePercent = 100.f;
+    bool _soundVolumePercentInitialized = false;
 
 public:
 	static Unique<Editor_Manager> Create();

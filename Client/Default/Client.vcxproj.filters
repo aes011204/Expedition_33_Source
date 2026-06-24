@@ -315,6 +315,9 @@
     <ClCompile Include="..\Private\ANS_SL_MoveTo.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\ANS_Parry.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -322,6 +325,9 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ANS_QTE.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_ScreenFxCue.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ANS_SourceHistoryEffect.cpp">
@@ -569,6 +575,12 @@
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp">
       <Filter>02. GameObject\UI\ScreenFx</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Flash_ScreenFx.cpp">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\EffectCom.cpp">
       <Filter>06. Effect System\Component Bridge</Filter>
     </ClCompile>
@@ -752,6 +764,9 @@
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_IsLastAttack.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsHit.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
@@ -762,6 +777,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_IsStun.cpp">
+      <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SL_SelectNextAttack.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SL_SetDesiredState.cpp">
@@ -1582,6 +1600,9 @@
     <ClInclude Include="..\public\ANS_QTE.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ANS_ScreenFxCue.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ANS_SourceHistoryEffect.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
@@ -1778,6 +1799,9 @@
     <ClInclude Include="..\Public\BT_SL_IsDead.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_IsLastAttack.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsHit.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
@@ -1788,6 +1812,9 @@
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_IsStun.h">
+      <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SL_SelectNextAttack.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SL_SetDesiredState.h">
@@ -1832,6 +1859,15 @@
     </ClInclude>
     <ClInclude Include="..\Public\Distortion_ScreenFx.h">
       <Filter>02. GameObject\UI\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Flash_ScreenFx.h">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ScreenFxCueTypes.h">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h">
+      <Filter>02.GameObject\UI\ScreenFx</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectCom.h">
       <Filter>06. Effect System\Component Bridge</Filter>
@@ -2526,6 +2562,9 @@
     <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_TargetTrack.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h">

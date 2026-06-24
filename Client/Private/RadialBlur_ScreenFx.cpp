@@ -48,18 +48,26 @@ HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
 
 void RadialBlur_ScreenFx::Update_ScreenFx(float timeDelta)
 {
+    _elapsedTime += timeDelta;
+
     auto mainCamera = GAME->Get_ActiveCamera();
     if (!mainCamera)
+    {
+        _targetIntensity = 0.f;
+        _currentIntensity = 0.f;
+        _prevLookDir = Vec3::Zero;
         return;
+    }
 
     // 자유 카메라, 프리뷰 카메라에서는 ScreenFx 실행 X
     if (mainCamera->Get_ObjectType() == ObjectType::FreeCamera ||
         mainCamera->Get_ObjectType() == ObjectType::PreviewCamera)
     {
+        _targetIntensity = 0.f;
+        _currentIntensity = 0.f;
+        _prevLookDir = Vec3::Zero;
         return;
     }
-
-    _elapsedTime += timeDelta;
 
     auto transform = Get_CurrentTarget();
     Compute_LeaderHeroPosToProjection(transform);
