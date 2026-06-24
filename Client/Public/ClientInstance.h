@@ -14,8 +14,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class DialogueDB;
 class CinematicSequenceRunner;
-
 class CinematicCamera;
 class BattleController;
 class Player_WorldBase;
@@ -294,6 +294,7 @@ private:
     Unique<ScreenFadeTransition>        _screenFadeTransition;
     Unique<LevelTransitionFade>         _levelTransitionFade;
     Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;
+    Unique<DialogueDB>                  _dialogueDB;
 
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;

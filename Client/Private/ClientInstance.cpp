@@ -1,4 +1,5 @@
 ﻿#include "pch.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
@@ -26,9 +27,11 @@
 #include "CinematicSequenceRunner.h"
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
+#include "DialogueDB.h"
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
 #include "Unlock_Manager.h"
+#include "DialogueDB.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -148,6 +151,11 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _unlockManager = Unlock_Manager::Create();
     CHECK_NULL(_unlockManager, E_FAIL);
+
+    _dialogueDB = DialogueDB::Create();
+    CHECK_NULL(_dialogueDB, E_FAIL);
+
+   _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
 
 	_isInitialized = true;
 

@@ -524,3 +524,8 @@ namespace Client::Constants::SoundCue
 
     constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
 }
+
+namespace Client::Constants::Dialogue
+{
+    constexpr const wchar_t* Dialogue_Dir = L"../../../Client/Bin/Resources/Data/json/Dialogue/Dialogues.json";
+}
