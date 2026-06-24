@@ -378,8 +378,7 @@ HRESULT MapEditorApp::Render()
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
 
-    //CHECK_FAILED(GAME->Draw_RendererOnly(true), E_FAIL);
-    CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
+    CHECK_FAILED(GAME->Draw_RendererOnly(false, true), E_FAIL);
     GAME->Set_RenderEnvironment(true);
 
     _debugRenderer->Draw(_scene);
