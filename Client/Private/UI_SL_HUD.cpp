@@ -83,6 +83,7 @@ void UI_SL_HUD::Clear_PlayerHUD()
     Close();
 
     Apply_PlayerHp(0.f, 1.f);
+    Set_EstherGaugeRatio(0.f);
     Clear_BossHUD();
 
     for (uint32 i = 0; i < _skillIcons.size(); ++i)
@@ -132,6 +133,12 @@ void UI_SL_HUD::Set_HealingPotionCount(uint32 count)
 {
     if (_healingPotionCountText)
         _healingPotionCountText->Set_Text(to_wstring(count));
+}
+
+void UI_SL_HUD::Set_EstherGaugeRatio(float ratio)
+{
+    if (_estherGauge)
+        _estherGauge->Set_FillRatio(clamp(ratio, 0.f, 1.f));
 }
 
 void UI_SL_HUD::Show_BossDamage(float damage)
@@ -235,14 +242,19 @@ HRESULT UI_SL_HUD::Bind_UI()
     _potionRoot = Find_UI(_uiByName, L"Panel_SL_Healing_Potion");
     _healingPotionCountText = Find_TypedUI<UI_Text>(_uiByName, L"Text_SL_Healing_Potion_Current_Count");
     _estherSkillRoot = Find_UI(_uiByName, L"Panel_SL_Esther_Skill");
+    _estherGauge = Find_TypedUI<UI_Image>(_uiByName, L"Image_SL_Esther_Gauge");
 
     CHECK_NULL(_healingPotionCountText, E_FAIL);
     CHECK_NULL(_estherSkillRoot, E_FAIL);
+    CHECK_NULL(_estherGauge, E_FAIL);
 
     if (_staminaRoot)
         _staminaRoot->Close(); // v1 has no stamina owner yet, so hide the JSON placeholder.
 
     _estherSkillRoot->Open();
+    _estherGauge->Set_UseFillRatio(true);
+    _estherGauge->Set_FillOrigin(UI_Image::FillOrigin::BottomToTop);
+    _estherGauge->Set_FillRatio(0.f);
 
     return S_OK;
 }
@@ -452,6 +464,7 @@ void UI_SL_HUD::Free()
     _potionRoot.reset();
     _healingPotionCountText.reset();
     _estherSkillRoot.reset();
+    _estherGauge.reset();
 
     Base::Free();
 }

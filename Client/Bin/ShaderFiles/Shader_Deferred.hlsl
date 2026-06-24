@@ -372,9 +372,21 @@ PS_OUT_BACKBUFFER PS_FroxelDebug(PS_IN In)
     const uint sliceIndex = min(g_FroxelDebugSlice, g_FroxelDebugDepth - 1u);
     const float sliceW = (sliceIndex + 0.5f) / max((float)g_FroxelDebugDepth, 1.f);
     const float3 froxelUVW = float3(saturate(In.Texcoord), sliceW);
-    const float3 value = saturate(g_FroxelTexture.Sample(PointClampSampler, froxelUVW).rgb);
+    const float4 froxelSample = g_FroxelTexture.Sample(PointClampSampler, froxelUVW);
 
-    Out.Color = float4(value, 1.f);
+    float3 value = froxelSample.rgb;
+    if (g_FroxelDebugMode == 1u)
+    {
+        const float rawEnergy = max(max(value.r, value.g), value.b);
+        const float rawMask = max(rawEnergy * max(g_FroxelDebugGain, 1.f), froxelSample.a * 4.f);
+        value = float3(rawMask, rawMask * 0.9f, rawMask * 0.6f);
+    }
+    else
+    {
+        value = saturate(value * max(g_FroxelDebugGain, 1.f));
+    }
+
+    Out.Color = float4(saturate(value), 1.f);
 
     return Out;
 }
@@ -414,7 +426,7 @@ float SampleFogNoisePseudo3D(float3 worldPos, float baseScale, float2 scroll, fl
 }
 
 // 지면 높이 안개
-float ComputeGroundFog(FogZoneEntry zone, float3 camPos, float3 rayDir, float rayLen, float3 safeRayDir)
+float ComputeGroundFogAABB(FogZoneEntry zone, float3 camPos, float3 rayDir, float rayLen, float3 safeRayDir)
 {
     float3 invD = rcp(safeRayDir);
     float3 t0 = (zone.zoneMin - camPos) * invD;
@@ -569,6 +581,174 @@ float ComputeGroundFog(FogZoneEntry zone, float3 camPos, float3 rayDir, float ra
     return groundFogFactor * nearFade;
 }
 
+float ComputeGroundFogOBB(FogOBBZoneEntry zone, float3 camPos, float3 rayDir, float rayLen)
+{
+    float3 localCamPos = mul(float4(camPos, 1.f), zone.worldToLocal).xyz;
+    float3 localRayDir = mul(float4(rayDir, 0.f), zone.worldToLocal).xyz;
+    float localRayDirLenSq = dot(localRayDir, localRayDir);
+    if (localRayDirLenSq <= EPSILON)
+        return 0.f;
+
+    localRayDir *= rsqrt(localRayDirLenSq);
+    float3 safeLocalRayDir = float3(
+        abs(localRayDir.x) > EPSILON ? localRayDir.x : (localRayDir.x >= 0.f ? EPSILON : -EPSILON),
+        abs(localRayDir.y) > EPSILON ? localRayDir.y : (localRayDir.y >= 0.f ? EPSILON : -EPSILON),
+        abs(localRayDir.z) > EPSILON ? localRayDir.z : (localRayDir.z >= 0.f ? EPSILON : -EPSILON)
+    );
+
+    float3 zoneMin = -zone.halfExtents;
+    float3 zoneMax = zone.halfExtents;
+    float3 invD = rcp(safeLocalRayDir);
+    float3 t0 = (zoneMin - localCamPos) * invD;
+    float3 t1 = (zoneMax - localCamPos) * invD;
+
+    float3 tMin = min(t0, t1);
+    float3 tMax = max(t0, t1);
+
+    float tNear = max(max(tMin.x, tMin.y), tMin.z);
+    float tFar = min(min(tMax.x, tMax.y), tMax.z);
+
+    float segmentStart = max(tNear, 0.f);
+    float segmentEnd = min(tFar, min(rayLen, g_GroundFogMaxDistance));
+
+    if (segmentEnd <= segmentStart)
+        return 0.f;
+
+    float baseHeightLS = zoneMin.y + zone.baseHeight;
+    float topFadeStartLS = zoneMin.y + zone.topFadeStart;
+    float topHeightLS = zoneMin.y + zone.topHeight;
+
+    baseHeightLS = max(baseHeightLS, zoneMin.y + EPSILON);
+    topFadeStartLS = max(topFadeStartLS, baseHeightLS);
+    topHeightLS = max(topHeightLS, topFadeStartLS + EPSILON);
+
+    if (abs(localRayDir.y) > EPSILON)
+    {
+        float tHeight0 = (zoneMin.y - localCamPos.y) / localRayDir.y;
+        float tHeight1 = (topHeightLS - localCamPos.y) / localRayDir.y;
+
+        float tHeightNear = min(tHeight0, tHeight1);
+        float tHeightFar = max(tHeight0, tHeight1);
+
+        segmentStart = max(segmentStart, tHeightNear);
+        segmentEnd = min(segmentEnd, tHeightFar);
+    }
+    else
+    {
+        if (localCamPos.y < zoneMin.y || localCamPos.y > topHeightLS)
+            return 0.f;
+    }
+
+    if (segmentEnd <= segmentStart)
+        return 0.f;
+
+    float segmentLength = segmentEnd - segmentStart;
+
+    float t25 = lerp(segmentStart, segmentEnd, 0.25f);
+    float t50 = lerp(segmentStart, segmentEnd, 0.50f);
+    float t75 = lerp(segmentStart, segmentEnd, 0.75f);
+
+    float3 localSamplePos25 = localCamPos + localRayDir * t25;
+    float3 localSamplePos50 = localCamPos + localRayDir * t50;
+    float3 localSamplePos75 = localCamPos + localRayDir * t75;
+
+    float3 worldSamplePos25 = camPos + rayDir * t25;
+    float3 worldSamplePos50 = camPos + rayDir * t50;
+    float3 worldSamplePos75 = camPos + rayDir * t75;
+
+    float bottomFade25 = smoothstep(zoneMin.y, baseHeightLS, localSamplePos25.y);
+    float bottomFade50 = smoothstep(zoneMin.y, baseHeightLS, localSamplePos50.y);
+    float bottomFade75 = smoothstep(zoneMin.y, baseHeightLS, localSamplePos75.y);
+
+    float topFade25 = 1.f - smoothstep(topFadeStartLS, topHeightLS, localSamplePos25.y);
+    float topFade50 = 1.f - smoothstep(topFadeStartLS, topHeightLS, localSamplePos50.y);
+    float topFade75 = 1.f - smoothstep(topFadeStartLS, topHeightLS, localSamplePos75.y);
+
+    float2 distanceToEdge25 = min(localSamplePos25.xz - zoneMin.xz, zoneMax.xz - localSamplePos25.xz);
+    float2 distanceToEdge50 = min(localSamplePos50.xz - zoneMin.xz, zoneMax.xz - localSamplePos50.xz);
+    float2 distanceToEdge75 = min(localSamplePos75.xz - zoneMin.xz, zoneMax.xz - localSamplePos75.xz);
+
+    float nearestEdgeDistance25 = min(distanceToEdge25.x, distanceToEdge25.y);
+    float nearestEdgeDistance50 = min(distanceToEdge50.x, distanceToEdge50.y);
+    float nearestEdgeDistance75 = min(distanceToEdge75.x, distanceToEdge75.y);
+
+    float edgeFadeDistance = max(zone.edgeFade, EPSILON);
+    float edgeMask25 = smoothstep(0.f, edgeFadeDistance, nearestEdgeDistance25);
+    float edgeMask50 = smoothstep(0.f, edgeFadeDistance, nearestEdgeDistance50);
+    float edgeMask75 = smoothstep(0.f, edgeFadeDistance, nearestEdgeDistance75);
+
+    float heightDensity25 = bottomFade25 * topFade25 * edgeMask25;
+    float heightDensity50 = bottomFade50 * topFade50 * edgeMask50;
+    float heightDensity75 = bottomFade75 * topFade75 * edgeMask75;
+
+    float averageHeightDensity = (heightDensity25 + heightDensity50 + heightDensity75) / 3.f;
+
+    if (averageHeightDensity <= EPSILON)
+        return 0.f;
+
+    float2 noiseOffset = g_fDT * zone.noiseSpeed;
+    float noise25A = SampleFogNoisePseudo3D(worldSamplePos25, zone.noiseScale * 0.58f, noiseOffset * 0.37f, 1.11f);
+    float noise50A = SampleFogNoisePseudo3D(worldSamplePos50, zone.noiseScale * 0.58f, noiseOffset * 0.37f, 1.11f);
+    float noise75A = SampleFogNoisePseudo3D(worldSamplePos75, zone.noiseScale * 0.58f, noiseOffset * 0.37f, 1.11f);
+
+    float noise25B = SampleFogNoisePseudo3D(worldSamplePos25, zone.noiseScale * 0.93f, noiseOffset * 0.71f, 2.37f);
+    float noise50B = SampleFogNoisePseudo3D(worldSamplePos50, zone.noiseScale * 0.93f, noiseOffset * 0.71f, 2.37f);
+    float noise75B = SampleFogNoisePseudo3D(worldSamplePos75, zone.noiseScale * 0.93f, noiseOffset * 0.71f, 2.37f);
+
+    float noise25C = SampleFogNoisePseudo3D(worldSamplePos25, zone.noiseScale * 1.47f, noiseOffset * 1.13f, 3.73f);
+    float noise50C = SampleFogNoisePseudo3D(worldSamplePos50, zone.noiseScale * 1.47f, noiseOffset * 1.13f, 3.73f);
+    float noise75C = SampleFogNoisePseudo3D(worldSamplePos75, zone.noiseScale * 1.47f, noiseOffset * 1.13f, 3.73f);
+
+    float noise25D = SampleFogNoisePseudo3D(worldSamplePos25, zone.noiseScale * 2.05f, noiseOffset * 1.57f, 5.29f);
+    float noise50D = SampleFogNoisePseudo3D(worldSamplePos50, zone.noiseScale * 2.05f, noiseOffset * 1.57f, 5.29f);
+    float noise75D = SampleFogNoisePseudo3D(worldSamplePos75, zone.noiseScale * 2.05f, noiseOffset * 1.57f, 5.29f);
+
+    float noise25AB = noise25A * 0.78f + noise25B * 0.22f;
+    float noise50AB = noise50A * 0.78f + noise50B * 0.22f;
+    float noise75AB = noise75A * 0.78f + noise75B * 0.22f;
+
+    float noise25CD = noise25C * 0.66f + noise25D * 0.34f;
+    float noise50CD = noise50C * 0.66f + noise50D * 0.34f;
+    float noise75CD = noise75C * 0.66f + noise75D * 0.34f;
+
+    float noise25 = noise25AB * 0.68f + noise25CD * 0.32f;
+    float noise50 = noise50AB * 0.68f + noise50CD * 0.32f;
+    float noise75 = noise75AB * 0.68f + noise75CD * 0.32f;
+
+    float noise = (noise25 + noise50 + noise75) / 3.f;
+    noise = lerp(noise, 0.5f + (noise - 0.5f) * 0.42f, 0.58f);
+    noise = smoothstep(0.25f, 0.75f, noise);
+
+    float softenedNoiseStrength = saturate(zone.noiseStrength * 0.72f);
+    noise = lerp(1.f, max(noise, zone.noiseMin), softenedNoiseStrength);
+
+    float accumulationDistance = lerp(
+        g_GroundFogMinAccumulationDistance,
+        segmentLength,
+        g_GroundFogDistanceInfluence
+    );
+
+    float opticalDepth = zone.fogDensity * averageHeightDensity * noise * accumulationDistance;
+    float groundFogFactor = saturate(1.f - exp(-opticalDepth));
+
+    float nearFade = smoothstep(0.f, g_GroundFogNearFadeDistance, rayLen);
+    nearFade = lerp(g_GroundFogNearMinFactor, 1.f, nearFade);
+
+    return groundFogFactor * nearFade;
+}
+
+void AccumulateGroundFog(inout float3 fogColorOut, inout float fogFactorOut, float3 fogColor, float zoneFogFactor)
+{
+    if (zoneFogFactor <= EPSILON)
+        return;
+
+    float remaining = 1.f - fogFactorOut;
+    float contribution = remaining * zoneFogFactor;
+
+    fogColorOut += fogColor * contribution;
+    fogFactorOut += contribution;
+}
+
 float4 PS_Fog(PS_IN In) : SV_Target
 {
     float3 camPos = g_DeferredCamPosition.xyz;
@@ -603,16 +783,17 @@ float4 PS_Fog(PS_IN In) : SV_Target
     [loop]
     for (int i = 0; i < g_FogAABBCount; ++i)
     {
-        FogZoneEntry zone = g_FogZones[i];
-        float zoneFogFactor = ComputeGroundFog(zone, camPos, rayDir, rayLen, safeRayDir);
-        if (zoneFogFactor <= EPSILON)
-            continue;
+        FogZoneEntry zone = g_FogAABBZones[i];
+        float zoneFogFactor = ComputeGroundFogAABB(zone, camPos, rayDir, rayLen, safeRayDir);
+        AccumulateGroundFog(fogColorOut, fogFactorOut, zone.fogColor.rgb, zoneFogFactor);
+    }
 
-        float remaining = 1.f - fogFactorOut;
-        float contribution = remaining * zoneFogFactor;
-
-        fogColorOut += zone.fogColor.rgb * contribution;
-        fogFactorOut += contribution;
+    [loop]
+    for (int obbIndex = 0; obbIndex < g_FogOBBCount; ++obbIndex)
+    {
+        FogOBBZoneEntry zone = g_FogOBBZones[obbIndex];
+        float zoneFogFactor = ComputeGroundFogOBB(zone, camPos, rayDir, rayLen);
+        AccumulateGroundFog(fogColorOut, fogFactorOut, zone.fogColor.rgb, zoneFogFactor);
     }
 
     fogFactorOut = saturate(fogFactorOut);

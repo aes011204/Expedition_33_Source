@@ -41,6 +41,7 @@ class Sound_Manager;
 class Log_Manager;
 class Target_Manager;
 class Camera_Manager;
+class Environment_Manager;
 struct ConsoleLogEntry;
 class Component;
 class GameObject;
@@ -114,7 +115,7 @@ public:
     void Backup_RenderGroup();
     void Restore_RenderGroup();
 
-    void Clear_Resources(uint32 levelIndex);
+    void Clear_Resources(uint32 levelIndex, bool clearPrototypes = true);
 
     float Random(float min, float max);
 
@@ -169,7 +170,7 @@ public: /* For.Timer_Manager */
     float Compute_TimeDelta(const wstring& timerTag);
 
 public: /* For.Level_Manager */
-    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
+    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes = true);
 
     uint32 Current_LevelIndex() const;
     Shared<Level> Current_LevelType() const;
@@ -248,8 +249,25 @@ public: /* For.Renderer */
     ShaderCom_Controller*               Get_ShaderComController();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
+    const FogZoneCB&                    Get_FogZones() const;
+    const VolumetricLightShaftZoneCB&   Get_VolumetricLightShaftZones() const;
+    FogZoneCB                           Build_ActiveFogZones(const Vec3& cameraPosition);
+    VolumetricLightShaftZoneCB          Build_ActiveVolumetricLightShaftZones(const Vec3& cameraPosition);
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
     void                                Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB);
+    void                                Set_FogZoneCullingEnabled(bool enabled);
+    bool                                Is_FogZoneCullingEnabled() const;
+    void                                Set_FogZoneCullingDistance(float distance);
+    float                               Get_FogZoneCullingDistance() const;
+    void                                Set_VolumetricLightShaftZoneCullingEnabled(bool enabled);
+    bool                                Is_VolumetricLightShaftZoneCullingEnabled() const;
+    void                                Set_VolumetricLightShaftZoneCullingDistance(float distance);
+    float                               Get_VolumetricLightShaftZoneCullingDistance() const;
+    const vector<uint32>&               Get_ActiveFogAABBZoneIndices() const;
+    const vector<uint32>&               Get_ActiveFogOBBZoneIndices() const;
+    const vector<uint32>&               Get_ActiveVolumetricLightShaftZoneIndices() const;
+    void                                Set_RenderEnvironment(bool enabled);
+    bool                                Is_RenderEnvironment() const;
     void                                Set_LetterboxEnabled(bool setLetterboxEnabled = true);
     void                                Set_PreviewLetterboxEnabled(bool enabled);
 
@@ -373,6 +391,7 @@ public: /* For.Sound_Manager */
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition = nullptr);
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio = 0.f);
     bool Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const;
+    HRESULT Reload_SoundCues();
     // 3D 사운드의 기준은, 활성화된 카메라의 기준으로
     void Update_SoundListenerFromActiveCamera();
 
@@ -439,6 +458,7 @@ public : /* For.Target_Manager */
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
     HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
+    ID3D11ShaderResourceView* Get_RT_SRV(const wstring& targetTag);
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
@@ -471,6 +491,7 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
+    HRESULT                 Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const;
     HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
     void                    Set_ShadowEnabled(bool enabled);
     uint32                  Get_ShadowCascadeCount() const;
@@ -621,6 +642,10 @@ public: /* ScreenFx Manager */
     void Stop_PreviewScreenFx(ScreenFxHandle handle) const;
     bool Is_ScreenFxFinished(const wstring& tag) const;
 
+public :
+    bool Is_EnableWorldRendering() const { return _enableWorldRendering; }
+    void Enable_WorldRendering(bool enable) { _enableWorldRendering = enable; }
+
 private:
     Unique<Log_Manager> _logManager{};
     Unique<Graphic_Device> _graphicDevice{};
@@ -629,6 +654,7 @@ private:
     Unique<Prototype_Manager> _prototypeManager{};
     Unique<UI_Manager> _uiManager{};
     Unique<Object_Manager> _objectManager{};
+    Unique<Environment_Manager> _environmentManager{};
     Unique<Renderer> _renderer{};
     Unique<ScreenFx_Manager> _screenFxManager{};
     Unique<ShaderCom_Controller> _shaderComController{};
@@ -683,6 +709,8 @@ private:
     // 월드 시간 제어
     float _worldTimeScale = 1.f;
     float _unscaledTimeDelta = 0.f;
+
+    bool    _enableWorldRendering = false;
 
 #ifdef _DEBUG
 private:

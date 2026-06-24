@@ -13,12 +13,15 @@
 namespace
 {
     constexpr float kEstherBaseDamage = 100.f;
+    constexpr float kEstherGaugeMax = 100.f;
+    constexpr float kEstherParryGaugeGain = 20.f;
 
     constexpr char kGustaveSkill[] = "UnleashedCharge";
     constexpr char kLuneSkill[] = "Immolation";
 
-    constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
-    constexpr char kLuneAnim[] = "Lune_Unstable_Fire"; // 루네는 하늘파괴 or 천둥내림. 그런데 천둥내림은 좀 힘들거같기도하고
+    //constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
+    constexpr char kGustaveAnim[] = "Gustave_Verso_Skill_Flawless_Spiral";
+    constexpr char kLuneAnim[] = "Lune_Unstable_Fire";
 }
 
 HRESULT SL_EstherManager::Initialize(const Shared<SoulLikeController>& controller)
@@ -27,6 +30,7 @@ HRESULT SL_EstherManager::Initialize(const Shared<SoulLikeController>& controlle
 
     _controller = controller;
     _activeEsther.reset();
+    _estherGauge = 0.f;
 
     return S_OK;
 }
@@ -40,6 +44,7 @@ void SL_EstherManager::Reset()
 {
     Finish_ActiveEsther();
     _activeEsther.reset();
+    _estherGauge = 0.f;
 }
 
 bool SL_EstherManager::Request_Esther(SL_EstherType estherType)
@@ -47,7 +52,14 @@ bool SL_EstherManager::Request_Esther(SL_EstherType estherType)
     if (_activeEsther.has_value())
         return false;
 
-    return Begin_Esther(estherType);
+    if (!Is_GaugeFull())
+        return false;
+
+    if (!Begin_Esther(estherType))
+        return false;
+
+    _estherGauge = 0.f;
+    return true;
 }
 
 bool SL_EstherManager::Notify_Attack(GameObject* notifyOwner)
@@ -67,6 +79,21 @@ bool SL_EstherManager::Notify_Attack(GameObject* notifyOwner)
     }
 
     return true;
+}
+
+void SL_EstherManager::Add_GaugeFromParry()
+{
+    _estherGauge = clamp(_estherGauge + kEstherParryGaugeGain, 0.f, kEstherGaugeMax);
+}
+
+float SL_EstherManager::Get_GaugeRatio() const
+{
+    return clamp(_estherGauge / max(kEstherGaugeMax, 1.f), 0.f, 1.f);
+}
+
+bool SL_EstherManager::Is_GaugeFull() const
+{
+    return _estherGauge >= kEstherGaugeMax;
 }
 
 bool SL_EstherManager::Begin_Esther(SL_EstherType estherType)
