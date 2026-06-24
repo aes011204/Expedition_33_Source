@@ -1012,6 +1012,12 @@ void Editor_Manager::Render_ReloadDataButton()
                 MSG_BOX("Failed to reload game data tables.");
         }
 
+        if (ImGui::MenuItem("SoundCue"))
+        {
+            if (FAILED(GAME->Reload_SoundCues()))
+                MSG_BOX("Failed to reload sound cues.");
+        }
+
         if (ImGui::MenuItem("Effect Data"))
         {
             if (FAILED(CLIENT->Reload_EffectJsons()))

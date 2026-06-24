@@ -106,6 +106,8 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
 
 HRESULT Level_GamePlay::Ready_Lights()
 {
+    GAME->Clear_Lights();
+
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;

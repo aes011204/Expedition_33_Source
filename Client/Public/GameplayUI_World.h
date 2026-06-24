@@ -23,6 +23,8 @@ class ChangeWeapon_Panel;
 class Wardrobe_Panel;
 class Pictos_Panel;
 
+class UI_GradientSkillPreviewTest;
+
 class GameplayUI_World final : public Base
 {
 public:
@@ -52,6 +54,7 @@ private:
     void    Handle_CharacterProgressionAction(CharacterProgression_Panel::Action action);
     void    Handle_ArenaCharacterSelectInput();
     void    Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect::Action action);
+    void    Handle_GradientSkillPreviewTestInput();
 
     void    Update_CrossHair(float timeDelta);
     void    Try_ShowPendingGetCharacter();
@@ -60,6 +63,7 @@ private:
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;
     bool    Is_GetPictosOpen() const;
+    bool    Is_GradientSkillPreviewTestOpen() const;
 
 private:
     void    Push_Menu(GameplayMenu menu);
@@ -88,6 +92,7 @@ private:
     Unique<UI_GetWeapon>          _getWeaponPanel;
     Unique<UI_GetPictos>          _getPictosPanel;
     Unique<UI_ArenaCharacterSelect> _arenaCharacterSelectPanel;
+    Unique<UI_GradientSkillPreviewTest> _gradientSkillPreviewTestPanel;
 
     Unique<CharacterProgression_Panel> _characterProgressionPanel;
     Unique<ChangeSkill_Panel>          _changeSkillPanel;

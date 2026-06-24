@@ -208,7 +208,7 @@ bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectP
         return false;
 
     // 패링 성공하면, 무적
-    // Set_InvincibleTime(0.2f);
+    Set_InvincibleTime(0.05f);
 
     // 패링 Hit Effect. 크기 조절좀 해야할듯
     {
@@ -217,10 +217,12 @@ bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectP
         effectDesc.worldPosition = effectPos;
         effectDesc.scale = Vec3(0.6f, 0.6f, 0.6f);
         CLIENT->Play_Effect(effectDesc);
+
+        GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success);
     }
 
     if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
-        controller->Play_PlayerParryFeedback();
+        controller->Notify_PlayerParrySuccess();
 
     return true;
 }
@@ -769,6 +771,21 @@ void SL_Maelle::Apply_Damage(const SL_DamageInfo& damageInfo)
 
     if (_stateMachineCom && _stateMachineCom->Get_CurrentSoulLikeState() == SL_PlayerState::Skill)
         return;
+
+    if (damageInfo.attacker)
+    {
+        Vec3 lookDir = damageInfo.attacker->Get_Transform()->Get_WorldForward() - _transformCom->Get_WorldPosition();
+        lookDir.y = 0.f;
+
+        if (lookDir.LengthSquared() > 0.0001f)
+        {
+            lookDir.Normalize();
+
+            const float yaw = XMConvertToDegrees(atan2f(lookDir.x, lookDir.z));
+            _transformCom->Set_WorldRotationEuler(Vec3(0.f, yaw, 0.f));
+        }
+    }
+
 
     Begin_HitPush(damageInfo);
 

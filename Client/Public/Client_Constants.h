@@ -523,4 +523,6 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* UI_SkillTree_Blocked = L"UI_SkillTree_Blocked";
 
     constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
+
+    constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
 }

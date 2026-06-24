@@ -297,6 +297,17 @@ void SoulLikeController::Play_PlayerParryFeedback()
         GAME->Slow_WorldTime(_playerHitStopTimeScale, _playerHitStopDuration);
 }
 
+void SoulLikeController::Notify_PlayerParrySuccess()
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (_estherManager)
+        _estherManager->Add_GaugeFromParry();
+
+    Play_PlayerParryFeedback();
+}
+
 void SoulLikeController::Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo)
 {
     UNREFERENCED_PARAMETER(damageInfo);
@@ -423,12 +434,23 @@ void SoulLikeController::Apply_JumpCounterDamage()
     _jumpCounterAttackStarted = false;
 }
 
+float SoulLikeController::Get_EstherGaugeRatio() const
+{
+    return _estherManager ? _estherManager->Get_GaugeRatio() : 0.f;
+}
+
 bool SoulLikeController::Notify_EstherAttack(GameObject* notifyOwner)
 {
     if (!_estherManager)
         return false;
 
     return _estherManager->Notify_Attack(notifyOwner);
+}
+
+bool SoulLikeController::Is_VictoryCameraBlocked() const
+{
+     return _state == BattleState::VictorySlow ||
+        _state == BattleState::Victory;
 }
 
 void SoulLikeController::Request_SoulLikeCamera()
@@ -1063,6 +1085,9 @@ bool SoulLikeController::Update_HealingPotion(const Shared<SL_Maelle>& player,
 bool SoulLikeController::Update_Esther()
 {
     if (_estherManager == nullptr)
+        return false;
+
+    if (GAME->Is_UIInputEnabled() && GAME->Get_GameplayInputMode() == GameplayInputMode::UIOnly)
         return false;
 
     if (GAME->KeyDown(KEY_TYPE::KEY_3))

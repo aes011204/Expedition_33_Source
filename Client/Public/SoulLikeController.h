@@ -72,6 +72,7 @@ public:
 
     void Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo);
     void Play_PlayerParryFeedback();
+    void Notify_PlayerParrySuccess();
     void Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo);
 
     void Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active);
@@ -84,8 +85,11 @@ public:
     float Get_PlayerHitPushDuration() const { return _playerHitPushDuration; }
 
     uint32 Get_HealingPotionCount() const { return _healingPotionCount; }
+    float Get_EstherGaugeRatio() const;
 
     bool    Notify_EstherAttack(GameObject* notifyOwner);
+
+    bool    Is_VictoryCameraBlocked() const;
 
 private:
     void    Request_SoulLikeCamera();

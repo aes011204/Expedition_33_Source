@@ -455,6 +455,24 @@ HRESULT UI_Image::Set_TextureGuid(const string& textureGuid)
     return Set_TexturePath(resolvedPath);
 }
 
+HRESULT UI_Image::Set_ExternalShaderResource(ShaderResourceView* srv)
+{
+    if (srv == nullptr)
+        return E_FAIL;
+
+    _srv.Reset();
+    srv->AddRef();
+    _srv.Attach(srv);
+
+    return S_OK;
+}
+
+void UI_Image::Clear_ExternalShaderResource()
+{
+    if (FAILED(Load_TextureResource()))
+        LOG_WARN("UI_Image failed to restore file texture after external SRV clear. path='{}'", String::ToString(_texturePath));
+}
+
 HRESULT UI_Image::Ready_RenderResources()
 {
     if (nullptr == _shader)

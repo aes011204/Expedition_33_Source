@@ -131,6 +131,7 @@ private:
 
     static void Prepare_StaticAutoInstancing(LoadSession& session);
     static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry = nullptr);
+    static string BuildMaterialSignature(const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry);
     static void MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr);
     static void ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model);
 
@@ -153,6 +154,7 @@ private:
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
+    static umap<string, string> g_globalMaterialSignatureByModel;
     static uint32 g_currentLevelIndex;
 };
 

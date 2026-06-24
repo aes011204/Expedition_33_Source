@@ -45,6 +45,8 @@ HRESULT Level_GestralVillage::Render()
 
 HRESULT Level_GestralVillage::Ready_Lights()
 {
+    GAME->Clear_Lights();
+
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;

@@ -297,7 +297,15 @@ void Level_Tool::Change_To(LevelType targetLevel)
     if (loadingLevel == nullptr)
         return;
 
-    GAME->Change_Level(ETOI(LevelType::Loading), loadingLevel);
+    const LevelType currentLevel = static_cast<LevelType>(GAME->Current_LevelIndex());
+    const bool keepPreviousLevelPrototypes =
+        currentLevel == LevelType::GamePlay ||
+        currentLevel == LevelType::MapTest ||
+        currentLevel == LevelType::Stage01 ||
+        currentLevel == LevelType::GestralVillage;
+
+    // Level Tool 전환은 같은 에디터 세션에서 재방문할 작업 맵 prototype을 캐시처럼 유지한다.
+    GAME->Change_Level(ETOI(LevelType::Loading), loadingLevel, !keepPreviousLevelPrototypes);
 }
 
 Shared<Level_Tool> Level_Tool::Create()

@@ -16,6 +16,7 @@
 std::mutex MapLoader::g_globalCacheMutex;
 umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
+umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
 MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
@@ -1065,6 +1066,45 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
     MapAdapter::ApplyMaterial(*model, MapAdapter::BuildMaterialApplyDesc(modelFolder, modelFullPath, overrideEntry));
 }
 
+string MapLoader::BuildMaterialSignature(const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
+{
+    string signature = String::ToLowerCopy(modelFolder);
+    signature += '|';
+    signature += String::ToLowerCopy(fs::path(modelFullPath).lexically_normal().generic_string());
+
+    if (overrideEntry == nullptr)
+        return signature;
+
+    signature += "|override";
+
+    vector<pair<int32, string>> textureSlots;
+    textureSlots.reserve(overrideEntry->textureSlots.size());
+    for (const auto& [slot, path] : overrideEntry->textureSlots)
+        textureSlots.emplace_back(slot, path);
+
+    sort(textureSlots.begin(), textureSlots.end(),
+        [](const pair<int32, string>& lhs, const pair<int32, string>& rhs)
+        {
+            return lhs.first < rhs.first;
+        });
+
+    for (const auto& [slot, path] : textureSlots)
+    {
+        signature += '|';
+        signature += std::to_string(slot);
+        signature += '=';
+        signature += String::ToLowerCopy(path);
+    }
+
+    if (!overrideEntry->modelJson.is_null() && !overrideEntry->modelJson.empty())
+    {
+        signature += "|json=";
+        signature += overrideEntry->modelJson.dump();
+    }
+
+    return signature;
+}
+
 void MapLoader::MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr)
 {
     if (modelPathStr.empty())
@@ -1217,24 +1257,38 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
     const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(modelOverrides, modelPathStr);
+    const string materialSignature = BuildMaterialSignature(modelFolder, fullPathA, overrideEntry);
 
     // 1단계: 스레드 안전하게 전역 캐시에서 동일 모델 존재 확인
     Shared<ModelCom> cachedModel = nullptr;
+    bool needsMaterialApply = true;
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         auto it = g_globalModelCache.find(cacheKey);
         if (it != g_globalModelCache.end())
+        {
             cachedModel = it->second;
+
+            const auto materialIt = g_globalMaterialSignatureByModel.find(cacheKey);
+            if (materialIt != g_globalMaterialSignatureByModel.end() && materialIt->second == materialSignature)
+                needsMaterialApply = false;
+        }
     }
 
     if (cachedModel != nullptr)
     {
-        const auto materialBegin = chrono::steady_clock::now();
-        ApplyMaterials(cachedModel, modelFolder, fullPathA, overrideEntry);
-        const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+        if (needsMaterialApply)
+        {
+            const auto materialBegin = chrono::steady_clock::now();
+            ApplyMaterials(cachedModel, modelFolder, fullPathA, overrideEntry);
+            const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
 
-        if (outMaterialDuration) *outMaterialDuration += materialMs;
-        if (outMaterialCount) (*outMaterialCount)++;
+            if (outMaterialDuration) *outMaterialDuration += materialMs;
+            if (outMaterialCount) (*outMaterialCount)++;
+
+            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+            g_globalMaterialSignatureByModel[cacheKey] = materialSignature;
+        }
 
         return cachedModel;
     }
@@ -1274,6 +1328,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         g_globalModelCache[cacheKey] = model;
+        g_globalMaterialSignatureByModel[cacheKey] = materialSignature;
     }
 
     return model;
@@ -1285,6 +1340,7 @@ void MapLoader::Clear_GlobalCache()
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         g_globalModelCache.clear();
         g_globalCollisionCache.clear();
+        g_globalMaterialSignatureByModel.clear();
     }
     MapAdapter::Clear_MaterialCache();
 }
