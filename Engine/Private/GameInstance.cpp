@@ -1746,6 +1746,8 @@ void GameInstance::Set_RenderEnvironment(bool enabled)
 bool GameInstance::Is_RenderEnvironment() const
 {
     return _renderer->Is_RenderEnvironment();
+}
+
 void GameInstance::Set_LetterboxEnabled(bool setLetterboxEnabled)
 {
     if(_renderer)
