@@ -2067,9 +2067,7 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-    {
         Internal::Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
-    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
@@ -2786,9 +2784,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-    {
         Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
-    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
@@ -3387,9 +3383,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-    {
         Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
-    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
