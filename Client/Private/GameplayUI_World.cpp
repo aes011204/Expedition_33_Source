@@ -23,6 +23,10 @@
 #include "Pictos_Panel.h"
 #include "UI_GradientSkillPreviewTest.h"
 
+#include "Client_Constants.h"
+#include "GameObject.h"
+#include "Spawn_Prefab.h"
+
 GameplayUI_World::~GameplayUI_World() = default;
 
 namespace
@@ -342,13 +346,45 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
     if (GAME->Is_WorldGameplayInputBlocked())
         return false;
 
-    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
-    if (controller == nullptr || controller->Is_BattleActive())
-        return false;
-
     Push_Menu(GameplayMenu::ArenaCharacterSelect);
 
     return true;
+}
+
+Shared<SoulLikeController> GameplayUI_World::Spawn_SoulLikeControllerForArena()
+{
+    if (const Shared<SoulLikeController> existingController = CLIENT->Get_SoulLikeController())
+    {
+        if (existingController->Is_BattleActive())
+            return nullptr;
+
+        return existingController;
+    }
+
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+
+    const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
+        .AtLevel(levelIndex)
+        .InLayer(TEXT("Layer_ETC"))
+        .Spawn();
+
+    if (controllerObject == nullptr)
+    {
+        LOG_WARN("ArenaCharacterSelect: failed to spawn SoulLikeController.");
+        return nullptr;
+    }
+
+    const Shared<SoulLikeController> soulLikeController =
+        dynamic_pointer_cast<SoulLikeController>(controllerObject);
+
+    if (soulLikeController == nullptr)
+    {
+        LOG_WARN("ArenaCharacterSelect: spawned object is not SoulLikeController.");
+        return nullptr;
+    }
+
+    CLIENT->Set_SoulLikeController(soulLikeController);
+    return soulLikeController;
 }
 
 void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction action)
@@ -396,12 +432,7 @@ void GameplayUI_World::Handle_SavePointInput()
 
 void GameplayUI_World::Handle_ArenaCharacterSelectInput()
 {
-    // 3번이 아니라, NPC 대화 이후
     if (!GAME->KeyDown(KEY_TYPE::KEY_3))
-        return;
-
-    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
-    if (controller == nullptr || !controller->Is_DebugKeyStartEnabled())
         return;
 
     Request_ArenaCharacterSelect();
@@ -530,14 +561,14 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
 
     case UI_ArenaCharacterSelect::Action::SelectMaelle:
     {
-        const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+        const Shared<SoulLikeController> controller = Spawn_SoulLikeControllerForArena();
         if (controller == nullptr)
         {
             LOG_WARN("ArenaCharacterSelect: SoulLikeController is missing.");
             return;
         }
 
-        Close_AllMenus(true); // 마엘 선택만 기존 3번키 전투 진입 로직으로 연결한다.
+        Close_AllMenus(true);
 
         if (!controller->Begin_Battle())
             LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");

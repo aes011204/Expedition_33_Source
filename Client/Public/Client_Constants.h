@@ -491,6 +491,8 @@ namespace Client::Constants::SoundBGM
 
     constexpr const wchar_t* DuallisteBattlePhase1Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
+    constexpr const wchar_t* DuallisteBattlePhaseTransition =
+        L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_PhaseTransition.wav";
     constexpr const wchar_t* DuallisteBattlePhase2Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase2_Main.wav";
 }

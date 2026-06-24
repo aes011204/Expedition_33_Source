@@ -25,6 +25,8 @@ class Pictos_Panel;
 
 class UI_GradientSkillPreviewTest;
 
+class SoulLikeController;
+
 class GameplayUI_World final : public Base
 {
 public:
@@ -42,7 +44,6 @@ public:
     void    Force_CloseAllMenus();
     void    Handle_EditorStopRuntime();
 
-    // 아레나 UI 열기
     bool    Request_ArenaCharacterSelect();
 
 private:
@@ -54,6 +55,7 @@ private:
     void    Handle_CharacterProgressionAction(CharacterProgression_Panel::Action action);
     void    Handle_ArenaCharacterSelectInput();
     void    Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect::Action action);
+    Shared<SoulLikeController> Spawn_SoulLikeControllerForArena();
     void    Handle_GradientSkillPreviewTestInput();
 
     void    Update_CrossHair(float timeDelta);

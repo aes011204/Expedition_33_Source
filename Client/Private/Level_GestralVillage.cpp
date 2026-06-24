@@ -1,10 +1,9 @@
 ﻿#include "Level_GestralVillage.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "GameObject.h"
 #include "SkyBoxFlow.h"
-#include "Spawn_Prefab.h"
 #include "TargetCamera.h"
-#include "SoulLikeController.h"
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -226,20 +225,7 @@ HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
 {
-    {
-        const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
-            .AtLevel(ETOI(LevelType::GestralVillage))
-            .InLayer(strLayerTag)
-            .Spawn();
-
-        CHECK_NULL(controllerObject, E_FAIL);
-
-        const Shared<SoulLikeController> soulLikeController =
-            dynamic_pointer_cast<SoulLikeController>(controllerObject);
-
-        CHECK_NULL(soulLikeController, E_FAIL);
-        CLIENT->Set_SoulLikeController(soulLikeController);
-    }
+    UNREFERENCED_PARAMETER(strLayerTag);
 
     return S_OK;
 }
