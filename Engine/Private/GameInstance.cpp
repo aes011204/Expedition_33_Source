@@ -3227,6 +3227,22 @@ const ShadowCascadePresetSet* GameInstance::Get_ShadowCascadePresets() const
     return _shadow->Get_CascadePresets();
 }
 
+uint32 GameInstance::Get_ActiveShadowCascade() const
+{
+    if (!_shadow)
+        return 0u;
+    return _shadow->Get_ActiveCascadeIndex();
+}
+
+const ShadowCascadeInfluenceVolume* GameInstance::Get_CascadeInfluenceVolumes() const
+{
+    if (!_shadow)
+    {
+        return nullptr;
+    }
+    return _shadow->Get_CascadeInfluenceVolumes();
+}
+
 void GameInstance::Free()
 {
     Release_Engine();

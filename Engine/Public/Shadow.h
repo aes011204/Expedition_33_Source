@@ -75,6 +75,7 @@ public:
     const ShadowCascadeDebugInfo* Get_CascadeDebugInfos() const;
     const ShadowCascadeInfluenceVolume* Get_CascadeInfluenceVolumes() const;
     uint32                  Get_CascadeCount() const { return CascadeCount; }
+    uint32                  Get_ActiveCascadeIndex() const { return _activeCascadeIndex; }
 
 public:
     static Unique<Shadow> Create();

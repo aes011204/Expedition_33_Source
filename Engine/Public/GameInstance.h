@@ -474,6 +474,8 @@ public: /* For.Shadow */
     CascadeLevel            Get_ShadowCascadeLevel() const;
     HRESULT                 Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets);
     const ShadowCascadePresetSet* Get_ShadowCascadePresets() const;
+    uint32                  Get_ActiveShadowCascade() const;
+    const ShadowCascadeInfluenceVolume* Get_CascadeInfluenceVolumes() const;
 
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;

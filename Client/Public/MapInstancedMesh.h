@@ -26,6 +26,7 @@ class MapInstancedMesh final : public GameObject
 
 private:
     static constexpr float INSTANCE_CULL_DIST = 500.f;
+    static constexpr float LARGE_OBJECT_HEIGHT = 5.f;
 
 public:
     typedef struct tagMapInstancedMeshDesc final : public GameObject::GAMEOBJECT_DESC
@@ -83,14 +84,25 @@ private:
     vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
 
+    // Shadow compute shader
+    Shared<ComputeShaderCom> _shadowCullShader;
+    ComPtr<Buffer> _shadowCullCB;
+    ComPtr<Buffer> _shadowVisibleStructured;
+    ComPtr<UnorderedAccessView> _shadowVisibleUAV;
+    ComPtr<Buffer> _shadowVisibleVB;
+    vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers;
+
     float _lod1Dist = 300.f;
     float _lod2Dist = 200.f;
 
     float _accTime = {};
     bool _hasGlow = false;
-    bool _visible = true;
+    bool _visible = true;   
     bool _cullEnabled = true;
     bool _castShadow = true;
+
+    // test
+    uint32 _maxShadowCascade = 3u;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
@@ -99,6 +111,7 @@ private:
 
     HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
     void DispatchCull();
+    void DispatchShadowCull(uint32 cascadeIndex);
     static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
     void Refresh_HasGlow();
 
