@@ -4,6 +4,7 @@
 #include "EffectCom.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
+#include "PhysX_Manager.h"
 #include "Monster_BattleBase.h"
 #include "Monster_Part.h"
 #include "Monster_WorldBase.h"
@@ -233,6 +234,18 @@ namespace PreviewObjectHelpers
         float timeDelta,
         bool tickAttachedEffects = true)
     {
+        auto stepPreviewPhysics = [&](float dt)
+        {
+            if (dt <= 0.f)
+                return;
+
+            if (Engine::PhysX_Manager* physxManager = GAME->Get_PhysXManager())
+            {
+                physxManager->Begin_Frame();
+                physxManager->Update(dt);
+            }
+        };
+
         if (gameObject == nullptr)
             return;
 
@@ -244,6 +257,7 @@ namespace PreviewObjectHelpers
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterWorld->Engine::ContainerObject::Update(timeDelta);
             monsterWorld->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -255,6 +269,7 @@ namespace PreviewObjectHelpers
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterBattle->Engine::ContainerObject::Update(timeDelta);
             monsterBattle->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -265,6 +280,7 @@ namespace PreviewObjectHelpers
             playerWorld->Engine::ContainerObject::Priority_Update(timeDelta);
             playerWorld->Engine::ContainerObject::Update(timeDelta);
             playerWorld->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -275,6 +291,7 @@ namespace PreviewObjectHelpers
             playerBattle->Engine::ContainerObject::Priority_Update(timeDelta);
             playerBattle->Engine::ContainerObject::Update(timeDelta);
             playerBattle->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -283,6 +300,7 @@ namespace PreviewObjectHelpers
         gameObject->Priority_Update(timeDelta);
         gameObject->Update(timeDelta);
         gameObject->Late_Update(timeDelta);
+        stepPreviewPhysics(timeDelta);
         if (tickAttachedEffects)
             Tick_AttachedPreviewEffects(gameObject, timeDelta);
     }

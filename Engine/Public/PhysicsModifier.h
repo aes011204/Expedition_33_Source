@@ -37,8 +37,18 @@ public:
 		float idleMotionDeadzone{ 0.001f };
 		float teleportDistance{ 300.f };
 		float poseFollowAlpha{ 0.25f };
+		float freePoseFollowAlpha{ 0.08f };
+		float contactPoseFollowAlpha{ 0.65f };
+		float releasePoseFollowAlpha{ 0.04f };
+		float releaseMemoryTime{ 0.18f };
+		float animTranslationInertiaScale{ 0.85f };
+		float animRotationInertiaScale{ 1.15f };
+		float ownerTranslationInertiaScale{ 0.45f };
+		float ownerRotationInertiaScale{ 0.85f };
+		float inertiaMaxDistance{ 14.f };
 		float inertiaDamping{ 0.82f };
 		float contactInertiaDamping{ 0.35f };
+		float releaseInertiaDamping{ 0.12f };
 		float maxInertialStepScale{ 0.25f };
 		uint32 solverIterations{ 2 };
 		float targetFrameRate{ 60.f };
@@ -48,6 +58,9 @@ public:
 		float collisionPushOutScale{ 0.9f };
 		float collisionPushOutMaxScale{ 0.35f };
 		float collisionContactSkinWidth{ 0.03f };
+		Vec3 collisionPushDirectionWorld{ Vec3::Zero };
+		float collisionPushDirectionBlend{ 0.f };
+		float collisionDirectionSmoothAlpha{ 0.35f };
 		float contactOutputAlpha{ 0.85f };
 		float contactOutputSmoothAlpha{ 0.45f };
 		float contactOutputLimitDegree{ 120.f };
@@ -67,6 +80,8 @@ public:
 		float finalCollisionProjectionMaxScale{ 0.08f };
 		int32 finalCollisionProjectionIterations{ 1 };
 		float collisionDirectionBlockAlpha{ 1.f };
+		float contactSnapAlpha{ 0.90f };
+		float releaseContactCorrectionAlpha{ 0.12f };
 		mutable int32 debugActiveChainCount{ 0 };
 		mutable int32 debugActiveNodeCount{ 0 };
 		mutable int32 debugLoadedCapsuleCount{ 0 };
@@ -78,6 +93,9 @@ public:
 		mutable int32 debugCollisionPushOutCount{ 0 };
 		mutable float debugMaxCollisionPushOut{ 0.f };
 		mutable int32 debugSegmentCount{ 0 };
+		mutable float debugInertiaMagnitude{ 0.f };
+		mutable int32 debugReleaseNodeCount{ 0 };
+		mutable int32 debugContactNodeCount{ 0 };
 		bool writeBackEnabled{ true };
 		float hairCollisionClearance{ 0.f };
 		bool debugDrawChains{ false };
@@ -119,15 +137,21 @@ private:
 		Vec3 position{ Vec3::Zero };
 		Vec3 solvedPosition{ Vec3::Zero };
 		Vec3 prevSolvedPosition{ Vec3::Zero };
+		Vec3 prevPosePosition{ Vec3::Zero };
+		Vec3 prevPoseDir{ Vec3::Zero };
+		Vec3 inertiaOffsetWorld{ Vec3::Zero };
 		Vec3 contactCorrection{ Vec3::Zero };
 		Vec3 smoothedContactCorrection{ Vec3::Zero };
 		Vec3 smoothedCollisionNormal{ Vec3::Zero };
 		float length{ 0.f };
 		float depthRatio{ 0.f };
 		float collisionCorrectionDistance{ 0.f };
+		float contactReleaseTimer{ 0.f };
 		bool hasSmoothedLocalDir{ false };
 		bool hasSmoothedLocalTransform{ false };
 		bool hasSolvedState{ false };
+		bool hasPrevPoseState{ false };
+		bool wasCollisionDriven{ false };
 		bool hasCollisionContact{ false };
 		bool hasCollisionPushApplied{ false };
 		bool hasSmoothedCollisionNormal{ false };
@@ -172,12 +196,15 @@ private:
 	void Restore_PoseLocals(ModelCom* model);
 	void Capture_CurrentPose(ModelCom* model, const Matrix& ownerWorld);
 	void Reset_SolvedStateToPose();
+	void Update_InertiaOffsets(const Matrix& ownerWorld, const Matrix& prevOwnerWorld, const Vec3& ownerDelta);
 	void Prepare_SolvedPoseStart();
+	void Update_ContactReleaseStates(float timeDelta);
 	void Evaluate_SegmentCollisionContacts(const ModelCom* model, const Matrix& ownerWorld);
 	void Solve_ContactPoseChains(const ModelCom* model, const Matrix& ownerWorld);
 	void Finalize_CollisionProjection(const ModelCom* model, const Matrix& ownerWorld);
 	void Commit_SolvedState();
 	void Enforce_ChainLengthConstraints(Chain& chain);
+	void Update_ResolvedCollisionPushDirection(const Matrix& ownerWorld);
 	void Project_ChainOutOfColliders(Chain& chain, const vector<WorldCapsule>& worldCapsules, float scale, float maxScale, bool markContact);
 	void HardProject_SegmentsOutOfColliders(Chain& chain, const vector<WorldCapsule>& worldCapsules, bool markContact);
 	void HardProject_NodePointsOutOfColliders(Chain& chain, const vector<WorldCapsule>& worldCapsules, bool markContact);
@@ -201,6 +228,7 @@ private:
 	float _elapsedTime{ 0.f };
 	bool _runtimeTestOwnerMotionEnabled{ false };
 	Vec3 _runtimeTestOwnerMotionDelta{ Vec3::Zero };
+	Vec3 _resolvedCollisionPushDirectionWorld{ Vec3::Zero };
 
 public:
 	static Shared<PhysicsModifier> Create(const PhysicsModifierDesc* desc);

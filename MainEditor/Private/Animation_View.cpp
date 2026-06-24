@@ -28,6 +28,7 @@
 #include "TransformCom.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
+#include "Mon_Simon_Hair.h"
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 #include "Weapon.h"
@@ -2742,8 +2743,64 @@ void Animation_View::Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackM
         ImGui::PopID();
     }
 
+    auto drawSimonHairRuntime = [&](Client::Mon_Simon_Hair* simonHair, const char* label)
+    {
+        if (simonHair == nullptr)
+            return;
+
+        if (const Shared<GameObject> previewRootObject = Get_PreviewRenderObject())
+        {
+            if (const Shared<ContainerObject> previewContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject))
+            {
+                if (auto* bodyPart = dynamic_cast<PartObject*>(previewContainer->Get_PartObject(L"Part_Body")))
+                {
+                    const Shared<ModelCom> bodyModel = bodyPart->Get_Component<ModelCom>();
+                    simonHair->Set_RuntimeCollisionSource(
+                        bodyModel.get(),
+                        &bodyPart->Get_CombinedWorldMatrix());
+                }
+            }
+        }
+
+        const ClassReflectionInfo* reflectionInfo = simonHair->Get_RuntimeReflectionInfo();
+        void* reflectionTarget = simonHair->Get_RuntimeReflectionTarget();
+        if (reflectionInfo == nullptr || reflectionTarget == nullptr || reflectionInfo->properties.empty())
+            return;
+
+        hasEditableModifier = true;
+
+        ImGui::PushID(simonHair);
+        if (ImGui::CollapsingHeader(label, ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::Button("Reset Pose"))
+                simonHair->RuntimeResetPose();
+
+            ImGui::SameLine();
+            if (ImGui::Button("Rebuild Runtime"))
+                simonHair->RuntimeRebuild();
+
+            ImGui::Spacing();
+            for (const PropertyInfo& property : reflectionInfo->properties)
+            {
+                if (Inspector::Draw_ReflectionProperty(reflectionInfo->className, reflectionTarget, property))
+                    simonHair->On_RuntimeReflectionChanged();
+                ImGui::Spacing();
+            }
+        }
+        ImGui::PopID();
+    };
+
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    drawSimonHairRuntime(dynamic_cast<Client::Mon_Simon_Hair*>(previewRootObject.get()), "Simon Hair Runtime");
+    if (const Shared<ContainerObject> previewContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject))
+    {
+        drawSimonHairRuntime(
+            dynamic_cast<Client::Mon_Simon_Hair*>(previewContainer->Get_PartObject(L"Part_Hair")),
+            "Part_Hair  [Simon Hair Runtime]");
+    }
+
     if (!hasEditableModifier)
-        ImGui::TextDisabled("No ChainModifier, PoseFollowChainModifier, or PhysicsModifier on this model.");
+        ImGui::TextDisabled("No ChainModifier, PoseFollowChainModifier, PhysicsModifier, or Simon Hair runtime.");
 }
 
 void Animation_View::Update_ModifierPreviewMotionTest(float timeDelta)
@@ -5212,6 +5269,47 @@ void Animation_View::Draw_ModifierCollisionDebug() const
 
             if (!capsules.empty() || !segments.empty())
                 break;
+        }
+    }
+
+    if (capsules.empty() && segments.empty())
+    {
+        const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+        auto appendSimonHairDebug = [&](Client::Mon_Simon_Hair* simonHair)
+        {
+            if (simonHair == nullptr)
+                return;
+
+            vector<Client::SimonHairRuntime::RuntimeDebugCapsule> simonCapsules{};
+            simonHair->Build_RuntimeDebugCapsules(simonCapsules);
+            for (const auto& capsule : simonCapsules)
+            {
+                capsules.push_back({
+                    capsule.startPoint,
+                    capsule.endPoint,
+                    capsule.sourceRadius,
+                    capsule.collisionRadius });
+            }
+
+            vector<Client::SimonHairRuntime::RuntimeDebugSegment> simonSegments{};
+            simonHair->Build_RuntimeDebugSegments(simonSegments);
+            for (const auto& segment : simonSegments)
+            {
+                segments.push_back({
+                    segment.startPoint,
+                    segment.endPoint,
+                    segment.hasContact,
+                    segment.hasPush,
+                    segment.isSolvedSegment });
+            }
+        };
+
+        appendSimonHairDebug(dynamic_cast<Client::Mon_Simon_Hair*>(previewRootObject.get()));
+
+        const Shared<ContainerObject> previewContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+        if (previewContainer != nullptr)
+        {
+            appendSimonHairDebug(dynamic_cast<Client::Mon_Simon_Hair*>(previewContainer->Get_PartObject(L"Part_Hair")));
         }
     }
 

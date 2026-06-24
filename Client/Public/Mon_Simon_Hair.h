@@ -1,7 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "Monster_Part.h"
+#include "SimonHairRuntime.h"
 
 NS_BEGIN(Client)
 
@@ -30,9 +31,17 @@ public:
     void Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
+    void Set_RuntimeCollisionSource(ModelCom* collisionModel, const Matrix* collisionOwnerWorldMatrix);
+    const Engine::ClassReflectionInfo* Get_RuntimeReflectionInfo() const;
+    void* Get_RuntimeReflectionTarget();
+    void On_RuntimeReflectionChanged();
+    void RuntimeResetPose();
+    void RuntimeRebuild();
+    void Build_RuntimeDebugCapsules(vector<SimonHairRuntime::RuntimeDebugCapsule>& outCapsules) const;
+    void Build_RuntimeDebugSegments(vector<SimonHairRuntime::RuntimeDebugSegment>& outSegments) const;
 
 private:
-    HRESULT Ready_Modifier();
+    HRESULT Ready_Runtime();
     uint32 Decide_PassIndex(Shared<Material> mat) override;
 
 private:
@@ -40,6 +49,9 @@ private:
     ModelCom* _collisionModel = nullptr;
     const Matrix* _collisionOwnerWorldMatrix = nullptr;
     Matrix _offsetMatrix = {};
+    SimonHairRuntime _hairRuntime{};
+    bool _hairRuntimeReady = false;
+    bool _useHairAnimationPlayback = false;
 
 public:
     static Shared<Mon_Simon_Hair> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -54,12 +54,12 @@ HRESULT MB_Simon::Initialize(void* arg)
 
 void MB_Simon::Update(float timeDelta)
 {
-    Monster_BattleBase::Update(timeDelta);
-
     if (_body)
     {
         _body->Play_Animation(timeDelta);
     }
+
+    Monster_BattleBase::Update(timeDelta);
 }
 
 

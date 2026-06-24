@@ -1,8 +1,7 @@
-﻿#include "Mon_Simon_Hair.h"
+#include "Mon_Simon_Hair.h"
 
 #include "EffectCom.h"
 #include "ChainModifierPreset.h"
-#include "PhysicsModifier.h"
 #include "ModelCom.h"
 
 NS_BEGIN(Client)
@@ -38,31 +37,29 @@ HRESULT Mon_Simon_Hair::Initialize(void* arg)
     if (_model)
     {
         _model->Set_LocalRootNode(_model->Get_BoneIndex("Simon_Strand_Hair_root"));
-        _model->Set_Animation("Simon_Hair", true);
+        if (_useHairAnimationPlayback)
+        {
+            _model->Set_Animation("Simon_Hair", true);
+        }
     }
 
-    CHECK_FAILED(Ready_Modifier(), E_FAIL);
+    CHECK_FAILED(Ready_Runtime(), E_FAIL);
 
     return S_OK;
 }
 
-HRESULT Mon_Simon_Hair::Ready_Modifier()
+HRESULT Mon_Simon_Hair::Ready_Runtime()
 {
-    PhysicsModifier::PhysicsModifierDesc hairDesc{};
-    ChainModifierPreset::BuildSimonPhysicsHairDesc(
+    SimonHairRuntime::Desc hairDesc{};
+    ChainModifierPreset::BuildSimonHairHardcodedDesc(
         hairDesc,
         _transformCom.get(),
         PlayerCharacterType::None);
-    hairDesc.ownerWorldMatrix = &Get_CombinedWorldMatrix();
-    hairDesc.collisionModel = _collisionModel;
-    hairDesc.collisionOwnerWorldMatrix = _collisionOwnerWorldMatrix;
 
-    if (!hairDesc.chains.empty())
+    if (_model && !hairDesc.chains.empty())
     {
-        if (auto modifier = PhysicsModifier::Create(&hairDesc))
-        {
-            _model->Add_AnimModifier(modifier);
-        }
+        _hairRuntime.Initialize(_model.get(), hairDesc);
+        _hairRuntimeReady = _hairRuntime.Is_Built();
     }
 
     return S_OK;
@@ -81,7 +78,26 @@ void Mon_Simon_Hair::Update(float timeDelta)
         Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 
     if (_model)
-        _model->Play_Animation(timeDelta);
+    {
+        if (_useHairAnimationPlayback)
+        {
+            _model->Play_Animation(timeDelta);
+        }
+
+        if (_hairRuntimeReady)
+        {
+            const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
+            const Matrix collisionOwnerWorld =
+                _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
+            _hairRuntime.Simulate(
+                _model.get(),
+                _collisionModel,
+                timeDelta,
+                motionDriverWorld,
+                collisionOwnerWorld,
+                motionDriverWorld);
+        }
+    }
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
@@ -100,6 +116,84 @@ HRESULT Mon_Simon_Hair::Render()
 HRESULT Mon_Simon_Hair::Render_Shadow()
 {
     return Monster_Part::Render_Shadow();
+}
+
+void Mon_Simon_Hair::Set_RuntimeCollisionSource(ModelCom* collisionModel, const Matrix* collisionOwnerWorldMatrix)
+{
+    _collisionModel = collisionModel;
+    _collisionOwnerWorldMatrix = collisionOwnerWorldMatrix;
+}
+
+const Engine::ClassReflectionInfo* Mon_Simon_Hair::Get_RuntimeReflectionInfo() const
+{
+    return _hairRuntime.Get_RuntimeReflectionInfo();
+}
+
+void* Mon_Simon_Hair::Get_RuntimeReflectionTarget()
+{
+    return _hairRuntime.Get_RuntimeReflectionTarget();
+}
+
+void Mon_Simon_Hair::On_RuntimeReflectionChanged()
+{
+    if (!_hairRuntimeReady || !_model)
+        return;
+
+    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
+    const Matrix collisionOwnerWorld =
+        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
+    _hairRuntime.On_RuntimeReflectionChanged(
+        _model.get(),
+        _collisionModel,
+        motionDriverWorld,
+        collisionOwnerWorld,
+        motionDriverWorld);
+}
+
+void Mon_Simon_Hair::RuntimeResetPose()
+{
+    if (!_hairRuntimeReady || !_model)
+        return;
+
+    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
+    const Matrix collisionOwnerWorld =
+        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
+    _hairRuntime.ResetPose(_model.get(), motionDriverWorld, motionDriverWorld);
+}
+
+void Mon_Simon_Hair::RuntimeRebuild()
+{
+    if (!_model)
+        return;
+
+    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
+    const Matrix collisionOwnerWorld =
+        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
+    _hairRuntime.RuntimeRebuild(
+        _model.get(),
+        _collisionModel,
+        motionDriverWorld,
+        collisionOwnerWorld,
+        motionDriverWorld);
+    _hairRuntimeReady = _hairRuntime.Is_Built();
+}
+
+void Mon_Simon_Hair::Build_RuntimeDebugCapsules(vector<SimonHairRuntime::RuntimeDebugCapsule>& outCapsules) const
+{
+    outCapsules.clear();
+    if (!_hairRuntimeReady)
+        return;
+
+    _hairRuntime.Build_RuntimeDebugCapsules(outCapsules);
+}
+
+void Mon_Simon_Hair::Build_RuntimeDebugSegments(vector<SimonHairRuntime::RuntimeDebugSegment>& outSegments) const
+{
+    outSegments.clear();
+    if (!_hairRuntimeReady)
+        return;
+
+    _hairRuntime.Build_RuntimeDebugSegments(outSegments);
 }
 
 uint32 Mon_Simon_Hair::Decide_PassIndex(Shared<Material> mat)

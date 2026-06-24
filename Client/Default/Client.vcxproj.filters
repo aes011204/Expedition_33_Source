@@ -644,6 +644,9 @@
     <ClCompile Include="..\Private\Mon_Simon_Hair.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\SimonHairRuntime.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\Mon_Volester_Body.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
@@ -1774,6 +1777,9 @@
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Mon_Simon_Hair.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SimonHairRuntime.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Mon_Volester_Body.h">

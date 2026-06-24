@@ -229,6 +229,39 @@ namespace
 		return value * (limit / length);
 	}
 
+	Vec3 Resolve_PushDirection(
+		Vec3 normal,
+		Vec3 preferredDirection,
+		float preferredBlend)
+	{
+		if (normal.LengthSquared() <= 0.0001f)
+		{
+			normal = Vec3::Up;
+		}
+		normal.Normalize();
+
+		preferredBlend = std::clamp(preferredBlend, 0.f, 1.f);
+		if (preferredBlend <= 0.0001f || preferredDirection.LengthSquared() <= 0.0001f)
+		{
+			return normal;
+		}
+
+		preferredDirection.Normalize();
+		if (preferredDirection.Dot(normal) < 0.f)
+		{
+			preferredDirection *= -1.f;
+		}
+
+		Vec3 blended = Vec3::Lerp(normal, preferredDirection, preferredBlend);
+		if (blended.LengthSquared() <= 0.0001f)
+		{
+			return normal;
+		}
+
+		blended.Normalize();
+		return blended;
+	}
+
 	float SegmentSegmentClosestPoints(const Vec3& p1, const Vec3& q1, const Vec3& p2, const Vec3& q2, Vec3& outC1, Vec3& outC2)
 	{
 		const Vec3 d1 = q1 - p1;
@@ -307,7 +340,9 @@ namespace
 		const Vec3& capsuleClosest,
 		const Vec3& capsuleStart,
 		const Vec3& capsuleEnd,
-		float penetration)
+		float penetration,
+		const Vec3& preferredDirection,
+		float preferredBlend)
 	{
 		Vec3 normal = segmentClosest - capsuleClosest;
 		if (normal.LengthSquared() <= 0.0001f)
@@ -328,7 +363,7 @@ namespace
 		{
 			normal = Vec3::Up;
 		}
-		normal.Normalize();
+		normal = Resolve_PushDirection(normal, preferredDirection, preferredBlend);
 
 		const Vec3 segment = segmentEnd - segmentStart;
 		float endpointScale = 1.f;
@@ -353,6 +388,8 @@ namespace
 		float scale,
 		float maxCorrection,
 		bool canMoveStart,
+		const Vec3& preferredDirection,
+		float preferredBlend,
 		Vec3& outStartCorrection,
 		Vec3& outEndCorrection)
 	{
@@ -382,7 +419,7 @@ namespace
 		{
 			normal = Vec3::Up;
 		}
-		normal.Normalize();
+		normal = Resolve_PushDirection(normal, preferredDirection, preferredBlend);
 
 		float contactT = 1.f;
 		const Vec3 segment = segmentEnd - segmentStart;
@@ -434,6 +471,8 @@ namespace
 		const Vec3& capsuleEnd,
 		float penetration,
 		bool canMoveStart,
+		const Vec3& preferredDirection,
+		float preferredBlend,
 		Vec3& outStartCorrection,
 		Vec3& outEndCorrection)
 	{
@@ -463,7 +502,7 @@ namespace
 		{
 			normal = Vec3::Up;
 		}
-		normal.Normalize();
+		normal = Resolve_PushDirection(normal, preferredDirection, preferredBlend);
 
 		float contactT = 1.f;
 		const Vec3 segment = segmentEnd - segmentStart;
@@ -504,6 +543,8 @@ namespace
 		float radius,
 		float skinWidth,
 		float alpha,
+		const Vec3& preferredDirection,
+		float preferredBlend,
 		Vec3& outPosition)
 	{
 		alpha = std::clamp(alpha, 0.f, 1.f);
@@ -527,7 +568,7 @@ namespace
 		{
 			return false;
 		}
-		normal.Normalize();
+		normal = Resolve_PushDirection(normal, preferredDirection, preferredBlend);
 
 		Vec3 direction = segmentEnd - segmentStart;
 		if (direction.LengthSquared() <= 0.000001f)
@@ -737,10 +778,16 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPushOutScale", "Contact Push", PhysicsOffset(&PhysicsModifierDesc::collisionPushOutScale), 0.01f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPushOutMaxScale", "Contact Max", PhysicsOffset(&PhysicsModifierDesc::collisionPushOutMaxScale), 0.01f, 0.f, 5.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionContactSkinWidth", "Contact Skin", PhysicsOffset(&PhysicsModifierDesc::collisionContactSkinWidth), 0.005f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Vec3, "collisionPushDirectionWorld", "Push Dir", PhysicsOffset(&PhysicsModifierDesc::collisionPushDirectionWorld), 0.01f, -1.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPushDirectionBlend", "Push Dir Blend", PhysicsOffset(&PhysicsModifierDesc::collisionPushDirectionBlend), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionDirectionSmoothAlpha", "Dir Smooth", PhysicsOffset(&PhysicsModifierDesc::collisionDirectionSmoothAlpha), 0.01f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "contactOutputAlpha", "Contact Out", PhysicsOffset(&PhysicsModifierDesc::contactOutputAlpha), 0.01f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "contactOutputSmoothAlpha", "Contact Smooth", PhysicsOffset(&PhysicsModifierDesc::contactOutputSmoothAlpha), 0.01f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "contactOutputLimitDegree", "Contact Limit", PhysicsOffset(&PhysicsModifierDesc::contactOutputLimitDegree), 1.f, 0.f, 180.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "contactPoseFollowScale", "Contact Follow", PhysicsOffset(&PhysicsModifierDesc::contactPoseFollowScale), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "freePoseFollowAlpha", "Free Follow", PhysicsOffset(&PhysicsModifierDesc::freePoseFollowAlpha), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "contactPoseFollowAlpha", "Contact Follow", PhysicsOffset(&PhysicsModifierDesc::contactPoseFollowAlpha), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "releasePoseFollowAlpha", "Release Follow", PhysicsOffset(&PhysicsModifierDesc::releasePoseFollowAlpha), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "releaseMemoryTime", "Release Time", PhysicsOffset(&PhysicsModifierDesc::releaseMemoryTime), 0.01f, 0.f, 2.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "contactSolveLimitDegree", "Solve Limit", PhysicsOffset(&PhysicsModifierDesc::contactSolveLimitDegree), 1.f, 0.f, 180.f);
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "segmentFrameOutput", "Seg Frame", PhysicsOffset(&PhysicsModifierDesc::segmentFrameOutput));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "rotationOutputAlpha", "Rot Out", PhysicsOffset(&PhysicsModifierDesc::rotationOutputAlpha), 0.01f, 0.f, 1.f);
@@ -755,15 +802,24 @@ const ClassReflectionInfo* PhysicsModifier::Get_RuntimeReflectionInfo() const
 			AddRuntimeProperty(result.properties, PropertyType::Float, "finalCollisionProjectionMaxScale", "Final Max", PhysicsOffset(&PhysicsModifierDesc::finalCollisionProjectionMaxScale), 0.01f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "finalCollisionProjectionIterations", "Final Iter", PhysicsOffset(&PhysicsModifierDesc::finalCollisionProjectionIterations), 1.f, 1.f, 8.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionDirectionBlockAlpha", "Dir Block", PhysicsOffset(&PhysicsModifierDesc::collisionDirectionBlockAlpha), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "contactSnapAlpha", "Contact Snap", PhysicsOffset(&PhysicsModifierDesc::contactSnapAlpha), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "releaseContactCorrectionAlpha", "Release Col", PhysicsOffset(&PhysicsModifierDesc::releaseContactCorrectionAlpha), 0.01f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "hairCollisionClearance", "Hair Clear", PhysicsOffset(&PhysicsModifierDesc::hairCollisionClearance), 0.005f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "outputAlpha", "Output", PhysicsOffset(&PhysicsModifierDesc::outputAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "outputSmoothAlpha", "Smooth", PhysicsOffset(&PhysicsModifierDesc::outputSmoothAlpha), 0.001f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleOutputSmoothAlpha", "Idle Smooth", PhysicsOffset(&PhysicsModifierDesc::idleOutputSmoothAlpha), 0.001f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "tipOutputSmoothScale", "Tip Smooth", PhysicsOffset(&PhysicsModifierDesc::tipOutputSmoothScale), 0.001f, 0.f, 1.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "poseFollowAlpha", "Pose Follow", PhysicsOffset(&PhysicsModifierDesc::poseFollowAlpha), 0.01f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "inertiaDamping", "Inertia Damp", PhysicsOffset(&PhysicsModifierDesc::inertiaDamping), 0.01f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "contactInertiaDamping", "Hit Damp", PhysicsOffset(&PhysicsModifierDesc::contactInertiaDamping), 0.01f, 0.f, 1.f);
-			AddRuntimeProperty(result.properties, PropertyType::Float, "maxInertialStepScale", "Inertia Max", PhysicsOffset(&PhysicsModifierDesc::maxInertialStepScale), 0.01f, 0.f, 2.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "releaseInertiaDamping", "Release Damp", PhysicsOffset(&PhysicsModifierDesc::releaseInertiaDamping), 0.01f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "animTranslationInertiaScale", "Anim Move I", PhysicsOffset(&PhysicsModifierDesc::animTranslationInertiaScale), 0.01f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "animRotationInertiaScale", "Anim Rot I", PhysicsOffset(&PhysicsModifierDesc::animRotationInertiaScale), 0.01f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "ownerTranslationInertiaScale", "Owner Move I", PhysicsOffset(&PhysicsModifierDesc::ownerTranslationInertiaScale), 0.01f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "ownerRotationInertiaScale", "Owner Rot I", PhysicsOffset(&PhysicsModifierDesc::ownerRotationInertiaScale), 0.01f, 0.f, 5.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "inertiaMaxDistance", "Inertia Max", PhysicsOffset(&PhysicsModifierDesc::inertiaMaxDistance), 0.1f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "debugInertiaMagnitude", "Inertia Now", PhysicsOffset(&PhysicsModifierDesc::debugInertiaMagnitude), 0.01f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugContactNodeCount", "Contact Node", PhysicsOffset(&PhysicsModifierDesc::debugContactNodeCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugReleaseNodeCount", "Release Node", PhysicsOffset(&PhysicsModifierDesc::debugReleaseNodeCount), 1.f, 0.f, 4096.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "idleMotionDeadzone", "Idle Dead", PhysicsOffset(&PhysicsModifierDesc::idleMotionDeadzone), 0.001f, 0.f, 10.f);
 			AddRuntimeProperty(result.properties, PropertyType::Int, "solverIterations", "Solver Iter", PhysicsOffset(&PhysicsModifierDesc::solverIterations), 1.f, 1.f, 32.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "targetFrameRate", "Target FPS", PhysicsOffset(&PhysicsModifierDesc::targetFrameRate), 1.f, 0.f, 240.f);
@@ -787,6 +843,7 @@ void PhysicsModifier::On_RuntimeReflectionChanged(ModelCom* model, const Propert
 	Restore_PoseLocals(model);
 	model->Rebuild_BoneCombinedMatrices();
 	const Matrix ownerWorld = Get_OwnerWorld(_desc);
+	Update_ResolvedCollisionPushDirection(ownerWorld);
 	Capture_CurrentPose(model, ownerWorld);
 	Reset_SolvedStateToPose();
 	Write_BackSolvedPoseToModel(model, ownerWorld, true);
@@ -811,6 +868,7 @@ void PhysicsModifier::ResetPose(ModelCom* model)
 
 	model->Rebuild_BoneCombinedMatrices();
 	const Matrix ownerWorld = Get_OwnerWorld(_desc);
+	Update_ResolvedCollisionPushDirection(ownerWorld);
 	Capture_CurrentPose(model, ownerWorld);
 	Reset_SolvedStateToPose();
 
@@ -845,11 +903,17 @@ void PhysicsModifier::Reset_SolvedStateToPose()
 			node.position = posePosition;
 			node.solvedPosition = posePosition;
 			node.prevSolvedPosition = posePosition;
+			node.prevPosePosition = posePosition;
+			node.prevPoseDir = node.poseLocalDir;
+			node.inertiaOffsetWorld = Vec3::Zero;
 			node.hasSolvedState = true;
+			node.hasPrevPoseState = true;
 			node.contactCorrection = Vec3::Zero;
 			node.smoothedContactCorrection = Vec3::Zero;
 			node.smoothedCollisionNormal = Vec3::Zero;
 			node.collisionCorrectionDistance = 0.f;
+			node.contactReleaseTimer = std::max(0.f, _desc.releaseMemoryTime);
+			node.wasCollisionDriven = false;
 			node.hasCollisionContact = false;
 			node.hasCollisionPushApplied = false;
 			node.hasSmoothedCollisionNormal = false;
@@ -1042,17 +1106,18 @@ void PhysicsModifier::Prepare_SolvedPoseStart()
 				|| node.hasCollisionPushApplied
 				|| node.collisionCorrectionDistance > 0.0001f
 				|| node.contactCorrection.LengthSquared() > 0.00000001f
-				|| node.smoothedContactCorrection.LengthSquared() > 0.00000001f;
+				|| node.smoothedContactCorrection.LengthSquared() > 0.00000001f
+				|| node.wasCollisionDriven;
+			const bool releaseMemory = node.contactReleaseTimer < std::max(0.f, _desc.releaseMemoryTime);
 			const float followAlpha = hadContactMemory
-				? std::clamp(_desc.contactPoseFollowScale, 0.f, 1.f)
-				: std::clamp(_desc.poseFollowAlpha, 0.f, 1.f);
-			const float damping = hadContactMemory
-				? std::clamp(_desc.contactInertiaDamping, 0.f, 1.f)
-				: std::clamp(_desc.inertiaDamping, 0.f, 1.f);
-			const float maxStep = std::max(0.001f, std::max(0.0001f, node.length) * std::max(0.f, _desc.maxInertialStepScale));
-			const Vec3 velocity = Clamp_VectorLength(node.solvedPosition - node.prevSolvedPosition, maxStep) * damping;
-			const Vec3 predictedPosition = node.solvedPosition + velocity;
-			node.position = Vec3::Lerp(predictedPosition, posePosition, followAlpha);
+				? std::clamp(_desc.contactPoseFollowAlpha, 0.f, 1.f)
+				: (releaseMemory
+					? std::clamp(_desc.releasePoseFollowAlpha, 0.f, 1.f)
+					: std::clamp(_desc.freePoseFollowAlpha, 0.f, 1.f));
+			const Vec3 baseTarget = hadContactMemory
+				? node.solvedPosition
+				: posePosition + node.inertiaOffsetWorld;
+			node.position = Vec3::Lerp(node.solvedPosition, baseTarget, followAlpha);
 		}
 	}
 }
@@ -1147,7 +1212,9 @@ void PhysicsModifier::Evaluate_SegmentCollisionContacts(const ModelCom* model, c
 							capsuleClosest,
 							capsule.startPoint,
 							capsule.endPoint,
-							penetration);
+							penetration,
+							_resolvedCollisionPushDirectionWorld,
+							_desc.collisionPushDirectionBlend);
 					}
 					++_desc.debugCollisionHitCount;
 				}
@@ -1352,7 +1419,9 @@ void PhysicsModifier::Solve_ContactPoseChains(
 							capsuleClosest,
 							capsule.startPoint,
 							capsule.endPoint,
-							penetration);
+							penetration,
+							_resolvedCollisionPushDirectionWorld,
+							_desc.collisionPushDirectionBlend);
 					}
 
 					if (bestCorrection.LengthSquared() <= 0.00000001f)
@@ -1485,6 +1554,25 @@ void PhysicsModifier::Enforce_ChainLengthConstraints(Chain& chain)
 	}
 }
 
+void PhysicsModifier::Update_ResolvedCollisionPushDirection(const Matrix& ownerWorld)
+{
+	_resolvedCollisionPushDirectionWorld = Vec3::Zero;
+	if (_desc.collisionPushDirectionWorld.LengthSquared() <= 0.0001f)
+	{
+		return;
+	}
+
+	_resolvedCollisionPushDirectionWorld = Vec3::TransformNormal(_desc.collisionPushDirectionWorld, ownerWorld);
+	if (_resolvedCollisionPushDirectionWorld.LengthSquared() > 0.0001f)
+	{
+		_resolvedCollisionPushDirectionWorld.Normalize();
+	}
+	else
+	{
+		_resolvedCollisionPushDirectionWorld = Vec3::Zero;
+	}
+}
+
 void PhysicsModifier::Project_ChainOutOfColliders(
 	Chain& chain,
 	const vector<WorldCapsule>& worldCapsules,
@@ -1557,7 +1645,9 @@ void PhysicsModifier::Project_ChainOutOfColliders(
 				capsuleClosest,
 				capsule.startPoint,
 				capsule.endPoint,
-				penetration);
+				penetration,
+				_resolvedCollisionPushDirectionWorld,
+				_desc.collisionPushDirectionBlend);
 		}
 
 		if (bestCorrection.LengthSquared() <= 0.00000001f)
@@ -1578,6 +1668,8 @@ void PhysicsModifier::Project_ChainOutOfColliders(
 			bestRadiusSum,
 			contactSkinWidth,
 			_desc.collisionDirectionBlockAlpha,
+			_resolvedCollisionPushDirectionWorld,
+			_desc.collisionPushDirectionBlend,
 			blockedPosition))
 		{
 			node.position = blockedPosition;
@@ -1607,6 +1699,8 @@ void PhysicsModifier::Project_ChainOutOfColliders(
 			correctionScale,
 			maxCorrection,
 			canMoveParent,
+			_resolvedCollisionPushDirectionWorld,
+			_desc.collisionPushDirectionBlend,
 			parentCorrection,
 			nodeCorrection))
 		{
@@ -1686,6 +1780,8 @@ void PhysicsModifier::HardProject_SegmentsOutOfColliders(
 				capsule.endPoint,
 				penetration,
 				canMoveParent,
+				_resolvedCollisionPushDirectionWorld,
+				_desc.collisionPushDirectionBlend,
 				startCorrection,
 				endCorrection))
 			{
@@ -1705,8 +1801,9 @@ void PhysicsModifier::HardProject_SegmentsOutOfColliders(
 		const float maxHardCorrection = std::max(
 			0.001f,
 			std::max(0.0001f, node.length) * std::max(0.01f, _desc.finalCollisionProjectionMaxScale));
-		parentCorrection = Clamp_VectorLength(parentCorrection, maxHardCorrection);
-		nodeCorrection = Clamp_VectorLength(nodeCorrection, maxHardCorrection);
+		const float snapAlpha = std::clamp(_desc.contactSnapAlpha, 0.f, 1.f);
+		parentCorrection = Clamp_VectorLength(parentCorrection, maxHardCorrection) * snapAlpha;
+		nodeCorrection = Clamp_VectorLength(nodeCorrection, maxHardCorrection) * snapAlpha;
 
 		if (canMoveParent && parentCorrection.LengthSquared() > 0.00000001f)
 		{
@@ -1777,7 +1874,8 @@ void PhysicsModifier::HardProject_NodePointsOutOfColliders(
 		const float maxHardCorrection = std::max(
 			0.001f,
 			std::max(0.0001f, node.length) * std::max(0.01f, _desc.finalCollisionProjectionMaxScale));
-		const Vec3 correction = Clamp_VectorLength(projectedPosition - node.position, maxHardCorrection);
+		const Vec3 correction = Clamp_VectorLength(projectedPosition - node.position, maxHardCorrection)
+			* std::clamp(_desc.contactSnapAlpha, 0.f, 1.f);
 		Apply_NodeCorrection(chain, nodeIndex, correction, deepestPenetration, false);
 		if (markContact)
 		{
@@ -1785,6 +1883,124 @@ void PhysicsModifier::HardProject_NodePointsOutOfColliders(
 		}
 		node.hasCollisionPushApplied = true;
 		node.collisionCorrectionDistance = std::max(node.collisionCorrectionDistance, deepestPenetration);
+	}
+}
+
+void PhysicsModifier::Update_InertiaOffsets(
+	const Matrix& ownerWorld,
+	const Matrix& prevOwnerWorld,
+	const Vec3& ownerDelta)
+{
+	_desc.debugInertiaMagnitude = 0.f;
+
+	for (auto& chain : _chains)
+	{
+		for (auto& node : chain.nodes)
+		{
+			const Vec3 posePosition = Get_Position(node.originalWorld);
+			Vec3 poseDir = node.poseLocalDir;
+			if (node.parentNodeIndex >= 0)
+			{
+				const Vec3 parentPosePosition = Get_Position(chain.nodes[static_cast<size_t>(node.parentNodeIndex)].originalWorld);
+				poseDir = posePosition - parentPosePosition;
+			}
+			else if (chain.anchorBoneIndex >= 0)
+			{
+				poseDir = posePosition - Get_Position(chain.anchorWorld);
+			}
+
+			if (poseDir.LengthSquared() > 0.0001f)
+			{
+				poseDir.Normalize();
+			}
+
+			if (!node.hasPrevPoseState)
+			{
+				node.prevPosePosition = posePosition;
+				node.prevPoseDir = poseDir;
+				node.hasPrevPoseState = true;
+			}
+
+			const Vec3 animPosDelta = posePosition - node.prevPosePosition;
+			Vec3 animRotDelta = Vec3::Zero;
+			if (node.prevPoseDir.LengthSquared() > 0.0001f && poseDir.LengthSquared() > 0.0001f)
+			{
+				animRotDelta = (poseDir - node.prevPoseDir) * std::max(0.0001f, node.length);
+			}
+
+			Vec3 ownerRotDelta = Vec3::Zero;
+			const Matrix prevOwnerInv = prevOwnerWorld.Invert();
+			const Vec3 ownerLocalPose = Vec3::Transform(posePosition, prevOwnerInv);
+			const Vec3 ownerRotatedPose = Vec3::Transform(ownerLocalPose, ownerWorld);
+			ownerRotDelta = ownerRotatedPose - posePosition;
+
+			Vec3 rawInertia = Vec3::Zero;
+			rawInertia -= animPosDelta * std::max(0.f, _desc.animTranslationInertiaScale);
+			rawInertia -= animRotDelta * std::max(0.f, _desc.animRotationInertiaScale);
+			rawInertia -= ownerDelta * std::max(0.f, _desc.ownerTranslationInertiaScale);
+			rawInertia -= ownerRotDelta * std::max(0.f, _desc.ownerRotationInertiaScale);
+			rawInertia = Clamp_VectorLength(rawInertia, std::max(0.f, _desc.inertiaMaxDistance));
+
+			const bool contactMemory =
+				node.wasCollisionDriven
+				|| node.hasCollisionContact
+				|| node.hasCollisionPushApplied
+				|| node.collisionCorrectionDistance > 0.0001f;
+			const float damping = contactMemory
+				? std::clamp(_desc.contactInertiaDamping, 0.f, 1.f)
+				: std::clamp(_desc.inertiaDamping, 0.f, 1.f);
+			node.inertiaOffsetWorld = Vec3::Lerp(node.inertiaOffsetWorld, rawInertia, 1.f - damping);
+			node.inertiaOffsetWorld = Clamp_VectorLength(node.inertiaOffsetWorld, std::max(0.f, _desc.inertiaMaxDistance));
+
+			_desc.debugInertiaMagnitude = std::max(_desc.debugInertiaMagnitude, node.inertiaOffsetWorld.Length());
+			node.prevPosePosition = posePosition;
+			node.prevPoseDir = poseDir;
+		}
+	}
+}
+
+void PhysicsModifier::Update_ContactReleaseStates(float timeDelta)
+{
+	_desc.debugContactNodeCount = 0;
+	_desc.debugReleaseNodeCount = 0;
+
+	const float releaseTime = std::max(0.f, _desc.releaseMemoryTime);
+	const float releaseCorrectionAlpha = std::clamp(_desc.releaseContactCorrectionAlpha, 0.f, 1.f);
+	const float releaseInertiaAlpha = std::clamp(_desc.releaseInertiaDamping, 0.f, 1.f);
+
+	for (auto& chain : _chains)
+	{
+		for (auto& node : chain.nodes)
+		{
+			const bool collisionDriven =
+				node.hasCollisionContact
+				|| node.hasCollisionPushApplied
+				|| node.collisionCorrectionDistance > 0.0001f;
+			if (collisionDriven)
+			{
+				node.contactReleaseTimer = 0.f;
+				node.wasCollisionDriven = true;
+				++_desc.debugContactNodeCount;
+				continue;
+			}
+
+			if (node.wasCollisionDriven)
+			{
+				node.contactReleaseTimer += std::max(0.f, timeDelta);
+				if (node.contactReleaseTimer < releaseTime)
+				{
+					node.smoothedContactCorrection = Vec3::Lerp(node.smoothedContactCorrection, Vec3::Zero, releaseCorrectionAlpha);
+					node.inertiaOffsetWorld = Vec3::Lerp(node.inertiaOffsetWorld, Vec3::Zero, releaseInertiaAlpha);
+					++_desc.debugReleaseNodeCount;
+				}
+				else
+				{
+					node.wasCollisionDriven = false;
+					node.contactReleaseTimer = releaseTime;
+					node.smoothedContactCorrection = Vec3::Zero;
+				}
+			}
+		}
 	}
 }
 
@@ -1801,14 +2017,39 @@ void PhysicsModifier::Apply_NodeCorrection(
 	}
 
 	Node& node = chain.nodes[nodeIndex];
-	node.position += correction;
+	Vec3 appliedCorrection = correction;
+	const float correctionLength = appliedCorrection.Length();
+	if (correctionLength > 0.000001f)
+	{
+		Vec3 correctionDir = appliedCorrection / correctionLength;
+		if (node.hasSmoothedCollisionNormal && node.smoothedCollisionNormal.LengthSquared() > 0.0001f)
+		{
+			correctionDir = Vec3::Lerp(
+				node.smoothedCollisionNormal,
+				correctionDir,
+				std::clamp(_desc.collisionDirectionSmoothAlpha, 0.f, 1.f));
+			if (correctionDir.LengthSquared() <= 0.0001f)
+			{
+				correctionDir = appliedCorrection / correctionLength;
+			}
+		}
+		if (correctionDir.LengthSquared() > 0.0001f)
+		{
+			correctionDir.Normalize();
+			node.smoothedCollisionNormal = correctionDir;
+			node.hasSmoothedCollisionNormal = true;
+			appliedCorrection = correctionDir * correctionLength;
+		}
+	}
+
+	node.position += appliedCorrection;
 	node.hasCollisionPushApplied = true;
 	node.collisionCorrectionDistance = std::max(node.collisionCorrectionDistance, penetration);
-	_desc.debugMaxCollisionPushOut = std::max(_desc.debugMaxCollisionPushOut, correction.Length());
+	_desc.debugMaxCollisionPushOut = std::max(_desc.debugMaxCollisionPushOut, appliedCorrection.Length());
 
 	if (propagateToChildren)
 	{
-		Apply_CorrectionToDescendants(chain, nodeIndex, correction);
+		Apply_CorrectionToDescendants(chain, nodeIndex, appliedCorrection);
 	}
 }
 
@@ -2194,6 +2435,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	const Vec3 ownerPosition = Get_Position(ownerWorld);
 	const Matrix prevOwnerWorld = _prevOwnerWorld;
+	Update_ResolvedCollisionPushDirection(ownerWorld);
 	if (_isFirstUpdate)
 	{
 		_prevOwnerPos = ownerPosition;
@@ -2217,6 +2459,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 	const bool isOwnerIdle = ownerDelta.Length() <= _desc.idleMotionDeadzone;
 
 	Capture_CurrentPose(model, ownerWorld);
+	Update_InertiaOffsets(ownerWorld, prevOwnerWorld, ownerDelta);
 	Prepare_SolvedPoseStart();
 
 	_desc.debugCollisionHitCount = 0;
@@ -2226,6 +2469,7 @@ void PhysicsModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 	Evaluate_SegmentCollisionContacts(model, ownerWorld);
 	Solve_ContactPoseChains(model, ownerWorld);
 	Finalize_CollisionProjection(model, ownerWorld);
+	Update_ContactReleaseStates(timeDelta);
 	Write_BackSolvedPoseToModel(model, ownerWorld, isOwnerIdle);
 	Commit_SolvedState();
 	model->Rebuild_BoneCombinedMatrices();
