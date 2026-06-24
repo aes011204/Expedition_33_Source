@@ -144,6 +144,10 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(ScreenFx_View::Create());
     Add_Window(SoulLike_Viewer::Create());
     Add_Window(SoulLikeCamera_Viewer::Create());
+
+    if (FAILED(CLIENT->Reload_EffectJsons()))
+        LOG_WARN("MainEditor startup effect reload failed.");
+
     return S_OK;
 }
 

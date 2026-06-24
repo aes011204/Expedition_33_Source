@@ -190,10 +190,10 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_levelTransitionFade)
         _levelTransitionFade->Update(timeDelta);
 
-    if (_heroManager && !Is_WorldControlSuspended())
+    if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
 
-    if (_battleController && _battleController->Should_UpdateRuntime())
+    if (_battleController)
         _battleController->Update(timeDelta);
 
     if (_gamePlayUI)
@@ -1075,7 +1075,7 @@ bool ClientInstance::Is_SoulLikeBattleActive() const
 
 bool ClientInstance::Is_WorldControlSuspended() const
 {
-    return Is_BattleActive() || Is_BattleEntering() || Is_SoulLikeBattleActive();
+    return Is_BattleActive() || Is_SoulLikeBattleActive();
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()
