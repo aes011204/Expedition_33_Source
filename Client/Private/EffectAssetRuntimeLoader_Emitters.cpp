@@ -709,6 +709,12 @@ namespace EffectAssetRuntimeLoad::Emitters
             Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
         }
 
+        Fill_SpriteTiltPayload(
+            desc.spriteTilt,
+            Find_ModuleData(emitter, "SpriteTilt"),
+            Find_ModuleData(emitter, "SpriteTiltOverLife")
+        );
+
         if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
         {
             desc.rotation.enabled = true;
@@ -1346,6 +1352,12 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.rotation.enabled = true;
             Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
         }
+
+        Fill_SpriteTiltPayload(
+            desc.spriteTilt,
+            Find_ModuleData(emitter, "SpriteTilt"),
+            Find_ModuleData(emitter, "SpriteTiltOverLife")
+        );
 
         if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
         {

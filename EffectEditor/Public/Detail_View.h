@@ -84,6 +84,8 @@ private: //## Data::ModuleDetail
     SphereRadialOrientationModuleDetail _sphereRadialOrientationModuleDetail{};
     PlaneRadialOrientationModuleDetail _planeRadialOrientationModuleDetail{};
     RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
+    SpriteTiltModuleDetail _spriteTiltModuleDetail{};
+    SpriteTiltOverLifeModuleDetail _spriteTiltOverLifeModuleDetail{};
     InitialRotationRateModuleDetail _initialRotationRateModuleDetail{};
     RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
     InitialMeshRotationModuleDetail _initialMeshRotationModuleDetail{};

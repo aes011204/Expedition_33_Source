@@ -27,6 +27,8 @@ enum class AuthoringModuleType : uint8
     SphereRadialOrientation,
     PlaneRadialOrientation,
     RotationOverLife,
+    SpriteTilt,
+    SpriteTiltOverLife,
     InitialRotationRate,
     RotationRateScaleByLife,
     InitialMeshRotation,
@@ -69,6 +71,7 @@ enum class EmitterScreenAlignment : uint8
     WorldPlaneXZ,
     TypeSpecific,
     FacingCameraDistanceBlend,
+    WorldUpFacingCamera,
 };
 
 // AwayFromCenter/Velocity가 기준 방향을 어떻게 사용할지 정한다.
@@ -982,6 +985,16 @@ struct RotationOverLifeModuleData
     FloatDistributionData rotationOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
 };
 
+struct SpriteTiltModuleData
+{
+    Vector2DistributionData tiltDegrees{ Vector2DistributionData::Make_Constant(Vec2{ 0.f, 0.f }) };
+};
+
+struct SpriteTiltOverLifeModuleData
+{
+    Vector2DistributionData tiltOverLife{ Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f }) };
+};
+
 struct InitialRotationRateModuleData
 {
     FloatDistributionData rotationRateDegrees{ FloatDistributionData::Make_Constant(0.f) };
@@ -1201,6 +1214,8 @@ using AuthoringModuleData = variant<
     SphereRadialOrientationModuleData,
     PlaneRadialOrientationModuleData,
     RotationOverLifeModuleData,
+    SpriteTiltModuleData,
+    SpriteTiltOverLifeModuleData,
     InitialRotationRateModuleData,
     RotationRateScaleByLifeModuleData,
     InitialMeshRotationModuleData,

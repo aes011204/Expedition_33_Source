@@ -2366,6 +2366,34 @@ namespace Internal
         }
     }
 
+    json To_Json(const SpriteTiltModuleData& data)
+    {
+        json root = json::object();
+        root["tiltDegrees"] = To_Json(data.tiltDegrees);
+        return root;
+    }
+
+    void From_Json(const json& root, SpriteTiltModuleData& outData)
+    {
+        const auto iter = root.find("tiltDegrees");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.tiltDegrees);
+    }
+
+    json To_Json(const SpriteTiltOverLifeModuleData& data)
+    {
+        json root = json::object();
+        root["tiltOverLife"] = To_Json(data.tiltOverLife);
+        return root;
+    }
+
+    void From_Json(const json& root, SpriteTiltOverLifeModuleData& outData)
+    {
+        const auto iter = root.find("tiltOverLife");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.tiltOverLife);
+    }
+
     json To_Json(const InitialRotationRateModuleData& data)
     {
         json root = json::object();
@@ -3011,6 +3039,12 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::RotationOverLife:
         root["data"] = Internal::To_Json(get<RotationOverLifeModuleData>(module.data));
         break;
+    case AuthoringModuleType::SpriteTilt:
+        root["data"] = Internal::To_Json(get<SpriteTiltModuleData>(module.data));
+        break;
+    case AuthoringModuleType::SpriteTiltOverLife:
+        root["data"] = Internal::To_Json(get<SpriteTiltOverLifeModuleData>(module.data));
+        break;
     case AuthoringModuleType::InitialRotationRate:
         root["data"] = Internal::To_Json(get<InitialRotationRateModuleData>(module.data));
         break;
@@ -3160,6 +3194,12 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::RotationOverLife:
             Internal::From_Json(*dataIter, get<RotationOverLifeModuleData>(module.data));
             break;
+        case AuthoringModuleType::SpriteTilt:
+            Internal::From_Json(*dataIter, get<SpriteTiltModuleData>(module.data));
+            break;
+        case AuthoringModuleType::SpriteTiltOverLife:
+            Internal::From_Json(*dataIter, get<SpriteTiltOverLifeModuleData>(module.data));
+            break;
         case AuthoringModuleType::InitialRotationRate:
             Internal::From_Json(*dataIter, get<InitialRotationRateModuleData>(module.data));
             break;
@@ -3305,6 +3345,10 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return PlaneRadialOrientationModuleData{};
     case AuthoringModuleType::RotationOverLife:
         return RotationOverLifeModuleData{};
+    case AuthoringModuleType::SpriteTilt:
+        return SpriteTiltModuleData{};
+    case AuthoringModuleType::SpriteTiltOverLife:
+        return SpriteTiltOverLifeModuleData{};
     case AuthoringModuleType::InitialRotationRate:
         return InitialRotationRateModuleData{};
     case AuthoringModuleType::RotationRateScaleByLife:

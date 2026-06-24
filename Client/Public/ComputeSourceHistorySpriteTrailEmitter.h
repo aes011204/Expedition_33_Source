@@ -68,6 +68,8 @@ private: //## Types::PlaybackRuntime
         float lengthScale{ 1.f };
         float initialRotationRadians{};
         float initialAngularVelocityRadians{};
+        Vec2 initialTiltDegrees{};
+        Vec2 tiltOverLifeDegrees{};
         Vec3 velocity{};
         Vec3 acceleration{};
         float drag{};
@@ -119,7 +121,7 @@ private: //## Types::PlaybackRuntime
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
-        float rotationRadians{};
+        Vec4 rotationAndTilt{};
     };
 
 private: //## Static Values
@@ -235,6 +237,8 @@ private: //## Helper::Render
     Vec2 Sample_InitialSize(uint32 stampSerial) const;
     float Sample_InitialRotation(uint32 stampSerial) const;
     float Sample_InitialAngularVelocity(uint32 stampSerial) const;
+    Vec2 Sample_InitialTilt(uint32 stampSerial) const;
+    Vec2 Sample_TiltOverLife(uint32 stampSerial) const;
     Vec3 Sample_InitialVelocity(uint32 stampSerial, const Vec3& spawnCenter, const SourceMotionVelocityContext& sourceMotionContext) const;
     Vec3 Sample_Acceleration(uint32 stampSerial) const;
     float Sample_Drag(uint32 stampSerial) const;
@@ -242,12 +246,14 @@ private: //## Helper::Render
     float Sample_PathFollowStartDelay(uint32 stampSerial) const;
     Vec4 Sample_Color(const Vec4& minColor, const Vec4& maxColor, const PointParticleRandomSeedRuntimeDesc& seed, uint32 stampSerial, uint32 salt) const;
     float Sample_Range(float minValue, float maxValue, const PointParticleRandomSeedRuntimeDesc& seed, uint32 stampSerial, uint32 salt) const;
+    Vec2 Sample_Vector2Range(const Vec2& minValue, const Vec2& maxValue, const PointParticleRandomSeedRuntimeDesc& seed, uint32 stampSerial, uint32 salt) const;
     Vec3 Sample_VectorRange(const Vec3& minValue, const Vec3& maxValue, const PointParticleRandomSeedRuntimeDesc& seed, uint32 stampSerial, uint32 salt) const;
     Vec4 Evaluate_ColorOverLife(const Stamp& stamp, float lifeProgress) const;
     float Evaluate_WidthScaleByLife(float lifeProgress) const;
     float Evaluate_LengthScaleByLife(float lifeProgress) const;
     float Evaluate_RotationOverLife(float lifeProgress) const;
     float Evaluate_RotationRateScaleByLife(float lifeProgress) const;
+    Vec2 Evaluate_SpriteTiltOverLife(const Stamp& stamp, float lifeProgress) const;
     float Evaluate_VelocityScaleByLife(float lifeProgress) const;
     Vec3 Evaluate_AccelerationByLife(const Stamp& stamp, float lifeProgress) const;
     float Evaluate_PathReplayDrainCurve(float progress) const;

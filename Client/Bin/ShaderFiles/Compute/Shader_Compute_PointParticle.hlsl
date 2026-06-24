@@ -12,6 +12,7 @@ struct ParticleInstanceVertex
     float4 startColor;
     float4 endColor;
     float4 subUVRect;
+    float2 spriteTiltDegrees;
 };
 
 struct ParticleLifecycleState
@@ -131,6 +132,26 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SizeByLifeCurveModes;
     float4 g_SizeByLifeCurveModesBlock1;
     float4 g_SizeByLifeCurveParams;              // x: key count, y: multiplyX, z: multiplyY, w: axisLock
+    float4 g_SpriteTiltInitial;                  // x/y: initial min, z/w: initial max
+    float4 g_SpriteTiltOverLife;                 // x/y: over-life min, z/w: over-life max
+    float4 g_SpriteTiltCurveTimes;
+    float4 g_SpriteTiltCurveTimesBlock1;
+    float4 g_SpriteTiltCurveValuesX;
+    float4 g_SpriteTiltCurveValuesXBlock1;
+    float4 g_SpriteTiltCurveValuesY;
+    float4 g_SpriteTiltCurveValuesYBlock1;
+    float4 g_SpriteTiltCurveArriveTangentsX;
+    float4 g_SpriteTiltCurveArriveTangentsXBlock1;
+    float4 g_SpriteTiltCurveLeaveTangentsX;
+    float4 g_SpriteTiltCurveLeaveTangentsXBlock1;
+    float4 g_SpriteTiltCurveArriveTangentsY;
+    float4 g_SpriteTiltCurveArriveTangentsYBlock1;
+    float4 g_SpriteTiltCurveLeaveTangentsY;
+    float4 g_SpriteTiltCurveLeaveTangentsYBlock1;
+    float4 g_SpriteTiltCurveModes;
+    float4 g_SpriteTiltCurveModesBlock1;
+    float4 g_SpriteTiltParams;                   // x: initial enabled, y: over-life enabled, z: key count, w: curve enabled
+    uint4 g_SpriteTiltSeedSalts;                 // x: initial tilt, y: over-life uniform
     float4 g_MotionFlags;                        // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
     float4 g_MotionSpaceFlags;                   // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode
     float4 g_InitialVelocityMin;                 // xyz: vector velocity min
@@ -721,6 +742,52 @@ float EvaluateRotationOverLifeDegrees(float lifeProgress)
     );
 }
 
+float2 EvaluateSpriteTiltOverLifeDegrees(float lifeProgress, float2 sampledTiltOverLife)
+{
+    float2 result = float2(0.0f, 0.0f);
+    if (g_SpriteTiltParams.y != 0.0f)
+    {
+        if (g_SpriteTiltParams.w == 0.0f)
+            result = sampledTiltOverLife;
+        else
+        {
+            const uint keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, (uint)g_SpriteTiltParams.z));
+            const float2 fallbackTilt = lerp(g_SpriteTiltOverLife.xy, g_SpriteTiltOverLife.zw, lifeProgress);
+            result.x = EvaluateCompactCurve(
+                lifeProgress,
+                keyCount,
+                g_SpriteTiltCurveTimes,
+                g_SpriteTiltCurveTimesBlock1,
+                g_SpriteTiltCurveValuesX,
+                g_SpriteTiltCurveValuesXBlock1,
+                g_SpriteTiltCurveArriveTangentsX,
+                g_SpriteTiltCurveArriveTangentsXBlock1,
+                g_SpriteTiltCurveLeaveTangentsX,
+                g_SpriteTiltCurveLeaveTangentsXBlock1,
+                g_SpriteTiltCurveModes,
+                g_SpriteTiltCurveModesBlock1,
+                fallbackTilt.x
+            );
+            result.y = EvaluateCompactCurve(
+                lifeProgress,
+                keyCount,
+                g_SpriteTiltCurveTimes,
+                g_SpriteTiltCurveTimesBlock1,
+                g_SpriteTiltCurveValuesY,
+                g_SpriteTiltCurveValuesYBlock1,
+                g_SpriteTiltCurveArriveTangentsY,
+                g_SpriteTiltCurveArriveTangentsYBlock1,
+                g_SpriteTiltCurveLeaveTangentsY,
+                g_SpriteTiltCurveLeaveTangentsYBlock1,
+                g_SpriteTiltCurveModes,
+                g_SpriteTiltCurveModesBlock1,
+                fallbackTilt.y
+            );
+        }
+    }
+    return result;
+}
+
 float IntegrateHermiteBasis0(float t)
 {
     const float t2 = t * t;
@@ -963,6 +1030,15 @@ float3 SampleRange3(float3 minValue, float3 maxValue, uint seed)
         minValue,
         maxValue,
         float3(Hash01(seed), Hash01(seed + 17u), Hash01(seed + 31u))
+    );
+}
+
+float2 SampleRange2(float2 minValue, float2 maxValue, uint seed)
+{
+    return lerp(
+        minValue,
+        maxValue,
+        float2(Hash01(seed + 11u), Hash01(seed + 23u))
     );
 }
 
@@ -1423,6 +1499,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const uint dragSeed = seed + g_MotionSeedSalts1.x;
     const uint initialRotationSeed = seed + g_RotationSeedSalts.x;
     const uint initialRotationRateSeed = seed + g_RotationSeedSalts.y;
+    const uint initialTiltSeed = seed + g_SpriteTiltSeedSalts.x;
+    const uint tiltOverLifeSeed = seed + g_SpriteTiltSeedSalts.y;
     const uint subUVRandomFrameSeed = seed + g_SubUVSeedSalts.x;
 
     const float3 locationRandom = float3(Hash01(initialLocationSeed), Hash01(initialLocationSeed + 101u), Hash01(initialLocationSeed + 211u));
@@ -1533,6 +1611,15 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float rotation = initialRotation + rotationOverLife + rotationRate * rotationRateScale * lifeAge;
     const float rotationCos = cos(rotation);
     const float rotationSin = sin(rotation);
+    const float2 initialTiltDegrees =
+        g_SpriteTiltParams.x != 0.0f
+        ? SampleRange2(g_SpriteTiltInitial.xy, g_SpriteTiltInitial.zw, initialTiltSeed + 617u)
+        : float2(0.0f, 0.0f);
+    const float2 sampledTiltOverLifeDegrees =
+        g_SpriteTiltParams.y != 0.0f && g_SpriteTiltParams.w == 0.0f
+        ? SampleRange2(g_SpriteTiltOverLife.xy, g_SpriteTiltOverLife.zw, tiltOverLifeSeed + 631u)
+        : float2(0.0f, 0.0f);
+    const float2 spriteTiltDegrees = initialTiltDegrees + EvaluateSpriteTiltOverLifeDegrees(lifeProgress, sampledTiltOverLifeDegrees);
 
     const uint rows = max(1u, (uint)g_SubUVParams.x);
     const uint cols = max(1u, (uint)g_SubUVParams.y);
@@ -1609,6 +1696,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.startColor = particleColor;
     instance.endColor = particleColor;
     instance.subUVRect = float4(u0, v0, u0 + invCols, v0 + invRows);
+    instance.spriteTiltDegrees = spriteTiltDegrees;
 
     if (index >= stableDrawCount)
     {
