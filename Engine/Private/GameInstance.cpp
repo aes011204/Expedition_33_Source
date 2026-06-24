@@ -1967,9 +1967,9 @@ bool GameInstance::Play_Sound(const wstring& soundFile, SoundChannel channel, fl
     return _soundManager ? _soundManager->Play_Once(soundFile, channel, volume) : false;
 }
 
-bool GameInstance::Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
+bool GameInstance::Play_Sound_WithSpeed(const wstring& soundFile, SoundChannel channel, float volume, float speed)
 {
-    return _soundManager ? _soundManager->Play_Once_Pitched(soundFile, channel, volume, pitch) : false;
+    return _soundManager ? _soundManager->Play_Once_WithSpeed(soundFile, channel, volume, speed) : false;
 }
 
 bool GameInstance::Play_BGM(const wstring& soundFile, float volume, bool stopPrevBGM, float fadeOutDuration)
@@ -2055,14 +2055,14 @@ bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition
     return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition) : false;
 }
 
-bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch)
+bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio)
 {
-    return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition, volume, pitch) : false;
+    return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition, volume, speed, startRatio) : false;
 }
 
-bool GameInstance::Try_GetSoundCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const
+bool GameInstance::Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const
 {
-    return _soundManager ? _soundManager->Try_GetCueDefaultVolumePitch(cueId, outVolume, outPitch) : false;
+    return _soundManager ? _soundManager->Try_GetCueDefaultVolumeSpeed(cueId, outVolume, outSpeed) : false;
 }
 
 void GameInstance::Update_SoundListenerFromActiveCamera()

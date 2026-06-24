@@ -66,6 +66,8 @@ private:
         bool hasActivePlayAnim = false;
         CinematicPlayAnimEventData activePlayAnim{};
         int activePlayAnimEventFrame = 0;
+        bool hasCinematicNotifyContextOverride = false;
+        bool previousCinematicNotifyContext = false;
     };
 
     void Execute_EventsUpToFrame(int currentFrame);

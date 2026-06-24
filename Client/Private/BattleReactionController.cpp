@@ -53,6 +53,9 @@ void BattleReactionController::OpenWindow(BattleReactionType type, const BattleA
     if (!IsWindowManagedReaction(type))
         return;
 
+    if (turnAction.GetCurStepIndex() >= turnAction.GetSteps().size())
+        return;
+
     OpenWindow(type);
 
     const size_t index = ReactionIndex(type);
@@ -544,7 +547,9 @@ void BattleReactionController::Notify_TargetDamaged(const BattleChar& target)
     ResetJumpCounterSequence();
 }
 
-BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
+BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(
+    const BattleAction& turnAction,
+    bool autoParryEnabled)
 {
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
         return SubmitInput(BattleReactionType::JumpCounter, turnAction);
@@ -563,6 +568,17 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
             return SubmitInput(*echoContext);
 
         return SubmitInput(BattleReactionType::Parry, turnAction);
+    }
+
+    if (autoParryEnabled &&
+        turnAction.Get_CurChar().statCom != nullptr &&
+        !turnAction.Get_CurChar().statCom->Is_Player())
+    {
+        if (const ReactionInputContext* echoContext = Find_ActiveEchoReactionContext(BattleReactionType::Parry))
+            return SubmitInput(*echoContext);
+
+        if (IsWindowOpen(BattleReactionType::Parry))
+            return SubmitInput(BattleReactionType::Parry, turnAction);
     }
 
     if (GAME->KeyDown(KEY_TYPE::SPACE))

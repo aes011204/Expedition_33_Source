@@ -29,7 +29,7 @@ void BehaviorTree::Bind_Owner(shared_ptr<AIController> owner)
 
 void BehaviorTree::SetOwnerRecursive(shared_ptr<BNode> node, shared_ptr<class AIController> owner)
 {
-    if (!_root)
+    if (node == nullptr)
         return;
 
     node->Set_Owner(owner);

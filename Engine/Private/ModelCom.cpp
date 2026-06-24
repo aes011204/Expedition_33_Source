@@ -1743,6 +1743,7 @@ void ModelCom::Stop_AllNotifyStates(bool executeEndCheck)
         context.isLooping = false;
         context.wrapped = false;
         context.isPreview = !_isAnimNotifyExecutionEnabled;
+        context.isCinematic = _isCinematicNotifyContext;
 
         for (auto& active : _activeNotifyStates)
         {
@@ -1782,6 +1783,7 @@ void ModelCom::Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName
             context.isLooping = false;
             context.wrapped = false;
             context.isPreview = !_isAnimNotifyExecutionEnabled;
+            context.isCinematic = _isCinematicNotifyContext;
 
             instance->On_End(context);
         }
@@ -2317,6 +2319,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
         notifyContext.isLooping = _isAnimLoop;
         notifyContext.wrapped = wrapped;
         notifyContext.isPreview = !_isAnimNotifyExecutionEnabled;
+        notifyContext.isCinematic = _isCinematicNotifyContext;
 
         Stop_NotifyStates_ExceptAnimation(notifyContext.animationName, _isAnimNotifyExecutionEnabled);
 

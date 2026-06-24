@@ -23,7 +23,12 @@ public:
     void Update(float timeDelta) override;
 
 public:
+    void Adjust_IncomingBattleDamage(
+        const BattleChar& attacker,
+        float& damage,
+        AttackType attackType) const override;
 
+    bool Try_ApplyBattleBreakOnDamage(const DamageAppliedInfo& info) override;
 
 protected:
     bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const override;

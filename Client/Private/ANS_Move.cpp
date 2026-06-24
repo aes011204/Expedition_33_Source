@@ -11,7 +11,7 @@
 
 void ANS_Move::On_Begin(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     auto battle = CLIENT->Get_BattleController();
@@ -102,7 +102,7 @@ void ANS_Move::On_Tick(const AnimNotifyContext& context)
 {
 
     ////
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (_moveTarget == nullptr)
@@ -129,7 +129,7 @@ void ANS_Move::On_Tick(const AnimNotifyContext& context)
 
 void ANS_Move::On_End(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (_moveTarget == nullptr)

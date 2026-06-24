@@ -343,7 +343,7 @@ public: /* For.Asset_Manager (access) */
 
 public: /* For.Sound_Manager */
     bool Play_Sound(const wstring& soundFile, SoundChannel channel, float volume = 1.f);
-    bool Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch);
+    bool Play_Sound_WithSpeed(const wstring& soundFile, SoundChannel channel, float volume, float speed);
     bool Play_BGM(
         const wstring& soundFile,
         float volume = 1.f,
@@ -369,8 +369,8 @@ public: /* For.Sound_Manager */
 
     // 사운드 큐
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition = nullptr);
-    bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch);
-    bool Try_GetSoundCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const;
+    bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio = 0.f);
+    bool Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const;
     // 3D 사운드의 기준은, 활성화된 카메라의 기준으로
     void Update_SoundListenerFromActiveCamera();
 

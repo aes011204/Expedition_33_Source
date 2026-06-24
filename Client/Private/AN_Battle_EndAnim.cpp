@@ -18,14 +18,14 @@ IMPLEMENT_REFLECTION(AN_Battle_EndAnim)
 
 void AN_Battle_EndAnim::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (!context.owner || !context.model)
         return;
 
     const auto Battle = CLIENT->Get_BattleController();
-    if (Battle->Is_BattleStarted() == false)
+    if (Battle == nullptr || Battle->Is_BattleStarted() == false)
         return;
 
     const BattleAction& action = Battle->Get_TurnAction();

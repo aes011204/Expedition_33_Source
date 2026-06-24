@@ -1,5 +1,6 @@
 ﻿#include "Animation_View.h"
 #include "Animation_NameUtils.h"
+#include "AnimationNotifyEditor.h"
 #include "AnimSequencerAdapter.h"
 #include "AnimNotify_Parser.h"
 #include "ANS_Trail.h"
@@ -686,9 +687,12 @@ namespace
 Animation_View::Animation_View()
     : Editor_Window(L"Animation")
 {
+    _notifyEditor = make_unique<AnimationNotifyEditor>(*this);
     _sequencer = make_unique<AnimSequencerAdapter>(this);
     Set_Open(false);
 }
+
+Animation_View::~Animation_View() = default;
 
 void Animation_View::Update(float timeDelta)
 {
@@ -1839,7 +1843,7 @@ void Animation_View::Draw_BoneTree()
 
         if (ImGui::BeginPopupContextItem(popupId.c_str()))
         {
-            if (ImGui::MenuItem("뼈 이름 복사"))
+            if (ImGui::MenuItem("Copy Bone Name"))
             {
                 ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
@@ -2198,181 +2202,197 @@ void Animation_View::Draw_PreviewPanel()
 
 void Animation_View::Draw_Sequencer()
 {
-    if (Get_CurrentAnimation() == nullptr)
-    {
-        ImGui::TextDisabled("No animation selected.");
-        return;
-    }
+    _notifyEditor->Draw_Sequencer();
+}
 
-    int sequenceOptions =
-        ImSequencer::SEQUENCER_EDIT_STARTEND |
-        ImSequencer::SEQUENCER_CHANGE_FRAME;
+void Animation_View::Draw_EventListPanel()
+{
+    _notifyEditor->Draw_EventListPanel();
+}
 
-    const int32 fullFrameMin = 0;
-    const int32 fullFrameMax = max(1, Get_CurrentAnimationFrameMax());
-    const int32 fullFrameRange = max(1, fullFrameMax - fullFrameMin);
-    if (_sequencerVisibleFrameCount <= 0 || _sequencerVisibleFrameCount > fullFrameRange)
-        _sequencerVisibleFrameCount = fullFrameRange;
-    _sequencerFirstFrame = std::clamp(_sequencerFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
+void Animation_View::Draw_NotifyList()
+{
+    _notifyEditor->Draw_NotifyList();
+}
 
-    const ImVec2 sequencerRectMin = ImGui::GetCursorScreenPos();
-    if (ImSequencer::Sequencer(
-        _sequencer.get(),
-        &_sequencerCurrentFrame,
-        &_sequencerExpanded,
-        &_sequencerSelectedRow,
-        &_sequencerFirstFrame,
-        sequenceOptions,
-        _sequencerFirstFrame,
-        _sequencerFirstFrame + _sequencerVisibleFrameCount))
-    {
-        Shared<ModelCom> playbackModel = Get_PlaybackModel();
-        if (playbackModel != nullptr)
-        {
-            const float currentTimeSec =
-                static_cast<float>(_sequencerCurrentFrame) /
-                static_cast<float>(max(1, Get_CurrentAnimationFps()));
+void Animation_View::Draw_StateList()
+{
+    _notifyEditor->Draw_StateList();
+}
 
-            playbackModel->Set_AnimationPaused(true);
-            playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-            Update_PreviewRootControllerStates(0.f);
-            playbackModel->Play_Animation(0.f); // 시퀀서 프레임 점프에서도 preview state notify를 같이 갱신한다.
-        }
-    }
+void Animation_View::Draw_TrackSection()
+{
+    _notifyEditor->Draw_TrackSection();
+}
 
-    const ImRect sequencerItemRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-    const ImGuiIO& sequencerIO = ImGui::GetIO();
-    if (ImGui::IsItemHovered() && sequencerIO.KeyCtrl && sequencerIO.MouseWheel != 0.f)
-    {
-        const float timelineMinX = sequencerItemRect.Min.x + 200.f;
-        const float timelineMaxX = sequencerItemRect.Max.x;
-        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
-        const float mouseRatio = std::clamp((sequencerIO.MousePos.x - timelineMinX) / timelineWidth, 0.f, 1.f);
-        const int32 oldVisibleFrameCount = std::clamp(_sequencerVisibleFrameCount, 1, fullFrameRange);
-        const int32 mouseFrame = _sequencerFirstFrame + static_cast<int32>(std::round(mouseRatio * static_cast<float>(oldVisibleFrameCount)));
-        const float zoomScale = sequencerIO.MouseWheel > 0.f ? 0.82f : 1.22f;
-        const int32 minVisibleFrameCount = min(fullFrameRange, 8);
-        const int32 newVisibleFrameCount = std::clamp(
-            static_cast<int32>(std::round(static_cast<float>(oldVisibleFrameCount) * zoomScale)),
-            minVisibleFrameCount,
-            fullFrameRange);
+void Animation_View::Add_NotifyTrack(const string& trackName)
+{
+    _notifyEditor->Add_NotifyTrack(trackName);
+}
 
-        const float pivotRatio = static_cast<float>(mouseFrame - _sequencerFirstFrame) / static_cast<float>(max(1, oldVisibleFrameCount));
-        const int32 requestedFirstFrame = mouseFrame - static_cast<int32>(std::round(pivotRatio * static_cast<float>(newVisibleFrameCount)));
-        _sequencerVisibleFrameCount = newVisibleFrameCount;
-        _sequencerFirstFrame = std::clamp(requestedFirstFrame, fullFrameMin, max(fullFrameMin, fullFrameMax - _sequencerVisibleFrameCount));
-    }
+void Animation_View::Add_NotifyStateTrack(const string& trackName)
+{
+    _notifyEditor->Add_NotifyStateTrack(trackName);
+}
 
-    if (const AnimNotifyData* animationData = Get_CurrentAnimation())
-    {
-        const ImRect sequencerRect = sequencerItemRect;
-        const float timelineMinX = sequencerRect.Min.x + 200.f;
-        const float timelineMaxX = sequencerRect.Max.x;
-        const float timelineWidth = max(1.f, timelineMaxX - timelineMinX);
-        const int32 visibleFrameMin = _sequencerFirstFrame;
-        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
-        const int32 visibleFrameRange = max(1, visibleFrameMax - visibleFrameMin);
-        const int32 fps = max(1, Get_CurrentAnimationFps());
+void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
+{
+    _notifyEditor->Add_Notify_AtFrame(frame, typeName);
+}
 
-        const int32 startFrame = std::clamp(
-            static_cast<int32>(std::round(Get_PlaySectionStartSec(animationData) * static_cast<float>(fps))),
-            0,
-            fullFrameMax);
-        const int32 endFrame = std::clamp(
-            static_cast<int32>(std::round(Get_PlaySectionEndSec(animationData) * static_cast<float>(fps))),
-            0,
-            fullFrameMax);
+void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, const string& typeName)
+{
+    _notifyEditor->Add_State_ByFrameRange(startFrame, endFrame, typeName);
+}
 
-        auto frameToX = [&](int32 frame)
-        {
-            return timelineMinX + timelineWidth * (static_cast<float>(frame - visibleFrameMin) / static_cast<float>(visibleFrameRange));
-        };
+void Animation_View::Delete_SelectedNotify()
+{
+    _notifyEditor->Delete_SelectedNotify();
+}
 
-        const float startX = frameToX(startFrame);
-        const float endX = frameToX(endFrame);
-        const float clampedStartX = std::clamp(startX, timelineMinX, timelineMaxX);
-        const float clampedEndX = std::clamp(endX, timelineMinX, timelineMaxX);
+void Animation_View::Delete_SelectedState()
+{
+    _notifyEditor->Delete_SelectedState();
+}
 
-        const float markerY = sequencerRect.Min.y + 5.f;
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        const ImU32 sectionOutside = IM_COL32(255, 72, 72, 24);
-        const ImU32 sectionLine = IM_COL32(255, 82, 72, 210);
-        const ImU32 sectionGuide = IM_COL32(255, 82, 72, 95);
+void Animation_View::Delete_SelectedNotifyTrack()
+{
+    _notifyEditor->Delete_SelectedNotifyTrack();
+}
 
-        if (startFrame > visibleFrameMin)
-        {
-            drawList->AddRectFilled(
-                ImVec2(timelineMinX, sequencerRect.Min.y),
-                ImVec2(clampedStartX, sequencerRect.Max.y),
-                sectionOutside);
-        }
+void Animation_View::Delete_SelectedNotifyStateTrack()
+{
+    _notifyEditor->Delete_SelectedNotifyStateTrack();
+}
 
-        if (endFrame < visibleFrameMax)
-        {
-            drawList->AddRectFilled(
-                ImVec2(clampedEndX, sequencerRect.Min.y),
-                ImVec2(timelineMaxX, sequencerRect.Max.y),
-                sectionOutside);
-        }
+Animation_View::NotifyUndoSnapshot Animation_View::Capture_NotifyUndoSnapshot() const
+{
+    return _notifyEditor->Capture_NotifyUndoSnapshot();
+}
 
-        const int32 sectionOverlapStart = max(startFrame, visibleFrameMin);
-        const int32 sectionOverlapEnd = min(endFrame, visibleFrameMax);
-        if (sectionOverlapEnd > sectionOverlapStart)
-        {
-            drawList->AddLine(
-                ImVec2(frameToX(sectionOverlapStart), markerY),
-                ImVec2(frameToX(sectionOverlapEnd), markerY),
-                sectionLine,
-                2.f);
-        }
+void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    _notifyEditor->Restore_NotifyUndoSnapshot(snapshot);
+}
 
-        if (startFrame >= visibleFrameMin && startFrame <= visibleFrameMax)
-        {
-            drawList->AddLine(
-                ImVec2(startX, sequencerRect.Min.y),
-                ImVec2(startX, sequencerRect.Max.y),
-                sectionGuide,
-                1.f);
-        }
+void Animation_View::Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
+{
+    _notifyEditor->Commit_NotifyUndoSnapshot(snapshot);
+}
 
-        if (endFrame >= visibleFrameMin && endFrame <= visibleFrameMax)
-        {
-            drawList->AddLine(
-                ImVec2(endX, sequencerRect.Min.y),
-                ImVec2(endX, sequencerRect.Max.y),
-                sectionGuide,
-                1.f);
-        }
-    }
+void Animation_View::Begin_PendingNotifyUndo()
+{
+    _notifyEditor->Begin_PendingNotifyUndo();
+}
 
-    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
-    {
-        const ImRect sequencerRect = sequencerItemRect;
-        bool isStateTrack = false;
-        int32 trackIndex = -1;
-        const ImVec2 mousePos = ImGui::GetIO().MousePos;
-        const bool hasTrackContext = Try_GetSequencerTrackContext(sequencerRectMin, mousePos, isStateTrack, trackIndex);
-        const float normalized = std::clamp(
-            (mousePos.x - (sequencerRect.Min.x + 200.f)) / max(1.f, sequencerRect.Max.x - (sequencerRect.Min.x + 200.f)),
-            0.f,
-            1.f);
-        const int32 visibleFrameMin = _sequencerFirstFrame;
-        const int32 visibleFrameMax = std::clamp(_sequencerFirstFrame + _sequencerVisibleFrameCount, visibleFrameMin + 1, fullFrameMax);
-        const int32 clickedFrame = visibleFrameMin + static_cast<int32>(std::round(normalized * static_cast<float>(visibleFrameMax - visibleFrameMin)));
-        Begin_SequencerContextMenu(clickedFrame, hasTrackContext, isStateTrack, trackIndex);
-    }
+void Animation_View::Commit_PendingNotifyUndo()
+{
+    _notifyEditor->Commit_PendingNotifyUndo();
+}
 
-    if (!_sequencerMarkingState &&
-        _sequencerMarkStartFrame >= 0 &&
-        _sequencerMarkEndFrame >= 0 &&
-        _sequencerMarkStartFrame != _sequencerMarkEndFrame)
-    {
-        _requestedCreateStateStartFrame = min(_sequencerMarkStartFrame, _sequencerMarkEndFrame);
-        _requestedCreateStateEndFrame = max(_sequencerMarkStartFrame, _sequencerMarkEndFrame);
-        _openCreateNotifyStatePopup = true;
-        _sequencerMarkStartFrame = -1;
-        _sequencerMarkEndFrame = -1;
-    }
+void Animation_View::Clear_NotifyUndoHistory()
+{
+    _notifyEditor->Clear_NotifyUndoHistory();
+}
+
+void Animation_View::Undo_NotifyEdit()
+{
+    _notifyEditor->Undo_NotifyEdit();
+}
+
+void Animation_View::Redo_NotifyEdit()
+{
+    _notifyEditor->Redo_NotifyEdit();
+}
+
+void Animation_View::Handle_ClipboardShortcuts()
+{
+    _notifyEditor->Handle_ClipboardShortcuts();
+}
+
+void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
+{
+    _notifyEditor->Move_SelectedNotifiesByFrame(frameDelta);
+}
+
+void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
+{
+    _notifyEditor->Move_SelectedStateByFrame(frameDelta);
+}
+
+void Animation_View::Copy_SelectedNotify()
+{
+    _notifyEditor->Copy_SelectedNotify();
+}
+
+void Animation_View::Copy_SelectedState()
+{
+    _notifyEditor->Copy_SelectedState();
+}
+
+void Animation_View::Paste_CopiedNotify()
+{
+    _notifyEditor->Paste_CopiedNotify();
+}
+
+void Animation_View::Paste_CopiedState()
+{
+    _notifyEditor->Paste_CopiedState();
+}
+
+void Animation_View::Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex)
+{
+    _notifyEditor->Begin_SequencerContextMenu(frame, hasTrackContext, isStateTrack, trackIndex);
+}
+
+bool Animation_View::Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const
+{
+    return _notifyEditor->Try_GetSequencerTrackContext(sequencerRectMin, mousePos, outIsStateTrack, outTrackIndex);
+}
+
+void Animation_View::Draw_CreateNotifyPopup()
+{
+    _notifyEditor->Draw_CreateNotifyPopup();
+}
+
+void Animation_View::Draw_CreateNotifyStatePopup()
+{
+    _notifyEditor->Draw_CreateNotifyStatePopup();
+}
+
+void Animation_View::Draw_SequencerContextMenu()
+{
+    _notifyEditor->Draw_SequencerContextMenu();
+}
+
+AnimNotifyEventEntry* Animation_View::Find_SelectedNotify()
+{
+    return _notifyEditor->Find_SelectedNotify();
+}
+
+AnimNotifyStateEntry* Animation_View::Find_SelectedState()
+{
+    return _notifyEditor->Find_SelectedState();
+}
+
+void Animation_View::Clear_SelectedNotifySelection()
+{
+    _notifyEditor->Clear_SelectedNotifySelection();
+}
+
+void Animation_View::Clear_SelectedStateSelection()
+{
+    _notifyEditor->Clear_SelectedStateSelection();
+}
+
+bool Animation_View::Is_NotifySelected(int32 notifyId) const
+{
+    return _notifyEditor->Is_NotifySelected(notifyId);
+}
+
+bool Animation_View::Is_StateSelected(int32 stateId) const
+{
+    return _notifyEditor->Is_StateSelected(stateId);
 }
 
 void Animation_View::Draw_SelectedDetail()
@@ -2447,9 +2467,9 @@ void Animation_View::Draw_SelectedDetail()
     }
     else
     {
-        ImGui::TextDisabled("선택된 항목 없음");
+        ImGui::TextDisabled("No selection.");
         ImGui::Spacing();
-        ImGui::TextWrapped("Notify, NotifyState, 또는 Bone을 선택하세요.");
+        ImGui::TextWrapped("Select a Notify, NotifyState, or Bone.");
     }
 
     Draw_ModifierRuntimePanel(playbackModel);
@@ -3205,1234 +3225,6 @@ void Animation_View::Draw_TrailAnchorPanel()
         _trailAnchorAsset.tip.localPosition = tipLocal;
         MarkDirty();
     }
-}
-
-void Animation_View::Draw_EventListPanel()
-{
-    if (Get_CurrentAnimation() == nullptr)
-    {
-        ImGui::TextDisabled("선택된 애니메이션 없음");
-        return;
-    }
-
-    const float availableHeight = ImGui::GetContentRegionAvail().y;
-    const float topHeight = max(120.f, availableHeight * 0.5f - 6.f);
-
-    if (ImGui::BeginChild("NotifyListContainer", ImVec2(0.f, topHeight), false))
-        Draw_NotifyList();
-    ImGui::EndChild();
-
-    ImGui::Spacing();
-
-    if (ImGui::BeginChild("StateListContainer", ImVec2(0.f, 0.f), false))
-        Draw_StateList();
-    ImGui::EndChild();
-}
-
-void Animation_View::Draw_NotifyList()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    const int32 notifyCount = animationData ? static_cast<int32>(animationData->notifies.size()) : 0;
-
-    ImGui::Text("Notifies (%d)", notifyCount);
-    ImGui::Separator();
-
-    if (animationData == nullptr)
-    {
-        ImGui::TextDisabled("No notify data.");
-        return;
-    }
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    for (int32 trackIndex = 0; trackIndex < static_cast<int32>(animationData->notifyTracks.size()); ++trackIndex)
-    {
-        const string trackLabel = animationData->notifyTracks[trackIndex].name.empty()
-            ? "Notify Track " + to_string(trackIndex)
-            : animationData->notifyTracks[trackIndex].name;
-
-        if (!ImGui::TreeNode((trackLabel + "##NotifyTrackTree" + to_string(trackIndex)).c_str()))
-            continue;
-
-        if (ImGui::Selectable(("Select Track##NotifyTrackSelect" + to_string(trackIndex)).c_str(), _selectedNotifyTrackIndex == trackIndex))
-        {
-            _selectedNotifyTrackIndex = trackIndex;
-            Clear_SelectedNotifySelection();
-        }
-
-        for (const auto& entry : animationData->notifies)
-        {
-            if (!entry.notify || entry.trackIndex != trackIndex)
-                continue;
-
-            const int32 frame = static_cast<int32>(std::round(entry.timeSec * fps));
-            const string label = entry.notify->Get_TypeName() + " (" + to_string(frame) + ")";
-            const bool isSelected = Is_NotifySelected(entry.id);
-            if (ImGui::Selectable((label + "##NotifyEntry" + to_string(entry.id)).c_str(), isSelected))
-            {
-                const bool ctrlPressed = ImGui::GetIO().KeyCtrl;
-
-                if (ctrlPressed)
-                {
-                    if (Is_NotifySelected(entry.id))
-                    {
-                        _selectedNotifyIds.erase(entry.id);
-                        if (_selectedNotifyId == entry.id)
-                            _selectedNotifyId = _selectedNotifyIds.empty() ? -1 : *_selectedNotifyIds.begin();
-                    }
-                    else
-                    {
-                        _selectedNotifyIds.insert(entry.id);
-                        _selectedNotifyId = entry.id;
-                    }
-                }
-                else
-                {
-                    _selectedNotifyIds.clear();
-                    _selectedNotifyIds.insert(entry.id);
-                    _selectedNotifyId = entry.id;
-                }
-
-                Clear_SelectedStateSelection();
-                _selectedNotifyTrackIndex = trackIndex;
-            }
-        }
-
-        ImGui::TreePop();
-    }
-}
-
-void Animation_View::Draw_StateList()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    const int32 stateCount = animationData ? static_cast<int32>(animationData->notifyStates.size()) : 0;
-
-    ImGui::Text("Notify States (%d)", stateCount);
-    ImGui::Separator();
-
-    if (animationData == nullptr)
-    {
-        ImGui::TextDisabled("No notify state data.");
-        return;
-    }
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    for (int32 trackIndex = 0; trackIndex < static_cast<int32>(animationData->notifyStateTracks.size()); ++trackIndex)
-    {
-        const string trackLabel = animationData->notifyStateTracks[trackIndex].name.empty()
-            ? "Notify State Track " + to_string(trackIndex)
-            : animationData->notifyStateTracks[trackIndex].name;
-
-        if (!ImGui::TreeNode((trackLabel + "##NotifyStateTrackTree" + to_string(trackIndex)).c_str()))
-            continue;
-
-        if (ImGui::Selectable(("Select Track##NotifyStateTrackSelect" + to_string(trackIndex)).c_str(), _selectedNotifyStateTrackIndex == trackIndex))
-        {
-            _selectedNotifyStateTrackIndex = trackIndex;
-            Clear_SelectedNotifySelection();
-            Clear_SelectedStateSelection();
-        }
-
-        for (const auto& entry : animationData->notifyStates)
-        {
-            if (!entry.notifyState || entry.trackIndex != trackIndex)
-                continue;
-
-            const int32 startFrame = static_cast<int32>(std::round(entry.startSec * fps));
-            const int32 endFrame = static_cast<int32>(std::round((entry.startSec + entry.durationSec) * fps));
-            const string label = entry.notifyState->Get_TypeName() + " (" + to_string(startFrame) + "~" + to_string(endFrame) + ")";
-            const bool isSelected = Is_StateSelected(entry.id);
-            if (ImGui::Selectable((label + "##NotifyStateEntry" + to_string(entry.id)).c_str(), isSelected))
-            {
-                const bool ctrlPressed = ImGui::GetIO().KeyCtrl;
-
-                if (ctrlPressed)
-                {
-                    if (Is_StateSelected(entry.id))
-                    {
-                        _selectedStateIds.erase(entry.id);
-                        if (_selectedStateId == entry.id)
-                            _selectedStateId = _selectedStateIds.empty() ? -1 : *_selectedStateIds.begin();
-                    }
-                    else
-                    {
-                        _selectedStateIds.insert(entry.id);
-                        _selectedStateId = entry.id;
-                    }
-                }
-                else
-                {
-                    _selectedStateIds.clear();
-                    _selectedStateIds.insert(entry.id);
-                    _selectedStateId = entry.id;
-                }
-
-                Clear_SelectedNotifySelection();
-                _selectedNotifyStateTrackIndex = trackIndex;
-            }
-        }
-
-        ImGui::TreePop();
-    }
-}
-
-void Animation_View::Draw_TrackSection()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return;
-
-    if (!ImGui::BeginChild("AnimationTrackSectionPanel", ImVec2(0.f, 0.f), false))
-    {
-        ImGui::EndChild();
-        return;
-    }
-
-    ImGui::SeparatorText("트랙 생성 / 관리");
-    ImGui::TextDisabled("노티파이 트랙");
-    char notifyTrackBuffer[128] = {};
-    strcpy_s(notifyTrackBuffer, _newNotifyTrackName.c_str());
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::InputTextWithHint("##NotifyTrackInput", "새 노티파이 트랙 이름", notifyTrackBuffer, static_cast<size_t>(std::size(notifyTrackBuffer))))
-        _newNotifyTrackName = notifyTrackBuffer;
-
-    ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(56, 72, 48, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(74, 92, 62, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive, IM_COL32(88, 108, 72, 255));
-    for (int32 i = 0; i < static_cast<int32>(animationData->notifyTracks.size()); ++i)
-    {
-        const bool selected = (_selectedNotifyTrackIndex == i);
-        const string displayName = Normalize_DefaultTrackName(animationData->notifyTracks[i].name);
-        if (ImGui::Selectable((displayName + "##NotifyTrack" + to_string(i)).c_str(), selected))
-        {
-            _selectedNotifyTrackIndex = i;
-            Clear_SelectedNotifySelection();
-        }
-    }
-    ImGui::PopStyleColor(3);
-
-    if (ImGui::Button("노티파이 트랙 생성", ImVec2(-FLT_MIN, 0.f)))
-        Add_NotifyTrack(_newNotifyTrackName);
-
-    if (ImGui::Button("노티파이 트랙 삭제", ImVec2(-FLT_MIN, 0.f)))
-        Delete_SelectedNotifyTrack();
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::TextDisabled("노티파이 스테이트 트랙");
-    char notifyStateTrackBuffer[128] = {};
-    strcpy_s(notifyStateTrackBuffer, _newNotifyStateTrackName.c_str());
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::InputTextWithHint("##NotifyStateTrackInput", "새 노티파이 스테이트 트랙 이름", notifyStateTrackBuffer, static_cast<size_t>(std::size(notifyStateTrackBuffer))))
-        _newNotifyStateTrackName = notifyStateTrackBuffer;
-
-    ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(66, 56, 38, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(90, 74, 48, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive, IM_COL32(108, 88, 56, 255));
-    for (int32 i = 0; i < static_cast<int32>(animationData->notifyStateTracks.size()); ++i)
-    {
-        const bool selected = (_selectedNotifyStateTrackIndex == i);
-        const string displayName = Normalize_DefaultTrackName(animationData->notifyStateTracks[i].name);
-        if (ImGui::Selectable((displayName + "##NotifyStateTrack" + to_string(i)).c_str(), selected))
-        {
-            _selectedNotifyStateTrackIndex = i;
-            Clear_SelectedNotifySelection();
-            Clear_SelectedStateSelection();
-        }
-    }
-    ImGui::PopStyleColor(3);
-
-    if (ImGui::Button("노티파이 스테이트 트랙 생성", ImVec2(-FLT_MIN, 0.f)))
-        Add_NotifyStateTrack(_newNotifyStateTrackName);
-
-    if (ImGui::Button("노티파이 스테이트 트랙 삭제", ImVec2(-FLT_MIN, 0.f)))
-        Delete_SelectedNotifyStateTrack();
-
-    ImGui::EndChild();
-}
-
-void Animation_View::Add_NotifyTrack(const string& trackName)
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    AnimNotifyTrackDesc trackDesc{};
-    trackDesc.name = trackName.empty()
-        ? "Notify"
-        : trackName;
-
-    animationData->notifyTracks.push_back(trackDesc);
-    _selectedNotifyTrackIndex = static_cast<int32>(animationData->notifyTracks.size()) - 1;
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Add_NotifyStateTrack(const string& trackName)
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    AnimNotifyTrackDesc trackDesc{};
-    trackDesc.name = trackName.empty()
-        ? "Notify State"
-        : trackName;
-
-    animationData->notifyStateTracks.push_back(trackDesc);
-    _selectedNotifyStateTrackIndex = static_cast<int32>(animationData->notifyStateTracks.size()) - 1;
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return;
-
-    Shared<AnimNotify> notifyInstance = GAME->Create_AnimNotifyPrototype(typeName);
-    if (notifyInstance == nullptr)
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    if (animationData->notifyTracks.empty())
-        animationData->notifyTracks.push_back({ "Notify" });
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
-    const int32 clampedFrame = std::clamp(frame, 0, maxNotifyFrame);
-
-    AnimNotifyEventEntry entry{};
-    const int32 createdId = animationData->nextNotifyId++;
-    entry.id = createdId;
-    entry.timeSec = static_cast<float>(clampedFrame) / static_cast<float>(fps);
-    entry.trackIndex = std::clamp(_sequencerContextHasTrack && !_sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
-    entry.notify = notifyInstance;
-
-    animationData->notifies.push_back(std::move(entry));
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
-    _selectedNotifyIds.clear();
-    _selectedNotifyIds.insert(createdId);
-    _selectedNotifyId = createdId;
-    _selectedNotifyTrackIndex = std::clamp(_sequencerContextHasTrack && !_sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, const string& typeName)
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return;
-
-    Shared<AnimNotifyState> notifyStateInstance = GAME->Create_AnimNotifyStatePrototype(typeName);
-    if (notifyStateInstance == nullptr)
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    if (animationData->notifyStateTracks.empty())
-        animationData->notifyStateTracks.push_back({ "Notify State" });
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    const int32 minFrame = min(startFrame, endFrame);
-    const int32 maxFrame = max(startFrame, endFrame);
-
-    AnimNotifyStateEntry entry{};
-    const int32 createdId = animationData->nextStateId++;
-    entry.id = createdId;
-    entry.startSec = static_cast<float>(minFrame) / static_cast<float>(fps);
-    entry.durationSec = static_cast<float>(max(1, maxFrame - minFrame)) / static_cast<float>(fps);
-    entry.trackIndex = std::clamp(_sequencerContextHasTrack && _sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
-    entry.notifyState = notifyStateInstance;
-
-    animationData->notifyStates.push_back(std::move(entry));
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
-    Clear_SelectedNotifySelection();
-    _selectedStateIds.clear();
-    _selectedStateIds.insert(createdId);
-    _selectedStateId = createdId;
-    _selectedNotifyStateTrackIndex = std::clamp(_sequencerContextHasTrack && _sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Delete_SelectedNotify()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedNotifyIds.empty())
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    auto it = std::remove_if(
-        animationData->notifies.begin(),
-        animationData->notifies.end(),
-        [this](const AnimNotifyEventEntry& entry)
-        {
-            return Is_NotifySelected(entry.id);
-        });
-
-    if (it != animationData->notifies.end())
-    {
-        animationData->notifies.erase(it, animationData->notifies.end());
-        Clear_SelectedNotifySelection();
-        _isDirty = true;
-        Commit_NotifyUndoSnapshot(undoSnapshot);
-    }
-}
-
-void Animation_View::Delete_SelectedState()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedStateIds.empty())
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    auto it = std::remove_if(
-        animationData->notifyStates.begin(),
-        animationData->notifyStates.end(),
-        [this](const AnimNotifyStateEntry& entry)
-        {
-            return Is_StateSelected(entry.id);
-        });
-
-    if (it != animationData->notifyStates.end())
-    {
-        animationData->notifyStates.erase(it, animationData->notifyStates.end());
-        Clear_SelectedStateSelection();
-        _isDirty = true;
-        Commit_NotifyUndoSnapshot(undoSnapshot);
-    }
-}
-
-void Animation_View::Delete_SelectedNotifyTrack()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return;
-
-    if (_selectedNotifyTrackIndex < 0 || _selectedNotifyTrackIndex >= static_cast<int32>(animationData->notifyTracks.size()))
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    Remove_NotifyTrackEntries(*animationData, _selectedNotifyTrackIndex);
-    animationData->notifyTracks.erase(animationData->notifyTracks.begin() + _selectedNotifyTrackIndex);
-    _selectedNotifyTrackIndex = animationData->notifyTracks.empty() ? 0 : min(_selectedNotifyTrackIndex, static_cast<int32>(animationData->notifyTracks.size()) - 1);
-    Clear_SelectedNotifySelection();
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Delete_SelectedNotifyStateTrack()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return;
-
-    if (_selectedNotifyStateTrackIndex < 0 || _selectedNotifyStateTrackIndex >= static_cast<int32>(animationData->notifyStateTracks.size()))
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    Remove_NotifyStateTrackEntries(*animationData, _selectedNotifyStateTrackIndex);
-    animationData->notifyStateTracks.erase(animationData->notifyStateTracks.begin() + _selectedNotifyStateTrackIndex);
-    _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty() ? 0 : min(_selectedNotifyStateTrackIndex, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
-    Clear_SelectedStateSelection();
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-Animation_View::NotifyUndoSnapshot Animation_View::Capture_NotifyUndoSnapshot() const
-{
-    NotifyUndoSnapshot snapshot{};
-    snapshot.assetJson = AnimNotify_Parser::To_Json(_asset);
-    snapshot.currentAnimationName = _currentAnimationName;
-    snapshot.selectedNotifyId = _selectedNotifyId;
-    snapshot.selectedStateId = _selectedStateId;
-    snapshot.selectedNotifyTrackIndex = _selectedNotifyTrackIndex;
-    snapshot.selectedNotifyStateTrackIndex = _selectedNotifyStateTrackIndex;
-    snapshot.sequencerCurrentFrame = _sequencerCurrentFrame;
-    snapshot.selectedNotifyIds.assign(_selectedNotifyIds.begin(), _selectedNotifyIds.end());
-    snapshot.selectedStateIds.assign(_selectedStateIds.begin(), _selectedStateIds.end());
-    return snapshot;
-}
-
-void Animation_View::Restore_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
-{
-    AnimNotifyAsset restoredAsset{};
-    if (!AnimNotify_Parser::From_Json(snapshot.assetJson, restoredAsset))
-        return;
-
-    _asset = std::move(restoredAsset);
-    if (_asset.modelGuid.empty())
-        _asset.modelGuid = _modelGuid;
-
-    _currentAnimationName = snapshot.currentAnimationName;
-    if (!_currentAnimationName.empty())
-    {
-        if (const AnimationEntry* entry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName))
-            _currentAnimationName = entry->displayName;
-    }
-
-    _selectedNotifyId = snapshot.selectedNotifyId;
-    _selectedStateId = snapshot.selectedStateId;
-    _selectedNotifyTrackIndex = snapshot.selectedNotifyTrackIndex;
-    _selectedNotifyStateTrackIndex = snapshot.selectedNotifyStateTrackIndex;
-    _sequencerCurrentFrame = snapshot.sequencerCurrentFrame;
-
-    _selectedNotifyIds.clear();
-    for (const int32 notifyId : snapshot.selectedNotifyIds)
-        _selectedNotifyIds.insert(notifyId);
-
-    _selectedStateIds.clear();
-    for (const int32 stateId : snapshot.selectedStateIds)
-        _selectedStateIds.insert(stateId);
-
-    if (Find_SelectedNotify() == nullptr)
-        Clear_SelectedNotifySelection();
-
-    if (Find_SelectedState() == nullptr)
-        Clear_SelectedStateSelection();
-
-    if (AnimNotifyData* animationData = Get_CurrentAnimation())
-    {
-        _selectedNotifyTrackIndex = animationData->notifyTracks.empty()
-            ? 0
-            : std::clamp(_selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
-        _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty()
-            ? 0
-            : std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
-    }
-
-    Reset_PreviewAnimSpeedStates();
-    Reset_PreviewPlayEffectStates();
-    Reset_PreviewSLDodgeMoveStates();
-    Reset_PreviewRootControllerStates();
-    Reset_PreviewSourceHistoryEffect();
-    Reset_PreviewTrailEffect();
-    Reset_PreviewWeaponRotateStates();
-    Reset_PreviewWeaponEchoStates();
-
-    _isDirty = true;
-}
-
-void Animation_View::Commit_NotifyUndoSnapshot(const NotifyUndoSnapshot& snapshot)
-{
-    const NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
-    if (snapshot.assetJson == currentSnapshot.assetJson)
-        return;
-
-    static constexpr size_t MaxUndoCount = 64;
-    _notifyUndoStack.push_back(snapshot);
-    if (_notifyUndoStack.size() > MaxUndoCount)
-        _notifyUndoStack.erase(_notifyUndoStack.begin());
-
-    _notifyRedoStack.clear();
-}
-
-void Animation_View::Begin_PendingNotifyUndo()
-{
-    if (_hasPendingNotifyUndoSnapshot)
-        return;
-
-    _pendingNotifyUndoSnapshot = Capture_NotifyUndoSnapshot();
-    _hasPendingNotifyUndoSnapshot = true;
-}
-
-void Animation_View::Commit_PendingNotifyUndo()
-{
-    if (!_hasPendingNotifyUndoSnapshot)
-        return;
-
-    Commit_NotifyUndoSnapshot(_pendingNotifyUndoSnapshot);
-    _pendingNotifyUndoSnapshot = {};
-    _hasPendingNotifyUndoSnapshot = false;
-}
-
-void Animation_View::Clear_NotifyUndoHistory()
-{
-    _notifyUndoStack.clear();
-    _notifyRedoStack.clear();
-    _pendingNotifyUndoSnapshot = {};
-    _hasPendingNotifyUndoSnapshot = false;
-}
-
-void Animation_View::Undo_NotifyEdit()
-{
-    if (_notifyUndoStack.empty())
-        return;
-
-    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
-    NotifyUndoSnapshot undoSnapshot = std::move(_notifyUndoStack.back());
-    _notifyUndoStack.pop_back();
-    _notifyRedoStack.push_back(std::move(currentSnapshot));
-
-    Restore_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Redo_NotifyEdit()
-{
-    if (_notifyRedoStack.empty())
-        return;
-
-    NotifyUndoSnapshot currentSnapshot = Capture_NotifyUndoSnapshot();
-    NotifyUndoSnapshot redoSnapshot = std::move(_notifyRedoStack.back());
-    _notifyRedoStack.pop_back();
-    _notifyUndoStack.push_back(std::move(currentSnapshot));
-
-    Restore_NotifyUndoSnapshot(redoSnapshot);
-}
-
-void Animation_View::Handle_ClipboardShortcuts()
-{
-    if (!_isFocused)
-        return;
-
-    const ImGuiIO& io = ImGui::GetIO();
-    if (io.WantTextInput)
-        return;
-
-    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
-    {
-        if (!_selectedNotifyIds.empty())
-            Delete_SelectedNotify();
-        else if (!_selectedStateIds.empty())
-            Delete_SelectedState();
-    }
-
-    if (!io.KeyCtrl)
-    {
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
-        {
-            if (!_selectedNotifyIds.empty())
-                Move_SelectedNotifiesByFrame(-1);
-            else if (!_selectedStateIds.empty())
-                Move_SelectedStateByFrame(-1);
-        }
-        else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
-        {
-            if (!_selectedNotifyIds.empty())
-                Move_SelectedNotifiesByFrame(1);
-            else if (!_selectedStateIds.empty())
-                Move_SelectedStateByFrame(1);
-        }
-    }
-
-    if (!io.KeyCtrl)
-        return;
-
-    if (ImGui::IsKeyPressed(ImGuiKey_Z, false))
-    {
-        Undo_NotifyEdit();
-        return;
-    }
-
-    if (ImGui::IsKeyPressed(ImGuiKey_Y, false))
-    {
-        Redo_NotifyEdit();
-        return;
-    }
-
-    if (ImGui::IsKeyPressed(ImGuiKey_C, false))
-    {
-        if (!_selectedNotifyIds.empty())
-            Copy_SelectedNotify();
-        else if (!_selectedStateIds.empty())
-            Copy_SelectedState();
-    }
-
-    if (ImGui::IsKeyPressed(ImGuiKey_V, false))
-    {
-        if (_notifyClipboardKind == NotifyClipboardKind::Notify)
-            Paste_CopiedNotify();
-        else if (_notifyClipboardKind == NotifyClipboardKind::State)
-            Paste_CopiedState();
-    }
-}
-
-void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
-{
-    if (frameDelta == 0)
-        return;
-
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedNotifyIds.empty())
-        return;
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
-
-    vector<pair<AnimNotifyEventEntry*, int32>> selectedEntries{};
-    selectedEntries.reserve(_selectedNotifyIds.size());
-
-    int32 minFrame = maxNotifyFrame;
-    int32 maxFrame = 0;
-    for (AnimNotifyEventEntry& entry : animationData->notifies)
-    {
-        if (!Is_NotifySelected(entry.id))
-            continue;
-
-        const int32 frame = std::clamp(
-            static_cast<int32>(std::round(entry.timeSec * static_cast<float>(fps))),
-            0,
-            maxNotifyFrame);
-
-        selectedEntries.emplace_back(&entry, frame);
-        minFrame = min(minFrame, frame);
-        maxFrame = max(maxFrame, frame);
-    }
-
-    if (selectedEntries.empty())
-        return;
-
-    const int32 clampedDelta = std::clamp(frameDelta, -minFrame, maxNotifyFrame - maxFrame);
-    if (clampedDelta == 0)
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    float primaryTimeSec = -1.f;
-    for (const auto& [entry, frame] : selectedEntries)
-    {
-        const int32 movedFrame = frame + clampedDelta;
-        entry->timeSec = static_cast<float>(movedFrame) / static_cast<float>(fps);
-
-        if (entry->id == _selectedNotifyId)
-            primaryTimeSec = entry->timeSec;
-    }
-
-    if (primaryTimeSec < 0.f)
-        primaryTimeSec = selectedEntries.front().first->timeSec;
-
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
-
-    if (primaryTimeSec >= 0.f)
-    {
-        _sequencerCurrentFrame = std::clamp(
-            static_cast<int32>(std::round(primaryTimeSec * static_cast<float>(fps))),
-            0,
-            maxNotifyFrame);
-
-        Shared<ModelCom> playbackModel = Get_PlaybackModel();
-        if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
-        {
-            playbackModel->Set_AnimationPaused(true);
-            playbackModel->Set_CurrentAnimationTimeSec(primaryTimeSec);
-            playbackModel->Play_Animation(0.f);
-        }
-    }
-
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Move_SelectedStateByFrame(int32 frameDelta)
-{
-    if (frameDelta == 0)
-        return;
-
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedStateIds.empty())
-        return;
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    const int32 maxFrame = max(0, Get_CurrentAnimationFrameMax());
-
-    struct SelectedStateMoveEntry
-    {
-        AnimNotifyStateEntry* state = nullptr;
-        int32 startFrame = 0;
-    };
-
-    vector<SelectedStateMoveEntry> selectedEntries{};
-    selectedEntries.reserve(_selectedStateIds.size());
-
-    int32 minStartFrame = maxFrame;
-    int32 maxEndFrame = 0;
-    for (AnimNotifyStateEntry& entry : animationData->notifyStates)
-    {
-        if (!Is_StateSelected(entry.id))
-            continue;
-
-        const int32 startFrame = std::clamp(
-            static_cast<int32>(std::round(entry.startSec * static_cast<float>(fps))),
-            0,
-            maxFrame);
-        const int32 durationFrames = max(
-            1,
-            static_cast<int32>(std::round(entry.durationSec * static_cast<float>(fps))));
-        const int32 endFrame = min(maxFrame, startFrame + durationFrames);
-
-        selectedEntries.push_back({ &entry, startFrame });
-        minStartFrame = min(minStartFrame, startFrame);
-        maxEndFrame = max(maxEndFrame, endFrame);
-    }
-
-    if (selectedEntries.empty())
-        return;
-
-    const int32 clampedDelta = std::clamp(frameDelta, -minStartFrame, maxFrame - maxEndFrame);
-    if (clampedDelta == 0)
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    int32 primaryStartFrame = -1;
-    for (const SelectedStateMoveEntry& selectedEntry : selectedEntries)
-    {
-        const int32 movedStartFrame = selectedEntry.startFrame + clampedDelta;
-        selectedEntry.state->startSec = static_cast<float>(movedStartFrame) / static_cast<float>(fps);
-
-        if (selectedEntry.state->id == _selectedStateId)
-            primaryStartFrame = movedStartFrame;
-    }
-
-    if (primaryStartFrame < 0)
-        primaryStartFrame = selectedEntries.front().startFrame + clampedDelta;
-
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
-
-    _sequencerCurrentFrame = primaryStartFrame;
-
-    Shared<ModelCom> playbackModel = Get_PlaybackModel();
-    if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
-    {
-        const float currentTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
-        playbackModel->Set_AnimationPaused(true);
-        playbackModel->Set_CurrentAnimationTimeSec(currentTimeSec);
-        playbackModel->Play_Animation(0.f);
-    }
-
-    _isDirty = true;
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Copy_SelectedNotify()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedNotifyIds.empty())
-        return;
-
-    _notifyClipboardKind = NotifyClipboardKind::Notify;
-    _copiedNotifies.clear();
-    _copiedNotifyStates.clear();
-    _copiedNotifyState = {};
-
-    for (const AnimNotifyEventEntry& entry : animationData->notifies)
-    {
-        if (!Is_NotifySelected(entry.id) || entry.notify == nullptr)
-            continue;
-
-        CopiedNotifyEntry copiedEntry{};
-        copiedEntry.typeName = entry.notify->Get_TypeName();
-        copiedEntry.payload = entry.notify->To_Json();
-        copiedEntry.timeSec = entry.timeSec;
-        copiedEntry.trackIndex = entry.trackIndex;
-        _copiedNotifies.emplace_back(std::move(copiedEntry));
-    }
-
-    if (_copiedNotifies.empty())
-        return;
-
-    std::sort(_copiedNotifies.begin(), _copiedNotifies.end(),
-        [](const CopiedNotifyEntry& a, const CopiedNotifyEntry& b)
-        {
-            if (a.timeSec != b.timeSec)
-                return a.timeSec < b.timeSec;
-            return a.trackIndex < b.trackIndex;
-        });
-
-    NOTIFY("노티파이 복사: {}개", static_cast<int32>(_copiedNotifies.size()));
-}
-
-void Animation_View::Copy_SelectedState()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedStateIds.empty())
-        return;
-
-    _notifyClipboardKind = NotifyClipboardKind::State;
-    _copiedNotifies.clear();
-    _copiedNotifyStates.clear();
-    _copiedNotifyState = {};
-
-    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
-    {
-        if (!Is_StateSelected(entry.id) || entry.notifyState == nullptr)
-            continue;
-
-        CopiedNotifyStateEntry copiedEntry{};
-        copiedEntry.typeName = entry.notifyState->Get_TypeName();
-        copiedEntry.payload = entry.notifyState->To_Json();
-        copiedEntry.startSec = entry.startSec;
-        copiedEntry.durationSec = entry.durationSec;
-        copiedEntry.trackIndex = entry.trackIndex;
-        _copiedNotifyStates.emplace_back(std::move(copiedEntry));
-    }
-
-    if (_copiedNotifyStates.empty())
-        return;
-
-    std::sort(_copiedNotifyStates.begin(), _copiedNotifyStates.end(),
-        [](const CopiedNotifyStateEntry& a, const CopiedNotifyStateEntry& b)
-        {
-            if (a.startSec != b.startSec)
-                return a.startSec < b.startSec;
-            return a.trackIndex < b.trackIndex;
-        });
-
-    _copiedNotifyState = _copiedNotifyStates.front();
-
-    NOTIFY("노티파이 스테이트 복사: {}개", static_cast<int32>(_copiedNotifyStates.size()));
-}
-
-void Animation_View::Paste_CopiedNotify()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _copiedNotifies.empty())
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    if (animationData->notifyTracks.empty())
-        animationData->notifyTracks.push_back({ "Notify" });
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    const float baseTimeSec = _copiedNotifies.front().timeSec;
-    const float animationLengthSec = Get_CurrentAnimationLengthSec();
-
-    float maxRelativeTimeSec = 0.f;
-    int32 baseTrackIndex = _copiedNotifies.front().trackIndex;
-    int32 maxRelativeTrackIndex = 0;
-    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
-    {
-        maxRelativeTimeSec = max(maxRelativeTimeSec, copiedEntry.timeSec - baseTimeSec);
-        baseTrackIndex = min(baseTrackIndex, copiedEntry.trackIndex);
-    }
-
-    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
-        maxRelativeTrackIndex = max(maxRelativeTrackIndex, copiedEntry.trackIndex - baseTrackIndex);
-
-    const float requestedPasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
-    const float maxPasteTimeSec = max(0.f, animationLengthSec - maxRelativeTimeSec);
-    const float pasteBaseTimeSec = std::clamp(requestedPasteTimeSec, 0.f, maxPasteTimeSec);
-
-    const int32 notifyTrackCount = static_cast<int32>(animationData->notifyTracks.size());
-    const int32 maxPasteTrackIndex = max(0, notifyTrackCount - 1 - maxRelativeTrackIndex);
-    const int32 pasteBaseTrackIndex = std::clamp(_selectedNotifyTrackIndex, 0, maxPasteTrackIndex);
-
-    _selectedNotifyIds.clear();
-    int32 lastCreatedId = -1;
-    int32 lastTrackIndex = _selectedNotifyTrackIndex;
-
-    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
-    {
-        Shared<AnimNotify> notifyInstance = GAME->Create_AnimNotifyPrototype(copiedEntry.typeName);
-        if (notifyInstance == nullptr)
-            continue;
-
-        notifyInstance->From_Json(copiedEntry.payload);
-
-        AnimNotifyEventEntry entry{};
-        const int32 createdId = animationData->nextNotifyId++;
-        const float relativeTimeSec = copiedEntry.timeSec - baseTimeSec;
-        const int32 relativeTrackIndex = copiedEntry.trackIndex - baseTrackIndex;
-        entry.id = createdId;
-        entry.timeSec = std::clamp(pasteBaseTimeSec + relativeTimeSec, 0.f, animationLengthSec);
-        entry.trackIndex = std::clamp(pasteBaseTrackIndex + relativeTrackIndex, 0, notifyTrackCount - 1);
-        entry.notify = notifyInstance;
-
-        animationData->notifies.push_back(std::move(entry));
-        _selectedNotifyIds.insert(createdId);
-        lastCreatedId = createdId;
-        lastTrackIndex = entry.trackIndex;
-    }
-
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
-
-    _selectedNotifyId = lastCreatedId;
-    Clear_SelectedStateSelection();
-    _selectedNotifyTrackIndex = lastTrackIndex;
-    _isDirty = true;
-
-    if (!_selectedNotifyIds.empty())
-        NOTIFY("노티파이 붙여넣기: {}개", static_cast<int32>(_selectedNotifyIds.size()));
-
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Paste_CopiedState()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _copiedNotifyStates.empty())
-        return;
-
-    const NotifyUndoSnapshot undoSnapshot = Capture_NotifyUndoSnapshot();
-
-    if (animationData->notifyStateTracks.empty())
-        animationData->notifyStateTracks.push_back({ "Notify State" });
-
-    const int32 fps = max(1, Get_CurrentAnimationFps());
-    const float animationLengthSec = Get_CurrentAnimationLengthSec();
-    const float baseStartSec = _copiedNotifyStates.front().startSec;
-
-    float maxRelativeEndSec = 0.f;
-    int32 baseTrackIndex = _copiedNotifyStates.front().trackIndex;
-    int32 maxRelativeTrackIndex = 0;
-    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
-    {
-        maxRelativeEndSec = max(maxRelativeEndSec, copiedEntry.startSec - baseStartSec + copiedEntry.durationSec);
-        baseTrackIndex = min(baseTrackIndex, copiedEntry.trackIndex);
-    }
-
-    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
-        maxRelativeTrackIndex = max(maxRelativeTrackIndex, copiedEntry.trackIndex - baseTrackIndex);
-
-    const float requestedPasteStartSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
-    const float maxPasteStartSec = max(0.f, animationLengthSec - maxRelativeEndSec);
-    const float pasteBaseStartSec = std::clamp(requestedPasteStartSec, 0.f, maxPasteStartSec);
-
-    const int32 stateTrackCount = static_cast<int32>(animationData->notifyStateTracks.size());
-    const int32 maxPasteTrackIndex = max(0, stateTrackCount - 1 - maxRelativeTrackIndex);
-    const int32 pasteBaseTrackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, maxPasteTrackIndex);
-
-    Clear_SelectedNotifySelection();
-    _selectedStateIds.clear();
-    _selectedStateId = -1;
-
-    int32 lastCreatedId = -1;
-    int32 lastTrackIndex = _selectedNotifyStateTrackIndex;
-    for (const CopiedNotifyStateEntry& copiedEntry : _copiedNotifyStates)
-    {
-        Shared<AnimNotifyState> notifyStateInstance = GAME->Create_AnimNotifyStatePrototype(copiedEntry.typeName);
-        if (notifyStateInstance == nullptr)
-            continue;
-
-        notifyStateInstance->From_Json(copiedEntry.payload);
-
-        AnimNotifyStateEntry entry{};
-        const int32 createdId = animationData->nextStateId++;
-        const float relativeStartSec = copiedEntry.startSec - baseStartSec;
-        const int32 relativeTrackIndex = copiedEntry.trackIndex - baseTrackIndex;
-        entry.id = createdId;
-        entry.startSec = std::clamp(pasteBaseStartSec + relativeStartSec, 0.f, animationLengthSec);
-        entry.durationSec = max(copiedEntry.durationSec, 1.f / static_cast<float>(fps));
-        entry.trackIndex = std::clamp(pasteBaseTrackIndex + relativeTrackIndex, 0, stateTrackCount - 1);
-        entry.notifyState = notifyStateInstance;
-
-        animationData->notifyStates.push_back(std::move(entry));
-        _selectedStateIds.insert(createdId);
-        lastCreatedId = createdId;
-        lastTrackIndex = entry.trackIndex;
-    }
-
-    if (_selectedStateIds.empty())
-        return;
-
-    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
-
-    _selectedStateId = lastCreatedId;
-    _selectedNotifyStateTrackIndex = lastTrackIndex;
-    _isDirty = true;
-
-    if (!_selectedStateIds.empty())
-        NOTIFY("노티파이 스테이트 붙여넣기: {}개", static_cast<int32>(_selectedStateIds.size()));
-
-    Commit_NotifyUndoSnapshot(undoSnapshot);
-}
-
-void Animation_View::Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex)
-{
-    _sequencerContextFrame = frame;
-    _sequencerContextHasTrack = hasTrackContext;
-    _sequencerContextIsStateTrack = isStateTrack;
-    _sequencerContextTrackIndex = trackIndex;
-    _openSequencerContextPopup = true;
-}
-
-bool Animation_View::Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const
-{
-    const AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr)
-        return false;
-
-    constexpr float sequencerHeaderHeight = 20.f;
-    constexpr float rowHeight = 30.f;
-
-    const float localY = mousePos.y - (sequencerRectMin.y + sequencerHeaderHeight);
-    if (localY < 0.f)
-        return false;
-
-    const int32 rowIndex = static_cast<int32>(localY / rowHeight);
-    const int32 notifyTrackCount = max(1, static_cast<int32>(animationData->notifyTracks.size()));
-    const int32 stateHeaderRow = 1 + notifyTrackCount;
-    const int32 stateTrackCount = max(1, static_cast<int32>(animationData->notifyStateTracks.size()));
-
-    if (rowIndex > 0 && rowIndex < stateHeaderRow)
-    {
-        outIsStateTrack = false;
-        outTrackIndex = std::clamp(rowIndex - 1, 0, notifyTrackCount - 1);
-        return true;
-    }
-
-    if (rowIndex > stateHeaderRow && rowIndex <= stateHeaderRow + stateTrackCount)
-    {
-        outIsStateTrack = true;
-        outTrackIndex = std::clamp(rowIndex - stateHeaderRow - 1, 0, stateTrackCount - 1);
-        return true;
-    }
-
-    return false;
-}
-
-void Animation_View::Draw_CreateNotifyPopup()
-{
-    const bool requestSearchFocus = _openCreateNotifyPopup;
-
-    if (_openCreateNotifyPopup)
-    {
-        _openCreateNotifyPopup = false;
-        _createNotifyFilter[0] = '\0';
-        ImGui::OpenPopup("CreateNotifyPopup");
-    }
-
-    if (!ImGui::BeginPopup("CreateNotifyPopup"))
-        return;
-
-    ImGui::SetNextItemWidth(280.f);
-    if (requestSearchFocus)
-        ImGui::SetKeyboardFocusHere();
-    ImGui::InputTextWithHint("##NotifySearch", "Search notify...", _createNotifyFilter, IM_ARRAYSIZE(_createNotifyFilter));
-    ImGui::Separator();
-
-    bool hasAny = false;
-    bool hasVisible = false;
-    GAME->Visit_AnimNotifyTypes([&](const TypeRegistry::AnimNotifyTypeInfo& info)
-    {
-        hasAny = true;
-
-        if (!Contains_CaseInsensitive(info.className, _createNotifyFilter))
-            return;
-
-        hasVisible = true;
-        if (ImGui::Selectable(info.className.c_str()))
-        {
-            Add_Notify_AtFrame(_requestedCreateNotifyFrame, info.className);
-            ImGui::CloseCurrentPopup();
-        }
-    });
-
-    if (!hasAny)
-        ImGui::TextDisabled("No AnimNotify types registered.");
-    else if (!hasVisible)
-        ImGui::TextDisabled("No matching AnimNotify types.");
-
-    ImGui::EndPopup();
-}
-
-void Animation_View::Draw_CreateNotifyStatePopup()
-{
-    const bool requestSearchFocus = _openCreateNotifyStatePopup;
-
-    if (_openCreateNotifyStatePopup)
-    {
-        _openCreateNotifyStatePopup = false;
-        _createNotifyStateFilter[0] = '\0';
-        ImGui::OpenPopup("CreateNotifyStatePopup");
-    }
-
-    if (!ImGui::BeginPopup("CreateNotifyStatePopup"))
-        return;
-
-    ImGui::SetNextItemWidth(280.f);
-    if (requestSearchFocus)
-        ImGui::SetKeyboardFocusHere();
-    ImGui::InputTextWithHint("##NotifyStateSearch", "Search notify state...", _createNotifyStateFilter, IM_ARRAYSIZE(_createNotifyStateFilter));
-    ImGui::Separator();
-
-    bool hasAny = false;
-    bool hasVisible = false;
-    GAME->Visit_AnimNotifyStateTypes([&](const TypeRegistry::AnimNotifyStateTypeInfo& info)
-    {
-        hasAny = true;
-
-        if (!Contains_CaseInsensitive(info.className, _createNotifyStateFilter))
-            return;
-
-        hasVisible = true;
-        if (ImGui::Selectable(info.className.c_str()))
-        {
-            Add_State_ByFrameRange(_requestedCreateStateStartFrame, _requestedCreateStateEndFrame, info.className);
-            ImGui::CloseCurrentPopup();
-        }
-    });
-
-    if (!hasAny)
-        ImGui::TextDisabled("No AnimNotifyState types registered.");
-    else if (!hasVisible)
-        ImGui::TextDisabled("No matching AnimNotifyState types.");
-
-    ImGui::EndPopup();
-}
-
-void Animation_View::Draw_SequencerContextMenu()
-{
-    if (_openSequencerContextPopup)
-    {
-        _openSequencerContextPopup = false;
-        ImGui::OpenPopup("AnimationSequencerContextMenu");
-    }
-
-    if (!ImGui::BeginPopup("AnimationSequencerContextMenu"))
-        return;
-
-    ImGui::TextDisabled("Frame: %d", _sequencerContextFrame);
-    ImGui::Separator();
-
-    const bool canAddNotify = _sequencerContextHasTrack ? !_sequencerContextIsStateTrack : true;
-    const bool canAddState = _sequencerContextHasTrack ? _sequencerContextIsStateTrack : true;
-
-    if (ImGui::MenuItem("Notify Add", nullptr, false, canAddNotify))
-    {
-        _requestedCreateNotifyFrame = _sequencerContextFrame;
-        _openCreateNotifyPopup = true;
-        ImGui::CloseCurrentPopup();
-    }
-
-    if (ImGui::MenuItem("Notify State Add", nullptr, false, canAddState))
-    {
-        _requestedCreateStateStartFrame = _sequencerContextFrame;
-        _requestedCreateStateEndFrame = min(Get_CurrentAnimationFrameMax(), _sequencerContextFrame + 12);
-        _openCreateNotifyStatePopup = true;
-        ImGui::CloseCurrentPopup();
-    }
-
-    if (ImGui::BeginMenu("Track Add"))
-    {
-        if (ImGui::MenuItem("Notify"))
-        {
-            Add_NotifyTrack(_newNotifyTrackName);
-            ImGui::CloseCurrentPopup();
-        }
-
-        if (ImGui::MenuItem("Notify State"))
-        {
-            Add_NotifyStateTrack(_newNotifyStateTrackName);
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndMenu();
-    }
-
-    ImGui::EndPopup();
 }
 
 Shared<ModelCom> Animation_View::Get_PlaybackModel() const
@@ -7168,57 +5960,6 @@ const AnimNotifyData* Animation_View::Get_CurrentAnimation() const
     return Find_NotifyAnimation(_asset, *currentEntry);
 }
 
-AnimNotifyEventEntry* Animation_View::Find_SelectedNotify()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedNotifyId == -1)
-        return nullptr;
-
-    for (auto& entry : animationData->notifies)
-    {
-        if (entry.id == _selectedNotifyId)
-            return &entry;
-    }
-
-    return nullptr;
-}
-
-AnimNotifyStateEntry* Animation_View::Find_SelectedState()
-{
-    AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedStateId == -1)
-        return nullptr;
-
-    for (auto& entry : animationData->notifyStates)
-    {
-        if (entry.id == _selectedStateId)
-            return &entry;
-    }
-
-    return nullptr;
-}
-
-void Animation_View::Clear_SelectedNotifySelection()
-{
-    _selectedNotifyId = -1;
-    _selectedNotifyIds.clear();
-}
-
-void Animation_View::Clear_SelectedStateSelection()
-{
-    _selectedStateId = -1;
-    _selectedStateIds.clear();
-}
-
-bool Animation_View::Is_NotifySelected(int32 notifyId) const
-{
-    return _selectedNotifyIds.find(notifyId) != _selectedNotifyIds.end();
-}
-
-bool Animation_View::Is_StateSelected(int32 stateId) const
-{
-    return _selectedStateIds.find(stateId) != _selectedStateIds.end();
-}
 
 Shared<Animation_View> Animation_View::Create()
 {

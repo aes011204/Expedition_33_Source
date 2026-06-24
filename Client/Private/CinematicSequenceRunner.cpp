@@ -460,6 +460,14 @@ bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const C
     state.actor = actor;
     state.spawnedBySequence = true;
     state.cleanupPolicy = payload.cleanupPolicy;
+
+    if (Shared<ModelCom> model = Find_TargetModel(actor))
+    {
+        state.hasCinematicNotifyContextOverride = true;
+        state.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
+        model->Set_CinematicNotifyContext(true);
+    }
+
     _bindingStates[targetId] = state;
 
     if (const auto worldMonster = dynamic_pointer_cast<Monster_WorldBase>(actor))
@@ -513,6 +521,14 @@ bool CinematicSequenceRunner::Execute_PlayAnimEvent(
         return false;
     }
 
+    if (auto iter = _bindingStates.find(targetId); iter != _bindingStates.end() &&
+        !iter->second.hasCinematicNotifyContextOverride)
+    {
+        iter->second.hasCinematicNotifyContextOverride = true;
+        iter->second.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
+        model->Set_CinematicNotifyContext(true);
+    }
+
     if (payload.blendDuration > 0.f)
         model->Set_Animation(payload.animName, payload.blendDuration, payload.loop, payload.startFrame);
     else
@@ -555,6 +571,12 @@ bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const
             targetId,
             Get_CurrentFrame());
         return false;
+    }
+
+    if (iter->second.hasCinematicNotifyContextOverride)
+    {
+        if (Shared<ModelCom> model = Find_TargetModel(iter->second.actor))
+            model->Set_CinematicNotifyContext(iter->second.previousCinematicNotifyContext);
     }
 
     if (iter->second.spawnedBySequence)
@@ -724,7 +746,16 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
     {
         UNREFERENCED_PARAMETER(targetId);
 
-        if (!state.spawnedBySequence || state.actor == nullptr)
+        if (state.actor == nullptr)
+            continue;
+
+        if (state.hasCinematicNotifyContextOverride)
+        {
+            if (Shared<ModelCom> model = Find_TargetModel(state.actor))
+                model->Set_CinematicNotifyContext(state.previousCinematicNotifyContext);
+        }
+
+        if (!state.spawnedBySequence)
             continue;
 
         if (!forceRemoveAllSpawned && state.cleanupPolicy == CinematicCleanupPolicy::Keep)
