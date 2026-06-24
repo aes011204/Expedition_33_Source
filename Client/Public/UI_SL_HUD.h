@@ -30,6 +30,7 @@ public:
     void Clear_BossHUD();
 
     void Set_HealingPotionCount(uint32 count);
+    void Set_EstherGaugeRatio(float ratio);
     void Show_BossDamage(float damage);
 
 private:
@@ -71,6 +72,7 @@ private:
     Shared<UI_Base> _potionRoot{};
     Shared<UI_Text> _healingPotionCountText{};
     Shared<UI_Base> _estherSkillRoot{};
+    Shared<UI_Image> _estherGauge{};
 
 public:
     static Unique<UI_SL_HUD> Create(uint32 levelIndex);

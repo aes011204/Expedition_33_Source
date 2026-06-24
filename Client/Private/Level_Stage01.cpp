@@ -29,6 +29,8 @@ HRESULT Level_Stage01::Render()
 
 HRESULT Level_Stage01::Ready_Lights()
 {
+    GAME->Clear_Lights();
+
     LIGHT_DESC LightDesc{};
     LightDesc.type = LightType::Directional;
     LightDesc.direction = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
@@ -40,6 +42,11 @@ HRESULT Level_Stage01::Ready_Lights()
     {
         return E_FAIL;
     }
+
+    ShadowLightDesc ShadowDesc{};
+    ShadowDesc.enabled = false;
+    if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+        return E_FAIL;
 
     return S_OK;
 }

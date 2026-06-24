@@ -1228,7 +1228,7 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
 #endif
 
-void GameInstance::Clear_Resources(uint32 levelIndex)
+void GameInstance::Clear_Resources(uint32 levelIndex, bool clearPrototypes)
 {
     _uiManager->Clear_Level(levelIndex);
     _objectManager->Visit_LevelObjects(
@@ -1244,7 +1244,9 @@ void GameInstance::Clear_Resources(uint32 levelIndex)
     );
 
     _objectManager->Clear_Layers(levelIndex);
-    _prototypeManager->Clear_Prototypes(levelIndex);
+
+    if (clearPrototypes)
+        _prototypeManager->Clear_Prototypes(levelIndex);
 }
 
 float GameInstance::Random(float min, float max)
@@ -1414,9 +1416,9 @@ float GameInstance::Compute_TimeDelta(const wstring& timerTag)
     return _timerManager->Compute_TimeDelta(timerTag);
 }
 
-HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
+HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes)
 {
-    return _levelManager->Change_Level(newLevelIndex, newLevel);
+    return _levelManager->Change_Level(newLevelIndex, newLevel, clearPreviousLevelPrototypes);
 }
 
 uint32 GameInstance::Current_LevelIndex() const
@@ -2196,6 +2198,13 @@ bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition
 bool GameInstance::Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const
 {
     return _soundManager ? _soundManager->Try_GetCueDefaultVolumeSpeed(cueId, outVolume, outSpeed) : false;
+}
+
+HRESULT GameInstance::Reload_SoundCues()
+{
+    CHECK_NULL(_soundManager, E_FAIL);
+
+    return _soundManager->Reload_SoundCues();
 }
 
 void GameInstance::Update_SoundListenerFromActiveCamera()

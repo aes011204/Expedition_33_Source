@@ -115,7 +115,7 @@ public:
     void Backup_RenderGroup();
     void Restore_RenderGroup();
 
-    void Clear_Resources(uint32 levelIndex);
+    void Clear_Resources(uint32 levelIndex, bool clearPrototypes = true);
 
     float Random(float min, float max);
 
@@ -170,7 +170,7 @@ public: /* For.Timer_Manager */
     float Compute_TimeDelta(const wstring& timerTag);
 
 public: /* For.Level_Manager */
-    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
+    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes = true);
 
     uint32 Current_LevelIndex() const;
     Shared<Level> Current_LevelType() const;
@@ -391,6 +391,7 @@ public: /* For.Sound_Manager */
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition = nullptr);
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio = 0.f);
     bool Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const;
+    HRESULT Reload_SoundCues();
     // 3D 사운드의 기준은, 활성화된 카메라의 기준으로
     void Update_SoundListenerFromActiveCamera();
 

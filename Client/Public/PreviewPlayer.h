@@ -69,6 +69,7 @@ public:
     HeroId  Get_HeroId() const { return _heroId; }
 
     void    Update_Preview(float timeDelta, bool facialEnabled);
+    HRESULT Render_PreviewParts();
 
     void    Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim);
     void    Update_GameMenuFacialPreview(float timeDelta, bool enabled);
