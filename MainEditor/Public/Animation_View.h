@@ -248,6 +248,9 @@ private:
     void Refresh_LiveModelTargets();
     void Draw_LiveModelTargetSelector();
     void Switch_LiveModelTarget(size_t targetIndex);
+    Shared<ModelCom> Resolve_LiveModelTargetModel(const LiveModelTarget& target) const;
+    Shared<ModelCom> Resolve_ModifierCollisionModel(const Shared<ModelCom>& modifierModel, const vector<string>& requiredBoneNames) const;
+    void Sync_ModifierCollisionSource(const Shared<ModelCom>& modifierModel) const;
     void Rebuild_PreviewClone();
     void Reset_PreviewClone();
 
@@ -335,6 +338,7 @@ private:
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
     void Draw_ModifierChainDebug() const;
+    void Draw_ModifierCollisionDebug() const;
     void Draw_TrailAnchorPreview() const;
     void Update_PreviewAnimSpeedStates(float timeDelta);
     void Reset_PreviewAnimSpeedStates();

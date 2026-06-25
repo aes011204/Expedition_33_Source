@@ -1,4 +1,4 @@
-#include "Mon_PotatoBag_Shield.h"
+﻿#include "Mon_PotatoBag_Shield.h"
 
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
@@ -87,9 +87,7 @@ HRESULT Mon_PotatoBag_Shield::Ready_Components(const MONSTER_PART_DESC& desc)
 
 uint32 Mon_PotatoBag_Shield::Decide_PassIndex(Shared<Material> mat)
 {
-    const int OPAQUE_PASS = 0;
-    UNREFERENCED_PARAMETER(mat);
-    return OPAQUE_PASS;
+    return mat->Get_PassIndex();
 }
 
 Shared<Mon_PotatoBag_Shield> Mon_PotatoBag_Shield::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
