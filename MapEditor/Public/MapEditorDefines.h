@@ -188,8 +188,9 @@ namespace MapEditor
     { "OpaqueARTwoSided", VtxMeshPassIndex::OpaqueARTwoSidedPass },
     { "LandscapeBlend", VtxMeshPassIndex::LandscapeBlendPass },
     { "SignDecal", VtxMeshPassIndex::SignDecalPass },
+    { "EclipseSphere", VtxMeshPassIndex::EclipseSpherePass },
     };
-    inline constexpr int32 g_staticMeshPassOptionCount = 10;
+    inline constexpr int32 g_staticMeshPassOptionCount = 11;
 
     inline constexpr pair<const char*, uint32> g_instanceMeshPassOptions[] = {
     { "Default", VtxInstanceMeshExactPassIndex::DefaultPass },
@@ -200,8 +201,10 @@ namespace MapEditor
     { "MaskedTwoSided", VtxInstanceMeshExactPassIndex::MaskedTwoSidedPass },
     { "OpaqueAR", VtxInstanceMeshExactPassIndex::OpaqueARPass },
     { "OpaqueARTwoSided", VtxInstanceMeshExactPassIndex::OpaqueARTwoSidedPass },
+    { "EmissiveGlow", VtxInstanceMeshExactPassIndex::EmissiveGlowPass },
+    { "UnlitFlame", VtxInstanceMeshExactPassIndex::UnlitFlamePass },
     };
-    inline constexpr int32 g_instanceMeshPassOptionCount = 8;
+    inline constexpr int32 g_instanceMeshPassOptionCount = 10;
 
     struct InstanceTransform
     {

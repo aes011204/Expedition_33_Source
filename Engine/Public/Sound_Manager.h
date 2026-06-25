@@ -90,6 +90,7 @@ public:
     bool Play_Cue(const wstring& cueId, const Vec3* worldPosition = nullptr);
     bool Play_Cue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio = 0.f);
     bool Try_GetCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const;
+    HRESULT Reload_SoundCues();
     bool Play_Once_3D(
         const wstring& soundFile,
         SoundChannel channel,

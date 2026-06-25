@@ -454,6 +454,8 @@ private:
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;
     bool _showPreviewSkyBackdrop = true;
+    bool _previewSoundEnabled = true;
+    bool _previewPlayEffectIncludeStartEdge = false;
     bool _previewSkyBackdropBegunPlay = false;
     bool _isSectionPreviewPlaying = false;
     bool _showModifierChainDebug = false;

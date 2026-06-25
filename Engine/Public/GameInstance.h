@@ -111,11 +111,11 @@ public:
     void Update_Engine(float timeDelta, const function<void(float)>& clientUpdate);
 
     HRESULT Draw();
-    HRESULT Draw_RendererOnly(bool renderPreviewScreenFx = false); // 에디터용
+    HRESULT Draw_RendererOnly(bool renderPreviewScreenFx = false, bool preservePostProcess = false);
     void Backup_RenderGroup();
     void Restore_RenderGroup();
 
-    void Clear_Resources(uint32 levelIndex);
+    void Clear_Resources(uint32 levelIndex, bool clearPrototypes = true);
 
     float Random(float min, float max);
 
@@ -170,7 +170,7 @@ public: /* For.Timer_Manager */
     float Compute_TimeDelta(const wstring& timerTag);
 
 public: /* For.Level_Manager */
-    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
+    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes = true);
 
     uint32 Current_LevelIndex() const;
     Shared<Level> Current_LevelType() const;
@@ -391,6 +391,7 @@ public: /* For.Sound_Manager */
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition = nullptr);
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio = 0.f);
     bool Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const;
+    HRESULT Reload_SoundCues();
     // 3D 사운드의 기준은, 활성화된 카메라의 기준으로
     void Update_SoundListenerFromActiveCamera();
 
@@ -498,6 +499,8 @@ public: /* For.Shadow */
     CascadeLevel            Get_ShadowCascadeLevel() const;
     HRESULT                 Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets);
     const ShadowCascadePresetSet* Get_ShadowCascadePresets() const;
+    uint32                  Get_ActiveShadowCascade() const;
+    const ShadowCascadeInfluenceVolume* Get_CascadeInfluenceVolumes() const;
 
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;

@@ -16,6 +16,11 @@ public:
     virtual void Pre_Render() override;
     virtual void Render() override;
 
+    // for PathTool
+public:
+    ImVec2 Get_ViewportMin() const { return _viewportMin; }
+    ImVec2 Get_ViewportMax() const { return _viewportMax; }
+
 private:
     void Handle_GizmoShortcut();
     void Render_GizmoOverlay();

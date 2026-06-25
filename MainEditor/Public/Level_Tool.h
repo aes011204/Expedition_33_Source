@@ -12,8 +12,8 @@ NS_BEGIN(MainEditor)
 class Level_Tool : public Editor_Window
 {
 private:
-    static constexpr const char* _levelNames[] = { "GamePlay", "MapTest", "Stage01" };
-    static constexpr LevelType _levelTypes[] = { LevelType::GamePlay, LevelType::MapTest, LevelType::Stage01 };
+    static constexpr const char* _levelNames[] = { "GamePlay", "MapTest", "Stage01", "Simon", "Gestral Village" };
+    static constexpr LevelType _levelTypes[] = { LevelType::GamePlay, LevelType::MapTest, LevelType::Stage01, LevelType::Stage01, LevelType::GestralVillage };
 
 public:
     Level_Tool();

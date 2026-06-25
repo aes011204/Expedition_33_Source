@@ -60,6 +60,14 @@ HRESULT SL_Dualliste::Initialize(void* arg)
     return S_OK;
 }
 
+bool SL_Dualliste::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    UNREFERENCED_PARAMETER(partObjectJson);
+
+    return partTag != TEXT("Part_Sword_L") &&
+        partTag != TEXT("Part_Sword_R");
+}
+
 void SL_Dualliste::BeginPlay()
 {
     SL_Base::BeginPlay();
@@ -492,6 +500,9 @@ void SL_Dualliste::Finish_PhaseChange()
     _currentPhase = 2;
     _phaseChangeFinished = true;
     Apply_PhaseVisualState();
+
+    if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        controller->Play_DuallisteBGM(SoulLikeController::DuallisteBGMPhase::Phase2);
 
     if (_aiCtrl)
     {

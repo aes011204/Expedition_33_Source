@@ -27,6 +27,10 @@ void CmdDeleteObject::Undo(SceneContext& ctx)
     {
         ctx._staticMeshes.push_back(_obj);
     }
+    else if (_obj->_type == EObjectType::InstancedMesh)
+    {
+        ctx._instancedMeshes.push_back(_obj);
+    }
     else if (_obj->_type == EObjectType::Light)
     {
         ctx._lights.push_back(_obj);

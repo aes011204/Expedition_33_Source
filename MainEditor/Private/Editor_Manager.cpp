@@ -28,6 +28,7 @@
 #include "EnvironmentView.h"
 #include "ScreenFx_View.h"
 #include "SoulLike_Viewer.h"
+#include "PathTool.h"
 #include "SoulLikeCamera_Viewer.h"
 #include "BattleController.h"
 
@@ -145,6 +146,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(EnvironmentView::Create());
     Add_Window(ScreenFx_View::Create());
     Add_Window(SoulLike_Viewer::Create());
+    Add_Window(PathTool::Create());
     Add_Window(SoulLikeCamera_Viewer::Create());
 
     if (FAILED(CLIENT->Reload_EffectJsons()))
@@ -1012,6 +1014,12 @@ void Editor_Manager::Render_ReloadDataButton()
         {
             if (FAILED(CLIENT->Reload_GameDataTables()))
                 MSG_BOX("Failed to reload game data tables.");
+        }
+
+        if (ImGui::MenuItem("SoundCue"))
+        {
+            if (FAILED(GAME->Reload_SoundCues()))
+                MSG_BOX("Failed to reload sound cues.");
         }
 
         if (ImGui::MenuItem("Effect Data"))

@@ -343,7 +343,7 @@ inline constexpr wchar_t UI_BattlePictosDeactivationAnim_Path[] =
 
 namespace Client::Constants::Map
 {
-    inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea_Mk1.json";
+    inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/MapInstance/SmallLevel_SimonArea";
     inline constexpr wchar_t TestMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/TestMap.json";
     inline constexpr wchar_t SaveJson_Dir[] = L"../../../Client/Bin/Resources/Map/SaveJson/";
     inline constexpr wchar_t GamePlay_DefaultAuthoringMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
@@ -371,7 +371,7 @@ namespace Client::Constants::Map
 
     // multiface
     //inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Copy.json";
-    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
+    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/MapInstance/SmallLevel_MF_Zone_01_Mk1";
     inline constexpr wchar_t LandscapeTextures_Dir[] = L"../../../Client/Bin/Resources/Map/LandscapeTextures/";
     inline constexpr wchar_t ResourceRoot_Dir[] = L"../../../Client/Bin/Resources/";
     inline constexpr wchar_t MF_Zone_Boss_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Boss.hmap";
@@ -488,6 +488,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
     constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
+
+    constexpr const wchar_t* DuallisteBattlePhase1Main =
+        L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
+    constexpr const wchar_t* DuallisteBattlePhase2Main =
+        L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase2_Main.wav";
 }
 
 namespace Client::Constants::Cinematic
@@ -523,4 +528,6 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* UI_SkillTree_Blocked = L"UI_SkillTree_Blocked";
 
     constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
+
+    constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
 }

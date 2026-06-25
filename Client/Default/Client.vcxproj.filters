@@ -1352,6 +1352,7 @@
     <ClCompile Include="..\private\DialogueDB.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1432,6 +1433,7 @@
     <ClInclude Include="..\public\DialogueDB.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1565,6 +1567,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
   </ItemGroup>

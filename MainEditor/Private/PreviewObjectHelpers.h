@@ -206,6 +206,24 @@ namespace PreviewObjectHelpers
         }
     }
 
+    inline void Force_VisibleRecursive(const Shared<GameObject>& gameObject)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        gameObject->Set_Visible(true); // preview에서는 페이즈/월드 컬링으로 숨겨진 파츠도 편집 대상으로 보여준다.
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            Force_VisibleRecursive(partObject);
+        }
+    }
+
     inline void Stop_AttachedPreviewEffects(const Shared<GameObject>& gameObject)
     {
         if (gameObject == nullptr)
@@ -232,7 +250,8 @@ namespace PreviewObjectHelpers
     inline void Update_PreviewObject(
         const Shared<GameObject>& gameObject,
         float timeDelta,
-        bool tickAttachedEffects = true)
+        bool tickAttachedEffects = true,
+        bool forceVisibleBeforeLateUpdate = false)
     {
         auto stepPreviewPhysics = [&](float dt)
         {
@@ -264,6 +283,8 @@ namespace PreviewObjectHelpers
             monsterWorld->Engine::ContainerObject::Priority_Update(timeDelta);
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterWorld->Engine::ContainerObject::Update(timeDelta);
+            if (forceVisibleBeforeLateUpdate)
+                Force_VisibleRecursive(gameObject);
             monsterWorld->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
             postPhysXUpdate(gameObject, timeDelta);
@@ -277,6 +298,8 @@ namespace PreviewObjectHelpers
             monsterBattle->Engine::ContainerObject::Priority_Update(timeDelta);
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterBattle->Engine::ContainerObject::Update(timeDelta);
+            if (forceVisibleBeforeLateUpdate)
+                Force_VisibleRecursive(gameObject);
             monsterBattle->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
             postPhysXUpdate(gameObject, timeDelta);
@@ -289,6 +312,8 @@ namespace PreviewObjectHelpers
         {
             playerWorld->Engine::ContainerObject::Priority_Update(timeDelta);
             playerWorld->Engine::ContainerObject::Update(timeDelta);
+            if (forceVisibleBeforeLateUpdate)
+                Force_VisibleRecursive(gameObject);
             playerWorld->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
             postPhysXUpdate(gameObject, timeDelta);
@@ -301,6 +326,8 @@ namespace PreviewObjectHelpers
         {
             playerBattle->Engine::ContainerObject::Priority_Update(timeDelta);
             playerBattle->Engine::ContainerObject::Update(timeDelta);
+            if (forceVisibleBeforeLateUpdate)
+                Force_VisibleRecursive(gameObject);
             playerBattle->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
             postPhysXUpdate(gameObject, timeDelta);
@@ -311,6 +338,8 @@ namespace PreviewObjectHelpers
 
         gameObject->Priority_Update(timeDelta);
         gameObject->Update(timeDelta);
+        if (forceVisibleBeforeLateUpdate)
+            Force_VisibleRecursive(gameObject);
         gameObject->Late_Update(timeDelta);
         stepPreviewPhysics(timeDelta);
         postPhysXUpdate(gameObject, timeDelta);
