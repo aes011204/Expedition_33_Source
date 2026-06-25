@@ -124,6 +124,18 @@ namespace BattleAnimUtils
             blendTime,
             true);
     }
+
+    bool Play_TurnStartOrBattleIdle(const BattleChar& actor, float blendTime)
+    {
+        if (actor.ModelCom == nullptr)
+            return false;
+
+        if (actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start), blendTime, false))
+            return true;
+
+        Play_BattleIdle(actor, blendTime);
+        return false;
+    }
 }
 
 NS_END

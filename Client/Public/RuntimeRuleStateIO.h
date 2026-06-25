@@ -14,6 +14,7 @@ public:
         uint32 version = CurrentVersion;
         json costumeJson = json::object();
         json unlockManagerJson = json::object();
+        json inventoryJson = json::object();
     };
 
 public:

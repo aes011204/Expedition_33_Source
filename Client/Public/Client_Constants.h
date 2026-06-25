@@ -462,12 +462,15 @@ namespace Client::Constants::Prefab
     inline constexpr char MW_PotatoBag[]        = "MW_PotatoBag";
     inline constexpr char MB_PotatoBag[]        = "MB_PotatoBag";
 
+    inline constexpr char MW_Simon[]            = "MW_Simon";
+    inline constexpr char MB_Simon[]            = "MB_Simon";
+    inline constexpr char MB_Simon_V2[]         = "MB_Simon_V2";
+
     // 테스트용
     inline constexpr char SL_Test_Lancelier[]   = "SL_Test_Lancelier";
 
     // 쌍검
     inline constexpr char SL_Dualliste[]        = "SL_Dualliste";
-
 
 #pragma endregion
 
@@ -477,17 +480,21 @@ namespace Client::Constants::Prefab
     inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
     inline constexpr char Gustave_Baguette[]        = "WP_Gustave_Baguette";
     inline constexpr char Gustave_Baguette_Gun[]    = "WP_Gustave_Baguette_Gun";
+    inline constexpr char Gustave_Tireso[]          = "WP_Gustave_Tireso";
+    inline constexpr char Gustave_Tireso_Gun[]      = "WP_Gustave_Tireso_Gun";
 
     // 루
     inline constexpr char Lune_Colim[]              = "WP_Lune_Colim";
     inline constexpr char Lune_Baguette[]           = "WP_Lune_Baguette";
+    inline constexpr char Lune_Snowim[]             = "WP_Lune_Snowim";
 
     // 마
     inline constexpr char Maelle_Medalum[]          = "WP_Maelle_Medalum";
     inline constexpr char Maelle_Baguette[]         = "WP_Maelle_Baguette";
+    inline constexpr char Maelle_Plenum[]           = "WP_Maelle_Plenum";
 
     // 시몬
-    inline constexpr char Simon_Weapon[]            = "WP_Simon";
+    inline constexpr char Simon_Weapon[]             = "WP_Simon";
 
     inline constexpr char Dualliste_Sword_L[]        = "WP_Dualliste_Sword_L";
     inline constexpr char Dualliste_Sword_R[]        = "WP_Dualliste_Sword_R";
@@ -499,6 +506,7 @@ namespace Client::Constants::Prefab
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
     inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
+    inline constexpr char Trigger_BGMZone[] = "ETC/Trigger_BGMZone";
 
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
 }
@@ -510,6 +518,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
     constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
+
+    constexpr const wchar_t* GestralVillageMarket =
+        L"BGM/Gestral/MUS_GestralVillage_ENV_Market_PartA.wav";
+    constexpr const wchar_t* GestralVillageGolgraThrone =
+        L"BGM/Gestral/MUS_GestralVillage_ENV_GolgraThrone.wav";
 
     constexpr const wchar_t* DuallisteBattlePhase1Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
@@ -554,6 +567,17 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
 
     constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
+
+
+    constexpr const wchar_t* Duallist_Attack = L"VO_ENM_Duallist_Attack";
+    constexpr const wchar_t* Duallist_Pain = L"VO_ENM_Duallist_Pain";
+
+
+}
+
+namespace Client::Constants::Effect
+{
+    constexpr const wchar_t* BreakEffect = L"Effects\\Assets\\Etc\\Break.effect.json";
 }
 
 namespace Client::Constants::Dialogue

@@ -12,6 +12,9 @@ using namespace UI_Utils;
 namespace
 {
     constexpr wchar_t kGetItemAnimationName[] = L"Get_Item";
+    constexpr char kGustaveBaguettePresentationId[] = "Gustave_Baguette";
+    constexpr char kLuneBaguettePresentationId[] = "Lune_Baguette";
+    constexpr char kMaelleBaguettePresentationId[] = "Maelle_Baguette";
 
     struct GetWeaponPresentationDesc
     {
@@ -33,6 +36,18 @@ namespace
         GetWeaponPresentationDesc{ "Maelle_Medalum", Constants::UI::UI_Get_Weapon_Maelle_Medalum_Path, L"Panel_Get_Weapon_Maelle_Medalum", L"GetWeaponMaelleMedalum" },
         GetWeaponPresentationDesc{ "Maelle_Sekarum", Constants::UI::UI_Get_Weapon_Maelle_Sekarum_Path, L"Panel_Get_Weapon_Maelle_Sekarum", L"GetWeaponMaelleSekarum" },
     };
+
+    bool Contains_PresentationId(const vector<string>& presentationIds, const string& targetId)
+    {
+        return find(presentationIds.begin(), presentationIds.end(), targetId) != presentationIds.end();
+    }
+
+    void Erase_PresentationId(vector<string>& presentationIds, const string& targetId)
+    {
+        presentationIds.erase(
+            remove(presentationIds.begin(), presentationIds.end(), targetId),
+            presentationIds.end());
+    }
 }
 
 HRESULT UI_GetWeapon::Initialize(uint32 levelIndex)
@@ -65,6 +80,8 @@ void UI_GetWeapon::Update(float timeDelta)
 
 void UI_GetWeapon::Open_ForWeaponIds(const vector<string>& weaponPresentationIds)
 {
+    vector<string> pendingIds{};
+
     for (const string& weaponPresentationId : weaponPresentationIds)
     {
         const string presentationId = Normalize_WeaponPresentationId(weaponPresentationId);
@@ -74,7 +91,33 @@ void UI_GetWeapon::Open_ForWeaponIds(const vector<string>& weaponPresentationIds
         if (Is_WeaponQueuedOrOpen(presentationId))
             continue;
 
-        _queuedPresentationIds.emplace_back(presentationId);
+        if (Contains_PresentationId(pendingIds, presentationId))
+            continue;
+
+        pendingIds.emplace_back(presentationId);
+    }
+
+    const bool hasBaguetteGroup =
+        Contains_PresentationId(pendingIds, kGustaveBaguettePresentationId) &&
+        Contains_PresentationId(pendingIds, kLuneBaguettePresentationId) &&
+        Contains_PresentationId(pendingIds, kMaelleBaguettePresentationId);
+
+    if (hasBaguetteGroup)
+    {
+        _queuedPresentationGroups.push_back({
+            kGustaveBaguettePresentationId,
+            kLuneBaguettePresentationId,
+            kMaelleBaguettePresentationId,
+        });
+
+        Erase_PresentationId(pendingIds, kGustaveBaguettePresentationId);
+        Erase_PresentationId(pendingIds, kLuneBaguettePresentationId);
+        Erase_PresentationId(pendingIds, kMaelleBaguettePresentationId);
+    }
+
+    for (const string& presentationId : pendingIds)
+    {
+        _queuedPresentationGroups.push_back({ presentationId });
     }
 
     if (!Is_Open())
@@ -88,8 +131,8 @@ void UI_GetWeapon::Close()
 
 void UI_GetWeapon::Close_Immediately()
 {
-    _queuedPresentationIds.clear();
-    _activePresentationId.clear();
+    _queuedPresentationGroups.clear();
+    _activePresentationIds.clear();
     _elapsed = 0.f;
 
     Close_AllRoots();
@@ -141,33 +184,56 @@ HRESULT UI_GetWeapon::Bind_UI()
 
 void UI_GetWeapon::Open_NextWeapon()
 {
-    while (!_queuedPresentationIds.empty())
+    while (!_queuedPresentationGroups.empty())
     {
-        _activePresentationId = _queuedPresentationIds.front();
-        _queuedPresentationIds.erase(_queuedPresentationIds.begin());
+        _activePresentationIds = _queuedPresentationGroups.front();
+        _queuedPresentationGroups.erase(_queuedPresentationGroups.begin());
 
-        _root = Resolve_Root(_activePresentationId);
-        if (_root == nullptr)
+        vector<Shared<Engine::UI_Base>> roots{};
+        for (const string& presentationId : _activePresentationIds)
+        {
+            Shared<Engine::UI_Base> root = Resolve_Root(presentationId);
+            if (root != nullptr)
+                roots.emplace_back(root);
+        }
+
+        if (roots.empty())
             continue;
 
         _elapsed = 0.f;
 
         Close_AllRoots();
+        _root = roots.front();
         UI_RuntimePanelBase::Open();
-        _root->Play_UIAnimation(kGetItemAnimationName, true);
+        for (const Shared<Engine::UI_Base>& root : roots)
+        {
+            if (root != _root)
+                root->Open();
+
+            for (const string& presentationId : _activePresentationIds)
+            {
+                if (Resolve_Root(presentationId) == root)
+                {
+                    Apply_ActiveGroupRootLayout(presentationId, root);
+                    break;
+                }
+            }
+
+            root->Play_UIAnimation(kGetItemAnimationName, true);
+        }
 
         // Get Item 계열은 클릭 UI가 아니라 연출 UI라서 마우스/UIOnly 전환 없이 월드 조작만 막는다.
         GAME->Set_PlayerInputBlocked(true);
         return;
     }
 
-    _activePresentationId.clear();
+    _activePresentationIds.clear();
 }
 
 void UI_GetWeapon::Finish_CurrentAndOpenNext()
 {
     Close_AllRoots();
-    _activePresentationId.clear();
+    _activePresentationIds.clear();
     _elapsed = 0.f;
 
     // 현재 연출이 끝났으면 다음 보상 UI가 열릴 때까지 월드 입력을 복구한다.
@@ -203,11 +269,40 @@ Shared<Engine::UI_Base> UI_GetWeapon::Resolve_Root(const string& presentationId)
 
 bool UI_GetWeapon::Is_WeaponQueuedOrOpen(const string& presentationId) const
 {
-    if (_activePresentationId == presentationId)
+    if (Contains_PresentationId(_activePresentationIds, presentationId))
         return true;
 
-    return find(_queuedPresentationIds.begin(), _queuedPresentationIds.end(), presentationId) !=
-        _queuedPresentationIds.end();
+    for (const vector<string>& queuedGroup : _queuedPresentationGroups)
+    {
+        if (Contains_PresentationId(queuedGroup, presentationId))
+            return true;
+    }
+
+    return false;
+}
+
+void UI_GetWeapon::Apply_ActiveGroupRootLayout(const string& presentationId, const Shared<Engine::UI_Base>& root)
+{
+    if (root == nullptr || root->Get_Transform() == nullptr)
+        return;
+
+    const bool isBaguetteGroup =
+        Contains_PresentationId(_activePresentationIds, kGustaveBaguettePresentationId) &&
+        Contains_PresentationId(_activePresentationIds, kLuneBaguettePresentationId) &&
+        Contains_PresentationId(_activePresentationIds, kMaelleBaguettePresentationId);
+    if (!isBaguetteGroup)
+        return;
+
+    Vec2 position = root->Get_Transform()->Get_Position();
+
+    if (presentationId == kGustaveBaguettePresentationId)
+        position.x -= 440.f;
+    else if (presentationId == kMaelleBaguettePresentationId)
+        position.x += 440.f;
+    else
+        return;
+
+    root->Get_Transform()->Set_Position(position);
 }
 
 string UI_GetWeapon::Normalize_WeaponPresentationId(const string& presentationId) const

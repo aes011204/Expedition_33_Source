@@ -808,6 +808,10 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_PlaneRadialOrientationModule();
     case AuthoringModuleType::RotationOverLife:
         return Make_RotationOverLifeModule();
+    case AuthoringModuleType::SpriteTilt:
+        return Make_SpriteTiltModule();
+    case AuthoringModuleType::SpriteTiltOverLife:
+        return Make_SpriteTiltOverLifeModule();
     case AuthoringModuleType::InitialRotationRate:
         return Make_InitialRotationRateModule();
     case AuthoringModuleType::RotationRateScaleByLife:
@@ -1063,6 +1067,28 @@ AuthoringModule Emitter_View::Make_RotationOverLifeModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_SpriteTiltModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SpriteTilt;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SpriteTiltModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SpriteTiltOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SpriteTiltOverLife;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SpriteTiltOverLifeModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_InitialRotationRateModule()
 {
     AuthoringModule module{};
@@ -1274,6 +1300,8 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         case AuthoringModuleType::VelocityOverLife:
         case AuthoringModuleType::InitialRotation:
         case AuthoringModuleType::RotationOverLife:
+        case AuthoringModuleType::SpriteTilt:
+        case AuthoringModuleType::SpriteTiltOverLife:
         case AuthoringModuleType::InitialRotationRate:
         case AuthoringModuleType::RotationRateScaleByLife:
         case AuthoringModuleType::InitialColor:
@@ -1317,6 +1345,10 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
     case AuthoringModuleType::SourceMotionVelocity:
         return emitter.typeData.kind == AuthoringTypeDataKind::None ||
                emitter.typeData.kind == AuthoringTypeDataKind::Mesh ||
+               emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+    case AuthoringModuleType::SpriteTilt:
+    case AuthoringModuleType::SpriteTiltOverLife:
+        return emitter.typeData.kind == AuthoringTypeDataKind::None ||
                emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialMeshRotation:
@@ -1362,6 +1394,8 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SphereRadialOrientation:
     case AuthoringModuleType::PlaneRadialOrientation:
     case AuthoringModuleType::RotationOverLife:
+    case AuthoringModuleType::SpriteTilt:
+    case AuthoringModuleType::SpriteTiltOverLife:
     case AuthoringModuleType::InitialRotationRate:
     case AuthoringModuleType::RotationRateScaleByLife:
     case AuthoringModuleType::InitialMeshRotation:
@@ -1455,6 +1489,12 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::RotationOverLife:
         module = Make_RotationOverLifeModule();
+        break;
+    case AuthoringModuleType::SpriteTilt:
+        module = Make_SpriteTiltModule();
+        break;
+    case AuthoringModuleType::SpriteTiltOverLife:
+        module = Make_SpriteTiltOverLifeModule();
         break;
     case AuthoringModuleType::InitialRotationRate:
         module = Make_InitialRotationRateModule();
@@ -2395,6 +2435,14 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = RotationOverLifeModuleData{};
         break;
 
+    case AuthoringModuleType::SpriteTilt:
+        module.data = SpriteTiltModuleData{};
+        break;
+
+    case AuthoringModuleType::SpriteTiltOverLife:
+        module.data = SpriteTiltOverLifeModuleData{};
+        break;
+
     case AuthoringModuleType::InitialRotationRate:
         module.data = InitialRotationRateModuleData{};
         break;
@@ -2805,6 +2853,22 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
             ""
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SpriteTilt,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SpriteTilt),
+            "Sprite / Sprite Trail TypeData 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SpriteTiltOverLife,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SpriteTiltOverLife),
+            "Sprite / Sprite Trail TypeData 전용"
         )
     );
     entries.push_back(

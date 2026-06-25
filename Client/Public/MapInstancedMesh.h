@@ -25,7 +25,7 @@ class MapInstancedMesh final : public GameObject
     GENERATED_GAMEOBJECT(MapInstancedMesh, ObjectType::StaticMesh)
 
 private:
-    static constexpr float INSTANCE_CULL_DIST = 500.f;
+    static constexpr float INSTANCE_CULL_DIST = 125.f;
     static constexpr float LARGE_OBJECT_HEIGHT = 5.f;
 
 public:
@@ -58,6 +58,9 @@ public:
     virtual HRESULT RenderPickingID(uint32 id) override;
     HRESULT Render_Shadow() override;
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
+    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const override { return cascadeIndex <= _maxShadowCascade; }
+    virtual uint32 Get_RenderHotspotInstanceCount() const override { return _instanceCount; }
+    virtual wstring Get_RenderHotspotSourceModelPath() const override { return _modelPath; }
 
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;
@@ -92,8 +95,8 @@ private:
     ComPtr<Buffer> _shadowVisibleVB;
     vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers;
 
-    float _lod1Dist = 300.f;
-    float _lod2Dist = 200.f;
+    float _lod1Dist = 100.f;
+    float _lod2Dist = 115.f;
 
     float _accTime = {};
     bool _hasGlow = false;

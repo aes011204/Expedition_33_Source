@@ -4,6 +4,7 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "LightingPipeline.h"
+#include "ModelCom.h"
 #include "PostProcessPipeline.h"
 #include "ScreenFx_Manager.h"
 #include "ShaderCom.h"
@@ -91,6 +92,7 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
         return;
 
     _renderGroups[ETOI(renderGroup)].push_back(gameObject);
+    Capture_RenderViewHotspotCandidate(renderGroup, gameObject);
 }
 
 void Renderer::Draw()
@@ -100,6 +102,10 @@ void Renderer::Draw()
     // ======================================================================================================
 
     _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
+    if (_renderOnlyPreviewMode)
+        _hotspotPendingSnapshot = {};
+    else
+        Publish_RenderViewHotspotSnapshot();
 
     if (_ppPipeline)
         _ppPipeline->Update(GAME->Get_WorldTimeDelta());
@@ -384,6 +390,7 @@ void Renderer::Render_NonBlend()
         {
 			gameObject->Render();
             Add_RenderCall();
+            ++_hotspotPendingSnapshot.nonBlendRenderedCount;
         }
 	}
 
@@ -2166,6 +2173,9 @@ void Renderer::Render_DynamicShadow()
             {
                 gameObject->Render_Shadow();
                 Add_RenderCall();
+                ++_hotspotPendingSnapshot.shadowRenderedCount;
+                if (cascadeIndex < _hotspotPendingSnapshot.shadowCascadeRenderedCounts.size())
+                    ++_hotspotPendingSnapshot.shadowCascadeRenderedCounts[cascadeIndex];
             }
         }
 
@@ -2201,6 +2211,9 @@ bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameOb
     if (gameObject == nullptr)
         return false;
 
+    if (!gameObject->Allows_DynamicShadowCascade(cascadeIndex))
+        return false;
+
     if (gameObject->Get_Transform() == nullptr)
         return true;
 
@@ -2233,6 +2246,12 @@ uint32 Renderer::Get_RenderCall() const
     return iDrawCall;
 }
 
+bool Renderer::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const
+{
+    outSnapshot = _hotspotLastSnapshot;
+    return outSnapshot.hasCamera || outSnapshot.totalSubmissions > 0;
+}
+
 void Renderer::Reset_RenderCall()
 {
     iDrawCall = 0;
@@ -2241,6 +2260,67 @@ void Renderer::Reset_RenderCall()
 void Renderer::Add_RenderCall(uint32 count)
 {
     iDrawCall += count;
+}
+
+void Renderer::Capture_RenderViewHotspotCandidate(RenderGroup renderGroup, const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return;
+
+    RenderViewHotspotEntry entry{};
+    entry.objectKey = reinterpret_cast<uintptr_t>(gameObject.get());
+    entry.renderGroup = renderGroup;
+    entry.objectType = gameObject->Get_ObjectType();
+    entry.shadowCasterType = gameObject->Get_ShadowCasterType();
+    entry.sourcePrefab = gameObject->Get_SourcePrefabName();
+
+    ClassReflectionInfo& reflectionInfo = gameObject->Get_ReflectionInfo();
+    entry.className = reflectionInfo.className;
+
+    if (const Shared<TransformCom> transform = gameObject->Get_Transform())
+        entry.worldPosition = transform->Get_WorldPosition();
+
+    if (const Shared<ModelCom> modelCom = gameObject->Get_Component<ModelCom>())
+        entry.sourceModelPath = modelCom->Get_SourceModelPath();
+
+    if (entry.sourceModelPath.empty())
+        entry.sourceModelPath = gameObject->Get_RenderHotspotSourceModelPath();
+
+    BoundingBox worldBounds{};
+    if (gameObject->Try_Get_ShadowWorldBounds(worldBounds))
+    {
+        entry.hasWorldBounds = true;
+        entry.worldBoundsCenter = worldBounds.Center;
+        entry.worldBoundsExtents = worldBounds.Extents;
+    }
+
+    entry.renderHotspotInstanceCount = gameObject->Get_RenderHotspotInstanceCount();
+
+    _hotspotPendingSnapshot.entries.emplace_back(move(entry));
+    ++_hotspotPendingSnapshot.totalSubmissions;
+    ++_hotspotPendingSnapshot.renderGroupCounts[ETOI(renderGroup)];
+}
+
+void Renderer::Publish_RenderViewHotspotSnapshot()
+{
+    _hotspotLastSnapshot = move(_hotspotPendingSnapshot);
+    _hotspotPendingSnapshot = {};
+
+    unordered_set<uintptr_t> uniqueObjects{};
+    uniqueObjects.reserve(_hotspotLastSnapshot.entries.size());
+    for (const RenderViewHotspotEntry& entry : _hotspotLastSnapshot.entries)
+        uniqueObjects.insert(entry.objectKey);
+
+    _hotspotLastSnapshot.uniqueObjectCount = static_cast<uint32>(uniqueObjects.size());
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const Shared<TransformCom> cameraTransform = activeCamera ? activeCamera->Get_Transform() : nullptr;
+    if (cameraTransform != nullptr)
+    {
+        _hotspotLastSnapshot.hasCamera = true;
+        _hotspotLastSnapshot.cameraPosition = cameraTransform->Get_WorldPosition();
+        _hotspotLastSnapshot.cameraForward = cameraTransform->Get_WorldForward();
+    }
 }
 
 #ifdef _DEBUG

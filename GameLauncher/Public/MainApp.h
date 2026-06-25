@@ -27,6 +27,7 @@ private:
     HRESULT Ready_StartLevel(LevelType eStartLevelID);
     void Parse_CommandLine(const wstring& commandLine);
     void Try_ApplyStartupCheckpoint();
+    void Apply_RuntimeInputPolicy();
     wstring Get_ClientResourceRoot() const;
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 

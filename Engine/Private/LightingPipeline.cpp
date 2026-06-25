@@ -426,7 +426,7 @@ HRESULT LightingPipeline::Ready_FroxelComputeShader()
         _context,
         L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_Froxel.hlsl",
         "AccumulateFroxelBuffer");
-    if (nullptr == froxelAccumulateComputeShader)
+    if (nullptr == froxelAccumulateComputeShader)   
         return E_FAIL;
 
     Shared<ComputeShaderCom> froxelTemporalComputeShader = ComputeShaderCom::Create(

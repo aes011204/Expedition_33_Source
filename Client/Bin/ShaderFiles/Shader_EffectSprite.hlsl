@@ -141,6 +141,7 @@ struct VS_IN
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
+    float2 spriteTiltDegrees : TEXCOORD2;
 };
 
 struct VS_OUT
@@ -153,6 +154,7 @@ struct VS_OUT
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
     float3 velocityDirection : TEXCOORD4;
+    float2 spriteTiltDegrees : TEXCOORD5;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -168,6 +170,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.subUVRect = In.subUVRect;
     Out.rotationRadians = atan2(In.InstanceMatrix[0].y, In.InstanceMatrix[0].x);
     Out.velocityDirection = In.InstanceMatrix[2].xyz;
+    Out.spriteTiltDegrees = In.spriteTiltDegrees;
 
     return Out;
 }
@@ -182,6 +185,7 @@ struct GS_IN
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
     float3 velocityDirection : TEXCOORD4;
+    float2 spriteTiltDegrees : TEXCOORD5;
 };
 
 struct GS_OUT
@@ -265,6 +269,23 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
+void ResolveWorldUpFacingCameraBasis(float3 center, out float3 rightDir, out float3 upDir)
+{
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
+    const float3 worldUp = float3(0.f, 1.f, 0.f);
+    float3 cameraLook = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(g_CamPosition.xyz - center, cameraLook))
+        return;
+
+    float3 worldRight = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(cross(worldUp, cameraLook), worldRight))
+        return;
+
+    rightDir = worldRight;
+    upDir = worldUp;
+}
+
 // texture 축 하나를 지정 방향에 맞추고, 나머지 축은 카메라 가시성을 유지하도록 만든다.
 bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out float3 rightDir, out float3 upDir)
 {
@@ -290,6 +311,16 @@ bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out flo
     return resolved;
 }
 
+void ApplySpriteTilt(inout float3 rightDir, inout float3 upDir, float2 tiltDegrees)
+{
+    const float tiltX = radians(tiltDegrees.x);
+    const float tiltY = radians(tiltDegrees.y);
+    float3 normalDir = normalize(cross(rightDir, upDir));
+    rightDir = normalize(rightDir * cos(tiltX) + normalDir * sin(tiltX));
+    normalDir = normalize(cross(rightDir, upDir));
+    upDir = normalize(upDir * cos(tiltY) + normalDir * sin(tiltY));
+}
+
 [maxvertexcount(4)]
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
@@ -306,6 +337,10 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     {
         rightDir = float3(1.f, 0.f, 0.f);
         upDir = float3(0.f, 0.f, 1.f);
+    }
+    else if (g_ScreenAlignmentMode == 7)
+    {
+        ResolveWorldUpFacingCameraBasis(particlePosition, rightDir, upDir);
     }
     else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
     {
@@ -337,6 +372,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     const float3 billboardUp = upDir;
     rightDir = billboardRight * rotationCos + billboardUp * rotationSin;
     upDir = -billboardRight * rotationSin + billboardUp * rotationCos;
+    ApplySpriteTilt(rightDir, upDir, In[0].spriteTiltDegrees);
     float2 spriteSize = In[0].size;
     if (g_ScreenAlignmentMode == 2)
     {

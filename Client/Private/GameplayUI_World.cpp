@@ -182,8 +182,10 @@ void GameplayUI_World::Update(float timeDelta)
         if (Is_GetClothesOpen())
             return; // Get Clothes가 떠 있는 동안 다른 월드 메뉴 액션을 소비하지 않는다.
 
+        Try_ShowPendingGetWeapon();
+
         if (Is_GetWeaponOpen())
-            return; // Get Weapon은 아직 자동 획득 소비 없이, 열려 있을 때 월드 메뉴 액션만 막는다.
+            return; // Get Weapon이 떠 있는 동안 다른 월드 메뉴 액션을 소비하지 않는다.
 
         if (Is_GetPictosOpen())
             return; // Get Pictos도 코드 패널만 준비하고, 열린 동안 월드 메뉴 액션만 막는다.
@@ -842,6 +844,43 @@ void GameplayUI_World::Try_ShowPendingGetClothes()
         return;
 
     _getClothesPanel->Open_ForPresetIds(pendingPresetIds);
+}
+
+void GameplayUI_World::Try_ShowPendingGetWeapon()
+{
+    if (_getWeaponPanel == nullptr || _getWeaponPanel->Is_Open())
+        return;
+
+    if (Is_GetCharacterOpen() || Is_GetClothesOpen())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    vector<string> pendingWeaponIds = unlockManager->Consume_GetWeaponPresentationIds();
+    if (pendingWeaponIds.empty())
+        return;
+
+    _getWeaponPanel->Open_ForWeaponIds(pendingWeaponIds);
 }
 
 bool GameplayUI_World::Is_GetClothesOpen() const

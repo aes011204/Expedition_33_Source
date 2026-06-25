@@ -68,7 +68,7 @@ struct VS_IN
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
-    float rotationRadians : TEXCOORD2;
+    float4 rotationAndTilt : TEXCOORD2;
 };
 
 struct VS_OUT
@@ -79,7 +79,7 @@ struct VS_OUT
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
-    float rotationRadians : TEXCOORD3;
+    float4 rotationAndTilt : TEXCOORD3;
 };
 
 VS_OUT VS_MAIN(VS_IN input)
@@ -91,7 +91,7 @@ VS_OUT VS_MAIN(VS_IN input)
     output.startColor = input.startColor;
     output.endColor = input.endColor;
     output.subUVRect = input.subUVRect;
-    output.rotationRadians = input.rotationRadians;
+    output.rotationAndTilt = input.rotationAndTilt;
     return output;
 }
 
@@ -191,7 +191,7 @@ void ResolveTrailBasis(float3 center, float3 tangent, out float3 rightDir, out f
     {
         ResolveLookAlignedBasis(ResolveFacingLookDirection(center), rightDir, upDir);
     }
-    else if (screenAlignment == 1)
+    else if (screenAlignment == 1 || screenAlignment == 7)
     {
         ResolveWorldUpRectangleBasis(center, rightDir, upDir);
     }
@@ -217,6 +217,16 @@ void ApplyRollOffset(inout float3 rightDir, inout float3 upDir, float rotationRa
     const float3 baseUp = upDir;
     rightDir = baseRight * rotationCos + baseUp * rotationSin;
     upDir = -baseRight * rotationSin + baseUp * rotationCos;
+}
+
+void ApplySpriteTilt(inout float3 rightDir, inout float3 upDir, float2 tiltDegrees)
+{
+    const float tiltX = radians(tiltDegrees.x);
+    const float tiltY = radians(tiltDegrees.y);
+    float3 normalDir = normalize(cross(rightDir, upDir));
+    rightDir = normalize(rightDir * cos(tiltX) + normalDir * sin(tiltX));
+    normalDir = normalize(cross(rightDir, upDir));
+    upDir = normalize(upDir * cos(tiltY) + normalDir * sin(tiltY));
 }
 
 void ResolveCardAxes(float3 rightDir, float3 upDir, float length, float width, out float3 textureXDir, out float3 textureYDir)
@@ -256,7 +266,8 @@ void GS_MAIN(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
     float3 upDir = float3(0.f, 1.f, 0.f);
     ResolveTrailBasis(center, tangent, rightDir, upDir);
 
-    ApplyRollOffset(rightDir, upDir, input[0].rotationRadians + g_SpriteRollOffsetRadians);
+    ApplyRollOffset(rightDir, upDir, input[0].rotationAndTilt.x + g_SpriteRollOffsetRadians);
+    ApplySpriteTilt(rightDir, upDir, input[0].rotationAndTilt.yz);
     float3 textureXDir = float3(0.f, 0.f, 0.f);
     float3 textureYDir = float3(0.f, 0.f, 0.f);
     ResolveCardAxes(rightDir, upDir, length, width, textureXDir, textureYDir);

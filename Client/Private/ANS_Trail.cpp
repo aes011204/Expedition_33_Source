@@ -3,6 +3,7 @@
 #include "ContainerObject.h"
 #include "EffectCom.h"
 #include "Mon_Simon_Weapon.h"
+#include "PartObject.h"
 
 #include <atomic>
 
@@ -11,6 +12,11 @@ namespace
     constexpr const char* kTipExtendCurveJsonKey = "_tipExtendCurve";
     constexpr const char* kBaseLocalOffsetCurveJsonKey = "_baseLocalOffsetCurve";
     constexpr const char* kTipLocalOffsetCurveJsonKey = "_tipLocalOffsetCurve";
+    constexpr const char* kTrailAnchorSourceJsonKey = "_trailAnchorSource";
+    constexpr const char* kBaseBoneNameJsonKey = "_baseBoneName";
+    constexpr const char* kBaseLocalOffsetJsonKey = "_baseLocalOffset";
+    constexpr const char* kTipBoneNameJsonKey = "_tipBoneName";
+    constexpr const char* kTipLocalOffsetJsonKey = "_tipLocalOffset";
     constexpr const char* kTipExtendEnabledJsonKey = "enabled";
     constexpr const char* kTipExtendKeysJsonKey = "keys";
     constexpr const char* kTipExtendPhaseJsonKey = "phase";
@@ -60,6 +66,27 @@ namespace
 
         return nullptr;
     }
+
+    PartObject* Resolve_PartObject(const AnimNotifyContext& context, const wstring& partTag)
+    {
+        if (context.owner == nullptr)
+            return nullptr;
+
+        Shared<GameObject> current = context.owner->GetSharedPtr<GameObject>();
+        while (current)
+        {
+            ContainerObject* ownerContainer = dynamic_cast<ContainerObject*>(current.get());
+            if (ownerContainer != nullptr)
+            {
+                if (PartObject* partObject = ownerContainer->Get_PartObject(partTag))
+                    return partObject;
+            }
+
+            current = current->Get_Owner();
+        }
+
+        return nullptr;
+    }
 }
 
 IMPLEMENT_REFLECTION(ANS_Trail)
@@ -79,6 +106,14 @@ void ANS_Trail::On_Begin(const AnimNotifyContext& context)
     if (effectCom == nullptr)
         return;
 
+    PartObject* trailPart = Resolve_PartObject(context, _partTag);
+    if (trailPart == nullptr)
+        return;
+
+    // 숨겨진 파츠에서 들어온 trail notify는 실제 재생 대상이 없으니 조용히 무시한다.
+    if (!trailPart->Is_Visible())
+        return;
+
     _trailNotifyToken = Generate_TrailNotifyToken();
 
     EffectCom::TrailOffsetRuntimeDesc offsetDesc{};
@@ -87,22 +122,32 @@ void ANS_Trail::On_Begin(const AnimNotifyContext& context)
     offsetDesc.baseLocalOffsetCurve = _baseLocalOffsetCurve;
     offsetDesc.tipLocalOffsetCurve = _tipLocalOffsetCurve;
 
-    effectCom->Play_TrailEffect(_effectName, _partTag, _layerTag, _trailNotifyToken, offsetDesc);
+    EffectCom::TrailAnchorRuntimeDesc anchorDesc{};
+    anchorDesc.source = _trailAnchorSource;
+    anchorDesc.baseBoneName = _baseBoneName;
+    anchorDesc.baseLocalOffset = _baseLocalOffset;
+    anchorDesc.tipBoneName = _tipBoneName;
+    anchorDesc.tipLocalOffset = _tipLocalOffset;
 
-    if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
+    effectCom->Play_TrailEffect(_effectName, _partTag, _layerTag, _trailNotifyToken, offsetDesc, anchorDesc);
+
+    if (_trailAnchorSource == TrailAnchorSource::ModelDefault)
     {
-        wstring activeTrailEffectName{};
-        wstring activeTrailLayerTag{};
-        EffectCom::TrailOffsetRuntimeDesc activeTrailOffset{};
-        if (effectCom->Try_GetActiveTrailEffect(_partTag, activeTrailEffectName, activeTrailLayerTag, activeTrailOffset))
+        if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
         {
-            simonWeapon->Begin_WeaponEchoTrail(activeTrailEffectName, activeTrailLayerTag, activeTrailOffset);
-        }
-        else
-        {
-            const wstring fallbackEffectName = _effectName.empty() ? simonWeapon->Get_TrailEffectName() : _effectName;
-            if (!fallbackEffectName.empty())
-                simonWeapon->Begin_WeaponEchoTrail(fallbackEffectName, _layerTag, offsetDesc);
+            wstring activeTrailEffectName{};
+            wstring activeTrailLayerTag{};
+            EffectCom::TrailOffsetRuntimeDesc activeTrailOffset{};
+            if (effectCom->Try_GetActiveTrailEffect(_partTag, activeTrailEffectName, activeTrailLayerTag, activeTrailOffset))
+            {
+                simonWeapon->Begin_WeaponEchoTrail(activeTrailEffectName, activeTrailLayerTag, activeTrailOffset);
+            }
+            else
+            {
+                const wstring fallbackEffectName = _effectName.empty() ? simonWeapon->Get_TrailEffectName() : _effectName;
+                if (!fallbackEffectName.empty())
+                    simonWeapon->Begin_WeaponEchoTrail(fallbackEffectName, _layerTag, offsetDesc);
+            }
         }
     }
 }
@@ -124,8 +169,11 @@ void ANS_Trail::On_Tick(const AnimNotifyContext& context)
 
     effectCom->Update_TrailEffectOffset(_effectName, _partTag, _trailNotifyToken, offsetDesc);
 
-    if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
-        simonWeapon->Update_WeaponEchoTrailOffset(offsetDesc);
+    if (_trailAnchorSource == TrailAnchorSource::ModelDefault)
+    {
+        if (Mon_Simon_Weapon* simonWeapon = Resolve_SimonWeapon(context, _partTag))
+            simonWeapon->Update_WeaponEchoTrailOffset(offsetDesc);
+    }
 }
 
 void ANS_Trail::On_End(const AnimNotifyContext& context)
@@ -141,6 +189,14 @@ void ANS_Trail::On_End(const AnimNotifyContext& context)
 json ANS_Trail::To_Json() const
 {
     json root = AnimNotifyState::To_Json();
+    if (_trailAnchorSource == TrailAnchorSource::NotifyBonePair)
+    {
+        root[kTrailAnchorSourceJsonKey] = Get_TrailAnchorSourceName(_trailAnchorSource);
+        root[kBaseBoneNameJsonKey] = _baseBoneName;
+        root[kBaseLocalOffsetJsonKey] = Vec3_ToJson(_baseLocalOffset);
+        root[kTipBoneNameJsonKey] = _tipBoneName;
+        root[kTipLocalOffsetJsonKey] = Vec3_ToJson(_tipLocalOffset);
+    }
     if (_tipExtendCurve.enabled || !_tipExtendCurve.keys.empty())
         root[kTipExtendCurveJsonKey] = TipExtendCurve_ToJson(_tipExtendCurve);
     if (_baseLocalOffsetCurve.enabled || !_baseLocalOffsetCurve.keys.empty())
@@ -154,6 +210,21 @@ json ANS_Trail::To_Json() const
 void ANS_Trail::From_Json(const json& data)
 {
     AnimNotifyState::From_Json(data);
+
+    _trailAnchorSource = TrailAnchorSource::ModelDefault;
+    if (data.contains(kTrailAnchorSourceJsonKey))
+        _trailAnchorSource = Parse_TrailAnchorSource(data[kTrailAnchorSourceJsonKey]);
+
+    Clear_NotifyBonePair();
+    if (_trailAnchorSource == TrailAnchorSource::NotifyBonePair)
+    {
+        _baseBoneName = data.value(kBaseBoneNameJsonKey, string{});
+        if (data.contains(kBaseLocalOffsetJsonKey))
+            (void)Json_ToVec3(data[kBaseLocalOffsetJsonKey], _baseLocalOffset);
+        _tipBoneName = data.value(kTipBoneNameJsonKey, string{});
+        if (data.contains(kTipLocalOffsetJsonKey))
+            (void)Json_ToVec3(data[kTipLocalOffsetJsonKey], _tipLocalOffset);
+    }
 
     _tipExtendCurve = {};
     if (data.contains(kTipExtendCurveJsonKey))
@@ -188,6 +259,28 @@ void ANS_Trail::Set_TipLocalOffsetCurve(const LocalOffsetCurve& curve)
 {
     _tipLocalOffsetCurve = curve;
     Normalize_LocalOffsetCurve(_tipLocalOffsetCurve);
+}
+
+void ANS_Trail::Clear_NotifyBonePair()
+{
+    _baseBoneName.clear();
+    _baseLocalOffset = Vec3::Zero;
+    _tipBoneName.clear();
+    _tipLocalOffset = Vec3::Zero;
+}
+
+const char* ANS_Trail::Get_TrailAnchorSourceName(TrailAnchorSource source)
+{
+    switch (source)
+    {
+    case TrailAnchorSource::ModelDefault:
+        return "ModelDefault";
+
+    case TrailAnchorSource::NotifyBonePair:
+        return "NotifyBonePair";
+    }
+
+    return "ModelDefault";
 }
 
 const char* ANS_Trail::Get_TipExtendInterpolationName(TipExtendInterpolation interpolation)
@@ -280,6 +373,27 @@ TrailAnchorAsset ANS_Trail::Make_OffsetTrailAnchorAsset(
     }
 
     return result;
+}
+
+ANS_Trail::TrailAnchorSource ANS_Trail::Parse_TrailAnchorSource(const json& data)
+{
+    if (data.is_string())
+    {
+        const string source = data.get<string>();
+        if (source == "NotifyBonePair")
+            return TrailAnchorSource::NotifyBonePair;
+
+        return TrailAnchorSource::ModelDefault;
+    }
+
+    if (data.is_number_integer())
+    {
+        const int32 source = data.get<int32>();
+        if (source == static_cast<int32>(TrailAnchorSource::NotifyBonePair))
+            return TrailAnchorSource::NotifyBonePair;
+    }
+
+    return TrailAnchorSource::ModelDefault;
 }
 
 ANS_Trail::TipExtendInterpolation ANS_Trail::Parse_TipExtendInterpolation(const json& data)
@@ -491,5 +605,7 @@ uint64 ANS_Trail::Generate_TrailNotifyToken()
 
 Shared<EffectCom> ANS_Trail::Resolve_EffectCom(const AnimNotifyContext& context) const
 {
-    return EffectCom::Find_FromNotifyOwner(context.owner);
+    // trail/source-history는 partTag를 owner container 기준으로 해석해야 하므로
+    // 가장 가까운 part EffectCom이 아니라 container owner의 EffectCom를 사용한다.
+    return EffectCom::Find_FromNotifyOwner(context.owner, EffectCom::EffectPlayTarget::PartRoot);
 }

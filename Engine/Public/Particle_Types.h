@@ -34,12 +34,13 @@ struct ParticleInstanceVertex
     Vec4 startColor{ 1.f, 1.f, 1.f, 1.f }; // particle 생성 시점의 색상/알파.
     Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };   // particle 수명 종료 시점의 색상/알파.
     Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };  // x/y는 uv 시작점, z/w는 uv 끝점이다.
+    Vec2 spriteTiltDegrees{};              // x/y: roll 적용 이후 card local X/Y 기준 tilt degree다.
 };
 
 // Particle shader가 사용하는 vertex + instance input layout.
 struct ParticleInstanceLayout
 {
-    static constexpr uint32 numElements = 9;
+    static constexpr uint32 numElements = 10;
 
     // WORLD 0~3은 semantic name WORLD + semantic index 0~3으로 표현한다.
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
@@ -52,6 +53,7 @@ struct ParticleInstanceLayout
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32G32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
@@ -160,7 +162,7 @@ struct SourceHistorySpriteTrailInstanceLayout
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 40, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 56, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-        { "TEXCOORD", 2, DXGI_FORMAT_R32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
 };
 
@@ -236,6 +238,45 @@ struct PointParticleSizeByLifeDesc
     Vec4 curveKeyModesBlock1{};                 // scaleOverLife key 4..7 interpolation mode 값이다.
 };
 
+// 모듈별 random consumer가 lifecycle seed에 더할 수동 seed salt다.
+struct PointParticleRandomSeedRuntimeDesc
+{
+    bool manualSeedEnabled{ false }; // true면 seed를 해당 consumer random sample에 더한다.
+    uint32 seed{ 0 };                // 모듈 authoring에서 저장된 수동 seed 값이다. 0도 유효 seed다.
+    bool useInstanceSeed{ false };   // true면 effect 재생 1회 seed를 해당 consumer random sample에 더한다.
+};
+
+// SpriteTilt 계열 모듈이 카드 면 기울기를 평가하기 위한 runtime payload다.
+struct PointParticleSpriteTiltDesc
+{
+    bool initialTiltEnabled{ false };             // SpriteTilt 모듈 연결 여부다.
+    Vec2 tiltDegreesMin{ 0.f, 0.f };              // spawn/stamp 시점 X/Y tilt 하한이다.
+    Vec2 tiltDegreesMax{ 0.f, 0.f };              // spawn/stamp 시점 X/Y tilt 상한이다.
+    PointParticleRandomSeedRuntimeDesc tiltSeed{}; // SpriteTilt random sample seed salt다.
+    bool tiltOverLifeEnabled{ false };            // SpriteTiltOverLife 모듈 연결 여부다.
+    bool tiltOverLifeCurveEnabled{ false };       // true면 over-life 값을 compact curve로 평가한다.
+    Vec2 tiltOverLifeMin{ 0.f, 0.f };             // over-life fallback 시작 X/Y tilt다.
+    Vec2 tiltOverLifeMax{ 0.f, 0.f };             // over-life fallback 종료 X/Y tilt다.
+    PointParticleRandomSeedRuntimeDesc tiltOverLifeSeed{}; // Uniform over-life offset seed salt다.
+    uint32 tiltOverLifeCurveKeyCount{ 2 };        // tiltOverLife compact curve key 수다.
+    Vec4 tiltOverLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 tiltOverLifeCurveTimesBlock1{};
+    Vec4 tiltOverLifeCurveValuesX{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 tiltOverLifeCurveValuesXBlock1{};
+    Vec4 tiltOverLifeCurveValuesY{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 tiltOverLifeCurveValuesYBlock1{};
+    Vec4 tiltOverLifeCurveArriveTangentsX{};
+    Vec4 tiltOverLifeCurveArriveTangentsXBlock1{};
+    Vec4 tiltOverLifeCurveLeaveTangentsX{};
+    Vec4 tiltOverLifeCurveLeaveTangentsXBlock1{};
+    Vec4 tiltOverLifeCurveArriveTangentsY{};
+    Vec4 tiltOverLifeCurveArriveTangentsYBlock1{};
+    Vec4 tiltOverLifeCurveLeaveTangentsY{};
+    Vec4 tiltOverLifeCurveLeaveTangentsYBlock1{};
+    Vec4 tiltOverLifeCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 tiltOverLifeCurveModesBlock1{};
+};
+
 // ColorOverLife 모듈의 ConstantCurve payload를 compute shader가 평가할 수 있게 압축한 desc다.
 struct PointParticleColorOverLifeCurveDesc
 {
@@ -277,14 +318,6 @@ struct PointParticleColorOverLifeCurveDesc
     Vec4 alphaCurveModesBlock1{};
 };
 
-// 모듈별 random consumer가 lifecycle seed에 더할 수동 seed salt다.
-struct PointParticleRandomSeedRuntimeDesc
-{
-    bool manualSeedEnabled{ false }; // true면 seed를 해당 consumer random sample에 더한다.
-    uint32 seed{ 0 };                // 모듈 authoring에서 저장된 수동 seed 값이다. 0도 유효 seed다.
-    bool useInstanceSeed{ false };   // true면 effect 재생 1회 seed를 해당 consumer random sample에 더한다.
-};
-
 // InitialRadialVelocity가 중심에서 방향을 만들 수 없을 때 사용할 방향 정책이다.
 enum class PointParticleInitialRadialVelocityCenterDirectionMode : uint32
 {
@@ -314,6 +347,7 @@ struct PointParticleMotionDesc
     bool velocityConeEnabled{ false };                              // 축 기준 cone 안에서 샘플한 시작 속도 항을 적용할지 나타낸다.
     bool velocityConeInWorldSpace{ false };                         // true면 cone axis를 emitter basis 변환 없이 world 값으로 본다.
     bool sourceMotionVelocityEnabled{ false };                      // source/trail motion 기반 시작 속도 항을 적용할지 나타낸다.
+    bool accelerationInWorldSpace{ true };                          // true면 Acceleration 벡터를 emitter basis 변환 없이 world 값으로 본다.
     Vec3 initialVelocityMin{ 0.f, 0.f, 0.f };                       // InitialVelocity vector 분포의 하한이다.
     Vec3 initialVelocityMax{ 0.f, 0.f, 0.f };                       // InitialVelocity vector 분포의 상한이다.
     Vec3 radialPivot{ 0.f, 0.f, 0.f };                              // InitialRadialVelocity의 방사 방향 기준점이다.
@@ -676,6 +710,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleMotionDesc motion{};                                 // motion 모듈들이 만든 compute update 규칙이다.
     EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈이 만든 emitter-local pivot 회전 payload다.
     PointParticleRotationDesc rotation{};                             // rotation 모듈들이 만든 sprite 회전 규칙이다.
+    PointParticleSpriteTiltDesc spriteTilt{};                         // SpriteTilt 모듈들이 만든 카드 면 기울기 규칙이다.
     PointParticleSpawnDesc spawn{};                                   // Spawn 모듈이 만든 활성화/버스트 생성 규칙이다.
     PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                // Lifetime random sample seed salt다.
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.

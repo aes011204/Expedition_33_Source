@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Client_Defines.h"
+#include "Delegate.h"
 #include "Level_WindowTitleFps.h"
 #include "Level.h"
 
@@ -13,6 +14,7 @@ public:
 
 public:
     virtual HRESULT Initialize() override;
+    virtual void BeginPlay() override;
     virtual void Update(float fTimeDelta) override;
     virtual HRESULT Render() override;
 
@@ -27,9 +29,11 @@ private:
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
     HRESULT Ready_Layer_ETC(const wstring& strLayerTag);
+    void Play_MapBGM();
 
 private:
     WindowTitleFpsState _windowTitleFps = {};
+    FDelegateHandle _editorPlayRuntimeHandle{};
 
 private:
 

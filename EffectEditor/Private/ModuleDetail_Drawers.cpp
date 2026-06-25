@@ -28,6 +28,7 @@ namespace Internal
     {
         return alignment == EmitterScreenAlignment::FacingCameraPosition ||
                alignment == EmitterScreenAlignment::Rectangle ||
+               alignment == EmitterScreenAlignment::WorldUpFacingCamera ||
                (alignment == EmitterScreenAlignment::Velocity && mode == EmitterDirectionalAlignmentMode::TextureAxis);
     }
 
@@ -2947,6 +2948,17 @@ bool AccelerationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringMo
 
     if (ImGui::CollapsingHeader("가속", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        if (detailContext.Begin_PropertyTable("AccelerationSpace"))
+        {
+            changed |= detailContext.Draw_BoolProperty(
+                "월드 스페이스",
+                data.inWorldSpace,
+                defaultData.inWorldSpace,
+                "켜면 가속 벡터를 world 기준으로, 끄면 emitter local 기준으로 해석합니다. 중력/상승처럼 effect 회전과 무관한 힘은 켜둡니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+
         changed |= detailContext.Draw_Vector3DistributionGroup(
             "가속",
             data.acceleration,
@@ -3206,6 +3218,48 @@ bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Rot
             true,
             nullptr,
             "생존 중 normalized life(0->1)에 따라 초기 회전 위에 더하는 추가 회전각입니다."
+        );
+    }
+
+    return changed;
+}
+
+bool SpriteTiltModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpriteTiltModuleData& data, DetailPropertyContext& detailContext)
+{
+    const SpriteTiltModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("스프라이트 틸트", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        changed |= detailContext.Draw_Vector2DistributionGroup(
+            "틸트 (도)",
+            data.tiltDegrees,
+            defaultData.tiltDegrees,
+            0.01f,
+            true,
+            nullptr,
+            "spawn/stamp 생성 시점에 카드 면을 local X/Y 방향으로 기울입니다. Rotation은 카드 면 안 roll 회전입니다."
+        );
+    }
+
+    return changed;
+}
+
+bool SpriteTiltOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpriteTiltOverLifeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const SpriteTiltOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 스프라이트 틸트", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        changed |= detailContext.Draw_Vector2DistributionGroup(
+            "추가 틸트 (도)",
+            data.tiltOverLife,
+            defaultData.tiltOverLife,
+            0.01f,
+            true,
+            nullptr,
+            "생존 중 normalized life(0->1)에 따라 카드 면 기울기를 추가합니다. RotationOverLife는 카드 면 안 roll 회전입니다."
         );
     }
 

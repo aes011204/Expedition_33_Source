@@ -1400,6 +1400,8 @@ void ComputeSourceHistorySpriteTrailEmitter::Push_Stamp(
     stamp.lengthScale = max(0.f, lengthScale * initialSize.y);
     stamp.initialRotationRadians = Sample_InitialRotation(stampSerial);
     stamp.initialAngularVelocityRadians = Sample_InitialAngularVelocity(stampSerial);
+    stamp.initialTiltDegrees = Sample_InitialTilt(stampSerial);
+    stamp.tiltOverLifeDegrees = Sample_TiltOverLife(stampSerial);
     stamp.velocity = Sample_InitialVelocity(stampSerial, stamp.center, sourceMotionContext);
     stamp.acceleration = Sample_Acceleration(stampSerial);
     stamp.drag = Sample_Drag(stampSerial);
@@ -1566,6 +1568,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Append_StampInstances(const vect
             stamp.initialRotationRadians +
             Evaluate_RotationOverLife(lifeProgress) +
             stamp.initialAngularVelocityRadians * Evaluate_RotationRateScaleByLife(lifeProgress) * stamp.age;
+        const Vec2 spriteTiltDegrees = stamp.initialTiltDegrees + Evaluate_SpriteTiltOverLife(stamp, lifeProgress);
         const uint32 frameIndex =
             _desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame
             ? stamp.frameIndex
@@ -1579,7 +1582,7 @@ HRESULT ComputeSourceHistorySpriteTrailEmitter::Append_StampInstances(const vect
                 .startColor = color,
                 .endColor = color,
                 .subUVRect = Resolve_SubUVRect(frameIndex),
-                .rotationRadians = rotationRadians
+                .rotationAndTilt = Vec4{ rotationRadians, spriteTiltDegrees.x, spriteTiltDegrees.y, 0.f }
             }
         );
     }
@@ -1893,6 +1896,34 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_InitialAngularVelocity(uint
     );
 }
 
+Vec2 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialTilt(uint32 stampSerial) const
+{
+    if (!_desc.spriteTilt.initialTiltEnabled)
+        return Vec2{};
+
+    return Sample_Vector2Range(
+        _desc.spriteTilt.tiltDegreesMin,
+        _desc.spriteTilt.tiltDegreesMax,
+        _desc.spriteTilt.tiltSeed,
+        stampSerial,
+        617u
+    );
+}
+
+Vec2 ComputeSourceHistorySpriteTrailEmitter::Sample_TiltOverLife(uint32 stampSerial) const
+{
+    if (!_desc.spriteTilt.tiltOverLifeEnabled || _desc.spriteTilt.tiltOverLifeCurveEnabled)
+        return Vec2{};
+
+    return Sample_Vector2Range(
+        _desc.spriteTilt.tiltOverLifeMin,
+        _desc.spriteTilt.tiltOverLifeMax,
+        _desc.spriteTilt.tiltOverLifeSeed,
+        stampSerial,
+        631u
+    );
+}
+
 Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_InitialVelocity(
     uint32 stampSerial,
     const Vec3& spawnCenter,
@@ -2113,7 +2144,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_Acceleration(uint32 stampSer
         stampSerial,
         701u
     );
-    if (_transformCom == nullptr)
+    if (_desc.motion.accelerationInWorldSpace || _transformCom == nullptr)
         return sampledAcceleration;
 
     return _transformCom->Get_WorldRight() * sampledAcceleration.x +
@@ -2170,6 +2201,20 @@ float ComputeSourceHistorySpriteTrailEmitter::Sample_Range(
 {
     const uint32 baseSeed = Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
     return Internal::RandomRange(minValue, maxValue, baseSeed);
+}
+
+Vec2 ComputeSourceHistorySpriteTrailEmitter::Sample_Vector2Range(
+    const Vec2& minValue,
+    const Vec2& maxValue,
+    const PointParticleRandomSeedRuntimeDesc& seed,
+    uint32 stampSerial,
+    uint32 salt) const
+{
+    const uint32 baseSeed = Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed) + stampSerial * 3571u + salt;
+    return Vec2{
+        Internal::RandomRange(minValue.x, maxValue.x, baseSeed + 11u),
+        Internal::RandomRange(minValue.y, maxValue.y, baseSeed + 23u)
+    };
 }
 
 Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_VectorRange(
@@ -2366,6 +2411,52 @@ float ComputeSourceHistorySpriteTrailEmitter::Evaluate_RotationRateScaleByLife(f
     );
 }
 
+Vec2 ComputeSourceHistorySpriteTrailEmitter::Evaluate_SpriteTiltOverLife(const Stamp& stamp, float lifeProgress) const
+{
+    if (!_desc.spriteTilt.tiltOverLifeEnabled)
+        return Vec2{};
+    if (!_desc.spriteTilt.tiltOverLifeCurveEnabled)
+        return stamp.tiltOverLifeDegrees;
+
+    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.spriteTilt.tiltOverLifeCurveKeyCount));
+    const Vec2 fallbackTilt{
+        lerp(_desc.spriteTilt.tiltOverLifeMin.x, _desc.spriteTilt.tiltOverLifeMax.x, lifeProgress),
+        lerp(_desc.spriteTilt.tiltOverLifeMin.y, _desc.spriteTilt.tiltOverLifeMax.y, lifeProgress)
+    };
+    return Vec2{
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.spriteTilt.tiltOverLifeCurveTimes,
+            _desc.spriteTilt.tiltOverLifeCurveTimesBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveValuesX,
+            _desc.spriteTilt.tiltOverLifeCurveValuesXBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveArriveTangentsX,
+            _desc.spriteTilt.tiltOverLifeCurveArriveTangentsXBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsX,
+            _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsXBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveModes,
+            _desc.spriteTilt.tiltOverLifeCurveModesBlock1,
+            keyCount,
+            fallbackTilt.x
+        ),
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.spriteTilt.tiltOverLifeCurveTimes,
+            _desc.spriteTilt.tiltOverLifeCurveTimesBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveValuesY,
+            _desc.spriteTilt.tiltOverLifeCurveValuesYBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveArriveTangentsY,
+            _desc.spriteTilt.tiltOverLifeCurveArriveTangentsYBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsY,
+            _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsYBlock1,
+            _desc.spriteTilt.tiltOverLifeCurveModes,
+            _desc.spriteTilt.tiltOverLifeCurveModesBlock1,
+            keyCount,
+            fallbackTilt.y
+        )
+    };
+}
+
 float ComputeSourceHistorySpriteTrailEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
 {
     if (!_desc.motion.enabled)
@@ -2444,7 +2535,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
         )
     };
 
-    if (_transformCom == nullptr)
+    if (_desc.motion.accelerationInWorldSpace || _transformCom == nullptr)
         return acceleration;
 
     return _transformCom->Get_WorldRight() * acceleration.x +

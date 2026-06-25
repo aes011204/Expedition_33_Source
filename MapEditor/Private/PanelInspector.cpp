@@ -160,6 +160,15 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
         }
 
         auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+        if (_editInstanceTarget != obj || _editInstanceIndex != obj->_selectedInstanceIdx)
+        {
+            _instanceTransformEditing = false;
+            _editInstanceTarget = nullptr;
+            _editInstanceIndex = -1;
+        }
+
+        InstanceTransform frameStartTransform = t;
+        bool instanceChanged = false;
         ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
 
         if (ImGui::SmallButton("인스턴스 지우기"))
@@ -190,7 +199,9 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
         {
             t._position = Vec3(pos[0], pos[1], pos[2]);
             _ctx->UpdateSingleInstance(obj.get(), obj->_selectedInstanceIdx);
+            instanceChanged = true;
         }
+        bool posActive = ImGui::IsItemActive();
         if (ImGui::IsItemDeactivatedAfterEdit())
         {
             obj->_instancedParamsDirty = true;
@@ -219,7 +230,9 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
                 XMConvertToRadians(euler[2]));
             t._rotation = Vec4(newQ.x, newQ.y, newQ.z, newQ.w);
             _ctx->UpdateSingleInstance(obj.get(), obj->_selectedInstanceIdx);
+            instanceChanged = true;
         }
+        bool rotActive = ImGui::IsItemActive();
         if (ImGui::IsItemDeactivatedAfterEdit())
         {
             obj->_instancedParamsDirty = true;
@@ -231,11 +244,52 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
         {
             t._scale = Vec3(scl[0], scl[1], scl[2]);
             _ctx->UpdateSingleInstance(obj.get(), obj->_selectedInstanceIdx);
+            instanceChanged = true;
         }
+        bool sclActive = ImGui::IsItemActive();
         if (ImGui::IsItemDeactivatedAfterEdit())
         {
             obj->_instancedParamsDirty = true;
             _ctx->_dirtyRenderHandles  = true;
+        }
+
+        const bool anyActive = posActive || rotActive || sclActive;
+        if (anyActive && !_instanceTransformEditing)
+        {
+            _editPrevInstanceTransform = frameStartTransform;
+            _editInstanceTarget = obj;
+            _editInstanceIndex = obj->_selectedInstanceIdx;
+            _instanceTransformEditing = true;
+        }
+        else if (!anyActive && _instanceTransformEditing &&
+            _editInstanceTarget == obj && _editInstanceIndex == obj->_selectedInstanceIdx)
+        {
+            const bool samePosition =
+                _editPrevInstanceTransform._position.x == t._position.x &&
+                _editPrevInstanceTransform._position.y == t._position.y &&
+                _editPrevInstanceTransform._position.z == t._position.z;
+            const bool sameRotation =
+                _editPrevInstanceTransform._rotation.x == t._rotation.x &&
+                _editPrevInstanceTransform._rotation.y == t._rotation.y &&
+                _editPrevInstanceTransform._rotation.z == t._rotation.z &&
+                _editPrevInstanceTransform._rotation.w == t._rotation.w;
+            const bool sameScale =
+                _editPrevInstanceTransform._scale.x == t._scale.x &&
+                _editPrevInstanceTransform._scale.y == t._scale.y &&
+                _editPrevInstanceTransform._scale.z == t._scale.z;
+
+            if (instanceChanged ||
+                !samePosition ||
+                !sameRotation ||
+                !sameScale)
+            {
+                _ctx->PushCommand(CmdTransformObject::Create(
+                    obj, obj->_selectedInstanceIdx, _editPrevInstanceTransform, t));
+            }
+
+            _instanceTransformEditing = false;
+            _editInstanceTarget = nullptr;
+            _editInstanceIndex = -1;
         }
 
         return;

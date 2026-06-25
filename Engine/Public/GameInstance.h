@@ -26,6 +26,8 @@ NS_BEGIN(Engine)
 
 struct ShadowCascadeInfluenceVolume;
 class Event_Bus;
+struct RenderViewHotspotSnapshot;
+class Event_Bus;
 class Graphic_Device;
 struct ShadowCascadeDebugInfo;
 class Timer_Manager;
@@ -66,6 +68,7 @@ struct StaticCollisionData;
 class ScreenFx_Instance;
 struct DOFPreset;
 struct DOFTransitionDesc;
+struct ShadowCascadeInfluenceVolume;
 NS_END
 #pragma endregion
 
@@ -235,6 +238,7 @@ public: /* For.Object_Manager */
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
     uint32 Get_RenderCall() const;
+    bool Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     HRESULT Begin_DOFOverrideScope(const string& ownerTag);

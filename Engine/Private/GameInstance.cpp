@@ -836,7 +836,10 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
         savedSSAO = lightingPipeline->Get_Params();
         savedDeferredLighting = lightingPipeline->Get_DeferredLightingParams();
         DeferredLightingCB previewDeferredLighting = savedDeferredLighting;
-        previewDeferredLighting.iblEnabled = 1u;
+
+        if (!preservePostProcess)
+            previewDeferredLighting.iblEnabled = 1u;
+
         previewDeferredLighting.iblIntensity = 1.25f;
         previewDeferredLighting.iblDiffuseIntensity = 1.18f;
         previewDeferredLighting.iblSpecularIntensity = 0.45f;
@@ -1556,6 +1559,14 @@ uint32 GameInstance::Get_RenderCall() const
 {
     CHECK_NULL(_renderer, 0);
     return _renderer->Get_RenderCall();
+}
+
+bool GameInstance::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const
+{
+    if (_renderer == nullptr)
+        return false;
+
+    return _renderer->Try_GetRenderViewHotspotSnapshot(outSnapshot);
 }
 
 const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
