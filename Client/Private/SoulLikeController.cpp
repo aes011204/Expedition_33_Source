@@ -26,6 +26,11 @@
 #include "SL_Skill.h"
 #include "SL_EstherManager.h"
 
+namespace
+{
+    constexpr float kDuallisteBGMFadeOutDuration = 1.f;
+}
+
 IMPLEMENT_REFLECTION(SoulLikeController)
 {
     auto& info = GetStaticReflectionInfo();
@@ -203,6 +208,8 @@ void SoulLikeController::End_Battle()
 
     if (_estherManager)
         _estherManager->Reset();
+
+    Release_ControllerRegistration(true);
 }
 
 void SoulLikeController::Confirm_Victory()
@@ -346,7 +353,7 @@ void SoulLikeController::Play_DuallisteBGM(DuallisteBGMPhase phase)
     if (GAME->Get_CurrentBGM() == bgm)
         return;
 
-    GAME->Play_BGM(bgm, 1.f, true, 0.f);
+    GAME->Play_BGM(bgm, 1.f, true, kDuallisteBGMFadeOutDuration);
 }
 
 void SoulLikeController::Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active)
@@ -977,6 +984,16 @@ void SoulLikeController::Handle_EditorStopRuntime()
     if (auto screenFxManager = GAME->Get_ScreenFxManager())
         screenFxManager->Clear_ScreenEffect();
 
+    Release_ControllerRegistration(true);
+}
+
+void SoulLikeController::Release_ControllerRegistration(bool removeFromWorld)
+{
+    if (CLIENT->Get_SoulLikeController().get() == this)
+        CLIENT->Set_SoulLikeController(nullptr);
+
+    if (removeFromWorld)
+        GAME->Remove_GameObject(GAME->Current_LevelIndex(), GetSharedPtr<GameObject>());
 }
 
 void SoulLikeController::Capture_PreSoulLikeBGM()
@@ -994,9 +1011,9 @@ void SoulLikeController::Restore_PreSoulLikeBGM()
         return;
 
     if (_preSoulLikeBGM.empty())
-        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+        GAME->Stop_SoundChannel(SoundChannel::BGM, kDuallisteBGMFadeOutDuration);
     else
-        GAME->Play_BGM(_preSoulLikeBGM, 1.f, true, 0.f);
+        GAME->Play_BGM(_preSoulLikeBGM, 1.f, true, kDuallisteBGMFadeOutDuration);
 
     _preSoulLikeBGM.clear();
     _hasPreSoulLikeBGM = false;
@@ -1013,6 +1030,9 @@ const wchar_t* SoulLikeController::Resolve_DuallisteBGM(DuallisteBGMPhase phase)
     {
     case DuallisteBGMPhase::Phase1:
         return Constants::SoundBGM::DuallisteBattlePhase1Main;
+
+    case DuallisteBGMPhase::PhaseTransition:
+        return Constants::SoundBGM::DuallisteBattlePhaseTransition;
 
     case DuallisteBGMPhase::Phase2:
         return Constants::SoundBGM::DuallisteBattlePhase2Main;
@@ -1211,6 +1231,8 @@ void SoulLikeController::Free()
         _estherManager->Free();
         _estherManager.reset();
     }
+
+    Release_ControllerRegistration(false);
 
     GameObject::Free();
 }

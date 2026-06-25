@@ -29,13 +29,14 @@ private:
     void Close_AllRoots();
     Shared<Engine::UI_Base> Resolve_Root(const string& presentationId) const;
     bool Is_WeaponQueuedOrOpen(const string& presentationId) const;
+    void Apply_ActiveGroupRootLayout(const string& presentationId, const Shared<Engine::UI_Base>& root);
     string Normalize_WeaponPresentationId(const string& presentationId) const;
 
 private:
     umap<string, Shared<Engine::UI_Base>> _weaponRoots{};
 
-    string _activePresentationId{};
-    vector<string> _queuedPresentationIds{};
+    vector<string> _activePresentationIds{};
+    vector<vector<string>> _queuedPresentationGroups{};
 
     float _elapsed = 0.f;
     float _animationDuration = 1.5f;

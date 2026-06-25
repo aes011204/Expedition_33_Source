@@ -1,10 +1,11 @@
 ﻿#include "Level_GestralVillage.h"
+#include "Client_Constants.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "GameObject.h"
 #include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
-#include "SoulLikeController.h"
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -33,9 +34,19 @@ HRESULT Level_GestralVillage::Initialize()
 
     GAME->Set_RenderEnvironment(true);
     GAME->Set_FogZoneCullingDistance(15.f);
-    //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+
 
     return S_OK;
+}
+
+void Level_GestralVillage::BeginPlay()
+{
+    Level::BeginPlay();
+
+    Play_MapBGM();
+
+    _editorPlayRuntimeHandle =
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
@@ -227,22 +238,21 @@ HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
 {
-    {
-        const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
-            .AtLevel(ETOI(LevelType::GestralVillage))
-            .InLayer(strLayerTag)
-            .Spawn();
-
-        CHECK_NULL(controllerObject, E_FAIL);
-
-        const Shared<SoulLikeController> soulLikeController =
-            dynamic_pointer_cast<SoulLikeController>(controllerObject);
-
-        CHECK_NULL(soulLikeController, E_FAIL);
-        CLIENT->Set_SoulLikeController(soulLikeController);
-    }
+    const Shared<GameObject> bgmZone = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_BGMZone)
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-0.46f, -1.64f, 95.23f))
+        .Rotation(Vec3(-0.f, 0.f, -0.f))
+        .Scale(Vec3(4.5f, 5.f, 5.f))
+        .Spawn();
+    CHECK_NULL(bgmZone, E_FAIL);
 
     return S_OK;
+}
+
+void Level_GestralVillage::Play_MapBGM()
+{
+    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 1.f, true, 0.f);
 }
 
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -259,6 +269,12 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 
 void Level_GestralVillage::Free()
 {
+    if (_editorPlayRuntimeHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Remove(_editorPlayRuntimeHandle);
+        _editorPlayRuntimeHandle.Reset();
+    }
+
     CLIENT->Clear_GameplayUI();
 
     __super::Free();

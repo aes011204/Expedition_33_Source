@@ -1,5 +1,6 @@
 ﻿#include "MapInstancedMesh.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
@@ -8,6 +9,40 @@
 #include "Collision_Define.h"
 #include "ShaderPassFinder.h"
 #include "Shadow.h"
+
+namespace
+{
+    float DistanceSq_ToBounds(const Vec3& point, const BoundingBox& bounds)
+    {
+        const Vec3 minPoint = bounds.Center - bounds.Extents;
+        const Vec3 maxPoint = bounds.Center + bounds.Extents;
+
+        float dx = 0.f;
+        if (point.x < minPoint.x)
+            dx = minPoint.x - point.x;
+        else if (point.x > maxPoint.x)
+            dx = point.x - maxPoint.x;
+
+        float dy = 0.f;
+        if (point.y < minPoint.y)
+            dy = minPoint.y - point.y;
+        else if (point.y > maxPoint.y)
+            dy = point.y - maxPoint.y;
+
+        float dz = 0.f;
+        if (point.z < minPoint.z)
+            dz = minPoint.z - point.z;
+        else if (point.z > maxPoint.z)
+            dz = point.z - maxPoint.z;
+
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    bool Is_GrassModelPath(const wstring& modelPath)
+    {
+        return modelPath.find(L"Grass") != wstring::npos || modelPath.find(L"grass") != wstring::npos;
+    }
+}
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -127,29 +162,58 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         return;
     }
 
-    if (_cullEnabled && !GAME->IsVisible(_groupBounds))
+    if (ClientInstance::Is_DebugDisableMapInstancedMeshRender())
     {
-        //if (_castShadow && Casts_DynamicShadow())
-        //    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-        if (_castShadow && Casts_DynamicShadow())
+        return;
+    }
+
+    if (ClientInstance::Is_DebugDisableGrassInstancedRender() && Is_GrassModelPath(_modelPath))
+    {
+        return;
+    }
+
+    const Vec4* cam4 = GAME->Get_CamPosition();
+    const bool hasCamPos = cam4 != nullptr;
+    const Vec3 camPos = hasCamPos ? Vec3(cam4->x, cam4->y, cam4->z) : Vec3{};
+
+    auto submitShadowIfInRange = [&]()
+    {
+        if (!_castShadow || !Casts_DynamicShadow())
         {
-            const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
-            const Vec4* cam4 = GAME->Get_CamPosition();
-            if (shadowDesc && cam4)
-            {
-                const Vec3 camPos(cam4->x, cam4->y, cam4->z);
-                const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
-                const Vec3 diff = camPos - _groupBounds.Center;
-                if (diff.LengthSquared() <= shadowRange * shadowRange)
-                    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-            }
-            else
+            return;
+        }
+
+        const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+        if (shadowDesc != nullptr && hasCamPos)
+        {
+            const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
+            if (DistanceSq_ToBounds(camPos, _groupBounds) <= shadowRange * shadowRange)
             {
                 GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
             }
+            return;
         }
 
-        return;
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    };
+
+    if (_cullEnabled)
+    {
+        if (!GAME->IsVisible(_groupBounds))
+        {
+            submitShadowIfInRange();
+            return;
+        }
+
+        if (hasCamPos)
+        {
+            const float cullDist = INSTANCE_CULL_DIST;
+            if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
+            {
+                submitShadowIfInRange();
+                return;
+            }
+        }
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
@@ -158,25 +222,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
     }
 
-    //if (_castShadow && Casts_DynamicShadow())
-    //    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-    if (_castShadow && Casts_DynamicShadow())
-    {
-        const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
-        const Vec4* cam4 = GAME->Get_CamPosition();
-        if (shadowDesc && cam4)
-        {
-            const Vec3 camPos(cam4->x, cam4->y, cam4->z);
-            const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
-            const Vec3 diff = camPos - _groupBounds.Center;
-            if (diff.LengthSquared() <= shadowRange * shadowRange)
-                GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-        }
-        else
-        {
-            GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-        }
-    }
+    submitShadowIfInRange();
 }
 
 HRESULT MapInstancedMesh::Render()
@@ -465,6 +511,7 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
     const Matrix preTransform = _lodModels[0] ? _lodModels[0]->Get_PreLocalTransformMatrix() : Matrix::Identity;
 
     bool hasMergedBounds = false;
+    float maxSingleInstanceExtent = 0.f;
     vector<Vec4> spheres;
     spheres.reserve(count);
 
@@ -492,6 +539,8 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             spheres.push_back({ matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2], 500.f });
         }
 
+        maxSingleInstanceExtent = max(maxSingleInstanceExtent, max(worldBox.Extents.x, max(worldBox.Extents.y, worldBox.Extents.z)));
+
         if (!hasMergedBounds)
         {
             _groupBounds = worldBox;
@@ -502,13 +551,10 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             BoundingBox::CreateMerged(_groupBounds, _groupBounds, worldBox);
         }
     }
-    const float h = _groupBounds.Extents.y;
-    if (h >= 5.f)
+    if (maxSingleInstanceExtent > 8.f)
         _maxShadowCascade = 3u;
-    else if (h >= 2.f)
-        _maxShadowCascade = 2u;
     else
-        _maxShadowCascade = 1u;
+        _maxShadowCascade = 2u;
 
     if (!_cullShader)
     {

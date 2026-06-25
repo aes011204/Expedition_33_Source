@@ -29,11 +29,16 @@
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
 #include "Unlock_Manager.h"
+#include "BattleFollowupManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
 namespace
 {
+    bool g_debugDisableMapInstancedMeshRender = false;
+    bool g_debugDisableGrassInstancedRender = false;
+    bool g_debugDisableMapStaticMeshRender = false;
+
     string Get_WeaponCharacterId(HeroId heroId)
     {
         switch (heroId)
@@ -129,25 +134,38 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
 
-    // 일반 픽토스 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
+    // 일반 픽토스 일단은 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
     _playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
     // 무기 세팅
-    _playerInventory->Ensure_DefaultUnlockedWeapons(
-        {
-            { "Gustave", "Lanceram", 1, 0 },
-            { "Gustave", "Baguette", 11, 0 },
-        { "Lune",    "Colim",    1, 0 },
-        { "Lune",    "Baguette",    1, 0 },
-        { "Maelle",  "Medalum",  1, 0 },
-        { "Maelle",  "Baguette",  1, 0 },
-        });
+    vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
+    const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
+    for (HeroId heroId : defaultWeaponHeroes)
+    {
+        const string characterId = Get_WeaponCharacterId(heroId);
+        const string weaponId = Get_DefaultEquippedWeaponId(heroId);
+        if (characterId.empty() || weaponId.empty())
+            continue;
+
+        const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
+
+        PlayerInventory::WeaponInventoryEntry entry{};
+        entry.characterId = weapon ? weapon->characterId : characterId;
+        entry.weaponId = weapon ? weapon->weaponId : weaponId;
+        entry.enhanceLevel = weapon ? weapon->level : 1;
+        entry.enhanceExp = 0;
+        defaultUnlockedWeapons.emplace_back(std::move(entry));
+    }
+    _playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
 
     _unlockManager = Unlock_Manager::Create();
     CHECK_NULL(_unlockManager, E_FAIL);
+
+    _battleFollowupManager = BattleFollowupManager::Create();
+    CHECK_NULL(_battleFollowupManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -213,6 +231,36 @@ void ClientInstance::Update_UIPreviewOnly(float timeDelta)
 {
     if (_previewManager)
         _previewManager->Update(timeDelta);
+}
+
+bool ClientInstance::Is_DebugDisableMapInstancedMeshRender()
+{
+    return g_debugDisableMapInstancedMeshRender;
+}
+
+void ClientInstance::Set_DebugDisableMapInstancedMeshRender(bool disabled)
+{
+    g_debugDisableMapInstancedMeshRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableGrassInstancedRender()
+{
+    return g_debugDisableGrassInstancedRender;
+}
+
+void ClientInstance::Set_DebugDisableGrassInstancedRender(bool disabled)
+{
+    g_debugDisableGrassInstancedRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapStaticMeshRender()
+{
+    return g_debugDisableMapStaticMeshRender;
+}
+
+void ClientInstance::Set_DebugDisableMapStaticMeshRender(bool disabled)
+{
+    g_debugDisableMapStaticMeshRender = disabled;
 }
 
 HRESULT ClientInstance::Ready_StaticResources()

@@ -59,8 +59,12 @@ json RuntimeRuleStateIO::To_Json(const RuleState& ruleState)
 {
     json root = json::object();
     root["version"] = ruleState.version;
-    root["costumes"] = ruleState.costumeJson;
-    root["unlock_manager"] = ruleState.unlockManagerJson;
+    if (ruleState.costumeJson.is_object() && !ruleState.costumeJson.empty())
+        root["costumes"] = ruleState.costumeJson;
+    if (ruleState.unlockManagerJson.is_object() && !ruleState.unlockManagerJson.empty())
+        root["unlock_manager"] = ruleState.unlockManagerJson;
+    if (ruleState.inventoryJson.is_object() && !ruleState.inventoryJson.empty())
+        root["inventory"] = ruleState.inventoryJson;
     return root;
 }
 
@@ -76,6 +80,7 @@ bool RuntimeRuleStateIO::From_Json(const json& root, RuleState& outRuleState)
 
     ruleState.costumeJson = root.value("costumes", json::object());
     ruleState.unlockManagerJson = root.value("unlock_manager", json::object());
+    ruleState.inventoryJson = root.value("inventory", json::object());
 
     outRuleState = std::move(ruleState);
     return true;

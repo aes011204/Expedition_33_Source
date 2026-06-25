@@ -1,4 +1,5 @@
 ﻿#include "MapStaticMesh.h"
+#include "ClientInstance.h"
 #include "GameInstance.h"
 #include "Collision_Define.h"
 #include "MapStaticCollisionBuilder.h"
@@ -249,6 +250,9 @@ void MapStaticMesh::Late_Update(float timeDelta)
     UNREFERENCED_PARAMETER(timeDelta);
 
     if (!_visible || _model == nullptr)
+        return;
+
+    if (ClientInstance::Is_DebugDisableMapStaticMeshRender())
         return;
 
     if (g_toggleOwner == nullptr)

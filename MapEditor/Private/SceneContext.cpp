@@ -2120,6 +2120,23 @@ void SceneContext::Export_MapInstance(const string& mapName)
             Export_ObjectJson(postProcessVolumeDir, ppv_idx++, e);
             break;
 
+        case EObjectType::Light:
+        {
+            if (obj->_isDefaultLight)
+            {
+                break;
+            }
+
+            e["Type"] = "Light";
+            e["LightType"] = (obj->_lightType == LightType::Directional) ? "Directional" : "Point";
+            e["Range"] = obj->_lightRange;
+            e["Diffuse"] = { obj->_lightDiffuse.x, obj->_lightDiffuse.y, obj->_lightDiffuse.z, obj->_lightDiffuse.w };
+            e["Ambient"] = { obj->_lightAmbient.x, obj->_lightAmbient.y, obj->_lightAmbient.z, obj->_lightAmbient.w };
+            e["Specular"] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
+            Export_ObjectJson(etcDir, etc_idx++, e);
+            break;
+        }
+
         case EObjectType::ShaftVolume:
             e["Type"] = "ShaftVolume";
             Serialize_ShaftVolume(e, *obj);
@@ -2180,6 +2197,71 @@ void SceneContext::Export_MapInstance(const string& mapName)
                 overrideIt->second.ExportToNativeMaterial(modelPath, mapName);
             }
         }
+    }
+
+    const vector<pair<string, function<bool(const json&)>>> subfolders = {
+    { "StaticMesh", nullptr },
+    { "InstanceMesh", nullptr },
+    { "PostProcessVolume", nullptr },
+    { "ShaftVolume", nullptr },
+    { "Water", nullptr },
+    { "ETC", [](const json& j) { return j.value("LightType", "Directional") == "Point"; } },
+    };
+
+    for (const auto& [folderName, filter] : subfolders)
+    {
+        fs::path dir = root / folderName;
+        if (!fs::exists(dir))
+        {
+            continue;
+        }
+
+        json arr = json::array();
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".json")
+            {
+                continue;
+            }
+
+            ifstream ifs(entry.path());
+            if (!ifs.is_open())
+            {
+                continue;
+            }
+
+            try
+            {
+                json item = json::parse(ifs);
+                if (!item.is_object())
+                {
+                    continue;
+                }
+
+                if (filter && !filter(item))
+                {
+                    continue;
+                }
+
+                arr.push_back(std::move(item));
+            }
+            catch (...) {}
+        }
+
+        fs::path binPath = root / (folderName + ".bin");
+        ofstream ofs(binPath, ios::binary);
+        if (!ofs.is_open())
+        {
+            continue;
+        }
+
+        try
+        {
+            vector<uint8_t> msgpack = json::to_msgpack(arr);
+            ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+        }
+        catch (...) {}
     }
 }
 
@@ -2425,6 +2507,75 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     Add(obj);
                 }
             }
+        }
+    }
+
+    fs::path etcImportDir = root / "ETC";
+    if (fs::exists(etcImportDir))
+    {
+        for (const auto& entry : fs::directory_iterator(etcImportDir))
+        {
+            if (entry.path().extension() != ".json")
+            {
+                continue;
+            }
+
+            ifstream ifs(entry.path());
+            if (!ifs.is_open())
+            {
+                continue;
+            }
+
+            json e = json::parse(ifs);
+            string typeName = e.value("Type", "");
+            if (typeName != "Light")
+            {
+                continue;
+            }
+
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::Light;
+            obj->_name = String::ToWString(e.value("Id", "Light"));
+            string lt = e.value("LightType", "Point");
+            obj->_lightType = (lt == "Directional") ? LightType::Directional : LightType::Point;
+            obj->_lightRange = e.value("Range", 10.f);
+            if (e.contains("Direction"))
+            {
+                auto& d = e["Direction"];
+                obj->_lightDirection = ToVec4(d);
+            }
+
+            if (e.contains("Diffuse"))
+            {
+                auto& d = e["Diffuse"];
+                obj->_lightDiffuse = ToVec4(d);
+            }
+
+            if (e.contains("Ambient"))
+            {
+                auto& a = e["Ambient"];
+                obj->_lightAmbient = ToVec4(a);
+            }
+
+            if (e.contains("Specular"))
+            {
+                auto& s = e["Specular"];
+                obj->_lightSpecular = ToVec4(s);
+            }
+
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                obj->_position = { p[0], p[1], p[2] };
+            }
+
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                obj->_rotation = { r[0], r[1], r[2], r[3] };
+            }
+            obj->UpdateWorldMatrix();
+            Add(obj);
         }
     }
 

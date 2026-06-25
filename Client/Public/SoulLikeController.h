@@ -31,6 +31,7 @@ public:
     enum class DuallisteBGMPhase
     {
         Phase1,
+        PhaseTransition,
         Phase2,
     };
 
@@ -119,6 +120,8 @@ private:
     void Apply_VictoryRewardExp();
     void Sync_PlayerResultToWorld();
     void Handle_EditorStopRuntime();
+    void Release_ControllerRegistration(bool removeFromWorld);
+
     void Capture_PreSoulLikeBGM();
     void Restore_PreSoulLikeBGM();
     bool Is_DuallisteBattle() const;

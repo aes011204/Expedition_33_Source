@@ -343,6 +343,9 @@ void GameplayUI_Battle::Stop_BattleEnterTransition()
 
 bool GameplayUI_Battle::Is_BattleEnterTransitionPlaying() const
 {
+    if (_isBattleSystemIntroPlaying)
+        return true;
+
     return _battleTransition && _battleTransition->Is_Playing();
 }
 

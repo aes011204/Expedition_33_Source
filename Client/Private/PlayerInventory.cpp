@@ -47,7 +47,7 @@ bool PlayerInventory::Is_WeaponUnlocked(const string& characterId, const string&
         }) != _ownedWeapons.end();
 }
 
-void PlayerInventory::Unlock_Weapon(const string& characterId, const string& weaponId)
+void PlayerInventory::Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel, uint32 enhanceExp)
 {
     if (characterId.empty() || weaponId.empty())
         return;
@@ -58,8 +58,8 @@ void PlayerInventory::Unlock_Weapon(const string& characterId, const string& wea
     WeaponInventoryEntry entry{};
     entry.characterId = characterId;
     entry.weaponId = weaponId;
-    entry.enhanceLevel = 1;
-    entry.enhanceExp = 0;
+    entry.enhanceLevel = enhanceLevel == 0 ? 1 : enhanceLevel;
+    entry.enhanceExp = enhanceExp;
 
     _ownedWeapons.push_back(entry);
 }
@@ -68,7 +68,17 @@ void PlayerInventory::Ensure_DefaultUnlockedWeapons(const vector<WeaponInventory
 {
     for (const WeaponInventoryEntry& weapon : weapons)
     {
-        Unlock_Weapon(weapon.characterId, weapon.weaponId);
+        if (weapon.characterId.empty() || weapon.weaponId.empty())
+            continue;
+
+        if (Is_WeaponUnlocked(weapon.characterId, weapon.weaponId))
+            continue;
+
+        WeaponInventoryEntry entry = weapon;
+        if (entry.enhanceLevel == 0)
+            entry.enhanceLevel = 1;
+
+        _ownedWeapons.emplace_back(std::move(entry));
     }
 }
 

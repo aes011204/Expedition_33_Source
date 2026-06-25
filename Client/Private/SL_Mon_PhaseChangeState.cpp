@@ -1,7 +1,9 @@
 ﻿#include "SL_Mon_PhaseChangeState.h"
 
+#include "ClientInstance.h"
 #include "SL_Dualliste.h"
 #include "SL_Mon_StateMachineCom.h"
+#include "SoulLikeController.h"
 
 NS_BEGIN(Client)
 
@@ -47,6 +49,9 @@ void SL_Mon_PhaseChangeState::Play_CurrentPhase()
         break;
 
     case Phase::PhaseChange:
+        if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+            controller->Play_DuallisteBGM(SoulLikeController::DuallisteBGMPhase::PhaseTransition);
+
         owner->Play_Anim(SL_Dualliste::Anim::PhaseChange, 0.1f, false);
         break;
 
