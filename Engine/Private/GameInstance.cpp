@@ -836,7 +836,10 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
         savedSSAO = lightingPipeline->Get_Params();
         savedDeferredLighting = lightingPipeline->Get_DeferredLightingParams();
         DeferredLightingCB previewDeferredLighting = savedDeferredLighting;
-        previewDeferredLighting.iblEnabled = 1u;
+
+        if (!preservePostProcess)
+            previewDeferredLighting.iblEnabled = 1u;
+
         previewDeferredLighting.iblIntensity = 1.25f;
         previewDeferredLighting.iblDiffuseIntensity = 1.18f;
         previewDeferredLighting.iblSpecularIntensity = 0.45f;
