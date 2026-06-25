@@ -440,12 +440,15 @@ namespace Client::Constants::Prefab
     inline constexpr char MW_PotatoBag[]        = "MW_PotatoBag";
     inline constexpr char MB_PotatoBag[]        = "MB_PotatoBag";
 
+    inline constexpr char MW_Simon[]            = "MW_Simon";
+    inline constexpr char MB_Simon[]            = "MB_Simon";
+    inline constexpr char MB_Simon_V2[]         = "MB_Simon_V2";
+
     // 테스트용
     inline constexpr char SL_Test_Lancelier[]   = "SL_Test_Lancelier";
 
     // 쌍검
     inline constexpr char SL_Dualliste[]        = "SL_Dualliste";
-
 
 #pragma endregion
 
