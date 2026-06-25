@@ -241,6 +241,7 @@ private: /* 저장 */
     void Restore_PlayStartMonsterSnapshots();
     void Capture_PlayStartHeroStatSnapshots();
     void Restore_PlayStartHeroStatSnapshots();
+    bool Capture_CurrentViewCameraPose(CameraPoseSnapshot& outPose) const;
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;

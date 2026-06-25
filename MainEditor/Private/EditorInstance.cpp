@@ -935,7 +935,9 @@ void EditorInstance::Activate_FreeCamera()
     }
 
     CameraPoseSnapshot activeCameraPose{};
-    const bool hasActiveCameraPose = Capture_ActiveCameraPose(activeCameraPose);
+    bool hasActiveCameraPose = Capture_CurrentViewCameraPose(activeCameraPose);
+    if (!hasActiveCameraPose)
+        hasActiveCameraPose = Capture_ActiveCameraPose(activeCameraPose);
 
     GAME->Activate_CameraByType(ObjectType::FreeCamera);
 
@@ -974,6 +976,39 @@ void EditorInstance::Restore_PreviousCameraOrTarget()
     }
 
     Activate_TargetCamera();
+}
+
+bool EditorInstance::Capture_CurrentViewCameraPose(CameraPoseSnapshot& outPose) const
+{
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    if (viewMatrix == nullptr)
+        return false;
+
+    Matrix worldMatrix = viewMatrix->Invert();
+
+    Vec3 scale{};
+    Quat rotation{};
+    Vec3 translation{};
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return false;
+
+    if (rotation.LengthSquared() <= 0.f)
+        rotation = Quat::Identity;
+    else
+        rotation.Normalize();
+
+    const Vec3 eulerRadian = rotation.ToEuler();
+    const Vec3 eulerDegree = Vec3(
+        XMConvertToDegrees(eulerRadian.x),
+        XMConvertToDegrees(eulerRadian.y),
+        XMConvertToDegrees(eulerRadian.z));
+
+    outPose.isValid = true;
+    outPose.position = translation;
+    outPose.rotation = eulerDegree;
+    outPose.yaw = eulerDegree.y;
+    outPose.pitch = eulerDegree.x;
+    return true;
 }
 
 bool EditorInstance::Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const
