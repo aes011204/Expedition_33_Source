@@ -447,6 +447,17 @@ void Editor_Manager::Handle_Shortcuts()
         return;
     }
 
+    // 0 : Auto Parry 토글
+    if (ImGui::IsKeyPressed(ImGuiKey_0, false) ||
+        ImGui::IsKeyPressed(ImGuiKey_Keypad0, false))
+    {
+        Shared<Client::BattleController> battle = CLIENT != nullptr ? CLIENT->Get_BattleController() : nullptr;
+        if (battle)
+            battle->Set_AutoParryEnabled(!battle->Is_AutoParryEnabled());
+
+        return;
+    }
+
     // Esc : 게임 종료
     if (ImGui::IsKeyPressed(ImGuiKey_F4, false))
     {
@@ -523,6 +534,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
             DrawShortcutRow("F10", "마우스 언락 / 자동 복귀");
+            DrawShortcutRow("0", "Auto Parry 토글");
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
@@ -796,6 +808,15 @@ void Editor_Manager::Render_RuleStateButtons()
     if (ImGui::MenuItem("의상 해금 전체 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::AllCostumes);
 
+    if (ImGui::MenuItem("바게트 무기 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::BaguetteWeapons);
+
+    if (ImGui::MenuItem("Tireso/Snowim/Plenum 무기 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::TiresoSnowimPlenumWeapons);
+
+    if (ImGui::MenuItem("무기 해금 전체 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::AllWeapons);
+
     if (ImGui::MenuItem("튜토리얼 후 플레이어 해금 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::FirstTutorialHeroUnlocks);
 }
@@ -904,6 +925,12 @@ bool Editor_Manager::Save_RuleStatePreset(RuleStatePreset preset)
     bool saved = false;
     if (preset == RuleStatePreset::GameStart)
         saved = EDITOR->Save_GameStartRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::BaguetteWeapons)
+        saved = EDITOR->Save_BaguetteWeaponUnlockRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::TiresoSnowimPlenumWeapons)
+        saved = EDITOR->Save_TiresoSnowimPlenumWeaponUnlockRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::AllWeapons)
+        saved = EDITOR->Save_AllWeaponUnlockRuleState(ruleStatePath);
     else if (preset == RuleStatePreset::FirstTutorialHeroUnlocks)
         saved = EDITOR->Save_FirstTutorialHeroUnlockRuleState(ruleStatePath);
     else
@@ -975,6 +1002,15 @@ fs::path Editor_Manager::Resolve_RuleStatePath(RuleStatePreset preset) const
 
     case RuleStatePreset::AllCostumes:
         return ruleStateDir / L"Rule_AllCostumes.rule.bin";
+
+    case RuleStatePreset::BaguetteWeapons:
+        return ruleStateDir / L"Rule_BaguetteWeapons.rule.bin";
+
+    case RuleStatePreset::TiresoSnowimPlenumWeapons:
+        return ruleStateDir / L"Rule_TiresoSnowimPlenumWeapons.rule.bin";
+
+    case RuleStatePreset::AllWeapons:
+        return ruleStateDir / L"Rule_AllWeapons.rule.bin";
 
     case RuleStatePreset::FirstTutorialHeroUnlocks:
         return ruleStateDir / L"Rule_FirstTutorialHeroUnlocks.rule.bin";
@@ -1086,7 +1122,7 @@ void Editor_Manager::Render_AutoParryCheck()
     Shared<Client::BattleController> battle = CLIENT != nullptr ? CLIENT->Get_BattleController() : nullptr;
     bool enabled = battle != nullptr && battle->Is_AutoParryEnabled();
 
-    if (ImGui::Checkbox("Auto Parry", &enabled))
+    if (ImGui::Checkbox("Auto Parry (0)", &enabled))
     {
         if (battle)
             battle->Set_AutoParryEnabled(enabled);
@@ -1095,7 +1131,7 @@ void Editor_Manager::Render_AutoParryCheck()
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("몬스터 공격의 Parry 입력창이 열리면 자동으로 Parry를 입력합니다.");
+        ImGui::Text("0번 키로 토글할 수 있습니다. 몬스터 공격의 Parry 입력창이 열리면 자동으로 Parry를 입력합니다.");
         ImGui::EndTooltip();
     }
 }

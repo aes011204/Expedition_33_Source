@@ -31,6 +31,7 @@
 #include "TargetCamera.h"
 #include "BattleActionExecutor.h"
 #include "BattleAnimutils.h"
+#include "BattleFollowupManager.h"
 #include "BattleMechanismCom.h"
 #include "Battle_Event.h"
 #include "Character.h"
@@ -378,7 +379,9 @@ void BattleController::OnEnterBattleField(
 
     if (completeImmediately)
     {
-        CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER); // 즉시 진입도 기존 전투 진입 카메라 요청은 유지한다.
+        if (!GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
+            CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER); // 월드/시네마틱 즉시 진입은 기존 전투 진입 카메라 요청을 유지한다.
+
         _hasRequestedBattleEnterCamera = true;
         Complete_BattleField(); // 시네마틱 종료 전투는 2초 슬로우 대기 없이 바로 BattleStarted까지 진행한다.
         return;
@@ -427,40 +430,61 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
             inventory->Add_Chroma(_battleSpawnRegistry->Get_BattleRewardChroma());
         }
 
+        vector<string> defeatedEnemyKeys{};
+        defeatedEnemyKeys.reserve(_enemies.size());
+
+        for (const BattleChar& enemy : _enemies)
+        {
+            if (enemy.actor == nullptr)
+                continue;
+
+            const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
+            if (sourcePrefabName.empty())
+                continue;
+
+            defeatedEnemyKeys.emplace_back(sourcePrefabName);
+        }
+
+        vector<HeroId> victoryHeroIds{};
+        victoryHeroIds.reserve(_heroes.size());
+
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.heroId == HeroId::END)
+                continue;
+
+            victoryHeroIds.emplace_back(hero.heroId);
+        }
+
+        Shared<GameObject> sourceWorldObject = _battleSpawnRegistry->Get_SourceWorldObject();
+
+        Vec3 rewardOrigin = Vec3::Zero;
+        const Vec3* rewardOriginPtr = nullptr;
+        if (sourceWorldObject)
+        {
+            if (const Shared<TransformCom> sourceTransform = sourceWorldObject->Get_Transform())
+            {
+                rewardOrigin = sourceTransform->Get_WorldPosition();
+                rewardOriginPtr = &rewardOrigin;
+            }
+        }
+
+        const uint32 rewardLevelIndex = _battleSpawnRegistry->Get_SourceWorldObjectLevelIndex();
+
         if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
         {
-            vector<string> defeatedEnemyKeys{};
-            defeatedEnemyKeys.reserve(_enemies.size());
-
-            for (const BattleChar& enemy : _enemies)
-            {
-                if (enemy.actor == nullptr)
-                    continue;
-
-                const string& sourcePrefabName = enemy.actor->Get_SourcePrefabName();
-                if (sourcePrefabName.empty())
-                    continue;
-
-                defeatedEnemyKeys.emplace_back(sourcePrefabName);
-            }
-
-            Vec3 rewardOrigin = Vec3::Zero;
-            const Vec3* rewardOriginPtr = nullptr;
-            if (const Shared<GameObject> sourceObject = _battleSpawnRegistry->Get_SourceWorldObject())
-            {
-                if (const Shared<TransformCom> sourceTransform = sourceObject->Get_Transform())
-                {
-                    rewardOrigin = sourceTransform->Get_WorldPosition();
-                    rewardOriginPtr = &rewardOrigin;
-                }
-            }
-
-            const uint32 rewardLevelIndex = _battleSpawnRegistry->Get_SourceWorldObjectLevelIndex();
             unlockManager->Handle_BattleVictory(
                 defeatedEnemyKeys,
                 _activeBattleFieldID,
                 rewardLevelIndex,
                 rewardOriginPtr);
+        }
+
+        if (BattleFollowupManager* followupManager = CLIENT->Get_BattleFollowupManager())
+        {
+            followupManager->Handle_BattleVictory(
+                defeatedEnemyKeys, victoryHeroIds,
+                _activeBattleFieldID, sourceWorldObject);
         }
     }
 
@@ -523,8 +547,6 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
         _battleSpawnRegistry->Destroy_SpawnedObjects();  // PB/MB는 무조건 제거
         _battleSpawnRegistry->Clear_SourceWorldObject(); // Neutral은 참조만 비우고, MW 오브젝트는 남겨야한다.
     }
-
-
 
     Clear_BattleRuntimeState();
 
@@ -788,7 +810,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
         _battleSpawnRegistry->Register_BattleMonsterObject(enemy, GAME->Current_LevelIndex());
 
         const Shared<MonsterStatCom> monsterStat = enemy->Get_Component<MonsterStatCom>();
-        if (monsterStat)
+        if (monsterStat && spawnDesc.statSnapshot.valid)
             monsterStat->Apply_BattleSyncSnapshot(spawnDesc.statSnapshot);
 
         const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
@@ -820,7 +842,7 @@ void BattleController::Build_InitialTurnQueue(bool isPlayerAdvantage)
         _turnQueue.pop();
     }
 
-    // 선제 타격이면 몬스털르 늦추고, Player <-> Monster 충돌 진입이면 플레이어를 낮추기
+    // 선제 타격이면 몬스터를 늦추고, Player <-> Monster 충돌 진입이면 플레이어를 낮추기
     if (isPlayerAdvantage)
         monsterOffset = 5.f;
     else
@@ -1300,56 +1322,56 @@ bool BattleController::Ensure_EnemyTargetPreview()
     }
 
     if (Find_EnemyTargetPreviewIndex(aliveEnemies) >= 0)
-	{
-		return true;
-	}
+    {
+        return true;
+    }
 
     const size_t index = min<size_t>(1, aliveEnemies.size() - 1);
-	Set_TargetPreview(aliveEnemies[index]);
+    Set_TargetPreview(aliveEnemies[index]);
 
-	return true;
+    return true;
 }
 
 bool BattleController::Move_EnemyTargetPreview(int32 direction)
 {
     if (direction == 0)
-		return Ensure_EnemyTargetPreview();
+        return Ensure_EnemyTargetPreview();
 
-	const vector<BattleChar> aliveEnemies = Get_AliveEnemies();
+    const vector<BattleChar> aliveEnemies = Get_AliveEnemies();
 
-	if (aliveEnemies.empty())
-	{
-		Clear_TargetPreview();
-		return false;
-	}
+    if (aliveEnemies.empty())
+    {
+        Clear_TargetPreview();
+        return false;
+    }
 
-	int32 currentIndex = Find_EnemyTargetPreviewIndex(aliveEnemies);
+    int32 currentIndex = Find_EnemyTargetPreviewIndex(aliveEnemies);
 
-	if (currentIndex < 0)
-		currentIndex = 0;
+    if (currentIndex < 0)
+        currentIndex = 0;
 
-	const int32 nextIndex = currentIndex + direction;
+    const int32 nextIndex = currentIndex + direction;
 
-	if (nextIndex < 0 || nextIndex >= static_cast<int32>(aliveEnemies.size()))
-		return false;
+    if (nextIndex < 0 || nextIndex >= static_cast<int32>(aliveEnemies.size()))
+        return false;
 
-	Set_TargetPreview(aliveEnemies[nextIndex]);
-	return true;
+    Set_TargetPreview(aliveEnemies[nextIndex]);
+    return true;
 }
 
 void BattleController::Publish_TargetPreviewEnemyFocus() const
 {
     const BattleChar* target = Get_TargetPreview();
 
-	if (target == nullptr || target->actor == nullptr)
-		return;
+    if (target == nullptr || target->actor == nullptr)
+        return;
 
-	EvtBattlePresentation event{};
-	event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-	event.subject = target->actor;
-	event.presetId = target->actor->Get_SourcePrefabName();
+    EvtBattlePresentation event{};
+    event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+    event.subject = target->actor;
+    event.presetId = target->actor->Get_SourcePrefabName();
 
-	GAME->Get_EventBus().Publish(event);
+    GAME->Get_EventBus().Publish(event);
 }
 
 int32 BattleController::Find_EnemyTargetPreviewIndex(const vector<BattleChar>& aliveEnemies) const
@@ -1357,10 +1379,10 @@ int32 BattleController::Find_EnemyTargetPreviewIndex(const vector<BattleChar>& a
     const BattleChar* preview = Get_TargetPreview();
 
     if (preview == nullptr || preview->actor == nullptr)
-		return -1;
+        return -1;
 
     for (int32 i = 0; i < static_cast<int32>(aliveEnemies.size()); ++i)
-	{
+    {
         if (aliveEnemies[i].actor == preview->actor)
         {
             return i;
@@ -1547,6 +1569,9 @@ void BattleController::Execute_Item()
         if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Dead)
             return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
 
+        if (action.GetInitTarget().statCom->Is_ReviveBlocked())
+            return;
+
         //action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
         //Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
 
@@ -1587,6 +1612,12 @@ bool BattleController::Should_UpdateRuntime() const
 
 void BattleController::Revive_BattleMon(const BattleChar& battleChar, float MultipleHp)
 {
+    if (battleChar.statCom == nullptr)
+        return;
+
+    if (battleChar.statCom->Is_ReviveBlocked())
+        return;
+
     battleChar.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
     Restore_BattleTargetCollision(battleChar); // 부활 직후 다시 충돌 가능 상태로 전환
 
@@ -1926,6 +1957,11 @@ void BattleController::Confirm_Victory()
     if (!_isWaitingVictoryConfirm)
         return;
 
+    BattleFollowupDesc followupDesc{};
+    const bool hasFollowupBattle =
+        CLIENT->Get_BattleFollowupManager() != nullptr &&
+        CLIENT->Get_BattleFollowupManager()->Consume_PendingFollowup(followupDesc);
+
     _isPendingVictorySlow = false;
     _isWaitingVictoryConfirm = false;
     _victorySlow.elapsed = 0.f;
@@ -1941,14 +1977,21 @@ void BattleController::Confirm_Victory()
 
     // DOF_MODIFY 
     End_BattleDOFOverride();
-    Restore_WorldCamera();
+
+    if (!hasFollowupBattle)
+        Restore_WorldCamera(); // 후속 전투가 없을 때만 월드 카메라로 복구한다.
+
     Clear_BattleRuntimeState();
 
     // 배틀 플레이어, 몬스터 삭제
     if (_battleSpawnRegistry)
     {
         _battleSpawnRegistry->Destroy_SpawnedObjects();
-        _battleSpawnRegistry->Destroy_SourceWorldObject();
+
+        if (hasFollowupBattle)
+            _battleSpawnRegistry->Clear_SourceWorldObject(); // 후속 전투가 같은 MW source를 다시 넘겨받는다.
+        else
+            _battleSpawnRegistry->Destroy_SourceWorldObject();
     }
 
     _heroes.clear();
@@ -1961,6 +2004,17 @@ void BattleController::Confirm_Victory()
     _firstAnimflag = false;
     _firstAnimCount = 0;
     _firstAnimTargetCount = 0;
+
+    if (hasFollowupBattle)
+    {
+        OnEnterBattleField(
+            followupDesc.battleFieldId,
+            followupDesc.isPlayerAdvantage,
+            followupDesc.heroIds,
+            followupDesc.monsterSpawnDescs,
+            followupDesc.sourceWorldObject,
+            true); // 2초 슬로우 걸지말고 바로 진입
+    }
 }
 
 void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
@@ -2317,8 +2371,12 @@ void BattleController::Activate_BattleTurnCamera()
     request.mode = BattleCameraMode::BATTLEINTRO;
     request.subject = _enemies[_enemies.size() / 2].actor;
     request.useClip = true;
-    request.presetId = _enemies[_enemies.size() / 2].actor->Get_SourcePrefabName();
-    request.clipId = _enemies[_enemies.size() / 2].actor->Get_SourcePrefabName();
+    string battleIntroCameraId = _enemies[_enemies.size() / 2].actor->Get_SourcePrefabName();
+    if (battleIntroCameraId == Constants::Prefab::MB_Simon_V2)
+        battleIntroCameraId = Constants::Prefab::MB_Simon;
+
+    request.presetId = battleIntroCameraId;
+    request.clipId = battleIntroCameraId;
     _battleTurnCamera->Apply_ShotRequest(request);
 
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
@@ -2409,6 +2467,18 @@ void BattleController::Clear_DelayedEchoAttackSteps()
 void BattleController::Clear_BattleRuntimeState()
 {
     // 전투 종료/ F4로 게임 Stop할 때
+
+    for (BattleChar& hero : _heroes)
+    {
+        if (hero.statCom)
+            hero.statCom->Set_ReviveBlocked(false);
+    }
+
+    for (BattleChar& enemy : _enemies)
+    {
+        if (enemy.statCom)
+            enemy.statCom->Set_ReviveBlocked(false);
+    }
 
     Clear_DelayedEchoAttackSteps();
 

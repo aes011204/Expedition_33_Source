@@ -41,8 +41,8 @@ HRESULT MB_Lancelier::Initialize(void* arg)
     if (Shared<ModelCom> model = _body ? _body->Get_Model() : nullptr)
         model->Set_Animation("Lancelier_Idle", true);
 
-    _combatStat->Set_Skill("Lancelier_Slow");
-    _combatStat->Set_Skill("Lancelier_Fast");
+    //_combatStat->Set_Skill("Lancelier_Slow");
+    //_combatStat->Set_Skill("Lancelier_Fast");
 
     return S_OK;
 }

@@ -1,5 +1,7 @@
 ﻿#pragma once
+
 #include "SL_Base.h"
+
 NS_BEGIN(Engine)
 class AIController;
 class ColliderCom;
@@ -13,6 +15,7 @@ class Mon_Dualliste_Sword_L;
 class Mon_Dualliste_Sword_R;
 class MonsterStatCom;
 class SL_Mon_StateMachineCom;
+class EffectCom;
 
 class SL_Dualliste final : public SL_Base
 {
@@ -101,6 +104,8 @@ private:
     Shared<MonsterStatCom> _combatStat = {};
     Shared<ColliderCom> _attackRCom = {};
     Shared<ColliderCom> _attackLCom = {};
+    Shared<EffectCom> _effectCom = {};
+
     SL_HitAnimOverride _attackRHitAnimOverride = SL_HitAnimOverride::Hit_Light;
     SL_HitAnimOverride _attackLHitAnimOverride = SL_HitAnimOverride::Hit_Light;
     Shared<AIController>         _aiCtrl;

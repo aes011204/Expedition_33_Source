@@ -66,6 +66,8 @@ public:
 
     vector<HeroId> Consume_GetCharacterHeroes();
     vector<string> Consume_GetClothesPresetIds();
+    vector<string> Consume_GetWeaponPresentationIds();
+    void Queue_GetWeaponPresentation(const string& characterId, const string& weaponId);
 
 public:
     // 완료 룰 ID로 저장 -> 불러오기까지 구현하려고
@@ -96,6 +98,7 @@ private:
     uset<HeroId> _unlockedHeroIds{};
     vector<HeroId> _pendingGetCharacterHeroes{};
     vector<string> _pendingGetClothesPresetIds{};
+    vector<string> _pendingGetWeaponPresentationIds{};
 
 public:
     static Unique<Unlock_Manager> Create();

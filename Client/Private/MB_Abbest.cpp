@@ -40,7 +40,7 @@ HRESULT MB_Abbest::Initialize(void* arg)
         model->Set_Animation("Abbest_ENM_ElementalGrunt_IdleLooping2", true);
 
 
-    _combatStat->Set_Skill("Abbest_Knife");
+    //_combatStat->Set_Skill("Abbest_Knife");
 
     Get_Transform()->Set_SpeedPerSec(4.f);
 

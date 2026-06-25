@@ -157,7 +157,7 @@ float Input_Manager::Get_MouseWheel()
 
 void Input_Manager::Lock_Mouse()
 {
-	if (_isMouseLocked || nullptr == _windowHandle)
+	if (_isInputBlocked || _isMouseLocked || nullptr == _windowHandle)
 		return;
 
 	POINT currentPosition = {};
@@ -217,6 +217,25 @@ void Input_Manager::Clear_MouseLockOverrideRect()
 {
 	_hasMouseLockOverrideRect = false;
 	_mouseLockOverrideRect = {};
+}
+
+void Input_Manager::Set_InputBlocked(bool isBlocked)
+{
+	if (_isInputBlocked == isBlocked)
+		return;
+
+	_isInputBlocked = isBlocked;
+
+	if (_isInputBlocked)
+	{
+		if (_isEditorMouseLockSessionActive)
+			End_EditorMouseLockSession();
+
+		if (_isMouseLocked)
+			Unlock_Mouse();
+
+		Reset();
+	}
 }
 
 KEY_STATE Input_Manager::Get_State(KEY_TYPE key) const

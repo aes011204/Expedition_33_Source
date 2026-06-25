@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AIController.h"
 #include "ContainerObject.h"
 #include "EffectCom.h"
 #include "GameInstance.h"
@@ -10,11 +11,38 @@
 #include "Monster_WorldBase.h"
 #include "Player_BattleBase.h"
 #include "Player_WorldBase.h"
+#include "SL_Base.h"
 #include <functional>
 
 NS_BEGIN(MainEditor)
 namespace PreviewObjectHelpers
 {
+    inline void Disable_PreviewBehaviorTreeExecution(const Shared<GameObject>& gameObject)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
+        {
+            Shared<AIController> aiController = dynamic_pointer_cast<AIController>(component);
+            if (aiController != nullptr)
+            {
+                aiController->Stop_Move();
+                aiController->Set_BehaviorTree(nullptr);
+            }
+        });
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            Disable_PreviewBehaviorTreeExecution(partObject);
+        }
+    }
+
     inline void Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& gameObject)
     {
         if (gameObject == nullptr)
@@ -301,6 +329,21 @@ namespace PreviewObjectHelpers
             if (forceVisibleBeforeLateUpdate)
                 Force_VisibleRecursive(gameObject);
             monsterBattle->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
+            if (tickAttachedEffects)
+                Tick_AttachedPreviewEffects(gameObject, timeDelta);
+            return;
+        }
+
+        if (Shared<Client::SL_Base> soulLikeActor = dynamic_pointer_cast<Client::SL_Base>(gameObject))
+        {
+            soulLikeActor->Engine::ContainerObject::Priority_Update(timeDelta);
+            Advance_MonsterPreviewAnimation(gameObject, timeDelta);
+            soulLikeActor->Engine::ContainerObject::Update(timeDelta);
+            if (forceVisibleBeforeLateUpdate)
+                Force_VisibleRecursive(gameObject);
+            soulLikeActor->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
             postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)

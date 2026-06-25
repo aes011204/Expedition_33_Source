@@ -36,6 +36,9 @@ public:
 
     // Shadow Pass 컬링용 월드 Bounds 넘겨주기
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const { return false;}
+    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const { return true; }
+    virtual uint32 Get_RenderHotspotInstanceCount() const { return 0; }
+    virtual wstring Get_RenderHotspotSourceModelPath() const { return {}; }
 
     HRESULT         Try_BeginPlay();
 

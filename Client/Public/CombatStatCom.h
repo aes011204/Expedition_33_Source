@@ -98,6 +98,8 @@ public:
 
     vector<string> Get_SkillKey() { return _skillKeys; }
     const vector<string>& Get_SkillKeys() const { return _skillKeys; }
+    bool Is_ReviveBlocked() const { return _reviveBlocked; }
+    void Set_ReviveBlocked(bool value) { _reviveBlocked = value; }
 
     void Set_SkillKeys(const vector<string>& skillKeys)
     {
@@ -127,6 +129,7 @@ public: /* AP */
 protected:
     vector<Shared<Buff>> _buff;// 상태이상
     vector<string> _skillKeys;
+    bool _reviveBlocked = false;
 
     bool _isPlayer = { false };
 

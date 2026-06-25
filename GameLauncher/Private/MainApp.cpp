@@ -70,6 +70,7 @@ void MainApp::Update(float fTimeDelta)
     });
 
     Try_ApplyStartupCheckpoint();
+    Apply_RuntimeInputPolicy();
 }
 
 HRESULT MainApp::Render()
@@ -168,6 +169,29 @@ void MainApp::Try_ApplyStartupCheckpoint()
         LOG_INFO("[GameLauncher] startup checkpoint applied: {}",
             String::ToString(_startupCheckpointPath.wstring()));
     }
+}
+
+void MainApp::Apply_RuntimeInputPolicy()
+{
+    if (g_hWnd != GetActiveWindow())
+    {
+        GAME->Unlock_Mouse();
+        return;
+    }
+
+    const uint32 currentLevel = GAME->Current_LevelIndex();
+    const bool isMenuOrLoading =
+        currentLevel == ETOI(LevelType::Loading) ||
+        currentLevel == ETOI(LevelType::MainTitle) ||
+        currentLevel == ETOI(LevelType::GameEntry);
+
+    if (isMenuOrLoading || GAME->Is_GameplayPaused() || GAME->Is_UIInputEnabled())
+    {
+        GAME->Unlock_Mouse();
+        return;
+    }
+
+    GAME->Lock_Mouse();
 }
 
 wstring MainApp::Get_ClientResourceRoot() const

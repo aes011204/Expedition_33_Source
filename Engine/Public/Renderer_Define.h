@@ -4,6 +4,36 @@
 
 NS_BEGIN(Engine)
 
+struct RenderViewHotspotEntry
+{
+    uintptr_t objectKey = 0;
+    RenderGroup renderGroup = RenderGroup::END;
+    ObjectType objectType = ObjectType::None;
+    ShadowCasterType shadowCasterType = ShadowCasterType::None;
+    string className = {};
+    string sourcePrefab = {};
+    wstring sourceModelPath = {};
+    Vec3 worldPosition = {};
+    bool hasWorldBounds = false;
+    Vec3 worldBoundsCenter = {};
+    Vec3 worldBoundsExtents = {};
+    uint32 renderHotspotInstanceCount = 0;
+};
+
+struct RenderViewHotspotSnapshot
+{
+    bool hasCamera = false;
+    Vec3 cameraPosition = {};
+    Vec3 cameraForward = {};
+    uint32 totalSubmissions = 0;
+    uint32 uniqueObjectCount = 0;
+    uint32 nonBlendRenderedCount = 0;
+    uint32 shadowRenderedCount = 0;
+    array<uint32, ETOI(RenderGroup::END)> renderGroupCounts = {};
+    array<uint32, 4> shadowCascadeRenderedCounts = {};
+    vector<RenderViewHotspotEntry> entries = {};
+};
+
 namespace RT
 {
     inline constexpr const wchar_t* Diffuse = L"Target_Diffuse";

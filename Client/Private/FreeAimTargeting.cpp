@@ -97,10 +97,8 @@ void FreeAimTargeting::Update(float timeDelta)
 
     Refresh_HitTarget(); // 회전된 카메라 방향 기준으로 적 히트 판정
 
-    if (GAME->KeyDown(KEY_TYPE::RBUTTON))
+    if (GAME->KeyDown(KEY_TYPE::RBUTTON) || GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        if (!Play_CurrentActorBattleAnim(BattleAnimType::Turn_Start, 0.2f, false))
-            BattleAnimUtils::Play_BattleIdle(owner->Get_TurnActionRequest().actor, 0.2f);
         Clear_HitTarget();
 
         EvtBattlePresentation event{};
@@ -110,6 +108,8 @@ void FreeAimTargeting::Update(float timeDelta)
         GAME->Get_EventBus().Publish(event);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
+        BattleAnimUtils::Play_TurnStartOrBattleIdle(owner->Get_TurnActionRequest().actor, 0.2f);
+
         return;
     }
 
