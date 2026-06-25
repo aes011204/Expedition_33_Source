@@ -21,7 +21,9 @@ HRESULT ShaderCom_Controller::Initialize()
 
 bool ShaderCom_Controller::Is_ReloadTarget(ShaderType shaderType)
 {
-    return shaderType == ShaderType::VtxMesh || shaderType == ShaderType::VtxAnimMesh;
+    return shaderType == ShaderType::VtxMesh
+        || shaderType == ShaderType::VtxAnimMesh
+        || shaderType == ShaderType::VtxInstanceMeshExact;
 }
 
 const ShaderCom_Controller::ShaderRecord* ShaderCom_Controller::Find_Record_Locked(const wstring& shaderPath) const

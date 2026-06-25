@@ -45,6 +45,12 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static),
+        TEXT("ComputeShader_ShadowCull"), _shadowCullShader)))
+    {
+        return E_FAIL;
+    }
+
     if (arg != nullptr)
     {
         auto pDesc = static_cast<MAPINSTANCEDMESH_DESC*>(arg);
@@ -52,11 +58,16 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         _modelPath = pDesc->modelPath;
         _transforms = pDesc->transforms;
         _collisionData = pDesc->collisionData;
+        _visible = pDesc->visible;
+        _cullEnabled = pDesc->cullEnabled;
+        _castShadow = pDesc->castShadow;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
             return E_FAIL;
         }
+
+        Refresh_HasGlow();
 
         vector<Matrix> matrices;
         matrices.reserve(pDesc->transforms.size());
@@ -105,32 +116,124 @@ void MapInstancedMesh::Priority_Update(float timeDelta)
 
 void MapInstancedMesh::Update(float timeDelta)
 {
+    _accTime += timeDelta;
 }
 
 void MapInstancedMesh::Late_Update(float timeDelta)
 {
-    if (_instanceCount == 0)
+    if (!_visible || _instanceCount == 0)
     {
         return;
     }
 
-    if (!GAME->IsVisible(_groupBounds))
+    if (_cullEnabled && !GAME->IsVisible(_groupBounds))
     {
-        if (Casts_DynamicShadow())
-            GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+        //if (_castShadow && Casts_DynamicShadow())
+        //    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+        if (_castShadow && Casts_DynamicShadow())
+        {
+            const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+            const Vec4* cam4 = GAME->Get_CamPosition();
+            if (shadowDesc && cam4)
+            {
+                const Vec3 camPos(cam4->x, cam4->y, cam4->z);
+                const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
+                const Vec3 diff = camPos - _groupBounds.Center;
+                if (diff.LengthSquared() <= shadowRange * shadowRange)
+                    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+            }
+            else
+            {
+                GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+            }
+        }
+
         return;
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    if (_hasGlow)
+    {
+        GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
+    }
 
-    if (Casts_DynamicShadow())
-        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    //if (_castShadow && Casts_DynamicShadow())
+    //    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    if (_castShadow && Casts_DynamicShadow())
+    {
+        const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+        const Vec4* cam4 = GAME->Get_CamPosition();
+        if (shadowDesc && cam4)
+        {
+            const Vec3 camPos(cam4->x, cam4->y, cam4->z);
+            const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
+            const Vec3 diff = camPos - _groupBounds.Center;
+            if (diff.LengthSquared() <= shadowRange * shadowRange)
+                GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+        }
+        else
+        {
+            GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+        }
+    }
 }
 
 HRESULT MapInstancedMesh::Render()
 {
     if (_instanceCount == 0 || !_lodModels[0] || !_shader)
     {
+        return S_OK;
+    }
+
+    if (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow)
+    {
+        if (FAILED(Bind_ShaderResources()))
+        {
+            return E_FAIL;
+        }
+
+        for (int lod = 0; lod < 3; ++lod)
+        {
+            if (!_lodModels[lod])
+            {
+                continue;
+            }
+
+            const uint32 numMeshes = static_cast<uint32>(_lodModels[lod]->Get_NumMeshes());
+            for (uint32 i = 0; i < numMeshes; ++i)
+            {
+                const Shared<Material> material = _lodModels[lod]->Get_Material(i);
+                if (!material)
+                {
+                    continue;
+                }
+
+                if (material->Get_PassIndex() == VtxInstanceMeshExactPassIndex::UnlitFlamePass)
+                {
+                    continue;
+                }
+
+                if (FAILED(_shader->Bind_MaterialTextures(*material)))
+                {
+                    return E_FAIL;
+                }
+
+                if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                {
+                    return E_FAIL;
+                }
+
+                if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::EmissiveGlowPass)))
+                {
+                    return E_FAIL;
+                }
+
+                if (FAILED(_lodModels[lod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+                {
+                    return E_FAIL;
+                }
+            }
+        }
         return S_OK;
     }
 
@@ -340,6 +443,11 @@ HRESULT MapInstancedMesh::Bind_ShaderResources()
         return E_FAIL;
     }
 
+    if (FAILED(_shader->Bind_RawValue("g_fAccTime", &_accTime, sizeof(float))))
+    {
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 
@@ -393,6 +501,13 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             BoundingBox::CreateMerged(_groupBounds, _groupBounds, worldBox);
         }
     }
+    const float h = _groupBounds.Extents.y;
+    if (h >= 5.f)
+        _maxShadowCascade = 3u;
+    else if (h >= 2.f)
+        _maxShadowCascade = 2u;
+    else
+        _maxShadowCascade = 1u;
 
     if (!_cullShader)
     {
@@ -495,17 +610,107 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         }
     }
 
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = sizeof(Matrix) * count;
+        bd.Usage = D3D11_USAGE_DEFAULT;
+        bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        bd.StructureByteStride = sizeof(Matrix);
+
+        _shadowVisibleStructured.Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _shadowVisibleStructured.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavd{};
+        uavd.Format = DXGI_FORMAT_UNKNOWN;
+        uavd.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        uavd.Buffer.FirstElement = 0;
+        uavd.Buffer.NumElements = count;
+        uavd.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_APPEND;
+
+        _shadowVisibleUAV.Reset();
+        if (FAILED(_device->CreateUnorderedAccessView(_shadowVisibleStructured.Get(), &uavd, _shadowVisibleUAV.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+
+        D3D11_BUFFER_DESC vbd{};
+        vbd.ByteWidth = sizeof(Matrix) * count;
+        vbd.Usage = D3D11_USAGE_DEFAULT;
+        vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+        _shadowVisibleVB.Reset();
+        if (FAILED(_device->CreateBuffer(&vbd, nullptr, _shadowVisibleVB.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+    }
+
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = sizeof(ShadowCullParams);
+        bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+        _shadowCullCB.Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _shadowCullCB.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+    }
+
+    _shadowIndirectArgsBuffers.clear();
+    _shadowIndirectArgsBuffers.resize(numMeshes);
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = 5 * sizeof(uint32);
+        bd.Usage = D3D11_USAGE_DEFAULT;
+        bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+        bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _shadowIndirectArgsBuffers[i].GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+
+        uint32 args[5] = { 0, 0, 0, 0, 0 };
+        if (_lodModels[0])
+        {
+            args[0] = static_cast<uint32>(_lodModels[0]->Get_NumIndices(i));
+        }
+        _context->UpdateSubresource(_shadowIndirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
+    }
+
     return S_OK;
 }
 
 HRESULT MapInstancedMesh::Render_Shadow()
 {
-    if (_shader == nullptr || _lodModels[0] == nullptr || _transformCom == nullptr)
+    if (_shader == nullptr || _lodModels[0] == nullptr || _instanceCount == 0)
     {
         return S_OK;
     }
 
-    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    if (GAME->Get_ActiveShadowCascade() > _maxShadowCascade)
+    {
+        return S_OK;
+    }
+
+    const uint32 cascadeIndex = GAME->Get_ActiveShadowCascade();
+
+    bool useShadowIndirect = _shadowCullShader && _shadowVisibleVB && !_shadowIndirectArgsBuffers.empty();
+    if (useShadowIndirect)
+    {
+        DispatchShadowCull(cascadeIndex);
+    }
+
+    Matrix identity = Matrix::Identity;
+    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
     {
         return E_FAIL;
     }
@@ -516,13 +721,50 @@ HRESULT MapInstancedMesh::Render_Shadow()
     }
 
     const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
-
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (FAILED(_shader->Begin(1)))
+        if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::ShadowPass)))
+        {
             return E_FAIL;
-        _lodModels[0]->Render(i);
+        }
+
+        if (useShadowIndirect)
+        {
+            if (FAILED(_lodModels[0]->RenderInstancedIndirect(i, _shadowVisibleVB.Get(), sizeof(Matrix), _shadowIndirectArgsBuffers[i].Get())))
+            {
+                return E_FAIL;
+            }
+        }
+        else
+        {
+            if (FAILED(_lodModels[0]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+            {
+                return E_FAIL;
+            }
+        }
     }
+
+
+    //Matrix identity = Matrix::Identity;
+    //if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
+    //{
+    //    return E_FAIL;
+    //}
+
+    //if (FAILED(GAME->Bind_ShadowCB(_shader)))
+    //{
+    //    return E_FAIL;
+    //}
+
+    //const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
+
+    //for (uint32 i = 0; i < numMeshes; ++i)
+    //{
+    //    if (FAILED(_shader->Begin(1)))
+    //        return E_FAIL;
+    //    if (FAILED(_lodModels[0]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+    //        return E_FAIL;
+    //}
 
     return S_OK;
 }
@@ -602,6 +844,59 @@ void MapInstancedMesh::DispatchCull()
     }
 }
 
+void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex)
+{
+    if (!_shadowCullShader || !_shadowCullCB || !_shadowVisibleUAV ||
+        !_instanceSrcBuffer || !_sphereBuffer || _shadowIndirectArgsBuffers.empty())
+    {
+        return;
+    }
+
+    const ShadowCascadeInfluenceVolume* volumes = GAME->Get_CascadeInfluenceVolumes();
+    if (!volumes)
+    {
+        return;
+    }
+
+    const ShadowCascadeInfluenceVolume& vol = volumes[cascadeIndex];
+
+    ShadowCullParams params{};
+    params.planeCount = min(vol.planeCount, 32u);
+    params.totalCount = _instanceCount;
+    for (uint32 i = 0; i < params.planeCount; ++i)
+    {
+        params.planes[i] = vol.planes[i];
+    }
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(_context->Map(_shadowCullCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+    {
+        return;
+    }
+    memcpy(mapped.pData, &params, sizeof(ShadowCullParams));
+    _context->Unmap(_shadowCullCB.Get(), 0);
+
+    uint32 initCount = 0;
+    ID3D11UnorderedAccessView* uav = _shadowVisibleUAV.Get();
+    _context->CSSetUnorderedAccessViews(0, 1, &uav, &initCount);
+
+    _shadowCullShader->Bind_SRV(0, _instanceSrcBuffer->Get_SRV());
+    _shadowCullShader->Bind_SRV(1, _sphereBuffer->Get_SRV());
+    _shadowCullShader->Bind_ConstantBuffer(1, _shadowCullCB.Get());
+
+    const uint32 groups = (_instanceCount + 63) / 64;
+    _shadowCullShader->Dispatch(groups, 1, 1);
+
+    ID3D11UnorderedAccessView* nullUAV = nullptr;
+    _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+
+    _context->CopyResource(_shadowVisibleVB.Get(), _shadowVisibleStructured.Get());
+    for (auto& buf : _shadowIndirectArgsBuffers)
+    {
+        _context->CopyStructureCount(buf.Get(), sizeof(uint32), _shadowVisibleUAV.Get());
+    }
+}
+
 array<Vec4, 6> MapInstancedMesh::ExtractFrustumPlanes(const Matrix& vp)
 {
     array<Vec4, 6> p;
@@ -626,6 +921,30 @@ array<Vec4, 6> MapInstancedMesh::ExtractFrustumPlanes(const Matrix& vp)
     }
 
     return p;
+}
+
+void MapInstancedMesh::Refresh_HasGlow()
+{
+    _hasGlow = false;
+    if (!_lodModels[0])
+    {
+        return;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        const Shared<Material> mat = _lodModels[0]->Get_Material(i);
+        if (!mat || mat->Get_PassIndex() == VtxInstanceMeshExactPassIndex::UnlitFlamePass)
+        {
+            continue;
+        }
+        if (mat->Get_PassIndex() == VtxInstanceMeshExactPassIndex::EmissiveGlowPass)
+        {
+            _hasGlow = true;
+            return;
+        }
+    }
 }
 
 Shared<MapInstancedMesh> MapInstancedMesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -673,6 +992,18 @@ void MapInstancedMesh::Free()
         _indirectArgsBuffers[lod].clear();
     }
     _cullCB.Reset();
+
+    _shadowVisibleStructured.Reset();
+    _shadowVisibleUAV.Reset();
+    _shadowVisibleVB.Reset();
+    _shadowCullCB.Reset();
+    for (auto& buf : _shadowIndirectArgsBuffers)
+    {
+        buf.Reset();
+    }
+    _shadowIndirectArgsBuffers.clear();
+    _shadowCullShader.reset();
+
     _instanceSrcBuffer.reset();
     _sphereBuffer.reset();
     _cullShader.reset();
@@ -685,6 +1016,9 @@ json MapInstancedMesh::To_Json() const
     json root = GameObject::To_Json();
 
     root["model_path"] = String::ToString(_modelPath);
+    root["Visible"] = _visible;
+    root["CullEnabled"] = _cullEnabled;
+    root["CastShadow"] = _castShadow;
 
     json transformsArray = json::array();
     for (const auto& t : _transforms)
@@ -704,11 +1038,16 @@ void MapInstancedMesh::From_Json(const json& node)
 {
     GameObject::From_Json(node);
 
+    _visible = node.value("Visible", true);
+    _cullEnabled = node.value("CullEnabled", true);
+    _castShadow = node.value("CastShadow", true);
+
     if (node.contains("model_path"))
     {
         string pathA = node["model_path"].get<string>();
         _modelPath = String::ToWString(pathA);
         Ready_Components(_modelPath, nullptr);
+        Refresh_HasGlow();
     }
 
     if (node.contains("instance_transforms"))

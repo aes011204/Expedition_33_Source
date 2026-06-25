@@ -143,6 +143,9 @@
     <ClCompile Include="..\Private\PostProcess_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\PathTool.cpp">
+      <Filter>03. System\PathTool</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -305,6 +308,9 @@
     <ClInclude Include="..\Public\PostProcess_View.h">
       <Filter>01. View</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PathTool.h">
+      <Filter>03. System\PathTool</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -333,6 +339,9 @@
     </Filter>
     <Filter Include="03. System\PickingSystem">
       <UniqueIdentifier>{2013d582-5c36-4183-b467-256517649e33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. System\PathTool">
+      <UniqueIdentifier>{c85d9fab-ae0f-4c67-8874-ef66725b8a15}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

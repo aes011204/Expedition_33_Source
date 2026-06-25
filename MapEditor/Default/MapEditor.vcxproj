@@ -163,7 +163,13 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\CmdAddObject.h" />
+    <ClInclude Include="..\Public\CmdAddInstance.h" />
+    <ClInclude Include="..\Public\CmdDeleteInstance.h" />
+    <ClInclude Include="..\Public\CmdConvertAllToStatic.h" />
+    <ClInclude Include="..\Public\CmdConvertOneToStatic.h" />
+    <ClInclude Include="..\Public\CmdConvertToInstanced.h" />
     <ClInclude Include="..\Public\CmdDeleteObject.h" />
+    <ClInclude Include="..\Public\CmdEraseInstances.h" />
     <ClInclude Include="..\Public\CmdTransformObject.h" />
     <ClInclude Include="..\Public\EditorObject.h" />
     <ClInclude Include="..\Public\IEditorCommand.h" />
@@ -202,7 +208,13 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CmdAddObject.cpp" />
+    <ClCompile Include="..\Private\CmdAddInstance.cpp" />
+    <ClCompile Include="..\Private\CmdDeleteInstance.cpp" />
+    <ClCompile Include="..\Private\CmdConvertAllToStatic.cpp" />
+    <ClCompile Include="..\Private\CmdConvertOneToStatic.cpp" />
+    <ClCompile Include="..\Private\CmdConvertToInstanced.cpp" />
     <ClCompile Include="..\Private\CmdDeleteObject.cpp" />
+    <ClCompile Include="..\Private\CmdEraseInstances.cpp" />
     <ClCompile Include="..\Private\CmdTransformObject.cpp" />
     <ClCompile Include="..\Private\EditorObject.cpp" />
     <ClCompile Include="..\Private\MapEditorApp.cpp" />

@@ -806,7 +806,7 @@ HRESULT GameInstance::Draw()
     return S_OK;
 }
 
-HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx)
+HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preservePostProcess)
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
@@ -823,7 +823,11 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx)
     if (hasPostProcessPipeline)
     {
         savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
-        postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
+
+        if (!preservePostProcess)
+        {
+            postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
+        }
     }
 
     if (hasLightingPipeline)
@@ -3448,6 +3452,22 @@ const ShadowCascadePresetSet* GameInstance::Get_ShadowCascadePresets() const
 {
     CHECK_NULL(_shadow, nullptr);
     return _shadow->Get_CascadePresets();
+}
+
+uint32 GameInstance::Get_ActiveShadowCascade() const
+{
+    if (!_shadow)
+        return 0u;
+    return _shadow->Get_ActiveCascadeIndex();
+}
+
+const ShadowCascadeInfluenceVolume* GameInstance::Get_CascadeInfluenceVolumes() const
+{
+    if (!_shadow)
+    {
+        return nullptr;
+    }
+    return _shadow->Get_CascadeInfluenceVolumes();
 }
 
 void GameInstance::Free()
