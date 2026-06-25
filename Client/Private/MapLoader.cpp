@@ -1020,9 +1020,17 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         const json& firstEntry = session.instancedMeshes[groupIndices[0]];
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
-        desc.visible = firstEntry.value("Visible", true);
-        desc.cullEnabled = firstEntry.value("CullEnabled", true);
-        desc.castShadow = firstEntry.value("CastShadow", true);
+        desc.visible = true;
+        desc.cullEnabled = true;
+        desc.castShadow = true;
+
+        for (size_t idx : groupIndices)
+        {
+            const json& entry = session.instancedMeshes[idx];
+            if (!entry.value("Visible", true))     desc.visible = false;
+            if (!entry.value("CullEnabled", true)) desc.cullEnabled = false;
+            if (!entry.value("CastShadow", true))  desc.castShadow = false;
+        }
 
         desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
