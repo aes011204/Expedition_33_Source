@@ -911,6 +911,111 @@ namespace EffectAssetRuntimeLoad::Curves
         }
     }
 
+    void Fill_SpriteTiltOverLifeCurveKey(PointParticleSpriteTiltDesc& desc, uint32 index, const json& key)
+    {
+        Vec2 value{};
+        Vec2 arriveTangent{};
+        Vec2 leaveTangent{};
+        if (const auto iter = key.find("value"); iter != key.end())
+            Read_Vec2(*iter, value);
+        if (const auto tangentIter = key.find("arriveTangent"); tangentIter != key.end())
+            Read_Vec2(*tangentIter, arriveTangent);
+        if (const auto tangentIter = key.find("leaveTangent"); tangentIter != key.end())
+            Read_Vec2(*tangentIter, leaveTangent);
+
+        Set_CurveComponent(desc.tiltOverLifeCurveTimes, desc.tiltOverLifeCurveTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_CurveComponent(desc.tiltOverLifeCurveValuesX, desc.tiltOverLifeCurveValuesXBlock1, index, value.x);
+        Set_CurveComponent(desc.tiltOverLifeCurveValuesY, desc.tiltOverLifeCurveValuesYBlock1, index, value.y);
+        Set_CurveComponent(desc.tiltOverLifeCurveArriveTangentsX, desc.tiltOverLifeCurveArriveTangentsXBlock1, index, arriveTangent.x);
+        Set_CurveComponent(desc.tiltOverLifeCurveLeaveTangentsX, desc.tiltOverLifeCurveLeaveTangentsXBlock1, index, leaveTangent.x);
+        Set_CurveComponent(desc.tiltOverLifeCurveArriveTangentsY, desc.tiltOverLifeCurveArriveTangentsYBlock1, index, arriveTangent.y);
+        Set_CurveComponent(desc.tiltOverLifeCurveLeaveTangentsY, desc.tiltOverLifeCurveLeaveTangentsYBlock1, index, leaveTangent.y);
+        Set_CurveComponent(desc.tiltOverLifeCurveModes, desc.tiltOverLifeCurveModesBlock1, index, Resolve_CurveInterpolationMode(key));
+    }
+
+    void Fill_SpriteTiltPayload(PointParticleSpriteTiltDesc& desc, const json* spriteTilt, const json* spriteTiltOverLife)
+    {
+        desc = PointParticleSpriteTiltDesc{};
+
+        if (spriteTilt != nullptr)
+        {
+            const auto tiltIter = spriteTilt->find("tiltDegrees");
+            if (tiltIter != spriteTilt->end())
+            {
+                desc.initialTiltEnabled = true;
+                desc.tiltDegreesMin = Evaluate_Vector2DistributionMin(*tiltIter, desc.tiltDegreesMin);
+                desc.tiltDegreesMax = Evaluate_Vector2DistributionMax(*tiltIter, desc.tiltDegreesMax);
+                desc.tiltSeed = Read_DistributionRandomSeedDesc(*tiltIter, spriteTilt);
+            }
+        }
+
+        if (spriteTiltOverLife == nullptr)
+            return;
+
+        const auto tiltOverLifeIter = spriteTiltOverLife->find("tiltOverLife");
+        if (tiltOverLifeIter == spriteTiltOverLife->end())
+            return;
+
+        desc.tiltOverLifeEnabled = true;
+        desc.tiltOverLifeMin = Evaluate_Vector2DistributionMin(*tiltOverLifeIter, desc.tiltOverLifeMin);
+        desc.tiltOverLifeMax = Evaluate_Vector2DistributionMax(*tiltOverLifeIter, desc.tiltOverLifeMax);
+        desc.tiltOverLifeSeed = Read_DistributionRandomSeedDesc(*tiltOverLifeIter, spriteTiltOverLife);
+        desc.tiltOverLifeCurveKeyCount = 2;
+        desc.tiltOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.tiltOverLifeCurveTimesBlock1 = Vec4{};
+        desc.tiltOverLifeCurveValuesX = Vec4{ desc.tiltOverLifeMin.x, desc.tiltOverLifeMax.x, 0.f, 0.f };
+        desc.tiltOverLifeCurveValuesXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveValuesY = Vec4{ desc.tiltOverLifeMin.y, desc.tiltOverLifeMax.y, 0.f, 0.f };
+        desc.tiltOverLifeCurveValuesYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsX = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsX = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsY = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsY = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.tiltOverLifeCurveModesBlock1 = Vec4{};
+
+        const json* payload = Find_DistributionPayload(*tiltOverLifeIter);
+        if (payload == nullptr || "ConstantCurve" != Read_String(*tiltOverLifeIter, "mode"))
+            return;
+
+        const auto keysIter = payload->find("keys");
+        if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+            return;
+
+        vector<const json*> keys{};
+        keys.reserve(keysIter->size());
+        for (const json& key : *keysIter)
+            keys.push_back(&key);
+        ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+        const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+        desc.tiltOverLifeCurveEnabled = keyCount > 0u;
+        desc.tiltOverLifeCurveKeyCount = keyCount;
+        desc.tiltOverLifeCurveTimes = Vec4{};
+        desc.tiltOverLifeCurveTimesBlock1 = Vec4{};
+        desc.tiltOverLifeCurveValuesX = Vec4{};
+        desc.tiltOverLifeCurveValuesXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveValuesY = Vec4{};
+        desc.tiltOverLifeCurveValuesYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsX = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsX = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsY = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsY = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveModes = Vec4{};
+        desc.tiltOverLifeCurveModesBlock1 = Vec4{};
+
+        for (uint32 index = 0; index < keyCount; ++index)
+            Fill_SpriteTiltOverLifeCurveKey(desc, index, *keys[index]);
+    }
+
     void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife)
     {
         const auto rotationOverLifeIter = rotationOverLife.find("rotationOverLife");

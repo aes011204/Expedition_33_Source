@@ -77,6 +77,7 @@ enum class EffectScreenAlignment : uint32
     Velocity = 4,             // compute가 기록한 현재 속도 방향을 기준 방향으로 쓴다.
     WorldPlaneXY = 5,         // 월드 XY 평면에 고정되는 2D plane 정렬이다.
     WorldPlaneXZ = 6,         // 월드 XZ 평면에 고정되는 바닥형 2D plane 정렬이다.
+    WorldUpFacingCamera = 7,  // 카드 Y축을 World Y로 세우고 카메라 가시성을 유지하는 billboard다.
 };
 
 // AwayFromCenter/Velocity가 기준 방향을 어떻게 쓸지 결정한다.
@@ -467,6 +468,7 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleMotionDesc motion{};                                 // motion authoring module을 compute payload로 압축한 규칙이다.
     EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈이 만든 emitter-local pivot 회전 payload다.
     PointParticleRotationDesc rotation{};                             // rotation authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleSpriteTiltDesc spriteTilt{};                         // SpriteTilt authoring module을 compute payload로 압축한 규칙이다.
     PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                // Lifetime random sample seed salt다.
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
@@ -721,6 +723,7 @@ struct ComputeSourceHistorySpriteTrailEmitterDesc : public GameObject::GAMEOBJEC
     PointParticleSizeByLifeDesc sizeByLife{};
     PointParticleMotionDesc motion{};
     PointParticleRotationDesc rotation{};
+    PointParticleSpriteTiltDesc spriteTilt{};
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};
     EffectSpriteRenderRuntimeDesc spriteRender{};
 

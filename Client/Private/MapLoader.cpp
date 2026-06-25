@@ -359,6 +359,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
     outSession.shaftVolumes = std::move(splitData.shaftVolumes);
     outSession.waters = std::move(splitData.waters);
+    outSession.lights = std::move(splitData.lights);
     outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
     outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
     outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
@@ -370,6 +371,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
     outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
+    outSession.lightsDone = outSession.lights.empty();
     outSession.prefabInstancesDone = true;
 
     outSession.beginSessionDuration =
@@ -820,6 +822,38 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
+    if (!session.lightsDone)
+    {
+        if (IsBudgetExceeded())
+        {
+            return S_OK;
+        }
+
+        for (const auto& e : session.lights)
+        {
+            LIGHT_DESC desc{};
+            desc.type = LightType::Point;
+
+            const auto& pos = e["Position"];
+            desc.position = Vec4(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>(), 1.f);
+            desc.range = e.value("Range", 10.f);
+
+            const auto& diff = e["Diffuse"];
+            desc.diffuse = Vec4(diff[0].get<float>(), diff[1].get<float>(), diff[2].get<float>(), diff[3].get<float>());
+
+            const auto& amb = e["Ambient"];
+            desc.ambient = Vec4(amb[0].get<float>(), amb[1].get<float>(), amb[2].get<float>(), amb[3].get<float>());
+
+            const auto& spec = e["Specular"];
+            desc.specular = Vec4(spec[0].get<float>(), spec[1].get<float>(), spec[2].get<float>(), spec[3].get<float>());
+
+            GAME->Add_Light(desc);
+        }
+
+        session.lightsDone = true;
+        ++processedCount;
+    }
+
     while (!session.watersDone)
     {
         if (IsBudgetExceeded())
@@ -986,9 +1020,17 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         const json& firstEntry = session.instancedMeshes[groupIndices[0]];
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
-        desc.visible = firstEntry.value("Visible", true);
-        desc.cullEnabled = firstEntry.value("CullEnabled", true);
-        desc.castShadow = firstEntry.value("CastShadow", true);
+        desc.visible = true;
+        desc.cullEnabled = true;
+        desc.castShadow = true;
+
+        for (size_t idx : groupIndices)
+        {
+            const json& entry = session.instancedMeshes[idx];
+            if (!entry.value("Visible", true))     desc.visible = false;
+            if (!entry.value("CullEnabled", true)) desc.cullEnabled = false;
+            if (!entry.value("CastShadow", true))  desc.castShadow = false;
+        }
 
         desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
@@ -1166,13 +1208,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.postProcessVolumesDone &&
         session.shaftVolumesDone &&
         session.watersDone &&
+        session.lightsDone &&
         session.prefabInstancesDone &&
         session.authoredObjectsDone;
 
     if (outFinished && !session.summaryLogged)
     {
         LOG_DEBUG(
-            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) authoredObjects(data={}, add={}ms/{}) autoInstanced(groups={}, statics={})",
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) authoredObjects(data={}, add={}ms/{}) autoInstanced(groups={}, statics={}) lights={}",
             session.processCallCount,
             session.beginSessionDuration.count(),
             session.preloadModelPaths.size(),
@@ -1196,7 +1239,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.authoredObjectAddDuration.count(),
             session.authoredObjectAddCount,
             session.autoInstancedGroupCount,
-            session.autoInstancedStaticCount);
+            session.autoInstancedStaticCount,
+            session.lights.size());
 
         session.summaryLogged = true;
     }
@@ -1407,6 +1451,82 @@ HRESULT MapLoader::Convert_Json_To_Bin(const wstring& jsonPath, const wstring& b
         return E_FAIL;
     }
     ofs.close();
+
+    return S_OK;
+}
+
+HRESULT MapLoader::Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot)
+{
+    fs::path root(mapInstanceRoot);
+    if (!fs::exists(root) || !fs::is_directory(root))
+    {
+        return E_FAIL;
+    }
+
+    const vector<pair<string, function<bool(const json&)>>> subfolders = {
+        { "StaticMesh", nullptr },
+        { "InstanceMesh", nullptr },
+        { "PostProcessVolume", nullptr },
+        { "ShaftVolume", nullptr },
+        { "Water", nullptr },
+        { "ETC", [](const json& j) { return j.value("LightType", "Directional") == "Point"; } },
+    };
+
+    for (const auto& [folderName, filter] : subfolders)
+    {
+        fs::path dir = root / folderName;
+        if (!fs::exists(dir))
+        {
+            continue;
+        }
+
+        json arr = json::array();
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".json")
+            {
+                continue;
+            }
+
+            ifstream ifs(entry.path());
+            if (!ifs.is_open())
+            {
+                continue;
+            }
+
+            try
+            {
+                json item = json::parse(ifs);
+                if (!item.is_object())
+                {
+                    continue;
+                }
+
+                if (filter && !filter(item))
+                {
+                    continue;
+                }
+
+                arr.push_back(std::move(item));
+            }
+            catch (...) {}
+        }
+
+        fs::path binPath = root / (folderName + ".bin");
+        ofstream ofs(binPath, ios::binary);
+        if (!ofs.is_open())
+        {
+            continue;
+        }
+
+        try
+        {
+            vector<uint8_t> msgpack = json::to_msgpack(arr);
+            ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+        }
+        catch (...) { return E_FAIL; }
+    }
 
     return S_OK;
 }

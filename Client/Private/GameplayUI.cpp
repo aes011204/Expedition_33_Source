@@ -27,12 +27,15 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
     }
 
     _lastInputMode = Resolve_InputMode();
+    Invalidate_RuntimeUIEntryCache();
 
     return S_OK;
 }
 
 void GameplayUI::Update(float timeDelta)
 {
+    ++_runtimeUIEntryFrameSerial;
+
     const GameplayUIInputMode currentInputMode = Resolve_InputMode();
 
     if (currentInputMode != _lastInputMode)
@@ -74,26 +77,79 @@ void GameplayUI::Update(float timeDelta)
 
 vector<RuntimeUIEntry> GameplayUI::Get_WorldRuntimeUIEntries() const
 {
-    if (_worldUI == nullptr)
-        return {};
-
-    return _worldUI->Get_RuntimeUIEntries();
+    return Get_CachedWorldRuntimeUIEntries();
 }
 
 vector<RuntimeUIEntry> GameplayUI::Get_BattleRuntimeUIEntries() const
 {
-    if (_battleUI == nullptr)
-        return {};
-
-    return _battleUI->Get_RuntimeUIEntries();
+    return Get_CachedBattleRuntimeUIEntries();
 }
 
 vector<RuntimeUIEntry> GameplayUI::Get_SoulLikeRuntimeUIEntries() const
 {
-    if (_soulLikeUI == nullptr)
-        return {};
+    return Get_CachedSoulLikeRuntimeUIEntries();
+}
 
-    return _soulLikeUI->Get_RuntimeUIEntries();
+const vector<RuntimeUIEntry>& GameplayUI::Get_CachedWorldRuntimeUIEntries() const
+{
+    Rebuild_RuntimeUIEntryCache();
+    return _runtimeUIEntryCache.worldEntries;
+}
+
+const vector<RuntimeUIEntry>& GameplayUI::Get_CachedBattleRuntimeUIEntries() const
+{
+    Rebuild_RuntimeUIEntryCache();
+    return _runtimeUIEntryCache.battleEntries;
+}
+
+const vector<RuntimeUIEntry>& GameplayUI::Get_CachedSoulLikeRuntimeUIEntries() const
+{
+    Rebuild_RuntimeUIEntryCache();
+    return _runtimeUIEntryCache.soulLikeEntries;
+}
+
+void GameplayUI::Refresh_RuntimeUIEntryCache() const
+{
+    _runtimeUIEntryCache.dirty = true;
+    Rebuild_RuntimeUIEntryCache();
+}
+
+void GameplayUI::Invalidate_RuntimeUIEntryCache()
+{
+    _runtimeUIEntryCache.dirty = true;
+}
+
+void GameplayUI::Rebuild_RuntimeUIEntryCache() const
+{
+    if (!_runtimeUIEntryCache.dirty &&
+        _runtimeUIEntryCache.frameSerial == _runtimeUIEntryFrameSerial)
+    {
+        return;
+    }
+
+    _runtimeUIEntryCache.worldEntries = _worldUI ? _worldUI->Get_RuntimeUIEntries() : vector<RuntimeUIEntry>{};
+    _runtimeUIEntryCache.battleEntries = _battleUI ? _battleUI->Get_RuntimeUIEntries() : vector<RuntimeUIEntry>{};
+    _runtimeUIEntryCache.soulLikeEntries = _soulLikeUI ? _soulLikeUI->Get_RuntimeUIEntries() : vector<RuntimeUIEntry>{};
+
+    _runtimeUIEntryCache.editorTargetsByRoot.clear();
+
+    const auto appendEditorTargets = [this](const vector<RuntimeUIEntry>& entries)
+    {
+        for (const RuntimeUIEntry& entry : entries)
+        {
+            if (entry.ui == nullptr || entry.editorTarget == nullptr)
+                continue;
+
+            _runtimeUIEntryCache.editorTargetsByRoot[entry.ui.get()] = entry.editorTarget;
+        }
+    };
+
+    appendEditorTargets(_runtimeUIEntryCache.worldEntries);
+    appendEditorTargets(_runtimeUIEntryCache.battleEntries);
+    appendEditorTargets(_runtimeUIEntryCache.soulLikeEntries);
+
+    _runtimeUIEntryCache.frameSerial = _runtimeUIEntryFrameSerial;
+    _runtimeUIEntryCache.dirty = false;
 }
 
 IRuntimeUI_EditorTarget* GameplayUI::Find_RuntimeUIEditorTarget(const Shared<Engine::UI_Base>& rootUI) const
@@ -101,36 +157,11 @@ IRuntimeUI_EditorTarget* GameplayUI::Find_RuntimeUIEditorTarget(const Shared<Eng
     if (rootUI == nullptr)
         return nullptr;
 
-    const auto findInEntries = [rootUI](const vector<RuntimeUIEntry>& entries) -> IRuntimeUI_EditorTarget*
-    {
-        for (const RuntimeUIEntry& entry : entries)
-        {
-            if (entry.ui != rootUI)
-                continue;
+    Rebuild_RuntimeUIEntryCache();
 
-            return entry.editorTarget; // 선택된 루트 UI와 연결된 실제 오프셋 소유자를 반환한다.
-        }
-
-        return nullptr;
-    };
-
-    if (_worldUI)
-    {
-        if (IRuntimeUI_EditorTarget* worldTarget = findInEntries(_worldUI->Get_RuntimeUIEntries()))
-            return worldTarget; // CharacterProgression, Pictos 같은 월드 메뉴 패널도 인스펙터 리플렉션을 노출한다.
-    }
-
-    if (_battleUI)
-    {
-        if (IRuntimeUI_EditorTarget* battleTarget = findInEntries(_battleUI->Get_RuntimeUIEntries()))
-            return battleTarget;
-    }
-
-    if (_soulLikeUI)
-    {
-        if (IRuntimeUI_EditorTarget* soulLikeTarget = findInEntries(_soulLikeUI->Get_RuntimeUIEntries()))
-            return soulLikeTarget;
-    }
+    const auto targetIter = _runtimeUIEntryCache.editorTargetsByRoot.find(rootUI.get());
+    if (targetIter != _runtimeUIEntryCache.editorTargetsByRoot.end())
+        return targetIter->second; // 선택된 루트 UI와 연결된 실제 오프셋 소유자를 반환한다.
 
     return nullptr;
 }
@@ -188,6 +219,8 @@ void GameplayUI::Handle_InputModeChanged(GameplayUIInputMode previousMode, Gamep
 
 void GameplayUI::Handle_EditorStopRuntime()
 {
+    Invalidate_RuntimeUIEntryCache();
+
     if (_worldUI)
     {
         _worldUI->Handle_EditorStopRuntime();
@@ -220,6 +253,12 @@ Shared<GameplayUI> GameplayUI::Create(uint32 levelIndex)
 
 void GameplayUI::Free()
 {
+    Invalidate_RuntimeUIEntryCache();
+    _runtimeUIEntryCache.worldEntries.clear();
+    _runtimeUIEntryCache.battleEntries.clear();
+    _runtimeUIEntryCache.soulLikeEntries.clear();
+    _runtimeUIEntryCache.editorTargetsByRoot.clear();
+
     if (_editorStopHandle.IsValid())
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);

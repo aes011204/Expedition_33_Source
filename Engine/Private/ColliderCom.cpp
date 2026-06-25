@@ -388,8 +388,24 @@ HRESULT ColliderCom::Ready_DebugRenderResources()
         { "COLOR",       0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
 
-    _batch = make_shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>(_context.Get());
-    _effect = make_shared<DirectX::BasicEffect>(_device.Get());
+    try
+    {
+        _batch = make_shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>(_context.Get());
+        _effect = make_shared<DirectX::BasicEffect>(_device.Get());
+    }
+    catch (const exception& e)
+    {
+        const HRESULT removedReason = _device ? _device->GetDeviceRemovedReason() : E_FAIL;
+
+        LOG_ERROR(
+            "ColliderCom debug render resource creation failed. shape={}, deviceRemovedReason=0x{:08X}, exception={}",
+            static_cast<int>(_shape),
+            static_cast<unsigned int>(removedReason),
+            e.what()
+        );
+
+        return E_FAIL;
+    }
 
     if (nullptr == _batch || nullptr == _effect)
         return E_FAIL;

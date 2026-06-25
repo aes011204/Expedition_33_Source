@@ -882,9 +882,10 @@ void Pictos_Panel::Clear_EquippedSlotVisual(size_t slotIndex)
     if (slot.visualRoot)
         slot.visualRoot->Close();
 
-    slot.visualUiByName.clear();
+    UI_RuntimeLoader::Release_Document(slot.visualUiByName);
     slot.visualRoot.reset();
     slot.visualButton.reset();
+    slot.visualMarkImage.reset();
     slot.pictosId.clear();
 
     if (slot.selectButton)
@@ -922,7 +923,7 @@ void Pictos_Panel::Clear_AvailableRow(size_t rowIndex)
     if (row.root)
         row.root->Close();
 
-    row.uiByName.clear();
+    UI_RuntimeLoader::Release_Document(row.uiByName);
     row.root.reset();
     row.button.reset();
     row.pictosId.clear();
@@ -988,12 +989,42 @@ void Pictos_Panel::Free()
     for (size_t i = 0; i < _equippedSlots.size(); ++i)
         Clear_EquippedSlotVisual(i);
 
+    for (EquippedSlotUI& slot : _equippedSlots)
+    {
+        slot.root.reset();
+        slot.selectButton.reset();
+        slot.emptyButton.reset();
+    }
+
+    for (AvailablePictosSlotUI& slot : _availableSlots)
+    {
+        slot.root.reset();
+        slot.button.reset();
+        slot.nameText.reset();
+        slot.markRoot.reset();
+        slot.markImage.reset();
+        slot.pictosId.clear();
+    }
+
+    for (auto& [pictosId, tooltipUiByName] : _tooltipUiById)
+    {
+        UNREFERENCED_PARAMETER(pictosId);
+        UI_RuntimeLoader::Release_Document(tooltipUiByName);
+    }
+
     _tooltipRootsById.clear();
     _tooltipUiById.clear();
+
+    UI_RuntimeLoader::Release_Document(_uiByName);
+    _root.reset();
 
     _availableListRoot.reset();
     _selectSlotHintRoot.reset();
     _equipHintRoot.reset();
+    for (Shared<UI_Base>& builtinRoot : _builtinAvailableRoots)
+        builtinRoot.reset();
+
+    _availableRows.clear();
 
     UI_RuntimePanelBase::Free();
 }

@@ -4,6 +4,7 @@
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
+#include "Debug_Profile.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -1876,6 +1877,8 @@ namespace
             bool selected,
             bool dimmed) override
         {
+            ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Item.Compose");
+
             CHECK_NULL(_renderTarget, E_FAIL);
 
             ScopedRenderTargetState restoreState{ _context };
@@ -2160,6 +2163,8 @@ HRESULT BattleWorldUI_ItemCards::Initialize(void* arg)
 
 HRESULT BattleWorldUI_ItemCards::Warmup_ForBattleState(BattleItemType selectedItemType, HeroId actorHeroId)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Item.Warmup");
+
     if (_impl == nullptr)
         return E_FAIL;
 
@@ -2227,6 +2232,8 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
     HeroId actorHeroId,
     float timeDelta)
 {
+    ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Item.Show");
+
     if (_impl == nullptr || !Should_ShowBattleWorldItemCards(currentState))
     {
         Hide();

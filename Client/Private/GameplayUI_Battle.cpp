@@ -13,6 +13,7 @@
 #include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
+#include "Debug_Profile.h"
 #include "PlayerStatCom.h"
 #include "ScreenFx_Manager.h"
 #include "Skill_Gustave_Battle.h"
@@ -654,15 +655,21 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
 
     if (_battleSystemHUD)
     {
-        vector<HeroId> battleHeroIds{};
+        array<HeroId, 3> battleHeroIds{};
+        size_t battleHeroCount = 0;
 
         if (_battleController)
         {
             for (const BattleChar& hero : _battleController->Get_BattleHeroes())
-                battleHeroIds.push_back(hero.heroId);
+            {
+                if (battleHeroCount >= battleHeroIds.size())
+                    break;
+
+                battleHeroIds[battleHeroCount++] = hero.heroId;
+            }
         }
 
-        _battleSystemHUD->Set_BattleHeroIds(battleHeroIds);
+        _battleSystemHUD->Set_BattleHeroIds(battleHeroIds.data(), battleHeroCount);
         _battleSystemHUD->Open();
         _battleSystemHUD->Play_BattleSystemIntro();
 
@@ -1439,18 +1446,23 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
 
     const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
 
-    vector<HeroId> battleHeroIds{};
-    battleHeroIds.reserve(heroes.size());
+    array<HeroId, 3> battleHeroIds{};
+    size_t battleHeroCount = 0;
 
     for (const BattleChar& hero : heroes)
-        battleHeroIds.push_back(hero.heroId);
+    {
+        if (battleHeroCount >= battleHeroIds.size())
+            break;
 
-    _battleSystemHUD->Set_BattleHeroIds(battleHeroIds);
+        battleHeroIds[battleHeroCount++] = hero.heroId;
+    }
+
+    _battleSystemHUD->Set_BattleHeroIds(battleHeroIds.data(), battleHeroCount);
     _battleSystemHUD->Open(); // 전투 중에는 파티 portrait HUD를 계속 유지한다.
 
-    _battleSystemHUD->Clear_GustaveMechanismCharge();
-    _battleSystemHUD->Clear_LuneMechanismStains(); // 이번 프레임 루네 상태를 현재 mechanism 값으로 다시 연다.
-    _battleSystemHUD->Clear_MaelleMechanismStance();
+    bool hasGustaveMechanism = false;
+    bool hasLuneMechanism = false;
+    bool hasMaelleMechanism = false;
 
     for (const BattleChar& hero : heroes)
     {
@@ -1467,16 +1479,28 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
         if (hero.heroId == HeroId::Gustave)
         {
             _battleSystemHUD->Set_GustaveMechanismCharge(hero.mechanismCom);
+            hasGustaveMechanism = true;
         }
         else if (hero.heroId == HeroId::Lune)
         {
             _battleSystemHUD->Set_LuneMechanismStains(hero.mechanismCom);
+            hasLuneMechanism = true;
         }
         else if (hero.heroId == HeroId::Maelle)
         {
             _battleSystemHUD->Set_MaelleMechanismStance(hero.mechanismCom);
+            hasMaelleMechanism = true;
         }
     }
+
+    if (!hasGustaveMechanism)
+        _battleSystemHUD->Clear_GustaveMechanismCharge();
+
+    if (!hasLuneMechanism)
+        _battleSystemHUD->Clear_LuneMechanismStains();
+
+    if (!hasMaelleMechanism)
+        _battleSystemHUD->Clear_MaelleMechanismStance();
 
     _battleSystemHUD->Update(timeDelta);
 }
@@ -2374,6 +2398,8 @@ void GameplayUI_Battle::Update_BattleWorldGradientCards(
 
 void GameplayUI_Battle::Warmup_BattleWorldCardsForActor(const BattleChar& actor)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Warmup.Actor");
+
     if (actor.statCom == nullptr || !actor.statCom->Is_Player())
         return;
 
@@ -2831,6 +2857,12 @@ void GameplayUI_Battle::Free()
     {
         _battleWorldSkillCards->Free();
         _battleWorldSkillCards.reset();
+    }
+
+    if (_battleWorldGradientCards)
+    {
+        _battleWorldGradientCards->Free();
+        _battleWorldGradientCards.reset();
     }
 
     auto Release_UI = [](auto& ui)

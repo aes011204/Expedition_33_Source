@@ -988,8 +988,14 @@ void ChangeSkill_Panel::Free()
     if (_root)
         Close_Immediately(false);
 
+    for (AvailableSkillSlotUI& slot : _availableSkillSlots)
+    {
+        if (!slot.isOwnedByMainDocument)
+            UI_RuntimeLoader::Release_Document(slot.uiByName);
+    }
+
+    UI_RuntimeLoader::Release_Document(_uiByName);
     _root.reset();
-    _uiByName.clear();
     _isProgressionContentMode = false;
 
     for (auto& button : _currentSkillButtons)
