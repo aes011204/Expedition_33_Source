@@ -683,7 +683,7 @@ HRESULT SL_Dualliste::Ready_PartObjects()
     Mon_Dualliste_Body::BODY_DESC bodyDesc{};
     bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     bodyDesc.modelType = ModelType::Anim;
-    bodyDesc.modelTag = L"Model_Dualliste";
+    bodyDesc.modelTag = L"Model_Dualliste_Test";
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Dualliste_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 

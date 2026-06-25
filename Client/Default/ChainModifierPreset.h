@@ -1,7 +1,9 @@
 ﻿#pragma once
 #include "Base.h"
 #include "ChainModifier.h"
+#include "PhysicsModifier.h"
 #include "PoseFollowChainModifier.h"
+#include "SimonHairRuntime.h"
 #include "Client_Enum.h"
 
 NS_BEGIN(Client)
@@ -68,11 +70,23 @@ public:
         PlayerCharacterType characterType,
         const wstring& modifierTag = L"ClothPhysics_PotatoBagHair");
 
-    static void BuildSimonHairDesc(
-        ChainModifier::ChainModifierDesc& outDesc,
+    static void BuildSimonPhysicsHairDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
         TransformCom* ownerTransform,
         PlayerCharacterType characterType,
-        const wstring& modifierTag = L"ClothPhysics_SimonHair");
+        const wstring& modifierTag = L"Physics_SimonHair");
+
+    static void BuildSimonHairHardcodedDesc(
+        PhysicsModifier::PhysicsModifierDesc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& modifierTag = L"Physics_SimonHair_Hardcoded");
+
+    static void BuildSimonHairHardcodedDesc(
+        SimonHairRuntime::Desc& outDesc,
+        TransformCom* ownerTransform,
+        PlayerCharacterType characterType,
+        const wstring& runtimeTag = L"SimonHairRuntime_Simon");
 
     static void BuildPotatoBagClothBackDesc(
         ChainModifier::ChainModifierDesc& outDesc,

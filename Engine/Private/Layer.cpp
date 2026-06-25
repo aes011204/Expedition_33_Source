@@ -67,6 +67,17 @@ void Layer::Late_Update(float timeDelta)
     }
 }
 
+void Layer::Post_PhysX_Update(float timeDelta)
+{
+    for (auto& gameObject : _gameObjects)
+    {
+        if (gameObject == nullptr || gameObject->Is_MarkDestroy())
+            continue;
+
+        gameObject->Post_PhysX_Update(timeDelta);
+    }
+}
+
 Shared<GameObject> Layer::Find_FirstObject()
 {
     if (_gameObjects.empty())
