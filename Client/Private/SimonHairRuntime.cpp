@@ -527,6 +527,11 @@ const Engine::ClassReflectionInfo* SimonHairRuntime::Get_RuntimeReflectionInfo()
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "idleOutputSmoothAlpha", "Idle Smooth", SimonHairOffset(&Desc::idleOutputSmoothAlpha), 0.01f, 0.f, 1.f);
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "idleMotionDeadzone", "Idle Dead", SimonHairOffset(&Desc::idleMotionDeadzone), 0.001f, 0.f, 10.f);
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "maxOutputAngleDegree", "Max Angle", SimonHairOffset(&Desc::maxOutputAngleDegree), 0.25f, 0.f, 180.f);
+            AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "contactRotationFollowAlpha", "Hit Follow", SimonHairOffset(&Desc::contactRotationFollowAlpha), 0.01f, 0.f, 1.f);
+            AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "freeRotationFollowAlpha", "Move Follow", SimonHairOffset(&Desc::freeRotationFollowAlpha), 0.01f, 0.f, 1.f);
+            AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "rotationFollowDepthScale", "Follow Depth", SimonHairOffset(&Desc::rotationFollowDepthScale), 0.01f, 0.f, 1.f);
+            AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "animatedPosePullAlpha", "Pose Pull", SimonHairOffset(&Desc::animatedPosePullAlpha), 0.01f, 0.f, 1.f);
+            AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "animatedPosePullMaxSpeed", "Pose Speed", SimonHairOffset(&Desc::animatedPosePullMaxSpeed), 0.05f, 0.f, 20.f);
 
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "collisionPrimitiveScale", "Col Scale", SimonHairOffset(&Desc::collisionPrimitiveScale), 0.005f, 0.001f, 10.f);
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "collisionRadiusPadding", "Col Pad", SimonHairOffset(&Desc::collisionRadiusPadding), 0.01f, 0.f, 10.f);
@@ -534,6 +539,8 @@ const Engine::ClassReflectionInfo* SimonHairRuntime::Get_RuntimeReflectionInfo()
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "collisionSphereRadius", "Node Radius", SimonHairOffset(&Desc::collisionSphereRadius), 0.005f, 0.01f, 10.f);
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "collisionPushOutScale", "Col Push", SimonHairOffset(&Desc::collisionPushOutScale), 0.01f, 0.f, 5.f);
             AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "contactSnapAlpha", "Col Snap", SimonHairOffset(&Desc::contactSnapAlpha), 0.01f, 0.f, 1.f);
+            AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "collisionCorrectionSmoothAlpha", "Corr Lag", SimonHairOffset(&Desc::collisionCorrectionSmoothAlpha), 0.01f, 0.f, 1.f);
+            AddRuntimeProperty(result.properties, Engine::PropertyType::Float, "collisionNormalSmoothAlpha", "Norm Lag", SimonHairOffset(&Desc::collisionNormalSmoothAlpha), 0.01f, 0.f, 1.f);
             AddRuntimeProperty(result.properties, Engine::PropertyType::Int, "collisionProjectionIterations", "Col Iter", SimonHairOffset(&Desc::collisionProjectionIterations), 1.f, 1.f, 16.f);
 
             AddRuntimeProperty(result.properties, Engine::PropertyType::Int, "solverIterations", "Solver Iter", SimonHairOffset(&Desc::solverIterations), 1.f, 1.f, 32.f);
@@ -1239,6 +1246,8 @@ void SimonHairRuntime::Apply_PostSimulationConstraints(
     const float skinWidth = std::max(0.f, _desc.collisionContactSkinWidth);
     const float contactVelocityScale = std::clamp(1.f - std::clamp(_desc.contactInertiaDamping, 0.f, 1.f) * 0.45f, 0.55f, 0.92f);
     const float freeRestoreScale = std::clamp(_desc.releaseInertiaDamping, 0.f, 1.f);
+    const float posePullAlpha = std::clamp(_desc.animatedPosePullAlpha, 0.f, 1.f);
+    const float posePullMaxSpeed = std::max(0.f, _desc.animatedPosePullMaxSpeed);
     const float pushOutScale = std::max(0.f, _desc.collisionPushOutScale);
     const float snapAlpha = std::clamp(_desc.contactSnapAlpha, 0.f, 1.f);
     const uint32 projectionIterations = std::max(1u, std::min(_desc.collisionProjectionIterations, 4u));
@@ -1513,7 +1522,10 @@ void SimonHairRuntime::Apply_PostSimulationConstraints(
                 Vec3 correctionOffset = resolvedPosition - currentPosition;
                 if (node.hasSmoothedCollisionOffset)
                 {
-                    const float correctionAlpha = std::clamp(0.28f + depthRatio * 0.12f, 0.22f, 0.48f);
+                    const float correctionAlpha = std::clamp(
+                        _desc.collisionCorrectionSmoothAlpha + depthRatio * 0.12f,
+                        0.05f,
+                        1.f);
                     node.smoothedCollisionOffset = Vec3::Lerp(
                         node.smoothedCollisionOffset,
                         correctionOffset,
@@ -1624,6 +1636,83 @@ void SimonHairRuntime::Apply_PostSimulationConstraints(
                 }
             }
 
+            if (node.length > 0.0001f)
+            {
+                Vec3 boneSegment = resolvedPosition - parentPosition;
+                if (boneSegment.LengthSquared() <= 0.0001f)
+                {
+                    boneSegment = Get_Position(node.originalWorld) - parentPosition;
+                }
+                if (boneSegment.LengthSquared() > 0.0001f)
+                {
+                    boneSegment.Normalize();
+                    resolvedPosition = parentPosition + boneSegment * node.length;
+                }
+
+                if (hadCollision)
+                {
+                    for (uint32 iteration = 0; iteration < 2; ++iteration)
+                    {
+                        bool adjustedBoneLengthSolution = false;
+                        for (const WorldCapsule& capsule : worldCapsules)
+                        {
+                            const float combinedRadius = nodeRadius + capsule.radius + skinWidth;
+
+                            Vec3 hairClosest = Vec3::Zero;
+                            Vec3 capsuleClosest = Vec3::Zero;
+                            float hairT = 0.f;
+                            float capsuleT = 0.f;
+                            const float distanceSq = SegmentSegmentClosestPoints(
+                                parentPosition,
+                                resolvedPosition,
+                                capsule.startPoint,
+                                capsule.endPoint,
+                                hairClosest,
+                                capsuleClosest,
+                                hairT,
+                                capsuleT);
+                            if (distanceSq >= combinedRadius * combinedRadius)
+                            {
+                                continue;
+                            }
+
+                            Vec3 pushDirection = hairClosest - capsuleClosest;
+                            float distance = sqrtf(std::max(0.f, distanceSq));
+                            if (distance <= 0.0001f)
+                            {
+                                pushDirection = resolvedPosition - parentPosition;
+                                if (pushDirection.LengthSquared() <= 0.0001f)
+                                {
+                                    pushDirection = Vec3::UnitY;
+                                }
+                                pushDirection.Normalize();
+                                distance = 0.f;
+                            }
+                            else
+                            {
+                                pushDirection /= distance;
+                            }
+
+                            Vec3 adjustedSegment = (resolvedPosition - parentPosition)
+                                + pushDirection * ((combinedRadius - distance + 0.0005f) / std::clamp(hairT, 0.25f, 1.f));
+                            if (adjustedSegment.LengthSquared() > 0.0001f)
+                            {
+                                adjustedSegment.Normalize();
+                                resolvedPosition = parentPosition + adjustedSegment * node.length;
+                                contactNormal += pushDirection;
+                                ++contactCount;
+                                adjustedBoneLengthSolution = true;
+                            }
+                        }
+
+                        if (!adjustedBoneLengthSolution)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+
             node.solvedPosition = resolvedPosition;
 
             if (node.actor != nullptr && hadCollision)
@@ -1641,7 +1730,10 @@ void SimonHairRuntime::Apply_PostSimulationConstraints(
                         contactNormal.Normalize();
                         if (node.hasSmoothedContactNormal && node.smoothedContactNormal.Dot(contactNormal) > -0.15f)
                         {
-                            contactNormal = Vec3::Lerp(node.smoothedContactNormal, contactNormal, 0.30f);
+                            contactNormal = Vec3::Lerp(
+                                node.smoothedContactNormal,
+                                contactNormal,
+                                std::clamp(_desc.collisionNormalSmoothAlpha, 0.f, 1.f));
                             if (contactNormal.LengthSquared() > 0.0001f)
                             {
                                 contactNormal.Normalize();
@@ -1685,6 +1777,25 @@ void SimonHairRuntime::Apply_PostSimulationConstraints(
                 }
 
                 linearVelocity *= contactVelocityScale;
+                if (posePullAlpha > 0.f && posePullMaxSpeed > 0.f && timeDelta > 0.f)
+                {
+                    Vec3 poseDelta = Get_Position(node.originalWorld) - resolvedPosition;
+                    if (contactCount > 0 && contactNormal.LengthSquared() > 0.0001f)
+                    {
+                        poseDelta -= contactNormal * poseDelta.Dot(contactNormal);
+                    }
+
+                    if (poseDelta.LengthSquared() > 0.000001f)
+                    {
+                        Vec3 poseDirection = poseDelta;
+                        poseDirection.Normalize();
+                        const Vec3 poseVelocity = poseDirection * std::min(poseDelta.Length() / timeDelta, posePullMaxSpeed);
+                        linearVelocity = Vec3::Lerp(
+                            linearVelocity,
+                            linearVelocity + poseVelocity,
+                            std::clamp(posePullAlpha * 0.35f, 0.f, 0.20f));
+                    }
+                }
                 node.actor->setLinearVelocity(To_PxVec3(linearVelocity));
                 const float angularContactScale = 0.42f + depthRatio * 0.16f;
                 node.actor->setAngularVelocity(node.actor->getAngularVelocity() * angularContactScale);
@@ -1712,14 +1823,17 @@ void SimonHairRuntime::Apply_PostSimulationConstraints(
                     * std::max(0.10f, chain.desc.restoreMul);
                 if (restDelta.LengthSquared() > 0.000001f)
                 {
-                    const float maxRestoreSpeed = std::max(0.10f, node.length * (2.0f + rootStabilization * 1.5f));
+                    const float maxRestoreSpeed = std::max(
+                        std::max(0.10f, node.length * (2.0f + rootStabilization * 1.5f)),
+                        posePullMaxSpeed);
                     Vec3 desiredDirection = restDelta;
                     desiredDirection.Normalize();
                     const Vec3 desiredVelocity = desiredDirection * std::min(restDelta.Length() / timeDelta, maxRestoreSpeed);
+                    const float restoreAlpha = std::clamp(positionRestoreAlpha + posePullAlpha * 0.18f, 0.f, 0.22f);
                     linearVelocity = Vec3::Lerp(
                         linearVelocity,
                         desiredVelocity,
-                        std::clamp(positionRestoreAlpha, 0.f, 0.10f));
+                        restoreAlpha);
                 }
 
                 const float freeVelocityScale =
@@ -1835,10 +1949,10 @@ void SimonHairRuntime::Write_BackToModel(ModelCom* model, const Matrix& ownerWor
             const Quaternion blendedRotation = Quaternion::Slerp(poseRotation, solvedRotation, nodeRotationOutputAlpha);
             const float depthRatio = std::clamp(node.depthRatio, 0.f, 1.f);
             const float minimumFollowAlpha = node.hadContactThisFrame
-                ? (0.34f - depthRatio * 0.08f)
-                : (0.46f - depthRatio * 0.12f);
+                ? (_desc.contactRotationFollowAlpha - depthRatio * _desc.rotationFollowDepthScale)
+                : (_desc.freeRotationFollowAlpha - depthRatio * (_desc.rotationFollowDepthScale + 0.02f));
             const float rotationFollowAlpha = std::max(
-                minimumFollowAlpha,
+                std::clamp(minimumFollowAlpha, 0.f, 1.f),
                 std::clamp(smoothAlpha * std::max(0.f, chain.desc.smoothMultiplier), 0.f, 1.f));
             node.smoothedLocalRotation = Quaternion::Slerp(
                 node.smoothedLocalRotation,

@@ -42,6 +42,11 @@ public:
         float idleOutputSmoothAlpha{ 0.45f };
         float idleMotionDeadzone{ 0.06f };
         float maxOutputAngleDegree{ 150.f };
+        float contactRotationFollowAlpha{ 0.34f };
+        float freeRotationFollowAlpha{ 0.46f };
+        float rotationFollowDepthScale{ 0.10f };
+        float animatedPosePullAlpha{ 0.08f };
+        float animatedPosePullMaxSpeed{ 2.50f };
 
         bool enableCollision{ true };
         bool debugDrawCollisionCapsules{ false };
@@ -51,6 +56,8 @@ public:
         float collisionSphereRadius{ 0.24f };
         float collisionPushOutScale{ 1.f };
         float contactSnapAlpha{ 0.90f };
+        float collisionCorrectionSmoothAlpha{ 0.30f };
+        float collisionNormalSmoothAlpha{ 0.30f };
         uint32 collisionProjectionIterations{ 3 };
 
         float teleportDistance{ 300.f };

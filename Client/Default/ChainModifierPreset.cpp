@@ -1103,6 +1103,11 @@ void ChainModifierPreset::BuildSimonHairHardcodedDesc(
     desc.idleOutputSmoothAlpha = 0.06f;
     desc.idleMotionDeadzone = 0.192f;
     desc.maxOutputAngleDegree = 70.75f;
+    desc.contactRotationFollowAlpha = 0.22f;
+    desc.freeRotationFollowAlpha = 0.36f;
+    desc.rotationFollowDepthScale = 0.10f;
+    desc.animatedPosePullAlpha = 0.10f;
+    desc.animatedPosePullMaxSpeed = 2.80f;
 
     desc.enableCollision = true;
     desc.debugDrawCollisionCapsules = false;
@@ -1112,6 +1117,8 @@ void ChainModifierPreset::BuildSimonHairHardcodedDesc(
     desc.collisionSphereRadius = 0.28f;
     desc.collisionPushOutScale = 0.04f;
     desc.contactSnapAlpha = 0.14f;
+    desc.collisionCorrectionSmoothAlpha = 0.24f;
+    desc.collisionNormalSmoothAlpha = 0.22f;
     desc.collisionProjectionIterations = 4;
 
     desc.teleportDistance = 300.f;
