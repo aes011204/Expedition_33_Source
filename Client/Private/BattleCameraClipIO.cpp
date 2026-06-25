@@ -39,6 +39,12 @@ string Build_SoulLikeCameraClipFilePath(const string& presetKey)
     return "../../../Client/Bin/Resources/Data/json/CameraPreset/SoulLikeCameraClip_" + presetKey + ".json";
 }
 
+string Build_DialogueCameraClipFilePath(const string& presetId)
+{
+    const string resolvedPresetId = presetId.empty() ? "Default" : presetId;
+    return "../../../Client/Bin/Resources/Data/json/CameraPreset/DialogueClip_" + resolvedPresetId + ".json";
+}
+
 json Serialize_BattleCameraTrack(const CameraTrack& track)
 {
     json keyframes = json::array();
@@ -180,14 +186,9 @@ void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, Ca
 
     Sort_BattleCameraTrack(outTrack);
 }
-}
 
-void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip, const string& skillId)
+void Serialize_CameraClipJson(json& jsonData, const BattleCameraClip& clip)
 {
-    const string filePath = Build_BattleCameraClipFilePath(cameraMode, skillId);
-
-    json jsonData {};
-
     jsonData["duration"] = clip.timeMode == BattleCameraClipTimeMode::AnimationSync ? 1.f : clip.duration;
     jsonData["timeMode"] = string(magic_enum::enum_name(clip.timeMode));
 
@@ -210,6 +211,53 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     jsonData["shakeDecayRate"] = Serialize_BattleCameraTrack(clip.shakeDecayRate);
     jsonData["shakeVerticalRatio"] = Serialize_BattleCameraTrack(clip.shakeVerticalRatio);
     jsonData["shakeStrengthScale"] = Serialize_BattleCameraTrack(clip.shakeStrengthScale);
+}
+
+bool Deserialize_CameraClipJson(const json& jsonData, BattleCameraClip& loadedClip, BattleCameraClipTimeMode defaultTimeMode, float fallbackDuration, bool normalizeAnimationSync)
+{
+    loadedClip = BattleCameraClip{};
+    loadedClip.timeMode = defaultTimeMode;
+    loadedClip.duration = jsonData.value("duration", fallbackDuration);
+
+    if (const string timeModeName = jsonData.value("timeMode", string{}); !timeModeName.empty())
+    {
+        if (const auto parsedTimeMode = magic_enum::enum_cast<BattleCameraClipTimeMode>(timeModeName); parsedTimeMode.has_value())
+            loadedClip.timeMode = parsedTimeMode.value();
+    }
+
+    Deserialize_BattleCameraTrack(jsonData, "distanceOffset", loadedClip.distanceOffset);
+    Deserialize_BattleCameraTrack(jsonData, "fovOffset", loadedClip.fovOffset);
+    Deserialize_BattleCameraTrack(jsonData, "sideOffset", loadedClip.sideOffset);
+    Deserialize_BattleCameraTrack(jsonData, "pivotOffset", loadedClip.pivotOffset);
+    Deserialize_BattleCameraTrack(jsonData, "heightOffset", loadedClip.heightOffset);
+    Deserialize_BattleCameraTrack(jsonData, "aimOffset", loadedClip.aimOffset);
+    Deserialize_BattleCameraTrack(jsonData, "lookHeightOffset", loadedClip.lookHeightOffset);
+    Deserialize_BattleCameraTrack(jsonData, "yawOffset", loadedClip.yawOffset);
+    Deserialize_BattleCameraTrack(jsonData, "shakeAmplitude", loadedClip.shakeAmplitude);
+    Deserialize_BattleCameraTrack(jsonData, "orbitYaw", loadedClip.orbitYaw);
+    Deserialize_BattleCameraTrack(jsonData, "orbitRadius", loadedClip.orbitRadius);
+    Deserialize_BattleCameraTrack(jsonData, "orbitHeight", loadedClip.orbitHeight);
+    Deserialize_BattleCameraTrack(jsonData, "orbitLookHeight", loadedClip.orbitLookHeight);
+    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyX", loadedClip.shakeFrequencyX);
+    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyY", loadedClip.shakeFrequencyY);
+    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRateX", loadedClip.shakeDecayRateX);
+    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRate", loadedClip.shakeDecayRate);
+    Deserialize_BattleCameraTrack(jsonData, "shakeVerticalRatio", loadedClip.shakeVerticalRatio);
+    Deserialize_BattleCameraTrack(jsonData, "shakeStrengthScale", loadedClip.shakeStrengthScale);
+
+    if (normalizeAnimationSync && loadedClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+        Normalize_AnimationSyncClip(loadedClip);
+
+    return true;
+}
+}
+
+void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip, const string& skillId)
+{
+    const string filePath = Build_BattleCameraClipFilePath(cameraMode, skillId);
+
+    json jsonData {};
+    Serialize_CameraClipJson(jsonData, clip);
 
     
     const fs::path savePath = filePath;
@@ -240,38 +288,46 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     file >> jsonData;
 
     BattleCameraClip loadedClip {};
-    loadedClip.timeMode = Get_DefaultBattleCameraClipTimeMode(cameraMode);
+    Deserialize_CameraClipJson(jsonData, loadedClip, Get_DefaultBattleCameraClipTimeMode(cameraMode), clip.duration, true);
 
-    loadedClip.duration = jsonData.value("duration", clip.duration);
-    if (const string timeModeName = jsonData.value("timeMode", string{}); !timeModeName.empty())
+    clip = loadedClip;
+    return true;
+}
+
+void BattleCameraClipIO::SaveDialogueCameraClipToFile(const string& presetId, const DialogueCameraClip& clip)
+{
+    const string filePath = Build_DialogueCameraClipFilePath(presetId);
+
+    json jsonData{};
+    Serialize_CameraClipJson(jsonData, clip);
+
+    const fs::path savePath = filePath;
+    if (!fs::exists(savePath.parent_path()))
+        fs::create_directories(savePath.parent_path());
+
+    ofstream file(savePath);
+    if (!file.is_open())
     {
-        if (const auto parsedTimeMode = magic_enum::enum_cast<BattleCameraClipTimeMode>(timeModeName); parsedTimeMode.has_value())
-            loadedClip.timeMode = parsedTimeMode.value();
+        MSG_BOX("Failed to open dialogue camera clip save file.");
+        return;
     }
 
-    Deserialize_BattleCameraTrack(jsonData, "distanceOffset", loadedClip.distanceOffset);
-    Deserialize_BattleCameraTrack(jsonData, "fovOffset", loadedClip.fovOffset);
-    Deserialize_BattleCameraTrack(jsonData, "sideOffset", loadedClip.sideOffset);
-    Deserialize_BattleCameraTrack(jsonData, "pivotOffset", loadedClip.pivotOffset);
-    Deserialize_BattleCameraTrack(jsonData, "heightOffset", loadedClip.heightOffset);
-    Deserialize_BattleCameraTrack(jsonData, "aimOffset", loadedClip.aimOffset);
-    Deserialize_BattleCameraTrack(jsonData, "lookHeightOffset", loadedClip.lookHeightOffset);
-    Deserialize_BattleCameraTrack(jsonData, "yawOffset", loadedClip.yawOffset);
-    Deserialize_BattleCameraTrack(jsonData, "shakeAmplitude", loadedClip.shakeAmplitude);
-    Deserialize_BattleCameraTrack(jsonData, "orbitYaw", loadedClip.orbitYaw);
-    Deserialize_BattleCameraTrack(jsonData, "orbitRadius", loadedClip.orbitRadius);
-    Deserialize_BattleCameraTrack(jsonData, "orbitHeight", loadedClip.orbitHeight);
-    Deserialize_BattleCameraTrack(jsonData, "orbitLookHeight", loadedClip.orbitLookHeight);
-    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyX", loadedClip.shakeFrequencyX);
-    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyY", loadedClip.shakeFrequencyY);
-    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRateX", loadedClip.shakeDecayRateX);
-    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRate", loadedClip.shakeDecayRate);
-    Deserialize_BattleCameraTrack(jsonData, "shakeVerticalRatio", loadedClip.shakeVerticalRatio);
-    Deserialize_BattleCameraTrack(jsonData, "shakeStrengthScale", loadedClip.shakeStrengthScale);
+    file << jsonData.dump(4);
+}
 
-    if (loadedClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
-        Normalize_AnimationSyncClip(loadedClip);
+bool BattleCameraClipIO::LoadDialogueCameraClipFromFile(const string& presetId, DialogueCameraClip& clip)
+{
+    const string filePath = Build_DialogueCameraClipFilePath(presetId);
 
+    ifstream file(filePath);
+    if (!file.is_open())
+        return false;
+
+    json jsonData{};
+    file >> jsonData;
+
+    DialogueCameraClip loadedClip{};
+    Deserialize_CameraClipJson(jsonData, loadedClip, DialogueCameraClipTimeMode::Independent, clip.duration, false);
     clip = loadedClip;
     return true;
 }
@@ -281,29 +337,8 @@ void BattleCameraClipIO::SaveSoulLikeCameraClipToFile(const string& presetKey, c
     const string filePath = Build_SoulLikeCameraClipFilePath(presetKey);
 
     json jsonData{};
-
+    Serialize_CameraClipJson(jsonData, clip);
     jsonData["duration"] = clip.duration;
-    jsonData["timeMode"] = string(magic_enum::enum_name(clip.timeMode));
-
-    jsonData["distanceOffset"] = Serialize_BattleCameraTrack(clip.distanceOffset);
-    jsonData["fovOffset"] = Serialize_BattleCameraTrack(clip.fovOffset);
-    jsonData["sideOffset"] = Serialize_BattleCameraTrack(clip.sideOffset);
-    jsonData["pivotOffset"] = Serialize_BattleCameraTrack(clip.pivotOffset);
-    jsonData["heightOffset"] = Serialize_BattleCameraTrack(clip.heightOffset);
-    jsonData["aimOffset"] = Serialize_BattleCameraTrack(clip.aimOffset);
-    jsonData["lookHeightOffset"] = Serialize_BattleCameraTrack(clip.lookHeightOffset);
-    jsonData["yawOffset"] = Serialize_BattleCameraTrack(clip.yawOffset);
-    jsonData["shakeAmplitude"] = Serialize_BattleCameraTrack(clip.shakeAmplitude);
-    jsonData["orbitYaw"] = Serialize_BattleCameraTrack(clip.orbitYaw);
-    jsonData["orbitRadius"] = Serialize_BattleCameraTrack(clip.orbitRadius);
-    jsonData["orbitHeight"] = Serialize_BattleCameraTrack(clip.orbitHeight);
-    jsonData["orbitLookHeight"] = Serialize_BattleCameraTrack(clip.orbitLookHeight);
-    jsonData["shakeFrequencyX"] = Serialize_BattleCameraTrack(clip.shakeFrequencyX);
-    jsonData["shakeFrequencyY"] = Serialize_BattleCameraTrack(clip.shakeFrequencyY);
-    jsonData["shakeDecayRateX"] = Serialize_BattleCameraTrack(clip.shakeDecayRateX);
-    jsonData["shakeDecayRate"] = Serialize_BattleCameraTrack(clip.shakeDecayRate);
-    jsonData["shakeVerticalRatio"] = Serialize_BattleCameraTrack(clip.shakeVerticalRatio);
-    jsonData["shakeStrengthScale"] = Serialize_BattleCameraTrack(clip.shakeStrengthScale);
 
     const fs::path savePath = filePath;
     if (!fs::exists(savePath.parent_path()))
@@ -331,34 +366,7 @@ bool BattleCameraClipIO::LoadSoulLikeCameraClipFromFile(const string& presetKey,
     file >> jsonData;
 
     BattleCameraClip loadedClip{};
-    loadedClip.timeMode = BattleCameraClipTimeMode::Independent;
-    loadedClip.duration = jsonData.value("duration", clip.duration);
-
-    if (const string timeModeName = jsonData.value("timeMode", string{}); !timeModeName.empty())
-    {
-        if (const auto parsedTimeMode = magic_enum::enum_cast<BattleCameraClipTimeMode>(timeModeName); parsedTimeMode.has_value())
-            loadedClip.timeMode = parsedTimeMode.value();
-    }
-
-    Deserialize_BattleCameraTrack(jsonData, "distanceOffset", loadedClip.distanceOffset);
-    Deserialize_BattleCameraTrack(jsonData, "fovOffset", loadedClip.fovOffset);
-    Deserialize_BattleCameraTrack(jsonData, "sideOffset", loadedClip.sideOffset);
-    Deserialize_BattleCameraTrack(jsonData, "pivotOffset", loadedClip.pivotOffset);
-    Deserialize_BattleCameraTrack(jsonData, "heightOffset", loadedClip.heightOffset);
-    Deserialize_BattleCameraTrack(jsonData, "aimOffset", loadedClip.aimOffset);
-    Deserialize_BattleCameraTrack(jsonData, "lookHeightOffset", loadedClip.lookHeightOffset);
-    Deserialize_BattleCameraTrack(jsonData, "yawOffset", loadedClip.yawOffset);
-    Deserialize_BattleCameraTrack(jsonData, "shakeAmplitude", loadedClip.shakeAmplitude);
-    Deserialize_BattleCameraTrack(jsonData, "orbitYaw", loadedClip.orbitYaw);
-    Deserialize_BattleCameraTrack(jsonData, "orbitRadius", loadedClip.orbitRadius);
-    Deserialize_BattleCameraTrack(jsonData, "orbitHeight", loadedClip.orbitHeight);
-    Deserialize_BattleCameraTrack(jsonData, "orbitLookHeight", loadedClip.orbitLookHeight);
-    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyX", loadedClip.shakeFrequencyX);
-    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyY", loadedClip.shakeFrequencyY);
-    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRateX", loadedClip.shakeDecayRateX);
-    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRate", loadedClip.shakeDecayRate);
-    Deserialize_BattleCameraTrack(jsonData, "shakeVerticalRatio", loadedClip.shakeVerticalRatio);
-    Deserialize_BattleCameraTrack(jsonData, "shakeStrengthScale", loadedClip.shakeStrengthScale);
+    Deserialize_CameraClipJson(jsonData, loadedClip, BattleCameraClipTimeMode::Independent, clip.duration, false);
 
     clip = loadedClip;
     return true;

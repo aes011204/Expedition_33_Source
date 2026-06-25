@@ -29,6 +29,9 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
+    if (FAILED(Ready_Layer_NPC(TEXT("Layer_NPC"))))
+        return E_FAIL;
+
     if (FAILED(Ready_Layer_ETC(TEXT("Layer_ETC"))))
         return E_FAIL;
 
@@ -220,6 +223,47 @@ HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
 {
     Vec3 startPos = Vec3(-9.f, -3.47f, 207.94f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
+{
+    const Shared<GameObject> noco = Spawn_Prefab::Prefab("NPC_Noco")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(9.f, 0.08f, 141.41f))
+        .Rotation(Vec3(0.f, -90.f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(noco, E_FAIL);
+
+    const Shared<GameObject> golgra = Spawn_Prefab::Prefab("NPC_Golgra")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(2.41f, 3.50f, 88.82f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(golgra, E_FAIL);
+
+    const Shared<GameObject> merchant = Spawn_Prefab::Prefab("NPC_Merchant")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-62.30f, 1.03f, 126.23f))
+        .Rotation(Vec3(0.f, 168.5f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(merchant, E_FAIL);
+
+    const Shared<GameObject> chad = Spawn_Prefab::Prefab("NPC_Chad")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-26.71f, 1.24f, 138.15f))
+        .Rotation(Vec3(0.f, 179.1f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(chad, E_FAIL);
 
     return S_OK;
 }

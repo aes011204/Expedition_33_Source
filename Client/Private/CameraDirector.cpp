@@ -3,6 +3,7 @@
 #include "TargetCamera.h"
 #include "ClientInstance.h"
 #include "CinematicCamera.h"
+#include "DialogueCamera.h"
 
 namespace
 {
@@ -98,6 +99,29 @@ void CameraDirector::Request_BattleTurn()
     {
         _previousCamera = camera;
     }
+}
+
+Shared<DialogueCamera>  CameraDirector::Request_DialogueCamera()
+{
+    Shared<Camera> currentCamera = nullptr;
+
+    if(GAME->Is_ActiveCameraType(ObjectType::DialogueCamera))
+    {
+        return dynamic_pointer_cast<DialogueCamera>(GAME->Get_ActiveCamera());
+    }
+
+    currentCamera = GAME->Get_ActiveCamera();
+
+    if(currentCamera == nullptr)
+        return nullptr;
+
+    auto dialogueCamera = CLIENT->Ensure_DialogueCamera();
+
+    if(!GAME->Activate_CameraByType(ObjectType::DialogueCamera))
+      return nullptr;
+
+    _previousCamera = currentCamera;
+    return dialogueCamera;
 }
 
 Shared<CinematicCamera> CameraDirector::Request_Cinematic()
