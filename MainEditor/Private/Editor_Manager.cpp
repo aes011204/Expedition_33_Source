@@ -447,6 +447,17 @@ void Editor_Manager::Handle_Shortcuts()
         return;
     }
 
+    // 0 : Auto Parry 토글
+    if (ImGui::IsKeyPressed(ImGuiKey_0, false) ||
+        ImGui::IsKeyPressed(ImGuiKey_Keypad0, false))
+    {
+        Shared<Client::BattleController> battle = CLIENT != nullptr ? CLIENT->Get_BattleController() : nullptr;
+        if (battle)
+            battle->Set_AutoParryEnabled(!battle->Is_AutoParryEnabled());
+
+        return;
+    }
+
     // Esc : 게임 종료
     if (ImGui::IsKeyPressed(ImGuiKey_F4, false))
     {
@@ -523,6 +534,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
             DrawShortcutRow("F10", "마우스 언락 / 자동 복귀");
+            DrawShortcutRow("0", "Auto Parry 토글");
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
@@ -1110,7 +1122,7 @@ void Editor_Manager::Render_AutoParryCheck()
     Shared<Client::BattleController> battle = CLIENT != nullptr ? CLIENT->Get_BattleController() : nullptr;
     bool enabled = battle != nullptr && battle->Is_AutoParryEnabled();
 
-    if (ImGui::Checkbox("Auto Parry", &enabled))
+    if (ImGui::Checkbox("Auto Parry (0)", &enabled))
     {
         if (battle)
             battle->Set_AutoParryEnabled(enabled);
@@ -1119,7 +1131,7 @@ void Editor_Manager::Render_AutoParryCheck()
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("몬스터 공격의 Parry 입력창이 열리면 자동으로 Parry를 입력합니다.");
+        ImGui::Text("0번 키로 토글할 수 있습니다. 몬스터 공격의 Parry 입력창이 열리면 자동으로 Parry를 입력합니다.");
         ImGui::EndTooltip();
     }
 }
