@@ -1,4 +1,4 @@
-#include "MapAdapter.h"
+﻿#include "MapAdapter.h"
 #include "ModelCom.h"
 #include "MaterialCB_OverrideFields.inl"
 
@@ -15,6 +15,7 @@ namespace
     constexpr const char* kPostProcessVolumeFolderName = "PostProcessVolume";
     constexpr const char* kShaftVolumeFolderName = "ShaftVolume";
     constexpr const char* kWaterFolderName = "Water";
+    constexpr const char* kETCFolderName = "ETC";
 
     std::mutex g_materialCacheMutex;
     umap<string, vector<MaterialSlotBinding>> g_materialBindingCache;
@@ -98,11 +99,15 @@ namespace
 
     bool HasAnySplitObjectDirectory(const fs::path& root)
     {
-        return fs::exists(root / kStaticMeshFolderName) ||
-            fs::exists(root / kInstanceMeshFolderName) ||
-            fs::exists(root / kPostProcessVolumeFolderName) ||
-            fs::exists(root / kShaftVolumeFolderName) ||
-            fs::exists(root / kWaterFolderName);
+        auto hasDirOrBin = [&](const char* name) {
+            return fs::exists(root / name) || fs::exists(root / (string(name) + ".bin"));
+            };
+
+        return hasDirOrBin(kStaticMeshFolderName) ||
+            hasDirOrBin(kInstanceMeshFolderName) ||
+            hasDirOrBin(kPostProcessVolumeFolderName) ||
+            hasDirOrBin(kShaftVolumeFolderName) ||
+            hasDirOrBin(kWaterFolderName);
     }
 
     fs::path ResolveSplitSidecarJson(const wstring& filePath, const fs::path& root)
@@ -123,8 +128,36 @@ namespace
             preloadModelPaths.push_back(modelPath);
     }
 
-    void LoadSplitJsonObjects(const fs::path& dir, vector<json>& outArray, vector<string>& preloadModelPaths)
+    void LoadSplitJsonObjects(const fs::path& dir, vector<json>& outArray, vector<string>& preloadModelPaths, function<bool(const json&)> filter = nullptr)
     {
+        fs::path binPath = dir.parent_path() / (dir.filename().string() + ".bin");
+        if (fs::exists(binPath))
+        {
+            ifstream ifs(binPath, ios::binary);
+            if (ifs.is_open())
+            {
+                try
+                {
+                    vector<uint8_t> data((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
+                    json arr = json::from_msgpack(data);
+                    if (arr.is_array())
+                    {
+                        for (auto& item : arr)
+                        {
+                            if (!item.is_object())
+                                continue;
+                            if (filter && !filter(item))
+                                continue;
+                            AppendPreloadModelPath(item.value("ModelPath", string{}), preloadModelPaths);
+                            outArray.push_back(std::move(item));
+                        }
+                    }
+                    return;
+                }
+                catch (...) {}
+            }
+        }
+
         if (!fs::exists(dir))
             return;
 
@@ -141,6 +174,8 @@ namespace
             {
                 json item = json::parse(ifs);
                 if (!item.is_object())
+                    continue;
+                if (filter && !filter(item))
                     continue;
 
                 AppendPreloadModelPath(item.value("ModelPath", string{}), preloadModelPaths);
@@ -634,6 +669,8 @@ bool MapAdapter::TryLoadSplitMapInstanceData(const wstring& filePath, SplitMapIn
     LoadSplitJsonObjects(root / kPostProcessVolumeFolderName, data.postProcessVolumes, data.preloadModelPaths);
     LoadSplitJsonObjects(root / kShaftVolumeFolderName, data.shaftVolumes, data.preloadModelPaths);
     LoadSplitJsonObjects(root / kWaterFolderName, data.waters, data.preloadModelPaths);
+    LoadSplitJsonObjects(root / kETCFolderName, data.lights, data.preloadModelPaths,
+        [](const json& j) { return j.value("LightType", "Directional") == "Point"; });
 
     TryAppendModelOverridesFromJsonFile(data.sidecarJson, data.modelOverrides);
     AppendModelOverridesFromMaterialDirectory(MaterialResourceRootPath() / root.filename(), data.modelOverrides);

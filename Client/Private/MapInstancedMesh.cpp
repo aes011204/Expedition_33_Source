@@ -7,6 +7,7 @@
 #include "StaticCollisionData.h"
 #include "Collision_Define.h"
 #include "ShaderPassFinder.h"
+#include "Shadow.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
