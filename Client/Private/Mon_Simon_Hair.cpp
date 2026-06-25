@@ -226,7 +226,6 @@ void Mon_Simon_Hair::Build_RuntimeDebugSegments(vector<SimonHairRuntime::Runtime
 
 uint32 Mon_Simon_Hair::Decide_PassIndex(Shared<Material> mat)
 {
-    UNREFERENCED_PARAMETER(mat);
     return mat->Get_PassIndex();
 }
 
