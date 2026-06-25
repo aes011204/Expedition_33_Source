@@ -99,6 +99,9 @@ Shared<ModelCom> Resolve_TrailPartModel(const PartObject* partObject)
     if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
         return monsterPart->Get_Model();
 
+    if (const PlayableParts* playablePart = dynamic_cast<const PlayableParts*>(partObject))
+        return playablePart->Get_Model();
+
     return nullptr;
 }
 
@@ -112,6 +115,9 @@ const Matrix* Resolve_TrailPartSocketMatrix(const PartObject* partObject, const 
 
     if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
         return monsterPart->Get_SocketBoneMatrixPtr(socketName);
+
+    if (const PlayableParts* playablePart = dynamic_cast<const PlayableParts*>(partObject))
+        return playablePart->Get_SocketBoneMatrixPtr(socketName);
 
     return nullptr;
 }
@@ -1510,17 +1516,17 @@ bool EffectCom::Try_BuildTrailSample(
 
     const TrailAnchorAsset sampleAnchorAsset =
         offsetDesc != nullptr
-            ? ANS_Trail::Make_OffsetTrailAnchorAsset(
-                trailAnchorAsset,
-                offsetDesc->tipExtendCurve,
-                offsetDesc->baseLocalOffsetCurve,
-                offsetDesc->tipLocalOffsetCurve,
-                offsetDesc->phase)
-            : trailAnchorAsset;
+        ? ANS_Trail::Make_OffsetTrailAnchorAsset(
+            trailAnchorAsset,
+            offsetDesc->tipExtendCurve,
+            offsetDesc->baseLocalOffsetCurve,
+            offsetDesc->tipLocalOffsetCurve,
+            offsetDesc->phase)
+        : trailAnchorAsset;
 
     Vec3 baseWorld{};
     Vec3 tipWorld{};
-    
+
     if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.base, baseWorld))
         return false;
     if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.tip, tipWorld))
@@ -1582,7 +1588,7 @@ bool EffectCom::Try_BuildSourcePointSample(
         if (sourceHistoryAnchorName == "Mid")
         {
             outSample.worldPosition =
-                ((trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f) +
+                (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f +
                 sourceHistoryLocalOffset;
             return true;
         }

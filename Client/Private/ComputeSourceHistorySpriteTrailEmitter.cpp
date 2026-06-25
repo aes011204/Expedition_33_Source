@@ -2144,7 +2144,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Sample_Acceleration(uint32 stampSer
         stampSerial,
         701u
     );
-    if (_transformCom == nullptr)
+    if (_desc.motion.accelerationInWorldSpace || _transformCom == nullptr)
         return sampledAcceleration;
 
     return _transformCom->Get_WorldRight() * sampledAcceleration.x +
@@ -2535,7 +2535,7 @@ Vec3 ComputeSourceHistorySpriteTrailEmitter::Evaluate_AccelerationByLife(const S
         )
     };
 
-    if (_transformCom == nullptr)
+    if (_desc.motion.accelerationInWorldSpace || _transformCom == nullptr)
         return acceleration;
 
     return _transformCom->Get_WorldRight() * acceleration.x +

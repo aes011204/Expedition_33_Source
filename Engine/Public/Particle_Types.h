@@ -347,6 +347,7 @@ struct PointParticleMotionDesc
     bool velocityConeEnabled{ false };                              // 축 기준 cone 안에서 샘플한 시작 속도 항을 적용할지 나타낸다.
     bool velocityConeInWorldSpace{ false };                         // true면 cone axis를 emitter basis 변환 없이 world 값으로 본다.
     bool sourceMotionVelocityEnabled{ false };                      // source/trail motion 기반 시작 속도 항을 적용할지 나타낸다.
+    bool accelerationInWorldSpace{ true };                          // true면 Acceleration 벡터를 emitter basis 변환 없이 world 값으로 본다.
     Vec3 initialVelocityMin{ 0.f, 0.f, 0.f };                       // InitialVelocity vector 분포의 하한이다.
     Vec3 initialVelocityMax{ 0.f, 0.f, 0.f };                       // InitialVelocity vector 분포의 상한이다.
     Vec3 radialPivot{ 0.f, 0.f, 0.f };                              // InitialRadialVelocity의 방사 방향 기준점이다.

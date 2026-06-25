@@ -184,7 +184,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_AccelerationCurveLeaveTangentsZBlock1;
     float4 g_AccelerationCurveModes;
     float4 g_AccelerationCurveModesBlock1;
-    float4 g_AccelerationCurveParams;            // x: key count, y: enabled
+    float4 g_AccelerationCurveParams;            // x: key count, y: enabled, z: acceleration world
     float4 g_VelocityScaleByLife;
     float4 g_VelocityScaleByLifeCurveTimes;      // VelocityOverLife key times
     float4 g_VelocityScaleByLifeCurveTimesBlock1;
@@ -1583,7 +1583,11 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float velocityScale = EvaluateVelocityScaleByLifeAverage(lifeProgress);
     const float dragTime = drag > 0.0001f ? (1.0f - exp(-drag * lifeAge)) / drag : lifeAge;
     const float dragDecay = drag > 0.0001f ? exp(-drag * lifeAge) : 1.0f;
-    const float3 acceleration = SampleRange3(g_AccelerationMin.xyz, g_AccelerationMax.xyz, accelerationSeed + 701u);
+    const bool accelerationInWorldSpace = g_AccelerationCurveParams.z != 0.0f;
+    const float3 sampledAcceleration = SampleRange3(g_AccelerationMin.xyz, g_AccelerationMax.xyz, accelerationSeed + 701u);
+    const float3 acceleration = accelerationInWorldSpace
+                                ? sampledAcceleration
+                                : ResolveEmitterBasisVector(sampledAcceleration);
     float3 accelerationVelocity = acceleration * lifeAge;
     float3 accelerationOffset = acceleration * 0.5f * lifeAge * lifeAge;
     if (g_AccelerationCurveParams.y != 0.0f)
@@ -1593,6 +1597,11 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         IntegrateAccelerationCurve(lifeProgress, accelerationVelocityProgress, accelerationOffsetProgress);
         accelerationVelocity = accelerationVelocityProgress * lifeMax;
         accelerationOffset = accelerationOffsetProgress * lifeMax * lifeMax;
+        if (!accelerationInWorldSpace)
+        {
+            accelerationVelocity = ResolveEmitterBasisVector(accelerationVelocity);
+            accelerationOffset = ResolveEmitterBasisVector(accelerationOffset);
+        }
     }
 
     const float3 motionOffset = initialVelocity * velocityScale * dragTime + accelerationOffset;

@@ -163,7 +163,7 @@ struct ComputePointParticleParams
     Vec4 accelerationCurveLeaveTangentsZBlock1{};
     Vec4 accelerationCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
     Vec4 accelerationCurveModesBlock1{};
-    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z/w: unused.
+    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z: acceleration world, w: unused.
     Vec4 velocityScaleByLife{};                      // x/y: scale start/end, z/w: unused.
     Vec4 velocityScaleByLifeCurveTimes{};            // VelocityOverLife key times.
     Vec4 velocityScaleByLifeCurveTimesBlock1{};
@@ -990,7 +990,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .accelerationCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount))),
             _desc.motion.accelerationCurveEnabled ? 1.f : 0.f,
-            0.f,
+            _desc.motion.accelerationInWorldSpace ? 1.f : 0.f,
             0.f
         },
         .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },

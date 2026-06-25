@@ -933,6 +933,7 @@ struct SourceMotionVelocityModuleData
 struct AccelerationModuleData
 {
     Vector3DistributionData acceleration{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+    bool inWorldSpace{ true };
 };
 
 struct DragModuleData

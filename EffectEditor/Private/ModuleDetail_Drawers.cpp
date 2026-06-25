@@ -2948,6 +2948,17 @@ bool AccelerationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringMo
 
     if (ImGui::CollapsingHeader("가속", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        if (detailContext.Begin_PropertyTable("AccelerationSpace"))
+        {
+            changed |= detailContext.Draw_BoolProperty(
+                "월드 스페이스",
+                data.inWorldSpace,
+                defaultData.inWorldSpace,
+                "켜면 가속 벡터를 world 기준으로, 끄면 emitter local 기준으로 해석합니다. 중력/상승처럼 effect 회전과 무관한 힘은 켜둡니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+
         changed |= detailContext.Draw_Vector3DistributionGroup(
             "가속",
             data.acceleration,

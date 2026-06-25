@@ -650,6 +650,8 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
+            desc.motion.accelerationInWorldSpace =
+                Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1303,6 +1305,8 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
+            desc.motion.accelerationInWorldSpace =
+                Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1888,6 +1892,8 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
+            desc.motion.accelerationInWorldSpace =
+                Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {

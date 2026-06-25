@@ -2118,7 +2118,9 @@ Vec3 MeshEmitter::Sample_Acceleration(uint32 seed) const
         RandomRange(_desc.motion.accelerationMin.y, _desc.motion.accelerationMax.y, accelerationSeed + 2u),
         RandomRange(_desc.motion.accelerationMin.z, _desc.motion.accelerationMax.z, accelerationSeed + 3u)
     };
-    return Resolve_LocalVector(sampledAcceleration);
+    return _desc.motion.accelerationInWorldSpace
+           ? Resolve_WorldVectorToSimulation(sampledAcceleration)
+           : Resolve_LocalVector(sampledAcceleration);
 }
 
 float MeshEmitter::Sample_Drag(uint32 seed) const
@@ -2284,7 +2286,9 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
             particle.acceleration.z
         )
     };
-    return Resolve_LocalVector(acceleration);
+    return _desc.motion.accelerationInWorldSpace
+           ? Resolve_WorldVectorToSimulation(acceleration)
+           : Resolve_LocalVector(acceleration);
 }
 
 Vec3 MeshEmitter::Evaluate_OrbitOffset(const MeshParticleState& particle, float lifeProgress) const

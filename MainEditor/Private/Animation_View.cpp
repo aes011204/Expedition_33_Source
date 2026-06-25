@@ -53,6 +53,9 @@ Shared<ModelCom> Resolve_PreviewTrailPartModel(const PartObject* partObject)
     if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
         return monsterPart->Get_Model();
 
+    if (const PlayableParts* playablePart = dynamic_cast<const PlayableParts*>(partObject))
+        return playablePart->Get_Model();
+
     return nullptr;
 }
 
@@ -66,6 +69,9 @@ const Matrix* Resolve_PreviewTrailPartSocketMatrix(const PartObject* partObject,
 
     if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
         return monsterPart->Get_SocketBoneMatrixPtr(socketName);
+
+    if (const PlayableParts* playablePart = dynamic_cast<const PlayableParts*>(partObject))
+        return playablePart->Get_SocketBoneMatrixPtr(socketName);
 
     return nullptr;
 }
@@ -1053,6 +1059,7 @@ void Animation_View::Save()
 
 void Animation_View::Open_FromAsset(const wstring& modelPath, const string& modelGuid, const string& preferredAnimationName, uint32 preferredDockId)
 {
+    Cancel_NotifyTrailBonePick();
     Reset_PreviewTrailEffect();
     Reset_PreviewSourceHistoryEffect();
     Reset_PreviewWeaponRotateStates();
@@ -1094,6 +1101,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
 
 void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, const string& preferredAnimationName, uint32 preferredDockId, bool focusOnOpen)
 {
+    Cancel_NotifyTrailBonePick();
     const wstring sourceModelPath = modelCom ? modelCom->Get_SourceModelPath() : wstring{};
 
     Reset_PreviewTrailEffect();
@@ -1516,6 +1524,7 @@ void Animation_View::Switch_LiveModelTarget(size_t targetIndex)
     if (selectedModel == nullptr)
         return;
 
+    Cancel_NotifyTrailBonePick();
     _selectedLiveModelTargetIndex = static_cast<int32>(targetIndex);
 }
 
@@ -1689,8 +1698,16 @@ void Animation_View::Draw_AnimationSelector()
     if (!ImGui::BeginTabBar("AnimationLeftTabs"))
         return;
 
-    if (ImGui::BeginTabItem("Animation Clips"))
+    ImGuiTabItemFlags animationClipsFlags = 0;
+    if (_hasRequestedAnimationLeftTab && _requestedAnimationLeftTab == AnimationLeftTab::AnimationClips)
+        animationClipsFlags |= ImGuiTabItemFlags_SetSelected;
+
+    if (ImGui::BeginTabItem("Animation Clips", nullptr, animationClipsFlags))
     {
+        _animationLeftTab = AnimationLeftTab::AnimationClips;
+        if (_hasRequestedAnimationLeftTab && _requestedAnimationLeftTab == AnimationLeftTab::AnimationClips)
+            _hasRequestedAnimationLeftTab = false;
+
         ImGui::Text("Animation Clips");
         ImGui::Separator();
         ImGui::InputTextWithHint("##AnimationClipSearch", "Search animation...", _animationSearchBuffer, IM_ARRAYSIZE(_animationSearchBuffer));
@@ -1728,6 +1745,7 @@ void Animation_View::Draw_AnimationSelector()
 
                     if (ImGui::Selectable(label.c_str(), isSelected))
                     {
+                        Cancel_NotifyTrailBonePick();
                         _currentAnimationName = entry.displayName;
                         Find_OrNormalize_NotifyAnimation(_asset, entry);
                         Clear_SelectedNotifySelection();
@@ -1765,8 +1783,16 @@ void Animation_View::Draw_AnimationSelector()
         ImGui::EndTabItem();
     }
 
-    if (ImGui::BeginTabItem("Bone Tree"))
+    ImGuiTabItemFlags boneTreeFlags = 0;
+    if (_hasRequestedAnimationLeftTab && _requestedAnimationLeftTab == AnimationLeftTab::BoneTree)
+        boneTreeFlags |= ImGuiTabItemFlags_SetSelected;
+
+    if (ImGui::BeginTabItem("Bone Tree", nullptr, boneTreeFlags))
     {
+        _animationLeftTab = AnimationLeftTab::BoneTree;
+        if (_hasRequestedAnimationLeftTab && _requestedAnimationLeftTab == AnimationLeftTab::BoneTree)
+            _hasRequestedAnimationLeftTab = false;
+
         Draw_BoneTree();
         ImGui::EndTabItem();
     }
@@ -1778,6 +1804,33 @@ void Animation_View::Draw_BoneTree()
 {
     ImGui::Text("Bone Tree");
     ImGui::Separator();
+
+    if (Is_NotifyTrailBonePicking() && Find_NotifyTrailPickTarget() == nullptr)
+        Cancel_NotifyTrailBonePick();
+
+    if (Is_NotifyTrailBonePicking())
+    {
+        const bool isBaseStep =
+            _notifyTrailBonePickMode == NotifyTrailBonePickMode::Base ||
+            _notifyTrailBonePickMode == NotifyTrailBonePickMode::PairBase;
+        const bool isPairMode =
+            _notifyTrailBonePickMode == NotifyTrailBonePickMode::PairBase ||
+            _notifyTrailBonePickMode == NotifyTrailBonePickMode::PairTip;
+
+        ImGui::TextDisabled(
+            "%s",
+            isPairMode
+                ? (isBaseStep ? "Picking Base Bone (1/2)" : "Picking Tip Bone (2/2)")
+                : (isBaseStep ? "Picking Base Bone" : "Picking Tip Bone"));
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Cancel##NotifyTrailBonePickCancel") ||
+            ImGui::IsKeyPressed(ImGuiKey_Escape))
+        {
+            Cancel_NotifyTrailBonePick();
+        }
+        ImGui::Separator();
+    }
+
     ImGui::InputTextWithHint("##BoneSearch", "Search bone...", _boneSearchBuffer, IM_ARRAYSIZE(_boneSearchBuffer));
     ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 10.f);
 
@@ -1868,8 +1921,11 @@ void Animation_View::Draw_BoneTree()
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
         {
             _selectedBoneIndex = static_cast<int32>(boneIndex);
-            Clear_SelectedNotifySelection();
-            Clear_SelectedStateSelection();
+            if (!Consume_NotifyTrailBonePick(boneIndex))
+            {
+                Clear_SelectedNotifySelection();
+                Clear_SelectedStateSelection();
+            }
         }
 
         if (ImGui::BeginPopupContextItem(popupId.c_str()))
@@ -2429,6 +2485,126 @@ bool Animation_View::Is_StateSelected(int32 stateId) const
     return _notifyEditor->Is_StateSelected(stateId);
 }
 
+AnimNotifyStateEntry* Animation_View::Find_NotifyStateById(int32 stateId)
+{
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+        return nullptr;
+
+    for (AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.id == stateId)
+            return &entry;
+    }
+
+    return nullptr;
+}
+
+Client::ANS_Trail* Animation_View::Find_NotifyTrailPickTarget(int32* outStateTrackIndex)
+{
+    if (outStateTrackIndex != nullptr)
+        *outStateTrackIndex = 0;
+
+    AnimNotifyStateEntry* entry = Find_NotifyStateById(_notifyTrailBonePickStateId);
+    if (entry == nullptr || entry->notifyState == nullptr)
+        return nullptr;
+
+    if (outStateTrackIndex != nullptr)
+        *outStateTrackIndex = entry->trackIndex;
+
+    Client::ANS_Trail* trailNotifyState = dynamic_cast<Client::ANS_Trail*>(entry->notifyState.get());
+    if (trailNotifyState == nullptr ||
+        trailNotifyState->Get_TrailAnchorSource() != Client::ANS_Trail::TrailAnchorSource::NotifyBonePair)
+    {
+        return nullptr;
+    }
+
+    return trailNotifyState;
+}
+
+void Animation_View::Begin_NotifyTrailBonePick(NotifyTrailBonePickMode mode, int32 stateId)
+{
+    _notifyTrailBonePickMode = mode;
+    _notifyTrailBonePickStateId = stateId;
+    _notifyTrailBonePickReturnTab = _animationLeftTab;
+    _requestedAnimationLeftTab = AnimationLeftTab::BoneTree;
+    _hasRequestedAnimationLeftTab = true;
+}
+
+void Animation_View::Cancel_NotifyTrailBonePick()
+{
+    _notifyTrailBonePickMode = NotifyTrailBonePickMode::None;
+    _notifyTrailBonePickStateId = -1;
+}
+
+void Animation_View::Restore_NotifyTrailPickSelection()
+{
+    int32 stateTrackIndex = 0;
+    if (Find_NotifyTrailPickTarget(&stateTrackIndex) == nullptr)
+        return;
+
+    Clear_SelectedNotifySelection();
+    _selectedStateIds.clear();
+    _selectedStateIds.insert(_notifyTrailBonePickStateId);
+    _selectedStateId = _notifyTrailBonePickStateId;
+    _selectedNotifyStateTrackIndex = stateTrackIndex;
+}
+
+bool Animation_View::Consume_NotifyTrailBonePick(uint32 boneIndex)
+{
+    if (!Is_NotifyTrailBonePicking())
+        return false;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel == nullptr || boneIndex >= playbackModel->Get_NumBones())
+    {
+        Cancel_NotifyTrailBonePick();
+        return true;
+    }
+
+    Client::ANS_Trail* trailNotifyState = Find_NotifyTrailPickTarget();
+    if (trailNotifyState == nullptr)
+    {
+        Cancel_NotifyTrailBonePick();
+        return true;
+    }
+
+    const string boneName = playbackModel->Get_BoneName(boneIndex);
+    Begin_PendingNotifyUndo();
+
+    const bool assignBase =
+        _notifyTrailBonePickMode == NotifyTrailBonePickMode::Base ||
+        _notifyTrailBonePickMode == NotifyTrailBonePickMode::PairBase;
+
+    if (assignBase)
+    {
+        trailNotifyState->Set_BaseBoneName(boneName);
+        trailNotifyState->Set_BaseLocalOffset(Vec3::Zero);
+    }
+    else
+    {
+        trailNotifyState->Set_TipBoneName(boneName);
+        trailNotifyState->Set_TipLocalOffset(Vec3::Zero);
+    }
+
+    _isDirty = true;
+    Commit_PendingNotifyUndo();
+    Restore_NotifyTrailPickSelection();
+
+    if (_notifyTrailBonePickMode == NotifyTrailBonePickMode::PairBase)
+    {
+        _notifyTrailBonePickMode = NotifyTrailBonePickMode::PairTip;
+        _requestedAnimationLeftTab = AnimationLeftTab::BoneTree;
+        _hasRequestedAnimationLeftTab = true;
+        return true;
+    }
+
+    _requestedAnimationLeftTab = _notifyTrailBonePickReturnTab;
+    _hasRequestedAnimationLeftTab = true;
+    Cancel_NotifyTrailBonePick();
+    return true;
+}
+
 void Animation_View::Draw_SelectedDetail()
 {
     ImGui::Text("Selected Detail");
@@ -2516,17 +2692,52 @@ void Animation_View::Draw_SelectedDetail()
 
 void Animation_View::Draw_NotifyTrailAnchorPanel(Client::ANS_Trail& trailNotifyState)
 {
-    auto getSelectedBoneName = [&]() -> string
+    const AnimNotifyStateEntry* selectedState = Find_SelectedState();
+    const int32 selectedStateId = selectedState != nullptr ? selectedState->id : -1;
+
+    auto drawPickButton = [&](const char* label, NotifyTrailBonePickMode mode, bool highlighted) -> void
         {
-            const Shared<ModelCom> playbackModel = Get_PlaybackModel();
-            if (playbackModel == nullptr || _selectedBoneIndex < 0)
-                return {};
+            const ImVec4 highlightColor(0.95f, 0.45f, 0.12f, 1.f);
+            const ImVec4 highlightHoverColor(1.0f, 0.55f, 0.2f, 1.f);
+            const ImVec4 highlightActiveColor(0.85f, 0.36f, 0.08f, 1.f);
 
-            const uint32 boneIndex = static_cast<uint32>(_selectedBoneIndex);
-            if (boneIndex >= playbackModel->Get_NumBones())
-                return {};
+            if (highlighted)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Button, highlightColor);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, highlightHoverColor);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, highlightActiveColor);
+            }
 
-            return playbackModel->Get_BoneName(boneIndex);
+            ImGui::BeginDisabled(selectedStateId < 0);
+            if (ImGui::Button(label))
+                Begin_NotifyTrailBonePick(mode, selectedStateId);
+            ImGui::EndDisabled();
+
+            if (highlighted)
+                ImGui::PopStyleColor(3);
+        };
+
+    auto drawBoneRow = [&](const char* label, const string& boneName, const char* buttonLabel, NotifyTrailBonePickMode mode, bool missing) -> void
+        {
+            const ImVec4 missingColor(0.28f, 0.16f, 0.08f, 1.f);
+            const float rowHeight = ImGui::GetFrameHeightWithSpacing() * 1.75f;
+
+            if (missing)
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, missingColor);
+
+            ImGui::BeginChild(label, ImVec2(0.f, rowHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+            ImGui::TextUnformatted(label);
+            ImGui::SameLine(90.f);
+            ImGui::TextDisabled("%s", boneName.empty() ? "(None)" : boneName.c_str());
+
+            const float buttonWidth = ImGui::CalcTextSize(buttonLabel).x + ImGui::GetStyle().FramePadding.x * 2.f;
+            const float buttonX = max(90.f, ImGui::GetWindowContentRegionMax().x - buttonWidth);
+            ImGui::SameLine(buttonX);
+            drawPickButton(buttonLabel, mode, false);
+            ImGui::EndChild();
+
+            if (missing)
+                ImGui::PopStyleColor();
         };
 
     ImGui::Spacing();
@@ -2550,29 +2761,43 @@ void Animation_View::Draw_NotifyTrailAnchorPanel(Client::ANS_Trail& trailNotifyS
 
     source = trailNotifyState.Get_TrailAnchorSource();
     if (source != Client::ANS_Trail::TrailAnchorSource::NotifyBonePair)
+    {
+        if (Is_NotifyTrailBonePicking() && _notifyTrailBonePickStateId == selectedStateId)
+            Cancel_NotifyTrailBonePick();
+
+        ImGui::TextDisabled("Using model-level trail anchor.");
         return;
+    }
 
-    const string selectedBoneName = getSelectedBoneName();
-    const bool canUseSelectedBone = !selectedBoneName.empty();
+    const bool baseMissing = trailNotifyState.Get_BaseBoneName().empty();
+    const bool tipMissing = trailNotifyState.Get_TipBoneName().empty();
+    const bool bothMissing = baseMissing && tipMissing;
 
-    ImGui::Text("Selected Bone");
+    drawPickButton("Pick Pair##NotifyTrailPickPair", NotifyTrailBonePickMode::PairBase, bothMissing);
     ImGui::SameLine();
-    ImGui::TextDisabled("%s", canUseSelectedBone ? selectedBoneName.c_str() : "(None)");
-
-    ImGui::Text("Base Bone");
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", trailNotifyState.Get_BaseBoneName().empty() ? "(None)" : trailNotifyState.Get_BaseBoneName().c_str());
-    ImGui::SameLine();
-    ImGui::BeginDisabled(!canUseSelectedBone);
-    if (ImGui::SmallButton("Use Selected Bone##NotifyTrailBaseBone"))
+    ImGui::BeginDisabled(bothMissing);
+    if (ImGui::Button("Clear##NotifyTrailClear"))
     {
         Begin_PendingNotifyUndo();
-        trailNotifyState.Set_BaseBoneName(selectedBoneName);
-        trailNotifyState.Set_BaseLocalOffset(Vec3::Zero);
+        trailNotifyState.Clear_NotifyBonePair();
         _isDirty = true;
         Commit_PendingNotifyUndo();
     }
     ImGui::EndDisabled();
+
+    drawBoneRow(
+        "Base Bone",
+        trailNotifyState.Get_BaseBoneName(),
+        "Pick Base##NotifyTrailPickBase",
+        NotifyTrailBonePickMode::Base,
+        baseMissing);
+
+    drawBoneRow(
+        "Tip Bone",
+        trailNotifyState.Get_TipBoneName(),
+        "Pick Tip##NotifyTrailPickTip",
+        NotifyTrailBonePickMode::Tip,
+        tipMissing);
 
     Vec3 baseLocal = trailNotifyState.Get_BaseLocalOffset();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -2584,21 +2809,6 @@ void Animation_View::Draw_NotifyTrailAnchorPanel(Client::ANS_Trail& trailNotifyS
         if (!ImGui::IsAnyItemActive())
             Commit_PendingNotifyUndo();
     }
-
-    ImGui::Text("Tip Bone");
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", trailNotifyState.Get_TipBoneName().empty() ? "(None)" : trailNotifyState.Get_TipBoneName().c_str());
-    ImGui::SameLine();
-    ImGui::BeginDisabled(!canUseSelectedBone);
-    if (ImGui::SmallButton("Use Selected Bone##NotifyTrailTipBone"))
-    {
-        Begin_PendingNotifyUndo();
-        trailNotifyState.Set_TipBoneName(selectedBoneName);
-        trailNotifyState.Set_TipLocalOffset(Vec3::Zero);
-        _isDirty = true;
-        Commit_PendingNotifyUndo();
-    }
-    ImGui::EndDisabled();
 
     Vec3 tipLocal = trailNotifyState.Get_TipLocalOffset();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);

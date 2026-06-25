@@ -2072,6 +2072,7 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         desc.motion.enabled = true;
+        desc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
         desc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, desc.motion.accelerationMin);
         desc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, desc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(desc.motion, acceleration->acceleration);
@@ -2789,6 +2790,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
+        emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
         emitterDesc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
@@ -3388,6 +3390,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
+        emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
         emitterDesc.motion.accelerationMin =
             Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax =
