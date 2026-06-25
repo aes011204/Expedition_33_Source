@@ -89,7 +89,7 @@ void Mon_Simon_Hair::Update(float timeDelta)
             const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
             const Matrix collisionOwnerWorld =
                 _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
-            _hairRuntime.Simulate(
+            _hairRuntime.Prepare_Simulation(
                 _model.get(),
                 _collisionModel,
                 timeDelta,
@@ -106,6 +106,25 @@ void Mon_Simon_Hair::Update(float timeDelta)
 void Mon_Simon_Hair::Late_Update(float timeDelta)
 {
     Monster_Part::Late_Update(timeDelta);
+}
+
+void Mon_Simon_Hair::Post_PhysX_Update(float timeDelta)
+{
+    Monster_Part::Post_PhysX_Update(timeDelta);
+
+    if (!_model || !_hairRuntimeReady)
+        return;
+
+    const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
+    const Matrix collisionOwnerWorld =
+        _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
+    _hairRuntime.Finalize_Simulation(
+        _model.get(),
+        _collisionModel,
+        timeDelta,
+        motionDriverWorld,
+        collisionOwnerWorld,
+        motionDriverWorld);
 }
 
 HRESULT Mon_Simon_Hair::Render()
@@ -158,7 +177,7 @@ void Mon_Simon_Hair::RuntimeResetPose()
     const Matrix motionDriverWorld = Get_CombinedWorldMatrix();
     const Matrix collisionOwnerWorld =
         _collisionOwnerWorldMatrix ? *_collisionOwnerWorldMatrix : motionDriverWorld;
-    _hairRuntime.ResetPose(_model.get(), motionDriverWorld, motionDriverWorld);
+    _hairRuntime.ResetPose(_model.get(), _collisionModel, motionDriverWorld, collisionOwnerWorld, motionDriverWorld);
 }
 
 void Mon_Simon_Hair::RuntimeRebuild()
@@ -185,6 +204,15 @@ void Mon_Simon_Hair::Build_RuntimeDebugCapsules(vector<SimonHairRuntime::Runtime
         return;
 
     _hairRuntime.Build_RuntimeDebugCapsules(outCapsules);
+}
+
+void Mon_Simon_Hair::Build_RuntimeDebugSpheres(vector<SimonHairRuntime::RuntimeDebugSphere>& outSpheres) const
+{
+    outSpheres.clear();
+    if (!_hairRuntimeReady)
+        return;
+
+    _hairRuntime.Build_RuntimeDebugSpheres(outSpheres);
 }
 
 void Mon_Simon_Hair::Build_RuntimeDebugSegments(vector<SimonHairRuntime::RuntimeDebugSegment>& outSegments) const

@@ -246,6 +246,14 @@ namespace PreviewObjectHelpers
             }
         };
 
+        auto postPhysXUpdate = [&](const Shared<GameObject>& targetObject, float dt)
+        {
+            if (targetObject == nullptr)
+                return;
+
+            targetObject->Post_PhysX_Update(dt);
+        };
+
         if (gameObject == nullptr)
             return;
 
@@ -258,6 +266,7 @@ namespace PreviewObjectHelpers
             monsterWorld->Engine::ContainerObject::Update(timeDelta);
             monsterWorld->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -270,6 +279,7 @@ namespace PreviewObjectHelpers
             monsterBattle->Engine::ContainerObject::Update(timeDelta);
             monsterBattle->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -281,6 +291,7 @@ namespace PreviewObjectHelpers
             playerWorld->Engine::ContainerObject::Update(timeDelta);
             playerWorld->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -292,6 +303,7 @@ namespace PreviewObjectHelpers
             playerBattle->Engine::ContainerObject::Update(timeDelta);
             playerBattle->Engine::ContainerObject::Late_Update(timeDelta);
             stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -301,6 +313,7 @@ namespace PreviewObjectHelpers
         gameObject->Update(timeDelta);
         gameObject->Late_Update(timeDelta);
         stepPreviewPhysics(timeDelta);
+        postPhysXUpdate(gameObject, timeDelta);
         if (tickAttachedEffects)
             Tick_AttachedPreviewEffects(gameObject, timeDelta);
     }

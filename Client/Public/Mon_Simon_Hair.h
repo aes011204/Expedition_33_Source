@@ -29,6 +29,7 @@ public:
     void Priority_Update(float timeDelta) override;
     void Update(float timeDelta) override;
     void Late_Update(float timeDelta) override;
+    void Post_PhysX_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
     void Set_RuntimeCollisionSource(ModelCom* collisionModel, const Matrix* collisionOwnerWorldMatrix);
@@ -38,6 +39,7 @@ public:
     void RuntimeResetPose();
     void RuntimeRebuild();
     void Build_RuntimeDebugCapsules(vector<SimonHairRuntime::RuntimeDebugCapsule>& outCapsules) const;
+    void Build_RuntimeDebugSpheres(vector<SimonHairRuntime::RuntimeDebugSphere>& outSpheres) const;
     void Build_RuntimeDebugSegments(vector<SimonHairRuntime::RuntimeDebugSegment>& outSegments) const;
 
 private:
@@ -51,7 +53,7 @@ private:
     Matrix _offsetMatrix = {};
     SimonHairRuntime _hairRuntime{};
     bool _hairRuntimeReady = false;
-    bool _useHairAnimationPlayback = false;
+    bool _useHairAnimationPlayback = true;
 
 public:
     static Shared<Mon_Simon_Hair> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

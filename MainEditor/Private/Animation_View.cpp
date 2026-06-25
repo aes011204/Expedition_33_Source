@@ -4901,10 +4901,19 @@ void Animation_View::Draw_ModifierCollisionDebug() const
         bool hasContact{ false };
         bool hasPush{ false };
         bool isSolvedSegment{ false };
+        int32 type{ -1 };
+    };
+
+    struct RuntimeCollisionSphere
+    {
+        Vec3 center{ Vec3::Zero };
+        float radius{ 0.f };
+        bool hasContact{ false };
     };
 
     vector<RuntimeCollisionCapsule> capsules{};
     vector<RuntimeCollisionSegment> segments{};
+    vector<RuntimeCollisionSphere> spheres{};
     for (const Shared<AnimationModifier>& modifier : modifierModel->Get_Modifiers())
     {
         if (auto* poseFollowModifier = dynamic_cast<PoseFollowChainModifier*>(modifier.get()))
@@ -4960,7 +4969,8 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                         segment.endPoint,
                         segment.hasContact,
                         segment.hasPush,
-                        segment.isSolvedSegment });
+                        segment.isSolvedSegment,
+                        -1 });
                 }
             }
 
@@ -4988,6 +4998,16 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                     capsule.collisionRadius });
             }
 
+            vector<Client::SimonHairRuntime::RuntimeDebugSphere> simonSpheres{};
+            simonHair->Build_RuntimeDebugSpheres(simonSpheres);
+            for (const auto& sphere : simonSpheres)
+            {
+                spheres.push_back({
+                    sphere.center,
+                    sphere.radius,
+                    sphere.hasContact });
+            }
+
             vector<Client::SimonHairRuntime::RuntimeDebugSegment> simonSegments{};
             simonHair->Build_RuntimeDebugSegments(simonSegments);
             for (const auto& segment : simonSegments)
@@ -4997,7 +5017,8 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                     segment.endPoint,
                     segment.hasContact,
                     segment.hasPush,
-                    segment.isSolvedSegment });
+                    false,
+                    static_cast<int32>(segment.type) });
             }
         };
 
@@ -5010,7 +5031,7 @@ void Animation_View::Draw_ModifierCollisionDebug() const
         }
     }
 
-    if (capsules.empty() && segments.empty())
+    if (capsules.empty() && segments.empty() && spheres.empty())
         return;
 
     if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
@@ -5062,53 +5083,85 @@ void Animation_View::Draw_ModifierCollisionDebug() const
         [&](const RuntimeCollisionCapsule& capsule)
     {
         Vec3 axis = capsule.endPoint - capsule.startPoint;
-        if (capsule.collisionRadius <= 0.f)
+        if (capsule.collisionRadius <= 0.f && capsule.sourceRadius <= 0.f)
             return;
+
+        const auto drawCapsuleRings =
+            [&](float radius, const XMVECTORF32& axisColor, const XMVECTORF32& ringColor)
+        {
+            if (radius <= 0.f)
+                return;
+
+            if (axis.LengthSquared() <= 0.000001f)
+            {
+                drawRing(capsule.startPoint, Vec3::UnitX, Vec3::UnitY, radius, ringColor);
+                drawRing(capsule.startPoint, Vec3::UnitX, Vec3::UnitZ, radius, ringColor);
+                drawRing(capsule.startPoint, Vec3::UnitY, Vec3::UnitZ, radius, ringColor);
+                return;
+            }
+
+            Vec3 localAxis = axis;
+            localAxis.Normalize();
+            Vec3 right = localAxis.Cross(Vec3::UnitY);
+            if (right.LengthSquared() <= 0.000001f)
+                right = localAxis.Cross(Vec3::UnitX);
+            if (right.LengthSquared() <= 0.000001f)
+                right = Vec3::UnitX;
+            right.Normalize();
+
+            Vec3 up = right.Cross(localAxis);
+            if (up.LengthSquared() <= 0.000001f)
+                up = Vec3::UnitY;
+            else
+                up.Normalize();
+
+            drawLine(capsule.startPoint, capsule.endPoint, axisColor);
+            drawRing(capsule.startPoint, right, up, radius, ringColor);
+            drawRing(capsule.endPoint, right, up, radius, ringColor);
+            drawLine(capsule.startPoint + right * radius, capsule.endPoint + right * radius, axisColor);
+            drawLine(capsule.startPoint - right * radius, capsule.endPoint - right * radius, axisColor);
+            drawLine(capsule.startPoint + up * radius, capsule.endPoint + up * radius, axisColor);
+            drawLine(capsule.startPoint - up * radius, capsule.endPoint - up * radius, axisColor);
+        };
 
         if (axis.LengthSquared() <= 0.000001f)
         {
-            const XMVECTORF32 ringColor = DirectX::Colors::DeepSkyBlue;
-            drawRing(capsule.startPoint, Vec3::UnitX, Vec3::UnitY, capsule.collisionRadius, ringColor);
-            drawRing(capsule.startPoint, Vec3::UnitX, Vec3::UnitZ, capsule.collisionRadius, ringColor);
-            drawRing(capsule.startPoint, Vec3::UnitY, Vec3::UnitZ, capsule.collisionRadius, ringColor);
+            drawCapsuleRings(capsule.sourceRadius, DirectX::Colors::SlateGray, DirectX::Colors::SlateGray);
+            drawCapsuleRings(capsule.collisionRadius, DirectX::Colors::DeepSkyBlue, DirectX::Colors::DeepSkyBlue);
             return;
         }
 
-        axis.Normalize();
-        Vec3 right = axis.Cross(Vec3::UnitY);
-        if (right.LengthSquared() <= 0.000001f)
-            right = axis.Cross(Vec3::UnitX);
-        if (right.LengthSquared() <= 0.000001f)
-            right = Vec3::UnitX;
-        right.Normalize();
-
-        Vec3 up = right.Cross(axis);
-        if (up.LengthSquared() <= 0.000001f)
-            up = Vec3::UnitY;
-        else
-            up.Normalize();
-
-        const XMVECTORF32 axisColor = DirectX::Colors::DeepSkyBlue;
-        const XMVECTORF32 ringColor = DirectX::Colors::DeepSkyBlue;
-        drawLine(capsule.startPoint, capsule.endPoint, axisColor);
-        drawRing(capsule.startPoint, right, up, capsule.collisionRadius, ringColor);
-        drawRing(capsule.endPoint, right, up, capsule.collisionRadius, ringColor);
-        drawLine(capsule.startPoint + right * capsule.collisionRadius, capsule.endPoint + right * capsule.collisionRadius, axisColor);
-        drawLine(capsule.startPoint - right * capsule.collisionRadius, capsule.endPoint - right * capsule.collisionRadius, axisColor);
-        drawLine(capsule.startPoint + up * capsule.collisionRadius, capsule.endPoint + up * capsule.collisionRadius, axisColor);
-        drawLine(capsule.startPoint - up * capsule.collisionRadius, capsule.endPoint - up * capsule.collisionRadius, axisColor);
+        drawCapsuleRings(capsule.sourceRadius, DirectX::Colors::SlateGray, DirectX::Colors::SlateGray);
+        drawCapsuleRings(capsule.collisionRadius, DirectX::Colors::DeepSkyBlue, DirectX::Colors::DeepSkyBlue);
     };
 
     _previewGridBatch->Begin();
     for (const auto& capsule : capsules)
         drawCapsule(capsule);
+    for (const auto& sphere : spheres)
+    {
+        const XMVECTORF32 sphereColor = sphere.hasContact ? DirectX::Colors::Yellow : DirectX::Colors::GreenYellow;
+        drawRing(sphere.center, Vec3::UnitX, Vec3::UnitY, sphere.radius, sphereColor);
+        drawRing(sphere.center, Vec3::UnitX, Vec3::UnitZ, sphere.radius, sphereColor);
+        drawRing(sphere.center, Vec3::UnitY, Vec3::UnitZ, sphere.radius, sphereColor);
+    }
     for (const auto& segment : segments)
+    {
+        const XMVECTORF32 color =
+            segment.type == static_cast<int32>(Client::SimonHairRuntime::RuntimeDebugSegmentType::BoneChain)
+            ? DirectX::Colors::White
+            : (segment.type == static_cast<int32>(Client::SimonHairRuntime::RuntimeDebugSegmentType::ActorChain)
+                ? (segment.hasContact
+                    ? DirectX::Colors::Red
+                    : (segment.hasPush ? DirectX::Colors::Orange : DirectX::Colors::Cyan))
+                : (segment.hasContact
+                    ? DirectX::Colors::Red
+                    : (segment.hasPush ? DirectX::Colors::Orange : (segment.isSolvedSegment ? DirectX::Colors::Magenta : DirectX::Colors::Gray))));
         drawLine(
             segment.startPoint,
             segment.endPoint,
-            segment.hasContact
-                ? DirectX::Colors::Red
-                : (segment.hasPush ? DirectX::Colors::Orange : (segment.isSolvedSegment ? DirectX::Colors::Magenta : DirectX::Colors::Gray)));
+            color);
+    }
     _previewGridBatch->End();
 }
 

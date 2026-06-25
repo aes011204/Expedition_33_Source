@@ -17,6 +17,10 @@ public:
         string rootBoneName{};
         float outputMultiplier{ 1.f };
         float smoothMultiplier{ 1.f };
+        float maxAngleMul{ 1.f };
+        float radiusMul{ 1.f };
+        float dampingMul{ 1.f };
+        float restoreMul{ 1.f };
     };
 
     struct Desc
@@ -25,34 +29,15 @@ public:
         vector<ChainDesc> chains{};
 
         wstring physicsAssetPath{};
-        bool useRawBodyLocalCollisionAsset{ false };
         vector<string> includedCollisionBones{};
 
-        float freeFollowAlpha{ 0.08f };
-        float contactFollowAlpha{ 0.65f };
-        float releaseFollowAlpha{ 0.04f };
-        float releaseMemoryTime{ 0.18f };
         bool useAnimatedPoseTarget{ true };
 
-        float animTranslationInertiaScale{ 0.85f };
-        float animRotationInertiaScale{ 1.15f };
-        float ownerTranslationInertiaScale{ 0.45f };
-        float ownerRotationInertiaScale{ 0.85f };
-        float inertiaMaxDistance{ 14.f };
-        float inertiaDamping{ 0.82f };
         float contactInertiaDamping{ 0.18f };
         float releaseInertiaDamping{ 0.12f };
-        float directSwingTranslationScale{ 1.f };
-        float directSwingRotationScale{ 1.f };
-        float directSwingDamping{ 0.82f };
-        float directSwingMaxDistance{ 10.f };
-        float directSwingWaveScale{ 1.f };
-        float directSwingWaveFrequency{ 6.f };
 
         float outputAlpha{ 1.f };
         float rotationOutputAlpha{ 0.25f };
-        float translationOutputAlpha{ 0.f };
-        float translationOutputLimitScale{ 0.10f };
         float outputSmoothAlpha{ 0.35f };
         float idleOutputSmoothAlpha{ 0.45f };
         float idleMotionDeadzone{ 0.06f };
@@ -81,13 +66,26 @@ public:
         float collisionRadius{ 0.f };
     };
 
+    struct RuntimeDebugSphere
+    {
+        Vec3 center{ Vec3::Zero };
+        float radius{ 0.f };
+        bool hasContact{ false };
+    };
+
+    enum class RuntimeDebugSegmentType : uint8
+    {
+        ActorChain = 0,
+        BoneChain = 1,
+    };
+
     struct RuntimeDebugSegment
     {
         Vec3 startPoint{ Vec3::Zero };
         Vec3 endPoint{ Vec3::Zero };
         bool hasContact{ false };
         bool hasPush{ false };
-        bool isSolvedSegment{ false };
+        RuntimeDebugSegmentType type{ RuntimeDebugSegmentType::ActorChain };
     };
 
     struct WorldCapsule
@@ -104,8 +102,20 @@ public:
     ~SimonHairRuntime();
 
     void Initialize(Engine::ModelCom* model, const Desc& desc);
-    void ResetPose(Engine::ModelCom* model, const Matrix& ownerWorld, const Matrix& motionDriverWorld);
-    void Simulate(
+    void ResetPose(
+        Engine::ModelCom* model,
+        const Engine::ModelCom* collisionModel,
+        const Matrix& ownerWorld,
+        const Matrix& collisionOwnerWorld,
+        const Matrix& motionDriverWorld);
+    void Prepare_Simulation(
+        Engine::ModelCom* model,
+        const Engine::ModelCom* collisionModel,
+        float timeDelta,
+        const Matrix& ownerWorld,
+        const Matrix& collisionOwnerWorld,
+        const Matrix& motionDriverWorld);
+    void Finalize_Simulation(
         Engine::ModelCom* model,
         const Engine::ModelCom* collisionModel,
         float timeDelta,
@@ -129,6 +139,7 @@ public:
 
     bool Is_Built() const { return _built; }
     void Build_RuntimeDebugCapsules(vector<RuntimeDebugCapsule>& outCapsules) const { outCapsules = _runtimeDebugCapsules; }
+    void Build_RuntimeDebugSpheres(vector<RuntimeDebugSphere>& outSpheres) const { outSpheres = _runtimeDebugSpheres; }
     void Build_RuntimeDebugSegments(vector<RuntimeDebugSegment>& outSegments) const { outSegments = _runtimeDebugSegments; }
 
 private:
@@ -141,30 +152,31 @@ private:
         Matrix bindLocal{ Matrix::Identity };
         Matrix poseLocal{ Matrix::Identity };
         Matrix originalWorld{ Matrix::Identity };
-        Matrix prevOriginalWorld{ Matrix::Identity };
-        Matrix actorToBoneWorld{ Matrix::Identity };
 
         Vec3 bindLocalDir{ Vec3::Zero };
         Vec3 bindScale{ Vec3::One };
         Vec3 poseLocalDir{ Vec3::Zero };
-        Vec3 smoothedLocalDir{ Vec3::Zero };
         Vec3 smoothedLocalTranslation{ Vec3::Zero };
         Quaternion smoothedLocalRotation{ Quaternion::Identity };
 
         float length{ 0.f };
         float depthRatio{ 0.f };
+        float debugSphereRadius{ 0.f };
 
         Vec3 solvedPosition{ Vec3::Zero };
         Vec3 prevSolvedPosition{ Vec3::Zero };
+        Vec3 smoothedCollisionOffset{ Vec3::Zero };
+        Vec3 smoothedContactNormal{ Vec3::Zero };
 
-        bool hasSmoothedLocalDir{ false };
         bool hasSmoothedLocalTransform{ false };
-        bool hasPrevOriginalWorld{ false };
+        bool hasSmoothedCollisionOffset{ false };
+        bool hasSmoothedContactNormal{ false };
         bool hadContactThisFrame{ false };
         bool hadPushThisFrame{ false };
+        bool isKinematic{ false };
 
         PxRigidDynamic* actor{ nullptr };
-        PxD6Joint* joint{ nullptr };
+        PxJoint* joint{ nullptr };
     };
 
     struct Chain
@@ -213,14 +225,14 @@ private:
         float timeDelta);
     void Write_BackToModel(Engine::ModelCom* model, const Matrix& ownerWorld, bool isOwnerIdle);
     vector<WorldCapsule> Build_WorldCapsules(const Engine::ModelCom* collisionModel, const Matrix& collisionOwnerWorld) const;
-    void Build_DebugSegmentsFromModel(Engine::ModelCom* model, const Matrix& ownerWorld);
+    void Build_DebugOutput(Engine::ModelCom* model, const Matrix& ownerWorld);
+    bool Validate_RootAlignment(Engine::ModelCom* model, const Matrix& ownerWorld);
 
     static Vec3 Get_Position(const Matrix& matrix);
     static Vec3 Get_LocalDirection(const Matrix& parentWorld, const Vec3& worldDirection);
     static Vec3 Limit_LocalDirectionByAngle(const Vec3& baseLocalDirection, const Vec3& targetLocalDirection, float maxAngleDegree);
     static Quaternion Build_RotationDelta(const Vec3& fromDirection, const Vec3& toDirection);
     static Matrix Build_LocalMatrix_FromSRT(const Vec3& scale, const Quaternion& rotation, const Vec3& translation);
-    static Vec3 Clamp_LocalTranslationFromPose(const Vec3& poseTranslation, const Vec3& targetTranslation, float maxDelta);
     static Vec3 Closest_PointOnSegment(const Vec3& point, const Vec3& start, const Vec3& end);
 
 private:
@@ -228,6 +240,7 @@ private:
     vector<Chain> _chains{};
     vector<Engine::ChainModifier::CapsuleColliderDesc> _colliders{};
     vector<RuntimeDebugCapsule> _runtimeDebugCapsules{};
+    vector<RuntimeDebugSphere> _runtimeDebugSpheres{};
     vector<RuntimeDebugSegment> _runtimeDebugSegments{};
     vector<Blocker> _blockers{};
 
@@ -238,8 +251,10 @@ private:
     Matrix _prevOwnerWorld{ Matrix::Identity };
     Vec3 _prevOwnerPosition{ Vec3::Zero };
     bool _hasPrevOwnerWorld{ false };
+    bool _preparedThisFrame{ false };
     bool _built{ false };
     bool _physxResourcesReady{ false };
+    bool _rootAlignmentWarningLogged{ false };
 };
 
 NS_END
