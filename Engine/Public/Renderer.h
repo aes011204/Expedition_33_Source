@@ -14,7 +14,6 @@ class GameObject;
 class PostProcessPipeline;
 class LightingPipeline;
 class LightPipeline;
-class Texture;
 struct DOFPreset;
 struct DOFTransitionDesc;
 
@@ -162,9 +161,6 @@ private:
     Shared<ShaderCom>               _screenFxShader;
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
-    Shared<Texture>                 _iblIrradianceTexture;
-    Shared<Texture>                 _iblPrefilterTexture;
-    Shared<Texture>                 _iblBrdfLutTexture;
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 

@@ -407,7 +407,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_objectManager, E_FAIL);
 
-    _environmentManager = Environment_Manager::Create();
+    _environmentManager = Environment_Manager::Create(device, context);
     CHECK_NULL(_environmentManager, E_FAIL);
 
     _targetManager = Target_Manager::Create(device, context);
@@ -1646,6 +1646,18 @@ const FogZoneCB& GameInstance::Get_FogZones() const
 const VolumetricLightShaftZoneCB& GameInstance::Get_VolumetricLightShaftZones() const
 {
     return _environmentManager->Get_VolumetricLightShaftZones();
+}
+
+HRESULT GameInstance::Change_IBL(const wchar_t* irradiancePath, const wchar_t* prefilterPath)
+{
+    CHECK_NULL(_environmentManager, E_FAIL);
+    return _environmentManager->Change_IBL(irradiancePath, prefilterPath);
+}
+
+HRESULT GameInstance::Bind_IBLTextures(Shared<ShaderCom> shader) const
+{
+    CHECK_NULL(_environmentManager, E_FAIL);
+    return _environmentManager->Bind_IBLTextures(shader.get());
 }
 
 FogZoneCB GameInstance::Build_ActiveFogZones(const Vec3& cameraPosition)

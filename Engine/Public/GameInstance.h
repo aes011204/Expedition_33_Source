@@ -74,6 +74,7 @@ enum class Collision_Preset;
 
 struct PhysXStaticActorHandle;
 struct PhysXQueryHit;
+struct ShadowCascadeInfluenceVolume;
 
 struct DebugResourceMemorySummary
 {
@@ -251,6 +252,8 @@ public: /* For.Renderer */
     RenderGroup                         Get_CurrentRenderGroup() const;
     const FogZoneCB&                    Get_FogZones() const;
     const VolumetricLightShaftZoneCB&   Get_VolumetricLightShaftZones() const;
+    HRESULT                             Change_IBL(const wchar_t* irradiancePath, const wchar_t* prefilterPath);
+    HRESULT                             Bind_IBLTextures(Shared<ShaderCom> shader) const;
     FogZoneCB                           Build_ActiveFogZones(const Vec3& cameraPosition);
     VolumetricLightShaftZoneCB          Build_ActiveVolumetricLightShaftZones(const Vec3& cameraPosition);
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);

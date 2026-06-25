@@ -60,7 +60,13 @@ HRESULT Level_GamePlay::Initialize()
     if(FAILED(Ready_Layer_BattleStartSpawner(TEXT("Layer_BattleStartSpawner"))))
         return E_FAIL;
 
+    // 안개, 빛 설정
     GAME->Set_RenderEnvironment(true);
+    if (FAILED(GAME->Change_IBL(
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds")))
+        return E_FAIL;
+
     GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;

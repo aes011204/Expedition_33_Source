@@ -31,7 +31,13 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_ETC(TEXT("Layer_ETC"))))
         return E_FAIL;
 
+    // 안개, 빛 설정
     GAME->Set_RenderEnvironment(true);
+    if (FAILED(GAME->Change_IBL(
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_sunset.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds")))
+        return E_FAIL;
+
     GAME->Set_FogZoneCullingDistance(15.f);
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
