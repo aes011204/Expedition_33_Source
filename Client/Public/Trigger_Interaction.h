@@ -30,6 +30,7 @@ public:
 
 private:
     HRESULT Ready_Components();
+    void    Sync_ToOwnerTransform();
 
 private:
     Shared<ColliderCom> _colliderCom {};

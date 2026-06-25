@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
+#include "UI_Dialogue.h"
 
 NS_BEGIN(Client)
 
@@ -22,6 +23,7 @@ public:
     bool IsInteractLocked() const { return _waitInteractKeyRelease; }
 
 private:
+    void AlignDialogueActors();
     void SelectChoice();
     void ApplyChoice();
     const DialogueLine* GetCurrentLine();
@@ -34,9 +36,11 @@ private:
     int                 _selectIndex = 0;
     bool                _isActive = false;
     bool                _waitInteractKeyRelease = false;
+    bool                _isChoiceVisible = false;
 
     Shared<GameObject>  _dialoguePlayerObject;
     Shared<GameObject>  _dialogueNpcObject;
+    Unique<UI_Dialogue> _uiDialogue = {};
 
 public:
     static Unique<DialogueManager> Create();

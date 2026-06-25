@@ -2,19 +2,54 @@
 #include <DialogueTypes.h>
 #include "ClientInstance.h"
 #include "DialogueCamera.h"
-//#include "GameObject.h"
+#include "UI_Dialogue.h"
 #include "Player_WorldBase.h"
+#include "NPC_Base.h"
+
+namespace
+{
+    void FaceDialogueTarget(const Shared<GameObject>& actorObject, const Vec3& targetPos)
+    {
+        if (actorObject == nullptr)
+            return;
+
+        Shared<TransformCom> actorTransform = actorObject->Get_Transform();
+        if (actorTransform == nullptr)
+            return;
+
+        Vec3 actorPos = actorTransform->Get_WorldPosition();
+        Vec3 toTarget = targetPos - actorPos;
+        toTarget.y = 0.f;
+
+        if (toTarget.LengthSquared() <= 0.0001f)
+            return;
+
+        const float targetYawDeg = XMConvertToDegrees(atan2f(toTarget.x, toTarget.z));
+        Vec3 actorRotation = actorTransform->Get_WorldRotationEuler();
+        actorRotation.y = targetYawDeg;
+        actorTransform->Set_WorldRotationEuler(actorRotation);
+    }
+}
 
 DialogueManager::DialogueManager() = default;
 
 void DialogueManager::StartDialogue(const DialogueRequest& request)
 {
-    if(_isActive || _waitInteractKeyRelease)
+    if (_isActive || _waitInteractKeyRelease)
         return;
 
     const DialogueData* dialogueData = CLIENT->FindDialogueData(request.dialogueKey);
+    if (dialogueData == nullptr || dialogueData->lines.empty())
+        return;
 
-    if(dialogueData == nullptr || dialogueData->lines.empty())
+    if (_uiDialogue != nullptr)
+    {
+        _uiDialogue->Free();
+        _uiDialogue.reset();
+    }
+
+    _uiDialogue = UI_Dialogue::Create(GAME->Current_LevelIndex());
+    if (_uiDialogue == nullptr)
         return;
 
     LOG_INFO("========대화 시작========");
@@ -23,14 +58,20 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     _currentDialogueData = dialogueData;
     _currentLineIndex = 0;
     _selectIndex = 0;
+    _isChoiceVisible = false;
     _isActive = true;
     _waitInteractKeyRelease = true;
     _dialogueNpcObject = request.speaker;
     _dialoguePlayerObject = static_pointer_cast<GameObject>(CLIENT->Get_ActiveHero());
-     
+
+    AlignDialogueActors();
+
     GAME->Set_GameplayInputMode(GameplayInputMode::UIOnly);
 
     CLIENT->Request_DialogueCamera();
+
+    if(_uiDialogue)
+    _uiDialogue->Show_Dialogue();
 
     ApplyCurrentLine();
 }
@@ -44,7 +85,6 @@ void DialogueManager::ContinueDialogue()
     }
 
     const DialogueLine* currentLine = GetCurrentLine();
-
     if (currentLine == nullptr)
     {
         EndDialogue();
@@ -71,12 +111,39 @@ void DialogueManager::EndDialogue()
     _currentDialogueData = nullptr;
     _currentLineIndex = 0;
     _selectIndex = 0;
+    _isChoiceVisible = false;
     _isActive = false;
     _waitInteractKeyRelease = true;
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 
     CLIENT->Restore_PreviousCamera();
+
+    if (_uiDialogue)
+    {
+        _uiDialogue->Close();
+        _uiDialogue->Free();
+        _uiDialogue.reset();
+    }
+}
+
+void DialogueManager::AlignDialogueActors()
+{
+    if (_dialoguePlayerObject == nullptr || _dialogueNpcObject == nullptr)
+        return;
+
+    Shared<TransformCom> playerTransform = _dialoguePlayerObject->Get_Transform();
+    Shared<TransformCom> npcTransform = _dialogueNpcObject->Get_Transform();
+    if (playerTransform == nullptr || npcTransform == nullptr)
+        return;
+
+    const Vec3 playerPos = playerTransform->Get_WorldPosition();
+    const Vec3 npcPos = npcTransform->Get_WorldPosition();
+
+    FaceDialogueTarget(_dialoguePlayerObject, npcPos);
+
+    if (dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject) != nullptr)
+        FaceDialogueTarget(_dialogueNpcObject, playerPos);
 }
 
 void DialogueManager::Update()
@@ -89,16 +156,35 @@ void DialogueManager::Update()
         _waitInteractKeyRelease = false;
     }
 
-    if(!_isActive)
+    if (!_isActive)
         return;
 
     const DialogueLine* currentLine = GetCurrentLine();
-
     if (currentLine == nullptr)
         return;
 
     if (!currentLine->choices.empty())
     {
+        if (!_isChoiceVisible)
+        {
+            if (GAME->KeyDown(KEY_TYPE::F))
+            {
+                _isChoiceVisible = true;
+
+                if (_uiDialogue)
+                {
+                    _uiDialogue->Show_Choices();
+
+                    if (_selectIndex == 0)
+                        _uiDialogue->Begin_FirstChoiceAnimation();
+                    else if (_selectIndex == 1)
+                        _uiDialogue->Begin_SecondChoiceAnimation();
+                }
+            }
+
+            return;
+        }
+
         SelectChoice();
         return;
     }
@@ -110,9 +196,27 @@ void DialogueManager::Update()
 void DialogueManager::SelectChoice()
 {
     const DialogueLine* currentLine = GetCurrentLine();
-
     if (currentLine == nullptr || currentLine->choices.empty())
         return;
+
+    if (_uiDialogue != nullptr)
+    {
+        int clickedChoiceIndex = -1;
+        if (_uiDialogue->Consume_ClickedChoice(clickedChoiceIndex) &&
+            clickedChoiceIndex >= 0 &&
+            clickedChoiceIndex < static_cast<int>(currentLine->choices.size()))
+        {
+            _selectIndex = clickedChoiceIndex;
+
+            if (_selectIndex == 0)
+                _uiDialogue->Begin_FirstChoiceAnimation();
+            else if (_selectIndex == 1)
+                _uiDialogue->Begin_SecondChoiceAnimation();
+
+            ApplyChoice();
+            return;
+        }
+    }
 
     bool isChanged = false;
 
@@ -129,7 +233,17 @@ void DialogueManager::SelectChoice()
     }
 
     if (isChanged)
+    {
         LOG_INFO("Current Select : {}", currentLine->choices[_selectIndex].text);
+
+        if (_uiDialogue)
+        {
+            if (_selectIndex == 0)
+                _uiDialogue->Begin_FirstChoiceAnimation();
+            else if (_selectIndex == 1)
+                _uiDialogue->Begin_SecondChoiceAnimation();
+        }
+    }
 
     if (GAME->KeyDown(KEY_TYPE::F))
         ApplyChoice();
@@ -138,20 +252,18 @@ void DialogueManager::SelectChoice()
 void DialogueManager::ApplyChoice()
 {
     const DialogueLine* currentLine = GetCurrentLine();
-
     if (currentLine == nullptr || currentLine->choices.empty())
         return;
 
     if (_selectIndex < 0 || _selectIndex >= static_cast<int>(currentLine->choices.size()))
         return;
 
-    const DialogueChoice& choice =  currentLine->choices[_selectIndex];
+    const DialogueChoice& choice = currentLine->choices[_selectIndex];
 
-    if(choice.action == "OpenShop")
+    if (choice.action == "OpenShop")
     {
         LOG_INFO("OpenShop");
         EndDialogue();
-
         return;
     }
 
@@ -161,14 +273,10 @@ void DialogueManager::ApplyChoice()
 const DialogueLine* DialogueManager::GetCurrentLine()
 {
     if (_currentDialogueData == nullptr)
-    {
         return nullptr;
-    }
 
     if (_currentLineIndex < 0 || _currentLineIndex >= static_cast<int>(_currentDialogueData->lines.size()))
-    {
         return nullptr;
-    }
 
     return &_currentDialogueData->lines[_currentLineIndex];
 }
@@ -189,6 +297,7 @@ void DialogueManager::MoveToLine(int lineIndex)
 
     _currentLineIndex = lineIndex;
     _selectIndex = 0;
+    _isChoiceVisible = false;
 
     ApplyCurrentLine();
 }
@@ -196,17 +305,11 @@ void DialogueManager::MoveToLine(int lineIndex)
 void DialogueManager::ApplyCurrentLine()
 {
     const DialogueLine* currentLine = GetCurrentLine();
-
     if (currentLine == nullptr)
     {
         EndDialogue();
         return;
     }
-
-    Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera));
-
-    if(dialogueCamera == nullptr)
-        return;
 
     Shared<GameObject> speakerObject = nullptr;
     Shared<GameObject> listenerObject = nullptr;
@@ -222,14 +325,36 @@ void DialogueManager::ApplyCurrentLine()
         listenerObject = _dialogueNpcObject;
     }
 
-    if (speakerObject == nullptr || listenerObject == nullptr)
-        return;
+    if (speakerObject != nullptr && listenerObject != nullptr)
+    {
+        Shared<DialogueCamera> dialogueCamera =
+            dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera));
 
-    dialogueCamera->Set_CameraPresetId(currentLine->cameraPresetId);
-    dialogueCamera->Set_AnchorTransform(speakerObject->Get_Transform());
-    dialogueCamera->Set_SpeakerTransform(speakerObject->Get_Transform());
-    dialogueCamera->Set_ListenerTransform(listenerObject->Get_Transform());
-    dialogueCamera->Snap_ToDialogueTargets();
+        if (dialogueCamera != nullptr)
+        {
+            dialogueCamera->Set_CameraPresetId(currentLine->cameraPresetId);
+            dialogueCamera->Set_AnchorTransform(speakerObject->Get_Transform());
+            dialogueCamera->Set_SpeakerTransform(speakerObject->Get_Transform());
+            dialogueCamera->Set_ListenerTransform(listenerObject->Get_Transform());
+            dialogueCamera->Snap_ToDialogueTargets();
+        }
+    }
+
+    if (_uiDialogue != nullptr)
+    {
+        const wstring displayName = String::ToWString(_currentDialogueData->displayName);
+        const wstring firstChoice = currentLine->choices.size() > 0
+            ? String::ToWString(currentLine->choices[0].text)
+            : L"";
+        const wstring secondChoice = currentLine->choices.size() > 1
+            ? String::ToWString(currentLine->choices[1].text)
+            : L"";
+
+        _uiDialogue->Set_DialogueElements(currentLine->text, firstChoice, secondChoice, displayName);
+
+        _uiDialogue->Show_Dialogue();
+
+    }
 
     LOG_INFO("Dialogue Line : {}", String::ToString(currentLine->text));
 
@@ -244,5 +369,11 @@ Unique<DialogueManager> DialogueManager::Create()
 
 void DialogueManager::Free()
 {
+    if (_uiDialogue)
+    {
+        _uiDialogue->Free();
+        _uiDialogue.reset();
+    }
+
     Base::Free();
 }

@@ -52,19 +52,7 @@ HRESULT Trigger_Interaction::Initialize(void* arg)
     if (ownerTransform == nullptr)
         return E_FAIL;
 
-    Vec3 npcPos = ownerTransform->Get_WorldPosition();
-    Vec3 npcForward = ownerTransform->Get_WorldForward();
-
-    npcForward.y = 0.f;
-    if (npcForward.LengthSquared() > 0.0001f)
-        npcForward.Normalize();
-    else
-        npcForward = Vec3::Look;
-
-    Vec3 triggerPos = npcPos + npcForward * _localOffset.z + Vec3::Up * _localOffset.y;
-
-    _transformCom->Set_WorldPosition(triggerPos);
-    _transformCom->Set_WorldRotationEuler(ownerTransform->Get_WorldRotationEuler());
+    Sync_ToOwnerTransform();
 
     return S_OK;
 }
@@ -75,6 +63,8 @@ void Trigger_Interaction::Update(float timeDelta)
 
     if (_ownerNPC == nullptr)
         return;
+
+    Sync_ToOwnerTransform();
 
     if (CLIENT->IsDialogueActive() || CLIENT->IsDialogueInteractLocked())
         return;
@@ -128,6 +118,42 @@ void Trigger_Interaction::OnEndOverlap(Shared<ColliderCom> self, Shared<Collider
         return;
 
     _hasPlayerOverlap = false;
+}
+
+void Trigger_Interaction::Sync_ToOwnerTransform()
+{
+    if (_ownerNPC == nullptr || _transformCom == nullptr)
+        return;
+
+    Shared<TransformCom> ownerTransform = _ownerNPC->Get_Transform();
+    if (ownerTransform == nullptr)
+        return;
+
+    Vec3 ownerPos = ownerTransform->Get_WorldPosition();
+    Vec3 ownerForward = ownerTransform->Get_WorldForward();
+    ownerForward.y = 0.f;
+
+    if (ownerForward.LengthSquared() > 0.0001f)
+        ownerForward.Normalize();
+    else
+        ownerForward = Vec3::Look;
+
+    Vec3 ownerRight = ownerTransform->Get_WorldRight();
+    ownerRight.y = 0.f;
+
+    if (ownerRight.LengthSquared() > 0.0001f)
+        ownerRight.Normalize();
+    else
+        ownerRight = Vec3::Right;
+
+    const Vec3 triggerPos =
+        ownerPos +
+        ownerRight * _localOffset.x +
+        Vec3::Up * _localOffset.y +
+        ownerForward * _localOffset.z;
+
+    _transformCom->Set_WorldPosition(triggerPos);
+    _transformCom->Set_WorldRotationEuler(ownerTransform->Get_WorldRotationEuler());
 }
 
 HRESULT Trigger_Interaction::Ready_Components()

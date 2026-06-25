@@ -37,7 +37,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
     {
         DialogueData dialogueData{};
         dialogueData.dialogueKey = dialogueJson.value("dialogueKey", "");
-
+        dialogueData.displayName = dialogueJson.value("displayName", "");
         if (dialogueData.dialogueKey.empty())
             continue;
 

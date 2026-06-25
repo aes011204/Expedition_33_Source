@@ -28,6 +28,7 @@ struct DialogueLine
 struct DialogueData
 {
     string dialogueKey;
+    string displayName;
     vector<DialogueLine> lines;
 };
 

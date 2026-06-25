@@ -94,6 +94,9 @@ void DialogueCamera::OnActivated()
 
 void DialogueCamera::Update(float timeDelta)
 {
+    if (!GAME->Is_ActiveCameraType(ObjectType::DialogueCamera))
+        return;
+
     Vec3 desiredEye = Vec3::Zero;
     Vec3 desiredLookAt = Vec3::Zero;
     if (!Try_ResolveDialoguePose(desiredEye, desiredLookAt))
