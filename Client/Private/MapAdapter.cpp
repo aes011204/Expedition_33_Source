@@ -152,6 +152,8 @@ namespace
                             outArray.push_back(std::move(item));
                         }
                     }
+
+                    LOG_DEBUG("[MapAdapter] bin loaded: '{}'", binPath.generic_string());
                     return;
                 }
                 catch (...) {}
@@ -179,6 +181,7 @@ namespace
                     continue;
 
                 AppendPreloadModelPath(item.value("ModelPath", string{}), preloadModelPaths);
+                LOG_DEBUG("[MapAdapter] json loaded: '{}'", entry.path().generic_string());
                 outArray.push_back(std::move(item));
             }
             catch (...)
