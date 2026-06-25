@@ -1,5 +1,7 @@
 ﻿#include "SkillTargeting.h"
 #include <Battle_Event.h>
+
+#include "BattleAnimUtils.h"
 #include "GameInstance.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
@@ -85,6 +87,10 @@ void SkillTargeting::Update(float timeDelta)
         GAME->Get_EventBus().Publish(event);
 
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
+
+        auto& request = owner->Get_TurnActionRequest();
+        BattleAnimUtils::Play_TurnStartOrBattleIdle(request.actor, 0.2f);
+
         return;
     }
 
