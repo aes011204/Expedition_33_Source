@@ -25,7 +25,7 @@ class MapInstancedMesh final : public GameObject
     GENERATED_GAMEOBJECT(MapInstancedMesh, ObjectType::StaticMesh)
 
 private:
-    static constexpr float INSTANCE_CULL_DIST = 100.f;
+    static constexpr float INSTANCE_CULL_DIST = 125.f;
     static constexpr float LARGE_OBJECT_HEIGHT = 5.f;
 
 public:
@@ -95,8 +95,8 @@ private:
     ComPtr<Buffer> _shadowVisibleVB;
     vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers;
 
-    float _lod1Dist = 300.f;
-    float _lod2Dist = 200.f;
+    float _lod1Dist = 100.f;
+    float _lod2Dist = 115.f;
 
     float _accTime = {};
     bool _hasGlow = false;

@@ -1661,12 +1661,18 @@ void EditorInstance::Apply_PendingPreviewViewportSize()
 
 void EditorInstance::Apply_RuntimeInputPolicy()
 {
-    const auto applyMouseLockOverride =
-        [this]()
+    const auto applyMouseLockPolicy =
+        [this](bool shouldLock)
         {
-            if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+            if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
+            {
+                GAME->Unlock_Mouse();
+                return;
+            }
+
+            if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked || shouldLock)
                 GAME->Lock_Mouse();
-            else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
+            else
                 GAME->Unlock_Mouse();
         };
 
@@ -1723,12 +1729,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         GAME->Set_PlayerInputBlocked(false);
         GAME->Set_FreeCameraInputEnabled(true);
 
-        if (freeCameraControl)
-            GAME->Lock_Mouse();
-        else
-            GAME->Unlock_Mouse();
-
-        applyMouseLockOverride();
+        applyMouseLockPolicy(freeCameraControl);
         return;
     }
 
@@ -1747,8 +1748,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         {
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);
-            GAME->Unlock_Mouse();
-            applyMouseLockOverride();
+            applyMouseLockPolicy(false);
             return;
         }
 
@@ -1756,8 +1756,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         {
             GAME->Set_PlayerInputBlocked(true);      
             GAME->Set_FreeCameraInputEnabled(false);
-            GAME->Unlock_Mouse();
-            applyMouseLockOverride();
+            applyMouseLockPolicy(false);
             return;
         }
 
@@ -1765,8 +1764,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         {
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);
-            GAME->Unlock_Mouse();
-            applyMouseLockOverride();
+            applyMouseLockPolicy(false);
             return;
         }
 
@@ -1778,25 +1776,16 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(false); // Play 중 FreeCamera에 잠깐 남아 있어도 이전 blocked 상태를 끌고 가지 않게 바로 푼다.
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);
 
-            if (freeCameraControl||isTargetCamera)
-                GAME->Lock_Mouse();
-            else
-                GAME->Unlock_Mouse();
+            applyMouseLockPolicy(freeCameraControl || isTargetCamera);
         }
         else
         {
             GAME->Set_PlayerInputBlocked(_isTargetCameraEditMode); // Play가 시작됐으면 포커스와 무관하게 플레이어 입력은 열어 두고, 타겟 카메라 편집 모드일 때만 막는다.
             GAME->Set_FreeCameraInputEnabled(false);
 
-            if(_isTargetCameraEditMode)
-                GAME->Unlock_Mouse();
-            else if (gameFocused)
-                GAME->Lock_Mouse();
-            else
-                GAME->Unlock_Mouse();
+            applyMouseLockPolicy(!_isTargetCameraEditMode && gameFocused);
         }
 
-        applyMouseLockOverride();
         return;
     }
 
@@ -1806,12 +1795,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     GAME->Set_PlayerInputBlocked(true);
     GAME->Set_FreeCameraInputEnabled(freeCameraControl);
 
-    if (freeCameraControl)
-        GAME->Lock_Mouse();
-    else
-        GAME->Unlock_Mouse();
-
-    applyMouseLockOverride();
+    applyMouseLockPolicy(freeCameraControl);
 }
 
 void EditorInstance::Toggle_MouseLockOverride()

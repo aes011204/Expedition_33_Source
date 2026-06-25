@@ -169,6 +169,85 @@ HRESULT UI_Text::Initialize(void* arg)
     return S_OK;
 }
 
+void UI_Text::Set_Text(const wstring& text)
+{
+    if (_text == text)
+        return;
+
+    _text = text;
+    Invalidate_TextLayoutCache();
+}
+
+void UI_Text::Set_FontTag(const wstring& fontTag)
+{
+    if (_fontTag == fontTag)
+        return;
+
+    _fontTag = fontTag;
+    Invalidate_TextLayoutCache();
+}
+
+void UI_Text::Set_TextAlign(TextAlign textAlign)
+{
+    if (_textAlign == textAlign)
+        return;
+
+    _textAlign = textAlign;
+}
+
+void UI_Text::Set_TextWrap(bool textWrap)
+{
+    if (_textWrap == textWrap)
+        return;
+
+    _textWrap = textWrap;
+    Invalidate_TextLayoutCache();
+}
+
+void UI_Text::Invalidate_TextLayoutCache()
+{
+    _layoutCache.valid = false;
+}
+
+const UI_Text::TextLayoutCache& UI_Text::Ensure_TextLayoutCache(float localTextScale, float boxWidth) const
+{
+    if (_layoutCache.valid &&
+        _layoutCache.text == _text &&
+        _layoutCache.fontTag == _fontTag &&
+        _layoutCache.textWrap == _textWrap &&
+        _layoutCache.localTextScale == localTextScale &&
+        _layoutCache.boxWidth == boxWidth)
+    {
+        return _layoutCache;
+    }
+
+    _layoutCache.valid = true;
+    _layoutCache.text = _text;
+    _layoutCache.fontTag = _fontTag;
+    _layoutCache.textWrap = _textWrap;
+    _layoutCache.localTextScale = localTextScale;
+    _layoutCache.boxWidth = boxWidth;
+    _layoutCache.measuredSize = Vec2::Zero;
+    _layoutCache.lineHeight = 0.f;
+    _layoutCache.lines.clear();
+    _layoutCache.lineWidths.clear();
+
+    if (_textWrap)
+    {
+        _layoutCache.lines = Wrap_TextLines(_fontTag, _text, max(1.f, boxWidth), localTextScale);
+        _layoutCache.lineHeight = max(1.f, GAME->Measure_Font(_fontTag, L"Mg").y * localTextScale);
+        _layoutCache.lineWidths.reserve(_layoutCache.lines.size());
+
+        for (const wstring& line : _layoutCache.lines)
+            _layoutCache.lineWidths.push_back(Measure_TextWidth(_fontTag, line, localTextScale));
+
+        return _layoutCache;
+    }
+
+    _layoutCache.measuredSize = GAME->Measure_Font(_fontTag, _text.c_str());
+    return _layoutCache;
+}
+
 HRESULT UI_Text::Render()
 {
     if (!Is_EffectivelyOpen())
@@ -197,14 +276,14 @@ HRESULT UI_Text::Render()
 
     if (_textWrap)
     {
-        const vector<wstring> lines = Wrap_TextLines(_fontTag, _text, max(1.f, boxWidth), localTextScale);
-        const float lineHeight = max(1.f, GAME->Measure_Font(_fontTag, L"Mg").y * localTextScale);
+        const TextLayoutCache& layoutCache = Ensure_TextLayoutCache(localTextScale, boxWidth);
         const Vec4 renderColor = Get_SpriteFontRenderColor(*this, _color);
 
-        for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex)
+        for (size_t lineIndex = 0; lineIndex < layoutCache.lines.size(); ++lineIndex)
         {
-            const wstring& line = lines[lineIndex];
-            const float textWidth = Measure_TextWidth(_fontTag, line, localTextScale);
+            const wstring& line = layoutCache.lines[lineIndex];
+            const float textWidth =
+                lineIndex < layoutCache.lineWidths.size() ? layoutCache.lineWidths[lineIndex] : 0.f;
 
             float offsetX = 0.f;
             if (TextAlign::Center == _textAlign)
@@ -212,7 +291,7 @@ HRESULT UI_Text::Render()
             else if (TextAlign::Right == _textAlign)
                 offsetX = boxWidth - textWidth;
 
-            const Vec2 alignedTopLeft(localBoxTopLeft.x + offsetX, localBoxTopLeft.y + static_cast<float>(lineIndex) * lineHeight);
+            const Vec2 alignedTopLeft(localBoxTopLeft.x + offsetX, localBoxTopLeft.y + static_cast<float>(lineIndex) * layoutCache.lineHeight);
             const Vec2 pivot(
                 (localPivotPosition.x - alignedTopLeft.x) / localTextScale,
                 (localPivotPosition.y - alignedTopLeft.y) / localTextScale);
@@ -230,8 +309,8 @@ HRESULT UI_Text::Render()
         return S_OK;
     }
 
-    const Vec2 measuredSize = GAME->Measure_Font(_fontTag, _text.c_str());
-    const float textWidth = measuredSize.x * localTextScale;
+    const TextLayoutCache& layoutCache = Ensure_TextLayoutCache(localTextScale, boxWidth);
+    const float textWidth = layoutCache.measuredSize.x * localTextScale;
 
     float offsetX = 0.f;
     if (TextAlign::Center == _textAlign)

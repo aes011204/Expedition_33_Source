@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "MapCollisionAdapter.h"
@@ -45,6 +45,7 @@ public:
         vector<json> postProcessVolumes = {};
         vector<json> shaftVolumes = {};
         vector<json> waters = {};
+        vector<json> lights;
         vector<string> preloadModelPaths = {};
         MapCollisionAdapter::CookedCollisionCache cookedCollisionCache = {};
         MapCollisionAdapter::PrimitiveCollisionCache primitiveCollisionCache = {};

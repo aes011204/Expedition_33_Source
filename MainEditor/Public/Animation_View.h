@@ -131,6 +131,21 @@ private:
         Tip
     };
 
+    enum class AnimationLeftTab : uint8
+    {
+        AnimationClips,
+        BoneTree
+    };
+
+    enum class NotifyTrailBonePickMode : uint8
+    {
+        None,
+        Base,
+        Tip,
+        PairBase,
+        PairTip
+    };
+
     struct PreviewTrailRuntime
     {
         int32 stateId = -1;
@@ -138,6 +153,11 @@ private:
         string modelGuid{};
         float lastTimeSec = -1.f;
         float offsetPhase = 0.f;
+        Client::ANS_Trail::TrailAnchorSource trailAnchorSource = Client::ANS_Trail::TrailAnchorSource::ModelDefault;
+        string baseBoneName{};
+        Vec3 baseLocalOffset{ Vec3::Zero };
+        string tipBoneName{};
+        Vec3 tipLocalOffset{ Vec3::Zero };
         Client::ANS_Trail::TipExtendCurve tipExtendCurve{};
         Client::ANS_Trail::LocalOffsetCurve baseLocalOffsetCurve{};
         Client::ANS_Trail::LocalOffsetCurve tipLocalOffsetCurve{};
@@ -253,6 +273,7 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_NotifyTrailAnchorPanel(Client::ANS_Trail& trailNotifyState);
     void Draw_TrailOffsetPanel(Client::ANS_Trail& trailNotifyState, const AnimNotifyStateEntry& notifyStateEntry);
     void Draw_ModifierRuntimePanel(const Shared<ModelCom>& playbackModel);
     void Update_ModifierPreviewMotionTest(float timeDelta);
@@ -299,6 +320,13 @@ private:
     void Clear_SelectedStateSelection();
     bool Is_NotifySelected(int32 notifyId) const;
     bool Is_StateSelected(int32 stateId) const;
+    AnimNotifyStateEntry* Find_NotifyStateById(int32 stateId);
+    Client::ANS_Trail* Find_NotifyTrailPickTarget(int32* outStateTrackIndex = nullptr);
+    void Begin_NotifyTrailBonePick(NotifyTrailBonePickMode mode, int32 stateId);
+    void Cancel_NotifyTrailBonePick();
+    bool Is_NotifyTrailBonePicking() const { return _notifyTrailBonePickMode != NotifyTrailBonePickMode::None; }
+    bool Consume_NotifyTrailBonePick(uint32 boneIndex);
+    void Restore_NotifyTrailPickSelection();
 
     void Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex);
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
@@ -428,6 +456,12 @@ private:
 
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
+    AnimationLeftTab _animationLeftTab = AnimationLeftTab::AnimationClips;
+    AnimationLeftTab _requestedAnimationLeftTab = AnimationLeftTab::AnimationClips;
+    bool _hasRequestedAnimationLeftTab = false;
+    AnimationLeftTab _notifyTrailBonePickReturnTab = AnimationLeftTab::AnimationClips;
+    NotifyTrailBonePickMode _notifyTrailBonePickMode = NotifyTrailBonePickMode::None;
+    int32 _notifyTrailBonePickStateId = -1;
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
     vector<PreviewScreenFxCueRuntime> _previewScreenFxCueRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};

@@ -1547,6 +1547,9 @@ void BattleController::Execute_Item()
         if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Dead)
             return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
 
+        if (action.GetInitTarget().statCom->Is_ReviveBlocked())
+            return;
+
         //action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
         //Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
 
@@ -1587,6 +1590,12 @@ bool BattleController::Should_UpdateRuntime() const
 
 void BattleController::Revive_BattleMon(const BattleChar& battleChar, float MultipleHp)
 {
+    if (battleChar.statCom == nullptr)
+        return;
+
+    if (battleChar.statCom->Is_ReviveBlocked())
+        return;
+
     battleChar.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
     Restore_BattleTargetCollision(battleChar); // 부활 직후 다시 충돌 가능 상태로 전환
 
@@ -2409,6 +2418,18 @@ void BattleController::Clear_DelayedEchoAttackSteps()
 void BattleController::Clear_BattleRuntimeState()
 {
     // 전투 종료/ F4로 게임 Stop할 때
+
+    for (BattleChar& hero : _heroes)
+    {
+        if (hero.statCom)
+            hero.statCom->Set_ReviveBlocked(false);
+    }
+
+    for (BattleChar& enemy : _enemies)
+    {
+        if (enemy.statCom)
+            enemy.statCom->Set_ReviveBlocked(false);
+    }
 
     Clear_DelayedEchoAttackSteps();
 
