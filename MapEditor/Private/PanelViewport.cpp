@@ -287,8 +287,14 @@ void PanelViewport::Render()
                 {
                     if (isInst)
                     {
-                        obj->_instancedParamsDirty = true;
-                        _ctx->_dirtyRenderHandles  = true;
+                        InstanceTransform oldTransform{};
+                        oldTransform._position = _gizmoPrevPos;
+                        oldTransform._rotation = Vec4(_gizmoPrevRot.x, _gizmoPrevRot.y, _gizmoPrevRot.z, _gizmoPrevRot.w);
+                        oldTransform._scale = _gizmoPrevScale;
+
+                        const InstanceTransform newTransform = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+                        _ctx->PushCommand(CmdTransformObject::Create(
+                            _ctx->_selected, obj->_selectedInstanceIdx, oldTransform, newTransform));
                     }
                     else
                     {

@@ -121,6 +121,9 @@ public: /* For.Editor World */
     bool    Load_DemoCheckpointInEditor(const fs::path& path);
     bool    Save_GameStartRuleState(const fs::path& path) const;
     bool    Save_CostumeUnlockRuleState(const fs::path& path, bool unlockBaguette, bool unlockPotato) const;
+    bool    Save_BaguetteWeaponUnlockRuleState(const fs::path& path) const;
+    bool    Save_TiresoSnowimPlenumWeaponUnlockRuleState(const fs::path& path) const;
+    bool    Save_AllWeaponUnlockRuleState(const fs::path& path) const;
     bool    Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const;
     bool    Load_RuleStateInEditor(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
@@ -238,6 +241,7 @@ private: /* 저장 */
     void Restore_PlayStartMonsterSnapshots();
     void Capture_PlayStartHeroStatSnapshots();
     void Restore_PlayStartHeroStatSnapshots();
+    bool Capture_CurrentViewCameraPose(CameraPoseSnapshot& outPose) const;
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;

@@ -36,7 +36,7 @@ public:
     // 무기
     const vector<WeaponInventoryEntry>& Get_OwnedWeapons() const { return _ownedWeapons; }
     bool Is_WeaponUnlocked(const string& characterId, const string& weaponId) const;
-    void Unlock_Weapon(const string& characterId, const string& weaponId);
+    void Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel = 1, uint32 enhanceExp = 0);
     void Ensure_DefaultUnlockedWeapons(const vector<WeaponInventoryEntry>& weapons);
 
     json Create_SaveJson() const;

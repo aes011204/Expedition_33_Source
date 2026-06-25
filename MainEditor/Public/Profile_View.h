@@ -77,6 +77,7 @@ private:
 private:
     void Draw_Toolbar();
     void Draw_Frame_Info();
+    void Draw_Render_Isolation();
     void Draw_Scopes();
     void Draw_Memory();
     void Draw_Resource_Memory();
@@ -84,6 +85,7 @@ private:
     void Prune_Dead_Scopes();
     vector<Scope_Row> Build_Scope_Rows() const;
     void Log_Snapshot() const;
+    void Log_ViewHotspot() const;
     void Record_Scope_Sample(const string& scopeName, double elapsedMs);
     void Refresh_Memory_Samples();
     Process_Memory Get_Process_Memory() const;

@@ -34,6 +34,7 @@ public:
     void    Restore_RenderGroups();
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
+    bool    Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
     void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
@@ -197,6 +198,8 @@ private:
 private:
     void Reset_RenderCall();
     void Add_RenderCall(uint32 count = 1);
+    void Capture_RenderViewHotspotCandidate(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
+    void Publish_RenderViewHotspotSnapshot();
 
 #ifdef _DEBUG
 private:
@@ -227,6 +230,10 @@ private:
     void DumpCurrentOMState(const wchar_t* stageTag) const;
 
 #endif
+
+private:
+    RenderViewHotspotSnapshot _hotspotPendingSnapshot = {};
+    RenderViewHotspotSnapshot _hotspotLastSnapshot = {};
 
 public:
 	static Unique<Renderer> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

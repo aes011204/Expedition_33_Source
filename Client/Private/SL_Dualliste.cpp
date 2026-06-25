@@ -1,5 +1,5 @@
 ﻿#include "SL_Dualliste.h"
-
+#include "Client_Constants.h"
 #include "Bounding_OBB.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
@@ -20,8 +20,7 @@
 #include "SL_Maelle.h"
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
-
-
+#include "EffectCom.h"
 
 REGISTER_GLOBAL_ENUM(SL_Dualliste::Anim, "SL_DuallisteAnim")
 
@@ -169,6 +168,9 @@ void SL_Dualliste::Update(float timeDelta)
     if (_body)
         _body->Play_Animation(timeDelta);
 
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
+
     SL_Base::Update(timeDelta);
 }
 
@@ -233,7 +235,9 @@ void SL_Dualliste::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
         Vec3 parryEffectWorldPos = maelleWorldPos + effectDir * 0.8f;
         parryEffectWorldPos.y += 1.0f;
 
-        if (maelle->Try_ConsumeParry(attackerWorldPos, parryEffectWorldPos))
+        auto attacker = GetSharedPtr<GameObject>();
+
+        if (maelle->Try_ConsumeParry(attacker, attackerWorldPos, parryEffectWorldPos))
         {
             self->Set_IsActive(false);
             self->Clear_Overlap();
@@ -413,8 +417,19 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
     {
         _combatStat->SetBreak(true);
         _stunElapsed = 0.f;
+
+        // 스턴 이펙트
+        {
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = Constants::Effect::BreakEffect;
+            effectDesc.worldPosition = _transformCom->Get_WorldPosition() + Vec3(0.f, 1.7f, 1.5f);
+            effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+            CLIENT->Play_Effect(effectDesc);
+        }
+
         Set_ActionLocked(false);
         _stateMachineCom->Change_State(SL_MonState::Stun);
+
         return;
     }
 
@@ -667,6 +682,7 @@ HRESULT SL_Dualliste::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_Mon_StateMachine"), _stateMachineCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     _combatStat->Set_RuntimeCombatProfile(150.f, 0, 18.f, 0.f, 0.f);
 

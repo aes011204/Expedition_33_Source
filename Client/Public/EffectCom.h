@@ -129,6 +129,7 @@ public: //## Behavior::DrawFeatures
 public: //## Behavior::AttachedEffects
     // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
     static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
+    static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner, EffectPlayTarget target);
 
     // socket follow와 자동 release 후보 정리를 함께 수행한다.
     void Update_AttachedEffects(float timeDelta);

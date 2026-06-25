@@ -21,7 +21,7 @@ void AN_PlaySound::Execute(const AnimNotifyContext& context)
     Vec3 ownerPosition = Vec3::Zero;
     const Vec3* soundPosition = nullptr;
 
-    if (context.owner && context.owner->Get_Transform())
+    if (!context.isPreview && context.owner && context.owner->Get_Transform())
     {
         if (const auto* partOwner = dynamic_cast<PartObject*>(context.owner))
         {

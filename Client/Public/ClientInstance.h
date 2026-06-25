@@ -65,6 +65,13 @@ public:
 
     bool    Is_GameplayMenuOpen() const;
 
+    static bool Is_DebugDisableMapInstancedMeshRender();
+    static void Set_DebugDisableMapInstancedMeshRender(bool disabled);
+    static bool Is_DebugDisableGrassInstancedRender();
+    static void Set_DebugDisableGrassInstancedRender(bool disabled);
+    static bool Is_DebugDisableMapStaticMeshRender();
+    static void Set_DebugDisableMapStaticMeshRender(bool disabled);
+
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 

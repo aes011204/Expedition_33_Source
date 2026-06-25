@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UI_GetPictos.h"
 
 #include "Client_Constants.h"

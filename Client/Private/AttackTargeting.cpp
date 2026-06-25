@@ -9,6 +9,7 @@
 #include "PlayerStatCom.h"
 #include "Battle_Event.h"
 #include "Event_Bus.h"
+#include "BattleAnimUtils.h"
 
 NS_BEGIN(Client)
 
@@ -68,7 +69,12 @@ void AttackTargeting::Update(float timeDelta)
         event.subject = owner->Get_TurnActionRequest().actor.actor;
         GAME->Get_EventBus().Publish(event);
 
+        auto& request = owner->Get_TurnActionRequest();
+        request.itemType = BattleItemType::Invalid;
+
         battleFSM->Change_State(BattleTurnState::ChooseAction);
+        BattleAnimUtils::Play_TurnStartOrBattleIdle(request.actor, 0.2f);
+
         return;
     }
 

@@ -176,6 +176,7 @@ private:
     void Destroy_CharacterController();
 
     Vec3 Get_CCTFootPosition_FromTransform() const; // 현재 위치 -> CCT 발 위치 환산
+    bool Try_SnapCCTToGround(Vec3& inOutFootPosition); // 내려가는 지형에서 CCT가 grounded를 바로 잃지 않도록 발밑 walkable ground에 붙인다.
     void Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding, bool suppressSmallGroundAdjust); // CCT 결과 -> Transform
 
 private:
