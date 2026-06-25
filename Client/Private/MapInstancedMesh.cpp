@@ -4,6 +4,7 @@
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
 #include "Camera.h"
+#include "Shadow.h"
 #include "StaticCollisionData.h"
 #include "Collision_Define.h"
 #include "ShaderPassFinder.h"
@@ -794,7 +795,7 @@ void MapInstancedMesh::DispatchCull()
 
     Matrix vp = (*view) * (*proj);
     auto planes = ExtractFrustumPlanes(vp);
-
+     
     CullParams params{};
     for (int i = 0; i < 6; ++i)
     {
@@ -861,7 +862,7 @@ void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex)
     const ShadowCascadeInfluenceVolume& vol = volumes[cascadeIndex];
 
     ShadowCullParams params{};
-    params.planeCount = min(vol.planeCount, 32u);
+    params.planeCount = std::min<uint32>(vol.planeCount, 32u);
     params.totalCount = _instanceCount;
     for (uint32 i = 0; i < params.planeCount; ++i)
     {

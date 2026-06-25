@@ -75,6 +75,8 @@ void DialogueManager::EndDialogue()
     _waitInteractKeyRelease = true;
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
+
+    CLIENT->Restore_PreviousCamera();
 }
 
 void DialogueManager::Update()
@@ -220,9 +222,14 @@ void DialogueManager::ApplyCurrentLine()
         listenerObject = _dialogueNpcObject;
     }
 
+    if (speakerObject == nullptr || listenerObject == nullptr)
+        return;
+
     dialogueCamera->Set_CameraPresetId(currentLine->cameraPresetId);
+    dialogueCamera->Set_AnchorTransform(speakerObject->Get_Transform());
     dialogueCamera->Set_SpeakerTransform(speakerObject->Get_Transform());
     dialogueCamera->Set_ListenerTransform(listenerObject->Get_Transform());
+    dialogueCamera->Snap_ToDialogueTargets();
 
     LOG_INFO("Dialogue Line : {}", String::ToString(currentLine->text));
 

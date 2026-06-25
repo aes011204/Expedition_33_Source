@@ -1028,6 +1028,12 @@ void Editor_Manager::Render_ReloadDataButton()
                 MSG_BOX("Failed to reload effect jsons.");
         }
 
+        if (ImGui::MenuItem("Camera Preset Data"))
+        {
+            if (FAILED(CLIENT->Reload_CameraPresetData()))
+                MSG_BOX("Failed to reload camera preset data.");
+        }
+
         ImGui::EndPopup();
     }
 

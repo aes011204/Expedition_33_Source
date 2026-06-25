@@ -24,6 +24,7 @@
 #pragma region FD
 NS_BEGIN(Engine)
 
+struct ShadowCascadeInfluenceVolume;
 class Event_Bus;
 class Graphic_Device;
 struct ShadowCascadeDebugInfo;

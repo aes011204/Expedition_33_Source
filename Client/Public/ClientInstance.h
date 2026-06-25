@@ -82,6 +82,7 @@ public: /* For.GameData Table */
     const Skill_Data* Get_Skill(const string& skillId);
     const vector<string> Get_AllSkillIds();
     HRESULT Reload_GameDataTables();
+    HRESULT Reload_CameraPresetData();
 
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);

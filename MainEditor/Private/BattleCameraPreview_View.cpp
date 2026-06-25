@@ -285,61 +285,60 @@ DialogueCameraPreset Make_FallbackDialogueCameraPreset()
     preset.camera.farPlane = 500.f;
     preset.camera.mouseSensor = 0.29f;
     preset.camera.mouseSensitivity = 0.23f;
-    preset.distance = 3.2f;
-    preset.sideOffset = 0.45f;
-    preset.heightOffset = 0.75f;
-    preset.aimOffset = 0.f;
-    preset.pitchLookScale = 0.f;
-    preset.pitchMin = -45.f;
-    preset.pitchMax = 45.f;
-    preset.yawOffset = 180.f;
-    preset.pitchOffset = 6.f;
+    preset.localCameraOffset = Vec3(0.7f, 1.55f, 1.2f);
+    preset.localLookTargetOffset = Vec3(0.f, 1.35f, 0.f);
     preset.rollOffset = 0.f;
-    preset.lookHeight = 0.85f;
-    preset.pivotHeight = 0.75f;
     return preset;
 }
 
 bool Evaluate_DialoguePreviewPose(
-    const Vec3& speakerPos,
-    const Vec3& listenerPos,
+    const Vec3& anchorPos,
+    const Vec3& anchorForward,
     const DialogueCameraPreset& preset,
     Client::BattleTurnCameraEvaluatedPose& outPose)
 {
-    Vec3 dialogueDir = listenerPos - speakerPos;
-    dialogueDir.y = 0.f;
-    if (dialogueDir.LengthSquared() <= 0.0001f)
-        return false;
+    return Evaluate_DialoguePresetPoseNpcAnchor(
+        anchorPos,
+        anchorForward,
+        preset,
+        outPose.cameraPos,
+        outPose.lookTarget,
+        &outPose.fovY,
+        &outPose.rollOffset);
+}
 
-    dialogueDir.Normalize();
+void Apply_PreviewDialogueDrift(
+    const DialogueCameraDriftProfile& drift,
+    float timeSec,
+    Client::BattleTurnCameraEvaluatedPose& pose)
+{
+    if (!drift.enabled)
+        return;
 
-    Vec3 rightDir = Vec3::Up.Cross(dialogueDir);
-    if (rightDir.LengthSquared() <= 0.0001f)
-        rightDir = Vec3::Right;
-    else
-        rightDir.Normalize();
+    Vec3 forward = pose.lookTarget - pose.cameraPos;
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
 
-    Vec3 backDir = -dialogueDir;
-    const float yawRad = XMConvertToRadians(preset.yawOffset);
-    Vec3 yawAdjustedBack = backDir * cosf(yawRad) + rightDir * sinf(yawRad);
-    if (yawAdjustedBack.LengthSquared() <= 0.0001f)
-        yawAdjustedBack = backDir;
-    else
-        yawAdjustedBack.Normalize();
+    forward.Normalize();
 
-    const Vec3 anchorPos = Vec3::Lerp(speakerPos, listenerPos, 0.5f);
-    const Vec3 pivotPos = anchorPos + Vec3::Up * preset.pivotHeight;
-    const Vec3 framingPos = pivotPos + rightDir * preset.aimOffset;
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.0001f)
+        return;
 
-    const Vec3 baseOffset = yawAdjustedBack * preset.distance;
-    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, XMConvertToRadians(preset.pitchOffset));
-    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+    right.Normalize();
 
-    outPose.cameraPos = framingPos + orbitOffset + Vec3::Up * preset.heightOffset + rightDir * preset.sideOffset;
-    outPose.lookTarget = framingPos + Vec3::Up * preset.lookHeight;
-    outPose.fovY = preset.camera.fovy;
-    outPose.rollOffset = preset.rollOffset;
-    return true;
+    Vec3 up = forward.Cross(right);
+    up.Normalize();
+
+    const float x = sinf(timeSec * drift.lateralFrequency) * drift.lateralAmplitude;
+    const float y = sinf(timeSec * drift.verticalFrequency + 1.37f) * drift.verticalAmplitude;
+    const float z = sinf(timeSec * drift.depthFrequency + 2.11f) * drift.depthAmplitude;
+    const float roll = sinf(timeSec * drift.rollFrequency + 0.73f) * drift.rollAmplitude;
+
+    const Vec3 driftOffset = right * x + up * y + forward * z;
+    pose.cameraPos += driftOffset;
+    pose.lookTarget += driftOffset * 0.6f;
+    pose.rollOffset += roll;
 }
 
 void Apply_PreviewProceduralDrift(
@@ -2167,7 +2166,7 @@ void BattleCameraPreview_View::Render_DialoguePresetEditor()
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::TextDisabled("Dialogue Preset Editor");
-    ImGui::TextDisabled("Uses current preview subject as speaker and opponent as listener.");
+    ImGui::TextDisabled("Dialogue preset is authored from the current preview subject pose.");
 
     char presetIdBuffer[128] = {};
     const size_t presetIdLength = std::min(_manualDialoguePresetId.size(), static_cast<size_t>(127));
@@ -2309,20 +2308,31 @@ void BattleCameraPreview_View::Render_DialoguePresetEditor()
         changed = true;
     }
 
-    dragFloat("Dialogue Distance", _editingDialoguePreset.distance, 0.01f, 0.1f, 50.f);
-    dragFloat("Dialogue Side Offset", _editingDialoguePreset.sideOffset, 0.01f, -20.f, 20.f);
-    dragFloat("Dialogue Height Offset", _editingDialoguePreset.heightOffset, 0.01f, -20.f, 20.f);
-    dragFloat("Dialogue Aim Offset", _editingDialoguePreset.aimOffset, 0.01f, -20.f, 20.f);
-    dragFloat("Dialogue Look Height", _editingDialoguePreset.lookHeight, 0.01f, -10.f, 20.f);
-    dragFloat("Dialogue Pivot Height", _editingDialoguePreset.pivotHeight, 0.01f, -10.f, 20.f);
+    ImGui::Separator();
+    dragFloat("Camera Offset X", _editingDialoguePreset.localCameraOffset.x, 0.01f, -20.f, 20.f);
+    dragFloat("Camera Offset Y", _editingDialoguePreset.localCameraOffset.y, 0.01f, -20.f, 20.f);
+    dragFloat("Camera Offset Z", _editingDialoguePreset.localCameraOffset.z, 0.01f, -20.f, 20.f);
+    dragFloat("Look Offset X", _editingDialoguePreset.localLookTargetOffset.x, 0.01f, -20.f, 20.f);
+    dragFloat("Look Offset Y", _editingDialoguePreset.localLookTargetOffset.y, 0.01f, -20.f, 20.f);
+    dragFloat("Look Offset Z", _editingDialoguePreset.localLookTargetOffset.z, 0.01f, -20.f, 20.f);
 
     ImGui::Separator();
-    dragFloat("Dialogue Yaw Offset", _editingDialoguePreset.yawOffset, 0.05f, -360.f, 360.f);
-    dragFloat("Dialogue Pitch Offset", _editingDialoguePreset.pitchOffset, 0.05f, -89.f, 89.f);
     dragFloat("Dialogue Roll Offset", _editingDialoguePreset.rollOffset, 0.001f, -XM_PI, XM_PI);
-    dragFloat("Dialogue Pitch Min", _editingDialoguePreset.pitchMin, 0.05f, -89.f, 89.f);
-    dragFloat("Dialogue Pitch Max", _editingDialoguePreset.pitchMax, 0.05f, -89.f, 89.f);
-    dragFloat("Dialogue Pitch Look Scale", _editingDialoguePreset.pitchLookScale, 0.01f, -5.f, 5.f);
+
+    if (ImGui::Checkbox("Dialogue Drift Enabled", &_editingDialoguePreset.drift.enabled))
+        changed = true;
+
+    if (_editingDialoguePreset.drift.enabled)
+    {
+        dragFloat("Drift Lateral Amp", _editingDialoguePreset.drift.lateralAmplitude, 0.001f, 0.f, 1.f);
+        dragFloat("Drift Vertical Amp", _editingDialoguePreset.drift.verticalAmplitude, 0.001f, 0.f, 1.f);
+        dragFloat("Drift Depth Amp", _editingDialoguePreset.drift.depthAmplitude, 0.001f, 0.f, 1.f);
+        dragFloat("Drift Roll Amp", _editingDialoguePreset.drift.rollAmplitude, 0.001f, 0.f, 0.2f);
+        dragFloat("Drift Lateral Freq", _editingDialoguePreset.drift.lateralFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Vertical Freq", _editingDialoguePreset.drift.verticalFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Depth Freq", _editingDialoguePreset.drift.depthFrequency, 0.01f, 0.f, 10.f);
+        dragFloat("Drift Roll Freq", _editingDialoguePreset.drift.rollFrequency, 0.01f, 0.f, 10.f);
+    }
 
     ImGui::Separator();
     dragFloat("Dialogue Near Plane", _editingDialoguePreset.camera.nearPlane, 0.001f, 0.001f, 10.f);
@@ -2332,14 +2342,6 @@ void BattleCameraPreview_View::Render_DialoguePresetEditor()
 
     if (changed)
     {
-        _editingDialoguePreset.distance = std::max(0.1f, _editingDialoguePreset.distance);
-        if (_editingDialoguePreset.pitchMin > _editingDialoguePreset.pitchMax)
-            std::swap(_editingDialoguePreset.pitchMin, _editingDialoguePreset.pitchMax);
-
-        _editingDialoguePreset.pitchOffset = std::clamp(
-            _editingDialoguePreset.pitchOffset,
-            _editingDialoguePreset.pitchMin,
-            _editingDialoguePreset.pitchMax);
         _dialoguePresetDirty = true;
         _previewDirty = true;
     }
@@ -3905,44 +3907,44 @@ void BattleCameraPreview_View::Update_BattlePresetAuthoringInput(float timeDelta
         if (io.MouseWheel != 0.f)
         {
             const float wheelStep = 0.4f;
-            _editingDialoguePreset.distance += (io.MouseWheel > 0.f) ? -wheelStep : wheelStep;
+            _editingDialoguePreset.localCameraOffset.z += (io.MouseWheel > 0.f) ? -wheelStep : wheelStep;
             changed = true;
         }
 
         const float moveStep = 3.f * timeDelta;
         if (ImGui::IsKeyDown(ImGuiKey_W))
         {
-            _editingDialoguePreset.distance -= moveStep;
+            _editingDialoguePreset.localCameraOffset.z -= moveStep;
             changed = true;
         }
 
         if (ImGui::IsKeyDown(ImGuiKey_S))
         {
-            _editingDialoguePreset.distance += moveStep;
+            _editingDialoguePreset.localCameraOffset.z += moveStep;
             changed = true;
         }
 
         if (ImGui::IsKeyDown(ImGuiKey_A))
         {
-            _editingDialoguePreset.aimOffset -= moveStep;
+            _editingDialoguePreset.localCameraOffset.x -= moveStep;
             changed = true;
         }
 
         if (ImGui::IsKeyDown(ImGuiKey_D))
         {
-            _editingDialoguePreset.aimOffset += moveStep;
+            _editingDialoguePreset.localCameraOffset.x += moveStep;
             changed = true;
         }
 
         if (ImGui::IsKeyDown(ImGuiKey_Q))
         {
-            _editingDialoguePreset.pivotHeight -= moveStep;
+            _editingDialoguePreset.localCameraOffset.y -= moveStep;
             changed = true;
         }
 
         if (ImGui::IsKeyDown(ImGuiKey_E))
         {
-            _editingDialoguePreset.pivotHeight += moveStep;
+            _editingDialoguePreset.localCameraOffset.y += moveStep;
             changed = true;
         }
 
@@ -3952,13 +3954,13 @@ void BattleCameraPreview_View::Update_BattlePresetAuthoringInput(float timeDelta
         {
             if (isCtrlDown)
             {
-                _editingDialoguePreset.lookHeight += io.MouseDelta.y * _editingDialoguePreset.camera.mouseSensor;
+                _editingDialoguePreset.localLookTargetOffset.z += io.MouseDelta.y * _editingDialoguePreset.camera.mouseSensor;
                 _editingDialoguePreset.rollOffset += io.MouseDelta.x * _editingDialoguePreset.camera.mouseSensor * _editingDialoguePreset.camera.mouseSensitivity;
             }
             else
             {
-                _editingDialoguePreset.yawOffset += io.MouseDelta.x * _editingDialoguePreset.camera.mouseSensor;
-                _editingDialoguePreset.pitchOffset += io.MouseDelta.y * _editingDialoguePreset.camera.mouseSensor * _editingDialoguePreset.camera.mouseSensitivity;
+                _editingDialoguePreset.localLookTargetOffset.x += io.MouseDelta.x * _editingDialoguePreset.camera.mouseSensor;
+                _editingDialoguePreset.localLookTargetOffset.y -= io.MouseDelta.y * _editingDialoguePreset.camera.mouseSensor * _editingDialoguePreset.camera.mouseSensitivity;
             }
 
             changed = true;
@@ -3967,11 +3969,6 @@ void BattleCameraPreview_View::Update_BattlePresetAuthoringInput(float timeDelta
         if (!changed)
             return;
 
-        _editingDialoguePreset.distance = std::max(0.1f, _editingDialoguePreset.distance);
-        _editingDialoguePreset.pitchOffset = std::clamp(
-            _editingDialoguePreset.pitchOffset,
-            _editingDialoguePreset.pitchMin,
-            _editingDialoguePreset.pitchMax);
         _dialoguePresetDirty = true;
         _previewDirty = true;
         return;
@@ -5104,12 +5101,25 @@ void BattleCameraPreview_View::Apply_DialogueCameraPreviewPose() const
     if (_previewCamera == nullptr)
         return;
 
-    const Vec3 speakerPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
-    const Vec3 listenerPos = Get_PreviewSlotWorldPosition(_previewContext.opponentSide, _previewContext.opponentSlot);
+    Shared<GameObject> anchorObject = Resolve_PreviewBattleActor(_previewContext.subjectSide);
+    if (anchorObject == nullptr)
+        anchorObject = Resolve_PreviewBattleActor(_previewContext.opponentSide);
+
+    if (anchorObject == nullptr)
+        return;
+
+    Shared<TransformCom> anchorTransform = anchorObject->Get_Transform();
+    if (anchorTransform == nullptr)
+        return;
+
+    const Vec3 anchorPos = anchorTransform->Get_WorldPosition();
+    const Vec3 anchorForward = anchorTransform->Get_WorldForward();
 
     Client::BattleTurnCameraEvaluatedPose pose{};
-    if (!Evaluate_DialoguePreviewPose(speakerPos, listenerPos, _editingDialoguePreset, pose))
+    if (!Evaluate_DialoguePreviewPose(anchorPos, anchorForward, _editingDialoguePreset, pose))
         return;
+
+    Apply_PreviewDialogueDrift(_editingDialoguePreset.drift, _previewContext.timeSec, pose);
 
     _previewCamera->Set_FovY(pose.fovY);
     if (Shared<TransformCom> transform = _previewCamera->Get_Transform())

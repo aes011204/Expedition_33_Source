@@ -5,7 +5,9 @@
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
 #include "DialogueTypes.h"
+#include "LevelTransitionFade.h"
 #include "Monster_Part.h"
+#include "Trigger_Interaction.h"
 
 NPC_Base::NPC_Base(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -36,6 +38,24 @@ void NPC_Base::BeginPlay()
 
     if (!_editorStopHandle.IsValid())
         _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &NPC_Base::On_EditorStopRuntime);
+
+    Shared<GameObject> gameObject = nullptr;
+    Trigger_Interaction::TRIGGER_INTERACTION_DESC triggerDesc{};
+    triggerDesc.ownerNpc = dynamic_pointer_cast<NPC_Base>(GetSharedPtr<GameObject>());
+    triggerDesc.localOffset = Vec3(0.f, 0.f, 4.f);
+
+    if (FAILED(GAME->Add_GameObject(
+      ETOI(LevelType::Static),
+      L"GameObject_Trigger_Interaction",
+      GAME->Current_LevelIndex(),
+      L"Layer_Trigger",
+      gameObject,
+      &triggerDesc)))
+    {
+        return;
+    }
+
+    _sharedTrigger = dynamic_pointer_cast<Trigger_Interaction>(gameObject);
 }
 
 void NPC_Base::Update(float timeDelta)
@@ -122,33 +142,20 @@ void NPC_Base::From_Json(const json& data)
     }
 }
 
-void NPC_Base::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    Character_WorldBase::OnBeginOverlap(self, other);
-}
-
-void NPC_Base::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    Character_WorldBase::OnStayOverlap(self, other);
-
-    if (CLIENT->IsDialogueActive() || CLIENT->IsDialogueInteractLocked())
-        return;
-
-    if(GAME->KeyDown(KEY_TYPE::F))
-    {
-        DialogueRequest request {};
-
-        request.dialogueKey = Get_SourcePrefabName();
-        request.speaker = GetSharedPtr<GameObject>();
-        request.speakerPrefabName = Get_SourcePrefabName();
-       
-        CLIENT->StartDialogue(request);
-    }
-}
-
 void NPC_Base::On_EditorStopRuntime() 
 {
     Restore_AfterBattleExit();
+}
+
+void NPC_Base::BuildDialogueRequest(const string& npcPrefabName)
+{
+    DialogueRequest request {};
+
+    request.dialogueKey = npcPrefabName;
+    request.speaker = GetSharedPtr<GameObject>();
+    request.speakerPrefabName = npcPrefabName;
+  
+    CLIENT->StartDialogue(request);
 }
 
 const vector<Vec3>& NPC_Base::Get_EffectivePatrolPoints()

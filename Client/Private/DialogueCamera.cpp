@@ -13,18 +13,9 @@ DialogueCameraPreset Make_DefaultDialogueCameraPreset(float distance, float side
     preset.camera.farPlane = 500.f;
     preset.camera.mouseSensor = 0.29f;
     preset.camera.mouseSensitivity = 0.23f;
-    preset.distance = distance;
-    preset.sideOffset = sideOffset;
-    preset.heightOffset = heightOffset;
-    preset.aimOffset = 0.f;
-    preset.pitchLookScale = 0.f;
-    preset.pitchMin = -45.f;
-    preset.pitchMax = 45.f;
-    preset.yawOffset = 180.f;
-    preset.pitchOffset = 6.f;
+    preset.localCameraOffset = Vec3(sideOffset, heightOffset, distance * 0.5f);
+    preset.localLookTargetOffset = Vec3(0.f, 0.85f, 0.f);
     preset.rollOffset = 0.f;
-    preset.lookHeight = 0.85f;
-    preset.pivotHeight = 0.75f;
     return preset;
 }
 }
@@ -35,9 +26,12 @@ IMPLEMENT_REFLECTION(DialogueCamera)
     info.properties.clear();
 
     PROPERTY_STRING("cameraPresetId", _cameraPresetId);
-    PROPERTY_FLOAT("distance", _currentPreset.distance);
-    PROPERTY_FLOAT("sideOffset", _currentPreset.sideOffset);
-    PROPERTY_FLOAT("heightOffset", _currentPreset.heightOffset);
+    PROPERTY_FLOAT("localCameraOffsetX", _currentPreset.localCameraOffset.x);
+    PROPERTY_FLOAT("localCameraOffsetY", _currentPreset.localCameraOffset.y);
+    PROPERTY_FLOAT("localCameraOffsetZ", _currentPreset.localCameraOffset.z);
+    PROPERTY_FLOAT("localLookTargetOffsetX", _currentPreset.localLookTargetOffset.x);
+    PROPERTY_FLOAT("localLookTargetOffsetY", _currentPreset.localLookTargetOffset.y);
+    PROPERTY_FLOAT("localLookTargetOffsetZ", _currentPreset.localLookTargetOffset.z);
     PROPERTY_FLOAT("blendSpeed", _blendSpeed);
 
     return true;
@@ -86,11 +80,11 @@ HRESULT DialogueCamera::Initialize(void* arg)
 void DialogueCamera::BeginPlay()
 {
     Camera::BeginPlay();
-    GAME->Add_Camera(GetSharedPtr<Camera>());
 }
 
 void DialogueCamera::OnActivated()
 {
+    _driftTimeSec = 0.f;
     Set_FovY(_currentPreset.camera.fovy);
     Set_Near(_currentPreset.camera.nearPlane);
     Set_Far(_currentPreset.camera.farPlane);
@@ -105,6 +99,11 @@ void DialogueCamera::Update(float timeDelta)
     if (!Try_ResolveDialoguePose(desiredEye, desiredLookAt))
         return;
 
+    _driftTimeSec += std::max(0.f, timeDelta);
+
+    float finalRollOffset = _currentPreset.rollOffset;
+    Apply_DriftToPose(_driftTimeSec, desiredEye, desiredLookAt, finalRollOffset);
+
     const Vec3 currentEye = _transformCom->Get_WorldPosition();
     const float t = min(1.f, timeDelta * _blendSpeed);
     const Vec3 nextEye = Vec3::Lerp(currentEye, desiredEye, t);
@@ -114,13 +113,14 @@ void DialogueCamera::Update(float timeDelta)
     Set_Far(_currentPreset.camera.farPlane);
     _transformCom->Set_WorldPosition(nextEye);
     _transformCom->LookAt(desiredLookAt);
-    if (_currentPreset.rollOffset != 0.f)
-        _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
+    if (finalRollOffset != 0.f)
+        _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, finalRollOffset));
     Apply_View();
 }
 
 void DialogueCamera::Clear_Targets()
 {
+    _anchorTransformCom.reset();
     _speakerTransformCom.reset();
     _listenerTransformCom.reset();
     _cameraPresetId.clear();
@@ -139,6 +139,8 @@ void DialogueCamera::Snap_ToDialogueTargets()
     if (!Try_ResolveDialoguePose(desiredEye, desiredLookAt))
         return;
 
+    float finalRollOffset = _currentPreset.rollOffset;
+    Apply_DriftToPose(_driftTimeSec, desiredEye, desiredLookAt, finalRollOffset);
     Apply_ImmediatePose(desiredEye, desiredLookAt);
 }
 
@@ -166,45 +168,52 @@ void DialogueCamera::Load_PresetFromId()
 
 bool DialogueCamera::Try_ResolveDialoguePose(Vec3& outEye, Vec3& outLookAt) const
 {
-    const Shared<TransformCom> speakerTransform = _speakerTransformCom.lock();
-    const Shared<TransformCom> listenerTransform = _listenerTransformCom.lock();
-    if (speakerTransform == nullptr || listenerTransform == nullptr)
+    Shared<TransformCom> anchorTransform = _anchorTransformCom.lock();
+    if (anchorTransform == nullptr)
+        anchorTransform = _speakerTransformCom.lock();
+
+    if (anchorTransform == nullptr)
         return false;
 
-    const Vec3 speakerPos = speakerTransform->Get_WorldPosition();
-    const Vec3 listenerPos = listenerTransform->Get_WorldPosition();
+    const Vec3 anchorPos = anchorTransform->Get_WorldPosition();
+    Vec3 anchorForward = anchorTransform->Get_WorldForward();
+    return Evaluate_DialoguePresetPoseNpcAnchor(
+        anchorPos,
+        anchorForward,
+        _currentPreset,
+        outEye,
+        outLookAt);
+}
 
-    Vec3 dialogueDir = listenerPos - speakerPos;
-    dialogueDir.y = 0.f;
-    if (dialogueDir.LengthSquared() <= 0.0001f)
-        return false;
-    dialogueDir.Normalize();
+void DialogueCamera::Apply_DriftToPose(float timeSec, Vec3& inOutEye, Vec3& inOutLookAt, float& inOutRollOffset) const
+{
+    if (!_currentPreset.drift.enabled)
+        return;
 
-    Vec3 rightDir = Vec3::Up.Cross(dialogueDir);
-    if (rightDir.LengthSquared() <= 0.0001f)
-        rightDir = Vec3::Right;
-    else
-        rightDir.Normalize();
+    Vec3 forward = inOutLookAt - inOutEye;
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
 
-    Vec3 backDir = -dialogueDir;
-    const float yawRad = XMConvertToRadians(_currentPreset.yawOffset);
-    Vec3 yawAdjustedBack = backDir * cosf(yawRad) + rightDir * sinf(yawRad);
-    if (yawAdjustedBack.LengthSquared() <= 0.0001f)
-        yawAdjustedBack = backDir;
-    else
-        yawAdjustedBack.Normalize();
+    forward.Normalize();
 
-    const Vec3 anchorPos = Vec3::Lerp(speakerPos, listenerPos, 0.5f);
-    const Vec3 pivotPos = anchorPos + Vec3::Up * _currentPreset.pivotHeight;
-    const Vec3 framingPos = pivotPos + rightDir * _currentPreset.aimOffset;
+    Vec3 right = Vec3::Up.Cross(forward);
+    if (right.LengthSquared() <= 0.0001f)
+        return;
 
-    const Vec3 baseOffset = yawAdjustedBack * _currentPreset.distance;
-    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, XMConvertToRadians(_currentPreset.pitchOffset));
-    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+    right.Normalize();
 
-    outLookAt = framingPos + Vec3::Up * _currentPreset.lookHeight;
-    outEye = framingPos + orbitOffset + Vec3::Up * _currentPreset.heightOffset + rightDir * _currentPreset.sideOffset;
-    return true;
+    Vec3 up = forward.Cross(right);
+    up.Normalize();
+
+    const float x = sinf(timeSec * _currentPreset.drift.lateralFrequency) * _currentPreset.drift.lateralAmplitude;
+    const float y = sinf(timeSec * _currentPreset.drift.verticalFrequency + 1.37f) * _currentPreset.drift.verticalAmplitude;
+    const float z = sinf(timeSec * _currentPreset.drift.depthFrequency + 2.11f) * _currentPreset.drift.depthAmplitude;
+    const float roll = sinf(timeSec * _currentPreset.drift.rollFrequency + 0.73f) * _currentPreset.drift.rollAmplitude;
+
+    const Vec3 driftOffset = right * x + up * y + forward * z;
+    inOutEye += driftOffset;
+    inOutLookAt += driftOffset * 0.6f;
+    inOutRollOffset += roll;
 }
 
 Shared<DialogueCamera> DialogueCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

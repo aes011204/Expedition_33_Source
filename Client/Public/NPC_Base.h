@@ -3,7 +3,9 @@
 
 NS_BEGIN(Client)
 
-class NPC_Base abstract : public Character_WorldBase
+class Trigger_Interaction;
+
+    class NPC_Base abstract : public Character_WorldBase
 {
 public:
     NPC_Base(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -23,9 +25,8 @@ public:
     void    From_Json(const json& data) override;
 
 public:
-    void            OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
-    void            OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void            On_EditorStopRuntime();
+    void            BuildDialogueRequest(const string& npcPrefabName);
 
     bool Is_CinematicDriven() const { return _isCinematicDriven; }
 
@@ -53,7 +54,7 @@ protected:
 
     // 기본 월드 몬스터 root motion -> 이동 속도 환산값
     float _worldMoveSpeedScale = 0.4f;
-
+    Shared<Trigger_Interaction> _sharedTrigger = {};
 public:
     void Free() override;
 

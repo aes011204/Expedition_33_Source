@@ -30,6 +30,9 @@
 #include "DialogueDB.h"
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
+#include "TargetCamera.h"
+#include "BattleTurnCamera.h"
+#include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
 #include "DialogueDB.h"
 #include "DialogueManager.h"
@@ -306,6 +309,36 @@ HRESULT ClientInstance::Reload_GameDataTables()
         return Ready_GameDataTables();
 
     return _gameDataTable->Load_All();
+}
+
+HRESULT ClientInstance::Reload_CameraPresetData()
+{
+    if (auto targetCamera = dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+    {
+        TargetCameraPreset preset{};
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, preset))
+            targetCamera->Set_Preset(TargetCameraMode::NORMAL, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, preset))
+            targetCamera->Set_Preset(TargetCameraMode::AIM, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, preset))
+            targetCamera->Set_Preset(TargetCameraMode::BATTLE_ENTER, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, preset))
+            targetCamera->Set_Preset(TargetCameraMode::SOULLIKE, preset);
+
+        targetCamera->Change_Mode(targetCamera->Get_CurrentMode());
+    }
+
+    if (auto battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(GAME->Get_CameraByType(ObjectType::BattleTurnCamera)))
+        battleTurnCamera->Reload_BattleCameraAuthoringData();
+
+    if (auto dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+        dialogueCamera->Set_CameraPresetId(dialogueCamera->Get_CameraPresetId());
+
+    return S_OK;
 }
 
 const Item_Data* ClientInstance::Get_Item(const string& itemId)

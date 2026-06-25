@@ -1358,6 +1358,9 @@
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Trigger_Interaction.cpp">
+      <Filter>02. GameObject\Map</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1455,6 +1458,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h">
       <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Trigger_Interaction.h">
+      <Filter>02. GameObject\Map</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1590,10 +1596,8 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VictoriaFlag.hlsl">
       <Filter>97. ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">

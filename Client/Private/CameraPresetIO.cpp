@@ -13,6 +13,23 @@ CameraPresetIO::~CameraPresetIO()
 
 namespace
 {
+    json Make_JsonVec3(const Vec3& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    Vec3 Read_JsonVec3(const json& jsonData, const char* key, const Vec3& fallback)
+    {
+        if (!jsonData.contains(key) || !jsonData[key].is_array() || jsonData[key].size() < 3)
+            return fallback;
+
+        const json& array = jsonData[key];
+        return Vec3(
+            array[0].get<float>(),
+            array[1].get<float>(),
+            array[2].get<float>());
+    }
+
     string Build_SoulLikePresetFilePath(const string& presetKey)
     {
         if (presetKey.empty())
@@ -202,18 +219,18 @@ void CameraPresetIO::SaveDialoguePresetToFile(const string& presetId, const Dial
 {
     json jsonData{};
 
-    jsonData["distance"] = preset.distance;
-    jsonData["sideOffset"] = preset.sideOffset;
-    jsonData["heightOffset"] = preset.heightOffset;
-    jsonData["aimOffset"] = preset.aimOffset;
-    jsonData["pitchLookScale"] = preset.pitchLookScale;
-    jsonData["pitchMin"] = preset.pitchMin;
-    jsonData["pitchMax"] = preset.pitchMax;
-    jsonData["yawOffset"] = preset.yawOffset;
-    jsonData["pitchOffset"] = preset.pitchOffset;
+    jsonData["localCameraOffset"] = Make_JsonVec3(preset.localCameraOffset);
+    jsonData["localLookTargetOffset"] = Make_JsonVec3(preset.localLookTargetOffset);
     jsonData["rollOffset"] = preset.rollOffset;
-    jsonData["lookHeight"] = preset.lookHeight;
-    jsonData["pivotHeight"] = preset.pivotHeight;
+    jsonData["driftEnabled"] = preset.drift.enabled;
+    jsonData["driftLateralAmplitude"] = preset.drift.lateralAmplitude;
+    jsonData["driftVerticalAmplitude"] = preset.drift.verticalAmplitude;
+    jsonData["driftDepthAmplitude"] = preset.drift.depthAmplitude;
+    jsonData["driftRollAmplitude"] = preset.drift.rollAmplitude;
+    jsonData["driftLateralFrequency"] = preset.drift.lateralFrequency;
+    jsonData["driftVerticalFrequency"] = preset.drift.verticalFrequency;
+    jsonData["driftDepthFrequency"] = preset.drift.depthFrequency;
+    jsonData["driftRollFrequency"] = preset.drift.rollFrequency;
     jsonData["mouseSensor"] = preset.camera.mouseSensor;
     jsonData["mouseSensitivity"] = preset.camera.mouseSensitivity;
     jsonData["fovY"] = preset.camera.fovy;
@@ -244,18 +261,33 @@ bool CameraPresetIO::LoadDialoguePresetFromFile(const string& presetId, Dialogue
     file >> jsonData;
 
     DialogueCameraPreset preset = outPreset;
-    preset.distance = jsonData.value("distance", preset.distance);
-    preset.sideOffset = jsonData.value("sideOffset", preset.sideOffset);
-    preset.heightOffset = jsonData.value("heightOffset", preset.heightOffset);
-    preset.aimOffset = jsonData.value("aimOffset", preset.aimOffset);
-    preset.pitchLookScale = jsonData.value("pitchLookScale", preset.pitchLookScale);
-    preset.pitchMin = jsonData.value("pitchMin", preset.pitchMin);
-    preset.pitchMax = jsonData.value("pitchMax", preset.pitchMax);
-    preset.yawOffset = jsonData.value("yawOffset", preset.yawOffset);
-    preset.pitchOffset = jsonData.value("pitchOffset", preset.pitchOffset);
+    if (jsonData.contains("localCameraOffset"))
+    {
+        preset.localCameraOffset = Read_JsonVec3(jsonData, "localCameraOffset", preset.localCameraOffset);
+        preset.localLookTargetOffset = Read_JsonVec3(jsonData, "localLookTargetOffset", preset.localLookTargetOffset);
+    }
+    else
+    {
+        const float legacyDistance = jsonData.value("distance", 1.2f);
+        const float legacySideOffset = jsonData.value("sideOffset", 0.f);
+        const float legacyHeightOffset = jsonData.value("heightOffset", 1.55f);
+        const float legacyAimOffset = jsonData.value("aimOffset", 0.f);
+        const float legacyLookHeight = jsonData.value("lookHeight", 1.35f);
+        const float legacyPivotHeight = jsonData.value("pivotHeight", 0.f);
+        preset.localCameraOffset = Vec3(legacySideOffset, legacyPivotHeight + legacyHeightOffset, legacyDistance);
+        preset.localLookTargetOffset = Vec3(legacyAimOffset, legacyPivotHeight + legacyLookHeight, 0.f);
+    }
+
     preset.rollOffset = jsonData.value("rollOffset", preset.rollOffset);
-    preset.lookHeight = jsonData.value("lookHeight", preset.lookHeight);
-    preset.pivotHeight = jsonData.value("pivotHeight", preset.pivotHeight);
+    preset.drift.enabled = jsonData.value("driftEnabled", preset.drift.enabled);
+    preset.drift.lateralAmplitude = jsonData.value("driftLateralAmplitude", preset.drift.lateralAmplitude);
+    preset.drift.verticalAmplitude = jsonData.value("driftVerticalAmplitude", preset.drift.verticalAmplitude);
+    preset.drift.depthAmplitude = jsonData.value("driftDepthAmplitude", preset.drift.depthAmplitude);
+    preset.drift.rollAmplitude = jsonData.value("driftRollAmplitude", preset.drift.rollAmplitude);
+    preset.drift.lateralFrequency = jsonData.value("driftLateralFrequency", preset.drift.lateralFrequency);
+    preset.drift.verticalFrequency = jsonData.value("driftVerticalFrequency", preset.drift.verticalFrequency);
+    preset.drift.depthFrequency = jsonData.value("driftDepthFrequency", preset.drift.depthFrequency);
+    preset.drift.rollFrequency = jsonData.value("driftRollFrequency", preset.drift.rollFrequency);
     preset.camera.mouseSensor = jsonData.value("mouseSensor", preset.camera.mouseSensor);
     preset.camera.mouseSensitivity = jsonData.value("mouseSensitivity", preset.camera.mouseSensitivity);
     preset.camera.fovy = jsonData.value("fovY", preset.camera.fovy);
