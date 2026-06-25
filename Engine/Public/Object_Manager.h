@@ -19,6 +19,7 @@ public:
 	void    Priority_Update(float timeDelta);
 	void    Update(float timeDelta);
 	void    Late_Update(float timeDelta);
+    void    Post_PhysX_Update(float timeDelta);
 
 	HRESULT Clear_Layers(uint32 levelIndex);
 

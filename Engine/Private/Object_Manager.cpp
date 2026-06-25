@@ -278,6 +278,48 @@ void Object_Manager::Late_Update(float timeDelta)
     }
 }
 
+void Object_Manager::Post_PhysX_Update(float timeDelta)
+{
+    ENGINE_PROFILE_SCOPE_BASIC("Object::PostPhysXUpdateAll");
+
+    for (size_t levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
+    {
+        if (!Should_UpdateLevel(levelIndex))
+            continue;
+
+        auto& layers = _layers[levelIndex];
+        for (auto& Pair : layers)
+        {
+            if (Is_PostUpdateLayer(Pair.first))
+                continue;
+
+            if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("PostPhysX", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
+                Pair.second->Post_PhysX_Update(timeDelta);
+            }
+        }
+
+        for (auto& Pair : layers)
+        {
+            if (!Is_PostUpdateLayer(Pair.first))
+                continue;
+
+            if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("PostPhysX", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
+                Pair.second->Post_PhysX_Update(timeDelta);
+            }
+        }
+    }
+}
+
 HRESULT Object_Manager::Clear_Layers(uint32 levelIndex)
 {
     if (levelIndex >= _numLevels)

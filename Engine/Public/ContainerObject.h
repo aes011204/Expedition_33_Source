@@ -31,6 +31,7 @@ public:
     virtual void Priority_Update(float timeDelta);
     virtual void Update(float timeDelta);
     virtual void Late_Update(float timeDelta);
+    virtual void Post_PhysX_Update(float timeDelta);
     virtual HRESULT Render();
 
 public:

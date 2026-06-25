@@ -502,14 +502,17 @@ void Hierarchy_View::Draw_RuntimeUINode()
         return;
     }
 
-    const vector<Client::RuntimeUIEntry> worldEntries = gameplayUI->Get_WorldRuntimeUIEntries();
-    const vector<Client::RuntimeUIEntry> battleEntries = gameplayUI->Get_BattleRuntimeUIEntries();
+    const vector<Client::RuntimeUIEntry>& worldEntries = gameplayUI->Get_CachedWorldRuntimeUIEntries();
+    const vector<Client::RuntimeUIEntry>& battleEntries = gameplayUI->Get_CachedBattleRuntimeUIEntries();
 
     Sync_RuntimeUISelection(worldEntries, battleEntries);
 
     ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
     if (ImGui::TreeNodeEx("GamePlayerUI", rootFlags))
     {
+        if (ImGui::SmallButton("Refresh Runtime UI"))
+            gameplayUI->Refresh_RuntimeUIEntryCache();
+
         Draw_RuntimeUIGroup("World", worldEntries);
         Draw_RuntimeUIGroup("Battle", battleEntries);
         ImGui::TreePop();

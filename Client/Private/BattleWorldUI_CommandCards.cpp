@@ -3,6 +3,7 @@
 #include "BattleWorldUI_JsonTextureResolver.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
+#include "Debug_Profile.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -1709,6 +1710,8 @@ namespace
 
         HRESULT Compose(const BattleWorldCommandSurfaceDef& def) override
         {
+            ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Command.Compose");
+
             CHECK_NULL(_backgroundRenderTarget, E_FAIL);
             CHECK_NULL(_foregroundRenderTarget, E_FAIL);
 
@@ -2046,6 +2049,8 @@ HRESULT BattleWorldUI_CommandCards::Initialize(void* arg)
 
 HRESULT BattleWorldUI_CommandCards::Warmup_ForBattleState(uint32 curAp, uint32 maxAp, HeroId actorHeroId)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Command.Warmup");
+
     if (_impl == nullptr)
         return E_FAIL;
 
@@ -2095,6 +2100,8 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
     HeroId actorHeroId,
     float timeDelta)
 {
+    ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Command.Show");
+
     if (_impl == nullptr || !Should_ShowBattleWorldCommandCards(currentState))
     {
         Hide();

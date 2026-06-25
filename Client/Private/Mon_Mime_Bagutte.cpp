@@ -63,8 +63,7 @@ HRESULT Mon_Mime_Bagutte::Render_Shadow()
 
 uint32 Mon_Mime_Bagutte::Decide_PassIndex(Shared<Material> mat)
 {
-    const int OPAQUE_PASS = 0;
-    return OPAQUE_PASS;
+    return mat->Get_PassIndex();
 }
 
 Shared<Mon_Mime_Bagutte> Mon_Mime_Bagutte::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -2100,6 +2100,42 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     return S_OK;
 }
 
+void UI_RuntimeLoader::Release_UI(Shared<UI_Base>& ui)
+{
+    if (nullptr == ui)
+        return;
+
+    GAME->Remove_UI(ui);
+    ui.reset();
+}
+
+void UI_RuntimeLoader::Release_Document(umap<wstring, Shared<UI_Base>>& uiByName)
+{
+    vector<Shared<UI_Base>> uniqueUIs{};
+    uniqueUIs.reserve(uiByName.size());
+
+    unordered_set<UI_Base*> visited{};
+    visited.reserve(uiByName.size());
+
+    for (auto& [uiName, ui] : uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (nullptr == ui)
+            continue;
+
+        if (!visited.insert(ui.get()).second)
+            continue;
+
+        uniqueUIs.push_back(ui);
+    }
+
+    for (Shared<UI_Base>& ui : uniqueUIs)
+        Release_UI(ui);
+
+    uiByName.clear();
+}
+
 bool UI_RuntimeLoader::Load_PublicAnimationAsset(const wstring& animationPath, UI_KeyframeAnimationAsset& outAsset)
 {
     return Load_PublicKeyframeAnimationAsset(animationPath, outAsset);
