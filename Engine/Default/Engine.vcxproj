@@ -189,6 +189,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
     <ClInclude Include="..\Public\ChainModifier.h" />
+    <ClInclude Include="..\Public\PhysicsModifier.h" />
     <ClInclude Include="..\Public\PoseFollowChainModifier.h" />
     <ClInclude Include="..\Public\Engine_Static.h" />
     <ClInclude Include="..\Public\FacialAnimationModifier.h" />
@@ -363,6 +364,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
     <ClCompile Include="..\Private\ChainModifier.cpp" />
+    <ClCompile Include="..\Private\PhysicsModifier.cpp" />
     <ClCompile Include="..\Private\PoseFollowChainModifier.cpp" />
     <ClCompile Include="..\Private\FacialAnimationModifier.cpp" />
     <ClCompile Include="..\Private\FacialClip.cpp" />

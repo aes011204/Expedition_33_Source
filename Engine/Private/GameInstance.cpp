@@ -668,6 +668,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         _objectManager->Flush_RemovedGameObjects();
 
         _physxManager->Update(_worldTimeDelta);
+        _objectManager->Post_PhysX_Update(_worldTimeDelta);
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
