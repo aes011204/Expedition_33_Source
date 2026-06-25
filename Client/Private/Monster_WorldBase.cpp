@@ -148,10 +148,7 @@ void Monster_WorldBase::Update(float timeDelta)
     if (_isCinematicDriven)
     {
         if (bodyPart)
-        {
-            bodyPart->Play_Animation(timeDelta);
             _transformCom->Set_SpeedPerSec(0.f);
-        }
 
         Character_WorldBase::Update(timeDelta);
 

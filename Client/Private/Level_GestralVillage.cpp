@@ -2,7 +2,9 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "SkyBoxFlow.h"
+#include "Spawn_Prefab.h"
 #include "TargetCamera.h"
+#include "SoulLikeController.h"
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -26,6 +28,11 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
+    if (FAILED(Ready_Layer_ETC(TEXT("Layer_ETC"))))
+        return E_FAIL;
+
+    GAME->Set_RenderEnvironment(true);
+    GAME->Set_FogZoneCullingDistance(15.f);
     //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
@@ -45,6 +52,8 @@ HRESULT Level_GestralVillage::Render()
 
 HRESULT Level_GestralVillage::Ready_Lights()
 {
+    GAME->Clear_Lights();
+
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
@@ -70,7 +79,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         ShadowDesc.lightDistancePadding = 30.f;
         // 그림자용 ortho projection 범위 여유 값
         ShadowDesc.xyPadding = 2.f;
-        ShadowDesc.zPadding = 40.f;
+        ShadowDesc.zPadding = 20.f;
 
         // Shadow map 해상도. 4096 * 4096 * 4 * 4byte = 256mb
         ShadowDesc.shadowMapWidth = 4096;
@@ -91,7 +100,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
         cascadePresets.close.cascadeBlendDistance = 0.8f;
 
         cascadePresets.normal.focusNear = 0.1f;
-        cascadePresets.normal.focusFar = 110.f;
+        cascadePresets.normal.focusFar = 80.f;
         cascadePresets.normal.cascadeSplitLambda = 0.8f;
         cascadePresets.normal.cascadeBlendDistance = 1.7f;
 
@@ -105,6 +114,14 @@ HRESULT Level_GestralVillage::Ready_Lights()
         if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
     }
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Environments()
+{
+    GAME->Set_FogZoneCullingDistance(30.f);
+    GAME->Set_VolumetricLightShaftZoneCullingDistance(15.f);
 
     return S_OK;
 }
@@ -204,6 +221,26 @@ HRESULT Level_GestralVillage::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 {
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
+{
+    {
+        const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
+            .AtLevel(ETOI(LevelType::GestralVillage))
+            .InLayer(strLayerTag)
+            .Spawn();
+
+        CHECK_NULL(controllerObject, E_FAIL);
+
+        const Shared<SoulLikeController> soulLikeController =
+            dynamic_pointer_cast<SoulLikeController>(controllerObject);
+
+        CHECK_NULL(soulLikeController, E_FAIL);
+        CLIENT->Set_SoulLikeController(soulLikeController);
+    }
 
     return S_OK;
 }

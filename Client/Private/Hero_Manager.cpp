@@ -15,6 +15,7 @@
 #include "MovementCom.h"
 #include "PlayerStatCom.h"
 #include "Unlock_Manager.h"
+#include "EffectCom.h"
 
 static const HeroSpawnDesc heroSpawnDescs[] =
 {
@@ -108,10 +109,12 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     Apply_UnlockedHeroVisibility();
 
     auto activeHero = Get_ActiveHero();
-    CHECK_NULL(activeHero);
+    if (activeHero)
+        return;
 
     auto state = activeHero->Get_Component<PlayerStateMachineCom>();
-    CHECK_NULL(state);
+    if (state)
+        return;
 
     // 구스타브만 있을 때에는 키가 아예 안눌리도록
     if (Can_SwitchHero() && GAME->KeyDown(KEY_TYPE::T))
@@ -276,11 +279,16 @@ void Hero_Manager::Switch_NextHero()
     if (nextIndex == UINT_MAX || nextIndex == _activeIndex)
         return;
 
-    PlayEffectDesc effectDesc{};
-    effectDesc.effectName = L"Player_Change";
-    effectDesc.spawnBasisTarget = oldActive;
-    effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
-    CLIENT->Play_Effect(effectDesc);
+    if (const Shared<EffectCom> effectCom = oldActive->Get_Component<EffectCom>())
+    {
+        EffectCom::EffectPlayDesc effectDesc{};
+        effectDesc.levelIndex = GAME->Current_LevelIndex();
+        effectDesc.effectName = L"Player_Change";
+        effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
+        effectDesc.followTarget = false;
+        effectCom->Play_Effect(effectDesc);
+    }
 
     _activeIndex = nextIndex;
 

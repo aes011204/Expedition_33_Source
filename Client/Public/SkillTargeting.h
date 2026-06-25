@@ -21,11 +21,7 @@ public:
     void    ExitInvoke() override;
 
 private:
-    bool    Try_MoveTargetIndex(int32 direction, size_t enemyCount);
     bool    Requires_SkillTarget(const Skill_Data* skillData);
-
-private:
-    uint32 _targetIndex = {};
 
 public:
     static Shared<SkillTargeting> Create(const Shared<BattleController>& owner);

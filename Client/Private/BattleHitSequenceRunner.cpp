@@ -3,6 +3,8 @@
 #include "ClientInstance.h"
 #include "DamageSystem.h"
 #include "Character_BattleBase.h"
+#include "EffectCom.h"
+#include "GameInstance.h"
 
 void BattleHitSequenceRunner::Update(float timeDelta)
 {
@@ -88,10 +90,18 @@ void BattleHitSequenceRunner::Play_HitEffect(const BattleChar& target, const Hit
         return;
     }
 
-    PlayEffectDesc effectDesc{};
-    effectDesc.effectName = hitEffect.effectName;
-    effectDesc.spawnBasisTarget = target.actor;
-    effectDesc.localOffset = hitEffect.localOffset;
+    const Shared<EffectCom> effectCom = target.actor->Get_Component<EffectCom>();
+    if (effectCom == nullptr)
+        return;
 
-    CLIENT->Play_Effect(effectDesc);
+    EffectCom::EffectPlayDesc effectDesc{};
+    effectDesc.levelIndex = GAME->Current_LevelIndex();
+    effectDesc.effectName = hitEffect.effectName;
+    effectDesc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    effectDesc.localOffset = hitEffect.localOffset;
+    effectDesc.localRotation = hitEffect.localRotation;
+    effectDesc.scale = hitEffect.scale;
+    effectDesc.followTarget = false;
+
+    effectCom->Play_Effect(effectDesc);
 }

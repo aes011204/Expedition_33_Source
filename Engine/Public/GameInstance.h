@@ -41,6 +41,7 @@ class Sound_Manager;
 class Log_Manager;
 class Target_Manager;
 class Camera_Manager;
+class Environment_Manager;
 struct ConsoleLogEntry;
 class Component;
 class GameObject;
@@ -110,11 +111,11 @@ public:
     void Update_Engine(float timeDelta, const function<void(float)>& clientUpdate);
 
     HRESULT Draw();
-    HRESULT Draw_RendererOnly(); // 에디터용
+    HRESULT Draw_RendererOnly(bool renderPreviewScreenFx = false, bool preservePostProcess = false);
     void Backup_RenderGroup();
     void Restore_RenderGroup();
 
-    void Clear_Resources(uint32 levelIndex);
+    void Clear_Resources(uint32 levelIndex, bool clearPrototypes = true);
 
     float Random(float min, float max);
 
@@ -169,7 +170,7 @@ public: /* For.Timer_Manager */
     float Compute_TimeDelta(const wstring& timerTag);
 
 public: /* For.Level_Manager */
-    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
+    HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes = true);
 
     uint32 Current_LevelIndex() const;
     Shared<Level> Current_LevelType() const;
@@ -249,8 +250,27 @@ public: /* For.Renderer */
     ShaderCom_Controller*               Get_ShaderComController();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
+    const FogZoneCB&                    Get_FogZones() const;
+    const VolumetricLightShaftZoneCB&   Get_VolumetricLightShaftZones() const;
+    FogZoneCB                           Build_ActiveFogZones(const Vec3& cameraPosition);
+    VolumetricLightShaftZoneCB          Build_ActiveVolumetricLightShaftZones(const Vec3& cameraPosition);
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
     void                                Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB);
+    void                                Set_FogZoneCullingEnabled(bool enabled);
+    bool                                Is_FogZoneCullingEnabled() const;
+    void                                Set_FogZoneCullingDistance(float distance);
+    float                               Get_FogZoneCullingDistance() const;
+    void                                Set_VolumetricLightShaftZoneCullingEnabled(bool enabled);
+    bool                                Is_VolumetricLightShaftZoneCullingEnabled() const;
+    void                                Set_VolumetricLightShaftZoneCullingDistance(float distance);
+    float                               Get_VolumetricLightShaftZoneCullingDistance() const;
+    const vector<uint32>&               Get_ActiveFogAABBZoneIndices() const;
+    const vector<uint32>&               Get_ActiveFogOBBZoneIndices() const;
+    const vector<uint32>&               Get_ActiveVolumetricLightShaftZoneIndices() const;
+    void                                Set_RenderEnvironment(bool enabled);
+    bool                                Is_RenderEnvironment() const;
+    void                                Set_LetterboxEnabled(bool setLetterboxEnabled = true);
+    void                                Set_PreviewLetterboxEnabled(bool enabled);
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -344,7 +364,7 @@ public: /* For.Asset_Manager (access) */
 
 public: /* For.Sound_Manager */
     bool Play_Sound(const wstring& soundFile, SoundChannel channel, float volume = 1.f);
-    bool Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch);
+    bool Play_Sound_WithSpeed(const wstring& soundFile, SoundChannel channel, float volume, float speed);
     bool Play_BGM(
         const wstring& soundFile,
         float volume = 1.f,
@@ -370,8 +390,9 @@ public: /* For.Sound_Manager */
 
     // 사운드 큐
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition = nullptr);
-    bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch);
-    bool Try_GetSoundCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const;
+    bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float speed, float startRatio = 0.f);
+    bool Try_GetSoundCueDefaultVolumeSpeed(const wstring& cueId, float& outVolume, float& outSpeed) const;
+    HRESULT Reload_SoundCues();
     // 3D 사운드의 기준은, 활성화된 카메라의 기준으로
     void Update_SoundListenerFromActiveCamera();
 
@@ -438,6 +459,7 @@ public : /* For.Target_Manager */
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
     HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
+    ID3D11ShaderResourceView* Get_RT_SRV(const wstring& targetTag);
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
@@ -445,6 +467,8 @@ public : /* For.Target_Manager */
 
     HRESULT Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
     HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
+    // Writes bit1 for objects that should preserve original color in ScreenFX exclusion passes.
+    HRESULT Bind_ScreenFxExclusionStencilWriteState(bool depthWrite);
     HRESULT Bind_BackgroundUIBehindPlayerStencilState();
     HRESULT Bind_UINoDepthStencilState();
 
@@ -468,6 +492,7 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
+    HRESULT                 Get_ShadowCBSnapshot(ShadowCB& outShadowCB) const;
     HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
     void                    Set_ShadowEnabled(bool enabled);
     uint32                  Get_ShadowCascadeCount() const;
@@ -475,6 +500,8 @@ public: /* For.Shadow */
     CascadeLevel            Get_ShadowCascadeLevel() const;
     HRESULT                 Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets);
     const ShadowCascadePresetSet* Get_ShadowCascadePresets() const;
+    uint32                  Get_ActiveShadowCascade() const;
+    const ShadowCascadeInfluenceVolume* Get_CascadeInfluenceVolumes() const;
 
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;
@@ -611,7 +638,16 @@ public: /* For.Event Bus */
 
 public: /* ScreenFx Manager */
     void Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const;
+    ScreenFxHandle Play_ScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const;
+    void Stop_ScreenFx(ScreenFxHandle handle) const;
+    ScreenFxHandle Play_PreviewScreenFx_WithHandle(const Shared<class ScreenFx_Instance>& screenFX) const;
+    void Evaluate_PreviewScreenFx(ScreenFxHandle handle, float elapsedTime) const;
+    void Stop_PreviewScreenFx(ScreenFxHandle handle) const;
     bool Is_ScreenFxFinished(const wstring& tag) const;
+
+public :
+    bool Is_EnableWorldRendering() const { return _enableWorldRendering; }
+    void Enable_WorldRendering(bool enable) { _enableWorldRendering = enable; }
 
 private:
     Unique<Log_Manager> _logManager{};
@@ -621,6 +657,7 @@ private:
     Unique<Prototype_Manager> _prototypeManager{};
     Unique<UI_Manager> _uiManager{};
     Unique<Object_Manager> _objectManager{};
+    Unique<Environment_Manager> _environmentManager{};
     Unique<Renderer> _renderer{};
     Unique<ScreenFx_Manager> _screenFxManager{};
     Unique<ShaderCom_Controller> _shaderComController{};
@@ -658,6 +695,8 @@ private:
     ComPtr<Context> _context = {};
     ComPtr<ID3D11DepthStencilState> _playerStencilWriteState = {};
     ComPtr<ID3D11DepthStencilState> _playerStencilWriteDepthReadState = {};
+    ComPtr<ID3D11DepthStencilState> _screenFxExclusionStencilWriteState = {};
+    ComPtr<ID3D11DepthStencilState> _screenFxExclusionStencilWriteDepthReadState = {};
     ComPtr<ID3D11DepthStencilState> _backgroundUIBehindPlayerStencilState = {};
     ComPtr<ID3D11DepthStencilState> _uiNoDepthStencilState = {};
 
@@ -673,6 +712,8 @@ private:
     // 월드 시간 제어
     float _worldTimeScale = 1.f;
     float _unscaledTimeDelta = 0.f;
+
+    bool    _enableWorldRendering = false;
 
 #ifdef _DEBUG
 private:

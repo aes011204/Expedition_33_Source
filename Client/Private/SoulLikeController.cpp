@@ -1,6 +1,7 @@
 ﻿#include "SoulLikeController.h"
 #include "BattleController.h"
 #include "BattleTurnCamera.h"
+#include "Client_Constants.h"
 #include "Event_Bus.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
@@ -165,6 +166,12 @@ bool SoulLikeController::Begin_Battle()
     _healingPotionCount = kMaxHealingPotionCount;
     _state = BattleState::EnterFx;
 
+    if (Is_DuallisteBattle())
+    {
+        Capture_PreSoulLikeBGM();
+        Play_DuallisteBGM(DuallisteBGMPhase::Phase1);
+    }
+
     if (_estherManager)
         _estherManager->Reset();
 
@@ -182,6 +189,7 @@ void SoulLikeController::End_Battle()
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     Remove_SoulLikeRuntimeCameras();
+    Restore_PreSoulLikeBGM();
 
     _state = BattleState::Finished;
     _enterFxTimer = 0.f;
@@ -297,6 +305,17 @@ void SoulLikeController::Play_PlayerParryFeedback()
         GAME->Slow_WorldTime(_playerHitStopTimeScale, _playerHitStopDuration);
 }
 
+void SoulLikeController::Notify_PlayerParrySuccess()
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    if (_estherManager)
+        _estherManager->Add_GaugeFromParry();
+
+    Play_PlayerParryFeedback();
+}
+
 void SoulLikeController::Play_PlayerAttackHitFeedback(const SL_DamageInfo& damageInfo)
 {
     UNREFERENCED_PARAMETER(damageInfo);
@@ -304,10 +323,30 @@ void SoulLikeController::Play_PlayerAttackHitFeedback(const SL_DamageInfo& damag
     if (_state != BattleState::Playing)
         return;
 
+    GAME->Play_SoundCue(L"SFX_Hits_Sword");
+
     if (_playerAttackHitStopDuration <= 0.f)
         return;
 
     GAME->Slow_WorldTime(_playerAttackHitStopTimeScale, _playerAttackHitStopDuration);
+}
+
+void SoulLikeController::Play_DuallisteBGM(DuallisteBGMPhase phase)
+{
+    if (!Is_BattleActive())
+        return;
+
+    if (!Is_DuallisteBattle())
+        return;
+
+    const wchar_t* bgm = Resolve_DuallisteBGM(phase);
+    if (bgm == nullptr || bgm[0] == L'\0')
+        return;
+
+    if (GAME->Get_CurrentBGM() == bgm)
+        return;
+
+    GAME->Play_BGM(bgm, 1.f, true, 0.f);
 }
 
 void SoulLikeController::Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active)
@@ -423,12 +462,23 @@ void SoulLikeController::Apply_JumpCounterDamage()
     _jumpCounterAttackStarted = false;
 }
 
+float SoulLikeController::Get_EstherGaugeRatio() const
+{
+    return _estherManager ? _estherManager->Get_GaugeRatio() : 0.f;
+}
+
 bool SoulLikeController::Notify_EstherAttack(GameObject* notifyOwner)
 {
     if (!_estherManager)
         return false;
 
     return _estherManager->Notify_Attack(notifyOwner);
+}
+
+bool SoulLikeController::Is_VictoryCameraBlocked() const
+{
+     return _state == BattleState::VictorySlow ||
+        _state == BattleState::Victory;
 }
 
 void SoulLikeController::Request_SoulLikeCamera()
@@ -731,6 +781,7 @@ void SoulLikeController::Update_EnterFx(float timeDelta)
 
     if (!_playerSpawned && !Spawn_Player())
     {
+        Restore_PreSoulLikeBGM();
         _state = BattleState::Finished;
         return;
     }
@@ -903,6 +954,7 @@ void SoulLikeController::Sync_PlayerResultToWorld()
 void SoulLikeController::Handle_EditorStopRuntime()
 {
     Remove_SpawnedBattleActors();
+    Restore_PreSoulLikeBGM();
 
     _state = BattleState::None;
     _enterFxTimer = 0.f;
@@ -925,6 +977,49 @@ void SoulLikeController::Handle_EditorStopRuntime()
     if (auto screenFxManager = GAME->Get_ScreenFxManager())
         screenFxManager->Clear_ScreenEffect();
 
+}
+
+void SoulLikeController::Capture_PreSoulLikeBGM()
+{
+    if (_hasPreSoulLikeBGM)
+        return;
+
+    _preSoulLikeBGM = GAME->Get_CurrentBGM();
+    _hasPreSoulLikeBGM = true;
+}
+
+void SoulLikeController::Restore_PreSoulLikeBGM()
+{
+    if (!_hasPreSoulLikeBGM)
+        return;
+
+    if (_preSoulLikeBGM.empty())
+        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+    else
+        GAME->Play_BGM(_preSoulLikeBGM, 1.f, true, 0.f);
+
+    _preSoulLikeBGM.clear();
+    _hasPreSoulLikeBGM = false;
+}
+
+bool SoulLikeController::Is_DuallisteBattle() const
+{
+    return _monsterPrefab == Constants::Prefab::SL_Dualliste;
+}
+
+const wchar_t* SoulLikeController::Resolve_DuallisteBGM(DuallisteBGMPhase phase) const
+{
+    switch (phase)
+    {
+    case DuallisteBGMPhase::Phase1:
+        return Constants::SoundBGM::DuallisteBattlePhase1Main;
+
+    case DuallisteBGMPhase::Phase2:
+        return Constants::SoundBGM::DuallisteBattlePhase2Main;
+
+    default:
+        return nullptr;
+    }
 }
 
 void SoulLikeController::Update_BaseAttack(const Shared<SL_StateMachineCom>& stateMachine)
@@ -1063,6 +1158,9 @@ bool SoulLikeController::Update_HealingPotion(const Shared<SL_Maelle>& player,
 bool SoulLikeController::Update_Esther()
 {
     if (_estherManager == nullptr)
+        return false;
+
+    if (GAME->Is_UIInputEnabled() && GAME->Get_GameplayInputMode() == GameplayInputMode::UIOnly)
         return false;
 
     if (GAME->KeyDown(KEY_TYPE::KEY_3))

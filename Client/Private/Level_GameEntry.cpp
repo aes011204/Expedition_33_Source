@@ -22,6 +22,8 @@ HRESULT Level_GameEntry::Initialize()
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
 
+    GAME->Set_RenderEnvironment(false);
+
     return S_OK;
 }
 
@@ -68,6 +70,7 @@ void Level_GameEntry::Handle_Button()
     {
         GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
 
+        // 수정
         if (!CLIENT->Request_LevelTransition(LevelType::GamePlay))
             return;
 

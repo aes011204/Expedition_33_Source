@@ -33,6 +33,7 @@ public:
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
         vector<json> postProcessVolumes = {};
+        vector<json> shaftVolumes = {};
         vector<json> waters = {};
         vector<json> prefabInstances = {};
         vector<json> authoredObjects = {};
@@ -40,8 +41,15 @@ public:
         vector<string> materialAppliedModelPaths = {};
 
         size_t nextPreloadModelIndex = 0;
+        size_t nextMaterialApplyModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
+
+        size_t nextInstancedMeshGroupIndex = 0;
+        bool instancedMeshGroupsBuilt = false;
+        vector<string> instancedMeshModelOrder;
+        umap<string, vector<size_t>> instancedMeshGroups;
+
         size_t nextWaterIndex = 0;
         size_t nextPrefabInstanceIndex = 0;
         size_t nextAuthoredObjectIndex = 0;
@@ -56,9 +64,11 @@ public:
 
         bool staticAutoInstancingPrepared = false;
         bool preloadModelsDone = false;
+        bool materialsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
         bool postProcessVolumesDone = false;
+        bool shaftVolumesDone = false;
         bool watersDone = false;
         bool prefabInstancesDone = false;
         bool authoredObjectsDone = false;
@@ -131,7 +141,9 @@ private:
 
     static void Prepare_StaticAutoInstancing(LoadSession& session);
     static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry = nullptr);
+    static string BuildMaterialSignature(const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry);
     static void MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr);
+    static void MarkGlobalModelMaterialsApplied(const string& modelFolder, const string& modelPathStr, const unordered_map<string, ModelOverrideEntry>& modelOverrides);
     static void ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model);
 
     // 스레드 안전한 전역 모델 조회 및 로드 헬퍼 함수
@@ -141,6 +153,7 @@ private:
         const string& modelFolder,
         const string& modelPathStr,
         const unordered_map<string, ModelOverrideEntry>& modelOverrides,
+        bool applyMaterials,
         chrono::milliseconds* outCreateDuration = nullptr,
         size_t* outCreateCount = nullptr,
         chrono::milliseconds* outMaterialDuration = nullptr,
@@ -153,6 +166,7 @@ private:
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
+    static umap<string, string> g_globalMaterialSignatureByModel;
     static uint32 g_currentLevelIndex;
 };
 

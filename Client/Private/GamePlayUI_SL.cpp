@@ -162,6 +162,7 @@ void GamePlayUI_SL::Update_SLHud(float timeDelta)
         return;
 
     _slHud->Update_PlayerHUD(player);
+    _slHud->Set_EstherGaugeRatio(controller ? controller->Get_EstherGaugeRatio() : 0.f);
     _slHud->Update_BossHUD(monster, timeDelta);
 }
 

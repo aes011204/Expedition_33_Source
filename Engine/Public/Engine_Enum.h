@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "EnumFlags.h"
 
 namespace Engine
@@ -13,9 +13,10 @@ namespace Engine
         Shadow,
         NonBlend,
         NonLight,
-        EffectMasked, // Mask 식 Effect용
-        Distortion,   // Effect용 Distortion
+        EffectMasked, // Mask-style effect
+        Distortion,   // Distortion effect
         Blend,
+        Glow,
         UI,
         UIEffect,
         END
@@ -23,16 +24,16 @@ namespace Engine
 
     enum class ShadowCasterType : uint8
     {
-        None,       // 그림자 X
-        Dynamic,    // 매 프레임 Shadow Pass
+        None,       // No shadow
+        Dynamic,    // Shadow pass every frame
     };
 
     enum class UI_RenderGroup
     {
-        // UI Render 순서. 필요하다면 추후에 더 확장
-        Background, // 플레이어 뒤 연출용 UI
-        Foreground, // depth를 무시하고 3D 씬 위에 그리는 일반 UI
-        Overlay,    // UIEffect 이후 최상단에 그리는 우선 UI
+        // UI render order. Extend later if needed.
+        Background, // Staged UI rendered behind the player
+        Foreground, // Regular UI drawn over the 3D scene without depth
+        Overlay,    // Highest-priority UI drawn after UIEffect
     };
 
     enum class State { Right, Up, Look, Position, END };
@@ -60,12 +61,14 @@ namespace Engine
         Player,
         Monster,
         Character,
+        NPC,
 
         FreeCamera,
         TargetCamera,
         PreviewCamera,
         BattleTurnCamera,
         CinematicCamera,
+        DialogueCamera,
         SoulLikeCamera,
 
         Terrain,
@@ -96,7 +99,7 @@ namespace Engine
         Point,
         CombinedHDR,
         CombinedSimple,
-        CombinedPreview = 5, // Preview에서는 그림자 계산 X
+        CombinedPreview = 5, // No shadow calculation in preview
         SSAO,
         SSAOBlur,
         Fog,
@@ -113,6 +116,7 @@ namespace Engine
         BloomUpsampleAdd,
         ToneMapping,
         DistortionResolve,
+        FroxelCompositeHDR,
         LightShaftMaskHalf,
         LightShaftRadialBlurHalf,
         LightShaftCompositeHDR,
@@ -164,8 +168,9 @@ namespace Engine
         Water           = 13,
         LightShaft      = 14,
         PlayerRender    = 15,
-        FroxelDebug     = 16,
-        VolumetricLightShaftZone = 17,
+        Froxel          = 16,
+        FroxelDebug     = 17,
+        VolumetricLightShaftZone = 18,
 
         END
     };
@@ -213,10 +218,10 @@ namespace Engine
 
     enum class GameplayInputMode
     {
-        Normal,         // 기본 월드 플레이
-        UIOnly,         // UI 입력만 허용, 월드 입력차단
-        Cutscene,       // 컷신처럼 월드 입력 차단
-        BattleMenu      // 배틀 메뉴 선택
+        Normal,         // Default world gameplay
+        UIOnly,         // UI input only, block world input
+        Cutscene,       // Block world input like a cutscene
+        BattleMenu      // Battle menu selection
     };
 
     enum class SoundChannel : uint32
@@ -250,4 +255,5 @@ namespace Engine
 }
 
 template <> struct Enable_Bitmask_Operators<Engine::PostProcessFeature> { static constexpr bool value = true; };
+
 

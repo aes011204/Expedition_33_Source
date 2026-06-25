@@ -111,7 +111,7 @@ void Mon_Simon_Weapon::Update(float timeDelta)
         return;
     }
 
-    Matrix worldMatrix = _offsetMatrix * _transformCom->Get_WorldMatrix();
+    Matrix worldMatrix = Matrix::CreateScale(10.f) * _offsetMatrix * _transformCom->Get_WorldMatrix();
 
     if (_useSocketBinding && _socketMatrix != nullptr)
         worldMatrix *= *_socketMatrix;
@@ -234,8 +234,7 @@ const WeaponSourceHistoryAnchorDesc* Mon_Simon_Weapon::Find_SourceHistoryAnchor(
 
 uint32 Mon_Simon_Weapon::Decide_PassIndex(Shared<Material> mat)
 {
-    const int OPAQUE_PASS = 0;
-    return OPAQUE_PASS;
+    return mat->Get_PassIndex();
 }
 
 HRESULT Mon_Simon_Weapon::Ready_DefaultComponents()

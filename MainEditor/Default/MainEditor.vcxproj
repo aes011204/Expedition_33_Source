@@ -186,6 +186,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\Action_Command.cpp" />
+    <ClCompile Include="..\Private\AnimationNotifyEditor.cpp" />
     <ClCompile Include="..\Private\Animation_View.cpp" />
     <ClCompile Include="..\Private\AnimSequencerAdapter.cpp" />
     <ClCompile Include="..\private\AIController_Inspector.cpp" />
@@ -210,6 +211,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\Model_Inspector.cpp" />
     <ClCompile Include="..\Private\MonsterStat_Inspector.cpp" />
     <ClCompile Include="..\Private\Notification_Manager.cpp" />
+    <ClCompile Include="..\Private\PathTool.cpp" />
     <ClCompile Include="..\Private\PlayerStat_Inspector.cpp" />
     <ClCompile Include="..\Private\PostProcess_View.cpp" />
     <ClCompile Include="..\Private\Prefab_View.cpp" />
@@ -226,6 +228,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\EditorInstance.cpp" />
     <ClCompile Include="..\Private\Editor_Window.cpp" />
     <ClCompile Include="..\Private\Editor_Manager.cpp" />
+    <ClCompile Include="..\Private\EnvironmentView.cpp" />
     <ClCompile Include="..\Private\Profile_View.cpp" />
     <ClCompile Include="..\Private\Scene_View.cpp" />
     <ClCompile Include="..\Private\Game_View.cpp" />
@@ -235,6 +238,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
+    <ClInclude Include="..\Public\AnimationNotifyEditor.h" />
     <ClInclude Include="..\Public\Animation_NameUtils.h" />
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
@@ -264,6 +268,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Model_Inspector.h" />
     <ClInclude Include="..\Public\MonsterStat_Inspector.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
+    <ClInclude Include="..\Public\PathTool.h" />
     <ClInclude Include="..\Public\PlayerStat_Inspector.h" />
     <ClInclude Include="..\Public\PostProcess_View.h" />
     <ClInclude Include="..\Public\Prefab_View.h" />
@@ -277,6 +282,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Editor_Window.h" />
     <ClInclude Include="..\Public\Editor_Defines.h" />
     <ClInclude Include="..\Public\IconsFontAwesome6.h" />
+    <ClInclude Include="..\Public\EnvironmentView.h" />
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Editor_Manager.h" />
     <ClInclude Include="..\Public\Profile_View.h" />

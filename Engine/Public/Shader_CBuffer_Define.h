@@ -242,7 +242,7 @@ struct alignas(16) SSAOCB
     // 현재 구현은 view-space 반구 샘플링이므로 Radius는 "화면 픽셀 반경"이 아니라
     // 현재 픽셀 주변을 3D 공간에서 얼마나 멀리 볼지 정하는 반경으로 해석된다.
     float SSAORadius = 0.1f;                      // view-space 샘플 반경. 값이 커질수록 넓은 홈/바닥까지 AO가 쉽게 들어간다.
-    float SSAOBias = 0.1f;                      // 자기 표면을 가려진 것으로 잘못 세지 않도록 밀어주는 깊이 여유값.
+    float SSAOBias = 0.075f;                      // 자기 표면을 가려진 것으로 잘못 세지 않도록 밀어주는 깊이 여유값.
     float SSAOIntensity = 0.7f;                   // Combined 단계에서 AO 결과를 얼마나 강하게 섞을지.
     float SSAOPower = 1.2f;                       // Combined 단계에서 AO 대비를 얼마나 더 눌러줄지.
 
@@ -323,6 +323,11 @@ struct alignas(16) ScreenFxCB
     float wipeRadius{ 0.f };
     float edgeSoftness{ 0.05f };
     Vec2 pad;
+
+    // ScreenFX cue shape
+    Vec4 flashColor{ 1.f, 1.f, 1.f, 1.f };
+    Vec4 screenFxShape{ 0.5f, 0.5f, 1.f, 0.05f };
+    Vec4 screenFxParams{ 0.f, 0.f, 0.f, 1.f };
 };
 
 struct alignas(16) FogZoneEntry
@@ -345,14 +350,38 @@ struct alignas(16) FogZoneEntry
     float noiseMin{ 0.38f };
 };
 
+struct alignas(16) FogOBBZoneEntry
+{
+    Matrix worldToLocal;
+
+    Vec3 halfExtents{ 5.f, 5.f, 5.f };
+    float baseHeight{ 0.f };
+
+    Vec4 fogColor{ 0.6f, 0.6f, 0.6f, 1.f };
+
+    float fogDensity{ 1.f };
+    float topFadeStart{ 0.4f };
+    float topHeight{ 0.9f };
+    float edgeFade{ 1.f };
+
+    float noiseScale{ 0.0025f };
+    Vec2 noiseSpeed{ 0.005f, 0.003f };
+    float noiseStrength{ 0.9f };
+
+    float noiseMin{ 0.38f };
+    float _pad0[3]{};
+};
+
 struct alignas(16) FogZoneCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::FogZone;
-    static constexpr int32 MAX_FOG_ZONES = 8;
+    static constexpr int32 MAX_FOG_ZONES = 16;
+    static constexpr int32 MAX_FOG_OBB_ZONES = 2;
 
-    FogZoneEntry zones[MAX_FOG_ZONES]{};
+    FogZoneEntry aabbZones[MAX_FOG_ZONES]{};
+    FogOBBZoneEntry obbZones[MAX_FOG_OBB_ZONES]{};
     int32 aabbCount{ 0 };
-    int32 sphereCount{ 0 };
+    int32 obbCount{ 0 };
     float groundFogMaxDistance{ 100.f };
     float groundFogMinAccumulationDistance{ 10.f };
 
@@ -378,7 +407,7 @@ struct alignas(16) VolumetricLightShaftZoneCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::VolumetricLightShaftZone;
 
-    static constexpr uint32 MAX_LIGHT_SHAFT_ZONES = 8;
+    static constexpr uint32 MAX_LIGHT_SHAFT_ZONES = 16;
 
     VolumetricLightShaftZoneEntry zones[MAX_LIGHT_SHAFT_ZONES]{};
 
@@ -432,7 +461,7 @@ struct alignas(16) PlayerRenderCB
 /* ------------------------------------------ */
 struct alignas(16) FroxelCB
 {
-    static constexpr ConstantBuffer CBType = ConstantBuffer::FroxelDebug;
+    static constexpr ConstantBuffer CBType = ConstantBuffer::Froxel;
 
     uint32_t froxelWidth;
     uint32_t froxelHeight;
@@ -440,14 +469,25 @@ struct alignas(16) FroxelCB
     float froxelNear;
 
     float froxelFar;
-    Vec3 froxelPadding;
+    float compositeIntensity{ 1.f };
+    float depthBias{ 0.05f };
+    float shadowStrength{ 1.f };
+    float cameraFar{ 0.f };
+    Vec3 froxelPadding{ 0.f, 0.f, 0.f };
 
     Matrix inverseView;
     Matrix inverseProjection;
+    Matrix previousView;
+    Matrix previousProjection;
 
     Vec4 lightDirection;
     Vec4 lightColor;
     Vec4 camPosition;
+
+    float temporalBlend{ 0.85f };
+    float jitterZ{ 0.f };
+    float temporalDepthReject{ 0.25f };
+    uint32 historyValid{ 0u };
 };
 
 struct alignas(16) FroxelDebugCB
@@ -458,6 +498,9 @@ struct alignas(16) FroxelDebugCB
     uint32_t froxelDebugHeight;
     uint32_t froxelDebugDepth;
     uint32_t froxelDebugSlice;
+    uint32_t froxelDebugMode{ 0 };
+    float froxelDebugGain{ 1.f };
+    float _pad0[2]{};
 };
 
 // 패딩이 제대로 됐나 마지막 확인용 
@@ -474,6 +517,8 @@ static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 static_assert(sizeof(ScreenFxCB) % 16 == 0);
+static_assert(sizeof(FogZoneEntry) % 16 == 0);
+static_assert(sizeof(FogOBBZoneEntry) % 16 == 0);
 static_assert(sizeof(FogZoneCB) % 16 == 0);
 static_assert(sizeof(WaterCB) % 16 == 0);
 static_assert(sizeof(PlayerRenderCB) % 16 == 0);

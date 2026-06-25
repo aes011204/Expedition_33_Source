@@ -4,7 +4,15 @@
 #include "MECamera.h"
 #include "CmdTransformObject.h"
 #include "CmdDeleteObject.h"
+#include "CmdDeleteInstance.h"
+#include "CmdAddInstance.h"
+#include "CmdEraseInstances.h"
 #include "MEWaterActor.h"
+#include "MEStaticMeshActor.h"
+#include "MEInstancedMeshActor.h"
+#include "CmdConvertToInstanced.h"
+#include "CmdConvertAllToStatic.h"
+#include "CmdConvertOneToStatic.h"
 
 PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }, _camera{ camera }
@@ -104,7 +112,7 @@ void PanelInspector::Render()
         if (!obj->_isDefaultLight)
         {
             ImGui::SameLine();
-            if (ImGui::Button("Delete"))
+            if (ImGui::Button("오브젝트 지우기"))
             {
                 auto it = find(_ctx->_objects.begin(), _ctx->_objects.end(), _ctx->_selected);
                 if (it != _ctx->_objects.end())
@@ -138,7 +146,7 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
         int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
         ImGui::Text("Instance Count: %d", instSize);
         ImGui::SameLine();
-        if (ImGui::SmallButton("Clear All") && !obj->_instancedTransforms.empty())
+        if (ImGui::SmallButton("오브젝트 지우기") && !obj->_instancedTransforms.empty())
         {
             obj->_instancedTransforms.clear();
             obj->_instancedParamsDirty = true;
@@ -153,14 +161,28 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
 
         auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
         ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Del"))
+
+        if (ImGui::SmallButton("인스턴스 지우기"))
         {
-            obj->_instancedTransforms.erase(
-                obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);
-            obj->_instancedParamsDirty = true;
-            obj->_selectedInstanceIdx = -1;
+            _ctx->PushCommand(CmdDeleteInstance::Create(obj, obj->_selectedInstanceIdx));
             return;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("인스턴스 복사하기"))
+        {
+            const InstanceTransform copied = t;
+            _ctx->PushCommand(CmdAddInstance::Create(obj, copied, obj->_selectedInstanceIdx + 1));
+            return;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("정적으로 변환"))
+        {
+            if (auto cmd = CmdConvertOneToStatic::Create(obj, obj->_selectedInstanceIdx))
+            {
+                _ctx->PushCommand(cmd);
+                return;
+            }
         }
 
         float pos[3] = { t._position.x, t._position.y, t._position.z };
@@ -314,7 +336,8 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
     if (obj->_type != EObjectType::EncounterZone &&
         obj->_type != EObjectType::TriggerVolume &&
         obj->_type != EObjectType::CameraZone &&
-        obj->_type != EObjectType::PostProcessVolume)
+        obj->_type != EObjectType::PostProcessVolume &&
+        obj->_type != EObjectType::ShaftVolume)
     {
         return;
     }
@@ -324,22 +347,27 @@ void PanelInspector::DrawZoneShape(Shared<EditorObject>& obj)
         return;
     }
 
-    int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
-    const bool forceBoxShape = (obj->_type == EObjectType::PostProcessVolume);
-    if (forceBoxShape)
+    if (obj->_type == EObjectType::PostProcessVolume)
     {
-        obj->_zoneShape = EZoneShape::Box;
-        shapeIdx = 0;
-        ImGui::BeginDisabled();
-        ImGui::Combo("Shape", &shapeIdx, _shapes, 1);
-        ImGui::EndDisabled();
+        int shapeIdx = (obj->_zoneShape == EZoneShape::OBB) ? 1 : 0;
+        if (ImGui::Combo("Shape", &shapeIdx, "AABB\0OBB\0"))
+        {
+            obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::OBB : EZoneShape::Box;
+        }
     }
-    else if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
+    else
     {
-        obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
+        if (obj->_zoneShape == EZoneShape::OBB)
+            obj->_zoneShape = EZoneShape::Box;
+
+        int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
+        if (ImGui::Combo("Shape", &shapeIdx, "Box\0Sphere\0"))
+        {
+            obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
+        }
     }
 
-    if (obj->_zoneShape == EZoneShape::Box)
+    if (obj->_zoneShape != EZoneShape::Sphere)
     {
         float ext[3] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
         if (ImGui::DragFloat3("Extent", ext, 0.1f, 0.01f, 1000.f))
@@ -372,8 +400,33 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
         {
             string pathStr = String::ToString(obj->_modelPath);
             ImGui::TextDisabled("%s", pathStr.empty() ? "(없음)" : pathStr.c_str());
-            
+
+            if (!obj->_modelPath.empty())
+            {
+                if (ImGui::Button("인스턴스로 변환"))
+                {
+                    if (auto cmd = CmdConvertToInstanced::Create(obj))
+                    {
+                        _ctx->PushCommand(cmd);
+                        return;
+                    }
+                }
+            }
+
             DrawMaterialOverrides(obj);
+        }
+
+        if (ImGui::CollapsingHeader("Render Settings##static", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::Checkbox("Visible##static", &obj->_visible))
+            {
+                if (obj->_renderHandle)
+                {
+                    obj->_renderHandle->Set_Visible(obj->_visible);
+                }
+            }
+            ImGui::Checkbox("Cull Enabled##static", &obj->_cullEnabled);
+            ImGui::Checkbox("Cast Shadow##static", &obj->_castShadow);
         }
         break;
 
@@ -432,6 +485,21 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             if (ImGui::ColorEdit3("Fog Color", fogColor))
             {
                 obj->_ppFogColor = { fogColor[0], fogColor[1], fogColor[2] };
+            }
+        }
+        break;
+
+    case EObjectType::ShaftVolume:
+        if (ImGui::CollapsingHeader("Froxel Shaft", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::DragFloat("Density", &obj->_shaftDensity, 0.01f, 0.f, 10.f);
+            ImGui::DragFloat("Edge Fade", &obj->_shaftEdgeFade, 0.01f, 0.f, 1000.f);
+            ImGui::DragFloat("Intensity", &obj->_shaftIntensity, 0.01f, 0.f, 100.f);
+
+            float shaftColor[4] = { obj->_shaftLightColor.x, obj->_shaftLightColor.y, obj->_shaftLightColor.z, obj->_shaftLightColor.w };
+            if (ImGui::ColorEdit4("Light Color", shaftColor))
+            {
+                obj->_shaftLightColor = Vec4(shaftColor[0], shaftColor[1], shaftColor[2], shaftColor[3]);
             }
         }
         break;
@@ -520,6 +588,59 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             }
 
             ImGui::Checkbox("Has Collision", &obj->_instancedHasCollision);
+
+            if (ImGui::Checkbox("Visible##instanced", &obj->_visible))
+            {
+                for (auto& handle : obj->_instancedChunkHandles)
+                {
+                    if (handle)
+                    {
+                        handle->Set_Visible(obj->_visible);
+                    }
+                }
+            }
+            ImGui::Checkbox("Cull Enabled##instanced", &obj->_cullEnabled);
+            ImGui::Checkbox("Cast Shadow##instanced", &obj->_castShadow);
+
+            ImGui::Separator();
+            int32 instCount = static_cast<int32>(obj->_instancedTransforms.size());
+            if (ImGui::Button("전체를 정적으로 변환"))
+            {
+                if (instCount > 50)
+                {
+                    ImGui::OpenPopup("ConvertAllConfirm");
+                }
+                else if (auto cmd = CmdConvertAllToStatic::Create(obj))
+                {
+                    _ctx->PushCommand(cmd);
+                    ImGui::End();
+                    SetOpen(_isOpen);
+                    return;
+                }
+            }
+
+            if (ImGui::BeginPopupModal("ConvertAllConfirm", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::Text("인스턴스 %d개를 정적 메쉬로 변환합니다.\n오브젝트가 많아 성능에 영향을 줄 수 있습니다.\n계속하시겠습니까?", instCount);
+                ImGui::Separator();
+                if (ImGui::Button("확인", ImVec2(100, 0)))
+                {
+                    if (auto cmd = CmdConvertAllToStatic::Create(obj))
+                    {
+                        ImGui::CloseCurrentPopup();
+                        ImGui::EndPopup();
+                        _ctx->PushCommand(cmd);
+                        return;
+                    }
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("취소", ImVec2(100, 0)))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
         }
 
         if (ImGui::CollapsingHeader("Scatter Zone"))
@@ -652,7 +773,7 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             if (ImGui::Button("Erase"))
             {
-                _ctx->EraseAt(obj.get(), _eraseRadius, _eraseCenter);
+                _ctx->PushCommand(CmdEraseInstances::Create(obj, _eraseRadius, _eraseCenter));
             }
         }
 

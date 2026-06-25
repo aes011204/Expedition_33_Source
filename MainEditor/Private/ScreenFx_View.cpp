@@ -42,8 +42,30 @@ void ScreenFx_View::Pre_Render()
 
 void ScreenFx_View::Render()
 {
-    if (!_isOpen) return;
-    if (!ImGui::Begin("ScreenFx Editor", &_isOpen)) { ImGui::End(); return; }
+    auto clearPreviewState = [&]() {
+        _selectedEffectName = "";
+        _previewInstance = nullptr;
+        _isPlaying = false;
+#ifdef _DEBUG
+        if (ScreenFx_Manager* manager = GAME->Get_ScreenFxManager())
+            manager->Clear_PreviewEffect();
+#endif
+    };
+
+    if (!_isOpen)
+    {
+        if (_previewInstance)
+            clearPreviewState();
+        return;
+    }
+
+    if (!ImGui::Begin("ScreenFx Editor", &_isOpen))
+    {
+        ImGui::End();
+        if (!_isOpen && _previewInstance)
+            clearPreviewState();
+        return;
+    }
 
     ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
     bool screenFxActivated = screenFxManager ? screenFxManager->Is_ScreenFXActivated() : false;
@@ -83,7 +105,8 @@ void ScreenFx_View::Render()
                 {
                     _previewInstance->Initialize(nullptr);
 #ifdef _DEBUG
-                    GAME->Get_ScreenFxManager()->Set_PreviewEffect(_previewInstance);
+                    if (screenFxManager)
+                        screenFxManager->Set_PreviewEffect(_previewInstance);
 #endif
                 }
             }
@@ -95,11 +118,7 @@ void ScreenFx_View::Render()
     ImGui::SameLine();
     if (ImGui::Button("Clear"))
     {
-        _selectedEffectName = "";
-        _previewInstance = nullptr;
-#ifdef _DEBUG
-        GAME->Get_ScreenFxManager()->Clear_PreviewEffect();
-#endif
+        clearPreviewState();
     }
 
     // 2. 리플렉션 렌더링 (프로퍼티 에디터)
@@ -195,6 +214,9 @@ void ScreenFx_View::Render()
     }
 
     ImGui::End();
+
+    if (!_isOpen && _previewInstance)
+        clearPreviewState();
 }
 
 Shared<ScreenFx_View> ScreenFx_View::Create()

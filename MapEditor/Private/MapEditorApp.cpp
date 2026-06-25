@@ -21,6 +21,7 @@
 #include "MEMaterialApplicator.h"
 #include "MEWaterActor.h"
 #include "CmdDeleteObject.h"
+#include "CmdAddInstance.h"
 
 // test
 #include "METerrainActor.h"
@@ -236,6 +237,11 @@ HRESULT MapEditorApp::Render()
         }
     }
 
+    if (Shared<IEditorCommand> deleteCmd = _viewport->ConsumeDeleteCommand())
+    {
+        _scene.PushCommand(deleteCmd);
+    }
+
     if (_viewport->ConsumeCursorSet(mousePos, vpPos, vpSize))
     {
         _pickingSystem->SetCursorAt(_scene, *_camera, mousePos, vpPos, vpSize, *_rt);
@@ -256,6 +262,7 @@ HRESULT MapEditorApp::Render()
 
     SyncSceneLights();
     SyncFogZones();
+    SyncVolumetricLightShaftZones();
 
     GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
 
@@ -330,7 +337,7 @@ HRESULT MapEditorApp::Render()
                 }
 
                 obj->_instancedChunkHandles[ci]->Set_CameraFar(_camera->GetFar());
-                obj->_instancedChunkHandles[ci]->Late_Update(0.f);
+                obj->_instancedChunkHandles[ci]->Late_Update(_timeDelta);
             }
         }
     }
@@ -370,7 +377,9 @@ HRESULT MapEditorApp::Render()
 
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
-    CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
+
+    CHECK_FAILED(GAME->Draw_RendererOnly(false, true), E_FAIL);
+    GAME->Set_RenderEnvironment(true);
 
     _debugRenderer->Draw(_scene);
     GAME->Render_DebugDepth();
@@ -437,6 +446,7 @@ void MapEditorApp::Update_StaticMeshHandles()
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
         _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename, obj->_position, String::ToString(obj->_modelPath));
 
+        actor->Set_Visible(obj->_visible);
         obj->_renderHandle = actor;
         _scene._octreeDirty = true;
     }
@@ -521,8 +531,11 @@ void MapEditorApp::Update_InstancedMeshHandles()
                 _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
                 const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
                 _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
+
+                actor->Refresh_HasGlow();
             }
 
+            actor->Set_Visible(obj->_visible);
             obj->_instancedChunkHandles.push_back(actor);
             obj->_instancedChunkAABBs.push_back(aabb);
             obj->_instancedChunkGlobalIndices.push_back(move(globalIndices));
@@ -611,7 +624,22 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
     {
         if (_viewport->IsSpawnAsInstanced())
         {
-            spawned = _scene.SpawnInstancedObject(String::ToWString(modelPath), _scene._cursorPos);
+            error_code ec;
+            fs::path canonicalPath = fs::weakly_canonical(fs::path(modelPath), ec);
+            const wstring instancedModelPath = (!ec && !canonicalPath.empty()) ? canonicalPath.wstring() : String::ToWString(modelPath);
+            if (Shared<EditorObject> existing = _scene.FindInstancedObjectByModelPath(instancedModelPath))
+            {
+                InstanceTransform transform{};
+                transform._position = _scene._cursorPos;
+                transform._scale = Vec3(1.f, 1.f, 1.f);
+                transform._rotation = Quat::Identity;
+
+                const int32 insertIndex = static_cast<int32>(existing->_instancedTransforms.size());
+                _scene.PushCommand(CmdAddInstance::Create(existing, transform, insertIndex));
+                return;
+            }
+
+            spawned = _scene.SpawnInstancedObject(instancedModelPath, _scene._cursorPos);
         }
         else
         {
@@ -731,6 +759,39 @@ void MapEditorApp::SyncFogZones()
             hasGroundFogGlobals = true;
         }
 
+        if (obj->_zoneShape == EZoneShape::OBB)
+        {
+            if (cb.obbCount >= FogZoneCB::MAX_FOG_OBB_ZONES)
+            {
+                continue;
+            }
+
+            FogOBBZoneEntry entry{};
+            const Matrix world =
+                Matrix::CreateFromQuaternion(obj->_rotation) *
+                Matrix::CreateTranslation(obj->_position);
+
+            entry.worldToLocal = world.Invert();
+            entry.halfExtents = obj->_zoneExtent;
+            entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
+            entry.fogDensity = obj->_ppFogDensity;
+            entry.baseHeight = obj->_ppFogBaseHeight;
+            entry.topFadeStart = obj->_ppFogTopFadeStart;
+            entry.topHeight = obj->_ppFogTopHeight;
+            entry.edgeFade = obj->_ppFogEdgeFade;
+            entry.noiseScale = obj->_ppFogNoiseScale;
+            entry.noiseSpeed = obj->_ppFogNoiseSpeed;
+            entry.noiseStrength = obj->_ppFogNoiseStrength;
+            entry.noiseMin = obj->_ppFogNoiseMin;
+            cb.obbZones[cb.obbCount++] = entry;
+            continue;
+        }
+
+        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
+        {
+            continue;
+        }
+
         FogZoneEntry entry{};
         entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
         entry.fogDensity = obj->_ppFogDensity;
@@ -742,18 +803,43 @@ void MapEditorApp::SyncFogZones()
         entry.noiseSpeed = obj->_ppFogNoiseSpeed;
         entry.noiseStrength = obj->_ppFogNoiseStrength;
         entry.noiseMin = obj->_ppFogNoiseMin;
-
-        if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
-        {
-            continue;
-        }
-
         entry.zoneMin = obj->_position - obj->_zoneExtent;
         entry.zoneMax = obj->_position + obj->_zoneExtent;
-        cb.zones[cb.aabbCount++] = entry;
+        cb.aabbZones[cb.aabbCount++] = entry;
     }
 
     GAME->Set_FogZones(cb);
+}
+
+void MapEditorApp::SyncVolumetricLightShaftZones()
+{
+    VolumetricLightShaftZoneCB cb{};
+
+    for (const auto& obj : _scene._shaftVolumes)
+    {
+        if (!obj)
+            continue;
+
+        if (cb.zoneCount >= VolumetricLightShaftZoneCB::MAX_LIGHT_SHAFT_ZONES)
+            break;
+
+        VolumetricLightShaftZoneEntry entry{};
+        const Matrix world =
+            Matrix::CreateFromQuaternion(obj->_rotation) *
+            Matrix::CreateTranslation(obj->_position);
+
+        entry.worldToLocal = world.Invert();
+        entry.halfExtents = obj->_zoneShape == EZoneShape::Sphere
+            ? Vec3(obj->_zoneRadius, obj->_zoneRadius, obj->_zoneRadius)
+            : obj->_zoneExtent;
+        entry.density = obj->_shaftDensity;
+        entry.lightColor = obj->_shaftLightColor;
+        entry.edgeFade = obj->_shaftEdgeFade;
+        entry.intensity = obj->_shaftIntensity;
+        cb.zones[cb.zoneCount++] = entry;
+    }
+
+    GAME->Set_VolumetricLightShaftZones(cb);
 }
 
 HRESULT MapEditorApp::Ready_Light()

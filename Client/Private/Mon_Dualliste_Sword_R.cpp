@@ -70,7 +70,7 @@ void Mon_Dualliste_Sword_R::Priority_Update(float timeDelta)
 
 void Mon_Dualliste_Sword_R::Update(float timeDelta)
 {
-    Matrix worldMatrix = _offsetMatrix * _transformCom->Get_WorldMatrix();
+    Matrix worldMatrix = Matrix::CreateScale(10.f) * _offsetMatrix * _transformCom->Get_WorldMatrix();
 
     if (_socketMatrix != nullptr)
         worldMatrix *= *_socketMatrix;
@@ -91,6 +91,14 @@ void Mon_Dualliste_Sword_R::Update(float timeDelta)
 void Mon_Dualliste_Sword_R::Late_Update(float timeDelta)
 {
     Monster_Part::Late_Update(timeDelta);
+
+    if (Get_Owner() == nullptr && _shader != nullptr && _model != nullptr && Is_Visible())
+    {
+        GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+
+        if (Casts_DynamicShadow())
+            GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    }
 }
 
 void Mon_Dualliste_Sword_R::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
@@ -202,9 +210,7 @@ const WeaponSourceHistoryAnchorDesc* Mon_Dualliste_Sword_R::Find_SourceHistoryAn
 
 uint32 Mon_Dualliste_Sword_R::Decide_PassIndex(Shared<Material> mat)
 {
-    const int opaquePass = 0;
-    UNREFERENCED_PARAMETER(mat);
-    return opaquePass;
+    return mat->Get_PassIndex();
 }
 
 HRESULT Mon_Dualliste_Sword_R::Ready_DefaultComponents()

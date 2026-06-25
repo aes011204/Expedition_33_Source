@@ -1592,15 +1592,23 @@ void GameplayUI_Battle::Update_MonsterHpBar(float timeDelta)
 
     const auto battleController = CLIENT->Get_BattleController();
     const BattleChar* trackedTarget = nullptr;
+    bool freeAimEmphasis = false;
 
     if (battleController != nullptr)
     {
-        if (const BattleFreeAimHitTarget* freeAimTarget = battleController->Get_FreeAimHitTarget())
-            trackedTarget = &freeAimTarget->target; // HP bar는 약점 여부가 아니라 실제 몬스터 BattleChar만 추적하면 된다.
+        const BattleTurnState currentState = battleController->Get_CurrentTurnState();
 
-        if (trackedTarget == nullptr)
+        if (const BattleFreeAimHitTarget* freeAimTarget = battleController->Get_FreeAimHitTarget())
+        {
+            trackedTarget = &freeAimTarget->target;
+            freeAimEmphasis = currentState == BattleTurnState::FreeAimTargeting;
+        }
+
+        if (trackedTarget == nullptr && currentState != BattleTurnState::FreeAimTargeting)
             trackedTarget = battleController->Get_TargetPreview();
     }
+
+    _monsterHpBar->Set_FreeAimEmphasis(freeAimEmphasis);
 
     if (trackedTarget != nullptr)
         _monsterHpBar->Show_TrackedTarget(*trackedTarget);
@@ -1818,6 +1826,19 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
     }
 
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+
+    if (turnState == BattleTurnState::ChooseAction || turnState == BattleTurnState::ChooseSkill)
+    {
+        if (battleController->Get_TargetPreview() == nullptr)
+        {
+            _choiceTarget->Close();
+            return;
+        }
+
+        _choiceTarget->Open();
+        _choiceTarget->Update(timeDelta);
+        return;
+    }
 
     if (turnState == BattleTurnState::AttackTargeting)
     {

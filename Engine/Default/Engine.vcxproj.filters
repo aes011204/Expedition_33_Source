@@ -282,6 +282,9 @@
     <ClInclude Include="..\Public\Target_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Environment_Manager.h">
+      <Filter>97. Manager</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
@@ -490,6 +493,9 @@
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ChainModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PhysicsModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PoseFollowChainModifier.h">
@@ -1060,6 +1066,9 @@
     <ClCompile Include="..\Private\DelegateHub.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Environment_Manager.cpp">
+      <Filter>97. Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Debug_Profile.cpp">
       <Filter>94. ETC</Filter>
     </ClCompile>
@@ -1128,6 +1137,9 @@
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ChainModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PhysicsModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PoseFollowChainModifier.cpp">

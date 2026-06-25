@@ -15,6 +15,7 @@ struct SceneContext
     vector<Shared<EditorObject>> _staticMeshes;
     vector<Shared<EditorObject>> _lights;
     vector<Shared<EditorObject>> _postProcessVolumes;
+    vector<Shared<EditorObject>> _shaftVolumes;
     vector<Shared<EditorObject>> _instancedMeshes;
     vector<Shared<EditorObject>> _waters;
 
@@ -41,6 +42,7 @@ struct SceneContext
     void LoadFromFile(const string& filePath, bool bMerge = false);
     Shared<EditorObject> SpawnObject(const wstring& modelPath, const Vec3& pos);
     Shared<EditorObject> SpawnInstancedObject(const wstring& modelPath, const Vec3& pos);
+    Shared<EditorObject> FindInstancedObjectByModelPath(const wstring& modelPath);
     Shared<EditorObject> SpawnFromPrefab(const string& prefabPath, const Vec3& pos);
 
     void PushCommand(Shared<IEditorCommand> cmd);
@@ -69,6 +71,7 @@ struct SceneContext
     int32 _activeLandscapeIdx = -1;
 
     bool _objectBBoxMode = false;
+    bool _showVolumeBounds = true;
     bool _boxScatterMode = false;
     bool _hideInstancedMesh = false;
 

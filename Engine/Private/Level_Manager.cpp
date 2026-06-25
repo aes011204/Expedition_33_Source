@@ -6,12 +6,12 @@ Level_Manager::Level_Manager()
 {
 }
 
-HRESULT Level_Manager::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
+HRESULT Level_Manager::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel, bool clearPreviousLevelPrototypes)
 {
 	if (nullptr != _currentLevel)
 	{
 		_currentLevel->Free();
-		GAME->Clear_Resources(_currentLevelIndex);
+		GAME->Clear_Resources(_currentLevelIndex, clearPreviousLevelPrototypes);
 	}
 
 	_currentLevel.reset();

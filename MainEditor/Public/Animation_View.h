@@ -24,9 +24,11 @@ NS_END
 
 NS_BEGIN(MainEditor)
 
+class AnimationNotifyEditor;
 class AnimSequencerAdapter;
 class Animation_View final : public Editor_Window, public Engine::IEffectTrailSampleProvider, public Engine::IEffectSourcePointSampleProvider
 {
+    friend class AnimationNotifyEditor;
     friend class AnimSequencerAdapter;
 
 public:
@@ -38,7 +40,7 @@ public:
 
 public:
     Animation_View();
-    ~Animation_View() override = default;
+    ~Animation_View() override;
 
 public:
     void Update(float timeDelta) override;
@@ -191,6 +193,13 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewScreenFxCueRuntime
+    {
+        int32 stateId = -1;
+        Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
+    };
+
     struct PreviewAnimSpeedStateRuntime
     {
         int32 stateId = -1;
@@ -219,6 +228,9 @@ private:
     void Refresh_LiveModelTargets();
     void Draw_LiveModelTargetSelector();
     void Switch_LiveModelTarget(size_t targetIndex);
+    Shared<ModelCom> Resolve_LiveModelTargetModel(const LiveModelTarget& target) const;
+    Shared<ModelCom> Resolve_ModifierCollisionModel(const Shared<ModelCom>& modifierModel, const vector<string>& requiredBoneNames) const;
+    void Sync_ModifierCollisionSource(const Shared<ModelCom>& modifierModel) const;
     void Rebuild_PreviewClone();
     void Reset_PreviewClone();
 
@@ -298,11 +310,14 @@ private:
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
     void Draw_ModifierChainDebug() const;
+    void Draw_ModifierCollisionDebug() const;
     void Draw_TrailAnchorPreview() const;
     void Update_PreviewAnimSpeedStates(float timeDelta);
     void Reset_PreviewAnimSpeedStates();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);
     void Reset_PreviewPlayEffectStates();
+    void Update_PreviewScreenFxCueStates(float timeDelta);
+    void Reset_PreviewScreenFxCueStates();
     void Update_PreviewWeaponRotateStates(float timeDelta);
     void Reset_PreviewWeaponRotateStates();
     void Update_PreviewWeaponEchoStates(float timeDelta);
@@ -407,6 +422,7 @@ private:
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
     vector<PreviewPlayEffectStateRuntime> _previewPlayEffectStateRuntimes{};
+    vector<PreviewScreenFxCueRuntime> _previewScreenFxCueRuntimes{};
     vector<PreviewAnimSpeedStateRuntime> _previewAnimSpeedStateRuntimes{};
     vector<PreviewWeaponRotateRuntime> _previewWeaponRotateRuntimes{};
     vector<PreviewWeaponEchoRuntime> _previewWeaponEchoRuntimes{};
@@ -438,6 +454,8 @@ private:
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;
     bool _showPreviewSkyBackdrop = true;
+    bool _previewSoundEnabled = true;
+    bool _previewPlayEffectIncludeStartEdge = false;
     bool _previewSkyBackdropBegunPlay = false;
     bool _isSectionPreviewPlaying = false;
     bool _showModifierChainDebug = false;
@@ -490,6 +508,7 @@ private:
     NotifyUndoSnapshot _pendingNotifyUndoSnapshot{};
     bool _hasPendingNotifyUndoSnapshot = false;
 
+    Unique<AnimationNotifyEditor> _notifyEditor{};
     Unique<AnimSequencerAdapter> _sequencer{};
 
 public:

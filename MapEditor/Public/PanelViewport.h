@@ -10,6 +10,7 @@ NS_BEGIN(MapEditor)
 class MECamera;
 struct SceneContext;
 class MEPickingSystem;
+class IEditorCommand;
 
 class PanelViewport final : public MEWindow
 {
@@ -86,6 +87,10 @@ public:
     bool ConsumeCursorSet(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
     bool ConsumeSculpt(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
     bool ConsumeDelete();
+    Shared<IEditorCommand> ConsumeDeleteCommand();
+
+private:
+    Shared<IEditorCommand> _deleteCommand = {};
 
 public:
     static Shared<PanelViewport> Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);

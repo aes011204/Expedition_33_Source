@@ -11,6 +11,7 @@
 #include "Hair_Player.h"
 #include "Head_Player.h"
 #include "ModelCom.h"
+#include "PartObject.h"
 #include "PlayerStatCom.h"
 #include "Player_WorldBase.h"
 #include "ResourceLoader.h"
@@ -131,6 +132,26 @@ void PreviewPlayer::Update_Preview(float timeDelta, bool facialEnabled)
     // ObjectManager 기본 tick은 막고, preview가 열려 있을 때만 UIPreviewManager가 수동으로 part를 갱신한다.
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+
+    if (const Shared<EffectCom> effectCom = Get_Component<EffectCom>())
+        effectCom->Tick_AttachedEffectInstances(timeDelta); // 메뉴 pause 중 Layer_Effect가 멈춰도 preview trail emitter는 수동 갱신한다.
+}
+
+HRESULT PreviewPlayer::Render_PreviewParts()
+{
+    Try_BeginPlay();
+
+    for (const auto& [partTag, partObject] : Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+
+        if (partObject == nullptr || !partObject->Is_Visible())
+            continue;
+
+        CHECK_FAILED(partObject->Render(), E_FAIL);
+    }
+
+    return S_OK;
 }
 
 void PreviewPlayer::Play_PreviewAnimation(PreviewAnimState introAnim, PreviewAnimState idleAnim)

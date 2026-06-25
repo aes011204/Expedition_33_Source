@@ -52,6 +52,21 @@ float4 SampleBaseColor(float2 uv)
     return baseColor;
 }
 
+float4 SampleBaseColorFallback(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+        return float4(g_BaseColorTint.rgb, 1.f);
+
+    float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+
+    if (baseColor.a < 0.3f)
+        discard;
+
+    baseColor.rgb *= g_BaseColorTint.rgb;
+    baseColor.a *= g_BaseColorTint.a;
+    return baseColor;
+}
+
 float ResolveScalarChannel(float4 tex, uint source)
 {
     if (source == MATERIAL_CHANNEL_CONST0)
@@ -137,13 +152,23 @@ float3 SampleEmissive(float2 uv)
 {
     if (!HasMaterialTexture(MATERIAL_SLOT_EMISSIVE))
         return float3(0.f, 0.f, 0.f);
-        //return g_EmissiveColor.rgb * g_EmissiveIntensity;
 
     float3 emissiveTex = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE].Sample(LinearWrapSampler, uv).rgb;
 
     float3 emissive = emissiveTex * g_EmissiveColor.rgb * g_EmissiveIntensity;
     emissive += emissiveTex * g_EmissiveMaskMul;
 
+    return emissive;
+}
+
+float3 SampleEmissiveColorFallback(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_EMISSIVE))
+        return g_EmissiveColor.rgb * g_EmissiveIntensity;
+
+    float3 emissiveTex = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE].Sample(LinearWrapSampler, uv).rgb;
+    float3 emissive = emissiveTex * g_EmissiveColor.rgb * g_EmissiveIntensity;
+    emissive += emissiveTex * g_EmissiveMaskMul;
     return emissive;
 }
 
@@ -559,7 +584,7 @@ float SampleHairDepth(float2 uv)
     if (!HasMaterialTexture(MATERIAL_SLOT_HAIR_DEPTH))
         return 0.5f;
 
-    return saturate( g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH].Sample(LinearWrapSampler, uv).r);
+    return saturate(g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH].Sample(LinearWrapSampler, uv).r);
 }
 
 float SampleHairIDValue(float2 uv)
@@ -628,7 +653,7 @@ float3 Compute_BlenderHairColor(float2 finalUV)
     float3 hairColorTex = float3(1.f, 1.f, 1.f);
 
     if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
-        hairColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV).rgb;
+        hairColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearClampSampler, finalUV).rgb;
 
     float hairMask = SampleHairMask(finalUV);
     float hairDepth = SampleHairDepth(finalUV);
@@ -641,12 +666,12 @@ float3 Compute_BlenderHairColor(float2 finalUV)
     hairColor *= lerp(float3(0.62f, 0.62f, 0.62f), float3(1.12f, 1.12f, 1.12f), hairColorTex);
 
     // Depth 텍스처로 카드 내부/외부 층 차이를 준다.
-    hairColor *= lerp(0.72f, 1.06f, hairDepth);
+    hairColor *= lerp(0.62f, 1.06f, hairDepth);
 
     // ID 텍스처로 클럼프/가닥 단위 색 편차를 준다.
     float hue = hairIDValue * 0.10f + 0.5f;
     hairColor = Blender_HueSaturationValue(hairColor, hue, 0.92f, 1.00f, 1.f);
-    hairColor *= lerp(0.92f, 1.08f, hairIDValue);
+    hairColor *= lerp(0.72f, 1.08f, hairIDValue);
 
     float strandInterior = smoothstep(0.12f, 0.62f, hairMask);
     float clumpDensity = smoothstep(0.08f, 0.24f, hairMaskDensity);

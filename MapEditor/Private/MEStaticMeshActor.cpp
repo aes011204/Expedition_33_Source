@@ -27,22 +27,59 @@ HRESULT MEStaticMeshActor::Initialize(void* arg)
 
 void MEStaticMeshActor::Late_Update(float timeDelta)
 {
+    if (!_visible)
+    {
+        return;
+    }
+
+    Refresh_HasEclipseGlow();
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+
+    if (_hasEclipseGlow)
+    {
+        GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
+    }
 }
 
 HRESULT MEStaticMeshActor::Render()
 {
     if (!_model || !_shader)
+    {
         return S_OK;
+    }
 
     if (FAILED(Bind_ShaderResources()))
+    {
         return E_FAIL;
+    }
 
+    const bool isGlowPass = (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow);
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    if (isGlowPass)
+    {
+        for (uint32 i = 0; i < iNumMeshes; i++)
+        {
+            const Shared<Material> material = _model->Get_Material(_model->Get_MeshMaterialIndex(i));
+            if (material)
+            {
+                if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                {
+                    return E_FAIL;
+                }
+            }
+            if (FAILED(_shader->Begin(static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass))))
+            {
+                return E_FAIL;
+            }
+            _model->Render(i);
+        }
+        return S_OK;
+    }
+
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
-        const Shared<Material> material = _model->Get_Material(materialIndex);
+        const Shared<Material> material = _model->Get_Material(_model->Get_MeshMaterialIndex(i));
         int32 passIndex = static_cast<int32>(VtxMeshPassIndex::NoTexturePass);
         if (material != nullptr)
         {
@@ -55,6 +92,10 @@ HRESULT MEStaticMeshActor::Render()
                 return E_FAIL;
             }
             passIndex = static_cast<int32>(material->Get_PassIndex());
+            if (passIndex == static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass))
+            {
+                passIndex = static_cast<int32>(VtxMeshPassIndex::DefaultPass);
+            }
         }
         if (FAILED(_shader->Begin(passIndex)))
         {
@@ -65,6 +106,7 @@ HRESULT MEStaticMeshActor::Render()
     }
 
     return S_OK;
+
 }
 
 HRESULT MEStaticMeshActor::RenderID(const Matrix& worldMatrix, uint32 id)
@@ -103,6 +145,8 @@ void MEStaticMeshActor::Set_Model(Shared<ModelCom> model)
     {
         _components.emplace(TEXT("Com_Model"), _model);
     }
+
+    Refresh_HasEclipseGlow();
 }
 
 HRESULT MEStaticMeshActor::Ready_Components()
@@ -127,7 +171,31 @@ HRESULT MEStaticMeshActor::Bind_ShaderResources()
     if (FAILED(_shader->Bind_RawValue("g_Far", &_cameraFar, sizeof(float))))
         return E_FAIL;
 
+    if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_CamPosition")))
+        return E_FAIL;
+
     return S_OK;
+}
+
+void MEStaticMeshActor::Refresh_HasEclipseGlow()
+{
+    _hasEclipseGlow = false;
+    if (!_model)
+    {
+        return;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        const Shared<Material> mat = _model->Get_Material(_model->Get_MeshMaterialIndex(i));
+        if (mat && mat->Get_PassIndex() == VtxMeshPassIndex::EclipseSpherePass)
+        {
+            _hasEclipseGlow = true;
+            return;
+        }
+    }
+
 }
 
 Shared<MEStaticMeshActor> MEStaticMeshActor::Create(ComPtr<Device> device, ComPtr<Context> context)

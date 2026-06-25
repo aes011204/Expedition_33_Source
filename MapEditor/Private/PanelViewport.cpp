@@ -5,6 +5,7 @@
 #include "MECamera.h"
 #include "SceneContext.h"
 #include "CmdTransformObject.h"
+#include "CmdDeleteInstance.h"
 #include "MEPickingSystem.h"
 #include "GameInstance.h"
 #include "LightingPipeline.h"
@@ -91,6 +92,7 @@ void PanelViewport::Render()
                     ImGui::SetNextItemWidth(160.f);
                     ImGui::SliderFloat("Rotate", &sens, 0.001f, 0.01f, "%.4f");
                     ImGui::Checkbox("BBox", &_ctx->_objectBBoxMode);
+                    ImGui::Checkbox("Volume Bounds", &_ctx->_showVolumeBounds);
                     ImGui::Checkbox("Instance 숨기기", &_ctx->_hideInstancedMesh);
                     ImGui::Checkbox("Instanced Spawn", &_spawnAsInstanced);
 
@@ -125,8 +127,11 @@ void PanelViewport::Render()
             }
 
             const bool sculptActive = _sculptState && _sculptState->mode != ESculptMode::None;
+            const bool gizmoRendered = _camera && _ctx && _ctx->_selected && !_ctx->_boxScatterMode;
+            const bool gizmoBlocksPick = (_ctx && _ctx->_boxScatterMode) ||
+                (gizmoRendered && (ImGuizmo::IsOver() || ImGuizmo::IsUsing()));
 
-            if (_ctx && ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && sculptActive)
+            if (_ctx && ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !gizmoBlocksPick && sculptActive)
             {
                 _sculptRequested = true;
                 _sculptMousePos = ImGui::GetIO().MousePos;
@@ -134,7 +139,7 @@ void PanelViewport::Render()
                 _sculptVpSize = ImGui::GetItemRectSize();
             }
             else if (_ctx && ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
-                !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && !sculptActive)
+                !gizmoBlocksPick && !sculptActive)
             {
                 const bool shiftHeld = ImGui::GetIO().KeyShift;
                 if (shiftHeld)
@@ -179,17 +184,15 @@ void PanelViewport::Render()
                     if (ImGui::IsKeyPressed(ImGuiKey_Delete))
                     {
                         auto& sel = _ctx->_selected;
-                        if (!sel->_isDefaultLight)
+                        if (sel && !sel->_isDefaultLight)
+
                         {
                             if (sel->_type == EObjectType::InstancedMesh)
                             {
                                 const int32 instSize = static_cast<int32>(sel->_instancedTransforms.size());
                                 if (sel->_selectedInstanceIdx >= 0 && sel->_selectedInstanceIdx < instSize)
                                 {
-                                    sel->_instancedTransforms.erase(
-                                        sel->_instancedTransforms.begin() + sel->_selectedInstanceIdx);
-                                    sel->_instancedParamsDirty = true;
-                                    sel->_selectedInstanceIdx = -1;
+                                    _deleteCommand = CmdDeleteInstance::Create(sel, sel->_selectedInstanceIdx);
                                 }
                             }
                             else
@@ -541,6 +544,13 @@ bool PanelViewport::ConsumeDelete()
 
     _deleteRequested = false;
     return true;
+}
+
+Shared<IEditorCommand> PanelViewport::ConsumeDeleteCommand()
+{
+    Shared<IEditorCommand> cmd = _deleteCommand;
+    _deleteCommand.reset();
+    return cmd;
 }
 
 Shared<PanelViewport> PanelViewport::Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)

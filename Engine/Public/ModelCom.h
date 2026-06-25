@@ -194,6 +194,8 @@ public: /* AnimNotify */
 
     void    Set_AnimNotifyExecutionEnabled(bool enabled) { _isAnimNotifyExecutionEnabled = enabled; }
     bool    Is_AnimNotifyExecutionEnabled() const { return _isAnimNotifyExecutionEnabled; }
+    void    Set_CinematicNotifyContext(bool enabled) { _isCinematicNotifyContext = enabled; }
+    bool    Is_CinematicNotifyContext() const { return _isCinematicNotifyContext; }
 
 private:
     // 현재 애니메이션 이름으로 노티파이 데이터 찾기
@@ -345,6 +347,7 @@ private: /* notify */
 
     bool                                _isAnimNotifyAssetLoaded = false;
     bool                                _isAnimNotifyExecutionEnabled = true;
+    bool                                _isCinematicNotifyContext = false;
 
     AnimNotifyAsset                     _animNotifyAsset{};
     vector<ActiveAnimNotifyState>       _activeNotifyStates{};

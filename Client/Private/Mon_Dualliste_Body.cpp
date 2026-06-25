@@ -1,5 +1,9 @@
 ﻿#include "Mon_Dualliste_Body.h"
 
+#include "ChainModifier.h"
+#include "ChainModifierPreset.h"
+#include "ModelCom.h"
+
 IMPLEMENT_REFLECTION(Mon_Dualliste_Body)
 {
     auto& info = GetStaticReflectionInfo();
@@ -33,6 +37,31 @@ HRESULT Mon_Dualliste_Body::Initialize(void* arg)
      {
          _model->Set_LocalRootNode(_rootIndex);
      }
+
+     CHECK_FAILED(Ready_Modifier(), E_FAIL);
+
+     _model->Set_RootMotionEnabled(true);
+    return S_OK;
+}
+
+HRESULT Mon_Dualliste_Body::Ready_Modifier()
+{
+    if (_model == nullptr)
+        return E_FAIL;
+
+    ChainModifier::ChainModifierDesc hairbandDesc{};
+    ChainModifierPreset::BuildArmbandDesc(
+        hairbandDesc,
+        _transformCom.get(),
+        PlayerCharacterType::Gustave);
+
+    if (!hairbandDesc.groups.empty())
+    {
+        hairbandDesc.groups[0].rootBoneName = "hairband_root";
+
+        if (auto modifier = ChainModifier::Create(&hairbandDesc))
+            _model->Add_AnimModifier(modifier);
+    }
 
     return S_OK;
 }

@@ -18,12 +18,14 @@ public:
 
 private:
     HRESULT Ready_Lights();
+    HRESULT Ready_Environments();
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
 	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
     HRESULT Ready_Layer_Player(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
+    HRESULT Ready_Layer_ETC(const wstring& strLayerTag);
 
 private:
     WindowTitleFpsState _windowTitleFps = {};

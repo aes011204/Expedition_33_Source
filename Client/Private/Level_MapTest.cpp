@@ -30,6 +30,7 @@ HRESULT Level_MapTest::Initialize()
     CHECK_FAILED(Ready_Layer_Monster(TEXT("Layer_Monster")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Effect(TEXT("Layer_Effect")), E_FAIL);
 
+    GAME->Set_RenderEnvironment(true);
 
     return S_OK;
 }
@@ -62,6 +63,8 @@ void Level_MapTest::Play_MapBGM()
 
 HRESULT Level_MapTest::Ready_Lights()
 {
+    GAME->Clear_Lights();
+
     LIGHT_DESC  LightDesc{};
 
     LightDesc.type = LightType::Directional;
@@ -74,6 +77,12 @@ HRESULT Level_MapTest::Ready_Lights()
     {
         return E_FAIL;
     }
+
+    ShadowLightDesc ShadowDesc{};
+    ShadowDesc.enabled = false;
+    if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+        return E_FAIL;
+
     return S_OK;
 }
 

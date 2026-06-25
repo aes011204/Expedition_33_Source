@@ -104,6 +104,20 @@ namespace
         return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
     }
 
+    const char* ZoneShapeName(EZoneShape shape)
+    {
+        switch (shape)
+        {
+        case EZoneShape::OBB:
+            return "OBB";
+        case EZoneShape::Sphere:
+            return "Sphere";
+        case EZoneShape::Box:
+        default:
+            return "Box";
+        }
+    }
+
     json Serialize_CollisionProxy(const ModelCollisionProxy& proxy)
     {
         json node = json::object();
@@ -344,7 +358,7 @@ namespace
 
     void Serialize_PostProcessVolume(json& e, const EditorObject& obj)
     {
-        e["Shape"] = (obj._zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+        e["Shape"] = obj._zoneShape == EZoneShape::OBB ? "OBB" : "Box";
         e["Extent"] = { obj._zoneExtent.x, obj._zoneExtent.y, obj._zoneExtent.z };
         e["Radius"] = obj._zoneRadius;
         e["BloomIntensity"] = obj._ppBloomIntensity;
@@ -403,6 +417,37 @@ namespace
         obj._ppGroundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
         obj._ppGroundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
         obj._ppGroundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
+    }
+
+    void Serialize_ShaftVolume(json& e, const EditorObject& obj)
+    {
+        e["Shape"] = obj._zoneShape == EZoneShape::Sphere ? "Sphere" : "Box";
+        e["Extent"] = { obj._zoneExtent.x, obj._zoneExtent.y, obj._zoneExtent.z };
+        e["Radius"] = obj._zoneRadius;
+        e["Density"] = obj._shaftDensity;
+        e["LightColor"] = { obj._shaftLightColor.x, obj._shaftLightColor.y, obj._shaftLightColor.z, obj._shaftLightColor.w };
+        e["EdgeFade"] = obj._shaftEdgeFade;
+        e["Intensity"] = obj._shaftIntensity;
+    }
+
+    void Deserialize_ShaftVolume(const json& e, EditorObject& obj)
+    {
+        string shape = e.value("Shape", "Box");
+        obj._zoneShape = magic_enum::enum_cast<EZoneShape>(shape).value_or(EZoneShape::Box);
+        if (e.contains("Extent"))
+        {
+            auto& ext = e["Extent"];
+            obj._zoneExtent = { ext[0], ext[1], ext[2] };
+        }
+        obj._zoneRadius = e.value("Radius", 5.f);
+        obj._shaftDensity = e.value("Density", 1.f);
+        if (e.contains("LightColor"))
+        {
+            auto& c = e["LightColor"];
+            obj._shaftLightColor = Vec4(c[0], c[1], c[2], c.size() > 3 ? static_cast<float>(c[3]) : 1.f);
+        }
+        obj._shaftEdgeFade = e.value("EdgeFade", 0.5f);
+        obj._shaftIntensity = e.value("Intensity", 1.f);
     }
 
     string Strip_WaterTexturePath(const wstring& fullPath)
@@ -633,6 +678,7 @@ void SceneContext::SaveToFile(const string& filePath)
     json triggerVolumes = json::array();
     json cameraZones = json::array();
     json postProcessVols = json::array();
+    json shaftVols = json::array();
     json lights = json::array();
     json instancedMeshes = json::array();
     json waters = json::array();
@@ -657,6 +703,9 @@ void SceneContext::SaveToFile(const string& filePath)
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
 
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             staticMeshes.push_back(e);
 
             break;
@@ -667,7 +716,7 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::EncounterZone:
-            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Shape"] = ZoneShapeName(obj->_zoneShape);
             e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
             e["Radius"] = obj->_zoneRadius;
             e["EnemyGroupId"] = obj->_zoneId;
@@ -675,7 +724,7 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::TriggerVolume:
-            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Shape"] = ZoneShapeName(obj->_zoneShape);
             e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
             e["Radius"] = obj->_zoneRadius;
             e["EventId"] = obj->_zoneId;
@@ -683,7 +732,7 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::CameraZone:
-            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Shape"] = ZoneShapeName(obj->_zoneShape);
             e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
             e["Radius"] = obj->_zoneRadius;
             e["FOV"] = obj->_cameraFov;
@@ -695,6 +744,11 @@ void SceneContext::SaveToFile(const string& filePath)
         case EObjectType::PostProcessVolume:
             Serialize_PostProcessVolume(e, *obj);
             postProcessVols.push_back(e);
+            break;
+
+        case EObjectType::ShaftVolume:
+            Serialize_ShaftVolume(e, *obj);
+            shaftVols.push_back(e);
             break;
 
         case EObjectType::Light:
@@ -736,6 +790,9 @@ void SceneContext::SaveToFile(const string& filePath)
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
 
             e["HasCollision"] = obj->_instancedHasCollision;
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
 
@@ -806,6 +863,7 @@ void SceneContext::SaveToFile(const string& filePath)
     map["TriggerVolumes"] = triggerVolumes;
     map["CameraZones"] = cameraZones;
     map["PostProcessVolumes"] = postProcessVols;
+    map["ShaftVolumes"] = shaftVols;
     map["Lights"] = lights;
     map["InstancedMeshes"] = instancedMeshes;
     map["Waters"] = waters;
@@ -841,6 +899,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
         _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
         _instancedMeshes.clear();
         _postProcessVolumes.clear();
+        _shaftVolumes.clear();
         _modelOverrides.clear();
         _undoStack.clear();
         _redoStack.clear();
@@ -931,6 +990,9 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
                 + _modelFolder + L"/"
                 + String::ToWString(modelPathStr);
 
+            obj->_visible = e.value("Visible", true);
+            obj->_cullEnabled = e.value("CullEnabled", true);
+            obj->_castShadow = e.value("CastShadow", true);
             LoadTransform(e, *obj);
             Add(obj);
         }
@@ -1002,6 +1064,23 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             Deserialize_PostProcessVolume(e, *obj);
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
+            Add(obj);
+        }
+    }
+
+    if (map.contains("ShaftVolumes"))
+    {
+        for (auto& e : map["ShaftVolumes"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::ShaftVolume;
+            obj->_name = String::ToWString(e.value("Id", "ShaftVolume"));
+
+            if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+            if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+
+            Deserialize_ShaftVolume(e, *obj);
+            obj->UpdateWorldMatrix();
             Add(obj);
         }
     }
@@ -1082,6 +1161,9 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             obj->_type = EObjectType::InstancedMesh;
             obj->_name = String::ToWString(e["Id"].get<string>());
             obj->_instancedHasCollision = e.value("HasCollision", false);
+            obj->_visible = e.value("Visible", true);
+            obj->_cullEnabled = e.value("CullEnabled", true);
+            obj->_castShadow = e.value("CastShadow", true);
 
             string modelPathStr = e.value("ModelPath", string{});
             if (!modelPathStr.empty())
@@ -1171,7 +1253,9 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
             t._rotation = Quat::Identity;
             obj->_instancedTransforms.push_back(t);
             obj->_instancedParamsDirty = true;
+            obj->_selectedInstanceIdx = static_cast<int32>(obj->_instancedTransforms.size()) - 1;
             _dirtyRenderHandles = true;
+            _selected = obj;
             return obj;
         }
     }
@@ -1191,6 +1275,7 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
     t._scale = Vec3(1.f, 1.f, 1.f);
     t._rotation = Quat::Identity;
     obj->_instancedTransforms.push_back(t);
+    obj->_selectedInstanceIdx = 0;
 
     obj->UpdateWorldMatrix();
     obj->_instancedParamsDirty = true;
@@ -1198,6 +1283,19 @@ Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath
     _dirtyRenderHandles = true;
     Add(obj);
     return obj;
+}
+
+Shared<EditorObject> SceneContext::FindInstancedObjectByModelPath(const wstring& modelPath)
+{
+    for (auto& obj : _instancedMeshes)
+    {
+        if (obj && obj->_instancedModelPath == modelPath)
+        {
+            return obj;
+        }
+    }
+
+    return nullptr;
 }
 
 Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, const Vec3& pos)
@@ -1222,6 +1320,16 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
 
     auto obj = EditorObject::Create(name, type);
     obj->_position = pos;
+    if (j.contains("Rotation"))
+    {
+        auto& rot = j["Rotation"];
+        obj->_rotation = { rot[0], rot[1], rot[2], rot[3] };
+    }
+    if (j.contains("Scale"))
+    {
+        auto& scale = j["Scale"];
+        obj->_scale = { scale[0], scale[1], scale[2] };
+    }
 
     switch (type)
     {
@@ -1265,9 +1373,10 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
     case EObjectType::TriggerVolume:
     case EObjectType::CameraZone:
     case EObjectType::PostProcessVolume:
+    case EObjectType::ShaftVolume:
     {
         string shapeStr = j.value("Shape", "Box");
-        obj->_zoneShape = (shapeStr == "Sphere") ? EZoneShape::Sphere : EZoneShape::Box;
+        obj->_zoneShape = magic_enum::enum_cast<EZoneShape>(shapeStr).value_or(EZoneShape::Box);
 
         if (j.contains("Extent"))
         {
@@ -1318,6 +1427,17 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
             obj->_ppGroundFogDistanceInfluence = j.value("GroundFogDistanceInfluence", 0.15f);
             obj->_ppGroundFogNearFadeDistance = j.value("GroundFogNearFadeDistance", 12.f);
             obj->_ppGroundFogNearMinFactor = j.value("GroundFogNearMinFactor", 0.65f);
+        }
+        else if (type == EObjectType::ShaftVolume)
+        {
+            obj->_shaftDensity = j.value("Density", 1.f);
+            if (j.contains("LightColor"))
+            {
+                auto& c = j["LightColor"];
+                obj->_shaftLightColor = Vec4(c[0], c[1], c[2], c.size() > 3 ? static_cast<float>(c[3]) : 1.f);
+            }
+            obj->_shaftEdgeFade = j.value("EdgeFade", 0.5f);
+            obj->_shaftIntensity = j.value("Intensity", 1.f);
         }
         break;
     }
@@ -1421,6 +1541,10 @@ void SceneContext::Add(Shared<EditorObject> obj)
     {
         _postProcessVolumes.push_back(obj);
     }
+    else if (obj->_type == EObjectType::ShaftVolume)
+    {
+        _shaftVolumes.push_back(obj);
+    }
     else if (obj->_type == EObjectType::InstancedMesh)
     {
         _instancedMeshes.push_back(obj);
@@ -1464,6 +1588,10 @@ void SceneContext::Remove(const Shared<EditorObject>& obj)
     else if (obj->_type == EObjectType::PostProcessVolume)
     {
         erase(_postProcessVolumes, obj);
+    }
+    else if (obj->_type == EObjectType::ShaftVolume)
+    {
+        erase(_shaftVolumes, obj);
     }
     else if (obj->_type == EObjectType::InstancedMesh)
     {
@@ -1513,6 +1641,7 @@ void SceneContext::ClearScene()
     _instancedMeshes.clear();
     _waters.clear();
     _postProcessVolumes.clear();
+    _shaftVolumes.clear();
     _landscapes.clear();
     _activeLandscapeIdx = -1;
     _selected = nullptr;
@@ -1907,6 +2036,7 @@ void SceneContext::Export_MapInstance(const string& mapName)
     fs::path instanceDir = root / "InstanceMesh";
     fs::path waterDir = root / "Water";
     fs::path postProcessVolumeDir = root / "PostProcessVolume";
+    fs::path shaftVolumeDir = root / "ShaftVolume";
     fs::path etcDir = root / "ETC";
 
     if(!fs::exists(root))
@@ -1926,6 +2056,9 @@ void SceneContext::Export_MapInstance(const string& mapName)
         if (!fs::exists(postProcessVolumeDir))
             fs::create_directories(postProcessVolumeDir);
 
+        if (!fs::exists(shaftVolumeDir))
+            fs::create_directories(shaftVolumeDir);
+
         if (!fs::exists(etcDir))
             fs::create_directories(etcDir);
     }
@@ -1934,9 +2067,10 @@ void SceneContext::Export_MapInstance(const string& mapName)
     Remove_JsonFilesInDirectory(instanceDir);
     Remove_JsonFilesInDirectory(waterDir);
     Remove_JsonFilesInDirectory(postProcessVolumeDir);
+    Remove_JsonFilesInDirectory(shaftVolumeDir);
     Remove_JsonFilesInDirectory(etcDir);
 
-    int32 st_idx{}, inst_idx{}, water_idx{}, ppv_idx{}, etc_idx{};
+    int32 st_idx{}, inst_idx{}, water_idx{}, ppv_idx{}, shaft_idx{}, etc_idx{};
     std::map<wstring, Shared<ModelCom>> staticCollisionModels;
 
     for (auto& obj : _objects)
@@ -1952,6 +2086,9 @@ void SceneContext::Export_MapInstance(const string& mapName)
         {
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             Export_ObjectJson(staticDir, st_idx++, e);
             if (obj->_renderHandle && obj->_renderHandle->GetModel())
                 staticCollisionModels[obj->_modelPath] = obj->_renderHandle->GetModel();
@@ -1961,6 +2098,9 @@ void SceneContext::Export_MapInstance(const string& mapName)
         {
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
             e["HasCollision"] = obj->_instancedHasCollision;
+            e["Visible"] = obj->_visible;
+            e["CullEnabled"] = obj->_cullEnabled;
+            e["CastShadow"] = obj->_castShadow;
             json instArr = json::array();
             for (auto& transform : obj->_instancedTransforms)
             {
@@ -1978,6 +2118,12 @@ void SceneContext::Export_MapInstance(const string& mapName)
             e["Type"] = "PostProcessVolume";
             Serialize_PostProcessVolume(e, *obj);
             Export_ObjectJson(postProcessVolumeDir, ppv_idx++, e);
+            break;
+
+        case EObjectType::ShaftVolume:
+            e["Type"] = "ShaftVolume";
+            Serialize_ShaftVolume(e, *obj);
+            Export_ObjectJson(shaftVolumeDir, shaft_idx++, e);
             break;
 
         case EObjectType::Water:
@@ -2050,6 +2196,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
     fs::path instanceDir = root / "InstanceMesh";
     fs::path waterDir = root / "Water";
     fs::path postProcessVolumeDir = root / "PostProcessVolume";
+    fs::path shaftVolumeDir = root / "ShaftVolume";
 
     auto MaterialFileToModelKey = [](const fs::path& materialPath) -> string
     {
@@ -2146,7 +2293,10 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     {
                         obj->_modelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
                     }
-                    
+
+                    obj->_visible = e.value("Visible", true);
+                    obj->_cullEnabled = e.value("CullEnabled", true);
+                    obj->_castShadow = e.value("CastShadow", true);
                     obj->UpdateWorldMatrix();
                     Add(obj);
                 }
@@ -2175,10 +2325,16 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     string modelPathStr = e.value("ModelPath", "");
                     if (!modelPathStr.empty())
                     {
-                        obj->_instancedModelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
+                        fs::path resolved = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
+                        error_code ec;
+                        fs::path canonical = fs::weakly_canonical(resolved, ec);
+                        obj->_instancedModelPath = (!ec && !canonical.empty()) ? canonical.wstring() : resolved.wstring();
                     }
                     obj->_instancedHasCollision = e.value("HasCollision", false);
-                    
+                    obj->_visible = e.value("Visible", true);
+                    obj->_cullEnabled = e.value("CullEnabled", true);
+                    obj->_castShadow = e.value("CastShadow", true);
+
                     if (e.contains("Instances"))
                     {
                         for (const auto& instJson : e["Instances"])
@@ -2215,6 +2371,31 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
 
                     Deserialize_PostProcessVolume(e, *obj);
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+
+    if (fs::exists(shaftVolumeDir))
+    {
+        for (const auto& entry : fs::directory_iterator(shaftVolumeDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::ShaftVolume;
+                    obj->_name = String::ToWString(e.value("Id", "ShaftVolume"));
+
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+
+                    Deserialize_ShaftVolume(e, *obj);
                     obj->UpdateWorldMatrix();
                     Add(obj);
                 }

@@ -38,6 +38,8 @@ public:
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
     bool    Is_RenderOnlyPreviewMode() const { return _renderOnlyPreviewMode; }
+    void    Set_RenderEnvironment(bool enabled) { _renderEnvironment = enabled; }
+    bool    Is_RenderEnvironment() const { return _renderEnvironment; }
 
     const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
@@ -66,12 +68,26 @@ public:
     {
         return _currentGroup;
     }
-
-    void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
-    void Set_VolumetricLightShaftZones(const VolumetricLightShaftZoneCB& lightShaftZoneCB)
+    
+    void Set_LetterboxEnabled(bool setLetterboxEnabled)
     {
-        _lightShaftZoneCB = lightShaftZoneCB;
+        const bool wasActive = _letterboxEnabled || _previewLetterboxEnabled;
+        _letterboxEnabled = setLetterboxEnabled;
+        const bool isActive = _letterboxEnabled || _previewLetterboxEnabled;
+        if (!wasActive && isActive)
+            _letterboxCurrentRatio = 0.f;
+        _letterboxTargetRatio = isActive ? 0.12f : 0.f;
     }
+    void Set_PreviewLetterboxEnabled(bool enabled)
+    {
+        const bool wasActive = _letterboxEnabled || _previewLetterboxEnabled;
+        _previewLetterboxEnabled = enabled;
+        const bool isActive = _letterboxEnabled || _previewLetterboxEnabled;
+        if (!wasActive && isActive)
+            _letterboxCurrentRatio = 0.f;
+        _letterboxTargetRatio = isActive ? 0.12f : 0.f;
+    }
+    bool Is_PreviewLetterboxEnabled() const { return _previewLetterboxEnabled; }
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
@@ -79,6 +95,7 @@ public:
 
 public:
     void PostDraw();
+    void Render_Letterbox();
 
 private:
 	void Render_Priority();
@@ -91,6 +108,7 @@ private:
     void Render_EffectMasked(); // alpha cutout effect를 HDR에 depth-write opaque-like로 출력한다.
     void Render_Distortion(); // HDRColor snapshot과 distortion field를 사용해 fullscreen 왜곡 resolve를 수행한다.
 	void Render_Blend();
+    void Render_Glow();
     void Render_ScreenFx();
     void Render_UIEffect();
 
@@ -109,6 +127,7 @@ private :
     HRESULT Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
     HRESULT Render_LightShaftPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
+    HRESULT Render_FroxelCompositePass();
     HRESULT Render_LightShaftCompositePass();
     HRESULT Render_DOFPreFilterPass();
     HRESULT Render_DOFBlurPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
@@ -149,11 +168,9 @@ private:
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
-    FogZoneCB                       _fogZoneCB{};
-    VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
-
     bool                            _shadowEnabled = true;
     bool                            _renderOnlyPreviewMode = false;
+    bool                            _renderEnvironment = false;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;
@@ -161,6 +178,13 @@ private:
     uint32                          iDrawCall = 0;
 
     bool                            _useRTVDump = false;
+
+    /* letterbox용 */
+    float             _letterboxCurrentRatio = 0.f;
+    float             _letterboxTargetRatio = 0.12f;
+    Shared<ShaderCom> _letterboxShader;
+    bool              _letterboxEnabled = false;
+    bool              _previewLetterboxEnabled = false;
 
 private:
     uint64                          _shadowFrameIndex = 0;

@@ -206,7 +206,7 @@ void ClientInstance::Update_Client(float timeDelta)
         _effectInstancePool->Release_Finished();
 
     if(_cinematicSequenceRunner)
-        _cinematicSequenceRunner->Update(timeDelta);
+        _cinematicSequenceRunner->Update(timeDelta, true);
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
