@@ -25,7 +25,7 @@ class MapInstancedMesh final : public GameObject
     GENERATED_GAMEOBJECT(MapInstancedMesh, ObjectType::StaticMesh)
 
 private:
-    static constexpr float INSTANCE_CULL_DIST = 500.f;
+    static constexpr float INSTANCE_CULL_DIST = 100.f;
     static constexpr float LARGE_OBJECT_HEIGHT = 5.f;
 
 public:

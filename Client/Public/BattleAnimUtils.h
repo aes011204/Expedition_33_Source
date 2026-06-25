@@ -12,6 +12,8 @@ namespace BattleAnimUtils
 
     // 위의 값으로 실제 Idle 재생. 이거 마엘 태세때문에 만듦
     void Play_BattleIdle(const BattleChar& actor, float blendTime);
+
+    bool Play_TurnStartOrBattleIdle(const BattleChar& actor, float blendTime);
 }
 
 NS_END

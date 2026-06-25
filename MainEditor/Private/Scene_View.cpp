@@ -260,6 +260,7 @@ void Scene_View::Pre_Render()
         return;
 
     Tick_DragPreview(ImGui::GetIO().DeltaTime);
+    Tick_SelectedLoopingEffect(ImGui::GetIO().DeltaTime);
     EnvironmentView::DrawDebugVolumes();
 }
 
@@ -1019,6 +1020,24 @@ void Scene_View::Render_SelectedObjectGizmo()
 
     if (Shared<MovementCom> movement = selectedObject->Get_Component<MovementCom>())
         movement->Sync_RuntimePositionToTransform();
+}
+
+void Scene_View::Tick_SelectedLoopingEffect(float timeDelta)
+{
+    if (timeDelta <= 0.f)
+        return;
+
+    if (EDITOR->IsPlaying() && !GAME->Is_GameplayPaused() && EDITOR->Get_RuntimeTimeScale() > 0.f)
+        return;
+
+    const Shared<EffectInstance> effect = dynamic_pointer_cast<EffectInstance>(EDITOR->Selected_Object());
+    if (effect == nullptr || !effect->Is_Loop())
+        return;
+
+    effect->Try_BeginPlay();
+    effect->Priority_Update(timeDelta);
+    effect->Update(timeDelta);
+    effect->Late_Update(timeDelta);
 }
 
 void Scene_View::Set_DragPreviewObject(const string& prefabName)

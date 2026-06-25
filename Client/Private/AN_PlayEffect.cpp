@@ -29,7 +29,7 @@ void AN_PlayEffect::Execute(const AnimNotifyContext& context)
     if (context.owner == nullptr)
         return;
 
-    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner);
+    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner, _target);
     if (effectCom == nullptr)
         return;
 

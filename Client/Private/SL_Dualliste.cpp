@@ -20,7 +20,7 @@
 #include "SL_Maelle.h"
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
-
+#include "EffectCom.h"
 
 REGISTER_GLOBAL_ENUM(SL_Dualliste::Anim, "SL_DuallisteAnim")
 
@@ -167,6 +167,9 @@ void SL_Dualliste::Update(float timeDelta)
 
     if (_body)
         _body->Play_Animation(timeDelta);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
 
     SL_Base::Update(timeDelta);
 }
@@ -417,7 +420,7 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
         {
             PlayEffectDesc effectDesc{};
             effectDesc.effectName = Constants::Effect::BreakEffect;
-            effectDesc.worldPosition = _transformCom->Get_WorldPosition() + Vec3(0.f, 1.f, 0.f);
+            effectDesc.worldPosition = _transformCom->Get_WorldPosition() + Vec3(0.f, 1.7f, 1.5f);
             effectDesc.scale = Vec3(1.f, 1.f, 1.f);
             CLIENT->Play_Effect(effectDesc);
         }
@@ -675,6 +678,7 @@ HRESULT SL_Dualliste::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SL_Mon_StateMachine"), _stateMachineCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     _combatStat->Set_RuntimeCombatProfile(150.f, 0, 18.f, 0.f, 0.f);
 

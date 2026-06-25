@@ -133,7 +133,7 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
 
-    // 일반 픽토스 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
+    // 일반 픽토스 일단은 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
     _playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
     // 무기 세팅

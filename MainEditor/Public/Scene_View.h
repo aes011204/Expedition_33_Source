@@ -34,6 +34,7 @@ private:
     void Render_ViewportCanvas();
     void Handle_FocusRequest();
     void Render_SelectedObjectGizmo();
+    void Tick_SelectedLoopingEffect(float timeDelta);
 
 private: /* Prefab Preview */ 
     void Set_DragPreviewObject(const string& prefabName);

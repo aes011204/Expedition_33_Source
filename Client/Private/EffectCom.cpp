@@ -385,6 +385,26 @@ Shared<EffectCom> EffectCom::Find_FromNotifyOwner(GameObject* notifyOwner)
     return nullptr;
 }
 
+Shared<EffectCom> EffectCom::Find_FromNotifyOwner(GameObject* notifyOwner, EffectPlayTarget target)
+{
+    if (target == EffectPlayTarget::OwnerRoot)
+        return Find_FromNotifyOwner(notifyOwner);
+
+    Shared<GameObject> current = notifyOwner ? notifyOwner->GetSharedPtr<GameObject>() : nullptr;
+    while (current)
+    {
+        if (dynamic_pointer_cast<ContainerObject>(current))
+        {
+            if (Shared<EffectCom> effectCom = current->Get_Component<EffectCom>())
+                return effectCom;
+        }
+
+        current = current->Get_Owner();
+    }
+
+    return Find_FromNotifyOwner(notifyOwner);
+}
+
 EffectCom::InspectorEffectSettings EffectCom::Get_InspectorEffectSettings() const
 {
     InspectorEffectSettings settings{};

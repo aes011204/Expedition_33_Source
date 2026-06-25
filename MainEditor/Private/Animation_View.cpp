@@ -4,6 +4,7 @@
 #include "AnimSequencerAdapter.h"
 #include "AnimNotify_Parser.h"
 #include "ANS_Trail.h"
+#include "ANS_WorldTimeScale.h"
 #include "AnimationModifier.h"
 #include "ChainModifier.h"
 #include "PhysicsModifier.h"
@@ -844,6 +845,7 @@ void Animation_View::Pre_Render()
     GAME->Set_PlayerInputBlocked(true);
 
     const float dt = min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
+    float previewEffectTimeDelta = dt;
     Lock_PreviewObjectToOrigin(previewRenderObject);
     if (_showPreviewSkyBackdrop)
         Update_PreviewSkyBackdrop(dt);
@@ -851,24 +853,28 @@ void Animation_View::Pre_Render()
     if (_sourceMode == SourceMode::LiveModel)
     {
         const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
+        const PreviewWorldTimeScaleState worldTimeScaleState = Resolve_PreviewWorldTimeScaleState(previousTimeSec);
+        const float previewTimeDelta = dt * worldTimeScaleState.worldTimeScale;
+        previewEffectTimeDelta = worldTimeScaleState.scaleEffects ? previewTimeDelta : dt;
+
         GAME->Backup_RenderGroup();
         if (_showPreviewSkyBackdrop)
             Late_Update_PreviewSkyBackdrop(dt);
 
-        Update_PreviewAnimSpeedStates(dt); // ANS_AnimSpeed??sampling ?熬곣뫖????⑤챷???怨룻뒍 ?熬곣뫗??preview ??繹????쒖┣???꾩룆?餓??꾩룇瑗???類ｋ펲.
-        Update_PreviewRootControllerStates(dt);
+        Update_PreviewAnimSpeedStates(previewTimeDelta); // ANS_AnimSpeed??sampling ?熬곣뫖????⑤챷???怨룻뒍 ?熬곣뫗??preview ??繹????쒖┣???꾩룆?餓??꾩룇瑗???類ｋ펲.
+        Update_PreviewRootControllerStates(previewTimeDelta);
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, 0.f, false);
-        Update_ModifierPreviewMotionTest(dt);
-        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt, false, true);
+        Update_ModifierPreviewMotionTest(previewTimeDelta);
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, previewTimeDelta, false, true);
         const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
-        Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
+        Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, previewEffectTimeDelta);
         Update_PreviewScreenFxCueStates(dt);
-        PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
-        Update_PreviewSLDodgeMoveStates(dt);
-        Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
-        Update_PreviewWeaponEchoStates(dt);
-        Update_PreviewSourceHistoryEffect(dt);
-        Update_PreviewTrailEffect(dt);
+        PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, previewEffectTimeDelta);
+        Update_PreviewSLDodgeMoveStates(previewTimeDelta);
+        Update_PreviewWeaponRotateStates(previewTimeDelta); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
+        Update_PreviewWeaponEchoStates(previewTimeDelta);
+        Update_PreviewSourceHistoryEffect(previewEffectTimeDelta);
+        Update_PreviewTrailEffect(previewEffectTimeDelta);
     }
     else
     {
@@ -880,13 +886,13 @@ void Animation_View::Pre_Render()
     for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
     {
         if (runtime.effect && runtime.isPlaying)
-            runtime.effect->Late_Update(dt); // preview????????戮?뎽 trail runtime嶺뚮씭???Late_Update????⑤벡夷????逾??
+            runtime.effect->Late_Update(previewEffectTimeDelta); // preview????????戮?뎽 trail runtime嶺뚮씭???Late_Update????⑤벡夷????逾??
     }
 
     for (PreviewSourceHistoryRuntime& runtime : _previewSourceHistoryRuntimes)
     {
         if (runtime.effect && runtime.isPlaying)
-            runtime.effect->Late_Update(dt);
+            runtime.effect->Late_Update(previewEffectTimeDelta);
     }
 
     GAME->Draw_RendererOnly(true);
@@ -5238,6 +5244,46 @@ void Animation_View::Draw_TrailAnchorPreview() const
         DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Cyan));
 
     _previewGridBatch->End();
+}
+
+Animation_View::PreviewWorldTimeScaleState Animation_View::Resolve_PreviewWorldTimeScaleState(float currentTimeSec) const
+{
+    PreviewWorldTimeScaleState result{};
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+        return result;
+
+    float selectedStartSec = -1.f;
+    int32 selectedId = -1;
+
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_WorldTimeScale")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        Shared<Client::ANS_WorldTimeScale> worldTimeScaleState = dynamic_pointer_cast<Client::ANS_WorldTimeScale>(entry.notifyState);
+        if (worldTimeScaleState == nullptr)
+            continue;
+
+        if (entry.startSec < selectedStartSec)
+            continue;
+        if (entry.startSec == selectedStartSec && entry.id < selectedId)
+            continue;
+
+        selectedStartSec = entry.startSec;
+        selectedId = entry.id;
+        result.worldTimeScale = max(0.f, worldTimeScaleState->Get_WorldTimeScale());
+        result.scaleEffects = worldTimeScaleState->Should_ScalePreviewEffects();
+    }
+
+    return result;
 }
 
 void Animation_View::Update_PreviewAnimSpeedStates(float timeDelta)
