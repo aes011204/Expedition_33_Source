@@ -37,8 +37,8 @@ HRESULT MB_Portier::Initialize(void* arg)
 
     // _body->Set_Animation("Portier_Idle", 0.3f, true);
 
-    _combatStat->Set_Skill("Portier_AttackAoE");
-    _combatStat->Set_Skill("Portier_JumpHit");
+    //_combatStat->Set_Skill("Portier_AttackAoE");
+    //_combatStat->Set_Skill("Portier_JumpHit");
 
     return S_OK;
 }

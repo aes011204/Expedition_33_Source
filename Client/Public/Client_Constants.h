@@ -530,4 +530,10 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
 
     constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
+
+
+    constexpr const wchar_t* Duallist_Attack = L"VO_ENM_Duallist_Attack";
+    constexpr const wchar_t* Duallist_Pain = L"VO_ENM_Duallist_Pain";
+
+
 }

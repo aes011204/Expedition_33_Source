@@ -217,7 +217,8 @@ bool ItemTargeting::Is_ValidTarget(const BattleChar& target) const
 		return target.statCom->Get_AliveStatus() == EAliveStatus::Alive;
 
 	case BattleItemType::ReviveTint:    // 죽어있는 플레이어한테만 사용 가능
-		return target.statCom->Get_AliveStatus() == EAliveStatus::Dead;
+		return target.statCom->Get_AliveStatus() == EAliveStatus::Dead &&
+			!target.statCom->Is_ReviveBlocked();
 
 	default:
 		return false;

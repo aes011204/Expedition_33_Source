@@ -13,6 +13,7 @@
 #include "EffectCom.h"
 #include "Mon_WeakPoint.h"
 #include "BlackBoard.h"
+#include "BattleController.h"
 #include "DamageSystem.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -99,8 +100,22 @@ void Monster_BattleBase::ActionFromDecision(ActionRequest& request, const Battle
         return;
 
     const auto& skillIds = stat->Get_SkillKey();
+    const vector<BattleChar>* targetCandidates = &heroes;
 
-    if (decision.targetIndex < 0 || decision.targetIndex >= static_cast<int>(heroes.size()))
+    if (_aiCtrl != nullptr)
+    {
+        const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+        if (bb != nullptr &&
+            bb->Has_Value("UseDeadCheckHeroesForTarget") &&
+            bb->Get_Value<bool>("UseDeadCheckHeroesForTarget"))
+        {
+            const any* deadCheckHeroesValue = bb->Find_Value("DeadCheckHeroes");
+            if (deadCheckHeroesValue != nullptr)
+                targetCandidates = &any_cast<const vector<BattleChar>&>(*deadCheckHeroesValue);
+        }
+    }
+
+    if (decision.targetIndex < 0 || decision.targetIndex >= static_cast<int>(targetCandidates->size()))
         return;
 
     if (decision.skillIndex < 0 || decision.skillIndex >= static_cast<int>(skillIds.size()))
@@ -111,7 +126,7 @@ void Monster_BattleBase::ActionFromDecision(ActionRequest& request, const Battle
     if (skill == nullptr)
         return;
 
-    request.InitTarget = heroes[decision.targetIndex];
+    request.InitTarget = (*targetCandidates)[decision.targetIndex];
     request.skillKey = skill->skillKey;
     request.type = decision.actionType;
 }
@@ -128,10 +143,12 @@ void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vect
 
 
     bb->Set_Value("Heroes", heroes);
+    bb->Set_Value("DeadCheckHeroes", CLIENT->Get_BattleController()->Get_BattleHeroes());
     bb->Set_Value("DecisionComplete", false);
     bb->Set_Value("TargetIndex", -1);
     bb->Set_Value("SkillIndex", -1);
     bb->Set_Value("ActionType", static_cast<int>(EBattleContext::Invalid));
+    bb->Set_Value("UseDeadCheckHeroesForTarget", false);
 
     _aiCtrl->Run_BT_Once();
 

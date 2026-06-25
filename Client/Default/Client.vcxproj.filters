@@ -364,6 +364,9 @@
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -372,6 +375,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_PlayEffect.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_SpawnAttColl.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_PlaySound.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
@@ -465,6 +471,15 @@
     </ClCompile>
     <ClCompile Include="..\private\BT_LookRange.cpp">
       <Filter>BehavoirTree\world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_HasDeadHero.cpp">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_ForceSkillOnDeadHero.cpp">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_SetDeadHeroTarget.cpp">
+      <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BT_SetSkillAI.cpp">
       <Filter>BehavoirTree\battle</Filter>
@@ -1015,6 +1030,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Create_Class.cpp">
       <Filter>99.Defines\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\DamageTrigger.cpp">
+      <Filter>02.GameObject\Map</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp">
       <Filter>Skill</Filter>
@@ -1643,11 +1661,17 @@
     <ClInclude Include="..\Public\AN_CounterReturnAll.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AN_EndTurn.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_PlayEffect.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_PlaySound.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
@@ -1759,6 +1783,15 @@
     </ClInclude>
     <ClInclude Include="..\public\BT_LookRange.h">
       <Filter>BehavoirTree\world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_HasDeadHero.h">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_ForceSkillOnDeadHero.h">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_SetDeadHeroTarget.h">
+      <Filter>BehavoirTree\battle</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_SetSkillAI.h">
       <Filter>BehavoirTree\battle</Filter>
@@ -2336,6 +2369,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\Create_Class.h">
       <Filter>99.Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\DamageTrigger.h">
+      <Filter>02.GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h">
       <Filter>Skill</Filter>
