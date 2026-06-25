@@ -3,11 +3,11 @@
 enum class TargetCameraMode;
 
 NS_BEGIN(Engine)
-    class Camera;
+class Camera;
 NS_END
 
 NS_BEGIN(Client)
-
+class DialogueCamera;
 class CinematicCamera;
 class CameraDirector final : public Base
 {
@@ -20,6 +20,7 @@ public:
     void Request_SoulLikeCamera();
     void Request_Preview();
     void Request_BattleTurn();
+    Shared<DialogueCamera> Request_DialogueCamera();
     Shared<CinematicCamera>  Request_Cinematic();
     void Restore_PreviousCamera();
 

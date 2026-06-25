@@ -13,6 +13,23 @@ CameraPresetIO::~CameraPresetIO()
 
 namespace
 {
+    json Make_JsonVec3(const Vec3& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    Vec3 Read_JsonVec3(const json& jsonData, const char* key, const Vec3& fallback)
+    {
+        if (!jsonData.contains(key) || !jsonData[key].is_array() || jsonData[key].size() < 3)
+            return fallback;
+
+        const json& array = jsonData[key];
+        return Vec3(
+            array[0].get<float>(),
+            array[1].get<float>(),
+            array[2].get<float>());
+    }
+
     string Build_SoulLikePresetFilePath(const string& presetKey)
     {
         if (presetKey.empty())
@@ -38,6 +55,15 @@ namespace
         string fileName = "BattleDrift_" + modeName;
         if (cameraMode == BattleCameraMode::ENEMYATTACK && isBossVariant)
             fileName += "_Boss";
+
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
+    }
+
+    string Build_DialoguePresetFilePath(const string& presetId)
+    {
+        string fileName = "DialoguePreset";
+        if (!presetId.empty())
+            fileName += "_" + presetId;
 
         return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
     }
@@ -187,6 +213,89 @@ bool CameraPresetIO::LoadSoulLikeSkillPresetFromFile(const string& skillKey, Tar
         return false;
 
     return LoadSoulLikePresetFromFile("PlayerSkill_" + skillKey, outPreset);
+}
+
+void CameraPresetIO::SaveDialoguePresetToFile(const string& presetId, const DialogueCameraPreset& preset)
+{
+    json jsonData{};
+
+    jsonData["localCameraOffset"] = Make_JsonVec3(preset.localCameraOffset);
+    jsonData["localLookTargetOffset"] = Make_JsonVec3(preset.localLookTargetOffset);
+    jsonData["rollOffset"] = preset.rollOffset;
+    jsonData["driftEnabled"] = preset.drift.enabled;
+    jsonData["driftLateralAmplitude"] = preset.drift.lateralAmplitude;
+    jsonData["driftVerticalAmplitude"] = preset.drift.verticalAmplitude;
+    jsonData["driftDepthAmplitude"] = preset.drift.depthAmplitude;
+    jsonData["driftRollAmplitude"] = preset.drift.rollAmplitude;
+    jsonData["driftLateralFrequency"] = preset.drift.lateralFrequency;
+    jsonData["driftVerticalFrequency"] = preset.drift.verticalFrequency;
+    jsonData["driftDepthFrequency"] = preset.drift.depthFrequency;
+    jsonData["driftRollFrequency"] = preset.drift.rollFrequency;
+    jsonData["mouseSensor"] = preset.camera.mouseSensor;
+    jsonData["mouseSensitivity"] = preset.camera.mouseSensitivity;
+    jsonData["fovY"] = preset.camera.fovy;
+    jsonData["nearPlane"] = preset.camera.nearPlane;
+    jsonData["farPlane"] = preset.camera.farPlane;
+
+    const fs::path savePath = Build_DialoguePresetFilePath(presetId);
+    if (!fs::exists(savePath.parent_path()))
+        fs::create_directories(savePath.parent_path());
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        MSG_BOX("Failed to open dialogue preset save file.");
+        return;
+    }
+
+    file << jsonData.dump(4);
+}
+
+bool CameraPresetIO::LoadDialoguePresetFromFile(const string& presetId, DialogueCameraPreset& outPreset)
+{
+    ifstream file(Build_DialoguePresetFilePath(presetId));
+    if (!file.is_open())
+        return false;
+
+    json jsonData{};
+    file >> jsonData;
+
+    DialogueCameraPreset preset = outPreset;
+    if (jsonData.contains("localCameraOffset"))
+    {
+        preset.localCameraOffset = Read_JsonVec3(jsonData, "localCameraOffset", preset.localCameraOffset);
+        preset.localLookTargetOffset = Read_JsonVec3(jsonData, "localLookTargetOffset", preset.localLookTargetOffset);
+    }
+    else
+    {
+        const float legacyDistance = jsonData.value("distance", 1.2f);
+        const float legacySideOffset = jsonData.value("sideOffset", 0.f);
+        const float legacyHeightOffset = jsonData.value("heightOffset", 1.55f);
+        const float legacyAimOffset = jsonData.value("aimOffset", 0.f);
+        const float legacyLookHeight = jsonData.value("lookHeight", 1.35f);
+        const float legacyPivotHeight = jsonData.value("pivotHeight", 0.f);
+        preset.localCameraOffset = Vec3(legacySideOffset, legacyPivotHeight + legacyHeightOffset, legacyDistance);
+        preset.localLookTargetOffset = Vec3(legacyAimOffset, legacyPivotHeight + legacyLookHeight, 0.f);
+    }
+
+    preset.rollOffset = jsonData.value("rollOffset", preset.rollOffset);
+    preset.drift.enabled = jsonData.value("driftEnabled", preset.drift.enabled);
+    preset.drift.lateralAmplitude = jsonData.value("driftLateralAmplitude", preset.drift.lateralAmplitude);
+    preset.drift.verticalAmplitude = jsonData.value("driftVerticalAmplitude", preset.drift.verticalAmplitude);
+    preset.drift.depthAmplitude = jsonData.value("driftDepthAmplitude", preset.drift.depthAmplitude);
+    preset.drift.rollAmplitude = jsonData.value("driftRollAmplitude", preset.drift.rollAmplitude);
+    preset.drift.lateralFrequency = jsonData.value("driftLateralFrequency", preset.drift.lateralFrequency);
+    preset.drift.verticalFrequency = jsonData.value("driftVerticalFrequency", preset.drift.verticalFrequency);
+    preset.drift.depthFrequency = jsonData.value("driftDepthFrequency", preset.drift.depthFrequency);
+    preset.drift.rollFrequency = jsonData.value("driftRollFrequency", preset.drift.rollFrequency);
+    preset.camera.mouseSensor = jsonData.value("mouseSensor", preset.camera.mouseSensor);
+    preset.camera.mouseSensitivity = jsonData.value("mouseSensitivity", preset.camera.mouseSensitivity);
+    preset.camera.fovy = jsonData.value("fovY", preset.camera.fovy);
+    preset.camera.nearPlane = jsonData.value("nearPlane", preset.camera.nearPlane);
+    preset.camera.farPlane = jsonData.value("farPlane", preset.camera.farPlane);
+
+    outPreset = preset;
+    return true;
 }
 
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)
