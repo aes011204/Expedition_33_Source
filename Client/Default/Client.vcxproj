@@ -1053,6 +1053,7 @@
       <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />

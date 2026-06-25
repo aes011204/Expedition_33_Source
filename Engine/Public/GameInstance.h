@@ -111,7 +111,7 @@ public:
     void Update_Engine(float timeDelta, const function<void(float)>& clientUpdate);
 
     HRESULT Draw();
-    HRESULT Draw_RendererOnly(bool renderPreviewScreenFx = false); // 에디터용
+    HRESULT Draw_RendererOnly(bool renderPreviewScreenFx = false, bool preservePostProcess = false);
     void Backup_RenderGroup();
     void Restore_RenderGroup();
 
@@ -499,6 +499,8 @@ public: /* For.Shadow */
     CascadeLevel            Get_ShadowCascadeLevel() const;
     HRESULT                 Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets);
     const ShadowCascadePresetSet* Get_ShadowCascadePresets() const;
+    uint32                  Get_ActiveShadowCascade() const;
+    const ShadowCascadeInfluenceVolume* Get_CascadeInfluenceVolumes() const;
 
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;
