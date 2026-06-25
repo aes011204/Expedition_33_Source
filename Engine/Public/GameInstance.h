@@ -187,6 +187,7 @@ public: /* For.UI_Manager */
         const wstring& prototypeTag,
         void* arg = nullptr,
         Shared<UI_Base>* outUI = nullptr);
+    bool Remove_UI(const Shared<UI_Base>& ui);
 
     void Pop_UI();
 

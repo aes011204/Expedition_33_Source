@@ -34,20 +34,38 @@ public:
     HRESULT Render() override;
 
 public:
-    void Set_Text(const wstring& text) { _text = text; }
+    void Set_Text(const wstring& text);
     const wstring& Get_Text() const { return _text; }
 
-    void Set_FontTag(const wstring& fontTag) { _fontTag = fontTag; }
+    void Set_FontTag(const wstring& fontTag);
     const wstring& Get_FontTag() const { return _fontTag; }
 
     void Set_Color(const Vec4& color) override { _color = color; }
     Vec4 Get_Color() const override { return _color; }
 
-    void Set_TextAlign(TextAlign textAlign) { _textAlign = textAlign; }
+    void Set_TextAlign(TextAlign textAlign);
     TextAlign Get_TextAlign() const { return _textAlign; }
 
-    void Set_TextWrap(bool textWrap) { _textWrap = textWrap; }
+    void Set_TextWrap(bool textWrap);
     bool Get_TextWrap() const { return _textWrap; }
+
+private:
+    struct TextLayoutCache
+    {
+        bool valid = false;
+        wstring text{};
+        wstring fontTag{};
+        bool textWrap = false;
+        float localTextScale = 0.f;
+        float boxWidth = 0.f;
+        Vec2 measuredSize = Vec2::Zero;
+        float lineHeight = 0.f;
+        vector<wstring> lines{};
+        vector<float> lineWidths{};
+    };
+
+    void Invalidate_TextLayoutCache();
+    const TextLayoutCache& Ensure_TextLayoutCache(float localTextScale, float boxWidth) const;
 
 private:
     wstring _text{};
@@ -55,6 +73,7 @@ private:
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };
     TextAlign _textAlign{ TextAlign::Left };
     bool _textWrap{ false };
+    mutable TextLayoutCache _layoutCache{};
 
 public:
     static Shared<UI_Text> Create();

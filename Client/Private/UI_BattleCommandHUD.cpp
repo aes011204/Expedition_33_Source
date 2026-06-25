@@ -19,7 +19,7 @@ namespace
         introAnimation.fps = 60;
         introAnimation.startFrame = 0;
         introAnimation.endFrame = 60;
-        return Get_KeyframeAnimationDurationSec(introAnimation);
+        return Get_KeyframeAnimationDurationSec(introAnimation); 
     }
 }
 
