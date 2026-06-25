@@ -121,6 +121,16 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"수명에 따른 회전",
         L"수명 진행률 기준 추가 회전"
     };
+    static const AuthoringModuleMetadata spriteTilt{
+        "SpriteTilt",
+        L"스프라이트 틸트",
+        L"카드 면 자체를 local X/Y 방향으로 기울임"
+    };
+    static const AuthoringModuleMetadata spriteTiltOverLife{
+        "SpriteTiltOverLife",
+        L"수명에 따른 스프라이트 틸트",
+        L"수명 진행률 기준 카드 면 기울기 추가"
+    };
     static const AuthoringModuleMetadata initialRotationRate{
         "Initial Rotation Rate",
         L"초기 회전 속도",
@@ -276,6 +286,10 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return planeRadialOrientation;
     case AuthoringModuleType::RotationOverLife:
         return rotationOverLife;
+    case AuthoringModuleType::SpriteTilt:
+        return spriteTilt;
+    case AuthoringModuleType::SpriteTiltOverLife:
+        return spriteTiltOverLife;
     case AuthoringModuleType::InitialRotationRate:
         return initialRotationRate;
     case AuthoringModuleType::RotationRateScaleByLife:

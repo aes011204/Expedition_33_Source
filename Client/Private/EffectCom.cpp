@@ -99,6 +99,9 @@ Shared<ModelCom> Resolve_TrailPartModel(const PartObject* partObject)
     if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
         return monsterPart->Get_Model();
 
+    if (const PlayableParts* playablePart = dynamic_cast<const PlayableParts*>(partObject))
+        return playablePart->Get_Model();
+
     return nullptr;
 }
 
@@ -112,6 +115,9 @@ const Matrix* Resolve_TrailPartSocketMatrix(const PartObject* partObject, const 
 
     if (const Client::Monster_Part* monsterPart = dynamic_cast<const Client::Monster_Part*>(partObject))
         return monsterPart->Get_SocketBoneMatrixPtr(socketName);
+
+    if (const PlayableParts* playablePart = dynamic_cast<const PlayableParts*>(partObject))
+        return playablePart->Get_SocketBoneMatrixPtr(socketName);
 
     return nullptr;
 }
@@ -772,7 +778,8 @@ HRESULT EffectCom::Play_TrailEffect(
     const wstring& partTag,
     const wstring& layerTag,
     uint64 trailNotifyToken,
-    const TrailOffsetRuntimeDesc& offsetDesc)
+    const TrailOffsetRuntimeDesc& offsetDesc,
+    const TrailAnchorRuntimeDesc& anchorDesc)
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
@@ -788,14 +795,6 @@ HRESULT EffectCom::Play_TrailEffect(
     const Shared<ModelCom> weaponModel = Internal::Resolve_TrailPartModel(trailPart);
     CHECK_NULL(weaponModel, E_FAIL);
 
-    const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
-    if (sourceModelPath.empty())
-        return E_FAIL;
-
-    const string modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
-    if (modelGuid.empty())
-        return E_FAIL;
-
     AttachedEffect attached{};
     attached.effectName = resolvedEffectName; // Stop에서도 같은 resolved 이름으로 찾아야 한다.
     attached.partTag = partTag;
@@ -806,9 +805,31 @@ HRESULT EffectCom::Play_TrailEffect(
     attached.trailOffset.phase = std::clamp(attached.trailOffset.phase, 0.f, 1.f);
     attached.trailSampleEnabled = make_shared<bool>(true);
 
-    const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
-    if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
-        return E_FAIL;
+    attached.trailEchoEligible = anchorDesc.source == ANS_Trail::TrailAnchorSource::ModelDefault;
+
+    if (anchorDesc.source == ANS_Trail::TrailAnchorSource::NotifyBonePair)
+    {
+        attached.trailAnchorAsset = {};
+        attached.trailAnchorAsset.modelGuid.clear();
+        attached.trailAnchorAsset.base.boneName = anchorDesc.baseBoneName;
+        attached.trailAnchorAsset.base.localPosition = anchorDesc.baseLocalOffset;
+        attached.trailAnchorAsset.tip.boneName = anchorDesc.tipBoneName;
+        attached.trailAnchorAsset.tip.localPosition = anchorDesc.tipLocalOffset;
+    }
+    else
+    {
+        const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
+        if (sourceModelPath.empty())
+            return E_FAIL;
+
+        const string modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+        if (modelGuid.empty())
+            return E_FAIL;
+
+        const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
+        if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
+            return E_FAIL;
+    }
 
     EffectTrailSample initialSample{};
     if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, &attached.trailOffset, initialSample))
@@ -894,6 +915,7 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
         _recentTrailEffect.effectName = attached.effectName;
         _recentTrailEffect.layerTag = attached.layerTag;
         _recentTrailEffect.offsetDesc = attached.trailOffset;
+        _recentTrailEffect.echoEligible = attached.trailEchoEligible;
         _recentTrailEffect.ageSec = 0.f;
 
         Begin_TrailDrain(attached);
@@ -944,6 +966,8 @@ bool EffectCom::Try_GetActiveTrailEffect(
             continue;
         if (attached.isTrailDraining)
             continue;
+        if (!attached.trailEchoEligible)
+            continue;
         if (attached.poolHandle.effectObject == nullptr)
             continue;
 
@@ -955,6 +979,7 @@ bool EffectCom::Try_GetActiveTrailEffect(
 
     constexpr float recentTrailGraceSec = 0.5f;
     if (_recentTrailEffect.valid &&
+        _recentTrailEffect.echoEligible &&
         _recentTrailEffect.partTag == partTag &&
         _recentTrailEffect.ageSec <= recentTrailGraceSec)
     {
@@ -1491,17 +1516,17 @@ bool EffectCom::Try_BuildTrailSample(
 
     const TrailAnchorAsset sampleAnchorAsset =
         offsetDesc != nullptr
-            ? ANS_Trail::Make_OffsetTrailAnchorAsset(
-                trailAnchorAsset,
-                offsetDesc->tipExtendCurve,
-                offsetDesc->baseLocalOffsetCurve,
-                offsetDesc->tipLocalOffsetCurve,
-                offsetDesc->phase)
-            : trailAnchorAsset;
+        ? ANS_Trail::Make_OffsetTrailAnchorAsset(
+            trailAnchorAsset,
+            offsetDesc->tipExtendCurve,
+            offsetDesc->baseLocalOffsetCurve,
+            offsetDesc->tipLocalOffsetCurve,
+            offsetDesc->phase)
+        : trailAnchorAsset;
 
     Vec3 baseWorld{};
     Vec3 tipWorld{};
-    
+
     if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.base, baseWorld))
         return false;
     if (!Try_ResolveTrailAnchorWorldPosition(*trailPart, sampleAnchorAsset.tip, tipWorld))
@@ -1563,7 +1588,7 @@ bool EffectCom::Try_BuildSourcePointSample(
         if (sourceHistoryAnchorName == "Mid")
         {
             outSample.worldPosition =
-                ((trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f) +
+                (trailSample.baseWorldPosition + trailSample.tipWorldPosition) * 0.5f +
                 sourceHistoryLocalOffset;
             return true;
         }

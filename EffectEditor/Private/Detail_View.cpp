@@ -2522,6 +2522,16 @@ void Detail_View::Render_ModuleDetail(
             changed = _rotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::SpriteTilt:
+        if (auto* data = get_if<SpriteTiltModuleData>(&module.data))
+            changed = _spriteTiltModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SpriteTiltOverLife:
+        if (auto* data = get_if<SpriteTiltOverLifeModuleData>(&module.data))
+            changed = _spriteTiltOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialRotationRate:
         if (auto* data = get_if<InitialRotationRateModuleData>(&module.data))
             changed = _initialRotationRateModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
