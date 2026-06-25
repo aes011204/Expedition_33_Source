@@ -29,6 +29,7 @@
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
 #include "Unlock_Manager.h"
+#include "BattleFollowupManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -162,6 +163,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _unlockManager = Unlock_Manager::Create();
     CHECK_NULL(_unlockManager, E_FAIL);
+
+    _battleFollowupManager = BattleFollowupManager::Create();
+    CHECK_NULL(_battleFollowupManager, E_FAIL);
 
 	_isInitialized = true;
 

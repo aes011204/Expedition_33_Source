@@ -1374,7 +1374,7 @@
       <Filter>07. Dialogue</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
-    <ClCompile Include="..\Private\BattleFollowManager.cpp" />
+    <ClCompile Include="..\Private\BattleFollowupManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1459,7 +1459,7 @@
       <Filter>07. Dialogue</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
-    <ClInclude Include="..\Public\BattleFollowManager.h" />
+    <ClInclude Include="..\Public\BattleFollowupManager.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

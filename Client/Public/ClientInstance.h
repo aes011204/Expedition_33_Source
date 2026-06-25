@@ -34,6 +34,7 @@ class CostumeManager;
 
 class SoulLikeController;
 class Unlock_Manager;
+class BattleFollowupManager;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -275,6 +276,10 @@ public: /* SoulLike */
 public: /* Unlock Manager */
     Unlock_Manager* Get_UnlockManager() const { return _unlockManager.get(); }
 
+public: /* Battle Followup Manager */
+     BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
+
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -314,6 +319,7 @@ private:
     Shared<SoulLikeController> _soulLikeController;
 
     Unique<Unlock_Manager>      _unlockManager;
+    Unique<BattleFollowupManager>   _battleFollowupManager;
 
 public:
 	void Free() override;

@@ -63,6 +63,7 @@ void UI_BattleVictory::Update(float timeDelta)
     else
     {
         Update_ExpGauge(timeDelta);
+        Update_RewardNumberTweens(timeDelta);
     }
 
     if (!_isClosingWithOutro)
@@ -85,6 +86,20 @@ void UI_BattleVictory::Open()
     _isClosingWithOutro = false;
     _closeElapsed = 0.f;
     _expAnimDelayRemaining = _introDuration;
+
+    if (_rewardExpTween.isAnimating)
+    {
+        _rewardExpTween.elapsed = 0.f;
+        Set_UIntText(_rewardExpTween.text, _rewardExpTween.startValue);
+        Set_UIntText(_rewardExpTween.bgText, _rewardExpTween.startValue);
+    }
+
+    if (_rewardChromaTween.isAnimating)
+    {
+        _rewardChromaTween.elapsed = 0.f;
+        Set_UIntText(_rewardChromaTween.text, _rewardChromaTween.startValue);
+        Set_UIntText(_rewardChromaTween.bgText, _rewardChromaTween.startValue);
+    }
 
     UI_RuntimePanelBase::Open();
     Play_TargetAnimation(kBattleVictoryIntroAnimationName);
@@ -118,6 +133,10 @@ void UI_BattleVictory::Close_Immediately()
     _expAnimDelayRemaining = 0.f;
     _isClosingWithOutro = false;
     _closeElapsed = 0.f;
+    _rewardExpTween.isAnimating = false;
+    _rewardExpTween.elapsed = 0.f;
+    _rewardChromaTween.isAnimating = false;
+    _rewardChromaTween.elapsed = 0.f;
 
     Stop_TargetAnimations();
 
@@ -302,9 +321,8 @@ void UI_BattleVictory::Apply_PlayerStat(const VictoryPlayerStatDesc& stat)
 
 void UI_BattleVictory::Apply_VictorySummary(const VictorySummaryDesc& summary)
 {
-    Set_RewardExp(summary.rewardExp);
-    Set_UIntText(_rewardChromaText, summary.rewardChroma);
-    Set_UIntText(_rewardChromaBgText, summary.rewardChroma);
+    Start_RewardNumberTween(_rewardExpTween, _rewardExpText, _rewardExpBgText, summary.rewardExp, 0.8f);
+    Start_RewardNumberTween(_rewardChromaTween, _rewardChromaText, _rewardChromaBgText, summary.rewardChroma, 0.8f);
     Set_UIntText(_maxDamageText, summary.maxDamage);
     Set_UIntText(_totalDamageText, summary.totalDamageDealt);
     Set_UIntText(_takenDamageText, summary.totalDamageTaken);
@@ -312,6 +330,57 @@ void UI_BattleVictory::Apply_VictorySummary(const VictorySummaryDesc& summary)
     Set_UIntText(_dodgeSuccessText, summary.dodgeSuccessCount);
     Set_WStringText(_clearTimeText, Format_ClearTime(summary.elapsedSec));
     Apply_DefeatedMonsterPortraits(summary.defeatedMonsterPortraitGuids);
+}
+
+void UI_BattleVictory::Start_RewardNumberTween(RewardNumberTween& tween, const Shared<UI_Text>& text, const Shared<UI_Text>& bgText, uint32 targetValue, float duration)
+{
+    tween.text = text;
+    tween.bgText = bgText;
+    tween.startValue = 0;
+    tween.targetValue = targetValue;
+    tween.elapsed = 0.f;
+    tween.duration = max(duration, 0.01f);
+    tween.isAnimating = targetValue > 0;
+
+    Set_UIntText(tween.text, tween.startValue);
+    Set_UIntText(tween.bgText, tween.startValue);
+
+    if (!tween.isAnimating)
+    {
+        Set_UIntText(tween.text, tween.targetValue);
+        Set_UIntText(tween.bgText, tween.targetValue);
+    }
+}
+
+void UI_BattleVictory::Update_RewardNumberTweens(float timeDelta)
+{
+    Update_RewardNumberTween(_rewardExpTween, timeDelta);
+    Update_RewardNumberTween(_rewardChromaTween, timeDelta);
+}
+
+void UI_BattleVictory::Update_RewardNumberTween(RewardNumberTween& tween, float timeDelta)
+{
+    if (!tween.isAnimating)
+        return;
+
+    tween.elapsed += max(0.f, timeDelta);
+
+    const float t = clamp(tween.elapsed / tween.duration, 0.f, 1.f);
+    const float smoothT = t * t * (3.f - 2.f * t);
+    const uint32 displayValue = static_cast<uint32>(roundf(std::lerp(
+        static_cast<float>(tween.startValue),
+        static_cast<float>(tween.targetValue),
+        smoothT)));
+
+    Set_UIntText(tween.text, displayValue);
+    Set_UIntText(tween.bgText, displayValue);
+
+    if (t >= 1.f)
+    {
+        tween.isAnimating = false;
+        Set_UIntText(tween.text, tween.targetValue);
+        Set_UIntText(tween.bgText, tween.targetValue);
+    }
 }
 
 void UI_BattleVictory::Apply_DefeatedMonsterPortraits(const vector<string>& portraitGuids)

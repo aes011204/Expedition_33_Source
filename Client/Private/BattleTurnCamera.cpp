@@ -432,6 +432,8 @@ void BattleTurnCamera::Reset_RuntimeState()
     _wideAnchorHeroCenter = Vec3::Zero;
     _battlePlaneYawDegrees = 0.f;
     _wideAnchorYawDegrees = 0.f;
+    _yaw = 0.f;
+    _pitch = 0.f;
     _isClipPreview = false;
     _isFirstUpdate = true;
     _isWideMode = false;
