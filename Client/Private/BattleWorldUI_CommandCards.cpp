@@ -1,4 +1,4 @@
-#include "BattleWorldUI_CommandCards.h"
+﻿#include "BattleWorldUI_CommandCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
 #include "BattleWorldUI_SurfaceAnim.h"
@@ -900,21 +900,21 @@ namespace
 
         if (imageRenderMode == BattleWorldCommandImageRenderMode::Unknown)
         {
-            LOG_WARN(
-                "BattleWorldUI command json image skipped: unknown imageRenderMode. panel='{}', name='{}', mode='{}'",
-                panelName,
-                object.name,
-                object.imageRenderMode);
+            //LOG_WARN(
+            //    "BattleWorldUI command json image skipped: unknown imageRenderMode. panel='{}', name='{}', mode='{}'",
+            //    panelName,
+            //    object.name,
+            //    object.imageRenderMode);
             return false;
         }
 
         if (object.useFillRatio)
         {
-            LOG_DEBUG(
-                "BattleWorldUI command json image skipped: unsupported fillRatio. panel='{}', name='{}', fillRatio={}",
-                panelName,
-                object.name,
-                object.fillRatio);
+            //LOG_DEBUG(
+            //    "BattleWorldUI command json image skipped: unsupported fillRatio. panel='{}', name='{}', fillRatio={}",
+            //    panelName,
+            //    object.name,
+            //    object.fillRatio);
             return false;
         }
 
@@ -922,11 +922,11 @@ namespace
             Has_TextureRef(object.maskTextureGuid, object.maskTexturePath) &&
             maskTextureMode == BattleWorldCommandMaskTextureMode::Unknown)
         {
-            LOG_WARN(
-                "BattleWorldUI command json image skipped: unknown maskTextureMode. panel='{}', name='{}', mode='{}'",
-                panelName,
-                object.name,
-                object.maskTextureMode);
+            //LOG_WARN(
+            //    "BattleWorldUI command json image skipped: unknown maskTextureMode. panel='{}', name='{}', mode='{}'",
+            //    panelName,
+            //    object.name,
+            //    object.maskTextureMode);
             return false;
         }
 
@@ -946,11 +946,11 @@ namespace
         {
             if (!hasMaskRef)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required mask ref. panel='{}', name='{}', mode='{}'",
-                    panelName,
-                    object.name,
-                    To_LogName(imageRenderMode));
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required mask ref. panel='{}', name='{}', mode='{}'",
+                //    panelName,
+                //    object.name,
+                //    To_LogName(imageRenderMode));
                 return false;
             }
 
@@ -962,11 +962,11 @@ namespace
                 object.name + "/mask");
             if (!maskTexture)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required mask. panel='{}', name='{}', maskPath='{}'",
-                    panelName,
-                    object.name,
-                    object.maskTexturePath);
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required mask. panel='{}', name='{}', maskPath='{}'",
+                //    panelName,
+                //    object.name,
+                //    object.maskTexturePath);
                 return false;
             }
         }
@@ -977,10 +977,10 @@ namespace
         {
             if (!hasPatternMaskRef)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required pattern mask ref. panel='{}', name='{}'",
-                    panelName,
-                    object.name);
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required pattern mask ref. panel='{}', name='{}'",
+                //    panelName,
+                //    object.name);
                 return false;
             }
 
@@ -992,11 +992,11 @@ namespace
                 object.name + "/patternMask");
             if (!patternMaskTexture)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required pattern mask. panel='{}', name='{}', patternMaskPath='{}'",
-                    panelName,
-                    object.name,
-                    object.patternMaskTexturePath);
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required pattern mask. panel='{}', name='{}', patternMaskPath='{}'",
+                //    panelName,
+                //    object.name,
+                //    object.patternMaskTexturePath);
                 return false;
             }
         }
