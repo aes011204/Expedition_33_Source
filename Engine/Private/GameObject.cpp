@@ -63,6 +63,10 @@ void GameObject::Late_Update(float timeDelta)
 {
 }
 
+void GameObject::Post_PhysX_Update(float timeDelta)
+{
+}
+
 HRESULT GameObject::Render()
 {
     return S_OK;

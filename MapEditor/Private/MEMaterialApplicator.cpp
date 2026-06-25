@@ -185,6 +185,11 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
                     }
                 }
             }
+
+            if (HasForcedPassIndex(*overrideEntry, static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass)))
+            {
+                mat->Set_ForcedPassIndex(static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass));
+            }
         }
     }
 
@@ -193,6 +198,19 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
         const string modelPathForJson = fullModelPath.empty() ? modelFilename : fullModelPath;
         const string mapName = _scene ? String::ToString(_scene->_mapName) : string{};
         model.From_Json(overrideEntry->BuildMaterialJson(modelPathForJson, mapName));
+    }
+
+    if (overrideEntry && HasForcedPassIndex(*overrideEntry, static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass)))
+    {
+        uint32 matSize2 = static_cast<uint32>(model.Get_NumMaterials());
+        for (uint32 j = 0; j < matSize2; ++j)
+        {
+            auto mat = model.Get_Material(j);
+            if (mat)
+            {
+                mat->Set_ForcedPassIndex(static_cast<int32>(VtxMeshPassIndex::EclipseSpherePass));
+            }
+        }
     }
 }
 

@@ -38,6 +38,9 @@ public:
     void    Reset();
     bool    Request_Esther(SL_EstherType estherType);
     bool    Notify_Attack(GameObject* notifyOwner);
+    void    Add_GaugeFromParry();
+    float   Get_GaugeRatio() const;
+    bool    Is_GaugeFull() const;
 
 private:
     HRESULT Initialize(const Shared<SoulLikeController>& controller);
@@ -59,6 +62,7 @@ private:
 private:
     Weak<SoulLikeController> _controller{};
     optional<EstherRuntime> _activeEsther{};
+    float _estherGauge = 0.f;
 
 public:
     static Shared<SL_EstherManager> Create(const Shared<SoulLikeController>& owner);

@@ -60,6 +60,14 @@ HRESULT SL_Dualliste::Initialize(void* arg)
     return S_OK;
 }
 
+bool SL_Dualliste::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    UNREFERENCED_PARAMETER(partObjectJson);
+
+    return partTag != TEXT("Part_Sword_L") &&
+        partTag != TEXT("Part_Sword_R");
+}
+
 void SL_Dualliste::BeginPlay()
 {
     SL_Base::BeginPlay();
@@ -493,6 +501,9 @@ void SL_Dualliste::Finish_PhaseChange()
     _phaseChangeFinished = true;
     Apply_PhaseVisualState();
 
+    if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+        controller->Play_DuallisteBGM(SoulLikeController::DuallisteBGMPhase::Phase2);
+
     if (_aiCtrl)
     {
         if (const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard())
@@ -670,7 +681,7 @@ HRESULT SL_Dualliste::Ready_PartObjects()
     Mon_Dualliste_Body::BODY_DESC bodyDesc{};
     bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     bodyDesc.modelType = ModelType::Anim;
-    bodyDesc.modelTag = L"Model_Dualliste";
+    bodyDesc.modelTag = L"Model_Dualliste_Test";
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Dualliste_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 

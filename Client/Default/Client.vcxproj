@@ -322,6 +322,7 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\Flash_ScreenFx.h" />
     <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
+    <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
@@ -379,6 +380,7 @@
     <ClInclude Include="..\Public\Mon_PotatoBag_Weapon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="..\Public\Mon_Simon_Hair.h" />
+    <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\public\Mon_Volester_Body.h" />
     <ClInclude Include="..\Public\MW_Abbest.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
@@ -770,6 +772,7 @@
     <ClCompile Include="..\Private\DialogueCamera.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />
@@ -810,6 +813,7 @@
     <ClCompile Include="..\Private\Mon_PotatoBag_Weapon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="..\Private\Mon_Simon_Hair.cpp" />
+    <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
     <ClCompile Include="..\Private\MW_Abbest.cpp" />
     <ClCompile Include="..\Private\MW_Dualliste.cpp" />
@@ -1049,6 +1053,7 @@
       <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_Froxel.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />

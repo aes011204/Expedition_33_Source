@@ -21,6 +21,7 @@
 #include "UI_ArenaCharacterSelect.h"
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
+#include "UI_GradientSkillPreviewTest.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
@@ -110,6 +111,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _arenaCharacterSelectPanel = UI_ArenaCharacterSelect::Create(levelIndex);
     CHECK_NULL(_arenaCharacterSelectPanel, E_FAIL);
 
+    _gradientSkillPreviewTestPanel = UI_GradientSkillPreviewTest::Create(levelIndex);
+    CHECK_NULL(_gradientSkillPreviewTestPanel, E_FAIL);
+
     return S_OK;
 }
 
@@ -156,6 +160,9 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Update(timeDelta);
+
+     if (_gradientSkillPreviewTestPanel)
+        _gradientSkillPreviewTestPanel->Update(timeDelta);
 
     Update_CrossHair(timeDelta);
 
@@ -208,6 +215,11 @@ void GameplayUI_World::Update_Input()
     if (Is_GetPictosOpen())
         return; // 닫기 입력은 UI_GetPictos::Update가 처리하고, 월드 메뉴 입력은 막는다.
 
+    Handle_GradientSkillPreviewTestInput();
+
+    if (Is_GradientSkillPreviewTestOpen())
+        return;
+
     Handle_ArenaCharacterSelectInput();
     Handle_SavePointInput();
     Handle_TabInput();
@@ -222,32 +234,47 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 
     if (_characterProgressionPanel)
         _characterProgressionPanel->Append_RuntimeUIEntries(entries, "World", "CharacterProgressionPanel");
+
     if (_changeSkillPanel)
         _changeSkillPanel->Append_RuntimeUIEntries(entries, "World", "ChangeSkillPanel");
+
     if (_wardrobePanel)
         _wardrobePanel->Append_RuntimeUIEntries(entries, "World", "WardrobePanel");
+
     if (_pictosPanel)
         _pictosPanel->Append_RuntimeUIEntries(entries, "World", "PictosPanel");
+
     if (_savePointPanel)
         _savePointPanel->Append_RuntimeUIEntries(entries, "World", "SavePointPanel");
+
     if (_characterStatusPanel)
         _characterStatusPanel->Append_RuntimeUIEntries(entries, "World", "CharacterStatusPanel");
+
     Append_RuntimePanelEntry(entries, "World", "SkillTreePanel", _skillTreePanel.get());
+
     if (_changeWeaponPanel)
         _changeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "ChangeWeaponPanel");
+
     if (_expeditionStatPanel)
         _expeditionStatPanel->Append_RuntimeUIEntries(entries, "World", "ExpeditionStatPanel");
+
     if (_getCharacterPanel)
         _getCharacterPanel->Append_RuntimeUIEntries(entries, "World", "GetCharacterPanel");
+
     if (_getClothesPanel)
         _getClothesPanel->Append_RuntimeUIEntries(entries, "World", "GetClothesPanel");
+
     if (_getWeaponPanel)
         _getWeaponPanel->Append_RuntimeUIEntries(entries, "World", "GetWeaponPanel");
+
     if (_getPictosPanel)
         _getPictosPanel->Append_RuntimeUIEntries(entries, "World", "GetPictosPanel");
+
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
+
     Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
+    Append_RuntimePanelEntry(entries, "World", "GradientSkillPreviewTest", _gradientSkillPreviewTestPanel.get());
 
     return entries;
 }
@@ -288,6 +315,9 @@ void GameplayUI_World::Force_CloseAllMenus()
 
     if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
         _arenaCharacterSelectPanel->Close_Immediately();
+
+    if (_gradientSkillPreviewTestPanel && _gradientSkillPreviewTestPanel->Is_Open())
+        _gradientSkillPreviewTestPanel->Close_Immediately();
 }
 
 void GameplayUI_World::Handle_EditorStopRuntime()
@@ -523,6 +553,33 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
     default:
         break;
     }
+}
+
+void GameplayUI_World::Handle_GradientSkillPreviewTestInput()
+{
+    if (_gradientSkillPreviewTestPanel == nullptr)
+        return;
+
+    if (GAME->KeyDown(KEY_TYPE::KEY_4))
+    {
+        if (_gradientSkillPreviewTestPanel->Is_Open())
+            _gradientSkillPreviewTestPanel->Close();
+        else if (!Is_AnyMenuOpen())
+            _gradientSkillPreviewTestPanel->Open();
+
+        return;
+    }
+
+    if (_gradientSkillPreviewTestPanel->Is_Open() && GAME->KeyDown(KEY_TYPE::ESCAPE))
+    {
+        _gradientSkillPreviewTestPanel->Close();
+    }
+}
+
+bool GameplayUI_World::Is_GradientSkillPreviewTestOpen() const
+{
+    return _gradientSkillPreviewTestPanel != nullptr &&
+        _gradientSkillPreviewTestPanel->Is_Open();
 }
 
 void GameplayUI_World::Open_CharacterProgressionFlow()
@@ -1015,6 +1072,7 @@ void GameplayUI_World::Free()
     Release_Panel(_getWeaponPanel);
     Release_Panel(_getPictosPanel);
     Release_Panel(_arenaCharacterSelectPanel);
+    Release_Panel(_gradientSkillPreviewTestPanel);
 
     Base::Free();
 }

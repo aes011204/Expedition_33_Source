@@ -42,6 +42,7 @@ struct SceneContext
     void LoadFromFile(const string& filePath, bool bMerge = false);
     Shared<EditorObject> SpawnObject(const wstring& modelPath, const Vec3& pos);
     Shared<EditorObject> SpawnInstancedObject(const wstring& modelPath, const Vec3& pos);
+    Shared<EditorObject> FindInstancedObjectByModelPath(const wstring& modelPath);
     Shared<EditorObject> SpawnFromPrefab(const string& prefabPath, const Vec3& pos);
 
     void PushCommand(Shared<IEditorCommand> cmd);
