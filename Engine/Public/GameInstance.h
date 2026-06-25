@@ -9,6 +9,7 @@
 #include "Debug_Types.h"
 #include "Engine_Constants.h"
 #include "ScreenFx_Manager.h"
+#include "Shadow.h"
 #include <string_view>
 #include <utility>
 #include "DelegateHub.h"
@@ -16,7 +17,6 @@
 #include "Log_Define.h"
 #ifdef _DEBUG
 #include "Print_Manager.h"
-#include "Shadow.h"
 #endif
 
 #pragma endregion
@@ -27,6 +27,7 @@ NS_BEGIN(Engine)
 class Event_Bus;
 class Graphic_Device;
 struct ShadowCascadeDebugInfo;
+struct ShadowCascadeInfluenceVolume;
 class Timer_Manager;
 class Level_Manager;
 class Prototype_Manager;

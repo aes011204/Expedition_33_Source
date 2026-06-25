@@ -7,10 +7,9 @@ namespace Client
         Idle,
         Move,
         Jump,
-        WorldAction,
         GameMenu,
         FreeAim,
-
+        Parkour,
         Climb,
         RopeAction,
         End,

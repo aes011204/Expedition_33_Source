@@ -989,7 +989,13 @@
     <ClCompile Include="..\Private\PreviewCamera.cpp">
       <Filter>02.GameObject\Camera\Preview</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Player_WorldAction.cpp">
+    <ClCompile Include="..\Private\Player_ParkourAction.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_Climb.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_RopeAction.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp">
@@ -1051,6 +1057,15 @@
       <Filter>06. Effect System\Trail Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp">
+      <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\WorldLedgeSpot.cpp">
+      <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\WorldInteractionSpot.cpp">
+      <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\WorldRopeSpot.cpp">
       <Filter>02.GameObject\Map</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UIPreviewManager.cpp">
@@ -2307,7 +2322,13 @@
     <ClInclude Include="..\Public\PreviewCamera.h">
       <Filter>02.GameObject\Camera\Preview</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Player_WorldAction.h">
+    <ClInclude Include="..\Public\Player_ParkourAction.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Climb.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_RopeAction.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SkillTreeCom.h">
@@ -2377,6 +2398,15 @@
       <Filter>06. Effect System\Trail Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Trigger_WorldAction.h">
+      <Filter>02.GameObject\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\WorldLedgeSpot.h">
+      <Filter>02.GameObject\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\WorldInteractionSpot.h">
+      <Filter>02.GameObject\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\WorldRopeSpot.h">
       <Filter>02.GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UIPreviewManager.h">

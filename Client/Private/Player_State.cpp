@@ -116,6 +116,33 @@ bool Player_State::IsFreeAimShoot() const
     return _controllerCom->Is_RightMouseClicked() && _controllerCom->Allows_ActionInput();
 }
 
+bool Player_State::Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldInteractionRequest& outRequest, Shared<GameObject>& outSpot) const
+{
+    outSpot = nullptr;
+
+    if (_controllerCom == nullptr || !_controllerCom->Allows_ActionInput())
+        return false;
+
+    const auto& input = Get_MovementInput();
+    if (!input.isInteractionDown)
+        return false;
+
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    if (owner == nullptr || owner->Is_WorldInteracting())
+        return false;
+
+    const Shared<GameObject> candidate = owner->Get_WorldInteractionCandidate();
+    if (candidate == nullptr)
+        return false;
+
+    const auto* provider = dynamic_cast<IWorldInteractionProvider*>(candidate.get());
+    if (provider == nullptr || !provider->Build_InteractionRequest(owner, outRequest))
+        return false;
+
+    outSpot = candidate;
+    return true;
+}
+
 bool Player_State::IsEnterWorldAction() const
 {
     const auto& input = Get_MovementInput();

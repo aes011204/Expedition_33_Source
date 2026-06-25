@@ -75,11 +75,12 @@ public:
         Pl_FreeAim_Idle, Pl_FreeAim_Shoot,
 
         Pl_Explo,
-    };
 
-    enum class PlayerBattleAnimation
-    {
-        
+        Pl_Parkour_Low, PL_Parkour_High,
+        Pl_Rope_Start, Pl_Rope_Up, Pl_Rope_Down, Pl_Rope_Linear, Pl_Rope_End,
+        Pl_Ledge_Start, Pl_Ledge_End, Pl_Ledge_Idle, 
+        Pl_Ledge_Left, Pl_Ledge_Left_Stretch, Pl_Ledge_Right, Pl_Ledge_Right_Stretch, 
+        Pl_Ledge_Up, Pl_Ledge_Up_Stretch, Pl_Ledge_Down, Pl_Ledge_Down_Stretch
     };
 };
 

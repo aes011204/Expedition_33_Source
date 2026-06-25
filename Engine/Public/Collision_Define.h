@@ -30,6 +30,7 @@ enum class Collision_Channel : uint32
     SL_MonsterBody = 1 << 19,
     SL_MonsterAttack = 1 << 20,
     SL_TargetSensor = 1 << 21,
+    Player_ParkourSensor = 1 << 22,
 
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
@@ -55,6 +56,7 @@ enum class Collision_Preset
     Camera,
     Monster_WeakPoint,
     Player_WeakPointTarget,
+    Player_ParkourSensor,
 
     SL_PlayerBody,
     SL_PlayerAttack,
@@ -225,6 +227,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* blockMask   */ ETOI(Collision_Channel::Player) |
                       ETOI(Collision_Channel::Player_Body) |
                       ETOI(Collision_Channel::Player_WorldBody) |
+                      ETOI(Collision_Channel::Player_ParkourSensor) |
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Monster_Body) |
                       ETOI(Collision_Channel::Monster_WorldBody) |
@@ -257,6 +260,12 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     // Player_WeakPointTarget — 약점만 먼저 찾는 자유 조준 query 전용.
     { Collision_Channel::Player_Target,
     /* overlapMask */ ETOI(Collision_Channel::Monster_WeakPoint),
+    /* blockMask   */ 0
+    },
+
+    // Player_ParkourSensor — 전방/가슴팍 파쿠르 후보 탐색용. 환경물과 overlap 이벤트만 받는다.
+    { Collision_Channel::Player_ParkourSensor,
+    /* overlapMask */ ETOI(Collision_Channel::Enviroment),
     /* blockMask   */ 0
     },
 

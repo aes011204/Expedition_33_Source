@@ -154,12 +154,58 @@ void Player_WorldBase::Late_Update(float timeDelta)
 
     __super::Late_Update(timeDelta);
 
+    if (_parkourSensorCollider != nullptr)
+    {
+        _parkourSensorCollider->Update_Collider(_transformCom->Get_WorldMatrix());
+        GAME->Add_Collider(_parkourSensorCollider);
+    }
+
     Update_Culling(Vec3(1.f, 2.f, 1.f));
 }
 
 HRESULT Player_WorldBase::Render()
 {
     return S_OK;
+}
+
+void Player_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    Character_WorldBase::OnBeginOverlap(self, other);
+
+    if (self == nullptr || other == nullptr || self != _parkourSensorCollider)
+        return;
+
+    Shared<GameObject> otherOwner = other->Get_Owner();
+    if (otherOwner == nullptr || otherOwner.get() == this)
+        return;
+
+    _parkourCandidateCollider = other;
+    _parkourCandidateObject = otherOwner;
+}
+
+void Player_WorldBase::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    Character_WorldBase::OnStayOverlap(self, other);
+
+    if (self == nullptr || other == nullptr || self != _parkourSensorCollider)
+        return;
+
+    Shared<GameObject> otherOwner = other->Get_Owner();
+    if (otherOwner == nullptr || otherOwner.get() == this)
+        return;
+
+    _parkourCandidateCollider = other;
+    _parkourCandidateObject = otherOwner;
+}
+
+void Player_WorldBase::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    Character_WorldBase::OnEndOverlap(self, other);
+
+    if (self == nullptr || self != _parkourSensorCollider)
+        return;
+
+    Clear_ParkourCandidate(other.get());
 }
 
 void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)
@@ -261,6 +307,86 @@ void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noi
         _effectCom->Start_SwitchDissolve(durationSec, noiseName);
 
 
+}
+
+void Player_WorldBase::Set_WorldInteractionCandidate(const Shared<GameObject>& spot)
+{
+    if (_worldInteractionContext.isInteracting)
+        return;
+
+    _worldInteractionContext.candidateSpot = spot;
+}
+
+void Player_WorldBase::Clear_WorldInteractionCandidate(const GameObject* spot)
+{
+    const Shared<GameObject> current = _worldInteractionContext.candidateSpot.lock();
+    if (current == nullptr)
+        return;
+
+    if (spot != nullptr && current.get() != spot)
+        return;
+
+    _worldInteractionContext.candidateSpot.reset();
+}
+
+Shared<GameObject> Player_WorldBase::Get_WorldInteractionCandidate() const
+{
+    return _worldInteractionContext.candidateSpot.lock();
+}
+
+bool Player_WorldBase::Begin_WorldInteraction(const Shared<GameObject>& spot, const WorldInteractionSpot::WorldInteractionRequest& request)
+{
+    if (spot == nullptr)
+        return false;
+
+    _worldInteractionContext.activeSpot = spot;
+    _worldInteractionContext.candidateSpot = spot;
+    _worldInteractionContext.activeRequest = request;
+    _worldInteractionContext.isInteracting = true;
+
+    return true;
+}
+
+void Player_WorldBase::End_WorldInteraction()
+{
+    _worldInteractionContext.activeSpot.reset();
+    _worldInteractionContext.activeRequest = {};
+    _worldInteractionContext.isInteracting = false;
+}
+
+bool Player_WorldBase::Is_WorldInteracting() const
+{
+    return _worldInteractionContext.isInteracting;
+}
+
+const WorldInteractionSpot::WorldInteractionRequest& Player_WorldBase::Get_WorldInteractionRequest() const
+{
+    return _worldInteractionContext.activeRequest;
+}
+
+bool Player_WorldBase::Has_ParkourCandidate() const
+{
+    return !_parkourCandidateObject.expired() || !_parkourCandidateCollider.expired();
+}
+
+Shared<GameObject> Player_WorldBase::Get_ParkourCandidateObject() const
+{
+    return _parkourCandidateObject.lock();
+}
+
+Shared<ColliderCom> Player_WorldBase::Get_ParkourCandidateCollider() const
+{
+    return _parkourCandidateCollider.lock();
+}
+
+void Player_WorldBase::Clear_ParkourCandidate(const ColliderCom* collider)
+{
+    const Shared<ColliderCom> currentCollider = _parkourCandidateCollider.lock();
+    if (collider != nullptr && currentCollider != nullptr && currentCollider.get() != collider)
+        return;
+
+    _parkourCandidateObject.reset();
+    _parkourCandidateCollider.reset();
 }
 
 HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
@@ -967,6 +1093,16 @@ HRESULT Player_WorldBase::Ready_Components()
     obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Player_WorldBody), E_FAIL);
+    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_PlayerWorldBodyCollider")), E_FAIL);
+
+    Bounding_OBB::BoundingOBBDesc parkourSensorDesc{};
+    parkourSensorDesc.center = Vec3(0.f, 1.05f, 0.55f);
+    parkourSensorDesc.extents = Vec3(0.35f, 0.35f, 0.55f);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _parkourSensorCollider, &parkourSensorDesc), E_FAIL);
+    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_PlayerParkourSensor")), E_FAIL);
+    _parkourSensorCollider->Set_CollisionPreset(Collision_Preset::Player_ParkourSensor);
+    _parkourSensorCollider->Set_IsActive(true);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);

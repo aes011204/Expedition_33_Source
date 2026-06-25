@@ -2,6 +2,7 @@
 
 #include "Client_Defines.h"
 #include "Character_WorldBase.h"
+#include "WorldInteractionSpot.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
@@ -46,6 +47,9 @@ public:
 	void    Update(float timeDelta) override;
 	void    Late_Update(float timeDelta) override;
 	HRESULT Render() override;
+    void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
     // 스테이터스 찍을 때, 게임 전체는 멈추는데
     // UI 창 안에서 프리뷰 플레이어들은 업데이트가 돌아야 애니메이션이 재생됨
@@ -55,6 +59,18 @@ public:
     Vec3    Get_MovementVelocity() const;
     void    Start_SwitchDissolve(float durationSec, const string& noiseName);
     void    Set_PartyVisibilityAllowed(bool allowed);
+
+    void    Set_WorldInteractionCandidate(const Shared<GameObject>& spot);
+    void    Clear_WorldInteractionCandidate(const GameObject* spot);
+    Shared<GameObject> Get_WorldInteractionCandidate() const;
+    bool    Begin_WorldInteraction(const Shared<GameObject>& spot, const WorldInteractionSpot::WorldInteractionRequest& request);
+    void    End_WorldInteraction();
+    bool    Is_WorldInteracting() const;
+    const WorldInteractionSpot::WorldInteractionRequest& Get_WorldInteractionRequest() const;
+    bool    Has_ParkourCandidate() const;
+    Shared<GameObject> Get_ParkourCandidateObject() const;
+    Shared<ColliderCom> Get_ParkourCandidateCollider() const;
+    void    Clear_ParkourCandidate(const ColliderCom* collider = nullptr);
 
     HRESULT Apply_CostumePreset(const CostumePreset& preset);
     HRESULT Prewarm_CostumeVariants(); // 옷장 첫 교체 프레임 전에 모든 costume variant를 미리 만든다.
@@ -157,9 +173,21 @@ protected:
     bool                            _partyVisibilityAllowed = true; // 파티 해금 전에는 culling이 다시 켜도 월드 렌더를 막는다.
 
 private:
+    struct PlayerWorldInteractionContext
+    {
+        Weak<GameObject> candidateSpot{};
+        Weak<GameObject> activeSpot{};
+        WorldInteractionSpot::WorldInteractionRequest activeRequest{};
+        bool isInteracting = false;
+    };
+
     Shared<Engine::FacialClip>       _gameMenuFacialClip{};
     Shared<Engine::FacialAnimationModifier> _gameMenuFacialModifier{};
     bool                            _gameMenuFacialEnabled = false;
+    PlayerWorldInteractionContext   _worldInteractionContext{};
+    Shared<ColliderCom>             _parkourSensorCollider{};
+    Weak<GameObject>                _parkourCandidateObject{};
+    Weak<ColliderCom>               _parkourCandidateCollider{};
 
 public:
 	static Shared<Player_WorldBase> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

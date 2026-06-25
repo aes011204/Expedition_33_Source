@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "State.h"
 #include "MovementCom.h"
+#include "WorldInteractionSpot.h"
 
 NS_BEGIN(Client)
 
@@ -41,6 +42,7 @@ protected:
     bool IsFalling() const;
     bool IsFreeAimShoot() const; // FreeAim 상태에서 좌클
 
+    bool Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldInteractionRequest& outRequest, Shared<GameObject>& outSpot) const;
     bool IsEnterWorldAction() const; 
     bool IsEnterFreeAim() const;
     bool IsEnterJump() const;       

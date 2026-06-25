@@ -505,7 +505,9 @@
     <ClInclude Include="..\Public\PW_Lune.h" />
     <ClInclude Include="..\Public\PW_Maelle.h" />
     <ClInclude Include="..\Public\PreviewCamera.h" />
-    <ClInclude Include="..\Public\Player_WorldAction.h" />
+    <ClInclude Include="..\Public\Player_ParkourAction.h" />
+    <ClInclude Include="..\Public\Player_Climb.h" />
+    <ClInclude Include="..\Public\Player_RopeAction.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
     <ClInclude Include="..\Public\Player_Idle.h" />
     <ClInclude Include="..\Public\Player_Jump.h" />
@@ -532,6 +534,9 @@
     <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
+    <ClInclude Include="..\Public\WorldLedgeSpot.h" />
+    <ClInclude Include="..\Public\WorldInteractionSpot.h" />
+    <ClInclude Include="..\Public\WorldRopeSpot.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AddAP.h" />
     <ClInclude Include="..\Public\UI_ArenaCharacterSelect.h" />
@@ -946,8 +951,10 @@
     <ClCompile Include="..\Private\Player_Move.cpp" />
     <ClCompile Include="..\Private\Player_State.cpp" />
     <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
+    <ClCompile Include="..\Private\Player_Climb.cpp" />
+    <ClCompile Include="..\Private\Player_RopeAction.cpp" />
     <ClCompile Include="..\Private\PreviewCamera.cpp" />
-    <ClCompile Include="..\Private\Player_WorldAction.cpp" />
+    <ClCompile Include="..\Private\Player_ParkourAction.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
     <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
@@ -972,6 +979,9 @@
     <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
+    <ClCompile Include="..\Private\WorldLedgeSpot.cpp" />
+    <ClCompile Include="..\Private\WorldInteractionSpot.cpp" />
+    <ClCompile Include="..\Private\WorldRopeSpot.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_ArenaCharacterSelect.cpp" />

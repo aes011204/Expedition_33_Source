@@ -4,6 +4,7 @@
 #include "Body_Player.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
+#include "Player_WorldBase.h"
 
 Player_Idle::Player_Idle(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner }
@@ -69,9 +70,33 @@ void Player_Idle::Update(float timeDelta)
         return;
     }
 
+    WorldInteractionSpot::WorldInteractionRequest interactionRequest{};
+    Shared<GameObject> interactionSpot{};
+    if (Try_BuildWorldInteractionRequest(interactionRequest, interactionSpot))
+    {
+        if (const Shared<Player_WorldBase> owner = _owner.lock())
+        {
+            if (owner->Begin_WorldInteraction(interactionSpot, interactionRequest))
+            {
+                switch (interactionRequest.type)
+                {
+                case WorldInteractionSpot::WorldInteractionType::WallClimb:
+                    _stateCom->Change_State(PlayerState::Climb);
+                    break;
+                case WorldInteractionSpot::WorldInteractionType::RopeTouch:
+                case WorldInteractionSpot::WorldInteractionType::RopeLook:
+                default:
+                    _stateCom->Change_State(PlayerState::RopeAction);
+                    break;
+                }
+                return;
+            }
+        }
+    }
+
     if (IsEnterWorldAction())
     {
-        _stateCom->Change_State(PlayerState::WorldAction);
+        _stateCom->Change_State(PlayerState::Parkour);
         return;
     }
 
