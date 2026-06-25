@@ -668,6 +668,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         _objectManager->Flush_RemovedGameObjects();
 
         _physxManager->Update(_worldTimeDelta);
+        _objectManager->Post_PhysX_Update(_worldTimeDelta);
 #ifdef _DEBUG
         if (sampleRuntimePerf)
             physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
@@ -806,7 +807,7 @@ HRESULT GameInstance::Draw()
     return S_OK;
 }
 
-HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx)
+HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preservePostProcess)
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
@@ -823,7 +824,11 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx)
     if (hasPostProcessPipeline)
     {
         savedPostProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
-        postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
+
+        if (!preservePostProcess)
+        {
+            postProcessPipeline->Set_PostProcessFeatures(PostProcessFeature::HDR); // 프리뷰 Blend 이펙트는 HDR 합성까지만 필요하고, 월드 후처리는 상속하지 않는다.
+        }
     }
 
     if (hasLightingPipeline)
@@ -1445,6 +1450,14 @@ bool GameInstance::Has_Prototype(uint32 levelIndex, const wstring& prototypeTag)
 HRESULT GameInstance::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeTag, void* arg, Shared<UI_Base>* outUI)
 {
     return _uiManager->Add_UI(prototypeLevelIndex, prototypeTag, arg, outUI);
+}
+
+bool GameInstance::Remove_UI(const Shared<UI_Base>& ui)
+{
+    if (nullptr == _uiManager)
+        return false;
+
+    return _uiManager->Remove_UI(ui);
 }
 
 void GameInstance::Pop_UI()
@@ -3448,6 +3461,22 @@ const ShadowCascadePresetSet* GameInstance::Get_ShadowCascadePresets() const
 {
     CHECK_NULL(_shadow, nullptr);
     return _shadow->Get_CascadePresets();
+}
+
+uint32 GameInstance::Get_ActiveShadowCascade() const
+{
+    if (!_shadow)
+        return 0u;
+    return _shadow->Get_ActiveCascadeIndex();
+}
+
+const ShadowCascadeInfluenceVolume* GameInstance::Get_CascadeInfluenceVolumes() const
+{
+    if (!_shadow)
+    {
+        return nullptr;
+    }
+    return _shadow->Get_CascadeInfluenceVolumes();
 }
 
 void GameInstance::Free()

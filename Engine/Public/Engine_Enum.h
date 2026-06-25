@@ -16,6 +16,7 @@ namespace Engine
         EffectMasked, // Mask-style effect
         Distortion,   // Distortion effect
         Blend,
+        Glow,
         UI,
         UIEffect,
         END

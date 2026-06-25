@@ -41,6 +41,16 @@ namespace
 		properties.push_back(std::move(property));
 	}
 
+	Matrix Get_OwnerWorld(const PoseFollowChainModifier::PoseFollowChainModifierDesc& desc)
+	{
+		if (desc.ownerWorldMatrix)
+		{
+			return *desc.ownerWorldMatrix;
+		}
+
+		return desc.ownerTransform ? desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	}
+
 	float SmoothStep(float value)
 	{
 		value = std::clamp(value, 0.f, 1.f);
@@ -229,6 +239,7 @@ HRESULT PoseFollowChainModifier::Initialize(AnimationModifierDesc* desc)
 	{
 		_colliders = ModelPhysicsParser::LoadCapsulesFromJSON(_desc.physicsAssetPath);
 	}
+	_desc.debugLoadedCapsuleCount = static_cast<int32>(_colliders.size());
 
 	LOG_INFO(
 		"[PoseFollowChainModifier][Init] tag={} groups={} colliders={} overrideCapsules={} follow={} tipFollow={} damping={} windScale={}",
@@ -269,6 +280,11 @@ void PoseFollowChainModifier::BuildChainRecursive(ModelCom* model, int32 current
 	{
 		if (model->Get_BoneParentIndex(i) == currentBoneIndex)
 		{
+			if (std::find(_configuredRootBoneIndices.begin(), _configuredRootBoneIndices.end(), static_cast<int32>(i)) != _configuredRootBoneIndices.end())
+			{
+				continue;
+			}
+
 			BuildChainRecursive(model, static_cast<int32>(i), thisNodeIndex, outChain);
 		}
 	}
@@ -277,11 +293,22 @@ void PoseFollowChainModifier::BuildChainRecursive(ModelCom* model, int32 current
 void PoseFollowChainModifier::Initialize_Chains(ModelCom* model)
 {
 	_chains.clear();
+	_configuredRootBoneIndices.clear();
 
 	if (!model)
 	{
 		_chainsInitialized = true;
 		return;
+	}
+
+	for (const auto& groupDesc : _desc.groups)
+	{
+		const int32 rootBoneIndex = model->Get_BoneIndex(groupDesc.rootBoneName);
+		if (rootBoneIndex != -1
+			&& std::find(_configuredRootBoneIndices.begin(), _configuredRootBoneIndices.end(), rootBoneIndex) == _configuredRootBoneIndices.end())
+		{
+			_configuredRootBoneIndices.push_back(rootBoneIndex);
+		}
 	}
 
 	for (const auto& groupDesc : _desc.groups)
@@ -322,7 +349,7 @@ void PoseFollowChainModifier::Initialize_Chains(ModelCom* model)
 		}
 	}
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	Capture_CurrentPose(model, ownerWorld);
 
 	for (auto& chain : _chains)
@@ -390,7 +417,7 @@ void PoseFollowChainModifier::ResetPose(ModelCom* model)
 		return;
 	}
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	Capture_CurrentPose(model, ownerWorld);
 
 	for (auto& chain : _chains)
@@ -419,7 +446,15 @@ const ClassReflectionInfo* PoseFollowChainModifier::Get_RuntimeReflectionInfo() 
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "enableCollision", "Collision", PoseFollowOffset(&PoseFollowChainModifierDesc::enableCollision));
 			AddRuntimeProperty(result.properties, PropertyType::Float, "particleCollisionRadius", "Col Radius", PoseFollowOffset(&PoseFollowChainModifierDesc::particleCollisionRadius), 0.01f, 0.f, 100.f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionRadiusPadding", "Col Pad", PoseFollowOffset(&PoseFollowChainModifierDesc::collisionRadiusPadding), 0.01f, 0.f, 100.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionPrimitiveScale", "Col Scale", PoseFollowOffset(&PoseFollowChainModifierDesc::collisionPrimitiveScale), 0.005f, 0.001f, 10.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "collisionOutputAlpha", "Col Out", PoseFollowOffset(&PoseFollowChainModifierDesc::collisionOutputAlpha), 0.005f, 0.f, 1.f);
 			AddRuntimeProperty(result.properties, PropertyType::Bool, "debugDrawCapsules", "Debug Col", PoseFollowOffset(&PoseFollowChainModifierDesc::debugDrawCapsules));
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugLoadedCapsuleCount", "Loaded Col", PoseFollowOffset(&PoseFollowChainModifierDesc::debugLoadedCapsuleCount), 1.f, 0.f, 64.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugActiveCapsuleCount", "Active Col", PoseFollowOffset(&PoseFollowChainModifierDesc::debugActiveCapsuleCount), 1.f, 0.f, 64.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugCollisionSource", "Col Source", PoseFollowOffset(&PoseFollowChainModifierDesc::debugCollisionSource), 1.f, 0.f, 1.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugCollisionHitCount", "Hit Col", PoseFollowOffset(&PoseFollowChainModifierDesc::debugCollisionHitCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Int, "debugFinalCollisionHitCount", "Final Hit", PoseFollowOffset(&PoseFollowChainModifierDesc::debugFinalCollisionHitCount), 1.f, 0.f, 4096.f);
+			AddRuntimeProperty(result.properties, PropertyType::Float, "debugMinCollisionMargin", "Min Margin", PoseFollowOffset(&PoseFollowChainModifierDesc::debugMinCollisionMargin), 0.01f, -100.f, 100.f);
 
 			AddRuntimeProperty(result.properties, PropertyType::Vec3, "windDirection", "Wind Dir", PoseFollowOffset(&PoseFollowChainModifierDesc::windDirection), 0.01f);
 			AddRuntimeProperty(result.properties, PropertyType::Float, "windScale", "Wind", PoseFollowOffset(&PoseFollowChainModifierDesc::windScale), 0.001f, 0.f, 10.f);
@@ -469,7 +504,7 @@ void PoseFollowChainModifier::On_RuntimeReflectionChanged(ModelCom* model, const
 
 	model->Rebuild_BoneCombinedMatrices();
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	const Vec3 currentOwnerPos = ownerWorld.Translation();
 	Vec3 currentOwnerForward = Get_WorldDirection(ownerWorld, Vec3::UnitZ);
 	if (currentOwnerForward.LengthSquared() <= 0.0001f)
@@ -568,6 +603,27 @@ void PoseFollowChainModifier::Build_RuntimeDebugNodes(ModelCom* model, vector<Ru
 	}
 }
 
+void PoseFollowChainModifier::Build_RuntimeDebugCapsules(ModelCom* model, vector<RuntimeDebugCapsule>& outCapsules) const
+{
+	outCapsules.clear();
+	if (!model || !_desc.enableCollision)
+	{
+		return;
+	}
+
+	const vector<WorldCapsule> worldCapsules = Update_WorldCapsules(model, Get_OwnerWorld(_desc));
+	outCapsules.reserve(worldCapsules.size());
+	for (const WorldCapsule& capsule : worldCapsules)
+	{
+		RuntimeDebugCapsule debugCapsule{};
+		debugCapsule.startPoint = capsule.startPoint;
+		debugCapsule.endPoint = capsule.endPoint;
+		debugCapsule.sourceRadius = capsule.radius;
+		debugCapsule.collisionRadius = capsule.radius + _desc.particleCollisionRadius + _desc.collisionRadiusPadding;
+		outCapsules.push_back(debugCapsule);
+	}
+}
+
 void PoseFollowChainModifier::RuntimeRebuild(ModelCom* model)
 {
 	if (!model)
@@ -592,6 +648,9 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 		: 1.f;
 
 	vector<WorldCapsule> worldCapsules = _desc.enableCollision ? Update_WorldCapsules(model, ownerWorld) : vector<WorldCapsule>{};
+	_desc.debugCollisionHitCount = 0;
+	_desc.debugFinalCollisionHitCount = 0;
+	_desc.debugMinCollisionMargin = FLT_MAX;
 
 	if (_desc.debugDrawCapsules)
 	{
@@ -628,6 +687,7 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 		for (size_t i = 0; i < chain.nodes.size(); ++i)
 		{
 			auto& node = chain.nodes[i];
+			node.debugCollisionContact = false;
 			if (isPinnedNode(node))
 			{
 				node.position = node.originalWorld.Translation();
@@ -722,8 +782,10 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 				nextPosition = Vec3::Lerp(nextPosition, poseTarget, settleAlpha);
 				node.prevPosition = Vec3::Lerp(node.prevPosition, nextPosition, settleAlpha);
 
-				if (velocity.Length() <= _desc.sleepVelocityThreshold
-					&& Vec3::Distance(nextPosition, poseTarget) <= _desc.sleepPoseDistance)
+				const bool nearPose = Vec3::Distance(nextPosition, poseTarget) <= _desc.sleepPoseDistance;
+				const bool canSnapIdlePose = nearPose
+					&& (_desc.windScale <= 0.f || velocity.Length() <= _desc.sleepVelocityThreshold);
+				if (canSnapIdlePose)
 				{
 					nextPosition = poseTarget;
 					node.prevPosition = poseTarget;
@@ -788,9 +850,24 @@ void PoseFollowChainModifier::Solve(ModelCom* model, float timeDelta, const Matr
 				node.prevPosition = Vec3::Lerp(node.prevPosition, nextPosition, windupBleedAlpha);
 			}
 
+			if (_desc.enableCollision)
+			{
+				const Vec3 beforeFinalCollision = nextPosition;
+				nextPosition = Resolve_Collision(node, worldCapsules, nextPosition, true);
+				if (Vec3::DistanceSquared(beforeFinalCollision, nextPosition) > 0.000001f)
+					++_desc.debugFinalCollisionHitCount;
+				_desc.debugMinCollisionMargin = std::min(
+					_desc.debugMinCollisionMargin,
+					Compute_CollisionMargin(worldCapsules, nextPosition));
+				node.debugCollisionContact = Compute_CollisionMargin(worldCapsules, nextPosition) <= 0.01f;
+			}
+
 			node.position = nextPosition;
 		}
 	}
+
+	if (_desc.debugMinCollisionMargin == FLT_MAX)
+		_desc.debugMinCollisionMargin = 0.f;
 
 	Solve_SurfaceConstraints(worldCapsules);
 }
@@ -1006,12 +1083,25 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 		const bool idleAnimatedPose =
 			Vec3::Distance(node.originalWorld.Translation(), node.prevOriginalWorld.Translation()) <= animatedMotionDeadzone;
 		const bool idleNoWindPose = isOwnerIdle && idleAnimatedPose && _desc.windScale <= 0.f;
-		const float writeAlpha = outputAlpha
+		const float outputDeadzoneDegree = _desc.outputDeadzoneDegree;
+		if (idleNoWindPose && GetAngleDegree(node.poseLocalDir, simulatedLocalDir) <= outputDeadzoneDegree)
+		{
+			node.debugWriteAlpha = 0.f;
+			node.smoothedLocalDir = node.poseLocalDir;
+			node.hasSmoothedLocalDir = true;
+			model->Set_BoneLocalMatrix(node.boneIndex, node.poseLocal);
+			model->Rebuild_BoneCombinedMatrices();
+			continue;
+		}
+
+		float writeAlpha = outputAlpha
 			* BlendTip(
 				_desc.rootOutputAlpha * std::clamp(chain.rootOutputMul, 0.f, 1.f),
 				_desc.tipOutputAlpha * std::clamp(chain.tipOutputMul, 0.f, 1.f),
 				tipRatio)
 			* (idleNoWindPose ? std::clamp(_desc.idleOutputAlphaScale, 0.f, 1.f) : 1.f);
+		if (node.debugCollisionContact)
+			writeAlpha = std::max(writeAlpha, std::clamp(_desc.collisionOutputAlpha, 0.f, 1.f));
 		node.debugWriteAlpha = writeAlpha;
 		Vec3 targetLocalDir = Vec3::Lerp(node.poseLocalDir, simulatedLocalDir, writeAlpha);
 		if (targetLocalDir.LengthSquared() <= 0.0001f)
@@ -1023,9 +1113,6 @@ void PoseFollowChainModifier::Write_BackChain(ModelCom* model, BoneChain& chain,
 			targetLocalDir.Normalize();
 		}
 
-		const float outputDeadzoneDegree = idleNoWindPose
-			? _desc.outputDeadzoneDegree * std::clamp(_desc.idleOutputAlphaScale, 0.f, 1.f)
-			: _desc.outputDeadzoneDegree;
 		if (GetAngleDegree(node.poseLocalDir, targetLocalDir) <= outputDeadzoneDegree)
 		{
 			targetLocalDir = node.poseLocalDir;
@@ -1072,6 +1159,12 @@ vector<PoseFollowChainModifier::WorldCapsule> PoseFollowChainModifier::Update_Wo
 	vector<WorldCapsule> worldCapsules{};
 	worldCapsules.reserve(_colliders.size());
 
+	const ModelCom* collisionModel = _desc.collisionModel ? _desc.collisionModel : model;
+	const Matrix collisionOwnerWorld = _desc.collisionOwnerWorldMatrix ? *_desc.collisionOwnerWorldMatrix : ownerWorld;
+	_desc.debugLoadedCapsuleCount = static_cast<int32>(_colliders.size());
+	_desc.debugActiveCapsuleCount = 0;
+	_desc.debugCollisionSource = _desc.collisionModel ? 1 : 0;
+
 	for (const auto& col : _colliders)
 	{
 		if (!_desc.includedCollisionBones.empty()
@@ -1080,19 +1173,19 @@ vector<PoseFollowChainModifier::WorldCapsule> PoseFollowChainModifier::Update_Wo
 			continue;
 		}
 
-		const int32 boneIndex = model->Get_BoneIndex(col.boneName);
+		const int32 boneIndex = collisionModel->Get_BoneIndex(col.boneName);
 		if (boneIndex == -1)
 		{
 			continue;
 		}
 
-		const Matrix* boneCombined = model->Get_BoneMatrixPtr(boneIndex);
+		const Matrix* boneCombined = collisionModel->Get_BoneMatrixPtr(boneIndex);
 		if (!boneCombined)
 		{
 			continue;
 		}
 
-		const Matrix boneWorld = (*boneCombined) * ownerWorld;
+		const Matrix boneWorld = (*boneCombined) * collisionOwnerWorld;
 
 		Vec3 localAxis = Vec3::Transform(Vec3::UnitY, col.rotationQuat);
 		if (localAxis.LengthSquared() <= 0.0001f)
@@ -1114,18 +1207,20 @@ vector<PoseFollowChainModifier::WorldCapsule> PoseFollowChainModifier::Update_Wo
 		}
 		worldAxis.Normalize();
 
-		const Vec3 worldCenter = Vec3::Transform(col.center, boneWorld);
+		const float primitiveScale = std::max(0.001f, _desc.collisionPrimitiveScale);
+		const Vec3 worldCenter = Vec3::Transform(col.center * primitiveScale, boneWorld);
 		const float radiusScale = std::max(std::max(fabsf(worldScale.x), fabsf(worldScale.y)), fabsf(worldScale.z));
 		const float lengthScale = std::max(std::max(fabsf(worldScale.x), fabsf(worldScale.y)), fabsf(worldScale.z));
 
 		WorldCapsule capsule{};
-		capsule.radius = col.radius * radiusScale;
-		const float scaledHalfLength = col.halfLength * lengthScale;
+		capsule.radius = col.radius * primitiveScale * radiusScale;
+		const float scaledHalfLength = col.halfLength * primitiveScale * lengthScale;
 		capsule.startPoint = worldCenter + worldAxis * scaledHalfLength;
 		capsule.endPoint = worldCenter - worldAxis * scaledHalfLength;
 		worldCapsules.push_back(capsule);
 	}
 
+	_desc.debugActiveCapsuleCount = static_cast<int32>(worldCapsules.size());
 	return worldCapsules;
 }
 
@@ -1170,6 +1265,7 @@ Vec3 PoseFollowChainModifier::Resolve_Collision(BoneChainNode& node, const vecto
 		pushNormal /= distance;
 		const Vec3 offset = pushNormal * (minDistance - distance);
 		correctedPosition += offset;
+		++_desc.debugCollisionHitCount;
 		if (movePrevPosition)
 		{
 			node.prevPosition += offset;
@@ -1177,6 +1273,32 @@ Vec3 PoseFollowChainModifier::Resolve_Collision(BoneChainNode& node, const vecto
 	}
 
 	return correctedPosition;
+}
+
+float PoseFollowChainModifier::Compute_CollisionMargin(const vector<WorldCapsule>& capsules, const Vec3& position) const
+{
+	if (capsules.empty())
+		return 0.f;
+
+	float minMargin = FLT_MAX;
+	for (const auto& capsule : capsules)
+	{
+		const Vec3 lineVector = capsule.endPoint - capsule.startPoint;
+		const float lineLengthSq = lineVector.LengthSquared();
+		float t = 0.f;
+		if (lineLengthSq > 0.0001f)
+		{
+			t = (position - capsule.startPoint).Dot(lineVector) / lineLengthSq;
+			t = std::clamp(t, 0.f, 1.f);
+		}
+
+		const Vec3 closestPoint = capsule.startPoint + lineVector * t;
+		const float minDistance = capsule.radius + _desc.particleCollisionRadius + _desc.collisionRadiusPadding;
+		const float distance = Vec3::Distance(position, closestPoint);
+		minMargin = std::min(minMargin, distance - minDistance);
+	}
+
+	return minMargin == FLT_MAX ? 0.f : minMargin;
 }
 
 void PoseFollowChainModifier::On_ActiveChanged(ModelCom* model, bool isActive)
@@ -1210,7 +1332,7 @@ void PoseFollowChainModifier::Evaluate_Modifier(ModelCom* model, float timeDelta
 		return;
 	}
 
-	const Matrix ownerWorld = _desc.ownerTransform ? _desc.ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+	const Matrix ownerWorld = Get_OwnerWorld(_desc);
 	const Vec3 currentOwnerPos = ownerWorld.Translation();
 	Vec3 currentOwnerForward = Get_WorldDirection(ownerWorld, Vec3::UnitZ);
 	if (currentOwnerForward.LengthSquared() <= 0.0001f)

@@ -29,6 +29,8 @@ namespace
         constexpr uint32 PackedAR_NMETwoSidedPass = 10;
         constexpr uint32 LandscapeBlendPass = 11;
         constexpr uint32 SignDecalPass = 14;
+        constexpr uint32 WeaponGhostPass = 15;
+        constexpr uint32 EclipseSpherePass = 18;
     }
 
     namespace VtxInstanceMeshExactPassIndex
@@ -43,6 +45,8 @@ namespace
         constexpr uint32 OpaqueARPass = 7;
         constexpr uint32 OpaqueARTwoSidedPass = 8;
         constexpr uint32 IDInstancePass = 9;
+        constexpr uint32 EmissiveGlowPass = 10;
+        constexpr uint32 UnlitFlamePass = 11;
     }
 
     namespace VtxCubePassIndex

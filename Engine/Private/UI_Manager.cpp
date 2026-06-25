@@ -25,6 +25,8 @@ HRESULT UI_Manager::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeT
 {
     CHECK_NULL(_prototypeManager, E_FAIL);
 
+    Compact_NullEntries();
+
     Shared<Base> clonedBase = _prototypeManager->Clone_Prototype(
         Prototype::UI,
         prototypeLevelIndex,
@@ -46,6 +48,29 @@ HRESULT UI_Manager::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeT
     return S_OK;
 }
 
+bool UI_Manager::Remove_UI(const Shared<UI_Base>& ui)
+{
+    if (nullptr == ui)
+        return false;
+
+    UI_Base* const removedUI = ui.get();
+    bool removed = false;
+
+    for (UI_Entry& entry : _uiList)
+    {
+        if (entry.ui.get() != removedUI)
+            continue;
+
+        entry.ui->Free();
+        entry.ui.reset();
+        removed = true;
+    }
+
+    if (removed)
+        Prune_OpenedUIStack(removedUI);
+
+    return removed;
+}
 
 void UI_Manager::Sort_UIList()
 {
@@ -147,6 +172,8 @@ void UI_Manager::Update(float timeDelta)
     ENGINE_PROFILE_PUSH_DETAIL("UI::ActualUpdateAll", actualUpdateElapsedMs);
     ENGINE_PROFILE_PUSH_DETAIL("UI::LoopOverheadAll", loopOverheadMs);
 #endif
+
+    Compact_NullEntries();
 }
 
 HRESULT UI_Manager::Render(UI_RenderGroup renderGroup)
@@ -170,6 +197,8 @@ HRESULT UI_Manager::Render(UI_RenderGroup renderGroup)
         if (FAILED(ui->Render()))
             return E_FAIL;
     }
+
+    Compact_NullEntries();
 
     return S_OK;
 }
@@ -222,6 +251,37 @@ void UI_Manager::Clear_Level(uint32 levelIndex)
             continue;
 
         if (find(clearedUIs.begin(), clearedUIs.end(), ui.get()) != clearedUIs.end())
+            continue;
+
+        validStack.push_back(weakUI);
+    }
+
+    _openedUIStack.swap(validStack);
+}
+
+void UI_Manager::Compact_NullEntries()
+{
+    _uiList.erase(
+        remove_if(_uiList.begin(), _uiList.end(),
+            [](const UI_Entry& entry)
+            {
+                return nullptr == entry.ui;
+            }),
+        _uiList.end());
+}
+
+void UI_Manager::Prune_OpenedUIStack(UI_Base* removedUI)
+{
+    vector<Weak<UI_Base>> validStack{};
+    validStack.reserve(_openedUIStack.size());
+
+    for (const Weak<UI_Base>& weakUI : _openedUIStack)
+    {
+        Shared<UI_Base> ui = weakUI.lock();
+        if (nullptr == ui)
+            continue;
+
+        if (nullptr != removedUI && ui.get() == removedUI)
             continue;
 
         validStack.push_back(weakUI);

@@ -181,13 +181,13 @@ void Skill_Gustave_AnglesEye::Execute(const Skill_Data& skill, const BattleActio
     // 7연격 스폰 로컬 위치 및 회전 세팅
     const Internal::TargetEffectDesc slashEffects[] =
     {
-        { L"Gustave_AngelsEye_Slash", Vec3(-0.5f, 0.f, -0.2f), Vec3(0.f, 0.f, -30.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.3f, 0.f, -0.6f), Vec3(0.f, 0.f, 50.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(-0.3f, 0.f, -0.4f), Vec3(0.f, 0.f, -20.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.2f, 0.f, 0.f), Vec3(0.f, 0.f, -5.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.f, 0.f), Vec3(0.f, 0.f, -80.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.f, -0.3f), Vec3(0.f, 0.f, 20.f), Vec3::One },
-        { L"Gustave_AngelsEye_Slash", Vec3(-1.f, 0.f, -0.2f), Vec3(0.f, 0.f, 90.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(-0.5f, 0.7f, -0.8f), Vec3(0.f, 0.f, -30.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.5f, 0.7f, -1.2f), Vec3(0.f, 0.f, 50.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(-0.4f, 0.7f, -1.f), Vec3(0.f, 0.f, -20.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.3f, 0.7f, -0.6f), Vec3(0.f, 0.f, -7.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.6f), Vec3(0.f, 0.f, -75.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(0.f, 0.7f, -0.9f), Vec3(0.f, 0.f, 20.f), Vec3::One },
+        { L"Gustave_AngelsEye_Slash", Vec3(-1.f, 0.7f, -0.7f), Vec3(0.f, 0.f, 90.f), Vec3::One },
     };
 
     const uint32 slashEffectCount = static_cast<uint32>(size(slashEffects));

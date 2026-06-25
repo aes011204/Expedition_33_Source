@@ -12,6 +12,7 @@ namespace Internal
     constexpr EmitterScreenAlignment kVisibleScreenAlignmentValues[] = {
         EmitterScreenAlignment::FacingCameraPosition,
         EmitterScreenAlignment::Rectangle,
+        EmitterScreenAlignment::WorldUpFacingCamera,
         EmitterScreenAlignment::Square,
         EmitterScreenAlignment::AwayFromCenter,
         EmitterScreenAlignment::Velocity,
@@ -22,6 +23,7 @@ namespace Internal
     constexpr const char* kVisibleScreenAlignmentLabels[] = {
         "Facing Camera Position",
         "Rectangle",
+        "World Up Facing Camera",
         "Square",
         "Away from Center",
         "Velocity",
@@ -35,6 +37,7 @@ namespace Internal
     {
         return value == EmitterScreenAlignment::FacingCameraPosition ||
                value == EmitterScreenAlignment::Rectangle ||
+               value == EmitterScreenAlignment::WorldUpFacingCamera ||
                value == EmitterScreenAlignment::Square ||
                value == EmitterScreenAlignment::Velocity;
     }
@@ -90,6 +93,8 @@ namespace Internal
             return "Facing Camera Position";
         case EmitterScreenAlignment::Rectangle:
             return "Rectangle";
+        case EmitterScreenAlignment::WorldUpFacingCamera:
+            return "World Up Facing Camera";
         case EmitterScreenAlignment::Velocity:
             return "Velocity";
         case EmitterScreenAlignment::AwayFromCenter:
@@ -116,6 +121,9 @@ namespace Internal
 
         case EmitterScreenAlignment::Rectangle:
             return "카메라 화면 평면에 맞춰 붙는 직사각형 빌보드입니다.";
+
+        case EmitterScreenAlignment::WorldUpFacingCamera:
+            return "카드 Y축을 World Y로 세우고, 카드 X축은 카메라 가시성을 유지하도록 잡는 직사각형 빌보드입니다.";
 
         case EmitterScreenAlignment::Square:
             return "카메라 화면 평면 기준이며 더 큰 축으로 정사각형을 만드는 빌보드입니다.";
@@ -145,6 +153,9 @@ namespace Internal
             return "Stamp 위치는 path 위에 유지하고, 카드는 각 위치에서 카메라 위치를 바라봅니다.";
 
         case EmitterScreenAlignment::Rectangle:
+            return "Legacy alias입니다. 카드 세로축은 World Up으로 유지하고, 카드 길이 축은 texture X/Y 중 어느 축을 길이로 볼지만 정합니다.";
+
+        case EmitterScreenAlignment::WorldUpFacingCamera:
             return "카드 세로축은 World Up으로 유지하고, 카드 길이 축은 texture X/Y 중 어느 축을 길이로 볼지만 정합니다.";
 
         case EmitterScreenAlignment::Square:

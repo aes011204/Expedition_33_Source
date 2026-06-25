@@ -359,6 +359,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
     outSession.shaftVolumes = std::move(splitData.shaftVolumes);
     outSession.waters = std::move(splitData.waters);
+    outSession.lights = std::move(splitData.lights);
     outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
     outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
     outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
@@ -370,6 +371,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
     outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
+    outSession.lightsDone = outSession.lights.empty();
     outSession.prefabInstancesDone = true;
 
     outSession.beginSessionDuration =
@@ -820,6 +822,38 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
+    if (!session.lightsDone)
+    {
+        if (IsBudgetExceeded())
+        {
+            return S_OK;
+        }
+
+        for (const auto& e : session.lights)
+        {
+            LIGHT_DESC desc{};
+            desc.type = LightType::Point;
+
+            const auto& pos = e["Position"];
+            desc.position = Vec4(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>(), 1.f);
+            desc.range = e.value("Range", 10.f);
+
+            const auto& diff = e["Diffuse"];
+            desc.diffuse = Vec4(diff[0].get<float>(), diff[1].get<float>(), diff[2].get<float>(), diff[3].get<float>());
+
+            const auto& amb = e["Ambient"];
+            desc.ambient = Vec4(amb[0].get<float>(), amb[1].get<float>(), amb[2].get<float>(), amb[3].get<float>());
+
+            const auto& spec = e["Specular"];
+            desc.specular = Vec4(spec[0].get<float>(), spec[1].get<float>(), spec[2].get<float>(), spec[3].get<float>());
+
+            GAME->Add_Light(desc);
+        }
+
+        session.lightsDone = true;
+        ++processedCount;
+    }
+
     while (!session.watersDone)
     {
         if (IsBudgetExceeded())
@@ -857,6 +891,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         desc.name = String::ToWString(e.value("Id", string{}));
         desc.sourceStaticMeshIndex = sourceStaticMeshIndex;
         desc.sourceMapPath = session.sourceMapPath;
+        desc.visible = e.value("Visible", true);
+        desc.cullEnabled = e.value("CullEnabled", true);
+        desc.castShadow = e.value("CastShadow", true);
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
@@ -953,18 +990,47 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         if (IsBudgetExceeded())
             return S_OK;
 
-        if (session.nextInstancedMeshIndex >= session.instancedMeshes.size())
+        if (!session.instancedMeshGroupsBuilt)
+        {
+            for (size_t i = 0; i < session.instancedMeshes.size(); ++i)
+            {
+                const string mp = session.instancedMeshes[i].value("ModelPath", string{});
+                if (mp.empty())
+                {
+                    continue;
+                }
+
+                if (session.instancedMeshGroups.find(mp) == session.instancedMeshGroups.end())
+                {
+                    session.instancedMeshModelOrder.push_back(mp);
+                }
+                session.instancedMeshGroups[mp].push_back(i);
+            }
+            session.instancedMeshGroupsBuilt = true;
+        }
+
+        if (session.nextInstancedMeshGroupIndex >= session.instancedMeshModelOrder.size())
         {
             session.instancedMeshesDone = true;
             break;
         }
 
-        const json& e = session.instancedMeshes[session.nextInstancedMeshIndex++];
-        const string modelPathStr = e.value("ModelPath", string{});
-        if (modelPathStr.empty())
-            continue;
+        const string& modelPathStr = session.instancedMeshModelOrder[session.nextInstancedMeshGroupIndex++];
+        const vector<size_t>& groupIndices = session.instancedMeshGroups.at(modelPathStr);
+        const json& firstEntry = session.instancedMeshes[groupIndices[0]];
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
+        desc.visible = true;
+        desc.cullEnabled = true;
+        desc.castShadow = true;
+
+        for (size_t idx : groupIndices)
+        {
+            const json& entry = session.instancedMeshes[idx];
+            if (!entry.value("Visible", true))     desc.visible = false;
+            if (!entry.value("CullEnabled", true)) desc.cullEnabled = false;
+            if (!entry.value("CastShadow", true))  desc.castShadow = false;
+        }
 
         desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
@@ -1005,64 +1071,29 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.model,
             modelPathStr);
 
-        if (e.contains("Instances"))
+        const auto instancedTransformBegin = chrono::steady_clock::now();
+        for (size_t idx : groupIndices)
         {
-            const auto instancedTransformBegin = chrono::steady_clock::now();
+            const json& e = session.instancedMeshes[idx];
+            if (!e.contains("Instances"))
+            {
+                continue;
+            }
+
             for (const auto& inst : e["Instances"])
             {
                 InstanceTransform t{};
-
                 const auto& p = inst["Position"];
-                t._position = Vec3(
-                    p[0].get<float>(),
-                    p[1].get<float>(),
-                    p[2].get<float>());
-
+                t._position = Vec3(p[0].get<float>(), p[1].get<float>(), p[2].get<float>());
                 const auto& r = inst["Rotation"];
-                t._rotation = Vec4(
-                    r[0].get<float>(),
-                    r[1].get<float>(),
-                    r[2].get<float>(),
-                    r[3].get<float>());
-
+                t._rotation = Vec4(r[0].get<float>(), r[1].get<float>(), r[2].get<float>(), r[3].get<float>());
                 const auto& s = inst["Scale"];
-                t._scale = Vec3(
-                    s[0].get<float>(),
-                    s[1].get<float>(),
-                    s[2].get<float>());
-
+                t._scale = Vec3(s[0].get<float>(), s[1].get<float>(), s[2].get<float>());
                 desc.transforms.push_back(t);
             }
-            session.instancedTransformDuration +=
-                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
         }
-
-        //    Shared<GameObject> spawnedObject = nullptr;
-
-        //    const auto instancedAddBegin = chrono::steady_clock::now();
-        //    const HRESULT addResult = GAME->Add_GameObject(
-        //        ETOI(LevelType::Static),
-        //        TEXT("GameObject_MapInstancedMesh"),
-        //        session.levelIndex,
-        //        session.layerTag,
-        //        spawnedObject,
-        //        &desc);
-        //    const auto instancedAddMs =
-        //        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
-        //    session.instancedAddDuration += instancedAddMs;
-        //    ++session.instancedAddCount;
-
-        //    if (FAILED(addResult))
-        //    {
-        //        continue;
-        //    }
-        //    if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
-        //    {
-        //        session.spawnedObjects->push_back(spawnedObject);
-        //    }
-
-        //    ++processedCount;
-        //}
+        session.instancedTransformDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
 
         static constexpr float CHUNK_SIZE = 100.f;
 
@@ -1082,6 +1113,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chunkDesc.model = desc.model;
             chunkDesc.collisionData = desc.collisionData;
             chunkDesc.transforms = chunkTransforms;
+            chunkDesc.visible = desc.visible;
+            chunkDesc.cullEnabled = desc.cullEnabled;
+            chunkDesc.castShadow = desc.castShadow;
 
             Shared<GameObject> spawnedObject = nullptr;
             const HRESULT addResult = GAME->Add_GameObject(
@@ -1100,9 +1134,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
             ++session.instancedAddCount;
         }
-        const auto instancedAddMs =
+        session.instancedAddDuration +=
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
-        session.instancedAddDuration += instancedAddMs;
 
         ++processedCount;
     }
@@ -1175,13 +1208,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.postProcessVolumesDone &&
         session.shaftVolumesDone &&
         session.watersDone &&
+        session.lightsDone &&
         session.prefabInstancesDone &&
         session.authoredObjectsDone;
 
     if (outFinished && !session.summaryLogged)
     {
         LOG_DEBUG(
-            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) authoredObjects(data={}, add={}ms/{}) autoInstanced(groups={}, statics={})",
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) authoredObjects(data={}, add={}ms/{}) autoInstanced(groups={}, statics={}) lights={}",
             session.processCallCount,
             session.beginSessionDuration.count(),
             session.preloadModelPaths.size(),
@@ -1205,7 +1239,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.authoredObjectAddDuration.count(),
             session.authoredObjectAddCount,
             session.autoInstancedGroupCount,
-            session.autoInstancedStaticCount);
+            session.autoInstancedStaticCount,
+            session.lights.size());
 
         session.summaryLogged = true;
     }
@@ -1218,6 +1253,7 @@ void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
     // 개별 하이어라키/피킹/충돌 확인이 우선이라 런타임 static auto-instancing은 잠시 끈다.
     session.nextStaticMeshIndex = 0;
     session.nextInstancedMeshIndex = 0;
+    session.nextInstancedMeshGroupIndex = 0;
 }
 
 void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
@@ -1415,6 +1451,82 @@ HRESULT MapLoader::Convert_Json_To_Bin(const wstring& jsonPath, const wstring& b
         return E_FAIL;
     }
     ofs.close();
+
+    return S_OK;
+}
+
+HRESULT MapLoader::Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot)
+{
+    fs::path root(mapInstanceRoot);
+    if (!fs::exists(root) || !fs::is_directory(root))
+    {
+        return E_FAIL;
+    }
+
+    const vector<pair<string, function<bool(const json&)>>> subfolders = {
+        { "StaticMesh", nullptr },
+        { "InstanceMesh", nullptr },
+        { "PostProcessVolume", nullptr },
+        { "ShaftVolume", nullptr },
+        { "Water", nullptr },
+        { "ETC", [](const json& j) { return j.value("LightType", "Directional") == "Point"; } },
+    };
+
+    for (const auto& [folderName, filter] : subfolders)
+    {
+        fs::path dir = root / folderName;
+        if (!fs::exists(dir))
+        {
+            continue;
+        }
+
+        json arr = json::array();
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".json")
+            {
+                continue;
+            }
+
+            ifstream ifs(entry.path());
+            if (!ifs.is_open())
+            {
+                continue;
+            }
+
+            try
+            {
+                json item = json::parse(ifs);
+                if (!item.is_object())
+                {
+                    continue;
+                }
+
+                if (filter && !filter(item))
+                {
+                    continue;
+                }
+
+                arr.push_back(std::move(item));
+            }
+            catch (...) {}
+        }
+
+        fs::path binPath = root / (folderName + ".bin");
+        ofstream ofs(binPath, ios::binary);
+        if (!ofs.is_open())
+        {
+            continue;
+        }
+
+        try
+        {
+            vector<uint8_t> msgpack = json::to_msgpack(arr);
+            ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+        }
+        catch (...) { return E_FAIL; }
+    }
 
     return S_OK;
 }

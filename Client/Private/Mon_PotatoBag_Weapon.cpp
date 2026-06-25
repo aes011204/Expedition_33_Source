@@ -64,8 +64,7 @@ HRESULT Mon_PotatoBag_Weapon::Render_Shadow()
 
 uint32 Mon_PotatoBag_Weapon::Decide_PassIndex(Shared<Material> mat)
 {
-    const int OPAQUE_PASS = 0;
-    return OPAQUE_PASS;
+    return mat->Get_PassIndex();
 }
 
 Shared<Mon_PotatoBag_Weapon> Mon_PotatoBag_Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

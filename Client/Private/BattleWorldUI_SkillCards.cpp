@@ -5,6 +5,7 @@
 #include "Camera.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
+#include "Debug_Profile.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -2159,6 +2160,8 @@ namespace
             bool selected,
             bool dimmed) override
         {
+            ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Skill.Compose");
+
             CHECK_NULL(_renderTarget, E_FAIL);
 
             ScopedRenderTargetState restoreState{ _context };
@@ -2497,6 +2500,8 @@ HRESULT BattleWorldUI_SkillCards::Warmup_ForBattleState(
     const string& selectedSkillKey,
     uint32 skillPage)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Skill.Warmup");
+
     if (_impl == nullptr || actor.statCom == nullptr)
         return E_FAIL;
 
@@ -2640,6 +2645,8 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
     uint32 skillPage,
     float timeDelta)
 {
+    ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Skill.Show");
+
     if (_impl == nullptr || !Should_ShowBattleWorldSkillCards(currentState) || actor.statCom == nullptr)
     {
         Hide();

@@ -207,9 +207,7 @@ HRESULT Mon_Dualliste_Sword_L::Ready_Components(const MONSTER_PART_DESC& desc)
 
 uint32 Mon_Dualliste_Sword_L::Decide_PassIndex(Shared<Material> mat)
 {
-    const int opaquePass = 0;
-    UNREFERENCED_PARAMETER(mat);
-    return opaquePass;
+    return mat->Get_PassIndex();
 }
 
 HRESULT Mon_Dualliste_Sword_L::Ready_DefaultComponents()

@@ -111,6 +111,26 @@ struct ComputePointParticleParams
     Vec4 sizeByLifeCurveModes{};                     // 0 Constant, 1 Linear, 2 CurveAutoClamped.
     Vec4 sizeByLifeCurveModesBlock1{};
     Vec4 sizeByLifeCurveParams{};                    // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
+    Vec4 spriteTiltInitial{};                         // x/y: initial min, z/w: initial max.
+    Vec4 spriteTiltOverLife{};                        // x/y: over-life min, z/w: over-life max.
+    Vec4 spriteTiltCurveTimes{};                      // SpriteTiltOverLife key times.
+    Vec4 spriteTiltCurveTimesBlock1{};
+    Vec4 spriteTiltCurveValuesX{};                    // SpriteTiltOverLife X key values.
+    Vec4 spriteTiltCurveValuesXBlock1{};
+    Vec4 spriteTiltCurveValuesY{};                    // SpriteTiltOverLife Y key values.
+    Vec4 spriteTiltCurveValuesYBlock1{};
+    Vec4 spriteTiltCurveArriveTangentsX{};
+    Vec4 spriteTiltCurveArriveTangentsXBlock1{};
+    Vec4 spriteTiltCurveLeaveTangentsX{};
+    Vec4 spriteTiltCurveLeaveTangentsXBlock1{};
+    Vec4 spriteTiltCurveArriveTangentsY{};
+    Vec4 spriteTiltCurveArriveTangentsYBlock1{};
+    Vec4 spriteTiltCurveLeaveTangentsY{};
+    Vec4 spriteTiltCurveLeaveTangentsYBlock1{};
+    Vec4 spriteTiltCurveModes{};                      // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 spriteTiltCurveModesBlock1{};
+    Vec4 spriteTiltParams{};                          // x: initial enabled, y: over-life enabled, z: key count, w: curve enabled.
+    XMUINT4 spriteTiltSeedSalts{};                    // x: initial tilt, y: over-life uniform, z/w: unused.
     Vec4 motionFlags{};                              // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
     Vec4 motionSpaceFlags{};                         // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode.
     Vec4 initialVelocityMin{};                       // xyz: vector velocity min, w: unused.
@@ -143,7 +163,7 @@ struct ComputePointParticleParams
     Vec4 accelerationCurveLeaveTangentsZBlock1{};
     Vec4 accelerationCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
     Vec4 accelerationCurveModesBlock1{};
-    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z/w: unused.
+    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z: acceleration world, w: unused.
     Vec4 velocityScaleByLife{};                      // x/y: scale start/end, z/w: unused.
     Vec4 velocityScaleByLifeCurveTimes{};            // VelocityOverLife key times.
     Vec4 velocityScaleByLifeCurveTimesBlock1{};
@@ -845,6 +865,46 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.sizeByLife.multiplyY ? 1.f : 0.f,
             static_cast<float>(ETOI(_desc.sizeByLife.axisLock))
         },
+        .spriteTiltInitial = Vec4{
+            _desc.spriteTilt.tiltDegreesMin.x,
+            _desc.spriteTilt.tiltDegreesMin.y,
+            _desc.spriteTilt.tiltDegreesMax.x,
+            _desc.spriteTilt.tiltDegreesMax.y
+        },
+        .spriteTiltOverLife = Vec4{
+            _desc.spriteTilt.tiltOverLifeMin.x,
+            _desc.spriteTilt.tiltOverLifeMin.y,
+            _desc.spriteTilt.tiltOverLifeMax.x,
+            _desc.spriteTilt.tiltOverLifeMax.y
+        },
+        .spriteTiltCurveTimes = _desc.spriteTilt.tiltOverLifeCurveTimes,
+        .spriteTiltCurveTimesBlock1 = _desc.spriteTilt.tiltOverLifeCurveTimesBlock1,
+        .spriteTiltCurveValuesX = _desc.spriteTilt.tiltOverLifeCurveValuesX,
+        .spriteTiltCurveValuesXBlock1 = _desc.spriteTilt.tiltOverLifeCurveValuesXBlock1,
+        .spriteTiltCurveValuesY = _desc.spriteTilt.tiltOverLifeCurveValuesY,
+        .spriteTiltCurveValuesYBlock1 = _desc.spriteTilt.tiltOverLifeCurveValuesYBlock1,
+        .spriteTiltCurveArriveTangentsX = _desc.spriteTilt.tiltOverLifeCurveArriveTangentsX,
+        .spriteTiltCurveArriveTangentsXBlock1 = _desc.spriteTilt.tiltOverLifeCurveArriveTangentsXBlock1,
+        .spriteTiltCurveLeaveTangentsX = _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsX,
+        .spriteTiltCurveLeaveTangentsXBlock1 = _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsXBlock1,
+        .spriteTiltCurveArriveTangentsY = _desc.spriteTilt.tiltOverLifeCurveArriveTangentsY,
+        .spriteTiltCurveArriveTangentsYBlock1 = _desc.spriteTilt.tiltOverLifeCurveArriveTangentsYBlock1,
+        .spriteTiltCurveLeaveTangentsY = _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsY,
+        .spriteTiltCurveLeaveTangentsYBlock1 = _desc.spriteTilt.tiltOverLifeCurveLeaveTangentsYBlock1,
+        .spriteTiltCurveModes = _desc.spriteTilt.tiltOverLifeCurveModes,
+        .spriteTiltCurveModesBlock1 = _desc.spriteTilt.tiltOverLifeCurveModesBlock1,
+        .spriteTiltParams = Vec4{
+            _desc.spriteTilt.initialTiltEnabled ? 1.f : 0.f,
+            _desc.spriteTilt.tiltOverLifeEnabled ? 1.f : 0.f,
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.spriteTilt.tiltOverLifeCurveKeyCount))),
+            _desc.spriteTilt.tiltOverLifeCurveEnabled ? 1.f : 0.f
+        },
+        .spriteTiltSeedSalts = XMUINT4{
+            Resolve_SeedSalt(_desc.spriteTilt.tiltSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.spriteTilt.tiltOverLifeSeed, _desc.effectPlaybackSeed),
+            0u,
+            0u
+        },
         .motionFlags = Vec4{
             _desc.motion.enabled ? 1.f : 0.f,
             _desc.motion.initialVelocityEnabled ? 1.f : 0.f,
@@ -930,7 +990,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .accelerationCurveParams = Vec4{
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount))),
             _desc.motion.accelerationCurveEnabled ? 1.f : 0.f,
-            0.f,
+            _desc.motion.accelerationInWorldSpace ? 1.f : 0.f,
             0.f
         },
         .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },

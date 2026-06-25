@@ -55,12 +55,12 @@ HRESULT MB_Simon::Initialize(void* arg)
 
 void MB_Simon::Update(float timeDelta)
 {
-    Monster_BattleBase::Update(timeDelta);
-
     if (_body)
     {
         _body->Play_Animation(timeDelta);
     }
+
+    Monster_BattleBase::Update(timeDelta);
 }
 
 HRESULT MB_Simon::Ready_PartObjects()
@@ -80,6 +80,8 @@ HRESULT MB_Simon::Ready_PartObjects()
     headDesc.modelType = ModelType::Anim;
     headDesc.modelTag = L"Model_Simon_Hair";
     headDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("headSocket");
+    headDesc.collisionModel = _body->Get_Model().get();
+    headDesc.collisionOwnerWorldMatrix = &_body->Get_CombinedWorldMatrix();
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Simon_Hair"), TEXT("Part_Hair"), &headDesc), E_FAIL);
 

@@ -230,6 +230,28 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// SpriteTilt module의 sprite card plane tilt authoring row를 그린다.
+class SpriteTiltModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SpriteTiltModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+// SpriteTiltOverLife module의 life-based sprite card plane tilt authoring row를 그린다.
+class SpriteTiltOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SpriteTiltOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 // InitialRotationRate module의 sprite angular velocity authoring row를 그린다.
 class InitialRotationRateModuleDetail
 {

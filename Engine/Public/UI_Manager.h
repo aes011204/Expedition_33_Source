@@ -19,6 +19,7 @@ public:
         const wstring& prototypeTag,
         void* arg = nullptr,
         Shared<UI_Base>* outUI = nullptr);
+    bool Remove_UI(const Shared<UI_Base>& ui);
 
     void Pop_UI();
 
@@ -31,6 +32,8 @@ public:
 
 private:
     void Sort_UIList();
+    void Compact_NullEntries();
+    void Prune_OpenedUIStack(UI_Base* removedUI = nullptr);
 
 private:
     struct UI_Entry

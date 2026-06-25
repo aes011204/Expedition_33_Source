@@ -42,6 +42,10 @@ void PartObject::Late_Update(float timeDelta)
 {
 }
 
+void PartObject::Post_PhysX_Update(float timeDelta)
+{
+}
+
 HRESULT PartObject::Render()
 {
 	return S_OK;

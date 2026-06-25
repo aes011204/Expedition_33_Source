@@ -52,6 +52,21 @@ float4 SampleBaseColor(float2 uv)
     return baseColor;
 }
 
+float4 SampleBaseColorFallback(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+        return float4(g_BaseColorTint.rgb, 1.f);
+
+    float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+
+    if (baseColor.a < 0.3f)
+        discard;
+
+    baseColor.rgb *= g_BaseColorTint.rgb;
+    baseColor.a *= g_BaseColorTint.a;
+    return baseColor;
+}
+
 float ResolveScalarChannel(float4 tex, uint source)
 {
     if (source == MATERIAL_CHANNEL_CONST0)
@@ -137,13 +152,23 @@ float3 SampleEmissive(float2 uv)
 {
     if (!HasMaterialTexture(MATERIAL_SLOT_EMISSIVE))
         return float3(0.f, 0.f, 0.f);
-        //return g_EmissiveColor.rgb * g_EmissiveIntensity;
 
     float3 emissiveTex = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE].Sample(LinearWrapSampler, uv).rgb;
 
     float3 emissive = emissiveTex * g_EmissiveColor.rgb * g_EmissiveIntensity;
     emissive += emissiveTex * g_EmissiveMaskMul;
 
+    return emissive;
+}
+
+float3 SampleEmissiveColorFallback(float2 uv)
+{
+    if (!HasMaterialTexture(MATERIAL_SLOT_EMISSIVE))
+        return g_EmissiveColor.rgb * g_EmissiveIntensity;
+
+    float3 emissiveTex = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE].Sample(LinearWrapSampler, uv).rgb;
+    float3 emissive = emissiveTex * g_EmissiveColor.rgb * g_EmissiveIntensity;
+    emissive += emissiveTex * g_EmissiveMaskMul;
     return emissive;
 }
 

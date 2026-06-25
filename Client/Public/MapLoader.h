@@ -35,6 +35,7 @@ public:
         vector<json> postProcessVolumes = {};
         vector<json> shaftVolumes = {};
         vector<json> waters = {};
+        vector<json> lights;
         vector<json> prefabInstances = {};
         vector<json> authoredObjects = {};
         vector<string> preloadModelPaths = {};
@@ -44,6 +45,12 @@ public:
         size_t nextMaterialApplyModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
+
+        size_t nextInstancedMeshGroupIndex = 0;
+        bool instancedMeshGroupsBuilt = false;
+        vector<string> instancedMeshModelOrder;
+        umap<string, vector<size_t>> instancedMeshGroups;
+
         size_t nextWaterIndex = 0;
         size_t nextPrefabInstanceIndex = 0;
         size_t nextAuthoredObjectIndex = 0;
@@ -64,6 +71,7 @@ public:
         bool postProcessVolumesDone = false;
         bool shaftVolumesDone = false;
         bool watersDone = false;
+        bool lightsDone = false;
         bool prefabInstancesDone = false;
         bool authoredObjectsDone = false;
 
@@ -122,6 +130,7 @@ public:
         const wstring& layerTag);
 
     static HRESULT Convert_Json_To_Bin(const wstring& jsonPath, const wstring& binPath);
+    static HRESULT Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot);
     static void Clear_GlobalCache();
 
 private:

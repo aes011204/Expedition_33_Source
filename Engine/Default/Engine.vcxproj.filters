@@ -199,9 +199,6 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance">
       <UniqueIdentifier>{62431174-4d90-4b26-ad29-bc9eee5df2e5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle">
-      <UniqueIdentifier>{9c62bf2c-8203-4b3e-aebd-5eae6afe0067}</UniqueIdentifier>
-    </Filter>
     <Filter Include="01.Utility\04.Component\ComputeShader">
       <UniqueIdentifier>{aadf4bbf-8e12-4ef8-a651-aae3aefb3b12}</UniqueIdentifier>
     </Filter>
@@ -493,6 +490,9 @@
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ChainModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PhysicsModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PoseFollowChainModifier.h">
@@ -1134,6 +1134,9 @@
       <Filter>01.Utility\04.Component\ModelDeform</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ChainModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PhysicsModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PoseFollowChainModifier.cpp">

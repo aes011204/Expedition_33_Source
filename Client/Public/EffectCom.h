@@ -90,6 +90,15 @@ public: //## Types::Public
         ANS_Trail::LocalOffsetCurve tipLocalOffsetCurve{};
     };
 
+    struct TrailAnchorRuntimeDesc
+    {
+        ANS_Trail::TrailAnchorSource source = ANS_Trail::TrailAnchorSource::ModelDefault;
+        string baseBoneName{};
+        Vec3 baseLocalOffset{ Vec3::Zero };
+        string tipBoneName{};
+        Vec3 tipLocalOffset{ Vec3::Zero };
+    };
+
 public:
     EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     ~EffectCom() override;
@@ -179,7 +188,8 @@ public: //## Behavior::TrailAndSourceHistory
         const wstring& partTag,
         const wstring& layerTag,
         uint64 trailNotifyToken = 0,
-        const TrailOffsetRuntimeDesc& offsetDesc = TrailOffsetRuntimeDesc{});
+        const TrailOffsetRuntimeDesc& offsetDesc = TrailOffsetRuntimeDesc{},
+        const TrailAnchorRuntimeDesc& anchorDesc = TrailAnchorRuntimeDesc{});
 
     void Update_TrailEffectOffset(
         const wstring& effectName,
@@ -258,6 +268,7 @@ private: //## Types::AttachedEffect
         Shared<IEffectTrailSampleProvider> trailSampleProvider{}; // 각 trail instance가 자기 sample source를 유지한다.
         uint64 trailNotifyToken = 0;
         TrailOffsetRuntimeDesc trailOffset{};
+        bool trailEchoEligible = true;
         Shared<bool> trailSampleEnabled{};
         bool isTrailDraining = false;
         float trailDrainElapsed = 0.f;
@@ -280,6 +291,7 @@ private: //## Types::AttachedEffect
         wstring effectName{};
         wstring layerTag{};
         TrailOffsetRuntimeDesc offsetDesc{};
+        bool echoEligible = true;
         float ageSec = 0.f;
     };
 

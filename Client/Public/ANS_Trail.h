@@ -25,6 +25,12 @@ public:
     void From_Json(const json& data) override;
 
 public:
+    enum class TrailAnchorSource : uint8
+    {
+        ModelDefault,
+        NotifyBonePair
+    };
+
     enum class TipExtendInterpolation : uint8
     {
         Linear,
@@ -58,6 +64,7 @@ public:
     };
 
 public:
+    static const char* Get_TrailAnchorSourceName(TrailAnchorSource source);
     static const char* Get_TipExtendInterpolationName(TipExtendInterpolation interpolation);
     static float Evaluate_TipExtendCurve(const TipExtendCurve& curve, float phase);
     static Vec3 Evaluate_LocalOffsetCurve(const LocalOffsetCurve& curve, float phase);
@@ -71,12 +78,29 @@ public:
     const TipExtendCurve& Get_TipExtendCurve() const { return _tipExtendCurve; }
     const LocalOffsetCurve& Get_BaseLocalOffsetCurve() const { return _baseLocalOffsetCurve; }
     const LocalOffsetCurve& Get_TipLocalOffsetCurve() const { return _tipLocalOffsetCurve; }
+    TrailAnchorSource Get_TrailAnchorSource() const { return _trailAnchorSource; }
+    const string& Get_BaseBoneName() const { return _baseBoneName; }
+    const Vec3& Get_BaseLocalOffset() const { return _baseLocalOffset; }
+    const string& Get_TipBoneName() const { return _tipBoneName; }
+    const Vec3& Get_TipLocalOffset() const { return _tipLocalOffset; }
 
     void Set_TipExtendCurve(const TipExtendCurve& curve);
     void Set_BaseLocalOffsetCurve(const LocalOffsetCurve& curve);
     void Set_TipLocalOffsetCurve(const LocalOffsetCurve& curve);
+    void Set_TrailAnchorSource(TrailAnchorSource source)
+    {
+        _trailAnchorSource = source;
+        if (_trailAnchorSource == TrailAnchorSource::ModelDefault)
+            Clear_NotifyBonePair();
+    }
+    void Set_BaseBoneName(const string& boneName) { _baseBoneName = boneName; }
+    void Set_BaseLocalOffset(const Vec3& localOffset) { _baseLocalOffset = localOffset; }
+    void Set_TipBoneName(const string& boneName) { _tipBoneName = boneName; }
+    void Set_TipLocalOffset(const Vec3& localOffset) { _tipLocalOffset = localOffset; }
+    void Clear_NotifyBonePair();
 
 private:
+    static TrailAnchorSource Parse_TrailAnchorSource(const json& data);
     static TipExtendInterpolation Parse_TipExtendInterpolation(const json& data);
     static bool Has_TipExtendCurvePayload(const TipExtendCurve& curve);
     static bool Has_LocalOffsetCurvePayload(const LocalOffsetCurve& curve);
@@ -93,6 +117,11 @@ private:
     wstring _effectName = L""; // 비어 있으면 Weapon 프리펩 기본 Trail 사용
     wstring _partTag = L"Part_Weapon";
     wstring _layerTag = L"Layer_Effect";
+    TrailAnchorSource _trailAnchorSource = TrailAnchorSource::ModelDefault;
+    string _baseBoneName{};
+    Vec3 _baseLocalOffset{ Vec3::Zero };
+    string _tipBoneName{};
+    Vec3 _tipLocalOffset{ Vec3::Zero };
     TipExtendCurve _tipExtendCurve{};
     LocalOffsetCurve _baseLocalOffsetCurve{};
     LocalOffsetCurve _tipLocalOffsetCurve{};

@@ -30,6 +30,13 @@ public:
         Shared<UI_Text> apTextBg{};
 
         Shared<UI_Image> apStates[9]{};
+
+        bool hasBattleStatSnapshot = false;
+        int32 cachedCurrentHp = 0;
+        int32 cachedMaxHp = 0;
+        uint32 cachedCurrentAp = 0;
+        uint32 cachedMaxAp = 0;
+        float cachedHpRatio = -1.f;
     };
 
 public:
@@ -46,6 +53,7 @@ public:
 public:
     void    Set_PartyBattleStat(PlayerCharacterType playerType, float curHp, float maxHp, uint32 curAp, uint32 maxAp);
     void    Set_BattleHeroIds(const vector<HeroId>& heroIds);
+    void    Set_BattleHeroIds(const HeroId* heroIds, size_t heroCount);
     void    Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_GustaveMechanismCharge();
 
@@ -79,12 +87,14 @@ private:
     bool    Is_CurrentTurnSlot(uint32 slotIndex) const;
     static void Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp);
     static void Set_ApText(PartyBattleStatSlot& slot, uint32 ap);
+    void    Invalidate_PartyStatSnapshots();
 
     void    Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom);
     Shared<UI_Base> Resolve_LuneStainImage(int32 slotIndex, ElementalType element) const;
     void    Close_AllLuneStains();
 
     void    Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance);
+    Shared<UI_Base> Resolve_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance) const;
     void    Close_AllMaelleStanceBadges();
 
     void    Play_TargetAnimation(const wchar_t* animationName); // Target_Animation은 이름으로 전 UI에 브로드캐스트 재생
@@ -102,9 +112,16 @@ private: /* 구스타브 */
     Shared<UI_Text> _gustaveCurrentChargeTextBg{};
     Shared<UI_Text> _gustaveMaxChargeText{};
     Shared<UI_Text> _gustaveMaxChargeTextBg{};
+    bool _hasGustaveMechanismSnapshot = false;
+    int32 _cachedGustaveCurrentCharge = 0;
+    int32 _cachedGustaveMaxCharge = 0;
 
 private: /* 루네 */
     array<array<Shared<UI_Base>, 5>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
+    array<ElementalType, BattleMechanismCom::kLuneMaxStains> _cachedLuneStains{};
+    uint32 _cachedLuneStainCount = 0;
+    bool _hasLuneStainSnapshot = false;
+    bool _luneStainsClosed = false;
 
 private: /* 마엘 */
     Shared<UI_Base> _maelleCurrentStanceRoot{};
@@ -112,6 +129,8 @@ private: /* 마엘 */
     Shared<UI_Base> _maelleDefensive{};
     Shared<UI_Base> _maelleOffensive{};
     Shared<UI_Base> _maelleVirtuose{};
+    BattleMechanismCom::MaelleStance _cachedMaelleStance = BattleMechanismCom::MaelleStance::Stanceless;
+    bool _hasMaelleStanceSnapshot = false;
 
 private:
     static constexpr const wchar_t* kPortraitNames[3] =

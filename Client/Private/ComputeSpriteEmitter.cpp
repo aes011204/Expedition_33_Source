@@ -1050,6 +1050,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.motion = _desc.motion;
     desc.orbitOverLife = _desc.orbitOverLife;
     desc.rotation = _desc.rotation;
+    desc.spriteTilt = _desc.spriteTilt;
     desc.spawn = _desc.spawn.particleSpawn;
     desc.lifetimeSeed = _desc.lifetimeSeed;
     desc.initialLocation = _desc.initialLocation;
