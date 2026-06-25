@@ -9,10 +9,33 @@
 #include "Texture.h"
 #include "VIBuffer_Rect.h"
 
+#include <cmath>
+
 NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    struct MaterialPreviewTime
+    {
+        float duration{ 1.f };
+        float cycleTime{};
+        float phase{};
+    };
+
+    MaterialPreviewTime Resolve_MaterialPreviewTime(float elapsedTime, float previewDuration)
+    {
+        constexpr float kMinDuration = 0.0001f;
+        const float safeDuration = max(previewDuration, kMinDuration);
+        const float positiveElapsedTime = max(elapsedTime, 0.f);
+        const float cycleTime = std::fmod(positiveElapsedTime, safeDuration);
+
+        return MaterialPreviewTime{
+            safeDuration,
+            cycleTime,
+            cycleTime / safeDuration
+        };
+    }
+
     static int Resolve_MaterialSourceIndex(const string& source)
     {
         constexpr int32 sourceAlpha = 0;
@@ -157,13 +180,15 @@ void EffectMaterialPreviewRenderer::Render_Material(
 {
     _statusMessage.clear();
     _hasRenderedPreview = false;
+    const Internal::MaterialPreviewTime previewTime =
+        Internal::Resolve_MaterialPreviewTime(_materialPreviewElapsedTime, previewDuration);
     const MaterialScalarModulationPreviewResult modulationResult =
         Evaluate_MaterialScalarModulationPreview(
             material,
             coreColorRgbModulation,
             vec2Modulation,
             modulation,
-            Compute_MaterialScalarPreviewPhase(_materialPreviewElapsedTime, previewDuration),
+            previewTime.phase,
             evaluateParticleLife
         );
     const EffectMaterialInstanceData& previewMaterial = modulationResult.material;
@@ -196,7 +221,7 @@ void EffectMaterialPreviewRenderer::Render_Material(
     if (isDistortionPreview)
     {
         if (FAILED(_distortionSourceTarget->Begin(true, true)) ||
-            FAILED(Render_CheckerBackground()))
+            FAILED(Render_CheckerBackground(previewTime.cycleTime)))
         {
             GAME->Bind_BackBuffer();
             _statusMessage = "Distortion preview source draw failed.";
@@ -210,12 +235,12 @@ void EffectMaterialPreviewRenderer::Render_Material(
         return;
     }
 
-    HRESULT hr = Render_CheckerBackground();
+    HRESULT hr = Render_CheckerBackground(previewTime.cycleTime);
     if (SUCCEEDED(hr))
     {
         hr = isDistortionPreview
-             ? Render_DistortionPreviewMesh(previewMaterial)
-             : Render_PreviewMesh(previewMaterial);
+             ? Render_DistortionPreviewMesh(previewMaterial, previewTime.cycleTime)
+             : Render_PreviewMesh(previewMaterial, previewTime.cycleTime);
     }
 
     if (SUCCEEDED(hr))
@@ -873,7 +898,7 @@ bool EffectMaterialPreviewRenderer::Create_Mesh(
     return true;
 }
 
-HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialInstanceData& material) const
+HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const
 {
     const float aspect = static_cast<float>(_previewTextureWidth) / static_cast<float>(max(1u, _previewTextureHeight));
     constexpr float nearPlane = 0.1f;
@@ -1094,7 +1119,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         E_FAIL
     );
     CHECK_FAILED(
-        _shader->Bind_RawValue("g_EffectMaterialPreviewTime", &_materialPreviewElapsedTime, sizeof(_materialPreviewElapsedTime)),
+        _shader->Bind_RawValue("g_EffectMaterialPreviewTime", &previewCycleTime, sizeof(previewCycleTime)),
         E_FAIL
     );
     CHECK_FAILED(
@@ -1113,7 +1138,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
     return S_OK;
 }
 
-HRESULT EffectMaterialPreviewRenderer::Render_CheckerBackground() const
+HRESULT EffectMaterialPreviewRenderer::Render_CheckerBackground(float previewCycleTime) const
 {
     CHECK_NULL(_shader, E_FAIL);
     CHECK_NULL(_planeMesh.vertexBuffer, E_FAIL);
@@ -1122,7 +1147,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_CheckerBackground() const
     const Vec4 checkerParams = Vec4(
         static_cast<float>(_previewTextureWidth),
         static_cast<float>(_previewTextureHeight),
-        _materialPreviewElapsedTime,
+        previewCycleTime,
         0.f
     );
 
@@ -1136,7 +1161,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_CheckerBackground() const
     return S_OK;
 }
 
-HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material) const
+HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const
 {
     CHECK_NULL(_distortionShader, E_FAIL);
     CHECK_NULL(_distortionSourceTarget, E_FAIL);
@@ -1218,7 +1243,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         material.refractionIntensity,
         max(0.f, material.refractionPresence),
         _flowTexture != nullptr ? 1.f : 0.f,
-        _materialPreviewElapsedTime
+        previewCycleTime
     );
     const Vec4 distortionShapeParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),

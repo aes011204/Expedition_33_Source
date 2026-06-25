@@ -17,6 +17,7 @@ private:
     {
         Shared<GameObject> object{};
         Vec3  hitPosition = Vec3::Zero;
+        Vec3  shotDirection = Vec3::Look;
         Vec3  hitNormal = Vec3::Up;
     };
 
