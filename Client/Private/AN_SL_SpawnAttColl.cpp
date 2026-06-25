@@ -28,6 +28,13 @@ namespace
         static std::unordered_map<size_t, Weak<GameObject>> spawnedObjects{};
         return spawnedObjects;
     }
+
+    Vec3 Resolve_LocalOffsetInWorld(TransformCom& transform, const Vec3& localOffset)
+    {
+        return transform.Get_WorldRight() * localOffset.x
+            + transform.Get_WorldUp() * localOffset.y
+            + transform.Get_WorldForward() * localOffset.z;
+    }
 }
 
 IMPLEMENT_REFLECTION(ANS_SL_SpawnAttColl)
@@ -146,7 +153,7 @@ Vec3 ANS_SL_SpawnAttColl::Resolve_SpawnWorldPosition(const AnimNotifyContext& co
         return Vec3::Zero;
 
     UNREFERENCED_PARAMETER(context);
-    return ownerTransform->Get_WorldPosition() + _localOffset;
+    return ownerTransform->Get_WorldPosition() + Resolve_LocalOffsetInWorld(*ownerTransform, _localOffset);
 }
 
 void ANS_SL_SpawnAttColl::Remove_SpawnedObject(GameObject* notifyOwner) const
