@@ -18,6 +18,7 @@ public:
 	void    Priority_Update(float timeDelta);
 	void    Update(float timeDelta);
 	void    Late_Update(float timeDelta);
+    void    Post_PhysX_Update(float timeDelta);
 
 public:
     Shared<GameObject> Find_FirstObject();

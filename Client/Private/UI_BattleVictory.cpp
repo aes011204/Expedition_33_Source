@@ -535,8 +535,14 @@ void UI_BattleVictory::Free()
 {
     Close_Immediately();
 
+    for (size_t i = 1; i < _defeatedMonsterPortraitSlots.size(); ++i)
+    {
+        Shared<UI_Base> portrait = static_pointer_cast<UI_Base>(_defeatedMonsterPortraitSlots[i]);
+        UI_RuntimeLoader::Release_UI(portrait);
+    }
+
+    UI_RuntimeLoader::Release_Document(_uiByName);
     _root.reset();
-    _uiByName.clear();
 
     for (PlayerSlot& slot : _playerSlots)
     {

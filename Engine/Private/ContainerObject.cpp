@@ -107,6 +107,12 @@ void ContainerObject::Late_Update(float timeDelta)
         partObject->Late_Update(timeDelta);
 }
 
+void ContainerObject::Post_PhysX_Update(float timeDelta)
+{
+    for (auto& partObject : _partObjectUpdateOrder)
+        partObject->Post_PhysX_Update(timeDelta);
+}
+
 HRESULT ContainerObject::Render()
 {
 	return S_OK;

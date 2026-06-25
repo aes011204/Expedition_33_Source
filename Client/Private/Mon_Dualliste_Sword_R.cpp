@@ -210,9 +210,7 @@ const WeaponSourceHistoryAnchorDesc* Mon_Dualliste_Sword_R::Find_SourceHistoryAn
 
 uint32 Mon_Dualliste_Sword_R::Decide_PassIndex(Shared<Material> mat)
 {
-    const int opaquePass = 0;
-    UNREFERENCED_PARAMETER(mat);
-    return opaquePass;
+    return mat->Get_PassIndex();
 }
 
 HRESULT Mon_Dualliste_Sword_R::Ready_DefaultComponents()

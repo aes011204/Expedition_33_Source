@@ -300,7 +300,6 @@ HRESULT SkillTree_Panel::Load_UI_ToolTips(const wstring& prototypeTagPrefix, con
     desc.levelIndex = levelIndex;
     desc.jsonPath = toolTipJsonPath;
     desc.prototypeTagPrefix = prototypeTagPrefix + L"Tooltip";
-    desc.outUINamePrefixFilter = L"Panel_SkillTooltip_" + playerName + L"_";
     desc.outUIByName = &outView.tooltipsByName;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
@@ -1033,5 +1032,31 @@ Unique<SkillTree_Panel> SkillTree_Panel::Create(uint32 levelIndex)
 void SkillTree_Panel::Free()
 {
     Restore_PreviewOverrides();
+
+    for (auto& [heroId, view] : _viewByPlayerId)
+    {
+        UNREFERENCED_PARAMETER(heroId);
+
+        UI_RuntimeLoader::Release_Document(view.tooltipsByName);
+        UI_RuntimeLoader::Release_Document(view.characterSheetUIs);
+        UI_RuntimeLoader::Release_Document(view.uiByName);
+
+        view.tooltips.clear();
+        view.skillNodes.clear();
+        view.lockedNodes.clear();
+        view.root.reset();
+        view.characterSelectUI.reset();
+        view.characterSheet.reset();
+        view.skillTreeCom.reset();
+    }
+    _viewByPlayerId.clear();
+
+    UI_RuntimeLoader::Release_Document(_backgroundUIs);
+    _backgroundUI.reset();
+    _skillpointUI.reset();
+    _skillTreeCom.reset();
+    _childrenByParentName.clear();
+    _currentView = nullptr;
+
     __super::Free();
 }

@@ -4,6 +4,7 @@
 #include "EffectCom.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
+#include "PhysX_Manager.h"
 #include "Monster_BattleBase.h"
 #include "Monster_Part.h"
 #include "Monster_WorldBase.h"
@@ -252,6 +253,26 @@ namespace PreviewObjectHelpers
         bool tickAttachedEffects = true,
         bool forceVisibleBeforeLateUpdate = false)
     {
+        auto stepPreviewPhysics = [&](float dt)
+        {
+            if (dt <= 0.f)
+                return;
+
+            if (Engine::PhysX_Manager* physxManager = GAME->Get_PhysXManager())
+            {
+                physxManager->Begin_Frame();
+                physxManager->Update(dt);
+            }
+        };
+
+        auto postPhysXUpdate = [&](const Shared<GameObject>& targetObject, float dt)
+        {
+            if (targetObject == nullptr)
+                return;
+
+            targetObject->Post_PhysX_Update(dt);
+        };
+
         if (gameObject == nullptr)
             return;
 
@@ -265,6 +286,8 @@ namespace PreviewObjectHelpers
             if (forceVisibleBeforeLateUpdate)
                 Force_VisibleRecursive(gameObject);
             monsterWorld->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -278,6 +301,8 @@ namespace PreviewObjectHelpers
             if (forceVisibleBeforeLateUpdate)
                 Force_VisibleRecursive(gameObject);
             monsterBattle->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -290,6 +315,8 @@ namespace PreviewObjectHelpers
             if (forceVisibleBeforeLateUpdate)
                 Force_VisibleRecursive(gameObject);
             playerWorld->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -302,6 +329,8 @@ namespace PreviewObjectHelpers
             if (forceVisibleBeforeLateUpdate)
                 Force_VisibleRecursive(gameObject);
             playerBattle->Engine::ContainerObject::Late_Update(timeDelta);
+            stepPreviewPhysics(timeDelta);
+            postPhysXUpdate(gameObject, timeDelta);
             if (tickAttachedEffects)
                 Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
@@ -312,6 +341,8 @@ namespace PreviewObjectHelpers
         if (forceVisibleBeforeLateUpdate)
             Force_VisibleRecursive(gameObject);
         gameObject->Late_Update(timeDelta);
+        stepPreviewPhysics(timeDelta);
+        postPhysXUpdate(gameObject, timeDelta);
         if (tickAttachedEffects)
             Tick_AttachedPreviewEffects(gameObject, timeDelta);
     }
