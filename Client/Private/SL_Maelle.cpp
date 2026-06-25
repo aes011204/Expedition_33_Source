@@ -210,7 +210,7 @@ void SL_Maelle::Close_ParryWindow()
     _parryWindowOpen = false;
 }
 
-bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos)
+bool SL_Maelle::Try_ConsumeParry(const Shared<GameObject>& attacker, const Vec3& impactWorldPos, const Vec3& effectPos)
 {
     if (!_parryWindowOpen || Is_Dead())
         return false;
@@ -232,6 +232,11 @@ bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectP
 
         GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success);
     }
+
+	SL_DamageInfo pushInfo{};
+    pushInfo.attacker = attacker;
+    pushInfo.target = GetSharedPtr<GameObject>();
+    Begin_HitPush(pushInfo);
 
     if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
         controller->Notify_PlayerParrySuccess();

@@ -302,7 +302,16 @@ void Scene_View::Render()
 
 void Scene_View::Handle_GizmoShortcut()
 {
-    if (!_isFocused)
+    if (ImGui::GetIO().WantTextInput)
+        return;
+
+    const Shared<Editor_Window> hierarchyWindow = EDITOR->Get_Window(L"Hierarchy");
+    const bool allowHierarchyShortcut =
+        hierarchyWindow != nullptr &&
+        hierarchyWindow->Is_Focused() &&
+        EDITOR->Selected_Object() != nullptr;
+
+    if (!_isFocused && !allowHierarchyShortcut)
         return;
 
     if (GAME->KeyPress(KEY_TYPE::RBUTTON))
@@ -695,7 +704,7 @@ void Scene_View::Render_ViewportCanvas()
         _viewportMax = imageRect.imageMax;
 
         // add for mouse picking
-        if (!ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && _isHovered)
+        if (!isMouseOverOverlay && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && _isHovered)
         {
             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {

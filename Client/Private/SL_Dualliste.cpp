@@ -233,7 +233,9 @@ void SL_Dualliste::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
         Vec3 parryEffectWorldPos = maelleWorldPos + effectDir * 0.8f;
         parryEffectWorldPos.y += 1.0f;
 
-        if (maelle->Try_ConsumeParry(attackerWorldPos, parryEffectWorldPos))
+        auto attacker = GetSharedPtr<GameObject>();
+
+        if (maelle->Try_ConsumeParry(attacker, attackerWorldPos, parryEffectWorldPos))
         {
             self->Set_IsActive(false);
             self->Clear_Overlap();

@@ -312,6 +312,7 @@
     <ClInclude Include="..\Public\SoulLikeCamera.h" />
     <ClInclude Include="..\Public\SoulLikeController.h" />
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
+    <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\public\Trigger_Cinematic.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
@@ -742,6 +743,7 @@
     <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />

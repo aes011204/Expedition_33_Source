@@ -477,6 +477,7 @@ namespace Client::Constants::Prefab
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
     inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
+    inline constexpr char Trigger_BGMZone[] = "ETC/Trigger_BGMZone";
 
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
 }
@@ -488,6 +489,11 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
     constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
+
+    constexpr const wchar_t* GestralVillageMarket =
+        L"BGM/Gestral/MUS_GestralVillage_ENV_Market_PartA.wav";
+    constexpr const wchar_t* GestralVillageGolgraThrone =
+        L"BGM/Gestral/MUS_GestralVillage_ENV_GolgraThrone.wav";
 
     constexpr const wchar_t* DuallisteBattlePhase1Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
