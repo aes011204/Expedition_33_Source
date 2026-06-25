@@ -65,6 +65,7 @@ struct StaticCollisionData;
 class ScreenFx_Instance;
 struct DOFPreset;
 struct DOFTransitionDesc;
+struct ShadowCascadeInfluenceVolume;
 NS_END
 #pragma endregion
 

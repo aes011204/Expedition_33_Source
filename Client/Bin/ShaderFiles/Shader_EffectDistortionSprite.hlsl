@@ -284,6 +284,23 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
+void ResolveWorldUpFacingCameraBasis(float3 center, out float3 rightDir, out float3 upDir)
+{
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
+    const float3 worldUp = float3(0.f, 1.f, 0.f);
+    float3 cameraLook = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(g_CamPosition.xyz - center, cameraLook))
+        return;
+
+    float3 worldRight = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(cross(worldUp, cameraLook), worldRight))
+        return;
+
+    rightDir = worldRight;
+    upDir = worldUp;
+}
+
 // texture 축 하나를 지정 방향에 맞추고, 나머지 축은 카메라 가시성을 유지하도록 만든다.
 bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out float3 rightDir, out float3 upDir)
 {
@@ -325,6 +342,10 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     {
         rightDir = float3(1.f, 0.f, 0.f);
         upDir = float3(0.f, 0.f, 1.f);
+    }
+    else if (g_ScreenAlignmentMode == 7)
+    {
+        ResolveWorldUpFacingCameraBasis(particlePosition, rightDir, upDir);
     }
     else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
     {

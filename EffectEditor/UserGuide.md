@@ -543,7 +543,7 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | `원본 보기` | 원본 material/preset 확인 창을 연다. | 선택 원본을 확인한다. | editor action | Mesh에서는 비활성화될 수 있다. |
 | `원점` | Emitter origin offset이다. | Emitter local 기준 위치 보정으로 읽는다. | Vec3 고정값 | preview 위치 기준에 영향이 있다. |
 | `회전 (도)` | Emitter local 회전이다. | degree 단위 회전 보정이다. | Vec3 고정값 | 축별 회전으로 입력한다. |
-| `화면 정렬` | sprite/card가 camera나 world에 정렬되는 방식이다. | `Facing Camera Position`, `Rectangle`, `Square`, `Away from Center`, `Velocity`, `World Plane XY`, `World Plane XZ` 중 고른다. | combo | 하위 옵션 노출 여부를 결정한다. |
+| `화면 정렬` | sprite/card가 camera나 world에 정렬되는 방식이다. | `Facing Camera Position`, `Rectangle`, `World Up Facing Camera`, `Square`, `Away from Center`, `Velocity`, `World Plane XY`, `World Plane XZ` 중 고른다. | combo | 하위 옵션 노출 여부를 결정한다. |
 | `방향 정렬 방식` | radial/velocity 계열에서 방향을 card에 어떻게 반영할지 정한다. | look 방향 또는 texture axis 기준을 고른다. | combo | UI tooltip과 disabled text를 우선한다. |
 | `정렬할 텍스처 축` | texture X/Y 중 어느 축을 방향에 맞출지 정한다. | 긴 texture의 방향성을 맞출 때 쓴다. | combo | world axis가 아니라 texture 가로/세로 축이다. |
 | `롤 보정 (도)` | 정렬 후 roll 보정값이다. | degree 단위 추가 회전이다. | float 고정값 | texture axis 정렬에서 주로 의미가 있다. |
@@ -569,7 +569,8 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 | Sprite Trail 화면 정렬 | 해석 |
 | --- | --- |
 | `Facing Camera Position` | stamp 위치는 path 위에 유지하고, 각 card가 자기 위치에서 카메라 위치를 바라본다. Path tangent는 회전 기준으로 쓰지 않는다. |
-| `Rectangle` | card 세로축을 World Up으로 유지하고, 가로축은 카메라 가시성을 유지하는 방향으로 잡는다. `카드 길이 축`은 texture X/Y 중 어느 축을 길이로 볼지만 정한다. |
+| `Rectangle` | legacy alias다. card 세로축을 World Up으로 유지하고, 가로축은 카메라 가시성을 유지하는 방향으로 잡는다. `카드 길이 축`은 texture X/Y 중 어느 축을 길이로 볼지만 정한다. |
+| `World Up Facing Camera` | `Rectangle`과 같은 World Up upright card basis를 명시적으로 선택한다. 새 작업에서는 이 이름을 우선 사용한다. |
 | `Square` | 카메라 화면 평면 기준 card에서 더 큰 축으로 정사각형을 만든다. |
 | `Velocity` | SourceHistorySpriteTrail에서는 실제 velocity가 아니라 path tangent를 기준 방향으로 사용한다. `방향 정렬 방식`과 `카드 길이 축`으로 tangent를 look 또는 texture 축에 맞춘다. |
 
@@ -717,6 +718,7 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 
 | Module | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- | --- |
+| `가속` | `월드 스페이스` | 가속 벡터의 좌표계를 정한다. | 켜면 world axis, 끄면 emitter local axis 기준이다. | bool | 기본값은 켜짐이다. 중력/상승처럼 effect 회전과 무관한 힘은 켜둔다. |
 | `가속` | `가속` | 시간에 따라 더해지는 velocity 변화다. | X/Y/Z acceleration이다. | Vec3 분포 | 지속적으로 속도를 바꾼다. |
 | `드래그` | `드래그` | 속도 감쇠 계수다. | 값이 커질수록 velocity가 빨리 줄어든다. | float 분포 | 너무 크면 거의 멈춘 것처럼 보일 수 있다. |
 

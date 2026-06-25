@@ -255,6 +255,9 @@ namespace Internal
         case EmitterScreenAlignment::WorldPlaneXZ:
             return EffectScreenAlignment::WorldPlaneXZ;
 
+        case EmitterScreenAlignment::WorldUpFacingCamera:
+            return EffectScreenAlignment::WorldUpFacingCamera;
+
         case EmitterScreenAlignment::FacingCameraPosition:
         case EmitterScreenAlignment::TypeSpecific:
         case EmitterScreenAlignment::FacingCameraDistanceBlend:
@@ -715,6 +718,18 @@ namespace Internal
         Set_CurveComponent(desc.curveKeyModes, desc.curveKeyModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
+    void Fill_SpriteTiltOverLifeCurveComponent(PointParticleSpriteTiltDesc& desc, uint32 index, const Vector2CurveKeyData& key)
+    {
+        Set_CurveComponent(desc.tiltOverLifeCurveTimes, desc.tiltOverLifeCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.tiltOverLifeCurveValuesX, desc.tiltOverLifeCurveValuesXBlock1, index, key.value.x);
+        Set_CurveComponent(desc.tiltOverLifeCurveValuesY, desc.tiltOverLifeCurveValuesYBlock1, index, key.value.y);
+        Set_CurveComponent(desc.tiltOverLifeCurveArriveTangentsX, desc.tiltOverLifeCurveArriveTangentsXBlock1, index, key.arriveTangent.x);
+        Set_CurveComponent(desc.tiltOverLifeCurveLeaveTangentsX, desc.tiltOverLifeCurveLeaveTangentsXBlock1, index, key.leaveTangent.x);
+        Set_CurveComponent(desc.tiltOverLifeCurveArriveTangentsY, desc.tiltOverLifeCurveArriveTangentsYBlock1, index, key.arriveTangent.y);
+        Set_CurveComponent(desc.tiltOverLifeCurveLeaveTangentsY, desc.tiltOverLifeCurveLeaveTangentsYBlock1, index, key.leaveTangent.y);
+        Set_CurveComponent(desc.tiltOverLifeCurveModes, desc.tiltOverLifeCurveModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
     void Fill_RotationOverLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, const FloatCurveKeyData& key)
     {
         Set_CurveComponent(desc.rotationOverLifeCurveTimes, desc.rotationOverLifeCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
@@ -1070,6 +1085,77 @@ namespace Internal
             desc.curveKeyModesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_SizeByLifeCurveComponent(desc, index, keys[index]);
+        }
+    }
+
+    void Fill_SpriteTiltPayload(
+        PointParticleSpriteTiltDesc& desc,
+        const SpriteTiltModuleData* spriteTilt,
+        const SpriteTiltOverLifeModuleData* spriteTiltOverLife)
+    {
+        desc = PointParticleSpriteTiltDesc{};
+
+        if (spriteTilt != nullptr)
+        {
+            desc.initialTiltEnabled = true;
+            desc.tiltDegreesMin = Evaluate_Vector2DistributionMin(spriteTilt->tiltDegrees, desc.tiltDegreesMin);
+            desc.tiltDegreesMax = Evaluate_Vector2DistributionMax(spriteTilt->tiltDegrees, desc.tiltDegreesMax);
+            desc.tiltSeed = Build_RandomSeedDesc(spriteTilt->tiltDegrees);
+        }
+
+        if (spriteTiltOverLife == nullptr)
+            return;
+
+        desc.tiltOverLifeEnabled = true;
+        desc.tiltOverLifeMin = Evaluate_Vector2DistributionMin(spriteTiltOverLife->tiltOverLife, desc.tiltOverLifeMin);
+        desc.tiltOverLifeMax = Evaluate_Vector2DistributionMax(spriteTiltOverLife->tiltOverLife, desc.tiltOverLifeMax);
+        desc.tiltOverLifeSeed = Build_RandomSeedDesc(spriteTiltOverLife->tiltOverLife);
+        desc.tiltOverLifeCurveKeyCount = 2;
+        desc.tiltOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.tiltOverLifeCurveTimesBlock1 = Vec4{};
+        desc.tiltOverLifeCurveValuesX = Vec4{ desc.tiltOverLifeMin.x, desc.tiltOverLifeMax.x, 0.f, 0.f };
+        desc.tiltOverLifeCurveValuesXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveValuesY = Vec4{ desc.tiltOverLifeMin.y, desc.tiltOverLifeMax.y, 0.f, 0.f };
+        desc.tiltOverLifeCurveValuesYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsX = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsX = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsXBlock1 = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsY = Vec4{};
+        desc.tiltOverLifeCurveArriveTangentsYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsY = Vec4{};
+        desc.tiltOverLifeCurveLeaveTangentsYBlock1 = Vec4{};
+        desc.tiltOverLifeCurveModes = Vec4{ 1.f, 1.f, 0.f, 0.f };
+        desc.tiltOverLifeCurveModesBlock1 = Vec4{};
+
+        if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&spriteTiltOverLife->tiltOverLife.payload))
+        {
+            vector<Vector2CurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &Vector2CurveKeyData::time);
+            const uint32 keyCount = min(kEffectDistributionCurveMaxKeys, static_cast<uint32>(keys.size()));
+            if (keyCount == 0)
+                return;
+
+            desc.tiltOverLifeCurveEnabled = true;
+            desc.tiltOverLifeCurveKeyCount = keyCount;
+            desc.tiltOverLifeCurveTimes = Vec4{};
+            desc.tiltOverLifeCurveTimesBlock1 = Vec4{};
+            desc.tiltOverLifeCurveValuesX = Vec4{};
+            desc.tiltOverLifeCurveValuesXBlock1 = Vec4{};
+            desc.tiltOverLifeCurveValuesY = Vec4{};
+            desc.tiltOverLifeCurveValuesYBlock1 = Vec4{};
+            desc.tiltOverLifeCurveArriveTangentsX = Vec4{};
+            desc.tiltOverLifeCurveArriveTangentsXBlock1 = Vec4{};
+            desc.tiltOverLifeCurveLeaveTangentsX = Vec4{};
+            desc.tiltOverLifeCurveLeaveTangentsXBlock1 = Vec4{};
+            desc.tiltOverLifeCurveArriveTangentsY = Vec4{};
+            desc.tiltOverLifeCurveArriveTangentsYBlock1 = Vec4{};
+            desc.tiltOverLifeCurveLeaveTangentsY = Vec4{};
+            desc.tiltOverLifeCurveLeaveTangentsYBlock1 = Vec4{};
+            desc.tiltOverLifeCurveModes = Vec4{};
+            desc.tiltOverLifeCurveModesBlock1 = Vec4{};
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_SpriteTiltOverLifeCurveComponent(desc, index, keys[index]);
         }
     }
 
@@ -1935,6 +2021,12 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
 
+    Internal::Fill_SpriteTiltPayload(
+        desc.spriteTilt,
+        Internal::Find_ModuleData<SpriteTiltModuleData>(emitter, AuthoringModuleType::SpriteTilt),
+        Internal::Find_ModuleData<SpriteTiltOverLifeModuleData>(emitter, AuthoringModuleType::SpriteTiltOverLife)
+    );
+
     if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
         desc.motion.enabled = true;
@@ -1975,13 +2067,12 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-    {
         Internal::Fill_SourceMotionVelocityPayload(desc.motion, *sourceMotionVelocity);
-    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         desc.motion.enabled = true;
+        desc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
         desc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, desc.motion.accelerationMin);
         desc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, desc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(desc.motion, acceleration->acceleration);
@@ -2608,6 +2699,12 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
+    Internal::Fill_SpriteTiltPayload(
+        emitterDesc.spriteTilt,
+        Internal::Find_ModuleData<SpriteTiltModuleData>(emitter, AuthoringModuleType::SpriteTilt),
+        Internal::Find_ModuleData<SpriteTiltOverLifeModuleData>(emitter, AuthoringModuleType::SpriteTiltOverLife)
+    );
+
     const auto* pathReplay = Internal::Find_ModuleData<SourceHistorySpriteTrailPathReplayModuleData>(
         emitter,
         AuthoringModuleType::SourceHistorySpriteTrailPathReplay
@@ -2688,13 +2785,12 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-    {
         Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
-    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
+        emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
         emitterDesc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
@@ -3289,13 +3385,12 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         emitter,
         AuthoringModuleType::SourceMotionVelocity
     ))
-    {
         Internal::Fill_SourceMotionVelocityPayload(emitterDesc.motion, *sourceMotionVelocity);
-    }
 
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
+        emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
         emitterDesc.motion.accelerationMin =
             Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax =
