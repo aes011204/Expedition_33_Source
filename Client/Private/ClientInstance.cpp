@@ -137,15 +137,25 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
     // 무기 세팅
-    _playerInventory->Ensure_DefaultUnlockedWeapons(
-        {
-            { "Gustave", "Lanceram", 1, 0 },
-            { "Gustave", "Baguette", 11, 0 },
-        { "Lune",    "Colim",    1, 0 },
-        { "Lune",    "Baguette",    1, 0 },
-        { "Maelle",  "Medalum",  1, 0 },
-        { "Maelle",  "Baguette",  1, 0 },
-        });
+    vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
+    const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
+    for (HeroId heroId : defaultWeaponHeroes)
+    {
+        const string characterId = Get_WeaponCharacterId(heroId);
+        const string weaponId = Get_DefaultEquippedWeaponId(heroId);
+        if (characterId.empty() || weaponId.empty())
+            continue;
+
+        const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
+
+        PlayerInventory::WeaponInventoryEntry entry{};
+        entry.characterId = weapon ? weapon->characterId : characterId;
+        entry.weaponId = weapon ? weapon->weaponId : weaponId;
+        entry.enhanceLevel = weapon ? weapon->level : 1;
+        entry.enhanceExp = 0;
+        defaultUnlockedWeapons.emplace_back(std::move(entry));
+    }
+    _playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);

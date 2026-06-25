@@ -543,3 +543,8 @@ namespace Client::Constants::SoundCue
 
     constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
 }
+
+namespace Client::Constants::Effect
+{
+    constexpr const wchar_t* BreakEffect = L"Effects\\Assets\\Etc\\Break.effect.json";
+}

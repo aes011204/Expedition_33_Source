@@ -121,6 +121,9 @@ public: /* For.Editor World */
     bool    Load_DemoCheckpointInEditor(const fs::path& path);
     bool    Save_GameStartRuleState(const fs::path& path) const;
     bool    Save_CostumeUnlockRuleState(const fs::path& path, bool unlockBaguette, bool unlockPotato) const;
+    bool    Save_BaguetteWeaponUnlockRuleState(const fs::path& path) const;
+    bool    Save_TiresoSnowimPlenumWeaponUnlockRuleState(const fs::path& path) const;
+    bool    Save_AllWeaponUnlockRuleState(const fs::path& path) const;
     bool    Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const;
     bool    Load_RuleStateInEditor(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);

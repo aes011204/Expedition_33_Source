@@ -34,7 +34,7 @@ HRESULT Level_GestralVillage::Initialize()
 
     GAME->Set_RenderEnvironment(true);
     GAME->Set_FogZoneCullingDistance(15.f);
-    //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+
 
     return S_OK;
 }

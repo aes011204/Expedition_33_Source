@@ -1,5 +1,5 @@
 ﻿#include "SL_Dualliste.h"
-
+#include "Client_Constants.h"
 #include "Bounding_OBB.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
@@ -20,7 +20,6 @@
 #include "SL_Maelle.h"
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
-
 
 
 REGISTER_GLOBAL_ENUM(SL_Dualliste::Anim, "SL_DuallisteAnim")
@@ -413,8 +412,19 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
     {
         _combatStat->SetBreak(true);
         _stunElapsed = 0.f;
+
+        // 스턴 이펙트
+        {
+            PlayEffectDesc effectDesc{};
+            effectDesc.effectName = Constants::Effect::BreakEffect;
+            effectDesc.worldPosition = _transformCom->Get_WorldPosition() + Vec3(0.f, 1.f, 0.f);
+            effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+            CLIENT->Play_Effect(effectDesc);
+        }
+
         Set_ActionLocked(false);
         _stateMachineCom->Change_State(SL_MonState::Stun);
+
         return;
     }
 

@@ -61,6 +61,7 @@ private:
     void    Update_CrossHair(float timeDelta);
     void    Try_ShowPendingGetCharacter();
     void    Try_ShowPendingGetClothes();
+    void    Try_ShowPendingGetWeapon();
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;

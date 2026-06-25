@@ -695,6 +695,30 @@ bool EditorInstance::Save_CostumeUnlockRuleState(
     return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
 }
 
+bool EditorInstance::Save_BaguetteWeaponUnlockRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_BaguetteWeaponUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Save_TiresoSnowimPlenumWeaponUnlockRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_TiresoSnowimPlenumWeaponUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Save_AllWeaponUnlockRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_AllWeaponUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
 bool EditorInstance::Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const
 {
     const Client::RuntimeRuleStateIO::RuleState ruleState =
