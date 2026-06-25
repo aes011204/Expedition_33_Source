@@ -902,6 +902,8 @@ Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 Type
 
 Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다. UV Offset target은 base offset에 Vec2 값을 더하고, UV Scroll Speed Scale target은 Material Instance의 base scroll speed에 scalar 값을 곱한다. Scroll Speed Scale은 `1.0`이면 원래 속도, `0.0`이면 정지, `-1.0`이면 반대 방향이며, shader가 `scrollSpeed * materialTime`으로 UV를 만들기 때문에 급격한 scale 변화는 누적 감속이 아니라 phase jump처럼 보일 수 있다.
 
+Material Instance Preview는 emitter 문맥이 있으면 `Required.duration` 기준으로 material time과 변조 phase를 반복한다. standalone material preset preview처럼 emitter 문맥이 없는 경우에는 1초 주기 fallback으로 보여준다. 이 preview는 material surface 확인용이므로 particle lifetime, spawn, loop module 전체를 재현하는 정본은 Scene View preview로 본다.
+
 ### 6.18 Type 호환성 메모
 
 모든 Module이 모든 TypeData에 의미 있는 것은 아니다. 호환성은 Module picker에서 먼저 확인한다.

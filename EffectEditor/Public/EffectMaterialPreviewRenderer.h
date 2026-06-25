@@ -126,9 +126,9 @@ private: //## Helper::Resource
     bool Create_Mesh(const vector<PreviewVertex>& vertices, const vector<uint32>& indices, PreviewMeshResource& mesh);
 
 private: //## Helper::Render
-    HRESULT Render_PreviewMesh(const EffectMaterialInstanceData& material) const;
-    HRESULT Render_CheckerBackground() const;
-    HRESULT Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material) const;
+    HRESULT Render_PreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const;
+    HRESULT Render_CheckerBackground(float previewCycleTime) const;
+    HRESULT Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const;
     HRESULT Render_PostProcessResolve() const;
     HRESULT Render_PostProcessToneMapping(const Shared<RenderTarget>& bloomTexture) const;
     HRESULT Render_PostProcessCopy() const;
