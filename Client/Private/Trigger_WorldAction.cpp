@@ -92,6 +92,11 @@ void Trigger_WorldAction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
     _pendingDestroy = true;
 }
 
+void Trigger_WorldAction::Set_LifeTimeSec(float lifeTimeSec)
+{
+    _lifeTimeSec = max(lifeTimeSec, 0.01f);
+}
+
 HRESULT Trigger_WorldAction::Ready_Components()
 {
     Bounding_OBB::BoundingOBBDesc obbDesc{};

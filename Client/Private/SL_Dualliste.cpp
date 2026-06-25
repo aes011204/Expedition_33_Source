@@ -269,6 +269,8 @@ void SL_Dualliste::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
         ? _attackLHitAnimOverride
         : _attackRHitAnimOverride;
     target->Apply_Damage(damageInfo);
+
+    GAME->Play_SoundCue(Constants::SoundCue::Duallist_Attack);
 }
 
 Shared<CombatStatCom> SL_Dualliste::Get_Stat() const
@@ -415,6 +417,8 @@ void SL_Dualliste::Apply_Damage(const SL_DamageInfo& damageInfo)
         _stateMachineCom->Change_State(SL_MonState::Stun);
         return;
     }
+
+    GAME->Play_SoundCue(Constants::SoundCue::Duallist_Pain);
 
     _stateMachineCom->Change_State(SL_MonState::Hit);
 }

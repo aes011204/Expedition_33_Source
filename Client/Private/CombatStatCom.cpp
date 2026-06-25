@@ -24,7 +24,7 @@ HRESULT CombatStatCom::Initialize_Prototype()
 HRESULT CombatStatCom::Initialize(void* arg)
 {
     CHECK_FAILED(Component::Initialize(arg), E_FAIL);
-    
+    _reviveBlocked = false;
 
  
 
@@ -33,13 +33,32 @@ HRESULT CombatStatCom::Initialize(void* arg)
 
 json CombatStatCom::To_Json() const
 {
-    return Component::To_Json();
+    json root = Component::To_Json();
+
+    if (!_skillKeys.empty())
+        root["_skillKeys"] = _skillKeys;
+
+    return root;
 }
 
 void CombatStatCom::From_Json(const json& data)
 {
     Component::From_Json(data);
+    _reviveBlocked = false;
 
+    const auto skillKeysIt = data.find("_skillKeys");
+    if (skillKeysIt == data.end() || !skillKeysIt->is_array())
+        return;
+
+    _skillKeys.clear();
+
+    for (const json& entry : *skillKeysIt)
+    {
+        if (!entry.is_string())
+            continue;
+
+        _skillKeys.push_back(entry.get<string>());
+    }
 }
 
 
