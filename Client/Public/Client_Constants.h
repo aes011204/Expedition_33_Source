@@ -455,17 +455,21 @@ namespace Client::Constants::Prefab
     inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
     inline constexpr char Gustave_Baguette[]        = "WP_Gustave_Baguette";
     inline constexpr char Gustave_Baguette_Gun[]    = "WP_Gustave_Baguette_Gun";
+    inline constexpr char Gustave_Tireso[]          = "WP_Gustave_Tireso";
+    inline constexpr char Gustave_Tireso_Gun[]      = "WP_Gustave_Tireso_Gun";
 
     // 루
     inline constexpr char Lune_Colim[]              = "WP_Lune_Colim";
     inline constexpr char Lune_Baguette[]           = "WP_Lune_Baguette";
+    inline constexpr char Lune_Snowim[]             = "WP_Lune_Snowim";
 
     // 마
     inline constexpr char Maelle_Medalum[]          = "WP_Maelle_Medalum";
     inline constexpr char Maelle_Baguette[]         = "WP_Maelle_Baguette";
+    inline constexpr char Maelle_Plenum[]           = "WP_Maelle_Plenum";
 
     // 시몬
-    inline constexpr char Simon_Weapon[]            = "WP_Simon";
+    inline constexpr char Simon_Weapon[]             = "WP_Simon";
 
     inline constexpr char Dualliste_Sword_L[]        = "WP_Dualliste_Sword_L";
     inline constexpr char Dualliste_Sword_R[]        = "WP_Dualliste_Sword_R";

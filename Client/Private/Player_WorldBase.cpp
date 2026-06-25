@@ -947,7 +947,7 @@ HRESULT Player_WorldBase::Ready_Components()
 
     moveDesc.sweep.skinWidth = 0.03f;
     moveDesc.sweep.groundSnapUp = 0.35f;
-    moveDesc.sweep.groundSnapDown = 0.65f;
+    moveDesc.sweep.groundSnapDown = 0.90f;
     moveDesc.sweep.walkableNormalY = 0.65f;
     moveDesc.sweep.groundY = 0.f;
 

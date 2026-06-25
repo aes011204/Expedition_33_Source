@@ -1053,7 +1053,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.instancedTransformDuration +=
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
 
-        static constexpr float CHUNK_SIZE = 100.f;
+        static constexpr float CHUNK_SIZE = 200.f;
 
         map<pair<int32, int32>, vector<InstanceTransform>> chunkMap;
         for (const auto& t : desc.transforms)

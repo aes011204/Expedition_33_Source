@@ -34,6 +34,10 @@ IMPLEMENT_SINGLETON(ClientInstance)
 
 namespace
 {
+    bool g_debugDisableMapInstancedMeshRender = false;
+    bool g_debugDisableGrassInstancedRender = false;
+    bool g_debugDisableMapStaticMeshRender = false;
+
     string Get_WeaponCharacterId(HeroId heroId)
     {
         switch (heroId)
@@ -213,6 +217,36 @@ void ClientInstance::Update_UIPreviewOnly(float timeDelta)
 {
     if (_previewManager)
         _previewManager->Update(timeDelta);
+}
+
+bool ClientInstance::Is_DebugDisableMapInstancedMeshRender()
+{
+    return g_debugDisableMapInstancedMeshRender;
+}
+
+void ClientInstance::Set_DebugDisableMapInstancedMeshRender(bool disabled)
+{
+    g_debugDisableMapInstancedMeshRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableGrassInstancedRender()
+{
+    return g_debugDisableGrassInstancedRender;
+}
+
+void ClientInstance::Set_DebugDisableGrassInstancedRender(bool disabled)
+{
+    g_debugDisableGrassInstancedRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapStaticMeshRender()
+{
+    return g_debugDisableMapStaticMeshRender;
+}
+
+void ClientInstance::Set_DebugDisableMapStaticMeshRender(bool disabled)
+{
+    g_debugDisableMapStaticMeshRender = disabled;
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
