@@ -284,6 +284,7 @@
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
+    <ClInclude Include="..\Public\ANS_SL_MonsterAttackCamera.h" />
     <ClInclude Include="..\Public\ANS_SL_TargetTrack.h" />
     <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h" />
     <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h" />
@@ -720,6 +721,7 @@
     <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
     <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_MonsterAttackCamera.cpp" />
     <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />

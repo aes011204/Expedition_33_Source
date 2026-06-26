@@ -188,12 +188,48 @@ HRESULT SoulLikeCamera::Render()
 void SoulLikeCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     _targetTransformCom = targetTransform;
+    _opponentTransformCom.reset();
 
     if (targetTransform)
     {
         const Vec3 targetPos = targetTransform->Get_WorldPosition();
         _prevTargetPos = targetPos;
         _smoothedTargetPos = targetPos;
+    }
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+}
+
+void SoulLikeCamera::SetCombatFocusTransforms(Shared<TransformCom> playerTransform, Shared<TransformCom> opponentTransform)
+{
+    _targetTransformCom = playerTransform;
+    _opponentTransformCom = opponentTransform;
+
+    Vec3 subjectPos = Vec3::Zero;
+    bool hasSubject = false;
+
+    if (playerTransform != nullptr && opponentTransform != nullptr)
+    {
+        subjectPos = (playerTransform->Get_WorldPosition() + opponentTransform->Get_WorldPosition()) * 0.5f;
+        hasSubject = true;
+    }
+    else if (playerTransform != nullptr)
+    {
+        subjectPos = playerTransform->Get_WorldPosition();
+        hasSubject = true;
+    }
+    else if (opponentTransform != nullptr)
+    {
+        subjectPos = opponentTransform->Get_WorldPosition();
+        hasSubject = true;
+    }
+
+    if (hasSubject)
+    {
+        _prevTargetPos = subjectPos;
+        _smoothedTargetPos = subjectPos;
     }
 
     _collisionQueryAccum = 0.f;
@@ -245,6 +281,8 @@ void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
     _collisionDistance = -1.f;
+
+    Update_FromCurrentSettings(0.f);
 }
 
 bool SoulLikeCamera::Apply_PresetOverride(const string& presetKey)
@@ -355,6 +393,7 @@ void SoulLikeCamera::Interpolate_CurrentSettings(float timeDelta)
     _currentSettings.camera.nearPlane = lerp(_currentSettings.camera.nearPlane, _targetSettings.camera.nearPlane, t);
     _currentSettings.camera.farPlane = lerp(_currentSettings.camera.farPlane, _targetSettings.camera.farPlane, t);
     _currentSettings.targetFollowEasing = _targetSettings.targetFollowEasing;
+    _currentSettings.focusMode = _targetSettings.focusMode;
 
     Set_FovY(_currentSettings.camera.fovy);
     Set_Near(_currentSettings.camera.nearPlane);
@@ -368,6 +407,38 @@ bool SoulLikeCamera::Try_GetTargetTransform(Shared<TransformCom>& outTargetTrans
 
     outTargetTransformCom = _targetTransformCom.lock();
     return outTargetTransformCom != nullptr;
+}
+
+bool SoulLikeCamera::Try_GetOpponentTransform(Shared<TransformCom>& outOpponentTransformCom) const
+{
+    if (_opponentTransformCom.expired())
+        return false;
+
+    outOpponentTransformCom = _opponentTransformCom.lock();
+    return outOpponentTransformCom != nullptr;
+}
+
+Vec3 SoulLikeCamera::Resolve_SubjectPosition()
+{
+    Shared<TransformCom> targetTransformCom;
+    const bool hasTarget = Try_GetTargetTransform(targetTransformCom);
+
+    Shared<TransformCom> opponentTransformCom;
+    const bool hasOpponent = Try_GetOpponentTransform(opponentTransformCom);
+
+    if (_currentSettings.focusMode == SoulLikeCameraFocusMode::PlayerOpponentMidpoint && hasTarget && hasOpponent)
+        return (targetTransformCom->Get_WorldPosition() + opponentTransformCom->Get_WorldPosition()) * 0.5f;
+
+    if (_currentSettings.focusMode == SoulLikeCameraFocusMode::Opponent && hasOpponent)
+        return opponentTransformCom->Get_WorldPosition();
+
+    if (hasTarget)
+        return targetTransformCom->Get_WorldPosition();
+
+    if (hasOpponent)
+        return opponentTransformCom->Get_WorldPosition();
+
+    return _smoothedTargetPos;
 }
 
 void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta)
@@ -420,10 +491,11 @@ void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float 
 void SoulLikeCamera::Update_FromCurrentSettings(float timeDelta)
 {
     Shared<TransformCom> targetTransformCom;
-    if (!Try_GetTargetTransform(targetTransformCom))
+    Shared<TransformCom> opponentTransformCom;
+    if (!Try_GetTargetTransform(targetTransformCom) && !Try_GetOpponentTransform(opponentTransformCom))
         return;
 
-    const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+    const Vec3 targetPos = Resolve_SubjectPosition();
 
     const float finalYaw = _yaw + _currentSettings.yawOffset;
     const float finalPitch = _pitch + _currentSettings.pitchOffset;

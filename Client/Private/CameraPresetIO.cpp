@@ -48,6 +48,7 @@ void CameraPresetIO::SaveSoulLikePresetToFile(const string& presetKey, const Tar
     json jsonData{};
 
     jsonData["snapOnEnter"] = preset.snapOnEnter;
+    jsonData["focusMode"] = static_cast<int>(preset.focusMode);
     jsonData["followSpeed"] = preset.followSpeed;
     jsonData["targetFollowSpeed"] = preset.targetFollowSpeed;
     jsonData["verticalFollowSpeed"] = preset.verticalFollowSpeed;
@@ -103,6 +104,20 @@ bool CameraPresetIO::LoadSoulLikePresetFromFile(const string& presetKey, TargetC
         static_cast<int>(BattleCameraTransitionEasing::EaseOut));
 
     preset.snapOnEnter = jsonData.value("snapOnEnter", preset.snapOnEnter);
+    const int focusMode = jsonData.value("focusMode", static_cast<int>(preset.focusMode));
+    switch (focusMode)
+    {
+    case static_cast<int>(SoulLikeCameraFocusMode::PlayerOpponentMidpoint):
+        preset.focusMode = SoulLikeCameraFocusMode::PlayerOpponentMidpoint;
+        break;
+    case static_cast<int>(SoulLikeCameraFocusMode::Opponent):
+        preset.focusMode = SoulLikeCameraFocusMode::Opponent;
+        break;
+    case static_cast<int>(SoulLikeCameraFocusMode::Player):
+    default:
+        preset.focusMode = SoulLikeCameraFocusMode::Player;
+        break;
+    }
     preset.followSpeed = jsonData.value("followSpeed", preset.followSpeed);
     preset.targetFollowSpeed = jsonData.value("targetFollowSpeed", preset.targetFollowSpeed);
     preset.verticalFollowSpeed = jsonData.value("verticalFollowSpeed", preset.verticalFollowSpeed);

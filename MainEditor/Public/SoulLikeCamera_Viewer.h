@@ -82,6 +82,7 @@ private:
 
     Shared<Client::SoulLikeCamera> Resolve_RuntimeSoulLikeCamera() const;
     void Capture_RuntimePreset();
+    bool Capture_RuntimeAnimationPose();
     void Apply_RuntimePreset();
     void Reset_CurrentPresetFromBase();
     bool Load_CurrentPresetFile(TargetCameraPreset& outPreset) const;
@@ -105,6 +106,7 @@ private:
     void Sort_ClipTrack(CameraTrack& track);
     void Insert_ClipKeyAtFrame(int trackIndex, int frame);
     void Insert_CurrentPoseKeysAtFrame(int frame);
+    bool Update_CurrentPoseKeysAtFrame(int frame);
     void Remove_SelectedClipKey();
     bool Has_ClipTrackKeys(const CameraTrack& track, bool enabled) const;
 
@@ -113,6 +115,7 @@ private:
     void Position_PreviewActors() const;
     void Render_PreviewScene(float timeDelta);
     float Resolve_CurrentAnimationDurationSec() const;
+    int Resolve_CurrentAnimationFps() const;
 
     Shared<ModelCom> Resolve_PlayerModel() const;
     Shared<ModelCom> Resolve_MonsterModel() const;
@@ -122,7 +125,7 @@ private:
     CameraProfileType _profileType = CameraProfileType::Base;
 
     string _playerPrefab = "SL_Maelle";
-    string _monsterPrefab = "SL_Test_Lancelier";
+    string _monsterPrefab = "SL_Dualliste";
 
     vector<string> _skillKeys{};
     int _selectedSkillIndex = -1;

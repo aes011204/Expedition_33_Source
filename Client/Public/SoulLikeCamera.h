@@ -55,6 +55,7 @@ public:
 
 public:
     void SetTargetTransform(Shared<TransformCom> targetTransform);
+    void SetCombatFocusTransforms(Shared<TransformCom> playerTransform, Shared<TransformCom> opponentTransform);
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
 
     const TargetCameraPreset& Get_Preset() const;
@@ -68,6 +69,8 @@ private:
     void Build_DefaultPreset(const SOULLIKE_CAMERA_DESC& desc);
     void Interpolate_CurrentSettings(float timeDelta);
     bool Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const;
+    bool Try_GetOpponentTransform(Shared<TransformCom>& outOpponentTransformCom) const;
+    Vec3 Resolve_SubjectPosition();
     void Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta);
     void Update_FromCurrentSettings(float timeDelta);
     Vec3 Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta);
@@ -79,6 +82,7 @@ private:
     string _activePresetKey{};
 
     Weak<TransformCom> _targetTransformCom{};
+    Weak<TransformCom> _opponentTransformCom{};
     Vec3 _smoothedTargetPos = Vec3::Zero;
     Vec3 _prevTargetPos = Vec3::Zero;
 
