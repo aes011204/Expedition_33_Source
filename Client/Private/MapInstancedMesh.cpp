@@ -98,6 +98,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         _visible = pDesc->visible;
         _cullEnabled = pDesc->cullEnabled;
         _castShadow = pDesc->castShadow;
+        _cullDist = pDesc->cullDist;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -208,7 +209,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
 
         if (hasCamPos)
         {
-            const float cullDist = INSTANCE_CULL_DIST;
+            const float cullDist = _cullDist;
             if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
             {
                 submitShadowIfInRange();

@@ -1116,6 +1116,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chunkDesc.visible = desc.visible;
             chunkDesc.cullEnabled = desc.cullEnabled;
             chunkDesc.castShadow = desc.castShadow;
+            chunkDesc.cullDist = firstEntry.value("CullDist", 125.f);
 
             Shared<GameObject> spawnedObject = nullptr;
             const HRESULT addResult = GAME->Add_GameObject(

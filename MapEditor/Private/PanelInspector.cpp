@@ -654,6 +654,7 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 }
             }
             ImGui::Checkbox("Cull Enabled##instanced", &obj->_cullEnabled);
+            ImGui::DragFloat("Cull Dist##instanced", &obj->_instancedCullDist, 1.f, 1.f, 500.f);
             ImGui::Checkbox("Cast Shadow##instanced", &obj->_castShadow);
 
             ImGui::Separator();
