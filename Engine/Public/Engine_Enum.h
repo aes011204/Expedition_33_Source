@@ -105,7 +105,8 @@ namespace Engine
         SSAOBlur,
         Fog,
         FroxelDebug,
-        AmbientVisibilityResolve
+        AmbientVisibilityResolve,
+        PointGlowSource
     };
 
     enum class PostProcessPass : uint8
@@ -126,6 +127,7 @@ namespace Engine
         DOFBlurNearHalf,
         DOFBlurFarHalf,
         DOFCompositeHDR,
+        PointGlowCompositeHDR,
 
         END
     };

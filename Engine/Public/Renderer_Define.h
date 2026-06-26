@@ -94,6 +94,7 @@ namespace MRT
     inline constexpr const wchar_t* LightAcc = L"MRT_LightAcc";
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";
+    inline constexpr const wchar_t* HDRColorOnly = L"MRT_HDRColorOnly";
     inline constexpr const wchar_t* DistortionField = L"MRT_DistortionField";
     inline constexpr const wchar_t* LightShaftMaskHalf = L"MRT_LightShaftMaskHalf";
     inline constexpr const wchar_t* LightShaftBlurHalf = L"MRT_LightShaftBlurHalf";

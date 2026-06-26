@@ -534,6 +534,7 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             ImGui::DragFloat("Distance Influence", &obj->_ppGroundFogDistanceInfluence, 0.01f, 0.f, 1.f);
             ImGui::DragFloat("Near Fade Distance", &obj->_ppGroundFogNearFadeDistance, 0.1f, 0.f, 10000.f);
             ImGui::DragFloat("Near Min Factor", &obj->_ppGroundFogNearMinFactor, 0.01f, 0.f, 1.f);
+            ImGui::DragFloat("Global Fog Intensity", &obj->_ppGlobalFogIntensity, 0.01f, 0.f, 1.f);
 
             float fogColor[3] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
             if (ImGui::ColorEdit3("Fog Color", fogColor))

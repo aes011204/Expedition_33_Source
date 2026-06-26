@@ -133,6 +133,7 @@ private :
     HRESULT Render_DOFPreFilterPass();
     HRESULT Render_DOFBlurPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_DOFCompositePass();
+    HRESULT Render_PointLightGlow();
     bool Try_BuildLightShaftParams(LightShaftCB& outParams) const;
     HRESULT Render_DistortionResolve();
 

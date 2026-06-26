@@ -4,6 +4,7 @@
 #include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
+#include "MapLoader.h"
 #include "UI_RuntimeLoader.h"
 
 #include "Level_MainTitle.h"
@@ -111,6 +112,8 @@ void Level_Loading::Update(float fTimeDelta)
             pNextLevel = Level_GestralVillage::Create(_device.Get(), _context.Get());
             break;
         }
+
+        MapLoader::Reapply_CachedLights();
 
         if (nullptr == pNextLevel)
         {

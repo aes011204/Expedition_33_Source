@@ -134,6 +134,12 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
 PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 {
     PS_OUT_LIGHT Out;
+    Out.Shade = float4(0.f, 0.f, 0.f, 1.f);
+    Out.Specular = float4(0.f, 0.f, 0.f, 1.f);
+    Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
+
+    if (g_LightRange <= EPSILON)
+        return Out;
 
     // Diffuse
     vector baseColorDesc = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
@@ -159,14 +165,11 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float invHLen = rsqrt(max(dot(Hraw, Hraw), EPSILON));
     float3 H = Hraw * invHLen;                                                      // V와 L의 중간 방향. 하프벡터
 
-    float att = saturate((g_LightRange - Distance) / g_LightRange);
+    float att = saturate(1.f - Distance / g_LightRange);
 
     float NdotL = saturate(dot(N, L));  // 표면이 빛을 얼마나 정면으로 받는지
     if (NdotL <= 0.0f)
     {
-        Out.Shade = float4(0, 0, 0, 1);
-        Out.Specular = float4(0, 0, 0, 1);
-        Out.Ambient = float4(0, 0, 0, 1);
         return Out;
     }
 
@@ -191,6 +194,48 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
     Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
+
+    return Out;
+}
+
+PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+    Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+
+    if (g_LightRange <= EPSILON)
+        return Out;
+
+    float4 lightViewPos = mul(float4(g_LightPos.xyz, 1.f), g_ScreenViewMatrix);
+    float4 lightClipPos = mul(lightViewPos, g_ScreenProjMatrix);
+    if (lightClipPos.w <= EPSILON)
+        return Out;
+
+    float lightClipDepth = lightClipPos.z / lightClipPos.w;
+    if (lightClipDepth < 0.f || lightClipDepth > 1.f)
+        return Out;
+
+    float2 lightNDC = lightClipPos.xy / lightClipPos.w;
+    float2 lightUV = float2(lightNDC.x * 0.5f + 0.5f, -lightNDC.y * 0.5f + 0.5f);
+    if (any(lightUV < 0.f) || any(lightUV > 1.f))
+        return Out;
+
+    float viewDepth = max(abs(lightViewPos.z), 1.f);
+    float radiusPixels = (g_LightRange / viewDepth) * g_ScreenProjMatrix._22 * g_ScreenSize.y * 0.5f;
+    radiusPixels = clamp(radiusPixels, 24.f, max(g_ScreenSize.x, g_ScreenSize.y) * 1.25f);
+
+    float distPixels = length((In.Texcoord - lightUV) * g_ScreenSize);
+    float glow = saturate(1.f - distPixels / radiusPixels);
+    glow = glow * glow * (3.f - 2.f * glow);
+    glow *= glow;
+
+    float sceneLinearDepth = g_DepthTexture.Sample(PointClampSampler, In.Texcoord).y * g_DeferredFar;
+    float occlusion = (sceneLinearDepth > EPSILON && sceneLinearDepth < viewDepth - 0.25f) ? 0.f : 1.f;
+    glow *= occlusion;
+
+    static const float POINT_GLOW_DEBUG_INTENSITY = 5.f;
+    Out.Color = float4(g_LightDiffuse.rgb * glow * POINT_GLOW_DEBUG_INTENSITY, 1.f);
+    Out.Color = float4(1, 0, 0, 1);
 
     return Out;
 }
@@ -479,4 +524,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(Fog,               RS_Default, DSS_None,       BS_AlphaBlend, VS_MAIN,        PS_Fog)             // 8
     PASS_RS_DS_BS_VP(FroxelDebug,       RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_FroxelDebug)     // 9
     PASS_RS_DS_BS_VP(AmbientVisibilityResolve, RS_Default, DSS_None, BS_AmbientVisibilityMin, VS_MAIN, PS_AmbientVisibilityResolve) // 10
+    PASS_RS_DS_BS_VP(PointGlowSource,   RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_POINT_GLOW_SOURCE)       // 11
 }

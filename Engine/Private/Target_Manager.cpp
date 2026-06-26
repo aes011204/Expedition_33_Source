@@ -152,6 +152,7 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // PostProcess
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::HDRColorOnly, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::DistortionField, RT::DistortionField), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::LightShaftMaskHalf, RT::LightShaftMaskHalf), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::LightShaftBlurHalf, RT::LightShaftBlurHalf), E_FAIL);

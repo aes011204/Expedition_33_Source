@@ -530,7 +530,7 @@ float ComputeGlobalDistanceFog(float distanceToSurface)
     const float g_GlobalFogMaxDensity = 0.8f;
 
     float fogDistance = max(distanceToSurface - g_GlobalFogStart, 0.f);
-    return saturate(1.f - exp(-g_GlobalFogDensity * fogDistance));
+    return saturate(1.f - exp(-g_GlobalFogDensity * fogDistance)) * saturate(g_GlobalFogIntensity);
 }
 
 float SampleFogNoisePseudo3D(float3 worldPos, float baseScale, float2 scroll, float seed)
