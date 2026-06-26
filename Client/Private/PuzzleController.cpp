@@ -148,6 +148,7 @@ void PuzzleController::BridgeMoving(float timeDelta)
     {
         _bridgeMoveElapsed = _bridgeMoveDuration;
         _isBridgeMoving = false;
+        _bridgeObject->Rebuild_StaticCollisionFromModel();
     }
 }
 
