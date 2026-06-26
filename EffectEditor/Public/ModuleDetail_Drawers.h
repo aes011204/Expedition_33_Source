@@ -98,6 +98,17 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// CylinderLocation module의 원통 spawn 위치 authoring row를 그린다.
+class CylinderLocationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        const AuthoringModule& module,
+        CylinderLocationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 // InitialVelocity module의 initial velocity authoring row를 그린다.
 class InitialVelocityModuleDetail
 {

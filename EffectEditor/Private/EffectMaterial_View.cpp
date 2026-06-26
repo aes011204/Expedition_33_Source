@@ -305,7 +305,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 0.35f);
     ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.65f);
 
-    const auto drawRow = [](const char* label, const string& value)
+    const auto draw_row = [](const char* label, const string& value)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -314,7 +314,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::TextUnformatted(value.c_str());
     };
 
-    const auto drawTextureRow = [](const char* label, const string& textureGuid, const string& texturePath)
+    const auto draw_texture_row = [](const char* label, const string& textureGuid, const string& texturePath)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -332,8 +332,8 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         }
     };
 
-    drawTextureRow("Main Texture (Emissive)", material.mainTextureGuid, material.mainTexturePath);
-    drawTextureRow("Noise Texture", material.noiseTextureGuid, material.noiseTexturePath);
+    draw_texture_row("Main Texture (Emissive)", material.mainTextureGuid, material.mainTexturePath);
+    draw_texture_row("Noise Texture", material.noiseTextureGuid, material.noiseTexturePath);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
@@ -380,12 +380,12 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::Text("%.2f / %.2f", material.coreEmissive.outerPower, material.coreEmissive.outerIntensity);
     }
 
-    drawRow("Preset Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
+    draw_row("Preset Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
     if (material.blendMode == EffectMaterialBlendMode::Additive)
     {
-        drawRow("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
-        drawRow("Additive Amount Source", Internal::Get_AdditiveAmountSourceLabel(material.additive.amountSource));
-        drawRow("Additive Coverage", Internal::Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
+        draw_row("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
+        draw_row("Additive Amount Source", Internal::Get_AdditiveAmountSourceLabel(material.additive.amountSource));
+        draw_row("Additive Coverage", Internal::Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -394,7 +394,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::Text("%.2f", material.additive.intensityScale);
     }
     else
-        drawRow("Opacity Source", material.opacitySource);
+        draw_row("Opacity Source", material.opacitySource);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);

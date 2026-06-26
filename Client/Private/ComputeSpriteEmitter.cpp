@@ -108,6 +108,20 @@ static Vec2 Resolve_PlaneScale(PointParticlePlaneRadialLocationPlane plane, cons
     }
 }
 
+static Vec2 Resolve_CylinderScale(PointParticleCylinderLocationAxis axis, const Vec3& scale)
+{
+    switch (axis)
+    {
+    case PointParticleCylinderLocationAxis::LocalX:
+        return Vec2{ max(scale.y, scale.z), scale.x };
+    case PointParticleCylinderLocationAxis::LocalY:
+        return Vec2{ max(scale.x, scale.z), scale.y };
+    case PointParticleCylinderLocationAxis::LocalLook:
+    default:
+        return Vec2{ max(scale.x, scale.y), scale.z };
+    }
+}
+
 static bool Nearly_EqualScale(const Vec3& lhs, const Vec3& rhs)
 {
     constexpr float scaleEpsilon = 0.0001f;
@@ -1067,6 +1081,17 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.planeRadialLocation.radiusRange = EffectAssetRuntimeLoad::Scale_Vector2(
         desc.planeRadialLocation.radiusRange,
         Vec2{ uniformPlaneScale, uniformPlaneScale }
+    );
+    desc.cylinderLocation = _desc.cylinderLocation;
+    const Vec2 cylinderScale = EffectAssetRuntimeLoad::Resolve_CylinderScale(desc.cylinderLocation.axis, worldScale);
+    desc.cylinderLocation.offset = EffectAssetRuntimeLoad::Scale_Vector3(desc.cylinderLocation.offset, worldScale);
+    desc.cylinderLocation.radiusRange = EffectAssetRuntimeLoad::Scale_Vector2(
+        desc.cylinderLocation.radiusRange,
+        Vec2{ cylinderScale.x, cylinderScale.x }
+    );
+    desc.cylinderLocation.heightRange = EffectAssetRuntimeLoad::Scale_Vector2(
+        desc.cylinderLocation.heightRange,
+        Vec2{ cylinderScale.y, cylinderScale.y }
     );
     desc.planeRadialOrientation = _desc.planeRadialOrientation;
     desc.initialLocationSeed = _desc.initialLocationSeed;
