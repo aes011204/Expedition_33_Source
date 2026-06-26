@@ -811,6 +811,7 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
+    const bool savedRenderEnvironment = _renderer->Is_RenderEnvironment();
     const bool savedScreenFxActivated = (_screenFxManager != nullptr) && _screenFxManager->Is_ScreenFXActivated();
     Shared<PostProcessPipeline> postProcessPipeline = _renderer->Get_PostProcessPipeline();
     Shared<LightingPipeline> lightingPipeline = _renderer->Get_LightingPipeline();
@@ -876,7 +877,7 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
     if (hasPostProcessPipeline)
         postProcessPipeline->Set_PostProcessFeatures(savedPostProcessFeatures);
 
-    _renderer->Set_RenderEnvironment(false);
+    _renderer->Set_RenderEnvironment(savedRenderEnvironment);
 
     return S_OK;
 }

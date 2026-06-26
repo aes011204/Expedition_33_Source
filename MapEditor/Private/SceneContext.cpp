@@ -793,6 +793,7 @@ void SceneContext::SaveToFile(const string& filePath)
             e["Visible"] = obj->_visible;
             e["CullEnabled"] = obj->_cullEnabled;
             e["CastShadow"] = obj->_castShadow;
+            e["CullDist"] = obj->_instancedCullDist;
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
 
@@ -1164,6 +1165,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             obj->_visible = e.value("Visible", true);
             obj->_cullEnabled = e.value("CullEnabled", true);
             obj->_castShadow = e.value("CastShadow", true);
+            obj->_instancedCullDist = e.value("CullDist", 125.f);
 
             string modelPathStr = e.value("ModelPath", string{});
             if (!modelPathStr.empty())
@@ -2101,6 +2103,7 @@ void SceneContext::Export_MapInstance(const string& mapName)
             e["Visible"] = obj->_visible;
             e["CullEnabled"] = obj->_cullEnabled;
             e["CastShadow"] = obj->_castShadow;
+            e["CullDist"] = obj->_instancedCullDist;
             json instArr = json::array();
             for (auto& transform : obj->_instancedTransforms)
             {

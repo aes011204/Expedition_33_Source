@@ -1224,6 +1224,12 @@ void ClientInstance::StartDialogue(const DialogueRequest& request)
     _dialogueManager->StartDialogue(request);
 }
 
+void ClientInstance::EndDialogue()
+{
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue();
+}
+
 bool ClientInstance::IsDialogueActive() const
 {
     return _dialogueManager && _dialogueManager->IsActive();
@@ -1232,6 +1238,17 @@ bool ClientInstance::IsDialogueActive() const
 bool ClientInstance::IsDialogueInteractLocked() const
 {
     return _dialogueManager && _dialogueManager->IsInteractLocked();
+}
+
+void ClientInstance::AddDialogueInteractionOverlap()
+{
+    ++_dialogueInteractionOverlapCount;
+}
+
+void ClientInstance::RemoveDialogueInteractionOverlap()
+{
+    if (_dialogueInteractionOverlapCount > 0)
+        --_dialogueInteractionOverlapCount;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

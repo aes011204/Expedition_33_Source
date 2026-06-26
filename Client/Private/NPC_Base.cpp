@@ -186,7 +186,7 @@ HRESULT NPC_Base::Ready_Components()
     obbDesc.center = Vec3(0.f, 0.6f, 0.f);
     obbDesc.extents = Vec3(0.7f, 1.f, 0.7f);
 
-    CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Monster_WorldBody), E_FAIL);
+    CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::NPC_WorldBody), E_FAIL);
 
     return S_OK;
 }
