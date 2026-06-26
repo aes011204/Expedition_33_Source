@@ -44,6 +44,13 @@ enum class BattleCameraTransitionEasing
     EaseOutBack
 };
 
+enum class SoulLikeCameraFocusMode
+{
+    Player,
+    PlayerOpponentMidpoint,
+    Opponent
+};
+
 struct PreviewShotPreset
 {
     Vec3 lookOffset;
@@ -133,6 +140,7 @@ struct TargetCameraPreset
 {
     CommonCameraPreset camera;
     bool         snapOnEnter = false;
+    SoulLikeCameraFocusMode focusMode = SoulLikeCameraFocusMode::Player;
 
     float        followSpeed = 8.f;
     float        targetFollowSpeed = 4.f; // 플레이어의 위치를 카메라가 따라가는 속도

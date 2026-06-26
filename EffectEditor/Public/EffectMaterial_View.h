@@ -43,7 +43,7 @@ private: //## Data::Preset
 
 private: //## Helper::PresetView
     void Render_PresetInfo();
-    void Render_PresetPreview();
+    void Render_PresetPreview(bool fillAvailableHeight);
     void Render_MaterialInstanceTable(const char* tableId, const EffectMaterialInstanceData& material) const;
     void Refresh_PresetList();
     bool Load_PresetGuid(const string& guid);
