@@ -78,6 +78,7 @@ struct EditorObject
     bool _visible = true;
     bool _cullEnabled = true;
     bool _castShadow = true;
+    float _instancedCullDist = 125.f;
 
     float _scatterRadius = 5.f;
     int32 _scatterCount = 5;
