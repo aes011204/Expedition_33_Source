@@ -1,4 +1,4 @@
-#include "AN_SL_SpawnAttColl.h"
+﻿#include "AN_SL_SpawnAttColl.h"
 
 #include <unordered_map>
 
@@ -23,7 +23,7 @@ namespace
         return stateKey ^ (ownerKey + 0x9e3779b9u + (stateKey << 6) + (stateKey >> 2));
     }
 
-    std::unordered_map<size_t, Weak<GameObject>>& Get_SpawnedObjects()
+    unordered_map<size_t, Weak<GameObject>>& Get_SpawnedObjects()
     {
         static std::unordered_map<size_t, Weak<GameObject>> spawnedObjects{};
         return spawnedObjects;
