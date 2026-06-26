@@ -16,7 +16,7 @@ public:
 public:
     void StartDialogue(const DialogueRequest& request);
     void ContinueDialogue();
-    void EndDialogue();
+    void EndDialogue(bool restoreWorldState = true);
     void MoveToLine(int lineIndex);
     void Update();
     bool IsActive() const { return _isActive; }
@@ -26,6 +26,7 @@ private:
     void AlignDialogueActors();
     void SelectChoice();
     void ApplyChoice();
+    bool ExecuteLineAction(const string& action);
     const DialogueLine* GetCurrentLine();
     void ApplyCurrentLine();
 

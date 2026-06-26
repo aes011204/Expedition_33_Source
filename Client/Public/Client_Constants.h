@@ -509,6 +509,8 @@ namespace Client::Constants::Prefab
     inline constexpr char Trigger_BGMZone[] = "ETC/Trigger_BGMZone";
 
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
+    inline constexpr char BSS_Gestral_PotatoBag[] = "BattleStartSpawner/BSS_Gestral_PotatoBag";
+
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -583,4 +585,10 @@ namespace Client::Constants::Effect
 namespace Client::Constants::Dialogue
 {
     constexpr const wchar_t* Dialogue_Dir = L"../../../Client/Bin/Resources/Data/json/Dialogue/Dialogues.json";
+}
+
+namespace Client::Constants::Value
+{
+    constexpr uint32 potatoBagEncounterId = 1;
+    constexpr int32  potatoBagBattleStartSpawnerId = 5;
 }

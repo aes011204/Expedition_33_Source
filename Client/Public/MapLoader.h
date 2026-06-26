@@ -3,6 +3,7 @@
 #include "MapAdapter.h"
 #include "MapCollisionAdapter.h"
 #include <mutex>
+#include <unordered_set>
 
 NS_BEGIN(Engine)
 class GameObject;
@@ -169,6 +170,7 @@ private:
     // 스레드 안전한 전역 맵 모델 프로토타입 캐시 멤버
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;
+    static unordered_set<string> g_globalMissingModelCache;
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
     static umap<string, string> g_globalMaterialSignatureByModel;
     static uint32 g_currentLevelIndex;

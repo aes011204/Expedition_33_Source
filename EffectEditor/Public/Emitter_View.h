@@ -197,6 +197,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialLocationModule();
     AuthoringModule Make_SphereLocationModule();
     AuthoringModule Make_PlaneRadialLocationModule();
+    AuthoringModule Make_CylinderLocationModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();

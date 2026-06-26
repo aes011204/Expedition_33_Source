@@ -1,6 +1,7 @@
 #include "BattleWorldUI_SkillCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
@@ -618,6 +619,16 @@ namespace
         }
 
         return false;
+    }
+
+    bool Has_SecondSkillPage(const Shared<CombatStatCom>& statCom)
+    {
+        if (statCom == nullptr)
+            return false;
+
+        string skillKey{};
+        return statCom->Try_GetSkillKeyBySlot(3, skillKey) ||
+            statCom->Try_GetSkillKeyBySlot(4, skillKey);
     }
 
     string Read_JsonString(const json& node, const char* key, const string& fallback = {})
@@ -2535,6 +2546,12 @@ HRESULT BattleWorldUI_SkillCards::Warmup_ForBattleState(
 
         if (surfaceIndex == kBattleWorldSkillChangeSurfaceIndex)
         {
+            if (!Has_SecondSkillPage(actor.statCom))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
             BattleWorldSkillCardContent content{};
             content.skillKey = "ChangeSkillPage";
 
@@ -2723,6 +2740,12 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
 
         if (surfaceIndex == kBattleWorldSkillChangeSurfaceIndex)
         {
+            if (!Has_SecondSkillPage(actor.statCom))
+            {
+                card.hasContent = false;
+                continue;
+            }
+
             BattleWorldSkillCardContent content{};
             content.skillKey = "ChangeSkillPage";
 
@@ -2839,8 +2862,8 @@ void BattleWorldUI_SkillCards::Show_ForBattleState(
         const Vec3 position =
             anchorWorldPos +
             Resolve_CameraScreenPositionDelta(presentation.screenPosition) +
-            placementTuning.baseOffset +
-            localOffset;
+            BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(placementTuning.baseOffset) +
+            BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(localOffset);
         card.worldMatrix =
             Matrix::CreateScale(
                 surfaceWorldSize.x * presentation.visualScale,

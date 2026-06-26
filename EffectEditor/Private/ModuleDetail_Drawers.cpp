@@ -293,6 +293,44 @@ namespace Internal
         }
     }
 
+    static const char* Get_CylinderLocationAxisLabel(CylinderLocationAxis axis)
+    {
+        switch (axis)
+        {
+        case CylinderLocationAxis::LocalX:
+            return "Local X";
+        case CylinderLocationAxis::LocalY:
+            return "Local Y";
+        case CylinderLocationAxis::LocalLook:
+        default:
+            return "Local Look";
+        }
+    }
+
+    static const char* Get_CylinderLocationSpawnModeLabel(CylinderLocationSpawnMode mode)
+    {
+        switch (mode)
+        {
+        case CylinderLocationSpawnMode::Volume:
+            return "부피";
+        case CylinderLocationSpawnMode::SideSurface:
+        default:
+            return "옆면";
+        }
+    }
+
+    static const char* Get_CylinderLocationPlacementModeLabel(CylinderLocationPlacementMode mode)
+    {
+        switch (mode)
+        {
+        case CylinderLocationPlacementMode::EvenByParticleIndex:
+            return "인덱스 균등";
+        case CylinderLocationPlacementMode::Random:
+        default:
+            return "랜덤 샘플";
+        }
+    }
+
     static const char* Get_InitialRadialVelocityCenterDirectionModeLabel(InitialRadialVelocityCenterDirectionMode mode)
     {
         switch (mode)
@@ -911,6 +949,139 @@ namespace Internal
 
         if (!enabled)
             ImGui::EndDisabled();
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_CylinderLocationAxisProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        CylinderLocationAxis& value,
+        CylinderLocationAxis defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label, "원통 길이축으로 사용할 emitter local axis입니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_CylinderLocationAxisLabel(value)))
+        {
+            const CylinderLocationAxis candidates[] = {
+                CylinderLocationAxis::LocalX,
+                CylinderLocationAxis::LocalY,
+                CylinderLocationAxis::LocalLook,
+            };
+
+            for (const CylinderLocationAxis candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_CylinderLocationAxisLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_CylinderLocationSpawnModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        CylinderLocationSpawnMode& value,
+        CylinderLocationSpawnMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label, "옆면은 원통 표면/shell, 부피는 원통 내부 공간에서 spawn 위치를 샘플합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_CylinderLocationSpawnModeLabel(value)))
+        {
+            const CylinderLocationSpawnMode candidates[] = {
+                CylinderLocationSpawnMode::SideSurface,
+                CylinderLocationSpawnMode::Volume,
+            };
+
+            for (const CylinderLocationSpawnMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_CylinderLocationSpawnModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_CylinderLocationPlacementModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        CylinderLocationPlacementMode& value,
+        CylinderLocationPlacementMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label, "원주 angle을 랜덤으로 뽑을지 particle index 기준으로 고르게 배치할지 정합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_CylinderLocationPlacementModeLabel(value)))
+        {
+            const CylinderLocationPlacementMode candidates[] = {
+                CylinderLocationPlacementMode::Random,
+                CylinderLocationPlacementMode::EvenByParticleIndex,
+            };
+
+            for (const CylinderLocationPlacementMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_CylinderLocationPlacementModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
 
         if (detailContext.Draw_ResetButton(value != defaultValue))
         {
@@ -2616,6 +2787,87 @@ bool PlaneRadialLocationModuleDetail::Draw(
     return changed;
 }
 
+bool CylinderLocationModuleDetail::Draw(
+    AuthoringEmitter&,
+    const AuthoringModule& module,
+    CylinderLocationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const CylinderLocationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("실린더 위치", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("CylinderLocation"))
+        {
+            changed |= Internal::Draw_CylinderLocationAxisProperty(
+                detailContext,
+                "길이축",
+                data.axis,
+                defaultData.axis
+            );
+            changed |= Internal::Draw_CylinderLocationSpawnModeProperty(
+                detailContext,
+                "생성 방식",
+                data.spawnMode,
+                defaultData.spawnMode
+            );
+            changed |= Internal::Draw_CylinderLocationPlacementModeProperty(
+                detailContext,
+                "원주 배치",
+                data.placementMode,
+                defaultData.placementMode
+            );
+            changed |= detailContext.Draw_Vec3Property(
+                "중심 오프셋",
+                data.offset,
+                defaultData.offset,
+                0.01f,
+                nullptr,
+                "원통 분포 중심에 더하는 emitter local offset입니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "반지름 분포",
+            data.radiusDistribution,
+            defaultData.radiusDistribution,
+            0.01f,
+            true,
+            false,
+            Find_AuthoringValueRange(module.type, "radiusDistribution"),
+            "원통 중심축에서 떨어진 반지름을 spawn 시점에 한 번 샘플합니다."
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "높이 분포",
+            data.heightDistribution,
+            defaultData.heightDistribution,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "원통 길이축 방향 위치를 spawn 시점에 한 번 샘플합니다."
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "각도 분포",
+            data.angleDegreesDistribution,
+            defaultData.angleDegreesDistribution,
+            0.01f,
+            true,
+            false,
+            nullptr,
+            "원주 각도를 degree 단위로 spawn 시점에 한 번 샘플합니다."
+        );
+
+        ImGui::TextDisabled("위치 분포는 spawn 시점 1회 샘플이라 현재 상수/균등만 지원합니다.");
+        if (data.spawnMode == CylinderLocationSpawnMode::SideSurface)
+            ImGui::TextDisabled("반지름 최소/최대가 다르면 두께 있는 원통 shell로 해석합니다.");
+    }
+
+    return changed;
+}
+
 bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialVelocityModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialVelocityModuleData defaultData{};
@@ -3377,6 +3629,17 @@ bool InitialMeshRotationRateModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("초기 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        if (detailContext.Begin_PropertyTable("InitialMeshRotationRate"))
+        {
+            changed |= detailContext.Draw_BoolProperty(
+                "월드 스페이스",
+                data.inWorldSpace,
+                defaultData.inWorldSpace,
+                "켜면 회전 속도 축을 world 기준으로 해석합니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+
         changed |= detailContext.Draw_Vector3DistributionGroup(
             "회전 속도 XYZ",
             data.rotationRateDegrees,

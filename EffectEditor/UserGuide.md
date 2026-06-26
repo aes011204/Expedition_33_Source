@@ -301,7 +301,7 @@ TypeData는 이 타입별 입력을 담는다. 따라서 TypeData를 바꾸면 �
 
 - `스폰`.
 - `수명`.
-- `초기 위치`, `구 위치`, `평면/방사 위치`.
+- `초기 위치`, `구 위치`, `평면/방사 위치`, `실린더 위치`.
 - `초기 속도`, `초기 방사성 속도`, `속도 원뿔`.
 - `초기 크기`, `수명에 따른 크기`.
 - `초기 컬러`, `수명에 따른 색상`.
@@ -654,6 +654,18 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 | `각도 분포` | Disc/Ring/Arc의 angle 분포다. | degree 단위 angular 범위다. | float 분포 | Arc 형태에서 특히 중요하다. |
 | `배치 방식` | radial shape의 배치 방식이다. | `랜덤 샘플(Random)` 또는 `인덱스 균등(EvenByParticleIndex)`을 고른다. | combo | `사각(Rectangle)`에서는 사용되지 않는다. |
 
+`실린더 위치`는 Sprite와 Mesh Emitter에서 원통 옆면 또는 원통 내부 부피의 위치를 만든다. 터널 벽, 기둥형 범위, 반원통 단면처럼 축 방향 길이가 있는 분포를 잡을 때 사용한다. 위치만 만들며, 흐르는 방향은 속도 계열 Module이 맡고 sprite/card 또는 mesh 회전은 회전 계열 Module이 맡는다.
+
+| UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
+| --- | --- | --- | --- | --- |
+| `길이축` | 원통의 긴 방향이다. | `Local X`, `Local Y`, `Local Look` 중 고른다. | combo | 기본값은 터널형 제작에 맞춘 `Local Look`이다. |
+| `생성 방식` | 원통 sample 영역이다. | `옆면(SideSurface)` 또는 `부피(Volume)`를 고른다. | combo | cap surface는 포함하지 않는다. |
+| `원주 배치` | angle sample 방식이다. | `랜덤 샘플(Random)` 또는 `인덱스 균등(EvenByParticleIndex)`을 고른다. | combo | 균등 배치는 angle에만 적용되고, 반지름/높이는 분포 seed를 따른다. |
+| `중심 오프셋` | 원통 중심 offset이다. | Emitter origin에서 원통 중심을 이동한다. | Vec3 고정값 | 모든 sample의 기준점이다. |
+| `반지름 분포` | 중심축에서 떨어진 거리다. | 음수는 0 이상으로 정규화된다. | float 분포 | 옆면에서 min/max가 다르면 두께 있는 shell이 된다. |
+| `높이 분포` | 길이축 방향 위치 범위다. | 중심 기준 축 좌표 범위다. | float 분포 | `-5..5`처럼 양방향 길이를 직접 표현할 수 있다. |
+| `각도 분포` | 원주 angle 범위다. | degree 단위 angular 범위다. | float 분포 | `0..180`이면 반원통 단면을 만든다. |
+
 ### 6.9 크기 Module
 
 크기 Module은 생성 시점 크기와 lifetime 중 크기 배율을 정한다.
@@ -781,6 +793,8 @@ Sprite Trail에서 `Path Follow` 또는 `Path Replay`가 위치 정본을 소유
 ### 6.12 Mesh 회전 Module
 
 Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
+`수명에 따른 메시 회전`은 life 진행도에 따른 자세 오프셋이고, `초기 메시 회전 속도`는 계속 도는 각속도다.
+world/local 기준 선택은 회전 속도 축에만 적용된다.
 
 ![Initial mesh rotation module](UserGuide_Img/detail_initial_mesh_rotation_module.png)
 
@@ -795,6 +809,7 @@ Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
 | `초기 메시 회전` | `회전 XYZ` | 생성 시점 mesh XYZ 회전이다. | degree 축별 회전이다. | Vec3 분포 | Mesh TypeData 전용이다. |
 | `수명에 따른 메시 회전` | `추가 회전 XYZ` | lifetime 동안 더할 mesh XYZ 회전이다. | degree 축별 추가 회전이다. | Vec3 분포/curve | Mesh TypeData 전용이다. |
 | `초기 메시 회전 속도` | `회전 속도 XYZ` | mesh XYZ 회전 속도다. | 축별 degree/sec 계열로 읽는다. | Vec3 분포 | Mesh TypeData 전용이다. |
+| `초기 메시 회전 속도` | `월드 스페이스` | 회전 속도 축의 기준을 정한다. | 켜면 world axis, 끄면 기존 mesh Euler/local axis 기준이다. | bool | 초기 메시 보정 뒤에도 world 축으로 돌리고 싶을 때 켠다. |
 | `수명에 따른 메시 회전 속도` | `회전 속도 배율 XYZ` | lifetime 동안 회전 속도 배율을 바꾼다. | 축별 multiplier다. | Vec3 분포/curve | Mesh TypeData 전용이다. |
 
 ### 6.13 컬러 Module

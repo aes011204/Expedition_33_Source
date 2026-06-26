@@ -8,6 +8,7 @@
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
 #include "MapAmbientVisibility.h"
+#include "BattleStartSpawner.h"
 
 namespace
 {
@@ -223,6 +224,9 @@ HRESULT Level_GestralVillage::Ready_Layer_Camera(const wstring& strLayerTag)
     );
 
     const auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
+    if (targetCamera != nullptr)
+        targetCamera->Set_OrbitAngles(-175.7f, 1.1f);
+
     CLIENT->Set_TargetCamera(targetCamera);
 
     return S_OK;
@@ -257,8 +261,10 @@ HRESULT Level_GestralVillage::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(-9.f, -3.47f, 207.94f);
-    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos), E_FAIL);
+    Vec3 startPos = Vec3(-4.63f, -7.56f, 206.65f);
+    Vec3 startRot = Vec3(0.f, -173.f, 0.f);
+
+    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos, startRot), E_FAIL);
 
     return S_OK;
 }
@@ -318,13 +324,15 @@ HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
 {
+    // 골그라 브금 전환
     const Shared<GameObject> bgmZone = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_BGMZone)
         .AtLevel(ETOI(LevelType::GestralVillage))
         .InLayer(strLayerTag)
         .Position(Vec3(-0.46f, -1.64f, 95.23f))
-        .Rotation(Vec3(-0.f, 0.f, -0.f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
         .Scale(Vec3(4.5f, 5.f, 5.f))
         .Spawn();
+
     CHECK_NULL(bgmZone, E_FAIL);
 
     {
@@ -366,6 +374,19 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
                 &caveDesc),
             E_FAIL);
     }
+    
+    // 감자자루 스폰
+    auto potatobag = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gestral_PotatoBag)
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(L"Layer_BattleStartSpawner")
+        .Position(Vec3(0.69f, 3.68f, 55.6f))
+        .Rotation(Vec3(0.f, -22.6f, 0.f))
+        .Spawn();
+
+    _bssPotatoBag = dynamic_pointer_cast<BattleStartSpawner>(potatobag);
+    CHECK_NULL(_bssPotatoBag, E_FAIL);
+
+    _bssPotatoBag->Set_SpawnerId(Constants::Value::potatoBagBattleStartSpawnerId);
 
     return S_OK;
 }

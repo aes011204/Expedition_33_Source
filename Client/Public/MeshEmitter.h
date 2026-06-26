@@ -83,6 +83,7 @@ private: //## Types::PlaybackRuntime
         Quat spawnOrientation{ Quat::Identity }; // radial orientation module에서 만든 spawn 기준 mesh 회전이다.
         bool spawnOrientationEnabled{ false };   // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
         Vec3 rotationRadians{};                  // 현재 particle 회전값이다.
+        Quat rotationQuat{ Quat::Identity };     // world-space angular velocity 경로가 누적하는 현재 회전이다.
         Vec3 angularVelocityRadians{};           // 현재 particle 회전 속도다.
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };   // InitialColor에서 정한 particle 시작 색상이다.
         Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };     // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.

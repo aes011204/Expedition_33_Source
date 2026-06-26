@@ -42,7 +42,8 @@ public:
     HRESULT Initialize_Hero(
         uint32 levelIndex,
         const wstring& layerTag,
-        const Vec3& startPos = Vec3::Zero);
+        const Vec3& startPos = Vec3::Zero,
+        const Vec3& startRot = Vec3::Zero);
 
     void    Update_HeroManager(float timeDelta);
 
@@ -59,6 +60,7 @@ public:
     HeroPartySlot Get_ActiveHeroSlot() const;
     Shared<Player_WorldBase> Get_ActiveHero() const;
     void Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot);
+    void Set_DialogueFocusActive(bool active);
 
     // 스테이터스 찍을 때 Front로 들어간 구스타브 포커싱되게
     Shared<Player_WorldBase> Get_FrontHero() const;
@@ -156,6 +158,7 @@ private:
     float _followTargetProbeMoveThreshold = 0.15f;
 
     FDelegateHandle _editorStopHandle = {};
+    bool _dialogueFocusActive = false;
 
 public:
     static Unique<Hero_Manager> Create();

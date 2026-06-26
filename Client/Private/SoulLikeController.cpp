@@ -513,6 +513,16 @@ void SoulLikeController::Apply_JumpCounterDamage()
 
     _jumpCounterDamageApplied = true;
     target->Apply_Damage(damageInfo);
+
+    // 이팩트
+    {
+        PlayEffectDesc effectDesc{};
+        effectDesc.effectName = L"Double_Distotion.effect.json";
+        effectDesc.worldPosition = damageInfo.target->Get_Transform()->Get_WorldPosition() + Vec3(0.f, 1.f, 0.f);
+        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+        CLIENT->Play_Effect(effectDesc);
+    }
+
     Play_PlayerAttackHitFeedback(damageInfo);
 
     _jumpCounterAttacker.reset();

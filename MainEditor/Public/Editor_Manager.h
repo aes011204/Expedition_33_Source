@@ -23,6 +23,7 @@ public:
         TiresoSnowimPlenumWeapons,
         AllWeapons,
         FirstTutorialHeroUnlocks,
+        FinalSkillSetupUnlocks,
     };
 
 public:
