@@ -241,6 +241,12 @@ private:
         string payloadJson{};
     };
 
+    struct PreviewWorldTimeScaleState
+    {
+        float worldTimeScale = 1.f;
+        bool scaleEffects = true;
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -340,6 +346,7 @@ private:
     void Draw_ModifierChainDebug() const;
     void Draw_ModifierCollisionDebug() const;
     void Draw_TrailAnchorPreview() const;
+    PreviewWorldTimeScaleState Resolve_PreviewWorldTimeScaleState(float currentTimeSec) const;
     void Update_PreviewAnimSpeedStates(float timeDelta);
     void Reset_PreviewAnimSpeedStates();
     void Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta);

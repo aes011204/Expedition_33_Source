@@ -90,7 +90,7 @@ namespace Engine
         PuzzleTarget,
         SoulLikeController,
         Trigger_Cinematic,
-
+        Trigger_Interaction,
     };
 
     enum class DeferredPass : uint8

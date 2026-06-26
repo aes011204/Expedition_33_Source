@@ -137,6 +137,41 @@ HRESULT Mon_Simon_Hair::Render_Shadow()
     return Monster_Part::Render_Shadow();
 }
 
+Matrix Mon_Simon_Hair::Get_GizmoWorldMatrix() const
+{
+    if (_transformCom == nullptr)
+        return _combinedWorldMatrix;
+
+    const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+
+    return _offsetMatrix * _transformCom->Get_WorldMatrix() * socketMatrix * parentMatrix;
+}
+
+bool Mon_Simon_Hair::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+    Matrix localWorldMatrix = _offsetMatrix.Invert() * gizmoWorldMatrix * (socketMatrix * parentMatrix).Invert();
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!localWorldMatrix.Decompose(scale, rotation, translation))
+        return false;
+
+    _transformCom->Set_WorldPosition(translation);
+    _transformCom->Set_RotationQuaternion(rotation);
+    _transformCom->Set_Scale(scale);
+
+    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * socketMatrix);
+    return true;
+}
+
 void Mon_Simon_Hair::Set_RuntimeCollisionSource(ModelCom* collisionModel, const Matrix* collisionOwnerWorldMatrix)
 {
     _collisionModel = collisionModel;

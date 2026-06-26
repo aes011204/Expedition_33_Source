@@ -260,6 +260,7 @@ void Scene_View::Pre_Render()
         return;
 
     Tick_DragPreview(ImGui::GetIO().DeltaTime);
+    Tick_SelectedLoopingEffect(ImGui::GetIO().DeltaTime);
     EnvironmentView::DrawDebugVolumes();
 }
 
@@ -302,7 +303,16 @@ void Scene_View::Render()
 
 void Scene_View::Handle_GizmoShortcut()
 {
-    if (!_isFocused)
+    if (ImGui::GetIO().WantTextInput)
+        return;
+
+    const Shared<Editor_Window> hierarchyWindow = EDITOR->Get_Window(L"Hierarchy");
+    const bool allowHierarchyShortcut =
+        hierarchyWindow != nullptr &&
+        hierarchyWindow->Is_Focused() &&
+        EDITOR->Selected_Object() != nullptr;
+
+    if (!_isFocused && !allowHierarchyShortcut)
         return;
 
     if (GAME->KeyPress(KEY_TYPE::RBUTTON))
@@ -695,7 +705,7 @@ void Scene_View::Render_ViewportCanvas()
         _viewportMax = imageRect.imageMax;
 
         // add for mouse picking
-        if (!ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && _isHovered)
+        if (!isMouseOverOverlay && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && _isHovered)
         {
             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
@@ -1010,6 +1020,24 @@ void Scene_View::Render_SelectedObjectGizmo()
 
     if (Shared<MovementCom> movement = selectedObject->Get_Component<MovementCom>())
         movement->Sync_RuntimePositionToTransform();
+}
+
+void Scene_View::Tick_SelectedLoopingEffect(float timeDelta)
+{
+    if (timeDelta <= 0.f)
+        return;
+
+    if (EDITOR->IsPlaying() && !GAME->Is_GameplayPaused() && EDITOR->Get_RuntimeTimeScale() > 0.f)
+        return;
+
+    const Shared<EffectInstance> effect = dynamic_pointer_cast<EffectInstance>(EDITOR->Selected_Object());
+    if (effect == nullptr || !effect->Is_Loop())
+        return;
+
+    effect->Try_BeginPlay();
+    effect->Priority_Update(timeDelta);
+    effect->Update(timeDelta);
+    effect->Late_Update(timeDelta);
 }
 
 void Scene_View::Set_DragPreviewObject(const string& prefabName)

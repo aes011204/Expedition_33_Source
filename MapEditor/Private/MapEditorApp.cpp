@@ -161,13 +161,16 @@ void MapEditorApp::Update(float timeDelta)
 
     _imguiManager->Update(timeDelta);
 
-    if (!ImGui::GetIO().WantTextInput)
+    ProcessPendingViewportCommands();
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.WantTextInput)
     {
-        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
         {
             _scene.UndoCommand();
         }
-        else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y))
+        else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false))
         {
             _scene.RedoCommand();
         }
@@ -224,24 +227,6 @@ HRESULT MapEditorApp::Render()
         _pickingSystem->DoPickAt(_scene, mousePos, vpPos, vpSize, *_rt);
     }
 
-    if (_viewport->ConsumeDelete())
-    {
-        if (_scene._selected)
-        {
-            auto it = find(_scene._objects.begin(), _scene._objects.end(), _scene._selected);
-            if (it != _scene._objects.end())
-            {
-                int index = static_cast<int>(distance(_scene._objects.begin(), it));
-                _scene.PushCommand(CmdDeleteObject::Create(_scene._selected, index));
-            }
-        }
-    }
-
-    if (Shared<IEditorCommand> deleteCmd = _viewport->ConsumeDeleteCommand())
-    {
-        _scene.PushCommand(deleteCmd);
-    }
-
     if (_viewport->ConsumeCursorSet(mousePos, vpPos, vpSize))
     {
         _pickingSystem->SetCursorAt(_scene, *_camera, mousePos, vpPos, vpSize, *_rt);
@@ -251,13 +236,6 @@ HRESULT MapEditorApp::Render()
     if (_viewport->ConsumeSculpt(sculptMouse, sculptVpPos, sculptVpSize))
     {
         _landscapeManager->Do_SculptAt(sculptMouse, sculptVpPos, sculptVpSize, 0.016f);
-    }
-
-    string spawnPath{};
-    ImVec2 spawnMouse{}, spawnVpPos{}, spawnVpSize{};
-    if (_viewport->ConsumeSpawn(spawnPath, spawnMouse, spawnVpPos, spawnVpSize))
-    {
-        DoSpawnAt(spawnPath);
     }
 
     SyncSceneLights();
@@ -603,6 +581,39 @@ void MapEditorApp::Update_WaterHandles()
 
         actor->Set_WaterParams(obj->_waterParams);
         obj->_waterRenderHandle = actor;
+    }
+}
+
+void MapEditorApp::ProcessPendingViewportCommands()
+{
+    if (!_viewport)
+    {
+        return;
+    }
+
+    if (_viewport->ConsumeDelete())
+    {
+        if (_scene._selected)
+        {
+            auto it = find(_scene._objects.begin(), _scene._objects.end(), _scene._selected);
+            if (it != _scene._objects.end())
+            {
+                int index = static_cast<int>(distance(_scene._objects.begin(), it));
+                _scene.PushCommand(CmdDeleteObject::Create(_scene._selected, index));
+            }
+        }
+    }
+
+    if (Shared<IEditorCommand> deleteCmd = _viewport->ConsumeDeleteCommand())
+    {
+        _scene.PushCommand(deleteCmd);
+    }
+
+    string spawnPath{};
+    ImVec2 spawnMouse{}, spawnVpPos{}, spawnVpSize{};
+    if (_viewport->ConsumeSpawn(spawnPath, spawnMouse, spawnVpPos, spawnVpSize))
+    {
+        DoSpawnAt(spawnPath);
     }
 }
 

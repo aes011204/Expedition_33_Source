@@ -1,4 +1,5 @@
 ﻿#include "pch.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
@@ -26,14 +27,26 @@
 #include "CinematicSequenceRunner.h"
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
+#include "DialogueDB.h"
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
+#include "TargetCamera.h"
+#include "BattleTurnCamera.h"
+#include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
+#include "DialogueDB.h"
+#include "DialogueManager.h"
+#include "DialogueCamera.h"
+#include "BattleFollowupManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
 namespace
 {
+    bool g_debugDisableMapInstancedMeshRender = false;
+    bool g_debugDisableGrassInstancedRender = false;
+    bool g_debugDisableMapStaticMeshRender = false;
+
     string Get_WeaponCharacterId(HeroId heroId)
     {
         switch (heroId)
@@ -129,25 +142,46 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
 
-    // 일반 픽토스 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
+    // 일반 픽토스 일단은 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
     _playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
     // 무기 세팅
-    _playerInventory->Ensure_DefaultUnlockedWeapons(
-        {
-            { "Gustave", "Lanceram", 1, 0 },
-            { "Gustave", "Baguette", 11, 0 },
-        { "Lune",    "Colim",    1, 0 },
-        { "Lune",    "Baguette",    1, 0 },
-        { "Maelle",  "Medalum",  1, 0 },
-        { "Maelle",  "Baguette",  1, 0 },
-        });
+    vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
+    const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
+    for (HeroId heroId : defaultWeaponHeroes)
+    {
+        const string characterId = Get_WeaponCharacterId(heroId);
+        const string weaponId = Get_DefaultEquippedWeaponId(heroId);
+        if (characterId.empty() || weaponId.empty())
+            continue;
+
+        const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
+
+        PlayerInventory::WeaponInventoryEntry entry{};
+        entry.characterId = weapon ? weapon->characterId : characterId;
+        entry.weaponId = weapon ? weapon->weaponId : weaponId;
+        entry.enhanceLevel = weapon ? weapon->level : 1;
+        entry.enhanceExp = 0;
+        defaultUnlockedWeapons.emplace_back(std::move(entry));
+    }
+    _playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
 
     _unlockManager = Unlock_Manager::Create();
     CHECK_NULL(_unlockManager, E_FAIL);
+
+    _dialogueDB = DialogueDB::Create();
+    CHECK_NULL(_dialogueDB, E_FAIL);
+
+   _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
+
+   _dialogueManager = DialogueManager::Create();
+    CHECK_NULL(_dialogueManager, E_FAIL);
+    
+    _battleFollowupManager = BattleFollowupManager::Create();
+    CHECK_NULL(_battleFollowupManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -207,12 +241,45 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if(_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta, true);
+
+    if(_dialogueManager)
+        _dialogueManager->Update();
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
 {
     if (_previewManager)
         _previewManager->Update(timeDelta);
+}
+
+bool ClientInstance::Is_DebugDisableMapInstancedMeshRender()
+{
+    return g_debugDisableMapInstancedMeshRender;
+}
+
+void ClientInstance::Set_DebugDisableMapInstancedMeshRender(bool disabled)
+{
+    g_debugDisableMapInstancedMeshRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableGrassInstancedRender()
+{
+    return g_debugDisableGrassInstancedRender;
+}
+
+void ClientInstance::Set_DebugDisableGrassInstancedRender(bool disabled)
+{
+    g_debugDisableGrassInstancedRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapStaticMeshRender()
+{
+    return g_debugDisableMapStaticMeshRender;
+}
+
+void ClientInstance::Set_DebugDisableMapStaticMeshRender(bool disabled)
+{
+    g_debugDisableMapStaticMeshRender = disabled;
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -290,6 +357,36 @@ HRESULT ClientInstance::Reload_GameDataTables()
         return Ready_GameDataTables();
 
     return _gameDataTable->Load_All();
+}
+
+HRESULT ClientInstance::Reload_CameraPresetData()
+{
+    if (auto targetCamera = dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+    {
+        TargetCameraPreset preset{};
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, preset))
+            targetCamera->Set_Preset(TargetCameraMode::NORMAL, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, preset))
+            targetCamera->Set_Preset(TargetCameraMode::AIM, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, preset))
+            targetCamera->Set_Preset(TargetCameraMode::BATTLE_ENTER, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, preset))
+            targetCamera->Set_Preset(TargetCameraMode::SOULLIKE, preset);
+
+        targetCamera->Change_Mode(targetCamera->Get_CurrentMode());
+    }
+
+    if (auto battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(GAME->Get_CameraByType(ObjectType::BattleTurnCamera)))
+        battleTurnCamera->Reload_BattleCameraAuthoringData();
+
+    if (auto dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+        dialogueCamera->Set_CameraPresetId(dialogueCamera->Get_CameraPresetId());
+
+    return S_OK;
 }
 
 const Item_Data* ClientInstance::Get_Item(const string& itemId)
@@ -619,6 +716,11 @@ Shared<CinematicCamera> ClientInstance::Request_Cinematic()
     return _cameraDirector->Request_Cinematic();
 }
 
+Shared<DialogueCamera> ClientInstance::Request_DialogueCamera()
+{
+    return _cameraDirector->Request_DialogueCamera();
+}
+
 void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
 {
     return _cameraDirector->Request_ChangeTargetCameraMode(cameraMode);
@@ -823,11 +925,45 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
     }
 
     Shared<CinematicCamera> cinematicCamera = dynamic_pointer_cast<CinematicCamera>(gameObject);
+
     if(cinematicCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(cinematicCamera);
     return cinematicCamera;
+}
+
+Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
+{
+    if(auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+    {
+        return camera;  
+    }
+
+    Shared<GameObject> gameObject;
+
+    DialogueCamera::DIALOGUECAMERA_DESC desc{};
+    desc.speedPerSec = 10.f;
+    desc.degreePerSec = 180.f;
+    desc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(60.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 500.f;
+    desc.mouseSensor = 0.05f;
+
+    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    {
+        return nullptr;
+    }
+
+    Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(gameObject);
+
+    if(dialogueCamera == nullptr)
+        return nullptr;
+
+    GAME->Add_Camera(dialogueCamera);
+    return dialogueCamera;
 }
 
 Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
@@ -1076,6 +1212,43 @@ bool ClientInstance::Is_SoulLikeBattleActive() const
 bool ClientInstance::Is_WorldControlSuspended() const
 {
     return Is_BattleActive() || Is_SoulLikeBattleActive();
+}
+
+const DialogueData* ClientInstance::FindDialogueData(const string& dialogueKey) const
+{
+    return _dialogueDB->FindDialogueData(dialogueKey);
+}
+
+void ClientInstance::StartDialogue(const DialogueRequest& request)
+{
+    _dialogueManager->StartDialogue(request);
+}
+
+void ClientInstance::EndDialogue()
+{
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue();
+}
+
+bool ClientInstance::IsDialogueActive() const
+{
+    return _dialogueManager && _dialogueManager->IsActive();
+}
+
+bool ClientInstance::IsDialogueInteractLocked() const
+{
+    return _dialogueManager && _dialogueManager->IsInteractLocked();
+}
+
+void ClientInstance::AddDialogueInteractionOverlap()
+{
+    ++_dialogueInteractionOverlapCount;
+}
+
+void ClientInstance::RemoveDialogueInteractionOverlap()
+{
+    if (_dialogueInteractionOverlapCount > 0)
+        --_dialogueInteractionOverlapCount;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

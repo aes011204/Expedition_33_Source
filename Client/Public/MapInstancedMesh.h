@@ -38,6 +38,7 @@ public:
         bool visible = true;
         bool cullEnabled = true;
         bool castShadow = true;
+        float cullDist = 125.f;
     } MAPINSTANCEDMESH_DESC;
 
 public:
@@ -58,6 +59,9 @@ public:
     virtual HRESULT RenderPickingID(uint32 id) override;
     HRESULT Render_Shadow() override;
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
+    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const override { return cascadeIndex <= _maxShadowCascade; }
+    virtual uint32 Get_RenderHotspotInstanceCount() const override { return _instanceCount; }
+    virtual wstring Get_RenderHotspotSourceModelPath() const override { return _modelPath; }
 
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;
@@ -100,6 +104,7 @@ private:
     bool _visible = true;   
     bool _cullEnabled = true;
     bool _castShadow = true;
+    float _cullDist = 125.f;
 
     // test
     uint32 _maxShadowCascade = 3u;

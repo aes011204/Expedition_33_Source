@@ -34,6 +34,9 @@ public: //## Accessors
     void MarkDirty() { _isDirty = true; }
     void ClearDirty() { _isDirty = false; }
 
+public:
+    void Request_FocusOnOpen();
+
 protected: //## Data::WindowState
     wstring _window{};
     string _imguiWindowName{};
@@ -42,6 +45,11 @@ protected: //## Data::WindowState
     bool _isFocused{ false };
     bool _isDirty{ false };
     bool _isHovered{ false };
+    bool _requestFocusOnOpen{ false };
+
+protected:
+    void Apply_PendingFocusBeforeBegin();
+    void Clear_PendingFocusAfterBegin();
 };
 
 NS_END

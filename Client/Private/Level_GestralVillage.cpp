@@ -1,6 +1,8 @@
 ﻿#include "Level_GestralVillage.h"
+#include "Client_Constants.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "GameObject.h"
 #include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
@@ -55,6 +57,9 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
+    if (FAILED(Ready_Layer_NPC(TEXT("Layer_NPC"))))
+        return E_FAIL;
+
     if (FAILED(Ready_Layer_ETC(TEXT("Layer_ETC"))))
         return E_FAIL;
 
@@ -66,7 +71,7 @@ HRESULT Level_GestralVillage::Initialize()
         return E_FAIL;
 
     GAME->Set_FogZoneCullingDistance(15.f);
-    //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+
 
     return S_OK;
 }
@@ -77,6 +82,10 @@ void Level_GestralVillage::BeginPlay()
 
     GAME->Set_VolumetricLightShaftZoneCullingDistance(30.f);
     GAME->Set_VolumetricLightShaftZones(Build_GestralVillageLightShaftZones());
+    Play_MapBGM();
+
+    _editorPlayRuntimeHandle =
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
@@ -254,6 +263,47 @@ HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
     return S_OK;
 }
 
+HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
+{
+    const Shared<GameObject> noco = Spawn_Prefab::Prefab("NPC_Noco")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(9.f, 0.08f, 141.41f))
+        .Rotation(Vec3(0.f, -90.f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(noco, E_FAIL);
+
+    const Shared<GameObject> golgra = Spawn_Prefab::Prefab("NPC_Golgra")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(2.41f, 3.50f, 88.82f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(golgra, E_FAIL);
+
+    const Shared<GameObject> merchant = Spawn_Prefab::Prefab("NPC_Merchant")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-62.30f, 1.03f, 126.23f))
+        .Rotation(Vec3(0.f, 168.5f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(merchant, E_FAIL);
+
+    const Shared<GameObject> chad = Spawn_Prefab::Prefab("NPC_Chad")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-26.71f, 1.24f, 138.15f))
+        .Rotation(Vec3(0.f, 179.1f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(chad, E_FAIL);
+
+    return S_OK;
+}
+
 HRESULT Level_GestralVillage::Ready_Layer_Monster(const wstring& strLayerTag)
 {
 
@@ -268,20 +318,14 @@ HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
 {
-    {
-        const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
-            .AtLevel(ETOI(LevelType::GestralVillage))
-            .InLayer(strLayerTag)
-            .Spawn();
-
-        CHECK_NULL(controllerObject, E_FAIL);
-
-        const Shared<SoulLikeController> soulLikeController =
-            dynamic_pointer_cast<SoulLikeController>(controllerObject);
-
-        CHECK_NULL(soulLikeController, E_FAIL);
-        CLIENT->Set_SoulLikeController(soulLikeController);
-    }
+    const Shared<GameObject> bgmZone = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_BGMZone)
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-0.46f, -1.64f, 95.23f))
+        .Rotation(Vec3(-0.f, 0.f, -0.f))
+        .Scale(Vec3(4.5f, 5.f, 5.f))
+        .Spawn();
+    CHECK_NULL(bgmZone, E_FAIL);
 
     {
         MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC symbolDesc{};
@@ -326,6 +370,11 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     return S_OK;
 }
 
+void Level_GestralVillage::Play_MapBGM()
+{
+    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 1.f, true, 0.f);
+}
+
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto pInstance = make_shared<Level_GestralVillage>(device, context);
@@ -341,6 +390,13 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 void Level_GestralVillage::Free()
 {
     GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
+    
+    if (_editorPlayRuntimeHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Remove(_editorPlayRuntimeHandle);
+        _editorPlayRuntimeHandle.Reset();
+    }
+
     CLIENT->Clear_GameplayUI();
 
     __super::Free();

@@ -61,7 +61,7 @@ public:
 
     void    Open_ParryWindow();
     void    Close_ParryWindow();
-    bool    Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos);
+    bool    Try_ConsumeParry(const Shared<GameObject>& attacker, const Vec3& impactWorldPos, const Vec3& effectPos);
     bool    Is_ParryWindowOpen() const { return _parryWindowOpen; }
 
     Body_Player* Get_Body() const { return _body.get(); }

@@ -32,6 +32,10 @@ private:
     Quat _editPrevRot = {};
     Vec3 _editPrevScale = {};
     Shared<EditorObject> _editTarget;
+    bool _instanceTransformEditing = false;
+    InstanceTransform _editPrevInstanceTransform = {};
+    Shared<EditorObject> _editInstanceTarget;
+    int32 _editInstanceIndex = -1;
 
     ScatterZone _pendingZone = {};
     float _eraseRadius = 10.f;

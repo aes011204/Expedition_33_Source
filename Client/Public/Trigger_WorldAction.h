@@ -19,6 +19,7 @@ public:
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void    Set_LifeTimeSec(float lifeTimeSec);
 
 private:
     HRESULT Ready_Components();

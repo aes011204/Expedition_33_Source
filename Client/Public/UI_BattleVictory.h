@@ -68,6 +68,18 @@ public:
         bool  isAnimating = false;
     };
 
+private:
+    struct RewardNumberTween
+    {
+        Shared<UI_Text> text{};
+        Shared<UI_Text> bgText{};
+        uint32 startValue = 0;
+        uint32 targetValue = 0;
+        float elapsed = 0.f;
+        float duration = 0.8f;
+        bool isAnimating = false;
+    };
+
 public:
     UI_BattleVictory() = default;
     ~UI_BattleVictory() override = default;
@@ -102,6 +114,9 @@ private:
     static wstring Format_ClearTime(float elapsedSec);
 
     void Update_ExpGauge(float timeDelta);
+    void Start_RewardNumberTween(RewardNumberTween& tween, const Shared<UI_Text>& text, const Shared<UI_Text>& bgText, uint32 targetValue, float duration);
+    void Update_RewardNumberTweens(float timeDelta);
+    static void Update_RewardNumberTween(RewardNumberTween& tween, float timeDelta);
 
 private:
     array<PlayerSlot, 3> _playerSlots{};
@@ -124,6 +139,8 @@ private:
     bool                 _isClosingWithOutro = false;
     float                _closeElapsed = 0.f;
     float                _outroDuration = 0.f;
+    RewardNumberTween    _rewardExpTween{};
+    RewardNumberTween    _rewardChromaTween{};
 
 public:
     static Unique<UI_BattleVictory> Create(uint32 levelIndex);

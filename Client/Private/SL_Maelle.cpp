@@ -37,6 +37,22 @@ namespace
 
         return resolved;
     }
+
+    Vec3 MakeLookAlignedRotationDegree(Vec3 direction)
+    {
+        if (direction.LengthSquared() <= 0.0001f)
+            direction = Vec3::Look;
+        else
+            direction.Normalize();
+
+        const Quat rotation = Math::CreateRotationBetweenVectors(Vec3::Look, direction);
+        const Vec3 eulerRadian = rotation.ToEuler();
+
+        return Vec3(
+            XMConvertToDegrees(eulerRadian.x),
+            XMConvertToDegrees(eulerRadian.y),
+            XMConvertToDegrees(eulerRadian.z));
+    }
 }
 
 IMPLEMENT_REFLECTION(SL_Maelle)
@@ -210,7 +226,7 @@ void SL_Maelle::Close_ParryWindow()
     _parryWindowOpen = false;
 }
 
-bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos)
+bool SL_Maelle::Try_ConsumeParry(const Shared<GameObject>& attacker, const Vec3& impactWorldPos, const Vec3& effectPos)
 {
     if (!_parryWindowOpen || Is_Dead())
         return false;
@@ -224,14 +240,22 @@ bool SL_Maelle::Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectP
 
     // 패링 Hit Effect. 크기 조절좀 해야할듯
     {
+        const Vec3 parryDirection = impactWorldPos - effectPos;
+
         PlayEffectDesc effectDesc{};
         effectDesc.effectName = L"World_FreeAim_Hit_EX.effect.json";
         effectDesc.worldPosition = effectPos;
+        effectDesc.localRotation = MakeLookAlignedRotationDegree(parryDirection);
         effectDesc.scale = Vec3(0.6f, 0.6f, 0.6f);
         CLIENT->Play_Effect(effectDesc);
 
         GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success);
     }
+
+	SL_DamageInfo pushInfo{};
+    pushInfo.attacker = attacker;
+    pushInfo.target = GetSharedPtr<GameObject>();
+    Begin_HitPush(pushInfo);
 
     if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
         controller->Notify_PlayerParrySuccess();

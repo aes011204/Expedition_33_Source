@@ -31,6 +31,7 @@ public:
     enum class DuallisteBGMPhase
     {
         Phase1,
+        PhaseTransition,
         Phase2,
     };
 
@@ -75,6 +76,8 @@ public:
     void End_BattleShotCamera();
     void Apply_SkillCameraPreset(const string& skillKey);
     void Restore_SkillCameraPreset();
+    void Begin_MonsterAttackCameraPreset(const Shared<SL_Base>& attacker, const string& presetKey);
+    void End_MonsterAttackCameraPreset(const Shared<SL_Base>& attacker);
 
     void Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo);
     void Play_PlayerParryFeedback();
@@ -119,6 +122,8 @@ private:
     void Apply_VictoryRewardExp();
     void Sync_PlayerResultToWorld();
     void Handle_EditorStopRuntime();
+    void Release_ControllerRegistration(bool removeFromWorld);
+
     void Capture_PreSoulLikeBGM();
     void Restore_PreSoulLikeBGM();
     bool Is_DuallisteBattle() const;
@@ -155,6 +160,7 @@ private:
     Weak<SL_Maelle> _player{};
     Weak<SL_Base> _monster{};
     Weak<SoulLikeCamera> _soulLikeCamera{};
+    Weak<SL_Base> _monsterAttackCameraOwner{};
 
     float _enterFxTimer = 0.f;
     float _victorySlowElapsed = 0.f;

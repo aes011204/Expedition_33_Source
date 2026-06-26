@@ -29,7 +29,7 @@ void ANS_PlayEffect::On_Begin(const AnimNotifyContext& context)
     if (context.owner == nullptr)
         return;
 
-    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner);
+    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner, _target);
     if (effectCom == nullptr)
         return;
 
@@ -66,7 +66,7 @@ void ANS_PlayEffect::On_End(const AnimNotifyContext& context)
     if (context.owner == nullptr)
         return;
 
-    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner);
+    const Shared<EffectCom> effectCom = EffectCom::Find_FromNotifyOwner(context.owner, _target);
     if (effectCom == nullptr)
         return;
 

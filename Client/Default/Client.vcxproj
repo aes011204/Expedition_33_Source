@@ -187,8 +187,10 @@
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h" />
     <ClInclude Include="..\Public\AN_PlaySound.h" />
     <ClInclude Include="..\Public\AN_ReturnBattleIdle.h" />
     <ClInclude Include="..\Public\AN_WeaponAttach.h" />
@@ -215,6 +217,7 @@
     <ClInclude Include="..\Public\BattleClipSequencerAdapter.h" />
     <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
     <ClInclude Include="..\Public\BattleEncounterProfile.h" />
+    <ClInclude Include="..\Public\BattleFollowupManager.h" />
     <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
@@ -230,7 +233,10 @@
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\Public\Battle_Event.h" />
     <ClInclude Include="..\public\BT_IsStun.h" />
+    <ClInclude Include="..\Public\BT_HasDeadHero.h" />
     <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\Public\BT_ForceSkillOnDeadHero.h" />
+    <ClInclude Include="..\Public\BT_SetDeadHeroTarget.h" />
     <ClInclude Include="..\Public\BT_SetSkillAI.h" />
     <ClInclude Include="..\public\BT_Set_TargetAI.h" />
     <ClInclude Include="..\public\BT_Stun.h" />
@@ -258,6 +264,8 @@
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
     <ClInclude Include="..\public\DialogueDB.h" />
+    <ClInclude Include="..\public\DialogueManager.h" />
+    <ClInclude Include="..\Public\DialogueTypes.h" />
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
@@ -279,6 +287,7 @@
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
+    <ClInclude Include="..\Public\ANS_SL_MonsterAttackCamera.h" />
     <ClInclude Include="..\Public\ANS_SL_TargetTrack.h" />
     <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h" />
     <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h" />
@@ -313,7 +322,9 @@
     <ClInclude Include="..\Public\SoulLikeCamera.h" />
     <ClInclude Include="..\Public\SoulLikeController.h" />
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
+    <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\public\Trigger_Cinematic.h" />
+    <ClInclude Include="..\Public\Trigger_Interaction.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
     <ClInclude Include="..\public\CinematicSequenceRunner.h" />
@@ -323,6 +334,7 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\Flash_ScreenFx.h" />
     <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
+    <ClInclude Include="..\public\UI_Dialogue.h" />
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
@@ -519,6 +531,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="..\Public\Create_Class.h" />
+    <ClInclude Include="..\Public\DamageTrigger.h" />
     <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
     <ClInclude Include="..\Public\Skill_Gustave_Battle.h" />
     <ClInclude Include="..\Public\Skill_Lune_Battle.h" />
@@ -591,7 +604,6 @@
     <ClInclude Include="..\Public\BattleCameraProfileTypes.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="ChainModifierPreset.h" />
-    <ClInclude Include="DialogueTypes.h" />
     <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
     <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
@@ -643,9 +655,11 @@
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp" />
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_SL_SpawnAttColl.cpp" />
     <ClCompile Include="..\Private\AN_PlaySound.cpp" />
     <ClCompile Include="..\Private\AN_ReturnBattleIdle.cpp" />
     <ClCompile Include="..\Private\AN_WeaponAttach.cpp" />
@@ -670,6 +684,7 @@
     <ClCompile Include="..\Private\BattleCameraClipIO.cpp" />
     <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
     <ClCompile Include="..\Private\BattleEncounterProfile.cpp" />
+    <ClCompile Include="..\Private\BattleFollowupManager.cpp" />
     <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
     <ClCompile Include="..\Private\BattleQTEController.cpp" />
@@ -690,6 +705,7 @@
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
     <ClCompile Include="..\private\DialogueDB.cpp" />
+    <ClCompile Include="..\private\DialogueManager.cpp" />
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
@@ -711,6 +727,7 @@
     <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
     <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_MonsterAttackCamera.cpp" />
     <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />
@@ -745,7 +762,9 @@
     <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
+    <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
     <ClCompile Include="..\private\CinematicCamera.cpp" />
@@ -774,6 +793,7 @@
     <ClCompile Include="..\Private\DialogueCamera.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
+    <ClCompile Include="..\private\UI_Dialogue.cpp" />
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
@@ -854,6 +874,9 @@
     </ClCompile>
     <ClCompile Include="..\private\BT_Chase.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+    <ClCompile Include="..\Private\BT_HasDeadHero.cpp" />
+    <ClCompile Include="..\Private\BT_ForceSkillOnDeadHero.cpp" />
+    <ClCompile Include="..\Private\BT_SetDeadHeroTarget.cpp" />
     <ClCompile Include="..\Private\BT_SL_CanAttack.cpp" />
     <ClCompile Include="..\Private\BT_SL_CompareBBValue.cpp" />
     <ClCompile Include="..\Private\BT_SL_IsDead.cpp" />
@@ -961,6 +984,7 @@
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
     <ClCompile Include="..\private\SkillTree_Panel.cpp" />
     <ClCompile Include="..\Private\Create_Class.cpp" />
+    <ClCompile Include="..\Private\DamageTrigger.cpp" />
     <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
     <ClCompile Include="..\Private\Skill_Gustave_Battle.cpp" />
     <ClCompile Include="..\Private\Skill_Lune_Battle.cpp" />
@@ -1064,6 +1088,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMeshCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

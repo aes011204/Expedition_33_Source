@@ -4,6 +4,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_ConstantBuffer.hlsl"
 #include "Engine_Shader_EffectMaterial.hlsl"
+#include "Shader_EffectMeshCommon.hlsli"
 
 float4x4 g_PreTransformMatrix;
 
@@ -148,8 +149,6 @@ struct PS_OUT
 
 EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
 {
-    EffectMaterialSurface surface = (EffectMaterialSurface)0;
-
     const float2 mainUVPolicy = g_EffectMeshUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectMeshUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectMeshMaskUVAxisPolicyParams.xy;
@@ -157,48 +156,28 @@ EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
     const float2 noiseUV = Build_EffectMeshUV(In.vTexcoord, g_EffectMeshNoiseUVParams, g_EffectMeshUVOffsetParams.zw, noiseUVPolicy, g_EffectMeshUVRotationParams.y);
     const float2 maskUV = Build_EffectMeshUV(In.vTexcoord, g_EffectMeshMaskUVParams, g_EffectMeshMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMeshUVRotationParams.z);
     const float4 symbol = Sample_EffectMeshMainTexture(mainUV, mainUVPolicy);
-    const float opacityPower = max(g_EffectMeshParams.y, 0.0001f);
-    const float alphaCutoff = saturate(g_EffectMeshAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectMeshAlphaParams.y);
-    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
-    float noiseFactor = 1.f;
-    float maskAlpha = 1.f;
+    const float4 noiseTexel =
+        (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
+        ? Sample_EffectMeshNoiseTexture(noiseUV, noiseUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
+    const float4 maskTexel =
+        (0 != g_EffectMeshAlphaParams.z)
+        ? Sample_EffectMeshMaskTexture(maskUV, maskUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
 
-    if (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
-    {
-        const float4 noiseTexel = Sample_EffectMeshNoiseTexture(noiseUV, noiseUVPolicy);
-        const float noise = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMeshSourceParams.x),
-            g_EffectMeshSourceParams.z
-        );
-        noiseFactor = lerp(1.f, noise, saturate(g_EffectMeshParams.z));
-    }
-
-    if (0 != g_EffectMeshAlphaParams.z)
-    {
-        const float4 maskTexel = Sample_EffectMeshMaskTexture(maskUV, maskUVPolicy);
-        maskAlpha = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(maskTexel, (int)g_EffectMeshSourceParams.y),
-            g_EffectMeshSourceParams.w
-        );
-    }
-
-    const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, In.vInstanceColor.a * g_Tint.a);
-    const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
-        symbol.rgb * In.vInstanceColor.rgb * g_Tint.rgb,
-        g_EffectMeshCoreEmissiveColor,
-        selectedOpacity,
-        g_EffectMeshCoreEmissiveParams
-    );
-
-    surface.color = baseColor * noiseFactor;
-    surface.coverage = coverage;
-
-    if (coverage < max(alphaCutoff, 0.01f))
-        discard;
-
-    return surface;
+    EffectMeshCommonSurfaceInput surfaceInput = (EffectMeshCommonSurfaceInput)0;
+    surfaceInput.symbol = symbol;
+    surfaceInput.noiseTexel = noiseTexel;
+    surfaceInput.maskTexel = maskTexel;
+    surfaceInput.instanceColor = In.vInstanceColor;
+    surfaceInput.tint = g_Tint;
+    surfaceInput.params = g_EffectMeshParams;
+    surfaceInput.alphaParams = g_EffectMeshAlphaParams;
+    surfaceInput.sourceParams = g_EffectMeshSourceParams;
+    surfaceInput.coreEmissiveColor = g_EffectMeshCoreEmissiveColor;
+    surfaceInput.coreEmissiveParams = g_EffectMeshCoreEmissiveParams;
+    surfaceInput.opacitySource = g_OpacitySource;
+    return EffectMeshCommon_ResolveSurface(surfaceInput);
 }
 
 PS_OUT PS_ALPHA(VS_OUT In)
@@ -228,59 +207,32 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
     const float2 noiseUV = Build_EffectMeshUV(In.vTexcoord, g_EffectMeshNoiseUVParams, g_EffectMeshUVOffsetParams.zw, noiseUVPolicy, g_EffectMeshUVRotationParams.y);
     const float2 maskUV = Build_EffectMeshUV(In.vTexcoord, g_EffectMeshMaskUVParams, g_EffectMeshMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMeshUVRotationParams.z);
     const float4 symbol = Sample_EffectMeshMainTexture(mainUV, mainUVPolicy);
-    const float alphaCutoff = saturate(g_EffectMeshAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectMeshAlphaParams.y);
-    float noiseFactor = 1.f;
-    float maskAlpha = 1.f;
+    const float4 noiseTexel =
+        (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
+        ? Sample_EffectMeshNoiseTexture(noiseUV, noiseUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
+    const float4 maskTexel =
+        (0 != g_EffectMeshAlphaParams.z)
+        ? Sample_EffectMeshMaskTexture(maskUV, maskUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
 
-    if (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
-    {
-        const float4 noiseTexel = Sample_EffectMeshNoiseTexture(noiseUV, noiseUVPolicy);
-        const float noise = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMeshSourceParams.x),
-            g_EffectMeshSourceParams.z
-        );
-        noiseFactor = lerp(1.f, noise, saturate(g_EffectMeshParams.z));
-    }
-
-    if (0 != g_EffectMeshAlphaParams.z)
-    {
-        const float4 maskTexel = Sample_EffectMeshMaskTexture(maskUV, maskUVPolicy);
-        maskAlpha = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(maskTexel, (int)g_EffectMeshSourceParams.y),
-            g_EffectMeshSourceParams.w
-        );
-    }
-
-    const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float coverageBase = saturate(maskCoverage * noiseFactor * In.vInstanceColor.a * g_Tint.a);
-    const int colorSource = (int)g_EffectMeshAdditiveParams.x;
-    const int amountSource = (int)g_EffectMeshAdditiveParams.y;
-    const int coveragePolicy = (int)g_EffectMeshAdditiveParams.z;
-    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
-    const float amount = Effect_SelectAdditiveAmount(symbol, maskAlpha, amountSource);
-    const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
-    const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
-    const float blackGate = Effect_ResolveAdditiveBlackGate(symbol.rgb, colorSource, g_EffectMeshAdditiveFlags.x);
-
-    if (discardSource < max(alphaCutoff, 0.01f))
-        discard;
-
-    const float3 materialColor = Effect_ResolveAdditiveColor(
-        symbol.rgb,
-        symbol.rgb * g_Tint.rgb,
-        g_EffectMeshAdditiveEmissiveColor,
-        g_EffectMeshAdditiveConstantColor,
-        colorSource
-    );
-    const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
-        materialColor * In.vInstanceColor.rgb,
-        g_EffectMeshCoreEmissiveColor,
-        selectedOpacity,
-        g_EffectMeshCoreEmissiveParams
-    );
-    const float additiveEnergyScalar = max(g_EffectMeshParams.x, 0.f) * max(g_EffectMeshAdditiveParams.w, 0.f);
-    Out.color = float4(shapedMaterialColor * noiseFactor * policyAmount * additiveEnergyScalar * blackGate * coverageBase, 1.f);
+    EffectMeshCommonAdditiveInput additiveInput = (EffectMeshCommonAdditiveInput)0;
+    additiveInput.symbol = symbol;
+    additiveInput.noiseTexel = noiseTexel;
+    additiveInput.maskTexel = maskTexel;
+    additiveInput.instanceColor = In.vInstanceColor;
+    additiveInput.tint = g_Tint;
+    additiveInput.params = g_EffectMeshParams;
+    additiveInput.alphaParams = g_EffectMeshAlphaParams;
+    additiveInput.sourceParams = g_EffectMeshSourceParams;
+    additiveInput.additiveParams = g_EffectMeshAdditiveParams;
+    additiveInput.additiveEmissiveColor = g_EffectMeshAdditiveEmissiveColor;
+    additiveInput.additiveConstantColor = g_EffectMeshAdditiveConstantColor;
+    additiveInput.additiveFlags = g_EffectMeshAdditiveFlags;
+    additiveInput.coreEmissiveColor = g_EffectMeshCoreEmissiveColor;
+    additiveInput.coreEmissiveParams = g_EffectMeshCoreEmissiveParams;
+    additiveInput.opacitySource = g_OpacitySource;
+    Out.color = float4(EffectMeshCommon_ResolveAdditiveContribution(additiveInput), 1.f);
     return Out;
 }
 

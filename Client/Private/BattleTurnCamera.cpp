@@ -432,6 +432,8 @@ void BattleTurnCamera::Reset_RuntimeState()
     _wideAnchorHeroCenter = Vec3::Zero;
     _battlePlaneYawDegrees = 0.f;
     _wideAnchorYawDegrees = 0.f;
+    _yaw = 0.f;
+    _pitch = 0.f;
     _isClipPreview = false;
     _isFirstUpdate = true;
     _isWideMode = false;
@@ -1707,6 +1709,34 @@ void BattleTurnCamera::Reload_BattleCameraAuthoringData()
 {
     _presetsById.clear();
     _clipsById.clear();
+
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::WIDE, _wideModePreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackPreset);
+
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::WIDE, _wideModeDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackDrift);
+    if (!CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackBossDrift, true))
+        _enemyAttackBossDrift = _enemyAttackDrift;
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTITEM, _selectItemDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTSKILL, _selectSkillDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PARRY, _parryDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::AIM, _aimDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTPLAYER, _selectPlayerDrift);
+
+    _battleIntroClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::BATTLEINTRO);
+    _playerAttackClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::PLAYERATTACK);
+    _enemyAttackClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::ENEMYATTACK);
+    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroClip);
+    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
+    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
 }
 
 void BattleTurnCamera::Apply_PreviewPreset(const BattleCameraPreset& preset)

@@ -797,6 +797,7 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
+    const bool savedRenderEnvironment = _renderer->Is_RenderEnvironment();
     const bool savedScreenFxActivated = (_screenFxManager != nullptr) && _screenFxManager->Is_ScreenFXActivated();
     Shared<PostProcessPipeline> postProcessPipeline = _renderer->Get_PostProcessPipeline();
     Shared<LightingPipeline> lightingPipeline = _renderer->Get_LightingPipeline();
@@ -822,7 +823,10 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
         savedSSAO = lightingPipeline->Get_Params();
         savedDeferredLighting = lightingPipeline->Get_DeferredLightingParams();
         DeferredLightingCB previewDeferredLighting = savedDeferredLighting;
-        previewDeferredLighting.iblEnabled = 1u;
+
+        if (!preservePostProcess)
+            previewDeferredLighting.iblEnabled = 1u;
+
         previewDeferredLighting.iblIntensity = 1.25f;
         previewDeferredLighting.iblDiffuseIntensity = 1.18f;
         previewDeferredLighting.iblSpecularIntensity = 0.45f;
@@ -859,7 +863,7 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
     if (hasPostProcessPipeline)
         postProcessPipeline->Set_PostProcessFeatures(savedPostProcessFeatures);
 
-    _renderer->Set_RenderEnvironment(false);
+    _renderer->Set_RenderEnvironment(savedRenderEnvironment);
 
     return S_OK;
 }
@@ -1542,6 +1546,14 @@ uint32 GameInstance::Get_RenderCall() const
 {
     CHECK_NULL(_renderer, 0);
     return _renderer->Get_RenderCall();
+}
+
+bool GameInstance::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const
+{
+    if (_renderer == nullptr)
+        return false;
+
+    return _renderer->Try_GetRenderViewHotspotSnapshot(outSnapshot);
 }
 
 const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const

@@ -20,6 +20,8 @@ Level_Loading::Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>
 
 HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
 {
+    GAME->Set_InputBlocked(true); // 로딩 중에는 에디터 입력 정책이 마우스를 다시 중앙 고정하지 못하게 한다.
+
     _nextLevel = eNextLevelID;
     _loadingStartTime = chrono::steady_clock::now();
     _printedLoadCompleteLog = false;
@@ -193,6 +195,8 @@ Shared<Level_Loading> Level_Loading::Create(const ComPtr<Device>& device, const 
 
 void Level_Loading::Free()
 {
+    GAME->Set_InputBlocked(false); // 다음 레벨로 넘어가면 일반 입력/마우스 락 정책을 다시 허용한다.
+
     if (_loader)
     {
         while (!_loader->Is_WorkerDone())
