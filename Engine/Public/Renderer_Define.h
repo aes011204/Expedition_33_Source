@@ -50,6 +50,10 @@ namespace RT
     inline constexpr const wchar_t* DOFFarHalfB = L"Target_DOFFarHalfB";
     inline constexpr const wchar_t* DOFFarQuarterA = L"Target_DOFFarQuarterA";
     inline constexpr const wchar_t* DOFFarQuarterB = L"Target_DOFFarQuarterB";
+    inline constexpr const wchar_t* AmbientVisibilityFrontDepth = L"Target_AmbientVisibilityFrontDepth";
+    inline constexpr const wchar_t* AmbientVisibilityBackDepth = L"Target_AmbientVisibilityBackDepth";
+    inline constexpr const wchar_t* AmbientVisibilityAmount = L"Target_AmbientVisibilityAmount";
+    inline constexpr const wchar_t* AmbientVisibility = L"Target_AmbientVisibility";
 }
 
 namespace MRT
@@ -76,6 +80,8 @@ namespace MRT
     inline constexpr const wchar_t* DOFFarHalfB = L"MRT_DOFFarHalfB";
     inline constexpr const wchar_t* DOFFarQuarterA = L"MRT_DOFFarQuarterA";
     inline constexpr const wchar_t* DOFFarQuarterB = L"MRT_DOFFarQuarterB";
+    inline constexpr const wchar_t* AmbientVisibilityInterval = L"MRT_AmbientVisibilityInterval";
+    inline constexpr const wchar_t* AmbientVisibility = L"MRT_AmbientVisibility";
 #ifdef _DEBUG
     inline constexpr const wchar_t* FroxelDebug = L"MRT_FroxelDebug";
 #endif

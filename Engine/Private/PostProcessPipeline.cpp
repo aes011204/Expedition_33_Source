@@ -393,7 +393,8 @@ Shared<PostProcessPipeline> PostProcessPipeline::Create(ComPtr<Device> device, C
         PostProcessFeature::ToneMapping |
         PostProcessFeature::Bloom |
         PostProcessFeature::Gamma |
-        PostProcessFeature::LightShaft)))
+        PostProcessFeature::LightShaft |
+        PostProcessFeature::DOF)))
     {
         MSG_BOX("Failed to Create : PostProcessPipeline");
         return nullptr;

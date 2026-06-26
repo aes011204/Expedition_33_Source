@@ -171,6 +171,14 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_Lights:After");
     lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
     const auto combinedHDRBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_AmbientVisibility:Before");
+#endif
+
+    // ========================================= //
+    Render_AmbientVisibility();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_AmbientVisibility:After");
     DumpCurrentOMState(L"Render_CombinedHDR:Before");
 #endif
 
@@ -547,6 +555,59 @@ void Renderer::Render_Lights()
         return;
 }
 
+void Renderer::Render_AmbientVisibility()
+{
+    if (FAILED(GAME->Begin_MRT(MRT::AmbientVisibility, NotUseDSV, ClearRTV)))
+        return;
+
+    CHECK_FAILED(GAME->End_MRT());
+
+    if (!_deferredShader || !_viBuffer)
+    {
+        _renderGroups[ETOI(RenderGroup::AmbientVolume)].clear();
+        return;
+    }
+
+    _currentGroup = RenderGroup::AmbientVolume;
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::AmbientVolume)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (gameObject != nullptr)
+        {
+            if (FAILED(GAME->Begin_MRT(MRT::AmbientVisibilityInterval, NotUseDSV, ClearRTV)))
+                continue;
+
+            gameObject->Render();
+
+            if (FAILED(GAME->End_MRT()))
+                continue;
+
+            Add_RenderCall();
+
+            if (FAILED(GAME->Begin_MRT(MRT::AmbientVisibility, NotUseDSV, NotClearRTV)))
+                continue;
+
+            ENDMRT_RETURN_IF_FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
+            ENDMRT_RETURN_IF_FAILED(Bind_ScreenSpaceCB(_deferredShader));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityFrontDepthTexture", RT::AmbientVisibilityFrontDepth));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityBackDepthTexture", RT::AmbientVisibilityBackDepth));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityAmountTexture", RT::AmbientVisibilityAmount));
+            ENDMRT_RETURN_IF_FAILED(_viBuffer->Bind_Resources());
+            ENDMRT_RETURN_IF_FAILED(_deferredShader->Begin(ETOI(DeferredPass::AmbientVisibilityResolve)));
+            ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
+
+            if (FAILED(GAME->End_MRT()))
+                continue;
+
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::AmbientVolume)].clear();
+}
+
 void Renderer::Render_CombinedHDR()
 {
     if (!_deferredShader || !_viBuffer)
@@ -608,6 +669,10 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityTexture", RT::AmbientVisibility),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_AmbientVisibilityTexture)");
 
     // Bilateral Blur : 거리, 깊이, 노말에 따라 Blur 가중치를 조절하는 기능
     const bool ssaoEnabled = (_lightingPipeline != nullptr) && _lightingPipeline->Is_Enabled();

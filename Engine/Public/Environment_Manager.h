@@ -18,6 +18,8 @@ public:
 
     HRESULT Change_IBL(const wchar_t* irradiancePath, const wchar_t* prefilterPath);
     HRESULT Bind_IBLTextures(ShaderCom* shader) const;
+    void Begin_SoulLikeIBLOverride();
+    void End_SoulLikeIBLOverride();
 
     void Set_FogZones(const FogZoneCB& fogZoneCB);
     const FogZoneCB& Get_FogZones() const;
@@ -55,6 +57,8 @@ private:
     Shared<Texture>                 _iblIrradianceTexture;
     Shared<Texture>                 _iblPrefilterTexture;
     Shared<Texture>                 _iblBrdfLutTexture;
+    DeferredLightingCB              _savedSoulLikeDeferredLightingCB{};
+    bool                            _soulLikeIBLOverrideActive = false;
     FogZoneCB                       _fogZoneCB{};
     VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
     bool                            _fogZoneCullingEnabled = true;

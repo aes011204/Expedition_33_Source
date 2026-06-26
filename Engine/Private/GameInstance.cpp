@@ -479,20 +479,6 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     CHECK_NULL(_printManager, E_FAIL);
 #endif
 
-    VolumetricLightShaftZoneCB lightShaftZoneCB{};
-    lightShaftZoneCB.zoneCount = 1;
-
-    Matrix lightShaftWorld = Matrix::CreateScale(2.f) * Matrix::CreateTranslation(Vec3(0.f, 19.f, 0.f));
-
-    lightShaftZoneCB.zones[0].worldToLocal = lightShaftWorld.Invert();
-    lightShaftZoneCB.zones[0].halfExtents = Vec3(3.f, 10.f, 3.f);
-    lightShaftZoneCB.zones[0].density = 1.f;
-    lightShaftZoneCB.zones[0].lightColor = Vec4(1.f, 0.95f, 0.8f, 1.f);
-    lightShaftZoneCB.zones[0].edgeFade = 1.f;
-    lightShaftZoneCB.zones[0].intensity = 1.f;
-
-    GAME->Set_VolumetricLightShaftZones(lightShaftZoneCB);
-
     return S_OK;
 }
 
@@ -1666,6 +1652,18 @@ HRESULT GameInstance::Bind_IBLTextures(Shared<ShaderCom> shader) const
 {
     CHECK_NULL(_environmentManager, E_FAIL);
     return _environmentManager->Bind_IBLTextures(shader.get());
+}
+
+void GameInstance::Begin_SoulLikeIBLOverride()
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Begin_SoulLikeIBLOverride();
+}
+
+void GameInstance::End_SoulLikeIBLOverride()
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->End_SoulLikeIBLOverride();
 }
 
 FogZoneCB GameInstance::Build_ActiveFogZones(const Vec3& cameraPosition)

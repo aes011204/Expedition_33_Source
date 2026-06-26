@@ -166,6 +166,8 @@ bool SoulLikeController::Begin_Battle()
     _healingPotionCount = kMaxHealingPotionCount;
     _state = BattleState::EnterFx;
 
+    GAME->Begin_SoulLikeIBLOverride();
+
     if (Is_DuallisteBattle())
     {
         Capture_PreSoulLikeBGM();
@@ -190,6 +192,7 @@ void SoulLikeController::End_Battle()
     GAME->Set_WorldTimeScale(1.f);
     Remove_SoulLikeRuntimeCameras();
     Restore_PreSoulLikeBGM();
+    GAME->End_SoulLikeIBLOverride();
 
     _state = BattleState::Finished;
     _enterFxTimer = 0.f;
@@ -955,6 +958,7 @@ void SoulLikeController::Handle_EditorStopRuntime()
 {
     Remove_SpawnedBattleActors();
     Restore_PreSoulLikeBGM();
+    GAME->End_SoulLikeIBLOverride();
 
     _state = BattleState::None;
     _enterFxTimer = 0.f;
@@ -1200,6 +1204,8 @@ Shared<GameObject> SoulLikeController::Clone(void* arg)
 
 void SoulLikeController::Free()
 {
+    GAME->End_SoulLikeIBLOverride();
+
     if (_editorStopHandle.IsValid())
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);

@@ -1,5 +1,7 @@
 ﻿#include "Environment_Manager.h"
 
+#include "GameInstance.h"
+#include "LightingPipeline.h"
 #include "ShaderCom.h"
 #include "Texture.h"
 
@@ -63,6 +65,40 @@ HRESULT Environment_Manager::Bind_IBLTextures(ShaderCom* shader) const
     }
 
     return S_OK;
+}
+
+void Environment_Manager::Begin_SoulLikeIBLOverride()
+{
+    if (_soulLikeIBLOverrideActive)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline == nullptr)
+        return;
+
+    _savedSoulLikeDeferredLightingCB = lightingPipeline->Get_DeferredLightingParams();
+    _soulLikeIBLOverrideActive = true;
+
+    DeferredLightingCB soulLikeLighting = _savedSoulLikeDeferredLightingCB;
+    soulLikeLighting.iblEnabled = 1u;
+    soulLikeLighting.iblIntensity = 0.70f;
+    soulLikeLighting.iblDiffuseIntensity = 0.70f;
+    soulLikeLighting.iblSpecularIntensity = 0.70f;
+    soulLikeLighting.iblPrefilterMaxMip = 8.0f;
+    lightingPipeline->Set_DeferredLightingParams(soulLikeLighting);
+}
+
+void Environment_Manager::End_SoulLikeIBLOverride()
+{
+    if (!_soulLikeIBLOverrideActive)
+        return;
+
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (lightingPipeline != nullptr)
+        lightingPipeline->Set_DeferredLightingParams(_savedSoulLikeDeferredLightingCB);
+
+    _savedSoulLikeDeferredLightingCB = DeferredLightingCB{};
+    _soulLikeIBLOverrideActive = false;
 }
 
 void Environment_Manager::Set_FogZones(const FogZoneCB& fogZoneCB)

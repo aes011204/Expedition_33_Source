@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "EnumFlags.h"
 
 namespace Engine
@@ -19,6 +19,7 @@ namespace Engine
         Glow,
         UI,
         UIEffect,
+        AmbientVolume,
         END
     };
 
@@ -103,7 +104,8 @@ namespace Engine
         SSAO,
         SSAOBlur,
         Fog,
-        FroxelDebug
+        FroxelDebug,
+        AmbientVisibilityResolve
     };
 
     enum class PostProcessPass : uint8

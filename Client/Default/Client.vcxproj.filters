@@ -292,6 +292,9 @@
     <Filter Include="02.GameObject\NPC\Sumo">
       <UniqueIdentifier>{28eb853a-06c8-49a5-a5f2-a50edbf6f645}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Map\MapAmbient">
+      <UniqueIdentifier>{7a488dbb-407d-4b4f-a97c-e7b0491b5c55}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -1353,6 +1356,9 @@
       <Filter>07. Dialogue</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
+    <ClCompile Include="..\Private\MapAmbientVisibility.cpp">
+      <Filter>02.GameObject\Map\MapAmbient</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1434,6 +1440,9 @@
       <Filter>07. Dialogue</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
+    <ClInclude Include="..\Public\MapAmbientVisibility.h">
+      <Filter>02.GameObject\Map\MapAmbient</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
