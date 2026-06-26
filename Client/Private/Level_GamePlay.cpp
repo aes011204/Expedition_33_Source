@@ -27,14 +27,14 @@ namespace
 
         Matrix lightShaftWorld =
             Matrix::CreateFromYawPitchRoll(
-                DirectX::XMConvertToRadians(-0),
-                DirectX::XMConvertToRadians(1.661),
+                DirectX::XMConvertToRadians(-0.f),
+                DirectX::XMConvertToRadians(1.661f),
                 DirectX::XMConvertToRadians(0.000f)) *
             Matrix::CreateTranslation(Vec3(-2.374f, 22.45f, -20.969f));
 
         VolumetricLightShaftZoneEntry& zone = lightShaftZoneCB.zones[0];
         zone.worldToLocal = lightShaftWorld.Invert();
-        zone.halfExtents = Vec3(13.200f, 5.200f, 9.9f);
+        zone.halfExtents = Vec3(13.200f, 5.2007f, 9.9f);
         zone.density = 1.f;
         zone.lightColor = Vec4(1.f, 242.f / 255.f, 204.f / 255.f, 1.f);
         zone.edgeFade = 1.f;
