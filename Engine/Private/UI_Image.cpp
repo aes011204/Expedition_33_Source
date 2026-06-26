@@ -1,4 +1,5 @@
 ﻿#include "UI_Image.h"
+#include "DebugMemoryTracker.h"
 #include "GameInstance.h"
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
@@ -162,6 +163,14 @@ HRESULT UI_Image::Initialize(void* arg)
             LOG_WARN("UI_Image mask texture load failed. path='{}'", String::ToString(_maskTexturePath));
             _maskSrv.Reset();
         }
+        else if (!_maskTexturePath.empty() && _maskSrv != nullptr)
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "ui.texture",
+                "UI_Image.Mask",
+                _maskTexturePath,
+                _maskSrv.Get());
+        }
 
         if (!_patternMaskTexturePath.empty() &&
             FAILED(CreateWICTextureFromFile(device.Get(), _patternMaskTexturePath.c_str(), nullptr, _patternMaskSrv.GetAddressOf())))
@@ -169,12 +178,28 @@ HRESULT UI_Image::Initialize(void* arg)
             LOG_WARN("UI_Image pattern mask texture load failed. path='{}'", String::ToString(_patternMaskTexturePath));
             _patternMaskSrv.Reset();
         }
+        else if (!_patternMaskTexturePath.empty() && _patternMaskSrv != nullptr)
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "ui.texture",
+                "UI_Image.PatternMask",
+                _patternMaskTexturePath,
+                _patternMaskSrv.Get());
+        }
 
         if (!_materialVfxNoiseTexturePath.empty() &&
             FAILED(CreateWICTextureFromFile(device.Get(), _materialVfxNoiseTexturePath.c_str(), nullptr, _materialVfxNoiseSrv.GetAddressOf())))
         {
             LOG_WARN("UI_Image material vfx noise texture load failed. path='{}'", String::ToString(_materialVfxNoiseTexturePath));
             _materialVfxNoiseSrv.Reset();
+        }
+        else if (!_materialVfxNoiseTexturePath.empty() && _materialVfxNoiseSrv != nullptr)
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "ui.texture",
+                "UI_Image.MaterialVfxNoise",
+                _materialVfxNoiseTexturePath,
+                _materialVfxNoiseSrv.Get());
         }
     }
 
@@ -513,6 +538,12 @@ HRESULT UI_Image::Load_TextureResource()
         LOG_WARN("UI_Image texture load failed. path='{}'", String::ToString(_texturePath));
         return E_FAIL;
     }
+
+    DebugMemoryTracker::Record_TextureSRV(
+        "ui.texture",
+        "UI_Image.Texture",
+        _texturePath,
+        _srv.Get());
 
     return S_OK;
 }

@@ -5,6 +5,8 @@
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
+#include "DebugMemoryTracker.h"
+#include "Mesh.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
@@ -1580,6 +1582,12 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     if (cachedModel != nullptr)
     {
+        DebugMemoryTracker::Record_CPUBytes(
+            "map.model.cache_hit",
+            "MapLoader.GetOrLoadModel",
+            fs::path(fullPathA).wstring(),
+            0);
+
         if (applyMaterials && needsMaterialApply)
         {
             const auto materialBegin = chrono::steady_clock::now();
@@ -1656,6 +1664,19 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         g_globalModelCache[cacheKey] = model;
     }
+
+    size_t meshBytes = 0;
+    for (const Shared<Mesh>& mesh : model->Get_Meshes())
+    {
+        if (mesh)
+            meshBytes += mesh->Get_DebugEstimatedBufferBytes();
+    }
+
+    DebugMemoryTracker::Record_CPUBytes(
+        "map.model.loaded",
+        "MapLoader.GetOrLoadModel",
+        fs::path(fullPathA).wstring(),
+        max<size_t>(1, meshBytes));
 
     return model;
 }
