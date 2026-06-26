@@ -297,7 +297,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
       0
     },
 
-    // NPC_WorldBody: 배경 NPC 본체. 월드 플레이어와 환경물은 이동을 막는다.
+    // NPC_WorldBody
     { Collision_Channel::NPC_WorldBody,
       ETOI(Collision_Channel::Projectile) |
       ETOI(Collision_Channel::Player_Target) |
