@@ -369,6 +369,48 @@ namespace Internal
         }
     }
 
+    PointParticleCylinderLocationAxis Resolve_PointParticleCylinderLocationAxis(CylinderLocationAxis axis)
+    {
+        switch (axis)
+        {
+        case CylinderLocationAxis::LocalX:
+            return PointParticleCylinderLocationAxis::LocalX;
+
+        case CylinderLocationAxis::LocalY:
+            return PointParticleCylinderLocationAxis::LocalY;
+
+        case CylinderLocationAxis::LocalLook:
+        default:
+            return PointParticleCylinderLocationAxis::LocalLook;
+        }
+    }
+
+    PointParticleCylinderLocationMode Resolve_PointParticleCylinderLocationMode(CylinderLocationSpawnMode mode)
+    {
+        switch (mode)
+        {
+        case CylinderLocationSpawnMode::Volume:
+            return PointParticleCylinderLocationMode::Volume;
+
+        case CylinderLocationSpawnMode::SideSurface:
+        default:
+            return PointParticleCylinderLocationMode::SideSurface;
+        }
+    }
+
+    PointParticleCylinderLocationPlacementMode Resolve_PointParticleCylinderLocationPlacementMode(CylinderLocationPlacementMode mode)
+    {
+        switch (mode)
+        {
+        case CylinderLocationPlacementMode::EvenByParticleIndex:
+            return PointParticleCylinderLocationPlacementMode::EvenByParticleIndex;
+
+        case CylinderLocationPlacementMode::Random:
+        default:
+            return PointParticleCylinderLocationPlacementMode::Random;
+        }
+    }
+
     PointParticleInitialRadialVelocityCenterDirectionMode Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(
         InitialRadialVelocityCenterDirectionMode mode)
     {
@@ -644,6 +686,23 @@ namespace Internal
         desc.radiusSeed = Build_RandomSeedDesc(data.radiusDistribution);
         desc.angleDegreesSeed = Build_RandomSeedDesc(data.angleDegreesDistribution);
         desc.thickness = max(0.f, data.thickness);
+        return desc;
+    }
+
+    PointParticleCylinderLocationDesc Build_PointParticleCylinderLocationDesc(const CylinderLocationModuleData& data)
+    {
+        PointParticleCylinderLocationDesc desc{};
+        desc.enabled = true;
+        desc.axis = Resolve_PointParticleCylinderLocationAxis(data.axis);
+        desc.mode = Resolve_PointParticleCylinderLocationMode(data.spawnMode);
+        desc.placementMode = Resolve_PointParticleCylinderLocationPlacementMode(data.placementMode);
+        desc.offset = data.offset;
+        desc.radiusRange = Build_NonNegativeFloatRange(data.radiusDistribution, desc.radiusRange);
+        desc.heightRange = Build_NormalizedFloatRange(data.heightDistribution, desc.heightRange);
+        desc.angleDegreesRange = Build_NormalizedFloatRange(data.angleDegreesDistribution, desc.angleDegreesRange);
+        desc.radiusSeed = Build_RandomSeedDesc(data.radiusDistribution);
+        desc.heightSeed = Build_RandomSeedDesc(data.heightDistribution);
+        desc.angleDegreesSeed = Build_RandomSeedDesc(data.angleDegreesDistribution);
         return desc;
     }
 
@@ -1925,6 +1984,9 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
 
     if (const auto* planeRadialLocation = Internal::Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
         desc.planeRadialLocation = Internal::Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
+
+    if (const auto* cylinderLocation = Internal::Find_ModuleData<CylinderLocationModuleData>(emitter, AuthoringModuleType::CylinderLocation))
+        desc.cylinderLocation = Internal::Build_PointParticleCylinderLocationDesc(*cylinderLocation);
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
@@ -3216,6 +3278,9 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
     if (const auto* planeRadialLocation = Internal::Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
         emitterDesc.planeRadialLocation = Internal::Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
 
+    if (const auto* cylinderLocation = Internal::Find_ModuleData<CylinderLocationModuleData>(emitter, AuthoringModuleType::CylinderLocation))
+        emitterDesc.cylinderLocation = Internal::Build_PointParticleCylinderLocationDesc(*cylinderLocation);
+
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.lifetime.lifeTime = Vec2{
@@ -3469,6 +3534,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
             max(meshMinRate.z, meshMaxRate.z)
         };
         emitterDesc.meshTransform.initialAngularVelocitySeed = Internal::Build_RandomSeedDesc(initialMeshRotationRate->rotationRateDegrees);
+        emitterDesc.meshTransform.initialAngularVelocityInWorldSpace = initialMeshRotationRate->inWorldSpace;
     }
 
     if (const auto* meshRotationRateScaleByLife = Internal::Find_ModuleData<MeshRotationRateScaleByLifeModuleData>(

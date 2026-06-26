@@ -2462,6 +2462,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _planeRadialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::CylinderLocation:
+        if (auto* data = get_if<CylinderLocationModuleData>(&module.data))
+            changed = _cylinderLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialVelocity:
         if (auto* data = get_if<InitialVelocityModuleData>(&module.data))
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);

@@ -780,6 +780,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_SphereLocationModule();
     case AuthoringModuleType::PlaneRadialLocation:
         return Make_PlaneRadialLocationModule();
+    case AuthoringModuleType::CylinderLocation:
+        return Make_CylinderLocationModule();
     case AuthoringModuleType::InitialSize:
         return Make_InitialSizeModule();
     case AuthoringModuleType::InitialMeshSize:
@@ -910,6 +912,17 @@ AuthoringModule Emitter_View::Make_PlaneRadialLocationModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = PlaneRadialLocationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_CylinderLocationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::CylinderLocation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = CylinderLocationModuleData{};
     return module;
 }
 
@@ -1346,6 +1359,9 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         return emitter.typeData.kind == AuthoringTypeDataKind::None ||
                emitter.typeData.kind == AuthoringTypeDataKind::Mesh ||
                emitter.typeData.kind == AuthoringTypeDataKind::SourceHistorySpriteTrail;
+    case AuthoringModuleType::CylinderLocation:
+        return emitter.typeData.kind == AuthoringTypeDataKind::None ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     case AuthoringModuleType::SpriteTilt:
     case AuthoringModuleType::SpriteTiltOverLife:
         return emitter.typeData.kind == AuthoringTypeDataKind::None ||
@@ -1380,6 +1396,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::InitialLocation:
     case AuthoringModuleType::SphereLocation:
     case AuthoringModuleType::PlaneRadialLocation:
+    case AuthoringModuleType::CylinderLocation:
     case AuthoringModuleType::InitialSize:
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialVelocity:
@@ -1447,6 +1464,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::PlaneRadialLocation:
         module = Make_PlaneRadialLocationModule();
+        break;
+    case AuthoringModuleType::CylinderLocation:
+        module = Make_CylinderLocationModule();
         break;
     case AuthoringModuleType::InitialSize:
         module = Make_InitialSizeModule();
@@ -2379,6 +2399,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = PlaneRadialLocationModuleData{};
         break;
 
+    case AuthoringModuleType::CylinderLocation:
+        module.data = CylinderLocationModuleData{};
+        break;
+
     case AuthoringModuleType::InitialSize:
         module.data = InitialSizeModuleData{};
         break;
@@ -2757,6 +2781,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::PlaneRadialLocation),
             ""
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::CylinderLocation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::CylinderLocation),
+            "Sprite/Mesh 전용"
         )
     );
     entries.push_back(
