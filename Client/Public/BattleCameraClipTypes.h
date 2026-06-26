@@ -56,3 +56,7 @@ struct BattleCameraClipSample
     float shakeVerticalRatio = 0.8f;
     float shakeStrengthScale = 0.05f;
 };
+
+using DialogueCameraClipTimeMode = BattleCameraClipTimeMode;
+using DialogueCameraClip = BattleCameraClip;
+using DialogueCameraClipSample = BattleCameraClipSample;

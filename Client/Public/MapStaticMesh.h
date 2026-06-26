@@ -83,9 +83,11 @@ private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
     HRESULT Ready_EmptyModelComponent();
     void Register_ModelComponent();
-    void Rebuild_StaticCollisionFromModel();
     HRESULT Bind_ShaderResources();
     void Refresh_HasEclipseGlow();
+
+public:
+    void Rebuild_StaticCollisionFromModel();
 
 public:
     static Shared<MapStaticMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

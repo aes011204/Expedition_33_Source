@@ -139,9 +139,9 @@ public: /* 타겟팅 중인 적 세팅 */
     void                Clear_TargetPreview();
     const BattleChar*   Get_TargetPreview() const;
 
-    bool    Ensure_EnemyTargetPreview();
-    bool    Move_EnemyTargetPreview(int32 direction);
-    void    Publish_TargetPreviewEnemyFocus() const;
+    bool                Ensure_EnemyTargetPreview();
+    bool                Move_EnemyTargetPreview(int32 direction);
+    void                Publish_TargetPreviewEnemyFocus() const;
 
 public:
     bool                Is_PlayerTurnActive() const;

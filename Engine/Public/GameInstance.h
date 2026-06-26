@@ -25,9 +25,9 @@
 NS_BEGIN(Engine)
 
 struct ShadowCascadeInfluenceVolume;
+class Event_Bus;
 struct RenderViewHotspotSnapshot;
-
-    class Event_Bus;
+class Event_Bus;
 class Graphic_Device;
 struct ShadowCascadeDebugInfo;
 class Timer_Manager;

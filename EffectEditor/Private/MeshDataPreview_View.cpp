@@ -13,6 +13,8 @@
 #include "ShaderCom.h"
 #include "Texture.h"
 
+#include <cmath>
+
 NS_BEGIN(EffectEditor)
 
 namespace Internal
@@ -322,6 +324,13 @@ namespace Internal
 
 struct MeshDataPreview_View::PreviewRenderer
 {
+    struct MaterialPreviewTime
+    {
+        float duration{ 1.f };
+        float cycleTime{};
+        float phase{};
+    };
+
     uint32 width{ 512 };
     uint32 height{ 512 };
     Shared<RenderTarget> renderTarget{};
@@ -381,20 +390,21 @@ struct MeshDataPreview_View::PreviewRenderer
         if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
         {
             const RequiredModuleData* required = Find_RequiredModuleData(emitter);
-            const float previewDuration = required != nullptr ? required->duration : 1.f;
+            const MaterialPreviewTime previewTime = Resolve_MaterialPreviewTime(required);
             const MaterialScalarModulationPreviewResult previewMaterial =
                 Evaluate_MaterialScalarModulationPreview(
                     effectMaterial,
                     Build_CoreColorRgbModulationRuntimeDesc(*modulation),
                     Build_MaterialVec2ModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
-                    Compute_MaterialScalarPreviewPhase(materialElapsedTime, previewDuration),
+                    previewTime.phase,
                     false
                 );
             effectMaterial = previewMaterial.material;
         }
 
         Internal::Apply_RequiredRenderPolicy(Find_RequiredModuleData(emitter), effectMaterial);
+        const MaterialPreviewTime previewTime = Resolve_MaterialPreviewTime(Find_RequiredModuleData(emitter));
 
         if (!Ready_RenderTarget() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
             return;
@@ -411,7 +421,7 @@ struct MeshDataPreview_View::PreviewRenderer
             return;
         }
 
-        const HRESULT hr = Draw_Model(meshData.previewScale, effectMaterial);
+        const HRESULT hr = Draw_Model(meshData.previewScale, effectMaterial, previewTime.cycleTime);
         GAME->Bind_BackBuffer();
 
         if (FAILED(hr))
@@ -641,7 +651,24 @@ struct MeshDataPreview_View::PreviewRenderer
         return true;
     }
 
-    HRESULT Bind_DistortionPreviewResources(const EffectMaterialInstanceData& material)
+    MaterialPreviewTime Resolve_MaterialPreviewTime(const RequiredModuleData* required) const
+    {
+        constexpr float kMinDuration = 0.0001f;
+        const float safeDuration =
+            required != nullptr
+            ? max(required->duration, kMinDuration)
+            : 1.f;
+        const float positiveElapsedTime = max(materialElapsedTime, 0.f);
+        const float cycleTime = std::fmod(positiveElapsedTime, safeDuration);
+
+        return MaterialPreviewTime{
+            safeDuration,
+            cycleTime,
+            cycleTime / safeDuration
+        };
+    }
+
+    HRESULT Bind_DistortionPreviewResources(const EffectMaterialInstanceData& material, float previewCycleTime)
     {
         CHECK_NULL(shader, E_FAIL);
 
@@ -654,7 +681,7 @@ struct MeshDataPreview_View::PreviewRenderer
             material.refractionIntensity,
             max(0.f, material.refractionPresence),
             flowTexture != nullptr ? 1.f : 0.f,
-            materialElapsedTime
+            previewCycleTime
         );
         const Vec4 screenSize(static_cast<float>(max(1u, width)), static_cast<float>(max(1u, height)), 0.f, 0.f);
         const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
@@ -676,7 +703,7 @@ struct MeshDataPreview_View::PreviewRenderer
         return S_OK;
     }
 
-    HRESULT Bind_EffectMaterialResources(const EffectMaterialInstanceData& material)
+    HRESULT Bind_EffectMaterialResources(const EffectMaterialInstanceData& material, float previewCycleTime)
     {
         CHECK_NULL(shader, E_FAIL);
         CHECK_NULL(mainTexture, E_FAIL);
@@ -798,7 +825,7 @@ struct MeshDataPreview_View::PreviewRenderer
         );
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVRotationParams", &effectMeshUVRotationParams, sizeof(effectMeshUVRotationParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialElapsedTime, sizeof(materialElapsedTime)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &previewCycleTime, sizeof(previewCycleTime)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
@@ -828,7 +855,7 @@ struct MeshDataPreview_View::PreviewRenderer
         return twoSided ? 2u : 0u;
     }
 
-    HRESULT Draw_Model(const Vec3& previewScale, const EffectMaterialInstanceData& material)
+    HRESULT Draw_Model(const Vec3& previewScale, const EffectMaterialInstanceData& material, float previewCycleTime)
     {
         CHECK_NULL(shader, E_FAIL);
         CHECK_NULL(model, E_FAIL);
@@ -858,9 +885,9 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_ObjectCB(world), E_FAIL);
         CHECK_FAILED(shader->Bind_CBufferData(cameraCB), E_FAIL);
         if (Internal::Is_MeshDistortionPreviewFamily(material))
-            CHECK_FAILED(Bind_DistortionPreviewResources(material), E_FAIL);
+            CHECK_FAILED(Bind_DistortionPreviewResources(material, previewCycleTime), E_FAIL);
         else
-            CHECK_FAILED(Bind_EffectMaterialResources(material), E_FAIL);
+            CHECK_FAILED(Bind_EffectMaterialResources(material, previewCycleTime), E_FAIL);
 
         const uint32 passIndex = Resolve_ShaderPassIndex(material);
         const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());

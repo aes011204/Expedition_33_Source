@@ -2,6 +2,7 @@
 #include "DialogueTypes.h"
 #include "Helper_String.h"
 #include <fstream>
+#include "magic_enum/magic_enum.hpp"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -36,7 +37,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
     {
         DialogueData dialogueData{};
         dialogueData.dialogueKey = dialogueJson.value("dialogueKey", "");
-
+        dialogueData.displayName = dialogueJson.value("displayName", "");
         if (dialogueData.dialogueKey.empty())
             continue;
 
@@ -49,6 +50,11 @@ void DialogueDB::LoadFromFile(const string& filePath)
                 line.text = String::ToWString(lineJson.value("text", ""));
                 line.cameraPresetId = lineJson.value("cameraPresetId", "");
                 line.nextLineIndex = lineJson.value("nextLineIndex", -1);
+                if (const string speakerRoleName = lineJson.value("speakerRole", string{}); !speakerRoleName.empty())
+                {
+                    if (const auto parsedSpeakerRole = magic_enum::enum_cast<DialogueActorRole>(speakerRoleName); parsedSpeakerRole.has_value())
+                        line.speakerRole = parsedSpeakerRole.value();
+                }
 
                 if (lineJson.contains("choices") && lineJson["choices"].is_array())
                 {
@@ -56,6 +62,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
                     {
                         DialogueChoice choice{};
                         choice.text = choiceJson.value("text", "");
+                        choice.action = choiceJson.value("action", "");
                         choice.nextLineIndex = choiceJson.value("nextLineIndex", -1);
                         line.choices.push_back(move(choice));
                     }

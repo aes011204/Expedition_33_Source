@@ -14,8 +14,13 @@ NS_END
 
 NS_BEGIN(Client)
 
-class CinematicSequenceRunner;
+struct DialogueRequest;
 
+    class DialogueCamera;
+class DialogueManager;
+struct DialogueData;
+class DialogueDB;
+class CinematicSequenceRunner;
 class CinematicCamera;
 class BattleController;
 class Player_WorldBase;
@@ -34,6 +39,7 @@ class CostumeManager;
 
 class SoulLikeController;
 class Unlock_Manager;
+class BattleFollowupManager;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -84,6 +90,7 @@ public: /* For.GameData Table */
     const Skill_Data* Get_Skill(const string& skillId);
     const vector<string> Get_AllSkillIds();
     HRESULT Reload_GameDataTables();
+    HRESULT Reload_CameraPresetData();
 
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);
@@ -170,6 +177,7 @@ public: /*For.Camera Director*/
     void Request_Preview();
     void Request_BattleTurn();
     Shared<CinematicCamera> Request_Cinematic();
+    Shared<DialogueCamera> Request_DialogueCamera();
     void Request_TargetCameraMode(TargetCameraMode cameraMode);
     void Restore_PreviousCamera();
 
@@ -216,6 +224,7 @@ public: /*CinematicSequenceRunner*/
 
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
+    Shared<DialogueCamera> Ensure_DialogueCamera();
 
 public:
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
@@ -275,6 +284,18 @@ public: /* SoulLike */
 public: /* Unlock Manager */
     Unlock_Manager* Get_UnlockManager() const { return _unlockManager.get(); }
 
+public:
+    const DialogueData* FindDialogueData(const string& dialogueKey) const;
+
+  public:
+    void StartDialogue(const DialogueRequest& request);
+    bool IsDialogueActive() const;
+    bool IsDialogueInteractLocked() const;
+    
+public: /* Battle Followup Manager */
+     BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
+
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -301,7 +322,8 @@ private:
     Unique<ScreenFadeTransition>        _screenFadeTransition;
     Unique<LevelTransitionFade>         _levelTransitionFade;
     Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;
-
+    Unique<DialogueDB>                  _dialogueDB;
+    Unique<DialogueManager>             _dialogueManager;
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;
     Unique<Hero_Manager>                _heroManager;
@@ -314,6 +336,7 @@ private:
     Shared<SoulLikeController> _soulLikeController;
 
     Unique<Unlock_Manager>      _unlockManager;
+    Unique<BattleFollowupManager>   _battleFollowupManager;
 
 public:
 	void Free() override;

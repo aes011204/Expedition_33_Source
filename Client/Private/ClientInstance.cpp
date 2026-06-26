@@ -1,4 +1,5 @@
 ﻿#include "pch.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
@@ -26,9 +27,17 @@
 #include "CinematicSequenceRunner.h"
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
+#include "DialogueDB.h"
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
+#include "TargetCamera.h"
+#include "BattleTurnCamera.h"
+#include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
+#include "DialogueDB.h"
+#include "DialogueManager.h"
+#include "DialogueCamera.h"
+#include "BattleFollowupManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -163,6 +172,17 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _unlockManager = Unlock_Manager::Create();
     CHECK_NULL(_unlockManager, E_FAIL);
 
+    _dialogueDB = DialogueDB::Create();
+    CHECK_NULL(_dialogueDB, E_FAIL);
+
+   _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
+
+   _dialogueManager = DialogueManager::Create();
+    CHECK_NULL(_dialogueManager, E_FAIL);
+    
+    _battleFollowupManager = BattleFollowupManager::Create();
+    CHECK_NULL(_battleFollowupManager, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -221,6 +241,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if(_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta, true);
+
+    if(_dialogueManager)
+        _dialogueManager->Update();
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
@@ -334,6 +357,36 @@ HRESULT ClientInstance::Reload_GameDataTables()
         return Ready_GameDataTables();
 
     return _gameDataTable->Load_All();
+}
+
+HRESULT ClientInstance::Reload_CameraPresetData()
+{
+    if (auto targetCamera = dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+    {
+        TargetCameraPreset preset{};
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, preset))
+            targetCamera->Set_Preset(TargetCameraMode::NORMAL, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, preset))
+            targetCamera->Set_Preset(TargetCameraMode::AIM, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, preset))
+            targetCamera->Set_Preset(TargetCameraMode::BATTLE_ENTER, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, preset))
+            targetCamera->Set_Preset(TargetCameraMode::SOULLIKE, preset);
+
+        targetCamera->Change_Mode(targetCamera->Get_CurrentMode());
+    }
+
+    if (auto battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(GAME->Get_CameraByType(ObjectType::BattleTurnCamera)))
+        battleTurnCamera->Reload_BattleCameraAuthoringData();
+
+    if (auto dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+        dialogueCamera->Set_CameraPresetId(dialogueCamera->Get_CameraPresetId());
+
+    return S_OK;
 }
 
 const Item_Data* ClientInstance::Get_Item(const string& itemId)
@@ -663,6 +716,11 @@ Shared<CinematicCamera> ClientInstance::Request_Cinematic()
     return _cameraDirector->Request_Cinematic();
 }
 
+Shared<DialogueCamera> ClientInstance::Request_DialogueCamera()
+{
+    return _cameraDirector->Request_DialogueCamera();
+}
+
 void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
 {
     return _cameraDirector->Request_ChangeTargetCameraMode(cameraMode);
@@ -867,11 +925,45 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
     }
 
     Shared<CinematicCamera> cinematicCamera = dynamic_pointer_cast<CinematicCamera>(gameObject);
+
     if(cinematicCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(cinematicCamera);
     return cinematicCamera;
+}
+
+Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
+{
+    if(auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+    {
+        return camera;  
+    }
+
+    Shared<GameObject> gameObject;
+
+    DialogueCamera::DIALOGUECAMERA_DESC desc{};
+    desc.speedPerSec = 10.f;
+    desc.degreePerSec = 180.f;
+    desc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(60.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 500.f;
+    desc.mouseSensor = 0.05f;
+
+    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    {
+        return nullptr;
+    }
+
+    Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(gameObject);
+
+    if(dialogueCamera == nullptr)
+        return nullptr;
+
+    GAME->Add_Camera(dialogueCamera);
+    return dialogueCamera;
 }
 
 Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
@@ -1120,6 +1212,26 @@ bool ClientInstance::Is_SoulLikeBattleActive() const
 bool ClientInstance::Is_WorldControlSuspended() const
 {
     return Is_BattleActive() || Is_SoulLikeBattleActive();
+}
+
+const DialogueData* ClientInstance::FindDialogueData(const string& dialogueKey) const
+{
+    return _dialogueDB->FindDialogueData(dialogueKey);
+}
+
+void ClientInstance::StartDialogue(const DialogueRequest& request)
+{
+    _dialogueManager->StartDialogue(request);
+}
+
+bool ClientInstance::IsDialogueActive() const
+{
+    return _dialogueManager && _dialogueManager->IsActive();
+}
+
+bool ClientInstance::IsDialogueInteractLocked() const
+{
+    return _dialogueManager && _dialogueManager->IsInteractLocked();
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()
