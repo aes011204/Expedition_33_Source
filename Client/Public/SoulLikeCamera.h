@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Camera.h"
+#include "BattleCameraClipTypes.h"
 #include "CameraPresetTypes.h"
 
 NS_BEGIN(Client)
@@ -68,6 +69,9 @@ public:
 private:
     void Build_DefaultPreset(const SOULLIKE_CAMERA_DESC& desc);
     void Interpolate_CurrentSettings(float timeDelta);
+    void Reset_ActiveClip();
+    void Apply_ActiveClip(float timeDelta);
+    bool Has_ClipKeys(const BattleCameraClip& clip) const;
     bool Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const;
     bool Try_GetOpponentTransform(Shared<TransformCom>& outOpponentTransformCom) const;
     Vec3 Resolve_SubjectPosition();
@@ -80,6 +84,10 @@ private:
     TargetCameraPreset _currentSettings{};
     TargetCameraPreset _targetSettings{};
     string _activePresetKey{};
+    BattleCameraClip _activeClip{};
+    TargetCameraPreset _activeClipBaseSettings{};
+    float _activeClipTime = 0.f;
+    bool _hasActiveClip = false;
 
     Weak<TransformCom> _targetTransformCom{};
     Weak<TransformCom> _opponentTransformCom{};

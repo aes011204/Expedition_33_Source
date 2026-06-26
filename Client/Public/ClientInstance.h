@@ -289,8 +289,12 @@ public:
 
   public:
     void StartDialogue(const DialogueRequest& request);
+    void EndDialogue();
     bool IsDialogueActive() const;
     bool IsDialogueInteractLocked() const;
+    void AddDialogueInteractionOverlap();
+    void RemoveDialogueInteractionOverlap();
+    bool HasDialogueInteractionOverlap() const { return _dialogueInteractionOverlapCount > 0; }
     
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
@@ -311,6 +315,7 @@ private:
     bool         _isStaticObjectsSpawned = false;
 	bool         _isInitialized = false;
     bool         _isTargetCameraEditMode = false;
+    int          _dialogueInteractionOverlapCount = 0;
 
 private:
     Shared<CameraDirector>              _cameraDirector;

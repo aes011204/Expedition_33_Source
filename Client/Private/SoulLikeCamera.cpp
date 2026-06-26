@@ -1,5 +1,7 @@
 ﻿#include "SoulLikeCamera.h"
 #include "ClientInstance.h"
+#include "BattleCameraClipIO.h"
+#include "BattleCameraClipUtils.h"
 #include "CameraPresetIO.h"
 #include "Collision_Define.h"
 #include "GameInstance.h"
@@ -172,6 +174,7 @@ void SoulLikeCamera::Update(float timeDelta)
     }
 
     Interpolate_CurrentSettings(timeDelta);
+    Apply_ActiveClip(timeDelta);
     Update_FromCurrentSettings(timeDelta);
 }
 
@@ -265,6 +268,7 @@ void SoulLikeCamera::Set_Preset(const TargetCameraPreset& preset)
     _baseSettings = preset;
     _targetSettings = preset;
     _activePresetKey.clear();
+    Reset_ActiveClip();
 }
 
 void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
@@ -273,6 +277,7 @@ void SoulLikeCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
     _currentSettings = preset;
     _targetSettings = preset;
     _activePresetKey.clear();
+    Reset_ActiveClip();
 
     Set_FovY(_currentSettings.camera.fovy);
     Set_Near(_currentSettings.camera.nearPlane);
@@ -299,6 +304,11 @@ bool SoulLikeCamera::Apply_PresetOverride(const string& presetKey)
 
     _targetSettings = overridePreset;
     _activePresetKey = presetKey;
+    _activeClipBaseSettings = overridePreset;
+    _hasActiveClip =
+        BattleCameraClipIO::LoadSoulLikeCameraClipFromFile(presetKey, _activeClip) &&
+        Has_ClipKeys(_activeClip);
+    _activeClipTime = 0.f;
 
     if (_targetSettings.snapOnEnter)
         _currentSettings = _targetSettings;
@@ -328,6 +338,7 @@ void SoulLikeCamera::Restore_BasePreset()
         return;
 
     _activePresetKey.clear();
+    Reset_ActiveClip();
     _targetSettings = _baseSettings;
 
     if (_targetSettings.snapOnEnter)
@@ -398,6 +409,67 @@ void SoulLikeCamera::Interpolate_CurrentSettings(float timeDelta)
     Set_FovY(_currentSettings.camera.fovy);
     Set_Near(_currentSettings.camera.nearPlane);
     Set_Far(_currentSettings.camera.farPlane);
+}
+
+void SoulLikeCamera::Reset_ActiveClip()
+{
+    _activeClip = BattleCameraClip{};
+    _activeClipBaseSettings = TargetCameraPreset{};
+    _activeClipTime = 0.f;
+    _hasActiveClip = false;
+}
+
+void SoulLikeCamera::Apply_ActiveClip(float timeDelta)
+{
+    if (!_hasActiveClip)
+        return;
+
+    _activeClipTime = std::clamp(
+        _activeClipTime + std::max(0.f, timeDelta),
+        0.f,
+        std::max(0.f, _activeClip.duration));
+
+    TargetCameraPreset sampledSettings = _activeClipBaseSettings;
+
+    if (!_activeClip.distanceOffset.keyframes.empty())
+        sampledSettings.distance = Sample_BattleCameraTrack(_activeClip.distanceOffset, _activeClipTime);
+    if (!_activeClip.fovOffset.keyframes.empty())
+        sampledSettings.camera.fovy = Sample_BattleCameraTrack(_activeClip.fovOffset, _activeClipTime);
+    if (!_activeClip.sideOffset.keyframes.empty())
+        sampledSettings.sideOffset = Sample_BattleCameraTrack(_activeClip.sideOffset, _activeClipTime);
+    if (!_activeClip.pivotOffset.keyframes.empty())
+        sampledSettings.pivotHeight = Sample_BattleCameraTrack(_activeClip.pivotOffset, _activeClipTime);
+    if (!_activeClip.heightOffset.keyframes.empty())
+        sampledSettings.heightOffset = Sample_BattleCameraTrack(_activeClip.heightOffset, _activeClipTime);
+    if (!_activeClip.aimOffset.keyframes.empty())
+        sampledSettings.aimOffset = Sample_BattleCameraTrack(_activeClip.aimOffset, _activeClipTime);
+    if (!_activeClip.lookHeightOffset.keyframes.empty())
+        sampledSettings.lookHeight = Sample_BattleCameraTrack(_activeClip.lookHeightOffset, _activeClipTime);
+    if (!_activeClip.yawOffset.keyframes.empty())
+        sampledSettings.yawOffset = Sample_BattleCameraTrack(_activeClip.yawOffset, _activeClipTime);
+
+    _currentSettings.distance = sampledSettings.distance;
+    _currentSettings.camera.fovy = sampledSettings.camera.fovy;
+    _currentSettings.sideOffset = sampledSettings.sideOffset;
+    _currentSettings.pivotHeight = sampledSettings.pivotHeight;
+    _currentSettings.heightOffset = sampledSettings.heightOffset;
+    _currentSettings.aimOffset = sampledSettings.aimOffset;
+    _currentSettings.lookHeight = sampledSettings.lookHeight;
+    _currentSettings.yawOffset = sampledSettings.yawOffset;
+
+    Set_FovY(_currentSettings.camera.fovy);
+}
+
+bool SoulLikeCamera::Has_ClipKeys(const BattleCameraClip& clip) const
+{
+    return !clip.distanceOffset.keyframes.empty() ||
+        !clip.fovOffset.keyframes.empty() ||
+        !clip.sideOffset.keyframes.empty() ||
+        !clip.pivotOffset.keyframes.empty() ||
+        !clip.heightOffset.keyframes.empty() ||
+        !clip.aimOffset.keyframes.empty() ||
+        !clip.lookHeightOffset.keyframes.empty() ||
+        !clip.yawOffset.keyframes.empty();
 }
 
 bool SoulLikeCamera::Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const

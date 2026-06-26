@@ -63,6 +63,7 @@ private:
     void Render_PresetPanel();
     void Render_TimelinePanel();
     void Render_ClipTimelinePanel();
+    void Render_SavePresetPopup();
     void Update_PreviewCameraControls(const ImVec2& previewMin, const ImVec2& previewMax);
     void Render_ClipSequencer();
     void Render_SelectedClipKeyEditor();
@@ -70,9 +71,11 @@ private:
 
     void Load_CurrentPreset(bool loadBaseOnly = false);
     void Save_CurrentPreset();
+    void Save_CurrentPreset(const string& presetKey);
     string Build_CurrentPresetKey() const;
     void Load_CurrentClip();
     void Save_CurrentClip();
+    void Save_CurrentClip(const string& clipKey);
     void Reset_CurrentClip();
     string Build_CurrentClipKey() const;
     void Render_PresetBrowser();
@@ -173,6 +176,7 @@ private:
     TargetCameraPreset _compareEditPreset{};
     bool _comparePresetDirty = false;
     string _copyPresetKey{};
+    string _savePresetKey{};
     vector<TargetCameraPreset> _undoStack{};
     vector<TargetCameraPreset> _redoStack{};
 

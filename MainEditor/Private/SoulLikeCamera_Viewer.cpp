@@ -663,13 +663,60 @@ void SoulLikeCamera_Viewer::Render_Header()
 
     ImGui::SameLine();
     if (ImGui::Button("저장"))
-        Save_CurrentPreset();
+    {
+        _savePresetKey = Build_CurrentPresetKey();
+        ImGui::OpenPopup("Save SoulLike Camera Preset");
+    }
+
+    Render_SavePresetPopup();
 
     if (!_statusMessage.empty())
     {
         ImGui::SameLine();
         ImGui::TextDisabled("%s", _statusMessage.c_str());
     }
+}
+
+void SoulLikeCamera_Viewer::Render_SavePresetPopup()
+{
+    if (!ImGui::BeginPopupModal("Save SoulLike Camera Preset", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    char presetKeyBuffer[192] = {};
+    strncpy_s(presetKeyBuffer, _savePresetKey.c_str(), _TRUNCATE);
+
+    ImGui::TextUnformatted("Preset key");
+    ImGui::SetNextItemWidth(360.f);
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere();
+    if (ImGui::InputText("##SoulLikeCameraSavePresetKey", presetKeyBuffer, IM_ARRAYSIZE(presetKeyBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        _savePresetKey = presetKeyBuffer;
+        if (!_savePresetKey.empty())
+        {
+            Save_CurrentPreset(_savePresetKey);
+            ImGui::CloseCurrentPopup();
+        }
+    }
+    else if (strcmp(presetKeyBuffer, _savePresetKey.c_str()) != 0)
+    {
+        _savePresetKey = presetKeyBuffer;
+    }
+
+    ImGui::Spacing();
+    ImGui::BeginDisabled(_savePresetKey.empty());
+    if (ImGui::Button("Save", ImVec2(120.f, 0.f)))
+    {
+        Save_CurrentPreset(_savePresetKey);
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(120.f, 0.f)))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
 }
 
 void SoulLikeCamera_Viewer::Render_LeftPanel()
@@ -1351,7 +1398,24 @@ void SoulLikeCamera_Viewer::Render_ClipSequencer()
 
     static bool expanded = true;
     static int firstFrame = 0;
+    const ImVec2 sequencerMin = ImGui::GetCursorScreenPos();
+    const float sequencerWidth = ImGui::GetContentRegionAvail().x;
     ImSequencer::Sequencer(&adapter, &_clipCurrentFrame, &expanded, &sequencerSelectedTrackIndex, &firstFrame, ImSequencer::SEQUENCER_CHANGE_FRAME);
+    const ImVec2 sequencerMax = ImVec2(sequencerMin.x + sequencerWidth, ImGui::GetCursorScreenPos().y);
+
+    const ImGuiIO& io = ImGui::GetIO();
+    const ImVec2 mousePos = io.MousePos;
+    const bool sequencerHovered =
+        mousePos.x >= sequencerMin.x && mousePos.x <= sequencerMax.x &&
+        mousePos.y >= sequencerMin.y && mousePos.y <= sequencerMax.y;
+    if (sequencerHovered && io.KeyShift && io.MouseWheel != 0.f)
+    {
+        const int scrollStep = std::max(1, displayFrameMax / 20);
+        firstFrame = std::clamp(
+            firstFrame - static_cast<int>(std::lround(io.MouseWheel * static_cast<float>(scrollStep))),
+            0,
+            displayFrameMax);
+    }
 
     if (!consumedKeyClick)
         _clipSelectedTrackIndex = sequencerSelectedTrackIndex;
@@ -1488,7 +1552,11 @@ void SoulLikeCamera_Viewer::Load_CurrentClip()
 
 void SoulLikeCamera_Viewer::Save_CurrentClip()
 {
-    const string clipKey = Build_CurrentClipKey();
+    Save_CurrentClip(Build_CurrentClipKey());
+}
+
+void SoulLikeCamera_Viewer::Save_CurrentClip(const string& clipKey)
+{
     _editingClip.duration = std::max(0.001f, Resolve_CurrentAnimationDurationSec());
     _editingClip.timeMode = BattleCameraClipTimeMode::Independent;
     Client::BattleCameraClipIO::SaveSoulLikeCameraClipToFile(clipKey, _editingClip);
@@ -1512,14 +1580,18 @@ string SoulLikeCamera_Viewer::Build_CurrentClipKey() const
 
 void SoulLikeCamera_Viewer::Save_CurrentPreset()
 {
-    const string presetKey = Build_CurrentPresetKey();
+    Save_CurrentPreset(Build_CurrentPresetKey());
+}
+
+void SoulLikeCamera_Viewer::Save_CurrentPreset(const string& presetKey)
+{
     Client::CameraPresetIO::SaveSoulLikePresetToFile(presetKey, _editingPreset);
     _loadedPresetKey = presetKey;
     _presetDirty = false;
     _viewingSavedPreset = false;
     _presetBrowserDirty = true;
     _statusMessage = "프리셋 저장 완료";
-    Save_CurrentClip();
+    Save_CurrentClip(presetKey);
 }
 
 string SoulLikeCamera_Viewer::Build_CurrentPresetKey() const
@@ -2000,8 +2072,21 @@ void SoulLikeCamera_Viewer::Redo_Preset()
 
 void SoulLikeCamera_Viewer::Handle_ClipShortcuts()
 {
-    if (!_isFocused || ImGui::GetIO().WantTextInput)
+    const ImGuiIO& io = ImGui::GetIO();
+    if (!_isFocused || io.WantTextInput)
         return;
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+    {
+        Undo_Preset();
+        return;
+    }
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
+    {
+        Redo_Preset();
+        return;
+    }
 
     if (ImGui::IsKeyPressed(ImGuiKey_K))
         Insert_CurrentPoseKeysAtFrame(_clipCurrentFrame);
