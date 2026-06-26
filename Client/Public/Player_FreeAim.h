@@ -28,6 +28,7 @@ public:
 public:
     HRESULT Initialize() override;
     void Begin_Play() override;
+    void Refresh_BodyPlayer() override;
     bool EnterInvoke() override;
     void Update(float timeDelta) override;
     void LateUpdate(float timeDelta) override;
@@ -41,6 +42,7 @@ public:
     void Trigger_PendingFreeAimShotHit();
 
 private:
+    void Bind_AnimationModifiers();
     void Update_DirectionalModifiers();
     void Update_EnterTurnBurst();
     void Update_FreeAimHitState();

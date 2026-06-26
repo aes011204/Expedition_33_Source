@@ -15,6 +15,7 @@
 // 전역 모델 및 콜리전 캐시 정적 멤버 정의 및 초기화
 std::mutex MapLoader::g_globalCacheMutex;
 umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
+unordered_set<string> MapLoader::g_globalMissingModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
@@ -1558,6 +1559,9 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     bool needsMaterialApply = true;
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+        if (g_globalMissingModelCache.find(cacheKey) != g_globalMissingModelCache.end())
+            return nullptr;
+
         auto it = g_globalModelCache.find(cacheKey);
         if (it != g_globalModelCache.end())
         {
@@ -1586,6 +1590,21 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         return cachedModel;
     }
 
+    if (!fs::exists(fs::path(fullPathA)))
+    {
+        {
+            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+            g_globalMissingModelCache.insert(cacheKey);
+        }
+
+        LOG_WARN(
+            "[MapLoader::Model] skip missing model modelFolder='{}' modelPath='{}' resolved='{}'",
+            modelFolder,
+            modelPathStr,
+            fullPathA);
+        return nullptr;
+    }
+
     // 2단계: 전역 캐시에 없는 경우 디스크에서 신규 로드 수행
     const auto createBegin = chrono::steady_clock::now();
     auto model = ModelCom::Create(
@@ -1601,6 +1620,11 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     if (!model)
     {
+        {
+            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+            g_globalMissingModelCache.insert(cacheKey);
+        }
+
         LOG_WARN(
             "[MapLoader::Model] failed to create model modelFolder='{}' modelPath='{}' resolved='{}' directExists={}",
             modelFolder,
@@ -1636,6 +1660,7 @@ void MapLoader::Clear_GlobalCache()
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         g_globalModelCache.clear();
+        g_globalMissingModelCache.clear();
         g_globalCollisionCache.clear();
         g_globalMaterialSignatureByModel.clear();
     }

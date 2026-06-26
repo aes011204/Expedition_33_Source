@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Client_Defines.h"
+#include "RuntimeCheckpointIO.h"
 
 NS_BEGIN(Client)
 
@@ -15,6 +16,7 @@ public:
         json costumeJson = json::object();
         json unlockManagerJson = json::object();
         json inventoryJson = json::object();
+        vector<RuntimeCheckpointIO::HeroState> heroes{};
     };
 
 public:

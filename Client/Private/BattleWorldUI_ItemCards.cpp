@@ -1,6 +1,7 @@
 #include "BattleWorldUI_ItemCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
@@ -2315,7 +2316,7 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
         const Vec3 position =
             anchorWorldPos +
             Resolve_CameraScreenPositionDelta(presentation.screenPosition) +
-            presentation.worldOffset;
+            BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(presentation.worldOffset);
         const float introOutwardX = presentation.worldOffset.x < 0.f ? -0.04f : 0.04f;
         card.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(introOutwardX, -0.06f, 0.f));
         const Vec2 aspectWorldSize = Resolve_AspectWorldSize(presentation.worldSize, card.def.pixelSize);

@@ -1,9 +1,13 @@
 ﻿#pragma once
+
 #include "Battle_State.h"
+#include "Battle_Event.h"
+#include "Event_Bus.h"
 
 NS_BEGIN(Client)
 
 class BattleController;
+class CombatStatCom;
 
 class ChooseSkill : public Battle_State
 {
@@ -19,11 +23,12 @@ public:
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
 
-public:
-    void Free() override;
+private:
+    bool Has_SecondSkillPage(const Shared<CombatStatCom>& statCom) const;
 
 public:
     static Shared<ChooseSkill> Create(const Shared<BattleController>& owner);
+    void Free() override;
 };
 
 NS_END

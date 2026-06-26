@@ -78,6 +78,25 @@ namespace
     private:
         PxFilterData _selfFilterData{};
     };
+
+    class Controller_PlayerWorldBodyFilterCallback final : public PxControllerFilterCallback
+    {
+    public:
+        bool filter(const PxController& a, const PxController& b) override
+        {
+            const auto lhs = static_cast<const PhysicsCharacterController*>(a.getUserData());
+            const auto rhs = static_cast<const PhysicsCharacterController*>(b.getUserData());
+
+            if (lhs == nullptr || rhs == nullptr)
+                return true;
+
+            if (lhs->Get_CollisionPreset() == Collision_Preset::Player_WorldBody &&
+                rhs->Get_CollisionPreset() == Collision_Preset::Player_WorldBody)
+                return false;
+
+            return true;
+        }
+    };
 }
 
 HRESULT PhysicsCharacterController::Initialize(
@@ -92,6 +111,7 @@ HRESULT PhysicsCharacterController::Initialize(
 
     _controller = _physXManager->Create_CapsuleController(desc, initialFootPosition);
     CHECK_NULL(_controller, E_FAIL);
+    _controller->setUserData(this);
 
     // 런타임에서는 발 위치 기준으로 상태를 다루므로 생성 직후에도 같은 기준으로 맞춘다.
     _controller->setFootPosition(PxExtendedVec3(initialFootPosition.x, initialFootPosition.y, initialFootPosition.z));
@@ -114,8 +134,9 @@ CharacterControllerMoveResult PhysicsCharacterController::Move(const Vec3& displ
     const PxFilterData responseFilterData = Build_ControllerResponseFilterData(_desc.preset);
     const PxFilterData queryFilterData = Build_ControllerQueryFilterData(_desc.preset);
     Controller_QueryFilterCallback queryFilterCallback(responseFilterData);
+    Controller_PlayerWorldBodyFilterCallback playerWorldBodyFilterCallback;
     // coarse filter는 PhysX 기본 query AND 필터에 맡기고, 최종 Block/Ignore 판정만 callback에서 처리한다.
-    PxControllerFilters filters(&queryFilterData, &queryFilterCallback);
+    PxControllerFilters filters(&queryFilterData, &queryFilterCallback, &playerWorldBodyFilterCallback);
     // SL 캐릭터/몬스터 몸체는 kinematic dynamic collider라 이동 차단 후보에 포함해야 한다.
     filters.mFilterFlags = PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER;
     const PxControllerCollisionFlags flags =

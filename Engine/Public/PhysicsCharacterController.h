@@ -27,6 +27,7 @@ public:
 
     void Set_FootPosition(const Vec3& footPosition);
     Vec3 Get_FootPosition() const;
+    Collision_Preset Get_CollisionPreset() const { return _desc.preset; }
 
 private:
     PhysX_Manager* _physXManager = nullptr;

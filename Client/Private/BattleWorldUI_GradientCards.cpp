@@ -1,6 +1,7 @@
 #include "BattleWorldUI_GradientCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
@@ -1789,7 +1790,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     const Vec3 position =
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
-        placementTuning.baseOffset;
+        BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(placementTuning.baseOffset);
     panel.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(0.f, -0.08f, 0.f));
     const Vec2 aspectWorldSize = Resolve_AspectWorldSize(
         placementTuning.worldSize,

@@ -15,6 +15,7 @@ public:
     static RuntimeRuleStateIO::RuleState Build_TiresoSnowimPlenumWeaponUnlocks();
     static RuntimeRuleStateIO::RuleState Build_AllWeaponUnlocks();
     static RuntimeRuleStateIO::RuleState Build_FirstTutorialHeroUnlocks();
+    static RuntimeRuleStateIO::RuleState Build_FinalSkillSetupUnlocks();
     static bool Apply_ToCurrentRuntime(const RuntimeRuleStateIO::RuleState& ruleState);
 };
 
