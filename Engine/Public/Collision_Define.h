@@ -30,6 +30,7 @@ enum class Collision_Channel : uint32
     SL_MonsterBody = 1 << 19,
     SL_MonsterAttack = 1 << 20,
     SL_TargetSensor = 1 << 21,
+    NPC_WorldBody = 1 << 22,
 
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
@@ -61,6 +62,7 @@ enum class Collision_Preset
     SL_MonsterBody,
     SL_MonsterAttack,
     SL_TargetSensor,
+    NPC_WorldBody,
 
     END
 };
@@ -148,7 +150,8 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Trigger) |
                       ETOI(Collision_Channel::Monster_WorldBody),
 
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Enviroment) |
+                      ETOI(Collision_Channel::NPC_WorldBody)
     },
 
     { Collision_Channel::Player_Attack,
@@ -230,6 +233,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Monster_WorldBody) |
                       ETOI(Collision_Channel::SL_PlayerBody) |
                       ETOI(Collision_Channel::SL_MonsterBody) |
+                      ETOI(Collision_Channel::NPC_WorldBody) |
                       ETOI(Collision_Channel::Camera)
     },
 
@@ -291,6 +295,15 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::SL_TargetSensor,
       ETOI(Collision_Channel::SL_MonsterBody),
       0
+    },
+
+    // NPC_WorldBody: 배경 NPC 본체. 월드 플레이어와 환경물은 이동을 막는다.
+    { Collision_Channel::NPC_WorldBody,
+      ETOI(Collision_Channel::Projectile) |
+      ETOI(Collision_Channel::Player_Target) |
+      ETOI(Collision_Channel::WorldActionTrigger),
+      ETOI(Collision_Channel::Player_WorldBody) |
+      ETOI(Collision_Channel::Enviroment)
     },
 };
 

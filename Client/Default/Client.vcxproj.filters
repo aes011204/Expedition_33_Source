@@ -315,6 +315,9 @@
     <ClCompile Include="..\Private\ANS_SL_MoveTo.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_SL_MonsterAttackCamera.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -1641,6 +1644,9 @@
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
       <Filter>97. ShaderFiles\Effect</Filter>
     </None>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMeshCommon.hlsli">
+      <Filter>97. ShaderFiles\Effect</Filter>
+    </None>
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
       <Filter>97. ShaderFiles\Effect</Filter>
     </None>
@@ -2647,6 +2653,9 @@
     <ClInclude Include="..\Public\RuntimeRuleStateIO.h" />
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_SL_MonsterAttackCamera.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ANS_SL_TargetTrack.h">

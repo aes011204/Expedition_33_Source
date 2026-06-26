@@ -42,6 +42,8 @@ public:
         bool* shakeStrengthScaleEnabled = nullptr);
 
 public:
+    void Set_UseDisplayFrameTimeScale(bool enabled) { _useDisplayFrameTimeScale = enabled; }
+
     int GetFrameMin() const override;
     int GetFrameMax() const override;
     int GetItemCount() const override;
@@ -62,6 +64,7 @@ private:
     int* _currentFrame = nullptr;
     int* _displayFrameMax = nullptr;
     bool _normalizedTime = false;
+    bool _useDisplayFrameTimeScale = false;
     bool* _consumedKeyClick = nullptr;
     bool* _requestOpenInsertPopup = nullptr;
     bool* _requestRemoveKeyPopup = nullptr;

@@ -287,6 +287,7 @@
     <ClInclude Include="..\Public\RuntimeRuleStateService.h" />
     <ClInclude Include="..\Public\AN_SL_JumpCounterDamage.h" />
     <ClInclude Include="..\Public\ANS_SL_DodgeMove.h" />
+    <ClInclude Include="..\Public\ANS_SL_MonsterAttackCamera.h" />
     <ClInclude Include="..\Public\ANS_SL_TargetTrack.h" />
     <ClInclude Include="..\Public\ANS_SL_JumpCounterThreat.h" />
     <ClInclude Include="..\Public\ANS_SL_JumpCounterWindow.h" />
@@ -727,6 +728,7 @@
     <ClCompile Include="..\Private\RuntimeRuleStateService.cpp" />
     <ClCompile Include="..\Private\AN_SL_JumpCounterDamage.cpp" />
     <ClCompile Include="..\Private\ANS_SL_DodgeMove.cpp" />
+    <ClCompile Include="..\Private\ANS_SL_MonsterAttackCamera.cpp" />
     <ClCompile Include="..\Private\ANS_SL_TargetTrack.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterThreat.cpp" />
     <ClCompile Include="..\Private\ANS_SL_JumpCounterWindow.cpp" />
@@ -1088,6 +1090,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSourceHistorySpriteTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMeshCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
