@@ -17,6 +17,9 @@ namespace Internal
 {
     constexpr auto kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
     constexpr auto kTextureDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Textures";
+    constexpr float kPreviewPaneWidthRatio = 0.42f;
+    constexpr float kPreviewPaneMinWidth = 420.f;
+    constexpr float kPreviewPaneMaxWidth = 640.f;
 
     string textureAssignStatus{};
 
@@ -24,6 +27,32 @@ namespace Internal
     {
         ranges::transform(value, value.begin(), ::tolower);
         return value;
+    }
+
+    static bool Has_DuplicateEmitterName(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& target)
+    {
+        if (target.name.empty())
+            return false;
+
+        uint32 matchCount = 0;
+        for (const AuthoringEmitter& emitter : emitters)
+        {
+            if (emitter.name == target.name)
+                ++matchCount;
+        }
+
+        return matchCount > 1;
+    }
+
+    static string Build_EmitterPreviewLabel(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& emitter, const char* previewKind)
+    {
+        string label = emitter.name.empty() ? "Emitter" : emitter.name;
+        if (emitter.name.empty() || Has_DuplicateEmitterName(emitters, emitter))
+            label += " #" + std::to_string(emitter.id);
+
+        label += " - ";
+        label += previewKind;
+        return label;
     }
 
     wstring ToLowerCopy(wstring value)
@@ -1141,9 +1170,11 @@ void EffectMaterialInstance_View::Render()
 
     bool isOpen = Is_Open();
     const string& windowName = Get_ImGuiWindowName();
+    Apply_PendingFocusBeforeBegin();
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        Clear_PendingFocusAfterBegin();
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
 
@@ -1157,10 +1188,6 @@ void EffectMaterialInstance_View::Render()
         }
         else
         {
-            ImGui::TextUnformatted("Embedded Effect Material Instance (Material Copy)");
-            ImGui::TextDisabled("Source material GUID is not stored in this instance.");
-            ImGui::Separator();
-
             if (emitter->typeData.kind == AuthoringTypeDataKind::Mesh)
             {
                 Commit_PendingAuthoringEdit(emitterView);
@@ -1190,11 +1217,20 @@ void EffectMaterialInstance_View::Render()
                     emitter->typeData.kind == AuthoringTypeDataKind::Beam
                     ? EffectMaterialDistortionShapeControlMode::BeamUnsupported
                     : EffectMaterialDistortionShapeControlMode::Editable;
+                const string previewLabel = Internal::Build_EmitterPreviewLabel(
+                    emitterView->Get_Emitters(),
+                    *emitter,
+                    "Material Instance"
+                );
 
                 if (useSideBySideLayout)
                 {
                     const float spacing = ImGui::GetStyle().ItemSpacing.x;
-                    const float previewPaneWidth = clamp(contentWidth * 0.42f, 360.f, 560.f);
+                    const float previewPaneWidth = clamp(
+                        contentWidth * Internal::kPreviewPaneWidthRatio,
+                        Internal::kPreviewPaneMinWidth,
+                        Internal::kPreviewPaneMaxWidth
+                    );
 
                     ImGui::BeginChild("EffectMaterialInstancePreviewPane", ImVec2(previewPaneWidth, 0.f), false);
                     {
@@ -1203,7 +1239,8 @@ void EffectMaterialInstance_View::Render()
                             _previewRenderer->Draw_Viewport(
                                 "EffectMaterialInstancePreview",
                                 requiredData->material,
-                                "현재 인스턴스 프리뷰"
+                                previewLabel.c_str(),
+                                true
                             );
                         }
                     }
@@ -1231,7 +1268,7 @@ void EffectMaterialInstance_View::Render()
                         _previewRenderer->Draw_Viewport(
                             "EffectMaterialInstancePreview",
                             requiredData->material,
-                            "현재 인스턴스 프리뷰"
+                            previewLabel.c_str()
                         );
                         ImGui::Separator();
                     }
@@ -1896,6 +1933,7 @@ void EffectMaterialInstance_View::Open_Instance(uint32 emitterId, uint32 moduleI
     _targetEmitterId = emitterId;
     _targetModuleId = moduleId;
     Set_Open(true);
+    Request_FocusOnOpen();
 }
 
 bool EffectMaterialInstance_View::Resolve_Target(

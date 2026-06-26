@@ -1639,6 +1639,9 @@
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
       <Filter>97. ShaderFiles\Effect</Filter>
     </None>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMeshCommon.hlsli">
+      <Filter>97. ShaderFiles\Effect</Filter>
+    </None>
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
       <Filter>97. ShaderFiles\Effect</Filter>
     </None>

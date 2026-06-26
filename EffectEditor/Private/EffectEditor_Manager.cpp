@@ -411,15 +411,15 @@ void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 d
     ImGui::DockBuilderAddNode(dockSpaceId, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dockSpaceId, dockSpaceSize);
 
-    ImGuiID rightDockId = dockSpaceId;
-    const ImGuiID leftDockId = ImGui::DockBuilderSplitNode(rightDockId, ImGuiDir_Left, 0.30f, nullptr, &rightDockId);
+    ImGuiID mainDockId = dockSpaceId;
+    const ImGuiID materialDockId = ImGui::DockBuilderSplitNode(mainDockId, ImGuiDir_Right, 0.24f, nullptr, &mainDockId);
+    const ImGuiID leftDockId = ImGui::DockBuilderSplitNode(mainDockId, ImGuiDir_Left, 0.46f, nullptr, &mainDockId);
 
     ImGuiID sceneDockId = leftDockId;
-    const ImGuiID detailDockId = ImGui::DockBuilderSplitNode(sceneDockId, ImGuiDir_Down, 0.60f, nullptr, &sceneDockId);
+    const ImGuiID detailDockId = ImGui::DockBuilderSplitNode(sceneDockId, ImGuiDir_Down, 0.59f, nullptr, &sceneDockId);
 
-    ImGuiID emitterDockId = rightDockId;
-    const ImGuiID consoleDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.16f, nullptr, &emitterDockId);
-    const ImGuiID browserDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.36f, nullptr, &emitterDockId);
+    ImGuiID emitterDockId = mainDockId;
+    const ImGuiID browserDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.37f, nullptr, &emitterDockId);
 
     const auto dock_registered_window = [this](const wstring& windowName, ImGuiID targetDockId)
     {
@@ -433,11 +433,14 @@ void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 d
     dock_registered_window(L"Scene", sceneDockId);
     dock_registered_window(L"Detail", detailDockId);
     dock_registered_window(L"Hierarchy", detailDockId);
-    dock_registered_window(L"Profile", detailDockId);
     dock_registered_window(L"Emitter", emitterDockId);
     dock_registered_window(L"Content Browser", browserDockId);
     dock_registered_window(L"Curve Editor", browserDockId);
-    dock_registered_window(L"Console", consoleDockId);
+    dock_registered_window(L"Profile", browserDockId);
+    dock_registered_window(L"Console", browserDockId);
+    dock_registered_window(L"Effect Material", materialDockId);
+    dock_registered_window(L"Effect Material Instance", materialDockId);
+    dock_registered_window(L"MeshData Preview", materialDockId);
 
     ImGui::DockBuilderFinish(dockSpaceId);
 }
