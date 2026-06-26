@@ -16,6 +16,8 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
+class EffectPreviewPostProcessRenderer;
+
 enum class EffectMaterialPreviewMeshMode : uint8
 {
     Plane,
@@ -43,7 +45,7 @@ public:
     // material preview의 UV scroll용 누적 시간을 외부 update tick에서 갱신한다.
     void Update_MaterialTime(float timeDelta);
     // ImGui viewport와 입력을 함께 관리하는 원본 머티리얼 preview 패널 진입점이다.
-    void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label);
+    void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label, bool fillAvailableHeight = false);
     ShaderResourceView* Get_SRV() const;
     const string& Get_StatusMessage() const;
 
@@ -65,7 +67,6 @@ private: //## Types
 private: //## Static Values
     static constexpr auto kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
     static constexpr auto kEffectMaterialPreviewDistortionShaderId{ L"Shader_EffectMaterialPreviewDistortion" };
-    static constexpr auto kEffectMaterialPreviewPostProcessShaderPath{ L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl" };
     static constexpr float kHomeDistance{ 6.f };
     static constexpr float kHomeYawDegrees{ 0.f };
     static constexpr float kHomePitchDegrees{ 0.f };
@@ -75,19 +76,10 @@ private: //## Static Values
 private: //## Data
     uint32 _previewTextureWidth{ 512 };
     uint32 _previewTextureHeight{ 512 };
-    Shared<RenderTarget> _renderTarget{};
-    Shared<RenderTarget> _hdrRenderTarget{};
+    Unique<EffectPreviewPostProcessRenderer> _sceneResolve{};
     Shared<RenderTarget> _distortionSourceTarget{};
-    Shared<RenderTarget> _bloomHalfA{};
-    Shared<RenderTarget> _bloomHalfB{};
-    Shared<RenderTarget> _bloomQuarterA{};
-    Shared<RenderTarget> _bloomQuarterB{};
-    Shared<RenderTarget> _bloomEighthA{};
-    Shared<RenderTarget> _bloomEighthB{};
     Shared<ShaderCom> _shader{};
     Shared<ShaderCom> _distortionShader{};
-    Shared<ShaderCom> _postProcessShader{};
-    Shared<VIBuffer_Rect> _postProcessRect{};
     Shared<Texture> _texture{};
     Shared<Texture> _noiseTexture{};
     Shared<Texture> _maskTexture{};
@@ -108,14 +100,9 @@ private: //## Data
     bool _hasPendingHome{ false };
 
 private: //## Helper::Resource
-    bool Ready_RenderTarget();
-    bool Ready_HDRRenderTarget();
     bool Ready_DistortionSourceTarget();
-    bool Ready_PostProcessTargets();
     bool Ready_Shader();
     bool Ready_DistortionShader();
-    bool Ready_PostProcessShader();
-    bool Ready_PostProcessRect();
     bool Ready_Texture(const string& textureGuid, const string& texturePath);
     bool Ready_NoiseTexture(const string& textureGuid, const string& texturePath);
     bool Ready_MaskTexture(const string& textureGuid, const string& texturePath);
@@ -129,15 +116,6 @@ private: //## Helper::Render
     HRESULT Render_PreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const;
     HRESULT Render_CheckerBackground(float previewCycleTime) const;
     HRESULT Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material, float previewCycleTime) const;
-    HRESULT Render_PostProcessResolve() const;
-    HRESULT Render_PostProcessToneMapping(const Shared<RenderTarget>& bloomTexture) const;
-    HRESULT Render_PostProcessCopy() const;
-    HRESULT Render_BloomPass(const Shared<RenderTarget>& dstTarget, const Shared<RenderTarget>& srcTarget, PostProcessPass pass) const;
-    HRESULT Render_BloomUpsamplePass(
-        const Shared<RenderTarget>& dstTarget,
-        const Shared<RenderTarget>& smallTarget,
-        const Shared<RenderTarget>& baseTarget) const;
-    HRESULT Bind_PostProcessCommon(uint32 width, uint32 height) const;
     HRESULT Render_Mesh(const PreviewMeshResource& mesh) const;
     void Resize_RenderTarget(uint32 width, uint32 height);
 
@@ -155,7 +133,7 @@ private: //## Helper::Camera
 
 private: //## Helper::Overlay
     void Draw_ViewportTextOverlay(const ImVec2& canvasMin, const ImVec2& canvasMax, const char* label);
-    void Draw_MeshModeControls();
+    bool Draw_MeshModeControls(const ImVec2& canvasMin, const ImVec2& canvasMax);
 
 private: //## Helper::Lifecycle
     void Cleanup();

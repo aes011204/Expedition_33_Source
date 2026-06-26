@@ -103,6 +103,9 @@
     <ClCompile Include="..\Private\EffectMaterialScalarModulationPreview.cpp">
       <Filter>02. View\Effect Material Preview\Support</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EffectPreviewPostProcessRenderer.cpp">
+      <Filter>02. View\Effect Material Preview\Support</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
       <Filter>02. View\Effect Material Preview\Preview Renderer</Filter>
     </ClCompile>
@@ -256,6 +259,9 @@
       <Filter>02. View\Effect Material Preview\Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialScalarModulationPreview.h">
+      <Filter>02. View\Effect Material Preview\Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectPreviewPostProcessRenderer.h">
       <Filter>02. View\Effect Material Preview\Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
