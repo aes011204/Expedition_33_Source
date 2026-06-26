@@ -264,6 +264,8 @@
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\CharacterProgression_Panel.h" />
     <ClInclude Include="..\public\DialogueDB.h" />
+    <ClInclude Include="..\public\DialogueManager.h" />
+    <ClInclude Include="..\Public\DialogueTypes.h" />
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
@@ -321,6 +323,7 @@
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
     <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\public\Trigger_Cinematic.h" />
+    <ClInclude Include="..\Public\Trigger_Interaction.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
     <ClInclude Include="..\public\CinematicSequenceRunner.h" />
@@ -330,6 +333,7 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\Flash_ScreenFx.h" />
     <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
+    <ClInclude Include="..\public\UI_Dialogue.h" />
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
@@ -599,7 +603,6 @@
     <ClInclude Include="..\Public\BattleCameraProfileTypes.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="ChainModifierPreset.h" />
-    <ClInclude Include="DialogueTypes.h" />
     <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
     <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
@@ -701,6 +704,7 @@
     <ClCompile Include="..\Private\ChangeSkill_Panel.cpp" />
     <ClCompile Include="..\Private\CharacterProgression_Panel.cpp" />
     <ClCompile Include="..\private\DialogueDB.cpp" />
+    <ClCompile Include="..\private\DialogueManager.cpp" />
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
@@ -758,6 +762,7 @@
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\private\Trigger_Cinematic.cpp" />
+    <ClCompile Include="..\Private\Trigger_Interaction.cpp" />
     <ClCompile Include="..\Private\UI_AbilityPentagon.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
     <ClCompile Include="..\private\CinematicCamera.cpp" />
@@ -786,6 +791,7 @@
     <ClCompile Include="..\Private\DialogueCamera.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
+    <ClCompile Include="..\private\UI_Dialogue.cpp" />
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />

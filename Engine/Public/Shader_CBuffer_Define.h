@@ -181,7 +181,7 @@ struct alignas(16) PostProcessCB
     float bloomRadius = 0.5f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
     float bloomThreshold = 0.95f;           // Bloom 추출 기준
-    float bloomIntensity = 0.115f;          // Bloom 의 강도
+    float bloomIntensity = 0.08f;           // Bloom 의 강도
     float bloomSoftKnee = 0.7f;             // Bloom Threshold 경계선을 부드럽게 만드는 값
     float bloomClamp = 10.f;                // Bloom 추출 시 너무 강하지 않게 제한 값
 
