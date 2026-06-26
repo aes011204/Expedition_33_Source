@@ -136,6 +136,7 @@ public:
 private:
     HRESULT Ready_RenderResources();
     HRESULT Load_TextureResource();
+    static HRESULT Create_CachedTextureSRV(Device* device, const wstring& texturePath, ShaderResourceView** outSrv);
 
 private:
     bool    _isOverlay = false;
