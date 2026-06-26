@@ -21,6 +21,7 @@
 #include "Player_WorldBase.h"
 #include "MovementCom.h"
 #include "EffectCom.h"
+#include "SL_DuallisteCloneSkillManager.h"
 
 REGISTER_GLOBAL_ENUM(SL_Dualliste::Anim, "SL_DuallisteAnim")
 
@@ -96,6 +97,8 @@ void SL_Dualliste::BeginPlay()
 
     Apply_PhaseVisualState();
 
+    if (_cloneSkillManager == nullptr)
+        _cloneSkillManager = SL_DuallisteCloneSkillManager::Create(GetSharedPtr<SL_Dualliste>());
 
     if (_stateMachineCom)
         _stateMachineCom->Change_State(SL_MonState::Intro);
@@ -121,6 +124,9 @@ void SL_Dualliste::Update(float timeDelta)
 
     if (CLIENT->Is_BattleActive())
         return;
+
+    if (_cloneSkillManager)
+        _cloneSkillManager->Update(timeDelta);
 
     Update_StunSystem(timeDelta);
 
@@ -505,6 +511,14 @@ bool SL_Dualliste::Change_State(SL_MonState state)
     return _stateMachineCom->Change_State(state);
 }
 
+bool SL_Dualliste::Notify_CloneSkillAttack(GameObject* notifyOwner) const
+{
+    if (_cloneSkillManager == nullptr)
+        return false;
+
+    return _cloneSkillManager->Notify_Attack(notifyOwner);
+}
+
 void SL_Dualliste::Begin_PhaseChangeTransition()
 {
     _isPhaseChangeInvincible = true;
@@ -777,5 +791,6 @@ Shared<GameObject> SL_Dualliste::Clone(void* arg)
 
 void SL_Dualliste::Free()
 {
+    _cloneSkillManager.reset();
     SL_Base::Free();
 }

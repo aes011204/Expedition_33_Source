@@ -23,9 +23,14 @@ private:
         string prefabName{};
         string skillKey{};
         string animationName{};
+        Vec3   goalOffset = Vec3::Zero;
+        Vec3   goalWorldPos = Vec3::Zero;
 
         float fallbackDamageMultiplier = 1.f;
         float animationSpeed = 1.f;
+        float moveSpeed = 0.f;
+        bool  attackStarted = false;
+        bool  hasGoalWorldPos = false;
         bool  attackApplied = false;
     };
 
@@ -38,8 +43,10 @@ public:
         const string& skillKey,
         const string& animationName,
         const Shared<SL_Base>& target,
+        const Vec3& goalOffset = Vec3::Zero,
         float fallbackDamageMultiplier = 1.f,
-        float animationSpeed = 1.f);
+        float animationSpeed = 1.f,
+        float moveSpeed = 0.f);
 
     bool Notify_Attack(GameObject* notifyOwner);
 
@@ -54,6 +61,8 @@ private:
     bool Play_CloneAnimation(const Shared<Player_BattleBase>& actor, const string& animationName, float animationSpeed);
     bool Is_NotifyOwnerActiveClone(GameObject* notifyOwner) const;
     void Apply_CloneDamage(const CloneSkillRuntime& runtime);
+    bool Try_ResolveGoalWorldPosition(CloneSkillRuntime& runtime) const;
+    bool Update_CloneMovement(CloneSkillRuntime& runtime, float timeDelta) const;
 
     Vec3 Resolve_SpawnPosition(const Shared<SL_Dualliste>& owner, const Shared<SL_Base>& target) const;
     Vec3 Resolve_SpawnRotation(const Vec3& spawnPosition, const Shared<SL_Base>& target) const;

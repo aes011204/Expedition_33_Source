@@ -31,8 +31,10 @@ private:
     string _prefabName = "";
     string _skillKey = "";
     string _animationName = "";
+    Vec3   _goalOffset = Vec3::Zero;
     float  _fallbackDamageMultiplier = 1.f;
     float  _animationSpeed = 1.f;
+    float  _moveSpeed = 0.f;
 };
 
 NS_END

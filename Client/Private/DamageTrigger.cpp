@@ -1,10 +1,13 @@
-#include "DamageTrigger.h"
+﻿#include "DamageTrigger.h"
 
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "CombatStatCom.h"
 #include "SL_Base.h"
 #include "SL_DamageSystem.h"
+#include "SL_Maelle.h"
+#include "ClientInstance.h"
+#include "SoulLikeController.h"
 
 IMPLEMENT_REFLECTION(DamageTrigger)
 {
@@ -18,6 +21,7 @@ IMPLEMENT_REFLECTION(DamageTrigger)
     PROPERTY_FLOAT("Damage Multiplier", _damageMultiplier, 0.f, 100.f, 0.1f);
     PROPERTY_ENUM("Attack Type", _attackType, AttackType);
     PROPERTY_ENUM("Hit Reaction", _hitAnimOverride, SL_HitAnimOverride);
+    PROPERTY_BOOL("Enable Parry Reaction", _enableParryReaction);
 
     return true;
 }
@@ -107,6 +111,56 @@ void DamageTrigger::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom>
     if (target == nullptr || target.get() == attacker.get() || target->Is_Dead())
         return;
 
+    if (_enableParryReaction)
+    {
+        if (const Shared<SL_Maelle> maelle = dynamic_pointer_cast<SL_Maelle>(target))
+        {
+            const Shared<TransformCom> maelleTransform = maelle->Get_Transform();
+            const Vec3 maelleWorldPos = maelleTransform
+                ? maelleTransform->Get_WorldPosition()
+                : Vec3::Zero;
+
+            const Shared<TransformCom> attackerTransform = attacker->Get_Transform();
+            const Vec3 attackerWorldPos = attackerTransform
+                ? attackerTransform->Get_WorldPosition()
+                : maelleWorldPos;
+
+            Vec3 effectDir = attackerWorldPos - maelleWorldPos;
+            effectDir.y = 0.f;
+
+            if (effectDir.LengthSquared() > 0.0001f)
+                effectDir.Normalize();
+            else if (maelleTransform)
+                effectDir = maelleTransform->Get_WorldForward();
+
+            effectDir.y = 0.f;
+            if (effectDir.LengthSquared() > 0.0001f)
+                effectDir.Normalize();
+
+            Vec3 parryEffectWorldPos = maelleWorldPos + effectDir * 0.8f;
+            parryEffectWorldPos.y += 1.0f;
+
+            if (maelle->Try_ConsumeParry(attacker, attackerWorldPos, parryEffectWorldPos))
+            {
+                self->Set_IsActive(false);
+                self->Clear_Overlap();
+                _pendingDestroy = true;
+                return;
+            }
+
+            if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+            {
+                if (controller->Try_ConsumeJumpCounterDodge(attacker, maelle))
+                {
+                    self->Set_IsActive(false);
+                    self->Clear_Overlap();
+                    _pendingDestroy = true;
+                    return;
+                }
+            }
+        }
+    }
+
     SL_DamageInfo damageInfo{};
     if (!SL_DamageSystem::Apply_Damage(
         attacker,
@@ -131,6 +185,11 @@ void DamageTrigger::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom>
 void DamageTrigger::Set_LifeTimeSec(float lifeTimeSec)
 {
     _lifeTimeSec = max(lifeTimeSec, 0.01f);
+}
+
+void DamageTrigger::Set_EnableParryReaction(bool enableParryReaction)
+{
+    _enableParryReaction = enableParryReaction;
 }
 
 void DamageTrigger::Refresh_CollisionPresetFromOwner()

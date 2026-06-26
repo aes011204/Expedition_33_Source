@@ -26,6 +26,7 @@ public:
     void Late_Update(float timeDelta) override;
     void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void Set_LifeTimeSec(float lifeTimeSec);
+    void Set_EnableParryReaction(bool enableParryReaction);
     void Refresh_CollisionPresetFromOwner();
 
 private:
@@ -39,6 +40,7 @@ private:
     float _damageMultiplier = 1.f;
     AttackType _attackType = AttackType::BaseAttack;
     SL_HitAnimOverride _hitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    bool _enableParryReaction = true;
     bool _pendingDestroy = false;
     uint32 _spawnedLevelIndex = 0;
 

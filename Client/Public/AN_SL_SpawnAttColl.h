@@ -27,6 +27,7 @@ private:
     string _prefabName = "";
     wstring _layerTag = L"Layer_GameObject";
     bool _useCachedPlayerPosition = false;
+    bool _enableParryReaction = true;
     Vec3 _localOffset = Vec3::Zero;
     Vec3 _spawnRotation = Vec3::Zero;
     Vec3 _spawnScale = Vec3::One;

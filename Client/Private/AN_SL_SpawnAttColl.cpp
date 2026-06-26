@@ -48,6 +48,7 @@ IMPLEMENT_REFLECTION(ANS_SL_SpawnAttColl)
     PROPERTY_STRING("Prefab Name", _prefabName);
     PROPERTY_WSTRING("Layer Tag", _layerTag);
     PROPERTY_BOOL("Use Cached Player Position", _useCachedPlayerPosition);
+    PROPERTY_BOOL("Enable Parry Reaction", _enableParryReaction);
     PROPERTY_VEC3("Local Offset", _localOffset);
     PROPERTY_VEC3("Spawn Rotation", _spawnRotation);
     PROPERTY_VEC3("Spawn Scale", _spawnScale);
@@ -96,6 +97,7 @@ void ANS_SL_SpawnAttColl::On_Begin(const AnimNotifyContext& context)
     if (const Shared<DamageTrigger> damageTrigger = dynamic_pointer_cast<DamageTrigger>(spawnedObject))
     {
         damageTrigger->Set_LifeTimeSec(max(context.notifyStateDurationSec, 0.01f));
+        damageTrigger->Set_EnableParryReaction(_enableParryReaction);
         damageTrigger->Refresh_CollisionPresetFromOwner();
     }
 
@@ -144,8 +146,20 @@ Vec3 ANS_SL_SpawnAttColl::Resolve_SpawnWorldPosition(const AnimNotifyContext& co
             : nullptr;
 
         Vec3 cachedPlayerPos{};
-        if (attackState && attackState->Try_GetCachedPlayerPosition(cachedPlayerPos))
+        Vec3 cachedPlayerRight{};
+        Vec3 cachedPlayerUp{};
+        Vec3 cachedPlayerForward{};
+        if (attackState && attackState->Try_GetCachedPlayerAnchor(
+            cachedPlayerPos,
+            cachedPlayerRight,
+            cachedPlayerUp,
+            cachedPlayerForward))
+        {
+            UNREFERENCED_PARAMETER(cachedPlayerRight);
+            UNREFERENCED_PARAMETER(cachedPlayerUp);
+            UNREFERENCED_PARAMETER(cachedPlayerForward);
             return cachedPlayerPos;
+        }
     }
 
     const Shared<TransformCom> ownerTransform = spawnOwner ? spawnOwner->Get_Transform() : nullptr;

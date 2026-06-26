@@ -15,6 +15,7 @@ class Mon_Dualliste_Sword_L;
 class Mon_Dualliste_Sword_R;
 class MonsterStatCom;
 class SL_Mon_StateMachineCom;
+class SL_DuallisteCloneSkillManager;
 class EffectCom;
 
 class SL_Dualliste final : public SL_Base
@@ -85,6 +86,8 @@ public:
     bool Is_PhaseChangeFinished() const { return _phaseChangeFinished; }
     bool Is_PhaseChangeInvincible() const { return _isPhaseChangeInvincible; }
     bool Should_SkipPhaseChangeStunStart() const { return _skipPhaseChangeStunStart; }
+    Shared<SL_DuallisteCloneSkillManager> Get_CloneSkillManager() const { return _cloneSkillManager; }
+    bool Notify_CloneSkillAttack(GameObject* notifyOwner) const;
     void Begin_PhaseChangeTransition();
     void Finish_PhaseChange();
     void End_PhaseChangeTransition();
@@ -130,6 +133,7 @@ private:
     float kLowHpPhaseThreshold = 0.35f;
     float kOpportunityDistance = 2.2f;
     float kOpportunityForwardDot = 0.9f;
+    Shared<SL_DuallisteCloneSkillManager> _cloneSkillManager = {};
    
 
 

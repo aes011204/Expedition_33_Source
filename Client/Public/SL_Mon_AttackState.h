@@ -21,15 +21,18 @@ public:
     void Update(float timeDelta) override;
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
-    void Cache_PlayerPosition(const Vec3& playerPosition);
-    bool Try_GetCachedPlayerPosition(Vec3& outPlayerPosition) const;
-    void Clear_CachedPlayerPosition();
+    void Cache_PlayerAnchor(const Vec3& playerPosition, const Vec3& playerRight, const Vec3& playerUp, const Vec3& playerForward);
+    bool Try_GetCachedPlayerAnchor(Vec3& outPlayerPosition, Vec3& outPlayerRight, Vec3& outPlayerUp, Vec3& outPlayerForward) const;
+    void Clear_CachedPlayerAnchor();
 
 private:
     Shared<MovementCom> _movementCom{};
     Shared<ModelCom> _modelCom{};
     Vec3 _cachedPlayerPos = Vec3::Zero;
-    bool _hasCachedPlayerPos = false;
+    Vec3 _cachedPlayerRight = Vec3::Right;
+    Vec3 _cachedPlayerUp = Vec3::Up;
+    Vec3 _cachedPlayerForward = Vec3::Look;
+    bool _hasCachedPlayerAnchor = false;
 public:
     static Shared<SL_Mon_AttackState> Create(const Shared<SL_Dualliste>& owner);
 };
