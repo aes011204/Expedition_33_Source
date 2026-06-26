@@ -726,19 +726,21 @@ void SL_Maelle::Apply_MoveInput(const SL_MoveRequest& request, float timeDelta)
         return;
 
     MovementCom::MovementInput input{};
+    const bool hasMoveInput = request.worldDir.LengthSquared() > 0.f;
+    const bool lockOnSprint = request.lockOn && request.sprint && hasMoveInput;
 
-    if (!_combatLocked && request.worldDir.LengthSquared() > 0.f)
+    if (!_combatLocked && hasMoveInput)
     {
         input.moveX = request.moveX;
         input.moveZ = request.moveZ;
-        input.isRunPressed = request.lockOn ? false : request.sprint;
-        input.isWalkDown = request.lockOn;
+        input.isRunPressed = request.sprint;
+        input.isWalkDown = request.lockOn && !lockOnSprint;
     }
 
     _movementCom->Apply_Input(input);
     _movementCom->Update_Movement(timeDelta);
 
-    if (request.lockOn && _targetCom != nullptr && _transformCom != nullptr)
+    if (request.lockOn && !lockOnSprint && _targetCom != nullptr && _transformCom != nullptr)
     {
         const Shared<Character> target = _targetCom->Get_LockedTarget();
         const Shared<TransformCom> targetTransform = target ? target->Get_Transform() : nullptr;
