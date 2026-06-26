@@ -125,6 +125,7 @@ public: /* For.Editor World */
     bool    Save_TiresoSnowimPlenumWeaponUnlockRuleState(const fs::path& path) const;
     bool    Save_AllWeaponUnlockRuleState(const fs::path& path) const;
     bool    Save_FirstTutorialHeroUnlockRuleState(const fs::path& path) const;
+    bool    Save_FinalSkillSetupUnlockRuleState(const fs::path& path) const;
     bool    Load_RuleStateInEditor(const fs::path& path);
     void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
 

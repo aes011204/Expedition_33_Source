@@ -1,6 +1,7 @@
 #include "BattleWorldUI_MaterialVfxBackground.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "Debug_Profile.h"
@@ -1189,7 +1190,7 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
     const Vec3 position =
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
-        placementTuning.baseOffset;
+        BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(placementTuning.baseOffset);
     _impl->introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(0.f, -0.06f, 0.f));
     const Vec2 aspectWorldSize = Resolve_AspectWorldSize(
         placementTuning.worldSize,

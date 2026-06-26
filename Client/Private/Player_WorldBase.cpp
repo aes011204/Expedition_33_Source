@@ -765,6 +765,8 @@ Shared<Body_Player> Player_WorldBase::Create_CostumeBodyVariant(const wstring& m
         (void)model->Normalize_OwnerComponentTagAndBindings();
     }
 
+    CHECK_FAILED(Ready_BodyModifiers(body.get()), nullptr);
+
     return body;
 }
 

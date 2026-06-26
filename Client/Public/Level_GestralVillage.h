@@ -6,6 +6,8 @@
 
 NS_BEGIN(Client)
 
+class BattleStartSpawner;
+
 class Level_GestralVillage final : public Level
 {
 public:
@@ -18,6 +20,9 @@ public:
     virtual void Update(float fTimeDelta) override;
     virtual HRESULT Render() override;
 
+public:
+    const Shared<BattleStartSpawner> Get_BssPotatoBag() const { return _bssPotatoBag; }
+
 private:
     HRESULT Ready_Lights();
     HRESULT Ready_Environments();
@@ -29,13 +34,14 @@ private:
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
     HRESULT Ready_Layer_ETC(const wstring& strLayerTag);
-    void Play_MapBGM();
+    void    Play_MapBGM();
 
 private:
     WindowTitleFpsState _windowTitleFps = {};
     FDelegateHandle _editorPlayRuntimeHandle{};
 
 private:
+    Shared<BattleStartSpawner> _bssPotatoBag;
 
 public:
     static Shared<Level_GestralVillage> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

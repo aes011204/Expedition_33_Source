@@ -678,15 +678,19 @@ bool EffectCom::Try_ResolveEffectWorldTransform(
         return axis;
     };
 
+    Matrix rotationBasisMatrix = baseWorldMatrix;
+    if (!transformInheritance.inheritRotation)
+        Try_GetOwnerRootWorldMatrix(rotationBasisMatrix);
+
     const Vec3 basisRight = transformInheritance.inheritRotation
                             ? normalize_axis(Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13), Vec3::Right)
-                            : Vec3::Right;
+                            : normalize_axis(Vec3(rotationBasisMatrix._11, rotationBasisMatrix._12, rotationBasisMatrix._13), Vec3::Right);
     const Vec3 basisUp = transformInheritance.inheritRotation
                          ? normalize_axis(Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23), Vec3::Up)
-                         : Vec3::Up;
+                         : normalize_axis(Vec3(rotationBasisMatrix._21, rotationBasisMatrix._22, rotationBasisMatrix._23), Vec3::Up);
     const Vec3 basisLook = transformInheritance.inheritRotation
                            ? normalize_axis(Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33), Vec3::Look)
-                           : Vec3::Look;
+                           : normalize_axis(Vec3(rotationBasisMatrix._31, rotationBasisMatrix._32, rotationBasisMatrix._33), Vec3::Look);
 
     Matrix basisWorldMatrix = Matrix::Identity;
     basisWorldMatrix._11 = basisRight.x;
