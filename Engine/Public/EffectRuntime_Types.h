@@ -473,6 +473,7 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
+    PointParticleCylinderLocationDesc cylinderLocation{};             // CylinderLocation 모듈이 만든 시작 위치 원통 offset 분포다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 radial frame 기반 초기 회전 payload다.
     PointParticleRandomSeedRuntimeDesc initialLocationSeed{};         // InitialLocation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};          // SphereLocation random sample seed salt다.
@@ -802,6 +803,7 @@ struct MeshTransformRuntimeDesc
     MeshVector3CurveRuntimeDesc rotationByLife{};                    // lifeProgress 기준 추가 Euler degree다.
     Vec3 initialAngularVelocityDegreesMin{ 0.f, 0.f, 0.f };          // 초당 Euler angular velocity 하한이다.
     Vec3 initialAngularVelocityDegreesMax{ 0.f, 0.f, 0.f };          // 초당 Euler angular velocity 상한이다.
+    bool initialAngularVelocityInWorldSpace{ false };                // InitialMeshRotationRate 축을 world/simulation 기준으로 해석할지 여부다.
     PointParticleRandomSeedRuntimeDesc initialAngularVelocitySeed{}; // InitialMeshRotationRate random sample seed salt다.
     MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{};        // angular velocity Vec3 배율이다.
 };
@@ -831,6 +833,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSphereLocationDesc sphereLocation{};                   // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};            // SphereLocation random sample seed salt다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};         // PlaneRadialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleCylinderLocationDesc cylinderLocation{};               // CylinderLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleSphereRadialOrientationDesc sphereRadialOrientation{}; // SphereRadialOrientation 모듈에서 sphere radial frame 회전으로 소비하는 payload다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{};   // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
     MeshTransformRuntimeDesc meshTransform{};                           // Mesh 전용 Vec3 scale/rotation payload다.
