@@ -234,6 +234,21 @@ HRESULT MapInstancedMesh::Render()
         return S_OK;
     }
 
+#pragma region for using Renderdoc
+    //ComPtr<ID3DUserDefinedAnnotation> annotation;
+    //_context->QueryInterface(IID_PPV_ARGS(&annotation));
+    //struct ScopedMarker
+    //{
+    //    ID3DUserDefinedAnnotation* a;
+    //    ~ScopedMarker() { if (a) a->EndEvent(); }
+    //} marker{ annotation.Get() };
+    //if (annotation)
+    //{
+    //    wstring label = L"InstancedMesh: " + _modelPath;
+    //    annotation->BeginEvent(label.c_str());
+    //}
+#pragma endregion
+
     if (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow)
     {
         if (FAILED(Bind_ShaderResources()))

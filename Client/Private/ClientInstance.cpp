@@ -32,6 +32,7 @@
 #include "SoulLikeController.h"
 #include "TargetCamera.h"
 #include "BattleTurnCamera.h"
+#include "BattleEncounterProfile.h"
 #include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
 #include "DialogueDB.h"
@@ -670,15 +671,52 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
                                         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
-                                        bool completeImmediately)
+                                        bool completeImmediately, int32 battleStartSpawnerId, const Vec3& battleStartOffset)
 {
+    if (Should_ForcePlayerAdvantage(FieldID))
+        isPlayerAdvantage = true;
+
     return _battleController->OnEnterBattleField(
         FieldID,
         isPlayerAdvantage,
         heroIds,
         battleMonsterSpawnDescs,
         sourceObject,
-        completeImmediately);
+        completeImmediately,
+        battleStartSpawnerId,
+        battleStartOffset);
+}
+
+bool ClientInstance::Request_DialogueBattlePotatoBag()
+{
+    constexpr uint32 potatoBagEncounterId = 1;
+    constexpr int32 potatoBagBattleStartSpawnerId = 1;
+
+    if (Is_BattleActive() || Is_BattleEntering())
+        return false;
+
+    BattleMonsterSpawnDesc spawnDesc{};
+    spawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;
+
+    vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
+    battleMonsterSpawnDescs.emplace_back(move(spawnDesc));
+
+    if (_screenFxManager)
+        _screenFxManager->Play_BattleInCounterFx();
+
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
+
+    OnEnterBattleField(
+        potatoBagEncounterId,
+        false,
+        Resolve_BattleEncounterHeroIds(potatoBagEncounterId),
+        battleMonsterSpawnDescs,
+        nullptr,
+        false,
+        potatoBagBattleStartSpawnerId,
+        Vec3::Zero);
+
+    return true;
 }
 
 bool ClientInstance::Is_BattleActive() const

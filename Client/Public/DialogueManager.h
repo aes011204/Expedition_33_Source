@@ -26,6 +26,7 @@ private:
     void AlignDialogueActors();
     void SelectChoice();
     void ApplyChoice();
+    bool ExecuteLineAction(const string& action);
     const DialogueLine* GetCurrentLine();
     void ApplyCurrentLine();
 

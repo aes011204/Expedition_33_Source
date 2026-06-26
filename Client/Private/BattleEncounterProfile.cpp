@@ -14,7 +14,8 @@ namespace
         {
             BattleEncounterIds::LancelierTutorial,
             { HeroId::Gustave }, // 창병 튜토리얼은 구스타브 1:1 전투로 진행한다.
-            true
+            true,       // 튜토리얼인지
+            true // 플레이어 선 턴인지
         },
 
         // 나중에 필드별로 플레이어 스폰 구성이 달라지면 여기에 추가
@@ -46,6 +47,13 @@ bool Is_TutorialBattleEncounter(uint32 encounterId)
     const BattleEncounterProfile* profile = Find_BattleEncounterProfile(encounterId);
 
     return profile != nullptr && profile->isTutorial;
+}
+
+bool Should_ForcePlayerAdvantage(uint32 encounterId)
+{
+    const BattleEncounterProfile* profile = Find_BattleEncounterProfile(encounterId);
+
+    return profile != nullptr && profile->forcePlayerAdvantage;
 }
 
 NS_END
