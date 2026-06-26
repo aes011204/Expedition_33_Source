@@ -197,7 +197,9 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_SL_HUD_Path[] = L"UI/UI_Json/Soulslike/UI_SL_HUD.json";
 #pragma endregion
 
-
+#pragma region Dialogue
+    inline constexpr wchar_t UI_Dialogue[] = L"UI/UI_Json/CommonSystem/UI_Dialogue.json";
+#pragma endregion
 
 }
 
@@ -337,6 +339,26 @@ inline constexpr wchar_t UI_BattlePictosDeactivationAnim_Path[] =
 
     inline constexpr wchar_t UI_JumpCounterSuccessAnim_Path[] =
         L"UI/UI_Animations/BattleSystem/JumpCounter_Success";
+#pragma endregion
+
+#pragma region Dialogue
+    inline constexpr wchar_t UI_Choice_Dialogue_First_Hover_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_First_Button_Hover";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_First_Hover_Cancel_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_First_Button_Hover_Cancel";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_Intro[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_Intro";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_Second_Hover_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_Second_Button_Hover";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_Second_Hover_Cancel_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_Second_Button_Hover_Cancel";
+
+    inline constexpr wchar_t UI_Dialogue_Intro[] =
+        L"UI/UI_Animations/Common/Dialogue/Dialogue_Intro";
 #pragma endregion
 
 }
@@ -556,4 +578,9 @@ namespace Client::Constants::SoundCue
 namespace Client::Constants::Effect
 {
     constexpr const wchar_t* BreakEffect = L"Effects\\Assets\\Etc\\Break.effect.json";
+}
+
+namespace Client::Constants::Dialogue
+{
+    constexpr const wchar_t* Dialogue_Dir = L"../../../Client/Bin/Resources/Data/json/Dialogue/Dialogues.json";
 }
