@@ -13,6 +13,7 @@ enum class AuthoringModuleType : uint8
     InitialLocation,
     SphereLocation,
     PlaneRadialLocation,
+    CylinderLocation,
     InitialSize,
     InitialMeshSize,
     InitialVelocity,
@@ -820,6 +821,36 @@ struct PlaneRadialLocationModuleData
     float thickness{ 0.f };
 };
 
+enum class CylinderLocationAxis : uint8
+{
+    LocalX,
+    LocalY,
+    LocalLook,
+};
+
+enum class CylinderLocationSpawnMode : uint8
+{
+    SideSurface,
+    Volume,
+};
+
+enum class CylinderLocationPlacementMode : uint8
+{
+    Random,
+    EvenByParticleIndex,
+};
+
+struct CylinderLocationModuleData
+{
+    CylinderLocationAxis axis{ CylinderLocationAxis::LocalLook };
+    CylinderLocationSpawnMode spawnMode{ CylinderLocationSpawnMode::SideSurface };
+    CylinderLocationPlacementMode placementMode{ CylinderLocationPlacementMode::Random };
+    Vec3 offset{ 0.f, 0.f, 0.f };
+    FloatDistributionData radiusDistribution{ FloatDistributionData::Make_Uniform(0.f, 1.f) };
+    FloatDistributionData heightDistribution{ FloatDistributionData::Make_Uniform(-0.5f, 0.5f) };
+    FloatDistributionData angleDegreesDistribution{ FloatDistributionData::Make_Uniform(0.f, 360.f) };
+};
+
 enum class PlaneRadialOrientationTargetKind : uint8
 {
     Auto,
@@ -1019,6 +1050,7 @@ struct MeshRotationOverLifeModuleData
 struct InitialMeshRotationRateModuleData
 {
     Vector3DistributionData rotationRateDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+    bool inWorldSpace{ false };
 };
 
 struct MeshRotationRateScaleByLifeModuleData
@@ -1201,6 +1233,7 @@ using AuthoringModuleData = variant<
     InitialLocationModuleData,
     SphereLocationModuleData,
     PlaneRadialLocationModuleData,
+    CylinderLocationModuleData,
     InitialSizeModuleData,
     InitialMeshSizeModuleData,
     InitialVelocityModuleData,

@@ -551,6 +551,47 @@ struct PointParticlePlaneRadialLocationDesc
     float thickness{ 0.f };                                      // plane normal 방향 두께다. 0이면 평면에 붙는다.
 };
 
+// CylinderLocation 모듈이 원통 길이축으로 사용할 emitter-local axis다.
+enum class PointParticleCylinderLocationAxis : uint32
+{
+    LocalX = 0,
+    LocalY = 1,
+    LocalLook = 2,
+};
+
+// CylinderLocation 모듈이 원통에서 위치를 샘플링할 영역이다.
+enum class PointParticleCylinderLocationMode : uint32
+{
+    SideSurface = 0,
+    Volume = 1,
+};
+
+// CylinderLocation 모듈이 원주 angle을 고르는 방식이다.
+enum class PointParticleCylinderLocationPlacementMode : uint32
+{
+    Random = 0,
+    EvenByParticleIndex = 1,
+};
+
+// CylinderLocation 모듈이 만든 생성 시점 원통 위치 offset 분포다.
+struct PointParticleCylinderLocationDesc
+{
+    bool enabled{ false };                                           // CylinderLocation 모듈 연결 여부다.
+    PointParticleCylinderLocationAxis axis{
+        PointParticleCylinderLocationAxis::LocalLook };              // 원통 길이축으로 사용할 emitter-local axis다.
+    PointParticleCylinderLocationMode mode{
+        PointParticleCylinderLocationMode::SideSurface };            // 원통 옆면/shell 또는 부피 샘플링 정책이다.
+    PointParticleCylinderLocationPlacementMode placementMode{
+        PointParticleCylinderLocationPlacementMode::Random };        // 원주 angle 선택 정책이다.
+    Vec3 offset{ 0.f, 0.f, 0.f };                                    // emitter center 기준 원통 중심 offset이다.
+    Vec2 radiusRange{ 0.f, 1.f };                                    // 원통 반지름 또는 shell 두께 범위다.
+    Vec2 heightRange{ -0.5f, 0.5f };                                 // 원통 길이축 방향 위치 범위다.
+    Vec2 angleDegreesRange{ 0.f, 360.f };                            // 원주 angle 범위다.
+    PointParticleRandomSeedRuntimeDesc radiusSeed{};                 // radius random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc heightSeed{};                 // height random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc angleDegreesSeed{};           // angle random sample seed salt다.
+};
+
 // PlaneRadialOrientation 모듈이 회전 결과를 적용할 runtime 대상이다.
 enum class PointParticlePlaneRadialOrientationTargetKind : uint32
 {
@@ -716,6 +757,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
+    PointParticleCylinderLocationDesc cylinderLocation{};             // CylinderLocation 모듈이 만든 시작 위치 원통 offset 분포다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 sprite 2D 초기 회전 payload다.
     PointParticleRandomSeedRuntimeDesc initialLocationSeed{};         // InitialLocation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};          // SphereLocation random sample seed salt다.

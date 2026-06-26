@@ -257,6 +257,11 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SourceMotionVelocityParams;         // x: enabled, y: direction mode, z: spread angle degrees, w: source speed scale
     float4 g_SourceMotionVelocitySpeed;          // x/y: speed min/max
     uint4 g_SourceMotionVelocitySeedSalts;       // x: SourceMotionVelocity
+    float4 g_CylinderLocationParams;             // x: enabled, y: axis, z: mode, w: placement mode
+    float4 g_CylinderLocationOffset;             // xyz: offset
+    float4 g_CylinderLocationRadiusHeight;       // x/y: radius range, z/w: height range
+    float4 g_CylinderLocationAngle;              // x/y: angle degree range
+    uint4 g_CylinderLocationSeedSalts;           // x: radius, y: height, z: angle
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -1317,6 +1322,60 @@ void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint placementIndex, 
     frame.enabled = 1.0f;
 }
 
+void ResolveCylinderLocationBasis(out float3 axisW, out float3 radialU, out float3 radialV)
+{
+    axisW = float3(0.0f, 0.0f, 1.0f);
+    radialU = float3(1.0f, 0.0f, 0.0f);
+    radialV = float3(0.0f, 1.0f, 0.0f);
+
+    const uint axis = (uint)g_CylinderLocationParams.y;
+    if (axis == 0u)
+    {
+        axisW = float3(1.0f, 0.0f, 0.0f);
+        radialU = float3(0.0f, 1.0f, 0.0f);
+        radialV = float3(0.0f, 0.0f, 1.0f);
+    }
+    else if (axis == 1u)
+    {
+        axisW = float3(0.0f, 1.0f, 0.0f);
+        radialU = float3(1.0f, 0.0f, 0.0f);
+        radialV = float3(0.0f, 0.0f, 1.0f);
+    }
+}
+
+float3 SampleCylinderLocationOffset(uint seed, uint placementIndex, uint placementCount)
+{
+    float3 axisW = float3(0.0f, 0.0f, 1.0f);
+    float3 radialU = float3(1.0f, 0.0f, 0.0f);
+    float3 radialV = float3(0.0f, 1.0f, 0.0f);
+    ResolveCylinderLocationBasis(axisW, radialU, radialV);
+
+    const float radiusMin = max(0.0f, min(g_CylinderLocationRadiusHeight.x, g_CylinderLocationRadiusHeight.y));
+    const float radiusMax = max(radiusMin, max(g_CylinderLocationRadiusHeight.x, g_CylinderLocationRadiusHeight.y));
+    const float heightMin = min(g_CylinderLocationRadiusHeight.z, g_CylinderLocationRadiusHeight.w);
+    const float heightMax = max(g_CylinderLocationRadiusHeight.z, g_CylinderLocationRadiusHeight.w);
+    const float angleMinDegrees = g_CylinderLocationAngle.x;
+    const float angleMaxDegrees = g_CylinderLocationAngle.y;
+    const float radiusRatio = Hash01(seed + g_CylinderLocationSeedSalts.x + 1801u);
+    const float radius = (uint)g_CylinderLocationParams.z == 1u
+                         ? sqrt(lerp(radiusMin * radiusMin, radiusMax * radiusMax, radiusRatio))
+                         : lerp(radiusMin, radiusMax, radiusRatio);
+    const float height = lerp(heightMin, heightMax, Hash01(seed + g_CylinderLocationSeedSalts.y + 1811u));
+    const float angleRatio = (uint)g_CylinderLocationParams.w == 1u
+                             ? Resolve_EvenByParticleIndexAngleRatio(
+                                 placementIndex,
+                                 placementCount,
+                                 angleMinDegrees,
+                                 angleMaxDegrees
+                             )
+                             : Hash01(seed + g_CylinderLocationSeedSalts.z + 1823u);
+    const float angle = lerp(radians(angleMinDegrees), radians(angleMaxDegrees), angleRatio);
+    const float3 radialVector = (radialU * cos(angle) + radialV * sin(angle)) * radius;
+    const float enabled = g_CylinderLocationParams.x != 0.0f ? 1.0f : 0.0f;
+
+    return ResolveEmitterBasisVector(g_CylinderLocationOffset.xyz + axisW * height + radialVector) * enabled;
+}
+
 float ResolvePlaneRadialSpriteRotation(float frameEnabled, float sampleAngle)
 {
     float rotation = 0.0f;
@@ -1492,6 +1551,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const uint initialLocationSeed = seed + g_SpawnSeedSalts.y;
     const uint sphereLocationSeed = seed + g_SpawnSeedSalts.z;
     const uint planeRadialLocationSeed = seed;
+    const uint cylinderLocationSeed = seed;
     const uint initialVelocitySeed = seed + g_MotionSeedSalts0.x;
     const uint initialRadialVelocitySeed = seed + g_MotionSeedSalts0.y;
     const uint velocityConeSeed = seed + g_MotionSeedSalts0.z;
@@ -1516,14 +1576,16 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     );
     const bool hasExplicitLocation = g_InitialLocationMin.w != 0.0f ||
                                      g_SphereLocationParams.x != 0.0f ||
-                                     planeRadialFrame.enabled != 0.0f;
+                                     planeRadialFrame.enabled != 0.0f ||
+                                     g_CylinderLocationParams.x != 0.0f;
     const float3 baseLocationOffset = g_InitialLocationMin.w != 0.0f ? initialLocationOffset : float3(0.0f, 0.0f, 0.0f);
     const float3 planeRadialOffset = planeRadialFrame.enabled != 0.0f
                                      ? ResolveEmitterBasisVector(planeRadialFrame.localOffset)
                                      : float3(0.0f, 0.0f, 0.0f);
     const float3 spawnOffset = (hasExplicitLocation ? baseLocationOffset : fallbackSpawnOffset) +
                                SampleSphereLocationOffset(sphereLocationSeed, lifecycle.placementIndex, lifecycle.placementCount) +
-                               planeRadialOffset;
+                               planeRadialOffset +
+                               SampleCylinderLocationOffset(cylinderLocationSeed, lifecycle.placementIndex, lifecycle.placementCount);
     const float3 orbitSpawnOffset = ApplyOrbitOverLife(spawnOffset, lifeProgress);
     const float3 spawnPosition = g_Center.xyz + orbitSpawnOffset;
     float3 initialVelocity = float3(0.0f, 0.0f, 0.0f);

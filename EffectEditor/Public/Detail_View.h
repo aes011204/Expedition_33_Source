@@ -70,6 +70,7 @@ private: //## Data::ModuleDetail
     InitialLocationModuleDetail _initialLocationModuleDetail{};
     SphereLocationModuleDetail _sphereLocationModuleDetail{};
     PlaneRadialLocationModuleDetail _planeRadialLocationModuleDetail{};
+    CylinderLocationModuleDetail _cylinderLocationModuleDetail{};
     InitialSizeModuleDetail _initialSizeModuleDetail{};
     InitialMeshSizeModuleDetail _initialMeshSizeModuleDetail{};
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};

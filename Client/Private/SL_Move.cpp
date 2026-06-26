@@ -91,7 +91,7 @@ bool SL_Move::Request_Move(const SL_MoveRequest& request, float timeDelta)
 
     SoulLikeAnim moveAnim = SoulLikeAnim::Run;
 
-    if (request.lockOn)
+    if (request.lockOn && !request.sprint)
     {
         const float moveX = request.moveX;
         const float moveZ = request.moveZ;
