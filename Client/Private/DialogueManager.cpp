@@ -100,6 +100,9 @@ void DialogueManager::ContinueDialogue()
         return;
     }
 
+    if (ExecuteLineAction(currentLine->action))
+        return;
+
     EndDialogue();
 }
 
@@ -268,6 +271,23 @@ void DialogueManager::ApplyChoice()
     }
 
     MoveToLine(choice.nextLineIndex);
+}
+
+bool DialogueManager::ExecuteLineAction(const string& action)
+{
+    if (action.empty())
+        return false;
+
+    if (action == "Battle_PotatoBag")
+    {
+        EndDialogue();
+        CLIENT->Request_DialogueBattlePotatoBag();
+        return true;
+    }
+
+    LOG_WARN("Unknown dialogue line action: {}", action.c_str());
+    EndDialogue();
+    return true;
 }
 
 const DialogueLine* DialogueManager::GetCurrentLine()

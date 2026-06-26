@@ -164,7 +164,11 @@ public: /* For.Battle_Controller */
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr,
-        bool completeImmediately = false);
+        bool completeImmediately = false,
+        int32 battleStartSpawnerId = 0,
+        const Vec3& battleStartOffset = Vec3::Zero);
+
+    bool Request_DialogueBattlePotatoBag();
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
