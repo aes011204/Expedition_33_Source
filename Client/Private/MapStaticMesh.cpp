@@ -228,7 +228,7 @@ HRESULT MapStaticMesh::Initialize(void* arg)
         _physxStaticHandle = GAME->Register_PhysXStaticCollision(
             *_collisionData,
             _transformCom->Get_WorldMatrix(),
-            Collision_Preset::Enviroment);
+            Collision_Preset::Environment);
     }
 
     return S_OK;
@@ -534,7 +534,7 @@ void MapStaticMesh::Rebuild_StaticCollisionFromModel()
     _physxStaticHandle = GAME->Register_PhysXStaticCollision(
         *_collisionData,
         _transformCom->Get_WorldMatrix(),
-        Collision_Preset::Enviroment);
+        Collision_Preset::Environment);
 }
 
 HRESULT MapStaticMesh::Bind_ShaderResources()

@@ -95,7 +95,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
                 PhysXStaticActorHandle handle = GAME->Register_PhysXStaticCollision(
                     *_collisionData,
                     worldMatrix,
-                    Collision_Preset::Enviroment);
+                    Collision_Preset::Environment);
 
                 if (handle.Is_Valid())
                 {

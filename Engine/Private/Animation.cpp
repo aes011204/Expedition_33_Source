@@ -188,17 +188,6 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Animation::BlendPose");
 
-	// 현재 애니메이션 시간 갱신 
-	_currentTrackPosition += _tickPerSecond * currentTimeDelta * _animationSpeed;
-    if (_currentTrackPosition >= _duration)
-        _currentTrackPosition = _duration;
-		//_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;
-
-	// 다음 애니메이션 시간 갱신
-	nextAnim->_currentTrackPosition += nextAnim->_tickPerSecond * currentTimeDelta;
-	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
-		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
-
     // 어떤 뼈가 현재 애니메이션 루프에서 처리되었는지 기록 (해시셋 대신 vector<bool> 사용으로 메모리/속도 최적화)
     vector<bool> isBoneBlended(bones.size(), false);
 
@@ -299,6 +288,16 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
             }
         }
     }
+
+	// 현재 애니메이션 시간 갱신
+	_currentTrackPosition += _tickPerSecond * currentTimeDelta * _animationSpeed;
+    if (_currentTrackPosition >= _duration)
+        _currentTrackPosition = _duration;
+
+	// 다음 애니메이션 시간 갱신
+	nextAnim->_currentTrackPosition += nextAnim->_tickPerSecond * currentTimeDelta;
+	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
+		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
 }
 
 void Animation::Build_ChannelIndexCache()

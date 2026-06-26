@@ -861,7 +861,7 @@ bool PhysX_Manager::Raycast_Environment(
     Vec3 unitDir = direction;
     unitDir.Normalize();
 
-    TargetChannel_QueryFilterCallback filterCallback(Collision_Channel::Enviroment);
+    TargetChannel_QueryFilterCallback filterCallback(Collision_Channel::Environment);
 
     PxQueryFilterData queryFilterData;
     queryFilterData.flags =

@@ -1685,7 +1685,7 @@ void Animation_View::Sync_ModifierCollisionSource(const Shared<ModelCom>& modifi
             desc->collisionOwnerWorldMatrix = &collisionPart->Get_CombinedWorldMatrix();
             desc->ownerWorldMatrix = &modifierPart->Get_CombinedWorldMatrix();
             desc->enableCollision = true;
-            desc->debugCollisionSource = 1;
+            
         }
     }
 }
@@ -4950,13 +4950,13 @@ void Animation_View::Draw_ModifierCollisionDebug() const
         {
             auto* desc = static_cast<PhysicsModifier::PhysicsModifierDesc*>(
                 physicsModifier->Get_RuntimeReflectionTarget());
-            if (desc == nullptr || (!desc->debugDrawCollisions && !desc->debugDrawNodes))
+            if (desc == nullptr || !desc->debugDrawCollisionCapsules)
                 continue;
 
-            if (desc->debugDrawCollisions)
+            if (desc->debugDrawCollisionCapsules)
             {
                 vector<PhysicsModifier::RuntimeDebugCapsule> physicsCapsules{};
-                physicsModifier->Build_RuntimeDebugCapsules(modifierModel.get(), physicsCapsules);
+                physicsModifier->Build_RuntimeDebugCapsules(physicsCapsules);
                 for (const auto& capsule : physicsCapsules)
                 {
                     capsules.push_back({
@@ -4967,7 +4967,7 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                 }
             }
 
-            if (desc->debugDrawNodes || desc->debugDrawCollisions)
+            if (desc->debugDrawCollisionCapsules)
             {
                 vector<PhysicsModifier::RuntimeDebugSegment> physicsSegments{};
                 physicsModifier->Build_RuntimeDebugSegments(physicsSegments);
@@ -4978,7 +4978,7 @@ void Animation_View::Draw_ModifierCollisionDebug() const
                         segment.endPoint,
                         segment.hasContact,
                         segment.hasPush,
-                        segment.isSolvedSegment,
+                        false,
                         -1 });
                 }
             }

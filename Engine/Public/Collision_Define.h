@@ -19,12 +19,12 @@ enum class Collision_Channel : uint32
     Projectile = 1 << 9,
     Item = 1 << 10,
     Trigger = 1 << 11,
-    Enviroment = 1 << 12,
+    Environment = 1 << 12,
     Player_Target = 1 << 13,
     Camera = 1 << 14,
     WorldActionTrigger = 1 << 15,
     Monster_WeakPoint = 1 << 16,
-
+    
     SL_PlayerBody = 1 << 17,
     SL_PlayerAttack = 1 << 18,
     SL_MonsterBody = 1 << 19,
@@ -50,7 +50,7 @@ enum class Collision_Preset
 
     Item,
     Trigger,
-    Enviroment,
+    Environment,
 
     Player_Target,
     Camera,
@@ -131,7 +131,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Item) |
                       ETOI(Collision_Channel::Trigger) |
                       ETOI(Collision_Channel::Projectile),
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
     },
 
     { Collision_Channel::Player_Body,
@@ -141,7 +141,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Monster_Body),
 
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
     },
 
     { Collision_Channel::Player_WorldBody,
@@ -150,7 +150,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Trigger) |
                       ETOI(Collision_Channel::Monster_WorldBody),
 
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
     },
 
     { Collision_Channel::Player_Attack,
@@ -173,7 +173,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Player_Target) |
                       ETOI(Collision_Channel::Player_Body),
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
     },
 
     { Collision_Channel::Monster_WorldBody,
@@ -182,7 +182,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Player_Target) |
                       ETOI(Collision_Channel::WorldActionTrigger),
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
    },
 
 
@@ -201,12 +201,12 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::Projectile,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
                       ETOI(Collision_Channel::Player),
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
     },
 
     { Collision_Channel::WorldActionTrigger,
     /* overlapMask */ ETOI(Collision_Channel::Monster_WorldBody),
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
     },
 
     { Collision_Channel::Item,
@@ -221,8 +221,8 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* blockMask   */ 0
     },
 
-    // Enviroment — 환경물. 플레이어/투사체를 Block
-    { Collision_Channel::Enviroment,
+    // Environment — 환경물. 플레이어/투사체를 Block
+    { Collision_Channel::Environment,
     /* overlapMask */ 0,
     /* blockMask   */ ETOI(Collision_Channel::Player) |
                       ETOI(Collision_Channel::Player_Body) |
@@ -248,7 +248,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     // Camera — 카메라 충돌 환경물만 Block`
     { Collision_Channel::Camera,
     /* overlapMask */ 0,
-    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment)
     },
 
     // Monster_WeakPoint — 자유 조준 약점 전용. 일반 몸통과 분리해 우선 query할 수 있게 한다.
@@ -265,14 +265,14 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
 
     // Player_ParkourSensor — 전방/가슴팍 파쿠르 후보 탐색용. 환경물과 overlap 이벤트만 받는다.
     { Collision_Channel::Player_ParkourSensor,
-    /* overlapMask */ ETOI(Collision_Channel::Enviroment),
+    /* overlapMask */ ETOI(Collision_Channel::Environment),
     /* blockMask   */ 0
     },
 
     // SL_PlayerBody: SL 모드 플레이어 본체/피격용. 몬스터 몸체와 환경물은 이동을 막는다.
     { Collision_Channel::SL_PlayerBody,
       ETOI(Collision_Channel::SL_MonsterAttack),
-      ETOI(Collision_Channel::Enviroment) |
+      ETOI(Collision_Channel::Environment) |
       ETOI(Collision_Channel::SL_MonsterBody)
     },
 
@@ -286,7 +286,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::SL_MonsterBody,
       ETOI(Collision_Channel::SL_PlayerAttack) |
       ETOI(Collision_Channel::SL_TargetSensor),
-      ETOI(Collision_Channel::Enviroment) |
+      ETOI(Collision_Channel::Environment) |
       ETOI(Collision_Channel::SL_PlayerBody)
     },
 
