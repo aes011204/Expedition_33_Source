@@ -269,6 +269,7 @@
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
+    <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\public\NPC_Base.h" />
     <ClInclude Include="..\public\NPC_Chad.h" />
     <ClInclude Include="..\public\NPC_Golgra.h" />
@@ -708,6 +709,7 @@
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
+    <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\private\NPC_Base.cpp" />
     <ClCompile Include="..\private\NPC_Chad.cpp" />
     <ClCompile Include="..\private\NPC_Golgra.cpp" />

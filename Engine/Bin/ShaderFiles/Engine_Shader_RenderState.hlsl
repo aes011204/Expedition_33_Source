@@ -38,6 +38,13 @@ DepthStencilState DSS_DepthRead
     DepthFunc = less_equal;
 };
 
+DepthStencilState DSS_DepthReadGreater
+{
+    DepthEnable = true;
+    DepthWriteMask = zero;
+    DepthFunc = greater_equal;
+};
+
 DepthStencilState DSS_None
 {
     DepthEnable = false;
@@ -132,6 +139,45 @@ BlendState BS_Multiply
     SrcBlendAlpha = Zero;
     DestBlendAlpha = One;
     BlendOpAlpha = Add;
+};
+
+BlendState BS_AmbientVisibilityDepthInterval
+{
+    BlendEnable[0] = true;
+    BlendEnable[1] = true;
+    BlendEnable[2] = false;
+
+    SrcBlend[0] = One;
+    DestBlend[0] = One;
+    BlendOp[0] = Min;
+    SrcBlendAlpha[0] = One;
+    DestBlendAlpha[0] = One;
+    BlendOpAlpha[0] = Min;
+
+    SrcBlend[1] = One;
+    DestBlend[1] = One;
+    BlendOp[1] = Max;
+    SrcBlendAlpha[1] = One;
+    DestBlendAlpha[1] = One;
+    BlendOpAlpha[1] = Max;
+
+    RenderTargetWriteMask[0] = 0x0F;
+    RenderTargetWriteMask[1] = 0x0F;
+    RenderTargetWriteMask[2] = 0x0F;
+};
+
+BlendState BS_AmbientVisibilityMin
+{
+    BlendEnable[0] = true;
+
+    SrcBlend[0] = One;
+    DestBlend[0] = One;
+    BlendOp[0] = Min;
+    SrcBlendAlpha[0] = One;
+    DestBlendAlpha[0] = One;
+    BlendOpAlpha[0] = Min;
+
+    RenderTargetWriteMask[0] = 0x0F;
 };
 
 RasterizerState RS_CullNone

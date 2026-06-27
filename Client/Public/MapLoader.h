@@ -133,6 +133,7 @@ public:
     static HRESULT Convert_Json_To_Bin(const wstring& jsonPath, const wstring& binPath);
     static HRESULT Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot);
     static void Clear_GlobalCache();
+    static void Reapply_CachedLights();
 
 private:
     static HRESULT Try_BeginMapInstanceSession(
@@ -173,6 +174,7 @@ private:
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
     static umap<string, string> g_globalMaterialSignatureByModel;
     static uint32 g_currentLevelIndex;
+    static vector<LIGHT_DESC> g_cachedLights;
 };
 
 NS_END

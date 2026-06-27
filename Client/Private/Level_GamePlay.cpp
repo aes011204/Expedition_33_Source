@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
+#include "MapAmbientVisibility.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
 #include "PuzzleController.h"
@@ -18,6 +19,29 @@ namespace
     // 보스 전투 시작 위치
     constexpr Vec3 kBossBattlePosition = Vec3(134.35f, 21.82f, -1.11f);
     constexpr Vec3 kBossBattleRotation = Vec3(0.f, 67.5f, 0.f);
+
+    VolumetricLightShaftZoneCB Build_GamePlayLightShaftZones()
+    {
+        VolumetricLightShaftZoneCB lightShaftZoneCB{};
+        lightShaftZoneCB.zoneCount = 1;
+
+        Matrix lightShaftWorld =
+            Matrix::CreateFromYawPitchRoll(
+                DirectX::XMConvertToRadians(-0.f),
+                DirectX::XMConvertToRadians(1.661f),
+                DirectX::XMConvertToRadians(0.000f)) *
+            Matrix::CreateTranslation(Vec3(-2.374f, 22.45f, -20.969f));
+
+        VolumetricLightShaftZoneEntry& zone = lightShaftZoneCB.zones[0];
+        zone.worldToLocal = lightShaftWorld.Invert();
+        zone.halfExtents = Vec3(13.200f, 5.2007f, 9.9f);
+        zone.density = 1.f;
+        zone.lightColor = Vec4(1.f, 242.f / 255.f, 204.f / 255.f, 1.f);
+        zone.edgeFade = 1.f;
+        zone.intensity = 0.440f;
+
+        return lightShaftZoneCB;
+    }
 }
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -60,7 +84,16 @@ HRESULT Level_GamePlay::Initialize()
     if(FAILED(Ready_Layer_BattleStartSpawner(TEXT("Layer_BattleStartSpawner"))))
         return E_FAIL;
 
+    if(FAILED(Ready_Layer_AmbientVisibility(TEXT("Layer_BattleStartSpawner"))))
+        return E_FAIL;
+
+    // 안개, 빛 설정
     GAME->Set_RenderEnvironment(true);
+    if (FAILED(GAME->Change_IBL(
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds")))
+        return E_FAIL;
+
     GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
@@ -69,6 +102,9 @@ HRESULT Level_GamePlay::Initialize()
 void Level_GamePlay::BeginPlay()
 {
     StreamingLevel::BeginPlay();
+
+    GAME->Set_VolumetricLightShaftZoneCullingDistance(40.f);
+    GAME->Set_VolumetricLightShaftZones(Build_GamePlayLightShaftZones());
 }
 
 void Level_GamePlay::Update(float fTimeDelta)
@@ -240,6 +276,28 @@ HRESULT Level_GamePlay::Ready_Layer_BattleStartSpawner(const wstring& strLayerTa
     return S_OK;
 }
 
+HRESULT Level_GamePlay::Ready_Layer_AmbientVisibility(const wstring& strLayerTag)
+{
+    MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC bridgeDesc{};
+    bridgeDesc.name = L"AV_Cylinder_Test";
+    bridgeDesc.modelPath = L"../../../Client/Bin/Resources/Map/SmallLevel_MF_Zone_01/Cube_Nanite.model";
+    bridgeDesc.position = Vec3(0.8f, 22.42f, -19.4f);
+    bridgeDesc.rotation = Quat::Identity;
+    bridgeDesc.scale = Vec3(170.f, 80.f, 200.f);
+    bridgeDesc.visible = true;
+    bridgeDesc.cullEnabled = true;
+
+    CHECK_FAILED(GAME->Add_GameObject(
+        ETOI(LevelType::Static),
+        TEXT("GameObject_MapAmbientVisibility"),
+        ETOI(LevelType::GamePlay),
+        TEXT("Layer_AmbientVisibility"),
+        &bridgeDesc),
+        E_FAIL);
+
+    return S_OK;
+}
+
 void Level_GamePlay::Respawn_CinematicTrigger()
 {
     vector<Shared<GameObject>> triggersToRemove{};
@@ -406,6 +464,7 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
+    GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
     Free_MapStreaming();
 
     CLIENT->Clear_GameplayUI();

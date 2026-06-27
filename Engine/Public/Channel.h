@@ -30,6 +30,7 @@ public:
     Vec3 Get_FirstFramePosition() const;
 
     const vector<KEYFRAME>& Get_KeyFrames() const { return _keyFrames; }
+    size_t Get_DebugEstimatedBytes() const;
 
 private:
 	vector<KEYFRAME>		_keyFrames;
