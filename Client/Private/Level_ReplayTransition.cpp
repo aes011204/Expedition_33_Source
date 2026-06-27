@@ -4,7 +4,7 @@
 #include "Level_GestralVillage.h"
 #include "Level_Loading.h"
 #include "Level_MapTest.h"
-#include "Level_Simon.h"
+#include "Level_Stage01.h"
 
 Level_ReplayTransition::Level_ReplayTransition(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level(device, context)
@@ -42,7 +42,7 @@ Shared<Level> Level_ReplayTransition::Create_ReplayLevel(LevelType levelType, co
     case LevelType::GestralVillage:
         return Level_GestralVillage::Create(device.Get(), context.Get());
     case LevelType::Simon:
-        return Level_Simon::Create(device.Get(), context.Get());
+        return Level_Stage01::Create(device.Get(), context.Get());
 
     default:
         return nullptr;

@@ -74,6 +74,7 @@ namespace
         if (previewPlayer == nullptr)
             return;
 
+        CHECK_FAILED(previewPlayer->Reload_ChangeWeaponPreviewOffsetsFromPrefab()); // 저장된 PP_* offset을 기존 preview 인스턴스에 다시 반영한다.
         CHECK_FAILED(previewPlayer->Apply_EquippedWeaponFromRuntimeData()); // ChangeWeapon 화면에서만 실제 장착 무기를 preview에 붙인다.
     }
 

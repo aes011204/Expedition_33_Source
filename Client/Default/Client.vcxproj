@@ -489,7 +489,7 @@
     </ClInclude>
     <ClInclude Include="..\Public\Level_MapTest.h" />
     <ClInclude Include="..\Public\LevelTransitionFade.h" />
-    <ClInclude Include="..\Public\Level_Simon.h" />
+    <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapInstancedMesh.h" />
     <ClInclude Include="..\Public\MapAuthoringIO.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
@@ -944,7 +944,7 @@
     </ClCompile>
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
     <ClCompile Include="..\Private\LevelTransitionFade.cpp" />
-    <ClCompile Include="..\Private\Level_Simon.cpp" />
+    <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
     <ClCompile Include="..\Private\MapAuthoringIO.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />

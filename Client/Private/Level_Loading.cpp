@@ -11,7 +11,7 @@
 #include "Level_GameEntry.h"
 #include "Level_GamePlay.h"
 #include "Level_MapTest.h"
-#include "Level_Simon.h"
+#include "Level_Stage01.h"
 #include "Level_GestralVillage.h"
 
 Level_Loading::Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -106,7 +106,7 @@ void Level_Loading::Update(float fTimeDelta)
             pNextLevel = Level_MapTest::Create(_device.Get(), _context.Get());
             break;
         case LevelType::Stage01:
-            pNextLevel = Level_Simon::Create(_device.Get(), _context.Get());
+            pNextLevel = Level_Stage01::Create(_device.Get(), _context.Get());
             break;
         case LevelType::GestralVillage:
             pNextLevel = Level_GestralVillage::Create(_device.Get(), _context.Get());

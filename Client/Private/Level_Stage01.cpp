@@ -1,13 +1,13 @@
-﻿#include "Level_Simon.h"
+﻿#include "Level_Stage01.h"
 #include "GameInstance.h"
 #include "MapLoader.h"
 
-Level_Simon::Level_Simon(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Level_Stage01::Level_Stage01(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
 {
 }
 
-HRESULT Level_Simon::Initialize()
+HRESULT Level_Stage01::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
 
@@ -16,18 +16,18 @@ HRESULT Level_Simon::Initialize()
     return S_OK;
 }
 
-void Level_Simon::Update(float fTimeDelta)
+void Level_Stage01::Update(float fTimeDelta)
 {
 }
 
-HRESULT Level_Simon::Render()
+HRESULT Level_Stage01::Render()
 {
     Update_WindowTitleFps(_windowTitleFps, L"Level_Stage01");
 
     return S_OK;
 }
 
-HRESULT Level_Simon::Ready_Lights()
+HRESULT Level_Stage01::Ready_Lights()
 {
     GAME->Clear_Lights();
 
@@ -51,9 +51,9 @@ HRESULT Level_Simon::Ready_Lights()
     return S_OK;
 }
 
-Shared<Level_Simon> Level_Simon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<Level_Stage01> Level_Stage01::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto pInstance = make_shared<Level_Simon>(device, context);
+    auto pInstance = make_shared<Level_Stage01>(device, context);
 
     if (FAILED(pInstance->Initialize()))
     {
@@ -63,7 +63,7 @@ Shared<Level_Simon> Level_Simon::Create(const ComPtr<Device>& device, const ComP
     return pInstance;
 }
 
-void Level_Simon::Free()
+void Level_Stage01::Free()
 {
     __super::Free();
 }

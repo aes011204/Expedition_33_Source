@@ -295,9 +295,6 @@
     <Filter Include="02. GameObject\Map\MapEffect">
       <UniqueIdentifier>{cc4c3c31-ef8d-4930-8aaf-8abeaf1b9800}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Map\MapAmbient">
-      <UniqueIdentifier>{7a488dbb-407d-4b4f-a97c-e7b0491b5c55}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -911,7 +908,7 @@
     <ClCompile Include="..\Private\LevelTransitionFade.cpp">
       <Filter>01.Levels</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Level_Simon.cpp">
+    <ClCompile Include="..\Private\Level_Stage01.cpp">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapInstancedMesh.cpp">
@@ -2304,7 +2301,7 @@
     <ClInclude Include="..\Public\LevelTransitionFade.h">
       <Filter>01.Levels</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Level_Simon.h">
+    <ClInclude Include="..\Public\Level_Stage01.h">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MapInstancedMesh.h">

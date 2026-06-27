@@ -7,11 +7,11 @@
 
 NS_BEGIN(Client)
 
-class Level_Simon final : public Level
+class Level_Stage01 final : public Level
 {
 public:
-    Level_Simon(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    virtual ~Level_Simon() = default;
+    Level_Stage01(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    virtual ~Level_Stage01() = default;
 
 public:
     virtual HRESULT Initialize() override;
@@ -25,7 +25,7 @@ private:
     HRESULT Ready_Lights();
 
 public:
-    static Shared<Level_Simon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<Level_Stage01> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual void Free() override;
 };
 

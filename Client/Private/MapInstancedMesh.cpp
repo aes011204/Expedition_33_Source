@@ -43,6 +43,13 @@ namespace
     {
         return modelPath.find(L"Grass") != wstring::npos || modelPath.find(L"grass") != wstring::npos;
     }
+
+    bool Is_GrassOrPetalModelPath(const wstring& modelPath)
+    {
+        return Is_GrassModelPath(modelPath) ||
+            modelPath.find(L"Petal") != wstring::npos ||
+            modelPath.find(L"petal") != wstring::npos;
+    }
 }
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
@@ -181,6 +188,16 @@ void MapInstancedMesh::Late_Update(float timeDelta)
     auto submitShadowIfInRange = [&]()
     {
         if (!_castShadow || !Casts_DynamicShadow())
+        {
+            return;
+        }
+
+        if (ClientInstance::Is_DebugDisableMapInstancedMeshShadow())
+        {
+            return;
+        }
+
+        if (ClientInstance::Is_DebugDisableGrassInstancedShadow() && Is_GrassOrPetalModelPath(_modelPath))
         {
             return;
         }
@@ -833,6 +850,14 @@ bool MapInstancedMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) co
 
     outWorldBounds = _groupBounds;
     return true;
+}
+
+bool MapInstancedMesh::Allows_DynamicShadowCascade(uint32 cascadeIndex) const
+{
+    if (ClientInstance::Is_DebugLimitMapInstancedMeshShadowCascade() && cascadeIndex > 2u)
+        return false;
+
+    return cascadeIndex <= _maxShadowCascade;
 }
 
 void MapInstancedMesh::DispatchCull()

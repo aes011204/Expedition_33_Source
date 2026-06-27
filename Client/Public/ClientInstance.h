@@ -5,6 +5,7 @@
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
+#include "RuntimeCheckpointIO.h"
 #include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
@@ -72,12 +73,22 @@ public:
 
     bool    Is_GameplayMenuOpen() const;
 
+    static bool Is_DebugDisableDynamicShadowRenderPass();
+    static void Set_DebugDisableDynamicShadowRenderPass(bool disabled);
     static bool Is_DebugDisableMapInstancedMeshRender();
     static void Set_DebugDisableMapInstancedMeshRender(bool disabled);
     static bool Is_DebugDisableGrassInstancedRender();
     static void Set_DebugDisableGrassInstancedRender(bool disabled);
     static bool Is_DebugDisableMapStaticMeshRender();
     static void Set_DebugDisableMapStaticMeshRender(bool disabled);
+    static bool Is_DebugDisableMapInstancedMeshShadow();
+    static void Set_DebugDisableMapInstancedMeshShadow(bool disabled);
+    static bool Is_DebugDisableGrassInstancedShadow();
+    static void Set_DebugDisableGrassInstancedShadow(bool disabled);
+    static bool Is_DebugDisableMapStaticMeshShadow();
+    static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
+    static bool Is_DebugLimitMapInstancedMeshShadowCascade();
+    static void Set_DebugLimitMapInstancedMeshShadowCascade(bool enabled);
 
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
@@ -158,6 +169,8 @@ public: /* For.Fade Transition */
     bool Request_LevelTransition(LevelType TargetLevel);
     bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
     bool Request_CurrentLevelReplay();
+    void Reset_CurrentLevelRuntimeState();
+    void Clear_ReplayMonsterSnapshot();
 
     bool Is_FadeTransitionPlaying() const;
 
@@ -311,6 +324,8 @@ public: /* Battle Followup Manager */
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
+    void Capture_ReplayMonsterSnapshotIfNeeded();
+    void Respawn_ReplayMonstersFromSnapshot();
 
 public:
     FOnFreeAimShotHit OnFreeAimShotHit;
@@ -350,6 +365,10 @@ private:
 
     Unique<Unlock_Manager>      _unlockManager;
     Unique<BattleFollowupManager>   _battleFollowupManager;
+    vector<RuntimeCheckpointIO::WorldObject> _replayMonsterSpawnObjects;
+    vector<uint8> _replayMonsterRuntimeAuthoringLoaded;
+    uint32 _replayMonsterSnapshotLevelIndex = UINT32_MAX;
+    bool _replayMonsterSnapshotCaptured = false;
 
 public:
 	void Free() override;
