@@ -360,6 +360,20 @@ Shared<ModelCom> SL_Dualliste::Get_ModelCom() const
     return _body ? _body->Get_Model() : nullptr;
 }
 
+bool SL_Dualliste::Try_GetSocketWorldPosition(const string& socketName, Vec3& outWorldPosition) const
+{
+    if (_body == nullptr)
+        return false;
+
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr(socketName);
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPosition = socketWorldMatrix.Translation();
+    return true;
+}
+
 bool SL_Dualliste::Play_Anim(Anim anim, float blendDuration, bool loop)
 {
     if (_body == nullptr)

@@ -51,6 +51,7 @@ namespace
     bool g_debugDisableGrassInstancedRender = false;
     bool g_debugDisableMapStaticMeshRender = false;
     bool g_debugDisableMapInstancedMeshShadow = false;
+    bool g_debugUseMapInstancedMeshShadowLOD = false;
     bool g_debugDisableGrassInstancedShadow = false;
     bool g_debugDisableMapStaticMeshShadow = false;
 
@@ -324,6 +325,16 @@ bool ClientInstance::Is_DebugDisableMapInstancedMeshShadow()
 void ClientInstance::Set_DebugDisableMapInstancedMeshShadow(bool disabled)
 {
     g_debugDisableMapInstancedMeshShadow = disabled;
+}
+
+bool ClientInstance::Is_DebugUseMapInstancedMeshShadowLOD()
+{
+    return g_debugUseMapInstancedMeshShadowLOD;
+}
+
+void ClientInstance::Set_DebugUseMapInstancedMeshShadowLOD(bool enabled)
+{
+    g_debugUseMapInstancedMeshShadowLOD = enabled;
 }
 
 bool ClientInstance::Is_DebugDisableGrassInstancedShadow()

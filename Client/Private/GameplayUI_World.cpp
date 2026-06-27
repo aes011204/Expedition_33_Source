@@ -670,15 +670,15 @@ void GameplayUI_World::Handle_GradientSkillPreviewTestInput()
     if (_gradientSkillPreviewTestPanel == nullptr)
         return;
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_4))
-    {
-        if (_gradientSkillPreviewTestPanel->Is_Open())
-            _gradientSkillPreviewTestPanel->Close();
-        else if (!Is_AnyMenuOpen())
-            _gradientSkillPreviewTestPanel->Open();
-
-        return;
-    }
+    //if (GAME->KeyDown(KEY_TYPE::KEY_4))
+    //{
+    //    if (_gradientSkillPreviewTestPanel->Is_Open())
+    //        _gradientSkillPreviewTestPanel->Close();
+    //    else if (!Is_AnyMenuOpen())
+    //        _gradientSkillPreviewTestPanel->Open();
+    //
+    //    return;
+    //}
 
     if (_gradientSkillPreviewTestPanel->Is_Open() && GAME->KeyDown(KEY_TYPE::ESCAPE))
     {

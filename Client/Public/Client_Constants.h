@@ -196,6 +196,7 @@ namespace Client::Constants::UI
 
 #pragma region SoulLike
     inline constexpr wchar_t UI_SL_HUD_Path[] = L"UI/UI_Json/Soulslike/UI_SL_HUD.json";
+    inline constexpr wchar_t UI_SL_LockOn_Path[] = L"UI/UI_Json/Soulslike/UI_SL_LockOn.json";
 #pragma endregion
 
 #pragma region Dialogue
