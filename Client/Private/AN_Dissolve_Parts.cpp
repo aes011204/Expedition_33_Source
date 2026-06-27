@@ -18,7 +18,7 @@ IMPLEMENT_REFLECTION(AN_Dissolve_Parts)
 
 void AN_Dissolve_Parts::Execute(const AnimNotifyContext& context)
 {
-    if (context.isPreview)
+    if (context.isPreview || context.isCinematic)
         return;
 
     if (context.owner == nullptr)
