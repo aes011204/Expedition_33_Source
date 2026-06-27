@@ -122,18 +122,21 @@ void SL_Dualliste::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
-    if (_cloneSkillManager)
-        _cloneSkillManager->Update(timeDelta);
-
-    if (_isCloneVisualOnly)
+    if (_isCinematicDriven)
     {
-        _body->Play_Animation(timeDelta);
+        if (_cloneSkillManager)
+            _cloneSkillManager->Update(timeDelta);
 
-        if (_effectCom)
-            _effectCom->Update(timeDelta);
+        if (_isCloneVisualOnly)
+        {
+            _body->Play_Animation(timeDelta);
 
-        SL_Base::Update(timeDelta);
-        return;
+            if (_effectCom)
+                _effectCom->Update(timeDelta);
+
+            SL_Base::Update(timeDelta);
+            return;
+        }
     }
 
     Update_StunSystem(timeDelta);
@@ -309,6 +312,7 @@ Shared<ColliderCom> SL_Dualliste::Get_AttackColliderL() const
 {
     return _attackLCom;
 }
+
 Shared<ColliderCom> SL_Dualliste::Get_AttackColliderR() const
 {
     return _attackRCom;
@@ -558,6 +562,32 @@ bool SL_Dualliste::Change_State(SL_MonState state)
         return false;
 
     return _stateMachineCom->Change_State(state);
+}
+
+void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
+    if (_movementCom)
+    {
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_transformCom)
+        _transformCom->Set_SpeedPerSec(0.f);
+
+    if (!cinematicDriven)
+        Apply_PhaseVisualState();
 }
 
 bool SL_Dualliste::Notify_CloneSkillAttack(GameObject* notifyOwner) const

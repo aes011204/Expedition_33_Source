@@ -1147,6 +1147,21 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
         return;
     }
 
+    if (ImGui::CollapsingHeader("Object", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::PushID("InspectorObjectFlags");
+
+        bool visible = target->Is_Visible();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Visible");
+        ImGui::SameLine(InspectorLabelWidth);
+        if (ImGui::Checkbox("##Visible", &visible))
+            target->Set_Visible(visible);
+
+        ImGui::PopID();
+        ImGui::Spacing();
+    }
+
     Draw_ComponentOverride(static_pointer_cast<Component>(transform));
     Draw_MonsterBattlePrefabList(target);
     Draw_ObjectReflection(target);

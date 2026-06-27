@@ -6,6 +6,7 @@
 #include "GameInstance.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
+#include "SL_Dualliste.h"
 
 NS_BEGIN(Client)
 
@@ -79,7 +80,6 @@ void Mon_Dualliste_Sword_L::Update(float timeDelta)
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
-
 
     if (_attackLCom)
         _attackLCom->Update_Collider(Get_CombinedWorldMatrix());
