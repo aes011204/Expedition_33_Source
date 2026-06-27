@@ -240,15 +240,19 @@ uint32 Material::Get_PassIndex()
 
 wstring Material::Find_TextureFile(const fs::path& searchRoot, const string& fileName)
 {
-    /* 1차: 같은 디렉토리에서 직접 확인 */
-    fs::path directPath = searchRoot / fileName;
+    const wstring wideFileName = String::ToWString(fileName);
+    if (wideFileName.empty())
+        return L"";
+
+    /* 1차: 같은 디렉토리에서 직접 확인 /
+    fs::path directPath = searchRoot / wideFileName;
     if (fs::exists(directPath))
         return directPath.lexically_normal().wstring();
 
-    /* 2차: 형제 + 하위 폴더를 재귀 탐색하여 파일명 일치 검색 */
+    / 2차: 형제 + 하위 폴더를 재귀 탐색하여 파일명 일치 검색 */
     for (const auto& entry : fs::recursive_directory_iterator(searchRoot))
     {
-        if (entry.is_regular_file() && entry.path().filename().string() == fileName)
+        if (entry.is_regular_file() && entry.path().filename().wstring() == wideFileName)
             return entry.path().lexically_normal().wstring();
     }
 
@@ -259,8 +263,8 @@ fs::path Material::Resolve_TextureLoadPath(const fs::path& texturePath) const
 {
     fs::path normalizedPath = texturePath.lexically_normal();
 
-    const string genericPath = normalizedPath.generic_string();
-    const string fileName = normalizedPath.filename().string();
+    const string genericPath = String::ToString(normalizedPath.generic_wstring());
+    const string fileName = String::ToString(normalizedPath.filename().wstring());
     const string lowerPath = String::ToLowerCopy(genericPath);
     const string lowerFileName = String::ToLowerCopy(fileName);
     const fs::path ext = normalizedPath.extension();
