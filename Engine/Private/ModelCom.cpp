@@ -12,6 +12,7 @@
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
 #include "ComputeStructuredBuffer.h"
+#include "DebugMemoryTracker.h"
 #include "Debug_Profile.h"
 
 #include "AnimNotify_Parser.h"
@@ -73,6 +74,32 @@ ModelCom::ModelCom(const ModelCom& prototype)
                 _modelDeform->Set_MorphData(MorphData(*morphData));
         }
     }
+
+    const size_t animationBytes = Get_DebugEstimatedAnimationBytes();
+    if (animationBytes > 0)
+    {
+        const string modelCategory = DebugMemoryTracker::Guess_ModelCategory(_sourceModelPath);
+        const string category = modelCategory + ".animation.clone";
+        DebugMemoryTracker::Record_CPUBytes(
+            category.c_str(),
+            "ModelCom.Clone",
+            _sourceModelPath,
+            animationBytes);
+    }
+}
+
+size_t ModelCom::Get_DebugEstimatedAnimationBytes() const
+{
+    size_t bytes = sizeof(Shared<Animation>) * _animations.capacity()
+        + sizeof(uint32) * _stateAnimIndices.capacity();
+
+    for (const Shared<Animation>& animation : _animations)
+    {
+        if (animation)
+            bytes += animation->Get_DebugEstimatedBytes();
+    }
+
+    return bytes;
 }
 
 static json Write_PreLocalTransformJson(const Matrix& matrix)
@@ -2631,6 +2658,24 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
 
     CHECK_FAILED(Try_LoadMorphData(resolvedPath), E_FAIL);
 
+    size_t meshBytes = 0;
+    for (const Shared<Mesh>& mesh : _meshes)
+    {
+        if (mesh)
+            meshBytes += mesh->Get_DebugEstimatedBufferBytes();
+    }
+
+    if (meshBytes > 0)
+    {
+        const string modelCategory = DebugMemoryTracker::Guess_ModelCategory(_sourceModelPath);
+        const string category = modelCategory + ".mesh";
+        DebugMemoryTracker::Record_CPUBytes(
+            category.c_str(),
+            "ModelCom.Ready_Model",
+            _sourceModelPath,
+            meshBytes);
+    }
+
     return S_OK;
 }
 
@@ -2705,6 +2750,18 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
     }
 
     _numAnimations = trueAnimIndex;
+
+    const size_t animationBytes = Get_DebugEstimatedAnimationBytes();
+    if (animationBytes > 0)
+    {
+        const string modelCategory = DebugMemoryTracker::Guess_ModelCategory(_sourceModelPath);
+        const string category = modelCategory + ".animation";
+        DebugMemoryTracker::Record_CPUBytes(
+            category.c_str(),
+            "ModelCom.Ready_Animation",
+            _sourceModelPath,
+            animationBytes);
+    }
 
     return S_OK;
 }

@@ -25,6 +25,7 @@ public:
         wstring outUINamePrefixFilter {};
         bool forceRenderGroup = false;
         UI_RenderGroup renderGroupOverride = UI_RenderGroup::Foreground;
+        bool forceReloadImageTextures = false;
 
         umap<wstring, Shared<UI_Base>>* outUIByName = nullptr;
         umap<wstring, vector<Shared<UI_Base>>>* outChildrenByParentName = nullptr;
@@ -36,6 +37,8 @@ public:
 public:
     // json 파일을 읽고, 현재 런타임에서 지원하는 UI를 실제로 생성
     static HRESULT Load_Document(const UI_LoadDesc& desc);
+    static void Release_UI(Shared<UI_Base>& ui);
+    static void Release_Document(umap<wstring, Shared<UI_Base>>& uiByName);
     static bool Load_PublicAnimationAsset(const wstring& animationPath, UI_KeyframeAnimationAsset& outAsset);
 };
 

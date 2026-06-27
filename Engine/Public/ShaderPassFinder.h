@@ -30,7 +30,8 @@ namespace
         constexpr uint32 LandscapeBlendPass = 11;
         constexpr uint32 SignDecalPass = 14;
         constexpr uint32 WeaponGhostPass = 15;
-        constexpr uint32 EclipseSpherePass = 16;
+        constexpr uint32 EclipseSpherePass = 18;
+        constexpr uint32 AmbientVisibility = 19;
     }
 
     namespace VtxInstanceMeshExactPassIndex

@@ -218,6 +218,15 @@ PS_OUT_COLOR PS_LightShaftCompositeHDR(PS_IN In)
     return Out;
 }
 
+PS_OUT_COLOR PS_PointGlowCompositeHDR(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float3 glow = g_PointGlowTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
+    Out.Color = float4(glow, 0.f);
+    return Out;
+}
+
 PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
@@ -483,4 +492,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(DOFBlurNearHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurNearHalf)                // 13
     PASS_RS_DS_BS_VP(DOFBlurFarHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFBlurFarHalf)                  // 14
     PASS_RS_DS_BS_VP(DOFCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_DOFCompositeHDR)                // 15
+    PASS_RS_DS_BS_VP(PointGlowCompositeHDR, RS_Default, DSS_None, BS_Blend, VS_MAIN, PS_PointGlowCompositeHDR)      // 16
 }

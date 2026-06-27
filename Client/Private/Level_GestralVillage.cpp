@@ -1,10 +1,40 @@
 ﻿#include "Level_GestralVillage.h"
+#include "Client_Constants.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "GameObject.h"
 #include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "SoulLikeController.h"
+#include "MapAmbientVisibility.h"
+#include "BattleStartSpawner.h"
+
+namespace
+{
+    VolumetricLightShaftZoneCB Build_GestralVillageLightShaftZones()
+    {
+        VolumetricLightShaftZoneCB lightShaftZoneCB{};
+        lightShaftZoneCB.zoneCount = 1;
+
+        Matrix lightShaftWorld =
+            Matrix::CreateFromYawPitchRoll(
+                DirectX::XMConvertToRadians(20.959f),
+                DirectX::XMConvertToRadians(-0.000f),
+                DirectX::XMConvertToRadians(-0.000f)) *
+            Matrix::CreateTranslation(Vec3(11.399f, 10.280f, 92.334f));
+
+        VolumetricLightShaftZoneEntry& zone = lightShaftZoneCB.zones[0];
+        zone.worldToLocal = lightShaftWorld.Invert();
+        zone.halfExtents = Vec3(12.410f, 12.600f, 6.600f);
+        zone.density = 1.f;
+        zone.lightColor = Vec4(1.f, 242.f / 255.f, 204.f / 255.f, 1.f);
+        zone.edgeFade = 1.f;
+        zone.intensity = 0.410f;
+
+        return lightShaftZoneCB;
+    }
+}
 
 Level_GestralVillage::Level_GestralVillage(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -28,13 +58,35 @@ HRESULT Level_GestralVillage::Initialize()
     if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
         return E_FAIL;
 
+    if (FAILED(Ready_Layer_NPC(TEXT("Layer_NPC"))))
+        return E_FAIL;
+
     if (FAILED(Ready_Layer_ETC(TEXT("Layer_ETC"))))
         return E_FAIL;
 
+    // 안개, 빛 설정
     GAME->Set_RenderEnvironment(true);
-    //GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
+    if (FAILED(GAME->Change_IBL(
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_sunset.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds")))
+        return E_FAIL;
+
+    GAME->Set_FogZoneCullingDistance(15.f);
+
 
     return S_OK;
+}
+
+void Level_GestralVillage::BeginPlay()
+{
+    Level::BeginPlay();
+
+    GAME->Set_VolumetricLightShaftZoneCullingDistance(30.f);
+    GAME->Set_VolumetricLightShaftZones(Build_GestralVillageLightShaftZones());
+    Play_MapBGM();
+
+    _editorPlayRuntimeHandle =
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)
@@ -56,7 +108,7 @@ HRESULT Level_GestralVillage::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = Vec4(-0.8f, -0.6f, -1.f, 0.f);
+    LightDesc.direction = Vec4(-0.8f, -0.53f, -0.05f, 0.f);
     LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
@@ -172,6 +224,9 @@ HRESULT Level_GestralVillage::Ready_Layer_Camera(const wstring& strLayerTag)
     );
 
     const auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
+    if (targetCamera != nullptr)
+        targetCamera->Set_OrbitAngles(-175.7f, 1.1f);
+
     CLIENT->Set_TargetCamera(targetCamera);
 
     return S_OK;
@@ -182,7 +237,7 @@ HRESULT Level_GestralVillage::Ready_Layer_BackGround(const wstring& strLayerTag)
     SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
     skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
     skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
-    skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_CleasTower");
+    skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_Gestral");
     skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
 
     skyBoxDesc.tint = Vec4(1.604023f, 0.887117f, 0.631814f, 1.f);
@@ -206,8 +261,51 @@ HRESULT Level_GestralVillage::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(-9.f, -3.47f, 207.94f);
-    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos), E_FAIL);
+    Vec3 startPos = Vec3(-4.63f, -7.56f, 206.65f);
+    Vec3 startRot = Vec3(0.f, -173.f, 0.f);
+
+    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GestralVillage), strLayerTag, startPos, startRot), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
+{
+    const Shared<GameObject> noco = Spawn_Prefab::Prefab("NPC_Noco")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(9.f, 0.08f, 141.41f))
+        .Rotation(Vec3(0.f, -90.f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(noco, E_FAIL);
+
+    const Shared<GameObject> golgra = Spawn_Prefab::Prefab("NPC_Golgra")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(2.41f, 3.50f, 88.82f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(golgra, E_FAIL);
+
+    const Shared<GameObject> merchant = Spawn_Prefab::Prefab("NPC_Merchant")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-62.30f, 1.03f, 126.23f))
+        .Rotation(Vec3(0.f, 168.5f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(merchant, E_FAIL);
+
+    const Shared<GameObject> chad = Spawn_Prefab::Prefab("NPC_Chad")
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-26.71f, 1.24f, 138.15f))
+        .Rotation(Vec3(0.f, 179.1f, 0.f))
+        .Spawn();
+
+    CHECK_NULL(chad, E_FAIL);
 
     return S_OK;
 }
@@ -226,22 +324,76 @@ HRESULT Level_GestralVillage::Ready_Layer_Effect(const wstring& strLayerTag)
 
 HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
 {
+    // 골그라 브금 전환
+    const Shared<GameObject> bgmZone = Spawn_Prefab::Prefab(Constants::Prefab::Trigger_BGMZone)
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(strLayerTag)
+        .Position(Vec3(-0.46f, -1.64f, 95.23f))
+        .Rotation(Vec3(0.f, 0.f, 0.f))
+        .Scale(Vec3(4.5f, 5.f, 5.f))
+        .Spawn();
+
+    CHECK_NULL(bgmZone, E_FAIL);
+
     {
-        const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
-            .AtLevel(ETOI(LevelType::GestralVillage))
-            .InLayer(strLayerTag)
-            .Spawn();
+        MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC symbolDesc{};
+        symbolDesc.name = L"AV_Cylinder_Symbol";
+        symbolDesc.modelPath = L"../../../Client/Bin/Resources/Map/Level_Main_GestralVillage_V2/Cylinder.model";
+        symbolDesc.position = Vec3(3.41f, 17.03f, 92.3f);
+        symbolDesc.rotation = Quat::Identity;
+        symbolDesc.scale = Vec3(18000.f, 19500.f, 18000.f);
+        symbolDesc.visible = true;
+        symbolDesc.cullEnabled = true;
 
-        CHECK_NULL(controllerObject, E_FAIL);
+        CHECK_FAILED(GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_MapAmbientVisibility"),
+                ETOI(LevelType::GestralVillage),
+                TEXT("Layer_AmbientVisibility"),
+                &symbolDesc),
+            E_FAIL);
 
-        const Shared<SoulLikeController> soulLikeController =
-            dynamic_pointer_cast<SoulLikeController>(controllerObject);
+        MapAmbientVisibility::MAP_AMBIENT_VISIBILITY_DESC caveDesc{};
+        caveDesc.name = L"AV_Cylinder_Test";
+        caveDesc.modelPath = L"../../../Client/Bin/Resources/Map/Level_Main_GestralVillage_V2/Cylinder.model";
+        caveDesc.position = Vec3(38.52f, 4.38f, 124.41f);
+        caveDesc.rotation = Quat::CreateFromYawPitchRoll(
+            DirectX::XMConvertToRadians(27.f),   // Y 회전, yaw
+            DirectX::XMConvertToRadians(0.f),    // X 회전, pitch
+            DirectX::XMConvertToRadians(-3.f)    // Z 회전, roll
+        );
+        caveDesc.scale = Vec3(10000.f, 5000.f, 15000.f);
+        caveDesc.visible = true;
+        caveDesc.cullEnabled = true;
 
-        CHECK_NULL(soulLikeController, E_FAIL);
-        CLIENT->Set_SoulLikeController(soulLikeController);
+        CHECK_FAILED(GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_MapAmbientVisibility"),
+                ETOI(LevelType::GestralVillage),
+                TEXT("Layer_AmbientVisibility"),
+                &caveDesc),
+            E_FAIL);
     }
+    
+    // 감자자루 스폰
+    auto potatobag = Spawn_Prefab::Prefab(Constants::Prefab::BSS_Gestral_PotatoBag)
+        .AtLevel(ETOI(LevelType::GestralVillage))
+        .InLayer(L"Layer_BattleStartSpawner")
+        .Position(Vec3(0.69f, 3.68f, 55.6f))
+        .Rotation(Vec3(0.f, -22.6f, 0.f))
+        .Spawn();
+
+    _bssPotatoBag = dynamic_pointer_cast<BattleStartSpawner>(potatobag);
+    CHECK_NULL(_bssPotatoBag, E_FAIL);
+
+    _bssPotatoBag->Set_SpawnerId(Constants::Value::potatoBagBattleStartSpawnerId);
 
     return S_OK;
+}
+
+void Level_GestralVillage::Play_MapBGM()
+{
+    GAME->Play_BGM(Constants::SoundBGM::GestralVillageMarket, 1.f, true, 0.f);
 }
 
 Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -258,6 +410,14 @@ Shared<Level_GestralVillage> Level_GestralVillage::Create(const ComPtr<Device>& 
 
 void Level_GestralVillage::Free()
 {
+    GAME->Set_VolumetricLightShaftZones(VolumetricLightShaftZoneCB{});
+    
+    if (_editorPlayRuntimeHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Remove(_editorPlayRuntimeHandle);
+        _editorPlayRuntimeHandle.Reset();
+    }
+
     CLIENT->Clear_GameplayUI();
 
     __super::Free();

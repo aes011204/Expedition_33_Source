@@ -21,7 +21,7 @@ public:
 public:
     virtual HRESULT Initialize() override;
     virtual void Begin_Play() override;
-    void Refresh_BodyPlayer();
+    virtual void Refresh_BodyPlayer();
 
 public:
     virtual bool EnterInvoke() override;

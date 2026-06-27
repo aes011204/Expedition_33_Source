@@ -22,6 +22,8 @@ public:
         HeroId actorHeroId,
         float timeDelta);
     HRESULT Warmup_ForBattleState(uint32 curAp, uint32 maxAp, HeroId actorHeroId);
+    void    Set_TutorialCommandFocus(BattleTutorialStep step);
+    void    Set_GradientCommandVisible(bool visible);
     void    Hide();
 
     void    Late_Update(float timeDelta) override;

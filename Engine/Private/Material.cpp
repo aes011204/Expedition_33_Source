@@ -1,4 +1,5 @@
 ﻿#include "Material.h"
+#include "DebugMemoryTracker.h"
 #include "ShaderCom.h"
 #include "ShaderPassFinder.h"
 
@@ -338,7 +339,17 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
         auto it = g_TextureSrvCache.find(cacheKey);
         if (it != g_TextureSrvCache.end() && it->second != nullptr)
         {
-            return it->second.CopyTo(outSrv);
+            const HRESULT copyResult = it->second.CopyTo(outSrv);
+            if (SUCCEEDED(copyResult))
+            {
+                const string category = DebugMemoryTracker::Guess_TextureCategory(cacheKey);
+                DebugMemoryTracker::Record_TextureSRV(
+                    category.c_str(),
+                    "Material.CacheHit",
+                    cacheKey,
+                    *outSrv);
+            }
+            return copyResult;
         }
     }
 
@@ -374,12 +385,35 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
 
         auto it = g_TextureSrvCache.find(cacheKey);
         if (it != g_TextureSrvCache.end() && it->second != nullptr)
-            return it->second.CopyTo(outSrv);
+        {
+            const HRESULT copyResult = it->second.CopyTo(outSrv);
+            if (SUCCEEDED(copyResult))
+            {
+                const string category = DebugMemoryTracker::Guess_TextureCategory(cacheKey);
+                DebugMemoryTracker::Record_TextureSRV(
+                    category.c_str(),
+                    "Material.CacheHit",
+                    cacheKey,
+                    *outSrv);
+            }
+            return copyResult;
+        }
 
         g_TextureSrvCache.emplace(cacheKey, createdSrv);
     }
 
-    return createdSrv.CopyTo(outSrv);
+    const HRESULT copyResult = createdSrv.CopyTo(outSrv);
+    if (SUCCEEDED(copyResult))
+    {
+        const string category = DebugMemoryTracker::Guess_TextureCategory(cacheKey);
+        DebugMemoryTracker::Record_TextureSRV(
+            category.c_str(),
+            "Material.Create",
+            cacheKey,
+            *outSrv);
+    }
+
+    return copyResult;
 }
 
 void Material::Refresh_PassIndex()

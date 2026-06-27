@@ -77,6 +77,7 @@ enum class EffectScreenAlignment : uint32
     Velocity = 4,             // compute가 기록한 현재 속도 방향을 기준 방향으로 쓴다.
     WorldPlaneXY = 5,         // 월드 XY 평면에 고정되는 2D plane 정렬이다.
     WorldPlaneXZ = 6,         // 월드 XZ 평면에 고정되는 바닥형 2D plane 정렬이다.
+    WorldUpFacingCamera = 7,  // 카드 Y축을 World Y로 세우고 카메라 가시성을 유지하는 billboard다.
 };
 
 // AwayFromCenter/Velocity가 기준 방향을 어떻게 쓸지 결정한다.
@@ -467,10 +468,12 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleMotionDesc motion{};                                 // motion authoring module을 compute payload로 압축한 규칙이다.
     EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈이 만든 emitter-local pivot 회전 payload다.
     PointParticleRotationDesc rotation{};                             // rotation authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleSpriteTiltDesc spriteTilt{};                         // SpriteTilt authoring module을 compute payload로 압축한 규칙이다.
     PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                // Lifetime random sample seed salt다.
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
+    PointParticleCylinderLocationDesc cylinderLocation{};             // CylinderLocation 모듈이 만든 시작 위치 원통 offset 분포다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 radial frame 기반 초기 회전 payload다.
     PointParticleRandomSeedRuntimeDesc initialLocationSeed{};         // InitialLocation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};          // SphereLocation random sample seed salt다.
@@ -721,6 +724,7 @@ struct ComputeSourceHistorySpriteTrailEmitterDesc : public GameObject::GAMEOBJEC
     PointParticleSizeByLifeDesc sizeByLife{};
     PointParticleMotionDesc motion{};
     PointParticleRotationDesc rotation{};
+    PointParticleSpriteTiltDesc spriteTilt{};
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};
     EffectSpriteRenderRuntimeDesc spriteRender{};
 
@@ -799,6 +803,7 @@ struct MeshTransformRuntimeDesc
     MeshVector3CurveRuntimeDesc rotationByLife{};                    // lifeProgress 기준 추가 Euler degree다.
     Vec3 initialAngularVelocityDegreesMin{ 0.f, 0.f, 0.f };          // 초당 Euler angular velocity 하한이다.
     Vec3 initialAngularVelocityDegreesMax{ 0.f, 0.f, 0.f };          // 초당 Euler angular velocity 상한이다.
+    bool initialAngularVelocityInWorldSpace{ false };                // InitialMeshRotationRate 축을 world/simulation 기준으로 해석할지 여부다.
     PointParticleRandomSeedRuntimeDesc initialAngularVelocitySeed{}; // InitialMeshRotationRate random sample seed salt다.
     MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{};        // angular velocity Vec3 배율이다.
 };
@@ -828,6 +833,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSphereLocationDesc sphereLocation{};                   // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};            // SphereLocation random sample seed salt다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};         // PlaneRadialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleCylinderLocationDesc cylinderLocation{};               // CylinderLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleSphereRadialOrientationDesc sphereRadialOrientation{}; // SphereRadialOrientation 모듈에서 sphere radial frame 회전으로 소비하는 payload다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{};   // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
     MeshTransformRuntimeDesc meshTransform{};                           // Mesh 전용 Vec3 scale/rotation payload다.

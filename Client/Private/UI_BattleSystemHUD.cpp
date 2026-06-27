@@ -135,6 +135,7 @@ void UI_BattleSystemHUD::Close()
 	Stop_TargetAnimations();
     Reset_TargetAnimationState(false);
     _activePortraitHeroId = HeroId::END;
+    Invalidate_PartyStatSnapshots();
 
     UI_RuntimePanelBase::Close();
 
@@ -156,27 +157,65 @@ void UI_BattleSystemHUD::Set_PartyBattleStat(PlayerCharacterType playerType, flo
     maxAp = min(maxAp, 9u);
     curAp = min(curAp, maxAp);
 
-    Apply_HpGauge(slot, curHp / maxHp);
-    Apply_ApGauge(slot, slotIndex, curAp, maxAp);
+    const int32 hpValue = static_cast<int32>(curHp);
+    const int32 maxHpValue = static_cast<int32>(maxHp);
+    const float hpRatio = curHp / maxHp;
+    const bool hpChanged =
+        !slot.hasBattleStatSnapshot ||
+        slot.cachedCurrentHp != hpValue ||
+        slot.cachedMaxHp != maxHpValue ||
+        slot.cachedHpRatio != hpRatio;
+    const bool apChanged =
+        !slot.hasBattleStatSnapshot ||
+        slot.cachedCurrentAp != curAp ||
+        slot.cachedMaxAp != maxAp;
 
-    Set_HpText(slot, curHp, maxHp);
-    Set_ApText(slot, curAp);
+    if (hpChanged)
+    {
+        Apply_HpGauge(slot, hpRatio);
+        Set_HpText(slot, curHp, maxHp);
+    }
+
+    if (apChanged)
+    {
+        Apply_ApGauge(slot, slotIndex, curAp, maxAp);
+        Set_ApText(slot, curAp);
+    }
+
+    slot.hasBattleStatSnapshot = true;
+    slot.cachedCurrentHp = hpValue;
+    slot.cachedMaxHp = maxHpValue;
+    slot.cachedCurrentAp = curAp;
+    slot.cachedMaxAp = maxAp;
+    slot.cachedHpRatio = hpRatio;
 }
 
 void UI_BattleSystemHUD::Set_BattleHeroIds(const vector<HeroId>& heroIds)
 {
-    _visiblePartySlots = { false, false, false };
+    Set_BattleHeroIds(heroIds.empty() ? nullptr : heroIds.data(), heroIds.size());
+}
 
-    for (HeroId heroId : heroIds)
+void UI_BattleSystemHUD::Set_BattleHeroIds(const HeroId* heroIds, size_t heroCount)
+{
+    array<bool, 3> visiblePartySlots{ false, false, false };
+    if (heroIds == nullptr)
+        heroCount = 0;
+
+    for (size_t i = 0; i < heroCount; ++i)
     {
+        const HeroId heroId = heroIds[i];
         const uint32 slotIndex = Get_SlotIndex(heroId);
-        if (slotIndex < _visiblePartySlots.size())
-            _visiblePartySlots[slotIndex] = true;
+        if (slotIndex < visiblePartySlots.size())
+            visiblePartySlots[slotIndex] = true;
     }
 
-    if (!_visiblePartySlots[0] && !_visiblePartySlots[1] && !_visiblePartySlots[2])
-        _visiblePartySlots = { true, true, true }; // 비정상 입력이면 기존 3인 HUD로 복구한다.
+    if (!visiblePartySlots[0] && !visiblePartySlots[1] && !visiblePartySlots[2])
+        visiblePartySlots = { true, true, true }; // 비정상 입력이면 기존 3인 HUD로 복구한다.
 
+    if (_visiblePartySlots == visiblePartySlots)
+        return;
+
+    _visiblePartySlots = visiblePartySlots;
     Apply_BattlePartyLayout();
 }
 
@@ -191,8 +230,19 @@ void UI_BattleSystemHUD::Set_GustaveMechanismCharge(const Shared<BattleMechanism
     const int32 currentCharge = mechanismCom->Get_GustaveCharge();
     const int32 maxCharge = mechanismCom->Get_GustaveMaxCharge();
 
+    if (_hasGustaveMechanismSnapshot &&
+        _cachedGustaveCurrentCharge == currentCharge &&
+        _cachedGustaveMaxCharge == maxCharge)
+    {
+        return;
+    }
+
     Set_TextPair(_gustaveCurrentChargeText, _gustaveCurrentChargeTextBg, to_wstring(currentCharge));
     Set_TextPair(_gustaveMaxChargeText, _gustaveMaxChargeTextBg, to_wstring(maxCharge));
+
+    _hasGustaveMechanismSnapshot = true;
+    _cachedGustaveCurrentCharge = currentCharge;
+    _cachedGustaveMaxCharge = maxCharge;
 }
 
 void UI_BattleSystemHUD::Set_LuneMechanismStains(const Shared<BattleMechanismCom>& mechanismCom)
@@ -208,13 +258,26 @@ void UI_BattleSystemHUD::Set_LuneMechanismStains(const Shared<BattleMechanismCom
 
 void UI_BattleSystemHUD::Clear_LuneMechanismStains()
 {
+    if (_luneStainsClosed && _cachedLuneStainCount == 0)
+        return;
+
     Close_AllLuneStains();
 }
 
 void UI_BattleSystemHUD::Clear_GustaveMechanismCharge()
 {
+    if (_hasGustaveMechanismSnapshot &&
+        _cachedGustaveCurrentCharge == 0 &&
+        _cachedGustaveMaxCharge == 10)
+    {
+        return;
+    }
+
     Set_TextPair(_gustaveCurrentChargeText, _gustaveCurrentChargeTextBg, L"0");
     Set_TextPair(_gustaveMaxChargeText, _gustaveMaxChargeTextBg, L"10");
+    _hasGustaveMechanismSnapshot = true;
+    _cachedGustaveCurrentCharge = 0;
+    _cachedGustaveMaxCharge = 10;
 }
 
 void UI_BattleSystemHUD::Set_MaelleMechanismStance(const Shared<BattleMechanismCom>& mechanismCom)
@@ -241,6 +304,9 @@ void UI_BattleSystemHUD::Play_PortraitActivation(HeroId heroId)
     if (animationName == nullptr)
         return;
 
+    if (_activePortraitHeroId != heroId)
+        Invalidate_PartyStatSnapshots();
+
     _activePortraitHeroId = heroId;
     Play_TargetAnimation(animationName); 
 }
@@ -261,7 +327,10 @@ void UI_BattleSystemHUD::Play_PortraitDeactivation(HeroId heroId)
         return;
 
     if (_activePortraitHeroId == heroId)
+    {
         _activePortraitHeroId = HeroId::END;
+        Invalidate_PartyStatSnapshots();
+    }
 
     Play_TargetAnimation(animationName);
 }
@@ -269,6 +338,7 @@ void UI_BattleSystemHUD::Play_PortraitDeactivation(HeroId heroId)
 void UI_BattleSystemHUD::Play_BattleSystemIntro()
 {
     _activePortraitHeroId = HeroId::END;
+    Invalidate_PartyStatSnapshots();
     Reset_TargetAnimationState(true);
     Play_TargetAnimation(kBattleSystemIntroAnimationName);
 }
@@ -458,10 +528,10 @@ uint32 UI_BattleSystemHUD::Get_SlotIndex(HeroId heroId)
 
 void UI_BattleSystemHUD::Set_TextPair(const Shared<UI_Text>& front, const Shared<UI_Text>& back, const wstring& text)
 {
-    if (front)
+    if (front && front->Get_Text() != text)
         front->Set_Text(text);
 
-    if (back)
+    if (back && back->Get_Text() != text)
         back->Set_Text(text);
 }
 
@@ -586,18 +656,68 @@ void UI_BattleSystemHUD::Set_ApText(PartyBattleStatSlot& slot, uint32 ap)
     Set_TextPair(slot.apText, slot.apTextBg, to_wstring(ap));
 }
 
+void UI_BattleSystemHUD::Invalidate_PartyStatSnapshots()
+{
+    for (PartyBattleStatSlot& slot : _partySlots)
+        slot.hasBattleStatSnapshot = false;
+}
+
 void UI_BattleSystemHUD::Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom)
 {
     if (mechanismCom == nullptr || !mechanismCom->Is_Lune())
         return;
 
-    Close_AllLuneStains(); // 매 프레임 현재 얼룩 배열 그대로 다시 연다.
+    array<ElementalType, BattleMechanismCom::kLuneMaxStains> nextStains{};
+    nextStains.fill(ElementalType::None);
 
-    for (uint32 i = 0; i < mechanismCom->Get_LuneStainCount(); ++i)
+    const uint32 nextStainCount = min(mechanismCom->Get_LuneStainCount(), BattleMechanismCom::kLuneMaxStains);
+    for (uint32 i = 0; i < nextStainCount; ++i)
+        nextStains[i] = mechanismCom->Get_LuneStain(i);
+
+    bool isUnchanged = _hasLuneStainSnapshot && _cachedLuneStainCount == nextStainCount;
+    if (isUnchanged)
     {
-        if (Shared<UI_Base> image = Resolve_LuneStainImage(i, mechanismCom->Get_LuneStain(i)))
-            image->Open();
+        for (uint32 i = 0; i < BattleMechanismCom::kLuneMaxStains; ++i)
+        {
+            if (_cachedLuneStains[i] != nextStains[i])
+            {
+                isUnchanged = false;
+                break;
+            }
+        }
     }
+
+    if (isUnchanged)
+        return;
+
+    if (!_hasLuneStainSnapshot)
+        Close_AllLuneStains();
+
+    for (uint32 i = 0; i < BattleMechanismCom::kLuneMaxStains; ++i)
+    {
+        const ElementalType previousElement = _hasLuneStainSnapshot ? _cachedLuneStains[i] : ElementalType::None;
+        const ElementalType nextElement = nextStains[i];
+
+        if (previousElement == nextElement)
+            continue;
+
+        if (Shared<UI_Base> previousImage = Resolve_LuneStainImage(i, previousElement))
+        {
+            if (previousImage->Is_Open())
+                previousImage->Close();
+        }
+
+        if (Shared<UI_Base> nextImage = Resolve_LuneStainImage(i, nextElement))
+        {
+            if (!nextImage->Is_Open())
+                nextImage->Open();
+        }
+    }
+
+    _cachedLuneStains = nextStains;
+    _cachedLuneStainCount = nextStainCount;
+    _hasLuneStainSnapshot = true;
+    _luneStainsClosed = nextStainCount == 0;
 }
 
 Shared<UI_Base> UI_BattleSystemHUD::Resolve_LuneStainImage(int32 slotIndex, ElementalType element) const
@@ -644,57 +764,98 @@ void UI_BattleSystemHUD::Close_AllLuneStains()
     {
         for (uint32 elementIndex = 0; elementIndex < 5; ++elementIndex)
         {
-            if (_luneStainImages[slotIndex][elementIndex])
+            if (_luneStainImages[slotIndex][elementIndex] &&
+                _luneStainImages[slotIndex][elementIndex]->Is_Open())
+            {
                 _luneStainImages[slotIndex][elementIndex]->Close();
+            }
         }
     }
+
+    _cachedLuneStains.fill(ElementalType::None);
+    _cachedLuneStainCount = 0;
+    _hasLuneStainSnapshot = false;
+    _luneStainsClosed = true;
 }
 
 void UI_BattleSystemHUD::Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance)
 {
-    if (_maelleCurrentStanceRoot)
+    if (_hasMaelleStanceSnapshot && _cachedMaelleStance == stance)
+        return;
+
+    if (_maelleCurrentStanceRoot && !_maelleCurrentStanceRoot->Is_Open())
         _maelleCurrentStanceRoot->Open();
 
-    Close_AllMaelleStanceBadges();
+    if (_hasMaelleStanceSnapshot)
+    {
+        if (Shared<UI_Base> previousBadge = Resolve_MaelleStanceBadge(_cachedMaelleStance))
+        {
+            if (previousBadge->Is_Open())
+                previousBadge->Close();
+        }
+    }
+    else
+    {
+        Close_AllMaelleStanceBadges();
+    }
 
+    if (Shared<UI_Base> nextBadge = Resolve_MaelleStanceBadge(stance))
+    {
+        if (!nextBadge->Is_Open())
+            nextBadge->Open();
+    }
+
+    _cachedMaelleStance = stance;
+    _hasMaelleStanceSnapshot = true;
+}
+
+Shared<UI_Base> UI_BattleSystemHUD::Resolve_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance) const
+{
     switch (stance)
     {
     case BattleMechanismCom::MaelleStance::Offensive:
-        if (_maelleOffensive)
-            _maelleOffensive->Open();
-        break;
+        return _maelleOffensive;
 
     case BattleMechanismCom::MaelleStance::Defensive:
-        if (_maelleDefensive)
-            _maelleDefensive->Open();
-        break;
+        return _maelleDefensive;
 
     case BattleMechanismCom::MaelleStance::Virtuose:
-        if (_maelleVirtuose)
-            _maelleVirtuose->Open();
-        break;
+        return _maelleVirtuose;
 
     case BattleMechanismCom::MaelleStance::Stanceless:
     default:
-        if (_maelleStanceless)
-            _maelleStanceless->Open();
-        break;
+        return _maelleStanceless;
     }
 }
 
 void UI_BattleSystemHUD::Close_AllMaelleStanceBadges()
 {
     if (_maelleStanceless)
-        _maelleStanceless->Close();
+    {
+        if (_maelleStanceless->Is_Open())
+            _maelleStanceless->Close();
+    }
 
     if (_maelleDefensive)
-        _maelleDefensive->Close();
+    {
+        if (_maelleDefensive->Is_Open())
+            _maelleDefensive->Close();
+    }
 
     if (_maelleOffensive)
-        _maelleOffensive->Close();
+    {
+        if (_maelleOffensive->Is_Open())
+            _maelleOffensive->Close();
+    }
 
     if (_maelleVirtuose)
-        _maelleVirtuose->Close();
+    {
+        if (_maelleVirtuose->Is_Open())
+            _maelleVirtuose->Close();
+    }
+
+    _cachedMaelleStance = BattleMechanismCom::MaelleStance::Stanceless;
+    _hasMaelleStanceSnapshot = false;
 }
 
 void UI_BattleSystemHUD::Play_TargetAnimation(const wchar_t* animationName)

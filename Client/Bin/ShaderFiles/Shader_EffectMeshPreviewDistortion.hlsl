@@ -20,6 +20,7 @@ cbuffer cbEffectMeshPreviewDistortion : register(b2)
 };
 
 Texture2D g_FlowTexture : register(t3);
+Texture2D g_DistortionSourceTexture : register(t4);
 
 BlendState BS_EffectMeshPreviewDistortionAlphaBlend
 {
@@ -70,14 +71,6 @@ float2 Sample_FlowTexture(float2 uv)
     ).rg;
 }
 
-float3 Sample_CheckerSource(float2 screenUV)
-{
-    const float2 pixelPosition = screenUV * max(g_DistortionScreenSize.xy, float2(1.f, 1.f));
-    const float2 cell = floor(pixelPosition / 54.f);
-    const bool lightCell = fmod(cell.x + cell.y, 2.f) < 1.f;
-    return lightCell ? float3(0.412f, 0.471f, 0.549f) : float3(0.216f, 0.251f, 0.306f);
-}
-
 VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out = (VS_OUT)0;
@@ -104,10 +97,10 @@ PS_OUT PS_MAIN(VS_OUT In)
     const float lensCoverage = EffectDistortion_ComputeLensCoverage(g_Tint.a, 1.f, g_EffectDistortionParams.y);
     const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
     const float2 screenUV = In.vPosition.xy / max(g_DistortionScreenSize.xy, float2(1.f, 1.f));
-    const float3 distortedSource = Sample_CheckerSource(screenUV + offset);
+    const float4 distortedSource = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + offset);
     const float edgeAlpha = EffectDistortion_ComputeLensEdgeAlpha(lensCoverage);
 
-    Out.color = float4(distortedSource * g_Tint.rgb, edgeAlpha);
+    Out.color = float4(distortedSource.rgb * g_Tint.rgb, edgeAlpha);
     return Out;
 }
 

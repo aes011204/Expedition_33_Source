@@ -26,6 +26,11 @@
 #include "SL_Skill.h"
 #include "SL_EstherManager.h"
 
+namespace
+{
+    constexpr float kDuallisteBGMFadeOutDuration = 1.f;
+}
+
 IMPLEMENT_REFLECTION(SoulLikeController)
 {
     auto& info = GetStaticReflectionInfo();
@@ -166,6 +171,8 @@ bool SoulLikeController::Begin_Battle()
     _healingPotionCount = kMaxHealingPotionCount;
     _state = BattleState::EnterFx;
 
+    GAME->Begin_SoulLikeIBLOverride();
+
     if (Is_DuallisteBattle())
     {
         Capture_PreSoulLikeBGM();
@@ -188,8 +195,9 @@ void SoulLikeController::End_Battle()
 {
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
-    Remove_SoulLikeRuntimeCameras();
+    Remove_SpawnedBattleActors();
     Restore_PreSoulLikeBGM();
+    GAME->End_SoulLikeIBLOverride();
 
     _state = BattleState::Finished;
     _enterFxTimer = 0.f;
@@ -203,6 +211,8 @@ void SoulLikeController::End_Battle()
 
     if (_estherManager)
         _estherManager->Reset();
+
+    Release_ControllerRegistration(true);
 }
 
 void SoulLikeController::Confirm_Victory()
@@ -289,6 +299,56 @@ void SoulLikeController::Restore_SkillCameraPreset()
         soulLikeCamera->Restore_BasePreset();
 }
 
+void SoulLikeController::Begin_MonsterAttackCameraPreset(const Shared<SL_Base>& attacker, const string& presetKey)
+{
+    if (_state != BattleState::Playing)
+        return;
+
+    const Shared<SL_Maelle> player = _player.lock();
+    if (player == nullptr || player->Get_Transform() == nullptr)
+        return;
+
+    if (attacker == nullptr || attacker->Get_Transform() == nullptr)
+        return;
+
+    if (presetKey.empty())
+        return;
+
+    if (!Ensure_SoulLikeCamera())
+        return;
+
+    Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock();
+    if (soulLikeCamera == nullptr)
+        return;
+
+    soulLikeCamera->SetCombatFocusTransforms(player->Get_Transform(), attacker->Get_Transform());
+    soulLikeCamera->Apply_PresetOverride(presetKey);
+    GAME->Change_ActiveCamera(static_pointer_cast<Camera>(soulLikeCamera));
+    soulLikeCamera->Update(0.f);
+    _monsterAttackCameraOwner = attacker;
+}
+
+void SoulLikeController::End_MonsterAttackCameraPreset(const Shared<SL_Base>& attacker)
+{
+    const Shared<SL_Base> currentOwner = _monsterAttackCameraOwner.lock();
+    if (currentOwner == nullptr)
+        return;
+
+    if (attacker != nullptr && attacker.get() != currentOwner.get())
+        return;
+
+    _monsterAttackCameraOwner.reset();
+
+    const Shared<SL_Maelle> player = _player.lock();
+    Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock();
+    if (player == nullptr || player->Get_Transform() == nullptr || soulLikeCamera == nullptr)
+        return;
+
+    soulLikeCamera->SetTargetTransform(player->Get_Transform());
+    soulLikeCamera->Restore_BasePreset();
+    soulLikeCamera->Update(0.f);
+}
+
 void SoulLikeController::Play_PlayerHitFeedback(const SL_DamageInfo& damageInfo)
 {
     UNREFERENCED_PARAMETER(damageInfo);
@@ -346,7 +406,7 @@ void SoulLikeController::Play_DuallisteBGM(DuallisteBGMPhase phase)
     if (GAME->Get_CurrentBGM() == bgm)
         return;
 
-    GAME->Play_BGM(bgm, 1.f, true, 0.f);
+    GAME->Play_BGM(bgm, 1.f, true, kDuallisteBGMFadeOutDuration);
 }
 
 void SoulLikeController::Set_JumpCounterThreat(const Shared<SL_Base>& attacker, bool active)
@@ -453,6 +513,16 @@ void SoulLikeController::Apply_JumpCounterDamage()
 
     _jumpCounterDamageApplied = true;
     target->Apply_Damage(damageInfo);
+
+    // 이팩트
+    {
+        PlayEffectDesc effectDesc{};
+        effectDesc.effectName = L"Double_Distotion.effect.json";
+        effectDesc.worldPosition = damageInfo.target->Get_Transform()->Get_WorldPosition() + Vec3(0.f, 1.f, 0.f);
+        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+        CLIENT->Play_Effect(effectDesc);
+    }
+
     Play_PlayerAttackHitFeedback(damageInfo);
 
     _jumpCounterAttacker.reset();
@@ -600,6 +670,7 @@ bool SoulLikeController::Ensure_SoulLikeCamera()
 
 void SoulLikeController::Remove_SoulLikeRuntimeCameras()
 {
+    _monsterAttackCameraOwner.reset();
     Restore_GameplayCamera();
 
     if (Shared<SoulLikeCamera> soulLikeCamera = _soulLikeCamera.lock())
@@ -955,6 +1026,7 @@ void SoulLikeController::Handle_EditorStopRuntime()
 {
     Remove_SpawnedBattleActors();
     Restore_PreSoulLikeBGM();
+    GAME->End_SoulLikeIBLOverride();
 
     _state = BattleState::None;
     _enterFxTimer = 0.f;
@@ -977,6 +1049,16 @@ void SoulLikeController::Handle_EditorStopRuntime()
     if (auto screenFxManager = GAME->Get_ScreenFxManager())
         screenFxManager->Clear_ScreenEffect();
 
+    Release_ControllerRegistration(true);
+}
+
+void SoulLikeController::Release_ControllerRegistration(bool removeFromWorld)
+{
+    if (CLIENT->Get_SoulLikeController().get() == this)
+        CLIENT->Set_SoulLikeController(nullptr);
+
+    if (removeFromWorld)
+        GAME->Remove_GameObject(GAME->Current_LevelIndex(), GetSharedPtr<GameObject>());
 }
 
 void SoulLikeController::Capture_PreSoulLikeBGM()
@@ -994,9 +1076,9 @@ void SoulLikeController::Restore_PreSoulLikeBGM()
         return;
 
     if (_preSoulLikeBGM.empty())
-        GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+        GAME->Stop_SoundChannel(SoundChannel::BGM, kDuallisteBGMFadeOutDuration);
     else
-        GAME->Play_BGM(_preSoulLikeBGM, 1.f, true, 0.f);
+        GAME->Play_BGM(_preSoulLikeBGM, 1.f, true, kDuallisteBGMFadeOutDuration);
 
     _preSoulLikeBGM.clear();
     _hasPreSoulLikeBGM = false;
@@ -1013,6 +1095,9 @@ const wchar_t* SoulLikeController::Resolve_DuallisteBGM(DuallisteBGMPhase phase)
     {
     case DuallisteBGMPhase::Phase1:
         return Constants::SoundBGM::DuallisteBattlePhase1Main;
+
+    case DuallisteBGMPhase::PhaseTransition:
+        return Constants::SoundBGM::DuallisteBattlePhaseTransition;
 
     case DuallisteBGMPhase::Phase2:
         return Constants::SoundBGM::DuallisteBattlePhase2Main;
@@ -1200,6 +1285,8 @@ Shared<GameObject> SoulLikeController::Clone(void* arg)
 
 void SoulLikeController::Free()
 {
+    GAME->End_SoulLikeIBLOverride();
+
     if (_editorStopHandle.IsValid())
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
@@ -1211,6 +1298,8 @@ void SoulLikeController::Free()
         _estherManager->Free();
         _estherManager.reset();
     }
+
+    Release_ControllerRegistration(false);
 
     GameObject::Free();
 }

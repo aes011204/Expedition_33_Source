@@ -5,6 +5,7 @@
 #include "EffectMaterialPresetReader.h"
 #include "EffectMaterialScalarModulationPreview.h"
 #include "EffectPreviewOrbitCamera.h"
+#include "EffectPreviewPostProcessRenderer.h"
 #include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
 #include "Helper_Math.h"
@@ -13,6 +14,8 @@
 #include "ShaderCom.h"
 #include "Texture.h"
 
+#include <cmath>
+
 NS_BEGIN(EffectEditor)
 
 namespace Internal
@@ -20,6 +23,7 @@ namespace Internal
     constexpr auto kWindowName = L"MeshData Preview";
     constexpr auto kMeshShaderId = L"Shader_EffectMeshPreview";
     constexpr auto kMeshDistortionShaderId = L"Shader_EffectMeshPreviewDistortion";
+    constexpr auto kEffectMaterialPreviewShaderId = L"Shader_EffectMaterialPreview";
     constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
     constexpr auto kModelDialogDefaultFolder = L"Effects\\Models";
@@ -30,6 +34,10 @@ namespace Internal
     constexpr float kMeshPreviewHomePitchDegrees{ 30.f };
     constexpr float kMeshPreviewHomeTransitionSpeed{ 10.f };
     constexpr float kMeshPreviewOrbitSensor{ 0.105f };
+    constexpr float kPreviewPaneWidthRatio{ 0.42f };
+    constexpr float kPreviewPaneMinWidth{ 420.f };
+    constexpr float kPreviewPaneMaxWidth{ 640.f };
+    constexpr float kSideBySideLayoutMinWidth{ 760.f };
     constexpr int kOpacitySourceAlpha{ 0 };
     constexpr int kOpacitySourceRed{ 1 };
     constexpr int kOpacitySourceLuminance{ 2 };
@@ -43,6 +51,32 @@ namespace Internal
         return dynamic_pointer_cast<T>(
             GAME->Clone_Prototype(Prototype::Comopnent, levelIndex, prototypeTag, arg)
         );
+    }
+
+    static bool Has_DuplicateEmitterName(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& target)
+    {
+        if (target.name.empty())
+            return false;
+
+        uint32 matchCount = 0;
+        for (const AuthoringEmitter& emitter : emitters)
+        {
+            if (emitter.name == target.name)
+                ++matchCount;
+        }
+
+        return matchCount > 1;
+    }
+
+    static string Build_EmitterPreviewLabel(const vector<AuthoringEmitter>& emitters, const AuthoringEmitter& emitter, const char* previewKind)
+    {
+        string label = emitter.name.empty() ? "Emitter" : emitter.name;
+        if (emitter.name.empty() || Has_DuplicateEmitterName(emitters, emitter))
+            label += " #" + std::to_string(emitter.id);
+
+        label += " - ";
+        label += previewKind;
+        return label;
     }
 
     string To_DisplayPath(const fs::path& path)
@@ -222,30 +256,6 @@ namespace Internal
         return material.materialFamily == EffectMaterialFamily::SpriteDistortion;
     }
 
-    void Draw_CheckerRect(ImDrawList& drawList, const ImVec2& minPos, const ImVec2& maxPos)
-    {
-        constexpr float cellSize = 54.f;
-        const ImU32 darkColor = IM_COL32(55, 64, 78, 255);
-        const ImU32 lightColor = IM_COL32(105, 120, 140, 255);
-
-        for (float y = minPos.y; y < maxPos.y; y += cellSize)
-        {
-            for (float x = minPos.x; x < maxPos.x; x += cellSize)
-            {
-                const int32 xi = static_cast<int32>((x - minPos.x) / cellSize);
-                const int32 yi = static_cast<int32>((y - minPos.y) / cellSize);
-                const ImU32 color = (xi + yi) % 2 == 0 ? lightColor : darkColor;
-                drawList.AddRectFilled(
-                    ImVec2(x, y),
-                    ImVec2(min(x + cellSize, maxPos.x), min(y + cellSize, maxPos.y)),
-                    color
-                );
-            }
-        }
-
-        drawList.AddRect(minPos, maxPos, IM_COL32(84, 96, 116, 255));
-    }
-
     bool Draw_AssetDropSlot(
         const char* id,
         const char* title,
@@ -322,15 +332,39 @@ namespace Internal
 
 struct MeshDataPreview_View::PreviewRenderer
 {
+    struct PreviewVertex
+    {
+        Vec3 position{};
+        Vec3 normal{};
+        Vec2 texcoord{};
+    };
+
+    struct PreviewMeshResource
+    {
+        ComPtr<ID3D11Buffer> vertexBuffer{};
+        ComPtr<ID3D11Buffer> indexBuffer{};
+        uint32 indexCount{ 0 };
+    };
+
+    struct MaterialPreviewTime
+    {
+        float duration{ 1.f };
+        float cycleTime{};
+        float phase{};
+    };
+
     uint32 width{ 512 };
     uint32 height{ 512 };
-    Shared<RenderTarget> renderTarget{};
+    Unique<EffectPreviewPostProcessRenderer> sceneResolve{};
+    Shared<RenderTarget> checkerSourceTarget{};
     Shared<ModelCom> model{};
     Shared<ShaderCom> shader{};
+    Shared<ShaderCom> checkerShader{};
     Shared<Texture> mainTexture{};
     Shared<Texture> noiseTexture{};
     Shared<Texture> maskTexture{};
     Shared<Texture> flowTexture{};
+    PreviewMeshResource checkerQuad{};
     string loadedModelKey{};
     wstring loadedShaderKey{};
     string loadedMainTextureKey{};
@@ -345,6 +379,13 @@ struct MeshDataPreview_View::PreviewRenderer
     bool hasPendingHome{ false };
 
     PreviewRenderer()
+        : sceneResolve(
+            make_unique<EffectPreviewPostProcessRenderer>(
+                L"MeshDataPreviewDisplay",
+                L"MeshDataPreviewHDR",
+                L"MeshDataPreviewBloom",
+                width,
+                height))
     {
         Reset_View();
     }
@@ -381,22 +422,23 @@ struct MeshDataPreview_View::PreviewRenderer
         if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
         {
             const RequiredModuleData* required = Find_RequiredModuleData(emitter);
-            const float previewDuration = required != nullptr ? required->duration : 1.f;
+            const MaterialPreviewTime previewTime = Resolve_MaterialPreviewTime(required);
             const MaterialScalarModulationPreviewResult previewMaterial =
                 Evaluate_MaterialScalarModulationPreview(
                     effectMaterial,
                     Build_CoreColorRgbModulationRuntimeDesc(*modulation),
                     Build_MaterialVec2ModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
-                    Compute_MaterialScalarPreviewPhase(materialElapsedTime, previewDuration),
+                    previewTime.phase,
                     false
                 );
             effectMaterial = previewMaterial.material;
         }
 
         Internal::Apply_RequiredRenderPolicy(Find_RequiredModuleData(emitter), effectMaterial);
+        const MaterialPreviewTime previewTime = Resolve_MaterialPreviewTime(Find_RequiredModuleData(emitter));
 
-        if (!Ready_RenderTarget() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
+        if (!Ready_RenderTargets() || !Ready_CheckerShader() || !Ready_CheckerQuad() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
             return;
 
         if (!Ready_EffectMaterialTextures(effectMaterial))
@@ -405,13 +447,27 @@ struct MeshDataPreview_View::PreviewRenderer
         ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
         EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
 
-        if (FAILED(renderTarget->Begin(true, true)))
+        if (FAILED(checkerSourceTarget->Begin(true, true)) ||
+            FAILED(Render_CheckerBackground(previewTime.cycleTime)))
+        {
+            GAME->Bind_BackBuffer();
+            statusMessage = "Preview checker source draw failed.";
+            return;
+        }
+
+        if (FAILED(sceneResolve->Begin_HDRTarget()))
         {
             statusMessage = "Preview render target begin has failed.";
             return;
         }
 
-        const HRESULT hr = Draw_Model(meshData.previewScale, effectMaterial);
+        HRESULT hr = Render_CheckerBackground(previewTime.cycleTime);
+        if (SUCCEEDED(hr))
+            hr = Draw_Model(meshData.previewScale, effectMaterial, previewTime.cycleTime);
+
+        if (SUCCEEDED(hr))
+            hr = sceneResolve->Resolve();
+
         GAME->Bind_BackBuffer();
 
         if (FAILED(hr))
@@ -423,10 +479,19 @@ struct MeshDataPreview_View::PreviewRenderer
         hasRendered = true;
     }
 
-    void Draw_Viewport(const char* id, const AuthoringEmitter& emitter, const MeshTypeData& meshData, const fs::path& modelPath)
+    void Draw_Viewport(
+        const char* id,
+        const AuthoringEmitter& emitter,
+        const MeshTypeData& meshData,
+        const fs::path& modelPath,
+        const char* label,
+        bool fillAvailableHeight = false)
     {
         const ImVec2 availableSize = ImGui::GetContentRegionAvail();
-        const ImVec2 canvasSize{ max(1.f, availableSize.x), max(260.f, availableSize.y) };
+        const float previewHeight = fillAvailableHeight
+                                    ? max(280.f, availableSize.y)
+                                    : max(280.f, min(560.f, availableSize.y > 0.f ? availableSize.y : 360.f));
+        const ImVec2 canvasSize{ max(1.f, availableSize.x), previewHeight };
 
         ImGui::BeginChild(id, canvasSize, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         {
@@ -440,7 +505,6 @@ struct MeshDataPreview_View::PreviewRenderer
             const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
             const ImVec2 canvasMax{ canvasMin.x + innerSize.x, canvasMin.y + innerSize.y };
             ImDrawList* drawList = ImGui::GetWindowDrawList();
-            Internal::Draw_CheckerRect(*drawList, canvasMin, canvasMax);
 
             ImGui::InvisibleButton("MeshDataPreviewCanvas", innerSize);
             const bool isHovered = ImGui::IsItemHovered();
@@ -456,7 +520,7 @@ struct MeshDataPreview_View::PreviewRenderer
                 drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 34.f), IM_COL32(245, 198, 120, 255), message);
             }
 
-            Draw_ViewportTextOverlay(canvasMin, canvasMax, "MeshData material preview");
+            Draw_ViewportTextOverlay(canvasMin, canvasMax, label);
             Handle_ViewportInput(isHovered, canvasMin, canvasMax);
         }
         ImGui::EndChild();
@@ -464,31 +528,130 @@ struct MeshDataPreview_View::PreviewRenderer
 
     ShaderResourceView* Get_SRV() const
     {
-        return hasRendered && renderTarget != nullptr ? renderTarget->Get_SRV() : nullptr;
+        return hasRendered && sceneResolve != nullptr ? sceneResolve->Get_SRV() : nullptr;
     }
 
-    bool Ready_RenderTarget()
+    bool Ready_RenderTargets()
     {
-        if (renderTarget != nullptr)
+        if (sceneResolve != nullptr && checkerSourceTarget != nullptr)
             return true;
 
-        renderTarget = RenderTarget::Create(
-            L"MeshDataPreviewRenderTarget",
-            EDITOR->Get_Device(),
-            EDITOR->Get_Context(),
-            width,
-            height,
-            DXGI_FORMAT_R8G8B8A8_UNORM,
-            Vec4{ 0.f, 0.f, 0.f, 0.f },
-            true
-        );
-
-        if (renderTarget == nullptr)
+        if (sceneResolve == nullptr)
         {
-            statusMessage = "Preview render target creation failed.";
+            sceneResolve = make_unique<EffectPreviewPostProcessRenderer>(
+                L"MeshDataPreviewDisplay",
+                L"MeshDataPreviewHDR",
+                L"MeshDataPreviewBloom",
+                width,
+                height
+            );
+        }
+
+        if (sceneResolve == nullptr || !sceneResolve->Ready(statusMessage))
+        {
+            if (statusMessage.empty())
+                statusMessage = "Preview render target creation failed.";
             return false;
         }
 
+        if (checkerSourceTarget == nullptr)
+        {
+            checkerSourceTarget = RenderTarget::Create(
+                L"MeshDataPreviewCheckerSource",
+                EDITOR->Get_Device(),
+                EDITOR->Get_Context(),
+                width,
+                height,
+                DXGI_FORMAT_R16G16B16A16_FLOAT,
+                Vec4{ 0.f, 0.f, 0.f, 0.f },
+                true
+            );
+        }
+
+        if (checkerSourceTarget == nullptr)
+        {
+            statusMessage = "Preview checker source target creation failed.";
+            return false;
+        }
+
+        return true;
+    }
+
+    bool Ready_CheckerShader()
+    {
+        if (checkerShader != nullptr)
+            return true;
+
+        checkerShader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), Internal::kEffectMaterialPreviewShaderId);
+        if (checkerShader == nullptr)
+        {
+            statusMessage = "Shader_EffectMaterialPreview prototype is missing.";
+            return false;
+        }
+
+        return true;
+    }
+
+    bool Ready_CheckerQuad()
+    {
+        if (checkerQuad.vertexBuffer != nullptr && checkerQuad.indexBuffer != nullptr)
+            return true;
+
+        const vector<PreviewVertex> vertices{
+            { Vec3{ -1.f, 1.f, 0.f }, Vec3{ 0.f, 0.f, -1.f }, Vec2{ 0.f, 0.f } },
+            { Vec3{ 1.f, 1.f, 0.f }, Vec3{ 0.f, 0.f, -1.f }, Vec2{ 1.f, 0.f } },
+            { Vec3{ 1.f, -1.f, 0.f }, Vec3{ 0.f, 0.f, -1.f }, Vec2{ 1.f, 1.f } },
+            { Vec3{ -1.f, -1.f, 0.f }, Vec3{ 0.f, 0.f, -1.f }, Vec2{ 0.f, 1.f } },
+        };
+        const vector<uint32> indices{ 0, 1, 2, 0, 2, 3 };
+
+        return Create_Mesh(vertices, indices, checkerQuad);
+    }
+
+    bool Create_Mesh(const vector<PreviewVertex>& vertices, const vector<uint32>& indices, PreviewMeshResource& mesh)
+    {
+        if (EDITOR == nullptr || vertices.empty() || indices.empty())
+            return false;
+
+        D3D11_BUFFER_DESC vertexBufferDesc{};
+        vertexBufferDesc.ByteWidth = static_cast<uint32>(sizeof(PreviewVertex) * vertices.size());
+        vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+        vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+        D3D11_SUBRESOURCE_DATA vertexData{};
+        vertexData.pSysMem = vertices.data();
+
+        if (FAILED(
+            EDITOR->Get_Device()->CreateBuffer(
+                &vertexBufferDesc,
+                &vertexData,
+                mesh.vertexBuffer.ReleaseAndGetAddressOf())
+        ))
+        {
+            statusMessage = "Preview checker vertex buffer creation failed.";
+            return false;
+        }
+
+        D3D11_BUFFER_DESC indexBufferDesc{};
+        indexBufferDesc.ByteWidth = static_cast<uint32>(sizeof(uint32) * indices.size());
+        indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+        indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+        D3D11_SUBRESOURCE_DATA indexData{};
+        indexData.pSysMem = indices.data();
+
+        if (FAILED(
+            EDITOR->Get_Device()->CreateBuffer(
+                &indexBufferDesc,
+                &indexData,
+                mesh.indexBuffer.ReleaseAndGetAddressOf())
+        ))
+        {
+            statusMessage = "Preview checker index buffer creation failed.";
+            return false;
+        }
+
+        mesh.indexCount = static_cast<uint32>(indices.size());
         return true;
     }
 
@@ -641,9 +804,27 @@ struct MeshDataPreview_View::PreviewRenderer
         return true;
     }
 
-    HRESULT Bind_DistortionPreviewResources(const EffectMaterialInstanceData& material)
+    MaterialPreviewTime Resolve_MaterialPreviewTime(const RequiredModuleData* required) const
+    {
+        constexpr float kMinDuration = 0.0001f;
+        const float safeDuration =
+            required != nullptr
+            ? max(required->duration, kMinDuration)
+            : 1.f;
+        const float positiveElapsedTime = max(materialElapsedTime, 0.f);
+        const float cycleTime = std::fmod(positiveElapsedTime, safeDuration);
+
+        return MaterialPreviewTime{
+            safeDuration,
+            cycleTime,
+            cycleTime / safeDuration
+        };
+    }
+
+    HRESULT Bind_DistortionPreviewResources(const EffectMaterialInstanceData& material, float previewCycleTime)
     {
         CHECK_NULL(shader, E_FAIL);
+        CHECK_NULL(checkerSourceTarget, E_FAIL);
 
         if (flowTexture != nullptr)
             CHECK_FAILED(flowTexture->Bind_ShaderResourceView(shader.get(), "g_FlowTexture", 0), E_FAIL);
@@ -654,7 +835,7 @@ struct MeshDataPreview_View::PreviewRenderer
             material.refractionIntensity,
             max(0.f, material.refractionPresence),
             flowTexture != nullptr ? 1.f : 0.f,
-            materialElapsedTime
+            previewCycleTime
         );
         const Vec4 screenSize(static_cast<float>(max(1u, width)), static_cast<float>(max(1u, height)), 0.f, 0.f);
         const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
@@ -664,6 +845,7 @@ struct MeshDataPreview_View::PreviewRenderer
             static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
         );
 
+        CHECK_FAILED(checkerSourceTarget->Bind_ShaderResource(shader.get(), "g_DistortionSourceTexture"), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_DistortionScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
@@ -676,7 +858,7 @@ struct MeshDataPreview_View::PreviewRenderer
         return S_OK;
     }
 
-    HRESULT Bind_EffectMaterialResources(const EffectMaterialInstanceData& material)
+    HRESULT Bind_EffectMaterialResources(const EffectMaterialInstanceData& material, float previewCycleTime)
     {
         CHECK_NULL(shader, E_FAIL);
         CHECK_NULL(mainTexture, E_FAIL);
@@ -798,7 +980,7 @@ struct MeshDataPreview_View::PreviewRenderer
         );
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVRotationParams", &effectMeshUVRotationParams, sizeof(effectMeshUVRotationParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
-        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialElapsedTime, sizeof(materialElapsedTime)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &previewCycleTime, sizeof(previewCycleTime)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
@@ -810,6 +992,45 @@ struct MeshDataPreview_View::PreviewRenderer
             E_FAIL
         );
         CHECK_FAILED(shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
+        return S_OK;
+    }
+
+    HRESULT Render_CheckerBackground(float previewCycleTime) const
+    {
+        CHECK_NULL(checkerShader, E_FAIL);
+        CHECK_NULL(checkerQuad.vertexBuffer, E_FAIL);
+        CHECK_NULL(checkerQuad.indexBuffer, E_FAIL);
+
+        const Vec4 checkerParams(
+            static_cast<float>(max(1u, width)),
+            static_cast<float>(max(1u, height)),
+            previewCycleTime,
+            0.f
+        );
+
+        CHECK_FAILED(
+            checkerShader->Bind_RawValue("g_EffectMaterialPreviewCheckerParams", &checkerParams, sizeof(checkerParams)),
+            E_FAIL
+        );
+        CHECK_FAILED(checkerShader->Begin(4), E_FAIL);
+        CHECK_FAILED(Render_Mesh(checkerQuad), E_FAIL);
+        return S_OK;
+    }
+
+    HRESULT Render_Mesh(const PreviewMeshResource& mesh) const
+    {
+        if (mesh.vertexBuffer == nullptr || mesh.indexBuffer == nullptr || mesh.indexCount == 0)
+            return E_FAIL;
+
+        constexpr uint32 stride = sizeof(PreviewVertex);
+        constexpr uint32 offset = 0;
+        ID3D11Buffer* vertexBuffer = mesh.vertexBuffer.Get();
+
+        EDITOR->Get_Context()->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+        EDITOR->Get_Context()->IASetIndexBuffer(mesh.indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+        EDITOR->Get_Context()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        EDITOR->Get_Context()->DrawIndexed(mesh.indexCount, 0, 0);
+
         return S_OK;
     }
 
@@ -828,7 +1049,7 @@ struct MeshDataPreview_View::PreviewRenderer
         return twoSided ? 2u : 0u;
     }
 
-    HRESULT Draw_Model(const Vec3& previewScale, const EffectMaterialInstanceData& material)
+    HRESULT Draw_Model(const Vec3& previewScale, const EffectMaterialInstanceData& material, float previewCycleTime)
     {
         CHECK_NULL(shader, E_FAIL);
         CHECK_NULL(model, E_FAIL);
@@ -858,9 +1079,9 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_ObjectCB(world), E_FAIL);
         CHECK_FAILED(shader->Bind_CBufferData(cameraCB), E_FAIL);
         if (Internal::Is_MeshDistortionPreviewFamily(material))
-            CHECK_FAILED(Bind_DistortionPreviewResources(material), E_FAIL);
+            CHECK_FAILED(Bind_DistortionPreviewResources(material, previewCycleTime), E_FAIL);
         else
-            CHECK_FAILED(Bind_EffectMaterialResources(material), E_FAIL);
+            CHECK_FAILED(Bind_EffectMaterialResources(material, previewCycleTime), E_FAIL);
 
         const uint32 passIndex = Resolve_ShaderPassIndex(material);
         const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
@@ -882,7 +1103,9 @@ struct MeshDataPreview_View::PreviewRenderer
 
         width = requestedWidth;
         height = requestedHeight;
-        renderTarget.reset();
+        if (sceneResolve != nullptr)
+            sceneResolve->Resize(width, height);
+        checkerSourceTarget.reset();
         hasRendered = false;
     }
 
@@ -934,7 +1157,7 @@ struct MeshDataPreview_View::PreviewRenderer
             }
         }
 
-        if (isHovered && io.MouseWheel != 0.f)
+        if (isHovered && io.KeyCtrl && io.MouseWheel != 0.f)
         {
             hasPendingHome = false;
             EffectPreviewOrbitCamera::Dolly(cameraState, io.MouseWheel, 0.46f, 0.25f, 80.f);
@@ -1007,7 +1230,7 @@ struct MeshDataPreview_View::PreviewRenderer
                 const Vec3 center = (localMin + localMax) * 0.5f * 0.01f;
                 const Vec3 extents = (localMax - localMin) * 0.5f * 0.01f;
                 pivot = center;
-                distance = max(6.f, extents.Length() * 4.6f);
+                distance = max(3.f, extents.Length() * 3.f);
             }
         }
 
@@ -1039,13 +1262,15 @@ struct MeshDataPreview_View::PreviewRenderer
     void Draw_ViewportTextOverlay(const ImVec2& canvasMin, const ImVec2& canvasMax, const char* label)
     {
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(214, 220, 230, 255), label);
+        const bool hasLabel = label != nullptr && label[0] != '\0';
+        if (hasLabel)
+            drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(214, 220, 230, 255), label);
         if (!statusMessage.empty())
-            drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 34.f), IM_COL32(245, 198, 120, 255), statusMessage.c_str());
+            drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + (hasLabel ? 34.f : 12.f)), IM_COL32(245, 198, 120, 255), statusMessage.c_str());
         drawList->AddText(
             ImVec2(canvasMin.x + 12.f, canvasMax.y - 24.f),
             IM_COL32(180, 190, 205, 255),
-            "LMB orbit / MMB or RMB pan / Wheel zoom / F reset"
+            "LMB orbit / MMB or RMB pan / Ctrl+Wheel zoom / F reset"
         );
     }
 };
@@ -1074,8 +1299,11 @@ void MeshDataPreview_View::Render()
 
     bool isOpen = Is_Open();
     ImGui::SetNextWindowSize(ImVec2{ 1180.f, 760.f }, ImGuiCond_FirstUseEver);
+    Apply_PendingFocusBeforeBegin();
+
     if (ImGui::Begin(Get_ImGuiWindowName().c_str(), &isOpen))
     {
+        Clear_PendingFocusAfterBegin();
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
 
@@ -1087,17 +1315,26 @@ void MeshDataPreview_View::Render()
         else
         {
             const float contentWidth = ImGui::GetContentRegionAvail().x;
-            const bool useSideBySideLayout = contentWidth >= 860.f;
+            const bool useSideBySideLayout = contentWidth >= Internal::kSideBySideLayoutMinWidth;
             const fs::path modelPath = Resolve_AuthoredAssetPath(meshData->modelGuid, meshData->modelPath);
+            const string previewLabel = Internal::Build_EmitterPreviewLabel(
+                emitterView->Get_Emitters(),
+                *emitter,
+                "Mesh Preview"
+            );
 
             if (useSideBySideLayout)
             {
                 const float spacing = ImGui::GetStyle().ItemSpacing.x;
-                const float previewPaneWidth = clamp(contentWidth * 0.56f, 520.f, 760.f);
+                const float previewPaneWidth = clamp(
+                    contentWidth * Internal::kPreviewPaneWidthRatio,
+                    Internal::kPreviewPaneMinWidth,
+                    Internal::kPreviewPaneMaxWidth
+                );
                 ImGui::BeginChild("MeshDataPreviewViewportPane", ImVec2(previewPaneWidth, 0.f), false);
                 {
                     if (_previewRenderer != nullptr)
-                        _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath);
+                        _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath, previewLabel.c_str(), true);
                 }
                 ImGui::EndChild();
 
@@ -1111,7 +1348,7 @@ void MeshDataPreview_View::Render()
             else
             {
                 if (_previewRenderer != nullptr)
-                    _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath);
+                    _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath, previewLabel.c_str());
                 ImGui::Separator();
                 Render_Inspector(*emitterView, *emitter, *meshData);
             }
@@ -1126,6 +1363,7 @@ void MeshDataPreview_View::Open_Target(uint32 emitterId)
 {
     _targetEmitterId = emitterId;
     Set_Open(true);
+    Request_FocusOnOpen();
 }
 
 Shared<Emitter_View> MeshDataPreview_View::Resolve_EmitterView() const

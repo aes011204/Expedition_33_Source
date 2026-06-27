@@ -19,7 +19,11 @@ public:
         MimeCostumeOnly,
         PotatoCostumeOnly,
         AllCostumes,
+        BaguetteWeapons,
+        TiresoSnowimPlenumWeapons,
+        AllWeapons,
         FirstTutorialHeroUnlocks,
+        FinalSkillSetupUnlocks,
     };
 
 public:

@@ -1,9 +1,11 @@
 #include "BattleWorldUI_ItemCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
+#include "Debug_Profile.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -1876,6 +1878,8 @@ namespace
             bool selected,
             bool dimmed) override
         {
+            ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Item.Compose");
+
             CHECK_NULL(_renderTarget, E_FAIL);
 
             ScopedRenderTargetState restoreState{ _context };
@@ -2160,6 +2164,8 @@ HRESULT BattleWorldUI_ItemCards::Initialize(void* arg)
 
 HRESULT BattleWorldUI_ItemCards::Warmup_ForBattleState(BattleItemType selectedItemType, HeroId actorHeroId)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Item.Warmup");
+
     if (_impl == nullptr)
         return E_FAIL;
 
@@ -2227,6 +2233,8 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
     HeroId actorHeroId,
     float timeDelta)
 {
+    ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Item.Show");
+
     if (_impl == nullptr || !Should_ShowBattleWorldItemCards(currentState))
     {
         Hide();
@@ -2308,7 +2316,7 @@ void BattleWorldUI_ItemCards::Show_ForBattleState(
         const Vec3 position =
             anchorWorldPos +
             Resolve_CameraScreenPositionDelta(presentation.screenPosition) +
-            presentation.worldOffset;
+            BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(presentation.worldOffset);
         const float introOutwardX = presentation.worldOffset.x < 0.f ? -0.04f : 0.04f;
         card.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(introOutwardX, -0.06f, 0.f));
         const Vec2 aspectWorldSize = Resolve_AspectWorldSize(presentation.worldSize, card.def.pixelSize);

@@ -98,6 +98,17 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+// CylinderLocation module의 원통 spawn 위치 authoring row를 그린다.
+class CylinderLocationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        const AuthoringModule& module,
+        CylinderLocationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 // InitialVelocity module의 initial velocity authoring row를 그린다.
 class InitialVelocityModuleDetail
 {
@@ -227,6 +238,28 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         RotationOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+// SpriteTilt module의 sprite card plane tilt authoring row를 그린다.
+class SpriteTiltModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SpriteTiltModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+// SpriteTiltOverLife module의 life-based sprite card plane tilt authoring row를 그린다.
+class SpriteTiltOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SpriteTiltOverLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

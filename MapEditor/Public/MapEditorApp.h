@@ -83,6 +83,7 @@ private:
     void Update_StaticMeshHandles();
     void Update_InstancedMeshHandles();
     void Update_WaterHandles();
+    void ProcessPendingViewportCommands();
     void DoSpawnAt(const string& modelPath);
     void RebuildOctreeIfDirty();
 

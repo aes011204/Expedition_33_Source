@@ -24,13 +24,14 @@ enum class Collision_Channel : uint32
     Camera = 1 << 14,
     WorldActionTrigger = 1 << 15,
     Monster_WeakPoint = 1 << 16,
-    
+
     SL_PlayerBody = 1 << 17,
     SL_PlayerAttack = 1 << 18,
     SL_MonsterBody = 1 << 19,
     SL_MonsterAttack = 1 << 20,
     SL_TargetSensor = 1 << 21,
-    Player_ParkourSensor = 1 << 22,
+    NPC_WorldBody = 1 << 22,
+    Player_ParkourSensor = 1 << 23,
 
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
@@ -63,6 +64,7 @@ enum class Collision_Preset
     SL_MonsterBody,
     SL_MonsterAttack,
     SL_TargetSensor,
+    NPC_WorldBody,
 
     END
 };
@@ -150,7 +152,8 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Trigger) |
                       ETOI(Collision_Channel::Monster_WorldBody),
 
-    /* blockMask   */ ETOI(Collision_Channel::Environment)
+    /* blockMask   */ ETOI(Collision_Channel::Environment) |
+                      ETOI(Collision_Channel::NPC_WorldBody)
     },
 
     { Collision_Channel::Player_Attack,
@@ -233,6 +236,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Monster_WorldBody) |
                       ETOI(Collision_Channel::SL_PlayerBody) |
                       ETOI(Collision_Channel::SL_MonsterBody) |
+                      ETOI(Collision_Channel::NPC_WorldBody) |
                       ETOI(Collision_Channel::Camera)
     },
 
@@ -300,6 +304,15 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::SL_TargetSensor,
       ETOI(Collision_Channel::SL_MonsterBody),
       0
+    },
+
+    // NPC_WorldBody
+    { Collision_Channel::NPC_WorldBody,
+      ETOI(Collision_Channel::Projectile) |
+      ETOI(Collision_Channel::Player_Target) |
+      ETOI(Collision_Channel::WorldActionTrigger),
+      ETOI(Collision_Channel::Player_WorldBody) |
+      ETOI(Collision_Channel::Enviroment)
     },
 };
 

@@ -2024,6 +2024,47 @@ namespace Internal
         Apply_LegacyRandomSeedToUniform(outData.angleDegreesDistribution, legacySeed);
     }
 
+    json To_Json(const CylinderLocationModuleData& data)
+    {
+        json root = json::object();
+        root["axis"] = To_EnumToken(data.axis);
+        root["spawnMode"] = To_EnumToken(data.spawnMode);
+        root["placementMode"] = To_EnumToken(data.placementMode);
+        root["offset"] = To_Json(data.offset);
+        root["radiusDistribution"] = To_Json(data.radiusDistribution);
+        root["heightDistribution"] = To_Json(data.heightDistribution);
+        root["angleDegreesDistribution"] = To_Json(data.angleDegreesDistribution);
+        return root;
+    }
+
+    void From_Json(const json& root, CylinderLocationModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto axisIter = root.find("axis");
+        if (axisIter != root.end())
+            Try_ReadEnumToken(*axisIter, outData.axis);
+        const auto spawnModeIter = root.find("spawnMode");
+        if (spawnModeIter != root.end())
+            Try_ReadEnumToken(*spawnModeIter, outData.spawnMode);
+        const auto placementModeIter = root.find("placementMode");
+        if (placementModeIter != root.end())
+            Try_ReadEnumToken(*placementModeIter, outData.placementMode);
+
+        const auto offsetIter = root.find("offset");
+        if (offsetIter != root.end())
+            Read_Vec3(*offsetIter, outData.offset);
+        Read_FloatDistributionOrLegacyRangeField(root, "radiusDistribution", "radiusRange", outData.radiusDistribution);
+        Read_FloatDistributionOrLegacyRangeField(root, "heightDistribution", "heightRange", outData.heightDistribution);
+        Read_FloatDistributionOrLegacyRangeField(root, "angleDegreesDistribution", "angleDegreesRange", outData.angleDegreesDistribution);
+        DistributionRandomSeedData legacySeed{};
+        Read_RandomSeedField(root, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.radiusDistribution, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.heightDistribution, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.angleDegreesDistribution, legacySeed);
+    }
+
     json To_Json(const PlaneRadialOrientationModuleData& data)
     {
         json root = json::object();
@@ -2226,6 +2267,7 @@ namespace Internal
     {
         json root = json::object();
         root["acceleration"] = To_Json(data.acceleration);
+        root["inWorldSpace"] = data.inWorldSpace;
         return root;
     }
 
@@ -2236,6 +2278,7 @@ namespace Internal
             From_Json(*iter, outData.acceleration);
         if (root.is_object())
         {
+            Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
             DistributionRandomSeedData legacySeed{};
             Read_RandomSeedField(root, legacySeed);
             Apply_LegacyRandomSeedToUniform(outData.acceleration, legacySeed);
@@ -2366,6 +2409,34 @@ namespace Internal
         }
     }
 
+    json To_Json(const SpriteTiltModuleData& data)
+    {
+        json root = json::object();
+        root["tiltDegrees"] = To_Json(data.tiltDegrees);
+        return root;
+    }
+
+    void From_Json(const json& root, SpriteTiltModuleData& outData)
+    {
+        const auto iter = root.find("tiltDegrees");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.tiltDegrees);
+    }
+
+    json To_Json(const SpriteTiltOverLifeModuleData& data)
+    {
+        json root = json::object();
+        root["tiltOverLife"] = To_Json(data.tiltOverLife);
+        return root;
+    }
+
+    void From_Json(const json& root, SpriteTiltOverLifeModuleData& outData)
+    {
+        const auto iter = root.find("tiltOverLife");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.tiltOverLife);
+    }
+
     json To_Json(const InitialRotationRateModuleData& data)
     {
         json root = json::object();
@@ -2443,6 +2514,7 @@ namespace Internal
     {
         json root = json::object();
         root["rotationRateDegrees"] = To_Json(data.rotationRateDegrees);
+        root["inWorldSpace"] = data.inWorldSpace;
         return root;
     }
 
@@ -2451,6 +2523,7 @@ namespace Internal
         const auto iter = root.find("rotationRateDegrees");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.rotationRateDegrees);
+        Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
     }
 
     json To_Json(const MeshRotationRateScaleByLifeModuleData& data)
@@ -2969,6 +3042,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::PlaneRadialLocation:
         root["data"] = Internal::To_Json(get<PlaneRadialLocationModuleData>(module.data));
         break;
+    case AuthoringModuleType::CylinderLocation:
+        root["data"] = Internal::To_Json(get<CylinderLocationModuleData>(module.data));
+        break;
     case AuthoringModuleType::InitialSize:
         root["data"] = Internal::To_Json(get<InitialSizeModuleData>(module.data));
         break;
@@ -3010,6 +3086,12 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
         break;
     case AuthoringModuleType::RotationOverLife:
         root["data"] = Internal::To_Json(get<RotationOverLifeModuleData>(module.data));
+        break;
+    case AuthoringModuleType::SpriteTilt:
+        root["data"] = Internal::To_Json(get<SpriteTiltModuleData>(module.data));
+        break;
+    case AuthoringModuleType::SpriteTiltOverLife:
+        root["data"] = Internal::To_Json(get<SpriteTiltOverLifeModuleData>(module.data));
         break;
     case AuthoringModuleType::InitialRotationRate:
         root["data"] = Internal::To_Json(get<InitialRotationRateModuleData>(module.data));
@@ -3118,6 +3200,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::PlaneRadialLocation:
             Internal::From_Json(*dataIter, get<PlaneRadialLocationModuleData>(module.data));
             break;
+        case AuthoringModuleType::CylinderLocation:
+            Internal::From_Json(*dataIter, get<CylinderLocationModuleData>(module.data));
+            break;
         case AuthoringModuleType::InitialSize:
             Internal::From_Json(*dataIter, get<InitialSizeModuleData>(module.data));
             break;
@@ -3159,6 +3244,12 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
             break;
         case AuthoringModuleType::RotationOverLife:
             Internal::From_Json(*dataIter, get<RotationOverLifeModuleData>(module.data));
+            break;
+        case AuthoringModuleType::SpriteTilt:
+            Internal::From_Json(*dataIter, get<SpriteTiltModuleData>(module.data));
+            break;
+        case AuthoringModuleType::SpriteTiltOverLife:
+            Internal::From_Json(*dataIter, get<SpriteTiltOverLifeModuleData>(module.data));
             break;
         case AuthoringModuleType::InitialRotationRate:
             Internal::From_Json(*dataIter, get<InitialRotationRateModuleData>(module.data));
@@ -3277,6 +3368,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SphereLocationModuleData{};
     case AuthoringModuleType::PlaneRadialLocation:
         return PlaneRadialLocationModuleData{};
+    case AuthoringModuleType::CylinderLocation:
+        return CylinderLocationModuleData{};
     case AuthoringModuleType::InitialSize:
         return InitialSizeModuleData{};
     case AuthoringModuleType::InitialMeshSize:
@@ -3305,6 +3398,10 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return PlaneRadialOrientationModuleData{};
     case AuthoringModuleType::RotationOverLife:
         return RotationOverLifeModuleData{};
+    case AuthoringModuleType::SpriteTilt:
+        return SpriteTiltModuleData{};
+    case AuthoringModuleType::SpriteTiltOverLife:
+        return SpriteTiltOverLifeModuleData{};
     case AuthoringModuleType::InitialRotationRate:
         return InitialRotationRateModuleData{};
     case AuthoringModuleType::RotationRateScaleByLife:

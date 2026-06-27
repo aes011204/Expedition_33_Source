@@ -4,6 +4,8 @@
 
 namespace
 {
+    constexpr float kPropertyLabelWidth = 120.f;
+
     bool DrawEnemyClassCombo(EEnemyClass& enemyClass)
     {
         bool changed = false;
@@ -33,6 +35,66 @@ namespace
         }
 
         return changed;
+    }
+
+    void ApplyBattleSkillKeys(MonsterStatCom& stat, vector<string>& skillKeys)
+    {
+        skillKeys.erase(
+            remove_if(skillKeys.begin(), skillKeys.end(),
+                [](const string& skillKey)
+                {
+                    return skillKey.empty();
+                }),
+            skillKeys.end());
+
+        stat.Set_SkillKeys(skillKeys);
+        stat.Rebuild_SkillRuntimeState();
+    }
+
+    void DrawBattleSkillList(MonsterStatCom& stat)
+    {
+        vector<string> skillKeys = stat.Get_SkillKeys();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("Battle Skills");
+
+        for (size_t i = 0; i < skillKeys.size(); ++i)
+        {
+            char buffer[256]{};
+            strncpy_s(buffer, skillKeys[i].c_str(), _TRUNCATE);
+
+            ImGui::PushID(static_cast<int>(i));
+
+            ImGui::TextDisabled("Skill %d", static_cast<int>(i + 1));
+            ImGui::SameLine(kPropertyLabelWidth);
+            ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x - 60.f));
+            if (ImGui::InputText("##MonsterBattleSkill", buffer, IM_ARRAYSIZE(buffer)))
+            {
+                skillKeys[i] = buffer;
+                ApplyBattleSkillKeys(stat, skillKeys);
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("X##RemoveMonsterBattleSkill"))
+            {
+                skillKeys.erase(skillKeys.begin() + i);
+                ApplyBattleSkillKeys(stat, skillKeys);
+                ImGui::PopID();
+                break;
+            }
+
+            ImGui::PopID();
+        }
+
+        if (ImGui::Button("Add Skill##MonsterBattleSkill"))
+        {
+            skillKeys.emplace_back();
+            stat.Set_SkillKeys(skillKeys);
+            stat.Rebuild_SkillRuntimeState();
+        }
     }
 }
 
@@ -213,6 +275,7 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     ImGui::DragFloat("##MonsterMidRatio", &desc._midRatio, 0.1f, 0.f, 1.f);
 
+    DrawBattleSkillList(*stat);
 
 }
 

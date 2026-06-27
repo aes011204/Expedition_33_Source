@@ -64,8 +64,7 @@ HRESULT Mon_Lancelier_Weapon::Render_Shadow()
 
 uint32 Mon_Lancelier_Weapon::Decide_PassIndex(Shared<Material> mat)
 {
-    const int OPAQUE_PASS = 0;
-    return OPAQUE_PASS;
+    return mat->Get_PassIndex();
 }
 
 Shared<Mon_Lancelier_Weapon> Mon_Lancelier_Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

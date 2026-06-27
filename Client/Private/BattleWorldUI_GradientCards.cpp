@@ -1,9 +1,11 @@
 #include "BattleWorldUI_GradientCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "ClientInstance.h"
+#include "Debug_Profile.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -1442,6 +1444,8 @@ namespace
 
         HRESULT Compose(const BattleWorldGradientPanelTemplate& panelTemplate) override
         {
+            ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Gradient.Compose");
+
             CHECK_NULL(_renderTarget, E_FAIL);
 
             ScopedRenderTargetState restoreState{ _context };
@@ -1702,6 +1706,8 @@ HRESULT BattleWorldUI_GradientCards::Initialize(void* arg)
 
 HRESULT BattleWorldUI_GradientCards::Warmup_ForBattleState(HeroId actorHeroId)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.Gradient.Warmup");
+
     if (_impl == nullptr)
         return E_FAIL;
 
@@ -1729,6 +1735,8 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     HeroId actorHeroId,
     float timeDelta)
 {
+    ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.Gradient.Show");
+
     if (_impl == nullptr || !Should_ShowBattleWorldGradientCards(currentState))
     {
         Hide();
@@ -1782,7 +1790,7 @@ void BattleWorldUI_GradientCards::Show_ForBattleState(
     const Vec3 position =
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
-        placementTuning.baseOffset;
+        BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(placementTuning.baseOffset);
     panel.introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(0.f, -0.08f, 0.f));
     const Vec2 aspectWorldSize = Resolve_AspectWorldSize(
         placementTuning.worldSize,

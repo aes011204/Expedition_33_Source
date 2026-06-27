@@ -47,6 +47,7 @@ namespace
 SoulLike_Viewer::SoulLike_Viewer()
     : Editor_Window(L"SoulLike_Viewer")
 {
+    Set_Open(false);
 }
 
 HRESULT SoulLike_Viewer::Initialize()

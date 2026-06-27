@@ -561,6 +561,7 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
     if (_previewObject)
     {
         PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewObject);
+        PreviewObjectHelpers::Disable_PreviewBehaviorTreeExecution(_previewObject);
         PreviewObjectHelpers::Prime_PreviewObject(_previewObject);
         _previewHasBegunPlay = true;
         _sourceStaticClass = _previewObject->Get_ReflectionInfo().className;

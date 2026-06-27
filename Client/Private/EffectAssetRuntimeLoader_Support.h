@@ -89,6 +89,7 @@ namespace EffectAssetRuntimeLoad
         void Fill_FloatCurvePayload(PointParticleFloatCurveRuntimeDesc& desc, const json& distribution, float fallbackValue);
         void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
         void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
+        void Fill_SpriteTiltPayload(PointParticleSpriteTiltDesc& desc, const json* spriteTilt, const json* spriteTiltOverLife);
         void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
         void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
         void Fill_VelocityScaleByLifePayload(PointParticleMotionDesc& desc, const json& velocityOverLife);
@@ -96,6 +97,7 @@ namespace EffectAssetRuntimeLoad
         void Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution);
         void Fill_OrbitOverLifePayload(EffectOrbitOverLifeRuntimeDesc& desc, const json& orbitOverLife);
         void Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation);
+        void Fill_CylinderLocationPayload(PointParticleCylinderLocationDesc& desc, const json& cylinderLocation);
         void Fill_SphereRadialOrientationPayload(PointParticleSphereRadialOrientationDesc& desc, const json& sphereRadialOrientation);
         void Fill_PlaneRadialOrientationPayload(PointParticlePlaneRadialOrientationDesc& desc, const json& planeRadialOrientation);
         void Fill_MeshVector3CurvePayload(MeshVector3CurveRuntimeDesc& desc, const json& distribution, const Vec3& fallbackValue);

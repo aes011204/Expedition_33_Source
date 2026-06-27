@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include "Camera.h"
+#include "CameraPresetTypes.h"
 
 NS_BEGIN(Client)
 
@@ -15,7 +16,7 @@ public:
         float sideOffset = 0.35f;
         float heightOffset = 1.2f;
         float blendSpeed = 6.f;
-    } DIALOGUE_CAMERA_DESC;
+    } DIALOGUECAMERA_DESC;
 
 public:
     DialogueCamera(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -30,9 +31,10 @@ public:
     void Update(float timeDelta) override;
 
 public:
-    void Set_CameraPresetId(const string& cameraPresetId) { _cameraPresetId = cameraPresetId; }
+    void Set_CameraPresetId(const string& cameraPresetId);
     const string& Get_CameraPresetId() const { return _cameraPresetId; }
 
+    void Set_AnchorTransform(const Shared<TransformCom>& transformCom) { _anchorTransformCom = transformCom; }
     void Set_SpeakerTransform(const Shared<TransformCom>& transformCom) { _speakerTransformCom = transformCom; }
     void Set_ListenerTransform(const Shared<TransformCom>& transformCom) { _listenerTransformCom = transformCom; }
     void Clear_Targets();
@@ -41,18 +43,19 @@ public:
     void Apply_ImmediatePose(const Vec3& eye, const Vec3& lookAt);
 
 private:
+    void Load_PresetFromId();
     bool Try_ResolveDialoguePose(Vec3& outEye, Vec3& outLookAt) const;
+    void Apply_DriftToPose(float timeSec, Vec3& inOutEye, Vec3& inOutLookAt, float& inOutRollOffset) const;
 
 private:
+    Weak<TransformCom> _anchorTransformCom;
     Weak<TransformCom> _speakerTransformCom;
     Weak<TransformCom> _listenerTransformCom;
 
     string _cameraPresetId;
-
-    float _distance = 2.5f;
-    float _sideOffset = 0.35f;
-    float _heightOffset = 1.2f;
     float _blendSpeed = 6.f;
+    float _driftTimeSec = 0.f;
+    DialogueCameraPreset _currentPreset{};
 
 public:
     static Shared<DialogueCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

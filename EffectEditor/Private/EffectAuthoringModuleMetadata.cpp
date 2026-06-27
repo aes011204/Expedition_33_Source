@@ -46,6 +46,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"평면/방사 위치",
         L"평면 기반 사각/원반/링/호 위치"
     };
+    static const AuthoringModuleMetadata cylinderLocation{
+        "CylinderLocation",
+        L"실린더 위치",
+        L"원통 표면/부피 생성 위치"
+    };
     static const AuthoringModuleMetadata initialSize{
         "Initial Size",
         L"초기 크기",
@@ -120,6 +125,16 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         "Rotation Over Life",
         L"수명에 따른 회전",
         L"수명 진행률 기준 추가 회전"
+    };
+    static const AuthoringModuleMetadata spriteTilt{
+        "SpriteTilt",
+        L"스프라이트 틸트",
+        L"카드 면 자체를 local X/Y 방향으로 기울임"
+    };
+    static const AuthoringModuleMetadata spriteTiltOverLife{
+        "SpriteTiltOverLife",
+        L"수명에 따른 스프라이트 틸트",
+        L"수명 진행률 기준 카드 면 기울기 추가"
     };
     static const AuthoringModuleMetadata initialRotationRate{
         "Initial Rotation Rate",
@@ -248,6 +263,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return sphereLocation;
     case AuthoringModuleType::PlaneRadialLocation:
         return planeRadialLocation;
+    case AuthoringModuleType::CylinderLocation:
+        return cylinderLocation;
     case AuthoringModuleType::InitialSize:
         return initialSize;
     case AuthoringModuleType::InitialMeshSize:
@@ -276,6 +293,10 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return planeRadialOrientation;
     case AuthoringModuleType::RotationOverLife:
         return rotationOverLife;
+    case AuthoringModuleType::SpriteTilt:
+        return spriteTilt;
+    case AuthoringModuleType::SpriteTiltOverLife:
+        return spriteTiltOverLife;
     case AuthoringModuleType::InitialRotationRate:
         return initialRotationRate;
     case AuthoringModuleType::RotationRateScaleByLife:

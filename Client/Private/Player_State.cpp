@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "Player_State.h"
-
+#include "ClientInstance.h"
 #include "InputCom.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
@@ -217,6 +217,11 @@ bool Player_State::Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldI
 
 bool Player_State::IsEnterWorldAction() const
 {
+    if (CLIENT->HasDialogueInteractionOverlap() ||
+        CLIENT->IsDialogueActive() ||
+        CLIENT->IsDialogueInteractLocked())
+        return false;
+
     const auto& input = Get_MovementInput();
 
     return input.isSuddenAttack && _controllerCom->Allows_ActionInput();

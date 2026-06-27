@@ -27,13 +27,26 @@ void CmdDeleteObject::Undo(SceneContext& ctx)
     {
         ctx._staticMeshes.push_back(_obj);
     }
+    else if (_obj->_type == EObjectType::Light)
+    {
+        ctx._lights.push_back(_obj);
+        ctx._lightDirty = true;
+    }
+    else if (_obj->_type == EObjectType::PostProcessVolume)
+    {
+        ctx._postProcessVolumes.push_back(_obj);
+    }
+    else if (_obj->_type == EObjectType::ShaftVolume)
+    {
+        ctx._shaftVolumes.push_back(_obj);
+    }
     else if (_obj->_type == EObjectType::InstancedMesh)
     {
         ctx._instancedMeshes.push_back(_obj);
     }
-    else if (_obj->_type == EObjectType::Light)
+    else if (_obj->_type == EObjectType::Water)
     {
-        ctx._lights.push_back(_obj);
+        ctx._waters.push_back(_obj);
     }
 
     ctx._dirtyRenderHandles = true;

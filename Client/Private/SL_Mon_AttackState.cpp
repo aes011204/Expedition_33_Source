@@ -98,16 +98,7 @@ bool SL_Mon_AttackState::EnterInvoke()
         return false;
 
     owner->Set_ActionLocked(true);
-    _initPlayerPos = Vec3::Zero;
-
-    if (const Shared<AIController> aiCtrl = owner->Get_Component<AIController>())
-    {
-        if (const Shared<BlackBoard> bb = aiCtrl->Get_BlackBoard())
-        {
-            if (const any* value = bb->Find_Value("TargetPos"))
-                _initPlayerPos = any_cast<Vec3>(*value);
-        }
-    }
+    Clear_CachedPlayerPosition();
 
     const SL_MonAttackType selectedAttack = Resolve_SelectedAttack(owner);
     if (const Shared<AIController> aiCtrl = owner->Get_Component<AIController>())
@@ -152,7 +143,29 @@ void SL_Mon_AttackState::ExitInvoke()
     if (owner == nullptr)
         return;
 
+    Clear_CachedPlayerPosition();
     owner->Set_ActionLocked(false);
+}
+
+void SL_Mon_AttackState::Cache_PlayerPosition(const Vec3& playerPosition)
+{
+    _cachedPlayerPos = playerPosition;
+    _hasCachedPlayerPos = true;
+}
+
+bool SL_Mon_AttackState::Try_GetCachedPlayerPosition(Vec3& outPlayerPosition) const
+{
+    if (!_hasCachedPlayerPos)
+        return false;
+
+    outPlayerPosition = _cachedPlayerPos;
+    return true;
+}
+
+void SL_Mon_AttackState::Clear_CachedPlayerPosition()
+{
+    _cachedPlayerPos = Vec3::Zero;
+    _hasCachedPlayerPos = false;
 }
 Shared<SL_Mon_AttackState> SL_Mon_AttackState::Create(const Shared<SL_Dualliste>& owner)
 {

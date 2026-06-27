@@ -46,6 +46,7 @@ public:
 private:
     void Refresh_Resources();
     void Refresh_CurrentFolder();
+    void Refresh_CurrentFolderAssetState();
     void Load_Icons();
 
     void Draw_FolderTree(FFolderNode& node);
@@ -74,6 +75,7 @@ private:
     void Go_BackFolder();
     void Go_ForwardFolder();
     void Refresh_AssetState();
+    void Draw_RefreshPopup();
     void Handle_SideButtonEvent();
     void Handle_ThumbnailZoom();
 

@@ -4,6 +4,36 @@
 
 NS_BEGIN(Engine)
 
+struct RenderViewHotspotEntry
+{
+    uintptr_t objectKey = 0;
+    RenderGroup renderGroup = RenderGroup::END;
+    ObjectType objectType = ObjectType::None;
+    ShadowCasterType shadowCasterType = ShadowCasterType::None;
+    string className = {};
+    string sourcePrefab = {};
+    wstring sourceModelPath = {};
+    Vec3 worldPosition = {};
+    bool hasWorldBounds = false;
+    Vec3 worldBoundsCenter = {};
+    Vec3 worldBoundsExtents = {};
+    uint32 renderHotspotInstanceCount = 0;
+};
+
+struct RenderViewHotspotSnapshot
+{
+    bool hasCamera = false;
+    Vec3 cameraPosition = {};
+    Vec3 cameraForward = {};
+    uint32 totalSubmissions = 0;
+    uint32 uniqueObjectCount = 0;
+    uint32 nonBlendRenderedCount = 0;
+    uint32 shadowRenderedCount = 0;
+    array<uint32, ETOI(RenderGroup::END)> renderGroupCounts = {};
+    array<uint32, 4> shadowCascadeRenderedCounts = {};
+    vector<RenderViewHotspotEntry> entries = {};
+};
+
 namespace RT
 {
     inline constexpr const wchar_t* Diffuse = L"Target_Diffuse";
@@ -37,6 +67,7 @@ namespace RT
     inline constexpr const wchar_t* ScreenFxColorA = L"Target_ScreenFxColorA";
     inline constexpr const wchar_t* ScreenFxColorB = L"Target_ScreenFxColorB";
     inline constexpr const wchar_t* ScreenCapture = L"Target_ScreenCapture";
+    inline constexpr const wchar_t* PointGlow = L"Target_PointGlow";
     inline constexpr const wchar_t* BloomHalfA = L"Target_BloomHalfA";
     inline constexpr const wchar_t* BloomHalfB = L"Target_BloomHalfB";
     inline constexpr const wchar_t* BloomQuarterA = L"Target_BloomQuarterA";
@@ -50,6 +81,10 @@ namespace RT
     inline constexpr const wchar_t* DOFFarHalfB = L"Target_DOFFarHalfB";
     inline constexpr const wchar_t* DOFFarQuarterA = L"Target_DOFFarQuarterA";
     inline constexpr const wchar_t* DOFFarQuarterB = L"Target_DOFFarQuarterB";
+    inline constexpr const wchar_t* AmbientVisibilityFrontDepth = L"Target_AmbientVisibilityFrontDepth";
+    inline constexpr const wchar_t* AmbientVisibilityBackDepth = L"Target_AmbientVisibilityBackDepth";
+    inline constexpr const wchar_t* AmbientVisibilityAmount = L"Target_AmbientVisibilityAmount";
+    inline constexpr const wchar_t* AmbientVisibility = L"Target_AmbientVisibility";
 }
 
 namespace MRT
@@ -60,11 +95,13 @@ namespace MRT
     inline constexpr const wchar_t* LightAcc = L"MRT_LightAcc";
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";
+    inline constexpr const wchar_t* HDRColorOnly = L"MRT_HDRColorOnly";
     inline constexpr const wchar_t* DistortionField = L"MRT_DistortionField";
     inline constexpr const wchar_t* LightShaftMaskHalf = L"MRT_LightShaftMaskHalf";
     inline constexpr const wchar_t* LightShaftBlurHalf = L"MRT_LightShaftBlurHalf";
     inline constexpr const wchar_t* ScreenFxA = L"MRT_ScreenFxA";
     inline constexpr const wchar_t* ScreenFxB = L"MRT_ScreenFxB";
+    inline constexpr const wchar_t* PointGlow = L"MRT_PointGlow";
     inline constexpr const wchar_t* BloomHalfA = L"MRT_BloomHalfA";
     inline constexpr const wchar_t* BloomHalfB = L"MRT_BloomHalfB";
     inline constexpr const wchar_t* BloomQuarterA = L"MRT_BloomQuarterA";
@@ -76,6 +113,8 @@ namespace MRT
     inline constexpr const wchar_t* DOFFarHalfB = L"MRT_DOFFarHalfB";
     inline constexpr const wchar_t* DOFFarQuarterA = L"MRT_DOFFarQuarterA";
     inline constexpr const wchar_t* DOFFarQuarterB = L"MRT_DOFFarQuarterB";
+    inline constexpr const wchar_t* AmbientVisibilityInterval = L"MRT_AmbientVisibilityInterval";
+    inline constexpr const wchar_t* AmbientVisibility = L"MRT_AmbientVisibility";
 #ifdef _DEBUG
     inline constexpr const wchar_t* FroxelDebug = L"MRT_FroxelDebug";
 #endif

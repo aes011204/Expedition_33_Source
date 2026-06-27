@@ -38,18 +38,30 @@ float FrameToTime(int frame)
     return static_cast<float>(frame) / static_cast<float>(kBattleClipFps);
 }
 
-int KeyTimeToFrame(float keyTime, int frameMax, bool normalizedTime)
+int KeyTimeToFrame(float keyTime, float clipDuration, int frameMax, bool normalizedTime, bool useDisplayFrameTimeScale)
 {
     if (normalizedTime)
         return static_cast<int>(std::lround(std::clamp(keyTime, 0.f, 1.f) * static_cast<float>(std::max(frameMax, 1))));
 
+    if (useDisplayFrameTimeScale && clipDuration > 0.f)
+    {
+        const float ratio = std::clamp(keyTime / clipDuration, 0.f, 1.f);
+        return static_cast<int>(std::lround(ratio * static_cast<float>(std::max(frameMax, 1))));
+    }
+
     return TimeToFrame(keyTime);
 }
 
-float FrameToKeyTime(int frame, int frameMax, bool normalizedTime)
+float FrameToKeyTime(int frame, float clipDuration, int frameMax, bool normalizedTime, bool useDisplayFrameTimeScale)
 {
     if (normalizedTime)
         return std::clamp(static_cast<float>(frame) / static_cast<float>(std::max(frameMax, 1)), 0.f, 1.f);
+
+    if (useDisplayFrameTimeScale && clipDuration > 0.f)
+    {
+        const float ratio = std::clamp(static_cast<float>(frame) / static_cast<float>(std::max(frameMax, 1)), 0.f, 1.f);
+        return clipDuration * ratio;
+    }
 
     return FrameToTime(frame);
 }
@@ -163,6 +175,7 @@ void DrawBattleClipKeyMarkers(
     int* contextFrame,
     int* displayFrameMax,
     bool normalizedTime,
+    bool useDisplayFrameTimeScale,
     int index,
     ImDrawList* drawList,
     const ImRect& rc,
@@ -186,7 +199,9 @@ void DrawBattleClipKeyMarkers(
         ? std::max(*displayFrameMax, clipFrameMax)
         : clipFrameMax;
     const int frameRange = std::max(frameMax - frameMin, 1);
-    const float authoringDurationSec = normalizedTime ? 1.f : FrameToTime(frameMax);
+    const float authoringDurationSec = normalizedTime
+        ? 1.f
+        : (useDisplayFrameTimeScale ? std::max(clip->duration, FrameToTime(frameMax)) : FrameToTime(frameMax));
     bool isHoveringAnyKey = false;
 
     drawList->PushClipRect(clippingRect.Min, clippingRect.Max, true);
@@ -194,7 +209,10 @@ void DrawBattleClipKeyMarkers(
     for (int keyIndex = 0; keyIndex < static_cast<int>(track->keyframes.size()); ++keyIndex)
     {
         CameraKeyframe& keyframe = track->keyframes[keyIndex];
-        const int keyFrame = std::clamp(KeyTimeToFrame(keyframe.time, frameMax, normalizedTime), frameMin, frameMax);
+        const int keyFrame = std::clamp(
+            KeyTimeToFrame(keyframe.time, clip->duration, frameMax, normalizedTime, useDisplayFrameTimeScale),
+            frameMin,
+            frameMax);
         const float normalized = static_cast<float>(keyFrame - frameMin) / static_cast<float>(frameRange);
         const float markerX = std::max(rc.Min.x, std::min(rc.Min.x + normalized * (rc.Max.x - rc.Min.x), rc.Max.x));
         const float centerY = (rc.Min.y + rc.Max.y) * 0.5f;
@@ -263,13 +281,34 @@ void DrawBattleClipKeyMarkers(
             int maxFrame = frameMax;
 
             if (keyIndex > 0)
-                minFrame = std::max(minFrame, KeyTimeToFrame(track->keyframes[keyIndex - 1].time, frameMax, normalizedTime));
+            {
+                minFrame = std::max(
+                    minFrame,
+                    KeyTimeToFrame(
+                        track->keyframes[keyIndex - 1].time,
+                        clip->duration,
+                        frameMax,
+                        normalizedTime,
+                        useDisplayFrameTimeScale));
+            }
 
             if (keyIndex + 1 < static_cast<int>(track->keyframes.size()))
-                maxFrame = std::min(maxFrame, KeyTimeToFrame(track->keyframes[keyIndex + 1].time, frameMax, normalizedTime));
+            {
+                maxFrame = std::min(
+                    maxFrame,
+                    KeyTimeToFrame(
+                        track->keyframes[keyIndex + 1].time,
+                        clip->duration,
+                        frameMax,
+                        normalizedTime,
+                        useDisplayFrameTimeScale));
+            }
 
             const int clampedFrame = std::clamp(rawFrame, minFrame, maxFrame);
-            keyframe.time = std::clamp(FrameToKeyTime(clampedFrame, frameMax, normalizedTime), 0.f, authoringDurationSec);
+            keyframe.time = std::clamp(
+                FrameToKeyTime(clampedFrame, clip->duration, frameMax, normalizedTime, useDisplayFrameTimeScale),
+                0.f,
+                authoringDurationSec);
             if (!normalizedTime && keyframe.time > clip->duration)
                 clip->duration = keyframe.time;
 
@@ -515,6 +554,7 @@ void BattleClipSequencerAdapter::CustomDraw(int index, ImDrawList* drawList, con
         _contextFrame,
         _displayFrameMax,
         _normalizedTime,
+        _useDisplayFrameTimeScale,
         index,
         drawList,
         rc,
@@ -536,6 +576,7 @@ void BattleClipSequencerAdapter::CustomDrawCompact(int index, ImDrawList* drawLi
         _contextFrame,
         _displayFrameMax,
         _normalizedTime,
+        _useDisplayFrameTimeScale,
         index,
         drawList,
         rc,

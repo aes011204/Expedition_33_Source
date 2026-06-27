@@ -45,10 +45,10 @@ HRESULT MB_Mime::Initialize(void* arg)
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
-    _combatStat->Set_Skill("Mime_AttHamor_3");
-    _combatStat->Set_Skill("Mime_AttHand");
-    _combatStat->Set_Skill("Mime_Wall");
-    _combatStat->Set_Skill("Mime_AttHamor");
+    //_combatStat->Set_Skill("Mime_AttHamor_3");
+    //_combatStat->Set_Skill("Mime_AttHand");
+    //_combatStat->Set_Skill("Mime_Wall");
+    //_combatStat->Set_Skill("Mime_AttHamor");
 
     return S_OK;
 }

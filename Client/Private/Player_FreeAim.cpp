@@ -18,8 +18,23 @@ namespace
     constexpr float FREE_AIM_TRACE_DISTANCE = 200.f;
     constexpr float FREE_AIM_MONSTER_SWEEP_RADIUS = 0.3f;
     constexpr float FREE_AIM_HIT_EFFECT_NORMAL_OFFSET = 0.05f;
-
     const wstring WORLD_FREE_AIM_HIT_EFFECT_NAME = L"World_FreeAim_Hit_EX.effect.json";
+    
+    Vec3 MakeLookAlignedRotationDegree(Vec3 direction)
+    {
+        if (direction.LengthSquared() <= 0.0001f)
+            direction = Vec3::Look;
+        else
+            direction.Normalize();
+
+        const Quat rotation = Math::CreateRotationBetweenVectors(Vec3::Look, direction);
+        const Vec3 eulerRadian = rotation.ToEuler();
+
+        return Vec3(
+            XMConvertToDegrees(eulerRadian.x),
+            XMConvertToDegrees(eulerRadian.y),
+            XMConvertToDegrees(eulerRadian.z));
+    }
 }
 
 Player_FreeAim::Player_FreeAim(const Shared<Player_WorldBase>& owner)
@@ -34,6 +49,22 @@ HRESULT Player_FreeAim::Initialize()
 void Player_FreeAim::Begin_Play()
 {
     Player_State::Begin_Play();
+}
+
+void Player_FreeAim::Refresh_BodyPlayer()
+{
+    Player_State::Refresh_BodyPlayer();
+    Bind_AnimationModifiers();
+}
+
+void Player_FreeAim::Bind_AnimationModifiers()
+{
+    _offsetModifier.reset();
+    for (auto& walkModifier : _walkModifiers)
+        walkModifier.reset();
+
+    if (_bodyPlayer == nullptr)
+        return;
 
     if (_bodyPlayer == nullptr)
         return;
@@ -392,6 +423,7 @@ Shared<GameObject> Player_FreeAim::Find_FreeAimHitTarget(FreeAimHitInfo* outHitI
     {
         outHitInfo->object = hitObjectShared;
         outHitInfo->hitPosition = objectHit.position;
+        outHitInfo->shotDirection = direction;
         outHitInfo->hitNormal = objectHit.normal;
     }
 
@@ -412,6 +444,7 @@ void Player_FreeAim::Play_FreeAimHitEffect() const
     PlayEffectDesc effectDesc{};
     effectDesc.effectName = WORLD_FREE_AIM_HIT_EFFECT_NAME;
     effectDesc.worldPosition = effectPosition;
+    effectDesc.localRotation = MakeLookAlignedRotationDegree(_currentHitInfo.shotDirection);
     CLIENT->Play_Effect(effectDesc);
 }
 

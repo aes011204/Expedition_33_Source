@@ -1,8 +1,10 @@
 #include "BattleWorldUI_MaterialVfxBackground.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
+#include "Debug_Profile.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -910,6 +912,8 @@ namespace
 
         HRESULT Compose(const BattleWorldVfxBackgroundDef& backgroundDef, float timeDelta)
         {
+            ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.MaterialVfx.Compose");
+
             CHECK_NULL(_renderTarget, E_FAIL);
             CHECK_TRUE(backgroundDef.valid, E_FAIL);
 
@@ -1124,6 +1128,8 @@ HRESULT BattleWorldUI_MaterialVfxBackground::Initialize(void* arg)
 
 HRESULT BattleWorldUI_MaterialVfxBackground::Warmup_ForBattleState(HeroId actorHeroId)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("BattleWorldUI.MaterialVfx.Warmup");
+
     if (_impl == nullptr || _impl->surface == nullptr || !_impl->backgroundDef.valid)
         return E_FAIL;
 
@@ -1141,6 +1147,8 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
     HeroId actorHeroId,
     float timeDelta)
 {
+    ENGINE_PROFILE_SCOPE_DETAIL("BattleWorldUI.MaterialVfx.Show");
+
     BattleWorldVfxBackgroundState backgroundState{};
     if (_impl == nullptr || _impl->surface == nullptr || !_impl->backgroundDef.valid ||
         !Try_ResolveBackgroundState(currentState, backgroundState))
@@ -1182,7 +1190,7 @@ void BattleWorldUI_MaterialVfxBackground::Show_ForBattleState(
     const Vec3 position =
         anchorWorldPos +
         Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
-        placementTuning.baseOffset;
+        BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(placementTuning.baseOffset);
     _impl->introStartOffset = Resolve_CameraScreenPositionDelta(Vec3(0.f, -0.06f, 0.f));
     const Vec2 aspectWorldSize = Resolve_AspectWorldSize(
         placementTuning.worldSize,
