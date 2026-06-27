@@ -335,6 +335,7 @@
     <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
     <ClInclude Include="..\public\UI_Dialogue.h" />
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
+    <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
@@ -793,6 +794,7 @@
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
     <ClCompile Include="..\private\UI_Dialogue.cpp" />
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
+    <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />

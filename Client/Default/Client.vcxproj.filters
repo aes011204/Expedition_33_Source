@@ -701,9 +701,6 @@
     <ClCompile Include="..\Private\Mon_Simon_Hair.cpp">
       <Filter>02. GameObject\Monster</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\SimonHairRuntime.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Mon_Volester_Body.cpp">
       <Filter>02. GameObject\Monster</Filter>
     </ClCompile>
@@ -1028,9 +1025,6 @@
     <ClCompile Include="..\Private\Create_Class.cpp">
       <Filter>99. Defines\Helper</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\DamageTrigger.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
@@ -1257,9 +1251,6 @@
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
     <ClCompile Include="..\Private\MW_Dualliste.cpp" />
-    <ClCompile Include="..\Private\Trigger_BGMZone.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Trigger_Cinematic.cpp">
       <Filter>02. GameObject\Map</Filter>
     </ClCompile>
@@ -1391,6 +1382,10 @@
     <ClCompile Include="..\Private\Trigger_Interaction.cpp">
       <Filter>02. GameObject\Map</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
+    <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
+    <ClCompile Include="..\Private\DamageTrigger.cpp" />
+    <ClCompile Include="..\Private\UI_Replay.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1415,9 +1410,6 @@
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
-    <ClInclude Include="..\Public\Trigger_BGMZone.h">
-      <Filter>02.GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Trigger_Cinematic.h">
       <Filter>02. GameObject\Map</Filter>
     </ClInclude>
@@ -1498,6 +1490,10 @@
     <ClInclude Include="..\Public\Trigger_Interaction.h">
       <Filter>02. GameObject\Map</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Trigger_BGMZone.h" />
+    <ClInclude Include="..\Public\SimonHairRuntime.h" />
+    <ClInclude Include="..\Public\DamageTrigger.h" />
+    <ClInclude Include="..\Public\UI_Replay.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -2105,9 +2101,6 @@
     <ClInclude Include="..\Public\Mon_Simon_Hair.h">
       <Filter>02. GameObject\Monster</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\SimonHairRuntime.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Mon_Volester_Body.h">
       <Filter>02. GameObject\Monster</Filter>
     </ClInclude>
@@ -2407,9 +2400,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Create_Class.h">
       <Filter>99. Defines\Helper</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\DamageTrigger.h">
-      <Filter>02.GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h">
       <Filter>Skill</Filter>

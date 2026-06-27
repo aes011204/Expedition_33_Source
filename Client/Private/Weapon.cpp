@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(Weapon)
     info.displayName = "Weapon";
     info.category = "Weapon";
 
+    PROPERTY_STRING("Portrait", _portraitGuid);
     PROPERTY_WSTRING("기본 트레일 이펙트", _trailEffectName);
 
     return true;

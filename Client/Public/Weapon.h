@@ -58,6 +58,7 @@ public:
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     Shared<ModelCom> Get_Model() const { return _model; }
+    const string& Get_PortraitGuid() const { return _portraitGuid; }
     const wstring& Get_TrailEffectName() const { return _trailEffectName; }
     vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() { return _sourceHistoryAnchors; }
     const vector<WeaponSourceHistoryAnchorDesc>& Get_SourceHistoryAnchors() const { return _sourceHistoryAnchors; }
@@ -91,6 +92,7 @@ private:
     bool                _applyAttachScaleCompensation = false;
 
     wstring             _trailEffectName = L""; // 무기 프리펩이 들고 있는 기본 Trail 이펙트 이름
+    string              _portraitGuid = ""; // Content Browser 무기 프리팹 썸네일로 쓸 Texture GUID
     vector<WeaponSourceHistoryAnchorDesc> _sourceHistoryAnchors{};
 
     bool _notifyRotationActive = false;

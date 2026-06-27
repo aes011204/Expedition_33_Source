@@ -72,7 +72,7 @@ static string FindPortraitGuidInJson(const json& node)
     {
         for (const auto& [key, value] : node.items())
         {
-            if (key.ends_with(".portraitGuid") && value.is_string())
+            if ((key == "_portraitGuid" || key == "portraitGuid" || key.ends_with(".portraitGuid")) && value.is_string())
                 return value.get<string>();
 
             const string nestedGuid = FindPortraitGuidInJson(value);
