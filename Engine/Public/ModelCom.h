@@ -41,6 +41,7 @@ public:
     size_t Get_NumMaterials() const { return _materials.size(); }
     size_t Get_NumBones() const { return _bones.size(); }
     size_t Get_NumAnimations() const { return _animations.size(); }
+    size_t Get_DebugEstimatedAnimationBytes() const;
     const Matrix& Get_PreLocalTransformMatrix() const { return _preLocalTransformMatrix; }
     const vector<Shared<Mesh>>& Get_Meshes() const { return _meshes; };
 

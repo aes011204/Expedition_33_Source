@@ -1,6 +1,7 @@
 ﻿#include "Content_Browser.h"
 
 #include "EditorInstance.h"
+#include "DebugMemoryTracker.h"
 #include "Editor_Macro.h"
 #include "Notification_Manager.h"
 #include "GameInstance.h"
@@ -458,7 +459,16 @@ void Content_Browser::Load_Icons()
         if (!fs::exists(filePath))
             return nullptr;
 
-        return Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), filePath.c_str(), 1);
+        Shared<Texture> texture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), filePath.c_str(), 1);
+        if (texture != nullptr && !texture->Get_SRVs().empty())
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "content.icon",
+                "ContentBrowser.Icon",
+                filePath,
+                texture->Get_SRVs()[0].Get());
+        }
+        return texture;
     };
 
     _iconFiles[static_cast<size_t>(EIconType::Folder)] = loadTexture(L"Folder_Icon.png");
@@ -1202,6 +1212,15 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry, 
     {
         _noThumbnailPaths.insert(fileEntry.filePath);
         return nullptr;
+    }
+
+    if (!thumbnailTexture->Get_SRVs().empty())
+    {
+        DebugMemoryTracker::Record_TextureSRV(
+            "content.thumbnail",
+            "ContentBrowser.Thumbnail",
+            thumbnailPath,
+            thumbnailTexture->Get_SRVs()[0].Get());
     }
 
     _thumbnailCache[fileEntry.filePath] = thumbnailTexture;

@@ -8,7 +8,6 @@
 #include "PostProcessPipeline.h"
 #include "ScreenFx_Manager.h"
 #include "ShaderCom.h"
-#include "Texture.h"
 #include "VIBuffer_Rect.h"
 #include "Debug_Profile.h"
 
@@ -178,6 +177,14 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_Lights:After");
     lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
     const auto combinedHDRBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_AmbientVisibility:Before");
+#endif
+
+    // ========================================= //
+    Render_AmbientVisibility();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_AmbientVisibility:After");
     DumpCurrentOMState(L"Render_CombinedHDR:Before");
 #endif
 
@@ -555,6 +562,59 @@ void Renderer::Render_Lights()
         return;
 }
 
+void Renderer::Render_AmbientVisibility()
+{
+    if (FAILED(GAME->Begin_MRT(MRT::AmbientVisibility, NotUseDSV, ClearRTV)))
+        return;
+
+    CHECK_FAILED(GAME->End_MRT());
+
+    if (!_deferredShader || !_viBuffer)
+    {
+        _renderGroups[ETOI(RenderGroup::AmbientVolume)].clear();
+        return;
+    }
+
+    _currentGroup = RenderGroup::AmbientVolume;
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::AmbientVolume)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (gameObject != nullptr)
+        {
+            if (FAILED(GAME->Begin_MRT(MRT::AmbientVisibilityInterval, NotUseDSV, ClearRTV)))
+                continue;
+
+            gameObject->Render();
+
+            if (FAILED(GAME->End_MRT()))
+                continue;
+
+            Add_RenderCall();
+
+            if (FAILED(GAME->Begin_MRT(MRT::AmbientVisibility, NotUseDSV, NotClearRTV)))
+                continue;
+
+            ENDMRT_RETURN_IF_FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
+            ENDMRT_RETURN_IF_FAILED(Bind_ScreenSpaceCB(_deferredShader));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityFrontDepthTexture", RT::AmbientVisibilityFrontDepth));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityBackDepthTexture", RT::AmbientVisibilityBackDepth));
+            ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityAmountTexture", RT::AmbientVisibilityAmount));
+            ENDMRT_RETURN_IF_FAILED(_viBuffer->Bind_Resources());
+            ENDMRT_RETURN_IF_FAILED(_deferredShader->Begin(ETOI(DeferredPass::AmbientVisibilityResolve)));
+            ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
+
+            if (FAILED(GAME->End_MRT()))
+                continue;
+
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::AmbientVolume)].clear();
+}
+
 void Renderer::Render_CombinedHDR()
 {
     if (!_deferredShader || !_viBuffer)
@@ -617,6 +677,10 @@ void Renderer::Render_CombinedHDR()
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
 
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientVisibilityTexture", RT::AmbientVisibility),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_AmbientVisibilityTexture)");
+
     // Bilateral Blur : 거리, 깊이, 노말에 따라 Blur 가중치를 조절하는 기능
     const bool ssaoEnabled = (_lightingPipeline != nullptr) && _lightingPipeline->Is_Enabled();
     const wchar_t* ssaoResult = (ssaoEnabled && _lightingPipeline->Get_Params().SSAOBilateralEnabled != 0u)
@@ -627,44 +691,9 @@ void Renderer::Render_CombinedHDR()
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", ssaoResult),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_SSAOTexture)");
 
-    if (_iblIrradianceTexture != nullptr)
-    {
-        COMBINEDHDR_RETURN_LOG_IF_FAILED(
-            _iblIrradianceTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_IrradianceMap", 0),
-            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_IrradianceMap)");
-    }
-    else
-    {
-        COMBINEDHDR_RETURN_LOG_IF_FAILED(
-            _deferredShader->Bind_SRV("g_IrradianceMap", nullptr),
-            L"Render_CombinedHDR:FAIL ClearSRV(g_IrradianceMap)");
-    }
-
-    if (_iblPrefilterTexture != nullptr)
-    {
-        COMBINEDHDR_RETURN_LOG_IF_FAILED(
-            _iblPrefilterTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_PrefilterMap", 0),
-            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_PrefilterMap)");
-    }
-    else
-    {
-        COMBINEDHDR_RETURN_LOG_IF_FAILED(
-            _deferredShader->Bind_SRV("g_PrefilterMap", nullptr),
-            L"Render_CombinedHDR:FAIL ClearSRV(g_PrefilterMap)");
-    }
-
-    if (_iblBrdfLutTexture != nullptr)
-    {
-        COMBINEDHDR_RETURN_LOG_IF_FAILED(
-            _iblBrdfLutTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_BRDFLUT", 0),
-            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_BRDFLUT)");
-    }
-    else
-    {
-        COMBINEDHDR_RETURN_LOG_IF_FAILED(
-            _deferredShader->Bind_SRV("g_BRDFLUT", nullptr),
-            L"Render_CombinedHDR:FAIL ClearSRV(g_BRDFLUT)");
-    }
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_IBLTextures(_deferredShader),
+        L"Render_CombinedHDR:FAIL Bind_IBLTextures");
 
     DeferredLightingCB deferredLightingParams{};
     if (_lightingPipeline)
@@ -1187,7 +1216,6 @@ void Renderer::Render_PostProcess()
         return;
 
     if (!_ppPipeline || _ppPipeline->Get_PostProcessFeatures() == PostProcessFeature::None)
-
         return;
 
     if (!_ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
@@ -1341,6 +1369,10 @@ void Renderer::Render_PostProcess()
 
     // Bloom Mip Chain 구조. 해상도를 낮춰서 샘플링 횟수를 줄인다.
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
+    RETURN_LOG_IF_FAILED(
+        Render_PointLightGlow(),
+        L"Render_PostProcess:FAIL Render_PointLightGlow");
+
     if (useBloom)
     {
         const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
@@ -1524,25 +1556,6 @@ HRESULT Renderer::Ready_Shaders()
         GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight()
     };
 
-    // IBL 3분리 자산 로드. 누락 시 nullptr로 남고 셰이더에서 안전 fallback(0 기여) 처리한다.
-    _iblIrradianceTexture = Texture::Create(
-        _device,
-        _context,
-        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
-        1);
-
-    _iblPrefilterTexture = Texture::Create(
-        _device,
-        _context,
-        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds",
-        1);
-
-    _iblBrdfLutTexture = Texture::Create(
-        _device,
-        _context,
-        L"../../../Client/Bin/Resources/Textures/Shader/IBL/BRDF_LUT.dds",
-        1);
-
     Sync_ViewportDependentState(_screenSize.width, _screenSize.height);
 
     return S_OK;
@@ -1701,6 +1714,110 @@ HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uin
     };
 
     return shader->Bind_CBufferData(screenSpaceCB);
+}
+
+HRESULT Renderer::Render_PointLightGlow()
+{
+    if (!_deferredShader || !_postprocessShader || !_viBuffer)
+        return S_OK;
+
+    vector<LIGHT_DESC> lightDescs;
+    GAME->Get_LightDescs(lightDescs);
+
+    bool hasPointLight = false;
+    for (const LIGHT_DESC& desc : lightDescs)
+    {
+        if (desc.type == LightType::Point && desc.range > 0.f)
+        {
+            hasPointLight = true;
+            break;
+        }
+    }
+
+    if (!hasPointLight)
+        return S_OK;
+
+    const uint32 viewportWidth = max(1u, _screenSize.width);
+    const uint32 viewportHeight = max(1u, _screenSize.height);
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::PointGlow, NotUseDSV, ClearRTV),
+        L"Render_PointLightGlow:FAIL Begin_MRT(PointGlow-Source)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_PointLightGlow:FAIL Bind_ObjectCB(Source)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_deferredShader, viewportWidth, viewportHeight),
+        L"Render_PointLightGlow:FAIL Bind_ScreenSpaceCB(Source)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth),
+        L"Render_PointLightGlow:FAIL Bind_RT_ShaderResource(g_DepthTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_PointLightGlow:FAIL Bind_Resources(Source)");
+
+    for (const LIGHT_DESC& desc : lightDescs)
+    {
+        if (desc.type != LightType::Point || desc.range <= 0.f)
+            continue;
+
+        LightCB lightCB{};
+        lightCB.direction = desc.direction;
+        lightCB.position = desc.position;
+        lightCB.diffuse = desc.diffuse;
+        lightCB.ambient = desc.ambient;
+        lightCB.specular = desc.specular;
+        lightCB.range = desc.range;
+
+        ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+            _deferredShader->Bind_CBufferData(lightCB),
+            L"Render_PointLightGlow:FAIL Bind_CBufferData(LightCB)");
+
+        ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+            _deferredShader->Begin(ETOI(DeferredPass::PointGlowSource)),
+            L"Render_PointLightGlow:FAIL ShaderBegin(PointGlowSource)");
+
+        ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+            _viBuffer->Render(),
+            L"Render_PointLightGlow:FAIL RenderRect(PointGlowSource)");
+    }
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PointLightGlow:FAIL End_MRT(PointGlow-Source)");
+
+    Add_RenderCall();
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDRColorOnly, NotUseDSV, NotClearRTV),
+        L"Render_PointLightGlow:FAIL Begin_MRT(HDRColorOnly-Composite)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+        L"Render_PointLightGlow:FAIL Bind_ScreenSpaceCB(Composite)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_PointGlowTexture", RT::PointGlow),
+        L"Render_PointLightGlow:FAIL Bind_RT_ShaderResource(g_PointGlowTexture-Composite)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::PointGlowCompositeHDR)),
+        L"Render_PointLightGlow:FAIL ShaderBegin(PointGlowCompositeHDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PointLightGlow:FAIL RenderRect(PointGlowCompositeHDR)");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PointLightGlow:FAIL End_MRT(HDRColorOnly-Composite)");
+
+    Add_RenderCall();
+
+    return S_OK;
 }
 
 HRESULT Renderer::Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass)

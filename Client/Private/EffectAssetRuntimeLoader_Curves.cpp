@@ -1602,8 +1602,10 @@ namespace EffectAssetRuntimeLoad::Curves
 
         const Vec2 radiusRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "radiusDistribution", "radiusRange", desc.radiusRange);
         desc.radiusRange = Vec2{ max(0.f, radiusRange.x), max(0.f, radiusRange.y) };
-        desc.heightRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "heightDistribution", "heightRange", desc.heightRange);
-        desc.angleDegreesRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
+        const Vec2 heightRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "heightDistribution", "heightRange", desc.heightRange);
+        desc.heightRange = Vec2{ min(heightRange.x, heightRange.y), max(heightRange.x, heightRange.y) };
+        const Vec2 angleDegreesRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
+        desc.angleDegreesRange = Vec2{ min(angleDegreesRange.x, angleDegreesRange.y), max(angleDegreesRange.x, angleDegreesRange.y) };
 
         if (const auto distributionIter = cylinderLocation.find("radiusDistribution");
             distributionIter != cylinderLocation.end() && distributionIter->is_object())

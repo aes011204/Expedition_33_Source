@@ -5,6 +5,8 @@
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
+#include "DebugMemoryTracker.h"
+#include "Mesh.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
@@ -19,6 +21,7 @@ unordered_set<string> MapLoader::g_globalMissingModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
+vector<LIGHT_DESC> MapLoader::g_cachedLights;
 
 MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
 {
@@ -103,6 +106,7 @@ namespace
                 fogCB.groundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
                 fogCB.groundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
                 fogCB.groundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
+                fogCB.globalFogIntensity = e.value("GlobalFogIntensity", 0.5f);
                 hasGroundFogGlobals = true;
             }
 
@@ -515,6 +519,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
     Append_JsonArray(mapData, "ShaftVolumes", outSession.shaftVolumes);
     Append_JsonArray(mapData, "Waters", outSession.waters);
+    Append_JsonArray(mapData, "Lights", outSession.lights);
 
     MapAdapter::AppendModelOverrides(mapData, outSession.modelOverrides);
     Append_MaterialOverridesForMapCandidates(mapData, actualPath, outSession.modelOverrides);
@@ -578,6 +583,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
     outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
+    outSession.lightsDone = outSession.lights.empty();
     outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.authoredObjectsDone = outSession.authoredObjects.empty();
     outSession.beginSessionDuration =
@@ -848,6 +854,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             const auto& spec = e["Specular"];
             desc.specular = Vec4(spec[0].get<float>(), spec[1].get<float>(), spec[2].get<float>(), spec[3].get<float>());
 
+            g_cachedLights.push_back(desc);
             GAME->Add_Light(desc);
         }
 
@@ -1575,6 +1582,12 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     if (cachedModel != nullptr)
     {
+        DebugMemoryTracker::Record_CPUBytes(
+            "map.model.cache_hit",
+            "MapLoader.GetOrLoadModel",
+            fs::path(fullPathA).wstring(),
+            0);
+
         if (applyMaterials && needsMaterialApply)
         {
             const auto materialBegin = chrono::steady_clock::now();
@@ -1652,6 +1665,19 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         g_globalModelCache[cacheKey] = model;
     }
 
+    size_t meshBytes = 0;
+    for (const Shared<Mesh>& mesh : model->Get_Meshes())
+    {
+        if (mesh)
+            meshBytes += mesh->Get_DebugEstimatedBufferBytes();
+    }
+
+    DebugMemoryTracker::Record_CPUBytes(
+        "map.model.loaded",
+        "MapLoader.GetOrLoadModel",
+        fs::path(fullPathA).wstring(),
+        max<size_t>(1, meshBytes));
+
     return model;
 }
 
@@ -1665,4 +1691,11 @@ void MapLoader::Clear_GlobalCache()
         g_globalMaterialSignatureByModel.clear();
     }
     MapAdapter::Clear_MaterialCache();
+    g_cachedLights.clear();
+}
+
+void MapLoader::Reapply_CachedLights()
+{
+    for (const auto& desc : g_cachedLights)
+        GAME->Add_Light(desc);
 }

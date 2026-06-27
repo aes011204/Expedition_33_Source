@@ -376,6 +376,9 @@
     <ClInclude Include="..\Public\Debug_Profile.h">
       <Filter>94. ETC</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\DebugMemoryTracker.h">
+      <Filter>94. ETC</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\EnumFlags.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -1067,6 +1070,9 @@
       <Filter>97. Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Debug_Profile.cpp">
+      <Filter>94. ETC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\DebugMemoryTracker.cpp">
       <Filter>94. ETC</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MaterialBuilder.cpp">

@@ -406,6 +406,9 @@ bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition
     if (_desc.sphereLocation.enabled)
         localOffset += _desc.sphereLocation.offset;
 
+    if (_desc.cylinderLocation.enabled)
+        localOffset += _desc.cylinderLocation.offset;
+
     const Vec3 worldOffset =
         _transformCom->Get_WorldRight() * localOffset.x +
         _transformCom->Get_WorldUp() * localOffset.y +

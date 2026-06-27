@@ -51,6 +51,22 @@ float Animation::Get_DurationSec() const
     return (_tickPerSecond > 0.f) ? (_duration / _tickPerSecond) : 0.f;
 }
 
+size_t Animation::Get_DebugEstimatedBytes() const
+{
+    size_t bytes = sizeof(Animation)
+        + sizeof(Shared<Channel>) * _channels.capacity()
+        + sizeof(uint32) * _currentKeyFrameIndices.capacity()
+        + sizeof(int32) * _channelIndexByBoneIndex.capacity();
+
+    for (const Shared<Channel>& channel : _channels)
+    {
+        if (channel)
+            bytes += channel->Get_DebugEstimatedBytes();
+    }
+
+    return bytes;
+}
+
 float Animation::Get_CurrentTimeSec() const
 {
     return (_tickPerSecond > 0.f) ? (_currentTrackPosition / _tickPerSecond) : 0.f;

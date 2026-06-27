@@ -379,6 +379,7 @@ namespace
         e["GroundFogDistanceInfluence"] = obj._ppGroundFogDistanceInfluence;
         e["GroundFogNearFadeDistance"] = obj._ppGroundFogNearFadeDistance;
         e["GroundFogNearMinFactor"] = obj._ppGroundFogNearMinFactor;
+        e["GlobalFogIntensity"] = obj._ppGlobalFogIntensity;
     }
 
     void Deserialize_PostProcessVolume(const json& e, EditorObject& obj)
@@ -417,6 +418,7 @@ namespace
         obj._ppGroundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
         obj._ppGroundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
         obj._ppGroundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
+        obj._ppGlobalFogIntensity = e.value("GlobalFogIntensity", 0.5f);
     }
 
     void Serialize_ShaftVolume(json& e, const EditorObject& obj)
@@ -1429,6 +1431,7 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
             obj->_ppGroundFogDistanceInfluence = j.value("GroundFogDistanceInfluence", 0.15f);
             obj->_ppGroundFogNearFadeDistance = j.value("GroundFogNearFadeDistance", 12.f);
             obj->_ppGroundFogNearMinFactor = j.value("GroundFogNearMinFactor", 0.65f);
+            obj->_ppGlobalFogIntensity = j.value("GlobalFogIntensity", 0.5f);
         }
         else if (type == EObjectType::ShaftVolume)
         {
