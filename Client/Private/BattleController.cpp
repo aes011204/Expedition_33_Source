@@ -2217,7 +2217,23 @@ void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32
     if (_buffSystem == nullptr)
         return;
 
+    const bool shouldPlayBreakEffect =
+        buffId == Buffs::Stun &&
+        target.actor != nullptr &&
+        target.statCom != nullptr &&
+        !_buffSystem->Has_Buff(target, Buffs::Stun);
+
     _buffSystem->Apply_Buff(target, buffId, stack, durationTurn);
+
+    if (shouldPlayBreakEffect)
+    {
+        PlayEffectDesc effectDesc{};
+        effectDesc.effectName = Constants::Effect::BreakEffect;
+        effectDesc.spawnBasisTarget = target.actor;
+        effectDesc.localOffset = Vec3(0.f, 1.7f, 1.5f);
+        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+        CLIENT->Play_Effect(effectDesc);
+    }
 }
 
 bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
@@ -2239,7 +2255,7 @@ bool BattleController::Try_ApplySkillBuff(const Skill_Data& skill, const BattleC
     if (skill.ailmentChance < 1.f && GAME->Random(0.f, 1.f) > skill.ailmentChance)
         return false;
 
-    _buffSystem->Apply_Buff(target, skill.buff, 1, skill.buffDurationTurn);
+    Apply_Buff(target, skill.buff, 1, skill.buffDurationTurn);
 
     if (skill.buff == Buffs::Stun && target.ModelCom)
     {

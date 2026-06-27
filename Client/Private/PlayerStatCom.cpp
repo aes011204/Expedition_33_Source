@@ -359,6 +359,7 @@ json PlayerStatCom::Create_SaveJson() const
     root["equipped_weapon_id"] = snapshot.desc.equippedWeaponId;
     root["equipped_weapon_power"] = snapshot.desc.equippedWeaponPower;
     root["equipped_pictos_ids"] = snapshot.desc.equippedPictosIds;
+    root["_skillKeys"] = Get_SkillKeys();
     root["alive_status"] = string(magic_enum::enum_name(const_cast<PlayerStatCom*>(this)->Get_AliveStatus()));
 
     return root;
@@ -407,6 +408,17 @@ bool PlayerStatCom::Apply_SaveJson(const json& data)
             if ((*pictosIds)[i].is_string())
                 snapshot.desc.equippedPictosIds[i] = (*pictosIds)[i].get<string>();
         }
+    }
+
+    if (auto skillKeys = data.find("_skillKeys"); skillKeys != data.end() && skillKeys->is_array())
+    {
+        vector<string> savedSkillKeys{};
+        for (const json& entry : *skillKeys)
+        {
+            if (entry.is_string())
+                savedSkillKeys.emplace_back(entry.get<string>());
+        }
+        Set_SkillKeys(savedSkillKeys);
     }
 
     Apply_BattleSyncSnapshot(snapshot);

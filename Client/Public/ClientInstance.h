@@ -110,7 +110,7 @@ public:
     PreviewShotPreset Get_Preset(HeroId hero, PreviewShotPanel panel);
 
 public: /* For.Hero Manager */
-    HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
+    HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero, const Vec3& startRot = Vec3::Zero);
     void           Update_HeroManager(float timeDelta);
     void           Set_TargetCamera(const Shared<TargetCamera>& camera);
     void           Clear_Party();
@@ -119,6 +119,7 @@ public: /* For.Hero Manager */
     Shared<Player_WorldBase>  Get_ActiveHero() const;
     HeroPartySlot   Get_ActiveHeroSlot() const;
     void            Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot);
+    void            Set_DialogueFocusActive(bool active);
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
@@ -293,7 +294,7 @@ public:
 
   public:
     void StartDialogue(const DialogueRequest& request);
-    void EndDialogue();
+    void EndDialogue(bool restoreWorldState = true);
     bool IsDialogueActive() const;
     bool IsDialogueInteractLocked() const;
     void AddDialogueInteractionOverlap();

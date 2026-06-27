@@ -7,6 +7,7 @@
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "CombatStatCom.h"
+#include "Battle_Event.h"
 
 ChooseSkill::ChooseSkill(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -69,13 +70,24 @@ void ChooseSkill::Update(float timeDelta)
     if (request.actor.statCom == nullptr)
         return;
 
+    const bool hasSecondSkillPage = Has_SecondSkillPage(request.actor.statCom);
+    if (!hasSecondSkillPage && request.skillPage != 0)
+        request.skillPage = 0;
+
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         request.skillKey.clear(); // 스킬 메뉴 취소
         request.skillPage = 0;
-        BattleAnimUtils::Play_BattleIdle(request.actor, 0.3f);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
+
+        BattleAnimUtils::Play_TurnStartOrBattleIdle(request.actor, 0.2f);
+
+        EvtBattlePresentation event{};
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.subject = request.actor.actor;
+        GAME->Get_EventBus().Publish(event);
+
         return;
     }
 
@@ -93,6 +105,12 @@ void ChooseSkill::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::R))
     {
+        if (!hasSecondSkillPage)
+        {
+            request.skillPage = 0;
+            return;
+        }
+
         request.skillPage = (request.skillPage == 0) ? 1 : 0;
         return;
     }
@@ -160,6 +178,16 @@ void ChooseSkill::LateUpdate(float timeDelta)
 void ChooseSkill::ExitInvoke()
 {
     Battle_State::ExitInvoke();
+}
+
+bool ChooseSkill::Has_SecondSkillPage(const Shared<CombatStatCom>& statCom) const
+{
+    if (!statCom)
+        return false;
+
+    string skillKey{};
+
+    return statCom->Try_GetSkillKeyBySlot(3, skillKey) || statCom->Try_GetSkillKeyBySlot(4, skillKey);
 }
 
 void ChooseSkill::Free()

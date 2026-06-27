@@ -20,6 +20,7 @@ public:
 
 public:
     int32   Get_SpawnerId() const { return _spawnerId; }
+    void    Set_SpawnerId(int32 id) { _spawnerId = id; }
 
 private:
     HRESULT Ready_Components();

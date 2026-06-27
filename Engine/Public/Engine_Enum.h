@@ -19,6 +19,7 @@ namespace Engine
         Glow,
         UI,
         UIEffect,
+        AmbientVolume,
         END
     };
 
@@ -103,7 +104,9 @@ namespace Engine
         SSAO,
         SSAOBlur,
         Fog,
-        FroxelDebug
+        FroxelDebug,
+        AmbientVisibilityResolve,
+        PointGlowSource
     };
 
     enum class PostProcessPass : uint8
@@ -124,6 +127,7 @@ namespace Engine
         DOFBlurNearHalf,
         DOFBlurFarHalf,
         DOFCompositeHDR,
+        PointGlowCompositeHDR,
 
         END
     };

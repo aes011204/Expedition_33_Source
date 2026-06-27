@@ -556,10 +556,10 @@ namespace Client
     {
         BattleSystem,
         TurnOrder,
-        Attack,
+        Attack,     // Opacity 내리기
         EnemyTurn,
         Dodge,
-        Skill,
+        Skill,      // Opacity 내리기
         QTE,
         Counter,
         FreeAim,

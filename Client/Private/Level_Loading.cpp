@@ -4,6 +4,7 @@
 #include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
+#include "MapLoader.h"
 #include "UI_RuntimeLoader.h"
 
 #include "Level_MainTitle.h"

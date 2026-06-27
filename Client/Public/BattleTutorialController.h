@@ -72,6 +72,7 @@ public:
     bool Should_BlockBattleUpdate() const { return _blockBattleUpdate; }
 
     BattleTutorialStep Get_ActiveStep() const { return _activeStep; }
+    BattleTutorialStep Get_CommandFocusStep() const;
     BattleReactionType Get_RequiredReactionInput() const;
     // 닫기 키. 회피는 Q, 카운터는 E(실제 Parry 입력), 나머지는 F
     bool Can_CloseByConfirmInput() const;

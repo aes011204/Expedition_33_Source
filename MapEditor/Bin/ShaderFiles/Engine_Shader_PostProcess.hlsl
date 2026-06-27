@@ -14,6 +14,7 @@ Texture2D g_HDRTexture;
 Texture2D g_DepthTexture;
 Texture2D g_BloomTexture;
 Texture2D g_BloomBaseTexture;
+Texture2D g_PointGlowTexture;
 Texture2D g_BackgroundMaskTexture;
 Texture2D g_DistortionSourceTexture;
 Texture2D g_DistortionFieldTexture;

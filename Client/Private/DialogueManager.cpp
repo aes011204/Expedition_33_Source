@@ -63,6 +63,7 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     _waitInteractKeyRelease = true;
     _dialogueNpcObject = request.speaker;
     _dialoguePlayerObject = static_pointer_cast<GameObject>(CLIENT->Get_ActiveHero());
+    CLIENT->Set_DialogueFocusActive(true);
 
     AlignDialogueActors();
 
@@ -106,7 +107,7 @@ void DialogueManager::ContinueDialogue()
     EndDialogue();
 }
 
-void DialogueManager::EndDialogue()
+void DialogueManager::EndDialogue(bool restoreWorldState)
 {
     LOG_INFO("========대화 종료========");
 
@@ -117,10 +118,13 @@ void DialogueManager::EndDialogue()
     _isChoiceVisible = false;
     _isActive = false;
     _waitInteractKeyRelease = true;
+    CLIENT->Set_DialogueFocusActive(false);
 
-    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
+    if (restoreWorldState)
+        GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 
-    CLIENT->Restore_PreviousCamera();
+    if (restoreWorldState)
+        CLIENT->Restore_PreviousCamera();
 
     if (_uiDialogue)
     {
