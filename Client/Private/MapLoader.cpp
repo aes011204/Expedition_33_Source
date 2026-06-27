@@ -18,6 +18,7 @@ umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
+vector<LIGHT_DESC> MapLoader::g_cachedLights;
 
 MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
 {
@@ -847,6 +848,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             const auto& spec = e["Specular"];
             desc.specular = Vec4(spec[0].get<float>(), spec[1].get<float>(), spec[2].get<float>(), spec[3].get<float>());
 
+            g_cachedLights.push_back(desc);
             GAME->Add_Light(desc);
         }
 
@@ -1640,4 +1642,11 @@ void MapLoader::Clear_GlobalCache()
         g_globalMaterialSignatureByModel.clear();
     }
     MapAdapter::Clear_MaterialCache();
+    g_cachedLights.clear();
+}
+
+void MapLoader::Reapply_CachedLights()
+{
+    for (const auto& desc : g_cachedLights)
+        GAME->Add_Light(desc);
 }

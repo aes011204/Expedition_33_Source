@@ -528,7 +528,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
     const Matrix preTransform = _lodModels[0] ? _lodModels[0]->Get_PreLocalTransformMatrix() : Matrix::Identity;
 
     bool hasMergedBounds = false;
-    float maxSingleInstanceExtent = 0.f;
     vector<Vec4> spheres;
     spheres.reserve(count);
 
@@ -556,8 +555,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             spheres.push_back({ matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2], 500.f });
         }
 
-        maxSingleInstanceExtent = max(maxSingleInstanceExtent, max(worldBox.Extents.x, max(worldBox.Extents.y, worldBox.Extents.z)));
-
         if (!hasMergedBounds)
         {
             _groupBounds = worldBox;
@@ -568,10 +565,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             BoundingBox::CreateMerged(_groupBounds, _groupBounds, worldBox);
         }
     }
-    if (maxSingleInstanceExtent > 8.f)
-        _maxShadowCascade = 3u;
-    else
-        _maxShadowCascade = 2u;
 
     if (!_cullShader)
     {

@@ -112,6 +112,8 @@ void Level_Loading::Update(float fTimeDelta)
             break;
         }
 
+        MapLoader::Reapply_CachedLights();
+
         if (nullptr == pNextLevel)
         {
             MSG_BOX("Failed to Created : NextLevel");
