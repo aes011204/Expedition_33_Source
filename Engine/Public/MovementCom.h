@@ -110,6 +110,11 @@ public:
         _transformCom = transform;
     }
 
+    void Set_Collider(const Shared<ColliderCom>& collider)
+    {
+        _colliderCom = collider;
+    }
+
     const MoveDesc&         Get_MoveDesc()      { return _moveDesc; }
     const MovementInput&    Get_MoveInput()     { return _input;}
 
@@ -143,6 +148,7 @@ public:
     void Set_SprintSpeed(float sprintSpeed) { _moveDesc.sprintSpeed = sprintSpeed; }
     void Set_TurnSpeedDegree(float turnSpeedDegree) { _moveDesc.turnSpeedDegree = turnSpeedDegree; }
     void Set_TurnResponse(float turnResponse) { _moveDesc.turnResponse = turnResponse; }
+    void Set_Gravity(float gravity) { _moveDesc.gravity = gravity; }
 
 private:
     void Start_Jump();

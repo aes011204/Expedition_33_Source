@@ -4,6 +4,7 @@
 #include "ContainerObject.h"
 #include "EffectCom.h"
 #include "Monster_BattleBase.h"
+#include "MonsterStatCom.h"
 #include "Mon_Simon_Weapon.h"
 #include "BattleAction.h"
 #include "BattleReactionController.h"
@@ -337,7 +338,14 @@ bool ANS_WeaponEcho::Is_SecondEchoPhase(const AnimNotifyContext& context) const
     {
         Monster_BattleBase* battleMonster = dynamic_cast<Monster_BattleBase*>(current.get());
         if (battleMonster != nullptr)
+        {
+            const Shared<MonsterStatCom> monsterStat =
+                battleMonster->Get_Component<MonsterStatCom>();
+            if (monsterStat == nullptr || !monsterStat->Is_V2())
+                return false;
+
             return battleMonster->Get_CurPhase() == Monster_BattleBase::BattlePhase::Critical;
+        }
 
         current = current->Get_Owner();
     }
