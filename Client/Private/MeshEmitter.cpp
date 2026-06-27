@@ -15,6 +15,7 @@ constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
 constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
 constexpr float kPlaybackCompletionEpsilon = 1e-4f;
 constexpr float kPlaneRadialEpsilon = 1e-4f;
+constexpr float kAngularDeltaEpsilon = 1e-6f;
 
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
@@ -104,6 +105,74 @@ float Hash01(uint32 seed)
     seed *= 2654435769u;
     seed ^= seed >> 16;
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
+Vec3 Resolve_WorldScale(const Shared<TransformCom>& transform)
+{
+    if (transform == nullptr)
+        return Vec3::One;
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+    Matrix worldMatrix = transform->Get_WorldMatrix();
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return Vec3::One;
+
+    return Vec3{
+        max(0.0001f, fabsf(scale.x)),
+        max(0.0001f, fabsf(scale.y)),
+        max(0.0001f, fabsf(scale.z))
+    };
+}
+
+Vec3 Resolve_RuntimeWorldScale(const Weak<GameObject>& effectOwner, const Shared<TransformCom>& emitterTransform)
+{
+    const Shared<GameObject> owner = effectOwner.lock();
+    const Shared<TransformCom> ownerTransform = owner != nullptr ? owner->Get_Transform() : nullptr;
+    if (ownerTransform != nullptr)
+        return Resolve_WorldScale(ownerTransform);
+
+    return Resolve_WorldScale(emitterTransform);
+}
+
+Vec3 Scale_Vector3(const Vec3& value, const Vec3& scale)
+{
+    return Vec3{ value.x * scale.x, value.y * scale.y, value.z * scale.z };
+}
+
+Vec2 Scale_Vector2(const Vec2& value, const Vec2& scale)
+{
+    return Vec2{ value.x * scale.x, value.y * scale.y };
+}
+
+Vec2 Resolve_PlaneScale(PointParticlePlaneRadialLocationPlane plane, const Vec3& scale)
+{
+    switch (plane)
+    {
+    case PointParticlePlaneRadialLocationPlane::XZ:
+        return Vec2{ scale.x, scale.z };
+    case PointParticlePlaneRadialLocationPlane::YZ:
+        return Vec2{ scale.y, scale.z };
+    case PointParticlePlaneRadialLocationPlane::CameraFacing:
+    case PointParticlePlaneRadialLocationPlane::XY:
+    default:
+        return Vec2{ scale.x, scale.y };
+    }
+}
+
+Vec2 Resolve_CylinderScale(PointParticleCylinderLocationAxis axis, const Vec3& scale)
+{
+    switch (axis)
+    {
+    case PointParticleCylinderLocationAxis::LocalX:
+        return Vec2{ max(scale.y, scale.z), scale.x };
+    case PointParticleCylinderLocationAxis::LocalY:
+        return Vec2{ max(scale.x, scale.z), scale.y };
+    case PointParticleCylinderLocationAxis::LocalLook:
+    default:
+        return Vec2{ max(scale.x, scale.y), scale.z };
+    }
 }
 
 float Resolve_EvenByParticleIndexAngleRatio(uint32 particleIndex, uint32 maxActiveCount, float angleMinDegrees, float angleMaxDegrees)
@@ -218,6 +287,30 @@ void Resolve_PlaneRadialBasis(
         axisU = Resolve_WorldAxisToEmitterSamplingAxis(cameraTransform->Get_WorldRight(), emitterTransform);
         axisV = Resolve_WorldAxisToEmitterSamplingAxis(cameraTransform->Get_WorldUp(), emitterTransform);
         planeNormal = Resolve_WorldAxisToEmitterSamplingAxis(cameraTransform->Get_WorldForward(), emitterTransform);
+    }
+}
+
+void Resolve_CylinderLocationBasis(
+    PointParticleCylinderLocationAxis axis,
+    Vec3& axisW,
+    Vec3& radialU,
+    Vec3& radialV)
+{
+    axisW = Vec3{ 0.f, 0.f, 1.f };
+    radialU = Vec3{ 1.f, 0.f, 0.f };
+    radialV = Vec3{ 0.f, 1.f, 0.f };
+
+    if (axis == PointParticleCylinderLocationAxis::LocalX)
+    {
+        axisW = Vec3{ 1.f, 0.f, 0.f };
+        radialU = Vec3{ 0.f, 1.f, 0.f };
+        radialV = Vec3{ 0.f, 0.f, 1.f };
+    }
+    else if (axis == PointParticleCylinderLocationAxis::LocalY)
+    {
+        axisW = Vec3{ 0.f, 1.f, 0.f };
+        radialU = Vec3{ 1.f, 0.f, 0.f };
+        radialV = Vec3{ 0.f, 0.f, 1.f };
     }
 }
 
@@ -1478,6 +1571,12 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     if (!particle.spawnOrientationEnabled)
         particle.spawnOrientation = Build_PlaneRadialMeshOrientation(planeRadialSample, particle.spawnOrientationEnabled);
     particle.rotationRadians = Sample_InitialRotation(seed + 41u);
+    particle.rotationQuat = Quat::CreateFromYawPitchRoll(
+        particle.rotationRadians.y,
+        particle.rotationRadians.x,
+        particle.rotationRadians.z
+    );
+    particle.rotationQuat.Normalize();
     particle.angularVelocityRadians = Sample_InitialAngularVelocity(seed + 43u);
     particle.startColor = Sample_Color(
         _desc.initialColor.startColorMin,
@@ -1522,11 +1621,32 @@ void MeshEmitter::Update_Particles(float timeDelta)
         particle.position += particle.velocity * velocityScale * safeDeltaTime;
 
         const Vec3 angularVelocityScale = Evaluate_AngularVelocityScaleByLife(lifeProgress);
-        particle.rotationRadians += Vec3{
+        const Vec3 scaledAngularVelocity{
             particle.angularVelocityRadians.x * angularVelocityScale.x,
             particle.angularVelocityRadians.y * angularVelocityScale.y,
             particle.angularVelocityRadians.z * angularVelocityScale.z
-        } * safeDeltaTime;
+        };
+
+        if (_desc.meshTransform.initialAngularVelocityInWorldSpace)
+        {
+            Vec3 angularDelta = scaledAngularVelocity * safeDeltaTime;
+            if (_useLocalSpace)
+                angularDelta = Resolve_WorldVectorToSimulation(angularDelta);
+
+            const float angularDeltaLength = angularDelta.Length();
+            if (angularDeltaLength > Internal::kAngularDeltaEpsilon)
+            {
+                const Vec3 axis = angularDelta / angularDeltaLength;
+                Quat delta = Quat::CreateFromAxisAngle(axis, angularDeltaLength);
+                delta.Normalize();
+                particle.rotationQuat = particle.rotationQuat * delta;
+                particle.rotationQuat.Normalize();
+            }
+        }
+        else
+        {
+            particle.rotationRadians += scaledAngularVelocity * safeDeltaTime;
+        }
     }
 }
 
@@ -1594,7 +1714,13 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
         particle.rotationRadians.z + XMConvertToRadians(rotationByLife.z)
     };
 
-    Quat rotation = Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
+    Quat rotation = _desc.meshTransform.initialAngularVelocityInWorldSpace
+                    ? particle.rotationQuat * Quat::CreateFromYawPitchRoll(
+                        XMConvertToRadians(rotationByLife.y),
+                        XMConvertToRadians(rotationByLife.x),
+                        XMConvertToRadians(rotationByLife.z)
+                    )
+                    : Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
     rotation.Normalize();
 
     const Matrix scaleMatrix = Matrix::CreateScale(scale);
@@ -1650,24 +1776,59 @@ Vec3 MeshEmitter::Sample_InitialOffset(
     SphereRadialSample& outSphereRadialSample) const
 {
     Vec3 offset{};
+    PointParticleInitialLocationDesc initialLocation = _desc.initialLocation;
+    PointParticleSphereLocationDesc sphereLocation = _desc.sphereLocation;
+    PointParticlePlaneRadialLocationDesc planeRadialLocation = _desc.planeRadialLocation;
+    PointParticleCylinderLocationDesc cylinderLocation = _desc.cylinderLocation;
 
-    if (_desc.initialLocation.enabled)
+    if (!_useLocalSpace && _transformCom != nullptr)
+    {
+        const Vec3 worldScale = Internal::Resolve_RuntimeWorldScale(_effectOwner, _transformCom);
+        const float uniformLocationScale = max(worldScale.x, max(worldScale.y, worldScale.z));
+        const Vec2 planeScale = Internal::Resolve_PlaneScale(planeRadialLocation.plane, worldScale);
+        const float uniformPlaneScale = max(planeScale.x, planeScale.y);
+        const Vec2 cylinderScale = Internal::Resolve_CylinderScale(cylinderLocation.axis, worldScale);
+
+        initialLocation.minOffset = Internal::Scale_Vector3(initialLocation.minOffset, worldScale);
+        initialLocation.maxOffset = Internal::Scale_Vector3(initialLocation.maxOffset, worldScale);
+        sphereLocation.offset = Internal::Scale_Vector3(sphereLocation.offset, worldScale);
+        sphereLocation.radius *= uniformLocationScale;
+        planeRadialLocation.offset = Internal::Scale_Vector3(planeRadialLocation.offset, worldScale);
+        planeRadialLocation.thickness *= uniformLocationScale;
+        planeRadialLocation.uRange = Internal::Scale_Vector2(planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
+        planeRadialLocation.vRange = Internal::Scale_Vector2(planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
+        planeRadialLocation.radiusRange = Internal::Scale_Vector2(
+            planeRadialLocation.radiusRange,
+            Vec2{ uniformPlaneScale, uniformPlaneScale }
+        );
+        cylinderLocation.offset = Internal::Scale_Vector3(cylinderLocation.offset, worldScale);
+        cylinderLocation.radiusRange = Internal::Scale_Vector2(
+            cylinderLocation.radiusRange,
+            Vec2{ cylinderScale.x, cylinderScale.x }
+        );
+        cylinderLocation.heightRange = Internal::Scale_Vector2(
+            cylinderLocation.heightRange,
+            Vec2{ cylinderScale.y, cylinderScale.y }
+        );
+    }
+
+    if (initialLocation.enabled)
     {
         const uint32 initialLocationSeed = seed + Internal::Resolve_SeedSalt(_desc.initialLocationSeed, _effectPlaybackSeed);
         offset += Vec3{
-            RandomRange(_desc.initialLocation.minOffset.x, _desc.initialLocation.maxOffset.x, initialLocationSeed + 1u),
-            RandomRange(_desc.initialLocation.minOffset.y, _desc.initialLocation.maxOffset.y, initialLocationSeed + 2u),
-            RandomRange(_desc.initialLocation.minOffset.z, _desc.initialLocation.maxOffset.z, initialLocationSeed + 3u)
+            RandomRange(initialLocation.minOffset.x, initialLocation.maxOffset.x, initialLocationSeed + 1u),
+            RandomRange(initialLocation.minOffset.y, initialLocation.maxOffset.y, initialLocationSeed + 2u),
+            RandomRange(initialLocation.minOffset.z, initialLocation.maxOffset.z, initialLocationSeed + 3u)
         };
     }
 
-    if (_desc.sphereLocation.enabled && _desc.sphereLocation.radius > 0.f)
+    if (sphereLocation.enabled && sphereLocation.radius > 0.f)
     {
         const uint32 sphereSeed = seed + Internal::Resolve_SeedSalt(_desc.sphereLocationSeed, _effectPlaybackSeed);
         Vec3 direction{};
         const bool useEvenSurfacePlacement =
-            _desc.sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
-            _desc.sphereLocation.placementMode == PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
+            sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
+            sphereLocation.placementMode == PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
         if (useEvenSurfacePlacement)
             direction = Internal::Resolve_EvenByParticleIndexSphereDirection(placementIndex, placementCount);
         else
@@ -1682,78 +1843,119 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             };
         }
 
-        float radius = _desc.sphereLocation.radius;
-        if (_desc.sphereLocation.mode == PointParticleSphereLocationMode::Volume)
+        float radius = sphereLocation.radius;
+        if (sphereLocation.mode == PointParticleSphereLocationMode::Volume)
             radius *= cbrtf(Random01(sphereSeed + 9u));
 
         outSphereRadialSample.enabled = true;
-        outSphereRadialSample.localOffset = _desc.sphereLocation.offset + direction * radius;
+        outSphereRadialSample.localOffset = sphereLocation.offset + direction * radius;
         outSphereRadialSample.radialDirection = direction;
         offset += outSphereRadialSample.localOffset;
     }
 
-    if (_desc.planeRadialLocation.enabled)
+    if (planeRadialLocation.enabled)
     {
         Vec3 axisU{};
         Vec3 axisV{};
         Vec3 planeNormal{};
-        Internal::Resolve_PlaneRadialBasis(_desc.planeRadialLocation.plane, _transformCom, axisU, axisV, planeNormal);
+        Internal::Resolve_PlaneRadialBasis(planeRadialLocation.plane, _transformCom, axisU, axisV, planeNormal);
 
         float u = 0.f;
         float v = 0.f;
         float sampleAngle = 0.f;
-        if (_desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle)
+        if (planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle)
         {
             u = RandomRange(
-                _desc.planeRadialLocation.uRange.x,
-                _desc.planeRadialLocation.uRange.y,
-                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.uSeed, _effectPlaybackSeed) + 1601u
+                planeRadialLocation.uRange.x,
+                planeRadialLocation.uRange.y,
+                seed + Internal::Resolve_SeedSalt(planeRadialLocation.uSeed, _effectPlaybackSeed) + 1601u
             );
             v = RandomRange(
-                _desc.planeRadialLocation.vRange.x,
-                _desc.planeRadialLocation.vRange.y,
-                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.vSeed, _effectPlaybackSeed) + 1613u
+                planeRadialLocation.vRange.x,
+                planeRadialLocation.vRange.y,
+                seed + Internal::Resolve_SeedSalt(planeRadialLocation.vSeed, _effectPlaybackSeed) + 1613u
             );
             sampleAngle = atan2f(v, u);
         }
         else
         {
-            const float radiusMin = min(_desc.planeRadialLocation.radiusRange.x, _desc.planeRadialLocation.radiusRange.y);
-            const float radiusMax = max(_desc.planeRadialLocation.radiusRange.x, _desc.planeRadialLocation.radiusRange.y);
-            const float angleMinDegrees = _desc.planeRadialLocation.angleDegreesRange.x;
-            const float angleMaxDegrees = _desc.planeRadialLocation.angleDegreesRange.y;
+            const float radiusMin = min(planeRadialLocation.radiusRange.x, planeRadialLocation.radiusRange.y);
+            const float radiusMax = max(planeRadialLocation.radiusRange.x, planeRadialLocation.radiusRange.y);
+            const float angleMinDegrees = planeRadialLocation.angleDegreesRange.x;
+            const float angleMaxDegrees = planeRadialLocation.angleDegreesRange.y;
             const float angleMin = XMConvertToRadians(angleMinDegrees);
             const float angleMax = XMConvertToRadians(angleMaxDegrees);
             const float radius = RandomRange(
                 radiusMin,
                 radiusMax,
-                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed, _effectPlaybackSeed) + 1601u
+                seed + Internal::Resolve_SeedSalt(planeRadialLocation.radiusSeed, _effectPlaybackSeed) + 1601u
             );
-            const float angleRatio = _desc.planeRadialLocation.placementMode == PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex
+            const float angleRatio = planeRadialLocation.placementMode == PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex
                                      ? Internal::Resolve_EvenByParticleIndexAngleRatio(
                                          placementIndex,
                                          placementCount,
                                          angleMinDegrees,
                                          angleMaxDegrees
                                      )
-                                     : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
+                                     : Random01(seed + Internal::Resolve_SeedSalt(planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
             sampleAngle = lerp(angleMin, angleMax, angleRatio);
             u = cosf(sampleAngle) * radius;
             v = sinf(sampleAngle) * radius;
         }
 
-        const float thickness = max(0.f, _desc.planeRadialLocation.thickness);
+        const float thickness = max(0.f, planeRadialLocation.thickness);
         const float normalOffset = thickness > 0.0001f ? (Random01(seed + 1621u) - 0.5f) * thickness : 0.f;
         const Vec3 radialVector = axisU * u + axisV * v;
         const Vec3 fallbackRadial = Internal::Normalize_OrFallback(axisU * cosf(sampleAngle) + axisV * sinf(sampleAngle), axisU);
         outPlaneRadialSample.enabled = true;
-        outPlaneRadialSample.localOffset = _desc.planeRadialLocation.offset + radialVector + planeNormal * normalOffset;
+        outPlaneRadialSample.localOffset = planeRadialLocation.offset + radialVector + planeNormal * normalOffset;
         outPlaneRadialSample.radialDirection = Internal::Normalize_OrFallback(radialVector, fallbackRadial);
         outPlaneRadialSample.tangentCW = Internal::Normalize_OrFallback(axisU * sinf(sampleAngle) - axisV * cosf(sampleAngle), -axisV);
         outPlaneRadialSample.tangentCCW = -outPlaneRadialSample.tangentCW;
         outPlaneRadialSample.planeNormal = planeNormal;
         outPlaneRadialSample.sampleAngleRadians = sampleAngle;
         offset += outPlaneRadialSample.localOffset;
+    }
+
+    if (cylinderLocation.enabled)
+    {
+        Vec3 axisW{};
+        Vec3 radialU{};
+        Vec3 radialV{};
+        Internal::Resolve_CylinderLocationBasis(cylinderLocation.axis, axisW, radialU, radialV);
+
+        const float radiusMin = max(0.f, min(cylinderLocation.radiusRange.x, cylinderLocation.radiusRange.y));
+        const float radiusMax = max(radiusMin, max(cylinderLocation.radiusRange.x, cylinderLocation.radiusRange.y));
+        const float heightMin = min(cylinderLocation.heightRange.x, cylinderLocation.heightRange.y);
+        const float heightMax = max(cylinderLocation.heightRange.x, cylinderLocation.heightRange.y);
+        const float angleMinDegrees = cylinderLocation.angleDegreesRange.x;
+        const float angleMaxDegrees = cylinderLocation.angleDegreesRange.y;
+        const float angleMin = XMConvertToRadians(angleMinDegrees);
+        const float angleMax = XMConvertToRadians(angleMaxDegrees);
+        const uint32 radiusSeed = seed + Internal::Resolve_SeedSalt(cylinderLocation.radiusSeed, _effectPlaybackSeed) + 1801u;
+        const uint32 heightSeed = seed + Internal::Resolve_SeedSalt(cylinderLocation.heightSeed, _effectPlaybackSeed) + 1811u;
+        const uint32 angleSeed = seed + Internal::Resolve_SeedSalt(cylinderLocation.angleDegreesSeed, _effectPlaybackSeed) + 1823u;
+
+        float radius = RandomRange(radiusMin, radiusMax, radiusSeed);
+        if (cylinderLocation.mode == PointParticleCylinderLocationMode::Volume)
+        {
+            const float minSquared = radiusMin * radiusMin;
+            const float maxSquared = radiusMax * radiusMax;
+            radius = sqrtf(lerp(minSquared, maxSquared, Random01(radiusSeed)));
+        }
+
+        const float height = RandomRange(heightMin, heightMax, heightSeed);
+        const float angleRatio = cylinderLocation.placementMode == PointParticleCylinderLocationPlacementMode::EvenByParticleIndex
+                                 ? Internal::Resolve_EvenByParticleIndexAngleRatio(
+                                     placementIndex,
+                                     placementCount,
+                                     angleMinDegrees,
+                                     angleMaxDegrees
+                                 )
+                                 : Random01(angleSeed);
+        const float angle = lerp(angleMin, angleMax, angleRatio);
+        const Vec3 radialVector = (radialU * cosf(angle) + radialV * sinf(angle)) * radius;
+        offset += cylinderLocation.offset + axisW * height + radialVector;
     }
 
     return Resolve_LocalVector(offset);

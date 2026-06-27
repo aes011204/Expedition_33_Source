@@ -49,6 +49,22 @@ HRESULT Player_FreeAim::Initialize()
 void Player_FreeAim::Begin_Play()
 {
     Player_State::Begin_Play();
+}
+
+void Player_FreeAim::Refresh_BodyPlayer()
+{
+    Player_State::Refresh_BodyPlayer();
+    Bind_AnimationModifiers();
+}
+
+void Player_FreeAim::Bind_AnimationModifiers()
+{
+    _offsetModifier.reset();
+    for (auto& walkModifier : _walkModifiers)
+        walkModifier.reset();
+
+    if (_bodyPlayer == nullptr)
+        return;
 
     if (auto model = _bodyPlayer->Get_Model())
     {

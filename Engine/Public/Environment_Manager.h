@@ -5,13 +5,21 @@
 
 NS_BEGIN(Engine)
 
+class ShaderCom;
+class Texture;
+
 class ENGINE_DLL Environment_Manager final : public Base
 {
 private:
-    Environment_Manager() = default;
+    Environment_Manager(const ComPtr<Device>& device, const ComPtr<Context>& context);
 
 public:
     ~Environment_Manager() override = default;
+
+    HRESULT Change_IBL(const wchar_t* irradiancePath, const wchar_t* prefilterPath);
+    HRESULT Bind_IBLTextures(ShaderCom* shader) const;
+    void Begin_SoulLikeIBLOverride();
+    void End_SoulLikeIBLOverride();
 
     void Set_FogZones(const FogZoneCB& fogZoneCB);
     const FogZoneCB& Get_FogZones() const;
@@ -35,7 +43,7 @@ public:
     const vector<uint32>& Get_ActiveFogOBBZoneIndices() const { return _activeFogOBBZoneIndices; }
     const vector<uint32>& Get_ActiveVolumetricLightShaftZoneIndices() const { return _activeLightShaftZoneIndices; }
 
-    static Unique<Environment_Manager> Create();
+    static Unique<Environment_Manager> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void Free() override;
 
 private :
@@ -44,6 +52,13 @@ private :
 
 
 private:
+    ComPtr<Device>                  _device;
+    ComPtr<Context>                 _context;
+    Shared<Texture>                 _iblIrradianceTexture;
+    Shared<Texture>                 _iblPrefilterTexture;
+    Shared<Texture>                 _iblBrdfLutTexture;
+    DeferredLightingCB              _savedSoulLikeDeferredLightingCB{};
+    bool                            _soulLikeIBLOverrideActive = false;
     FogZoneCB                       _fogZoneCB{};
     VolumetricLightShaftZoneCB      _lightShaftZoneCB{};
     bool                            _fogZoneCullingEnabled = true;

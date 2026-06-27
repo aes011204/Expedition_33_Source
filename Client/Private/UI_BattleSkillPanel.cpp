@@ -18,14 +18,23 @@ namespace
     constexpr wchar_t UI_BattleSkillTooltip_LumiereAssault_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_LumiereAssault.json";
     constexpr wchar_t UI_BattleSkillTooltip_UnleashedCharge_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_UnleashedCharge.json";
     constexpr wchar_t UI_BattleSkillTooltip_MarkingShot_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_MarkingShot.json";
+    constexpr wchar_t UI_BattleSkillTooltip_Shatter_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_Shatter.json";
+    constexpr wchar_t UI_BattleSkillTooltip_PerfectBreak_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_PerfectBreak.json";
+    constexpr wchar_t UI_BattleSkillTooltip_AngelsEye_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Gustave/UI_BattleSystem_SkillTooltip_AngelsEye.json";
 
     constexpr wchar_t UI_BattleSkillTooltip_Immolation_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Lune/UI_BattleSystem_SkillTooltip_Immolation.json";
     constexpr wchar_t UI_BattleSkillTooltip_IceGust_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Lune/UI_BattleSystem_SkillTooltip_IceGust.json";
     constexpr wchar_t UI_BattleSkillTooltip_Thunderfall_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Lune/UI_BattleSystem_SkillTooltip_Thunderfall.json";
+    constexpr wchar_t UI_BattleSkillTooltip_TerraQuake_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Lune/UI_BattleSystem_SkillTooltip_TerraQuake.json";
+    constexpr wchar_t UI_BattleSkillTooltip_CripplingTsunami_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Lune/UI_BattleSystem_SkillTooltip_CripplingTsunami.json";
+    constexpr wchar_t UI_BattleSkillTooltip_SkyBreak_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Lune/UI_BattleSystem_SkillTooltip_SkyBreak.json";
 
     constexpr wchar_t UI_BattleSkillTooltip_OffensiveSwitch_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_OffensiveSwitch.json";
     constexpr wchar_t UI_BattleSkillTooltip_Percee_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Percee.json";
     constexpr wchar_t UI_BattleSkillTooltip_FireRise_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FireRise.json";
+    constexpr wchar_t UI_BattleSkillTooltip_SwordBallet_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_SwordBallet.json";
+    constexpr wchar_t UI_BattleSkillTooltip_Stendhal_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Stendhal.json";
+    constexpr wchar_t UI_BattleSkillTooltip_Pyrolyse_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Pyrolyse.json";
 
     constexpr wchar_t UI_BattleSkillTooltip_FleureFury_Path[] =
         L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FleuretFury.json";
@@ -506,14 +515,23 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_LumiereAssault_Path, L"BattleSkillTooltipLumiereAssault", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_UnleashedCharge_Path, L"BattleSkillTooltipUnleashedCharge", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_MarkingShot_Path, L"BattleSkillTooltipMarkingShot", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Shatter_Path, L"BattleSkillTooltipShatter", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_PerfectBreak_Path, L"BattleSkillTooltipPerfectBreak", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_AngelsEye_Path, L"BattleSkillTooltipAngelsEye", {}, nullptr, {}), E_FAIL);
 
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Immolation_Path, L"BattleSkillTooltipImmolation", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_IceGust_Path, L"BattleSkillTooltipIceGust", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Thunderfall_Path, L"BattleSkillTooltipThunderfall", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_TerraQuake_Path, L"BattleSkillTooltipTerraQuake", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_CripplingTsunami_Path, L"BattleSkillTooltipCripplingTsunami", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_SkyBreak_Path, L"BattleSkillTooltipSkyBreak", {}, nullptr, {}), E_FAIL);
 
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_OffensiveSwitch_Path, L"BattleSkillTooltipOffensiveSwitch", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Percee_Path, L"BattleSkillTooltipPercee", {}, nullptr, {}), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_FleureFury_Path, L"BattleSkillTooltipFleureFury", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_SwordBallet_Path, L"BattleSkillTooltipSwordBallet", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Stendhal_Path, L"BattleSkillTooltipStendhal", {}, nullptr, {}), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Pyrolyse_Path, L"BattleSkillTooltipPyrolyse", {}, nullptr, {}), E_FAIL);
     //CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_FireRise_Path, L"BattleSkillTooltipFireRise"), E_FAIL);
 
 
@@ -548,14 +566,23 @@ HRESULT UI_BattleSkillPanel::Bind_UI()
     CHECK_FAILED(Bind_Tooltip("LumiereAssault", L"Panel_BattleSystem_SkillTooltip_LumiereAssault"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("UnleashedCharge", L"Panel_BattleSystem_SkillTooltip_UnleashedCharge"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("MarkingShot", L"Panel_BattleSystem_SkillTooltip_MarkingShot"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("Shatter", L"Panel_BattleSystem_SkillTooltip_Shatter"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("PerfectBreak", L"Panel_BattleSystem_SkillTooltip_PerfectBreak"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("AngelsEye", L"Panel_BattleSystem_SkillTooltip_AngelsEye"), E_FAIL);
 
     CHECK_FAILED(Bind_Tooltip("Immolation", L"Panel_BattleSystem_SkillTooltip_Immolation"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("IceGust", L"Panel_BattleSystem_SkillTooltip_IceGust"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Thunderfall", L"Panel_BattleSystem_SkillTooltip_Thunderfall"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("TerraQuake", L"Panel_BattleSystem_SkillTooltip_TerraQuake"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("CripplingTsunami", L"Panel_BattleSystem_SkillTooltip_CripplingTsunami"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("SkyBreak", L"Panel_BattleSystem_SkillTooltip_SkyBreak"), E_FAIL);
 
     CHECK_FAILED(Bind_Tooltip("OffensiveSwitch", L"Panel_BattleSystem_SkillTooltip_OffensiveSwitch"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Percee", L"Panel_BattleSystem_SkillTooltip_Percee"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("FleureFury", L"Panel_BattleSystem_SkillTooltip_FleuretFury"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("SwordBallet", L"Panel_BattleSystem_SkillTooltip_SwordBallet"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("Stendhal", L"Panel_BattleSystem_SkillTooltip_Stendhal"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("Pyrolyse", L"Panel_BattleSystem_SkillTooltip_Pyrolyse"), E_FAIL);
 
 
     //CHECK_FAILED(Bind_Tooltip("FireRise", L"Panel_BattleSystem_SkillTooltip_FireRise"), E_FAIL);

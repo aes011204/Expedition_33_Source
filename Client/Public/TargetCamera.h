@@ -76,6 +76,7 @@ public:
     void Change_Target();
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
     void Refresh_TargetTransform();
+    void Set_OrbitAngles(float yaw, float pitch);
 
     Vec3 Get_FreeAimQueryOrigin() const;
     Vec3 Get_FreeAimQueryDirection() const;

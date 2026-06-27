@@ -43,7 +43,7 @@ void Hero_Manager::Change_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
     }
 }
 
-HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
+HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos, const Vec3& startRot)
 {
     Clear_Party();
 
@@ -67,6 +67,8 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
         pos.z -= static_cast<float>(i) * 1.5f;
 
         hero->Get_Transform()->Set_WorldPosition(pos);
+        hero->Get_Transform()->Set_WorldRotationEuler(startRot);
+
         if (auto movement = hero->Get_Component<MovementCom>())
             movement->Sync_RuntimePositionToTransform();
 
@@ -109,11 +111,11 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     Apply_UnlockedHeroVisibility();
 
     auto activeHero = Get_ActiveHero();
-    if (activeHero)
+    if (!activeHero)
         return;
 
     auto state = activeHero->Get_Component<PlayerStateMachineCom>();
-    if (state)
+    if (!state)
         return;
 
     // 구스타브만 있을 때에는 키가 아예 안눌리도록
@@ -149,6 +151,8 @@ void Hero_Manager::Set_TargetCamera(const Shared<TargetCamera>& camera)
 
 void Hero_Manager::Clear_Party()
 {
+    _dialogueFocusActive = false;
+
     Reset_AllHeroesToIdle();
 
     for (auto& entry : _heroes)
@@ -225,6 +229,15 @@ void Hero_Manager::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
     _recordTimer = 0.f;
     Set_ActiveTrail(_recordInterval);
     Refresh_TargetCamera();
+}
+
+void Hero_Manager::Set_DialogueFocusActive(bool active)
+{
+    if (_dialogueFocusActive == active)
+        return;
+
+    _dialogueFocusActive = active;
+    Apply_UnlockedHeroVisibility();
 }
 
 Shared<Player_WorldBase> Hero_Manager::Get_FrontHero() const
@@ -861,13 +874,15 @@ bool Hero_Manager::Can_SwitchHero() const
 
 void Hero_Manager::Apply_UnlockedHeroVisibility()
 {
-    for (HeroPartyEntry& entry : _heroes)
+    for (uint32 i = 0; i < _heroes.size(); ++i)
     {
+        HeroPartyEntry& entry = _heroes[i];
         if (entry.hero == nullptr)
             continue;
 
         const bool unlocked = Is_HeroUnlocked(entry.heroId);
-        entry.hero->Set_PartyVisibilityAllowed(unlocked);
+        const bool visibleInDialogue = !_dialogueFocusActive || i == _activeIndex;
+        entry.hero->Set_PartyVisibilityAllowed(unlocked && visibleInDialogue);
     }
 }
 

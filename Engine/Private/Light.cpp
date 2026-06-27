@@ -46,7 +46,10 @@ HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
     if (FAILED(shader->Begin(pass)))
         return E_FAIL;
 
-    return viBuffer->Render();
+    if (FAILED(viBuffer->Render()))
+        return E_FAIL;
+
+    return S_OK;
 }
 
 

@@ -150,6 +150,17 @@ BattleReactionType BattleTutorialController::Get_RequiredReactionInput() const
     }
 }
 
+BattleTutorialStep BattleTutorialController::Get_CommandFocusStep() const
+{
+    if (_activeStep == BattleTutorialStep::Attack || _sequenceStage == TutorialSequenceStage::WaitingBaseAttack)
+        return BattleTutorialStep::Attack;
+
+    if (_activeStep == BattleTutorialStep::Skill || _sequenceStage == TutorialSequenceStage::WaitingLumiereAssaultCommand)
+        return BattleTutorialStep::Skill;
+
+    return BattleTutorialStep::END;
+}
+
 bool BattleTutorialController::Can_CloseByConfirmInput() const
 {
     if (!_isTutorialOpen)

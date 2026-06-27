@@ -427,6 +427,8 @@ void BattleTurnCamera::Reset_RuntimeState()
     _prevTargetPos = Vec3::Zero;
     _enemyPos = Vec3::Zero;
     _playerPos = Vec3::Zero;
+    _playerAttackSubjectPos = Vec3::Zero;
+    _playerAttackOpponentPos = Vec3::Zero;
     _enemySpawnDescs.clear();
     _hasWideAnchor = false;
     _wideAnchorHeroCenter = Vec3::Zero;
@@ -1409,19 +1411,19 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if(request.mode == BattleCameraMode::PLAYERATTACK)
     {
-        const bool shouldCaptureEnemyAttackAnchor =
+        const bool shouldCapturePlayerAttackAnchor =
             nextPreset.snapOnEnter ||
             shouldReAnchored ||
-            nextEnemyAttackSubjectPos.LengthSquared() <= 0.0001f ||
-            nextEnemyAttackOpponentPos.LengthSquared() <= 0.0001f;
+            nextPlayerAttackSubjectPos.LengthSquared() <= 0.0001f ||
+            nextPlayerAttackOpponentPos.LengthSquared() <= 0.0001f;
 
-        if (shouldCaptureEnemyAttackAnchor)
+        if (shouldCapturePlayerAttackAnchor)
         {
             if (request.subject != nullptr && request.subject->Get_Transform() != nullptr)
-                nextEnemyAttackSubjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+                nextPlayerAttackSubjectPos = request.subject->Get_Transform()->Get_WorldPosition();
 
             if (request.opponent != nullptr && request.opponent->Get_Transform() != nullptr)
-                nextEnemyAttackOpponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+                nextPlayerAttackOpponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
         }
     }
     else

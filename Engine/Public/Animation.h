@@ -39,6 +39,7 @@ public:
 
     const vector<Shared<Channel>>& Get_Channels() const { return _channels; }
     float Get_TickPerSecond() const { return _tickPerSecond; }
+    size_t Get_DebugEstimatedBytes() const;
 
 public:
 	HRESULT Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels);

@@ -819,6 +819,9 @@ void Editor_Manager::Render_RuleStateButtons()
 
     if (ImGui::MenuItem("튜토리얼 후 플레이어 해금 상태 저장"))
         Save_RuleStatePreset(RuleStatePreset::FirstTutorialHeroUnlocks);
+
+    if (ImGui::MenuItem("최종 스킬 세팅 해금 상태 저장"))
+        Save_RuleStatePreset(RuleStatePreset::FinalSkillSetupUnlocks);
 }
 
 void Editor_Manager::Render_SaveCheckpointPopup()
@@ -933,6 +936,8 @@ bool Editor_Manager::Save_RuleStatePreset(RuleStatePreset preset)
         saved = EDITOR->Save_AllWeaponUnlockRuleState(ruleStatePath);
     else if (preset == RuleStatePreset::FirstTutorialHeroUnlocks)
         saved = EDITOR->Save_FirstTutorialHeroUnlockRuleState(ruleStatePath);
+    else if (preset == RuleStatePreset::FinalSkillSetupUnlocks)
+        saved = EDITOR->Save_FinalSkillSetupUnlockRuleState(ruleStatePath);
     else
         saved = EDITOR->Save_CostumeUnlockRuleState(ruleStatePath, unlockBaguette, unlockPotato);
 
@@ -1014,6 +1019,9 @@ fs::path Editor_Manager::Resolve_RuleStatePath(RuleStatePreset preset) const
 
     case RuleStatePreset::FirstTutorialHeroUnlocks:
         return ruleStateDir / L"Rule_FirstTutorialHeroUnlocks.rule.bin";
+
+    case RuleStatePreset::FinalSkillSetupUnlocks:
+        return ruleStateDir / L"Rule_FinalSkillSetupUnlocks.rule.bin";
 
     default:
         return ruleStateDir / L"Rule_Debug.rule.bin";
