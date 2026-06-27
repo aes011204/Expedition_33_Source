@@ -640,6 +640,10 @@ void CinematicSequenceRunner::Execute_Event(const CINEMATIC_EVENT& event, float 
     {
         Execute_DespawnEvent(event.targetId, CinematicDespawnEventData{});
     }
+    else if (const auto* partVisibility = get_if<CinematicPartVisibilityEventData>(&event.payload))
+    {
+        Execute_PartVisibilityEvent(event.targetId, *partVisibility);
+    }
 }
 
 bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const CinematicSpawnEventData& payload)
@@ -815,6 +819,64 @@ bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const
 
     LOG_INFO("[CinematicSequenceRunner] DespawnEvent success: target='{}' frame={}",
         targetId,
+        Get_CurrentFrame());
+    return true;
+}
+
+bool CinematicSequenceRunner::Execute_PartVisibilityEvent(
+    const string& targetId,
+    const CinematicPartVisibilityEventData& payload)
+{
+    if (targetId.empty())
+    {
+        LOG_WARN("[CinematicSequenceRunner] PartVisibilityEvent skipped: empty targetId. frame={}", Get_CurrentFrame());
+        return false;
+    }
+
+    if (payload.partTag.empty())
+    {
+        LOG_WARN("[CinematicSequenceRunner] PartVisibilityEvent skipped: target='{}' has empty partTag. frame={}",
+            targetId,
+            Get_CurrentFrame());
+        return false;
+    }
+
+    Shared<GameObject> actor = Get_BoundActor(targetId);
+    if (actor == nullptr)
+    {
+        LOG_WARN("[CinematicSequenceRunner] PartVisibilityEvent failed: target='{}' is not bound. frame={}",
+            targetId,
+            Get_CurrentFrame());
+        return false;
+    }
+
+    const auto container = dynamic_pointer_cast<ContainerObject>(actor);
+    if (container == nullptr)
+    {
+        LOG_WARN("[CinematicSequenceRunner] PartVisibilityEvent failed: target='{}' is not ContainerObject. frame={}",
+            targetId,
+            Get_CurrentFrame());
+        return false;
+    }
+
+    PartObject* part = container->Get_PartObject(String::ToWString(payload.partTag));
+    if (part == nullptr)
+    {
+        LOG_WARN("[CinematicSequenceRunner] PartVisibilityEvent failed: target='{}' part='{}' not found. frame={}",
+            targetId,
+            payload.partTag,
+            Get_CurrentFrame());
+        return false;
+    }
+
+    const bool previousVisible = part->Is_Visible();
+    part->Set_Visible(payload.visible);
+    LOG_INFO(
+        "[CinematicSequenceRunner] PartVisibilityEvent success: target='{}' part='{}' visible={} previousVisible={} frame={}",
+        targetId,
+        payload.partTag,
+        payload.visible,
+        previousVisible,
         Get_CurrentFrame());
     return true;
 }

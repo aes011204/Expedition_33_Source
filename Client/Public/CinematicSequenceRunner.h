@@ -105,6 +105,7 @@ private:
         const string& targetId,
         const CinematicPlayAnimEventData& payload);
     bool Execute_DespawnEvent(const string& targetId, const CinematicDespawnEventData& payload);
+    bool Execute_PartVisibilityEvent(const string& targetId, const CinematicPartVisibilityEventData& payload);
     Shared<GameObject> Find_ReusableActorByPrefabName(const string& prefabName) const;
     bool Is_ActorAlreadyBound(const Shared<GameObject>& actor) const;
     void Apply_CinematicDrivenState(const Shared<GameObject>& actor, bool cinematicDriven) const;

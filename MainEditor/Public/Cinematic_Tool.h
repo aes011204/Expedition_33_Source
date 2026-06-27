@@ -133,8 +133,10 @@ private:
     bool                                 _requestOpenSelectedKeyPopup = false;
     bool                                 _requestOpenInsertKeyPopup = false;
     bool                                 _requestRemoveKeyPopup = false;
+    bool                                 _requestOpenSaveSequenceConfirmPopup = false;
     bool                                 _requestOpenLoadSequenceConfirmPopup = false;
     bool                                 _requestOpenNewEmptySequenceConfirmPopup = false;
+    bool                                 _requestOpenClearAllKeysConfirmPopup = false;
     int                                  _contextMenuTrackIndex = -1;
     int                                  _contextMenuFrame = 0;
     bool                                 _hasPendingInsertRequest = false;

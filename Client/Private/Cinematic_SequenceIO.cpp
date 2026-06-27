@@ -280,6 +280,12 @@ json SerializeEvent(const CINEMATIC_EVENT& event)
     {
         eventJson["type"] = "despawn";
     }
+    else if (const auto* partVisibility = get_if<CinematicPartVisibilityEventData>(&event.payload))
+    {
+        eventJson["type"] = "part_visibility";
+        eventJson["partTag"] = partVisibility->partTag;
+        eventJson["visible"] = partVisibility->visible;
+    }
 
     return eventJson;
 }
@@ -303,6 +309,20 @@ void DeserializeEvent(const json& eventJson, CINEMATIC_EVENT& outEvent)
     else if (type == "despawn")
     {
         outEvent.payload = CinematicDespawnEventData{};
+    }
+    else if (type == "part_visibility")
+    {
+        CinematicPartVisibilityEventData payload{};
+        payload.partTag = eventJson.value("partTag", payload.partTag);
+        payload.visible = eventJson.value("visible", payload.visible);
+        outEvent.payload = payload;
+    }
+    else if (type == "dualliste_left_sword")
+    {
+        CinematicPartVisibilityEventData payload{};
+        payload.partTag = "Part_Sword_L";
+        payload.visible = eventJson.value("visible", payload.visible);
+        outEvent.payload = payload;
     }
     else
     {

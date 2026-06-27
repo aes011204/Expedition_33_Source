@@ -535,6 +535,9 @@ void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
 
     if (_transformCom)
         _transformCom->Set_SpeedPerSec(0.f);
+
+    if (!cinematicDriven)
+        Apply_PhaseVisualState();
 }
 
 void SL_Dualliste::Begin_PhaseChangeTransition()

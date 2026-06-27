@@ -112,10 +112,17 @@ struct CinematicDespawnEventData
 {
 };
 
+struct CinematicPartVisibilityEventData
+{
+    string partTag;
+    bool visible = true;
+};
+
 using CinematicEventPayload = variant<
     CinematicSpawnEventData,
     CinematicPlayAnimEventData,
-    CinematicDespawnEventData>;
+    CinematicDespawnEventData,
+    CinematicPartVisibilityEventData>;
 
 typedef struct CinematicEvent
 {

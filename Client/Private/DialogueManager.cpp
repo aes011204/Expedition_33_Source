@@ -1,4 +1,4 @@
-#include "DialogueManager.h"
+﻿#include "DialogueManager.h"
 #include <DialogueTypes.h>
 #include "ClientInstance.h"
 #include "DialogueCamera.h"

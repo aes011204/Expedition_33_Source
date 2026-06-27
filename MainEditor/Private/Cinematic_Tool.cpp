@@ -71,6 +71,9 @@ const char* Get_CinematicEventTypeLabel(const CINEMATIC_EVENT& event)
     if (get_if<CinematicDespawnEventData>(&event.payload) != nullptr)
         return "Despawn";
 
+    if (get_if<CinematicPartVisibilityEventData>(&event.payload) != nullptr)
+        return "PartVisibility";
+
     return "Unknown";
 }
 
@@ -1074,7 +1077,7 @@ void Cinematic_Tool::Render_SequenceSettings()
 
     if(ImGui::Button("Save Sequence"))
     {
-        Cinematic_SequenceIO::SaveSequenceToFile(_sequence,   "../../../Client/Bin/Resources/Data/json/Cinematics/" + _sequence.name + ".json");
+        _requestOpenSaveSequenceConfirmPopup = true;
     }
 
     ImGui::SameLine();
@@ -1087,7 +1090,7 @@ void Cinematic_Tool::Render_SequenceSettings()
 
     if (ImGui::Button("Clear All Keys"))
     {
-        Clear_AllSequenceKeyframes();
+        _requestOpenClearAllKeysConfirmPopup = true;
     }
 
     ImGui::SameLine();
@@ -1126,6 +1129,19 @@ void Cinematic_Tool::Render_EventTrack()
         CINEMATIC_EVENT event{};
         event.frame = _currentFrame;
         event.payload = CinematicDespawnEventData{};
+        _sequence.eventTrack.push_back(event);
+        _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
+        Request_CinematicPreviewRefresh(true);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Add PartVisibility Event"))
+    {
+        CINEMATIC_EVENT event{};
+        event.frame = _currentFrame;
+        CinematicPartVisibilityEventData payload{};
+        payload.partTag = "Part_Sword_L";
+        event.payload = payload;
         _sequence.eventTrack.push_back(event);
         _selectedEventIndex = static_cast<int>(_sequence.eventTrack.size()) - 1;
         Request_CinematicPreviewRefresh(true);
@@ -1223,6 +1239,17 @@ void Cinematic_Tool::Render_EventTrack()
         if (isDespawn)
             ImGui::SetItemDefaultFocus();
 
+        const bool isPartVisibility = get_if<CinematicPartVisibilityEventData>(&event.payload) != nullptr;
+        if (ImGui::Selectable("PartVisibility", isPartVisibility))
+        {
+            CinematicPartVisibilityEventData payload{};
+            payload.partTag = "Part_Sword_L";
+            event.payload = payload;
+            eventEdited = true;
+        }
+        if (isPartVisibility)
+            ImGui::SetItemDefaultFocus();
+
         ImGui::EndCombo();
     }
 
@@ -1301,6 +1328,19 @@ void Cinematic_Tool::Render_EventTrack()
 
             ImGui::EndCombo();
         }
+    }
+    else if (auto* partVisibility = get_if<CinematicPartVisibilityEventData>(&event.payload))
+    {
+        char partTagBuffer[128]{};
+        strncpy_s(partTagBuffer, partVisibility->partTag.c_str(), _TRUNCATE);
+        if (ImGui::InputText("part tag", partTagBuffer, static_cast<size_t>(_countof(partTagBuffer))))
+        {
+            partVisibility->partTag = partTagBuffer;
+            eventEdited = true;
+        }
+        if (ImGui::Checkbox("visible", &partVisibility->visible))
+            eventEdited = true;
+        ImGui::TextDisabled("Target should be a bound ContainerObject actor id.");
     }
 
     const string selectedTargetId = event.targetId;
@@ -1777,6 +1817,35 @@ void Cinematic_Tool::Render_LoadSequencePopup()
 
 void Cinematic_Tool::Render_SequenceOverwriteWarningPopups()
 {
+    if (_requestOpenSaveSequenceConfirmPopup)
+    {
+        ImGui::OpenPopup("Confirm Save Sequence");
+        _requestOpenSaveSequenceConfirmPopup = false;
+    }
+
+    if (ImGui::BeginPopupModal("Confirm Save Sequence", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        const string targetFileName = _sequence.name + ".json";
+        ImGui::Text("Saving will overwrite the current sequence file if it already exists.");
+        ImGui::Separator();
+        ImGui::TextDisabled("Target: %s", targetFileName.c_str());
+
+        if (ImGui::Button("Save Anyway", ImVec2(140.f, 0.f)))
+        {
+            Cinematic_SequenceIO::SaveSequenceToFile(
+                _sequence,
+                "../../../Client/Bin/Resources/Data/json/Cinematics/" + _sequence.name + ".json");
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120.f, 0.f)))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
+
     if (_requestOpenLoadSequenceConfirmPopup)
     {
         ImGui::OpenPopup("Confirm Load Sequence");
@@ -1824,6 +1893,32 @@ void Cinematic_Tool::Render_SequenceOverwriteWarningPopups()
         if (ImGui::Button("Create Empty Sequence", ImVec2(170.f, 0.f)))
         {
             Reset_ToNewSequence();
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120.f, 0.f)))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
+
+    if (_requestOpenClearAllKeysConfirmPopup)
+    {
+        ImGui::OpenPopup("Confirm Clear All Keys");
+        _requestOpenClearAllKeysConfirmPopup = false;
+    }
+
+    if (ImGui::BeginPopupModal("Confirm Clear All Keys", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("This will remove all cinematic, modifier, and actor keyframes from the current sequence.");
+        ImGui::TextDisabled("Event track entries are not removed.");
+        ImGui::Separator();
+
+        if (ImGui::Button("Clear All Keys", ImVec2(140.f, 0.f)))
+        {
+            Clear_AllSequenceKeyframes();
             ImGui::CloseCurrentPopup();
         }
 
