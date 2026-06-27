@@ -1336,6 +1336,10 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     if (currentState == BattleTurnState::ChooseAction)
     {
+        string gradientSkillKey{};
+        const bool hasGradientCommand =
+            _currentPlayerTurnActor.statCom->Try_GetSkillKeyBySlot(GradientSkill::SlotIndex, gradientSkillKey);
+
         _battleCommandHUD->Close();
         Update_BattleWorldMaterialVfxBackground(
             worldPos,
@@ -1348,6 +1352,7 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
             _currentPlayerTurnActor.statCom->Get_CurAP(),
             _currentPlayerTurnActor.statCom->Get_MaxAP(),
             _currentPlayerTurnActor.heroId,
+            hasGradientCommand,
             timeDelta);
         return;
     }
@@ -1420,11 +1425,18 @@ void GameplayUI_Battle::Update_BattleWorldCommandCards(
     uint32 curAp,
     uint32 maxAp,
     HeroId actorHeroId,
+    bool hasGradientCommand,
     float timeDelta)
 {
     if (FAILED(Ensure_BattleWorldCommandCards()))
         return;
 
+    BattleTutorialStep tutorialStep = BattleTutorialStep::END;
+    if (auto tutorialController = _battleController ? _battleController->Get_BattleTutorialController() : nullptr)
+        tutorialStep = tutorialController->Get_CommandFocusStep();
+
+    _battleWorldCommandCards->Set_TutorialCommandFocus(tutorialStep);
+    _battleWorldCommandCards->Set_GradientCommandVisible(hasGradientCommand);
     _battleWorldCommandCards->Show_ForBattleState(commandHudWorldPos, currentState, curAp, maxAp, actorHeroId, timeDelta);
     _battleWorldCommandCards->Late_Update(0.f);
 }

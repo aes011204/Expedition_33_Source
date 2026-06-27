@@ -48,11 +48,11 @@ HRESULT PW_Maelle::Initialize(void* arg)
     skilltreeCom->ForceUnlock("FleureFury");
 
 	//skilltreeCom->ForceUnlock("FireRise");
-    skilltreeCom->ForceUnlock("SwordBallet");
-    skilltreeCom->ForceUnlock("Stendhal");
+    //skilltreeCom->ForceUnlock("SwordBallet");
+    //skilltreeCom->ForceUnlock("Stendhal");
 
     // 열분해는 그래디언트로
-    skilltreeCom->ForceUnlock("Pyrolyse");
+    //skilltreeCom->ForceUnlock("Pyrolyse");
 
 
 	CHECK_FAILED(Ready_Modifier(), E_FAIL);

@@ -236,6 +236,11 @@ struct ComputePointParticleParams
     Vec4 sourceMotionVelocityParams{};               // x: enabled, y: direction mode, z: spread angle degrees, w: source speed scale.
     Vec4 sourceMotionVelocitySpeed{};                // x/y: speed min/max, z/w: unused.
     XMUINT4 sourceMotionVelocitySeedSalts{};         // x: SourceMotionVelocity, y/z/w: unused.
+    Vec4 cylinderLocationParams{};                   // x: enabled, y: axis, z: mode, w: placement mode.
+    Vec4 cylinderLocationOffset{};                   // xyz: offset, w: unused.
+    Vec4 cylinderLocationRadiusHeight{};             // x/y: radius range, z/w: height range.
+    Vec4 cylinderLocationAngle{};                    // x/y: angle degree range, z/w: unused.
+    XMUINT4 cylinderLocationSeedSalts{};             // x: radius, y: height, z: angle, w: unused.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -1138,6 +1143,36 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             Resolve_SeedSalt(_desc.motion.sourceMotionVelocitySeed, _desc.effectPlaybackSeed),
             0u,
             0u,
+            0u
+        },
+        .cylinderLocationParams = Vec4{
+            _desc.cylinderLocation.enabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.cylinderLocation.axis)),
+            static_cast<float>(ETOI(_desc.cylinderLocation.mode)),
+            static_cast<float>(ETOI(_desc.cylinderLocation.placementMode))
+        },
+        .cylinderLocationOffset = Vec4{
+            _desc.cylinderLocation.offset.x,
+            _desc.cylinderLocation.offset.y,
+            _desc.cylinderLocation.offset.z,
+            0.f
+        },
+        .cylinderLocationRadiusHeight = Vec4{
+            _desc.cylinderLocation.radiusRange.x,
+            _desc.cylinderLocation.radiusRange.y,
+            _desc.cylinderLocation.heightRange.x,
+            _desc.cylinderLocation.heightRange.y
+        },
+        .cylinderLocationAngle = Vec4{
+            _desc.cylinderLocation.angleDegreesRange.x,
+            _desc.cylinderLocation.angleDegreesRange.y,
+            0.f,
+            0.f
+        },
+        .cylinderLocationSeedSalts = XMUINT4{
+            Resolve_SeedSalt(_desc.cylinderLocation.radiusSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.cylinderLocation.heightSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.cylinderLocation.angleDegreesSeed, _desc.effectPlaybackSeed),
             0u
         }
     };

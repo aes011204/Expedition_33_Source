@@ -1,10 +1,14 @@
 #include "RuntimeRuleStateService.h"
 
+#include "Battle_Enum.h"
 #include "ClientInstance.h"
 #include "CostumeManager.h"
 #include "PlayerInventory.h"
+#include "PlayerStatCom.h"
 #include "Player_WorldBase.h"
+#include "SkillTreeCom.h"
 #include "Unlock_Manager.h"
+#include <cctype>
 
 NS_BEGIN(Client)
 
@@ -19,6 +23,39 @@ namespace
         const char* characterId = "";
         const char* weaponId = "";
     };
+
+    struct FinalSkillSetupDesc
+    {
+        HeroId heroId = HeroId::END;
+        vector<const char*> skillKeys{};
+    };
+
+    string ToLowerAscii(string value)
+    {
+        transform(value.begin(), value.end(), value.begin(),
+            [](unsigned char ch)
+            {
+                return static_cast<char>(std::tolower(ch));
+            });
+        return value;
+    }
+
+    bool Is_DefaultAttackSkill(const string& skillKey)
+    {
+        return skillKey == "Gustave_Default_Attack" ||
+            skillKey == "Lune_Default_Attack" ||
+            skillKey == "Maelle_Default_Attack";
+    }
+
+    bool Is_HeroSkill(HeroId heroId, const Skill_Data& skill)
+    {
+        if (skill.characterId.empty())
+            return false;
+
+        const string heroName = ToLowerAscii(string(magic_enum::enum_name(heroId)));
+        const string skillCharacterId = ToLowerAscii(skill.characterId);
+        return heroName == skillCharacterId;
+    }
 
     json Build_CostumeSaveJson(bool unlockBaguette, bool unlockPotato)
     {
@@ -142,6 +179,81 @@ namespace
         return root;
     }
 
+    json Build_AllWeaponAndPictosInventoryJson()
+    {
+        json root = Build_AllWeaponInventoryJson();
+        root["unlocked_pictos"] = CLIENT->Get_AllPictosIds();
+        return root;
+    }
+
+    json Build_AllHeroSkillTreeSaveJson(HeroId heroId)
+    {
+        json root = json::object();
+        root["unlocked_skill_ids"] = json::array();
+
+        for (const string& skillId : CLIENT->Get_AllSkillIds())
+        {
+            if (Is_DefaultAttackSkill(skillId))
+                continue;
+
+            const Skill_Data* skill = CLIENT->Get_Skill(skillId);
+            if (skill == nullptr || !Is_HeroSkill(heroId, *skill))
+                continue;
+
+            root["unlocked_skill_ids"].emplace_back(skillId);
+        }
+
+        return root;
+    }
+
+    RuntimeCheckpointIO::HeroState Build_FinalHeroState(const FinalSkillSetupDesc& setup)
+    {
+        RuntimeCheckpointIO::HeroState hero{};
+        hero.heroId = setup.heroId;
+
+        vector<string> skillKeys{};
+        skillKeys.reserve(setup.skillKeys.size());
+        for (const char* skillKey : setup.skillKeys)
+        {
+            if (skillKey != nullptr && skillKey[0] != '\0')
+                skillKeys.emplace_back(skillKey);
+        }
+
+        hero.statJson = json::object();
+        hero.statJson["_skillKeys"] = skillKeys;
+        hero.skillTreeJson = Build_AllHeroSkillTreeSaveJson(setup.heroId);
+
+        return hero;
+    }
+
+    vector<RuntimeCheckpointIO::HeroState> Build_FinalHeroStates()
+    {
+        const FinalSkillSetupDesc setups[] =
+        {
+            {
+                HeroId::Gustave,
+                { "LumiereAssault", "UnleashedCharge", "MarkingShot", "Shatter", "PerfectBreak", "AngelsEye" }
+            },
+            {
+                HeroId::Lune,
+                { "Immolation", "IceGust", "Thunderfall", "TerraQuake", "CripplingTsunami", "SkyBreak" }
+            },
+            {
+                HeroId::Maelle,
+                { "Spark", "Percee", "FleureFury", "SwordBallet", "Stendhal", "Pyrolyse" }
+            },
+        };
+
+        vector<RuntimeCheckpointIO::HeroState> heroes{};
+        heroes.reserve(sizeof(setups) / sizeof(setups[0]));
+        for (const FinalSkillSetupDesc& setup : setups)
+        {
+            heroes.emplace_back(Build_FinalHeroState(setup));
+        }
+
+        return heroes;
+    }
+
     bool Apply_WeaponInventoryJson(const json& data)
     {
         if (!data.is_object())
@@ -181,6 +293,59 @@ namespace
 
         inventory->Ensure_DefaultUnlockedWeapons(entries);
         return true;
+    }
+
+    bool Apply_PictosInventoryJson(const json& data)
+    {
+        if (!data.is_object())
+            return false;
+
+        const auto pictosIds = data.find("unlocked_pictos");
+        if (pictosIds == data.end() || !pictosIds->is_array())
+            return false;
+
+        Shared<PlayerInventory> inventory = CLIENT->Get_PlayerInventory();
+        if (inventory == nullptr)
+            return false;
+
+        vector<string> ids{};
+        for (const json& pictosId : *pictosIds)
+        {
+            if (pictosId.is_string())
+                ids.emplace_back(pictosId.get<string>());
+        }
+
+        inventory->Ensure_DefaultUnlockedPictos(ids);
+        return true;
+    }
+
+    bool Apply_HeroRuleStates(const vector<RuntimeCheckpointIO::HeroState>& heroes)
+    {
+        bool applied = false;
+
+        for (const RuntimeCheckpointIO::HeroState& heroState : heroes)
+        {
+            if (heroState.heroId == HeroId::END)
+                continue;
+
+            Shared<Player_WorldBase> hero = CLIENT->Find_Hero(heroState.heroId);
+            if (hero == nullptr)
+                continue;
+
+            if (Shared<PlayerStatCom> stat = hero->Get_Component<PlayerStatCom>())
+            {
+                stat->Apply_SaveJson(heroState.statJson);
+                applied = true;
+            }
+
+            if (Shared<SkillTreeCom> skillTree = hero->Get_Component<SkillTreeCom>())
+            {
+                skillTree->Apply_SaveJson(heroState.skillTreeJson);
+                applied = true;
+            }
+        }
+
+        return applied;
     }
 }
 
@@ -236,6 +401,17 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_FirstTutorialHeroUn
     return ruleState;
 }
 
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_FinalSkillSetupUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+    ruleState.unlockManagerJson = Build_HeroUnlockSaveJson(
+        { kRuleFirstTutorialUnlockParty },
+        { HeroId::Gustave, HeroId::Lune, HeroId::Maelle });
+    ruleState.inventoryJson = Build_AllWeaponAndPictosInventoryJson();
+    ruleState.heroes = Build_FinalHeroStates();
+    return ruleState;
+}
+
 bool RuntimeRuleStateService::Apply_ToCurrentRuntime(const RuntimeRuleStateIO::RuleState& ruleState)
 {
     bool applied = false;
@@ -271,6 +447,12 @@ bool RuntimeRuleStateService::Apply_ToCurrentRuntime(const RuntimeRuleStateIO::R
     }
 
     if (Apply_WeaponInventoryJson(ruleState.inventoryJson))
+        applied = true;
+
+    if (Apply_PictosInventoryJson(ruleState.inventoryJson))
+        applied = true;
+
+    if (Apply_HeroRuleStates(ruleState.heroes))
         applied = true;
 
     return applied;

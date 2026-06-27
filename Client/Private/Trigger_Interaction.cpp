@@ -103,7 +103,11 @@ void Trigger_Interaction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
     if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
         return;
 
-    _hasPlayerOverlap = true;
+    if (!_hasPlayerOverlap)
+    {
+        _hasPlayerOverlap = true;
+        CLIENT->AddDialogueInteractionOverlap();
+    }
 }
 
 void Trigger_Interaction::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
@@ -117,7 +121,11 @@ void Trigger_Interaction::OnEndOverlap(Shared<ColliderCom> self, Shared<Collider
     if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
         return;
 
-    _hasPlayerOverlap = false;
+    if (_hasPlayerOverlap)
+    {
+        _hasPlayerOverlap = false;
+        CLIENT->RemoveDialogueInteractionOverlap();
+    }
 }
 
 void Trigger_Interaction::Sync_ToOwnerTransform()
@@ -196,5 +204,11 @@ Shared<GameObject> Trigger_Interaction::Clone(void* arg)
 
 void Trigger_Interaction::Free()
 {
+    if (_hasPlayerOverlap)
+    {
+        _hasPlayerOverlap = false;
+        CLIENT->RemoveDialogueInteractionOverlap();
+    }
+
     GameObject::Free();
 }

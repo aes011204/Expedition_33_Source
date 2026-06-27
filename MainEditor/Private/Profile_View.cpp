@@ -333,6 +333,7 @@ void Profile_View::Frame_End()
             s_active->Record_Scope_Sample(scopeName, elapsedMs);
     }
 
+    s_active->Log_AutoHitch(frameMs);
     s_active->Prune_Dead_Scopes();
 }
 
@@ -446,6 +447,13 @@ void Profile_View::Draw_Toolbar()
 
     ImGui::SameLine();
     ImGui::Checkbox("Show disabled", &_showDisabled);
+
+    ImGui::SameLine();
+    ImGui::Checkbox("Auto Hitch Log", &_autoHitchLog);
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(90.f);
+    ImGui::DragFloat("Hitch ms", &_autoHitchThresholdMs, 1.f, 16.f, 1000.f, "%.0f");
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(120.f);
@@ -886,6 +894,35 @@ void Profile_View::Log_ViewHotspot() const
     Log_ViewHotspot_Line(sourceLoc, "----- end -----");
 }
 
+void Profile_View::Log_AutoHitch(double frameMs)
+{
+    if (!_autoHitchLog || _autoHitchLogRemaining <= 0)
+        return;
+
+    if (frameMs < static_cast<double>(_autoHitchThresholdMs))
+        return;
+
+    const clock::time_point now = clock::now();
+    if (_lastAutoHitchLogTime != clock::time_point{})
+    {
+        const double elapsedSec = chrono::duration<double>(now - _lastAutoHitchLogTime).count();
+        if (elapsedSec < 1.0)
+            return;
+    }
+
+    _lastAutoHitchLogTime = now;
+    --_autoHitchLogRemaining;
+
+    const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
+    Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
+        "AutoHitch frame_ms={:.2f} threshold_ms={:.2f} remaining={}",
+        frameMs,
+        _autoHitchThresholdMs,
+        _autoHitchLogRemaining));
+    Log_Snapshot();
+    Log_ViewHotspot();
+}
+
 void Profile_View::Draw_Memory()
 {
     ImGui::Text("Memory");
@@ -1043,6 +1080,8 @@ void Profile_View::Reset_Stats()
     _hasResourceMemorySample = false;
     _peakWorkingSetMb = 0;
     _peakPrivateBytesMb = 0;
+    _autoHitchLogRemaining = 8;
+    _lastAutoHitchLogTime = {};
 }
 
 void Profile_View::Prune_Dead_Scopes()

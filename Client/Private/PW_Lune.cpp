@@ -47,11 +47,11 @@ HRESULT PW_Lune::Initialize(void* arg)
     skilltreeCom->TryUnlock("IceGust");
     skilltreeCom->TryUnlock("Thunderfall");
 
-    skilltreeCom->ForceUnlock("TerraQuake");
-    skilltreeCom->ForceUnlock("CripplingTsunami");
+    //skilltreeCom->ForceUnlock("TerraQuake");
+    //skilltreeCom->ForceUnlock("CripplingTsunami");
 
-     // 그래디언트
-    skilltreeCom->ForceUnlock("SkyBreak");
+    // 그래디언트
+    //skilltreeCom->ForceUnlock("SkyBreak");
 
     CHECK_FAILED(Ready_Modifier(), E_FAIL);
 

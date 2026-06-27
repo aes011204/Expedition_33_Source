@@ -147,6 +147,7 @@ private:
         uint32 curAp,
         uint32 maxAp,
         HeroId actorHeroId,
+        bool hasGradientCommand,
         float timeDelta);
     HRESULT Ensure_BattleWorldItemCards();
     void    Hide_BattleWorldItemCards();

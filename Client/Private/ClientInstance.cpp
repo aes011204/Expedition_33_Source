@@ -32,12 +32,14 @@
 #include "SoulLikeController.h"
 #include "TargetCamera.h"
 #include "BattleTurnCamera.h"
+#include "BattleEncounterProfile.h"
 #include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
 #include "DialogueDB.h"
 #include "DialogueManager.h"
 #include "DialogueCamera.h"
 #include "BattleFollowupManager.h"
+#include "Client_Constants.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -242,8 +244,18 @@ void ClientInstance::Update_Client(float timeDelta)
     if(_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta, true);
 
-    if(_dialogueManager)
-        _dialogueManager->Update();
+    if (_dialogueManager)
+    {
+        if (Is_BattleActive() || Is_BattleEntering() || Is_SoulLikeBattleActive())
+        {
+            if (_dialogueManager->IsActive())
+                _dialogueManager->EndDialogue(false);
+        }
+        else
+        {
+            _dialogueManager->Update();
+        }
+    }
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
@@ -468,9 +480,9 @@ PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotPanel panel
     return _previewShotTable->Get(hero, panel);
 }
 
-HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
+HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos, const Vec3& startRot)
 {
-    return _heroManager->Initialize_Hero(levelIndex, layerTag, startPos);
+    return _heroManager->Initialize_Hero(levelIndex, layerTag, startPos, startRot);
 }
 
 void ClientInstance::Update_HeroManager(float timeDelta)
@@ -509,6 +521,14 @@ void ClientInstance::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
         return;
 
     _heroManager->Set_ActiveHeroSlotForCheckpoint(slot);
+}
+
+void ClientInstance::Set_DialogueFocusActive(bool active)
+{
+    if (_heroManager == nullptr)
+        return;
+
+    _heroManager->Set_DialogueFocusActive(active);
 }
 
 void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
@@ -670,15 +690,52 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
                                         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
-                                        bool completeImmediately)
+                                        bool completeImmediately, int32 battleStartSpawnerId, const Vec3& battleStartOffset)
 {
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue(false);
+
+    if (Should_ForcePlayerAdvantage(FieldID))
+        isPlayerAdvantage = true;
+
     return _battleController->OnEnterBattleField(
         FieldID,
         isPlayerAdvantage,
         heroIds,
         battleMonsterSpawnDescs,
         sourceObject,
-        completeImmediately);
+        completeImmediately,
+        battleStartSpawnerId,
+        battleStartOffset);
+}
+
+bool ClientInstance::Request_DialogueBattlePotatoBag()
+{
+    if (Is_BattleActive() || Is_BattleEntering())
+        return false;
+
+    BattleMonsterSpawnDesc spawnDesc{};
+    spawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;
+
+    vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
+    battleMonsterSpawnDescs.emplace_back(move(spawnDesc));
+
+    if (_screenFxManager)
+        _screenFxManager->Play_BattleInCounterFx();
+
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
+
+    OnEnterBattleField(
+        Constants::Value::potatoBagEncounterId,
+        false,
+        Resolve_BattleEncounterHeroIds(Constants::Value::potatoBagEncounterId),
+        battleMonsterSpawnDescs,
+        nullptr,
+        false,
+        Constants::Value::potatoBagBattleStartSpawnerId,
+        Vec3::Zero);
+
+    return true;
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -1224,6 +1281,12 @@ void ClientInstance::StartDialogue(const DialogueRequest& request)
     _dialogueManager->StartDialogue(request);
 }
 
+void ClientInstance::EndDialogue(bool restoreWorldState)
+{
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue(restoreWorldState);
+}
+
 bool ClientInstance::IsDialogueActive() const
 {
     return _dialogueManager && _dialogueManager->IsActive();
@@ -1232,6 +1295,17 @@ bool ClientInstance::IsDialogueActive() const
 bool ClientInstance::IsDialogueInteractLocked() const
 {
     return _dialogueManager && _dialogueManager->IsInteractLocked();
+}
+
+void ClientInstance::AddDialogueInteractionOverlap()
+{
+    ++_dialogueInteractionOverlapCount;
+}
+
+void ClientInstance::RemoveDialogueInteractionOverlap()
+{
+    if (_dialogueInteractionOverlapCount > 0)
+        --_dialogueInteractionOverlapCount;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

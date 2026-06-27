@@ -98,6 +98,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         _visible = pDesc->visible;
         _cullEnabled = pDesc->cullEnabled;
         _castShadow = pDesc->castShadow;
+        _cullDist = pDesc->cullDist;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -208,7 +209,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
 
         if (hasCamPos)
         {
-            const float cullDist = INSTANCE_CULL_DIST;
+            const float cullDist = _cullDist;
             if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
             {
                 submitShadowIfInRange();
@@ -232,6 +233,21 @@ HRESULT MapInstancedMesh::Render()
     {
         return S_OK;
     }
+
+#pragma region for using Renderdoc
+    //ComPtr<ID3DUserDefinedAnnotation> annotation;
+    //_context->QueryInterface(IID_PPV_ARGS(&annotation));
+    //struct ScopedMarker
+    //{
+    //    ID3DUserDefinedAnnotation* a;
+    //    ~ScopedMarker() { if (a) a->EndEvent(); }
+    //} marker{ annotation.Get() };
+    //if (annotation)
+    //{
+    //    wstring label = L"InstancedMesh: " + _modelPath;
+    //    annotation->BeginEvent(label.c_str());
+    //}
+#pragma endregion
 
     if (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow)
     {

@@ -1537,6 +1537,26 @@ namespace EffectAssetRuntimeLoad::Curves
             Read_Vec2(node, range);
             return Vec2{ min(range.x, range.y), max(range.x, range.y) };
         }
+
+        Vec2 Read_FloatDistributionRangeOrLegacy(
+            const json& root,
+            const char* distributionKey,
+            const char* legacyRangeKey,
+            const Vec2& fallbackValue)
+        {
+            if (const auto distributionIter = root.find(distributionKey);
+                distributionIter != root.end() && distributionIter->is_object())
+            {
+                const float minValue = Evaluate_FloatDistributionMin(*distributionIter, fallbackValue.x);
+                const float maxValue = Evaluate_FloatDistributionMax(*distributionIter, fallbackValue.y);
+                return Vec2{ min(minValue, maxValue), max(minValue, maxValue) };
+            }
+
+            if (const auto legacyIter = root.find(legacyRangeKey); legacyIter != root.end())
+                return Read_LegacyFloatRange(*legacyIter, fallbackValue);
+
+            return fallbackValue;
+        }
     }
 
     void Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation)
@@ -1549,41 +1569,53 @@ namespace EffectAssetRuntimeLoad::Curves
         if (const auto offsetIter = planeRadialLocation.find("offset"); offsetIter != planeRadialLocation.end())
             Read_Vec3(*offsetIter, desc.offset);
 
-        auto read_range = [&](const char* distributionKey, const char* legacyRangeKey, const Vec2& fallbackValue)
-        {
-            if (const auto distributionIter = planeRadialLocation.find(distributionKey);
-                distributionIter != planeRadialLocation.end() && distributionIter->is_object())
-            {
-                const float minValue = Evaluate_FloatDistributionMin(*distributionIter, fallbackValue.x);
-                const float maxValue = Evaluate_FloatDistributionMax(*distributionIter, fallbackValue.y);
-                return Vec2{ min(minValue, maxValue), max(minValue, maxValue) };
-            }
-
-            if (const auto legacyIter = planeRadialLocation.find(legacyRangeKey); legacyIter != planeRadialLocation.end())
-                return Read_LegacyFloatRange(*legacyIter, fallbackValue);
-
-            return fallbackValue;
-        };
-
-        desc.uRange = read_range("uDistribution", "rangeU", desc.uRange);
+        desc.uRange = Read_FloatDistributionRangeOrLegacy(planeRadialLocation, "uDistribution", "rangeU", desc.uRange);
         if (const auto distributionIter = planeRadialLocation.find("uDistribution");
             distributionIter != planeRadialLocation.end() && distributionIter->is_object())
             desc.uSeed = Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
-        desc.vRange = read_range("vDistribution", "rangeV", desc.vRange);
+        desc.vRange = Read_FloatDistributionRangeOrLegacy(planeRadialLocation, "vDistribution", "rangeV", desc.vRange);
         if (const auto distributionIter = planeRadialLocation.find("vDistribution");
             distributionIter != planeRadialLocation.end() && distributionIter->is_object())
             desc.vSeed = Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
 
-        const Vec2 radiusRange = read_range("radiusDistribution", "radiusRange", desc.radiusRange);
+        const Vec2 radiusRange = Read_FloatDistributionRangeOrLegacy(planeRadialLocation, "radiusDistribution", "radiusRange", desc.radiusRange);
         desc.radiusRange = Vec2{ max(0.f, radiusRange.x), max(0.f, radiusRange.y) };
         if (const auto distributionIter = planeRadialLocation.find("radiusDistribution");
             distributionIter != planeRadialLocation.end() && distributionIter->is_object())
             desc.radiusSeed = Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
-        desc.angleDegreesRange = read_range("angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
+        desc.angleDegreesRange = Read_FloatDistributionRangeOrLegacy(planeRadialLocation, "angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
         if (const auto distributionIter = planeRadialLocation.find("angleDegreesDistribution");
             distributionIter != planeRadialLocation.end() && distributionIter->is_object())
             desc.angleDegreesSeed = Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
         desc.thickness = max(0.f, Read_Float(planeRadialLocation, "thickness", desc.thickness));
+    }
+
+    void Fill_CylinderLocationPayload(PointParticleCylinderLocationDesc& desc, const json& cylinderLocation)
+    {
+        desc.enabled = true;
+        Read_Enum(cylinderLocation, "axis", desc.axis);
+        Read_Enum(cylinderLocation, "spawnMode", desc.mode);
+        Read_Enum(cylinderLocation, "placementMode", desc.placementMode);
+
+        if (const auto offsetIter = cylinderLocation.find("offset"); offsetIter != cylinderLocation.end())
+            Read_Vec3(*offsetIter, desc.offset);
+
+        const Vec2 radiusRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "radiusDistribution", "radiusRange", desc.radiusRange);
+        desc.radiusRange = Vec2{ max(0.f, radiusRange.x), max(0.f, radiusRange.y) };
+        const Vec2 heightRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "heightDistribution", "heightRange", desc.heightRange);
+        desc.heightRange = Vec2{ min(heightRange.x, heightRange.y), max(heightRange.x, heightRange.y) };
+        const Vec2 angleDegreesRange = Read_FloatDistributionRangeOrLegacy(cylinderLocation, "angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
+        desc.angleDegreesRange = Vec2{ min(angleDegreesRange.x, angleDegreesRange.y), max(angleDegreesRange.x, angleDegreesRange.y) };
+
+        if (const auto distributionIter = cylinderLocation.find("radiusDistribution");
+            distributionIter != cylinderLocation.end() && distributionIter->is_object())
+            desc.radiusSeed = Read_DistributionRandomSeedDesc(*distributionIter, &cylinderLocation);
+        if (const auto distributionIter = cylinderLocation.find("heightDistribution");
+            distributionIter != cylinderLocation.end() && distributionIter->is_object())
+            desc.heightSeed = Read_DistributionRandomSeedDesc(*distributionIter, &cylinderLocation);
+        if (const auto distributionIter = cylinderLocation.find("angleDegreesDistribution");
+            distributionIter != cylinderLocation.end() && distributionIter->is_object())
+            desc.angleDegreesSeed = Read_DistributionRandomSeedDesc(*distributionIter, &cylinderLocation);
     }
 
     void Fill_SphereRadialOrientationPayload(

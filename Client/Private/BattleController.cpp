@@ -49,6 +49,7 @@
 #include "MonsterStatCom.h"
 #include "ScreenFx_Manager.h"
 #include "Client_Constants.h"
+#include "BattleEncounterProfile.h"
 #include "BattleTutorialController.h"
 #include "PlayerInventory.h"
 #include "PostProcessPipeline.h"
@@ -342,7 +343,9 @@ void BattleController::OnEnterBattleField(
     const vector<HeroId>& heroIds,
     const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
     const Shared<GameObject>& sourceObject,
-    bool completeImmediately)
+    bool completeImmediately,
+    int32 battleStartSpawnerId,
+    const Vec3& battleStartOffset)
 {
     if (_isBattleActive || _isBattleEntering)
         return;
@@ -363,8 +366,8 @@ void BattleController::OnEnterBattleField(
     _pendingBattleIsPlayerAdvantage = isPlayerAdvantage;
     _pendingBattleHeroIds = heroIds;
     _pendingBattleMonsterSpawnDescs = battleMonsterSpawnDescs;
-    _pendingBattleStartSpawnerId = 0;
-    _pendingBattleStartOffset = Vec3::Zero;
+    _pendingBattleStartSpawnerId = battleStartSpawnerId;
+    _pendingBattleStartOffset = battleStartOffset;
     _pendingBattlePlaneYaw = 0.f;
 
     if (Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(sourceObject))
@@ -504,10 +507,14 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     Clear_TargetPreview();
     OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
-    Restore_PreBattleBGM();
 
     if (result == EBattleEndResult::Victory)
     {
+        if (Is_TutorialBattleEncounter(_activeBattleFieldID))
+            GAME->Stop_SoundChannel(SoundChannel::BGM);
+        else
+            Restore_PreBattleBGM();
+
         _isWaitingVictoryConfirm = true;
         _isBattleEntering = false;
         _isWaitingBattleTransition = false;
@@ -518,6 +525,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
         return result;
     }
+
+    Restore_PreBattleBGM();
 
     _isBattleActive = false;
     _isBattleEntering = false;
@@ -2074,7 +2083,10 @@ void BattleController::Confirm_Victory()
     End_BattleDOFOverride();
 
     if (!hasFollowupBattle)
+    {
+        Restore_PreBattleBGM();
         Restore_WorldCamera(); // 후속 전투가 없을 때만 월드 카메라로 복구한다.
+    }
 
     Clear_BattleRuntimeState();
 
@@ -2300,7 +2312,23 @@ void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32
     if (_buffSystem == nullptr)
         return;
 
+    const bool shouldPlayBreakEffect =
+        buffId == Buffs::Stun &&
+        target.actor != nullptr &&
+        target.statCom != nullptr &&
+        !_buffSystem->Has_Buff(target, Buffs::Stun);
+
     _buffSystem->Apply_Buff(target, buffId, stack, durationTurn);
+
+    if (shouldPlayBreakEffect)
+    {
+        PlayEffectDesc effectDesc{};
+        effectDesc.effectName = Constants::Effect::BreakEffect;
+        effectDesc.spawnBasisTarget = target.actor;
+        effectDesc.localOffset = Vec3(0.f, 1.7f, 1.5f);
+        effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+        CLIENT->Play_Effect(effectDesc);
+    }
 }
 
 bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
@@ -2322,7 +2350,7 @@ bool BattleController::Try_ApplySkillBuff(const Skill_Data& skill, const BattleC
     if (skill.ailmentChance < 1.f && GAME->Random(0.f, 1.f) > skill.ailmentChance)
         return false;
 
-    _buffSystem->Apply_Buff(target, skill.buff, 1, skill.buffDurationTurn);
+    Apply_Buff(target, skill.buff, 1, skill.buffDurationTurn);
 
     if (skill.buff == Buffs::Stun && target.ModelCom)
     {
@@ -2757,10 +2785,18 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
     Play_BattleHitStop(0.08f, 0.10f); // 약간 슬로우
 
     // 일단은 고정 추가 데미지
-    constexpr float freeAimWeakPointBonusDamage = 11.f;
+    float freeAimWeakPointDamage = 11.f;
+
+    // 튜토리얼은 즉사
+    if (_activeBattleFieldID == BattleEncounterIds::LancelierTutorial &&
+        dynamic_pointer_cast<MB_Lancelier>(monster) != nullptr &&
+        hitTarget.target.statCom != nullptr)
+    {
+        freeAimWeakPointDamage = hitTarget.target.statCom->Get_RuntimeStat().CurHp;
+    }
 
     DamageSystem::ApplyDamage(
-        freeAimWeakPointBonusDamage,
+        freeAimWeakPointDamage,
         attacker,
         hitTarget.target,
         AttackType::FreeAimWeak);

@@ -15,7 +15,7 @@ enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER, SOULLIKE, };
 enum class BattleCameraMode
 { WIDE,
   BATTLEINTRO,
-  ENEMYFOCUS, //공격 대상 선택시 줌
+  ENEMYFOCUS,  //공격 대상 선택시 줌
   ENEMYATTACK, //적 공격
   PLAYERFOCUS, //플레이어 공격 선택시 줌
   PLAYERATTACK,
@@ -42,6 +42,13 @@ enum class BattleCameraTransitionEasing
     EaseInExpo,
     EaseOutExpo,
     EaseOutBack
+};
+
+enum class SoulLikeCameraFocusMode
+{
+    Player,
+    PlayerOpponentMidpoint,
+    Opponent
 };
 
 struct PreviewShotPreset
@@ -133,6 +140,7 @@ struct TargetCameraPreset
 {
     CommonCameraPreset camera;
     bool         snapOnEnter = false;
+    SoulLikeCameraFocusMode focusMode = SoulLikeCameraFocusMode::Player;
 
     float        followSpeed = 8.f;
     float        targetFollowSpeed = 4.f; // 플레이어의 위치를 카메라가 따라가는 속도

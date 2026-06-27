@@ -161,15 +161,6 @@ void ChooseAction::Update(float timeDelta)
         battleFSM->Change_State(BattleTurnState::FreeAimTargeting);
         return;
     }
-
-    // 궁극기는 일단 제거
-    //if (GAME->KeyDown(KEY_TYPE::KEY_4))
-    //{
-    //    LOG_DEBUG("ChooseAction::Update: KEY_4 -> Skill -> ChooseUltimate");
-    //    owner->Get_TurnAction().type = EBattleContext::Skill;
-    //    battleFSM->Change_State(BattleTurnState::ChooseUltimate);
-    //    return;
-    //}
 }
 
 void ChooseAction::LateUpdate(float timeDelta)

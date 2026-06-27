@@ -272,6 +272,7 @@ void EditorInstance::Stop()
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
         CLIENT->Stop_Sequence();
+        CLIENT->EndDialogue();
         GAME->Set_LetterboxEnabled(false);
         GAME->Set_PreviewLetterboxEnabled(false);
 
@@ -723,6 +724,14 @@ bool EditorInstance::Save_FirstTutorialHeroUnlockRuleState(const fs::path& path)
 {
     const Client::RuntimeRuleStateIO::RuleState ruleState =
         Client::RuntimeRuleStateService::Build_FirstTutorialHeroUnlocks();
+
+    return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
+}
+
+bool EditorInstance::Save_FinalSkillSetupUnlockRuleState(const fs::path& path) const
+{
+    const Client::RuntimeRuleStateIO::RuleState ruleState =
+        Client::RuntimeRuleStateService::Build_FinalSkillSetupUnlocks();
 
     return Client::RuntimeRuleStateIO::Save_Msgpack(path, ruleState);
 }

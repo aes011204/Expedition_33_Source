@@ -427,6 +427,8 @@ void BattleTurnCamera::Reset_RuntimeState()
     _prevTargetPos = Vec3::Zero;
     _enemyPos = Vec3::Zero;
     _playerPos = Vec3::Zero;
+    _playerAttackSubjectPos = Vec3::Zero;
+    _playerAttackOpponentPos = Vec3::Zero;
     _enemySpawnDescs.clear();
     _hasWideAnchor = false;
     _wideAnchorHeroCenter = Vec3::Zero;
