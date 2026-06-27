@@ -28,6 +28,15 @@ namespace Client::PlayerWorldTuning
 {
     constexpr float kFallStateEnterDelaySec = 0.10f;
     constexpr float kFallStateEnterSpeedY = -2.4f;
+
+    constexpr array<Vec3, 5> kDebugWarpPoints =
+    {
+        Vec3(-26.04f, 15.27f, 86.57f),
+        Vec3(-25.69f, 9.59f, 74.02f),
+        Vec3(-49.02f, 9.22f, 78.26f),
+        Vec3(-66.56f, 15.31f, 57.68f),
+        Vec3(-79.30f, 18.26f, 52.95f),
+    };
 }
 
 Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -52,8 +61,8 @@ HRESULT Player_WorldBase::Initialize(void* arg)
     desc.degreePerSec = 180.f;
 
     CHECK_FAILED(Character_WorldBase::Initialize(&desc), E_FAIL);
-    CHECK_FAILED(Ready_Components(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+    CHECK_FAILED(Ready_Components(), E_FAIL);
 
     return S_OK;
 }
@@ -71,6 +80,9 @@ void Player_WorldBase::BeginPlay()
         }
     }
 
+    if (_playerStateMachineCom)
+        _playerStateMachineCom->BeginPlay_RegisteredStates();
+
     _playerStateMachineCom->Change_State(PlayerState::Idle);
 }
 
@@ -84,7 +96,15 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
     _playerControllerCom->Update_InputState();
     _playerStateMachineCom->Update_CurrentState(timeDelta);
-    _playerControllerCom->Update_Movement(timeDelta);
+
+    const PlayerState currentStateAfterUpdate = _playerStateMachineCom->Get_CurrentPlayerState();
+    const bool stateOwnsTransform =
+        currentStateAfterUpdate == PlayerState::Parkour ||
+        currentStateAfterUpdate == PlayerState::Climb ||
+        currentStateAfterUpdate == PlayerState::RopeAction;
+
+    if (!stateOwnsTransform)
+        _playerControllerCom->Update_Movement(timeDelta);
 
     if (_movementCom && _movementCom->Did_InputJumpStart())
     {
@@ -123,6 +143,8 @@ void Player_WorldBase::Priority_Update(float timeDelta)
         _fallStateEnterAcc = 0.f;
     }
 
+    Handle_DebugWarpShortcuts();
+
     _playerStateMachineCom->LateUpdate_CurrentState(timeDelta);
 }
 
@@ -154,58 +176,12 @@ void Player_WorldBase::Late_Update(float timeDelta)
 
     __super::Late_Update(timeDelta);
 
-    if (_parkourSensorCollider != nullptr)
-    {
-        _parkourSensorCollider->Update_Collider(_transformCom->Get_WorldMatrix());
-        GAME->Add_Collider(_parkourSensorCollider);
-    }
-
     Update_Culling(Vec3(1.f, 2.f, 1.f));
 }
 
 HRESULT Player_WorldBase::Render()
 {
     return S_OK;
-}
-
-void Player_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    Character_WorldBase::OnBeginOverlap(self, other);
-
-    if (self == nullptr || other == nullptr || self != _parkourSensorCollider)
-        return;
-
-    Shared<GameObject> otherOwner = other->Get_Owner();
-    if (otherOwner == nullptr || otherOwner.get() == this)
-        return;
-
-    _parkourCandidateCollider = other;
-    _parkourCandidateObject = otherOwner;
-}
-
-void Player_WorldBase::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    Character_WorldBase::OnStayOverlap(self, other);
-
-    if (self == nullptr || other == nullptr || self != _parkourSensorCollider)
-        return;
-
-    Shared<GameObject> otherOwner = other->Get_Owner();
-    if (otherOwner == nullptr || otherOwner.get() == this)
-        return;
-
-    _parkourCandidateCollider = other;
-    _parkourCandidateObject = otherOwner;
-}
-
-void Player_WorldBase::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    Character_WorldBase::OnEndOverlap(self, other);
-
-    if (self == nullptr || self != _parkourSensorCollider)
-        return;
-
-    Clear_ParkourCandidate(other.get());
 }
 
 void Player_WorldBase::Set_PartyVisibilityAllowed(bool allowed)
@@ -286,6 +262,39 @@ const wchar_t* Player_WorldBase::Get_GameMenuFacialClipPath() const
     return L"Animations/Facial/Metahuman_Common/MicroMovements/A_MH_RandomMovement_GameMenu_Lune.facialclipbin";
 }
 
+void Player_WorldBase::Handle_DebugWarpShortcuts()
+{
+    if (!GAME->KeyPress(KEY_TYPE::SHIFT))
+        return;
+
+    const array<KEY_TYPE, 5> keys =
+    {
+        KEY_TYPE::KEY_1,
+        KEY_TYPE::KEY_2,
+        KEY_TYPE::KEY_3,
+        KEY_TYPE::KEY_4,
+        static_cast<KEY_TYPE>('5'),
+    };
+
+    for (size_t i = 0; i < keys.size(); ++i)
+    {
+        if (!GAME->KeyDown(keys[i]))
+            continue;
+
+        _transformCom->Set_WorldPosition(PlayerWorldTuning::kDebugWarpPoints[i]);
+
+        if (_movementCom)
+            _movementCom->Sync_RuntimePositionToTransform();
+
+        _fallStateEnterAcc = 0.f;
+
+        if (_playerStateMachineCom)
+            _playerStateMachineCom->Change_State(PlayerState::Idle);
+
+        return;
+    }
+}
+
 void Player_WorldBase::Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
 {
     if (nullptr == _playerStateMachineCom) return;
@@ -362,31 +371,6 @@ bool Player_WorldBase::Is_WorldInteracting() const
 const WorldInteractionSpot::WorldInteractionRequest& Player_WorldBase::Get_WorldInteractionRequest() const
 {
     return _worldInteractionContext.activeRequest;
-}
-
-bool Player_WorldBase::Has_ParkourCandidate() const
-{
-    return !_parkourCandidateObject.expired() || !_parkourCandidateCollider.expired();
-}
-
-Shared<GameObject> Player_WorldBase::Get_ParkourCandidateObject() const
-{
-    return _parkourCandidateObject.lock();
-}
-
-Shared<ColliderCom> Player_WorldBase::Get_ParkourCandidateCollider() const
-{
-    return _parkourCandidateCollider.lock();
-}
-
-void Player_WorldBase::Clear_ParkourCandidate(const ColliderCom* collider)
-{
-    const Shared<ColliderCom> currentCollider = _parkourCandidateCollider.lock();
-    if (collider != nullptr && currentCollider != nullptr && currentCollider.get() != collider)
-        return;
-
-    _parkourCandidateObject.reset();
-    _parkourCandidateCollider.reset();
 }
 
 HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
@@ -1093,16 +1077,7 @@ HRESULT Player_WorldBase::Ready_Components()
     obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Player_WorldBody), E_FAIL);
-    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_PlayerWorldBodyCollider")), E_FAIL);
-
-    Bounding_OBB::BoundingOBBDesc parkourSensorDesc{};
-    parkourSensorDesc.center = Vec3(0.f, 1.05f, 0.55f);
-    parkourSensorDesc.extents = Vec3(0.35f, 0.35f, 0.55f);
-
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _parkourSensorCollider, &parkourSensorDesc), E_FAIL);
-    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_PlayerParkourSensor")), E_FAIL);
-    _parkourSensorCollider->Set_CollisionPreset(Collision_Preset::Player_ParkourSensor);
-    _parkourSensorCollider->Set_IsActive(true);
+    CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_0_PlayerWorldBodyCollider")), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);

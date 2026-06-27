@@ -69,6 +69,9 @@ void Player_Climb::Update(float timeDelta)
 
         if (_request.faceDir.LengthSquared() > 0.0001f)
             transform->LookAt(nextPos + _request.faceDir);
+
+        if (_movementCom != nullptr)
+            _movementCom->Sync_RuntimePositionToTransform();
     }
 
     if (progress >= 0.95f || (_bodyPlayer != nullptr && _bodyPlayer->Is_AnimationFinished()))

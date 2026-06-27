@@ -48,15 +48,6 @@ void Player_Move::Update(float timeDelta)
         return;
     }
 
-    if (const Shared<Player_WorldBase> owner = _owner.lock())
-    {
-        if (owner->Has_ParkourCandidate())
-        {
-            _stateCom->Change_State(PlayerState::Parkour);
-            return;
-        }
-    }
-
     WorldInteractionSpot::WorldInteractionRequest interactionRequest{};
     Shared<GameObject> interactionSpot{};
     if (Try_BuildWorldInteractionRequest(interactionRequest, interactionSpot))
@@ -65,26 +56,25 @@ void Player_Move::Update(float timeDelta)
         {
             if (owner->Begin_WorldInteraction(interactionSpot, interactionRequest))
             {
+                bool changed = false;
                 switch (interactionRequest.type)
                 {
                 case WorldInteractionSpot::WorldInteractionType::WallClimb:
-                    _stateCom->Change_State(PlayerState::Climb);
+                    changed = _stateCom->Change_State(PlayerState::Climb);
                     break;
                 case WorldInteractionSpot::WorldInteractionType::RopeTouch:
                 case WorldInteractionSpot::WorldInteractionType::RopeLook:
                 default:
-                    _stateCom->Change_State(PlayerState::RopeAction);
+                    changed = _stateCom->Change_State(PlayerState::RopeAction);
                     break;
                 }
-                return;
+
+                if (!changed)
+                    owner->End_WorldInteraction();
+                else
+                    return;
             }
         }
-    }
-
-    if (IsEnterWorldAction())
-    {
-        _stateCom->Change_State(PlayerState::Parkour);
-        return;
     }
 
     const float locomotionBlendTime = _useOneShotEnterBlendTime ? _enterMoveBlendTime : _defaultMoveBlendTime;
@@ -139,7 +129,7 @@ void Player_Move::Update(float timeDelta)
 
 void Player_Move::LateUpdate(float timeDelta)
 {
- 
+    Draw_ParkourDebugRays();
 }
 
 void Player_Move::ExitInvoke()

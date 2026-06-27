@@ -47,9 +47,6 @@ public:
 	void    Update(float timeDelta) override;
 	void    Late_Update(float timeDelta) override;
 	HRESULT Render() override;
-    void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
-    void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
-    void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
     // 스테이터스 찍을 때, 게임 전체는 멈추는데
     // UI 창 안에서 프리뷰 플레이어들은 업데이트가 돌아야 애니메이션이 재생됨
@@ -67,13 +64,14 @@ public:
     void    End_WorldInteraction();
     bool    Is_WorldInteracting() const;
     const WorldInteractionSpot::WorldInteractionRequest& Get_WorldInteractionRequest() const;
-    bool    Has_ParkourCandidate() const;
-    Shared<GameObject> Get_ParkourCandidateObject() const;
-    Shared<ColliderCom> Get_ParkourCandidateCollider() const;
-    void    Clear_ParkourCandidate(const ColliderCom* collider = nullptr);
 
     HRESULT Apply_CostumePreset(const CostumePreset& preset);
     HRESULT Prewarm_CostumeVariants(); // 옷장 첫 교체 프레임 전에 모든 costume variant를 미리 만든다.
+
+    float Get_ParkourLowProbeDistance() const { return _parkourLowProbeDistance; }
+    float Get_ParkourHighProbeDistance() const { return _parkourHighProbeDistance; }
+    const Vec3& Get_ParkourLowProbeCenter() const { return _parkourLowProbeCenter; }
+    const Vec3& Get_ParkourHighProbeCenter() const { return _parkourHighProbeCenter; }
 
 protected:
     HRESULT Ready_Components();
@@ -104,6 +102,8 @@ protected:
     virtual const wchar_t* Get_GameMenuFacialClipPath() const;
 
 private:
+    void Handle_DebugWarpShortcuts();
+
     struct CostumePartTransform
     {
         Vec3 position{ Vec3::Zero };
@@ -171,6 +171,10 @@ protected:
     string                          _activeCostumePresetId{};
     float                           _fallStateEnterAcc = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
     bool                            _partyVisibilityAllowed = true; // 파티 해금 전에는 culling이 다시 켜도 월드 렌더를 막는다.
+    float                           _parkourLowProbeDistance = 0.15f;
+    float                           _parkourHighProbeDistance = 0.15f;
+    Vec3                            _parkourLowProbeCenter = Vec3(0.f, 1.00f, 0.850f);
+    Vec3                            _parkourHighProbeCenter = Vec3(0.f, 1.75f, 0.850f);
 
 private:
     struct PlayerWorldInteractionContext
@@ -185,9 +189,6 @@ private:
     Shared<Engine::FacialAnimationModifier> _gameMenuFacialModifier{};
     bool                            _gameMenuFacialEnabled = false;
     PlayerWorldInteractionContext   _worldInteractionContext{};
-    Shared<ColliderCom>             _parkourSensorCollider{};
-    Weak<GameObject>                _parkourCandidateObject{};
-    Weak<ColliderCom>               _parkourCandidateCollider{};
 
 public:
 	static Shared<Player_WorldBase> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

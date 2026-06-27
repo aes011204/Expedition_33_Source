@@ -6,6 +6,20 @@
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
 #include "Body_Player.h"
+#include "TransformCom.h"
+
+namespace
+{
+    Vec3 Normalize_ParkourLook(Vec3 look)
+    {
+        look.y = 0.f;
+        if (look.LengthSquared() <= 0.0001f)
+            return Vec3::Look;
+
+        look.Normalize();
+        return look;
+    }
+}
 
 Player_State::Player_State(const Shared<Player_WorldBase>& owner)
     : State{}
@@ -30,6 +44,10 @@ void Player_State::Begin_Play()
 
     _stateCom = _owner.lock()->Get_Component<PlayerStateMachineCom>().get();
     if (nullptr == _stateCom)
+        MSG_BOX("[PLAYER STATE] : Failed to Begin Player_WorldBase State");
+
+    _movementCom = _owner.lock()->Get_Component<MovementCom>().get();
+    if (nullptr == _movementCom)
         MSG_BOX("[PLAYER STATE] : Failed to Begin Player_WorldBase State");
 
     Refresh_BodyPlayer();
@@ -114,6 +132,60 @@ bool Player_State::IsFalling() const
 bool Player_State::IsFreeAimShoot() const
 {
     return _controllerCom->Is_RightMouseClicked() && _controllerCom->Allows_ActionInput();
+}
+
+float Player_State::Get_ParkourLowProbeDistance() const
+{
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    return owner != nullptr ? owner->Get_ParkourLowProbeDistance() : 0.15f;
+}
+
+float Player_State::Get_ParkourHighProbeDistance() const
+{
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    return owner != nullptr ? owner->Get_ParkourHighProbeDistance() : 0.15f;
+}
+
+Vec3 Player_State::Get_ParkourLowProbeCenter() const
+{
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    return owner != nullptr ? owner->Get_ParkourLowProbeCenter() : Vec3(0.f, 1.00f, 0.850f);
+}
+
+Vec3 Player_State::Get_ParkourHighProbeCenter() const
+{
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    return owner != nullptr ? owner->Get_ParkourHighProbeCenter() : Vec3(0.f, 1.75f, 0.850f);
+}
+
+void Player_State::Draw_ParkourDebugRays() const
+{
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    if (owner == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = owner->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    const Matrix worldMatrix = transform->Get_WorldMatrix();
+    const Vec3 lowStart = Vec3::Transform(Get_ParkourLowProbeCenter(), worldMatrix);
+    const Vec3 highStart = Vec3::Transform(Get_ParkourHighProbeCenter(), worldMatrix);
+    const Vec3 look = Normalize_ParkourLook(transform->Get_WorldForward());
+
+    DebugLineDesc lowDesc{};
+    lowDesc.start = lowStart;
+    lowDesc.end = lowStart + look * Get_ParkourLowProbeDistance();
+    lowDesc.style.color = Color(0.45f, 0.75f, 1.f, 1.f);
+    lowDesc.style.depthEnabled = false;
+    GAME->Draw_DebugLine(lowDesc);
+
+    DebugLineDesc highDesc{};
+    highDesc.start = highStart;
+    highDesc.end = highStart + look * Get_ParkourHighProbeDistance();
+    highDesc.style.color = Color(1.f, 0.55f, 1.f, 1.f);
+    highDesc.style.depthEnabled = false;
+    GAME->Draw_DebugLine(highDesc);
 }
 
 bool Player_State::Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldInteractionRequest& outRequest, Shared<GameObject>& outSpot) const

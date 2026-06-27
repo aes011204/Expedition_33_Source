@@ -2,7 +2,7 @@
 #include "Player_State.h"
 
 NS_BEGIN(Engine)
-class ColliderCom;
+struct PhysXQueryHit;
 NS_END
 
 NS_BEGIN(Client)
@@ -23,15 +23,16 @@ public:
 
 public:
     static Shared<Player_ParkourAction> Create(const Shared<Player_WorldBase>& owner);
-    void Free() override;
-
-private:
     enum class ParkourActionType
     {
         LowMantle,
         HighMantle,
     };
 
+    void Set_NextActionType(ParkourActionType actionType);
+    void Free() override;
+
+private:
     struct ParkourMoveRequest
     {
         ParkourActionType actionType = ParkourActionType::LowMantle;
@@ -41,11 +42,11 @@ private:
     };
 
     bool Build_ParkourRequest(ParkourMoveRequest& outRequest) const;
-    bool Is_MapStaticMeshCandidate(const Shared<GameObject>& object) const;
-    Vec3 Resolve_ColliderWorldCenter(const Shared<ColliderCom>& collider, const Shared<GameObject>& object) const;
+    bool Is_EnvironmentHit(const PhysXQueryHit& hit) const;
 
 private:
     ParkourMoveRequest _request{};
+    ParkourActionType _nextActionType = ParkourActionType::LowMantle;
     Vec3 _warpStartPos = Vec3::Zero;
     bool _hasWarp = false;
 };

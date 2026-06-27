@@ -1,4 +1,4 @@
-#include "PhysX_Manager.h"
+﻿#include "PhysX_Manager.h"
 #include "ColliderCom.h"
 #include "Log_Define.h"
 #include "PhysX_Filter.h"
@@ -522,6 +522,16 @@ void PhysX_Manager::Unregister_StaticActor(PhysXStaticActorHandle handle)
     if (actor == nullptr)
         return;
 
+    const PxU32 shapeCount = actor->getNbShapes();
+    if (shapeCount > 0)
+    {
+        vector<PxShape*> shapes(shapeCount);
+        actor->getShapes(shapes.data(), shapeCount);
+
+        for (PxShape* shape : shapes)
+            _staticShapeHandleMap.erase(shape);
+    }
+
     if (_scene)
         _scene->removeActor(*actor);
 
@@ -558,6 +568,9 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticColli
     PxRigidStatic* actor = _physics->createRigidStatic(To_PxTransform(worldMatrix));
     if (actor == nullptr)
         return emptyHandle;
+
+    PhysXStaticActorHandle handle{};
+    handle.id = _nextStaticActorId++;
 
     const PxFilterData filterData = Build_PresetFilterData(preset);
     uint32 attachedShapeCount = 0;
@@ -642,7 +655,10 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticColli
         shape->setQueryFilterData(filterData);
 
         if (actor->attachShape(*shape))
+        {
             ++attachedShapeCount;
+            _staticShapeHandleMap[shape] = handle;
+        }
 
         shape->release();
     }
@@ -674,21 +690,28 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticColli
         shape->setQueryFilterData(filterData);
 
         if (actor->attachShape(*shape))
+        {
             ++attachedShapeCount;
+            _staticShapeHandleMap[shape] = handle;
+        }
 
         shape->release();
     }
 
     if (attachedShapeCount == 0)
     {
+        PxU32 shapeCount = actor->getNbShapes();
+        vector<PxShape*> shapes(shapeCount);
+        actor->getShapes(shapes.data(), shapeCount);
+
+        for (PxShape* shape : shapes)
+            _staticShapeHandleMap.erase(shape);
+
         actor->release();
         return emptyHandle;
     }
 
     _scene->addActor(*actor);
-
-    PhysXStaticActorHandle handle{};
-    handle.id = _nextStaticActorId++;
     _staticActors.emplace(handle.id, actor);
     return handle;
 }
@@ -744,6 +767,18 @@ Shared<ColliderCom> PhysX_Manager::Find_Collider(PxActor* actor) const
     }
 
     return iter->second.lock();
+}
+
+PhysXStaticActorHandle PhysX_Manager::Find_StaticShapeHandle(const PxShape* shape) const
+{
+    if (shape == nullptr)
+        return {};
+
+    auto iter = _staticShapeHandleMap.find(shape);
+    if (iter == _staticShapeHandleMap.end())
+        return {};
+
+    return iter->second;
 }
 
 void PhysX_Manager::Push_PairEvent(Shared<ColliderCom> self, Shared<ColliderCom> other, CollisionResponse response,
@@ -837,6 +872,7 @@ bool PhysX_Manager::Sweep_Sphere(const Vec3& origin, const Vec3& direction, floa
     outHit.collider = hitCollider;
     outHit.owner = (hitCollider != nullptr && hitCollider->Get_Owner() != nullptr)
         ? hitCollider->Get_Owner().get() : nullptr;
+    outHit.staticHandle = Find_StaticShapeHandle(block.shape);
 
     return true;
 
@@ -896,6 +932,7 @@ bool PhysX_Manager::Raycast_Environment(
     outHit.collider = hitCollider;
     outHit.owner = (hitCollider != nullptr && hitCollider->Get_Owner() != nullptr)
         ? hitCollider->Get_Owner().get() : nullptr;
+    outHit.staticHandle = Find_StaticShapeHandle(block.shape);
 
     return true;
 }
@@ -986,6 +1023,7 @@ bool PhysX_Manager::Sweep_Collider(ColliderCom* collider, const Matrix& worldMat
     outHit.collider = hitCollider;
     outHit.owner = (hitCollider != nullptr && hitCollider->Get_Owner() != nullptr)
         ? hitCollider->Get_Owner().get() : nullptr;
+    outHit.staticHandle = Find_StaticShapeHandle(block.shape);
 
     return true;
 }

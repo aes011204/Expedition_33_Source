@@ -769,10 +769,12 @@ HRESULT GameInstance::Draw()
     }
 #endif
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_EDITOR)
     // Debug Manager
     {
+#ifdef _DEBUG
         Draw_ShadowCascadeWorldDebug();
+#endif
         _debugManager->Render_Depth();
         _debugManager->Render_Overlay();
     }

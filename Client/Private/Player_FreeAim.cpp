@@ -35,6 +35,9 @@ void Player_FreeAim::Begin_Play()
 {
     Player_State::Begin_Play();
 
+    if (_bodyPlayer == nullptr)
+        return;
+
     if (auto model = _bodyPlayer->Get_Model())
     {
         for (auto& modifier : model->Get_Modifiers())
@@ -66,6 +69,10 @@ using plAnim = Body_Player::PlayerWorldAnimation;
 
 bool Player_FreeAim::EnterInvoke()
 {
+    Refresh_BodyPlayer();
+    if (_bodyPlayer == nullptr || _controllerCom == nullptr || _stateCom == nullptr)
+        return false;
+
     _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.1f, true);
     if (_offsetModifier)
         _offsetModifier->Set_Active(true);
@@ -97,6 +104,13 @@ bool Player_FreeAim::EnterInvoke()
 
 void Player_FreeAim::Update(float timeDelta)
 {
+    if (_bodyPlayer == nullptr || _controllerCom == nullptr || _stateCom == nullptr)
+    {
+        if (_stateCom != nullptr)
+            _stateCom->Change_State(PlayerState::Idle);
+        return;
+    }
+
     if (false == IsEnterFreeAim())
     {
         _hasHitObject = false;
@@ -214,6 +228,9 @@ void Player_FreeAim::Trigger_PendingFreeAimShotHit()
 {
     if (_hasConsumedPendingShotHit)
         return; // 같은 발사 애니메이션에서 두 번 맞지 않게 막는다.
+
+    if (_bodyPlayer == nullptr)
+        return;
 
     if (_bodyPlayer->Get_AnimationStateIndex() != ETOI(plAnim::Pl_FreeAim_Shoot))
         return; // FreeAim_Shoot 중이 아닐 때 들어온 notify는 무시한다.

@@ -37,6 +37,7 @@ HRESULT PlayerStateMachineCom::Initialize_Prototype()
 HRESULT PlayerStateMachineCom::Initialize(void* arg)
 {
     CHECK_FAILED(StateMachineCom::Initialize(arg), E_FAIL);
+    _statesBegunPlay = false;
     return S_OK;
 }
 
@@ -52,11 +53,20 @@ void PlayerStateMachineCom::BeginPlay()
     CHECK_FAILED(Add_State(PlayerState::RopeAction, Player_RopeAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::GameMenu, Player_GameMenu::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::FreeAim, Player_FreeAim::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+}
+
+void PlayerStateMachineCom::BeginPlay_RegisteredStates()
+{
+    if (_statesBegunPlay)
+        return;
 
     for (auto& [stateTag, state]: _states)
     {
-        state->Begin_Play();
+        if (state != nullptr)
+            state->Begin_Play();
     }
+
+    _statesBegunPlay = true;
 }
 
 HRESULT PlayerStateMachineCom::Add_State(PlayerState playerState, const Shared<State>& state)
@@ -69,6 +79,19 @@ HRESULT PlayerStateMachineCom::Add_State(PlayerState playerState, const Shared<S
 bool PlayerStateMachineCom::Change_State(PlayerState playerState)
 {
     const wstring& str = String::ToWString( magic_enum::enum_name(playerState).data());
+
+    if (!_statesBegunPlay)
+    {
+        LOG_WARN("[PlayerStateMachine] Change_State ignored before registered states Begin_Play: {}",
+            String::ToString(str));
+        return false;
+    }
+
+    if (auto iter = _states.find(str); iter != _states.end())
+    {
+        if (Shared<Player_State> targetPlayerState = dynamic_pointer_cast<Player_State>(iter->second))
+            targetPlayerState->Refresh_BodyPlayer();
+    }
     
     return StateMachineCom::Change_State(str);
 }
@@ -100,6 +123,9 @@ bool PlayerStateMachineCom::Reenter_CurrentState()
 {
     if (_currentState == nullptr)
         return false;
+
+    if (Shared<Player_State> playerState = dynamic_pointer_cast<Player_State>(_currentState))
+        playerState->Refresh_BodyPlayer();
 
     return _currentState->EnterInvoke();
 }
@@ -155,6 +181,7 @@ Shared<Component> PlayerStateMachineCom::Clone(void* arg)
 
 void PlayerStateMachineCom::Free()
 {
+    _statesBegunPlay = false;
     Component::Free();
 }
 
