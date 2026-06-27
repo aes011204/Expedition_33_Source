@@ -292,9 +292,6 @@
     <Filter Include="02. GameObject\NPC\Sumo">
       <UniqueIdentifier>{28eb853a-06c8-49a5-a5f2-a50edbf6f645}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02. GameObject\Map\MapEffect">
-      <UniqueIdentifier>{cc4c3c31-ef8d-4930-8aaf-8abeaf1b9800}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -1393,12 +1390,10 @@
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\Private\DamageTrigger.cpp" />
+
     <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
-    <ClCompile Include="..\Private\MapEffect_TornadoPaint.cpp">
-      <Filter>02. GameObject\Map\MapEffect</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1508,12 +1503,10 @@
     <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\Public\DamageTrigger.h" />
+
     <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\Public\Level_ReplayTransition.h" />
-    <ClInclude Include="..\Public\MapEffect_TornadoPaint.h">
-      <Filter>02. GameObject\Map\MapEffect</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
