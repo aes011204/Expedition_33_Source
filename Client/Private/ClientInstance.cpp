@@ -136,11 +136,11 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _playerInventory->Ensure_DefaultUnlockedWeapons(
         {
             { "Gustave", "Lanceram", 1, 0 },
-            { "Gustave", "Baguette", 11, 0 },
-        { "Lune",    "Colim",    1, 0 },
-        { "Lune",    "Baguette",    1, 0 },
-        { "Maelle",  "Medalum",  1, 0 },
-        { "Maelle",  "Baguette",  1, 0 },
+            { "Gustave", "Baguette", 5, 0 },
+            { "Lune",    "Colim",    1, 0 },
+            { "Lune",    "Baguette", 5, 0 },
+            { "Maelle",  "Medalum",  1, 0 },
+            { "Maelle",  "Baguette", 5, 0 },
         });
 
     _costumeManager = CostumeManager::Create();
@@ -272,6 +272,46 @@ const vector<GameDataTable::WeaponDesc>* ClientInstance::Get_WeaponDescs(const s
         return nullptr;
 
     return _gameDataTable->Get_WeaponDescs(characterId);
+}
+
+const GameDataTable::WeaponUpgradeDesc* ClientInstance::Get_WeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 level) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_WeaponUpgradeDesc(characterId, weaponId, level);
+}
+
+const GameDataTable::WeaponUpgradeDesc* ClientInstance::Get_NextWeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 currentLevel) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_NextWeaponUpgradeDesc(characterId, weaponId, currentLevel);
+}
+
+uint32 ClientInstance::Resolve_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const
+{
+    if (_playerInventory == nullptr)
+        return 1;
+
+    return _playerInventory->Get_WeaponEnhanceLevel(characterId, weaponId);
+}
+
+uint32 ClientInstance::Resolve_WeaponPower(const string& characterId, const string& weaponId) const
+{
+    const uint32 enhanceLevel = Resolve_WeaponEnhanceLevel(characterId, weaponId);
+    if (const GameDataTable::WeaponUpgradeDesc* upgradeDesc = Get_WeaponUpgradeDesc(characterId, weaponId, enhanceLevel))
+        return upgradeDesc->power;
+
+    const GameDataTable::WeaponDesc* weaponDesc = Get_WeaponDesc(characterId, weaponId);
+    return weaponDesc ? weaponDesc->power : 0;
 }
 
 const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
@@ -462,7 +502,7 @@ bool ClientInstance::Ensure_DefaultEquippedWeapon(HeroId heroId)
     if (weaponDesc == nullptr)
         return false;
 
-    statCom->Set_EquippedWeapon(weaponDesc->weaponId, weaponDesc->power);
+    statCom->Set_EquippedWeapon(weaponDesc->weaponId, Resolve_WeaponPower(characterId, weaponDesc->weaponId));
     return true;
 }
 

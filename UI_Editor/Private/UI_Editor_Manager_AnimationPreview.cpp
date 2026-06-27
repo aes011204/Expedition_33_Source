@@ -6,41 +6,49 @@ namespace UIEditor
     void UI_Editor_Manager::Play_AnimationPreview(ObjectId objectId)
     {
         _animationPreviewService.Play(objectId);
+        ++_animationPreviewRevision;
     }
 
     void UI_Editor_Manager::Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame)
     {
         _animationPreviewService.Play_KeyframeAsset(asset, startFrame);
+        ++_animationPreviewRevision;
     }
 
     void UI_Editor_Manager::Play_AnimationSequencePreview(const UI_AnimationSequenceAsset& sequence, int32 startFrame)
     {
         _animationPreviewService.Play_SequenceAsset(sequence, startFrame);
+        ++_animationPreviewRevision;
     }
 
     void UI_Editor_Manager::Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame)
     {
         _animationPreviewService.Preview_KeyframeAsset(asset, frame);
+        ++_animationPreviewRevision;
     }
 
     void UI_Editor_Manager::Preview_AnimationSequence(const UI_AnimationSequenceAsset& sequence, int32 frame)
     {
         _animationPreviewService.Preview_SequenceAsset(sequence, frame);
+        ++_animationPreviewRevision;
     }
 
     void UI_Editor_Manager::Pause_AnimationPreview()
     {
         _animationPreviewService.Pause();
+        ++_animationPreviewRevision;
     }
 
     void UI_Editor_Manager::Stop_AnimationPreview()
     {
         _animationPreviewService.Stop();
+        ++_animationPreviewRevision;
     }
 
     void UI_Editor_Manager::Restart_AnimationPreview(ObjectId objectId)
     {
         _animationPreviewService.Restart(objectId);
+        ++_animationPreviewRevision;
     }
 
     bool UI_Editor_Manager::Is_AnimationPreviewActive() const

@@ -81,6 +81,9 @@
     <ClCompile Include="..\Private\UI_ClipboardService.cpp">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_BrushPresetService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
@@ -123,13 +126,25 @@
     <ClCompile Include="..\Private\UI_Editor_Manager_AnimationPreview.cpp">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Manager_Commands.cpp">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Manager_Document.cpp">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_Manager_ObjectEditing.cpp">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Manager_UI.cpp">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_ImGuiManager.cpp">
       <Filter>01. Manager\Imgui_Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Inspector.cpp">
+      <Filter>03. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_InspectorAssetPickerService.cpp">
       <Filter>03. Inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Inspector_Pickers.cpp">
@@ -201,6 +216,9 @@
     <ClCompile Include="..\Private\UI_Animation_View.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation_View_Preview.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Animation_View_Keyframe.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
@@ -220,6 +238,9 @@
       <Filter>02. View\VFX</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Viewport_View.cpp">
+      <Filter>02. View\Viewport</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ViewportPreviewAssetService.cpp">
       <Filter>02. View\Viewport</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Viewport_Utils.cpp">
@@ -287,6 +308,9 @@
     <ClInclude Include="..\public\UI_Inspector.h">
       <Filter>03. Inspector</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_InspectorAssetPickerService.h">
+      <Filter>03. Inspector</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_Document.h">
       <Filter>04. Document</Filter>
     </ClInclude>
@@ -317,6 +341,18 @@
     <ClInclude Include="..\Public\UI_Editor_FileService.h">
       <Filter>01. Manager\UI_Editor_Manager\FileService</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_BrushPresetService.h">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_EditorLayoutCache.h">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_EditorReadModel.h">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_EditorSession.h">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_SelectionService.h">
       <Filter>01. Manager\UI_Editor_Manager\SelectionService</Filter>
     </ClInclude>
@@ -345,6 +381,9 @@
       <Filter>02. View\VFX</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Viewport_View.h">
+      <Filter>02. View\Viewport</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ViewportPreviewAssetService.h">
       <Filter>02. View\Viewport</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Viewport_Utils.h">

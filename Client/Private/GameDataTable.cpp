@@ -78,6 +78,11 @@ namespace
 
         return (fs::path(assetRoot) / fs::path(String::ToWString(resourceRelativePath))).lexically_normal().wstring();
     }
+
+    string Make_WeaponUpgradeKey(const string& characterId, const string& weaponId)
+    {
+        return characterId + ":" + weaponId;
+    }
 }
 
 HRESULT GameDataTable::Initialize()
@@ -108,6 +113,7 @@ HRESULT GameDataTable::Load_All()
     CHECK_FAILED(Load_SkillTreeRequirementData(jsonRootPath), E_FAIL);
 
     CHECK_FAILED(Load_Weapon(jsonRootPath), E_FAIL);
+    CHECK_FAILED(Load_WeaponUpgrade(jsonRootPath), E_FAIL);
     CHECK_FAILED(Load_ItemData(jsonRootPath), E_FAIL);
     CHECK_FAILED(Load_PictosData(jsonRootPath), E_FAIL);
 
@@ -123,6 +129,7 @@ void GameDataTable::Clear()
 
     _skillTreeData.clear();
     _requirementSkills.clear();
+    _weaponUpgradeDataByKey.clear();
 
     _skillDefs.clear();
     _skillIndexById.clear();
@@ -843,6 +850,79 @@ HRESULT GameDataTable::Load_Weapon(const wstring& jsonRootPath)
     return S_OK;
 }
 
+HRESULT GameDataTable::Load_WeaponUpgrade(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_WeaponUpgrade.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+        if (!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open weapon upgrade table: {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse weapon upgrade table: {} ({})",
+            String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
+    }
+
+    if (!root.contains("DT_WeaponUpgrade") || !root["DT_WeaponUpgrade"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_WeaponUpgrade array not found: {}", String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+    _weaponUpgradeDataByKey.clear();
+
+    for (const json& item : root["DT_WeaponUpgrade"])
+    {
+        WeaponUpgradeDesc desc{};
+        desc.characterId = item.value("characterId", item.value("Character ID", ""));
+        desc.weaponId = item.value("weaponId", item.value("Weapon ID", ""));
+
+        if (desc.characterId.empty() || desc.weaponId.empty())
+            continue;
+
+        desc.level = max(1u, item.value("level", item.value("Level", 1u)));
+        desc.power = item.value("power", item.value("Power", 0u));
+        desc.requiredChromaCatalyst = item.value(
+            "requiredChromaCatalyst",
+            item.value("Required Chroma Catalyst", 0u));
+        desc.vitalityGrade = item.value("vitalityGrade", item.value("Vitality Grade", string{}));
+        desc.mightGrade = item.value("mightGrade", item.value("Might Grade", string{}));
+        desc.agilityGrade = item.value("agilityGrade", item.value("Agility Grade", string{}));
+        desc.defenseGrade = item.value("defenseGrade", item.value("Defense Grade", string{}));
+        desc.luckGrade = item.value("luckGrade", item.value("Luck Grade", string{}));
+
+        _weaponUpgradeDataByKey[Make_WeaponUpgradeKey(desc.characterId, desc.weaponId)].push_back(desc);
+    }
+
+    size_t rowCount = 0;
+    for (auto& [key, rows] : _weaponUpgradeDataByKey)
+    {
+        UNREFERENCED_PARAMETER(key);
+
+        sort(rows.begin(), rows.end(),
+            [](const WeaponUpgradeDesc& lhs, const WeaponUpgradeDesc& rhs)
+            {
+                return lhs.level < rhs.level;
+            });
+
+        rowCount += rows.size();
+    }
+
+    LOG_INFO("[GameDataTable] loaded weapon upgrade table: count = {}", rowCount);
+    return S_OK;
+}
+
 wstring GameDataTable::Get_DefaultJsonRootPath() const
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
@@ -897,6 +977,53 @@ const vector<GameDataTable::WeaponDesc>* GameDataTable::Get_WeaponDescs(const st
         return nullptr;
 
     return &characterIter->second;
+}
+
+const GameDataTable::WeaponUpgradeDesc* GameDataTable::Get_WeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 level) const
+{
+    const auto rowsIter = _weaponUpgradeDataByKey.find(Make_WeaponUpgradeKey(characterId, weaponId));
+    if (rowsIter == _weaponUpgradeDataByKey.end())
+        return nullptr;
+
+    for (const WeaponUpgradeDesc& row : rowsIter->second)
+    {
+        if (row.level == level)
+            return &row;
+    }
+
+    return nullptr;
+}
+
+const GameDataTable::WeaponUpgradeDesc* GameDataTable::Get_NextWeaponUpgradeDesc(
+    const string& characterId,
+    const string& weaponId,
+    uint32 currentLevel) const
+{
+    const auto rowsIter = _weaponUpgradeDataByKey.find(Make_WeaponUpgradeKey(characterId, weaponId));
+    if (rowsIter == _weaponUpgradeDataByKey.end())
+        return nullptr;
+
+    for (const WeaponUpgradeDesc& row : rowsIter->second)
+    {
+        if (row.level > currentLevel)
+            return &row;
+    }
+
+    return nullptr;
+}
+
+const vector<GameDataTable::WeaponUpgradeDesc>* GameDataTable::Get_WeaponUpgradeDescs(
+    const string& characterId,
+    const string& weaponId) const
+{
+    const auto rowsIter = _weaponUpgradeDataByKey.find(Make_WeaponUpgradeKey(characterId, weaponId));
+    if (rowsIter == _weaponUpgradeDataByKey.end())
+        return nullptr;
+
+    return &rowsIter->second;
 }
 
 vector<string> GameDataTable::Get_AllSkillIds() const

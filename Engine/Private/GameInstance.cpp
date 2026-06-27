@@ -3294,6 +3294,11 @@ void GameInstance::Release_Engine()
         }
     };
 
+    LOG_INFO(
+        "[GameInstance][LeakWatch] Release_Engine begin. pendingThreadJobs={} materialTextureSrvCache={}",
+        _threadPool ? _threadPool->Get_PendingJobCount() : 0,
+        Material::Get_TextureSRVCacheSize());
+
     ReleaseManager(_threadPool);
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
@@ -3331,6 +3336,9 @@ void GameInstance::Release_Engine()
     ReleaseManager(_timerManager);
 
     Material::Clear_TextureSRVCache();
+    LOG_INFO(
+        "[GameInstance][LeakWatch] Material Texture SRV cache after clear={}",
+        Material::Get_TextureSRVCacheSize());
 
     _playerStencilWriteState.Reset();
     _playerStencilWriteDepthReadState.Reset();

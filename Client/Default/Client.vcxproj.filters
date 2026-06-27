@@ -557,6 +557,9 @@
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UpgradeWeapon_Panel.cpp">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\BT_FinishDecision.cpp">
       <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
@@ -1791,6 +1794,9 @@
       <Filter>04. GamePlayUI</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ChangeWeapon_Panel.h">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UpgradeWeapon_Panel.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BT_FinishDecision.h">

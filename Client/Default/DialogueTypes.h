@@ -30,4 +30,5 @@ struct DialogueRequest
     string dialogueKey;
 };
 
+
 NS_END

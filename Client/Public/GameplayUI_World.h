@@ -20,6 +20,7 @@ class UI_GetPictos;
 
 class ChangeSkill_Panel;
 class ChangeWeapon_Panel;
+class UpgradeWeapon_Panel;
 class Wardrobe_Panel;
 class Pictos_Panel;
 
@@ -85,6 +86,7 @@ private:
     Unique<CharacterStatus_Panel> _characterStatusPanel;
     Unique<SkillTree_Panel>       _skillTreePanel;
     Unique<ChangeWeapon_Panel>    _changeWeaponPanel;
+    Unique<UpgradeWeapon_Panel>   _upgradeWeaponPanel;
     Unique<ExpeditionStat_Panel>  _expeditionStatPanel;
     Unique<UI_CrossHair>          _crossHair;
     Unique<UI_GetCharacter>       _getCharacterPanel;

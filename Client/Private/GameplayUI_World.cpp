@@ -5,6 +5,7 @@
 #include "GameInstance.h"
 #include "SkillTree_Panel.h"
 #include "ChangeWeapon_Panel.h"
+#include "UpgradeWeapon_Panel.h"
 #include "ExpeditionStat_Panel.h"
 #include "UI_CrossHair.h"
 #include "UI_GetCharacter.h"
@@ -72,6 +73,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _changeWeaponPanel = ChangeWeapon_Panel::Create(levelIndex);
     CHECK_NULL(_changeWeaponPanel, E_FAIL);
 
+    _upgradeWeaponPanel = UpgradeWeapon_Panel::Create(levelIndex);
+    CHECK_NULL(_upgradeWeaponPanel, E_FAIL);
+
     _characterProgressionPanel->Bind_ContentPanels(
         _changeWeaponPanel.get(),
         _changeSkillPanel.get(),
@@ -133,6 +137,9 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (_changeWeaponPanel)
         _changeWeaponPanel->Update(timeDelta);
+
+    if (_upgradeWeaponPanel)
+        _upgradeWeaponPanel->Update(timeDelta);
 
     if (_savePointPanel)
         _savePointPanel->Update(timeDelta);
@@ -254,6 +261,9 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 
     if (_changeWeaponPanel)
         _changeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "ChangeWeaponPanel");
+
+    if (_upgradeWeaponPanel)
+        _upgradeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "UpgradeWeaponPanel");
 
     if (_expeditionStatPanel)
         _expeditionStatPanel->Append_RuntimeUIEntries(entries, "World", "ExpeditionStatPanel");
@@ -690,12 +700,12 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        if (_changeWeaponPanel)
+        if (_upgradeWeaponPanel)
         {
             if (restoreWorldControl)
-                _changeWeaponPanel->Close(); // 최종 종료이므로 월드 입력 복구
+                _upgradeWeaponPanel->Close(); // 최종 종료이므로 월드 입력 복구
             else
-                _changeWeaponPanel->Close_ForMenuTransition(); // Character Progression으로 복귀하는 전환
+                _upgradeWeaponPanel->Close_ForMenuTransition(); // Character Progression으로 복귀하는 전환
         }
         break;
 
@@ -928,8 +938,8 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
             _changeSkillPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::Wardrobe && _wardrobePanel)
             _wardrobePanel->Close_Immediately();
-        else if (immediate && menu == GameplayMenu::WeaponUpgrade && _changeWeaponPanel)
-            _changeWeaponPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::WeaponUpgrade && _upgradeWeaponPanel)
+            _upgradeWeaponPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::ArenaCharacterSelect && _arenaCharacterSelectPanel)
             _arenaCharacterSelectPanel->Close_Immediately();
         else
@@ -974,8 +984,8 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
             _characterProgressionPanel->Close_ForMenuTransition(); // Weapon 화면에서는 Progression의 기술/시트/픽토스 UI를 모두 숨긴다.
         if (_changeSkillPanel)
             _changeSkillPanel->Close_ForMenuTransition(); // ChangeSkill에서 넘어온 경우 Available/Current Skill UI를 정리한다.
-        if (_changeWeaponPanel)
-            _changeWeaponPanel->Open();
+        if (_upgradeWeaponPanel)
+            _upgradeWeaponPanel->Open();
         break;
 
     case GameplayMenu::SavePoint:
@@ -1066,6 +1076,7 @@ void GameplayUI_World::Free()
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
     Release_Panel(_changeWeaponPanel);
+    Release_Panel(_upgradeWeaponPanel);
     Release_Panel(_expeditionStatPanel);
     Release_Panel(_getCharacterPanel);
     Release_Panel(_getClothesPanel);

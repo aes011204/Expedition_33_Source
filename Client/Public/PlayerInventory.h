@@ -16,6 +16,12 @@ public:
         uint32 enhanceExp = 0;   // 경험치ㄴ가 필요할지?
     };
 
+    struct MaterialInventoryEntry
+    {
+        string materialId{};
+        uint32 count = 0;
+    };
+
 public:
     PlayerInventory() = default;
     ~PlayerInventory() override = default;
@@ -25,7 +31,15 @@ public:
 
     void    Set_Chroma(uint32 chroma) { _chroma = chroma; }
     void    Add_Chroma(uint32 amount) { _chroma += amount; }
+    bool    Spend_Chroma(uint32 amount);
     void    Clear();
+
+    // 재료
+    const vector<MaterialInventoryEntry>& Get_OwnedMaterials() const { return _ownedMaterials; }
+    uint32 Get_MaterialCount(const string& materialId) const;
+    void Set_MaterialCount(const string& materialId, uint32 count);
+    void Add_Material(const string& materialId, uint32 amount);
+    bool Spend_Material(const string& materialId, uint32 amount);
 
     // 픽토스
     const vector<string>& Get_UnlockedPictosIds() const { return _unlockedPictosIds; }
@@ -35,8 +49,11 @@ public:
 
     // 무기
     const vector<WeaponInventoryEntry>& Get_OwnedWeapons() const { return _ownedWeapons; }
+    const WeaponInventoryEntry* Get_WeaponEntry(const string& characterId, const string& weaponId) const;
     bool Is_WeaponUnlocked(const string& characterId, const string& weaponId) const;
-    void Unlock_Weapon(const string& characterId, const string& weaponId);
+    uint32 Get_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const;
+    bool Set_WeaponEnhanceLevel(const string& characterId, const string& weaponId, uint32 enhanceLevel);
+    void Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel = 1);
     void Ensure_DefaultUnlockedWeapons(const vector<WeaponInventoryEntry>& weapons);
 
     json Create_SaveJson() const;
@@ -46,6 +63,7 @@ private:
     uint32 _chroma = 0;
     vector<string> _unlockedPictosIds{};
     vector<WeaponInventoryEntry> _ownedWeapons{};
+    vector<MaterialInventoryEntry> _ownedMaterials{};
 
 public:
     static Shared<PlayerInventory> Create();

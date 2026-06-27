@@ -750,7 +750,9 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
                 {
                     // 장착 무기없을 때에만 기본값
                     const GameDataTable::WeaponDesc& defaultWeapon = weapons->front();
-                    battleStat->Set_EquippedWeapon(defaultWeapon.weaponId, defaultWeapon.power);
+                    battleStat->Set_EquippedWeapon(
+                        defaultWeapon.weaponId,
+                        CLIENT->Resolve_WeaponPower(characterId, defaultWeapon.weaponId));
                 }
             }
 

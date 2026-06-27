@@ -11,6 +11,15 @@ namespace Engine
 
 namespace UIEditor
 {
+    struct FontPreviewFrameStats
+    {
+        size_t requestedTextCount = 0;
+        size_t queuedCommandCount = 0;
+        size_t sharedClipCommandCount = 0;
+        size_t objectClipCommandCount = 0;
+        size_t clipGroupCount = 0;
+    };
+
     struct PatternOverlayPreviewDesc
     {
         string textureGuid = "";
@@ -56,6 +65,7 @@ namespace UIEditor
         void Begin_Frame();
         void Clear_RuntimeCaches();
         void Render_FontPreviews();
+        const FontPreviewFrameStats& Get_FontPreviewFrameStats() const { return _fontPreviewFrameStats; }
 
         ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid, const string& texturePath = "");
         ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(
@@ -88,14 +98,16 @@ namespace UIEditor
             UI_TextAlign textAlign,
             float scale,
             bool textWrap,
-            const D3D11_RECT& clipRect);
+            const D3D11_RECT& clipRect,
+            const D3D11_RECT* sharedClipRect = nullptr,
+            bool allowSharedClip = false);
 
     private:
         struct FontPreviewCommand
         {
             string fontGuid = "";
             string fontPath = "";
-            wstring text = L"";
+            wstring safeText = L"";
             Vec2 position = Vec2(0.f, 0.f);
             Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
             float rotationRadians = 0.f;
@@ -106,9 +118,19 @@ namespace UIEditor
 
     private:
         SpriteFont* Get_FontPreview(const string& fontGuid, const string& fontPath);
+        wstring Resolve_TexturePreviewPath(const string& texturePath);
+        wstring Resolve_FontPreviewPath(const string& fontPath);
+        string Make_FontPreviewCacheKey(const string& fontGuid, const string& fontPath);
+        float Resolve_FontPreviewScaleCorrection(const string& fontGuid, const string& fontPath);
+        wstring Build_CachedSafeFontPreviewText(const string& fontCacheKey, const SpriteFont& font, const wstring& text);
+        float Measure_CachedFontPreviewWidth(const string& fontCacheKey, const SpriteFont& font, const wstring& text, float scale);
+        float Measure_CachedFontPreviewLineHeight(const string& fontCacheKey, const SpriteFont& font, float scale);
         ID3D11ShaderResourceView* Load_TexturePreview(const string& cacheKey, const wstring& texturePath);
         bool Can_LoadTexturePreviewThisFrame();
         bool Can_CreateCompositePreviewThisFrame() const;
+        void Trim_TexturePreviewCache();
+        void Trim_FontPreviewCache();
+        void Log_PreviewCacheStats(const char* reason, size_t clearedMaterialVfxCount = 0, size_t clearedButtonSheenCount = 0) const;
         bool Ensure_ImagePreviewRenderer();
         ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
             const string& cacheKey,
@@ -142,7 +164,18 @@ namespace UIEditor
         bool _assetManagerReady = false;
         int32 _texturePreviewLoadCountThisFrame = 0;
         int32 _compositePreviewCreateCountThisFrame = 0;
+        uint64 _previewFrameIndex = 0;
+        uint64 _totalTexturePreviewLoadCount = 0;
+        uint64 _totalCompositePreviewCreateCount = 0;
+        uint64 _nextPreviewDiagnosticsFrame = 0;
+        unordered_map<string, wstring> _resolvedTexturePathCache = {};
+        unordered_map<string, wstring> _resolvedFontPathCache = {};
+        unordered_map<string, float> _fontScaleCorrectionCache = {};
+        unordered_map<string, wstring> _safeFontTextCache = {};
+        unordered_map<string, float> _fontTextWidthCache = {};
+        unordered_map<string, float> _fontLineHeightCache = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _textureThumbCache = {};
+        deque<string> _textureThumbCacheOrder = {};
         unordered_set<string> _texturePreviewFailedKeys = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};
         unordered_set<string> _maskedTexturePreviewFailedKeys = {};
@@ -161,7 +194,9 @@ namespace UIEditor
         Unique<SpriteBatch> _fontPreviewSpriteBatch = nullptr;
         ComPtr<ID3D11RasterizerState> _fontPreviewRasterizerState = nullptr;
         unordered_map<string, Unique<SpriteFont>> _fontPreviewCache = {};
+        deque<string> _fontPreviewCacheOrder = {};
         unordered_set<string> _fontPreviewFailedGuids = {};
         vector<FontPreviewCommand> _fontPreviewCommands = {};
+        FontPreviewFrameStats _fontPreviewFrameStats = {};
     };
 }

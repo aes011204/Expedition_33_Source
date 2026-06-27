@@ -331,7 +331,9 @@ void ChangeWeapon_Panel::Handle_WeaponSelectionInput()
         const auto statCom = hero ? hero->Get_Component<PlayerStatCom>() : nullptr;
         if (statCom)
         {
-            statCom->Set_EquippedWeapon(selectedWeapon.weaponId, selectedWeapon.power);
+            statCom->Set_EquippedWeapon(
+                selectedWeapon.weaponId,
+                CLIENT->Resolve_WeaponPower(characterId, selectedWeapon.weaponId));
         }
 
         CLIENT->Sync_PreviewHeroRuntimeData(heroId);
@@ -404,7 +406,12 @@ void ChangeWeapon_Panel::Refresh_WeaponUI()
 
 void ChangeWeapon_Panel::Refresh_Tooltip(const GameDataTable::WeaponDesc& weapon)
 {
-    Apply_WeaponSummary(_tooltipText, weapon);
+    const string characterId = Get_CharacterId((_selectedHeroId == HeroId::END) ? HeroId::Lune : _selectedHeroId);
+    Apply_WeaponSummary(
+        _tooltipText,
+        weapon,
+        CLIENT->Resolve_WeaponEnhanceLevel(characterId, weapon.weaponId),
+        CLIENT->Resolve_WeaponPower(characterId, weapon.weaponId));
 }
 
 void ChangeWeapon_Panel::Refresh_TooltipDetails(const GameDataTable::WeaponDesc& weapon)
@@ -470,7 +477,7 @@ void ChangeWeapon_Panel::Refresh_WeaponRows(const vector<GameDataTable::WeaponDe
             row.weaponNameText->Set_Text(weapon.weaponName);
 
         if (row.levelText)
-            row.levelText->Set_Text(to_wstring(weapon.level));
+            row.levelText->Set_Text(to_wstring(CLIENT->Resolve_WeaponEnhanceLevel(characterId, weapon.weaponId)));
     }
 }
 
