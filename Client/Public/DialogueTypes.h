@@ -12,6 +12,7 @@ struct DialogueChoice
 {
     string text;
     string action;
+    string resumeDialogueKey;
     int nextLineIndex = -1;
 };
 
@@ -21,6 +22,7 @@ struct DialogueLine
     wstring text;
     string cameraPresetId;
     DialogueActorRole speakerRole = DialogueActorRole::Npc;
+    string speakerAnimationKey;
     string action;
     vector<DialogueChoice> choices;
     int nextLineIndex = -1;

@@ -87,6 +87,8 @@ public:
     bool Is_PhaseChangeFinished() const { return _phaseChangeFinished; }
     bool Is_PhaseChangeInvincible() const { return _isPhaseChangeInvincible; }
     bool Should_SkipPhaseChangeStunStart() const { return _skipPhaseChangeStunStart; }
+    void Set_CinematicDriven(bool cinematicDriven);
+    bool Is_CinematicDriven() const { return _isCinematicDriven; }
     Shared<SL_DuallisteCloneSkillManager> Get_CloneSkillManager() const { return _cloneSkillManager; }
     bool Notify_CloneSkillAttack(GameObject* notifyOwner) const;
     void Set_CloneVisualOnly(bool isCloneVisualOnly);
@@ -131,8 +133,9 @@ private:
     bool _phaseChangeFinished = false;
     bool _isPhaseChangeInvincible = false;
     bool _skipPhaseChangeStunStart = false;
+    bool _isCinematicDriven = false;
+    float _stunElapsed = 0.f;
     float _breakRecoverPerSec = 4.5f;
-
 
     float kCanAttackDistance = 3.0f;
     float kPhase2HpThreshold = 0.5f;

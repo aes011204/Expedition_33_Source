@@ -49,8 +49,9 @@ bool IsModifierTrackIndex(const CINEMATIC_SEQUENCE* sequence, int index)
     if (sequence == nullptr)
         return false;
 
-    return index >= static_cast<int>(sequence->cinematicTracks.size()) &&
-        index < static_cast<int>(sequence->cinematicTracks.size()) + kModifierTrackCount;
+    const int startIndex = static_cast<int>(sequence->cinematicTracks.size()) +
+        static_cast<int>(sequence->actorRelativeCameraTracks.size());
+    return index >= startIndex && index < startIndex + kModifierTrackCount;
 }
 
 int GetModifierTrackIndex(const CINEMATIC_SEQUENCE* sequence, int index)
@@ -58,7 +59,7 @@ int GetModifierTrackIndex(const CINEMATIC_SEQUENCE* sequence, int index)
     if (!IsModifierTrackIndex(sequence, index))
         return -1;
 
-    return index - static_cast<int>(sequence->cinematicTracks.size());
+    return index - static_cast<int>(sequence->cinematicTracks.size()) - static_cast<int>(sequence->actorRelativeCameraTracks.size());
 }
 
 int GetEventTrackIndex(const CINEMATIC_SEQUENCE* sequence)
@@ -66,7 +67,35 @@ int GetEventTrackIndex(const CINEMATIC_SEQUENCE* sequence)
     if (sequence == nullptr)
         return -1;
 
-    return static_cast<int>(sequence->cinematicTracks.size()) + kModifierTrackCount;
+    return static_cast<int>(sequence->cinematicTracks.size()) +
+        static_cast<int>(sequence->actorRelativeCameraTracks.size()) +
+        kModifierTrackCount;
+}
+
+int GetActorRelativeTrackStartIndex(const CINEMATIC_SEQUENCE* sequence)
+{
+    if (sequence == nullptr)
+        return -1;
+
+    return static_cast<int>(sequence->cinematicTracks.size());
+}
+
+bool IsActorRelativeTrackIndex(const CINEMATIC_SEQUENCE* sequence, int index)
+{
+    if (sequence == nullptr)
+        return false;
+
+    const int startIndex = GetActorRelativeTrackStartIndex(sequence);
+    return index >= startIndex &&
+        index < startIndex + static_cast<int>(sequence->actorRelativeCameraTracks.size());
+}
+
+int GetActorRelativeTrackOffset(const CINEMATIC_SEQUENCE* sequence, int index)
+{
+    if (!IsActorRelativeTrackIndex(sequence, index))
+        return -1;
+
+    return index - GetActorRelativeTrackStartIndex(sequence);
 }
 
 bool IsEventTrackIndex(const CINEMATIC_SEQUENCE* sequence, int index)
@@ -111,6 +140,9 @@ bool* GetPreviewToggleForTrack(
         return nullptr;
 
     if (index >= 0 && index < static_cast<int>(sequence->cinematicTracks.size()))
+        return cameraTrackEnabled;
+
+    if (IsActorRelativeTrackIndex(sequence, index))
         return cameraTrackEnabled;
 
     if (IsEventTrackIndex(sequence, index))
@@ -384,6 +416,8 @@ void DrawKeyMarkers(
     int* selectedTrackIndex,
     int* selectedKeyIndex,
     int* selectedEventIndex,
+    int* selectedActorRelativeTrackIndex,
+    int* selectedActorRelativeKeyIndex,
     int* selectedActorTransformTrackIndex,
     int* selectedActorTransformKeyIndex,
     int* currentFrame,
@@ -426,6 +460,110 @@ void DrawKeyMarkers(
             frameMin,
             frameMax,
             &isHoveringAnyKey);
+    }
+    else if (IsActorRelativeTrackIndex(sequence, index))
+    {
+        const int frameRange = std::max(frameMax - frameMin, 1);
+        const int actorRelativeTrackIndex = GetActorRelativeTrackOffset(sequence, index);
+        auto& track = sequence->actorRelativeCameraTracks[actorRelativeTrackIndex];
+
+        for (int keyIndex = 0; keyIndex < static_cast<int>(track.keyframes.size()); ++keyIndex)
+        {
+            auto& keyframe = track.keyframes[keyIndex];
+            const float normalized = static_cast<float>(keyframe.frame - frameMin) / static_cast<float>(frameRange);
+            const float markerX = std::max(rc.Min.x, std::min(rc.Min.x + normalized * (rc.Max.x - rc.Min.x), rc.Max.x));
+            const float centerY = (rc.Min.y + rc.Max.y) * 0.5f;
+            const bool isSelected =
+                selectedActorRelativeTrackIndex != nullptr &&
+                selectedActorRelativeKeyIndex != nullptr &&
+                *selectedActorRelativeTrackIndex == actorRelativeTrackIndex &&
+                *selectedActorRelativeKeyIndex == keyIndex;
+
+            const float handleHalfWidth = isSelected ? 9.f : 7.f;
+            const float handleHalfHeight = isSelected ? 10.f : 8.f;
+            const ImRect handleRect(
+                ImVec2(markerX - handleHalfWidth, centerY - handleHalfHeight),
+                ImVec2(markerX + handleHalfWidth, centerY + handleHalfHeight));
+            const bool isHovered = ImGui::IsMouseHoveringRect(handleRect.Min, handleRect.Max, false);
+            if (isHovered)
+                isHoveringAnyKey = true;
+
+            if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            {
+                if (selectedActorRelativeTrackIndex != nullptr)
+                    *selectedActorRelativeTrackIndex = actorRelativeTrackIndex;
+                if (selectedActorRelativeKeyIndex != nullptr)
+                    *selectedActorRelativeKeyIndex = keyIndex;
+                if (selectedTrackIndex != nullptr)
+                    *selectedTrackIndex = index;
+                if (currentFrame != nullptr)
+                    *currentFrame = keyframe.frame;
+                if (consumedKeyClick != nullptr)
+                    *consumedKeyClick = true;
+
+                g_keyDragState.trackIndex = index;
+                g_keyDragState.keyIndex = keyIndex;
+            }
+
+            if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+            {
+                if (selectedTrackIndex != nullptr)
+                    *selectedTrackIndex = index;
+                if (selectedActorRelativeTrackIndex != nullptr)
+                    *selectedActorRelativeTrackIndex = actorRelativeTrackIndex;
+                if (selectedActorRelativeKeyIndex != nullptr)
+                    *selectedActorRelativeKeyIndex = keyIndex;
+                if (requestRemoveKeyPopup != nullptr)
+                    *requestRemoveKeyPopup = true;
+            }
+
+            if (isHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                if (requestOpenKeyPopup != nullptr)
+                    *requestOpenKeyPopup = true;
+            }
+
+            const bool isDraggingThisKey =
+                g_keyDragState.trackIndex == index &&
+                g_keyDragState.keyIndex == keyIndex &&
+                ImGui::IsMouseDown(ImGuiMouseButton_Left);
+
+            if (isDraggingThisKey)
+            {
+                const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
+                const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
+                const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
+
+                int minFrame = frameMin;
+                int maxFrame = frameMax;
+                if (keyIndex > 0)
+                    minFrame = std::max(minFrame, track.keyframes[keyIndex - 1].frame);
+                if (keyIndex + 1 < static_cast<int>(track.keyframes.size()))
+                    maxFrame = std::min(maxFrame, track.keyframes[keyIndex + 1].frame);
+
+                keyframe.frame = std::clamp(rawFrame, minFrame, maxFrame);
+                if (currentFrame != nullptr)
+                    *currentFrame = keyframe.frame;
+            }
+
+            const ImU32 lineColor = isSelected ? 0xFFEAF0FF : 0xFFAAB8FF;
+            const ImU32 fillColor = isSelected ? 0xFF6F86FF : (isHovered ? 0xFFC4CEFF : 0xFF8D9BFF);
+            const ImU32 outlineColor = isSelected ? 0xFF273A8C : 0xFF30438E;
+            const ImVec2 markerTop(markerX, rc.Min.y + 3.f);
+            const ImVec2 markerBottom(markerX, rc.Max.y - 3.f);
+            const ImVec2 diamond[4] =
+            {
+                ImVec2(markerX, centerY - handleHalfHeight),
+                ImVec2(markerX + handleHalfWidth, centerY),
+                ImVec2(markerX, centerY + handleHalfHeight),
+                ImVec2(markerX - handleHalfWidth, centerY)
+            };
+
+            ImGui::GetWindowDrawList()->AddLine(markerTop, markerBottom, outlineColor, 6.f);
+            ImGui::GetWindowDrawList()->AddLine(markerTop, markerBottom, lineColor, 3.f);
+            ImGui::GetWindowDrawList()->AddConvexPolyFilled(diamond, 4, fillColor);
+            ImGui::GetWindowDrawList()->AddPolyline(diamond, 4, outlineColor, ImDrawFlags_Closed, isSelected ? 3.f : 2.f);
+        }
     }
     else if (CameraTrack* modifierTrack = GetModifierTrack(sequence, index))
     {
@@ -622,6 +760,15 @@ void DrawKeyMarkers(
             if (selectedActorTransformKeyIndex != nullptr)
                 *selectedActorTransformKeyIndex = -1;
         }
+        else if (IsActorRelativeTrackIndex(sequence, index))
+        {
+            if (selectedTrackIndex != nullptr)
+                *selectedTrackIndex = index;
+            if (selectedActorRelativeTrackIndex != nullptr)
+                *selectedActorRelativeTrackIndex = GetActorRelativeTrackOffset(sequence, index);
+            if (selectedActorRelativeKeyIndex != nullptr)
+                *selectedActorRelativeKeyIndex = -1;
+        }
         else if (selectedTrackIndex != nullptr)
         {
             *selectedTrackIndex = index;
@@ -646,6 +793,8 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     int* selectedTrackIndex,
     int* selectedKeyIndex,
     int* selectedEventIndex,
+    int* selectedActorRelativeTrackIndex,
+    int* selectedActorRelativeKeyIndex,
     int* selectedActorTransformTrackIndex,
     int* selectedActorTransformKeyIndex,
     int* currentFrame,
@@ -663,6 +812,8 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     , _selectedTrackIndex(selectedTrackIndex)
     , _selectedKeyIndex(selectedKeyIndex)
     , _selectedEventIndex(selectedEventIndex)
+    , _selectedActorRelativeTrackIndex(selectedActorRelativeTrackIndex)
+    , _selectedActorRelativeKeyIndex(selectedActorRelativeKeyIndex)
     , _selectedActorTransformTrackIndex(selectedActorTransformTrackIndex)
     , _selectedActorTransformKeyIndex(selectedActorTransformKeyIndex)
     , _currentFrame(currentFrame)
@@ -695,6 +846,7 @@ int CinematicSequencerAdapter::GetItemCount() const
 {
     CHECK_NULL(_sequence, 0);
     return static_cast<int>(_sequence->cinematicTracks.size()) +
+        static_cast<int>(_sequence->actorRelativeCameraTracks.size()) +
         kModifierTrackCount +
         kEventTrackCount +
         static_cast<int>(_sequence->actorTransformTracks.size());
@@ -709,6 +861,12 @@ const char* CinematicSequencerAdapter::GetItemLabel(int index) const
 
     if (index >= 0 && index < static_cast<int>(_sequence->cinematicTracks.size()))
         return _sequence->cinematicTracks[index].name.c_str();
+
+    if (IsActorRelativeTrackIndex(_sequence, index))
+    {
+        const int actorRelativeTrackIndex = GetActorRelativeTrackOffset(_sequence, index);
+        return _sequence->actorRelativeCameraTracks[actorRelativeTrackIndex].name.c_str();
+    }
 
     if (IsEventTrackIndex(_sequence, index))
         return "Event Track";
@@ -744,6 +902,8 @@ void CinematicSequencerAdapter::Get(int index, int** start, int** end, int* type
             *color = 0xFFE58A2B;
         else if (IsActorTransformTrackIndex(_sequence, index))
             *color = 0xFF6FCF4A;
+        else if (IsActorRelativeTrackIndex(_sequence, index))
+            *color = 0xFF8D9BFF;
         else if (IsModifierTrackIndex(_sequence, index))
             *color = 0xFF4FA9CE;
         else
@@ -816,6 +976,8 @@ void CinematicSequencerAdapter::CustomDraw(int index, ImDrawList* draw_list, con
         _selectedTrackIndex,
         _selectedKeyIndex,
         _selectedEventIndex,
+        _selectedActorRelativeTrackIndex,
+        _selectedActorRelativeKeyIndex,
         _selectedActorTransformTrackIndex,
         _selectedActorTransformKeyIndex,
         _currentFrame,
@@ -842,6 +1004,8 @@ void CinematicSequencerAdapter::CustomDrawCompact(int index, ImDrawList* draw_li
         _selectedTrackIndex,
         _selectedKeyIndex,
         _selectedEventIndex,
+        _selectedActorRelativeTrackIndex,
+        _selectedActorRelativeKeyIndex,
         _selectedActorTransformTrackIndex,
         _selectedActorTransformKeyIndex,
         _currentFrame,
