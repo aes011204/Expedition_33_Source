@@ -124,18 +124,19 @@ void SL_Dualliste::Update(float timeDelta)
 
     if (_isCinematicDriven)
     {
-    if (_cloneSkillManager)
-        _cloneSkillManager->Update(timeDelta);
+        if (_cloneSkillManager)
+            _cloneSkillManager->Update(timeDelta);
 
-    if (_isCloneVisualOnly)
-    {
-        _body->Play_Animation(timeDelta);
+        if (_isCloneVisualOnly)
+        {
+            _body->Play_Animation(timeDelta);
 
-        if (_effectCom)
-            _effectCom->Update(timeDelta);
+            if (_effectCom)
+                _effectCom->Update(timeDelta);
 
-        SL_Base::Update(timeDelta);
-        return;
+            SL_Base::Update(timeDelta);
+            return;
+        }
     }
 
     Update_StunSystem(timeDelta);
@@ -311,6 +312,7 @@ Shared<ColliderCom> SL_Dualliste::Get_AttackColliderL() const
 {
     return _attackLCom;
 }
+
 Shared<ColliderCom> SL_Dualliste::Get_AttackColliderR() const
 {
     return _attackRCom;
@@ -572,6 +574,8 @@ void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
 
     if (!cinematicDriven)
         Apply_PhaseVisualState();
+}
+
 bool SL_Dualliste::Notify_CloneSkillAttack(GameObject* notifyOwner) const
 {
     if (_cloneSkillManager == nullptr)
