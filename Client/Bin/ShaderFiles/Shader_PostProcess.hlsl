@@ -222,7 +222,7 @@ PS_OUT_COLOR PS_PointGlowCompositeHDR(PS_IN In)
 {
     PS_OUT_COLOR Out;
 
-    const float3 glow = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
+    const float3 glow = g_PointGlowTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
     Out.Color = float4(glow, 0.f);
     return Out;
 }

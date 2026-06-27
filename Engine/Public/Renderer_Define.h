@@ -67,6 +67,7 @@ namespace RT
     inline constexpr const wchar_t* ScreenFxColorA = L"Target_ScreenFxColorA";
     inline constexpr const wchar_t* ScreenFxColorB = L"Target_ScreenFxColorB";
     inline constexpr const wchar_t* ScreenCapture = L"Target_ScreenCapture";
+    inline constexpr const wchar_t* PointGlow = L"Target_PointGlow";
     inline constexpr const wchar_t* BloomHalfA = L"Target_BloomHalfA";
     inline constexpr const wchar_t* BloomHalfB = L"Target_BloomHalfB";
     inline constexpr const wchar_t* BloomQuarterA = L"Target_BloomQuarterA";
@@ -100,6 +101,7 @@ namespace MRT
     inline constexpr const wchar_t* LightShaftBlurHalf = L"MRT_LightShaftBlurHalf";
     inline constexpr const wchar_t* ScreenFxA = L"MRT_ScreenFxA";
     inline constexpr const wchar_t* ScreenFxB = L"MRT_ScreenFxB";
+    inline constexpr const wchar_t* PointGlow = L"MRT_PointGlow";
     inline constexpr const wchar_t* BloomHalfA = L"MRT_BloomHalfA";
     inline constexpr const wchar_t* BloomHalfB = L"MRT_BloomHalfB";
     inline constexpr const wchar_t* BloomQuarterA = L"MRT_BloomQuarterA";
