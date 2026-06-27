@@ -65,10 +65,10 @@ struct DialogueCameraDriftProfile
 {
     bool enabled = false;
 
-    float lateralAmplitude = 0.03f;
-    float verticalAmplitude = 0.015f;
-    float depthAmplitude = 0.01f;
-    float rollAmplitude = 0.005f;
+    float lateralAmplitude = 0.06f;
+    float verticalAmplitude = 0.03f;
+    float depthAmplitude = 0.02f;
+    float rollAmplitude = 0.01f;
 
     float lateralFrequency = 0.65f;
     float verticalFrequency = 0.92f;

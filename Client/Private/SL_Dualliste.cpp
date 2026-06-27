@@ -122,6 +122,15 @@ void SL_Dualliste::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
+    if (_isCinematicDriven)
+    {
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        SL_Base::Update(timeDelta);
+        return;
+    }
+
     Update_StunSystem(timeDelta);
 
     Try_EnterPhaseChange();
@@ -503,6 +512,29 @@ bool SL_Dualliste::Change_State(SL_MonState state)
         return false;
 
     return _stateMachineCom->Change_State(state);
+}
+
+void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
+    if (_movementCom)
+    {
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_transformCom)
+        _transformCom->Set_SpeedPerSec(0.f);
 }
 
 void SL_Dualliste::Begin_PhaseChangeTransition()

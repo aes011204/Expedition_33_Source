@@ -179,6 +179,83 @@ void DeserializeActorTransformTrack(const json& trackJson, CINEMATIC_ACTOR_TRANS
         });
 }
 
+json SerializeActorRelativeCameraKeyframe(const CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& keyframe)
+{
+    return
+    {
+        { "frame", keyframe.frame },
+        { "distance", keyframe.distance },
+        { "height", keyframe.height },
+        { "sideOffset", keyframe.sideOffset },
+        { "yawOffset", keyframe.yawOffset },
+        { "pitch", keyframe.pitch },
+        { "lookHeight", keyframe.lookHeight },
+        { "fovY", keyframe.fovY },
+        { "nearPlane", keyframe.nearPlane },
+        { "farPlane", keyframe.farPlane },
+        { "interpolation", static_cast<int>(keyframe.interpolation) }
+    };
+}
+
+void DeserializeActorRelativeCameraKeyframe(
+    const json& keyframeJson,
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& outKeyframe)
+{
+    outKeyframe.frame = keyframeJson.value("frame", outKeyframe.frame);
+    outKeyframe.distance = keyframeJson.value("distance", outKeyframe.distance);
+    outKeyframe.height = keyframeJson.value("height", outKeyframe.height);
+    outKeyframe.sideOffset = keyframeJson.value("sideOffset", outKeyframe.sideOffset);
+    outKeyframe.yawOffset = keyframeJson.value("yawOffset", outKeyframe.yawOffset);
+    outKeyframe.pitch = keyframeJson.value("pitch", outKeyframe.pitch);
+    outKeyframe.lookHeight = keyframeJson.value("lookHeight", outKeyframe.lookHeight);
+    outKeyframe.fovY = keyframeJson.value("fovY", outKeyframe.fovY);
+    outKeyframe.nearPlane = keyframeJson.value("nearPlane", outKeyframe.nearPlane);
+    outKeyframe.farPlane = keyframeJson.value("farPlane", outKeyframe.farPlane);
+    outKeyframe.interpolation = static_cast<InterpolationMode>(
+        keyframeJson.value("interpolation", static_cast<int>(outKeyframe.interpolation)));
+}
+
+json SerializeActorRelativeCameraTrack(const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track)
+{
+    json trackJson{};
+    trackJson["targetId"] = track.targetId;
+    trackJson["name"] = track.name;
+    trackJson["enabled"] = track.enabled;
+    trackJson["keyframes"] = json::array();
+
+    for (const auto& keyframe : track.keyframes)
+        trackJson["keyframes"].push_back(SerializeActorRelativeCameraKeyframe(keyframe));
+
+    return trackJson;
+}
+
+void DeserializeActorRelativeCameraTrack(
+    const json& trackJson,
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& outTrack)
+{
+    outTrack.targetId = trackJson.value("targetId", outTrack.targetId);
+    outTrack.name = trackJson.value("name", outTrack.name);
+    outTrack.enabled = trackJson.value("enabled", outTrack.enabled);
+    outTrack.keyframes.clear();
+
+    const json& keyframesJson = trackJson["keyframes"];
+    if (!keyframesJson.is_array())
+        return;
+
+    for (const auto& keyframeJson : keyframesJson)
+    {
+        CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME keyframe{};
+        DeserializeActorRelativeCameraKeyframe(keyframeJson, keyframe);
+        outTrack.keyframes.push_back(keyframe);
+    }
+
+    std::sort(outTrack.keyframes.begin(), outTrack.keyframes.end(),
+        [](const CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& lhs, const CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& rhs)
+        {
+            return lhs.frame < rhs.frame;
+        });
+}
+
 json SerializeEvent(const CINEMATIC_EVENT& event)
 {
     json eventJson{};
@@ -249,6 +326,7 @@ void Cinematic_SequenceIO::SaveSequenceToFile(const CINEMATIC_SEQUENCE& sequence
     jsonData["endFrame"] = sequence.endFrame;
     jsonData["fps"] = sequence.fps;
     jsonData["cinematicTracks"] = json::array();
+    jsonData["actorRelativeCameraTracks"] = json::array();
     jsonData["eventTrack"] = json::array();
     jsonData["actorTransformTracks"] = json::array();
     jsonData["modifierClip"] =
@@ -299,6 +377,9 @@ void Cinematic_SequenceIO::SaveSequenceToFile(const CINEMATIC_SEQUENCE& sequence
         jsonData["cinematicTracks"].push_back(track);
     }
 
+    for (const auto& actorRelativeTrack : sequence.actorRelativeCameraTracks)
+        jsonData["actorRelativeCameraTracks"].push_back(SerializeActorRelativeCameraTrack(actorRelativeTrack));
+
     for (const auto& event : sequence.eventTrack)
         jsonData["eventTrack"].push_back(SerializeEvent(event));
 
@@ -334,6 +415,7 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
     loadedSequence.startFrame = jsonData.value("startFrame", loadedSequence.startFrame);
     loadedSequence.endFrame = jsonData.value("endFrame", loadedSequence.endFrame);
     loadedSequence.cinematicTracks.clear();
+    loadedSequence.actorRelativeCameraTracks.clear();
     loadedSequence.eventTrack.clear();
     loadedSequence.actorTransformTracks.clear();
 
@@ -386,6 +468,17 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
                 });
 
             loadedSequence.cinematicTracks.push_back(track);
+        }
+    }
+
+    const json& actorRelativeTracksJson = jsonData["actorRelativeCameraTracks"];
+    if (actorRelativeTracksJson.is_array())
+    {
+        for (const auto& trackJson : actorRelativeTracksJson)
+        {
+            CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK track{};
+            DeserializeActorRelativeCameraTrack(trackJson, track);
+            loadedSequence.actorRelativeCameraTracks.push_back(std::move(track));
         }
     }
 

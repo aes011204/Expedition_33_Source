@@ -1,4 +1,4 @@
-﻿#include "NPC_Base.h"
+#include "NPC_Base.h"
 #include "ClientInstance.h"
 #include "ColliderCom.h"
 #include "Delegate.h"
@@ -169,6 +169,34 @@ const vector<Vec3>& NPC_Base::Get_EffectivePatrolPoints()
     return _defaultPatrolPoints;
 }
 
+void NPC_Base::Set_DialogueAnimation(const string& animationKey)
+{
+    if(animationKey.empty())
+        return;
+ 
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (bodyPart == nullptr)
+        return;
+
+    bodyPart->Set_Animation(animationKey, 0.3f, true);
+}
+
+string NPC_Base::Get_CurrentAnimationKey() const
+{
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (bodyPart == nullptr)
+        return {};
+
+    Shared<ModelCom> model = bodyPart->Get_Model();
+    if (model == nullptr)
+        return {};
+
+    const char* animationName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
+    if (animationName == nullptr)
+        return {};
+
+    return animationName;
+}
 void NPC_Base::Restore_AfterBattleExit()
 {
     Set_Visible(true);
@@ -227,3 +255,5 @@ void NPC_Base::Free()
 
     Character_WorldBase::Free();
 }
+
+

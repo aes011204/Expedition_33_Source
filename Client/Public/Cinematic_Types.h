@@ -31,21 +31,22 @@ typedef struct CinematicKeyframe
 
 }CINEMATIC_KEYFRAME;
 
-// Stores shot parameters relative to two actors rather than world-space camera keys.
-typedef struct InteractionKeyframe
+typedef struct CinematicActorRelativeCameraKeyframe
 {
     int   frame = 0;
-    float distance = 0.f;
-    float height = 0.f;
+    float distance = 3.f;
+    float height = 1.2f;
     float sideOffset = 0.f;
     float yawOffset = 0.f;
     float pitch = 0.f;
-    float lookHeight = 0.f;
+    float lookHeight = 1.f;
+    float fovY = XMConvertToRadians(60.f);
+    float nearPlane = 0.1f;
+    float farPlane = 500.f;
 
     InterpolationMode interpolation = InterpolationMode::Linear;
 
-}INTERACTION_KEYFRAME;
-
+}CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME;
 
 typedef struct CinematicTrack
 {
@@ -55,13 +56,14 @@ typedef struct CinematicTrack
 
 }CINEMATIC_TRACK;
 
-typedef struct InteractionTrack
+typedef struct CinematicActorRelativeCameraTrack
 {
-    string name = "Interaction Track";
+    string targetId;
+    string name = "Actor Relative Camera Track";
     bool   enabled = true;
-    vector<INTERACTION_KEYFRAME> keyframes;
+    vector<CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME> keyframes;
 
-}INTERACTION_TRACK;
+}CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK;
 
 typedef struct CinematicActorTransformKeyframe
 {
@@ -128,10 +130,10 @@ typedef struct CinematicSequence
     string name = "New Sequence";
     int    fps = 30;
     vector<CINEMATIC_TRACK> cinematicTracks;
+    vector<CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK> actorRelativeCameraTracks;
     Client::CameraModifierClip modifierClip;
     vector<CINEMATIC_EVENT> eventTrack;
     vector<CINEMATIC_ACTOR_TRANSFORM_TRACK> actorTransformTracks;
-    vector<INTERACTION_TRACK> interactionTracks;
     int    startFrame = 0;
     int    endFrame = 300;
 

@@ -50,6 +50,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
                 line.text = String::ToWString(lineJson.value("text", ""));
                 line.cameraPresetId = lineJson.value("cameraPresetId", "");
                 line.nextLineIndex = lineJson.value("nextLineIndex", -1);
+                line.speakerAnimationKey = lineJson.value("speakerAnimationKey", "");
                 if (const string speakerRoleName = lineJson.value("speakerRole", string{}); !speakerRoleName.empty())
                 {
                     if (const auto parsedSpeakerRole = magic_enum::enum_cast<DialogueActorRole>(speakerRoleName); parsedSpeakerRole.has_value())
@@ -64,6 +65,7 @@ void DialogueDB::LoadFromFile(const string& filePath)
                         choice.text = choiceJson.value("text", "");
                         choice.action = choiceJson.value("action", "");
                         choice.nextLineIndex = choiceJson.value("nextLineIndex", -1);
+                        choice.resumeDialogueKey = choiceJson.value("resumeDialogueKey", "");
                         line.choices.push_back(move(choice));
                     }
                 }

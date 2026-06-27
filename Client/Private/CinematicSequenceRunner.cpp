@@ -2,6 +2,7 @@
 
 #include "Cinematic_Player.h"
 #include "Cinematic_SequenceIO.h"
+#include "Cinematic_Utils.h"
 #include "CinematicCamera.h"
 #include "ClientInstance.h"
 #include "ContainerObject.h"
@@ -10,6 +11,7 @@
 #include "ModelCom.h"
 #include "Monster_WorldBase.h"
 #include "PartObject.h"
+#include "SL_Dualliste.h"
 #include "Spawn_Prefab.h"
 #include "TransformCom.h"
 #include <algorithm>
@@ -46,6 +48,195 @@ PartObject* Find_TargetAnimPart(const Shared<GameObject>& actor)
 }
 }
 
+Vec3 CinematicSequenceRunner::Build_LookAtRotation(
+    const Vec3& fromWorldPos,
+    const Vec3& toWorldPos,
+    const Vec3& fallbackRotation)
+{
+    const Vec3 direction = toWorldPos - fromWorldPos;
+    const float horizontalLength = sqrtf(direction.x * direction.x + direction.z * direction.z);
+    if (direction.LengthSquared() <= 0.0001f || horizontalLength <= 0.0001f)
+        return fallbackRotation;
+
+    Vec3 rotation = fallbackRotation;
+    rotation.y = XMConvertToDegrees(atan2f(direction.x, direction.z));
+    rotation.x = -XMConvertToDegrees(atan2f(direction.y, horizontalLength));
+    rotation.z = 0.f;
+    return rotation;
+}
+
+bool CinematicSequenceRunner::Resolve_CameraTrackSelection(
+    int trackIndex,
+    CINEMATIC_TRACK*& outWorldTrack,
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK*& outActorRelativeTrack,
+    CameraTrackKind& outKind)
+{
+    outWorldTrack = nullptr;
+    outActorRelativeTrack = nullptr;
+    outKind = CameraTrackKind::None;
+
+    const int worldTrackCount = static_cast<int>(_sequence.cinematicTracks.size());
+    if (trackIndex >= 0 && trackIndex < worldTrackCount)
+    {
+        outWorldTrack = &_sequence.cinematicTracks[trackIndex];
+        outKind = CameraTrackKind::World;
+        return true;
+    }
+
+    const int actorRelativeTrackIndex = trackIndex - worldTrackCount;
+    if (actorRelativeTrackIndex >= 0 &&
+        actorRelativeTrackIndex < static_cast<int>(_sequence.actorRelativeCameraTracks.size()))
+    {
+        outActorRelativeTrack = &_sequence.actorRelativeCameraTracks[actorRelativeTrackIndex];
+        outKind = CameraTrackKind::ActorRelative;
+        return true;
+    }
+
+    return false;
+}
+
+bool CinematicSequenceRunner::Evaluate_ActorRelativeCameraTrack(
+    const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track,
+    int currentFrame,
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& outKeyframe) const
+{
+    if (!track.enabled || track.keyframes.empty())
+        return false;
+
+    const auto& keyframes = track.keyframes;
+    if (currentFrame <= keyframes.front().frame)
+    {
+        outKeyframe = keyframes.front();
+        return true;
+    }
+
+    if (currentFrame >= keyframes.back().frame)
+    {
+        outKeyframe = keyframes.back();
+        return true;
+    }
+
+    for (size_t i = 0; i + 1 < keyframes.size(); ++i)
+    {
+        const auto& left = keyframes[i];
+        const auto& right = keyframes[i + 1];
+        if (currentFrame < left.frame || currentFrame > right.frame)
+            continue;
+
+        if (left.frame == right.frame)
+        {
+            outKeyframe = right;
+            return true;
+        }
+
+        const float t = static_cast<float>(currentFrame - left.frame) /
+            static_cast<float>(right.frame - left.frame);
+        outKeyframe.frame = currentFrame;
+        outKeyframe.distance = std::lerp(left.distance, right.distance, t);
+        outKeyframe.height = std::lerp(left.height, right.height, t);
+        outKeyframe.sideOffset = std::lerp(left.sideOffset, right.sideOffset, t);
+        outKeyframe.yawOffset = std::lerp(left.yawOffset, right.yawOffset, t);
+        outKeyframe.pitch = std::lerp(left.pitch, right.pitch, t);
+        outKeyframe.lookHeight = std::lerp(left.lookHeight, right.lookHeight, t);
+        outKeyframe.fovY = std::lerp(left.fovY, right.fovY, t);
+        outKeyframe.nearPlane = std::lerp(left.nearPlane, right.nearPlane, t);
+        outKeyframe.farPlane = std::lerp(left.farPlane, right.farPlane, t);
+        outKeyframe.interpolation = right.interpolation;
+        return true;
+    }
+
+    return false;
+}
+
+bool CinematicSequenceRunner::Build_ActorRelativeCameraPose(
+    const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track,
+    int currentFrame,
+    CAMERAPOSE& outPose) const
+{
+    if (track.targetId.empty())
+        return false;
+
+    Shared<GameObject> actor = Get_BoundActor(track.targetId);
+    if (actor == nullptr)
+        return false;
+
+    Shared<TransformCom> transform = actor->Get_Transform();
+    if (transform == nullptr)
+        return false;
+
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME sample{};
+    if (!Evaluate_ActorRelativeCameraTrack(track, currentFrame, sample))
+        return false;
+
+    const Vec3 actorPos = transform->Get_WorldPosition();
+    const float actorYaw = transform->Get_WorldRotationEuler().y;
+    const float finalYaw = actorYaw + sample.yawOffset;
+    const float yawRad = XMConvertToRadians(finalYaw);
+    const float pitchRad = XMConvertToRadians(sample.pitch);
+
+    Vec3 backDir{};
+    backDir.x = -sinf(yawRad);
+    backDir.y = 0.f;
+    backDir.z = -cosf(yawRad);
+    backDir.Normalize();
+
+    Vec3 rightDir{};
+    rightDir.x = cosf(yawRad);
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(yawRad);
+    rightDir.Normalize();
+
+    const Vec3 baseOffset = backDir * sample.distance;
+    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
+    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+
+    const Vec3 cameraPos = actorPos + orbitOffset + Vec3::Up * sample.height + rightDir * sample.sideOffset;
+    const Vec3 lookTarget = actorPos + Vec3::Up * sample.lookHeight;
+
+    outPose.position = cameraPos;
+    outPose.rotation = Build_LookAtRotation(cameraPos, lookTarget, outPose.rotation);
+    outPose.fovY = sample.fovY;
+    outPose.nearPlane = sample.nearPlane;
+    outPose.farPlane = sample.farPlane;
+    return true;
+}
+
+void CinematicSequenceRunner::Apply_ActiveCameraTrackPose(int currentFrame)
+{
+    if (!_applyCameraTrack || _activeCinematicCamera == nullptr)
+        return;
+
+    if (_cameraTrackKind != CameraTrackKind::ActorRelative)
+        return;
+
+    const int actorRelativeTrackIndex = _trackIndex - static_cast<int>(_sequence.cinematicTracks.size());
+    if (actorRelativeTrackIndex < 0 ||
+        actorRelativeTrackIndex >= static_cast<int>(_sequence.actorRelativeCameraTracks.size()))
+    {
+        return;
+    }
+
+    CAMERAPOSE camPose{};
+    if (!Build_ActorRelativeCameraPose(_sequence.actorRelativeCameraTracks[actorRelativeTrackIndex], currentFrame, camPose))
+        return;
+
+    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, currentFrame);
+    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, currentFrame);
+
+    _activeCinematicCamera->Apply_CinematicPose(camPose);
+    if (_activeCinematicCamera->Get_Transform() == nullptr)
+        return;
+
+    const Vec3 shakeOffset = Sample_CameraModifierShakeOffset(
+        modifierSample,
+        sequenceTime,
+        _activeCinematicCamera->Get_Transform()->Get_WorldRight(),
+        _activeCinematicCamera->Get_Transform()->Get_WorldUp());
+
+    camPose.position += shakeOffset;
+    _activeCinematicCamera->Apply_CinematicPose(camPose);
+}
+
 bool CinematicSequenceRunner::Play_Sequence(
     const wstring& filePath,
     int trackIndex,
@@ -73,7 +264,10 @@ bool CinematicSequenceRunner::Play_Sequence(
     if (!Cinematic_SequenceIO::LoadSequenceFromFile(stringPath, _sequence))
         return false;
 
-    if (trackIndex < 0 || trackIndex >= static_cast<int>(_sequence.cinematicTracks.size()))
+    CINEMATIC_TRACK* cinematicTrack = nullptr;
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* actorRelativeTrack = nullptr;
+    CameraTrackKind trackKind = CameraTrackKind::None;
+    if (!Resolve_CameraTrackSelection(trackIndex, cinematicTrack, actorRelativeTrack, trackKind))
         return false;
 
     Shared<CinematicCamera> cinematicCamera = nullptr;
@@ -84,16 +278,19 @@ bool CinematicSequenceRunner::Play_Sequence(
             return false;
     }
 
+    _activeCinematicCamera = cinematicCamera;
     _bindingStates.clear();
     _trackIndex = trackIndex;
     _nextEventIndex = 0;
+    _cameraTrackKind = trackKind;
     _sequenceLevelIndex = GAME->Current_LevelIndex();
     _suspendActorTransformTrackPreview = false;
     _applyCameraTrack = applyCameraTrack;
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
 
-    _player->Ready_CinematicPlayer(&_sequence, &_sequence.cinematicTracks[trackIndex], cinematicCamera, true, applyCameraTrack);
+    _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
+    Apply_ActiveCameraTrackPose(_sequence.startFrame);
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
@@ -128,9 +325,13 @@ bool CinematicSequenceRunner::Play_Sequence(
         Cleanup_Context();
     }
 
-    if (trackIndex < 0 || trackIndex >= static_cast<int>(sequence.cinematicTracks.size()))
-        return false;
+    _sequence = sequence;
 
+    CINEMATIC_TRACK* cinematicTrack = nullptr;
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* actorRelativeTrack = nullptr;
+    CameraTrackKind trackKind = CameraTrackKind::None;
+    if (!Resolve_CameraTrackSelection(trackIndex, cinematicTrack, actorRelativeTrack, trackKind))
+        return false;
 
     Shared<CinematicCamera> cinematicCamera = nullptr;
     if (applyCameraTrack)
@@ -140,17 +341,19 @@ bool CinematicSequenceRunner::Play_Sequence(
             return false;
     }
 
-    _sequence = sequence;
+    _activeCinematicCamera = cinematicCamera;
     _bindingStates.clear();
     _trackIndex = trackIndex;
     _nextEventIndex = 0;
+    _cameraTrackKind = trackKind;
     _sequenceLevelIndex = GAME->Current_LevelIndex();
     _suspendActorTransformTrackPreview = false;
     _applyCameraTrack = applyCameraTrack;
     _applyEventTrack = applyEventTrack;
     _applyActorTransformTrack = applyActorTransformTrack;
 
-   _player->Ready_CinematicPlayer(&_sequence, &_sequence.cinematicTracks[trackIndex], cinematicCamera, true, applyCameraTrack);
+   _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
+    Apply_ActiveCameraTrackPose(_sequence.startFrame);
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
@@ -232,6 +435,7 @@ void CinematicSequenceRunner::Set_CurrentFrame(int frame)
     }
 
     _player->Set_CurrentFrame(targetFrame, _applyCameraTrack);
+    Apply_ActiveCameraTrackPose(targetFrame);
     if (_applyEventTrack)
         Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
@@ -253,6 +457,7 @@ void CinematicSequenceRunner::Refresh_CurrentFrameContext()
     _suspendActorTransformTrackPreview = suspendActorTransformTrackPreview;
 
     _player->Set_CurrentFrame(currentFrame, _applyCameraTrack);
+    Apply_ActiveCameraTrackPose(currentFrame);
     if (_applyEventTrack)
         Execute_EventsUpToFrame(currentFrame, static_cast<float>(currentFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
@@ -292,6 +497,7 @@ void CinematicSequenceRunner::Preview_CurrentFrame(
     }
 
     _player->Set_CurrentFrame(targetFrame, applyCameraTrack);
+    Apply_ActiveCameraTrackPose(targetFrame);
 
     if (applyEventTrack)
         Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
@@ -313,11 +519,16 @@ bool CinematicSequenceRunner::Sync_PreviewSequence(
     if (trackIndex >= 0)
         _trackIndex = trackIndex;
 
-    if (_trackIndex < 0 || _trackIndex >= static_cast<int>(sequence.cinematicTracks.size()))
+    _sequence = sequence;
+
+    CINEMATIC_TRACK* cinematicTrack = nullptr;
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* actorRelativeTrack = nullptr;
+    CameraTrackKind trackKind = CameraTrackKind::None;
+    if (!Resolve_CameraTrackSelection(_trackIndex, cinematicTrack, actorRelativeTrack, trackKind))
         return false;
 
-    _sequence = sequence;
-    _player->Rebind_Sequence(&_sequence, &_sequence.cinematicTracks[_trackIndex]);
+    _cameraTrackKind = trackKind;
+    _player->Rebind_Sequence(&_sequence, cinematicTrack);
     return true;
 }
 
@@ -339,6 +550,7 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
         return;
 
     _player->Update(timeDelta);
+    Apply_ActiveCameraTrackPose(_player->Get_CurrentFrame());
 
     const int currentFrame = _player->Get_CurrentFrame();
     const float currentFrameExact = _player->Get_CurrentFrameExact();
@@ -454,6 +666,18 @@ bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const C
         return true;
     }
 
+    if (Shared<GameObject> existingActor = Find_ReusableActorByPrefabName(payload.prefabName))
+    {
+        Bind_ActorToTarget(targetId, existingActor, false, payload.cleanupPolicy);
+
+        LOG_INFO(
+            "[CinematicSequenceRunner] SpawnEvent reused existing actor: target='{}' prefab='{}' frame={}",
+            targetId,
+            payload.prefabName,
+            Get_CurrentFrame());
+        return true;
+    }
+
     Shared<GameObject> actor = Spawn_Prefab::Prefab(payload.prefabName)
         .AtLevel(_sequenceLevelIndex)
         .InLayer(payload.layerTag)
@@ -469,22 +693,7 @@ bool CinematicSequenceRunner::Execute_SpawnEvent(const string& targetId, const C
         return false;
     }
 
-    BindingRuntimeState state{};
-    state.actor = actor;
-    state.spawnedBySequence = true;
-    state.cleanupPolicy = payload.cleanupPolicy;
-
-    if (Shared<ModelCom> model = Find_TargetModel(actor))
-    {
-        state.hasCinematicNotifyContextOverride = true;
-        state.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
-        model->Set_CinematicNotifyContext(true);
-    }
-
-    _bindingStates[targetId] = state;
-
-    if (const auto worldMonster = dynamic_pointer_cast<Monster_WorldBase>(actor))
-        worldMonster->Set_CinematicDriven(true);
+    Bind_ActorToTarget(targetId, actor, true, payload.cleanupPolicy);
 
     LOG_INFO(
         "[CinematicSequenceRunner] SpawnEvent success: target='{}' prefab='{}' frame={} pos=({:.2f}, {:.2f}, {:.2f})",
@@ -596,6 +805,8 @@ bool CinematicSequenceRunner::Execute_DespawnEvent(const string& targetId, const
         if (Shared<ModelCom> model = Find_TargetModel(iter->second.actor))
             model->Set_CinematicNotifyContext(iter->second.previousCinematicNotifyContext);
     }
+
+    Apply_CinematicDrivenState(iter->second.actor, false);
 
     if (iter->second.spawnedBySequence)
         GAME->Remove_GameObject(_sequenceLevelIndex, iter->second.actor);
@@ -780,13 +991,13 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
                 model->Set_CinematicNotifyContext(state.previousCinematicNotifyContext);
         }
 
+        Apply_CinematicDrivenState(state.actor, false);
+
         if (!state.spawnedBySequence)
             continue;
 
         if (!forceRemoveAllSpawned && state.cleanupPolicy == CinematicCleanupPolicy::Keep)
         {
-            if (const auto worldMonster = dynamic_pointer_cast<Monster_WorldBase>(state.actor))
-                worldMonster->Set_CinematicDriven(false);
             continue;
         }
 
@@ -794,11 +1005,90 @@ void CinematicSequenceRunner::Cleanup_Context(bool forceRemoveAllSpawned)
     }
 
     _bindingStates.clear();
+    _activeCinematicCamera = nullptr;
     _nextEventIndex = 0;
+    _cameraTrackKind = CameraTrackKind::None;
     _suspendActorTransformTrackPreview = false;
 
     if (forceRemoveAllSpawned)
         Clear_CompletedCallbacks();
+}
+
+Shared<GameObject> CinematicSequenceRunner::Find_ReusableActorByPrefabName(const string& prefabName) const
+{
+    if (prefabName.empty())
+        return nullptr;
+
+    Shared<GameObject> matchedActor = nullptr;
+    GAME->Visit_LevelObjects(
+        _sequenceLevelIndex,
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            if (matchedActor != nullptr || gameObject == nullptr || gameObject->Is_MarkDestroy())
+                return;
+
+            if (gameObject->Get_SourcePrefabName() != prefabName)
+                return;
+
+            if (Is_ActorAlreadyBound(gameObject))
+                return;
+
+            matchedActor = gameObject;
+        });
+
+    return matchedActor;
+}
+
+bool CinematicSequenceRunner::Is_ActorAlreadyBound(const Shared<GameObject>& actor) const
+{
+    if (actor == nullptr)
+        return false;
+
+    for (const auto& [targetId, state] : _bindingStates)
+    {
+        UNREFERENCED_PARAMETER(targetId);
+
+        if (state.actor == actor)
+            return true;
+    }
+
+    return false;
+}
+
+void CinematicSequenceRunner::Apply_CinematicDrivenState(const Shared<GameObject>& actor, bool cinematicDriven) const
+{
+    if (const auto worldMonster = dynamic_pointer_cast<Monster_WorldBase>(actor))
+    {
+        worldMonster->Set_CinematicDriven(cinematicDriven);
+        return;
+    }
+
+    if (const auto dualliste = dynamic_pointer_cast<SL_Dualliste>(actor))
+        dualliste->Set_CinematicDriven(cinematicDriven);
+}
+
+void CinematicSequenceRunner::Bind_ActorToTarget(
+    const string& targetId,
+    const Shared<GameObject>& actor,
+    bool spawnedBySequence,
+    CinematicCleanupPolicy cleanupPolicy)
+{
+    BindingRuntimeState state{};
+    state.actor = actor;
+    state.spawnedBySequence = spawnedBySequence;
+    state.cleanupPolicy = cleanupPolicy;
+
+    if (Shared<ModelCom> model = Find_TargetModel(actor))
+    {
+        state.hasCinematicNotifyContextOverride = true;
+        state.previousCinematicNotifyContext = model->Is_CinematicNotifyContext();
+        model->Set_CinematicNotifyContext(true);
+    }
+
+    Apply_CinematicDrivenState(actor, true);
+    _bindingStates[targetId] = state;
 }
 
 Unique<CinematicSequenceRunner> CinematicSequenceRunner::Create()

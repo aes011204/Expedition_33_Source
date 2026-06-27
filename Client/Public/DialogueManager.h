@@ -42,6 +42,9 @@ private:
     Shared<GameObject>  _dialogueNpcObject;
     Unique<UI_Dialogue> _uiDialogue = {};
 
+    string              _lastAnimationKey;
+    string              _startAnimationKey;
+
 public:
     static Unique<DialogueManager> Create();
     virtual void Free() override;

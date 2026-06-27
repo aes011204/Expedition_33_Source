@@ -265,6 +265,15 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
 
     CHECK_NULL(chad, E_FAIL);
 
+    const Shared<GameObject> sumo = Spawn_Prefab::Prefab("NPC_Sumo")
+    .AtLevel(ETOI(LevelType::GestralVillage))
+    .InLayer(strLayerTag)
+    .Position(Vec3(4.36f, -6.4f, 11.05f))
+    .Rotation(Vec3(0.f, 180.f, 0.f))
+    .Spawn();
+
+    CHECK_NULL(chad, E_FAIL);
+
     return S_OK;
 }
 

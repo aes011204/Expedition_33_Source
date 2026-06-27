@@ -44,9 +44,11 @@ private:
     void Render_KeyframeList();
     void Render_SelectedKeyframe();
     void Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe);
+    void Render_SelectedActorRelativeCameraKeyframeEditor(CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& keyframe);
     void Render_SelectedModifierKeyframeEditor(CameraKeyframe& keyframe);
     void Render_RightPanel();
     void Render_EventTrack();
+    void Render_ActorRelativeCameraTracks();
     void Render_ActorTransformTracks();
     void Render_SelectedKeyframePopup();
     void Render_InsertKeyframePopup();
@@ -54,6 +56,7 @@ private:
     void Render_PreviewState();
     void Toggle_PreviewPlayback();
     void Render_LoadSequencePopup();
+    void Render_SequenceOverwriteWarningPopups();
     void Render_ImSequencer();
 
     void Ensure_DefaultTrack();
@@ -77,6 +80,13 @@ private:
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
     void Apply_CurrentBattleClipPreview();
     bool Try_CaptureSelectedActorTransform(Vec3& outPosition, Vec3& outRotation) const;
+    bool Try_CaptureSelectedActorRelativeCameraValues(
+        float& outDistance,
+        float& outHeight,
+        float& outSideOffset,
+        float& outYawOffset,
+        float& outPitch,
+        float& outLookHeight) const;
     void Ensure_BattleClipSkillListLoaded();
     string Get_SelectedBattleClipSkillId() const;
 
@@ -84,8 +94,12 @@ private:
 
     CINEMATIC_TRACK* Get_SelectedTrack();
     CINEMATIC_KEYFRAME* Get_SelectedKeyframe();
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK* Get_SelectedActorRelativeCameraTrack();
+    CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME* Get_SelectedActorRelativeCameraKeyframe();
     CameraTrack* Get_SelectedModifierTrack();
     CameraKeyframe* Get_SelectedModifierKeyframe();
+    bool Is_SelectedActorRelativeCameraTrack() const;
+    int Get_SelectedActorRelativeCameraTrackIndex() const;
     bool Is_SelectedModifierTrack() const;
     int Get_SelectedModifierTrackIndex() const;
     CameraTrack* Get_SelectedBattleClipTrack();
@@ -111,12 +125,16 @@ private:
     int                                  _selectedKeyIndex = -1;
     int                                  _selectedSequenceFileIndex = -1;
     int                                  _selectedEventIndex = -1;
+    int                                  _selectedActorRelativeCameraTrackIndex = -1;
+    int                                  _selectedActorRelativeCameraKeyIndex = -1;
     int                                  _selectedActorTransformTrackIndex = -1;
     int                                  _selectedActorTransformKeyIndex = -1;
     int                                  _currentFrame = 0;
     bool                                 _requestOpenSelectedKeyPopup = false;
     bool                                 _requestOpenInsertKeyPopup = false;
     bool                                 _requestRemoveKeyPopup = false;
+    bool                                 _requestOpenLoadSequenceConfirmPopup = false;
+    bool                                 _requestOpenNewEmptySequenceConfirmPopup = false;
     int                                  _contextMenuTrackIndex = -1;
     int                                  _contextMenuFrame = 0;
     bool                                 _hasPendingInsertRequest = false;
