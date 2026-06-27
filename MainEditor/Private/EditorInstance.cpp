@@ -297,6 +297,7 @@ void EditorInstance::Stop()
     _cameraBeforeFreeCamera.reset();
 
     GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
     GAME->Unlock_Mouse();
     _runtimeGameFocusRecoveryFrames = 0;
 

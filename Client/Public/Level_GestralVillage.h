@@ -34,6 +34,9 @@ private:
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
     HRESULT Ready_Layer_ETC(const wstring& strLayerTag);
+
+    void    UnlockRules_GestralVillage();
+
     void    Play_MapBGM();
 
 private:

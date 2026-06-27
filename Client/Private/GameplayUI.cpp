@@ -220,6 +220,7 @@ void GameplayUI::Handle_InputModeChanged(GameplayUIInputMode previousMode, Gamep
 void GameplayUI::Handle_EditorStopRuntime()
 {
     Invalidate_RuntimeUIEntryCache();
+    CLIENT->Clear_ReplayMonsterSnapshot();
 
     if (_worldUI)
     {

@@ -18,7 +18,8 @@ bool SL_Mon_IdleState::EnterInvoke()
     if (owner == nullptr)
         return false;
 
-    return owner->Play_Anim(SL_Dualliste::Anim::Idle, 0.15f, true);
+    owner->Play_Anim(SL_Dualliste::Anim::Idle, 0.15f, true);
+    return true;
 }
 
 Shared<SL_Mon_IdleState> SL_Mon_IdleState::Create(const Shared<SL_Dualliste>& owner)

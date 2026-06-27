@@ -59,7 +59,7 @@ public:
     virtual HRESULT RenderPickingID(uint32 id) override;
     HRESULT Render_Shadow() override;
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
-    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const override { return cascadeIndex <= _maxShadowCascade; }
+    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const override;
     virtual uint32 Get_RenderHotspotInstanceCount() const override { return _instanceCount; }
     virtual wstring Get_RenderHotspotSourceModelPath() const override { return _modelPath; }
 

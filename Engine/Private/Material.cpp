@@ -19,7 +19,7 @@ HRESULT Material::Initialize(const char* modelPath, const ModelMaterialData& mat
     _maxTextureTypeSize = static_cast<uint32>(MaterialTextureSlot::END);
     _materials.resize(_maxTextureTypeSize);
 
-    fs::path rootPath = fs::path(modelPath).parent_path();
+    fs::path rootPath = fs::path(String::ToWString(modelPath)).parent_path();
 
     for (const auto& slot : slots)
     {
@@ -244,12 +244,12 @@ wstring Material::Find_TextureFile(const fs::path& searchRoot, const string& fil
     if (wideFileName.empty())
         return L"";
 
-    /* 1차: 같은 디렉토리에서 직접 확인 /
+    /* 1차: 같은 디렉토리에서 직접 확인 */
     fs::path directPath = searchRoot / wideFileName;
     if (fs::exists(directPath))
         return directPath.lexically_normal().wstring();
 
-    / 2차: 형제 + 하위 폴더를 재귀 탐색하여 파일명 일치 검색 */
+    /* 2차: 형제 + 하위 폴더를 재귀 탐색하여 파일명 일치 검색 */
     for (const auto& entry : fs::recursive_directory_iterator(searchRoot))
     {
         if (entry.is_regular_file() && entry.path().filename().wstring() == wideFileName)

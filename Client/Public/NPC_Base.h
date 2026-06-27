@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 #include "Character_WorldBase.h"
 
 NS_BEGIN(Client)
@@ -25,16 +25,18 @@ public:
     void    From_Json(const json& data) override;
 
 public:
-    void            On_EditorStopRuntime();
-    void            BuildDialogueRequest(const string& npcPrefabName);
+    void    On_EditorStopRuntime();
+    void    BuildDialogueRequest(const string& npcPrefabName);
 
     bool Is_CinematicDriven() const { return _isCinematicDriven; }
 
     void Set_PatrolPoints(vector<Vec3> patrolPoints) { _PatrolPoints = std::move(patrolPoints); }
     const vector<Vec3>& Get_PatrolPoints() const { return _PatrolPoints; }
     const vector<Vec3>& Get_EffectivePatrolPoints();
+    void Set_DialogueAnimation(const string& animationKey);
+    string Get_CurrentAnimationKey() const;
 
-    // ì „íˆ¬ ë„ì£¼ ì‹œ, ëª¬ìŠ¤í„° ë³µêµ¬
+    // ÀüÅõ µµÁÖ ½Ã, ¸ó½ºÅÍ º¹±¸
     void   Restore_AfterBattleExit();
 
 protected:
@@ -52,7 +54,7 @@ protected:
     bool _isCinematicDriven = false;
 
 
-    // ê¸°ë³¸ ì›”ë“œ ëª¬ìŠ¤í„° root motion -> ì´ë™ ì†ë„ í™˜ì‚°ê°’
+    // ±âº» ¿ùµå ¸ó½ºÅÍ root motion -> ÀÌµ¿ ¼Óµµ È¯»ê°ª
     float _worldMoveSpeedScale = 0.4f;
     Shared<Trigger_Interaction> _sharedTrigger = {};
 public:
@@ -61,3 +63,4 @@ public:
 };
 
 NS_END
+

@@ -9,6 +9,7 @@
 #include "SoulLikeController.h"
 #include "MapAmbientVisibility.h"
 #include "BattleStartSpawner.h"
+#include "RuntimeRuleStateService.h"
 
 namespace
 {
@@ -48,6 +49,8 @@ HRESULT Level_GestralVillage::Initialize()
 
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
         return E_FAIL;
+
+    UnlockRules_GestralVillage();
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
@@ -307,6 +310,15 @@ HRESULT Level_GestralVillage::Ready_Layer_NPC(const wstring& strLayerTag)
 
     CHECK_NULL(chad, E_FAIL);
 
+    const Shared<GameObject> sumo = Spawn_Prefab::Prefab("NPC_Sumo")
+    .AtLevel(ETOI(LevelType::GestralVillage))
+    .InLayer(strLayerTag)
+    .Position(Vec3(4.36f, -6.4f, 11.05f))
+    .Rotation(Vec3(0.f, 180.f, 0.f))
+    .Spawn();
+
+    CHECK_NULL(chad, E_FAIL);
+
     return S_OK;
 }
 
@@ -389,6 +401,14 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     _bssPotatoBag->Set_SpawnerId(Constants::Value::potatoBagBattleStartSpawnerId);
 
     return S_OK;
+}
+
+void Level_GestralVillage::UnlockRules_GestralVillage()
+{
+    RuntimeRuleStateService::Apply_ToCurrentRuntime(
+        RuntimeRuleStateService::Build_GestralVillageStartUnlocks(), false);
+
+    CLIENT->Restore_PartyFormationAfterEditorStop();
 }
 
 void Level_GestralVillage::Play_MapBGM()
