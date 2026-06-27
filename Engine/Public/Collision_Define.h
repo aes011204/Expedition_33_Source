@@ -312,8 +312,9 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
       ETOI(Collision_Channel::Player_Target) |
       ETOI(Collision_Channel::WorldActionTrigger),
       ETOI(Collision_Channel::Player_WorldBody) |
-      ETOI(Collision_Channel::Enviroment)
+      ETOI(Collision_Channel::Environment)
     },
+
 };
 
 inline const Collision_Preset_Data& Get_PresetData(Collision_Preset preset)

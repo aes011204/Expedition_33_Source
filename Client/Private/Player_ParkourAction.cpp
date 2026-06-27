@@ -42,6 +42,11 @@ namespace
         value.Normalize();
         return value;
     }
+
+    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
+    {
+        return actionType == Player_ParkourAction::ParkourActionType::HighMantle ? "High" : "Low";
+    }
 }
 
 Player_ParkourAction::Player_ParkourAction(const Shared<Player_WorldBase>& owner)
@@ -58,15 +63,22 @@ bool Player_ParkourAction::EnterInvoke()
 {
     Refresh_BodyPlayer();
     if (_bodyPlayer == nullptr || _controllerCom == nullptr || _stateCom == nullptr || _movementCom == nullptr)
+    {
+        LOG_WARN("[Parkour] Reject Enter: missing required component");
         return false;
+    }
 
-    if (!Build_ParkourRequest(_request))
+    if (!_hasPreparedRequest)
+    {
+        LOG_WARN("[Parkour] Reject Enter: missing prepared request");
         return false;
+    }
 
+    _hasPreparedRequest = false;
     _warpStartPos = _request.startPoint;
     _hasWarp = true;
 
-    if (const Shared<Player_WorldBase> owner = _owner.lock())
+    if (auto owner = _owner.lock())
     {
         if (const Shared<TransformCom> transform = owner->Get_Transform())
             transform->LookAt(_request.startPoint + _request.faceDir);
@@ -173,22 +185,30 @@ void Player_ParkourAction::ExitInvoke()
         _controllerCom->Set_RigidControl(PlayerControllerCom::RigidControl{});
 
     _hasWarp = false;
+    _hasPreparedRequest = false;
 }
 
-bool Player_ParkourAction::Build_ParkourRequest(ParkourMoveRequest& outRequest) const
+bool Player_ParkourAction::Build_ParkourRequest(ParkourActionType actionType, ParkourMoveRequest& outRequest) const
 {
+    const char* actionName = Get_ParkourActionName(actionType);
     auto owner = _owner.lock();
     if (owner == nullptr)
+    {
+        LOG_WARN("[Parkour] Reject {}: missing owner", actionName);
         return false;
+    }
 
     auto ownerTransform = owner->Get_Transform();
     if (ownerTransform == nullptr)
+    {
+        LOG_WARN("[Parkour] Reject {}: missing owner transform", actionName);
         return false;
+    }
 
     const Vec3 start = ownerTransform->Get_WorldPosition();
     const Matrix worldMatrix = ownerTransform->Get_WorldMatrix();
     const Vec3 forward = Flatten_Normalized(ownerTransform->Get_WorldForward(), Vec3::Look);
-    const bool highAction = _nextActionType == ParkourActionType::HighMantle;
+    const bool highAction = actionType == ParkourActionType::HighMantle;
 
     PhysXQueryHit frontHit{};
     const Vec3 frontOrigin = highAction
@@ -201,32 +221,69 @@ bool Player_ParkourAction::Build_ParkourRequest(ParkourMoveRequest& outRequest) 
         Is_EnvironmentHit(frontHit);
 
     if (!hasFrontHit)
-        return false;
+    {
+        if (!highAction)
+        {
+            LOG_WARN("[Parkour] Reject {}: front ray miss. origin=({:.2f},{:.2f},{:.2f}) dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+                actionName,
+                frontOrigin.x, frontOrigin.y, frontOrigin.z,
+                forward.x, forward.y, forward.z,
+                frontDistance);
+            return false;
+        }
 
-    Vec3 topProbeOrigin = frontHit.position + forward * kLandingForwardOffset;
+        LOG_WARN("[Parkour] High front ray miss. Try top fallback. origin=({:.2f},{:.2f},{:.2f}) dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+            frontOrigin.x, frontOrigin.y, frontOrigin.z,
+            forward.x, forward.y, forward.z,
+            frontDistance);
+    }
+
+    Vec3 topProbeOrigin = hasFrontHit
+        ? frontHit.position + forward * kLandingForwardOffset
+        : frontOrigin + forward * frontDistance;
     topProbeOrigin.y = start.y + kMaxParkourHeight + kTopProbeExtraUp;
 
     PhysXQueryHit topHit{};
     const float topProbeDistance = kMaxParkourHeight + kTopProbeExtraUp + 0.5f;
     if (!GAME->Raycast_Environment(topProbeOrigin, Vec3(0.f, -1.f, 0.f), topProbeDistance, topHit))
     {
+        LOG_WARN("[Parkour] Reject {}: top ray miss. origin=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+            actionName,
+            topProbeOrigin.x, topProbeOrigin.y, topProbeOrigin.z,
+            topProbeDistance);
         return false;
     }
 
     if (!Is_EnvironmentHit(topHit))
+    {
+        LOG_WARN("[Parkour] Reject {}: top hit is not environment", actionName);
         return false;
+    }
 
     if (topHit.normal.y < kWalkableNormalY)
+    {
+        LOG_WARN("[Parkour] Reject {}: top normal too steep. normalY={:.2f}, min={:.2f}",
+            actionName, topHit.normal.y, kWalkableNormalY);
         return false;
+    }
 
     const float height = topHit.position.y - start.y;
     if (height < kMinParkourHeight || height > kMaxParkourHeight)
+    {
+        LOG_WARN("[Parkour] Reject {}: height out of range. height={:.2f}, min={:.2f}, max={:.2f}",
+            actionName, height, kMinParkourHeight, kMaxParkourHeight);
         return false;
+    }
 
     outRequest.startPoint = start;
     outRequest.targetPoint = topHit.position - forward * kTargetBackOffset;
     outRequest.faceDir = forward;
-    outRequest.actionType = _nextActionType;
+    outRequest.actionType = actionType;
+
+    LOG_WARN("[Parkour] Accept {}: target=({:.2f},{:.2f},{:.2f}) height={:.2f}",
+        actionName,
+        outRequest.targetPoint.x, outRequest.targetPoint.y, outRequest.targetPoint.z,
+        height);
 
     return true;
 }
@@ -242,9 +299,24 @@ bool Player_ParkourAction::Is_EnvironmentHit(const PhysXQueryHit& hit) const
     return hit.staticHandle.Is_Valid();
 }
 
-void Player_ParkourAction::Set_NextActionType(ParkourActionType actionType)
+bool Player_ParkourAction::Try_PrepareAction(ParkourActionType actionType)
 {
-    _nextActionType = actionType;
+    _hasPreparedRequest = false;
+
+    ParkourMoveRequest request{};
+    if (!Build_ParkourRequest(actionType, request))
+    {
+        return false;
+    }
+
+    _request = request;
+    _hasPreparedRequest = true;
+    return true;
+}
+
+void Player_ParkourAction::Clear_PreparedAction()
+{
+    _hasPreparedRequest = false;
 }
 
 Shared<Player_ParkourAction> Player_ParkourAction::Create(const Shared<Player_WorldBase>& owner)

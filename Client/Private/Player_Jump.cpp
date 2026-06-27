@@ -14,20 +14,43 @@ namespace
 {
     constexpr float kJumpParkourProbeInterval = 0.10f;
 
+    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
+    {
+        return actionType == Player_ParkourAction::ParkourActionType::HighMantle ? "High" : "Low";
+    }
+
     bool Try_EnterParkourAction(
         PlayerStateMachineCom* stateCom,
         Player_ParkourAction::ParkourActionType actionType)
     {
+        LOG_WARN("[Parkour] Try {} from Jump", Get_ParkourActionName(actionType));
+
         if (stateCom == nullptr)
+        {
+            LOG_WARN("[Parkour] Reject {}: missing state machine", Get_ParkourActionName(actionType));
             return false;
+        }
 
         const Shared<Player_ParkourAction> parkourAction =
             dynamic_pointer_cast<Player_ParkourAction>(stateCom->Get_State(PlayerState::Parkour));
         if (parkourAction == nullptr)
+        {
+            LOG_WARN("[Parkour] Reject {}: missing parkour state", Get_ParkourActionName(actionType));
             return false;
+        }
 
-        parkourAction->Set_NextActionType(actionType);
-        return stateCom->Change_State(PlayerState::Parkour);
+        if (!parkourAction->Try_PrepareAction(actionType))
+        {
+            LOG_WARN("[Parkour] {} rejected", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        const bool changed = stateCom->Change_State(PlayerState::Parkour);
+        LOG_WARN("[Parkour] {} {}", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
+        if (!changed)
+            parkourAction->Clear_PreparedAction();
+
+        return changed;
     }
 }
 
@@ -88,6 +111,8 @@ void Player_Jump::Update(float timeDelta)
                 return;
 
             _highParkourProbeOnly = true;
+            if (Try_EnterParkourAction(this->_stateCom, Player_ParkourAction::ParkourActionType::HighMantle))
+                return;
         }
         else if (_highParkourProbeOnly)
         {

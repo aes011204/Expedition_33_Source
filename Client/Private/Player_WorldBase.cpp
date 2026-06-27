@@ -109,7 +109,8 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     if (_movementCom && _movementCom->Did_InputJumpStart())
     {
         _fallStateEnterAcc = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
-        _playerStateMachineCom->Change_State(PlayerState::Jump);
+        if (_playerStateMachineCom->Change_State(PlayerState::Jump))
+            _playerStateMachineCom->Update_CurrentState(0.f);
     }
     else if (_movementCom)
     {

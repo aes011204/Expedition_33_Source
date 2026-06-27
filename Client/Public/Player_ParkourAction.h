@@ -29,7 +29,8 @@ public:
         HighMantle,
     };
 
-    void Set_NextActionType(ParkourActionType actionType);
+    bool Try_PrepareAction(ParkourActionType actionType);
+    void Clear_PreparedAction();
     void Free() override;
 
 private:
@@ -41,14 +42,14 @@ private:
         Vec3 faceDir = Vec3::Look;
     };
 
-    bool Build_ParkourRequest(ParkourMoveRequest& outRequest) const;
+    bool Build_ParkourRequest(ParkourActionType actionType, ParkourMoveRequest& outRequest) const;
     bool Is_EnvironmentHit(const PhysXQueryHit& hit) const;
 
 private:
     ParkourMoveRequest _request{};
-    ParkourActionType _nextActionType = ParkourActionType::LowMantle;
     Vec3 _warpStartPos = Vec3::Zero;
     bool _hasWarp = false;
+    bool _hasPreparedRequest = false;
 };
 
 NS_END
