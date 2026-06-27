@@ -414,6 +414,7 @@ void ComputeSpriteEmitter::Update(float timeDelta)
         playbackTick.spawnRequest,
         playbackTick.spawnSerialBase,
         playbackTick.lifetimeSamplePhase,
+        _emitterElapsedTime,
         playbackTick.killActiveParticles
     );
 }
@@ -1137,6 +1138,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
     desc.sizeByLife = _desc.sizeByLife;
     desc.motion = _desc.motion;
+    desc.playbackDuration = Resolve_Duration();
     desc.orbitOverLife = _desc.orbitOverLife;
     desc.rotation = _desc.rotation;
     desc.spriteTilt = _desc.spriteTilt;

@@ -323,7 +323,7 @@ private: //## Helper::SamplingEvaluation
     Vec3 Sample_InitialAngularVelocity(uint32 seed) const;
     // velocity scale-by-life curve를 평가한다.
     float Evaluate_VelocityScaleByLife(float lifeProgress) const;
-    // acceleration curve가 있으면 lifeProgress 기준 절대 가속을 평가한다.
+    // acceleration curve가 있으면 선택된 time basis 기준 절대 가속을 평가한다.
     Vec3 Evaluate_AccelerationByLife(const MeshParticleState& particle, float lifeProgress) const;
     // mesh scale-by-life curve를 평가한다.
     Vec3 Evaluate_ScaleByLife(float lifeProgress) const;

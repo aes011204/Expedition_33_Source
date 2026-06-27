@@ -336,6 +336,12 @@ enum class PointParticleSourceMotionVelocityDirectionMode : uint32
     RandomSideFromTangent = 6,
 };
 
+enum class PointParticleAccelerationTimeBasis : uint32
+{
+    ParticleLife = 0,
+    EmitterNormalizedTime = 1,
+};
+
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleMotionDesc
 {
@@ -366,7 +372,10 @@ struct PointParticleMotionDesc
     };                                                              // 중심 중첩 시 InitialRadialVelocity가 사용할 방향 정책이다.
     Vec3 accelerationMin{ 0.f, 0.f, 0.f };                          // Acceleration 분포의 하한이다.
     Vec3 accelerationMax{ 0.f, 0.f, 0.f };                          // Acceleration 분포의 상한이다.
-    bool accelerationCurveEnabled{ false };                         // true면 Acceleration ConstantCurve를 lifeProgress 기준 절대 가속으로 평가한다.
+    PointParticleAccelerationTimeBasis accelerationTimeBasis{
+        PointParticleAccelerationTimeBasis::ParticleLife
+    };                                                              // Acceleration ConstantCurve를 평가할 시간 기준이다.
+    bool accelerationCurveEnabled{ false };                         // true면 Acceleration ConstantCurve를 선택된 시간 기준으로 절대 가속 평가한다.
     uint32 accelerationCurveKeyCount{ 2 };                          // Acceleration compact curve key 수다.
     Vec4 accelerationCurveTimes{ 0.f, 1.f, 0.f, 0.f };              // Acceleration key time 0..1 값이다.
     Vec4 accelerationCurveTimesBlock1{};                            // Acceleration key 4..7 time 값이다.
@@ -752,6 +761,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleSubUVFrameOverLifeDesc subUvFrameOverLife{};         // 수명 진행률 기준 frame 선택 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                         // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                                 // motion 모듈들이 만든 compute update 규칙이다.
+    float playbackDuration{ 1.f };                                    // emitter time 기준 curve 평가에 사용할 loop duration이다.
     EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈이 만든 emitter-local pivot 회전 payload다.
     PointParticleRotationDesc rotation{};                             // rotation 모듈들이 만든 sprite 회전 규칙이다.
     PointParticleSpriteTiltDesc spriteTilt{};                         // SpriteTilt 모듈들이 만든 카드 면 기울기 규칙이다.

@@ -961,9 +961,16 @@ struct SourceMotionVelocityModuleData
     float spreadAngleDegrees{ 0.f };
 };
 
+enum class AccelerationTimeBasis : uint8
+{
+    ParticleLife,
+    EmitterNormalizedTime,
+};
+
 struct AccelerationModuleData
 {
     Vector3DistributionData acceleration{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+    AccelerationTimeBasis timeBasis{ AccelerationTimeBasis::ParticleLife };
     bool inWorldSpace{ true };
 };
 

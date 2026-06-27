@@ -2267,6 +2267,7 @@ namespace Internal
     {
         json root = json::object();
         root["acceleration"] = To_Json(data.acceleration);
+        root["timeBasis"] = To_EnumToken(data.timeBasis);
         root["inWorldSpace"] = data.inWorldSpace;
         return root;
     }
@@ -2278,6 +2279,8 @@ namespace Internal
             From_Json(*iter, outData.acceleration);
         if (root.is_object())
         {
+            if (const auto timeBasisIter = root.find("timeBasis"); timeBasisIter != root.end())
+                Try_ReadEnumToken(*timeBasisIter, outData.timeBasis);
             Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
             DistributionRandomSeedData legacySeed{};
             Read_RandomSeedField(root, legacySeed);

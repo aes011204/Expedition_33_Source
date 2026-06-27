@@ -2457,10 +2457,14 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
     if (!_desc.motion.accelerationCurveEnabled)
         return particle.acceleration;
 
+    const float curveProgress =
+        _desc.motion.accelerationTimeBasis == PointParticleAccelerationTimeBasis::EmitterNormalizedTime
+        ? clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f)
+        : lifeProgress;
     const uint32 keyCount = max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount));
     const Vec3 acceleration{
         Evaluate_CompactCurve(
-            lifeProgress,
+            curveProgress,
             _desc.motion.accelerationCurveTimes,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesX,
@@ -2475,7 +2479,7 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
             particle.acceleration.x
         ),
         Evaluate_CompactCurve(
-            lifeProgress,
+            curveProgress,
             _desc.motion.accelerationCurveTimes,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesY,
@@ -2490,7 +2494,7 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
             particle.acceleration.y
         ),
         Evaluate_CompactCurve(
-            lifeProgress,
+            curveProgress,
             _desc.motion.accelerationCurveTimes,
             _desc.motion.accelerationCurveTimesBlock1,
             _desc.motion.accelerationCurveValuesZ,

@@ -114,6 +114,18 @@ namespace Internal
         return data.mode == DistributionMode::Uniform && uniform != nullptr ? Build_RandomSeedDesc(uniform->randomSeed) : PointParticleRandomSeedRuntimeDesc{};
     }
 
+    PointParticleAccelerationTimeBasis To_RuntimeAccelerationTimeBasis(AccelerationTimeBasis value)
+    {
+        switch (value)
+        {
+        case AccelerationTimeBasis::EmitterNormalizedTime:
+            return PointParticleAccelerationTimeBasis::EmitterNormalizedTime;
+        case AccelerationTimeBasis::ParticleLife:
+        default:
+            return PointParticleAccelerationTimeBasis::ParticleLife;
+        }
+    }
+
     EffectEmitterRenderLayerOverride Resolve_EffectRenderLayerOverride(EmitterRenderLayerOverride value)
     {
         switch (value)
@@ -2138,6 +2150,7 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
     {
         desc.motion.enabled = true;
         desc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
+        desc.motion.accelerationTimeBasis = Internal::To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
         desc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, desc.motion.accelerationMin);
         desc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, desc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(desc.motion, acceleration->acceleration);
@@ -2856,6 +2869,7 @@ EffectEmitterDefinition Build_PreviewSourceHistorySpriteTrailEmitterDefinition(c
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
+        emitterDesc.motion.accelerationTimeBasis = Internal::To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
         emitterDesc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
         Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
@@ -3462,6 +3476,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
     {
         emitterDesc.motion.enabled = true;
         emitterDesc.motion.accelerationInWorldSpace = acceleration->inWorldSpace;
+        emitterDesc.motion.accelerationTimeBasis = Internal::To_RuntimeAccelerationTimeBasis(acceleration->timeBasis);
         emitterDesc.motion.accelerationMin =
             Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax =

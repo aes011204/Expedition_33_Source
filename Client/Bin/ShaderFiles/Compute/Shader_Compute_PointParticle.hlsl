@@ -184,7 +184,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_AccelerationCurveLeaveTangentsZBlock1;
     float4 g_AccelerationCurveModes;
     float4 g_AccelerationCurveModesBlock1;
-    float4 g_AccelerationCurveParams;            // x: key count, y: enabled, z: acceleration world
+    float4 g_AccelerationCurveParams;            // x: key count, y: enabled, z: acceleration world, w: emitter-time duration
     float4 g_VelocityScaleByLife;
     float4 g_VelocityScaleByLifeCurveTimes;      // VelocityOverLife key times
     float4 g_VelocityScaleByLifeCurveTimesBlock1;
@@ -524,6 +524,35 @@ void IntegrateAccelerationCurve(
     );
     velocityProgress = float3(velocityX, velocityY, velocityZ);
     displacementProgress = float3(displacementX, displacementY, displacementZ);
+}
+
+void IntegrateAccelerationCurveRange(
+    float startProgress,
+    float endProgress,
+    out float3 velocityProgress,
+    out float3 displacementProgress)
+{
+    startProgress = saturate(startProgress);
+    endProgress = saturate(endProgress);
+    if (endProgress <= startProgress)
+    {
+        velocityProgress = float3(0.0f, 0.0f, 0.0f);
+        displacementProgress = float3(0.0f, 0.0f, 0.0f);
+        return;
+    }
+
+    float3 startVelocityProgress = float3(0.0f, 0.0f, 0.0f);
+    float3 startDisplacementProgress = float3(0.0f, 0.0f, 0.0f);
+    float3 endVelocityProgress = float3(0.0f, 0.0f, 0.0f);
+    float3 endDisplacementProgress = float3(0.0f, 0.0f, 0.0f);
+    IntegrateAccelerationCurve(startProgress, startVelocityProgress, startDisplacementProgress);
+    IntegrateAccelerationCurve(endProgress, endVelocityProgress, endDisplacementProgress);
+
+    velocityProgress = endVelocityProgress - startVelocityProgress;
+    displacementProgress =
+        endDisplacementProgress -
+        startDisplacementProgress -
+        (endProgress - startProgress) * startVelocityProgress;
 }
 
 float EvaluateCompactCurve(
@@ -1656,9 +1685,26 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         float3 accelerationVelocityProgress = float3(0.0f, 0.0f, 0.0f);
         float3 accelerationOffsetProgress = float3(0.0f, 0.0f, 0.0f);
-        IntegrateAccelerationCurve(lifeProgress, accelerationVelocityProgress, accelerationOffsetProgress);
-        accelerationVelocity = accelerationVelocityProgress * lifeMax;
-        accelerationOffset = accelerationOffsetProgress * lifeMax * lifeMax;
+        const float emitterDuration = g_AccelerationCurveParams.w;
+        if (emitterDuration > 0.0f)
+        {
+            const float currentEmitterProgress = saturate(g_ElapsedTime / emitterDuration);
+            const float spawnEmitterProgress = saturate((g_ElapsedTime - lifeAge) / emitterDuration);
+            IntegrateAccelerationCurveRange(
+                spawnEmitterProgress,
+                currentEmitterProgress,
+                accelerationVelocityProgress,
+                accelerationOffsetProgress
+            );
+            accelerationVelocity = accelerationVelocityProgress * emitterDuration;
+            accelerationOffset = accelerationOffsetProgress * emitterDuration * emitterDuration;
+        }
+        else
+        {
+            IntegrateAccelerationCurve(lifeProgress, accelerationVelocityProgress, accelerationOffsetProgress);
+            accelerationVelocity = accelerationVelocityProgress * lifeMax;
+            accelerationOffset = accelerationOffsetProgress * lifeMax * lifeMax;
+        }
         if (!accelerationInWorldSpace)
         {
             accelerationVelocity = ResolveEmitterBasisVector(accelerationVelocity);

@@ -163,7 +163,7 @@ struct ComputePointParticleParams
     Vec4 accelerationCurveLeaveTangentsZBlock1{};
     Vec4 accelerationCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
     Vec4 accelerationCurveModesBlock1{};
-    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z: acceleration world, w: unused.
+    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z: acceleration world, w: emitter-time duration.
     Vec4 velocityScaleByLife{};                      // x/y: scale start/end, z/w: unused.
     Vec4 velocityScaleByLifeCurveTimes{};            // VelocityOverLife key times.
     Vec4 velocityScaleByLifeCurveTimesBlock1{};
@@ -379,7 +379,13 @@ HRESULT VIBufferCom_ComputePointParticle::Render()
     }
 }
 
-void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 spawnRequest, uint32 spawnSerialBase, float lifetimeSamplePhase, bool killActiveParticles)
+void VIBufferCom_ComputePointParticle::Dispatch_Compute(
+    float timeDelta,
+    uint32 spawnRequest,
+    uint32 spawnSerialBase,
+    float lifetimeSamplePhase,
+    float emitterElapsedTime,
+    bool killActiveParticles)
 {
     if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _lifecycleState || nullptr == _instanceVB)
         return;
@@ -389,7 +395,7 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
         _hasActiveParticles = false;
 
     _deltaTime = max(0.f, timeDelta);
-    _elapsedTime += _deltaTime;
+    _elapsedTime = max(0.f, emitterElapsedTime);
     _spawnRequest = spawnRequest;
     _spawnSerialBase = spawnSerialBase;
     _lifetimeSamplePhase = clamp(lifetimeSamplePhase, 0.f, 1.f);
@@ -996,7 +1002,9 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount))),
             _desc.motion.accelerationCurveEnabled ? 1.f : 0.f,
             _desc.motion.accelerationInWorldSpace ? 1.f : 0.f,
-            0.f
+            _desc.motion.accelerationTimeBasis == PointParticleAccelerationTimeBasis::EmitterNormalizedTime
+            ? max(0.0001f, _desc.playbackDuration)
+            : 0.f
         },
         .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },
         .velocityScaleByLifeCurveTimes = _desc.motion.velocityScaleByLifeCurveTimes,

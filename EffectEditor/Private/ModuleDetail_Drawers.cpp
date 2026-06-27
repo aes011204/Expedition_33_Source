@@ -138,6 +138,19 @@ namespace Internal
         }
     }
 
+    static const char* Get_AccelerationTimeBasisLabel(AccelerationTimeBasis basis)
+    {
+        switch (basis)
+        {
+        case AccelerationTimeBasis::ParticleLife:
+            return "Particle Life";
+        case AccelerationTimeBasis::EmitterNormalizedTime:
+            return "Emitter Time";
+        default:
+            return "Particle Life";
+        }
+    }
+
     static uint32 Generate_RandomSeedValue()
     {
         static uint32 state{ 0xA341316Cu };
@@ -1116,6 +1129,52 @@ namespace Internal
             {
                 const bool selected = value == candidate;
                 if (ImGui::Selectable(Get_InitialRadialVelocityCenterDirectionModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_AccelerationTimeBasisProperty(
+        DetailPropertyContext& detailContext,
+        AccelerationTimeBasis& value,
+        AccelerationTimeBasis defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("AccelerationTimeBasis");
+        detailContext.Draw_PropertyLabel(
+            "Time Basis",
+            "Particle Life는 각 particle 생애 기준, Emitter Time은 emitter loop 진행률 기준으로 가속 curve를 평가합니다."
+        );
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_AccelerationTimeBasisLabel(value)))
+        {
+            const AccelerationTimeBasis candidates[] = {
+                AccelerationTimeBasis::ParticleLife,
+                AccelerationTimeBasis::EmitterNormalizedTime,
+            };
+
+            for (const AccelerationTimeBasis candidate : candidates)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_AccelerationTimeBasisLabel(candidate), selected))
                 {
                     value = candidate;
                     changed = true;
@@ -3202,6 +3261,11 @@ bool AccelerationModuleDetail::Draw(const AuthoringEmitter& emitter, AuthoringMo
     {
         if (detailContext.Begin_PropertyTable("AccelerationSpace"))
         {
+            changed |= Internal::Draw_AccelerationTimeBasisProperty(
+                detailContext,
+                data.timeBasis,
+                defaultData.timeBasis
+            );
             changed |= detailContext.Draw_BoolProperty(
                 "월드 스페이스",
                 data.inWorldSpace,

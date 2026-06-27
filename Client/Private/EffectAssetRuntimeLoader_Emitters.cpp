@@ -661,6 +661,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1316,6 +1317,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1906,6 +1908,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
