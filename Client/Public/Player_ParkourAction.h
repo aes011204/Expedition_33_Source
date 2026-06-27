@@ -26,6 +26,7 @@ public:
     enum class ParkourActionType
     {
         LowMantle,
+        MiddleMantle,
         HighMantle,
     };
 
@@ -43,12 +44,28 @@ private:
     };
 
     bool Build_ParkourRequest(ParkourActionType actionType, ParkourMoveRequest& outRequest) const;
+    bool Build_LowParkourRequest(ParkourMoveRequest& outRequest) const;
+    bool Build_MiddleParkourRequest(ParkourMoveRequest& outRequest) const;
+    bool Build_HighParkourRequest(ParkourMoveRequest& outRequest) const;
+    bool Build_ParkourRequestAtHeight(
+        ParkourActionType actionType,
+        float probeHeight,
+        ParkourMoveRequest& outRequest) const;
+    bool Build_ParkourRequestFromProbe(
+        ParkourActionType actionType,
+        const char* actionName,
+        const Vec3& start,
+        const Vec3& forward,
+        const Vec3& frontOrigin,
+        float frontDistance,
+        ParkourMoveRequest& outRequest) const;
     bool Is_EnvironmentHit(const PhysXQueryHit& hit) const;
 
 private:
     ParkourMoveRequest _request{};
-    Vec3 _warpStartPos = Vec3::Zero;
-    bool _hasWarp = false;
+    Vec3 _moveStartPos = Vec3::Zero;
+    float _prevRootMotionRatio = 0.f;
+    bool _hasActiveRequest = false;
     bool _hasPreparedRequest = false;
 };
 

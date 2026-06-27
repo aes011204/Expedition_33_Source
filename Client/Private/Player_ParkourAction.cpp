@@ -14,20 +14,19 @@
 
 namespace
 {
-    constexpr float kRootMotionScale = 0.01f;
-    constexpr float kMinParkourHeight = 0.20f;
-    constexpr float kMaxParkourHeight = 1.75f;
-    constexpr float kLandingForwardOffset = 0.20f;
-    constexpr float kTargetBackOffset = 0.08f;
-    constexpr float kTopProbeExtraUp = 0.35f;
-    constexpr float kWalkableNormalY = 0.65f;
-    constexpr float kFallbackWarpEndProgress = 0.90f;
-
-    float SmoothStep01(float value)
-    {
-        const float t = std::clamp(value, 0.f, 1.f);
-        return t * t * (3.f - 2.f * t);
-    }
+    constexpr float kParkourGroundYTolerance = 0.05f;
+    constexpr float kParkourTopProbeForwardOffset = 0.20f;
+    constexpr float kParkourTopProbeUp = 0.35f;
+    constexpr float kParkourTopProbeDownDistance = 0.95f;
+    constexpr float kParkourProbeDistance = 0.75f;
+    constexpr float kParkourLowProbeHeight = 1.00f;
+    constexpr float kParkourMiddleProbeHeight = 1.50f;
+    constexpr float kParkourHighProbeHeight = 2.00f;
+    constexpr float kParkourFinishDistance = 0.03f;
+    constexpr float kParkourAnimationBlendDuration = 0.1f;
+    constexpr float kLowParkourAnimationStartFrame = 0.f;
+    constexpr float kMiddleParkourAnimationStartFrame = 60.f;
+    constexpr float kHighParkourAnimationStartFrame = 0.f;
 
     Vec3 Flatten_Normalized(Vec3 value, const Vec3& fallback)
     {
@@ -45,8 +44,39 @@ namespace
 
     const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
     {
-        return actionType == Player_ParkourAction::ParkourActionType::HighMantle ? "High" : "Low";
+        switch (actionType)
+        {
+        case Player_ParkourAction::ParkourActionType::HighMantle:
+            return "High";
+        case Player_ParkourAction::ParkourActionType::MiddleMantle:
+            return "Middle";
+        case Player_ParkourAction::ParkourActionType::LowMantle:
+        default:
+            return "Low";
+        }
     }
+
+    Body_Player::PlayerWorldAnimation Get_ParkourAnimation(Player_ParkourAction::ParkourActionType actionType)
+    {
+        return actionType == Player_ParkourAction::ParkourActionType::LowMantle
+            ? Body_Player::PlayerWorldAnimation::Pl_Parkour_Low
+            : Body_Player::PlayerWorldAnimation::PL_Parkour_High;
+    }
+
+    float Get_ParkourAnimationStartFrame(Player_ParkourAction::ParkourActionType actionType)
+    {
+        switch (actionType)
+        {
+        case Player_ParkourAction::ParkourActionType::MiddleMantle:
+            return kMiddleParkourAnimationStartFrame;
+        case Player_ParkourAction::ParkourActionType::HighMantle:
+            return kHighParkourAnimationStartFrame;
+        case Player_ParkourAction::ParkourActionType::LowMantle:
+        default:
+            return kLowParkourAnimationStartFrame;
+        }
+    }
+
 }
 
 Player_ParkourAction::Player_ParkourAction(const Shared<Player_WorldBase>& owner)
@@ -75,24 +105,40 @@ bool Player_ParkourAction::EnterInvoke()
     }
 
     _hasPreparedRequest = false;
-    _warpStartPos = _request.startPoint;
-    _hasWarp = true;
+    _moveStartPos = _request.startPoint;
+    _prevRootMotionRatio = 0.f;
+    _hasActiveRequest = true;
+
+    LOG_WARN("[Parkour] Enter {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f})",
+        Get_ParkourActionName(_request.actionType),
+        _request.startPoint.x, _request.startPoint.y, _request.startPoint.z,
+        _request.targetPoint.x, _request.targetPoint.y, _request.targetPoint.z);
 
     if (auto owner = _owner.lock())
     {
         if (const Shared<TransformCom> transform = owner->Get_Transform())
+        {
+            transform->Set_WorldPosition(_request.startPoint);
             transform->LookAt(_request.startPoint + _request.faceDir);
+            _movementCom->Sync_RuntimePositionToTransform();
+        }
     }
 
     if (_bodyPlayer != nullptr)
     {
-        const Body_Player::PlayerWorldAnimation anim =
-            (_request.actionType == ParkourActionType::HighMantle)
-            ? Body_Player::PlayerWorldAnimation::PL_Parkour_High
-            : Body_Player::PlayerWorldAnimation::Pl_Parkour_Low;
+        const Body_Player::PlayerWorldAnimation anim = Get_ParkourAnimation(_request.actionType);
+        const float animationStartFrame = Get_ParkourAnimationStartFrame(_request.actionType);
 
         _bodyPlayer->Set_AnimationSpeed(1.f);
-        _bodyPlayer->Set_AnimationByState(ETOI(anim), 0.12f, false);
+        if (Shared<ModelCom> model = _bodyPlayer->Get_Model())
+        {
+            model->Set_AnimationByState(ETOI(anim), kParkourAnimationBlendDuration, false, animationStartFrame);
+            _prevRootMotionRatio = model->Get_RootMotionTranslationRatio();
+        }
+        else
+        {
+            _bodyPlayer->Set_AnimationByState(ETOI(anim), kParkourAnimationBlendDuration, false);
+        }
     }
 
     return true;
@@ -114,7 +160,7 @@ void Player_ParkourAction::Update(float timeDelta)
     _controllerCom->Set_RigidControl(rigidControl);
 
     const Shared<Player_WorldBase> owner = _owner.lock();
-    if (owner == nullptr || !_hasWarp)
+    if (owner == nullptr || !_hasActiveRequest)
     {
         _stateCom->Change_State(PlayerState::Idle);
         return;
@@ -127,45 +173,51 @@ void Player_ParkourAction::Update(float timeDelta)
         return;
     }
 
+    const Shared<ModelCom> model = _bodyPlayer->Get_Model();
+    if (model == nullptr)
+    {
+        _stateCom->Change_State(PlayerState::Idle);
+        return;
+    }
+
     const Vec3 currentPos = transform->Get_WorldPosition();
     Vec3 toTarget = _request.targetPoint - currentPos;
-    const float remain = toTarget.Length();
+    float remain = toTarget.Length();
 
-    if (remain > 0.01f)
+    const float currentRatio = model->Get_RootMotionTranslationRatio();
+    float moveRatio = currentRatio - _prevRootMotionRatio;
+    if (moveRatio < 0.f)
+        moveRatio = 0.f;
+
+    _prevRootMotionRatio = currentRatio;
+
+    if (remain > 0.01f && moveRatio > 0.f)
     {
-        Vec3 pathDir = toTarget;
-        pathDir.Normalize();
-        const float progress = _bodyPlayer->Get_AnimationProgress();
-        const float t = SmoothStep01(progress / kFallbackWarpEndProgress);
-        Vec3 moveDelta = Vec3::Lerp(_warpStartPos, _request.targetPoint, t) - currentPos;
-
-        if (Shared<ModelCom> model = _bodyPlayer->Get_Model())
-        {
-            const RootMotionFrame& rm = model->Get_RootTransformVelocity();
-            Vec3 localDelta = rm.position * kRootMotionScale;
-
-            if (localDelta.LengthSquared() > 0.000001f)
-            {
-                const float moveDistance = localDelta.Length();
-                const Vec3 rootMoveDelta = pathDir * moveDistance;
-
-                if (rootMoveDelta.LengthSquared() > moveDelta.LengthSquared())
-                    moveDelta = rootMoveDelta;
-            }
-        }
+        const Vec3 path = _request.targetPoint - _moveStartPos;
+        Vec3 moveDelta = path * moveRatio;
 
         if (moveDelta.Length() > remain)
-            moveDelta = pathDir * remain;
+            moveDelta = toTarget;
 
         transform->Set_WorldPosition(currentPos + moveDelta);
         transform->LookAt(transform->Get_WorldPosition() + _request.faceDir);
 
         _movementCom->Sync_RuntimePositionToTransform();
+
+        toTarget = _request.targetPoint - transform->Get_WorldPosition();
+        remain = toTarget.Length();
     }
 
     if (_bodyPlayer->Is_AnimationFinished())
     {
-        transform->Set_WorldPosition(_request.targetPoint);
+        if (remain > kParkourFinishDistance)
+        {
+            LOG_WARN("[Parkour] Finish with remaining distance. remain={:.2f}, target=({:.2f},{:.2f},{:.2f})",
+                remain,
+                _request.targetPoint.x, _request.targetPoint.y, _request.targetPoint.z);
+        }
+
+        _movementCom->Stop_VerticalMovement();
         _movementCom->Sync_RuntimePositionToTransform();
 
         if (Has_MoveInput())
@@ -184,11 +236,41 @@ void Player_ParkourAction::ExitInvoke()
     if (_controllerCom != nullptr)
         _controllerCom->Set_RigidControl(PlayerControllerCom::RigidControl{});
 
-    _hasWarp = false;
+    _hasActiveRequest = false;
     _hasPreparedRequest = false;
+    _prevRootMotionRatio = 0.f;
 }
 
 bool Player_ParkourAction::Build_ParkourRequest(ParkourActionType actionType, ParkourMoveRequest& outRequest) const
+{
+    if (actionType == ParkourActionType::LowMantle)
+        return Build_LowParkourRequest(outRequest);
+
+    if (actionType == ParkourActionType::MiddleMantle)
+        return Build_MiddleParkourRequest(outRequest);
+
+    return Build_HighParkourRequest(outRequest);
+}
+
+bool Player_ParkourAction::Build_LowParkourRequest(ParkourMoveRequest& outRequest) const
+{
+    return Build_ParkourRequestAtHeight(ParkourActionType::LowMantle, kParkourLowProbeHeight, outRequest);
+}
+
+bool Player_ParkourAction::Build_MiddleParkourRequest(ParkourMoveRequest& outRequest) const
+{
+    return Build_ParkourRequestAtHeight(ParkourActionType::MiddleMantle, kParkourMiddleProbeHeight, outRequest);
+}
+
+bool Player_ParkourAction::Build_HighParkourRequest(ParkourMoveRequest& outRequest) const
+{
+    return Build_ParkourRequestAtHeight(ParkourActionType::HighMantle, kParkourHighProbeHeight, outRequest);
+}
+
+bool Player_ParkourAction::Build_ParkourRequestAtHeight(
+    ParkourActionType actionType,
+    float probeHeight,
+    ParkourMoveRequest& outRequest) const
 {
     const char* actionName = Get_ParkourActionName(actionType);
     auto owner = _owner.lock();
@@ -208,82 +290,88 @@ bool Player_ParkourAction::Build_ParkourRequest(ParkourActionType actionType, Pa
     const Vec3 start = ownerTransform->Get_WorldPosition();
     const Matrix worldMatrix = ownerTransform->Get_WorldMatrix();
     const Vec3 forward = Flatten_Normalized(ownerTransform->Get_WorldForward(), Vec3::Look);
-    const bool highAction = actionType == ParkourActionType::HighMantle;
+    const Vec3 frontOrigin = Vec3::Transform(Vec3(0.f, probeHeight, 0.f), worldMatrix);
 
-    PhysXQueryHit frontHit{};
-    const Vec3 frontOrigin = highAction
-        ? Vec3::Transform(Get_ParkourHighProbeCenter(), worldMatrix)
-        : Vec3::Transform(Get_ParkourLowProbeCenter(), worldMatrix);
-    const float frontDistance = highAction ? Get_ParkourHighProbeDistance() : Get_ParkourLowProbeDistance();
-
-    const bool hasFrontHit =
-        GAME->Raycast_Environment(frontOrigin, forward, frontDistance, frontHit) &&
-        Is_EnvironmentHit(frontHit);
-
-    if (!hasFrontHit)
+    if (Build_ParkourRequestFromProbe(
+        actionType,
+        actionName,
+        start,
+        forward,
+        frontOrigin,
+        kParkourProbeDistance,
+        outRequest))
     {
-        if (!highAction)
-        {
-            LOG_WARN("[Parkour] Reject {}: front ray miss. origin=({:.2f},{:.2f},{:.2f}) dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
-                actionName,
-                frontOrigin.x, frontOrigin.y, frontOrigin.z,
-                forward.x, forward.y, forward.z,
-                frontDistance);
-            return false;
-        }
+        return true;
+    }
 
-        LOG_WARN("[Parkour] High front ray miss. Try top fallback. origin=({:.2f},{:.2f},{:.2f}) dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+    LOG_WARN("[Parkour] Reject {}: probe failed. localHeight={:.2f}, origin=({:.2f},{:.2f},{:.2f}), dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+        actionName,
+        probeHeight,
+        frontOrigin.x, frontOrigin.y, frontOrigin.z,
+        forward.x, forward.y, forward.z,
+        kParkourProbeDistance);
+
+    return false;
+}
+
+bool Player_ParkourAction::Build_ParkourRequestFromProbe(
+    ParkourActionType actionType,
+    const char* actionName,
+    const Vec3& start,
+    const Vec3& forward,
+    const Vec3& frontOrigin,
+    float frontDistance,
+    ParkourMoveRequest& outRequest) const
+{
+    PhysXQueryHit frontHit{};
+    if (!GAME->Raycast_Environment(frontOrigin, forward, frontDistance, frontHit) ||
+        !Is_EnvironmentHit(frontHit))
+    {
+        LOG_WARN("[Parkour] Reject {}: front ray miss. origin=({:.2f},{:.2f},{:.2f}) dir=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
+            actionName,
             frontOrigin.x, frontOrigin.y, frontOrigin.z,
             forward.x, forward.y, forward.z,
             frontDistance);
+        return false;
     }
 
-    Vec3 topProbeOrigin = hasFrontHit
-        ? frontHit.position + forward * kLandingForwardOffset
-        : frontOrigin + forward * frontDistance;
-    topProbeOrigin.y = start.y + kMaxParkourHeight + kTopProbeExtraUp;
+    Vec3 topProbeOrigin = frontHit.position + forward * kParkourTopProbeForwardOffset;
+    topProbeOrigin.y = frontOrigin.y + kParkourTopProbeUp;
 
     PhysXQueryHit topHit{};
-    const float topProbeDistance = kMaxParkourHeight + kTopProbeExtraUp + 0.5f;
-    if (!GAME->Raycast_Environment(topProbeOrigin, Vec3(0.f, -1.f, 0.f), topProbeDistance, topHit))
+    if (!GAME->Raycast_Environment(topProbeOrigin, Vec3(0.f, -1.f, 0.f), kParkourTopProbeDownDistance, topHit) ||
+        !Is_EnvironmentHit(topHit))
     {
         LOG_WARN("[Parkour] Reject {}: top ray miss. origin=({:.2f},{:.2f},{:.2f}) distance={:.2f}",
             actionName,
             topProbeOrigin.x, topProbeOrigin.y, topProbeOrigin.z,
-            topProbeDistance);
+            kParkourTopProbeDownDistance);
         return false;
     }
 
-    if (!Is_EnvironmentHit(topHit))
+    const float yDiff = fabsf(topHit.position.y - frontOrigin.y);
+    if (yDiff > kParkourGroundYTolerance)
     {
-        LOG_WARN("[Parkour] Reject {}: top hit is not environment", actionName);
-        return false;
-    }
-
-    if (topHit.normal.y < kWalkableNormalY)
-    {
-        LOG_WARN("[Parkour] Reject {}: top normal too steep. normalY={:.2f}, min={:.2f}",
-            actionName, topHit.normal.y, kWalkableNormalY);
-        return false;
-    }
-
-    const float height = topHit.position.y - start.y;
-    if (height < kMinParkourHeight || height > kMaxParkourHeight)
-    {
-        LOG_WARN("[Parkour] Reject {}: height out of range. height={:.2f}, min={:.2f}, max={:.2f}",
-            actionName, height, kMinParkourHeight, kMaxParkourHeight);
+        LOG_WARN("[Parkour] Reject {}: ground y mismatch. rayY={:.2f}, groundY={:.2f}, diff={:.2f}, tolerance={:.2f}",
+            actionName,
+            frontOrigin.y,
+            topHit.position.y,
+            yDiff,
+            kParkourGroundYTolerance);
         return false;
     }
 
     outRequest.startPoint = start;
-    outRequest.targetPoint = topHit.position - forward * kTargetBackOffset;
+    outRequest.targetPoint = topHit.position;
     outRequest.faceDir = forward;
     outRequest.actionType = actionType;
 
-    LOG_WARN("[Parkour] Accept {}: target=({:.2f},{:.2f},{:.2f}) height={:.2f}",
+    LOG_WARN("[Parkour] Accept {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) rayY={:.2f} diff={:.2f}",
         actionName,
+        outRequest.startPoint.x, outRequest.startPoint.y, outRequest.startPoint.z,
         outRequest.targetPoint.x, outRequest.targetPoint.y, outRequest.targetPoint.z,
-        height);
+        frontOrigin.y,
+        yDiff);
 
     return true;
 }

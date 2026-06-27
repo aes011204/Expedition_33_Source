@@ -23,7 +23,7 @@ private:
     bool _hasLeftGroundForParkourProbe{ false };
     bool _canProbeParkour{ false };
     bool _lowParkourProbeDone{ false };
-    bool _highParkourProbeOnly{ false };
+    bool _repeatHighParkourProbe{ false };
 
 public:
     static Shared<Player_Jump> Create(const Shared<Player_WorldBase>& owner);

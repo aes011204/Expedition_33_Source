@@ -12,11 +12,20 @@ Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
 
 namespace
 {
-    constexpr float kJumpParkourProbeInterval = 0.10f;
+    constexpr float kHighParkourProbeInterval = 0.f;
 
     const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
     {
-        return actionType == Player_ParkourAction::ParkourActionType::HighMantle ? "High" : "Low";
+        switch (actionType)
+        {
+        case Player_ParkourAction::ParkourActionType::HighMantle:
+            return "High";
+        case Player_ParkourAction::ParkourActionType::MiddleMantle:
+            return "Middle";
+        case Player_ParkourAction::ParkourActionType::LowMantle:
+        default:
+            return "Low";
+        }
     }
 
     bool Try_EnterParkourAction(
@@ -52,6 +61,11 @@ namespace
 
         return changed;
     }
+
+    bool Try_EnterHighParkourAction(PlayerStateMachineCom* stateCom)
+    {
+        return Try_EnterParkourAction(stateCom, Player_ParkourAction::ParkourActionType::HighMantle);
+    }
 }
 
 HRESULT Player_Jump::Initialize()
@@ -68,7 +82,7 @@ bool Player_Jump::EnterInvoke()
     _hasLeftGroundForParkourProbe = false;
     _canProbeParkour = IsEnterJump();
     _lowParkourProbeDone = false;
-    _highParkourProbeOnly = false;
+    _repeatHighParkourProbe = false;
 
 	uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
@@ -110,25 +124,25 @@ void Player_Jump::Update(float timeDelta)
             if (Try_EnterParkourAction(this->_stateCom, Player_ParkourAction::ParkourActionType::LowMantle))
                 return;
 
-            _highParkourProbeOnly = true;
-            if (Try_EnterParkourAction(this->_stateCom, Player_ParkourAction::ParkourActionType::HighMantle))
+            _repeatHighParkourProbe = true;
+            if (Try_EnterHighParkourAction(this->_stateCom))
                 return;
         }
-        else if (_highParkourProbeOnly)
+        else if (_repeatHighParkourProbe)
         {
             if (isGrounded && _hasLeftGroundForParkourProbe)
             {
-                _highParkourProbeOnly = false;
+                _repeatHighParkourProbe = false;
             }
             else
             {
                 _parkourProbeElapsed += timeDelta;
 
-                if (_parkourProbeElapsed >= kJumpParkourProbeInterval)
+                if (_parkourProbeElapsed >= kHighParkourProbeInterval)
                 {
                     _parkourProbeElapsed = 0.f;
 
-                    if (Try_EnterParkourAction(this->_stateCom, Player_ParkourAction::ParkourActionType::HighMantle))
+                    if (Try_EnterHighParkourAction(this->_stateCom))
                         return;
                 }
             }

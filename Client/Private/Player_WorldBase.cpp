@@ -37,6 +37,13 @@ namespace Client::PlayerWorldTuning
         Vec3(-66.56f, 15.31f, 57.68f),
         Vec3(-79.30f, 18.26f, 52.95f),
     };
+
+    bool Is_TransformOwnedState(PlayerState state)
+    {
+        return state == PlayerState::Parkour ||
+            state == PlayerState::Climb ||
+            state == PlayerState::RopeAction;
+    }
 }
 
 Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -95,18 +102,19 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
     // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
     _playerControllerCom->Update_InputState();
+
+    const bool stateOwnedTransformBeforeUpdate =
+        PlayerWorldTuning::Is_TransformOwnedState(_playerStateMachineCom->Get_CurrentPlayerState());
+
     _playerStateMachineCom->Update_CurrentState(timeDelta);
 
     const PlayerState currentStateAfterUpdate = _playerStateMachineCom->Get_CurrentPlayerState();
-    const bool stateOwnsTransform =
-        currentStateAfterUpdate == PlayerState::Parkour ||
-        currentStateAfterUpdate == PlayerState::Climb ||
-        currentStateAfterUpdate == PlayerState::RopeAction;
+    const bool stateOwnsTransform = PlayerWorldTuning::Is_TransformOwnedState(currentStateAfterUpdate);
 
-    if (!stateOwnsTransform)
+    if (!stateOwnedTransformBeforeUpdate && !stateOwnsTransform)
         _playerControllerCom->Update_Movement(timeDelta);
 
-    if (_movementCom && _movementCom->Did_InputJumpStart())
+    if (_movementCom && _movementCom->Did_InputJumpStart() && !stateOwnsTransform)
     {
         _fallStateEnterAcc = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
         if (_playerStateMachineCom->Change_State(PlayerState::Jump))

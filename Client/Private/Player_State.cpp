@@ -6,10 +6,21 @@
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
 #include "Body_Player.h"
+#include "ColliderCom.h"
+#include "PhysX_Types.h"
 #include "TransformCom.h"
 
 namespace
 {
+    constexpr float kParkourGroundYTolerance = 0.05f;
+    constexpr float kParkourTopProbeForwardOffset = 0.20f;
+    constexpr float kParkourTopProbeUp = 0.35f;
+    constexpr float kParkourTopProbeDownDistance = 0.95f;
+    constexpr float kParkourProbeDistance = 0.75f;
+    constexpr float kParkourLowProbeHeight = 1.00f;
+    constexpr float kParkourMiddleProbeHeight = 1.50f;
+    constexpr float kParkourHighProbeHeight = 2.00f;
+
     Vec3 Normalize_ParkourLook(Vec3 look)
     {
         look.y = 0.f;
@@ -18,6 +29,66 @@ namespace
 
         look.Normalize();
         return look;
+    }
+
+    bool Is_DebugEnvironmentHit(const PhysXQueryHit& hit)
+    {
+        if (!hit.hit)
+            return false;
+
+        if (hit.collider != nullptr)
+            return hit.collider->Get_Channel() == Collision_Channel::Environment;
+
+        return hit.staticHandle.Is_Valid();
+    }
+
+    void Draw_DebugLine(const Vec3& start, const Vec3& end, const Color& color)
+    {
+        DebugLineDesc desc{};
+        desc.start = start;
+        desc.end = end;
+        desc.style.color = color;
+        desc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(desc);
+    }
+
+    void Draw_ParkourProbeDebug(const Vec3& frontOrigin, const Vec3& look, float frontDistance, const Color& missColor)
+    {
+        PhysXQueryHit frontHit{};
+        const bool hasFrontHit =
+            GAME->Raycast_Environment(frontOrigin, look, frontDistance, frontHit) &&
+            Is_DebugEnvironmentHit(frontHit);
+
+        Color frontColor = hasFrontHit ? Color(1.f, 0.8f, 0.25f, 1.f) : missColor;
+        Vec3 frontEnd = frontOrigin + look * frontDistance;
+
+        if (hasFrontHit)
+        {
+            Vec3 topOrigin = frontHit.position + look * kParkourTopProbeForwardOffset;
+            topOrigin.y = frontOrigin.y + kParkourTopProbeUp;
+
+            PhysXQueryHit topHit{};
+            const bool hasTopHit =
+                GAME->Raycast_Environment(topOrigin, Vec3(0.f, -1.f, 0.f), kParkourTopProbeDownDistance, topHit) &&
+                Is_DebugEnvironmentHit(topHit);
+
+            if (hasTopHit)
+            {
+                const float yDiff = fabsf(topHit.position.y - frontOrigin.y);
+                frontColor = yDiff <= kParkourGroundYTolerance
+                    ? Color(0.2f, 1.f, 0.35f, 1.f)
+                    : Color(1.f, 0.25f, 0.2f, 1.f);
+            }
+            else
+            {
+                frontColor = Color(1.f, 0.45f, 0.1f, 1.f);
+            }
+
+            Draw_DebugLine(topOrigin, topOrigin + Vec3(0.f, -kParkourTopProbeDownDistance, 0.f), frontColor);
+            frontEnd = frontHit.position;
+        }
+
+        Draw_DebugLine(frontOrigin, frontEnd, frontColor);
     }
 }
 
@@ -169,23 +240,14 @@ void Player_State::Draw_ParkourDebugRays() const
         return;
 
     const Matrix worldMatrix = transform->Get_WorldMatrix();
-    const Vec3 lowStart = Vec3::Transform(Get_ParkourLowProbeCenter(), worldMatrix);
-    const Vec3 highStart = Vec3::Transform(Get_ParkourHighProbeCenter(), worldMatrix);
+    const Vec3 highStart = Vec3::Transform(Vec3(0.f, kParkourHighProbeHeight, 0.f), worldMatrix);
+    const Vec3 middleStart = Vec3::Transform(Vec3(0.f, kParkourMiddleProbeHeight, 0.f), worldMatrix);
+    const Vec3 lowStart = Vec3::Transform(Vec3(0.f, kParkourLowProbeHeight, 0.f), worldMatrix);
     const Vec3 look = Normalize_ParkourLook(transform->Get_WorldForward());
 
-    DebugLineDesc lowDesc{};
-    lowDesc.start = lowStart;
-    lowDesc.end = lowStart + look * Get_ParkourLowProbeDistance();
-    lowDesc.style.color = Color(0.45f, 0.75f, 1.f, 1.f);
-    lowDesc.style.depthEnabled = false;
-    GAME->Draw_DebugLine(lowDesc);
-
-    DebugLineDesc highDesc{};
-    highDesc.start = highStart;
-    highDesc.end = highStart + look * Get_ParkourHighProbeDistance();
-    highDesc.style.color = Color(1.f, 0.55f, 1.f, 1.f);
-    highDesc.style.depthEnabled = false;
-    GAME->Draw_DebugLine(highDesc);
+    Draw_ParkourProbeDebug(highStart, look, kParkourProbeDistance, Color(1.f, 0.55f, 1.f, 1.f));
+    Draw_ParkourProbeDebug(middleStart, look, kParkourProbeDistance, Color(1.f, 0.85f, 0.25f, 1.f));
+    Draw_ParkourProbeDebug(lowStart, look, kParkourProbeDistance, Color(0.45f, 0.75f, 1.f, 1.f));
 }
 
 bool Player_State::Try_BuildWorldInteractionRequest(WorldInteractionSpot::WorldInteractionRequest& outRequest, Shared<GameObject>& outSpot) const
