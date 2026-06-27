@@ -50,6 +50,24 @@ namespace
             modelPath.find(L"Petal") != wstring::npos ||
             modelPath.find(L"petal") != wstring::npos;
     }
+
+    bool Is_SmallInstancedShadowModelPath(const wstring& modelPath)
+    {
+        return Is_GrassOrPetalModelPath(modelPath) ||
+            modelPath.find(L"Flower") != wstring::npos ||
+            modelPath.find(L"flower") != wstring::npos ||
+            modelPath.find(L"Bush") != wstring::npos ||
+            modelPath.find(L"bush") != wstring::npos ||
+            modelPath.find(L"Fern") != wstring::npos ||
+            modelPath.find(L"fern") != wstring::npos ||
+            modelPath.find(L"Palisade_Spike") != wstring::npos ||
+            modelPath.find(L"Rope_Coil") != wstring::npos ||
+            modelPath.find(L"shield_low") != wstring::npos ||
+            modelPath.find(L"Bed_Pot") != wstring::npos ||
+            modelPath.find(L"Old_Wood_Boards") != wstring::npos ||
+            modelPath.find(L"Molding_Square") != wstring::npos ||
+            modelPath.find(L"SM_Fence_Kit") != wstring::npos;
+    }
 }
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
@@ -854,8 +872,10 @@ bool MapInstancedMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) co
 
 bool MapInstancedMesh::Allows_DynamicShadowCascade(uint32 cascadeIndex) const
 {
-    if (ClientInstance::Is_DebugLimitMapInstancedMeshShadowCascade() && cascadeIndex > 2u)
+    if (Is_SmallInstancedShadowModelPath(_modelPath) && cascadeIndex > 2u)
+    {
         return false;
+    }
 
     return cascadeIndex <= _maxShadowCascade;
 }

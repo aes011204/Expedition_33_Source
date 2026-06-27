@@ -87,8 +87,6 @@ public:
     static void Set_DebugDisableGrassInstancedShadow(bool disabled);
     static bool Is_DebugDisableMapStaticMeshShadow();
     static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
-    static bool Is_DebugLimitMapInstancedMeshShadowCascade();
-    static void Set_DebugLimitMapInstancedMeshShadowCascade(bool enabled);
 
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);

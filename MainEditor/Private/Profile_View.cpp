@@ -499,10 +499,6 @@ void Profile_View::Draw_Render_Isolation()
     if (ImGui::Checkbox("Disable MapInstancedMesh Shadow", &disableMapInstancedShadow))
         Client::ClientInstance::Set_DebugDisableMapInstancedMeshShadow(disableMapInstancedShadow);
 
-    bool limitMapInstancedShadowCascade = Client::ClientInstance::Is_DebugLimitMapInstancedMeshShadowCascade();
-    if (ImGui::Checkbox("Limit MapInstancedMesh Shadow Cascade <= 2", &limitMapInstancedShadowCascade))
-        Client::ClientInstance::Set_DebugLimitMapInstancedMeshShadowCascade(limitMapInstancedShadowCascade);
-
     bool disableGrassInstancedShadow = Client::ClientInstance::Is_DebugDisableGrassInstancedShadow();
     if (ImGui::Checkbox("Disable Grass Instanced Shadow", &disableGrassInstancedShadow))
         Client::ClientInstance::Set_DebugDisableGrassInstancedShadow(disableGrassInstancedShadow);

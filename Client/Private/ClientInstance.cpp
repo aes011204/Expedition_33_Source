@@ -53,7 +53,6 @@ namespace
     bool g_debugDisableMapInstancedMeshShadow = false;
     bool g_debugDisableGrassInstancedShadow = false;
     bool g_debugDisableMapStaticMeshShadow = false;
-    bool g_debugLimitMapInstancedMeshShadowCascade = false;
 
     string Get_WeaponCharacterId(HeroId heroId)
     {
@@ -345,16 +344,6 @@ bool ClientInstance::Is_DebugDisableMapStaticMeshShadow()
 void ClientInstance::Set_DebugDisableMapStaticMeshShadow(bool disabled)
 {
     g_debugDisableMapStaticMeshShadow = disabled;
-}
-
-bool ClientInstance::Is_DebugLimitMapInstancedMeshShadowCascade()
-{
-    return g_debugLimitMapInstancedMeshShadowCascade;
-}
-
-void ClientInstance::Set_DebugLimitMapInstancedMeshShadowCascade(bool enabled)
-{
-    g_debugLimitMapInstancedMeshShadowCascade = enabled;
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
