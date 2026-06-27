@@ -582,13 +582,15 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 
 주로 쓰는 TypeData: Sprite/ Mesh 계열의 particle-style spawn. Trail/Ribbon/Beam에서는 TypeData별 lowering에서 직접 소비하는 값과 아닌 값을 구분해야 한다. Sprite Trail의 stamp 생성 밀도는 `스폰` Module이 아니라 TypeData의 `스탬프 간격` / `스탬프 시간 간격`이 소유한다.
 
+`초당 생성 수`, `스폰 속도 스케일`, `버스트 스케일`의 분포 의미는 모드별로 다르다. `Constant`는 고정값, `Uniform`은 loop 또는 burst 실행 단위 랜덤 샘플, `ConstantCurve`는 Emitter loop 진행률 0..1 기준 시간 커브다.
+
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
 | `연속 스폰 사용` | spawn rate 사용 여부다. | 켜면 시간 기반 연속 생성이 활성화된다. | bool | 꺼져 있으면 burst만으로 보일 수 있다. |
-| `초당 생성 수` | 초당 생성할 수량이다. | 값이 높을수록 생성 밀도가 커진다. | float 분포 | 너무 낮으면 거의 보이지 않을 수 있다. |
-| `스폰 속도 스케일` | spawn rate multiplier다. | `초당 생성 수`에 곱해지는 배율로 본다. | float 분포 | 0에 가까우면 생성이 크게 줄어든다. |
+| `초당 생성 수` | 초당 생성할 수량이다. | 값이 높을수록 생성 밀도가 커진다. | float 분포 / loop 진행률 | ConstantCurve는 loop 안에서 생성 밀도를 시간에 따라 바꾼다. |
+| `스폰 속도 스케일` | spawn rate multiplier다. | `초당 생성 수`에 곱해지는 배율로 본다. | float 분포 / loop 진행률 | 0에 가까우면 생성이 크게 줄어든다. |
 | `버스트 사용` | burst list 사용 여부다. | 켜면 지정 시간에 burst 생성이 가능하다. | bool | 연속 스폰과 독립적으로 볼 수 있다. |
-| `버스트 스케일` | burst count multiplier다. | burst 목록의 개수에 곱해지는 배율이다. | float 분포 | burst 효과 세기를 조정한다. |
+| `버스트 스케일` | burst count multiplier다. | burst 목록의 개수에 곱해지는 배율이다. | float 분포 / burst 시간 진행률 | ConstantCurve는 각 burst 시간의 loop phase로 평가된다. |
 | `버스트 목록` | burst entry 목록이다. | 각 entry는 시간과 개수를 가진다. | list | 현재 UI는 live 기능으로 본다. |
 | `시간` | burst가 발생할 시간이다. | Emitter loop 내 시간으로 읽는다. | float 고정값 | `스폰 활성 시간`과 함께 확인한다. |
 | `개수` | 해당 burst에서 생성할 수량이다. | burst particle count다. | uint 고정값 | `버스트 스케일`이 함께 곱해질 수 있다. |
