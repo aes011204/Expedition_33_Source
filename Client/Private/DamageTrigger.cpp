@@ -120,12 +120,12 @@ void DamageTrigger::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom>
                 ? maelleTransform->Get_WorldPosition()
                 : Vec3::Zero;
 
-            const Shared<TransformCom> attackerTransform = attacker->Get_Transform();
-            const Vec3 attackerWorldPos = attackerTransform
-                ? attackerTransform->Get_WorldPosition()
+            const Shared<TransformCom> triggerTransform = Get_Transform();
+            const Vec3 triggerWorldPos = triggerTransform
+                ? triggerTransform->Get_WorldPosition()
                 : maelleWorldPos;
 
-            Vec3 effectDir = attackerWorldPos - maelleWorldPos;
+            Vec3 effectDir = triggerWorldPos - maelleWorldPos;
             effectDir.y = 0.f;
 
             if (effectDir.LengthSquared() > 0.0001f)
@@ -140,7 +140,7 @@ void DamageTrigger::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom>
             Vec3 parryEffectWorldPos = maelleWorldPos + effectDir * 0.8f;
             parryEffectWorldPos.y += 1.0f;
 
-            if (maelle->Try_ConsumeParry(attacker, attackerWorldPos, parryEffectWorldPos))
+            if (maelle->Try_ConsumeParry(attacker, triggerWorldPos, parryEffectWorldPos))
             {
                 self->Set_IsActive(false);
                 self->Clear_Overlap();

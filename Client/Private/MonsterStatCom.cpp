@@ -25,6 +25,7 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_INT("Reward Chroma", _monsterDesc.chroma, 0.f, 9999999.f, 1.f);
 
     PROPERTY_ENUM("Enemy Class", _monsterDesc.enemyClass, EEnemyClass);
+    PROPERTY_BOOL("V2", _monsterDesc.v2);
     PROPERTY_INT("Shield Points At Spawn", _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn, 0.f, 99.f, 1.f);
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
     PROPERTY_WSTRING("Battle Announce Name", _monsterDesc.battleAnnounceName);

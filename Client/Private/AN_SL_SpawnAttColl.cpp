@@ -47,8 +47,6 @@ IMPLEMENT_REFLECTION(ANS_SL_SpawnAttColl)
 
     PROPERTY_STRING("Prefab Name", _prefabName);
     PROPERTY_WSTRING("Layer Tag", _layerTag);
-    PROPERTY_BOOL("Use Cached Player Position", _useCachedPlayerPosition);
-    PROPERTY_BOOL("Enable Parry Reaction", _enableParryReaction);
     PROPERTY_VEC3("Local Offset", _localOffset);
     PROPERTY_VEC3("Spawn Rotation", _spawnRotation);
     PROPERTY_VEC3("Spawn Scale", _spawnScale);
@@ -97,7 +95,6 @@ void ANS_SL_SpawnAttColl::On_Begin(const AnimNotifyContext& context)
     if (const Shared<DamageTrigger> damageTrigger = dynamic_pointer_cast<DamageTrigger>(spawnedObject))
     {
         damageTrigger->Set_LifeTimeSec(max(context.notifyStateDurationSec, 0.01f));
-        damageTrigger->Set_EnableParryReaction(_enableParryReaction);
         damageTrigger->Refresh_CollisionPresetFromOwner();
     }
 
@@ -137,29 +134,26 @@ Shared<GameObject> ANS_SL_SpawnAttColl::Resolve_SpawnOwner(GameObject* notifyOwn
 
 Vec3 ANS_SL_SpawnAttColl::Resolve_SpawnWorldPosition(const AnimNotifyContext& context, const Shared<GameObject>& spawnOwner) const
 {
-    if (_useCachedPlayerPosition)
-    {
-        const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(spawnOwner);
-        const Shared<SL_Mon_StateMachineCom> stateMachine = dualliste ? dualliste->Get_Component<SL_Mon_StateMachineCom>() : nullptr;
-        const Shared<SL_Mon_AttackState> attackState = stateMachine
-            ? dynamic_pointer_cast<SL_Mon_AttackState>(stateMachine->Get_CurrentMonState())
-            : nullptr;
+    const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(spawnOwner);
+    const Shared<SL_Mon_StateMachineCom> stateMachine = dualliste ? dualliste->Get_Component<SL_Mon_StateMachineCom>() : nullptr;
+    const Shared<SL_Mon_AttackState> attackState = stateMachine
+        ? dynamic_pointer_cast<SL_Mon_AttackState>(stateMachine->Get_CurrentMonState())
+        : nullptr;
 
-        Vec3 cachedPlayerPos{};
-        Vec3 cachedPlayerRight{};
-        Vec3 cachedPlayerUp{};
-        Vec3 cachedPlayerForward{};
-        if (attackState && attackState->Try_GetCachedPlayerAnchor(
-            cachedPlayerPos,
-            cachedPlayerRight,
-            cachedPlayerUp,
-            cachedPlayerForward))
-        {
-            UNREFERENCED_PARAMETER(cachedPlayerRight);
-            UNREFERENCED_PARAMETER(cachedPlayerUp);
-            UNREFERENCED_PARAMETER(cachedPlayerForward);
-            return cachedPlayerPos;
-        }
+    Vec3 cachedPlayerPos{};
+    Vec3 cachedPlayerRight{};
+    Vec3 cachedPlayerUp{};
+    Vec3 cachedPlayerForward{};
+    if (attackState && attackState->Try_GetCachedPlayerAnchor(
+        cachedPlayerPos,
+        cachedPlayerRight,
+        cachedPlayerUp,
+        cachedPlayerForward))
+    {
+        return cachedPlayerPos
+            + cachedPlayerRight * _localOffset.x
+            + cachedPlayerUp * _localOffset.y
+            + cachedPlayerForward * _localOffset.z;
     }
 
     const Shared<TransformCom> ownerTransform = spawnOwner ? spawnOwner->Get_Transform() : nullptr;

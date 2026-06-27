@@ -20,10 +20,12 @@ IMPLEMENT_REFLECTION(AN_SL_DuallisteCloneSkill)
     PROPERTY_STRING("Prefab Name", _prefabName);
     PROPERTY_STRING("Skill Key", _skillKey);
     PROPERTY_STRING("Animation Name", _animationName);
-    PROPERTY_VEC3("Goal Offset", _goalOffset);
+    PROPERTY_VEC3("Spawn Offset", _spawnOffset);
+    PROPERTY_FLOAT("Goal Offset", _goalOffset, 0.f, 20.f, 0.05f);
     PROPERTY_FLOAT("Fallback Damage Multiplier", _fallbackDamageMultiplier, 0.f, 100.f, 0.1f);
     PROPERTY_FLOAT("Animation Speed", _animationSpeed, 0.01f, 10.f, 0.05f);
     PROPERTY_FLOAT("Move Speed", _moveSpeed, 0.f, 100.f, 0.1f);
+    PROPERTY_FLOAT("Dissolve Duration", _dissolveDuration, 0.01f, 10.f, 0.01f);
 
     return true;
 }
@@ -53,10 +55,12 @@ void AN_SL_DuallisteCloneSkill::Execute(const AnimNotifyContext& context)
         _skillKey,
         _animationName,
         target,
+        _spawnOffset,
         _goalOffset,
         _fallbackDamageMultiplier,
         _animationSpeed,
-        _moveSpeed))
+        _moveSpeed,
+        _dissolveDuration))
     {
         LOG_WARN("AN_SL_DuallisteCloneSkill request failed. prefab={}, anim={}",
             _prefabName.c_str(),

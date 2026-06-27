@@ -29,6 +29,7 @@ private:
 private:
     Phase _phase = Phase::Enter;
     float _loopElapsed = 0.f;
+    bool _phaseChangeRequested = false;
 };
 
 NS_END
