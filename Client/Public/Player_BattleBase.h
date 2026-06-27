@@ -47,6 +47,9 @@ public:
 
     // BattleController에서 실제 장착 무기로 재생성
     HRESULT Rebuild_WeaponPartsFromCurrentStat();
+    HRESULT Apply_WeaponPreviewById(const string& weaponId);
+    string  Get_WeaponCharacterId() const;
+    string  Get_ActiveWeaponPreviewId() const;
 
     float   Get_BattleGroundOffsetY() const { return _battleGroundOffsetY; }
     void    Set_BattleGroundOffsetY(float value) { _battleGroundOffsetY = value; }
@@ -56,6 +59,7 @@ protected:
     HRESULT Ready_PartObjects();
 
     virtual HeroId Get_HeroId() const = 0;
+    const string& Get_EditorPreviewWeaponId() const { return _editorPreviewWeaponId; }
 
     virtual HairChainPhysicsDesc Get_HairChainPhysicsDesc() const { return {}; }
 
@@ -98,6 +102,7 @@ protected:
     Shared<EffectCom>           _effectCom;
     Shared<BattleMechanismCom>  _battleMechanismCom;
     float                       _battleGroundOffsetY = 0.f;
+    string                      _editorPreviewWeaponId{};
 
 };
 

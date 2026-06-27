@@ -9,6 +9,7 @@
 #include "SoulLikeController.h"
 #include "MapAmbientVisibility.h"
 #include "BattleStartSpawner.h"
+#include "RuntimeRuleStateService.h"
 
 namespace
 {
@@ -48,6 +49,8 @@ HRESULT Level_GestralVillage::Initialize()
 
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
         return E_FAIL;
+
+    UnlockRules_GestralVillage();
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
@@ -389,6 +392,14 @@ HRESULT Level_GestralVillage::Ready_Layer_ETC(const wstring& strLayerTag)
     _bssPotatoBag->Set_SpawnerId(Constants::Value::potatoBagBattleStartSpawnerId);
 
     return S_OK;
+}
+
+void Level_GestralVillage::UnlockRules_GestralVillage()
+{
+    RuntimeRuleStateService::Apply_ToCurrentRuntime(
+        RuntimeRuleStateService::Build_GestralVillageStartUnlocks(), false);
+
+    CLIENT->Restore_PartyFormationAfterEditorStop();
 }
 
 void Level_GestralVillage::Play_MapBGM()

@@ -58,6 +58,7 @@ public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
     void    BeginPlay() override;
+    json    To_Json() const override;
     void    From_Json(const json& data) override;
 
     void    Priority_Update(float timeDelta) override {}
@@ -77,6 +78,7 @@ public:
     HRESULT Sync_FromRuntimeData();
     HRESULT Apply_CostumePreset(const CostumePreset& preset);
     HRESULT Prewarm_CostumeVariants();
+    HRESULT Reload_ChangeWeaponPreviewOffsetsFromPrefab();
     HRESULT Apply_EquippedWeaponFromRuntimeData();
 
 private:
@@ -89,6 +91,9 @@ private:
     HRESULT Warmup_CostumeVariantParts(CostumeVariantParts& parts);
     void    Clear_AllCostumeVariants();
     void    Clear_WeaponPreview();
+    void    Apply_ChangeWeaponPreviewCustomProperties(const json& customProperties);
+    bool    Get_ChangeWeaponPreviewWeaponOffset(const string& prefabName, Vec3& outPosition, Vec3& outRotation) const;
+    void    Apply_ChangeWeaponPreviewWeaponOffset(Weapon* weapon, const string& prefabName) const;
 
     void    Capture_DefaultCostumePartTransformsIfNeeded();
     CostumePartTransformMap Capture_CostumeVariantPartTransforms(const CostumeVariantParts& parts) const;
@@ -118,6 +123,7 @@ private:
     string  Get_MainWeaponSocketName() const;
     wstring  Get_PreviewAnimMapPath() const;
     bool    Apply_PreviewAnimStateMapping(Body_Player* body) const;
+    bool    Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const override;
 
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const;
     const wchar_t* Get_DefaultBodyModelTag() const;
@@ -138,6 +144,12 @@ private:
     Shared<Weapon> _weapon{};
     Shared<Weapon> _subWeapon{};
     string _activeWeaponId{};
+    Vec3 _luneColimChangeWeaponPreviewPositionOffset = Vec3::Zero;
+    Vec3 _luneColimChangeWeaponPreviewRotationOffset = Vec3::Zero;
+    Vec3 _luneBaguetteChangeWeaponPreviewPositionOffset = Vec3::Zero;
+    Vec3 _luneBaguetteChangeWeaponPreviewRotationOffset = Vec3::Zero;
+    Vec3 _luneSnowimChangeWeaponPreviewPositionOffset = Vec3::Zero;
+    Vec3 _luneSnowimChangeWeaponPreviewRotationOffset = Vec3::Zero;
 
     Shared<Engine::FacialClip> _gameMenuFacialClip{};
     Shared<Engine::FacialAnimationModifier> _gameMenuFacialModifier{};

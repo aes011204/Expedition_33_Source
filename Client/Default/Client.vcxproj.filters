@@ -295,9 +295,6 @@
     <Filter Include="02. GameObject\Map\MapEffect">
       <UniqueIdentifier>{cc4c3c31-ef8d-4930-8aaf-8abeaf1b9800}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Map\MapAmbient">
-      <UniqueIdentifier>{7a488dbb-407d-4b4f-a97c-e7b0491b5c55}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -374,6 +371,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp">
@@ -1361,6 +1361,7 @@
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_EstherManager.cpp" />
+    <ClCompile Include="..\Private\SL_DuallisteCloneSkillManager.cpp" />
     <ClCompile Include="..\private\NPC_Noco.cpp">
       <Filter>02. GameObject\NPC\Noco</Filter>
     </ClCompile>
@@ -1368,9 +1369,6 @@
       <Filter>07. Dialogue</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
-    <ClCompile Include="..\Private\MapAmbientVisibility.cpp">
-      <Filter>02.GameObject\Map\MapAmbient</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\DialogueManager.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
@@ -1395,6 +1393,9 @@
     <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
     <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\Private\DamageTrigger.cpp" />
+    <ClCompile Include="..\Private\UI_Replay.cpp" />
+    <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
+    <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
     <ClCompile Include="..\Private\MapEffect_TornadoPaint.cpp">
       <Filter>02. GameObject\Map\MapEffect</Filter>
     </ClCompile>
@@ -1469,6 +1470,7 @@
     <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
     <ClInclude Include="..\Public\UI_SL_HUD.h" />
     <ClInclude Include="..\Public\SL_EstherManager.h" />
+    <ClInclude Include="..\Public\SL_DuallisteCloneSkillManager.h" />
     <ClInclude Include="..\public\NPC_Noco.h">
       <Filter>02. GameObject\NPC\Noco</Filter>
     </ClInclude>
@@ -1476,9 +1478,6 @@
       <Filter>07. Dialogue</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
-    <ClInclude Include="..\Public\MapAmbientVisibility.h">
-      <Filter>02.GameObject\Map\MapAmbient</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\DialogueManager.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
@@ -1509,6 +1508,9 @@
     <ClInclude Include="..\Public\Trigger_BGMZone.h" />
     <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\Public\DamageTrigger.h" />
+    <ClInclude Include="..\Public\UI_Replay.h" />
+    <ClInclude Include="..\Public\MapAmbientVisibility.h" />
+    <ClInclude Include="..\Public\Level_ReplayTransition.h" />
     <ClInclude Include="..\Public\MapEffect_TornadoPaint.h">
       <Filter>02. GameObject\Map\MapEffect</Filter>
     </ClInclude>
@@ -1725,6 +1727,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_EndTurn.h">

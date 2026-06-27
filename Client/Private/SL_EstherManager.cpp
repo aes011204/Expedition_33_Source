@@ -19,8 +19,8 @@ namespace
     constexpr char kGustaveSkill[] = "UnleashedCharge";
     constexpr char kLuneSkill[] = "Immolation";
 
-    //constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
-    constexpr char kGustaveAnim[] = "Gustave_Verso_Skill_Flawless_Spiral";
+    constexpr char kGustaveAnim[] = "Gustave_Noah_Skill_Overcharge_VeryStrong";
+    //constexpr char kGustaveAnim[] = "Gustave_Verso_Skill_Flawless_Spiral";
     constexpr char kLuneAnim[] = "Lune_Unstable_Fire";
 }
 

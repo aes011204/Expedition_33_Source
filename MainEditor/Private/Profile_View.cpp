@@ -479,6 +479,10 @@ void Profile_View::Draw_Render_Isolation()
 {
     ImGui::TextUnformatted("Render Isolation");
 
+    bool disableDynamicShadowPass = Client::ClientInstance::Is_DebugDisableDynamicShadowRenderPass();
+    if (ImGui::Checkbox("Disable Dynamic Shadow Render Pass", &disableDynamicShadowPass))
+        Client::ClientInstance::Set_DebugDisableDynamicShadowRenderPass(disableDynamicShadowPass);
+
     bool disableMapInstanced = Client::ClientInstance::Is_DebugDisableMapInstancedMeshRender();
     if (ImGui::Checkbox("Disable MapInstancedMesh", &disableMapInstanced))
         Client::ClientInstance::Set_DebugDisableMapInstancedMeshRender(disableMapInstanced);
@@ -490,6 +494,18 @@ void Profile_View::Draw_Render_Isolation()
     bool disableMapStatic = Client::ClientInstance::Is_DebugDisableMapStaticMeshRender();
     if (ImGui::Checkbox("Disable MapStaticMesh", &disableMapStatic))
         Client::ClientInstance::Set_DebugDisableMapStaticMeshRender(disableMapStatic);
+
+    bool disableMapInstancedShadow = Client::ClientInstance::Is_DebugDisableMapInstancedMeshShadow();
+    if (ImGui::Checkbox("Disable MapInstancedMesh Shadow", &disableMapInstancedShadow))
+        Client::ClientInstance::Set_DebugDisableMapInstancedMeshShadow(disableMapInstancedShadow);
+
+    bool disableGrassInstancedShadow = Client::ClientInstance::Is_DebugDisableGrassInstancedShadow();
+    if (ImGui::Checkbox("Disable Grass Instanced Shadow", &disableGrassInstancedShadow))
+        Client::ClientInstance::Set_DebugDisableGrassInstancedShadow(disableGrassInstancedShadow);
+
+    bool disableMapStaticShadow = Client::ClientInstance::Is_DebugDisableMapStaticMeshShadow();
+    if (ImGui::Checkbox("Disable MapStaticMesh Shadow", &disableMapStaticShadow))
+        Client::ClientInstance::Set_DebugDisableMapStaticMeshShadow(disableMapStaticShadow);
 }
 
 void Profile_View::Draw_Scopes()

@@ -54,9 +54,10 @@ void PB_Gustave::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
     outDescs.clear();
 
-    const string equippedWeaponId = _combatStatCom
-        ? _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId
-        : "";
+    const string editorPreviewWeaponId = Get_EditorPreviewWeaponId();
+    const string equippedWeaponId = !editorPreviewWeaponId.empty()
+        ? editorPreviewWeaponId
+        : (_combatStatCom ? _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId : "");
 
     const GameDataTable::WeaponDesc* weapon = equippedWeaponId.empty()
         ? nullptr
