@@ -69,6 +69,7 @@ enum class GameplayMenu
     ChangeSkill,            // 스킬 변경
     Wardrobe,               // 옷장
     ArenaCharacterSelect,
+    Replay,
 
     END
 };

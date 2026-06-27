@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="00.Core">
@@ -292,6 +292,9 @@
     <Filter Include="02. GameObject\NPC\Sumo">
       <UniqueIdentifier>{28eb853a-06c8-49a5-a5f2-a50edbf6f645}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02. GameObject\Map\MapEffect">
+      <UniqueIdentifier>{cc4c3c31-ef8d-4930-8aaf-8abeaf1b9800}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -368,6 +371,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp">
@@ -701,9 +707,6 @@
     <ClCompile Include="..\Private\Mon_Simon_Hair.cpp">
       <Filter>02. GameObject\Monster</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\SimonHairRuntime.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Mon_Volester_Body.cpp">
       <Filter>02. GameObject\Monster</Filter>
     </ClCompile>
@@ -1028,9 +1031,6 @@
     <ClCompile Include="..\Private\Create_Class.cpp">
       <Filter>99. Defines\Helper</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\DamageTrigger.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
@@ -1257,9 +1257,6 @@
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_L.cpp" />
     <ClCompile Include="..\Private\Mon_Dualliste_Sword_R.cpp" />
     <ClCompile Include="..\Private\MW_Dualliste.cpp" />
-    <ClCompile Include="..\Private\Trigger_BGMZone.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Trigger_Cinematic.cpp">
       <Filter>02. GameObject\Map</Filter>
     </ClCompile>
@@ -1364,12 +1361,14 @@
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
     <ClCompile Include="..\Private\SL_Base.cpp" />
     <ClCompile Include="..\Private\SL_EstherManager.cpp" />
+    <ClCompile Include="..\Private\SL_DuallisteCloneSkillManager.cpp" />
     <ClCompile Include="..\private\NPC_Noco.cpp">
       <Filter>02. GameObject\NPC\Noco</Filter>
     </ClCompile>
     <ClCompile Include="..\private\DialogueDB.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\private\DialogueManager.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
@@ -1390,6 +1389,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\Trigger_Interaction.cpp">
       <Filter>02. GameObject\Map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Trigger_BGMZone.cpp" />
+    <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
+    <ClCompile Include="..\Private\DamageTrigger.cpp" />
+    <ClCompile Include="..\Private\UI_Replay.cpp" />
+    <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
+    <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
+    <ClCompile Include="..\Private\MapEffect_TornadoPaint.cpp">
+      <Filter>02. GameObject\Map\MapEffect</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1415,9 +1423,6 @@
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_L.h" />
     <ClInclude Include="..\Public\Mon_Dualliste_Sword_R.h" />
     <ClInclude Include="..\Public\MW_Dualliste.h" />
-    <ClInclude Include="..\Public\Trigger_BGMZone.h">
-      <Filter>02.GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Trigger_Cinematic.h">
       <Filter>02. GameObject\Map</Filter>
     </ClInclude>
@@ -1465,12 +1470,14 @@
     <ClInclude Include="..\Public\Mon_Simon_Weapon.h" />
     <ClInclude Include="..\Public\UI_SL_HUD.h" />
     <ClInclude Include="..\Public\SL_EstherManager.h" />
+    <ClInclude Include="..\Public\SL_DuallisteCloneSkillManager.h" />
     <ClInclude Include="..\public\NPC_Noco.h">
       <Filter>02. GameObject\NPC\Noco</Filter>
     </ClInclude>
     <ClInclude Include="..\public\DialogueDB.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
     <ClInclude Include="..\public\DialogueManager.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
@@ -1497,6 +1504,15 @@
     </ClInclude>
     <ClInclude Include="..\Public\Trigger_Interaction.h">
       <Filter>02. GameObject\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Trigger_BGMZone.h" />
+    <ClInclude Include="..\Public\SimonHairRuntime.h" />
+    <ClInclude Include="..\Public\DamageTrigger.h" />
+    <ClInclude Include="..\Public\UI_Replay.h" />
+    <ClInclude Include="..\Public\MapAmbientVisibility.h" />
+    <ClInclude Include="..\Public\Level_ReplayTransition.h" />
+    <ClInclude Include="..\Public\MapEffect_TornadoPaint.h">
+      <Filter>02. GameObject\Map\MapEffect</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1633,7 +1649,9 @@
       <Filter>97. ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Letterbox.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_ShadowCull.hlsl">
+      <Filter>97. ShaderFiles\Compute</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
@@ -1709,6 +1727,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_EndTurn.h">
@@ -2105,9 +2126,6 @@
     <ClInclude Include="..\Public\Mon_Simon_Hair.h">
       <Filter>02. GameObject\Monster</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\SimonHairRuntime.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Mon_Volester_Body.h">
       <Filter>02. GameObject\Monster</Filter>
     </ClInclude>
@@ -2407,9 +2425,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Create_Class.h">
       <Filter>99. Defines\Helper</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\DamageTrigger.h">
-      <Filter>02.GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h">
       <Filter>Skill</Filter>

@@ -10,6 +10,7 @@
 uint g_iObjectID;
 float4 g_WeaponGhostColor;
 uint g_WeaponGhostBladeMaterial;
+float g_AmbientVisibilityAmount = 0.15f;
 
 //==================================================
 // VS
@@ -99,6 +100,13 @@ struct PS_OUT
 struct PS_OUT_ID
 {
     vector Color : SV_TARGET0;
+};
+
+struct PS_OUT_AmbientVisibility
+{
+    float FrontDepth : SV_TARGET0;
+    float BackDepth : SV_TARGET1;
+    float Amount : SV_TARGET2;
 };
 
 struct PS_OUT_SHADOW
@@ -609,6 +617,16 @@ PS_OUT PS_CharacterHair(PS_IN In, bool IsFrontFace : SV_IsFrontFace)
     return Out;
 }
 
+PS_OUT_AmbientVisibility PS_AmbientVisibility(PS_IN In)
+{
+    PS_OUT_AmbientVisibility Out;
+    const float depth = In.ProjPos.w / g_Far;
+    Out.FrontDepth = In.IsFrontFace ? depth : 1.f;
+    Out.BackDepth = In.IsFrontFace ? 0.f : depth;
+    Out.Amount = 0.f;// saturate(g_AmbientVisibilityAmount);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass,               RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
@@ -630,4 +648,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(WeaponAlphaPass,           RS_CullNone, DSS_None, BS_Default, VS_Default, PS_WeaponAlpha)       // 16
     PASS_RS_DS_BS_VP(HairMesh,                  RS_CullNone, DSS_None, BS_Default, VS_Default, PS_CharacterHair)       // 17
     PASS_RS_DS_BS_VP(EclipseSpherePass,         RS_Default, DSS_DepthRead, BS_EffectAdditive, VS_Default, PS_GlowOnly) // 18
+    PASS_RS_DS_BS_VP(AmbientVisibility,         RS_CullNone, DSS_None, BS_AmbientVisibilityDepthInterval, VS_Default, PS_AmbientVisibility) // 19
 }

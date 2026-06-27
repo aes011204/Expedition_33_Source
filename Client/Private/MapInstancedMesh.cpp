@@ -43,6 +43,21 @@ namespace
     {
         return modelPath.find(L"Grass") != wstring::npos || modelPath.find(L"grass") != wstring::npos;
     }
+
+    bool Is_GrassOrPetalModelPath(const wstring& modelPath)
+    {
+        return Is_GrassModelPath(modelPath) ||
+            modelPath.find(L"Petal") != wstring::npos ||
+            modelPath.find(L"petal") != wstring::npos;
+    }
+
+    bool Is_SmallInstancedShadowModelPath(const wstring& modelPath)
+    {
+        return modelPath.find(L"Flower") != wstring::npos ||
+            modelPath.find(L"flower") != wstring::npos ||
+            modelPath.find(L"Bush") != wstring::npos ||
+            modelPath.find(L"bush") != wstring::npos;
+    }
 }
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
@@ -181,6 +196,16 @@ void MapInstancedMesh::Late_Update(float timeDelta)
     auto submitShadowIfInRange = [&]()
     {
         if (!_castShadow || !Casts_DynamicShadow())
+        {
+            return;
+        }
+
+        if (ClientInstance::Is_DebugDisableMapInstancedMeshShadow())
+        {
+            return;
+        }
+
+        if (ClientInstance::Is_DebugDisableGrassInstancedShadow() && Is_GrassOrPetalModelPath(_modelPath))
         {
             return;
         }
@@ -528,7 +553,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
     const Matrix preTransform = _lodModels[0] ? _lodModels[0]->Get_PreLocalTransformMatrix() : Matrix::Identity;
 
     bool hasMergedBounds = false;
-    float maxSingleInstanceExtent = 0.f;
     vector<Vec4> spheres;
     spheres.reserve(count);
 
@@ -556,8 +580,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             spheres.push_back({ matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2], 500.f });
         }
 
-        maxSingleInstanceExtent = max(maxSingleInstanceExtent, max(worldBox.Extents.x, max(worldBox.Extents.y, worldBox.Extents.z)));
-
         if (!hasMergedBounds)
         {
             _groupBounds = worldBox;
@@ -568,10 +590,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             BoundingBox::CreateMerged(_groupBounds, _groupBounds, worldBox);
         }
     }
-    if (maxSingleInstanceExtent > 8.f)
-        _maxShadowCascade = 3u;
-    else
-        _maxShadowCascade = 2u;
 
     if (!_cullShader)
     {
@@ -840,6 +858,16 @@ bool MapInstancedMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) co
 
     outWorldBounds = _groupBounds;
     return true;
+}
+
+bool MapInstancedMesh::Allows_DynamicShadowCascade(uint32 cascadeIndex) const
+{
+    if (Is_SmallInstancedShadowModelPath(_modelPath) && cascadeIndex > 2u)
+    {
+        return false;
+    }
+
+    return cascadeIndex <= _maxShadowCascade;
 }
 
 void MapInstancedMesh::DispatchCull()

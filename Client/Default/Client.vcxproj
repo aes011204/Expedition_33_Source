@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -188,6 +188,7 @@
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h" />
+    <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
     <ClInclude Include="..\Public\AN_SL_SpawnAttColl.h" />
@@ -269,6 +270,9 @@
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
+    <ClInclude Include="..\Public\Level_ReplayTransition.h" />
+    <ClInclude Include="..\Public\MapEffect_TornadoPaint.h" />
+    <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\public\NPC_Base.h" />
     <ClInclude Include="..\public\NPC_Chad.h" />
     <ClInclude Include="..\public\NPC_Golgra.h" />
@@ -295,6 +299,7 @@
     <ClInclude Include="..\Public\SL_DamageSystem.h" />
     <ClInclude Include="..\Public\SL_Dead.h" />
     <ClInclude Include="..\Public\SL_Dodge.h" />
+    <ClInclude Include="..\Public\SL_DuallisteCloneSkillManager.h" />
     <ClInclude Include="..\Public\SL_EstherManager.h" />
     <ClInclude Include="..\Public\SL_Hit.h" />
     <ClInclude Include="..\Public\SL_Idle.h" />
@@ -335,6 +340,7 @@
     <ClInclude Include="..\Public\ScreenFxCueTypes.h" />
     <ClInclude Include="..\public\UI_Dialogue.h" />
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
+    <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\WorldDesaturate_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
@@ -655,6 +661,7 @@
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp" />
+    <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp" />
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
@@ -708,6 +715,9 @@
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
+    <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
+    <ClCompile Include="..\Private\MapEffect_TornadoPaint.cpp" />
+    <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\private\NPC_Base.cpp" />
     <ClCompile Include="..\private\NPC_Chad.cpp" />
     <ClCompile Include="..\private\NPC_Golgra.cpp" />
@@ -734,6 +744,7 @@
     <ClCompile Include="..\Private\SL_DamageSystem.cpp" />
     <ClCompile Include="..\Private\SL_Dead.cpp" />
     <ClCompile Include="..\Private\SL_Dodge.cpp" />
+    <ClCompile Include="..\Private\SL_DuallisteCloneSkillManager.cpp" />
     <ClCompile Include="..\Private\SL_EstherManager.cpp" />
     <ClCompile Include="..\Private\SL_Hit.cpp" />
     <ClCompile Include="..\Private\SL_Idle.cpp" />
@@ -793,6 +804,7 @@
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
     <ClCompile Include="..\private\UI_Dialogue.cpp" />
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
+    <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\WorldDesaturate_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />

@@ -43,7 +43,11 @@ void AN_SL_CachePlayerPosition::Execute(const AnimNotifyContext& context)
     if (attackState == nullptr)
         return;
 
-    attackState->Cache_PlayerPosition(playerTransform->Get_WorldPosition());
+    attackState->Cache_PlayerAnchor(
+        playerTransform->Get_WorldPosition(),
+        playerTransform->Get_WorldRight(),
+        playerTransform->Get_WorldUp(),
+        playerTransform->Get_WorldForward());
 }
 
 Shared<SL_Dualliste> AN_SL_CachePlayerPosition::Resolve_OwnerDualliste(GameObject* notifyOwner) const

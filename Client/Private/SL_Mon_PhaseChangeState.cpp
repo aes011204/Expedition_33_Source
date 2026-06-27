@@ -24,9 +24,7 @@ bool SL_Mon_PhaseChangeState::EnterInvoke()
     owner->Begin_PhaseChangeTransition();
     owner->Set_ActionLocked(true);
 
-    _phase = owner->Should_SkipPhaseChangeStunStart()
-        ? Phase::StunEnd
-        : Phase::StunStart;
+    _phase = Phase::StunStart;
     _hasStarted = false;
 
     return true;
@@ -100,8 +98,11 @@ void SL_Mon_PhaseChangeState::Update(float timeDelta)
         owner->Set_ActionLocked(false);
         owner->Finish_PhaseChange();
         owner->End_PhaseChangeTransition();
-        _phase = Phase::End;
-        _stateCom->Change_State(SL_MonState::Idle);
+        if (_stateCom->Change_State(SL_MonState::Idle))
+        {
+            _phase = Phase::End;
+            return;
+        }
         return;
 
     case Phase::End:

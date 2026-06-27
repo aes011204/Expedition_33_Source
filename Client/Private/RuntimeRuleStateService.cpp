@@ -1,4 +1,4 @@
-#include "RuntimeRuleStateService.h"
+﻿#include "RuntimeRuleStateService.h"
 
 #include "Battle_Enum.h"
 #include "ClientInstance.h"
@@ -64,22 +64,22 @@ namespace
             json{{"hero_id", "Gustave"}, {"preset_id", "Default"}},
             json{{"hero_id", "Lune"}, {"preset_id", "Default"}},
             json{{"hero_id", "Maelle"}, {"preset_id", "Default"}},
-        });
+            });
 
         root["unlocked"] = json::object();
 
         const auto BuildUnlockedPresets = [unlockBaguette, unlockPotato]()
-        {
-            json presets = json::array({ "Default" });
+            {
+                json presets = json::array({ "Default" });
 
-            if (unlockBaguette)
-                presets.emplace_back("Baguette");
+                if (unlockBaguette)
+                    presets.emplace_back("Baguette");
 
-            if (unlockPotato)
-                presets.emplace_back("Potato");
+                if (unlockPotato)
+                    presets.emplace_back("Potato");
 
-            return presets;
-        };
+                return presets;
+            };
 
         root["unlocked"]["Gustave"] = BuildUnlockedPresets();
         root["unlocked"]["Lune"] = BuildUnlockedPresets();
@@ -254,7 +254,7 @@ namespace
         return heroes;
     }
 
-    bool Apply_WeaponInventoryJson(const json& data)
+    bool Apply_WeaponInventoryJson(const json& data, bool queuePresentation)
     {
         if (!data.is_object())
             return false;
@@ -287,7 +287,7 @@ namespace
             const bool wasUnlocked = inventory->Is_WeaponUnlocked(entry.characterId, entry.weaponId);
             entries.emplace_back(std::move(entry));
 
-            if (!wasUnlocked && unlockManager != nullptr)
+            if (queuePresentation && !wasUnlocked && unlockManager != nullptr)
                 unlockManager->Queue_GetWeaponPresentation(entries.back().characterId, entries.back().weaponId);
         }
 
@@ -369,7 +369,7 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_BaguetteWeaponUnloc
         { "Gustave", "Baguette" },
         { "Lune", "Baguette" },
         { "Maelle", "Baguette" },
-    });
+        });
     return ruleState;
 }
 
@@ -380,7 +380,7 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_TiresoSnowimPlenumW
         { "Gustave", "Tireso" },
         { "Lune", "Snowim" },
         { "Maelle", "Plenum" },
-    });
+        });
     return ruleState;
 }
 
@@ -401,6 +401,36 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_FirstTutorialHeroUn
     return ruleState;
 }
 
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_GestralVillageStartUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+
+    ruleState.costumeJson = Build_CostumeSaveJson(true, false);
+
+    // 마임 옷 + 루네,마엘 해금
+    ruleState.unlockManagerJson = Build_HeroUnlockSaveJson(
+        { kRuleMimeCostume, kRuleFirstTutorialUnlockParty },
+        { HeroId::Gustave, HeroId::Lune, HeroId::Maelle });
+
+    // 바게트 무기 해금
+    ruleState.inventoryJson = Build_SelectedWeaponInventoryJson({
+        { "Gustave", "Baguette" },
+        { "Lune", "Baguette" },
+        { "Maelle", "Baguette" },
+        });
+
+    return ruleState;
+}
+
+RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_SimonStartUnlocks()
+{
+    RuntimeRuleStateIO::RuleState ruleState{};
+
+    // TODO : 시몽 들어갈 때 해금 상태 정하기. 그냥 전부 다 해금하고 세팅하면 될거같음.
+
+    return ruleState;
+}
+
 RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_FinalSkillSetupUnlocks()
 {
     RuntimeRuleStateIO::RuleState ruleState{};
@@ -412,7 +442,8 @@ RuntimeRuleStateIO::RuleState RuntimeRuleStateService::Build_FinalSkillSetupUnlo
     return ruleState;
 }
 
-bool RuntimeRuleStateService::Apply_ToCurrentRuntime(const RuntimeRuleStateIO::RuleState& ruleState)
+bool RuntimeRuleStateService::Apply_ToCurrentRuntime(const RuntimeRuleStateIO::RuleState& ruleState,
+    bool queuePresentation)
 {
     bool applied = false;
 
@@ -441,12 +472,12 @@ bool RuntimeRuleStateService::Apply_ToCurrentRuntime(const RuntimeRuleStateIO::R
     {
         if (Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager())
         {
-            unlockManager->Apply_SaveJson(ruleState.unlockManagerJson, false);
+            unlockManager->Apply_SaveJson(ruleState.unlockManagerJson, false, queuePresentation);
             applied = true;
         }
     }
 
-    if (Apply_WeaponInventoryJson(ruleState.inventoryJson))
+    if (Apply_WeaponInventoryJson(ruleState.inventoryJson, queuePresentation))
         applied = true;
 
     if (Apply_PictosInventoryJson(ruleState.inventoryJson))

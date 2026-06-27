@@ -148,6 +148,8 @@ void MainEditorApp::Update(float timeDelta)
 
         if (runtimeDelta <= 0.f)
         {
+            CLIENT->Update_FadeTransitions(timeDelta);
+
             if (CLIENT->Is_CinematicPlaying())
                 CLIENT->Update_CinematicPreview(timeDelta);
 
@@ -158,6 +160,7 @@ void MainEditorApp::Update(float timeDelta)
 
     const uint32 currentLevelIndex = GAME->Current_LevelIndex();
     const bool finishedLoadingIntoEditorAutoPlayLevel =
+        !EDITOR->IsPlaying() &&
         previousLevelIndex == ETOI(LevelType::Loading) &&
         currentLevelIndex != ETOI(LevelType::Loading) &&
         currentLevelIndex != ETOI(LevelType::MainTitle) &&

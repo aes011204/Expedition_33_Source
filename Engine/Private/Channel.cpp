@@ -127,6 +127,12 @@ Vec3 Channel::Get_FirstFramePosition() const
     return _keyFrames.empty() ? Vec3::Zero : _keyFrames.front().translation;
 }
 
+size_t Channel::Get_DebugEstimatedBytes() const
+{
+    return sizeof(Channel)
+        + sizeof(KEYFRAME) * _keyFrames.capacity();
+}
+
 void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float currentTrackPosition, float duration, const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
 {
 	if (_boneIndex == -1 || _boneIndex >= bones.size())

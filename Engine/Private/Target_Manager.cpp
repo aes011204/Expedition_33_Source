@@ -120,6 +120,16 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::ScreenCapture,
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::PointGlow,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::AmbientVisibilityFrontDepth,
+        width, height, DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::AmbientVisibilityBackDepth,
+        width, height, DXGI_FORMAT_R32_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::AmbientVisibilityAmount,
+        width, height, DXGI_FORMAT_R8_UNORM, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::AmbientVisibility,
+        width, height, DXGI_FORMAT_R8_UNORM, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
@@ -144,11 +154,13 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // PostProcess
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::HDRColorOnly, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::DistortionField, RT::DistortionField), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::LightShaftMaskHalf, RT::LightShaftMaskHalf), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::LightShaftBlurHalf, RT::LightShaftBlurHalf), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxA, RT::ScreenFxColorA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxB, RT::ScreenFxColorB), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::PointGlow, RT::PointGlow), E_FAIL);
 
     CHECK_FAILED(Add_MRT(MRT::BloomHalfA, RT::BloomHalfA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::BloomHalfB, RT::BloomHalfB), E_FAIL);
@@ -163,6 +175,10 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     CHECK_FAILED(Add_MRT(MRT::DOFFarHalfB, RT::DOFFarHalfB), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::DOFFarQuarterA, RT::DOFFarQuarterA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::DOFFarQuarterB, RT::DOFFarQuarterB), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::AmbientVisibilityInterval, RT::AmbientVisibilityFrontDepth), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::AmbientVisibilityInterval, RT::AmbientVisibilityBackDepth), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::AmbientVisibilityInterval, RT::AmbientVisibilityAmount), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::AmbientVisibility, RT::AmbientVisibility), E_FAIL);
 
 #ifdef _DEBUG
     CHECK_FAILED(Add_MRT(MRT::FroxelDebug, RT::FroxelDebug), E_FAIL);

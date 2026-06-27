@@ -566,12 +566,14 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
 
     if (wasPlaying && !_player->Is_CinematicPlaying())
     {
-        CLIENT->Restore_PreviousCamera(); // 완료 콜백이 전투 카메라를 요청할 수 있으므로, 시네마틱 카메라 복원은 먼저 끝낸다.
+        CLIENT->Restore_PreviousCamera();   // 완료 콜백이 전투 카메라를 요청할 수 있으므로, 시네마틱 카메라 복원은 먼저 끝낸다.
         _onNaturalCompleted.Broadcast();
-        Clear_CompletedCallbacks(); // 완료 콜백
+        Clear_CompletedCallbacks();         // 완료 콜백
 
         Cleanup_Context();
-        CLIENT->Restore_PreviousCamera();
+
+        // 인수 : 이거 필요한지? 이 친구 때문에 시네마틱 끝나고나서 비숍이랑 전투 시작할 때, BattleCamera로 바인딩이 되지 않고있음
+        //CLIENT->Restore_PreviousCamera(); 
         GAME->Set_LetterboxEnabled(false);
     }
 }

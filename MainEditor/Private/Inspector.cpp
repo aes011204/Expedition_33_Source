@@ -262,6 +262,116 @@ bool Draw_CascadePresetControls(const char* headerLabel, const char* idPrefix, E
         return changed;
     }
 
+    struct FTextureGuidPickerEntry
+    {
+        string guid{};
+        string fileName{};
+        string relativePath{};
+        string searchText{};
+    };
+
+    vector<FTextureGuidPickerEntry> g_weaponPortraitTextureEntries{};
+    char g_weaponPortraitTextureSearchBuffer[256]{};
+
+    string Normalize_AssetRelativePath(const AssetMeta& asset)
+    {
+        string relativePath = String::ToString(asset.relativePath);
+        replace(relativePath.begin(), relativePath.end(), '\\', '/');
+        return String::ToLowerCopy(relativePath);
+    }
+
+    void Rebuild_WeaponPortraitTextureEntries()
+    {
+        g_weaponPortraitTextureEntries.clear();
+
+        for (const AssetMeta& asset : GAME->Get_AssetsByType("Texture"))
+        {
+            const string relativePathLower = Normalize_AssetRelativePath(asset);
+            if (!relativePathLower.starts_with("textures/ui/inventory/weapons/"))
+                continue;
+
+            FTextureGuidPickerEntry entry{};
+            entry.guid = asset.guid;
+            entry.fileName = String::ToString(fs::path(asset.relativePath).filename().wstring());
+            entry.relativePath = String::ToString(asset.relativePath);
+            replace(entry.relativePath.begin(), entry.relativePath.end(), '\\', '/');
+            entry.searchText = String::ToLowerCopy(entry.fileName + " " + entry.relativePath);
+            g_weaponPortraitTextureEntries.push_back(std::move(entry));
+        }
+
+        sort(
+            g_weaponPortraitTextureEntries.begin(),
+            g_weaponPortraitTextureEntries.end(),
+            [](const FTextureGuidPickerEntry& left, const FTextureGuidPickerEntry& right)
+            {
+                return left.relativePath < right.relativePath;
+            });
+    }
+
+    bool Draw_WeaponPortraitTexturePickerRow(const string& hiddenId, string& value)
+    {
+        if (g_weaponPortraitTextureEntries.empty())
+            Rebuild_WeaponPortraitTextureEntries();
+
+        const AssetMeta* selectedAsset = value.empty() ? nullptr : GAME->Find_AssetByGUID(value);
+        string preview = selectedAsset != nullptr
+            ? String::ToString(fs::path(selectedAsset->relativePath).filename().wstring())
+            : string{ "(select weapon portrait)" };
+
+        bool changed = false;
+
+        const float clearButtonWidth = 52.f;
+        const float comboWidth = max(120.f, ImGui::GetContentRegionAvail().x - clearButtonWidth - ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetNextItemWidth(comboWidth);
+        if (ImGui::BeginCombo(hiddenId.c_str(), preview.c_str()))
+        {
+            ImGui::InputTextWithHint(
+                ("##WeaponPortraitTextureSearch" + hiddenId).c_str(),
+                "Search weapon texture...",
+                g_weaponPortraitTextureSearchBuffer,
+                IM_ARRAYSIZE(g_weaponPortraitTextureSearchBuffer));
+
+            ImGui::Separator();
+
+            const string searchText = String::ToLowerCopy(g_weaponPortraitTextureSearchBuffer);
+            bool hasVisibleEntry = false;
+
+            for (const FTextureGuidPickerEntry& entry : g_weaponPortraitTextureEntries)
+            {
+                if (!searchText.empty() && entry.searchText.find(searchText) == string::npos)
+                    continue;
+
+                hasVisibleEntry = true;
+                const bool isSelected = value == entry.guid;
+                const string label = entry.fileName + "##" + entry.guid;
+                if (ImGui::Selectable(label.c_str(), isSelected))
+                {
+                    value = entry.guid; // 무기 프리팹에는 사람이 고른 Texture GUID만 저장한다.
+                    changed = true;
+                }
+
+                ImGui::TextDisabled("%s", entry.relativePath.c_str());
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            if (!hasVisibleEntry)
+                ImGui::TextDisabled("No weapon portrait textures.");
+
+            ImGui::EndCombo();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button(("Clear" + hiddenId).c_str()))
+        {
+            value.clear();
+            changed = true;
+        }
+
+        return changed;
+    }
+
     struct FMonsterBattlePrefabPickerEntry
     {
         string prefabName{};
@@ -1439,6 +1549,10 @@ bool Inspector::Draw_ReflectionProperty(
         else if (idPrefix == "AN_SpawnActor" && property.name == "_staticClass")
         {
             changed |= Draw_SpawnActorClassPropertyRow(hiddenId, *value);
+        }
+        else if (idPrefix == "Weapon" && property.name == "_portraitGuid")
+        {
+            changed |= Draw_WeaponPortraitTexturePickerRow(hiddenId, *value);
         }
         else
         {

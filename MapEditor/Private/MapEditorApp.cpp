@@ -767,6 +767,7 @@ void MapEditorApp::SyncFogZones()
             cb.groundFogDistanceInfluence = obj->_ppGroundFogDistanceInfluence;
             cb.groundFogNearFadeDistance = obj->_ppGroundFogNearFadeDistance;
             cb.groundFogNearMinFactor = obj->_ppGroundFogNearMinFactor;
+            cb.globalFogIntensity = obj->_ppGlobalFogIntensity;
             hasGroundFogGlobals = true;
         }
 
