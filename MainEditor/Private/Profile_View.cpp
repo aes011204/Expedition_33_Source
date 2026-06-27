@@ -1,6 +1,7 @@
 ﻿#include "Profile_View.h"
 
 #include "ClientInstance.h"
+#include "DebugMemoryTracker.h"
 #include "Debug_Profile.h"
 #include "EffectInstancePool.h"
 #include "Helper_String.h"
@@ -51,6 +52,7 @@ namespace
 {
 constexpr const char* kProfileSnapshotTag = "MainEditorProfileSnapshot";
 constexpr const char* kViewHotspotTag = "MainEditorViewHotspot";
+constexpr const char* kMemoryTraceTag = "MemoryTrace";
 constexpr size_t kViewHotspotTopLimit = 20;
 
 const char* Get_Profile_Level_Name()
@@ -693,6 +695,42 @@ void Profile_View::Log_Snapshot() const
     Log_Profile_Snapshot_Line(sourceLoc, "----- end -----");
 }
 
+void Profile_View::Log_Memory_Trace_Snapshot() const
+{
+    const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
+    const DebugMemoryTraceSnapshot snapshot = DebugMemoryTracker::Build_Snapshot(32, 24);
+
+    Log_Tagged_Line(sourceLoc, kMemoryTraceTag, "----- begin -----");
+    Log_Tagged_Line(sourceLoc, kMemoryTraceTag, fmt::format(
+        "enabled={} events={}",
+        snapshot.enabled,
+        snapshot.sequence));
+
+    for (const DebugMemoryTraceCategory& row : snapshot.categories)
+    {
+        Log_Tagged_Line(sourceLoc, kMemoryTraceTag, fmt::format(
+            "category name=\"{}\" events={} counted_mb={:.2f} estimated_mb={:.2f}",
+            row.category,
+            row.eventCount,
+            Bytes_To_Mb(row.countedBytes),
+            Bytes_To_Mb(row.estimatedBytes)));
+    }
+
+    for (const DebugMemoryTracePath& row : snapshot.topPaths)
+    {
+        Log_Tagged_Line(sourceLoc, kMemoryTraceTag, fmt::format(
+            "top_path category=\"{}\" owner=\"{}\" events={} counted_mb={:.2f} estimated_mb={:.2f} path=\"{}\"",
+            row.category,
+            row.owner,
+            row.eventCount,
+            Bytes_To_Mb(row.countedBytes),
+            Bytes_To_Mb(row.estimatedBytes),
+            row.path));
+    }
+
+    Log_Tagged_Line(sourceLoc, kMemoryTraceTag, "----- end -----");
+}
+
 void Profile_View::Log_ViewHotspot() const
 {
     const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
@@ -955,6 +993,8 @@ void Profile_View::Draw_Memory()
 
     ImGui::Separator();
     Draw_Resource_Memory();
+    ImGui::Separator();
+    Draw_Memory_Trace();
 }
 
 void Profile_View::Draw_Resource_Memory()
@@ -1045,6 +1085,114 @@ void Profile_View::Draw_Resource_Memory()
                 _resourceMemory.editorStopBindings));
 
         ImGui::EndTable();
+    }
+}
+
+void Profile_View::Draw_Memory_Trace()
+{
+    bool enabled = DebugMemoryTracker::Is_Enabled();
+    if (ImGui::Checkbox("Enable memory trace", &enabled))
+        DebugMemoryTracker::Set_Enabled(enabled);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear trace"))
+        DebugMemoryTracker::Clear();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Log snapshot"))
+        Log_Memory_Trace_Snapshot();
+
+    if (!enabled)
+    {
+        ImGui::TextDisabled("Memory trace is off by default. Enable it before loading/reloading assets.");
+        return;
+    }
+
+    const DebugMemoryTraceSnapshot snapshot = DebugMemoryTracker::Build_Snapshot(32, 24);
+    ImGui::Text("Memory Trace Events: %llu", static_cast<unsigned long long>(snapshot.sequence));
+
+    if (ImGui::BeginTable("MemoryTraceCategories", 4, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Category");
+        ImGui::TableSetupColumn("Events");
+        ImGui::TableSetupColumn("Counted");
+        ImGui::TableSetupColumn("Estimated");
+        ImGui::TableHeadersRow();
+
+        for (const DebugMemoryTraceCategory& row : snapshot.categories)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(row.category.c_str());
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%u", row.eventCount);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%.1f MB", Bytes_To_Mb(row.countedBytes));
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%.1f MB", Bytes_To_Mb(row.estimatedBytes));
+        }
+
+        ImGui::EndTable();
+    }
+
+    if (ImGui::CollapsingHeader("Top Resource Paths", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (ImGui::BeginTable("MemoryTraceTopPaths", 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+        {
+            ImGui::TableSetupColumn("Category");
+            ImGui::TableSetupColumn("Owner");
+            ImGui::TableSetupColumn("Counted");
+            ImGui::TableSetupColumn("Events");
+            ImGui::TableSetupColumn("Path");
+            ImGui::TableHeadersRow();
+
+            for (const DebugMemoryTracePath& row : snapshot.topPaths)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted(row.category.c_str());
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextUnformatted(row.owner.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%.1f MB", Bytes_To_Mb(row.countedBytes));
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%u", row.eventCount);
+                ImGui::TableSetColumnIndex(4);
+                ImGui::TextUnformatted(row.path.c_str());
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Recent Load Events"))
+    {
+        if (ImGui::BeginTable("MemoryTraceRecentEvents", 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+        {
+            ImGui::TableSetupColumn("#");
+            ImGui::TableSetupColumn("Category");
+            ImGui::TableSetupColumn("Owner");
+            ImGui::TableSetupColumn("Counted");
+            ImGui::TableSetupColumn("Path");
+            ImGui::TableHeadersRow();
+
+            for (const DebugMemoryTraceEvent& row : snapshot.recentEvents)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%llu", static_cast<unsigned long long>(row.sequence));
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextUnformatted(row.category.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::TextUnformatted(row.owner.c_str());
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%.1f MB", Bytes_To_Mb(row.countedBytes));
+                ImGui::TableSetColumnIndex(4);
+                ImGui::TextUnformatted(row.path.c_str());
+            }
+
+            ImGui::EndTable();
+        }
     }
 }
 

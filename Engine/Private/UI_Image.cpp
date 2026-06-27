@@ -1,7 +1,14 @@
 ﻿#include "UI_Image.h"
+#include "DebugMemoryTracker.h"
 #include "GameInstance.h"
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
+
+namespace
+{
+    mutex g_UITextureSrvCacheMutex;
+    unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>> g_UITextureSrvCache;
+}
 
 UI_Image::UI_Image()
 {
@@ -96,6 +103,8 @@ HRESULT UI_Image::Initialize(void* arg)
     if (FAILED(__super::Initialize(arg)))
         return E_FAIL;
 
+    TextureCachePolicy textureCachePolicy = TextureCachePolicy::UseCached;
+
     if (nullptr != arg)
     {
         const UI_IMAGE_DESC* desc = static_cast<const UI_IMAGE_DESC*>(arg);
@@ -103,6 +112,7 @@ HRESULT UI_Image::Initialize(void* arg)
         _texturePath = desc->texturePath;
         _maskTexturePath = desc->maskTexturePath;
         _patternMaskTexturePath = desc->patternMaskTexturePath;
+        textureCachePolicy = desc->textureCachePolicy;
         _patternUvOffset = Clamp_PatternUvOffset(desc->patternUvOffset);
         _patternUvScale = Clamp_PatternUvScale(desc->patternUvScale);
         _materialVfxMode = desc->materialVfxMode;
@@ -148,7 +158,7 @@ HRESULT UI_Image::Initialize(void* arg)
         _fillOrigin = desc->fillOrigin;
     }
 
-    if (FAILED(Load_TextureResource()))
+    if (FAILED(Load_TextureResource(textureCachePolicy)))
         return E_FAIL;
 
     if (!_maskTexturePath.empty() || !_patternMaskTexturePath.empty() || !_materialVfxNoiseTexturePath.empty())
@@ -157,24 +167,48 @@ HRESULT UI_Image::Initialize(void* arg)
         CHECK_NULL(device, E_FAIL);
 
         if (!_maskTexturePath.empty() &&
-            FAILED(CreateWICTextureFromFile(device.Get(), _maskTexturePath.c_str(), nullptr, _maskSrv.GetAddressOf())))
+            FAILED(Create_CachedTextureSRV(device.Get(), _maskTexturePath, _maskSrv.GetAddressOf(), textureCachePolicy)))
         {
             LOG_WARN("UI_Image mask texture load failed. path='{}'", String::ToString(_maskTexturePath));
             _maskSrv.Reset();
         }
+        else if (!_maskTexturePath.empty() && _maskSrv != nullptr)
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "ui.texture",
+                "UI_Image.Mask",
+                _maskTexturePath,
+                _maskSrv.Get());
+        }
 
         if (!_patternMaskTexturePath.empty() &&
-            FAILED(CreateWICTextureFromFile(device.Get(), _patternMaskTexturePath.c_str(), nullptr, _patternMaskSrv.GetAddressOf())))
+            FAILED(Create_CachedTextureSRV(device.Get(), _patternMaskTexturePath, _patternMaskSrv.GetAddressOf(), textureCachePolicy)))
         {
             LOG_WARN("UI_Image pattern mask texture load failed. path='{}'", String::ToString(_patternMaskTexturePath));
             _patternMaskSrv.Reset();
         }
+        else if (!_patternMaskTexturePath.empty() && _patternMaskSrv != nullptr)
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "ui.texture",
+                "UI_Image.PatternMask",
+                _patternMaskTexturePath,
+                _patternMaskSrv.Get());
+        }
 
         if (!_materialVfxNoiseTexturePath.empty() &&
-            FAILED(CreateWICTextureFromFile(device.Get(), _materialVfxNoiseTexturePath.c_str(), nullptr, _materialVfxNoiseSrv.GetAddressOf())))
+            FAILED(Create_CachedTextureSRV(device.Get(), _materialVfxNoiseTexturePath, _materialVfxNoiseSrv.GetAddressOf(), textureCachePolicy)))
         {
             LOG_WARN("UI_Image material vfx noise texture load failed. path='{}'", String::ToString(_materialVfxNoiseTexturePath));
             _materialVfxNoiseSrv.Reset();
+        }
+        else if (!_materialVfxNoiseTexturePath.empty() && _materialVfxNoiseSrv != nullptr)
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "ui.texture",
+                "UI_Image.MaterialVfxNoise",
+                _materialVfxNoiseTexturePath,
+                _materialVfxNoiseSrv.Get());
         }
     }
 
@@ -434,16 +468,16 @@ void UI_Image::Set_FillRatio(float fillRatio)
     _fillRatio = ::clamp(fillRatio, 0.f, 1.f);
 }
 
-HRESULT UI_Image::Set_TexturePath(const wstring& texturePath)
+HRESULT UI_Image::Set_TexturePath(const wstring& texturePath, TextureCachePolicy cachePolicy)
 {
-    if (_texturePath == texturePath)
+    if (_texturePath == texturePath && cachePolicy == TextureCachePolicy::UseCached)
         return S_OK;
 
     _texturePath = texturePath;
-    return Load_TextureResource();
+    return Load_TextureResource(cachePolicy);
 }
 
-HRESULT UI_Image::Set_TextureGuid(const string& textureGuid)
+HRESULT UI_Image::Set_TextureGuid(const string& textureGuid, TextureCachePolicy cachePolicy)
 {
     if (textureGuid.empty())
         return E_FAIL;
@@ -452,7 +486,7 @@ HRESULT UI_Image::Set_TextureGuid(const string& textureGuid)
     if (resolvedPath.empty())
         return E_FAIL;
 
-    return Set_TexturePath(resolvedPath);
+    return Set_TexturePath(resolvedPath, cachePolicy);
 }
 
 HRESULT UI_Image::Set_ExternalShaderResource(ShaderResourceView* srv)
@@ -471,6 +505,23 @@ void UI_Image::Clear_ExternalShaderResource()
 {
     if (FAILED(Load_TextureResource()))
         LOG_WARN("UI_Image failed to restore file texture after external SRV clear. path='{}'", String::ToString(_texturePath));
+}
+
+void UI_Image::Invalidate_TextureCache(const wstring& texturePath)
+{
+    if (texturePath.empty())
+        return;
+
+    const wstring cacheKey = fs::path(texturePath).lexically_normal().wstring();
+
+    lock_guard<mutex> lock(g_UITextureSrvCacheMutex);
+    g_UITextureSrvCache.erase(cacheKey);
+}
+
+void UI_Image::Clear_TextureCache()
+{
+    lock_guard<mutex> lock(g_UITextureSrvCacheMutex);
+    g_UITextureSrvCache.clear();
 }
 
 HRESULT UI_Image::Ready_RenderResources()
@@ -498,23 +549,79 @@ HRESULT UI_Image::Ready_RenderResources()
     return S_OK;
 }
 
-HRESULT UI_Image::Load_TextureResource()
+HRESULT UI_Image::Load_TextureResource(TextureCachePolicy cachePolicy)
 {
-    _srv.Reset();
-
     if (_texturePath.empty())
+    {
+        _srv.Reset();
         return S_OK;
+    }
 
     ComPtr<Device> device = GAME->Get_Device();
     CHECK_NULL(device, E_FAIL);
 
-    if (FAILED(CreateWICTextureFromFile(device.Get(), _texturePath.c_str(), nullptr, _srv.GetAddressOf())))
+    ComPtr<ShaderResourceView> loadedSrv = nullptr;
+    if (FAILED(Create_CachedTextureSRV(device.Get(), _texturePath, loadedSrv.GetAddressOf(), cachePolicy)))
     {
         LOG_WARN("UI_Image texture load failed. path='{}'", String::ToString(_texturePath));
         return E_FAIL;
     }
 
+    _srv = loadedSrv;
+
+    DebugMemoryTracker::Record_TextureSRV(
+        "ui.texture",
+        "UI_Image.Texture",
+        _texturePath,
+        _srv.Get());
+
     return S_OK;
+}
+
+HRESULT UI_Image::Create_CachedTextureSRV(Device* device, const wstring& texturePath, ShaderResourceView** outSrv, TextureCachePolicy cachePolicy)
+{
+    if (outSrv == nullptr)
+        return E_INVALIDARG;
+
+    *outSrv = nullptr;
+
+    if (device == nullptr || texturePath.empty())
+        return E_FAIL;
+
+    const wstring cacheKey = fs::path(texturePath).lexically_normal().wstring();
+
+    if (cachePolicy == TextureCachePolicy::UseCached)
+    {
+        lock_guard<mutex> lock(g_UITextureSrvCacheMutex);
+
+        auto it = g_UITextureSrvCache.find(cacheKey);
+        if (it != g_UITextureSrvCache.end() && it->second != nullptr)
+            return it->second.CopyTo(outSrv);
+    }
+
+    ComPtr<ShaderResourceView> createdSrv = nullptr;
+    HRESULT hr = CreateWICTextureFromFile(device, cacheKey.c_str(), nullptr, createdSrv.GetAddressOf());
+    if (FAILED(hr))
+        return hr;
+
+    {
+        lock_guard<mutex> lock(g_UITextureSrvCacheMutex);
+
+        auto it = g_UITextureSrvCache.find(cacheKey);
+        if (it != g_UITextureSrvCache.end())
+        {
+            if (cachePolicy == TextureCachePolicy::UseCached && it->second != nullptr)
+                return it->second.CopyTo(outSrv);
+
+            it->second = createdSrv;
+        }
+        else
+        {
+            g_UITextureSrvCache.emplace(cacheKey, createdSrv);
+        }
+    }
+
+    return createdSrv.CopyTo(outSrv);
 }
 
 Shared<UI_Image> UI_Image::Create()

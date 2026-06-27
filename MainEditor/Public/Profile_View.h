@@ -81,6 +81,7 @@ private:
     void Draw_Scopes();
     void Draw_Memory();
     void Draw_Resource_Memory();
+    void Draw_Memory_Trace();
     void Reset_Stats();
     void Prune_Dead_Scopes();
     vector<Scope_Row> Build_Scope_Rows() const;
@@ -91,6 +92,7 @@ private:
     void Refresh_Memory_Samples();
     Process_Memory Get_Process_Memory() const;
     Resource_Memory Get_Resource_Memory() const;
+    void Log_Memory_Trace_Snapshot() const;
 
 private:
     static Profile_View* s_active;

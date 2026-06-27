@@ -1578,6 +1578,7 @@ namespace
         uint32 levelIndex,
         const wstring& prototypeTagPrefix,
         const RuntimeUIObject& object,
+        UI_Image::TextureCachePolicy textureCachePolicy,
         Shared<UI_Base>* outUI)
     {
         const wstring texturePath = Resolve_JsonAssetPath(object.textureGuid, object.texturePath);
@@ -1589,6 +1590,7 @@ namespace
 
         UI_Image::UI_IMAGE_DESC desc{};
         desc.texturePath = texturePath;
+        desc.textureCachePolicy = textureCachePolicy;
         desc.imageRenderMode = object.imageRenderMode;
         desc.maskTextureMode = object.maskTextureMode;
         desc.patternUvOffset = object.patternUvOffset;
@@ -1865,6 +1867,7 @@ namespace
         uint32 levelIndex,
         const wstring& prototypeTagPrefix,
         const RuntimeUIObject& object,
+        UI_Image::TextureCachePolicy textureCachePolicy,
         unordered_set<wstring>& loadedFontTags,
         Shared<UI_Base>* outUI)
     {
@@ -1874,7 +1877,7 @@ namespace
         switch (object.type)
         {
         case RuntimeUIType::Image:
-            return Spawn_Image(levelIndex, prototypeTagPrefix, object, outUI);
+            return Spawn_Image(levelIndex, prototypeTagPrefix, object, textureCachePolicy, outUI);
 
         case RuntimeUIType::Text:
             return Spawn_Text(levelIndex, prototypeTagPrefix, object, loadedFontTags, outUI);
@@ -2023,11 +2026,14 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
 
     unordered_set<wstring> loadedFontTags;
     unordered_map<int32, Shared<UI_Base>> spawnedUIById;
+    const UI_Image::TextureCachePolicy imageTextureCachePolicy = desc.forceReloadImageTextures
+        ? UI_Image::TextureCachePolicy::ReloadFromDisk
+        : UI_Image::TextureCachePolicy::UseCached;
 
     for (const RuntimeUIObject& object : document.objects)
     {
         Shared<UI_Base> spawnedUI = nullptr;
-        const HRESULT hr = Spawn_Object(desc.levelIndex, prototypeTagPrefix, object, loadedFontTags, &spawnedUI);
+        const HRESULT hr = Spawn_Object(desc.levelIndex, prototypeTagPrefix, object, imageTextureCachePolicy, loadedFontTags, &spawnedUI);
         if (FAILED(hr))
             return hr;
 

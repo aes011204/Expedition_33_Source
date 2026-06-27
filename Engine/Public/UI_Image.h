@@ -45,11 +45,18 @@ public:
         BottomToTop,
     };
 
+    enum class TextureCachePolicy : uint8
+    {
+        UseCached,
+        ReloadFromDisk,
+    };
+
     struct UI_IMAGE_DESC : public UI_Base::UI_DESC
     {
         wstring texturePath{};
         wstring maskTexturePath{};
         wstring patternMaskTexturePath{};
+        TextureCachePolicy textureCachePolicy = TextureCachePolicy::UseCached;
         Vec2 patternUvOffset{ 0.f, 0.f };
         Vec2 patternUvScale{ 1.f, 1.f };
         MaterialVfxMode materialVfxMode = MaterialVfxMode::Energy;
@@ -127,15 +134,18 @@ public:
     void Set_UseFillRatio(bool useFillRatio) { _useFillRatio = useFillRatio; }
     void Set_FillOrigin(FillOrigin fillOrigin) { _fillOrigin = fillOrigin; }
 
-    HRESULT Set_TexturePath(const wstring& texturePath);
-    HRESULT Set_TextureGuid(const string& textureGuid);
+    HRESULT Set_TexturePath(const wstring& texturePath, TextureCachePolicy cachePolicy = TextureCachePolicy::UseCached);
+    HRESULT Set_TextureGuid(const string& textureGuid, TextureCachePolicy cachePolicy = TextureCachePolicy::UseCached);
 
     HRESULT Set_ExternalShaderResource(ShaderResourceView* srv);
     void    Clear_ExternalShaderResource();
+    static void Invalidate_TextureCache(const wstring& texturePath);
+    static void Clear_TextureCache();
 
 private:
     HRESULT Ready_RenderResources();
-    HRESULT Load_TextureResource();
+    HRESULT Load_TextureResource(TextureCachePolicy cachePolicy = TextureCachePolicy::UseCached);
+    static HRESULT Create_CachedTextureSRV(Device* device, const wstring& texturePath, ShaderResourceView** outSrv, TextureCachePolicy cachePolicy = TextureCachePolicy::UseCached);
 
 private:
     bool    _isOverlay = false;

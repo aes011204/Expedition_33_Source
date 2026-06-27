@@ -388,7 +388,8 @@ struct alignas(16) FogZoneCB
     float groundFogDistanceInfluence{ 0.15f };
     float groundFogNearFadeDistance{ 12.f };
     float groundFogNearMinFactor{ 0.65f };
-    float _pad0[3]{};
+    float globalFogIntensity{ 0.5f };
+    float _pad0[2]{};
 };
 
 struct alignas(16) VolumetricLightShaftZoneEntry

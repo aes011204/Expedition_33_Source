@@ -1,5 +1,6 @@
 ﻿#include "Texture.h"
 
+#include "DebugMemoryTracker.h"
 #include "ShaderCom.h"
 
 Texture::Texture(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -67,6 +68,13 @@ HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 
 
         if (FAILED(hr))
             return E_FAIL;
+
+        const string category = DebugMemoryTracker::Guess_TextureCategory(resolvedTexturePath);
+        DebugMemoryTracker::Record_TextureSRV(
+            category.c_str(),
+            "Texture",
+            wstring(resolvedTexturePath),
+            srv.Get());
 
         _srvs.emplace_back(std::move(srv));
     }

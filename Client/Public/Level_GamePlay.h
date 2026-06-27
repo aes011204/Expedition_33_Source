@@ -38,6 +38,7 @@ private:
     HRESULT Ready_Layer_Puzzle(const wstring& strLayerTag);
     HRESULT Ready_Layer_Trigger(const wstring& strLayerTag);
     HRESULT Ready_Layer_BattleStartSpawner(const wstring& strLayerTag);
+    HRESULT Ready_Layer_AmbientVisibility(const wstring& strLayerTag);
 
     void    Respawn_CinematicTrigger();
 
