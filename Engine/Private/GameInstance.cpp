@@ -1431,7 +1431,7 @@ Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelInde
 {
     return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
 }
-
+    
 bool GameInstance::Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const
 {
     return _prototypeManager->Has_Prototype(levelIndex, prototypeTag);

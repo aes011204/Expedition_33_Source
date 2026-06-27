@@ -572,9 +572,9 @@ void ChangeWeapon_Panel::Apply_PreviewOverrides()
         Engine::PostProcessCB previewPostProcess = _previewOverrideState.postProcess;
         previewPostProcess.exposure = 0.60f;
         previewPostProcess.gamma = 1.33f;
-        previewPostProcess.bloomThreshold = 0.78f;
-        previewPostProcess.bloomIntensity = 0.64f;
-        previewPostProcess.bloomScatter = 0.88f;
+        previewPostProcess.bloomThreshold = 0.55f;
+        previewPostProcess.bloomIntensity = 0.95f;
+        previewPostProcess.bloomScatter = 0.92f;
         postProcessPipeline->Set_PostProcessFeatures(
             Engine::PostProcessFeature::HDR |
             Engine::PostProcessFeature::ToneMapping |

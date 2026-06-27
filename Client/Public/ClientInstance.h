@@ -55,6 +55,7 @@ public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
     HRESULT Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update_Client(float timeDelta);
+    void    Update_FadeTransitions(float timeDelta);
     void    Update_UIPreviewOnly(float timeDelta);
 	void    Release_Client();
 
@@ -156,6 +157,8 @@ public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
     bool Request_LevelTransition(LevelType TargetLevel);
     bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
+    bool Request_CurrentLevelReplay();
+
     bool Is_FadeTransitionPlaying() const;
 
 public: /* For.Battle_Controller */

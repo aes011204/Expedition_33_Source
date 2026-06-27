@@ -35,6 +35,12 @@ private:
         Vec3 scale{ Vec3::One };
     };
 
+    struct PreviewWeaponTransformOffset
+    {
+        Vec3 position{ Vec3::Zero };
+        Vec3 rotation{ Vec3::Zero };
+    };
+
     using CostumePartTransformMap = umap<wstring, CostumePartTransform>;
 
     struct CostumeVariantParts
@@ -89,6 +95,7 @@ private:
     HRESULT Warmup_CostumeVariantParts(CostumeVariantParts& parts);
     void    Clear_AllCostumeVariants();
     void    Clear_WeaponPreview();
+    void    Apply_ChangeWeaponPreviewWeaponOffset(Weapon* weapon, const string& prefabName) const;
 
     void    Capture_DefaultCostumePartTransformsIfNeeded();
     CostumePartTransformMap Capture_CostumeVariantPartTransforms(const CostumeVariantParts& parts) const;
@@ -138,6 +145,7 @@ private:
     Shared<Weapon> _weapon{};
     Shared<Weapon> _subWeapon{};
     string _activeWeaponId{};
+    umap<string, PreviewWeaponTransformOffset> _changeWeaponPreviewWeaponOffsets{};
 
     Shared<Engine::FacialClip> _gameMenuFacialClip{};
     Shared<Engine::FacialAnimationModifier> _gameMenuFacialModifier{};

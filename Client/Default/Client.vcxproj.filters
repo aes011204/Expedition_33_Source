@@ -292,9 +292,6 @@
     <Filter Include="02. GameObject\NPC\Sumo">
       <UniqueIdentifier>{28eb853a-06c8-49a5-a5f2-a50edbf6f645}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Map\MapAmbient">
-      <UniqueIdentifier>{7a488dbb-407d-4b4f-a97c-e7b0491b5c55}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp">
@@ -908,7 +905,7 @@
     <ClCompile Include="..\Private\LevelTransitionFade.cpp">
       <Filter>01.Levels</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Level_Stage01.cpp">
+    <ClCompile Include="..\Private\Level_Simon.cpp">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapInstancedMesh.cpp">
@@ -1365,9 +1362,6 @@
       <Filter>07. Dialogue</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
-    <ClCompile Include="..\Private\MapAmbientVisibility.cpp">
-      <Filter>02.GameObject\Map\MapAmbient</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\DialogueManager.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
@@ -1393,6 +1387,8 @@
     <ClCompile Include="..\Private\SimonHairRuntime.cpp" />
     <ClCompile Include="..\Private\DamageTrigger.cpp" />
     <ClCompile Include="..\Private\UI_Replay.cpp" />
+    <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
+    <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1471,9 +1467,6 @@
       <Filter>07. Dialogue</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
-    <ClInclude Include="..\Public\MapAmbientVisibility.h">
-      <Filter>02.GameObject\Map\MapAmbient</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\DialogueManager.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
@@ -1505,6 +1498,8 @@
     <ClInclude Include="..\Public\SimonHairRuntime.h" />
     <ClInclude Include="..\Public\DamageTrigger.h" />
     <ClInclude Include="..\Public\UI_Replay.h" />
+    <ClInclude Include="..\Public\MapAmbientVisibility.h" />
+    <ClInclude Include="..\Public\Level_ReplayTransition.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -2295,7 +2290,7 @@
     <ClInclude Include="..\Public\LevelTransitionFade.h">
       <Filter>01.Levels</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Level_Stage01.h">
+    <ClInclude Include="..\Public\Level_Simon.h">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MapInstancedMesh.h">

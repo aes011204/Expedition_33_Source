@@ -78,11 +78,49 @@ HRESULT PreviewPlayer::Initialize(void* arg)
 
 void PreviewPlayer::From_Json(const json& data)
 {
+    _changeWeaponPreviewWeaponOffsets.clear();
+
     if (data.contains("custom_properties") && data["custom_properties"].is_object())
     {
         const json& customProperties = data["custom_properties"];
         _heroIdName = customProperties.value("_heroIdName", customProperties.value("HeroId", _heroIdName));
         _heroId = Parse_HeroIdName(_heroIdName);
+
+        if (customProperties.contains("_changeWeaponPreviewWeaponOffsets") &&
+            customProperties["_changeWeaponPreviewWeaponOffsets"].is_array())
+        {
+            for (const json& offsetJson : customProperties["_changeWeaponPreviewWeaponOffsets"])
+            {
+                if (!offsetJson.is_object())
+                    continue;
+
+                const string prefabName = offsetJson.value("prefabName", string{});
+                if (prefabName.empty())
+                    continue;
+
+                PreviewWeaponTransformOffset offset{};
+
+                if (offsetJson.contains("position") &&
+                    offsetJson["position"].is_array() &&
+                    offsetJson["position"].size() >= 3)
+                {
+                    offset.position.x = offsetJson["position"][0].get<float>();
+                    offset.position.y = offsetJson["position"][1].get<float>();
+                    offset.position.z = offsetJson["position"][2].get<float>();
+                }
+
+                if (offsetJson.contains("rotation") &&
+                    offsetJson["rotation"].is_array() &&
+                    offsetJson["rotation"].size() >= 3)
+                {
+                    offset.rotation.x = offsetJson["rotation"][0].get<float>();
+                    offset.rotation.y = offsetJson["rotation"][1].get<float>();
+                    offset.rotation.z = offsetJson["rotation"][2].get<float>();
+                }
+
+                _changeWeaponPreviewWeaponOffsets[prefabName] = offset;
+            }
+        }
     }
 
     if (_heroId == HeroId::END)
@@ -555,6 +593,7 @@ HRESULT PreviewPlayer::Attach_WeaponPreview(const wstring& partTag, const string
     CHECK_NULL(weapon, E_FAIL);
 
     weapon->From_Json(loadedPrefab.rootJson);
+    Apply_ChangeWeaponPreviewWeaponOffset(weapon.get(), prefabName); // PP_* prefab에 선언된 ChangeWeapon 전용 보정만 여기서 더한다.
     weapon->Set_SourcePrefabName(prefabName);
     weapon->Set_Owner(GetSharedPtr<GameObject>());
 
@@ -570,6 +609,20 @@ HRESULT PreviewPlayer::Attach_WeaponPreview(const wstring& partTag, const string
         CHECK_FAILED(weapon->Try_BeginPlay(), E_FAIL);
 
     return S_OK;
+}
+
+void PreviewPlayer::Apply_ChangeWeaponPreviewWeaponOffset(Weapon* weapon, const string& prefabName) const
+{
+    if (weapon == nullptr || weapon->Get_Transform() == nullptr)
+        return;
+
+    const auto iter = _changeWeaponPreviewWeaponOffsets.find(prefabName);
+    if (iter == _changeWeaponPreviewWeaponOffsets.end())
+        return;
+
+    const auto transform = weapon->Get_Transform();
+    transform->Set_Position(transform->Get_Position() + iter->second.position);
+    transform->Set_RotationEuler(transform->Get_RotationEuler() + iter->second.rotation);
 }
 
 void PreviewPlayer::Rebind_ActiveCostumeVariant(const string& presetId)

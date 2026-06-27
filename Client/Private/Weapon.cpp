@@ -352,8 +352,10 @@ void Weapon::End_NotifyRotation()
 
 bool Weapon::Is_LuneHoverWeapon() const
 {
-    // 일단은 임시로. 클래스 분리하니까 터져서 일단 대충 처리하고 다른거하기
-    return Get_SourcePrefabName() == Constants::Prefab::Lune_Colim;
+    const string& sourcePrefabName = Get_SourcePrefabName();
+    return sourcePrefabName == Constants::Prefab::Lune_Colim ||
+        sourcePrefabName == Constants::Prefab::Lune_Baguette ||
+        sourcePrefabName == Constants::Prefab::Lune_Snowim;
 }
 
 float Weapon::Get_LuneHoverOffsetY() const

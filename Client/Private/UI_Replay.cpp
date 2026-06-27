@@ -26,6 +26,10 @@ void UI_Replay::Update(float timeDelta)
     if (!_isOpen)
         return;
 
+    GAME->Set_GameplayInputMode(GameplayInputMode::UIOnly);
+    GAME->Set_PlayerInputBlocked(true);
+    GAME->Unlock_Mouse();
+
     Handle_ButtonInput();
 }
 
@@ -43,6 +47,7 @@ void UI_Replay::Open()
 
     GAME->Unlock_Mouse();
     GAME->Set_GameplayInputMode(GameplayInputMode::UIOnly);
+    GAME->Set_PlayerInputBlocked(true);
 
     if (_replayButton)
         _replayButton->Suppress_HoverStateAnimationUntilMouseMove();
@@ -64,6 +69,7 @@ void UI_Replay::Close_Immediately(bool restoreWorldControl)
     if (restoreWorldControl)
     {
         GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
+        GAME->Set_PlayerInputBlocked(false);
         GAME->Lock_Mouse();
     }
 }
@@ -91,7 +97,7 @@ HRESULT UI_Replay::Load_UI(uint32 levelIndex)
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
-    _root = UI_Utils::Find_UI(_uiByName, L"Canvas_RePlay");
+    _root = UI_Utils::Find_UI(_uiByName, L"Panel_RePlay");
     CHECK_NULL(_root, E_FAIL);
 
     return S_OK;
@@ -147,7 +153,7 @@ void UI_Replay::Free()
     _replayButton.reset();
     _gameExitButton.reset();
     _root.reset();
-    _uiByName.clear();
+    UI_RuntimeLoader::Release_Document(_uiByName);
 
     UI_RuntimePanelBase::Free();
 }

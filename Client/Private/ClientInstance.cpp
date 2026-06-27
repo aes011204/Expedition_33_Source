@@ -41,6 +41,8 @@
 #include "BattleFollowupManager.h"
 #include "Client_Constants.h"
 
+#include "Level_ReplayTransition.h"
+
 IMPLEMENT_SINGLETON(ClientInstance)
 
 namespace
@@ -220,11 +222,7 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
 
 void ClientInstance::Update_Client(float timeDelta)
 {
-    if (_screenFadeTransition)
-        _screenFadeTransition->Update(timeDelta);
-
-    if (_levelTransitionFade)
-        _levelTransitionFade->Update(timeDelta);
+    Update_FadeTransitions(timeDelta);
 
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
@@ -256,6 +254,15 @@ void ClientInstance::Update_Client(float timeDelta)
             _dialogueManager->Update();
         }
     }
+}
+
+void ClientInstance::Update_FadeTransitions(float timeDelta)
+{
+    if (_screenFadeTransition)
+        _screenFadeTransition->Update(timeDelta);
+
+    if (_levelTransitionFade)
+        _levelTransitionFade->Update(timeDelta);
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
@@ -678,6 +685,68 @@ bool ClientInstance::Request_LoadedLevelTransition(LevelType TargetLevel, Shared
         return false;
 
     return SUCCEEDED(GAME->Change_Level(ETOI(TargetLevel), TargetLevelInstance));
+}
+
+bool ClientInstance::Request_CurrentLevelReplay()
+{
+    if (_screenFadeTransition && _screenFadeTransition->Is_Playing())
+        return false;
+
+    if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
+        return false;
+
+    if (Is_BattleActive() || Is_BattleEntering() || Is_SoulLikeBattleActive())
+        return false;
+
+    const LevelType currentLevel = static_cast<LevelType>(GAME->Current_LevelIndex());
+    if (!Level_ReplayTransition::Is_SupportedReplayLevel(currentLevel))
+        return false;
+
+    return Request_ScreenFadeTransition(
+        [this, currentLevel]()
+        {
+            Shared<Level_ReplayTransition> transitionLevel =
+                Level_ReplayTransition::Create(_device, _context);
+
+            if (transitionLevel == nullptr)
+            {
+                LOG_WARN("ClientInstance: failed to create replay transition level.");
+                return;
+            }
+
+            if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), transitionLevel)))
+            {
+                LOG_WARN("ClientInstance: failed to enter replay transition level.");
+                return;
+            }
+
+            Shared<Level> replayLevel =
+                Level_ReplayTransition::Create_ReplayLevel(currentLevel, _device, _context);
+
+            if (replayLevel == nullptr)
+            {
+                LOG_WARN("ClientInstance: failed to create replay level. fallback to loading replay.");
+
+                Shared<Level> fallbackLevel =
+                    Level_ReplayTransition::Create_LoadingFallbackLevel(currentLevel, _device, _context);
+
+                if (fallbackLevel != nullptr)
+                    GAME->Change_Level(ETOI(LevelType::Loading), fallbackLevel);
+
+                return;
+            }
+
+            if (FAILED(GAME->Change_Level(ETOI(currentLevel), replayLevel)))
+            {
+                LOG_WARN("ClientInstance: failed to change replay level. fallback to loading replay.");
+
+                Shared<Level> fallbackLevel =
+                    Level_ReplayTransition::Create_LoadingFallbackLevel(currentLevel, _device, _context);
+
+                if (fallbackLevel != nullptr)
+                    GAME->Change_Level(ETOI(LevelType::Loading), fallbackLevel);
+            }
+        });
 }
 
 bool ClientInstance::Is_FadeTransitionPlaying() const
