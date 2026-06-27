@@ -40,6 +40,7 @@ private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
     void    Handle_ButtonInput();
+    void    Reset_ButtonInputLatch();
 
 private:
     Action _lastAction = Action::None;

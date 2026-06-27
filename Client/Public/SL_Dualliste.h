@@ -135,6 +135,7 @@ private:
     bool _isPhaseChangeInvincible = false;
     bool _skipPhaseChangeStunStart = false;
     bool _isCinematicDriven = false;
+    bool _restorePhysXCCTAfterCinematic = false;
     float _stunElapsed = 0.f;
     float _breakRecoverPerSec = 4.5f;
 

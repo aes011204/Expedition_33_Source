@@ -98,7 +98,10 @@ void SL_Dualliste::BeginPlay()
         _cloneSkillManager = SL_DuallisteCloneSkillManager::Create(GetSharedPtr<SL_Dualliste>());
 
     if (!_isCloneVisualOnly && _stateMachineCom)
-        _stateMachineCom->Change_State(SL_MonState::Intro);
+    {
+        _isIntroDone = true; // 진입 컷신에서 검 뽑기/돌진을 이미 보여줬으므로 전투 BT를 바로 열어준다.
+        _stateMachineCom->Change_State(SL_MonState::Idle);
+    }
 
     if (_movementCom)
     {
@@ -122,21 +125,27 @@ void SL_Dualliste::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
+    if (_cloneSkillManager)
+        _cloneSkillManager->Update(timeDelta);
+
+    if (_isCloneVisualOnly)
+    {
+        _body->Play_Animation(timeDelta);
+
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        SL_Base::Update(timeDelta);
+        return;
+    }
+
     if (_isCinematicDriven)
     {
-        if (_cloneSkillManager)
-            _cloneSkillManager->Update(timeDelta);
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
 
-        if (_isCloneVisualOnly)
-        {
-            _body->Play_Animation(timeDelta);
-
-            if (_effectCom)
-                _effectCom->Update(timeDelta);
-
-            SL_Base::Update(timeDelta);
-            return;
-        }
+        SL_Base::Update(timeDelta);
+        return;
     }
 
     Update_StunSystem(timeDelta);
@@ -580,6 +589,20 @@ void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
         _movementCom->Apply_Input({});
         _movementCom->Stop_AllMovement();
         _movementCom->Stop_VerticalMovement();
+
+        if (cinematicDriven)
+        {
+            _restorePhysXCCTAfterCinematic =
+                _movementCom->Get_MoveBackend() == MovementCom::MoveBackend::PhysXCCT;
+            if (_restorePhysXCCTAfterCinematic)
+                _movementCom->Set_MoveBackend(MovementCom::MoveBackend::Sweep); // 시네마틱 transformTrack과 CCT 위치 보정이 싸우지 않게 잠깐 끈다.
+        }
+        else if (_restorePhysXCCTAfterCinematic)
+        {
+            _movementCom->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
+            _restorePhysXCCTAfterCinematic = false;
+        }
+
         _movementCom->Sync_RuntimePositionToTransform();
     }
 

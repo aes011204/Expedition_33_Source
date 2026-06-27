@@ -126,6 +126,7 @@ private:
     void Set_BoundActorAnimationPaused(bool paused);
     void Update_BoundActorAnimations(float timeDelta);
     void Cleanup_Context(bool forceRemoveAllSpawned = false);
+    void Set_GameplayUIHiddenForCinematic(bool hidden) const;
 
 private:
     CINEMATIC_SEQUENCE _sequence{};
