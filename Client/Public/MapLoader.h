@@ -135,8 +135,6 @@ public:
     static void Clear_GlobalCache();
     static void Reapply_CachedLights();
 
-    static void Reapply_CachedLights();
-
 private:
     static HRESULT Try_BeginMapInstanceSession(
         const ComPtr<Device>& device,
