@@ -11,6 +11,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_ChangeWeapon.json";
     inline constexpr wchar_t UI_UpgradeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_Upgrade_Weapon.json";
+    inline constexpr wchar_t UI_Merchant_Path[] = L"UI/UI_Json/CommonSystem/UI_Merchant.json";
     inline constexpr wchar_t UI_Replay_Path[] = L"UI/UI_Json/CommonSystem/UI_RePlay.json";
 
     inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/Skill/SkillTree/UI_SkillTree_Test.json";

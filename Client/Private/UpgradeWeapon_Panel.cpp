@@ -157,7 +157,6 @@ void UpgradeWeapon_Panel::Open()
     _selectedWeaponIndex.reset();
     Refresh_WeaponRows();
     Close_AllDetailFragments();
-    Show_Required(false);
     Apply_BaseDim(false);
 
     GAME->Play_SoundCue(Constants::SoundCue::UI_Global_GenericEnter);
@@ -247,16 +246,18 @@ HRESULT UpgradeWeapon_Panel::Load_UIFragment(size_t weaponIndex)
 
     Set_UIMapOpenState(loadedUIByName, Is_Open());
 
+    CHECK_FAILED(Bind_FragmentUI(weaponIndex, loadedUIByName), E_FAIL);
+
     for (auto& [name, ui] : loadedUIByName)
         _uiByName[name] = ui;
-
-    CHECK_FAILED(Bind_FragmentUI(weaponIndex), E_FAIL);
 
     fragment.loaded = true;
     if (fragment.tooltipRoot)
         fragment.tooltipRoot->Close();
     if (fragment.confirmRoot)
         fragment.confirmRoot->Close();
+    if (fragment.requiredRoot)
+        fragment.requiredRoot->Close();
 
     return S_OK;
 }
@@ -265,11 +266,9 @@ HRESULT UpgradeWeapon_Panel::Bind_UI()
 {
     _weaponSelectRoot = Find_UI(_uiByName, L"Panel_WeaponSelect");
     _backgroundRoot = Find_UI(_uiByName, L"Panel_Upgrade_Weapon_BG");
-    _requiredRoot = Find_UI(_uiByName, L"Panel_Upgrade_Required");
 
     CHECK_NULL(_weaponSelectRoot, E_FAIL);
     CHECK_NULL(_backgroundRoot, E_FAIL);
-    CHECK_NULL(_requiredRoot, E_FAIL);
 
     for (size_t i = 0; i < WeaponSlotCount; ++i)
     {
@@ -289,55 +288,50 @@ HRESULT UpgradeWeapon_Panel::Bind_UI()
         CHECK_NULL(row.levelText, E_FAIL);
     }
 
-    _currentCatalystText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Current_Chroma_Catalyst", "UpgradeWeapon");
-    _requiredCatalystText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Required_Chroma_Catalyst", "UpgradeWeapon");
-    _upgradeButton = Find_TypedUI<UI_Button>(_uiByName, L"Button_Weapon_Upgrade", "UpgradeWeapon");
-    _upgradeButtonText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Weapon_Upgrade", "UpgradeWeapon");
-
-    CHECK_NULL(_currentCatalystText, E_FAIL);
-    CHECK_NULL(_requiredCatalystText, E_FAIL);
-    CHECK_NULL(_upgradeButton, E_FAIL);
-    CHECK_NULL(_upgradeButtonText, E_FAIL);
-
     return S_OK;
 }
 
-HRESULT UpgradeWeapon_Panel::Bind_FragmentUI(size_t weaponIndex)
+HRESULT UpgradeWeapon_Panel::Bind_FragmentUI(size_t weaponIndex, const umap<wstring, Shared<UI_Base>>& fragmentUIByName)
 {
     if (weaponIndex >= WeaponSlotCount)
         return E_FAIL;
 
     const WeaponSlotDef& slot = kWeaponSlots[weaponIndex];
-    const wstring suffix = slot.uiSuffix;
     const wstring token = slot.fragmentToken;
     WeaponFragmentUI& fragment = _weaponFragments[weaponIndex];
 
-    fragment.tooltipRoot = Find_UI(_uiByName, L"Panel_Weapon_Tooltip_" + suffix);
-    fragment.confirmRoot = Find_UI(_uiByName, L"Panel_Weapon_Upgrade_Tooltip_" + suffix);
+    fragment.tooltipRoot = Find_UI(fragmentUIByName, L"Panel_" + token + L"_Tooltip");
+    fragment.confirmRoot = Find_UI(fragmentUIByName, L"Panel_" + token + L"_Upgrade");
 
-    fragment.hoverDetail.weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip", "UpgradeWeapon");
+    fragment.hoverDetail.weaponNameText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_" + token + L"_Tooltip", "UpgradeWeapon");
     fragment.hoverDetail.levelText = Find_TypedUIByPrefixSuffix<UI_Text>(
-        _uiByName, L"Text_" + token + L"_Tooltip_Current_", L"_Level_Value", "UpgradeWeapon");
-    fragment.hoverDetail.powerText = Find_TypedUI<UI_Text>(_uiByName, L"Text_" + token + L"_Tooltip_Power_Value", "UpgradeWeapon");
-    Bind_GradeTexts(_uiByName, fragment.hoverDetail, L"Text_" + token + L"_Tooltip_");
-    fragment.hoverThumbnail = Find_TypedUI<UI_Image>(_uiByName, L"Image_" + token + L"_Thumnail_Tooltip", "UpgradeWeapon");
-    fragment.hoverThumbnailBackground = Find_TypedUI<UI_Image>(_uiByName, L"Image_" + token + L"_Thumnail_BG_Tooltip", "UpgradeWeapon");
+        fragmentUIByName, L"Text_" + token + L"_Tooltip_Current_", L"_Level_Value", "UpgradeWeapon");
+    fragment.hoverDetail.powerText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_" + token + L"_Tooltip_Power_Value", "UpgradeWeapon");
+    Bind_GradeTexts(fragmentUIByName, fragment.hoverDetail, L"Text_" + token + L"_Tooltip_");
+    fragment.hoverThumbnail = Find_TypedUI<UI_Image>(fragmentUIByName, L"Image_" + token + L"_Thumnail_Tooltip", "UpgradeWeapon");
+    fragment.hoverThumbnailBackground = Find_TypedUI<UI_Image>(fragmentUIByName, L"Image_" + token + L"_Thumnail_BG_Tooltip", "UpgradeWeapon");
 
-    fragment.confirmBeforeDetail.weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Upgrade_Before_" + token + L"_Tooltip", "UpgradeWeapon");
+    fragment.confirmBeforeDetail.weaponNameText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_Upgrade_Before_" + token + L"_Tooltip", "UpgradeWeapon");
     fragment.confirmBeforeDetail.levelText = Find_TypedUIByPrefixSuffix<UI_Text>(
-        _uiByName, L"Text_Upgrade_Before_" + token + L"_Tooltip_Current_", L"_Level_Value", "UpgradeWeapon");
-    fragment.confirmBeforeDetail.powerText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Upgrade_Before_" + token + L"_Tooltip_Power_Value", "UpgradeWeapon");
-    Bind_GradeTexts(_uiByName, fragment.confirmBeforeDetail, L"Text_Upgrade_Before_" + token + L"_Tooltip_");
-    fragment.confirmBeforeThumbnail = Find_TypedUI<UI_Image>(_uiByName, L"Image_Upgrade_Before_" + token + L"_Thumnail_Tooltip", "UpgradeWeapon");
-    fragment.confirmBeforeThumbnailBackground = Find_TypedUI<UI_Image>(_uiByName, L"Image_Upgrade_Before_" + token + L"_Thumnail_BG_Tooltip", "UpgradeWeapon");
+        fragmentUIByName, L"Text_Upgrade_Before_" + token + L"_Tooltip_Current_", L"_Level_Value", "UpgradeWeapon");
+    fragment.confirmBeforeDetail.powerText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_Upgrade_Before_" + token + L"_Tooltip_Power_Value", "UpgradeWeapon");
+    Bind_GradeTexts(fragmentUIByName, fragment.confirmBeforeDetail, L"Text_Upgrade_Before_" + token + L"_Tooltip_");
+    fragment.confirmBeforeThumbnail = Find_TypedUI<UI_Image>(fragmentUIByName, L"Image_Upgrade_Before_" + token + L"_Thumnail_Tooltip", "UpgradeWeapon");
+    fragment.confirmBeforeThumbnailBackground = Find_TypedUI<UI_Image>(fragmentUIByName, L"Image_Upgrade_Before_" + token + L"_Thumnail_BG_Tooltip", "UpgradeWeapon");
 
-    fragment.confirmAfterDetail.weaponNameText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Upgrade_After_" + token + L"_Tooltip", "UpgradeWeapon");
+    fragment.confirmAfterDetail.weaponNameText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_Upgrade_After_" + token + L"_Tooltip", "UpgradeWeapon");
     fragment.confirmAfterDetail.levelText = Find_TypedUIByPrefixSuffix<UI_Text>(
-        _uiByName, L"Text_Upgrade_After_" + token + L"_Tooltip_Current_", L"_Level_Value", "UpgradeWeapon");
-    fragment.confirmAfterDetail.powerText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Upgrade_After_" + token + L"_Tooltip_Power_Value", "UpgradeWeapon");
-    Bind_GradeTexts(_uiByName, fragment.confirmAfterDetail, L"Text_Upgrade_After_" + token + L"_Tooltip_");
-    fragment.confirmAfterThumbnail = Find_TypedUI<UI_Image>(_uiByName, L"Image_Upgrade_After_" + token + L"_Thumnail_Tooltip", "UpgradeWeapon");
-    fragment.confirmAfterThumbnailBackground = Find_TypedUI<UI_Image>(_uiByName, L"Image_Upgrade_After_" + token + L"_Thumnail_BG_Tooltip", "UpgradeWeapon");
+        fragmentUIByName, L"Text_Upgrade_After_" + token + L"_Tooltip_Current_", L"_Level_Value", "UpgradeWeapon");
+    fragment.confirmAfterDetail.powerText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_Upgrade_After_" + token + L"_Tooltip_Power_Value", "UpgradeWeapon");
+    Bind_GradeTexts(fragmentUIByName, fragment.confirmAfterDetail, L"Text_Upgrade_After_" + token + L"_Tooltip_");
+    fragment.confirmAfterThumbnail = Find_TypedUI<UI_Image>(fragmentUIByName, L"Image_Upgrade_After_" + token + L"_Thumnail_Tooltip", "UpgradeWeapon");
+    fragment.confirmAfterThumbnailBackground = Find_TypedUI<UI_Image>(fragmentUIByName, L"Image_Upgrade_After_" + token + L"_Thumnail_BG_Tooltip", "UpgradeWeapon");
+
+    fragment.requiredRoot = Find_UI(fragmentUIByName, L"Panel_Upgrade_Required");
+    fragment.currentCatalystText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_Current_Chroma_Catalyst", "UpgradeWeapon");
+    fragment.requiredCatalystText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_Required_Chroma_Catalyst", "UpgradeWeapon");
+    fragment.upgradeButton = Find_TypedUI<UI_Button>(fragmentUIByName, L"Button_Weapon_Upgrade", "UpgradeWeapon");
+    fragment.upgradeButtonText = Find_TypedUI<UI_Text>(fragmentUIByName, L"Text_Weapon_Upgrade", "UpgradeWeapon");
 
     CHECK_NULL(fragment.tooltipRoot, E_FAIL);
     CHECK_NULL(fragment.confirmRoot, E_FAIL);
@@ -356,6 +350,11 @@ HRESULT UpgradeWeapon_Panel::Bind_FragmentUI(size_t weaponIndex)
     CHECK_NULL(fragment.confirmAfterDetail.powerText, E_FAIL);
     CHECK_NULL(fragment.confirmAfterThumbnail, E_FAIL);
     CHECK_NULL(fragment.confirmAfterThumbnailBackground, E_FAIL);
+    CHECK_NULL(fragment.requiredRoot, E_FAIL);
+    CHECK_NULL(fragment.currentCatalystText, E_FAIL);
+    CHECK_NULL(fragment.requiredCatalystText, E_FAIL);
+    CHECK_NULL(fragment.upgradeButton, E_FAIL);
+    CHECK_NULL(fragment.upgradeButtonText, E_FAIL);
 
     return S_OK;
 }
@@ -393,16 +392,21 @@ void UpgradeWeapon_Panel::Handle_WeaponInput()
     else
     {
         Close_AllWeaponTooltips();
-        Show_Required(false);
+        Close_AllRequiredPanels();
     }
 }
 
 void UpgradeWeapon_Panel::Handle_UpgradeInput()
 {
-    if (!_selectedWeaponIndex.has_value() || _upgradeButton == nullptr || !_upgradeButton->Was_Clicked())
+    if (!_selectedWeaponIndex.has_value())
         return;
 
-    const WeaponSlotDef& slot = kWeaponSlots[*_selectedWeaponIndex];
+    const size_t weaponIndex = *_selectedWeaponIndex;
+    WeaponFragmentUI& fragment = _weaponFragments[weaponIndex];
+    if (fragment.upgradeButton == nullptr || !fragment.upgradeButton->Was_Clicked())
+        return;
+
+    const WeaponSlotDef& slot = kWeaponSlots[weaponIndex];
     const GameDataTable::WeaponDesc* weapon = CLIENT->Get_WeaponDesc(slot.characterId, slot.weaponId);
     const auto inventory = CLIENT->Get_PlayerInventory();
     if (weapon == nullptr || inventory == nullptr)
@@ -417,8 +421,8 @@ void UpgradeWeapon_Panel::Handle_UpgradeInput()
 
     if (!inventory->Spend_Material(kChromaCatalystMaterialId, nextUpgrade->requiredChromaCatalyst))
     {
-        if (_upgradeButtonText)
-            _upgradeButtonText->Set_Text(L"Need Catalyst");
+        if (fragment.upgradeButtonText)
+            fragment.upgradeButtonText->Set_Text(L"Need Catalyst");
         return;
     }
 
@@ -494,10 +498,10 @@ void UpgradeWeapon_Panel::Refresh_SelectedDetails(bool showConfirm)
 
     Apply_Thumbnail(fragment.confirmAfterThumbnail, *weapon);
     Apply_ThumbnailBackground(fragment.confirmAfterThumbnailBackground, weapon->weaponId);
-    Refresh_Required(*weapon, currentLevel);
+    Refresh_Required(weaponIndex, *weapon, currentLevel);
 
     Close_AllDetailFragments();
-    Show_Required(showConfirm);
+    Show_Required(weaponIndex, showConfirm);
     Show_Confirm(weaponIndex, showConfirm);
     Apply_BaseDim(showConfirm);
 }
@@ -520,16 +524,21 @@ void UpgradeWeapon_Panel::Refresh_HoverDetails(size_t weaponIndex)
     Apply_DetailUI(fragment.hoverDetail, *weapon, currentUpgrade, currentLevel, currentPower);
     Apply_Thumbnail(fragment.hoverThumbnail, *weapon);
     Apply_ThumbnailBackground(fragment.hoverThumbnailBackground, weapon->weaponId);
-    Refresh_Required(*weapon, currentLevel);
+    Refresh_Required(weaponIndex, *weapon, currentLevel);
 
     Close_AllConfirmFragments();
     Close_AllWeaponTooltips();
+    Close_AllRequiredPanels();
     Show_WeaponTooltip(weaponIndex, true);
-    Show_Required(true);
+    Show_Required(weaponIndex, true);
 }
 
-void UpgradeWeapon_Panel::Refresh_Required(const GameDataTable::WeaponDesc& weapon, uint32 currentLevel)
+void UpgradeWeapon_Panel::Refresh_Required(size_t weaponIndex, const GameDataTable::WeaponDesc& weapon, uint32 currentLevel)
 {
+    if (weaponIndex >= WeaponSlotCount)
+        return;
+
+    WeaponFragmentUI& fragment = _weaponFragments[weaponIndex];
     const auto inventory = CLIENT->Get_PlayerInventory();
     const GameDataTable::WeaponUpgradeDesc* nextUpgrade =
         CLIENT->Get_NextWeaponUpgradeDesc(weapon.characterId, weapon.weaponId, currentLevel);
@@ -537,24 +546,24 @@ void UpgradeWeapon_Panel::Refresh_Required(const GameDataTable::WeaponDesc& weap
     const uint32 currentCatalyst = inventory ? inventory->Get_MaterialCount(kChromaCatalystMaterialId) : 0;
     const uint32 requiredCatalyst = nextUpgrade ? nextUpgrade->requiredChromaCatalyst : 0;
 
-    if (_currentCatalystText)
-        _currentCatalystText->Set_Text(to_wstring(currentCatalyst));
+    if (fragment.currentCatalystText)
+        fragment.currentCatalystText->Set_Text(to_wstring(currentCatalyst));
 
-    if (_requiredCatalystText)
-        _requiredCatalystText->Set_Text(nextUpgrade ? to_wstring(requiredCatalyst) : L"MAX");
+    if (fragment.requiredCatalystText)
+        fragment.requiredCatalystText->Set_Text(nextUpgrade ? to_wstring(requiredCatalyst) : L"MAX");
 
     const bool canUpgrade = nextUpgrade != nullptr && currentCatalyst >= requiredCatalyst;
-    if (_upgradeButton)
-        _upgradeButton->Set_Disabled(!canUpgrade);
+    if (fragment.upgradeButton)
+        fragment.upgradeButton->Set_Disabled(!canUpgrade);
 
-    if (_upgradeButtonText)
+    if (fragment.upgradeButtonText)
     {
         if (nextUpgrade == nullptr)
-            _upgradeButtonText->Set_Text(L"MAX");
+            fragment.upgradeButtonText->Set_Text(L"MAX");
         else if (!canUpgrade)
-            _upgradeButtonText->Set_Text(L"Need Catalyst");
+            fragment.upgradeButtonText->Set_Text(L"Need Catalyst");
         else
-            _upgradeButtonText->Set_Text(L"Upgrade");
+            fragment.upgradeButtonText->Set_Text(L"Upgrade");
     }
 }
 
@@ -642,15 +651,19 @@ void UpgradeWeapon_Panel::Close_AllWeaponTooltips()
     }
 }
 
-void UpgradeWeapon_Panel::Show_Required(bool isVisible)
+void UpgradeWeapon_Panel::Show_Required(size_t weaponIndex, bool isVisible)
 {
-    if (_requiredRoot == nullptr)
+    if (weaponIndex >= WeaponSlotCount)
+        return;
+
+    Shared<UI_Base> requiredRoot = _weaponFragments[weaponIndex].requiredRoot;
+    if (requiredRoot == nullptr)
         return;
 
     if (isVisible)
-        _requiredRoot->Open();
+        requiredRoot->Open();
     else
-        _requiredRoot->Close();
+        requiredRoot->Close();
 }
 
 void UpgradeWeapon_Panel::Show_Confirm(size_t weaponIndex, bool isVisible)
@@ -677,10 +690,20 @@ void UpgradeWeapon_Panel::Close_AllConfirmFragments()
     }
 }
 
+void UpgradeWeapon_Panel::Close_AllRequiredPanels()
+{
+    for (WeaponFragmentUI& fragment : _weaponFragments)
+    {
+        if (fragment.requiredRoot)
+            fragment.requiredRoot->Close();
+    }
+}
+
 void UpgradeWeapon_Panel::Close_AllDetailFragments()
 {
     Close_AllWeaponTooltips();
     Close_AllConfirmFragments();
+    Close_AllRequiredPanels();
 }
 
 void UpgradeWeapon_Panel::Apply_BaseDim(bool isDimmed)
@@ -715,7 +738,6 @@ void UpgradeWeapon_Panel::Free()
     _root.reset();
     _weaponSelectRoot.reset();
     _backgroundRoot.reset();
-    _requiredRoot.reset();
 
     for (WeaponRowUI& row : _weaponRows)
     {
@@ -726,11 +748,6 @@ void UpgradeWeapon_Panel::Free()
     {
         fragment = {};
     }
-
-    _currentCatalystText.reset();
-    _requiredCatalystText.reset();
-    _upgradeButton.reset();
-    _upgradeButtonText.reset();
 
     Base::Free();
 }

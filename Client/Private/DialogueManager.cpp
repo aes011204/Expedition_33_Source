@@ -2,6 +2,7 @@
 #include <DialogueTypes.h>
 #include "ClientInstance.h"
 #include "DialogueCamera.h"
+#include "GameplayUI.h"
 #include "UI_Dialogue.h"
 #include "Player_WorldBase.h"
 #include "NPC_Base.h"
@@ -284,6 +285,11 @@ void DialogueManager::ApplyChoice()
     {
         LOG_INFO("OpenShop");
         EndDialogue();
+
+        const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+        if (gameplayUI == nullptr || !gameplayUI->Open_MerchantShop())
+            LOG_WARN("DialogueManager: failed to open merchant shop.");
+
         return;
     }
     

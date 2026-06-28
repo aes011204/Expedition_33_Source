@@ -204,6 +204,11 @@ GameplayMenu GameplayUI::Get_CurrentMenu() const
     return _worldUI->Get_CurrentMenu();
 }
 
+bool GameplayUI::Open_MerchantShop()
+{
+    return _worldUI && _worldUI->Request_MerchantShop();
+}
+
 void GameplayUI::Set_CinematicUIHidden(bool hidden)
 {
     if (_isCinematicUIHidden == hidden)

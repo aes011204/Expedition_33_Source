@@ -251,6 +251,7 @@
     <ClInclude Include="..\Public\ChangeSkill_Panel.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\Public\UpgradeWeapon_Panel.h" />
+    <ClInclude Include="..\Public\Merchant_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\Public\BT_SL_CanAttack.h" />
     <ClInclude Include="..\Public\BT_SL_CompareBBValue.h" />
@@ -798,6 +799,7 @@
     <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\Private\UpgradeWeapon_Panel.cpp" />
+    <ClCompile Include="..\Private\Merchant_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />

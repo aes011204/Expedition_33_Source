@@ -6,6 +6,7 @@
 #include "SkillTree_Panel.h"
 #include "ChangeWeapon_Panel.h"
 #include "UpgradeWeapon_Panel.h"
+#include "Merchant_Panel.h"
 #include "ExpeditionStat_Panel.h"
 #include "UI_CrossHair.h"
 #include "UI_GetCharacter.h"
@@ -84,6 +85,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _upgradeWeaponPanel = UpgradeWeapon_Panel::Create(levelIndex);
     CHECK_NULL(_upgradeWeaponPanel, E_FAIL);
 
+    _merchantPanel = Merchant_Panel::Create(levelIndex);
+    CHECK_NULL(_merchantPanel, E_FAIL);
+
     _characterProgressionPanel->Bind_ContentPanels(
         _changeWeaponPanel.get(),
         _changeSkillPanel.get(),
@@ -148,6 +152,9 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (_upgradeWeaponPanel)
         _upgradeWeaponPanel->Update(timeDelta);
+
+    if (_merchantPanel)
+        _merchantPanel->Update(timeDelta);
 
     if (_savePointPanel)
         _savePointPanel->Update(timeDelta);
@@ -287,6 +294,9 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_upgradeWeaponPanel)
         _upgradeWeaponPanel->Append_RuntimeUIEntries(entries, "World", "UpgradeWeaponPanel");
 
+    if (_merchantPanel)
+        _merchantPanel->Append_RuntimeUIEntries(entries, "World", "MerchantPanel");
+
     if (_expeditionStatPanel)
         _expeditionStatPanel->Append_RuntimeUIEntries(entries, "World", "ExpeditionStatPanel");
 
@@ -352,6 +362,9 @@ void GameplayUI_World::Force_CloseAllMenus()
     if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
         _arenaCharacterSelectPanel->Close_Immediately();
 
+    if (_merchantPanel && _merchantPanel->Is_Open())
+        _merchantPanel->Close_Immediately();
+
     if (_replayPanel && _replayPanel->Is_Open())
         _replayPanel->Close_Immediately();
 
@@ -384,6 +397,27 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
 
     Push_Menu(GameplayMenu::ArenaCharacterSelect);
 
+    return true;
+}
+
+bool GameplayUI_World::Request_MerchantShop()
+{
+    if (_merchantPanel == nullptr)
+        return false;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return false;
+
+    if (Get_CurrentMenu() != GameplayMenu::None)
+        return false;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return false;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return false;
+
+    Push_Menu(GameplayMenu::Merchant);
     return true;
 }
 
@@ -862,6 +896,16 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
         }
         break;
 
+    case GameplayMenu::Merchant:
+        if (_merchantPanel)
+        {
+            if (restoreWorldControl)
+                _merchantPanel->Close();
+            else
+                _merchantPanel->Close_ForMenuTransition();
+        }
+        break;
+
     case GameplayMenu::SavePoint:
         if (_savePointPanel)
         {
@@ -1140,6 +1184,8 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
             _wardrobePanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::WeaponUpgrade && _upgradeWeaponPanel)
             _upgradeWeaponPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::Merchant && _merchantPanel)
+            _merchantPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::ArenaCharacterSelect && _arenaCharacterSelectPanel)
             _arenaCharacterSelectPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::Replay && _replayPanel)
@@ -1188,6 +1234,11 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
             _changeSkillPanel->Close_ForMenuTransition(); // ChangeSkill에서 넘어온 경우 Available/Current Skill UI를 정리한다.
         if (_upgradeWeaponPanel)
             _upgradeWeaponPanel->Open();
+        break;
+
+    case GameplayMenu::Merchant:
+        if (_merchantPanel)
+            _merchantPanel->Open();
         break;
 
     case GameplayMenu::SavePoint:
@@ -1284,6 +1335,7 @@ void GameplayUI_World::Free()
     Release_Panel(_skillTreePanel);
     Release_Panel(_changeWeaponPanel);
     Release_Panel(_upgradeWeaponPanel);
+    Release_Panel(_merchantPanel);
     Release_Panel(_expeditionStatPanel);
     Release_Panel(_getCharacterPanel);
     Release_Panel(_getClothesPanel);

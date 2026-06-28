@@ -42,14 +42,14 @@ private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Load_UIFragment(size_t weaponIndex);
     HRESULT Bind_UI();
-    HRESULT Bind_FragmentUI(size_t weaponIndex);
+    HRESULT Bind_FragmentUI(size_t weaponIndex, const umap<wstring, Shared<UI_Base>>& fragmentUIByName);
 
     void    Handle_WeaponInput();
     void    Handle_UpgradeInput();
     void    Refresh_WeaponRows();
     void    Refresh_SelectedDetails(bool showConfirm);
     void    Refresh_HoverDetails(size_t weaponIndex);
-    void    Refresh_Required(const GameDataTable::WeaponDesc& weapon, uint32 currentLevel);
+    void    Refresh_Required(size_t weaponIndex, const GameDataTable::WeaponDesc& weapon, uint32 currentLevel);
     void    Apply_DetailUI(
         const WeaponSummaryText& detailUI,
         const GameDataTable::WeaponDesc& weapon,
@@ -63,8 +63,9 @@ private:
     HRESULT Ensure_FragmentLoaded(size_t weaponIndex);
     void    Show_WeaponTooltip(size_t weaponIndex, bool isVisible);
     void    Close_AllWeaponTooltips();
-    void    Show_Required(bool isVisible);
+    void    Show_Required(size_t weaponIndex, bool isVisible);
     void    Show_Confirm(size_t weaponIndex, bool isVisible);
+    void    Close_AllRequiredPanels();
     void    Close_AllConfirmFragments();
     void    Close_AllDetailFragments();
     void    Apply_BaseDim(bool isDimmed);
@@ -105,6 +106,11 @@ private:
         Shared<UI_Image> confirmBeforeThumbnailBackground{};
         Shared<UI_Image> confirmAfterThumbnail{};
         Shared<UI_Image> confirmAfterThumbnailBackground{};
+        Shared<UI_Base> requiredRoot{};
+        Shared<UI_Text> currentCatalystText{};
+        Shared<UI_Text> requiredCatalystText{};
+        Shared<UI_Button> upgradeButton{};
+        Shared<UI_Text> upgradeButtonText{};
     };
 
 private:
@@ -115,15 +121,9 @@ private:
     Shared<UI_Base> _root{};
     Shared<UI_Base> _weaponSelectRoot{};
     Shared<UI_Base> _backgroundRoot{};
-    Shared<UI_Base> _requiredRoot{};
 
     array<WeaponRowUI, WeaponSlotCount> _weaponRows{};
     array<WeaponFragmentUI, WeaponSlotCount> _weaponFragments{};
-
-    Shared<UI_Text> _currentCatalystText{};
-    Shared<UI_Text> _requiredCatalystText{};
-    Shared<UI_Button> _upgradeButton{};
-    Shared<UI_Text> _upgradeButtonText{};
 
 public:
     static Unique<UpgradeWeapon_Panel> Create(uint32 levelIndex);
