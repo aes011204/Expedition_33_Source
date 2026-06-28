@@ -195,6 +195,15 @@ void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
 
     target->Apply_Damage(damageInfo);
 
+    // Effect Test
+    {
+        PlayEffectDesc desc{};
+        desc.effectName = Constants::Effect::SL_Slash_L;
+        desc.worldPosition = target->Get_Transform()->Get_WorldPosition();
+
+        CLIENT->Play_Effect(desc);
+    }
+
     if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
     {
         if (GamePlayUI_SL* soulLikeUI = gameplayUI->Get_SoulLikeUI())
