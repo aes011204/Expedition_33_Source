@@ -376,6 +376,9 @@
     <ClCompile Include="..\Private\AN_SL_CachePlayerPosition.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_SL_PlayCachedPlayerEffect.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_SL_DuallisteCloneSkill.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -1730,6 +1733,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_SL_CachePlayerPosition.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_SL_PlayCachedPlayerEffect.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_SL_DuallisteCloneSkill.h">

@@ -89,6 +89,9 @@ public:
     bool Should_SkipPhaseChangeStunStart() const { return _skipPhaseChangeStunStart; }
     Shared<SL_DuallisteCloneSkillManager> Get_CloneSkillManager() const { return _cloneSkillManager; }
     bool Notify_CloneSkillAttack(GameObject* notifyOwner) const;
+    void Cache_PlayerAnchor(const Vec3& playerPosition, const Vec3& playerRight, const Vec3& playerUp, const Vec3& playerForward);
+    bool Try_GetCachedPlayerAnchor(Vec3& outPlayerPosition, Vec3& outPlayerRight, Vec3& outPlayerUp, Vec3& outPlayerForward) const;
+    void Clear_CachedPlayerAnchor();
     void Set_CloneVisualOnly(bool isCloneVisualOnly);
     bool Can_EnterPhaseChange() const;
     bool Try_EnterPhaseChangeFromStun();
@@ -138,6 +141,11 @@ private:
     float kPhase2HpThreshold = 0.5f;
     Shared<SL_DuallisteCloneSkillManager> _cloneSkillManager = {};
     bool _isCloneVisualOnly = false;
+    Vec3 _cachedPlayerPos = Vec3::Zero;
+    Vec3 _cachedPlayerRight = Vec3::Right;
+    Vec3 _cachedPlayerUp = Vec3::Up;
+    Vec3 _cachedPlayerForward = Vec3::Look;
+    bool _hasCachedPlayerAnchor = false;
    
 
 
