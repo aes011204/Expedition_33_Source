@@ -158,6 +158,7 @@
   <ItemGroup>
     <ClInclude Include="..\Public\AL_SL_State.h" />
     <ClInclude Include="..\Public\ANS_AnimSpeed.h" />
+    <ClInclude Include="..\Public\ANS_CanAction.h" />
     <ClInclude Include="..\Public\ANS_CollisionEnable.h" />
     <ClInclude Include="..\Public\ANS_SL_PartCollisionEnable.h" />
     <ClInclude Include="..\Public\ANS_ComboEnable.h" />
@@ -271,7 +272,6 @@
     <ClInclude Include="..\Public\GradientSkill.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\Level_ReplayTransition.h" />
-    <ClInclude Include="..\Public\MapEffect_TornadoPaint.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\public\NPC_Base.h" />
     <ClInclude Include="..\public\NPC_Chad.h" />
@@ -330,6 +330,7 @@
     <ClInclude Include="..\public\Trigger_Cinematic.h" />
     <ClInclude Include="..\Public\Trigger_Interaction.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
+    <ClInclude Include="..\Public\UI_SL_LockOn.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
     <ClInclude Include="..\public\CinematicSequenceRunner.h" />
     <ClInclude Include="..\Public\EyeTarget.h" />
@@ -631,6 +632,7 @@
   <ItemGroup>
     <ClCompile Include="..\Private\AL_SL_State.cpp" />
     <ClCompile Include="..\Private\ANS_AnimSpeed.cpp" />
+    <ClCompile Include="..\Private\ANS_CanAction.cpp" />
     <ClCompile Include="..\Private\ANS_CollisionEnable.cpp" />
     <ClCompile Include="..\Private\ANS_SL_PartCollisionEnable.cpp" />
     <ClCompile Include="..\Private\ANS_ComboEnable.cpp" />
@@ -716,7 +718,6 @@
     <ClCompile Include="..\Private\GradientSkill.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
-    <ClCompile Include="..\Private\MapEffect_TornadoPaint.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\private\NPC_Base.cpp" />
     <ClCompile Include="..\private\NPC_Chad.cpp" />
@@ -1044,6 +1045,7 @@
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\UI_SL_HUD.cpp" />
+    <ClCompile Include="..\Private\UI_SL_LockOn.cpp" />
     <ClCompile Include="..\Private\UI_SpriteVfx.cpp" />
     <ClCompile Include="..\Private\UI_Vfx.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />

@@ -196,6 +196,7 @@ namespace Client::Constants::UI
 
 #pragma region SoulLike
     inline constexpr wchar_t UI_SL_HUD_Path[] = L"UI/UI_Json/Soulslike/UI_SL_HUD.json";
+    inline constexpr wchar_t UI_SL_LockOn_Path[] = L"UI/UI_Json/Soulslike/UI_SL_LockOn.json";
 #pragma endregion
 
 #pragma region Dialogue
@@ -540,6 +541,9 @@ namespace Client::Constants::Cinematic
     inline constexpr wchar_t RuntimeJson_Dir[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/";
     inline constexpr wchar_t BridgeCinematic[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";
     inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic.json";
+
+    inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_1.json";
+    inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
 }
 
 namespace Client::Constants::SoundCue
@@ -581,6 +585,10 @@ namespace Client::Constants::SoundCue
 namespace Client::Constants::Effect
 {
     constexpr const wchar_t* BreakEffect = L"Effects\\Assets\\Etc\\Break.effect.json";
+
+    constexpr const wchar_t* SL_Slash_L= L"Effects\\Assets\\Player\\Soullike_SwordSlash_L.effect.json";
+    constexpr const wchar_t* SL_Slash_R = L"Effects\\Assets\\Player\\Soullike_SwordSlash_R.effect.json";
+
 }
 
 namespace Client::Constants::Dialogue
