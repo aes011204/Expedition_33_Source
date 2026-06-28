@@ -1,5 +1,5 @@
 ﻿#include "Inspector.h"
-
+#include "Notification_Manager.h"
 #include "Component.h"
 #include "Component_Inspector.h"
 #include "Editor_Context.h"
@@ -13,6 +13,7 @@
 #include "GameplayUI.h"
 #include "GameplayUI_Types.h"
 #include "IRuntimeUI_EditorTarget.h"
+#include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "Monster_WorldBase.h"
 #include "PhysX_Types.h"
@@ -124,30 +125,69 @@ bool Try_ConsumePendingPatrolPointPick(Vec3& outWorldPos)
     return Try_SamplePatrolPointWorldPos(pixelPos, outWorldPos);
 }
 
-void Draw_MonsterPatrolDebug(const vector<Vec3>& patrolPoints)
+bool Try_WorldToScreen(const Vec3& worldPos, const ImVec2& vpMin, const ImVec2& vpMax, ImVec2& outScreen)
+{
+    const Matrix* view = GAME->Get_Transform(D3DTS::View);
+    const Matrix* proj = GAME->Get_Transform(D3DTS::Proj);
+    if (view == nullptr || proj == nullptr)
+        return false;
+
+    const Matrix viewProj = (*view) * (*proj);
+    Vec4 clip = Vec4::Transform(Vec4(worldPos.x, worldPos.y, worldPos.z, 1.f), viewProj);
+    if (clip.w <= 0.f)
+        return false;
+
+    const float ndcX = clip.x / clip.w;
+    const float ndcY = -clip.y / clip.w;
+
+    outScreen.x = vpMin.x + (ndcX * 0.5f + 0.5f) * (vpMax.x - vpMin.x);
+    outScreen.y = vpMin.y + (ndcY * 0.5f + 0.5f) * (vpMax.y - vpMin.y);
+    return true;
+}
+
+void Draw_MonsterPatrolOverlay(const vector<Vec3>& patrolPoints)
 {
     if (patrolPoints.empty())
         return;
 
+    Shared<Scene_View> sceneView = dynamic_pointer_cast<Scene_View>(EDITOR->Get_Window(L"Scene"));
+    if (sceneView == nullptr)
+        return;
+
+    const ImVec2 vpMin = sceneView->Get_ViewportMin();
+    const ImVec2 vpMax = sceneView->Get_ViewportMax();
+    if (vpMax.x <= vpMin.x || vpMax.y <= vpMin.y)
+        return;
+
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const ImU32 lineColor = IM_COL32(60, 220, 255, 255);
+    const ImU32 pointColor = IM_COL32(255, 210, 50, 255);
+    const ImU32 selectedColor = IM_COL32(255, 90, 80, 255);
+
+    vector<ImVec2> screens(patrolPoints.size());
+    vector<bool> visible(patrolPoints.size(), false);
+
+    for (size_t i = 0; i < patrolPoints.size(); ++i)
+        visible[i] = Try_WorldToScreen(patrolPoints[i] + Vec3(0.f, 0.15f, 0.f), vpMin, vpMax, screens[i]);
+
+    if (patrolPoints.size() > 1)
+    {
+        for (size_t i = 0; i < patrolPoints.size(); ++i)
+        {
+            const size_t nextIndex = (i + 1) % patrolPoints.size();
+            if (visible[i] && visible[nextIndex])
+                drawList->AddLine(screens[i], screens[nextIndex], lineColor, 2.f);
+        }
+    }
+
     for (size_t i = 0; i < patrolPoints.size(); ++i)
     {
-        DebugSphereDesc sphereDesc{};
-        sphereDesc.center = patrolPoints[i] + Vec3(0.f, 0.15f, 0.f);
-        sphereDesc.radius = 0.18f;
-        sphereDesc.style.color = Color(1.f, 0.82f, 0.18f, 1.f);
-        sphereDesc.style.depthEnabled = false;
-        GAME->Draw_DebugSphere(sphereDesc);
+        if (!visible[i])
+            continue;
 
-        if (patrolPoints.size() > 1)
-        {
-            const Vec3 next = patrolPoints[(i + 1) % patrolPoints.size()];
-            DebugLineDesc lineDesc{};
-            lineDesc.start = patrolPoints[i] + Vec3(0.f, 0.15f, 0.f);
-            lineDesc.end = next + Vec3(0.f, 0.15f, 0.f);
-            lineDesc.style.color = Color(0.2f, 0.95f, 1.f, 1.f);
-            lineDesc.style.depthEnabled = false;
-            GAME->Draw_DebugLine(lineDesc);
-        }
+        const bool isPendingPick = g_pendingPatrolPickIndex == static_cast<int32>(i);
+        drawList->AddCircleFilled(screens[i], isPendingPick ? 6.f : 5.f, isPendingPick ? selectedColor : pointColor);
+        drawList->AddText(ImVec2(screens[i].x + 7.f, screens[i].y - 7.f), IM_COL32(255, 255, 255, 230), to_string(i).c_str());
     }
 }
 
@@ -1312,7 +1352,7 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
 
     Draw_ComponentOverride(static_pointer_cast<Component>(transform));
     Draw_MonsterBattlePrefabList(target);
-    Draw_MonsterPatrolPointEditor(target);
+    Draw_MonsterPatrolPointEditor(target, true);
     Draw_ObjectReflection(target);
 
     target->Visit_Components([&](const wstring&, const Shared<Component>& component)
@@ -1491,7 +1531,7 @@ bool Inspector::Draw_MonsterBattlePrefabList(const Shared<GameObject>& target)
     return changed;
 }
 
-bool Inspector::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& target)
+bool Inspector::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& target, bool showMapSaveButton)
 {
     Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(target);
     if (monster == nullptr)
@@ -1539,6 +1579,13 @@ bool Inspector::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& target)
                 ImGui::TextDisabled("Click Scene View to replace patrol point %d.", g_pendingPatrolPickIndex);
             else
                 ImGui::TextDisabled("Click Scene View to add the next patrol point.");
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel Pick"))
+            {
+                g_pendingPatrolPickMonster.reset();
+                g_pendingPatrolPickIndex = -1;
+            }
 
             Vec3 pickedWorldPos = Vec3::Zero;
             if (Try_ConsumePendingPatrolPointPick(pickedWorldPos))
@@ -1598,13 +1645,30 @@ bool Inspector::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& target)
         changed = true;
     }
 
+    if (showMapSaveButton)
+    {
+        ImGui::Separator();
+        if (ImGui::Button("Save", ImVec2(-1.f, 0.f)))
+        {
+            if (Client::MapAuthoringIO::Save_Object_ToSourceMap(monster))
+                NOTIFY("Patrol Points 저장 완료");
+            else
+                NOTIFY("원본 map node를 찾을 수 없어 Patrol Points 저장 실패");
+        }
+    }
+
     if (g_showMonsterPatrolPoints)
-        Draw_MonsterPatrolDebug(monster->Get_PatrolPoints());
+        Draw_MonsterPatrolOverlay(monster->Get_PatrolPoints());
 
     ImGui::PopID();
     ImGui::Spacing();
 
     return changed;
+}
+
+bool Inspector::Should_DrawMonsterPatrolPoints()
+{
+    return g_showMonsterPatrolPoints;
 }
 
 void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)

@@ -363,6 +363,7 @@ void Prefab_View::Pre_Render()
         Draw_PreviewColliders(_previewObject);
 
     Draw_PreviewGrid();
+    Draw_MonsterPatrolPointPreview();
     Draw_MonsterBattleSpawnPreview();
     Draw_SelectedWeaponTrailAnchorPreview();
     Draw_SelectedWeaponSourceAnchorPreview();
@@ -2675,6 +2676,82 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
         _previewGridBatch->DrawLine(
             DirectX::VertexPositionColor(widePose.lookTarget + Vec3::Up * -lookTargetMarkerHalfSize, lookColor),
             DirectX::VertexPositionColor(widePose.lookTarget + Vec3::Up * lookTargetMarkerHalfSize, lookColor));
+    }
+
+    _previewGridBatch->End();
+}
+
+void Prefab_View::Draw_MonsterPatrolPointPreview() const
+{
+    if (!Inspector::Should_DrawMonsterPatrolPoints())
+        return;
+
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        selectedObject = _previewObject;
+
+    Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(selectedObject);
+    if (monster == nullptr)
+        return;
+
+    const vector<Vec3>& patrolPoints = monster->Get_PatrolPoints();
+    if (patrolPoints.empty())
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    constexpr float markerHalfSize = 0.22f;
+    constexpr float markerHeight = 0.15f;
+    const XMVECTOR pointColor = XMVectorSet(1.f, 0.82f, 0.18f, 1.f);
+    const XMVECTOR lineColor = XMVectorSet(0.2f, 0.95f, 1.f, 1.f);
+
+    _previewGridBatch->Begin();
+
+    if (patrolPoints.size() > 1)
+    {
+        for (size_t i = 0; i < patrolPoints.size(); ++i)
+        {
+            const Vec3 start = patrolPoints[i] + Vec3(0.f, markerHeight, 0.f);
+            const Vec3 end = patrolPoints[(i + 1) % patrolPoints.size()] + Vec3(0.f, markerHeight, 0.f);
+            _previewGridBatch->DrawLine(
+                DirectX::VertexPositionColor(start, lineColor),
+                DirectX::VertexPositionColor(end, lineColor));
+        }
+    }
+
+    for (const Vec3& patrolPoint : patrolPoints)
+    {
+        const Vec3 markerPos = patrolPoint + Vec3(0.f, markerHeight, 0.f);
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(-markerHalfSize, 0.f, 0.f), pointColor),
+            DirectX::VertexPositionColor(markerPos + Vec3(markerHalfSize, 0.f, 0.f), pointColor));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.f, -markerHalfSize), pointColor),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.f, markerHalfSize), pointColor));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos, pointColor),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.7f, 0.f), pointColor));
     }
 
     _previewGridBatch->End();

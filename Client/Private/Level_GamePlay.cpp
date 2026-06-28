@@ -420,18 +420,17 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(-77.f, 19.1f, -117.94f);
-
-    const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Lancelier,
-        ETOI(LevelType::GamePlay),
-        strLayerTag);
-    
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos);
+    //Vec3 startPos = Vec3(-77.f, 19.1f, -117.94f);
+    //
+    //const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
+    //    Constants::Prefab::MW_Lancelier,
+    //    ETOI(LevelType::GamePlay),
+    //    strLayerTag);
+    //
+    //CHECK_NULL(monster, E_FAIL);
+    //monster->Get_Transform()->Set_Position(startPos);
 
     // 이제 여기서 스폰안하고, 에디터에서 스폰&저장 진행.
-    // 아니 그냥 데이터 꼬이니까, 스폰은 코드로 진행하는게 좋을거같기도 하고
 
     return S_OK;
 }
