@@ -1,4 +1,4 @@
-﻿#include "NPC_Chad.h"
+#include "NPC_Chad.h"
 #include "ClientInstance.h"
 #include "NPC_Body.h"
 #include "NPC_Hair.h"
@@ -10,6 +10,7 @@ IMPLEMENT_REFLECTION(NPC_Chad)
 
     info.displayName = "NPC_Chad";
     info.category = "NPC";
+    NPC_Base::Register_CommonReflectionProperties(info);
 
     return true;
 }
@@ -17,6 +18,7 @@ IMPLEMENT_REFLECTION(NPC_Chad)
 NPC_Chad::NPC_Chad(const ComPtr<Device>& device, const ComPtr<Context>& context) : NPC_Base(device, context)
 {
     _worldMoveSpeedScale = 0.1f;
+    _defaultAnimationKey = "Chad_Idle";
 }
 
 NPC_Chad::NPC_Chad(const NPC_Chad& prototype) : NPC_Base(prototype)
@@ -31,8 +33,6 @@ HRESULT NPC_Chad::Initialize_Prototype()
 HRESULT NPC_Chad::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
-    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-    _body->Set_Animation("Chad_Idle", 0.3f, true);
     return S_OK;
 }
 

@@ -230,6 +230,12 @@ public: /*CinematicSequenceRunner*/
         bool applyEventTrack,
         bool applyActorTransformTrack,
         bool forceRebuildContext = false);
+    void Preview_CurrentSequenceFrameExact(
+        float frameExact,
+        bool applyCameraTrack,
+        bool applyEventTrack,
+        bool applyActorTransformTrack,
+        bool forceRebuildContext = false);
     bool Sync_CinematicPreviewSequence(const CINEMATIC_SEQUENCE& sequence, int trackIndex = -1);
     void Set_ActorTransformTrackPreviewSuspended(bool suspended);
     void Stop_Sequence();
@@ -237,6 +243,7 @@ public: /*CinematicSequenceRunner*/
     bool Is_CinematicPlaying() const;
     bool Is_CinematicPaused() const;
     int Get_CurrentSequenceFrame() const;
+    float Get_CurrentSequenceFrameExact() const;
     Shared<GameObject> Get_CinematicBoundActor(const string& targetId) const;
     bool Is_ActorTransformTrackPreviewSuspended() const;
     void Update_CinematicPreview(float timeDelta);
@@ -313,6 +320,7 @@ public:
   public:
     void StartDialogue(const DialogueRequest& request);
     void EndDialogue(bool restoreWorldState = true);
+    void Reset_LastDialogueNpcAnimationToStart();
     bool IsDialogueActive() const;
     bool IsDialogueInteractLocked() const;
     void AddDialogueInteractionOverlap();

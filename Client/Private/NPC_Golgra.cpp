@@ -1,4 +1,4 @@
-﻿#include "NPC_Golgra.h"
+#include "NPC_Golgra.h"
 #include "ClientInstance.h"
 #include "NPC_Body.h"
 #include "NPC_Hair.h"
@@ -10,6 +10,7 @@ IMPLEMENT_REFLECTION(NPC_Golgra)
 
     info.displayName = "NPC_Golgra";
     info.category = "NPC";
+    NPC_Base::Register_CommonReflectionProperties(info);
 
     return true;
 }
@@ -18,6 +19,7 @@ IMPLEMENT_REFLECTION(NPC_Golgra)
 NPC_Golgra::NPC_Golgra(const ComPtr<Device>& device, const ComPtr<Context>& context) :NPC_Base(device, context)
 {
     _worldMoveSpeedScale = 0.1f;
+    _defaultAnimationKey = "Idles_Golgra_V2";
 }
 
 NPC_Golgra::NPC_Golgra(const NPC_Golgra& prototype) : NPC_Base(prototype)
@@ -32,8 +34,6 @@ HRESULT NPC_Golgra::Initialize_Prototype()
 HRESULT NPC_Golgra::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
-    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-    _body->Set_Animation("Idles_Golgra_V2", 0.3f, true);
     return S_OK;
 }
 

@@ -43,6 +43,7 @@
 #include "BattleFollowupManager.h"
 #include "Client_Constants.h"
 #include "Monster_WorldBase.h"
+#include "NPC_Base.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -822,10 +823,17 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
         _dialogueManager->EndDialogue(false);
 
     vector<Shared<GameObject>> duplicatePlayers{};
+    vector<Shared<NPC_Base>> replayNpcs{};
 
     GAME->Visit_CurrentLevelObjects(
-        [this, &duplicatePlayers](const wstring&, const Shared<GameObject>& gameObject)
+        [this, &duplicatePlayers, &replayNpcs](const wstring&, const Shared<GameObject>& gameObject)
         {
+            if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(gameObject))
+            {
+                replayNpcs.push_back(npc);
+                return;
+            }
+
             const Shared<Player_WorldBase> player =
                 dynamic_pointer_cast<Player_WorldBase>(gameObject);
             if (player == nullptr)
@@ -874,6 +882,17 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
     default:
         break;
     }
+    for (const Shared<NPC_Base>& npc : replayNpcs)
+    {
+        if (npc == nullptr)
+            continue;
+
+        npc->Reset_DialogueVisualOffset();
+        npc->Reset_ToDefaultAnimation();
+        npc->Restore_AfterBattleExit();
+    }
+
+    Respawn_ReplayMonstersFromSnapshot();
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
     GAME->Set_PlayerInputBlocked(false);
@@ -1348,6 +1367,24 @@ void ClientInstance::Preview_CurrentSequenceFrame(
         forceRebuildContext);
 }
 
+void ClientInstance::Preview_CurrentSequenceFrameExact(
+    float frameExact,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack,
+    bool forceRebuildContext)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Preview_CurrentFrameExact(
+        frameExact,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack,
+        forceRebuildContext);
+}
+
 bool ClientInstance::Sync_CinematicPreviewSequence(
     const CINEMATIC_SEQUENCE& sequence,
     int trackIndex)
@@ -1382,6 +1419,14 @@ int ClientInstance::Get_CurrentSequenceFrame() const
         return 0;
 
     return _cinematicSequenceRunner->Get_CurrentFrame();
+}
+
+float ClientInstance::Get_CurrentSequenceFrameExact() const
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return 0.f;
+
+    return _cinematicSequenceRunner->Get_CurrentFrameExact();
 }
 
 Shared<GameObject> ClientInstance::Get_CinematicBoundActor(const string& targetId) const
@@ -1749,6 +1794,14 @@ void ClientInstance::EndDialogue(bool restoreWorldState)
 {
     if (_dialogueManager && _dialogueManager->IsActive())
         _dialogueManager->EndDialogue(restoreWorldState);
+}
+
+void ClientInstance::Reset_LastDialogueNpcAnimationToStart()
+{
+    if (_dialogueManager == nullptr)
+        return;
+
+    _dialogueManager->Reset_LastDialogueNpcAnimationToStart();
 }
 
 bool ClientInstance::IsDialogueActive() const

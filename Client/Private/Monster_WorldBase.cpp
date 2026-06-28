@@ -371,12 +371,16 @@ void Monster_WorldBase::Set_CinematicDriven(bool cinematicDriven)
 
     if (_movementCom)
     {
+        _movementCom->Set_CCTTransformSyncSuppressed(cinematicDriven);
         _movementCom->Clear_FollowMoveCommand();
         _movementCom->Apply_Input({});
         _movementCom->Stop_AllMovement();
         _movementCom->Stop_VerticalMovement();
         _movementCom->Sync_RuntimePositionToTransform();
     }
+
+    if (_colliderCom)
+        _colliderCom->Set_IsActive(!cinematicDriven);
 
     if (_transformCom)
         _transformCom->Set_SpeedPerSec(0.f);
@@ -408,6 +412,13 @@ void Monster_WorldBase::Late_Update(float timeDelta)
 
     if (weakPoint && !weakPoint->Is_Visible())
         weakPoint->Restore_WorldWeakPointAfterBattle();
+
+    if (_isCinematicDriven)
+    {
+        Character::Late_Update(timeDelta);
+        Update_Culling(Vec3(1.5f, 4.f, 1.5f));
+        return;
+    }
 
     Character_WorldBase::Late_Update(timeDelta);
     Update_Culling(Vec3(1.5f, 4.f, 1.5f));
