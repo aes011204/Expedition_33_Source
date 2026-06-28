@@ -181,6 +181,7 @@ public:
     bool Can_TriggerVictory() const;
 
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
+    const vector<string>& Get_LastVictoryRewardPictosIds() const { return _lastVictoryRewardPictosIds; }
 
     void Set_FreeAimHitTarget(const BattleFreeAimHitTarget& target);
     void Clear_FreeAimHitTarget();
@@ -413,6 +414,7 @@ private:
     BattleAction _freeAimShotAction{};
 
     uint32 _lastVictoryRewardExp = 0;
+    vector<string> _lastVictoryRewardPictosIds{};
     wstring _preBattleBGM{};
 
     BattleChar  _enemyTurnTargetedActor = {};

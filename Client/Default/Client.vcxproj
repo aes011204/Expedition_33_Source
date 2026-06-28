@@ -270,6 +270,10 @@
     <ClInclude Include="..\Public\DialogueTypes.h" />
     <ClInclude Include="..\Public\GamePlayUI_SL.h" />
     <ClInclude Include="..\Public\GradientSkill.h" />
+    <ClInclude Include="..\Public\Item.h" />
+    <ClInclude Include="..\Public\Item_Chroma.h" />
+    <ClInclude Include="..\Public\Item_DailyLog.h" />
+    <ClInclude Include="..\Public\Item_Pictos.h" />
     <ClInclude Include="..\Public\LevelChange_Portal.h" />
     <ClInclude Include="..\Public\Level_ReplayTransition.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
@@ -331,6 +335,7 @@
     <ClInclude Include="..\public\Trigger_Cinematic.h" />
     <ClInclude Include="..\Public\Trigger_Interaction.h" />
     <ClInclude Include="..\Public\UI_AbilityPentagon.h" />
+    <ClInclude Include="..\Public\UI_DailyLog.h" />
     <ClInclude Include="..\Public\UI_SL_LockOn.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
     <ClInclude Include="..\public\CinematicSequenceRunner.h" />
@@ -717,6 +722,10 @@
     <ClCompile Include="..\private\DialogueManager.cpp" />
     <ClCompile Include="..\Private\GamePlayUI_SL.cpp" />
     <ClCompile Include="..\Private\GradientSkill.cpp" />
+    <ClCompile Include="..\Private\Item.cpp" />
+    <ClCompile Include="..\Private\Item_Chroma.cpp" />
+    <ClCompile Include="..\Private\Item_DailyLog.cpp" />
+    <ClCompile Include="..\Private\Item_Pictos.cpp" />
     <ClCompile Include="..\Private\LevelChange_Portal.cpp" />
     <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
@@ -805,6 +814,7 @@
     <ClCompile Include="..\Private\DialogueCamera.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\Flash_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\UI_DailyLog.cpp" />
     <ClCompile Include="..\private\UI_Dialogue.cpp" />
     <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\Private\UI_Replay.cpp" />

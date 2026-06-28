@@ -15,6 +15,7 @@ namespace
     constexpr float kCCTGroundDetachGraceSec = 0.12f;
     constexpr float kCCTGroundDetachFallSpeed = -3.5f;
     constexpr float kCCTGroundStickSpeed = 6.f;
+    constexpr float kInputBlockedStopDamping = 14.f;
     constexpr float kStillGroundJitterSpeedSq = 0.01f;
     constexpr float kStillGroundXZDeadZone = 0.02f;
     constexpr float kStillGroundYDeadZone = 0.06f;
@@ -439,7 +440,7 @@ void MovementCom::Update_Rotation(float timeDelta)
     _transformCom->Add_WorldRotationQuaternion(deltaRotation);
 }
 
-void MovementCom::Update_HorizontalVelocity()
+void MovementCom::Update_HorizontalVelocity(float timeDelta)
 {
     if (_isJumping)
     {
@@ -467,6 +468,23 @@ void MovementCom::Update_HorizontalVelocity()
     Vec3 desiredDir = Vec3::Zero;
     if (!Resolve_MoveDirection(desiredDir))
     {
+        if (_input.smoothStopOnNoMoveInput)
+        {
+            Vec3 horizontalVelocity(_velocity.x, 0.f, _velocity.z);
+            horizontalVelocity = Engine::Math::Lerp_Damp(
+                horizontalVelocity,
+                Vec3::Zero,
+                kInputBlockedStopDamping,
+                timeDelta);
+
+            if (horizontalVelocity.LengthSquared() <= kStillGroundJitterSpeedSq)
+                horizontalVelocity = Vec3::Zero;
+
+            _velocity.x = horizontalVelocity.x;
+            _velocity.z = horizontalVelocity.z;
+            return;
+        }
+
         _velocity.x = 0.f;
         _velocity.z = 0.f;
         return;
@@ -503,7 +521,7 @@ void MovementCom::Apply_Velocity(float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Movement::ApplyVelocity");
 
-    Update_HorizontalVelocity();
+    Update_HorizontalVelocity(timeDelta);
     Update_VerticalVelocity(timeDelta);
 
     Vec3 displacement = _velocity * timeDelta;

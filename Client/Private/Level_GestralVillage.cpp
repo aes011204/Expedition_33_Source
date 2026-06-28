@@ -90,6 +90,8 @@ void Level_GestralVillage::BeginPlay()
 
     _editorPlayRuntimeHandle =
         GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_GestralVillage::Play_MapBGM);
+
+    CLIENT->Capture_InitialWorldSnapshot();
 }
 
 void Level_GestralVillage::Update(float fTimeDelta)

@@ -38,6 +38,7 @@ public:
         bool isMouseRPress{ false };
         bool isMouseRUp{ false };
 
+        bool smoothStopOnNoMoveInput = false;
         
     };
 
@@ -154,7 +155,7 @@ private:
     void Start_Jump();
 
     void Update_Rotation(float timeDelta);
-    void Update_HorizontalVelocity();
+    void Update_HorizontalVelocity(float timeDelta = 0.f);
     void Update_VerticalVelocity(float timeDelta);
 
     void Apply_Velocity(float timeDelta);

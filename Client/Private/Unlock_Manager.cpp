@@ -8,6 +8,7 @@
 #include "Spawn_Prefab.h"
 #include "Client_Constants.h"
 #include "BattleEncounterProfile.h"
+#include "PlayerInventory.h"
 
 namespace
 {
@@ -27,6 +28,9 @@ namespace
     constexpr char kEnemyDualliste[] = "SL_Dualliste";
 
     // TODO : 그래디언트
+
+    // 픽토스
+    constexpr char kPictosRoulette[] = "Roulette";
 
     constexpr const char* kBishopRewardPortalPrefab = Constants::Prefab::Portal_BishopReward;
     constexpr const wchar_t* kBishopRewardPortalLayer = L"Layer_Puzzle";
@@ -68,6 +72,23 @@ namespace
         reward.useRewardOrigin = true;
         reward.spawnOffsetFromOrigin = kBishopRewardPortalOffsetFromBishop;
         reward.spawnRotation = kBishopRewardPortalRotation;
+        return reward;
+    }
+
+    Unlock_Manager::UnlockReward Make_PictosReward(const char* pictosId)
+    {
+        Unlock_Manager::UnlockReward reward{};
+        reward.type = Unlock_Manager::RewardType::UnlockPictos;
+        reward.pictosId = pictosId;
+        return reward;
+    }
+
+    Unlock_Manager::UnlockReward Make_WeaponReward(const char* characterId, const char* weaponId)
+    {
+        Unlock_Manager::UnlockReward reward{};
+        reward.type = Unlock_Manager::RewardType::UnlockWeapon;
+        reward.characterId = characterId;
+        reward.weaponId = weaponId;
         return reward;
     }
 
@@ -131,6 +152,7 @@ HRESULT Unlock_Manager::Initialize()
     _pendingGetCharacterHeroes.clear();
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
+    _pendingGetPictosPresentationIds.clear();
 
     Register_DefaultRules();
 
@@ -152,6 +174,10 @@ void Unlock_Manager::Register_DefaultRules()
         rule.rewards.emplace_back(Make_CostumeReward(HeroId::Lune, "Baguette"));
         rule.rewards.emplace_back(Make_CostumeReward(HeroId::Maelle, "Baguette"));
 
+        rule.rewards.emplace_back(Make_WeaponReward("Gustave", "Baguette"));
+        rule.rewards.emplace_back(Make_WeaponReward("Lune", "Baguette"));
+        rule.rewards.emplace_back(Make_WeaponReward("Maelle", "Baguette"));
+
         _rules.emplace_back(std::move(rule));
     }
     // 감자 해금
@@ -172,13 +198,16 @@ void Unlock_Manager::Register_DefaultRules()
 
     }
 
-    // 비숍 죽이고 포탈 생성
+    // 비숍 죽이고 포탈 생성 + 룰렛 픽토스 해금
     {
         UnlockRule rule{};
         rule.ruleId = kRuleKillBishopSpawnPortal;
         rule.triggerType = TriggerType::EnemyKilled;
         rule.triggerKey = kEnemyBishop;
+
         rule.rewards.emplace_back(Make_WorldSpawnReward());
+        rule.rewards.emplace_back(Make_PictosReward(kPictosRoulette));
+
         _rules.emplace_back(std::move(rule));
     }
 
@@ -207,14 +236,16 @@ void Unlock_Manager::Register_DefaultRules()
 
 }
 
-void Unlock_Manager::Handle_BattleVictory(
+vector<string> Unlock_Manager::Handle_BattleVictory(
     const vector<string>& enemyKeys,
     uint32 battleFieldId,
     uint32 rewardLevelIndex,
     const Vec3* rewardOrigin)
 {
+    vector<string> presentedPictosIds{};
+
     if (enemyKeys.empty())
-        return;
+        return presentedPictosIds;
 
     for (const UnlockRule& rule : _rules)
     {
@@ -231,8 +262,10 @@ void Unlock_Manager::Handle_BattleVictory(
         if (find(enemyKeys.begin(), enemyKeys.end(), rule.triggerKey) == enemyKeys.end())
             continue;
 
-        Try_CompleteRule(rule, rewardLevelIndex, rewardOrigin);
+        Try_CompleteRule(rule, rewardLevelIndex, rewardOrigin, &presentedPictosIds);
     }
+
+    return presentedPictosIds;
 }
 
 bool Unlock_Manager::Is_HeroUnlocked(HeroId heroId) const
@@ -240,7 +273,7 @@ bool Unlock_Manager::Is_HeroUnlocked(HeroId heroId) const
     return _unlockedHeroIds.find(heroId) != _unlockedHeroIds.end();
 }
 
-void Unlock_Manager::Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevelIndex, const Vec3* rewardOrigin)
+void Unlock_Manager::Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevelIndex, const Vec3* rewardOrigin, vector<string>* outPresentedPictosIds)
 {
     if (_completedRuleIds.contains(rule.ruleId))
         return;
@@ -248,10 +281,18 @@ void Unlock_Manager::Try_CompleteRule(const UnlockRule& rule, uint32 rewardLevel
     // rule 찾으면
     _completedRuleIds.emplace(rule.ruleId);
 
+    const size_t beforePictosPresentationCount = _pendingGetPictosPresentationIds.size();
+
     // 룰 완료 순간 즉시 보상 적용
     for (const UnlockReward& reward : rule.rewards)
     {
         Apply_Reward(reward, rewardLevelIndex, rewardOrigin, true);
+    }
+
+    if (outPresentedPictosIds != nullptr)
+    {
+        for (size_t i = beforePictosPresentationCount; i < _pendingGetPictosPresentationIds.size(); ++i)
+            outPresentedPictosIds->push_back(_pendingGetPictosPresentationIds[i]); // 이번 전투 결과창에서 새 획득 Pictos만 보여준다.
     }
 
     LOG_INFO("UnlockManager: completed rule={}", rule.ruleId);
@@ -380,6 +421,64 @@ void Unlock_Manager::Apply_Reward(
 
         break;
     }
+    case RewardType::UnlockPictos:
+    {
+        const string& pictosId = reward.pictosId;
+        if (pictosId.empty())
+            break;
+
+        const auto* pictosDesc = CLIENT->Get_PictosDesc(pictosId);
+        if (pictosDesc == nullptr)
+        {
+            LOG_WARN("UnlockManager: invalid pictos reward id={}", pictosId);
+            break;
+        }
+
+        const auto inventory = CLIENT->Get_PlayerInventory();
+        if (inventory == nullptr)
+            break;
+
+        const bool alreadyUnlocked = inventory->Is_PictosUnlocked(pictosId);
+        inventory->Unlock_Pictos(pictosId);
+
+        if (!alreadyUnlocked && queuePresentation)
+            Queue_GetPictosPresentation(pictosId);
+
+        break;
+    }
+
+    case RewardType::UnlockWeapon:
+    {
+        if (reward.characterId.empty() || reward.weaponId.empty())
+            break;
+
+        const GameDataTable::WeaponDesc* weaponDesc =
+            CLIENT->Get_WeaponDesc(reward.characterId, reward.weaponId);
+        if (weaponDesc == nullptr)
+        {
+            LOG_WARN("UnlockManager: invalid weapon reward character={}, weapon={}",
+                reward.characterId, reward.weaponId);
+            break;
+        }
+
+        const Shared<PlayerInventory> inventory = CLIENT->Get_PlayerInventory();
+        if (inventory == nullptr)
+            break;
+
+        const bool alreadyUnlocked =
+            inventory->Is_WeaponUnlocked(reward.characterId, reward.weaponId);
+
+        inventory->Unlock_Weapon(
+            weaponDesc->characterId,
+            weaponDesc->weaponId,
+            weaponDesc->level,
+            0);
+
+        if (!alreadyUnlocked && queuePresentation)
+            Queue_GetWeaponPresentation(weaponDesc->characterId, weaponDesc->weaponId);
+
+        break;
+    }
 
     default:;
     }
@@ -440,6 +539,7 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards, b
     _pendingGetCharacterHeroes.clear();
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
+    _pendingGetPictosPresentationIds.clear();
 
     if (!data.is_object())
         return true;
@@ -475,6 +575,20 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards, b
                     continue;
                 }
 
+                if (reward.type == RewardType::UnlockPictos)
+                {
+                    // 완료된 룰을 복원할 때도 픽토스 인벤토리 상태를 맞춘다.
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
+                    continue;
+                }
+
+                if (reward.type == RewardType::UnlockWeapon)
+                {
+                    // 완료된 룰을 복원할 때도 무기 인벤토리 상태를 맞춘다.
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
+                    continue;
+                }
+
                 if (replayWorldRewards && reward.type == RewardType::SpawnWorldObject)
                 {
                     Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
@@ -501,6 +615,32 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards, b
     }
 
     return true;
+}
+
+vector<string> Unlock_Manager::Consume_GetPictosPresentationIds()
+{
+    vector<string> result = std::move(_pendingGetPictosPresentationIds);
+    _pendingGetPictosPresentationIds.clear();
+
+    return result;
+}
+
+void Unlock_Manager::Queue_GetPictosPresentation(const string& pictosId)
+{
+    if (pictosId.empty())
+        return;
+
+    const GameDataTable::PictosDesc* pictosDesc = CLIENT->Get_PictosDesc(pictosId);
+    if (pictosDesc == nullptr || pictosDesc->getItemUi.empty())
+        return;
+
+    if (find(_pendingGetPictosPresentationIds.begin(), _pendingGetPictosPresentationIds.end(), pictosId) !=
+        _pendingGetPictosPresentationIds.end())
+    {
+        return;
+    }
+
+    _pendingGetPictosPresentationIds.emplace_back(pictosId);
 }
 
 const Unlock_Manager::UnlockRule* Unlock_Manager::Find_Rule(const string& ruleId) const
@@ -537,6 +677,7 @@ void Unlock_Manager::Free()
     _pendingGetCharacterHeroes.clear();
     _pendingGetClothesPresetIds.clear();
     _pendingGetWeaponPresentationIds.clear();
+    _pendingGetPictosPresentationIds.clear();
 
     Base::Free();
 }

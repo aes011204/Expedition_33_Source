@@ -65,6 +65,7 @@ private:
     void    Try_ShowPendingGetCharacter();
     void    Try_ShowPendingGetClothes();
     void    Try_ShowPendingGetWeapon();
+    void    Try_ShowPendingGetPictos();
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;

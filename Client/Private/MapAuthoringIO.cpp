@@ -101,6 +101,9 @@ bool MapAuthoringIO::Is_PrefabInstanceCandidate(const Shared<GameObject>& gameOb
     if (gameObject == nullptr || gameObject->Get_SourcePrefabName().empty())
         return false;
 
+    if (gameObject->Is_MarkDestroy())
+        return false;
+
     if (!gameObject->Is_RuntimeAuthoringLoaded())
         return false;
 
@@ -116,6 +119,9 @@ bool MapAuthoringIO::Is_AuthoredObjectCandidate(const Shared<GameObject>& gameOb
         return false;
 
     if (gameObject == nullptr || !gameObject->Get_SourcePrefabName().empty())
+        return false;
+
+    if (gameObject->Is_MarkDestroy())
         return false;
 
     if (!gameObject->Is_RuntimeAuthoringLoaded())
@@ -195,6 +201,8 @@ bool MapAuthoringIO::Save_PrefabInstances_ToMapInstanceAuthoring(
         return false;
 
     const fs::path authoringPath = rootPath / "PrefabInstances.json";
+
+    GAME->Flush_RemovedGameObjects();
 
     json root = GAME->Load_JsonFile(authoringPath.wstring());
     if (root.is_null() || !root.is_object())

@@ -280,7 +280,7 @@ void GameplayUI::Handle_EditorStopRuntime()
 {
     _isCinematicUIHidden = false; // 시네마틱 중 F4/런타임 중단 시 UI 업데이트가 영구 차단되지 않게 복구한다.
     Invalidate_RuntimeUIEntryCache();
-    CLIENT->Clear_ReplayMonsterSnapshot();
+    CLIENT->Clear_ReplayWorldSnapshot();
 
     if (_worldUI)
     {

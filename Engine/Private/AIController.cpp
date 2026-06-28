@@ -95,7 +95,7 @@ void AIController::Update(float timeDelta)
         if (transform)
         {
             const Vec3 pos = transform->Get_Position();
-            const float reachDistance = transform->Get_SpeedPerSec() * timeDelta;
+            const float reachDistance = min(transform->Get_SpeedPerSec() * timeDelta, 0.25f);
             _isMoving = _PF->Update(pos, reachDistance, _moveWorldDir);
         }
         else

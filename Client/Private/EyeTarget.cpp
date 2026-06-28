@@ -221,38 +221,7 @@ void EyeTarget::Play_EyeTargetEffect()
     desc.scale = Vec3(_effectScale);
     desc.requiresManualRelease = true;
 
-    EffectInstancePool::AttachedHandle handle{};
-    const HRESULT hr = _effectCom->Play_Effect(desc, &handle);
-
-    const Vec3 ownerPosition =
-        _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3::Zero;
-
-    Vec3 effectPosition = Vec3::Zero;
-    wstring effectObjectName{};
-    const void* effectObjectPtr = nullptr;
-    if(handle.effectObject != nullptr)
-    {
-        effectObjectName = handle.effectObject->Get_Name();
-        effectObjectPtr = handle.effectObject.get();
-
-        if(handle.effectObject->Get_Transform() != nullptr)
-            effectPosition = handle.effectObject->Get_Transform()->Get_WorldPosition();
-    }
-
-    LOG_WARN(
-        "EyeTarget Play_Effect hr={}, effect={}, level={}, layer={}, ownerPos=({:.3f},{:.3f},{:.3f}), effectObject={}, effectName={}, effectPos=({:.3f},{:.3f},{:.3f})",
-    hr,
-    String::ToString(desc.effectName),
-    desc.levelIndex,
-    String::ToString(desc.layerTag),
-    ownerPosition.x,
-    ownerPosition.y,
-    ownerPosition.z,
-    effectObjectPtr,
-    String::ToString(effectObjectName),
-    effectPosition.x,
-    effectPosition.y,
-    effectPosition.z);
+    _effectCom->Play_Effect(desc);
 }
 
 Shared<EyeTarget> EyeTarget::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
