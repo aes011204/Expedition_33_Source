@@ -323,6 +323,7 @@
     <ClInclude Include="..\Public\SL_TargetCom.h" />
     <ClInclude Include="..\Public\SL_Test_Lancelier.h" />
     <ClInclude Include="..\Public\SL_Types.h" />
+    <ClInclude Include="..\Public\SL_Weapon.h" />
     <ClInclude Include="..\Public\SoulLikeCamera.h" />
     <ClInclude Include="..\Public\SoulLikeController.h" />
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
@@ -769,6 +770,7 @@
     <ClCompile Include="..\Private\SL_State.cpp" />
     <ClCompile Include="..\Private\SL_TargetCom.cpp" />
     <ClCompile Include="..\Private\SL_Test_Lancelier.cpp" />
+    <ClCompile Include="..\Private\SL_Weapon.cpp" />
     <ClCompile Include="..\Private\SoulLikeCamera.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />

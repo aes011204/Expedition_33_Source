@@ -1181,6 +1181,9 @@ void Prefab_View::Draw_InspectorPanel()
         if (Draw_MonsterBattleSettings(selectedObject))
             MarkDirty();
 
+        if (Draw_MonsterPatrolPointEditor(selectedObject))
+            MarkDirty();
+
         const Engine::ClassReflectionInfo& info = selectedObject->Get_ReflectionInfo();
 
         if (info.properties.empty())
@@ -1607,6 +1610,11 @@ bool Prefab_View::Draw_MonsterBattleSettings(const Shared<GameObject>& selectedO
     ImGui::Spacing();
 
     return changed;
+}
+
+bool Prefab_View::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& selectedObject)
+{
+    return Inspector::Draw_MonsterPatrolPointEditor(selectedObject);
 }
 
 bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject)

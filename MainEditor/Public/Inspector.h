@@ -39,6 +39,7 @@ public:
 
     static bool Draw_ReflectionProperties(void* instance, const ClassReflectionInfo& info);
     static bool Draw_ReflectionProperty(const string& idPrefix, void* instance, const PropertyInfo& property);
+    static bool Draw_MonsterPatrolPointEditor(const Shared<GameObject>& target);
 
 
     static void Set_BTBlackboardKeys(const vector<Engine::BTBlackboardKeyView>* keys);

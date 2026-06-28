@@ -7,6 +7,7 @@
 #include "GameplayUI_World.h"
 #include "IRuntimeUI_EditorTarget.h"
 #include "UI_Base.h"
+#include "UI_RuntimePanelBase.h"
 
 GameplayUI::~GameplayUI() = default;
 
@@ -233,7 +234,19 @@ void GameplayUI::Close_RuntimeUIForCinematic()
             }
 
             if (entry.ui->Is_Open())
+            {
+                if (entry.editorTarget != nullptr &&
+                    entry.ui == entry.editorTarget->Get_EditorRootUI())
+                {
+                    if (UI_RuntimePanelBase* panel = dynamic_cast<UI_RuntimePanelBase*>(entry.editorTarget))
+                    {
+                        panel->Close(); // 패널 Close를 타야 LockOn outline처럼 루트 밖 보조 UI까지 같이 닫힌다.
+                        continue;
+                    }
+                }
+
                 entry.ui->Close();
+            }
         }
     };
 
