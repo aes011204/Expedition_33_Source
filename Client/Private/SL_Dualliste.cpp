@@ -99,7 +99,10 @@ void SL_Dualliste::BeginPlay()
         _cloneSkillManager = SL_DuallisteCloneSkillManager::Create(GetSharedPtr<SL_Dualliste>());
 
     if (!_isCloneVisualOnly && _stateMachineCom)
-        _stateMachineCom->Change_State(SL_MonState::Intro);
+    {
+        _isIntroDone = true; // 진입 컷신에서 검 뽑기/돌진을 이미 보여줬으므로 전투 BT를 바로 열어준다.
+        _stateMachineCom->Change_State(SL_MonState::Idle);
+    }
 
     if (_movementCom)
     {
@@ -130,6 +133,15 @@ void SL_Dualliste::Update(float timeDelta)
     {
         _body->Play_Animation(timeDelta);
 
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        SL_Base::Update(timeDelta);
+        return;
+    }
+
+    if (_isCinematicDriven)
+    {
         if (_effectCom)
             _effectCom->Update(timeDelta);
 
@@ -310,6 +322,7 @@ Shared<ColliderCom> SL_Dualliste::Get_AttackColliderL() const
 {
     return _attackLCom;
 }
+
 Shared<ColliderCom> SL_Dualliste::Get_AttackColliderR() const
 {
     return _attackRCom;
@@ -359,6 +372,20 @@ Shared<MovementCom> SL_Dualliste::Get_MovementCom() const
 Shared<ModelCom> SL_Dualliste::Get_ModelCom() const
 {
     return _body ? _body->Get_Model() : nullptr;
+}
+
+bool SL_Dualliste::Try_GetSocketWorldPosition(const string& socketName, Vec3& outWorldPosition) const
+{
+    if (_body == nullptr)
+        return false;
+
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr(socketName);
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPosition = socketWorldMatrix.Translation();
+    return true;
 }
 
 bool SL_Dualliste::Play_Anim(Anim anim, float blendDuration, bool loop)
@@ -545,6 +572,46 @@ bool SL_Dualliste::Change_State(SL_MonState state)
         return false;
 
     return _stateMachineCom->Change_State(state);
+}
+
+void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
+    if (_movementCom)
+    {
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+
+        if (cinematicDriven)
+        {
+            _restorePhysXCCTAfterCinematic =
+                _movementCom->Get_MoveBackend() == MovementCom::MoveBackend::PhysXCCT;
+            if (_restorePhysXCCTAfterCinematic)
+                _movementCom->Set_MoveBackend(MovementCom::MoveBackend::Sweep); // 시네마틱 transformTrack과 CCT 위치 보정이 싸우지 않게 잠깐 끈다.
+        }
+        else if (_restorePhysXCCTAfterCinematic)
+        {
+            _movementCom->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
+            _restorePhysXCCTAfterCinematic = false;
+        }
+
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_transformCom)
+        _transformCom->Set_SpeedPerSec(0.f);
+
+    if (!cinematicDriven)
+        Apply_PhaseVisualState();
 }
 
 bool SL_Dualliste::Notify_CloneSkillAttack(GameObject* notifyOwner) const

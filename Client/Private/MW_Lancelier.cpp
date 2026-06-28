@@ -46,7 +46,8 @@ HRESULT MW_Lancelier::Initialize(void* arg)
 void MW_Lancelier::From_Json(const json& data)
 {
     Monster_WorldBase::From_Json(data);
-    Rebuild_PatrolPointsFromCurrentPosition(); // authored 위치 복원 뒤 현재 위치 기준으로 순찰점을 다시 맞춘다.
+    if (Get_PatrolPoints().empty())
+        Rebuild_PatrolPointsFromCurrentPosition(); // authored patrol_points가 없을 때만 기존 위치 기준 순찰점을 만든다.
 }
 
 void MW_Lancelier::Rebuild_PatrolPointsFromCurrentPosition()

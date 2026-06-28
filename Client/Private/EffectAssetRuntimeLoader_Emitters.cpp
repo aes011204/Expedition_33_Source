@@ -314,6 +314,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
             desc.spawn.particleSpawn.spawnRateSeed = Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, *spawnRateIter, desc.spawn.particleSpawn.spawnRate);
         }
 
         const auto spawnRateScaleIter = data.find("spawnRateScale");
@@ -325,6 +326,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
             desc.spawn.particleSpawn.spawnRateScaleSeed = Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, *spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale);
         }
 
         const auto burstScaleIter = data.find("burstScale");
@@ -336,6 +338,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
             desc.spawn.particleSpawn.burstScaleSeed = Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, *burstScaleIter, desc.spawn.particleSpawn.burstScale);
         }
 
         const auto burstListIter = data.find("burstList");
@@ -374,6 +377,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
             desc.spawn.particleSpawn.spawnRateSeed = Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, *spawnRateIter, desc.spawn.particleSpawn.spawnRate);
         }
 
         const auto spawnRateScaleIter = data.find("spawnRateScale");
@@ -385,6 +389,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
             desc.spawn.particleSpawn.spawnRateScaleSeed = Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, *spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale);
         }
 
         const auto burstScaleIter = data.find("burstScale");
@@ -396,6 +401,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
             desc.spawn.particleSpawn.burstScaleSeed = Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, *burstScaleIter, desc.spawn.particleSpawn.burstScale);
         }
 
         const auto burstListIter = data.find("burstList");
@@ -655,6 +661,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -707,6 +714,8 @@ namespace EffectAssetRuntimeLoad::Emitters
 
         if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
             Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
+        if (const json* cylinderOrientation = Find_ModuleData(emitter, "CylinderOrientation"))
+            Fill_CylinderOrientationPayload(desc.cylinderOrientation, *cylinderOrientation);
 
         if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
         {
@@ -1310,6 +1319,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1573,6 +1583,9 @@ namespace EffectAssetRuntimeLoad::Emitters
 
         if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
             Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
+
+        if (const json* beamEnvelope = Find_ModuleData(emitter, "BeamEnvelopeOverLife"))
+            Fill_BeamEnvelopeOverLifePayload(desc.beamEnvelopeOverLife, *beamEnvelope);
 
         outDefinition.concreteDesc = desc;
         return true;
@@ -1900,6 +1913,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1955,6 +1969,8 @@ namespace EffectAssetRuntimeLoad::Emitters
             Fill_SphereRadialOrientationPayload(desc.sphereRadialOrientation, *sphereRadialOrientation);
         if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
             Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
+        if (const json* cylinderOrientation = Find_ModuleData(emitter, "CylinderOrientation"))
+            Fill_CylinderOrientationPayload(desc.cylinderOrientation, *cylinderOrientation);
 
         if (const json* meshRotationOverLife = Find_ModuleData(emitter, "MeshRotationOverLife"))
         {

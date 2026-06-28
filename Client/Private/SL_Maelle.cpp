@@ -15,6 +15,7 @@
 #include "Head_Player.h"
 #include "ModelCom.h"
 #include "PartObject.h"
+#include "SL_Weapon.h"
 #include "Weapon.h"
 #include "WeaponPrefabLoader.h"
 #include "SL_StateMachineCom.h"
@@ -115,6 +116,14 @@ void SL_Maelle::Update(float timeDelta)
 {
     SL_Base::Update(timeDelta);
 
+    if (_isCinematicDriven)
+    {
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        return;
+    }
+
     // 무적 시간
     _invincibleRemain = max(0.f, _invincibleRemain - timeDelta);
 
@@ -187,6 +196,51 @@ void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
 
     target->Apply_Damage(damageInfo);
 
+    // 플레이어 공격 Hit Effect
+    if (!_activeAttackHitEffectName.empty() && target->Get_Transform())
+    {
+        const Shared<TransformCom> attackerTransform = Get_Transform();
+        const Shared<TransformCom> targetTransform = target->Get_Transform();
+
+        if (attackerTransform && targetTransform)
+        {
+            const Vec3 attackerPos = attackerTransform->Get_WorldPosition();
+            const Vec3 targetPos = targetTransform->Get_WorldPosition();
+
+            Vec3 attackDir = targetPos - attackerPos;
+            attackDir.y = 0.f;
+
+            if (attackDir.LengthSquared() <= 0.0001f)
+                attackDir = attackerTransform->Get_WorldForward();
+            else
+                attackDir.Normalize();
+
+            Vec3 attackRight = Vec3::Up.Cross(attackDir);
+            if (attackRight.LengthSquared() <= 0.0001f)
+                attackRight = attackerTransform->Get_WorldRight();
+            else
+                attackRight.Normalize();
+
+            const Vec3& offset = _activeAttackHitEffectLocalOffset;
+
+            const float randomSide = GAME->Random(-0.15f, 0.15f);
+            const float randomUp = GAME->Random(-0.08f, 0.12f);
+            const float randomDepth = GAME->Random(-0.15f, 0.15f);
+            const float randomScale = GAME->Random(0.92f, 1.08f);
+
+            PlayEffectDesc desc{};
+            desc.effectName = _activeAttackHitEffectName;
+            desc.worldPosition =
+                targetPos +
+                attackRight * (offset.x + randomSide) +
+                Vec3::Up * (offset.y + randomUp) -
+                attackDir * (offset.z + randomDepth);
+            desc.scale = _activeAttackHitEffectScale * randomScale;
+
+            CLIENT->Play_Effect(desc);
+        }
+    }
+
     if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
     {
         if (GamePlayUI_SL* soulLikeUI = gameplayUI->Get_SoulLikeUI())
@@ -206,6 +260,9 @@ void SL_Maelle::Reset_CombatHp(float maxHp)
     _invincibleRemain = 0.f;
     _combatLocked = false;
     _parryWindowOpen = false;
+    _activeAttackHitEffectName.clear();
+    _activeAttackHitEffectLocalOffset = Vec3::Zero;
+    _activeAttackHitEffectScale = Vec3::One;
 
     _hitPushDir = Vec3::Zero;
     _hitPushDistance = 0.f;
@@ -252,7 +309,7 @@ bool SL_Maelle::Try_ConsumeParry(const Shared<GameObject>& attacker, const Vec3&
         GAME->Play_SoundCue(Constants::SoundCue::Battle_Parry_Success);
     }
 
-	SL_DamageInfo pushInfo{};
+    SL_DamageInfo pushInfo{};
     pushInfo.attacker = attacker;
     pushInfo.target = GetSharedPtr<GameObject>();
     Begin_HitPush(pushInfo);
@@ -295,21 +352,6 @@ HRESULT SL_Maelle::Ready_Components()
         CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::SL_PlayerBody), E_FAIL);
         CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_Body_Player")), E_FAIL);
     }
-
-    // 무기
-    {
-        Bounding_OBB::BoundingOBBDesc attackObbDesc{};
-        attackObbDesc.center = Vec3(0.f, 1.0f, 0.95f);
-        attackObbDesc.extents = Vec3(0.55f, 0.65f, 0.85f);
-
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _attackColliderCom, &attackObbDesc), E_FAIL);
-        CHECK_FAILED(Rename_ComponentTag(TEXT("Com_Collider_OBB"), TEXT("Com_SL_PlayerAttack")), E_FAIL);
-
-        _attackColliderCom->Set_CollisionPreset(Collision_Preset::SL_PlayerAttack);
-        _attackColliderCom->Set_IsActive(false);
-        _attackColliderCom->Clear_Overlap();
-    }
-
 
     return S_OK;
 }
@@ -477,9 +519,9 @@ void SL_Maelle::Clear_SkillCooldowns()
 {
     for (SL_SkillCooldownRuntime& cooldown : _skillCooldowns)
     {
-        cooldown = {};   
+        cooldown = {};
     }
-        
+
 }
 
 SL_SkillCooldownView SL_Maelle::Get_SkillCooldownView(uint32 slotIndex) const
@@ -540,7 +582,7 @@ HRESULT SL_Maelle::Ready_WeaponPart(Body_Player* body)
 
     CHECK_FAILED(Add_PartObject(
         ETOI(LevelType::Static),
-        TEXT("GameObject_Weapon"),
+        TEXT("GameObject_SL_Weapon"),
         TEXT("Part_Weapon"),
         &weaponDesc), E_FAIL);
 
@@ -549,6 +591,12 @@ HRESULT SL_Maelle::Ready_WeaponPart(Body_Player* body)
 
     weaponPart->From_Json(loadedPrefab.rootJson);
     weaponPart->Set_SourcePrefabName(weaponPrefabName);
+
+    SL_Weapon* soulLikeWeapon = dynamic_cast<SL_Weapon*>(weaponPart);
+    CHECK_NULL(soulLikeWeapon, E_FAIL);
+
+    _attackColliderCom = soulLikeWeapon->Get_AttackCollider();
+    CHECK_NULL(_attackColliderCom, E_FAIL); // Maelle 무기는 SL_Weapon이 만든 공격 판정용 콜라이더를 반드시 가진다.
 
     return S_OK;
 }
@@ -769,6 +817,30 @@ void SL_Maelle::Stop_Move()
     }
 }
 
+void SL_Maelle::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_movementCom)
+    {
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_attackColliderCom)
+    {
+        _attackColliderCom->Set_IsActive(false);
+        _attackColliderCom->Clear_Overlap();
+    }
+
+    _parryWindowOpen = false;
+}
+
 Shared<CombatStatCom> SL_Maelle::Get_Stat() const
 {
     return _combatStatCom;
@@ -834,6 +906,26 @@ void SL_Maelle::Apply_Damage(const SL_DamageInfo& damageInfo)
 
     if (_stateMachineCom)
         _stateMachineCom->Change_State(SL_PlayerState::Hit);
+}
+
+void SL_Maelle::Set_AttackHitEffect(const string& colliderTag, const wstring& effectName, const Vec3& localOffset, const Vec3& scale)
+{
+    if (colliderTag != "Com_SL_PlayerAttack")
+        return;
+
+    _activeAttackHitEffectName = effectName;
+    _activeAttackHitEffectLocalOffset = localOffset;
+    _activeAttackHitEffectScale = scale;
+}
+
+void SL_Maelle::Clear_AttackHitEffect(const string& colliderTag)
+{
+    if (colliderTag != "Com_SL_PlayerAttack")
+        return;
+
+    _activeAttackHitEffectName.clear();
+    _activeAttackHitEffectLocalOffset = Vec3::Zero;
+    _activeAttackHitEffectScale = Vec3::One;
 }
 
 SoulLikeAnim SL_Maelle::Consume_PendingHitAnim()

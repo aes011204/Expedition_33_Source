@@ -5,7 +5,9 @@
 #include "GameObject.h"
 #include "Component.h"
 #include "ContainerObject.h"
+#include "ClientInstance.h"
 #include "PartObject.h"
+#include "Player_BattleBase.h"
 #include "Editor_Camera_Free.h"
 #include "Inspector.h"
 #include "Helper_String.h"
@@ -23,6 +25,7 @@
 #include "Spawn_Prefab.h"
 #include "Transform_Inspector.h"
 #include "Weapon.h"
+#include "WeaponPrefabLoader.h"
 #include "Mon_Dualliste_Sword_L.h"
 #include "Mon_Dualliste_Sword_R.h"
 #include "Mon_Simon_Weapon.h"
@@ -174,6 +177,34 @@ void Refresh_PreviewPartMatricesAfterGizmo(const Shared<GameObject>& gameObject)
         UNREFERENCED_PARAMETER(partTag);
         Refresh_PreviewPartMatricesAfterGizmo(partObject);
     }
+}
+
+json Vec3_ToJsonArray(const Vec3& value)
+{
+    return json::array({ value.x, value.y, value.z });
+}
+
+bool Write_RootTransformToWeaponPrefabJson(json& rootJson, const Vec3& position, const Vec3& rotation)
+{
+    if (!rootJson.contains("components") || !rootJson["components"].is_array())
+        return false;
+
+    for (json& componentJson : rootJson["components"])
+    {
+        if (!componentJson.is_object())
+            continue;
+
+        const string prototypeTag = componentJson.value("prototype_tag", string{});
+        const string className = componentJson.value("class_name", string{});
+        if (prototypeTag != "Com_Transform" && className != "TransformCom")
+            continue;
+
+        componentJson["position"] = Vec3_ToJsonArray(position);
+        componentJson["rotation"] = Vec3_ToJsonArray(rotation);
+        return true;
+    }
+
+    return false;
 }
 }
 
@@ -332,6 +363,7 @@ void Prefab_View::Pre_Render()
         Draw_PreviewColliders(_previewObject);
 
     Draw_PreviewGrid();
+    Draw_MonsterPatrolPointPreview();
     Draw_MonsterBattleSpawnPreview();
     Draw_SelectedWeaponTrailAnchorPreview();
     Draw_SelectedWeaponSourceAnchorPreview();
@@ -512,6 +544,7 @@ void Prefab_View::Save()
 
     if (saved)
     {
+        const uint32 savedWeaponCount = Save_PlayerBattleWeaponTransforms();
         Save_SelectedWeaponTrailAnchor();
 
         Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
@@ -525,6 +558,9 @@ void Prefab_View::Save()
 
         if (EDITOR->Get_Notification())
             EDITOR->Get_Notification()->Add_Notification("프리펩 저장: {}", _prefabName);
+
+        if (savedWeaponCount > 0 && EDITOR->Get_Notification())
+            EDITOR->Get_Notification()->Add_Notification("무기 프리펩 위치/회전 저장: {}개", savedWeaponCount);
     }
     else if (EDITOR->Get_Notification())
     {
@@ -1131,6 +1167,9 @@ void Prefab_View::Draw_InspectorPanel()
     if (selectedObject == nullptr)
         selectedObject = _previewObject;
 
+    if (Draw_PlayerBattleWeaponSelector(_previewObject))
+        MarkDirty();
+
     switch (_selectionType)
     {
     case SelectionType::GameObject:
@@ -1141,6 +1180,9 @@ void Prefab_View::Draw_InspectorPanel()
             MarkDirty();
 
         if (Draw_MonsterBattleSettings(selectedObject))
+            MarkDirty();
+
+        if (Draw_MonsterPatrolPointEditor(selectedObject))
             MarkDirty();
 
         const Engine::ClassReflectionInfo& info = selectedObject->Get_ReflectionInfo();
@@ -1209,6 +1251,101 @@ void Prefab_View::Draw_InspectorPanel()
     }
 
     ImGui::EndChild();
+}
+
+bool Prefab_View::Draw_PlayerBattleWeaponSelector(const Shared<GameObject>& rootObject)
+{
+    Shared<Client::Player_BattleBase> player = dynamic_pointer_cast<Client::Player_BattleBase>(rootObject);
+    if (player == nullptr)
+        return false;
+
+    const string characterId = player->Get_WeaponCharacterId();
+    const vector<Client::GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
+    if (weapons == nullptr || weapons->empty())
+        return false;
+
+    ImGui::Spacing();
+    ImGui::SeparatorText("Change Weapon Preview");
+
+    string previewLabel = player->Get_ActiveWeaponPreviewId();
+    if (previewLabel.empty())
+        previewLabel = "(None)";
+
+    ImGui::SetNextItemWidth(-1.f);
+    if (ImGui::BeginCombo("Weapon##PlayerBattleWeapon", previewLabel.c_str()))
+    {
+        for (const Client::GameDataTable::WeaponDesc& weapon : *weapons)
+        {
+            string label = weapon.weaponId;
+            if (!weapon.weaponName.empty())
+                label += " - " + String::ToString(weapon.weaponName);
+
+            const bool selected = weapon.weaponId == player->Get_ActiveWeaponPreviewId();
+            if (ImGui::Selectable(label.c_str(), selected))
+            {
+                if (FAILED(player->Apply_WeaponPreviewById(weapon.weaponId)) &&
+                    EDITOR->Get_Notification())
+                {
+                    EDITOR->Get_Notification()->Add_Notification_With_Type(
+                        NotifyType::Warning,
+                        "무기 프리뷰 장착 실패: {}",
+                        weapon.weaponId);
+                }
+            }
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::TextDisabled("PB 프리펩에서 DT_Weapon 무기를 임시 장착합니다. Save 시 Part_Weapon 위치/회전을 WP_*에 저장합니다.");
+    return false;
+}
+
+uint32 Prefab_View::Save_PlayerBattleWeaponTransforms() const
+{
+    Shared<Client::Player_BattleBase> player = dynamic_pointer_cast<Client::Player_BattleBase>(_previewObject);
+    if (player == nullptr)
+        return 0;
+
+    uint32 savedCount = 0;
+    for (const auto& [partTag, partObject] : player->Get_PartObjects())
+    {
+        if (partObject == nullptr || !partTag.starts_with(TEXT("Part_Weapon")))
+            continue;
+
+        Shared<Client::Weapon> weapon = dynamic_pointer_cast<Client::Weapon>(partObject);
+        if (weapon == nullptr || weapon->Get_Transform() == nullptr)
+            continue;
+
+        const string weaponPrefabName = weapon->Get_SourcePrefabName();
+        if (weaponPrefabName.empty())
+            continue;
+
+        const fs::path weaponPrefabPath = Client::WeaponPrefabLoader::Resolve_WeaponPrefabPath(weaponPrefabName);
+        json weaponRoot = GAME->Load_JsonFile(weaponPrefabPath);
+        if (!weaponRoot.is_object())
+            continue;
+
+        if (!Write_RootTransformToWeaponPrefabJson(
+            weaponRoot,
+            weapon->Get_Transform()->Get_Position(),
+            weapon->Get_Transform()->Get_RotationEuler()))
+        {
+            continue;
+        }
+
+        std::ofstream weaponFile(weaponPrefabPath);
+        if (!weaponFile.is_open())
+            continue;
+
+        weaponFile << weaponRoot.dump(4);
+        weaponFile.close();
+        ++savedCount;
+    }
+
+    return savedCount;
 }
 
 void Prefab_View::Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject)
@@ -1474,6 +1611,11 @@ bool Prefab_View::Draw_MonsterBattleSettings(const Shared<GameObject>& selectedO
     ImGui::Spacing();
 
     return changed;
+}
+
+bool Prefab_View::Draw_MonsterPatrolPointEditor(const Shared<GameObject>& selectedObject)
+{
+    return Inspector::Draw_MonsterPatrolPointEditor(selectedObject);
 }
 
 bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject)
@@ -2534,6 +2676,82 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
         _previewGridBatch->DrawLine(
             DirectX::VertexPositionColor(widePose.lookTarget + Vec3::Up * -lookTargetMarkerHalfSize, lookColor),
             DirectX::VertexPositionColor(widePose.lookTarget + Vec3::Up * lookTargetMarkerHalfSize, lookColor));
+    }
+
+    _previewGridBatch->End();
+}
+
+void Prefab_View::Draw_MonsterPatrolPointPreview() const
+{
+    if (!Inspector::Should_DrawMonsterPatrolPoints())
+        return;
+
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        selectedObject = _previewObject;
+
+    Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(selectedObject);
+    if (monster == nullptr)
+        return;
+
+    const vector<Vec3>& patrolPoints = monster->Get_PatrolPoints();
+    if (patrolPoints.empty())
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    constexpr float markerHalfSize = 0.22f;
+    constexpr float markerHeight = 0.15f;
+    const XMVECTOR pointColor = XMVectorSet(1.f, 0.82f, 0.18f, 1.f);
+    const XMVECTOR lineColor = XMVectorSet(0.2f, 0.95f, 1.f, 1.f);
+
+    _previewGridBatch->Begin();
+
+    if (patrolPoints.size() > 1)
+    {
+        for (size_t i = 0; i < patrolPoints.size(); ++i)
+        {
+            const Vec3 start = patrolPoints[i] + Vec3(0.f, markerHeight, 0.f);
+            const Vec3 end = patrolPoints[(i + 1) % patrolPoints.size()] + Vec3(0.f, markerHeight, 0.f);
+            _previewGridBatch->DrawLine(
+                DirectX::VertexPositionColor(start, lineColor),
+                DirectX::VertexPositionColor(end, lineColor));
+        }
+    }
+
+    for (const Vec3& patrolPoint : patrolPoints)
+    {
+        const Vec3 markerPos = patrolPoint + Vec3(0.f, markerHeight, 0.f);
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(-markerHalfSize, 0.f, 0.f), pointColor),
+            DirectX::VertexPositionColor(markerPos + Vec3(markerHalfSize, 0.f, 0.f), pointColor));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.f, -markerHalfSize), pointColor),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.f, markerHalfSize), pointColor));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos, pointColor),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.7f, 0.f), pointColor));
     }
 
     _previewGridBatch->End();

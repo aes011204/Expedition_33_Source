@@ -71,6 +71,7 @@ public:
     void Clear_AttackHitAnimOverride(const string& colliderTag) override;
     Shared<MovementCom> Get_MovementCom() const;
     Shared<ModelCom> Get_ModelCom() const;
+    bool Try_GetSocketWorldPosition(const string& socketName, Vec3& outWorldPosition) const;
     bool Play_Anim(Anim anim, float blendDuration, bool loop);
     bool Play_Anim(Anim anim, float blendDuration, bool loop, float startFrame);
     void Set_AnimPaused(bool paused);
@@ -87,6 +88,8 @@ public:
     bool Is_PhaseChangeFinished() const { return _phaseChangeFinished; }
     bool Is_PhaseChangeInvincible() const { return _isPhaseChangeInvincible; }
     bool Should_SkipPhaseChangeStunStart() const { return _skipPhaseChangeStunStart; }
+    void Set_CinematicDriven(bool cinematicDriven);
+    bool Is_CinematicDriven() const { return _isCinematicDriven; }
     Shared<SL_DuallisteCloneSkillManager> Get_CloneSkillManager() const { return _cloneSkillManager; }
     bool Notify_CloneSkillAttack(GameObject* notifyOwner) const;
     void Cache_PlayerAnchor(const Vec3& playerPosition, const Vec3& playerRight, const Vec3& playerUp, const Vec3& playerForward);
@@ -134,8 +137,10 @@ private:
     bool _phaseChangeFinished = false;
     bool _isPhaseChangeInvincible = false;
     bool _skipPhaseChangeStunStart = false;
+    bool _isCinematicDriven = false;
+    bool _restorePhysXCCTAfterCinematic = false;
+    float _stunElapsed = 0.f;
     float _breakRecoverPerSec = 4.5f;
-
 
     float kCanAttackDistance = 3.0f;
     float kPhase2HpThreshold = 0.5f;

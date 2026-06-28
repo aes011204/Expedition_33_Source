@@ -47,11 +47,18 @@ public:
     Shared<ColliderCom> Get_AttackCollider() const;
     bool    Is_Dead() const override;
     bool    Is_DamageBlocked() const override { return Is_Invincible(); }
+
     void    Apply_Damage(const SL_DamageInfo& damageInfo) override;
+    void    Set_AttackHitEffect(const string& colliderTag, const wstring& effectName, const Vec3& localOffset, const Vec3& scale) override;
+    void    Clear_AttackHitEffect(const string& colliderTag) override;
+
 
 public:
     void    Apply_MoveInput(const SL_MoveRequest& request, float timeDelta);
     void    Stop_Move();
+
+    void    Set_CinematicDriven(bool cinematicDriven);
+    bool    Is_CinematicDriven() const { return _isCinematicDriven; }
 
     void    Set_CombatLocked(bool locked) { _combatLocked = locked; }
     bool    Is_CombatLocked() const { return _combatLocked; }
@@ -114,7 +121,12 @@ private:
     float _invincibleRemain = 0.f;
     bool  _combatLocked = false;    // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true
     bool  _parryWindowOpen = false;
+    bool  _isCinematicDriven = false;
+
     SL_HitAnimOverride _pendingHitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    wstring            _activeAttackHitEffectName{};
+    Vec3               _activeAttackHitEffectLocalOffset = Vec3::Zero;
+    Vec3               _activeAttackHitEffectScale = Vec3::One;
 
 private: /* 피격 밀림 */
     Vec3  _hitPushDir = Vec3::Zero;

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "RuntimeRuleStateIO.h"
 
@@ -14,9 +14,13 @@ public:
     static RuntimeRuleStateIO::RuleState Build_BaguetteWeaponUnlocks();
     static RuntimeRuleStateIO::RuleState Build_TiresoSnowimPlenumWeaponUnlocks();
     static RuntimeRuleStateIO::RuleState Build_AllWeaponUnlocks();
+
     static RuntimeRuleStateIO::RuleState Build_FirstTutorialHeroUnlocks();
+    static RuntimeRuleStateIO::RuleState Build_GestralVillageStartUnlocks();
+    static RuntimeRuleStateIO::RuleState Build_SimonStartUnlocks();
+
     static RuntimeRuleStateIO::RuleState Build_FinalSkillSetupUnlocks();
-    static bool Apply_ToCurrentRuntime(const RuntimeRuleStateIO::RuleState& ruleState);
+    static bool Apply_ToCurrentRuntime(const RuntimeRuleStateIO::RuleState& ruleState, bool queuePresentation = true);
 };
 
 NS_END

@@ -35,6 +35,9 @@ private:
     string _partTag = "Part_Weapon";
     string _colliderTag = "Com_SL_MonsterSword_R";
     SL_HitAnimOverride _hitAnimOverride = SL_HitAnimOverride::Hit_Light;
+    wstring _hitEffectName{};
+    Vec3 _hitEffectLocalOffset = Vec3::Zero;
+    Vec3 _hitEffectScale = Vec3::One;
 };
 
 NS_END

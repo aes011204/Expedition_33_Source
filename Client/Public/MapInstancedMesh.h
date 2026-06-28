@@ -59,7 +59,7 @@ public:
     virtual HRESULT RenderPickingID(uint32 id) override;
     HRESULT Render_Shadow() override;
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
-    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const override { return cascadeIndex <= _maxShadowCascade; }
+    virtual bool Allows_DynamicShadowCascade(uint32 cascadeIndex) const override;
     virtual uint32 Get_RenderHotspotInstanceCount() const override { return _instanceCount; }
     virtual wstring Get_RenderHotspotSourceModelPath() const override { return _modelPath; }
 
@@ -94,7 +94,7 @@ private:
     ComPtr<Buffer> _shadowVisibleStructured;
     ComPtr<UnorderedAccessView> _shadowVisibleUAV;
     ComPtr<Buffer> _shadowVisibleVB;
-    vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers;
+    vector<ComPtr<Buffer>> _shadowIndirectArgsBuffers[3];
 
     float _lod1Dist = 100.f;
     float _lod2Dist = 115.f;
@@ -115,8 +115,11 @@ private:
     HRESULT Bind_ShaderResources();
 
     HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
+    HRESULT CreateShadowIndirectArgsBuffers();
+    void ResetShadowIndirectArgsBuffers();
+    uint32 Resolve_ShadowLodIndex(uint32 cascadeIndex) const;
     void DispatchCull();
-    void DispatchShadowCull(uint32 cascadeIndex);
+    void DispatchShadowCull(uint32 cascadeIndex, uint32 shadowLod);
     static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
     void Refresh_HasGlow();
 

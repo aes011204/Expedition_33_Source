@@ -41,6 +41,9 @@ private:
     void    Apply_BossHp(float curHp, float maxHp, float timeDelta);
     void    Apply_BossBreak(float curBreak, float maxBreak);
     void    Apply_BossName(const wstring& name);
+    void    Update_BossDamageText(float timeDelta);
+    void    Apply_BossDamageText();
+    void    Clear_BossDamageText();
     void    Apply_SkillIcons(const Shared<SL_Maelle>& player);
     void    Apply_SkillCooldowns(const Shared<SL_Maelle>& player);
     void    Clear_SkillSlot(uint32 slotIndex);
@@ -66,7 +69,13 @@ private:
     Shared<UI_Image> _bossBreakGauge{};
     Shared<UI_Text>  _bossNameText{};
     Shared<UI_Text>  _bossNameBgText{};
+    Shared<UI_Text>  _bossDamageText{};
+    Shared<UI_Text>  _bossDamageBgText{};
     float            _bossHpDelayedRatio = 1.f;
+    float            _bossDamageTotal = 0.f;
+    float            _bossDamageIdleElapsed = 0.f;
+    float            _bossDamageFadeElapsed = 0.f;
+    bool             _bossDamageVisible = false;
 
     Shared<UI_Base> _staminaRoot{};
     Shared<UI_Base> _potionRoot{};

@@ -60,8 +60,10 @@ private:
     void Draw_InspectorPanel();
     void Render_SelectedObjectGizmo();
     void Render_GizmoOverlay();
+    bool Draw_PlayerBattleWeaponSelector(const Shared<GameObject>& rootObject);
     void Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
+    bool Draw_MonsterPatrolPointEditor(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattleSettings(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
@@ -80,6 +82,7 @@ private:
 
     void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
     void Draw_PreviewGrid() const;
+    void Draw_MonsterPatrolPointPreview() const;
     void Draw_MonsterBattleSpawnPreview() const;
     void Draw_SelectedWeaponTrailAnchorPreview() const;
     void Draw_SelectedWeaponSourceAnchorPreview() const;
@@ -89,6 +92,7 @@ private:
 
     void Open_PendingAnimationView();
     void Open_PendingAnimStateView();
+    uint32 Save_PlayerBattleWeaponTransforms() const;
     void Load_SelectedWeaponTrailAnchor(const string& modelGuid, const Shared<ModelCom>& modelCom);
     void Save_SelectedWeaponTrailAnchor() const;
     void Draw_SelectedWeaponSourceAnchorPanel(const Shared<GameObject>& weaponObject, const Shared<ModelCom>& modelCom);

@@ -5,6 +5,9 @@
 #include "GameplayUI_Battle.h"
 #include "GamePlayUI_SL.h"
 #include "GameplayUI_World.h"
+#include "IRuntimeUI_EditorTarget.h"
+#include "UI_Base.h"
+#include "UI_RuntimePanelBase.h"
 
 GameplayUI::~GameplayUI() = default;
 
@@ -35,6 +38,12 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
 void GameplayUI::Update(float timeDelta)
 {
     ++_runtimeUIEntryFrameSerial;
+
+    if (_isCinematicUIHidden)
+    {
+        Close_RuntimeUIForCinematic(); // 시네마틱 중 새로 열린 HUD/메뉴도 같은 프레임에 다시 숨긴다.
+        return;
+    }
 
     const GameplayUIInputMode currentInputMode = Resolve_InputMode();
 
@@ -196,6 +205,56 @@ GameplayMenu GameplayUI::Get_CurrentMenu() const
     return _worldUI->Get_CurrentMenu();
 }
 
+void GameplayUI::Set_CinematicUIHidden(bool hidden)
+{
+    if (_isCinematicUIHidden == hidden)
+        return;
+
+    _isCinematicUIHidden = hidden;
+
+    if (_isCinematicUIHidden)
+        Close_RuntimeUIForCinematic();
+}
+
+void GameplayUI::Close_RuntimeUIForCinematic()
+{
+    Refresh_RuntimeUIEntryCache();
+
+    const auto closeEntries = [](const vector<RuntimeUIEntry>& entries)
+    {
+        for (const RuntimeUIEntry& entry : entries)
+        {
+            if (entry.kind != RuntimeUIEntryKind::UI || entry.ui == nullptr)
+                continue;
+
+            if (entry.editorTarget != nullptr &&
+                entry.ui != entry.editorTarget->Get_EditorRootUI())
+            {
+                continue; // 루트 아래 자식 UI까지 닫으면 시네마틱 종료 후 루트만 다시 열려 HUD가 비어 보인다.
+            }
+
+            if (entry.ui->Is_Open())
+            {
+                if (entry.editorTarget != nullptr &&
+                    entry.ui == entry.editorTarget->Get_EditorRootUI())
+                {
+                    if (UI_RuntimePanelBase* panel = dynamic_cast<UI_RuntimePanelBase*>(entry.editorTarget))
+                    {
+                        panel->Close(); // 패널 Close를 타야 LockOn outline처럼 루트 밖 보조 UI까지 같이 닫힌다.
+                        continue;
+                    }
+                }
+
+                entry.ui->Close();
+            }
+        }
+    };
+
+    closeEntries(_runtimeUIEntryCache.worldEntries);
+    closeEntries(_runtimeUIEntryCache.battleEntries);
+    closeEntries(_runtimeUIEntryCache.soulLikeEntries);
+}
+
 GameplayUI::GameplayUIInputMode GameplayUI::Resolve_InputMode() const
 {
     if (CLIENT->Is_BattleEntering() || CLIENT->Is_BattleActive())
@@ -219,7 +278,9 @@ void GameplayUI::Handle_InputModeChanged(GameplayUIInputMode previousMode, Gamep
 
 void GameplayUI::Handle_EditorStopRuntime()
 {
+    _isCinematicUIHidden = false; // 시네마틱 중 F4/런타임 중단 시 UI 업데이트가 영구 차단되지 않게 복구한다.
     Invalidate_RuntimeUIEntryCache();
+    CLIENT->Clear_ReplayMonsterSnapshot();
 
     if (_worldUI)
     {

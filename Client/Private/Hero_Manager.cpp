@@ -49,6 +49,8 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
     _levelIndex = levelIndex;
     _layerTag = layerTag;
+    _startPos = startPos;
+    _startRot = startRot;
     _activeIndex = 0;
 
     for (uint32 i = 0; i < 3; ++i)
@@ -951,6 +953,35 @@ void Hero_Manager::Reset_AllHeroesToIdle()
         if (state)
             state->Change_State(PlayerState::Idle); // 전환/종료 시 월드 기본 상태로 돌린다.
     }
+}
+
+void Hero_Manager::Reset_RuntimeToStart()
+{
+    if (_heroes.empty())
+        return;
+
+    const uint32 fallbackIndex = Find_FirstUnlockedHeroIndex();
+    _activeIndex = (fallbackIndex != UINT_MAX) ? fallbackIndex : 0;
+
+    Apply_ControlRoles();
+    Reset_FollowerRuntime();
+    Reset_AllHeroesToIdle();
+
+    const Matrix startRotation = Matrix::CreateFromYawPitchRoll(
+        DirectX::XMConvertToRadians(_startRot.y),
+        DirectX::XMConvertToRadians(_startRot.x),
+        DirectX::XMConvertToRadians(_startRot.z));
+
+    Vec3 anchorForward = Vec3::TransformNormal(Vec3::Look, startRotation);
+    Vec3 anchorRight = Vec3::TransformNormal(Vec3::Right, startRotation);
+
+    Snap_AllHeroesToFormation(_startPos, _startRot, anchorForward, anchorRight);
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+
+    Refresh_TargetCamera();
 }
 
 void Hero_Manager::Handle_EditorStopRuntime()
