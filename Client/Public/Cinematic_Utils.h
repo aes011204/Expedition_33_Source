@@ -2,7 +2,30 @@
 #include "Cinematic_Types.h"
 #include "BattleCameraClipUtils.h"
 
-inline void Find_SurroundingKeyFrames(CINEMATIC_TRACK* cameraTrack, int currentFrame, CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight)
+inline float WrapCinematicDegrees180(float degrees)
+{
+    float wrapped = fmodf(degrees + 180.f, 360.f);
+    if (wrapped < 0.f)
+        wrapped += 360.f;
+
+    return wrapped - 180.f;
+}
+
+inline float LerpCinematicDegreesShortest(float fromDegrees, float toDegrees, float t)
+{
+    const float delta = WrapCinematicDegrees180(toDegrees - fromDegrees);
+    return WrapCinematicDegrees180(fromDegrees + delta * t);
+}
+
+inline Vec3 LerpCinematicRotationDegreesShortest(const Vec3& fromDegrees, const Vec3& toDegrees, float t)
+{
+    return Vec3(
+        LerpCinematicDegreesShortest(fromDegrees.x, toDegrees.x, t),
+        LerpCinematicDegreesShortest(fromDegrees.y, toDegrees.y, t),
+        LerpCinematicDegreesShortest(fromDegrees.z, toDegrees.z, t));
+}
+
+inline void Find_SurroundingKeyFrames(CINEMATIC_TRACK* cameraTrack, float currentFrame, CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight)
 {
     outLeft = nullptr;
     outRight = nullptr;
@@ -12,10 +35,10 @@ inline void Find_SurroundingKeyFrames(CINEMATIC_TRACK* cameraTrack, int currentF
 
     for (auto& keyframe : cameraTrack->keyframes)
     {
-        if (keyframe.frame <= currentFrame)
+        if (static_cast<float>(keyframe.frame) <= currentFrame)
             outLeft = &keyframe;
 
-        if (keyframe.frame >= currentFrame)
+        if (static_cast<float>(keyframe.frame) >= currentFrame)
         {
             outRight = &keyframe;
             break;
@@ -28,7 +51,7 @@ inline CAMERAPOSE Evaluate_LinearPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KE
     CAMERAPOSE camPose {};
 
     camPose.position = Vec3::Lerp(outLeft->camPose.position,outRight->camPose.position,t);
-    camPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation, t);
+    camPose.rotation = LerpCinematicRotationDegreesShortest(outLeft->camPose.rotation, outRight->camPose.rotation, t);
     camPose.fovY    = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, t);
     camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, t);
     camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, t);
@@ -55,8 +78,8 @@ inline CAMERAPOSE Evaluate_EaseInOutPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC
     CAMERAPOSE camPose {};
 
     float smoothT = Math::GetSmoothStepRatio(t);
-    camPose.position = Vec3::SmoothStep(outLeft->camPose.position, outRight->camPose.position,t);
-    camPose.rotation = Vec3::SmoothStep(outLeft->camPose.rotation, outRight->camPose.rotation,t);
+    camPose.position = Vec3::SmoothStep(outLeft->camPose.position, outRight->camPose.position, smoothT);
+    camPose.rotation = LerpCinematicRotationDegreesShortest(outLeft->camPose.rotation, outRight->camPose.rotation, smoothT);
     camPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, smoothT);
     camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, smoothT);
     camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, smoothT);
@@ -70,7 +93,7 @@ inline CAMERAPOSE Evaluate_EaseInPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KE
 
     float easeInT = t * t;
     camPose.position = Vec3::Lerp(outLeft->camPose.position, outRight->camPose.position,easeInT);
-    camPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation,easeInT);
+    camPose.rotation = LerpCinematicRotationDegreesShortest(outLeft->camPose.rotation, outRight->camPose.rotation, easeInT);
     camPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, easeInT);
     camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, easeInT);
     camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, easeInT);
@@ -84,7 +107,7 @@ inline CAMERAPOSE Evaluate_EaseOutPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_K
 
     float easeInT = 1.f - (1.f - t) * (1.f - t);
     camPose.position = Vec3::Lerp(outLeft->camPose.position, outRight->camPose.position,easeInT);
-    camPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation,easeInT);
+    camPose.rotation = LerpCinematicRotationDegreesShortest(outLeft->camPose.rotation, outRight->camPose.rotation, easeInT);
     camPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, easeInT);
     camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, easeInT);
     camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, easeInT);
@@ -92,9 +115,9 @@ inline CAMERAPOSE Evaluate_EaseOutPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_K
     return camPose;
 }
 
-inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int currentFrame, CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight)
+inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, float currentFrameExact, CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight)
 {
-    Find_SurroundingKeyFrames(cameraTrack, currentFrame, outLeft, outRight);
+    Find_SurroundingKeyFrames(cameraTrack, currentFrameExact, outLeft, outRight);
 
     CAMERAPOSE camPose {};
 
@@ -131,7 +154,7 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
         return camPose;
     }
 
-    float t = static_cast<float>(currentFrame - outLeft->frame) / static_cast<float>(outRight->frame - outLeft->frame);
+    float t = (currentFrameExact - static_cast<float>(outLeft->frame)) / static_cast<float>(outRight->frame - outLeft->frame);
 
     switch(outLeft->interpolation)
     {
@@ -156,7 +179,7 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
         const float easedT = Evaluate_BattleCameraClipInterpolation(outLeft->interpolation, t);
         CAMERAPOSE easedPose{};
         easedPose.position = Vec3::Lerp(outLeft->camPose.position, outRight->camPose.position, easedT);
-        easedPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation, easedT);
+        easedPose.rotation = LerpCinematicRotationDegreesShortest(outLeft->camPose.rotation, outRight->camPose.rotation, easedT);
         easedPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, easedT);
         easedPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, easedT);
         easedPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, easedT);
@@ -167,14 +190,14 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
     return camPose;
 }
 
-inline float Evaluate_CinematicSequenceTime(const CINEMATIC_SEQUENCE& sequence, int currentFrame)
+inline float Evaluate_CinematicSequenceTime(const CINEMATIC_SEQUENCE& sequence, float currentFrameExact)
 {
     const int fps = std::max(sequence.fps, 1);
-    const int relativeFrame = std::max(currentFrame - sequence.startFrame, 0);
-    return static_cast<float>(relativeFrame) / static_cast<float>(fps);
+    const float relativeFrame = std::max(currentFrameExact - static_cast<float>(sequence.startFrame), 0.f);
+    return relativeFrame / static_cast<float>(fps);
 }
 
-inline Client::CameraModifierSample Evaluate_CinematicModifierSample(const CINEMATIC_SEQUENCE& sequence, int currentFrame)
+inline Client::CameraModifierSample Evaluate_CinematicModifierSample(const CINEMATIC_SEQUENCE& sequence, float currentFrameExact)
 {
-    return Sample_CameraModifierClip(sequence.modifierClip, Evaluate_CinematicSequenceTime(sequence, currentFrame));
+    return Sample_CameraModifierClip(sequence.modifierClip, Evaluate_CinematicSequenceTime(sequence, currentFrameExact));
 }

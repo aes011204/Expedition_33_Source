@@ -649,6 +649,7 @@ void GameplayUI_World::Handle_ReplayAction(UI_Replay::Action action)
     switch (action)
     {
     case UI_Replay::Action::Replay:
+        CLIENT->Reset_LastDialogueNpcAnimationToStart();
         Close_AllMenus(true);
 
         if (!CLIENT->Request_CurrentLevelReplay())

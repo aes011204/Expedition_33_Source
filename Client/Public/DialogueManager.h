@@ -19,6 +19,7 @@ public:
     void EndDialogue(bool restoreWorldState = true);
     void MoveToLine(int lineIndex);
     void Update();
+    void Reset_LastDialogueNpcAnimationToStart();
     bool IsActive() const { return _isActive; }
     bool IsInteractLocked() const { return _waitInteractKeyRelease; }
 
@@ -28,6 +29,7 @@ private:
     void ApplyChoice();
     bool ExecuteLineAction(const string& action);
     const DialogueLine* GetCurrentLine();
+    void ApplyCurrentLineNpcVisualOffset(const DialogueLine& currentLine);
     void ApplyCurrentLine();
 
 private:

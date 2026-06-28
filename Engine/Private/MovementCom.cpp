@@ -99,6 +99,7 @@ HRESULT MovementCom::Initialize(void* arg)
     _isJumping = false;
     _didInputJumpStart = false;
     _jumpStartHorizontalVelocity = Vec3::Zero;
+    _suppressCCTTransformSync = false;
 
     return S_OK;
 }
@@ -222,7 +223,8 @@ void MovementCom::Move_ExternalDisplacement(const Vec3& displacement, float time
                 _characterController->Move(displacement, dt);
 
             const bool smoothGrounding = moveResult.collisionDown;
-            Sync_Transform_FromCCT(moveResult.footPosition, dt, smoothGrounding, false);
+            if (!_suppressCCTTransformSync)
+                Sync_Transform_FromCCT(moveResult.footPosition, dt, smoothGrounding, false);
 
             if (moveResult.collisionDown)
             {
@@ -554,7 +556,8 @@ void MovementCom::Apply_Velocity(float timeDelta)
             smoothGrounding &&
             horizontalVelocity.LengthSquared() <= kStillGroundJitterSpeedSq;
 
-        Sync_Transform_FromCCT(resolvedFootPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
+        if (!_suppressCCTTransformSync)
+            Sync_Transform_FromCCT(resolvedFootPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
 
         const bool hitWalkableDown = groundedAfterMove && _velocity.y <= 0.f;
         const bool canUseDetachGrace =

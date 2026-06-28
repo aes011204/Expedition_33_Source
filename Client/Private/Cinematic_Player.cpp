@@ -10,15 +10,15 @@ namespace
 {
 void Apply_CinematicModifier(
     const CINEMATIC_SEQUENCE* sequence,
-    int currentFrame,
+    float currentFrameExact,
     const Shared<CinematicCamera>& camera,
     CAMERAPOSE& inOutPose)
 {
     if (sequence == nullptr || camera == nullptr)
         return;
 
-    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(*sequence, currentFrame);
-    const float sequenceTime = Evaluate_CinematicSequenceTime(*sequence, currentFrame);
+    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(*sequence, currentFrameExact);
+    const float sequenceTime = Evaluate_CinematicSequenceTime(*sequence, currentFrameExact);
 
     camera->Apply_CinematicPose(inOutPose);
 
@@ -82,8 +82,8 @@ void Cinematic_Player:: Play()
     if (_sequence == nullptr || _cinematicTrack == nullptr || _cinematicCamera == nullptr)
         return;
 
-    CAMERAPOSE camPose = Evaluate_CinematicPose(_cinematicTrack, _currentFrame, _leftKey, _rightKey);
-    Apply_CinematicModifier(_sequence, _currentFrame, _cinematicCamera, camPose);
+    CAMERAPOSE camPose = Evaluate_CinematicPose(_cinematicTrack, _currentFrameExact, _leftKey, _rightKey);
+    Apply_CinematicModifier(_sequence, _currentFrameExact, _cinematicCamera, camPose);
     _cinematicCamera->Apply_CinematicPose(camPose);
 } 
 
@@ -118,6 +118,24 @@ void Cinematic_Player::Set_CurrentFrame(int frame, bool applyCamera)
 
     _currentFrame = std::clamp(frame, _sequence->startFrame, _sequence->endFrame);
     _currentFrameExact = static_cast<float>(_currentFrame);
+    if (applyCamera)
+        Play();
+}
+
+void Cinematic_Player::Set_CurrentFrameExact(float frameExact, bool applyCamera)
+{
+    if (_sequence == nullptr)
+        return;
+
+    _currentFrameExact = std::clamp(
+        frameExact,
+        static_cast<float>(_sequence->startFrame),
+        static_cast<float>(_sequence->endFrame));
+    _currentFrame = std::clamp(
+        static_cast<int>(std::floor(_currentFrameExact)),
+        _sequence->startFrame,
+        _sequence->endFrame);
+
     if (applyCamera)
         Play();
 }

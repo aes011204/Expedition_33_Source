@@ -24,10 +24,19 @@ HRESULT NPC_Base::Initialize_Prototype()
     return Character_WorldBase::Initialize_Prototype();
 }
 
+void NPC_Base::Register_CommonReflectionProperties(Engine::ClassReflectionInfo& info)
+{
+    info.properties.push_back(Engine::PropertyInfo{
+        "_defaultAnimationKey", "Default Animation", "_defaultAnimationKey",
+        Engine::PropertyType::String, offsetof(NPC_Base, _defaultAnimationKey) });
+}
+
 HRESULT NPC_Base::Initialize(void* arg)
 {
     CHECK_FAILED(Character_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
+    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+    Apply_DefaultAnimation();
 
     return S_OK;
 }
@@ -123,23 +132,25 @@ void NPC_Base::From_Json(const json& data)
         _colliderCom->Clear_Overlap();
     }
 
-    if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
-        return;
-
-    const json& customProperties = data["custom_properties"];
-    if (!customProperties.contains("patrol_points") || !customProperties["patrol_points"].is_array())
-        return;
-
-    for (const json& patrolPointNode : customProperties["patrol_points"])
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
     {
-        if (!patrolPointNode.is_array() || patrolPointNode.size() != 3)
-            continue;
+        const json& customProperties = data["custom_properties"];
+        if (customProperties.contains("patrol_points") && customProperties["patrol_points"].is_array())
+        {
+            for (const json& patrolPointNode : customProperties["patrol_points"])
+            {
+                if (!patrolPointNode.is_array() || patrolPointNode.size() != 3)
+                    continue;
 
-        _PatrolPoints.emplace_back(
-            patrolPointNode[0].get<float>(),
-            patrolPointNode[1].get<float>(),
-            patrolPointNode[2].get<float>());
+                _PatrolPoints.emplace_back(
+                    patrolPointNode[0].get<float>(),
+                    patrolPointNode[1].get<float>(),
+                    patrolPointNode[2].get<float>());
+            }
+        }
     }
+
+    Apply_DefaultAnimation();
 }
 
 void NPC_Base::On_EditorStopRuntime() 
@@ -181,6 +192,11 @@ void NPC_Base::Set_DialogueAnimation(const string& animationKey)
     bodyPart->Set_Animation(animationKey, 0.3f, true);
 }
 
+void NPC_Base::Apply_DefaultAnimation()
+{
+    Set_DialogueAnimation(_defaultAnimationKey);
+}
+
 string NPC_Base::Get_CurrentAnimationKey() const
 {
     auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
@@ -197,9 +213,56 @@ string NPC_Base::Get_CurrentAnimationKey() const
 
     return animationName;
 }
+
+void NPC_Base::Reset_ToDefaultAnimation()
+{
+    Apply_DefaultAnimation();
+}
+
+void NPC_Base::Set_DialogueVisualOffsetY(float offsetY)
+{
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (bodyPart == nullptr)
+        return;
+
+    Shared<TransformCom> bodyTransform = bodyPart->Get_Transform();
+    if (bodyTransform == nullptr)
+        return;
+
+    if (!_hasDialogueVisualBaseLocalPosition)
+    {
+        _dialogueVisualBaseLocalPosition = bodyTransform->Get_Position();
+        _hasDialogueVisualBaseLocalPosition = true;
+    }
+
+    Vec3 offsetPosition = _dialogueVisualBaseLocalPosition;
+    offsetPosition.y += offsetY;
+    bodyTransform->Set_Position(offsetPosition);
+}
+
+void NPC_Base::Reset_DialogueVisualOffset()
+{
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (bodyPart == nullptr)
+        return;
+
+    Shared<TransformCom> bodyTransform = bodyPart->Get_Transform();
+    if (bodyTransform == nullptr)
+        return;
+
+    if (!_hasDialogueVisualBaseLocalPosition)
+    {
+        _dialogueVisualBaseLocalPosition = bodyTransform->Get_Position();
+        _hasDialogueVisualBaseLocalPosition = true;
+    }
+
+    bodyTransform->Set_Position(_dialogueVisualBaseLocalPosition);
+}
+
 void NPC_Base::Restore_AfterBattleExit()
 {
     Set_Visible(true);
+    Reset_DialogueVisualOffset();
 
     if (_colliderCom)
     {
@@ -216,6 +279,11 @@ HRESULT NPC_Base::Ready_Components()
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::NPC_WorldBody), E_FAIL);
 
+    return S_OK;
+}
+
+HRESULT NPC_Base::Ready_PartObjects()
+{
     return S_OK;
 }
 

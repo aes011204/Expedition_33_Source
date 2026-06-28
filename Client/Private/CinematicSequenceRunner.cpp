@@ -19,6 +19,29 @@
 
 namespace
 {
+float WrapDegrees180(float degrees)
+{
+    float wrapped = fmodf(degrees + 180.f, 360.f);
+    if (wrapped < 0.f)
+        wrapped += 360.f;
+
+    return wrapped - 180.f;
+}
+
+float LerpDegreesShortest(float fromDegrees, float toDegrees, float t)
+{
+    const float delta = WrapDegrees180(toDegrees - fromDegrees);
+    return WrapDegrees180(fromDegrees + delta * t);
+}
+
+Vec3 LerpRotationDegreesShortest(const Vec3& fromDegrees, const Vec3& toDegrees, float t)
+{
+    return Vec3(
+        LerpDegreesShortest(fromDegrees.x, toDegrees.x, t),
+        LerpDegreesShortest(fromDegrees.y, toDegrees.y, t),
+        LerpDegreesShortest(fromDegrees.z, toDegrees.z, t));
+}
+
 Shared<ModelCom> Find_TargetModel(const Shared<GameObject>& actor)
 {
     if (actor == nullptr)
@@ -97,20 +120,20 @@ bool CinematicSequenceRunner::Resolve_CameraTrackSelection(
 
 bool CinematicSequenceRunner::Evaluate_ActorRelativeCameraTrack(
     const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track,
-    int currentFrame,
+    float currentFrameExact,
     CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME& outKeyframe) const
 {
     if (!track.enabled || track.keyframes.empty())
         return false;
 
     const auto& keyframes = track.keyframes;
-    if (currentFrame <= keyframes.front().frame)
+    if (currentFrameExact <= static_cast<float>(keyframes.front().frame))
     {
         outKeyframe = keyframes.front();
         return true;
     }
 
-    if (currentFrame >= keyframes.back().frame)
+    if (currentFrameExact >= static_cast<float>(keyframes.back().frame))
     {
         outKeyframe = keyframes.back();
         return true;
@@ -120,7 +143,8 @@ bool CinematicSequenceRunner::Evaluate_ActorRelativeCameraTrack(
     {
         const auto& left = keyframes[i];
         const auto& right = keyframes[i + 1];
-        if (currentFrame < left.frame || currentFrame > right.frame)
+        if (currentFrameExact < static_cast<float>(left.frame) ||
+            currentFrameExact > static_cast<float>(right.frame))
             continue;
 
         if (left.frame == right.frame)
@@ -129,9 +153,9 @@ bool CinematicSequenceRunner::Evaluate_ActorRelativeCameraTrack(
             return true;
         }
 
-        const float t = static_cast<float>(currentFrame - left.frame) /
+        const float t = (currentFrameExact - static_cast<float>(left.frame)) /
             static_cast<float>(right.frame - left.frame);
-        outKeyframe.frame = currentFrame;
+        outKeyframe.frame = static_cast<int>(std::floor(currentFrameExact));
         outKeyframe.distance = std::lerp(left.distance, right.distance, t);
         outKeyframe.height = std::lerp(left.height, right.height, t);
         outKeyframe.sideOffset = std::lerp(left.sideOffset, right.sideOffset, t);
@@ -150,7 +174,7 @@ bool CinematicSequenceRunner::Evaluate_ActorRelativeCameraTrack(
 
 bool CinematicSequenceRunner::Build_ActorRelativeCameraPose(
     const CINEMATIC_ACTOR_RELATIVE_CAMERA_TRACK& track,
-    int currentFrame,
+    float currentFrameExact,
     CAMERAPOSE& outPose) const
 {
     if (track.targetId.empty())
@@ -165,7 +189,7 @@ bool CinematicSequenceRunner::Build_ActorRelativeCameraPose(
         return false;
 
     CINEMATIC_ACTOR_RELATIVE_CAMERA_KEYFRAME sample{};
-    if (!Evaluate_ActorRelativeCameraTrack(track, currentFrame, sample))
+    if (!Evaluate_ActorRelativeCameraTrack(track, currentFrameExact, sample))
         return false;
 
     const Vec3 actorPos = transform->Get_WorldPosition();
@@ -201,7 +225,7 @@ bool CinematicSequenceRunner::Build_ActorRelativeCameraPose(
     return true;
 }
 
-void CinematicSequenceRunner::Apply_ActiveCameraTrackPose(int currentFrame)
+void CinematicSequenceRunner::Apply_ActiveCameraTrackPose(float currentFrameExact)
 {
     if (!_applyCameraTrack || _activeCinematicCamera == nullptr)
         return;
@@ -217,11 +241,11 @@ void CinematicSequenceRunner::Apply_ActiveCameraTrackPose(int currentFrame)
     }
 
     CAMERAPOSE camPose{};
-    if (!Build_ActorRelativeCameraPose(_sequence.actorRelativeCameraTracks[actorRelativeTrackIndex], currentFrame, camPose))
+    if (!Build_ActorRelativeCameraPose(_sequence.actorRelativeCameraTracks[actorRelativeTrackIndex], currentFrameExact, camPose))
         return;
 
-    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, currentFrame);
-    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, currentFrame);
+    const Client::CameraModifierSample modifierSample = Evaluate_CinematicModifierSample(_sequence, currentFrameExact);
+    const float sequenceTime = Evaluate_CinematicSequenceTime(_sequence, currentFrameExact);
 
     _activeCinematicCamera->Apply_CinematicPose(camPose);
     if (_activeCinematicCamera->Get_Transform() == nullptr)
@@ -290,11 +314,11 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyActorTransformTrack = applyActorTransformTrack;
 
     _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
-    Apply_ActiveCameraTrackPose(_sequence.startFrame);
+    Apply_ActiveCameraTrackPose(static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(_sequence.startFrame);
+        Apply_ActorTransformTracks(static_cast<float>(_sequence.startFrame));
     if (applyCameraTrack)
         _player->Play();
 
@@ -353,11 +377,11 @@ bool CinematicSequenceRunner::Play_Sequence(
     _applyActorTransformTrack = applyActorTransformTrack;
 
    _player->Ready_CinematicPlayer(&_sequence, cinematicTrack, cinematicCamera, true, applyCameraTrack);
-    Apply_ActiveCameraTrackPose(_sequence.startFrame);
+    Apply_ActiveCameraTrackPose(static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack)
         Execute_EventsUpToFrame(_sequence.startFrame, static_cast<float>(_sequence.startFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(_sequence.startFrame);
+        Apply_ActorTransformTracks(static_cast<float>(_sequence.startFrame));
     if (applyCameraTrack)
         _player->Play();
 
@@ -435,13 +459,13 @@ void CinematicSequenceRunner::Set_CurrentFrame(int frame)
     }
 
     _player->Set_CurrentFrame(targetFrame, _applyCameraTrack);
-    Apply_ActiveCameraTrackPose(targetFrame);
+    Apply_ActiveCameraTrackPose(static_cast<float>(targetFrame));
     if (_applyEventTrack)
         Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(targetFrame);
+        Apply_ActorTransformTracks(static_cast<float>(targetFrame));
     if (_applyEventTrack)
-        Apply_BoundActorAnimationPreview(targetFrame);
+        Apply_BoundActorAnimationPreview(static_cast<float>(targetFrame));
 }
 
 void CinematicSequenceRunner::Refresh_CurrentFrameContext()
@@ -457,13 +481,13 @@ void CinematicSequenceRunner::Refresh_CurrentFrameContext()
     _suspendActorTransformTrackPreview = suspendActorTransformTrackPreview;
 
     _player->Set_CurrentFrame(currentFrame, _applyCameraTrack);
-    Apply_ActiveCameraTrackPose(currentFrame);
+    Apply_ActiveCameraTrackPose(static_cast<float>(currentFrame));
     if (_applyEventTrack)
         Execute_EventsUpToFrame(currentFrame, static_cast<float>(currentFrame));
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(currentFrame);
+        Apply_ActorTransformTracks(static_cast<float>(currentFrame));
     if (_applyEventTrack)
-        Apply_BoundActorAnimationPreview(currentFrame);
+        Apply_BoundActorAnimationPreview(static_cast<float>(currentFrame));
 }
 
 void CinematicSequenceRunner::Preview_CurrentFrame(
@@ -497,16 +521,66 @@ void CinematicSequenceRunner::Preview_CurrentFrame(
     }
 
     _player->Set_CurrentFrame(targetFrame, applyCameraTrack);
-    Apply_ActiveCameraTrackPose(targetFrame);
+    Apply_ActiveCameraTrackPose(static_cast<float>(targetFrame));
 
     if (applyEventTrack)
         Execute_EventsUpToFrame(targetFrame, static_cast<float>(targetFrame));
 
     if (applyEventTrack && applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(targetFrame);
+        Apply_ActorTransformTracks(static_cast<float>(targetFrame));
 
     if (applyEventTrack)
-        Apply_BoundActorAnimationPreview(targetFrame);
+        Apply_BoundActorAnimationPreview(static_cast<float>(targetFrame));
+}
+
+void CinematicSequenceRunner::Preview_CurrentFrameExact(
+    float frameExact,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack,
+    bool forceRebuildContext)
+{
+    if (_player == nullptr || !_player->Is_CinematicPlaying())
+        return;
+
+    const float targetFrameExact = std::clamp(
+        frameExact,
+        static_cast<float>(_sequence.startFrame),
+        static_cast<float>(_sequence.endFrame));
+    const int targetFrame = std::clamp(
+        static_cast<int>(std::floor(targetFrameExact)),
+        _sequence.startFrame,
+        _sequence.endFrame);
+    const float previousFrameExact = _player->Get_CurrentFrameExact();
+    const bool suspendActorTransformTrackPreview = _suspendActorTransformTrackPreview;
+    const bool requiresContextRebuild =
+        forceRebuildContext ||
+        targetFrameExact + 0.0001f < previousFrameExact ||
+        _applyEventTrack != applyEventTrack ||
+        _applyActorTransformTrack != applyActorTransformTrack;
+
+    _applyCameraTrack = applyCameraTrack;
+    _applyEventTrack = applyEventTrack;
+    _applyActorTransformTrack = applyActorTransformTrack;
+
+    if (requiresContextRebuild)
+    {
+        Cleanup_Context(true);
+        _nextEventIndex = 0;
+        _suspendActorTransformTrackPreview = suspendActorTransformTrackPreview;
+    }
+
+    _player->Set_CurrentFrameExact(targetFrameExact, applyCameraTrack);
+    Apply_ActiveCameraTrackPose(targetFrameExact);
+
+    if (applyEventTrack)
+        Execute_EventsUpToFrame(targetFrame, targetFrameExact);
+
+    if (applyEventTrack && applyActorTransformTrack && !_suspendActorTransformTrackPreview)
+        Apply_ActorTransformTracks(targetFrameExact);
+
+    if (applyEventTrack)
+        Apply_BoundActorAnimationPreview(targetFrameExact);
 }
 
 bool CinematicSequenceRunner::Sync_PreviewSequence(
@@ -537,7 +611,7 @@ void CinematicSequenceRunner::Set_ActorTransformTrackPreviewSuspended(bool suspe
     _suspendActorTransformTrackPreview = suspended;
 
     if (!_suspendActorTransformTrackPreview && _player != nullptr && _player->Is_CinematicPlaying())
-        Apply_ActorTransformTracks(_player->Get_CurrentFrame());
+        Apply_ActorTransformTracks(_player->Get_CurrentFrameExact());
 }
 
 void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsManually)
@@ -550,7 +624,7 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
         return;
 
     _player->Update(timeDelta);
-    Apply_ActiveCameraTrackPose(_player->Get_CurrentFrame());
+    Apply_ActiveCameraTrackPose(_player->Get_CurrentFrameExact());
 
     const int currentFrame = _player->Get_CurrentFrame();
     const float currentFrameExact = _player->Get_CurrentFrameExact();
@@ -559,7 +633,7 @@ void CinematicSequenceRunner::Update(float timeDelta, bool tickBoundAnimationsMa
     if (_applyEventTrack)
         Execute_EventsUpToFrame(currentFrame, currentFrameExact);
     if (_applyEventTrack && _applyActorTransformTrack && !_suspendActorTransformTrackPreview)
-        Apply_ActorTransformTracks(currentFrame);
+        Apply_ActorTransformTracks(currentFrameExact);
 
     if (tickBoundAnimationsManually && isPlayingAfterUpdate && !_player->Is_CinematicPaused())
         Update_BoundActorAnimations(timeDelta);
@@ -594,6 +668,14 @@ int CinematicSequenceRunner::Get_CurrentFrame() const
         return _sequence.startFrame;
 
     return _player->Get_CurrentFrame();
+}
+
+float CinematicSequenceRunner::Get_CurrentFrameExact() const
+{
+    if (_player == nullptr)
+        return static_cast<float>(_sequence.startFrame);
+
+    return _player->Get_CurrentFrameExact();
 }
 
 Shared<GameObject> CinematicSequenceRunner::Get_BoundActor(const string& targetId) const
@@ -883,7 +965,7 @@ bool CinematicSequenceRunner::Execute_PartVisibilityEvent(
     return true;
 }
 
-void CinematicSequenceRunner::Apply_ActorTransformTracks(int currentFrame)
+void CinematicSequenceRunner::Apply_ActorTransformTracks(float currentFrameExact)
 {
     for (const auto& track : _sequence.actorTransformTracks)
     {
@@ -900,7 +982,7 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(int currentFrame)
 
         Vec3 position = Vec3::Zero;
         Vec3 rotation = Vec3::Zero;
-        if (!Evaluate_ActorTransformTrack(track, currentFrame, position, rotation))
+        if (!Evaluate_ActorTransformTrack(track, currentFrameExact, position, rotation))
             continue;
 
         transform->Set_WorldPosition(position);
@@ -910,7 +992,7 @@ void CinematicSequenceRunner::Apply_ActorTransformTracks(int currentFrame)
 
 bool CinematicSequenceRunner::Evaluate_ActorTransformTrack(
     const CINEMATIC_ACTOR_TRANSFORM_TRACK& track,
-    int currentFrame,
+    float currentFrameExact,
     Vec3& outPosition,
     Vec3& outRotation) const
 {
@@ -918,14 +1000,14 @@ bool CinematicSequenceRunner::Evaluate_ActorTransformTrack(
         return false;
 
     const auto& keyframes = track.keyframes;
-    if (currentFrame <= keyframes.front().frame)
+    if (currentFrameExact <= static_cast<float>(keyframes.front().frame))
     {
         outPosition = keyframes.front().position;
         outRotation = keyframes.front().rotation;
         return true;
     }
 
-    if (currentFrame >= keyframes.back().frame)
+    if (currentFrameExact >= static_cast<float>(keyframes.back().frame))
     {
         outPosition = keyframes.back().position;
         outRotation = keyframes.back().rotation;
@@ -936,7 +1018,8 @@ bool CinematicSequenceRunner::Evaluate_ActorTransformTrack(
     {
         const auto& left = keyframes[i];
         const auto& right = keyframes[i + 1];
-        if (currentFrame < left.frame || currentFrame > right.frame)
+        if (currentFrameExact < static_cast<float>(left.frame) ||
+            currentFrameExact > static_cast<float>(right.frame))
             continue;
 
         if (left.frame == right.frame)
@@ -946,17 +1029,17 @@ bool CinematicSequenceRunner::Evaluate_ActorTransformTrack(
             return true;
         }
 
-        const float t = static_cast<float>(currentFrame - left.frame) /
+        const float t = (currentFrameExact - static_cast<float>(left.frame)) /
             static_cast<float>(right.frame - left.frame);
         outPosition = Vec3::Lerp(left.position, right.position, t);
-        outRotation = Vec3::Lerp(left.rotation, right.rotation, t);
+        outRotation = LerpRotationDegreesShortest(left.rotation, right.rotation, t);
         return true;
     }
 
     return false;
 }
 
-void CinematicSequenceRunner::Apply_BoundActorAnimationPreview(int currentFrame)
+void CinematicSequenceRunner::Apply_BoundActorAnimationPreview(float currentFrameExact)
 {
     const float sequenceFps = static_cast<float>(std::max(_sequence.fps, 1));
 
@@ -971,8 +1054,8 @@ void CinematicSequenceRunner::Apply_BoundActorAnimationPreview(int currentFrame)
         if (model == nullptr)
             continue;
 
-        const float elapsedSec =
-            static_cast<float>(std::max(currentFrame - state.activePlayAnimEventFrame, 0)) / sequenceFps;
+        const float elapsedFrame = std::max(currentFrameExact - static_cast<float>(state.activePlayAnimEventFrame), 0.f);
+        const float elapsedSec = elapsedFrame / sequenceFps;
 
         if (state.activePlayAnim.blendDuration > 0.f)
             model->Set_Animation(
@@ -1019,7 +1102,7 @@ void CinematicSequenceRunner::Update_BoundActorAnimations(float timeDelta)
     {
         UNREFERENCED_PARAMETER(targetId);
 
-        if (state.actor == nullptr)
+        if (!state.hasActivePlayAnim || state.actor == nullptr)
             continue;
 
         Shared<ModelCom> model = Find_TargetModel(state.actor);

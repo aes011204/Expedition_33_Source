@@ -130,6 +130,8 @@ private:
     int                                  _selectedActorTransformTrackIndex = -1;
     int                                  _selectedActorTransformKeyIndex = -1;
     int                                  _currentFrame = 0;
+    float                                _currentFrameExact = 0.f;
+    bool                                 _useExactFramePreview = false;
     bool                                 _requestOpenSelectedKeyPopup = false;
     bool                                 _requestOpenInsertKeyPopup = false;
     bool                                 _requestRemoveKeyPopup = false;

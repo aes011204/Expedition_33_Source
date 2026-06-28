@@ -27,6 +27,7 @@ public:
 public:
     void    On_EditorStopRuntime();
     void    BuildDialogueRequest(const string& npcPrefabName);
+    static void Register_CommonReflectionProperties(Engine::ClassReflectionInfo& info);
 
     bool Is_CinematicDriven() const { return _isCinematicDriven; }
 
@@ -35,12 +36,17 @@ public:
     const vector<Vec3>& Get_EffectivePatrolPoints();
     void Set_DialogueAnimation(const string& animationKey);
     string Get_CurrentAnimationKey() const;
+    void Reset_ToDefaultAnimation();
+    void Set_DialogueVisualOffsetY(float offsetY);
+    void Reset_DialogueVisualOffset();
 
-    // 전투 도주 시, 몬스터 복구
+    // Restore monster state after battle exit.
     void   Restore_AfterBattleExit();
 
 protected:
     virtual HRESULT Ready_Components();
+    virtual HRESULT Ready_PartObjects();
+    void Apply_DefaultAnimation();
 
 private:
     void Build_DefaultPatrolPoints();
@@ -54,8 +60,11 @@ protected:
     bool _isCinematicDriven = false;
 
 
-    // 기본 월드 몬스터 root motion -> 이동 속도 환산값
+    // Converts world-monster root motion into movement speed.
     float _worldMoveSpeedScale = 0.4f;
+    string _defaultAnimationKey = {};
+    Vec3 _dialogueVisualBaseLocalPosition = Vec3::Zero;
+    bool _hasDialogueVisualBaseLocalPosition = false;
     Shared<Trigger_Interaction> _sharedTrigger = {};
 public:
     void Free() override;

@@ -1041,7 +1041,8 @@ void Content_Browser::Draw_CreatePrefabPopup()
         const fs::path targetPath =
             fs::path(_createPrefabTargetFolder) / (String::ToWString(prefabName) + L".prefab.json");
 
-        if (SUCCEEDED(GAME->Create_PrefabAsset(targetPath, _selectedPrefabClass, prefabName)))
+        const HRESULT hr = GAME->Create_PrefabAsset(targetPath, _selectedPrefabClass, prefabName);
+        if (SUCCEEDED(hr))
         {
             Refresh_Resources();
 
@@ -1050,6 +1051,18 @@ void Content_Browser::Draw_CreatePrefabPopup()
                 _currentFolder = found;
 
             ImGui::CloseCurrentPopup();
+        }
+        else
+        {
+            const string targetPathString = String::ToString(targetPath.wstring());
+            const wstring message =
+                L"Failed to create prefab:\n" +
+                String::ToWString(prefabName) +
+                L"\n\nPath:\n" +
+                targetPath.wstring();
+            LOG_ERROR("Create Prefab popup failed. class='{}', prefabName='{}', targetPath='{}', hr=0x{:08X}",
+                _selectedPrefabClass.c_str(), prefabName.c_str(), targetPathString.c_str(), static_cast<uint32>(hr));
+            MessageBoxW(nullptr, message.c_str(), L"Create Prefab Failed", MB_OK | MB_ICONERROR);
         }
     }
     ImGui::EndDisabled();

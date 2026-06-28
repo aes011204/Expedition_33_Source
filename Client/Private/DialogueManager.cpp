@@ -114,7 +114,16 @@ void DialogueManager::ContinueDialogue()
 
 void DialogueManager::EndDialogue(bool restoreWorldState)
 {
-    LOG_INFO("========��ȭ ����========");
+    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject) )
+    {
+        npc->Reset_DialogueVisualOffset();
+
+        if(_currentDialogueData->restoreToStartAnimation == true)
+        {
+            if (!_startAnimationKey.empty())
+                npc->Set_DialogueAnimation(_startAnimationKey);
+        }
+    }
 
     _currentDialogueKey.clear();
     _currentDialogueData = nullptr;
@@ -125,14 +134,7 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
     _waitInteractKeyRelease = true;
     CLIENT->Set_DialogueFocusActive(false);
 
-    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
-    {
-        if (!_startAnimationKey.empty())
-            npc->Set_DialogueAnimation(_startAnimationKey);
-    }
-
     _lastAnimationKey.clear();
-    _startAnimationKey.clear();
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 
@@ -297,6 +299,22 @@ void DialogueManager::ApplyChoice()
     MoveToLine(choice.nextLineIndex);
 }
 
+void DialogueManager::Reset_LastDialogueNpcAnimationToStart()
+{
+    auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject);
+    if (npc == nullptr)
+        return;
+
+    npc->Reset_DialogueVisualOffset();
+
+    if (!_startAnimationKey.empty())
+        npc->Set_DialogueAnimation(_startAnimationKey);
+    else
+        npc->Reset_ToDefaultAnimation();
+
+    _lastAnimationKey.clear();
+}
+
 bool DialogueManager::ExecuteLineAction(const string& action)
 {
     if (action.empty())
@@ -323,6 +341,18 @@ const DialogueLine* DialogueManager::GetCurrentLine()
         return nullptr;
 
     return &_currentDialogueData->lines[_currentLineIndex];
+}
+
+void DialogueManager::ApplyCurrentLineNpcVisualOffset(const DialogueLine& currentLine)
+{
+    auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject);
+    if (npc == nullptr)
+        return;
+
+    if (currentLine.speakerRole == DialogueActorRole::Npc)
+        npc->Set_DialogueVisualOffsetY(currentLine.speakerOffsetY);
+    else
+        npc->Reset_DialogueVisualOffset();
 }
 
 void DialogueManager::MoveToLine(int lineIndex)
@@ -368,6 +398,8 @@ void DialogueManager::ApplyCurrentLine()
         speakerObject = _dialoguePlayerObject;
         listenerObject = _dialogueNpcObject;
     }
+
+    ApplyCurrentLineNpcVisualOffset(*currentLine);
 
     if (!currentLine->speakerAnimationKey.empty() &&
         _lastAnimationKey != currentLine->speakerAnimationKey)

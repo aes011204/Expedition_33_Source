@@ -1082,6 +1082,24 @@ void ClientInstance::Preview_CurrentSequenceFrame(
         forceRebuildContext);
 }
 
+void ClientInstance::Preview_CurrentSequenceFrameExact(
+    float frameExact,
+    bool applyCameraTrack,
+    bool applyEventTrack,
+    bool applyActorTransformTrack,
+    bool forceRebuildContext)
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return;
+
+    _cinematicSequenceRunner->Preview_CurrentFrameExact(
+        frameExact,
+        applyCameraTrack,
+        applyEventTrack,
+        applyActorTransformTrack,
+        forceRebuildContext);
+}
+
 bool ClientInstance::Sync_CinematicPreviewSequence(
     const CINEMATIC_SEQUENCE& sequence,
     int trackIndex)
@@ -1116,6 +1134,14 @@ int ClientInstance::Get_CurrentSequenceFrame() const
         return 0;
 
     return _cinematicSequenceRunner->Get_CurrentFrame();
+}
+
+float ClientInstance::Get_CurrentSequenceFrameExact() const
+{
+    if (_cinematicSequenceRunner == nullptr)
+        return 0.f;
+
+    return _cinematicSequenceRunner->Get_CurrentFrameExact();
 }
 
 Shared<GameObject> ClientInstance::Get_CinematicBoundActor(const string& targetId) const
@@ -1483,6 +1509,14 @@ void ClientInstance::EndDialogue(bool restoreWorldState)
 {
     if (_dialogueManager && _dialogueManager->IsActive())
         _dialogueManager->EndDialogue(restoreWorldState);
+}
+
+void ClientInstance::Reset_LastDialogueNpcAnimationToStart()
+{
+    if (_dialogueManager == nullptr)
+        return;
+
+    _dialogueManager->Reset_LastDialogueNpcAnimationToStart();
 }
 
 bool ClientInstance::IsDialogueActive() const
