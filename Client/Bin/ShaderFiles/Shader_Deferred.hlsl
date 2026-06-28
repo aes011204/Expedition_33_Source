@@ -124,8 +124,12 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     // 픽셀에 도달하는 빛의 색/세기
     float3 radiance = g_LightDiffuse.rgb;
 
-    Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
-    Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
+    float pointLightWrap = saturate(NdotL * 0.5f + 0.5f);
+    Out.Shade = float4(diffuseBRDF * radiance * pointLightWrap, 1.f);
+    Out.Specular = float4(specularBRDF * radiance * pointLightWrap, 1.f);
+
+    //Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
+    //Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
 
     return Out;
@@ -191,6 +195,8 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 
     float3 radiance = g_LightDiffuse.rgb * att;
 
+    NdotL = max(NdotL, 0.25f);
+
     Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
     Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
     Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
@@ -201,41 +207,103 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 PS_OUT_BACKBUFFER PS_POINT_GLOW_SOURCE(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-    Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+    Out.Color = float4(0.f, 0.f, 0.f, 0.f);
 
     if (g_LightRange <= EPSILON)
         return Out;
 
-    float4 lightViewPos = mul(float4(g_LightPos.xyz, 1.f), g_ScreenViewMatrix);
-    float4 lightClipPos = mul(lightViewPos, g_ScreenProjMatrix);
-    if (lightClipPos.w <= EPSILON)
+    static const float POINT_GLOW_INTENSITY = 6.f;
+    static const float POINT_GLOW_RADIUS_SCALE = 2.5f;
+    static const float POINT_GLOW_MIN_RADIUS_PIXELS = 96.f;
+    static const float POINT_GLOW_EDGE_POWER = 4.f;
+    static const float POINT_GLOW_CORE_POWER = 12.f;
+    static const float POINT_GLOW_CORE_WEIGHT = 0.75f;
+
+    float4 lightViewPos = mul(float4(g_LightPos.xyz, 1.f), g_ViewMatrix);
+
+    // 카메라 뒤쪽에 완전히 있는 점조명만 제거
+    if (lightViewPos.z <= EPSILON)
         return Out;
 
-    float lightClipDepth = lightClipPos.z / lightClipPos.w;
-    if (lightClipDepth < 0.f || lightClipDepth > 1.f)
+    float4 lightClipPos = mul(lightViewPos, g_ProjMatrix);
+    if (abs(lightClipPos.w) <= EPSILON)
         return Out;
 
     float2 lightNDC = lightClipPos.xy / lightClipPos.w;
-    float2 lightUV = float2(lightNDC.x * 0.5f + 0.5f, -lightNDC.y * 0.5f + 0.5f);
-    if (any(lightUV < 0.f) || any(lightUV > 1.f))
+    float2 lightUV = float2(
+        lightNDC.x * 0.5f + 0.5f,
+       -lightNDC.y * 0.5f + 0.5f
+    );
+
+    float lightDepth = max(lightViewPos.z, 1.f);
+
+    float radiusPixels = (g_LightRange * POINT_GLOW_RADIUS_SCALE / lightDepth) * g_ProjMatrix._22 * g_ScreenSize.y * 0.5f;
+
+    radiusPixels = clamp(
+        radiusPixels,
+        POINT_GLOW_MIN_RADIUS_PIXELS,
+        max(g_ScreenSize.x, g_ScreenSize.y) * 1.25f
+    );
+
+    // 중심이 화면 밖이어도 원이 화면에 걸치면 그릴 수 있게 확장 판정
+    float2 radiusUV = radiusPixels / g_ScreenSize;
+    if (lightUV.x < -radiusUV.x || lightUV.x > 1.f + radiusUV.x ||
+        lightUV.y < -radiusUV.y || lightUV.y > 1.f + radiusUV.y)
+    {
+        return Out;
+    }
+
+    float4 rayClip = float4(In.Texcoord.x * 2.f - 1.f, In.Texcoord.y * -2.f + 1.f, 1.f, 1.f);
+    float4 rayView = mul(rayClip, g_DeferredProjMatrixInverse);
+    rayView.xyz /= max(rayView.w, EPSILON);
+
+    float3 rayWorld = mul(float4(rayView.xyz, 0.f), g_DeferredViewMatrixInverse).xyz;
+    float3 rayDir = normalize(rayWorld);
+
+    float3 cameraToLight = g_DeferredCamPosition.xyz - g_LightPos.xyz;
+    float b = dot(cameraToLight, rayDir);
+    float c = dot(cameraToLight, cameraToLight) - g_LightRange * g_LightRange;
+    float discriminant = b * b - c;
+    if (discriminant <= 0.f)
         return Out;
 
-    float viewDepth = max(abs(lightViewPos.z), 1.f);
-    float radiusPixels = (g_LightRange / viewDepth) * g_ScreenProjMatrix._22 * g_ScreenSize.y * 0.5f;
-    radiusPixels = clamp(radiusPixels, 24.f, max(g_ScreenSize.x, g_ScreenSize.y) * 1.25f);
+    float sqrtDiscriminant = sqrt(discriminant);
+    float enterDistance = max(-b - sqrtDiscriminant, 0.f);
+    float exitDistance = -b + sqrtDiscriminant;
+    if (exitDistance <= enterDistance)
+        return Out;
 
-    float distPixels = length((In.Texcoord - lightUV) * g_ScreenSize);
-    float glow = saturate(1.f - distPixels / radiusPixels);
-    glow = glow * glow * (3.f - 2.f * glow);
-    glow *= glow;
+    float sceneViewDepth01 = g_DepthTexture.Sample(PointClampSampler, In.Texcoord).y;
+    float maxRayDistance = g_DeferredFar;
+    if (sceneViewDepth01 > EPSILON)
+    {
+        float3 sceneWorldPos = Reconstruct_WorldPos(In.Texcoord).xyz;
+        maxRayDistance = length(sceneWorldPos - g_DeferredCamPosition.xyz);
+    }
 
-    float sceneLinearDepth = g_DepthTexture.Sample(PointClampSampler, In.Texcoord).y * g_DeferredFar;
-    float occlusion = (sceneLinearDepth > EPSILON && sceneLinearDepth < viewDepth - 0.25f) ? 0.f : 1.f;
-    glow *= occlusion;
+    exitDistance = min(exitDistance, maxRayDistance);
+    if (exitDistance <= enterDistance)
+        return Out;
 
-    static const float POINT_GLOW_DEBUG_INTENSITY = 5.f;
-    Out.Color = float4(g_LightDiffuse.rgb * glow * POINT_GLOW_DEBUG_INTENSITY, 1.f);
-    Out.Color = float4(1, 0, 0, 1);
+    float rayLength = exitDistance - enterDistance;
+    float rayLength01 = saturate(rayLength / max(g_LightRange * 2.f, EPSILON));
+
+    float closestDistance = sqrt(max(dot(cameraToLight, cameraToLight) - b * b, 0.f));
+    float radial = saturate(closestDistance / g_LightRange);
+    float falloff = saturate(1.f - radial);
+    float glow = rayLength01 * (pow(falloff, POINT_GLOW_EDGE_POWER) + pow(falloff, POINT_GLOW_CORE_POWER) * POINT_GLOW_CORE_WEIGHT);
+
+    if (glow <= EPSILON)
+        return Out;
+
+    float lightDepth01 = saturate(lightDepth / max(g_DeferredFar, EPSILON));
+
+    // RGB: 원형 glow 색
+    // A: 합성 단계에서 depth compare할 light depth
+    Out.Color = float4(
+        g_LightDiffuse.rgb * glow * POINT_GLOW_INTENSITY,
+        lightDepth01
+    );
 
     return Out;
 }
