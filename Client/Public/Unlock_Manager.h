@@ -74,7 +74,7 @@ public:
     json Create_SaveJson() const;
 
     // 체크포인트 복원 시에는 완료 상태만 되살리고, 포탈같은건 worldObjects 쪽으로
-    bool Apply_SaveJson(const json& data, bool replayWorldRewards);
+    bool Apply_SaveJson(const json& data, bool replayWorldRewards, bool queuePresentation = true);
 
 private:
     void Register_DefaultRules();

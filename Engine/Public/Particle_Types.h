@@ -468,6 +468,9 @@ struct PointParticleSpawnDesc
     Vec2 burstScaleRange{ 1.f, 1.f };                        // burst 실행 시점에 seed 기반으로 샘플할 burst scale 범위다.
     PointParticleRandomSeedRuntimeDesc burstScaleSeed{};     // BurstScale random sample seed salt다.
     uint32 maxActiveCount{ 64u };                            // 동시에 살아 있을 수 있는 particle 상한이다.
+    PointParticleFloatCurveRuntimeDesc spawnRateCurve{};      // SpawnRate ConstantCurve를 loop phase 기준으로 평가하는 payload다.
+    PointParticleFloatCurveRuntimeDesc spawnRateScaleCurve{}; // SpawnRateScale ConstantCurve를 loop phase 기준으로 평가하는 payload다.
+    PointParticleFloatCurveRuntimeDesc burstScaleCurve{};     // BurstScale ConstantCurve를 burst time phase 기준으로 평가하는 payload다.
 };
 
 // InitialLocation 모듈이 만든 생성 시점 위치 offset 분포다.

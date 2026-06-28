@@ -52,7 +52,7 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     if (_uiDialogue == nullptr)
         return;
 
-    LOG_INFO("========대화 시작========");
+    LOG_INFO("========��ȭ ����========");
 
     _currentDialogueKey = request.dialogueKey;
     _currentDialogueData = dialogueData;
@@ -64,6 +64,11 @@ void DialogueManager::StartDialogue(const DialogueRequest& request)
     _dialogueNpcObject = request.speaker;
     _dialoguePlayerObject = static_pointer_cast<GameObject>(CLIENT->Get_ActiveHero());
     CLIENT->Set_DialogueFocusActive(true);
+
+    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
+        _startAnimationKey = npc->Get_CurrentAnimationKey();
+    else
+        _startAnimationKey.clear();
 
     AlignDialogueActors();
 
@@ -109,7 +114,7 @@ void DialogueManager::ContinueDialogue()
 
 void DialogueManager::EndDialogue(bool restoreWorldState)
 {
-    LOG_INFO("========대화 종료========");
+    LOG_INFO("========��ȭ ����========");
 
     _currentDialogueKey.clear();
     _currentDialogueData = nullptr;
@@ -120,8 +125,16 @@ void DialogueManager::EndDialogue(bool restoreWorldState)
     _waitInteractKeyRelease = true;
     CLIENT->Set_DialogueFocusActive(false);
 
-    if (restoreWorldState)
-        GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
+    if (auto npc = dynamic_pointer_cast<NPC_Base>(_dialogueNpcObject))
+    {
+        if (!_startAnimationKey.empty())
+            npc->Set_DialogueAnimation(_startAnimationKey);
+    }
+
+    _lastAnimationKey.clear();
+    _startAnimationKey.clear();
+
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 
     if (restoreWorldState)
         CLIENT->Restore_PreviousCamera();
@@ -273,6 +286,13 @@ void DialogueManager::ApplyChoice()
         EndDialogue();
         return;
     }
+    
+    if (choice.action == "OpenForge")
+    {
+        LOG_INFO("OpenForge");
+        EndDialogue();
+        return;
+    }
 
     MoveToLine(choice.nextLineIndex);
 }
@@ -349,6 +369,16 @@ void DialogueManager::ApplyCurrentLine()
         listenerObject = _dialogueNpcObject;
     }
 
+    if (!currentLine->speakerAnimationKey.empty() &&
+        _lastAnimationKey != currentLine->speakerAnimationKey)
+    {
+        if (auto npc = dynamic_pointer_cast<NPC_Base>(speakerObject))
+        {
+            npc->Set_DialogueAnimation(currentLine->speakerAnimationKey);
+            _lastAnimationKey = currentLine->speakerAnimationKey;
+        }
+    }
+
     if (speakerObject != nullptr && listenerObject != nullptr)
     {
         Shared<DialogueCamera> dialogueCamera =
@@ -401,3 +431,5 @@ void DialogueManager::Free()
 
     Base::Free();
 }
+
+

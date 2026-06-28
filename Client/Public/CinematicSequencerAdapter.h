@@ -14,6 +14,8 @@ public:
         int* selectedTrackIndex,
         int* selectedKeyIndex,
         int* selectedEventIndex,
+        int* selectedActorRelativeTrackIndex,
+        int* selectedActorRelativeKeyIndex,
         int* selectedActorTransformTrackIndex,
         int* selectedActorTransformKeyIndex,
         int* currentFrame,
@@ -43,6 +45,8 @@ private:
     int* _selectedTrackIndex = nullptr;
     int* _selectedKeyIndex = nullptr;
     int* _selectedEventIndex = nullptr;
+    int* _selectedActorRelativeTrackIndex = nullptr;
+    int* _selectedActorRelativeKeyIndex = nullptr;
     int* _selectedActorTransformTrackIndex = nullptr;
     int* _selectedActorTransformKeyIndex = nullptr;
     int* _currentFrame = nullptr;

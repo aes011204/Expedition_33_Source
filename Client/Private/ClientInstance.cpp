@@ -40,14 +40,20 @@
 #include "DialogueCamera.h"
 #include "BattleFollowupManager.h"
 #include "Client_Constants.h"
+#include "Monster_WorldBase.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
 namespace
 {
+    bool g_debugDisableDynamicShadowRenderPass = false;
     bool g_debugDisableMapInstancedMeshRender = false;
     bool g_debugDisableGrassInstancedRender = false;
     bool g_debugDisableMapStaticMeshRender = false;
+    bool g_debugDisableMapInstancedMeshShadow = false;
+    bool g_debugUseMapInstancedMeshShadowLOD = false;
+    bool g_debugDisableGrassInstancedShadow = false;
+    bool g_debugDisableMapStaticMeshShadow = false;
 
     string Get_WeaponCharacterId(HeroId heroId)
     {
@@ -220,11 +226,8 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
 
 void ClientInstance::Update_Client(float timeDelta)
 {
-    if (_screenFadeTransition)
-        _screenFadeTransition->Update(timeDelta);
-
-    if (_levelTransitionFade)
-        _levelTransitionFade->Update(timeDelta);
+    Update_FadeTransitions(timeDelta);
+    Capture_ReplayMonsterSnapshotIfNeeded();
 
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
@@ -258,6 +261,15 @@ void ClientInstance::Update_Client(float timeDelta)
     }
 }
 
+void ClientInstance::Update_FadeTransitions(float timeDelta)
+{
+    if (_screenFadeTransition)
+        _screenFadeTransition->Update(timeDelta);
+
+    if (_levelTransitionFade)
+        _levelTransitionFade->Update(timeDelta);
+}
+
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
 {
     if (_previewManager)
@@ -267,6 +279,17 @@ void ClientInstance::Update_UIPreviewOnly(float timeDelta)
 bool ClientInstance::Is_DebugDisableMapInstancedMeshRender()
 {
     return g_debugDisableMapInstancedMeshRender;
+}
+
+bool ClientInstance::Is_DebugDisableDynamicShadowRenderPass()
+{
+    return g_debugDisableDynamicShadowRenderPass;
+}
+
+void ClientInstance::Set_DebugDisableDynamicShadowRenderPass(bool disabled)
+{
+    g_debugDisableDynamicShadowRenderPass = disabled;
+    GAME->Set_ShadowEnabled(!disabled);
 }
 
 void ClientInstance::Set_DebugDisableMapInstancedMeshRender(bool disabled)
@@ -292,6 +315,46 @@ bool ClientInstance::Is_DebugDisableMapStaticMeshRender()
 void ClientInstance::Set_DebugDisableMapStaticMeshRender(bool disabled)
 {
     g_debugDisableMapStaticMeshRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapInstancedMeshShadow()
+{
+    return g_debugDisableMapInstancedMeshShadow;
+}
+
+void ClientInstance::Set_DebugDisableMapInstancedMeshShadow(bool disabled)
+{
+    g_debugDisableMapInstancedMeshShadow = disabled;
+}
+
+bool ClientInstance::Is_DebugUseMapInstancedMeshShadowLOD()
+{
+    return g_debugUseMapInstancedMeshShadowLOD;
+}
+
+void ClientInstance::Set_DebugUseMapInstancedMeshShadowLOD(bool enabled)
+{
+    g_debugUseMapInstancedMeshShadowLOD = enabled;
+}
+
+bool ClientInstance::Is_DebugDisableGrassInstancedShadow()
+{
+    return g_debugDisableGrassInstancedShadow;
+}
+
+void ClientInstance::Set_DebugDisableGrassInstancedShadow(bool disabled)
+{
+    g_debugDisableGrassInstancedShadow = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapStaticMeshShadow()
+{
+    return g_debugDisableMapStaticMeshShadow;
+}
+
+void ClientInstance::Set_DebugDisableMapStaticMeshShadow(bool disabled)
+{
+    g_debugDisableMapStaticMeshShadow = disabled;
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -678,6 +741,152 @@ bool ClientInstance::Request_LoadedLevelTransition(LevelType TargetLevel, Shared
         return false;
 
     return SUCCEEDED(GAME->Change_Level(ETOI(TargetLevel), TargetLevelInstance));
+}
+
+bool ClientInstance::Request_CurrentLevelReplay()
+{
+    if (_screenFadeTransition && _screenFadeTransition->Is_Playing())
+        return false;
+
+    if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
+        return false;
+
+    if (Is_BattleActive() || Is_BattleEntering() || Is_SoulLikeBattleActive())
+        return false;
+
+    return Request_ScreenFadeTransition(
+        [this]()
+        {
+            Reset_CurrentLevelRuntimeState();
+        });
+}
+
+void ClientInstance::Reset_CurrentLevelRuntimeState()
+{
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue(false);
+
+    vector<Shared<GameObject>> duplicatePlayers{};
+
+    GAME->Visit_CurrentLevelObjects(
+        [this, &duplicatePlayers](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            const Shared<Player_WorldBase> player =
+                dynamic_pointer_cast<Player_WorldBase>(gameObject);
+            if (player == nullptr)
+                return;
+
+            bool managed = false;
+            if (_heroManager)
+            {
+                for (const HeroPartyEntry& entry : _heroManager->Get_HeroEntries())
+                {
+                    if (entry.hero == player)
+                    {
+                        managed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!managed)
+                duplicatePlayers.push_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& player : duplicatePlayers)
+        GAME->Remove_GameObject(GAME->Current_LevelIndex(), player);
+
+    if (!duplicatePlayers.empty())
+        GAME->Flush_RemovedGameObjects();
+
+    if (_heroManager)
+        _heroManager->Reset_RuntimeToStart();
+
+    Respawn_ReplayMonstersFromSnapshot();
+
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
+    GAME->Set_PlayerInputBlocked(false);
+    GAME->Lock_Mouse();
+}
+
+void ClientInstance::Capture_ReplayMonsterSnapshotIfNeeded()
+{
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+    if (_replayMonsterSnapshotLevelIndex != levelIndex)
+    {
+        _replayMonsterSnapshotLevelIndex = levelIndex;
+        _replayMonsterSpawnObjects.clear();
+        _replayMonsterRuntimeAuthoringLoaded.clear();
+        _replayMonsterSnapshotCaptured = false;
+    }
+
+    if (_replayMonsterSnapshotCaptured)
+        return;
+
+    GAME->Visit_CurrentLevelObjects(
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) == nullptr)
+                return;
+
+            RuntimeCheckpointIO::WorldObject object{};
+            object.layerTag = layerTag;
+            object.objectJson = gameObject->To_Json();
+            _replayMonsterSpawnObjects.emplace_back(std::move(object));
+            _replayMonsterRuntimeAuthoringLoaded.emplace_back(gameObject->Is_RuntimeAuthoringLoaded() ? 1 : 0);
+        });
+
+    _replayMonsterSnapshotCaptured = true;
+}
+
+void ClientInstance::Respawn_ReplayMonstersFromSnapshot()
+{
+    Capture_ReplayMonsterSnapshotIfNeeded();
+
+    if (_replayMonsterSpawnObjects.empty())
+        return;
+
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+    vector<Shared<GameObject>> monstersToRemove{};
+
+    GAME->Visit_CurrentLevelObjects(
+        [&monstersToRemove](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) != nullptr)
+                monstersToRemove.emplace_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& monster : monstersToRemove)
+        GAME->Remove_GameObject(levelIndex, monster);
+
+    if (!monstersToRemove.empty())
+        GAME->Flush_RemovedGameObjects();
+
+    for (size_t index = 0; index < _replayMonsterSpawnObjects.size(); ++index)
+    {
+        const RuntimeCheckpointIO::WorldObject& object = _replayMonsterSpawnObjects[index];
+        Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(object.objectJson);
+        if (gameObject == nullptr)
+            continue;
+
+        const bool runtimeAuthoringLoaded =
+            index < _replayMonsterRuntimeAuthoringLoaded.size() &&
+            _replayMonsterRuntimeAuthoringLoaded[index] != 0;
+        gameObject->Set_RuntimeAuthoringLoaded(runtimeAuthoringLoaded);
+
+        if (const Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(gameObject))
+            worldMonster->Restore_AfterBattleExit();
+
+        (void)GAME->Add_GameObject(levelIndex, object.layerTag, gameObject);
+    }
+}
+
+void ClientInstance::Clear_ReplayMonsterSnapshot()
+{
+    _replayMonsterSpawnObjects.clear();
+    _replayMonsterRuntimeAuthoringLoaded.clear();
+    _replayMonsterSnapshotLevelIndex = UINT32_MAX;
+    _replayMonsterSnapshotCaptured = false;
 }
 
 bool ClientInstance::Is_FadeTransitionPlaying() const
@@ -1355,6 +1564,8 @@ void ClientInstance::Release_Client()
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);
     ReleaseManager(_soulLikeController);
+
+    Clear_ReplayMonsterSnapshot();
 
     _context.Reset();
     _device.Reset();

@@ -83,6 +83,30 @@ bool SL_BasicAttack::Request_Parry()
     return _stateCom != nullptr && _stateCom->Change_State(SL_PlayerState::Parry);
 }
 
+bool SL_BasicAttack::Request_Dodge(const SL_MoveRequest& request)
+{
+    if (!_stateCom || !_stateCom->Can_CancelToDodge())
+        return false;
+
+    _comboQueued = false;
+    _comboWindowEnabled = false;
+    _stateCom->Clear_CanActionCancel();
+
+    return _stateCom->Change_State(SL_PlayerState::Dodge);
+}
+
+bool SL_BasicAttack::Request_Jump()
+{
+    if (_stateCom == nullptr || !_stateCom->Can_CancelToJump())
+        return false;
+
+    _comboQueued = false;
+    _comboWindowEnabled = false;
+    _stateCom->Clear_CanActionCancel();
+
+    return _stateCom->Change_State(SL_PlayerState::Jump);
+}
+
 void SL_BasicAttack::Set_ComboWindowEnabled(bool enabled)
 {
     _comboWindowEnabled = enabled;

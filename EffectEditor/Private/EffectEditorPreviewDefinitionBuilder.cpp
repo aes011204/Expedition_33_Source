@@ -1917,12 +1917,14 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         };
         desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
         desc.spawn.particleSpawn.spawnRateSeed = Internal::Build_RandomSeedDesc(spawn->spawnRate);
+        Internal::Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, spawn->spawnRate, desc.spawn.particleSpawn.spawnRate);
         desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
             max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale)),
             max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale))
         };
         desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
         desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Build_RandomSeedDesc(spawn->spawnRateScale);
+        Internal::Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale);
         desc.spawn.particleSpawn.processBurstList = spawn->processBurstList;
         desc.spawn.particleSpawn.burstScaleRange = Vec2{
             max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->burstScale, desc.spawn.particleSpawn.burstScale)),
@@ -1930,6 +1932,7 @@ EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& e
         };
         desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
         desc.spawn.particleSpawn.burstScaleSeed = Internal::Build_RandomSeedDesc(spawn->burstScale);
+        Internal::Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, spawn->burstScale, desc.spawn.particleSpawn.burstScale);
         desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
         desc.spawn.particleSpawn.bursts.clear();
         desc.spawn.particleSpawn.bursts.reserve(spawn->burstList.size());
@@ -3199,12 +3202,14 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         };
         emitterDesc.spawn.particleSpawn.spawnRate = emitterDesc.spawn.particleSpawn.spawnRateRange.y;
         emitterDesc.spawn.particleSpawn.spawnRateSeed = Internal::Build_RandomSeedDesc(spawn->spawnRate);
+        Internal::Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.spawnRateCurve, spawn->spawnRate, emitterDesc.spawn.particleSpawn.spawnRate);
         emitterDesc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
             max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale)),
             max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale))
         };
         emitterDesc.spawn.particleSpawn.spawnRateScale = emitterDesc.spawn.particleSpawn.spawnRateScaleRange.y;
         emitterDesc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Build_RandomSeedDesc(spawn->spawnRateScale);
+        Internal::Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.spawnRateScaleCurve, spawn->spawnRateScale, emitterDesc.spawn.particleSpawn.spawnRateScale);
         emitterDesc.spawn.particleSpawn.processBurstList = spawn->processBurstList;
         emitterDesc.spawn.particleSpawn.burstScaleRange = Vec2{
             max(0.f, Internal::Evaluate_FloatDistributionMin(spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale)),
@@ -3212,6 +3217,7 @@ EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitte
         };
         emitterDesc.spawn.particleSpawn.burstScale = emitterDesc.spawn.particleSpawn.burstScaleRange.y;
         emitterDesc.spawn.particleSpawn.burstScaleSeed = Internal::Build_RandomSeedDesc(spawn->burstScale);
+        Internal::Fill_FloatCurvePayload(emitterDesc.spawn.particleSpawn.burstScaleCurve, spawn->burstScale, emitterDesc.spawn.particleSpawn.burstScale);
         emitterDesc.spawn.particleSpawn.maxActiveCount = emitterDesc.spawn.instanceCount;
         emitterDesc.spawn.particleSpawn.bursts.clear();
         emitterDesc.spawn.particleSpawn.bursts.reserve(spawn->burstList.size());

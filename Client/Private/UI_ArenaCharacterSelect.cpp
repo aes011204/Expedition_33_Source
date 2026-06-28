@@ -40,6 +40,7 @@ void UI_ArenaCharacterSelect::Open()
         return;
 
     _lastAction = Action::None;
+    Reset_ButtonInputLatch();
 
     UI_RuntimePanelBase::Open();
 
@@ -62,6 +63,7 @@ void UI_ArenaCharacterSelect::Close()
 void UI_ArenaCharacterSelect::Close_Immediately(bool restoreWorldControl)
 {
     _lastAction = Action::None;
+    Reset_ButtonInputLatch();
 
     UI_RuntimePanelBase::Close();
 
@@ -145,6 +147,18 @@ void UI_ArenaCharacterSelect::Handle_ButtonInput()
         _lastAction = Action::Back;
         return;
     }
+}
+
+void UI_ArenaCharacterSelect::Reset_ButtonInputLatch()
+{
+    if (_gustaveButton)
+        _gustaveButton->Update(0.f); // 닫히는 프레임에 남은 Was_Clicked를 다음 Open으로 넘기지 않는다.
+    if (_luneButton)
+        _luneButton->Update(0.f);
+    if (_maelleButton)
+        _maelleButton->Update(0.f);
+    if (_backButton)
+        _backButton->Update(0.f);
 }
 
 Unique<UI_ArenaCharacterSelect> UI_ArenaCharacterSelect::Create(uint32 levelIndex)
