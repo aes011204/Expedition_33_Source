@@ -170,7 +170,7 @@ private: //## Helper::PlaybackRuntime
     // parent path에서 branch path를 생성한다.
     void Append_BranchPathEntries(const PathEntry& parentPath, uint32 stripIndex, float activeElapsedTime);
     // path sample을 compute input payload로 낮춘다.
-    HRESULT Append_SegmentPayloads(vector<SegmentPayload>& outPayloads) const;
+    HRESULT Append_SegmentPayloads(vector<SegmentPayload>& outPayloads);
     // 렌더 가능한 path segment가 있는지 확인한다.
     bool Has_RenderablePath() const;
 
@@ -214,6 +214,8 @@ private: //## Helper::Render
     int Resolve_OpacitySourceIndex() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;
     float Evaluate_WidthScaleByLife(float lifeProgress) const;
+    Vec3 Evaluate_BeamEnvelopeOverLife(float lifeProgress) const;
+    static PathSample Interpolate_PathSample(const PathSample& left, const PathSample& right, float targetDistance);
     uint32 Evaluate_SubUVFrameIndex(uint32 stripIndex) const;
     Vec4 Resolve_SubUVRect(uint32 frameIndex) const;
     uint32 Resolve_RandomSubUVFrameIndex(uint32 stripIndex) const;

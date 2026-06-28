@@ -163,7 +163,7 @@ struct ComputePointParticleParams
     Vec4 accelerationCurveLeaveTangentsZBlock1{};
     Vec4 accelerationCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
     Vec4 accelerationCurveModesBlock1{};
-    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z: acceleration world, w: unused.
+    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z: acceleration world, w: emitter-time duration.
     Vec4 velocityScaleByLife{};                      // x/y: scale start/end, z/w: unused.
     Vec4 velocityScaleByLifeCurveTimes{};            // VelocityOverLife key times.
     Vec4 velocityScaleByLifeCurveTimesBlock1{};
@@ -241,6 +241,8 @@ struct ComputePointParticleParams
     Vec4 cylinderLocationRadiusHeight{};             // x/y: radius range, z/w: height range.
     Vec4 cylinderLocationAngle{};                    // x/y: angle degree range, z/w: unused.
     XMUINT4 cylinderLocationSeedSalts{};             // x: radius, y: height, z: angle, w: unused.
+    Vec4 cylinderOrientationParams{};                // x: enabled, y: target kind, z: orientation mode, w: follow orbit over life.
+    Vec4 cylinderOrientationAngles{};                // x: tilt degrees, y: roll offset degrees, z/w: unused.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -379,7 +381,13 @@ HRESULT VIBufferCom_ComputePointParticle::Render()
     }
 }
 
-void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 spawnRequest, uint32 spawnSerialBase, float lifetimeSamplePhase, bool killActiveParticles)
+void VIBufferCom_ComputePointParticle::Dispatch_Compute(
+    float timeDelta,
+    uint32 spawnRequest,
+    uint32 spawnSerialBase,
+    float lifetimeSamplePhase,
+    float emitterElapsedTime,
+    bool killActiveParticles)
 {
     if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _lifecycleState || nullptr == _instanceVB)
         return;
@@ -389,7 +397,7 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
         _hasActiveParticles = false;
 
     _deltaTime = max(0.f, timeDelta);
-    _elapsedTime += _deltaTime;
+    _elapsedTime = max(0.f, emitterElapsedTime);
     _spawnRequest = spawnRequest;
     _spawnSerialBase = spawnSerialBase;
     _lifetimeSamplePhase = clamp(lifetimeSamplePhase, 0.f, 1.f);
@@ -996,7 +1004,9 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount))),
             _desc.motion.accelerationCurveEnabled ? 1.f : 0.f,
             _desc.motion.accelerationInWorldSpace ? 1.f : 0.f,
-            0.f
+            _desc.motion.accelerationTimeBasis == PointParticleAccelerationTimeBasis::EmitterNormalizedTime
+            ? max(0.0001f, _desc.playbackDuration)
+            : 0.f
         },
         .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },
         .velocityScaleByLifeCurveTimes = _desc.motion.velocityScaleByLifeCurveTimes,
@@ -1174,6 +1184,18 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             Resolve_SeedSalt(_desc.cylinderLocation.heightSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.cylinderLocation.angleDegreesSeed, _desc.effectPlaybackSeed),
             0u
+        },
+        .cylinderOrientationParams = Vec4{
+            _desc.cylinderOrientation.enabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.cylinderOrientation.targetKind)),
+            static_cast<float>(ETOI(_desc.cylinderOrientation.orientationMode)),
+            _desc.cylinderOrientation.followOrbitOverLife ? 1.f : 0.f
+        },
+        .cylinderOrientationAngles = Vec4{
+            _desc.cylinderOrientation.tiltDegrees,
+            _desc.cylinderOrientation.rollOffsetDegrees,
+            0.f,
+            0.f
         }
     };
 

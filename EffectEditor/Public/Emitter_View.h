@@ -211,6 +211,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialRotationModule();
     AuthoringModule Make_SphereRadialOrientationModule();
     AuthoringModule Make_PlaneRadialOrientationModule();
+    AuthoringModule Make_CylinderOrientationModule();
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_SpriteTiltModule();
     AuthoringModule Make_SpriteTiltOverLifeModule();
@@ -224,6 +225,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_ColorOverLifeModule();
     AuthoringModule Make_SubUVFrameOverLifeModule();
     AuthoringModule Make_SizeByLifeModule();
+    AuthoringModule Make_BeamEnvelopeOverLifeModule();
     AuthoringModule Make_MeshSizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
     AuthoringModule Make_SourceHistorySpriteTrailPathFollowModule();
