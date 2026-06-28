@@ -55,6 +55,16 @@ public:
     const string&   Get_SourcePrefabName() const { return _sourcePrefabName; }
     void            Set_RuntimeAuthoringLoaded(bool loaded) { _runtimeAuthoringLoaded = loaded; }
     bool            Is_RuntimeAuthoringLoaded() const { return _runtimeAuthoringLoaded; }
+    void            Set_RuntimeAuthoringSource(const wstring& mapPath, const string& collectionKey, size_t nodeIndex)
+    {
+        _runtimeAuthoringMapPath = mapPath;
+        _runtimeAuthoringCollectionKey = collectionKey;
+        _runtimeAuthoringNodeIndex = nodeIndex;
+    }
+    bool            Has_RuntimeAuthoringSource() const { return !_runtimeAuthoringMapPath.empty() && !_runtimeAuthoringCollectionKey.empty(); }
+    const wstring&  Get_RuntimeAuthoringMapPath() const { return _runtimeAuthoringMapPath; }
+    const string&   Get_RuntimeAuthoringCollectionKey() const { return _runtimeAuthoringCollectionKey; }
+    size_t          Get_RuntimeAuthoringNodeIndex() const { return _runtimeAuthoringNodeIndex; }
 
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
@@ -171,6 +181,9 @@ protected:
 
     string                  _sourcePrefabName = {};
     bool                    _runtimeAuthoringLoaded = false;
+    wstring                 _runtimeAuthoringMapPath = {};
+    string                  _runtimeAuthoringCollectionKey = {};
+    size_t                  _runtimeAuthoringNodeIndex = 0;
 
 protected:
     map<const wstring, Shared<Component>> _components;

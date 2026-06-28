@@ -119,6 +119,11 @@ namespace
         return sidecarJson;
     }
 
+    fs::path ResolveSplitAuthoringJson(const fs::path& root)
+    {
+        return root / "PrefabInstances.json";
+    }
+
     void AppendPreloadModelPath(const string& modelPath, vector<string>& preloadModelPaths)
     {
         if (modelPath.empty())
@@ -187,6 +192,45 @@ namespace
             catch (...)
             {
             }
+        }
+    }
+
+    void LoadSplitAuthoringObjects(const fs::path& authoringJson, vector<json>& outPrefabInstances, vector<json>& outAuthoredObjects)
+    {
+        if (!fs::exists(authoringJson) || !fs::is_regular_file(authoringJson))
+            return;
+
+        ifstream ifs(authoringJson);
+        if (!ifs.is_open())
+            return;
+
+        try
+        {
+            const json root = json::parse(ifs);
+            if (!root.is_object() || !root.contains("MapData") || !root["MapData"].is_object())
+                return;
+
+            const json& mapData = root["MapData"];
+            if (mapData.contains("PrefabInstances") && mapData["PrefabInstances"].is_array())
+            {
+                for (const json& item : mapData["PrefabInstances"])
+                {
+                    if (item.is_object())
+                        outPrefabInstances.push_back(item);
+                }
+            }
+
+            if (mapData.contains("AuthoredObjects") && mapData["AuthoredObjects"].is_array())
+            {
+                for (const json& item : mapData["AuthoredObjects"])
+                {
+                    if (item.is_object())
+                        outAuthoredObjects.push_back(item);
+                }
+            }
+        }
+        catch (...)
+        {
         }
     }
 
@@ -665,6 +709,7 @@ bool MapAdapter::TryLoadSplitMapInstanceData(const wstring& filePath, SplitMapIn
     SplitMapInstanceData data{};
     data.root = root;
     data.sidecarJson = ResolveSplitSidecarJson(filePath, root);
+    data.authoringJson = ResolveSplitAuthoringJson(root);
     data.modelFolder = root.filename().string();
 
     LoadSplitJsonObjects(root / kStaticMeshFolderName, data.staticMeshes, data.preloadModelPaths);
@@ -674,6 +719,7 @@ bool MapAdapter::TryLoadSplitMapInstanceData(const wstring& filePath, SplitMapIn
     LoadSplitJsonObjects(root / kWaterFolderName, data.waters, data.preloadModelPaths);
     LoadSplitJsonObjects(root / kETCFolderName, data.lights, data.preloadModelPaths,
         [](const json& j) { return j.value("LightType", "Directional") == "Point"; });
+    LoadSplitAuthoringObjects(data.authoringJson, data.prefabInstances, data.authoredObjects);
 
     TryAppendModelOverridesFromJsonFile(data.sidecarJson, data.modelOverrides);
     AppendModelOverridesFromMaterialDirectory(MaterialResourceRootPath() / root.filename(), data.modelOverrides);

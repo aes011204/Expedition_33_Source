@@ -1310,6 +1310,7 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SL_Maelle.cpp" />
+    <ClCompile Include="..\Private\SL_Weapon.cpp" />
     <ClCompile Include="..\Private\SoulLikeController.cpp" />
     <ClCompile Include="..\Private\SL_StateMachineCom.cpp" />
     <ClCompile Include="..\Private\SL_State.cpp" />
@@ -1366,7 +1367,6 @@
     <ClCompile Include="..\private\DialogueDB.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\private\DialogueManager.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
@@ -1395,11 +1395,9 @@
     <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
-    <ClCompile Include="..\Private\MapEffect_TornadoPaint.cpp">
-      <Filter>02. GameObject\Map\MapEffect</Filter>
+    <ClCompile Include="..\Private\ANS_CanAction.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ANS_CanAction.cpp" />
-        </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1479,7 +1477,6 @@
     <ClInclude Include="..\public\DialogueDB.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
     <ClInclude Include="..\public\DialogueManager.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
@@ -1514,10 +1511,8 @@
     <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\Public\Level_ReplayTransition.h" />
-    <ClInclude Include="..\Public\MapEffect_TornadoPaint.h">
-      <Filter>02. GameObject\Map\MapEffect</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ANS_CanAction.h" />
+    <ClInclude Include="..\Public\ANS_CanAction.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -2677,6 +2672,7 @@
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SL_Maelle.h" />
+    <ClInclude Include="..\Public\SL_Weapon.h" />
     <ClInclude Include="..\Public\SoulLikeController.h" />
     <ClInclude Include="..\Public\SL_StateMachineCom.h" />
     <ClInclude Include="..\Public\SL_State.h" />

@@ -1162,7 +1162,7 @@ void CinematicSequenceRunner::Apply_CinematicDrivenState(const Shared<GameObject
         if (cinematicDriven)
         {
             if (const Shared<SL_TargetCom> targetCom = maelle->Get_Component<SL_TargetCom>())
-                targetCom->Clear_Lock();
+                targetCom->Clear_Candidates();
         }
 
         maelle->Set_CinematicDriven(cinematicDriven);

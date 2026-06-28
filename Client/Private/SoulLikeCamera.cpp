@@ -542,6 +542,10 @@ void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float 
     constexpr float kTargetStillYFrameDelta = 0.005f;
     constexpr float kVerticalSettleDistance = 0.035f;
 
+    // 수직 높이 찾기
+    constexpr float kRisingVerticalFollowScale = 0.35f;
+    constexpr float kMinRisingVerticalFollowSpeed = 2.5f;
+
     const Vec3 targetDelta = targetPos - _prevTargetPos;
     const float horizontalFollowT = Evaluate_SoulLikeFollowT(
         _currentSettings.targetFollowEasing,
@@ -574,10 +578,15 @@ void SoulLikeCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float 
     }
     else
     {
+        const bool targetIsRising = targetPos.y > _smoothedTargetPos.y;
+        const float verticalFollowSpeed = targetIsRising
+            ? max(_currentSettings.verticalFollowSpeed * kRisingVerticalFollowScale, kMinRisingVerticalFollowSpeed)
+            : _currentSettings.verticalFollowSpeed;
+
         _smoothedTargetPos.y = Math::Lerp_Damp(
             _smoothedTargetPos.y,
             targetPos.y,
-            _currentSettings.verticalFollowSpeed,
+            verticalFollowSpeed,
             timeDelta);
     }
 }
