@@ -168,8 +168,8 @@ HRESULT Trigger_Interaction::Ready_Components()
 {
     Bounding_AABB::BoundingAABBDesc aabbDesc{};
 
-    aabbDesc.extents = Vec3(0.9f, 0.9f, 0.9f);
-    aabbDesc.center = Vec3(0.f, 0.1f, 0.f);
+    aabbDesc.extents = Vec3(3.f, 0.5f, 3.f);
+    aabbDesc.center = Vec3(0.f, 0.2f, 0.f);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_AABB"), _colliderCom, &aabbDesc), E_FAIL);
     _colliderCom->Set_CollisionPreset(Collision_Preset::Trigger);
     _colliderCom->Set_IsActive(true);

@@ -1,4 +1,4 @@
-﻿#include "NPC_Sumo.h"
+#include "NPC_Sumo.h"
 #include "ClientInstance.h"
 #include "NPC_Body.h"
 #include "NPC_Hair.h"
@@ -10,6 +10,7 @@ IMPLEMENT_REFLECTION(NPC_Sumo)
 
     info.displayName = "NPC_Sumo";
     info.category = "NPC";
+    NPC_Base::Register_CommonReflectionProperties(info);
 
     return true;
 }
@@ -17,6 +18,7 @@ IMPLEMENT_REFLECTION(NPC_Sumo)
 NPC_Sumo::NPC_Sumo(const ComPtr<Device>& device, const ComPtr<Context>& context) : NPC_Base(device, context)
 {
     _worldMoveSpeedScale = 0.1f;
+    _defaultAnimationKey = "Sumo_Idle";
 }
 
 NPC_Sumo::NPC_Sumo(const NPC_Sumo& prototype) : NPC_Base(prototype)
@@ -31,8 +33,6 @@ HRESULT NPC_Sumo::Initialize_Prototype()
 HRESULT NPC_Sumo::Initialize(void* arg)
 {
     CHECK_FAILED(NPC_Base::Initialize(arg), E_FAIL);
-    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
-    _body->Set_Animation("Sumo_Idle", 0.3f, true);
 
     return S_OK;
 }

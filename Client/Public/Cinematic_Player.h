@@ -22,6 +22,7 @@ public:
     void  Resume();
     void  Stop();
     void  Set_CurrentFrame(int frame, bool applyCamera = true);
+    void  Set_CurrentFrameExact(float frameExact, bool applyCamera = true);
     void  Rebind_Sequence(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack);
 
 public:
