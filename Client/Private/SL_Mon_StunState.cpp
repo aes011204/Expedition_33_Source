@@ -8,7 +8,7 @@ NS_BEGIN(Client)
 
 namespace
 {
-constexpr float kStunLoopDuration = 4.0f;
+constexpr float kStunLoopDuration = 2.0f;
 }
 
 SL_Mon_StunState::SL_Mon_StunState(const Shared<SL_Dualliste>& owner)
@@ -23,6 +23,7 @@ bool SL_Mon_StunState::EnterInvoke()
 
     _phase = Phase::Enter;
     _loopElapsed = 0.f;
+    _phaseChangeRequested = false;
 
     return Play_PhaseAnim(_phase);
 }
@@ -40,6 +41,9 @@ void SL_Mon_StunState::Update(float timeDelta)
         _stateCom->Change_State(SL_MonState::Dead);
         return;
     }
+
+    if (owner->Can_EnterPhaseChange())
+        _phaseChangeRequested = true;
 
     switch (_phase)
     {
@@ -64,6 +68,12 @@ void SL_Mon_StunState::Update(float timeDelta)
     case Phase::Exit:
         if (owner->Is_AnimFinished())
         {
+            if (_phaseChangeRequested)
+            {
+                owner->Try_EnterPhaseChangeFromStun();
+                return;
+            }
+
             const Shared<MonsterStatCom> stat = dynamic_pointer_cast<MonsterStatCom>(owner->Get_Stat());
             if (stat != nullptr)
             {

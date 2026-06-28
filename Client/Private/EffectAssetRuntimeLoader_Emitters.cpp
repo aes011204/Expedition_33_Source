@@ -314,6 +314,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
             desc.spawn.particleSpawn.spawnRateSeed = Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, *spawnRateIter, desc.spawn.particleSpawn.spawnRate);
         }
 
         const auto spawnRateScaleIter = data.find("spawnRateScale");
@@ -325,6 +326,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
             desc.spawn.particleSpawn.spawnRateScaleSeed = Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, *spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale);
         }
 
         const auto burstScaleIter = data.find("burstScale");
@@ -336,6 +338,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
             desc.spawn.particleSpawn.burstScaleSeed = Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, *burstScaleIter, desc.spawn.particleSpawn.burstScale);
         }
 
         const auto burstListIter = data.find("burstList");
@@ -374,6 +377,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
             desc.spawn.particleSpawn.spawnRateSeed = Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, *spawnRateIter, desc.spawn.particleSpawn.spawnRate);
         }
 
         const auto spawnRateScaleIter = data.find("spawnRateScale");
@@ -385,6 +389,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
             desc.spawn.particleSpawn.spawnRateScaleSeed = Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, *spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale);
         }
 
         const auto burstScaleIter = data.find("burstScale");
@@ -396,6 +401,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
             desc.spawn.particleSpawn.burstScaleSeed = Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, *burstScaleIter, desc.spawn.particleSpawn.burstScale);
         }
 
         const auto burstListIter = data.find("burstList");

@@ -4,6 +4,7 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "SkillScript.h"
+#include "SL_Dualliste.h"
 #include "SoulLikeController.h"
 
 void AN_Attack::Execute(const AnimNotifyContext& context)
@@ -15,6 +16,12 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
     {
         if (soulLike->Notify_EstherAttack(context.owner))
             return;
+
+        if (const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(soulLike->Get_Monster()))
+        {
+            if (dualliste->Notify_CloneSkillAttack(context.owner))
+                return;
+        }
     }
 
     auto battle = CLIENT->Get_BattleController();

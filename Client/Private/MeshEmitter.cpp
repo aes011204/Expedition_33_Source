@@ -1417,7 +1417,18 @@ uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)
 
     if (_desc.spawn.particleSpawn.processSpawnRate)
     {
-        const float spawnRate = max(0.f, _sampledSpawnRate * _sampledSpawnRateScale);
+        const float loopPhase = clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f);
+        const float spawnRateValue = Internal::Evaluate_FloatCurve(
+            _desc.spawn.particleSpawn.spawnRateCurve,
+            loopPhase,
+            _sampledSpawnRate
+        );
+        const float spawnRateScale = Internal::Evaluate_FloatCurve(
+            _desc.spawn.particleSpawn.spawnRateScaleCurve,
+            loopPhase,
+            _sampledSpawnRateScale
+        );
+        const float spawnRate = max(0.f, spawnRateValue) * max(0.f, spawnRateScale);
         _spawnAccumulator += spawnRate * safeDeltaTime;
 
         const float wholeSpawn = floorf(_spawnAccumulator + 0.0001f);
@@ -1447,7 +1458,13 @@ uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)
                 _desc.spawn.particleSpawn.burstScaleSeed,
                 static_cast<uint32>(0xB851u + index * 131u)
             );
-            const float scaledCount = static_cast<float>(burst.count) * max(0.f, sampledBurstScale);
+            const float burstPhase = clamp(burst.time / Resolve_Duration(), 0.f, 1.f);
+            const float burstScale = Internal::Evaluate_FloatCurve(
+                _desc.spawn.particleSpawn.burstScaleCurve,
+                burstPhase,
+                sampledBurstScale
+            );
+            const float scaledCount = static_cast<float>(burst.count) * max(0.f, burstScale);
             spawnRequest += static_cast<uint32>(floorf(scaledCount));
             _burstExecuted[index] = true;
         }

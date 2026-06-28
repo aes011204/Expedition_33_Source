@@ -113,7 +113,8 @@ void MovementCom::BeginPlay()
     _transformCom = owner->Get_Transform();
     CHECK_NULL(_transformCom);
 
-    _colliderCom = owner->Get_Component<ColliderCom>();
+    if (_colliderCom == nullptr)
+        _colliderCom = owner->Get_Component<ColliderCom>();
 
     if (_moveDesc.backend == MoveBackend::PhysXCCT)
         Create_CharacterController();

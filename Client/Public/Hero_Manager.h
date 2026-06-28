@@ -71,6 +71,7 @@ public:
 
     // Idle 상태로 되돌리기 : 전환 후, 게임 종료
     void    Reset_AllHeroesToIdle();
+    void    Reset_RuntimeToStart();
     void    Handle_EditorStopRuntime();
     void    Restore_PartyFormationAfterEditorStop();
 
@@ -134,6 +135,8 @@ private:
 
     uint32 _levelIndex = 0;
     wstring _layerTag;
+    Vec3 _startPos = Vec3::Zero;
+    Vec3 _startRot = Vec3::Zero;
 
     float _recordTimer = 0.f;
     float _recordInterval = 0.02f;

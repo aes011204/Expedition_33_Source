@@ -24,6 +24,7 @@ public:
 
 
         bool isAir = false;
+        bool v2 = false;
 
         EEnemyClass enemyClass = EEnemyClass::Normal;
 
@@ -75,6 +76,8 @@ public:
     float Get_MidRatio() const { return _monsterDesc._midRatio; }
     float Get_BattleRunMoveSpeed() const { return _monsterDesc.battleRunMoveSpeed; }
     void Set_BattleRunMoveSpeed(float value) { _monsterDesc.battleRunMoveSpeed = (value < 0.f) ? 0.f : value; }
+    bool Is_V2() const { return _monsterDesc.v2; }
+    void Set_V2(bool value) { _monsterDesc.v2 = value; }
 
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }

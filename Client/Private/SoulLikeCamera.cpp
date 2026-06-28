@@ -205,6 +205,28 @@ void SoulLikeCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
     _collisionDistance = -1.f;
 }
 
+void SoulLikeCamera::Align_BehindTarget()
+{
+    Shared<TransformCom> targetTransformCom;
+    if (!Try_GetTargetTransform(targetTransformCom))
+        return;
+
+    Vec3 forward = targetTransformCom->Get_WorldForward();
+    forward.y = 0.f;
+
+    if (forward.LengthSquared() <= 0.0001f)
+        return;
+
+    forward.Normalize();
+
+    const float targetYaw = XMConvertToDegrees(atan2f(forward.x, forward.z));
+    _yaw = targetYaw - _currentSettings.yawOffset; // 진입 순간 카메라 기준을 플레이어 등 뒤로 맞춘다.
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
+}
+
 void SoulLikeCamera::SetCombatFocusTransforms(Shared<TransformCom> playerTransform, Shared<TransformCom> opponentTransform)
 {
     _targetTransformCom = playerTransform;

@@ -433,7 +433,7 @@ json Unlock_Manager::Create_SaveJson() const
     return root;
 }
 
-bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards)
+bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards, bool queuePresentation)
 {
     _completedRuleIds.clear();
     Reset_DefaultHeroUnlocks(); // 구스타브 초기화
@@ -464,20 +464,20 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards)
                 if (reward.type == RewardType::UnlockCostumePreset)
                 {
                     // 저장 데이터 복원 때도 의상 획득 UI를 보여주기 위해 presentation queue에 올린다.
-                    Apply_Reward(reward, UINT32_MAX, nullptr, true);
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
                     continue;
                 }
 
                 if (reward.type == RewardType::UnlockHero)
                 {
                     // 저장 데이터 복원 때도 해금 캐릭터를 보여주기 위해 que에 true 세팅. 나중에 무기도 UI 띄우기
-                    Apply_Reward(reward, UINT32_MAX, nullptr, true);
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
                     continue;
                 }
 
                 if (replayWorldRewards && reward.type == RewardType::SpawnWorldObject)
                 {
-                    Apply_Reward(reward, UINT32_MAX, nullptr, false);
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
                     continue;
                 }
             }
@@ -496,7 +496,7 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards)
             reward.type = RewardType::UnlockHero;
             reward.heroId = static_cast<HeroId>(entry.get<int>());
 
-            Apply_Reward(reward, UINT32_MAX, nullptr, true);
+            Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
         }
     }
 

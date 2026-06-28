@@ -46,6 +46,7 @@ public:
 	void    Priority_Update(float timeDelta) override;
 	void    Update(float timeDelta) override;
 	void    Late_Update(float timeDelta) override;
+    void    Post_PhysX_Update(float timeDelta) override;
 	HRESULT Render() override;
 
     // 스테이터스 찍을 때, 게임 전체는 멈추는데

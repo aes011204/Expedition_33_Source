@@ -115,6 +115,14 @@ void SL_Maelle::Update(float timeDelta)
 {
     SL_Base::Update(timeDelta);
 
+    if (_isCinematicDriven)
+    {
+        if (_effectCom)
+            _effectCom->Update(timeDelta);
+
+        return;
+    }
+
     // 무적 시간
     _invincibleRemain = max(0.f, _invincibleRemain - timeDelta);
 
@@ -186,6 +194,15 @@ void SL_Maelle::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     controller->Play_PlayerAttackHitFeedback(damageInfo);
 
     target->Apply_Damage(damageInfo);
+
+    // Effect Test
+    {
+        PlayEffectDesc desc{};
+        desc.effectName = Constants::Effect::SL_Slash_L;
+        desc.worldPosition = target->Get_Transform()->Get_WorldPosition();
+
+        CLIENT->Play_Effect(desc);
+    }
 
     if (const Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
     {
@@ -767,6 +784,30 @@ void SL_Maelle::Stop_Move()
         _movementCom->Apply_Input({});
         _movementCom->Stop_AllMovement();
     }
+}
+
+void SL_Maelle::Set_CinematicDriven(bool cinematicDriven)
+{
+    if (_isCinematicDriven == cinematicDriven)
+        return;
+
+    _isCinematicDriven = cinematicDriven;
+
+    if (_movementCom)
+    {
+        _movementCom->Apply_Input({});
+        _movementCom->Stop_AllMovement();
+        _movementCom->Stop_VerticalMovement();
+        _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_attackColliderCom)
+    {
+        _attackColliderCom->Set_IsActive(false);
+        _attackColliderCom->Clear_Overlap();
+    }
+
+    _parryWindowOpen = false;
 }
 
 Shared<CombatStatCom> SL_Maelle::Get_Stat() const
