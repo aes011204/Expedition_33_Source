@@ -20,8 +20,6 @@ namespace
         {
         case Player_ParkourAction::ParkourActionType::HighMantle:
             return "High";
-        case Player_ParkourAction::ParkourActionType::MiddleMantle:
-            return "Middle";
         case Player_ParkourAction::ParkourActionType::LowMantle:
         default:
             return "Low";

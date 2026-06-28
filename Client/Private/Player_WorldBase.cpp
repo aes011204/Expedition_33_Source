@@ -20,6 +20,7 @@
 #include "FacialClip.h"
 #include "ModelCom.h"
 #include "Player_GameMenu.h"
+#include "Player_ParkourAction.h"
 #include "SkillTreeCom.h"
 #include "CostumeManager.h"
 #include "TransformCom.h"
@@ -43,6 +44,57 @@ namespace Client::PlayerWorldTuning
         return state == PlayerState::Parkour ||
             state == PlayerState::Climb ||
             state == PlayerState::RopeAction;
+    }
+
+    const char* Get_ParkourActionName(Player_ParkourAction::ParkourActionType actionType)
+    {
+        switch (actionType)
+        {
+        case Player_ParkourAction::ParkourActionType::HighMantle:
+            return "High";
+        case Player_ParkourAction::ParkourActionType::LowMantle:
+        default:
+            return "Low";
+        }
+    }
+
+    bool Try_EnterParkourFromJumpIntent(
+        const Shared<PlayerStateMachineCom>& stateMachineCom,
+        Player_ParkourAction::ParkourActionType actionType)
+    {
+        if (stateMachineCom == nullptr)
+            return false;
+
+        LOG_WARN("[Parkour] Try {} from JumpIntent", Get_ParkourActionName(actionType));
+
+        const Shared<Player_ParkourAction> parkourAction =
+            dynamic_pointer_cast<Player_ParkourAction>(stateMachineCom->Get_State(PlayerState::Parkour));
+        if (parkourAction == nullptr)
+        {
+            LOG_WARN("[Parkour] Reject {} from JumpIntent: missing parkour state", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        if (!parkourAction->Try_PrepareAction(actionType))
+        {
+            LOG_WARN("[Parkour] {} rejected from JumpIntent", Get_ParkourActionName(actionType));
+            return false;
+        }
+
+        const bool changed = stateMachineCom->Change_State(PlayerState::Parkour);
+        LOG_WARN("[Parkour] {} {} from JumpIntent", Get_ParkourActionName(actionType), changed ? "accepted" : "change failed");
+        if (!changed)
+            parkourAction->Clear_PreparedAction();
+
+        return changed;
+    }
+
+    bool Try_EnterParkourFromJumpIntent(const Shared<PlayerStateMachineCom>& stateMachineCom)
+    {
+        if (Try_EnterParkourFromJumpIntent(stateMachineCom, Player_ParkourAction::ParkourActionType::LowMantle))
+            return true;
+
+        return Try_EnterParkourFromJumpIntent(stateMachineCom, Player_ParkourAction::ParkourActionType::HighMantle);
     }
 }
 
@@ -117,8 +169,15 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     if (_movementCom && _movementCom->Did_InputJumpStart() && !stateOwnsTransform)
     {
         _fallStateEnterAcc = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
-        if (_playerStateMachineCom->Change_State(PlayerState::Jump))
+
+        if (PlayerWorldTuning::Try_EnterParkourFromJumpIntent(_playerStateMachineCom))
+        {
             _playerStateMachineCom->Update_CurrentState(0.f);
+        }
+        else if (_playerStateMachineCom->Change_State(PlayerState::Jump))
+        {
+            _playerStateMachineCom->Update_CurrentState(0.f);
+        }
     }
     else if (_movementCom)
     {

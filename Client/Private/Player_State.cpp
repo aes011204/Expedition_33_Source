@@ -18,7 +18,6 @@ namespace
     constexpr float kParkourTopProbeDownDistance = 0.95f;
     constexpr float kParkourProbeDistance = 0.75f;
     constexpr float kParkourLowProbeHeight = 1.00f;
-    constexpr float kParkourMiddleProbeHeight = 1.50f;
     constexpr float kParkourHighProbeHeight = 2.00f;
 
     Vec3 Normalize_ParkourLook(Vec3 look)
@@ -241,12 +240,10 @@ void Player_State::Draw_ParkourDebugRays() const
 
     const Matrix worldMatrix = transform->Get_WorldMatrix();
     const Vec3 highStart = Vec3::Transform(Vec3(0.f, kParkourHighProbeHeight, 0.f), worldMatrix);
-    const Vec3 middleStart = Vec3::Transform(Vec3(0.f, kParkourMiddleProbeHeight, 0.f), worldMatrix);
     const Vec3 lowStart = Vec3::Transform(Vec3(0.f, kParkourLowProbeHeight, 0.f), worldMatrix);
     const Vec3 look = Normalize_ParkourLook(transform->Get_WorldForward());
 
     Draw_ParkourProbeDebug(highStart, look, kParkourProbeDistance, Color(1.f, 0.55f, 1.f, 1.f));
-    Draw_ParkourProbeDebug(middleStart, look, kParkourProbeDistance, Color(1.f, 0.85f, 0.25f, 1.f));
     Draw_ParkourProbeDebug(lowStart, look, kParkourProbeDistance, Color(0.45f, 0.75f, 1.f, 1.f));
 }
 

@@ -1,5 +1,8 @@
 ﻿#include "WorldLedgeSpot.h"
 
+#include "Bounding_AABB.h"
+#include "ColliderCom.h"
+#include "GameInstance.h"
 #include "Player_WorldBase.h"
 
 IMPLEMENT_REFLECTION(WorldLedgeSpot)
@@ -31,7 +34,63 @@ WorldLedgeSpot::WorldLedgeSpot(const ComPtr<Device>& device, const ComPtr<Contex
 
 WorldLedgeSpot::WorldLedgeSpot(const WorldLedgeSpot& prototype)
     : WorldInteractionSpot(prototype)
+    , _colliderCenter(prototype._colliderCenter)
+    , _colliderExtents(prototype._colliderExtents)
 {
+}
+
+HRESULT WorldLedgeSpot::Initialize(void* arg)
+{
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL);
+    CHECK_FAILED(Ready_Components(), E_FAIL);
+
+    return S_OK;
+}
+
+void WorldLedgeSpot::Late_Update(float timeDelta)
+{
+    __super::Late_Update(timeDelta);
+
+    if (_colliderCom == nullptr || !_colliderCom->Get_IsActive())
+        return;
+
+    _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
+    GAME->Add_Collider(_colliderCom);
+}
+
+void WorldLedgeSpot::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    __super::OnBeginOverlap(self, other);
+
+    if (self.get() != _colliderCom.get())
+        return;
+
+    Register_CandidateIfActiveHero(other);
+}
+
+void WorldLedgeSpot::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    __super::OnStayOverlap(self, other);
+
+    if (self.get() != _colliderCom.get())
+        return;
+
+    Register_CandidateIfActiveHero(other);
+}
+
+void WorldLedgeSpot::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    __super::OnEndOverlap(self, other);
+
+    if (self.get() != _colliderCom.get())
+        return;
+
+    Shared<Player_WorldBase> activeHero{};
+    if (!Is_ActiveHeroCollider(other, &activeHero))
+        return;
+
+    if (activeHero != nullptr && !activeHero->Is_WorldInteracting())
+        activeHero->Clear_WorldInteractionCandidate(this);
 }
 
 bool WorldLedgeSpot::Build_InteractionRequest(const Shared<Player_WorldBase>& activeHero, WorldInteractionRequest& outRequest) const
@@ -44,6 +103,19 @@ bool WorldLedgeSpot::Build_InteractionRequest(const Shared<Player_WorldBase>& ac
     Build_CommonRequest(outRequest);
 
     return true;
+}
+
+HRESULT WorldLedgeSpot::Ready_Components()
+{
+    Bounding_AABB::BoundingAABBDesc aabbDesc{};
+    aabbDesc.center = _colliderCenter;
+    aabbDesc.extents = _colliderExtents;
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_AABB"), _colliderCom, &aabbDesc), E_FAIL);
+    _colliderCom->Set_CollisionPreset(Collision_Preset::Trigger);
+    _colliderCom->Set_IsActive(true);
+
+    return S_OK;
 }
 
 Shared<WorldLedgeSpot> WorldLedgeSpot::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

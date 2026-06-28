@@ -62,10 +62,6 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
-    void    Late_Update(float timeDelta) override;
-    void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
-    void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
-    void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
 
 public:
     bool Can_Interact(const Shared<Player_WorldBase>& activeHero) const override;
@@ -78,15 +74,7 @@ protected:
     void Register_CandidateIfActiveHero(const Shared<ColliderCom>& other);
     bool Is_ActiveHeroCollider(const Shared<ColliderCom>& other, Shared<Player_WorldBase>* outActiveHero = nullptr) const;
 
-private:
-    HRESULT Ready_Components();
-
 protected:
-    Shared<ColliderCom> _colliderCom{};
-
-    Vec3 _colliderCenter = Vec3(0.f, 1.f, 0.f);
-    Vec3 _colliderExtents = Vec3(0.5f, 1.f, 0.5f);
-
     Vec3 _startPointOffset = Vec3::Zero;
     Vec3 _targetPointOffset = Vec3(0.f, 2.f, 0.f);
     Vec3 _wallPointOffset = Vec3(0.f, 1.f, 0.f);

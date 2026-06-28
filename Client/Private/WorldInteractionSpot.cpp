@@ -1,6 +1,5 @@
-#include "WorldInteractionSpot.h"
+﻿#include "WorldInteractionSpot.h"
 
-#include "Bounding_OBB.h"
 #include "ClientInstance.h"
 #include "ColliderCom.h"
 #include "Player_WorldBase.h"
@@ -13,8 +12,6 @@ WorldInteractionSpot::WorldInteractionSpot(const ComPtr<Device>& device, const C
 
 WorldInteractionSpot::WorldInteractionSpot(const WorldInteractionSpot& prototype)
     : GameObject(prototype)
-    , _colliderCenter(prototype._colliderCenter)
-    , _colliderExtents(prototype._colliderExtents)
     , _startPointOffset(prototype._startPointOffset)
     , _targetPointOffset(prototype._targetPointOffset)
     , _wallPointOffset(prototype._wallPointOffset)
@@ -38,52 +35,8 @@ HRESULT WorldInteractionSpot::Initialize(void* arg)
     desc.degreePerSec = 0.f;
 
     CHECK_FAILED(__super::Initialize(&desc), E_FAIL);
-    CHECK_FAILED(Ready_Components(), E_FAIL);
 
     return S_OK;
-}
-
-void WorldInteractionSpot::Late_Update(float timeDelta)
-{
-    GameObject::Late_Update(timeDelta);
-
-    if (_colliderCom == nullptr || !_colliderCom->Get_IsActive())
-        return;
-
-    _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
-    GAME->Add_Collider(_colliderCom);
-}
-
-void WorldInteractionSpot::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    GameObject::OnBeginOverlap(self, other);
-
-    if (self.get() != _colliderCom.get())
-        return;
-
-    Register_CandidateIfActiveHero(other);
-}
-
-void WorldInteractionSpot::OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    GameObject::OnStayOverlap(self, other);
-
-    if (self.get() != _colliderCom.get())
-        return;
-
-    Register_CandidateIfActiveHero(other);
-}
-
-void WorldInteractionSpot::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    GameObject::OnEndOverlap(self, other);
-
-    Shared<Player_WorldBase> activeHero{};
-    if (!Is_ActiveHeroCollider(other, &activeHero))
-        return;
-
-    if (activeHero != nullptr && !activeHero->Is_WorldInteracting())
-        activeHero->Clear_WorldInteractionCandidate(this);
 }
 
 bool WorldInteractionSpot::Can_Interact(const Shared<Player_WorldBase>& activeHero) const
@@ -154,17 +107,4 @@ bool WorldInteractionSpot::Is_ActiveHeroCollider(const Shared<ColliderCom>& othe
         *outActiveHero = activeHero;
 
     return true;
-}
-
-HRESULT WorldInteractionSpot::Ready_Components()
-{
-    Bounding_OBB::BoundingOBBDesc obbDesc{};
-    obbDesc.center = _colliderCenter;
-    obbDesc.extents = _colliderExtents;
-
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_OBB"), _colliderCom, &obbDesc), E_FAIL);
-    _colliderCom->Set_CollisionPreset(Collision_Preset::Trigger);
-    _colliderCom->Set_IsActive(true);
-
-    return S_OK;
 }

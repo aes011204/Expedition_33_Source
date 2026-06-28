@@ -26,7 +26,6 @@ public:
     enum class ParkourActionType
     {
         LowMantle,
-        MiddleMantle,
         HighMantle,
     };
 
@@ -45,7 +44,6 @@ private:
 
     bool Build_ParkourRequest(ParkourActionType actionType, ParkourMoveRequest& outRequest) const;
     bool Build_LowParkourRequest(ParkourMoveRequest& outRequest) const;
-    bool Build_MiddleParkourRequest(ParkourMoveRequest& outRequest) const;
     bool Build_HighParkourRequest(ParkourMoveRequest& outRequest) const;
     bool Build_ParkourRequestAtHeight(
         ParkourActionType actionType,

@@ -14,20 +14,42 @@ public:
     ~WorldRopeSpot() override = default;
 
 public:
+    HRESULT Initialize(void* arg) override;
     void Update(float timeDelta) override;
+    void Late_Update(float timeDelta) override;
+    HRESULT Render() override;
+    HRESULT Render_Shadow() override;
+    bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
+    void OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     bool Can_Interact(const Shared<Player_WorldBase>& activeHero) const override;
     bool Build_InteractionRequest(const Shared<Player_WorldBase>& activeHero, WorldInteractionRequest& outRequest) const override;
 
 private:
-    bool Is_CameraLookingAtZone() const;
+    HRESULT Ready_Components();
+    HRESULT Ready_AABBCollider(
+        const wstring& componentTag,
+        const Vec3& center,
+        const Vec3& extents,
+        Shared<ColliderCom>& outCollider);
+    void Refresh_CandidateFromLockRay(const Shared<Player_WorldBase>& activeHero);
+    bool Is_GateCollider(const Shared<ColliderCom>& collider) const;
+    bool Is_CameraLockRayHittingGrapplePoint() const;
+    bool Try_GetCameraLockRay(Vec3& outOrigin, Vec3& outDirection) const;
 
 private:
-    RopeInteractionMode _ropeMode = RopeInteractionMode::Touch;
-    RopeDirection _ropeDirection = RopeDirection::Up;
+    Shared<ColliderCom> _gateCollider{};
+    Shared<ColliderCom> _grapplePointCollider{};
 
-    Vec3 _lookZoneOffset = Vec3(0.f, 1.f, 0.f);
-    float _lookZoneRadius = 0.75f;
-    float _maxLookDistance = 12.f;
+    bool _hasActiveHeroOverlap = false;
+
+    Vec3 _gateColliderCenter = Vec3{ 0.f, 0.f, 0.f };
+    Vec3 _gateColliderExtents = Vec3{ 1.5f, 2.f, 1.5f };
+
+    Vec3 _grapplePointColliderCenter = Vec3{ 0.f, 3.f, 0.f };
+    Vec3 _grapplePointColliderExtents = Vec3{ 0.45f, 0.45f, 0.45f };
+    float _maxLockRayDistance = 12.f;
 
 public:
     static Shared<WorldRopeSpot> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

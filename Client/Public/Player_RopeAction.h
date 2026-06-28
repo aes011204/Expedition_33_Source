@@ -22,9 +22,38 @@ public:
     void Free() override;
 
 private:
+    enum class RopePhase
+    {
+        None,
+        Start,
+        Travel,
+        End,
+    };
+
+private:
+    void Enter_TravelPhase();
+    void Enter_EndPhase();
+    void Update_StartPhase(float timeDelta);
+    void Update_TravelPhase(float timeDelta);
+    void Update_EndPhase(float timeDelta);
+    bool Is_UpDownRopeRequest() const;
+    Vec3 Resolve_LandingPoint(const Vec3& targetPoint) const;
+    Vec3 Resolve_FaceDirection() const;
+    void Finish_RopeAction();
+
+private:
     WorldInteractionSpot::WorldInteractionRequest _request{};
-    Vec3 _warpStartPos = Vec3::Zero;
-    bool _hasWarp = false;
+    RopePhase _phase = RopePhase::None;
+
+    Vec3 _travelStartPos = Vec3::Zero;
+    Vec3 _travelEndPos = Vec3::Zero;
+    Vec3 _endMoveStartPos = Vec3::Zero;
+    Vec3 _endMoveTargetPos = Vec3::Zero;
+
+    float _travelDistance = 0.f;
+    float _totalTravelDistance = 0.f;
+    float _prevRootMotionRatio = 0.f;
+    bool _hasActiveRequest = false;
 };
 
 NS_END

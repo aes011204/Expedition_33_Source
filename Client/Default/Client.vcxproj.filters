@@ -1088,6 +1088,9 @@
     <ClCompile Include="..\Private\WorldRopeSpot.cpp">
       <Filter>02.GameObject\Map</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\WorldUpDownRopeSpot.cpp">
+      <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\UIPreviewManager.cpp">
       <Filter>02. GameObject\Camera\Preview\Manager</Filter>
     </ClCompile>
@@ -2496,6 +2499,9 @@
       <Filter>02.GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\WorldRopeSpot.h">
+      <Filter>02.GameObject\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\WorldUpDownRopeSpot.h">
       <Filter>02.GameObject\Map</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UIPreviewManager.h">

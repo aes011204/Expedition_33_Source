@@ -20,12 +20,10 @@ namespace
     constexpr float kParkourTopProbeDownDistance = 0.95f;
     constexpr float kParkourProbeDistance = 0.75f;
     constexpr float kParkourLowProbeHeight = 1.00f;
-    constexpr float kParkourMiddleProbeHeight = 1.50f;
     constexpr float kParkourHighProbeHeight = 2.00f;
     constexpr float kParkourFinishDistance = 0.03f;
     constexpr float kParkourAnimationBlendDuration = 0.1f;
     constexpr float kLowParkourAnimationStartFrame = 0.f;
-    constexpr float kMiddleParkourAnimationStartFrame = 60.f;
     constexpr float kHighParkourAnimationStartFrame = 0.f;
 
     Vec3 Flatten_Normalized(Vec3 value, const Vec3& fallback)
@@ -48,8 +46,6 @@ namespace
         {
         case Player_ParkourAction::ParkourActionType::HighMantle:
             return "High";
-        case Player_ParkourAction::ParkourActionType::MiddleMantle:
-            return "Middle";
         case Player_ParkourAction::ParkourActionType::LowMantle:
         default:
             return "Low";
@@ -67,8 +63,6 @@ namespace
     {
         switch (actionType)
         {
-        case Player_ParkourAction::ParkourActionType::MiddleMantle:
-            return kMiddleParkourAnimationStartFrame;
         case Player_ParkourAction::ParkourActionType::HighMantle:
             return kHighParkourAnimationStartFrame;
         case Player_ParkourAction::ParkourActionType::LowMantle:
@@ -217,7 +211,7 @@ void Player_ParkourAction::Update(float timeDelta)
                 _request.targetPoint.x, _request.targetPoint.y, _request.targetPoint.z);
         }
 
-        _movementCom->Stop_VerticalMovement();
+        _movementCom->Force_Land();
         _movementCom->Sync_RuntimePositionToTransform();
 
         if (Has_MoveInput())
@@ -246,20 +240,12 @@ bool Player_ParkourAction::Build_ParkourRequest(ParkourActionType actionType, Pa
     if (actionType == ParkourActionType::LowMantle)
         return Build_LowParkourRequest(outRequest);
 
-    if (actionType == ParkourActionType::MiddleMantle)
-        return Build_MiddleParkourRequest(outRequest);
-
     return Build_HighParkourRequest(outRequest);
 }
 
 bool Player_ParkourAction::Build_LowParkourRequest(ParkourMoveRequest& outRequest) const
 {
     return Build_ParkourRequestAtHeight(ParkourActionType::LowMantle, kParkourLowProbeHeight, outRequest);
-}
-
-bool Player_ParkourAction::Build_MiddleParkourRequest(ParkourMoveRequest& outRequest) const
-{
-    return Build_ParkourRequestAtHeight(ParkourActionType::MiddleMantle, kParkourMiddleProbeHeight, outRequest);
 }
 
 bool Player_ParkourAction::Build_HighParkourRequest(ParkourMoveRequest& outRequest) const
@@ -350,28 +336,19 @@ bool Player_ParkourAction::Build_ParkourRequestFromProbe(
     }
 
     const float yDiff = fabsf(topHit.position.y - frontOrigin.y);
-    if (yDiff > kParkourGroundYTolerance)
-    {
-        LOG_WARN("[Parkour] Reject {}: ground y mismatch. rayY={:.2f}, groundY={:.2f}, diff={:.2f}, tolerance={:.2f}",
-            actionName,
-            frontOrigin.y,
-            topHit.position.y,
-            yDiff,
-            kParkourGroundYTolerance);
-        return false;
-    }
 
     outRequest.startPoint = start;
     outRequest.targetPoint = topHit.position;
     outRequest.faceDir = forward;
     outRequest.actionType = actionType;
 
-    LOG_WARN("[Parkour] Accept {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) rayY={:.2f} diff={:.2f}",
+    LOG_WARN("[Parkour] Accept {}: start=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) rayY={:.2f} diff={:.2f} tolerance={:.2f}",
         actionName,
         outRequest.startPoint.x, outRequest.startPoint.y, outRequest.startPoint.z,
         outRequest.targetPoint.x, outRequest.targetPoint.y, outRequest.targetPoint.z,
         frontOrigin.y,
-        yDiff);
+        yDiff,
+        kParkourGroundYTolerance);
 
     return true;
 }
