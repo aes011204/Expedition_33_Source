@@ -1,6 +1,7 @@
-#include "BattleWorldUI_CommandCards.h"
+﻿#include "BattleWorldUI_CommandCards.h"
 
 #include "BattleWorldUI_JsonTextureResolver.h"
+#include "BattleWorldUI_PlacementUtils.h"
 #include "BattleWorldUI_SurfaceAnim.h"
 #include "Camera.h"
 #include "Debug_Profile.h"
@@ -21,6 +22,7 @@ namespace
     constexpr uint32 kBattleWorldCommandPlacementHeroCount = static_cast<uint32>(HeroId::END);
     constexpr float kBattleWorldCommandDegreesToRadians = 0.017453292519943295f;
     constexpr float kBattleWorldCommandRadiansToDegrees = 57.29577951308232f;
+    constexpr float kBattleWorldCommandTutorialDimAlpha = 0.35f;
     const Vec2 kBattleWorldCommandRootWorldSize = Vec2(2.04f, 1.40f);
     constexpr uint32 kBattleWorldCommandSurfaceOffsetCount = 7;
 
@@ -179,6 +181,7 @@ namespace
         Matrix worldMatrix = Matrix::Identity;
         BattleWorldSurfaceAnimState introAnim{};
         Vec3 introStartOffset = Vec3::Zero;
+        float alphaMultiplier = 1.f; // 튜토리얼 강조 중 surface 전체 opacity를 조절한다.
         bool visible = false;
         bool dirty = true;
     };
@@ -237,6 +240,34 @@ namespace
     bool Should_ShowBattleWorldCommandCards(BattleTurnState state)
     {
         return state == BattleTurnState::ChooseAction;
+    }
+
+    bool Is_TutorialCommandButtonSurface(const string& sourceName)
+    {
+        return sourceName == "Button_BattleCommand_Shot" ||
+            sourceName == "Button_BattleCommand_Item" ||
+            sourceName == "Button_BattleCommand_Skill" ||
+            sourceName == "Button_BattleCommand_GradientSkill" ||
+            sourceName == "Button_BattleCommand_Attack";
+    }
+
+    float Resolve_TutorialCommandSurfaceAlpha(BattleTutorialStep focusStep, const string& sourceName)
+    {
+        if (!Is_TutorialCommandButtonSurface(sourceName))
+            return 1.f;
+
+        if (focusStep == BattleTutorialStep::Attack)
+            return sourceName == "Button_BattleCommand_Attack" ? 1.f : kBattleWorldCommandTutorialDimAlpha;
+
+        if (focusStep == BattleTutorialStep::Skill)
+            return sourceName == "Button_BattleCommand_Skill" ? 1.f : kBattleWorldCommandTutorialDimAlpha;
+
+        return 1.f;
+    }
+
+    bool Is_GradientCommandSurface(const string& sourceName)
+    {
+        return sourceName == "Button_BattleCommand_GradientSkill";
     }
 
     HeroId Normalize_CommandHeroId(HeroId heroId)
@@ -901,21 +932,21 @@ namespace
 
         if (imageRenderMode == BattleWorldCommandImageRenderMode::Unknown)
         {
-            LOG_WARN(
-                "BattleWorldUI command json image skipped: unknown imageRenderMode. panel='{}', name='{}', mode='{}'",
-                panelName,
-                object.name,
-                object.imageRenderMode);
+            //LOG_WARN(
+            //    "BattleWorldUI command json image skipped: unknown imageRenderMode. panel='{}', name='{}', mode='{}'",
+            //    panelName,
+            //    object.name,
+            //    object.imageRenderMode);
             return false;
         }
 
         if (object.useFillRatio)
         {
-            LOG_DEBUG(
-                "BattleWorldUI command json image skipped: unsupported fillRatio. panel='{}', name='{}', fillRatio={}",
-                panelName,
-                object.name,
-                object.fillRatio);
+            //LOG_DEBUG(
+            //    "BattleWorldUI command json image skipped: unsupported fillRatio. panel='{}', name='{}', fillRatio={}",
+            //    panelName,
+            //    object.name,
+            //    object.fillRatio);
             return false;
         }
 
@@ -923,11 +954,11 @@ namespace
             Has_TextureRef(object.maskTextureGuid, object.maskTexturePath) &&
             maskTextureMode == BattleWorldCommandMaskTextureMode::Unknown)
         {
-            LOG_WARN(
-                "BattleWorldUI command json image skipped: unknown maskTextureMode. panel='{}', name='{}', mode='{}'",
-                panelName,
-                object.name,
-                object.maskTextureMode);
+            //LOG_WARN(
+            //    "BattleWorldUI command json image skipped: unknown maskTextureMode. panel='{}', name='{}', mode='{}'",
+            //    panelName,
+            //    object.name,
+            //    object.maskTextureMode);
             return false;
         }
 
@@ -947,11 +978,11 @@ namespace
         {
             if (!hasMaskRef)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required mask ref. panel='{}', name='{}', mode='{}'",
-                    panelName,
-                    object.name,
-                    To_LogName(imageRenderMode));
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required mask ref. panel='{}', name='{}', mode='{}'",
+                //    panelName,
+                //    object.name,
+                //    To_LogName(imageRenderMode));
                 return false;
             }
 
@@ -963,11 +994,11 @@ namespace
                 object.name + "/mask");
             if (!maskTexture)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required mask. panel='{}', name='{}', maskPath='{}'",
-                    panelName,
-                    object.name,
-                    object.maskTexturePath);
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required mask. panel='{}', name='{}', maskPath='{}'",
+                //    panelName,
+                //    object.name,
+                //    object.maskTexturePath);
                 return false;
             }
         }
@@ -978,10 +1009,10 @@ namespace
         {
             if (!hasPatternMaskRef)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required pattern mask ref. panel='{}', name='{}'",
-                    panelName,
-                    object.name);
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required pattern mask ref. panel='{}', name='{}'",
+                //    panelName,
+                //    object.name);
                 return false;
             }
 
@@ -993,11 +1024,11 @@ namespace
                 object.name + "/patternMask");
             if (!patternMaskTexture)
             {
-                LOG_WARN(
-                    "BattleWorldUI command json image skipped: missing required pattern mask. panel='{}', name='{}', patternMaskPath='{}'",
-                    panelName,
-                    object.name,
-                    object.patternMaskTexturePath);
+                //LOG_WARN(
+                //    "BattleWorldUI command json image skipped: missing required pattern mask. panel='{}', name='{}', patternMaskPath='{}'",
+                //    panelName,
+                //    object.name,
+                //    object.patternMaskTexturePath);
                 return false;
             }
         }
@@ -1996,6 +2027,8 @@ struct BattleWorldUI_CommandCards::Impl
     HeroId editorPlacementHeroId = HeroId::END;
     BattleTurnState introState = BattleTurnState::None;
     HeroId introHeroId = HeroId::END;
+    BattleTutorialStep tutorialCommandFocusStep = BattleTutorialStep::END;
+    bool isGradientCommandVisible = true;
     bool hasIntroKey = false;
 };
 
@@ -2092,6 +2125,22 @@ HRESULT BattleWorldUI_CommandCards::Warmup_ForBattleState(uint32 curAp, uint32 m
     return result;
 }
 
+void BattleWorldUI_CommandCards::Set_TutorialCommandFocus(BattleTutorialStep step)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->tutorialCommandFocusStep = step;
+}
+
+void BattleWorldUI_CommandCards::Set_GradientCommandVisible(bool visible)
+{
+    if (_impl == nullptr)
+        return;
+
+    _impl->isGradientCommandVisible = visible;
+}
+
 void BattleWorldUI_CommandCards::Show_ForBattleState(
     const Vec3& anchorWorldPos,
     BattleTurnState currentState,
@@ -2148,6 +2197,9 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
         BattleWorldCommandSurfaceInstance& surface = _impl->surfaces[surfaceIndex];
         surface.visible = false;
 
+        if (!_impl->isGradientCommandVisible && Is_GradientCommandSurface(surface.def.sourceName))
+            continue;
+
         if (surface.def.kind == BattleWorldCommandSurfaceKind::ApBar &&
             (surface.def.content.curAp != content.curAp || surface.def.content.maxAp != content.maxAp))
         {
@@ -2178,8 +2230,8 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
         const Vec3 position =
             anchorWorldPos +
             Resolve_CameraScreenPositionDelta(placementTuning.screenPosition) +
-            placementTuning.baseOffset +
-            localOffset;
+            BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(placementTuning.baseOffset) +
+            BattleWorldUIPlacement::Resolve_CameraHorizontalPlacementDelta(localOffset);
         surface.worldMatrix =
             Matrix::CreateScale(
                 surfaceWorldSize.x * placementTuning.visualScale,
@@ -2190,6 +2242,10 @@ void BattleWorldUI_CommandCards::Show_ForBattleState(
             Matrix::CreateRotationY(placementTuning.yawOffsetRadians) *
             Resolve_CameraFacingYawRotation(position) *
             Matrix::CreateTranslation(position.x, position.y, position.z);
+        surface.alphaMultiplier =
+            Resolve_TutorialCommandSurfaceAlpha(
+                _impl->tutorialCommandFocusStep,
+                surface.def.sourceName);
         surface.visible = true;
         anyVisible = true;
     }
@@ -2205,6 +2261,8 @@ void BattleWorldUI_CommandCards::Hide()
         return;
 
     _impl->hasIntroKey = false;
+    _impl->tutorialCommandFocusStep = BattleTutorialStep::END;
+    _impl->isGradientCommandVisible = true;
     for (auto& surface : _impl->surfaces)
         surface.visible = false;
 }
@@ -2328,8 +2386,11 @@ HRESULT BattleWorldUI_CommandCards::Render()
         if (!surface.visible || surface.surface == nullptr || !surface.surface->Has_BackgroundContent())
             continue;
 
+        Vec4 surfaceColor = color;
+        surfaceColor.w *= surface.alphaMultiplier;
+
         const BattleWorldSurfaceAnimRenderState renderState =
-            Apply_BattleWorldSurfaceAnim(surface.introAnim, surface.worldMatrix, color, surface.introStartOffset);
+            Apply_BattleWorldSurfaceAnim(surface.introAnim, surface.worldMatrix, surfaceColor, surface.introStartOffset);
         CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(surface.surface->Bind_BackgroundShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);
@@ -2347,8 +2408,11 @@ HRESULT BattleWorldUI_CommandCards::Render()
         if (!surface.visible || surface.surface == nullptr || !surface.surface->Has_ForegroundContent())
             continue;
 
+        Vec4 surfaceColor = color;
+        surfaceColor.w *= surface.alphaMultiplier;
+
         const BattleWorldSurfaceAnimRenderState renderState =
-            Apply_BattleWorldSurfaceAnim(surface.introAnim, surface.worldMatrix, color, surface.introStartOffset);
+            Apply_BattleWorldSurfaceAnim(surface.introAnim, surface.worldMatrix, surfaceColor, surface.introStartOffset);
         CHECK_FAILED(Bind_WorldUIPlaneShaderState(_impl->shader.get(), renderState.worldMatrix, renderState.color), E_FAIL);
         CHECK_FAILED(surface.surface->Bind_ForegroundShaderResource(_impl->shader.get(), "g_Texture"), E_FAIL);
         CHECK_FAILED(_impl->shader->Begin(0), E_FAIL);

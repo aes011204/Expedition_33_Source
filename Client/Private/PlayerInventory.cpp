@@ -169,7 +169,7 @@ bool PlayerInventory::Set_WeaponEnhanceLevel(
     return true;
 }
 
-void PlayerInventory::Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel)
+void PlayerInventory::Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel, uint32 enhanceExp)
 {
     if (characterId.empty() || weaponId.empty())
         return;
@@ -181,7 +181,7 @@ void PlayerInventory::Unlock_Weapon(const string& characterId, const string& wea
     entry.characterId = characterId;
     entry.weaponId = weaponId;
     entry.enhanceLevel = max(1u, enhanceLevel);
-    entry.enhanceExp = 0;
+    entry.enhanceExp = enhanceExp;
 
     _ownedWeapons.push_back(entry);
 }
@@ -190,7 +190,7 @@ void PlayerInventory::Ensure_DefaultUnlockedWeapons(const vector<WeaponInventory
 {
     for (const WeaponInventoryEntry& weapon : weapons)
     {
-        Unlock_Weapon(weapon.characterId, weapon.weaponId, weapon.enhanceLevel);
+        Unlock_Weapon(weapon.characterId, weapon.weaponId, weapon.enhanceLevel, weapon.enhanceExp);
     }
 }
 

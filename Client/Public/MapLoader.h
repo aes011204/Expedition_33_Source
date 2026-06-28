@@ -3,6 +3,7 @@
 #include "MapAdapter.h"
 #include "MapCollisionAdapter.h"
 #include <mutex>
+#include <unordered_set>
 
 NS_BEGIN(Engine)
 class GameObject;
@@ -35,6 +36,7 @@ public:
         vector<json> postProcessVolumes = {};
         vector<json> shaftVolumes = {};
         vector<json> waters = {};
+        vector<json> lights;
         vector<json> prefabInstances = {};
         vector<json> authoredObjects = {};
         vector<string> preloadModelPaths = {};
@@ -70,6 +72,7 @@ public:
         bool postProcessVolumesDone = false;
         bool shaftVolumesDone = false;
         bool watersDone = false;
+        bool lightsDone = false;
         bool prefabInstancesDone = false;
         bool authoredObjectsDone = false;
 
@@ -128,7 +131,9 @@ public:
         const wstring& layerTag);
 
     static HRESULT Convert_Json_To_Bin(const wstring& jsonPath, const wstring& binPath);
+    static HRESULT Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot);
     static void Clear_GlobalCache();
+    static void Reapply_CachedLights();
 
 private:
     static HRESULT Try_BeginMapInstanceSession(
@@ -165,9 +170,11 @@ private:
     // 스레드 안전한 전역 맵 모델 프로토타입 캐시 멤버
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;
+    static unordered_set<string> g_globalMissingModelCache;
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
     static umap<string, string> g_globalMaterialSignatureByModel;
     static uint32 g_currentLevelIndex;
+    static vector<LIGHT_DESC> g_cachedLights;
 };
 
 NS_END

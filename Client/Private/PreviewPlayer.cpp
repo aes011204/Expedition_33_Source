@@ -1,6 +1,7 @@
 ﻿#include "PreviewPlayer.h"
 
 #include "Body_Player.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "EffectCom.h"
 #include "FaceAccessory_Player.h"
@@ -19,6 +20,24 @@
 #include "Weapon.h"
 #include "WeaponPrefabLoader.h"
 
+namespace
+{
+bool Read_Vec3Property(const json& customProperties, const char* key, Vec3& outValue)
+{
+    if (!customProperties.contains(key))
+        return false;
+
+    const json& value = customProperties[key];
+    if (!value.is_array() || value.size() < 3)
+        return false;
+
+    outValue.x = value[0].get<float>();
+    outValue.y = value[1].get<float>();
+    outValue.z = value[2].get<float>();
+    return true;
+}
+}
+
 REGISTER_GLOBAL_ENUM(Client::PreviewAnimState, "PreviewAnimState")
 
 IMPLEMENT_REFLECTION(PreviewPlayer)
@@ -30,6 +49,12 @@ IMPLEMENT_REFLECTION(PreviewPlayer)
     info.category = "UI Preview";
 
     PROPERTY_STRING("HeroId", _heroIdName);
+    PROPERTY_VEC3("Lune Colim Preview Pos", _luneColimChangeWeaponPreviewPositionOffset, 0.01f);
+    PROPERTY_VEC3("Lune Colim Preview Rot", _luneColimChangeWeaponPreviewRotationOffset, 0.1f);
+    PROPERTY_VEC3("Lune Baguette Preview Pos", _luneBaguetteChangeWeaponPreviewPositionOffset, 0.01f);
+    PROPERTY_VEC3("Lune Baguette Preview Rot", _luneBaguetteChangeWeaponPreviewRotationOffset, 0.1f);
+    PROPERTY_VEC3("Lune Snowim Preview Pos", _luneSnowimChangeWeaponPreviewPositionOffset, 0.01f);
+    PROPERTY_VEC3("Lune Snowim Preview Rot", _luneSnowimChangeWeaponPreviewRotationOffset, 0.1f);
 
     return true;
 }
@@ -76,13 +101,35 @@ HRESULT PreviewPlayer::Initialize(void* arg)
     return S_OK;
 }
 
+json PreviewPlayer::To_Json() const
+{
+    json root = GameObject::To_Json();
+    json parts = json::array();
+
+    for (const auto& [partTag, partObject] : _partObjects)
+    {
+        if (partObject == nullptr)
+            continue;
+
+        if (partTag.starts_with(TEXT("Part_Weapon")))
+            continue; // ChangeWeapon에서 임시로 붙인 무기는 PP_* prefab에 저장하지 않는다.
+
+        json partJson = json::object();
+        partJson["part_tag"] = String::ToString(partTag);
+        partJson["object"] = partObject->To_Json();
+        parts.emplace_back(std::move(partJson));
+    }
+
+    root["parts"] = std::move(parts);
+    return root;
+}
+
 void PreviewPlayer::From_Json(const json& data)
 {
     if (data.contains("custom_properties") && data["custom_properties"].is_object())
     {
         const json& customProperties = data["custom_properties"];
-        _heroIdName = customProperties.value("_heroIdName", customProperties.value("HeroId", _heroIdName));
-        _heroId = Parse_HeroIdName(_heroIdName);
+        Apply_ChangeWeaponPreviewCustomProperties(customProperties);
     }
 
     if (_heroId == HeroId::END)
@@ -97,6 +144,13 @@ void PreviewPlayer::From_Json(const json& data)
         CHECK_FAILED(Sync_FromRuntimeData());
 
     Set_Visible(false);
+}
+
+bool PreviewPlayer::Should_ApplySerializedPart(const wstring& partTag, const json& partObjectJson) const
+{
+    UNREFERENCED_PARAMETER(partObjectJson);
+
+    return !partTag.starts_with(TEXT("Part_Weapon"));
 }
 
 void PreviewPlayer::BeginPlay()
@@ -510,9 +564,6 @@ HRESULT PreviewPlayer::Apply_EquippedWeaponFromRuntimeData()
         weaponId = weaponDesc->weaponId;
     }
 
-    if (weaponId == _activeWeaponId)
-        return S_OK;
-
     Clear_WeaponPreview();
     _activeWeaponId = weaponId;
 
@@ -556,6 +607,7 @@ HRESULT PreviewPlayer::Attach_WeaponPreview(const wstring& partTag, const string
 
     weapon->From_Json(loadedPrefab.rootJson);
     weapon->Set_SourcePrefabName(prefabName);
+    Apply_ChangeWeaponPreviewWeaponOffset(weapon.get(), prefabName); // PP_* prefab에 선언된 ChangeWeapon 전용 transform 값으로 덮어쓴다.
     weapon->Set_Owner(GetSharedPtr<GameObject>());
 
     if (partTag == TEXT("Part_WeaponL"))
@@ -570,6 +622,70 @@ HRESULT PreviewPlayer::Attach_WeaponPreview(const wstring& partTag, const string
         CHECK_FAILED(weapon->Try_BeginPlay(), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT PreviewPlayer::Reload_ChangeWeaponPreviewOffsetsFromPrefab()
+{
+    const string& sourcePrefabName = Get_SourcePrefabName();
+    if (sourcePrefabName.empty())
+        return S_OK;
+
+    const fs::path prefabPath = Spawn_Prefab::Resolve_PrefabPath(sourcePrefabName);
+    const json root = GAME->Load_JsonFile(prefabPath);
+    if (!root.is_object() ||
+        !root.contains("custom_properties") ||
+        !root["custom_properties"].is_object())
+        return S_OK;
+
+    Apply_ChangeWeaponPreviewCustomProperties(root["custom_properties"]);
+    return S_OK;
+}
+
+bool PreviewPlayer::Get_ChangeWeaponPreviewWeaponOffset(const string& prefabName, Vec3& outPosition, Vec3& outRotation) const
+{
+    outPosition = Vec3::Zero;
+    outRotation = Vec3::Zero;
+
+    if (_heroId != HeroId::Lune)
+        return false;
+
+    if (prefabName == Constants::Prefab::Lune_Colim)
+    {
+        outPosition = _luneColimChangeWeaponPreviewPositionOffset;
+        outRotation = _luneColimChangeWeaponPreviewRotationOffset;
+        return true;
+    }
+
+    if (prefabName == Constants::Prefab::Lune_Baguette)
+    {
+        outPosition = _luneBaguetteChangeWeaponPreviewPositionOffset;
+        outRotation = _luneBaguetteChangeWeaponPreviewRotationOffset;
+        return true;
+    }
+
+    if (prefabName == Constants::Prefab::Lune_Snowim)
+    {
+        outPosition = _luneSnowimChangeWeaponPreviewPositionOffset;
+        outRotation = _luneSnowimChangeWeaponPreviewRotationOffset;
+        return true;
+    }
+
+    return false;
+}
+
+void PreviewPlayer::Apply_ChangeWeaponPreviewWeaponOffset(Weapon* weapon, const string& prefabName) const
+{
+    if (weapon == nullptr || weapon->Get_Transform() == nullptr)
+        return;
+
+    Vec3 previewPosition = Vec3::Zero;
+    Vec3 previewRotation = Vec3::Zero;
+    if (!Get_ChangeWeaponPreviewWeaponOffset(prefabName, previewPosition, previewRotation))
+        return;
+
+    const auto transform = weapon->Get_Transform();
+    transform->Set_Position(previewPosition);
+    transform->Set_RotationEuler(previewRotation);
 }
 
 void PreviewPlayer::Rebind_ActiveCostumeVariant(const string& presetId)
@@ -666,6 +782,19 @@ void PreviewPlayer::Clear_WeaponPreview()
     _weapon.reset();
     _subWeapon.reset();
     _activeWeaponId.clear();
+}
+
+void PreviewPlayer::Apply_ChangeWeaponPreviewCustomProperties(const json& customProperties)
+{
+    _heroIdName = customProperties.value("_heroIdName", customProperties.value("HeroId", _heroIdName));
+    _heroId = Parse_HeroIdName(_heroIdName);
+
+    Read_Vec3Property(customProperties, "_luneColimChangeWeaponPreviewPositionOffset", _luneColimChangeWeaponPreviewPositionOffset);
+    Read_Vec3Property(customProperties, "_luneColimChangeWeaponPreviewRotationOffset", _luneColimChangeWeaponPreviewRotationOffset);
+    Read_Vec3Property(customProperties, "_luneBaguetteChangeWeaponPreviewPositionOffset", _luneBaguetteChangeWeaponPreviewPositionOffset);
+    Read_Vec3Property(customProperties, "_luneBaguetteChangeWeaponPreviewRotationOffset", _luneBaguetteChangeWeaponPreviewRotationOffset);
+    Read_Vec3Property(customProperties, "_luneSnowimChangeWeaponPreviewPositionOffset", _luneSnowimChangeWeaponPreviewPositionOffset);
+    Read_Vec3Property(customProperties, "_luneSnowimChangeWeaponPreviewRotationOffset", _luneSnowimChangeWeaponPreviewRotationOffset);
 }
 
 void PreviewPlayer::Capture_DefaultCostumePartTransformsIfNeeded()

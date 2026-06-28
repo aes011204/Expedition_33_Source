@@ -1,8 +1,11 @@
 ﻿#include"BT_Node_Bootstrap.h"
 #include "BT_Chase.h"
 #include "BT_Idle.h"
+#include "BT_HasDeadHero.h"
 #include "BT_Patrol.h"
 #include "BT_CheckDistance.h"
+#include "BT_ForceSkillOnDeadHero.h"
+#include "BT_SetDeadHeroTarget.h"
 #include "BT_FinishDecision.h"
 #include "BT_LookRange.h"
 #include "BT_RotateToTarget.h"
@@ -16,8 +19,11 @@ void Force_Register_ClientBTNodes()
 {
     (void)BT_Chase::StaticClassNameA();
     (void)BT_Idle::StaticClassNameA();
+    (void)BT_HasDeadHero::StaticClassNameA();
     (void)BT_Patrol::StaticClassNameA();
     (void)BT_CheckDistance::StaticClassNameA();
+    (void)BT_ForceSkillOnDeadHero::StaticClassNameA();
+    (void)BT_SetDeadHeroTarget::StaticClassNameA();
     (void)BT_RotateToTarget::StaticClassNameA();
     (void)BT_FinishDecision::StaticClassNameA();
     (void)BT_Set_Target::StaticClassNameA();

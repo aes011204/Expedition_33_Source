@@ -10,6 +10,11 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    constexpr float kPreviewPaneWidthRatio = 0.42f;
+    constexpr float kPreviewPaneMinWidth = 420.f;
+    constexpr float kPreviewPaneMaxWidth = 640.f;
+    constexpr float kSideBySideLayoutMinWidth = 760.f;
+
     static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
     {
         switch (value)
@@ -136,9 +141,11 @@ void EffectMaterial_View::Render()
 
     bool isOpen = Is_Open();
     const string& windowName = Get_ImGuiWindowName();
+    Apply_PendingFocusBeforeBegin();
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        Clear_PendingFocusAfterBegin();
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
         Render_PresetInfo();
@@ -157,6 +164,7 @@ void EffectMaterial_View::Open_PresetBrowser()
         Load_PresetGuid(_presetGuids.front());
 
     Set_Open(true);
+    Request_FocusOnOpen();
 }
 
 void EffectMaterial_View::Open_Preset(const wstring& filePath)
@@ -165,6 +173,7 @@ void EffectMaterial_View::Open_Preset(const wstring& filePath)
     Refresh_PresetList();
     Load_PresetFile(filePath);
     Set_Open(true);
+    Request_FocusOnOpen();
 }
 
 bool EffectMaterial_View::Has_SelectedPreset() const
@@ -187,9 +196,6 @@ string EffectMaterial_View::Get_SelectedMaterialFileName() const
 
 void EffectMaterial_View::Render_PresetInfo()
 {
-    ImGui::TextUnformatted("원본 머티리얼");
-    ImGui::Separator();
-
     if (_selectedPresetPath.empty())
     {
         if (!_statusMessage.empty())
@@ -199,21 +205,7 @@ void EffectMaterial_View::Render_PresetInfo()
         return;
     }
 
-    const float contentWidth = ImGui::GetContentRegionAvail().x;
-    const float previewWidth = contentWidth < 560.f
-                               ? contentWidth
-                               : clamp(contentWidth * 0.48f, 360.f, 560.f);
-
-    ImGui::BeginChild("EffectMaterialPreviewPane", ImVec2(previewWidth, 0.f), false);
-    {
-        Render_PresetPreview();
-    }
-    ImGui::EndChild();
-
-    if (contentWidth >= 560.f)
-        ImGui::SameLine();
-
-    ImGui::BeginChild("EffectMaterialPresetDetail", ImVec2(0.f, 0.f), false);
+    auto render_detail = [this]
     {
         ImGui::TextDisabled("읽기 전용 원본 머티리얼입니다. Required slot에 복사해 사용합니다.");
 
@@ -257,11 +249,42 @@ void EffectMaterial_View::Render_PresetInfo()
 
         ImGui::Separator();
         Render_MaterialInstanceTable("EffectMaterialPresetInstance", _selectedPresetMaterial);
+    };
+
+    const float contentWidth = ImGui::GetContentRegionAvail().x;
+    const bool useSideBySideLayout = contentWidth >= Internal::kSideBySideLayoutMinWidth;
+    if (useSideBySideLayout)
+    {
+        const float spacing = ImGui::GetStyle().ItemSpacing.x;
+        const float previewPaneWidth = clamp(
+            contentWidth * Internal::kPreviewPaneWidthRatio,
+            Internal::kPreviewPaneMinWidth,
+            Internal::kPreviewPaneMaxWidth
+        );
+
+        ImGui::BeginChild("EffectMaterialPreviewPane", ImVec2(previewPaneWidth, 0.f), false);
+        {
+            Render_PresetPreview(true);
+        }
+        ImGui::EndChild();
+
+        ImGui::SameLine(0.f, spacing);
+
+        ImGui::BeginChild("EffectMaterialPresetDetail", ImVec2(0.f, 0.f), false);
+        {
+            render_detail();
+        }
+        ImGui::EndChild();
     }
-    ImGui::EndChild();
+    else
+    {
+        Render_PresetPreview(false);
+        ImGui::Separator();
+        render_detail();
+    }
 }
 
-void EffectMaterial_View::Render_PresetPreview()
+void EffectMaterial_View::Render_PresetPreview(bool fillAvailableHeight)
 {
     if (_previewRenderer == nullptr)
         return;
@@ -269,7 +292,8 @@ void EffectMaterial_View::Render_PresetPreview()
     _previewRenderer->Draw_Viewport(
         "EffectMaterialOriginalPreview",
         _selectedPresetMaterial,
-        "원본 머티리얼 프리뷰"
+        "",
+        fillAvailableHeight
     );
 }
 
@@ -281,7 +305,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 0.35f);
     ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.65f);
 
-    const auto drawRow = [](const char* label, const string& value)
+    const auto draw_row = [](const char* label, const string& value)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -290,7 +314,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::TextUnformatted(value.c_str());
     };
 
-    const auto drawTextureRow = [](const char* label, const string& textureGuid, const string& texturePath)
+    const auto draw_texture_row = [](const char* label, const string& textureGuid, const string& texturePath)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -308,8 +332,8 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         }
     };
 
-    drawTextureRow("Main Texture (Emissive)", material.mainTextureGuid, material.mainTexturePath);
-    drawTextureRow("Noise Texture", material.noiseTextureGuid, material.noiseTexturePath);
+    draw_texture_row("Main Texture (Emissive)", material.mainTextureGuid, material.mainTexturePath);
+    draw_texture_row("Noise Texture", material.noiseTextureGuid, material.noiseTexturePath);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
@@ -356,12 +380,12 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::Text("%.2f / %.2f", material.coreEmissive.outerPower, material.coreEmissive.outerIntensity);
     }
 
-    drawRow("Preset Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
+    draw_row("Preset Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
     if (material.blendMode == EffectMaterialBlendMode::Additive)
     {
-        drawRow("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
-        drawRow("Additive Amount Source", Internal::Get_AdditiveAmountSourceLabel(material.additive.amountSource));
-        drawRow("Additive Coverage", Internal::Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
+        draw_row("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
+        draw_row("Additive Amount Source", Internal::Get_AdditiveAmountSourceLabel(material.additive.amountSource));
+        draw_row("Additive Coverage", Internal::Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -370,7 +394,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::Text("%.2f", material.additive.intensityScale);
     }
     else
-        drawRow("Opacity Source", material.opacitySource);
+        draw_row("Opacity Source", material.opacitySource);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);

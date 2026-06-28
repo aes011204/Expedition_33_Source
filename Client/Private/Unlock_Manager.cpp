@@ -82,6 +82,47 @@ namespace
         return {};
     }
 
+    string Normalize_GetWeaponPresentationId(const string& characterId, const string& weaponId)
+    {
+        if (characterId == "Gustave")
+        {
+            if (weaponId == "Baguette")
+                return "Gustave_Baguette";
+
+            if (weaponId == "Tireso" || weaponId == "Candy")
+                return "Gustave_Candy";
+
+            if (weaponId == "Lanceram")
+                return "Gustave_Lanceram";
+        }
+
+        if (characterId == "Lune")
+        {
+            if (weaponId == "Baguette")
+                return "Lune_Baguette";
+
+            if (weaponId == "Colim")
+                return "Lune_Colim";
+
+            if (weaponId == "Snowim")
+                return "Lune_Snowim";
+        }
+
+        if (characterId == "Maelle")
+        {
+            if (weaponId == "Baguette")
+                return "Maelle_Baguette";
+
+            if (weaponId == "Medalum")
+                return "Maelle_Medalum";
+
+            if (weaponId == "Plenum" || weaponId == "Sekarum")
+                return "Maelle_Sekarum";
+        }
+
+        return {};
+    }
+
 }
 
 HRESULT Unlock_Manager::Initialize()
@@ -89,6 +130,7 @@ HRESULT Unlock_Manager::Initialize()
     Reset_DefaultHeroUnlocks();
     _pendingGetCharacterHeroes.clear();
     _pendingGetClothesPresetIds.clear();
+    _pendingGetWeaponPresentationIds.clear();
 
     Register_DefaultRules();
 
@@ -236,6 +278,21 @@ void Unlock_Manager::Queue_GetClothesPresentation(const string& presetId)
     _pendingGetClothesPresetIds.emplace_back(presentationId);
 }
 
+void Unlock_Manager::Queue_GetWeaponPresentation(const string& characterId, const string& weaponId)
+{
+    const string presentationId = Normalize_GetWeaponPresentationId(characterId, weaponId);
+    if (presentationId.empty())
+        return;
+
+    if (find(_pendingGetWeaponPresentationIds.begin(), _pendingGetWeaponPresentationIds.end(), presentationId) !=
+        _pendingGetWeaponPresentationIds.end())
+    {
+        return;
+    }
+
+    _pendingGetWeaponPresentationIds.emplace_back(presentationId);
+}
+
 void Unlock_Manager::Apply_Reward(
     const UnlockReward& reward,
     uint32 rewardLevelIndex,
@@ -349,6 +406,14 @@ vector<string> Unlock_Manager::Consume_GetClothesPresetIds()
     return result;
 }
 
+vector<string> Unlock_Manager::Consume_GetWeaponPresentationIds()
+{
+    vector<string> result = std::move(_pendingGetWeaponPresentationIds);
+    _pendingGetWeaponPresentationIds.clear();
+
+    return result;
+}
+
 json Unlock_Manager::Create_SaveJson() const
 {
     json root = json::object();
@@ -368,12 +433,13 @@ json Unlock_Manager::Create_SaveJson() const
     return root;
 }
 
-bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards)
+bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards, bool queuePresentation)
 {
     _completedRuleIds.clear();
     Reset_DefaultHeroUnlocks(); // 구스타브 초기화
     _pendingGetCharacterHeroes.clear();
     _pendingGetClothesPresetIds.clear();
+    _pendingGetWeaponPresentationIds.clear();
 
     if (!data.is_object())
         return true;
@@ -398,20 +464,20 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards)
                 if (reward.type == RewardType::UnlockCostumePreset)
                 {
                     // 저장 데이터 복원 때도 의상 획득 UI를 보여주기 위해 presentation queue에 올린다.
-                    Apply_Reward(reward, UINT32_MAX, nullptr, true);
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
                     continue;
                 }
 
                 if (reward.type == RewardType::UnlockHero)
                 {
                     // 저장 데이터 복원 때도 해금 캐릭터를 보여주기 위해 que에 true 세팅. 나중에 무기도 UI 띄우기
-                    Apply_Reward(reward, UINT32_MAX, nullptr, true);
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
                     continue;
                 }
 
                 if (replayWorldRewards && reward.type == RewardType::SpawnWorldObject)
                 {
-                    Apply_Reward(reward, UINT32_MAX, nullptr, false);
+                    Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
                     continue;
                 }
             }
@@ -430,7 +496,7 @@ bool Unlock_Manager::Apply_SaveJson(const json& data, bool replayWorldRewards)
             reward.type = RewardType::UnlockHero;
             reward.heroId = static_cast<HeroId>(entry.get<int>());
 
-            Apply_Reward(reward, UINT32_MAX, nullptr, true);
+            Apply_Reward(reward, UINT32_MAX, nullptr, queuePresentation);
         }
     }
 
@@ -470,6 +536,7 @@ void Unlock_Manager::Free()
     _unlockedHeroIds.clear();
     _pendingGetCharacterHeroes.clear();
     _pendingGetClothesPresetIds.clear();
+    _pendingGetWeaponPresentationIds.clear();
 
     Base::Free();
 }

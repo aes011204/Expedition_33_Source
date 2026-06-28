@@ -1,4 +1,5 @@
 ﻿#include "MapStaticMesh.h"
+#include "ClientInstance.h"
 #include "GameInstance.h"
 #include "Collision_Define.h"
 #include "MapStaticCollisionBuilder.h"
@@ -251,6 +252,9 @@ void MapStaticMesh::Late_Update(float timeDelta)
     if (!_visible || _model == nullptr)
         return;
 
+    if (ClientInstance::Is_DebugDisableMapStaticMeshRender())
+        return;
+
     if (g_toggleOwner == nullptr)
         g_toggleOwner = this;
 
@@ -268,7 +272,7 @@ void MapStaticMesh::Late_Update(float timeDelta)
 
         if (_cullEnabled && !GAME->IsVisible(worldBox))
         {
-            if (_castShadow && Casts_DynamicShadow())
+            if (_castShadow && Casts_DynamicShadow() && !ClientInstance::Is_DebugDisableMapStaticMeshShadow())
                 GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
             return;
         }
@@ -290,7 +294,7 @@ void MapStaticMesh::Late_Update(float timeDelta)
     if (_hasEclipseGlow)
         GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
 
-    if (_castShadow && Casts_DynamicShadow())
+    if (_castShadow && Casts_DynamicShadow() && !ClientInstance::Is_DebugDisableMapStaticMeshShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 

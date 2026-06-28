@@ -24,16 +24,25 @@ public:
     HRESULT Render() override;
 
 public: //## Behavior::ComputeUpdate
-    void Dispatch_Compute(float timeDelta, uint32 spawnRequest, uint32 spawnSerialBase, float lifetimeSamplePhase, bool killActiveParticles); // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
-    void Update_RuntimeDesc(const ComputePointParticleDesc& desc);                         // 같은 instance count 안에서 위치/크기 runtime payload를 갱신한다.
-    void Set_Center(const Vec3& center);                                                   // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
-    void Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look);            // emitter local 값을 world 방향으로 바꾸는 basis를 갱신한다.
-    HRESULT Reset_ForEffectReplay();                                                       // effect 재사용 전 particle lifecycle/draw state를 초기화한다.
-    bool Has_ActiveParticles() const { return _hasActiveParticles; }                       // CPU가 아는 범위에서 활성 particle이 있었는지 확인한다.
-    bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const; // compute output에서 follower ribbon 대표 particle 위치를 읽는다.
-
-private: //## Static::ComputeSmoke
-    static constexpr uint32 kThreadCountX{ 64 }; // compute shader의 numthreads.x와 맞춘 dispatch 단위.
+    // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
+    void Dispatch_Compute(
+        float timeDelta,
+        uint32 spawnRequest,
+        uint32 spawnSerialBase,
+        float lifetimeSamplePhase,
+        bool killActiveParticles);
+    // 같은 instance count 안에서 위치/크기 runtime payload를 갱신한다.
+    void Update_RuntimeDesc(const ComputePointParticleDesc& desc);
+    // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
+    void Set_Center(const Vec3& center);
+    // emitter local 값을 world 방향으로 바꾸는 basis를 갱신한다.
+    void Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look);
+    // effect 재사용 전 particle lifecycle/draw state를 초기화한다.
+    HRESULT Reset_ForEffectReplay();
+    // CPU가 아는 범위에서 활성 particle이 있었는지 확인한다.
+    bool Has_ActiveParticles() const { return _hasActiveParticles; }
+    // compute output에서 follower ribbon 대표 particle 위치를 읽는다.
+    bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const;
 
 private: //## Types::IndirectDraw
     // compute shader가 쓰고 indirect draw가 읽는 5-DWORD 공통 args payload.
@@ -59,8 +68,13 @@ private: //## Types::IndirectDraw
         uint32 reserved1{};
     };
 
+private: //## Static::ComputeSmoke
+    // compute shader의 numthreads.x와 맞춘 dispatch 단위.
+    static constexpr uint32 kThreadCountX{ 64 };
+
 private: //## Data::ParticleDesc
-    ComputePointParticleDesc _desc{}; // clone 생성 시 전달받는 compute particle 검증 규칙 저장.
+    // clone 생성 시 전달받는 compute particle 검증 규칙 저장.
+    ComputePointParticleDesc _desc{};
 
 private: //## Data::Compute
     Shared<ComputeShaderCom> _computeShader{};               // instance payload를 쓰는 compute shader.
@@ -76,9 +90,9 @@ private: //## Data::Compute
     uint32 _spawnSerialBase{};                               // 이번 dispatch 첫 spawn의 replay-local 순번이다.
     uint32 _killActiveParticles{};                           // 이번 dispatch에서 active particle을 모두 죽일지 나타낸다.
     Vec3 _sourceMotionVelocity{};                            // 이번 dispatch에서 사용할 emitter center delta 기반 source velocity다.
-    Vec3 _previousSourceMotionCenter{};                       // 이전 dispatch의 emitter center다.
-    bool _hasPreviousSourceMotionCenter{ false };             // source velocity 계산에 사용할 이전 center가 있는지 나타낸다.
-    bool _sourceMotionVelocityValid{ false };                 // 이번 dispatch source velocity가 유효한지 나타낸다.
+    Vec3 _previousSourceMotionCenter{};                      // 이전 dispatch의 emitter center다.
+    bool _hasPreviousSourceMotionCenter{ false };            // source velocity 계산에 사용할 이전 center가 있는지 나타낸다.
+    bool _sourceMotionVelocityValid{ false };                // 이번 dispatch source velocity가 유효한지 나타낸다.
     bool _hasActiveParticles{ false };                       // readback 없이 비활성 emitter submit을 줄이기 위한 CPU-side latch다.
 
 private: //## Data::GPU

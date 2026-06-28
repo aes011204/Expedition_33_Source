@@ -59,8 +59,24 @@ json RuntimeRuleStateIO::To_Json(const RuleState& ruleState)
 {
     json root = json::object();
     root["version"] = ruleState.version;
-    root["costumes"] = ruleState.costumeJson;
-    root["unlock_manager"] = ruleState.unlockManagerJson;
+    if (ruleState.costumeJson.is_object() && !ruleState.costumeJson.empty())
+        root["costumes"] = ruleState.costumeJson;
+    if (ruleState.unlockManagerJson.is_object() && !ruleState.unlockManagerJson.empty())
+        root["unlock_manager"] = ruleState.unlockManagerJson;
+    if (ruleState.inventoryJson.is_object() && !ruleState.inventoryJson.empty())
+        root["inventory"] = ruleState.inventoryJson;
+    if (!ruleState.heroes.empty())
+    {
+        root["heroes"] = json::array();
+        for (const RuntimeCheckpointIO::HeroState& hero : ruleState.heroes)
+        {
+            json entry = json::object();
+            entry["hero_id"] = string(magic_enum::enum_name(hero.heroId));
+            entry["stat"] = hero.statJson;
+            entry["skill_tree"] = hero.skillTreeJson;
+            root["heroes"].emplace_back(std::move(entry));
+        }
+    }
     return root;
 }
 
@@ -76,6 +92,25 @@ bool RuntimeRuleStateIO::From_Json(const json& root, RuleState& outRuleState)
 
     ruleState.costumeJson = root.value("costumes", json::object());
     ruleState.unlockManagerJson = root.value("unlock_manager", json::object());
+    ruleState.inventoryJson = root.value("inventory", json::object());
+    if (auto heroes = root.find("heroes"); heroes != root.end() && heroes->is_array())
+    {
+        for (const json& entry : *heroes)
+        {
+            if (!entry.is_object())
+                continue;
+
+            const auto heroId = magic_enum::enum_cast<HeroId>(entry.value("hero_id", string{}));
+            if (!heroId.has_value())
+                continue;
+
+            RuntimeCheckpointIO::HeroState hero{};
+            hero.heroId = heroId.value();
+            hero.statJson = entry.value("stat", json::object());
+            hero.skillTreeJson = entry.value("skill_tree", json::object());
+            ruleState.heroes.emplace_back(std::move(hero));
+        }
+    }
 
     outRuleState = std::move(ruleState);
     return true;

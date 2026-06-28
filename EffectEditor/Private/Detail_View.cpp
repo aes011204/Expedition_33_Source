@@ -2462,6 +2462,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _planeRadialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::CylinderLocation:
+        if (auto* data = get_if<CylinderLocationModuleData>(&module.data))
+            changed = _cylinderLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialVelocity:
         if (auto* data = get_if<InitialVelocityModuleData>(&module.data))
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -2520,6 +2525,16 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::RotationOverLife:
         if (auto* data = get_if<RotationOverLifeModuleData>(&module.data))
             changed = _rotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SpriteTilt:
+        if (auto* data = get_if<SpriteTiltModuleData>(&module.data))
+            changed = _spriteTiltModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SpriteTiltOverLife:
+        if (auto* data = get_if<SpriteTiltOverLifeModuleData>(&module.data))
+            changed = _spriteTiltOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::InitialRotationRate:

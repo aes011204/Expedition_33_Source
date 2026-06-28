@@ -14,6 +14,25 @@
 #include "FaceAccessory_Player.h"
 #include "ClientInstance.h"
 
+namespace
+{
+string Resolve_WeaponCharacterId(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return "Gustave";
+    case HeroId::Lune:
+        return "Lune";
+    case HeroId::Maelle:
+        return "Maelle";
+    case HeroId::END:
+    default:
+        return {};
+    }
+}
+}
+
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
 {
@@ -130,6 +149,33 @@ HRESULT Player_BattleBase::Rebuild_WeaponPartsFromCurrentStat()
     // 현재 장착 weaponId 기준으로 WP_* prefab transform을 최종 적용한다.
     CHECK_FAILED(Ready_WeaponParts(body), E_FAIL);
     return S_OK;
+}
+
+HRESULT Player_BattleBase::Apply_WeaponPreviewById(const string& weaponId)
+{
+    if (weaponId.empty())
+        return E_FAIL;
+
+    const string characterId = Get_WeaponCharacterId();
+    const GameDataTable::WeaponDesc* weaponDesc = CLIENT->Get_WeaponDesc(characterId, weaponId);
+    if (weaponDesc == nullptr)
+        return E_FAIL;
+
+    _editorPreviewWeaponId = weaponDesc->weaponId;
+    return Rebuild_WeaponPartsFromCurrentStat();
+}
+
+string Player_BattleBase::Get_WeaponCharacterId() const
+{
+    return Resolve_WeaponCharacterId(Get_HeroId());
+}
+
+string Player_BattleBase::Get_ActiveWeaponPreviewId() const
+{
+    if (!_editorPreviewWeaponId.empty())
+        return _editorPreviewWeaponId;
+
+    return _combatStatCom ? _combatStatCom->Get_PlayerRuntimeStat().CurEquippedWeaponId : string{};
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()

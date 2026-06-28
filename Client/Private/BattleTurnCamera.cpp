@@ -427,11 +427,15 @@ void BattleTurnCamera::Reset_RuntimeState()
     _prevTargetPos = Vec3::Zero;
     _enemyPos = Vec3::Zero;
     _playerPos = Vec3::Zero;
+    _playerAttackSubjectPos = Vec3::Zero;
+    _playerAttackOpponentPos = Vec3::Zero;
     _enemySpawnDescs.clear();
     _hasWideAnchor = false;
     _wideAnchorHeroCenter = Vec3::Zero;
     _battlePlaneYawDegrees = 0.f;
     _wideAnchorYawDegrees = 0.f;
+    _yaw = 0.f;
+    _pitch = 0.f;
     _isClipPreview = false;
     _isFirstUpdate = true;
     _isWideMode = false;
@@ -1085,15 +1089,31 @@ float BattleTurnCamera::Resolve_BattlePlaneYaw() const
 
 float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const
 { 
+    auto resolveSubjectFacingYaw = [&]() -> float
+    {
+        if (request.subject == nullptr || request.subject->Get_Transform() == nullptr)
+            return Resolve_BattlePlaneYaw();
+
+        Vec3 forward = request.subject->Get_Transform()->Get_WorldForward();
+        forward.y = 0.f;
+        if (forward.LengthSquared() <= 0.0001f)
+            return Resolve_BattlePlaneYaw();
+
+        forward.Normalize();
+        return XMConvertToDegrees(atan2f(forward.x, forward.z));
+    };
+
     switch (request.mode)
     {
+    case BattleCameraMode::SELECTSKILL:
+        return resolveSubjectFacingYaw();
+
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::ENEMYFOCUS:
     case BattleCameraMode::PLAYERATTACK:
     case BattleCameraMode::SELECTITEM:
-    case BattleCameraMode::SELECTSKILL:
     case BattleCameraMode::PARRY:
-    case BattleCameraMode::BATTLEINTRO:  
+    case BattleCameraMode::BATTLEINTRO:
         return Resolve_BattlePlaneYaw();
 
     default:
@@ -1132,12 +1152,11 @@ bool BattleTurnCamera::Start_PoseTransition(
     }
 
     EvaluatedPose toPose{};
-    const bool shouldUseFrozenSelectItemPose =
+    const bool shouldUseFrozenTransitionPose =
         request.freezeSubjectDuringTransition &&
-        request.mode == BattleCameraMode::SELECTITEM &&
         _poseTransition.hasFrozenPos;
 
-    if (shouldUseFrozenSelectItemPose)
+    if (shouldUseFrozenTransitionPose)
     {
         const float yawBase = Resolve_YawBaseForPresetMode(request);
         if (!Evaluate_CurrentPresetPose(
@@ -1191,7 +1210,6 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     EvaluatedPose clippedTargetPose{};
     bool hasClippedTargetPose = false;
     if (_poseTransition.targetRequest.freezeSubjectDuringTransition &&
-        _poseTransition.targetRequest.mode == BattleCameraMode::SELECTITEM &&
         _poseTransition.hasFrozenPos)
     {
         const float yawBase = Resolve_YawBaseForPresetMode(_poseTransition.targetRequest);
@@ -1405,21 +1423,21 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _enemyPos = nextEnemyAttackSubjectPos;
     _playerPos = nextEnemyAttackOpponentPos;
 
-    if(request.mode == BattleCameraMode::PLAYERATTACK)
+    if (request.mode == BattleCameraMode::PLAYERATTACK)
     {
-        const bool shouldCaptureEnemyAttackAnchor =
+        const bool shouldCapturePlayerAttackAnchor =
             nextPreset.snapOnEnter ||
             shouldReAnchored ||
-            nextEnemyAttackSubjectPos.LengthSquared() <= 0.0001f ||
-            nextEnemyAttackOpponentPos.LengthSquared() <= 0.0001f;
+            nextPlayerAttackSubjectPos.LengthSquared() <= 0.0001f ||
+            nextPlayerAttackOpponentPos.LengthSquared() <= 0.0001f;
 
-        if (shouldCaptureEnemyAttackAnchor)
+        if (shouldCapturePlayerAttackAnchor)
         {
             if (request.subject != nullptr && request.subject->Get_Transform() != nullptr)
-                nextEnemyAttackSubjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+                nextPlayerAttackSubjectPos = request.subject->Get_Transform()->Get_WorldPosition();
 
             if (request.opponent != nullptr && request.opponent->Get_Transform() != nullptr)
-                nextEnemyAttackOpponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+                nextPlayerAttackOpponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
         }
     }
     else
@@ -1578,8 +1596,10 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     // Clip이 있을 시 적용
     const BattleCameraClipSample clip  = Advance_ActiveClip(timeDelta, _currentRequest);
 
-    //if (_currentRequest.mode != BattleCameraMode::PLAYERATTACK)// && _currentRequest.mode != BattleCameraMode::SELECTSKILL)
-    if(_currentPreset.snapOnEnter == false)
+    const bool shouldKeepFrozenAnchorWhileActive =
+        _currentRequest.freezeSubjectDuringTransition;
+
+    if (_currentPreset.snapOnEnter == false && !shouldKeepFrozenAnchorWhileActive)
         _smoothedTargetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
     
     EvaluatedPose pose{};
@@ -1591,6 +1611,47 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     Apply_EvaluatedPoseWithDOF(pose, _currentRequest.mode);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
+    if (_isFirstUpdate &&
+        (_currentRequest.mode == BattleCameraMode::PLAYERFOCUS ||
+            _currentRequest.mode == BattleCameraMode::SELECTSKILL))
+    {
+        float subjectYaw = Resolve_BattlePlaneYaw();
+        if (const Shared<TransformCom> subjectTransform = _currentRequest.subject->Get_Transform())
+        {
+            Vec3 subjectForward = subjectTransform->Get_WorldForward();
+            subjectForward.y = 0.f;
+            if (subjectForward.LengthSquared() > 0.0001f)
+            {
+                subjectForward.Normalize();
+                subjectYaw = XMConvertToDegrees(atan2f(subjectForward.x, subjectForward.z));
+            }
+        }
+
+        const char* logModeTag =
+            _currentRequest.mode == BattleCameraMode::PLAYERFOCUS
+            ? "PLAYERFOCUS"
+            : "SELECTSKILL";
+
+        LOG_INFO(
+            "[BattleCam][{}] presetId={} yawBase={:.3f} subjectYaw={:.3f} planeYaw={:.3f} anchor=({:.3f},{:.3f},{:.3f}) camera=({:.3f},{:.3f},{:.3f}) look=({:.3f},{:.3f},{:.3f}) presetYawOffset={:.3f}",
+            logModeTag,
+            _currentRequest.presetId.c_str(),
+            yawBase,
+            subjectYaw,
+            Resolve_BattlePlaneYaw(),
+            _smoothedTargetPos.x,
+            _smoothedTargetPos.y,
+            _smoothedTargetPos.z,
+            pose.cameraPos.x,
+            pose.cameraPos.y,
+            pose.cameraPos.z,
+            pose.lookTarget.x,
+            pose.lookTarget.y,
+            pose.lookTarget.z,
+            _currentPreset.yawOffset);
+    }
+
+    _isFirstUpdate = false;
     _prevTargetPos = _smoothedTargetPos;
 }
 
@@ -1707,6 +1768,34 @@ void BattleTurnCamera::Reload_BattleCameraAuthoringData()
 {
     _presetsById.clear();
     _clipsById.clear();
+
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::WIDE, _wideModePreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackPreset);
+
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::WIDE, _wideModeDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackDrift);
+    if (!CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackBossDrift, true))
+        _enemyAttackBossDrift = _enemyAttackDrift;
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTITEM, _selectItemDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTSKILL, _selectSkillDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::PARRY, _parryDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::AIM, _aimDrift);
+    CameraPresetIO::LoadBattleDriftFromFile(BattleCameraMode::SELECTPLAYER, _selectPlayerDrift);
+
+    _battleIntroClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::BATTLEINTRO);
+    _playerAttackClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::PLAYERATTACK);
+    _enemyAttackClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::ENEMYATTACK);
+    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroClip);
+    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
+    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
 }
 
 void BattleTurnCamera::Apply_PreviewPreset(const BattleCameraPreset& preset)

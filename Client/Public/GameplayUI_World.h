@@ -6,6 +6,7 @@
 #include "GameplayUI_Types.h"
 #include "SavePoint_Panel.h"
 #include "UI_ArenaCharacterSelect.h"
+#include "UI_Replay.h"
 
 NS_BEGIN(Client)
 
@@ -26,6 +27,8 @@ class Pictos_Panel;
 
 class UI_GradientSkillPreviewTest;
 
+class SoulLikeController;
+
 class GameplayUI_World final : public Base
 {
 public:
@@ -43,7 +46,6 @@ public:
     void    Force_CloseAllMenus();
     void    Handle_EditorStopRuntime();
 
-    // 아레나 UI 열기
     bool    Request_ArenaCharacterSelect();
 
 private:
@@ -55,11 +57,15 @@ private:
     void    Handle_CharacterProgressionAction(CharacterProgression_Panel::Action action);
     void    Handle_ArenaCharacterSelectInput();
     void    Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect::Action action);
+    void    Handle_ReplayAction(UI_Replay::Action action);
+
+    Shared<SoulLikeController> Spawn_SoulLikeControllerForArena();
     void    Handle_GradientSkillPreviewTestInput();
 
     void    Update_CrossHair(float timeDelta);
     void    Try_ShowPendingGetCharacter();
     void    Try_ShowPendingGetClothes();
+    void    Try_ShowPendingGetWeapon();
     bool    Is_GetCharacterOpen() const;
     bool    Is_GetClothesOpen() const;
     bool    Is_GetWeaponOpen() const;
@@ -82,27 +88,29 @@ private:
     bool    Is_CharacterProgressionFlowMenu(GameplayMenu menu) const;
 
 private:
-    Unique<SavePoint_Panel>       _savePointPanel;
-    Unique<CharacterStatus_Panel> _characterStatusPanel;
-    Unique<SkillTree_Panel>       _skillTreePanel;
-    Unique<ChangeWeapon_Panel>    _changeWeaponPanel;
-    Unique<UpgradeWeapon_Panel>   _upgradeWeaponPanel;
-    Unique<ExpeditionStat_Panel>  _expeditionStatPanel;
-    Unique<UI_CrossHair>          _crossHair;
-    Unique<UI_GetCharacter>       _getCharacterPanel;
-    Unique<UI_GetClothes>         _getClothesPanel;
-    Unique<UI_GetWeapon>          _getWeaponPanel;
-    Unique<UI_GetPictos>          _getPictosPanel;
-    Unique<UI_ArenaCharacterSelect> _arenaCharacterSelectPanel;
+    Unique<SavePoint_Panel>             _savePointPanel;
+    Unique<CharacterStatus_Panel>       _characterStatusPanel;
+    Unique<SkillTree_Panel>             _skillTreePanel;
+    Unique<ChangeWeapon_Panel>          _changeWeaponPanel;
+    Unique<UpgradeWeapon_Panel>         _upgradeWeaponPanel;    
+    Unique<ExpeditionStat_Panel>        _expeditionStatPanel;
+    Unique<UI_CrossHair>                _crossHair;
+    Unique<UI_GetCharacter>             _getCharacterPanel;
+    Unique<UI_GetClothes>               _getClothesPanel;
+    Unique<UI_GetWeapon>                _getWeaponPanel;
+    Unique<UI_GetPictos>                _getPictosPanel;
+    Unique<UI_Replay>                   _replayPanel;
+
+    Unique<UI_ArenaCharacterSelect>     _arenaCharacterSelectPanel;
     Unique<UI_GradientSkillPreviewTest> _gradientSkillPreviewTestPanel;
 
-    Unique<CharacterProgression_Panel> _characterProgressionPanel;
-    Unique<ChangeSkill_Panel>          _changeSkillPanel;
-    Unique<Wardrobe_Panel>             _wardrobePanel;
-    Unique<Pictos_Panel>               _pictosPanel;
+    Unique<CharacterProgression_Panel>  _characterProgressionPanel;
+    Unique<ChangeSkill_Panel>           _changeSkillPanel;
+    Unique<Wardrobe_Panel>              _wardrobePanel;
+    Unique<Pictos_Panel>                _pictosPanel;
 
-    vector<GameplayMenu>          _menuStack{};
-    GamePlayMenuFade              _menuFade{};
+    vector<GameplayMenu>                _menuStack{};
+    GamePlayMenuFade                    _menuFade{};
 
 public:
     static Unique<GameplayUI_World> Create(uint32 levelIndex);

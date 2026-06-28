@@ -15,6 +15,7 @@ public:
 
 public:
     virtual HRESULT Initialize() override;
+    void BeginPlay() override;
     virtual void Update(float fTimeDelta) override;
     virtual HRESULT Render() override;
 
@@ -23,6 +24,9 @@ private:
 
 private:
     HRESULT Ready_Lights();
+    HRESULT Ready_Layer_Player(const wstring& strLayerTag);
+    HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
+    HRESULT Ready_Layer_UI(const wstring& strLayerTag);
 
 public:
     static Shared<Level_Stage01> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

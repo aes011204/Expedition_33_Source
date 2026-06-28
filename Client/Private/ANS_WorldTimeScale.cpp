@@ -8,6 +8,7 @@ IMPLEMENT_REFLECTION(ANS_WorldTimeScale)
     info.properties.clear();
 
     PROPERTY_FLOAT("월드 시간", _worldTimeScale);
+    PROPERTY_BOOL("프리뷰 이펙트 시간 적용", _scalePreviewEffects);
 
     return true;
 }

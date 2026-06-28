@@ -1,12 +1,64 @@
 ﻿#include "MapInstancedMesh.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
 #include "Camera.h"
+#include "Shadow.h"
 #include "StaticCollisionData.h"
 #include "Collision_Define.h"
 #include "ShaderPassFinder.h"
+#include "Shadow.h"
+
+namespace
+{
+    float DistanceSq_ToBounds(const Vec3& point, const BoundingBox& bounds)
+    {
+        const Vec3 minPoint = bounds.Center - bounds.Extents;
+        const Vec3 maxPoint = bounds.Center + bounds.Extents;
+
+        float dx = 0.f;
+        if (point.x < minPoint.x)
+            dx = minPoint.x - point.x;
+        else if (point.x > maxPoint.x)
+            dx = point.x - maxPoint.x;
+
+        float dy = 0.f;
+        if (point.y < minPoint.y)
+            dy = minPoint.y - point.y;
+        else if (point.y > maxPoint.y)
+            dy = point.y - maxPoint.y;
+
+        float dz = 0.f;
+        if (point.z < minPoint.z)
+            dz = minPoint.z - point.z;
+        else if (point.z > maxPoint.z)
+            dz = point.z - maxPoint.z;
+
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    bool Is_GrassModelPath(const wstring& modelPath)
+    {
+        return modelPath.find(L"Grass") != wstring::npos || modelPath.find(L"grass") != wstring::npos;
+    }
+
+    bool Is_GrassOrPetalModelPath(const wstring& modelPath)
+    {
+        return Is_GrassModelPath(modelPath) ||
+            modelPath.find(L"Petal") != wstring::npos ||
+            modelPath.find(L"petal") != wstring::npos;
+    }
+
+    bool Is_SmallInstancedShadowModelPath(const wstring& modelPath)
+    {
+        return modelPath.find(L"Flower") != wstring::npos ||
+            modelPath.find(L"flower") != wstring::npos ||
+            modelPath.find(L"Bush") != wstring::npos ||
+            modelPath.find(L"bush") != wstring::npos;
+    }
+}
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -61,6 +113,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         _visible = pDesc->visible;
         _cullEnabled = pDesc->cullEnabled;
         _castShadow = pDesc->castShadow;
+        _cullDist = pDesc->cullDist;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -126,29 +179,68 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         return;
     }
 
-    if (_cullEnabled && !GAME->IsVisible(_groupBounds))
+    if (ClientInstance::Is_DebugDisableMapInstancedMeshRender())
     {
-        //if (_castShadow && Casts_DynamicShadow())
-        //    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-        if (_castShadow && Casts_DynamicShadow())
+        return;
+    }
+
+    if (ClientInstance::Is_DebugDisableGrassInstancedRender() && Is_GrassModelPath(_modelPath))
+    {
+        return;
+    }
+
+    const Vec4* cam4 = GAME->Get_CamPosition();
+    const bool hasCamPos = cam4 != nullptr;
+    const Vec3 camPos = hasCamPos ? Vec3(cam4->x, cam4->y, cam4->z) : Vec3{};
+
+    auto submitShadowIfInRange = [&]()
+    {
+        if (!_castShadow || !Casts_DynamicShadow())
         {
-            const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
-            const Vec4* cam4 = GAME->Get_CamPosition();
-            if (shadowDesc && cam4)
-            {
-                const Vec3 camPos(cam4->x, cam4->y, cam4->z);
-                const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
-                const Vec3 diff = camPos - _groupBounds.Center;
-                if (diff.LengthSquared() <= shadowRange * shadowRange)
-                    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-            }
-            else
+            return;
+        }
+
+        if (ClientInstance::Is_DebugDisableMapInstancedMeshShadow())
+        {
+            return;
+        }
+
+        if (ClientInstance::Is_DebugDisableGrassInstancedShadow() && Is_GrassOrPetalModelPath(_modelPath))
+        {
+            return;
+        }
+
+        const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+        if (shadowDesc != nullptr && hasCamPos)
+        {
+            const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
+            if (DistanceSq_ToBounds(camPos, _groupBounds) <= shadowRange * shadowRange)
             {
                 GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
             }
+            return;
         }
 
-        return;
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    };
+
+    if (_cullEnabled)
+    {
+        if (!GAME->IsVisible(_groupBounds))
+        {
+            submitShadowIfInRange();
+            return;
+        }
+
+        if (hasCamPos)
+        {
+            const float cullDist = _cullDist;
+            if (DistanceSq_ToBounds(camPos, _groupBounds) > cullDist * cullDist)
+            {
+                submitShadowIfInRange();
+                return;
+            }
+        }
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
@@ -157,25 +249,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         GAME->Add_RenderGroup(RenderGroup::Glow, GetSharedPtr<GameObject>());
     }
 
-    //if (_castShadow && Casts_DynamicShadow())
-    //    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-    if (_castShadow && Casts_DynamicShadow())
-    {
-        const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
-        const Vec4* cam4 = GAME->Get_CamPosition();
-        if (shadowDesc && cam4)
-        {
-            const Vec3 camPos(cam4->x, cam4->y, cam4->z);
-            const float shadowRange = shadowDesc->focusFar + shadowDesc->zPadding;
-            const Vec3 diff = camPos - _groupBounds.Center;
-            if (diff.LengthSquared() <= shadowRange * shadowRange)
-                GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-        }
-        else
-        {
-            GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-        }
-    }
+    submitShadowIfInRange();
 }
 
 HRESULT MapInstancedMesh::Render()
@@ -184,6 +258,21 @@ HRESULT MapInstancedMesh::Render()
     {
         return S_OK;
     }
+
+#pragma region for using Renderdoc
+    //ComPtr<ID3DUserDefinedAnnotation> annotation;
+    //_context->QueryInterface(IID_PPV_ARGS(&annotation));
+    //struct ScopedMarker
+    //{
+    //    ID3DUserDefinedAnnotation* a;
+    //    ~ScopedMarker() { if (a) a->EndEvent(); }
+    //} marker{ annotation.Get() };
+    //if (annotation)
+    //{
+    //    wstring label = L"InstancedMesh: " + _modelPath;
+    //    annotation->BeginEvent(label.c_str());
+    //}
+#pragma endregion
 
     if (GAME->Get_CurrentRenderGroup() == RenderGroup::Glow)
     {
@@ -501,13 +590,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             BoundingBox::CreateMerged(_groupBounds, _groupBounds, worldBox);
         }
     }
-    const float h = _groupBounds.Extents.y;
-    if (h >= 5.f)
-        _maxShadowCascade = 3u;
-    else if (h >= 2.f)
-        _maxShadowCascade = 2u;
-    else
-        _maxShadowCascade = 1u;
 
     if (!_cullShader)
     {
@@ -663,30 +745,7 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         }
     }
 
-    _shadowIndirectArgsBuffers.clear();
-    _shadowIndirectArgsBuffers.resize(numMeshes);
-    for (uint32 i = 0; i < numMeshes; ++i)
-    {
-        D3D11_BUFFER_DESC bd{};
-        bd.ByteWidth = 5 * sizeof(uint32);
-        bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-        bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
-
-        if (FAILED(_device->CreateBuffer(&bd, nullptr, _shadowIndirectArgsBuffers[i].GetAddressOf())))
-        {
-            return E_FAIL;
-        }
-
-        uint32 args[5] = { 0, 0, 0, 0, 0 };
-        if (_lodModels[0])
-        {
-            args[0] = static_cast<uint32>(_lodModels[0]->Get_NumIndices(i));
-        }
-        _context->UpdateSubresource(_shadowIndirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
-    }
-
-    return S_OK;
+    return CreateShadowIndirectArgsBuffers();
 }
 
 HRESULT MapInstancedMesh::Render_Shadow()
@@ -702,11 +761,25 @@ HRESULT MapInstancedMesh::Render_Shadow()
     }
 
     const uint32 cascadeIndex = GAME->Get_ActiveShadowCascade();
+    uint32 shadowLod = Resolve_ShadowLodIndex(cascadeIndex);
+    if (!_lodModels[shadowLod])
+    {
+        shadowLod = 0u;
+    }
 
-    bool useShadowIndirect = _shadowCullShader && _shadowVisibleVB && !_shadowIndirectArgsBuffers.empty();
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[shadowLod]->Get_NumMeshes());
+    if (numMeshes == 0)
+    {
+        return S_OK;
+    }
+
+    bool useShadowIndirect =
+        _shadowCullShader &&
+        _shadowVisibleVB &&
+        _shadowIndirectArgsBuffers[shadowLod].size() >= numMeshes;
     if (useShadowIndirect)
     {
-        DispatchShadowCull(cascadeIndex);
+        DispatchShadowCull(cascadeIndex, shadowLod);
     }
 
     Matrix identity = Matrix::Identity;
@@ -720,7 +793,6 @@ HRESULT MapInstancedMesh::Render_Shadow()
         return E_FAIL;
     }
 
-    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::ShadowPass)))
@@ -730,14 +802,14 @@ HRESULT MapInstancedMesh::Render_Shadow()
 
         if (useShadowIndirect)
         {
-            if (FAILED(_lodModels[0]->RenderInstancedIndirect(i, _shadowVisibleVB.Get(), sizeof(Matrix), _shadowIndirectArgsBuffers[i].Get())))
+            if (FAILED(_lodModels[shadowLod]->RenderInstancedIndirect(i, _shadowVisibleVB.Get(), sizeof(Matrix), _shadowIndirectArgsBuffers[shadowLod][i].Get())))
             {
                 return E_FAIL;
             }
         }
         else
         {
-            if (FAILED(_lodModels[0]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+            if (FAILED(_lodModels[shadowLod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
             {
                 return E_FAIL;
             }
@@ -778,6 +850,41 @@ bool MapInstancedMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) co
     return true;
 }
 
+bool MapInstancedMesh::Allows_DynamicShadowCascade(uint32 cascadeIndex) const
+{
+    if (Is_SmallInstancedShadowModelPath(_modelPath) && cascadeIndex > 2u)
+    {
+        return false;
+    }
+
+    return cascadeIndex <= _maxShadowCascade;
+}
+
+uint32 MapInstancedMesh::Resolve_ShadowLodIndex(uint32 cascadeIndex) const
+{
+    if (!ClientInstance::Is_DebugUseMapInstancedMeshShadowLOD())
+    {
+        return 0u;
+    }
+
+    uint32 desiredLod = 0u;
+    if (cascadeIndex == 1u || cascadeIndex == 2u)
+    {
+        desiredLod = 1u;
+    }
+    else if (cascadeIndex >= 3u)
+    {
+        desiredLod = 2u;
+    }
+
+    while (desiredLod > 0u && !_lodModels[desiredLod])
+    {
+        --desiredLod;
+    }
+
+    return desiredLod;
+}
+
 void MapInstancedMesh::DispatchCull()
 {
     if (!_cullShader || !_cullCB || !_visibleUAV[0] || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers[0].empty())
@@ -794,7 +901,7 @@ void MapInstancedMesh::DispatchCull()
 
     Matrix vp = (*view) * (*proj);
     auto planes = ExtractFrustumPlanes(vp);
-
+     
     CullParams params{};
     for (int i = 0; i < 6; ++i)
     {
@@ -844,10 +951,58 @@ void MapInstancedMesh::DispatchCull()
     }
 }
 
-void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex)
+HRESULT MapInstancedMesh::CreateShadowIndirectArgsBuffers()
+{
+    ResetShadowIndirectArgsBuffers();
+
+    for (int lod = 0; lod < 3; ++lod)
+    {
+        if (!_lodModels[lod])
+        {
+            continue;
+        }
+
+        const uint32 numMeshes = static_cast<uint32>(_lodModels[lod]->Get_NumMeshes());
+        _shadowIndirectArgsBuffers[lod].resize(numMeshes);
+
+        for (uint32 i = 0; i < numMeshes; ++i)
+        {
+            D3D11_BUFFER_DESC bd{};
+            bd.ByteWidth = 5 * sizeof(uint32);
+            bd.Usage = D3D11_USAGE_DEFAULT;
+            bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+            bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+
+            if (FAILED(_device->CreateBuffer(&bd, nullptr, _shadowIndirectArgsBuffers[lod][i].GetAddressOf())))
+            {
+                return E_FAIL;
+            }
+
+            uint32 args[5] = { 0, 0, 0, 0, 0 };
+            args[0] = static_cast<uint32>(_lodModels[lod]->Get_NumIndices(i));
+            _context->UpdateSubresource(_shadowIndirectArgsBuffers[lod][i].Get(), 0, nullptr, args, 0, 0);
+        }
+    }
+
+    return S_OK;
+}
+
+void MapInstancedMesh::ResetShadowIndirectArgsBuffers()
+{
+    for (int lod = 0; lod < 3; ++lod)
+    {
+        for (auto& buffer : _shadowIndirectArgsBuffers[lod])
+        {
+            buffer.Reset();
+        }
+        _shadowIndirectArgsBuffers[lod].clear();
+    }
+}
+
+void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex, uint32 shadowLod)
 {
     if (!_shadowCullShader || !_shadowCullCB || !_shadowVisibleUAV ||
-        !_instanceSrcBuffer || !_sphereBuffer || _shadowIndirectArgsBuffers.empty())
+        !_instanceSrcBuffer || !_sphereBuffer || _shadowIndirectArgsBuffers[shadowLod].empty())
     {
         return;
     }
@@ -861,7 +1016,7 @@ void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex)
     const ShadowCascadeInfluenceVolume& vol = volumes[cascadeIndex];
 
     ShadowCullParams params{};
-    params.planeCount = min(vol.planeCount, 32u);
+    params.planeCount = std::min<uint32>(vol.planeCount, 32u);
     params.totalCount = _instanceCount;
     for (uint32 i = 0; i < params.planeCount; ++i)
     {
@@ -891,7 +1046,7 @@ void MapInstancedMesh::DispatchShadowCull(uint32 cascadeIndex)
     _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 
     _context->CopyResource(_shadowVisibleVB.Get(), _shadowVisibleStructured.Get());
-    for (auto& buf : _shadowIndirectArgsBuffers)
+    for (auto& buf : _shadowIndirectArgsBuffers[shadowLod])
     {
         _context->CopyStructureCount(buf.Get(), sizeof(uint32), _shadowVisibleUAV.Get());
     }
@@ -901,12 +1056,12 @@ array<Vec4, 6> MapInstancedMesh::ExtractFrustumPlanes(const Matrix& vp)
 {
     array<Vec4, 6> p;
 
-    p[0] = { vp.m[0][0] + vp.m[0][3], vp.m[1][0] + vp.m[1][3], vp.m[2][0] + vp.m[2][3], vp.m[3][0] + vp.m[3][3] };
-    p[1] = { vp.m[0][3] - vp.m[0][0], vp.m[1][3] - vp.m[1][0], vp.m[2][3] - vp.m[2][0], vp.m[3][3] - vp.m[3][0] };
-    p[2] = { vp.m[0][1] + vp.m[0][3], vp.m[1][1] + vp.m[1][3], vp.m[2][1] + vp.m[2][3], vp.m[3][1] + vp.m[3][3] };
-    p[3] = { vp.m[0][3] - vp.m[0][1], vp.m[1][3] - vp.m[1][1], vp.m[2][3] - vp.m[2][1], vp.m[3][3] - vp.m[3][1] };
-    p[4] = { vp.m[0][2], vp.m[1][2], vp.m[2][2], vp.m[3][2] };
-    p[5] = { vp.m[0][3] - vp.m[0][2], vp.m[1][3] - vp.m[1][2], vp.m[2][3] - vp.m[2][2], vp.m[3][3] - vp.m[3][2] };
+    p[0] = Vec4{ vp.m[0][0] + vp.m[0][3], vp.m[1][0] + vp.m[1][3], vp.m[2][0] + vp.m[2][3], vp.m[3][0] + vp.m[3][3] };
+    p[1] = Vec4{ vp.m[0][3] - vp.m[0][0], vp.m[1][3] - vp.m[1][0], vp.m[2][3] - vp.m[2][0], vp.m[3][3] - vp.m[3][0] };
+    p[2] = Vec4{ vp.m[0][1] + vp.m[0][3], vp.m[1][1] + vp.m[1][3], vp.m[2][1] + vp.m[2][3], vp.m[3][1] + vp.m[3][3] };
+    p[3] = Vec4{ vp.m[0][3] - vp.m[0][1], vp.m[1][3] - vp.m[1][1], vp.m[2][3] - vp.m[2][1], vp.m[3][3] - vp.m[3][1] };
+    p[4] = Vec4{ vp.m[0][2], vp.m[1][2], vp.m[2][2], vp.m[3][2] };
+    p[5] = Vec4{ vp.m[0][3] - vp.m[0][2], vp.m[1][3] - vp.m[1][2], vp.m[2][3] - vp.m[2][2], vp.m[3][3] - vp.m[3][2] };
 
     for (auto& plane : p)
     {
@@ -997,11 +1152,7 @@ void MapInstancedMesh::Free()
     _shadowVisibleUAV.Reset();
     _shadowVisibleVB.Reset();
     _shadowCullCB.Reset();
-    for (auto& buf : _shadowIndirectArgsBuffers)
-    {
-        buf.Reset();
-    }
-    _shadowIndirectArgsBuffers.clear();
+    ResetShadowIndirectArgsBuffers();
     _shadowCullShader.reset();
 
     _instanceSrcBuffer.reset();

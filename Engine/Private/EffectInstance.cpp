@@ -207,7 +207,7 @@ bool EffectInstance::Is_Finished() const
 
 void EffectInstance::Set_PlaybackSpeed(float speed)
 {
-    _playbackSpeed = speed < 0.f ? 0.f : (speed > 10.f ? 10.f : speed);
+    _playbackSpeed = speed < 0.f ? 0.f : speed > 10.f ? 10.f : speed;
 }
 
 void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)

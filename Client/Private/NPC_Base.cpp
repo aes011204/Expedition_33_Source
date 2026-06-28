@@ -1,10 +1,13 @@
-﻿#include "NPC_Base.h"
+#include "NPC_Base.h"
 #include "ClientInstance.h"
 #include "ColliderCom.h"
 #include "Delegate.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
+#include "DialogueTypes.h"
+#include "LevelTransitionFade.h"
 #include "Monster_Part.h"
+#include "Trigger_Interaction.h"
 
 NPC_Base::NPC_Base(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -35,6 +38,24 @@ void NPC_Base::BeginPlay()
 
     if (!_editorStopHandle.IsValid())
         _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &NPC_Base::On_EditorStopRuntime);
+
+    Shared<GameObject> gameObject = nullptr;
+    Trigger_Interaction::TRIGGER_INTERACTION_DESC triggerDesc{};
+    triggerDesc.ownerNpc = dynamic_pointer_cast<NPC_Base>(GetSharedPtr<GameObject>());
+    triggerDesc.localOffset = Vec3(0.f, 0.f, 4.f);
+
+    if (FAILED(GAME->Add_GameObject(
+      ETOI(LevelType::Static),
+      L"GameObject_Trigger_Interaction",
+      GAME->Current_LevelIndex(),
+      L"Layer_Trigger",
+      gameObject,
+      &triggerDesc)))
+    {
+        return;
+    }
+
+    _sharedTrigger = dynamic_pointer_cast<Trigger_Interaction>(gameObject);
 }
 
 void NPC_Base::Update(float timeDelta)
@@ -121,14 +142,20 @@ void NPC_Base::From_Json(const json& data)
     }
 }
 
-void NPC_Base::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
-{
-    Character_WorldBase::OnBeginOverlap(self, other);
-}
-
-void NPC_Base::On_EditorStopRuntime()
+void NPC_Base::On_EditorStopRuntime() 
 {
     Restore_AfterBattleExit();
+}
+
+void NPC_Base::BuildDialogueRequest(const string& npcPrefabName)
+{
+    DialogueRequest request {};
+
+    request.dialogueKey = npcPrefabName;
+    request.speaker = GetSharedPtr<GameObject>();
+    request.speakerPrefabName = npcPrefabName;
+  
+    CLIENT->StartDialogue(request);
 }
 
 const vector<Vec3>& NPC_Base::Get_EffectivePatrolPoints()
@@ -142,6 +169,34 @@ const vector<Vec3>& NPC_Base::Get_EffectivePatrolPoints()
     return _defaultPatrolPoints;
 }
 
+void NPC_Base::Set_DialogueAnimation(const string& animationKey)
+{
+    if(animationKey.empty())
+        return;
+ 
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (bodyPart == nullptr)
+        return;
+
+    bodyPart->Set_Animation(animationKey, 0.3f, true);
+}
+
+string NPC_Base::Get_CurrentAnimationKey() const
+{
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (bodyPart == nullptr)
+        return {};
+
+    Shared<ModelCom> model = bodyPart->Get_Model();
+    if (model == nullptr)
+        return {};
+
+    const char* animationName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
+    if (animationName == nullptr)
+        return {};
+
+    return animationName;
+}
 void NPC_Base::Restore_AfterBattleExit()
 {
     Set_Visible(true);
@@ -157,9 +212,9 @@ HRESULT NPC_Base::Ready_Components()
 {
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.6f, 0.f);
-    obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
+    obbDesc.extents = Vec3(0.7f, 1.f, 0.7f);
 
-    CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Monster_WorldBody), E_FAIL);
+    CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::NPC_WorldBody), E_FAIL);
 
     return S_OK;
 }
@@ -200,3 +255,5 @@ void NPC_Base::Free()
 
     Character_WorldBase::Free();
 }
+
+

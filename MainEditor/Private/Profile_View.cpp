@@ -1,8 +1,11 @@
 ﻿#include "Profile_View.h"
 
 #include "ClientInstance.h"
+#include "DebugMemoryTracker.h"
 #include "Debug_Profile.h"
 #include "EffectInstancePool.h"
+#include "Helper_String.h"
+#include "Renderer_Define.h"
 
 #include <cctype>
 #include <cstring>
@@ -48,6 +51,9 @@ struct Profile_View::Profiler_Runtime
 namespace
 {
 constexpr const char* kProfileSnapshotTag = "MainEditorProfileSnapshot";
+constexpr const char* kViewHotspotTag = "MainEditorViewHotspot";
+constexpr const char* kMemoryTraceTag = "MemoryTrace";
+constexpr size_t kViewHotspotTopLimit = 20;
 
 const char* Get_Profile_Level_Name()
 {
@@ -104,12 +110,85 @@ double Bytes_To_Mb(const size_t bytes)
     return static_cast<double>(bytes) / (1024.0 * 1024.0);
 }
 
-void Log_Profile_Snapshot_Line(const spdlog::source_loc& sourceLoc, const string& message)
+void Log_Tagged_Line(const spdlog::source_loc& sourceLoc, const char* tag, const string& message)
 {
     GAME->Log_FileOnly(
         sourceLoc,
         spdlog::level::info,
-        fmt::format("[{}] {}", kProfileSnapshotTag, message));
+        fmt::format("[{}] {}", tag, message));
+}
+
+void Log_Profile_Snapshot_Line(const spdlog::source_loc& sourceLoc, const string& message)
+{
+    Log_Tagged_Line(sourceLoc, kProfileSnapshotTag, message);
+}
+
+void Log_ViewHotspot_Line(const spdlog::source_loc& sourceLoc, const string& message)
+{
+    Log_Tagged_Line(sourceLoc, kViewHotspotTag, message);
+}
+
+const char* To_RenderGroupName(const Engine::RenderGroup renderGroup)
+{
+    switch (renderGroup)
+    {
+    case Engine::RenderGroup::Priority:
+        return "Priority";
+    case Engine::RenderGroup::Shadow:
+        return "Shadow";
+    case Engine::RenderGroup::NonBlend:
+        return "NonBlend";
+    case Engine::RenderGroup::NonLight:
+        return "NonLight";
+    case Engine::RenderGroup::EffectMasked:
+        return "EffectMasked";
+    case Engine::RenderGroup::Distortion:
+        return "Distortion";
+    case Engine::RenderGroup::Blend:
+        return "Blend";
+    case Engine::RenderGroup::Glow:
+        return "Glow";
+    case Engine::RenderGroup::UI:
+        return "UI";
+    case Engine::RenderGroup::UIEffect:
+        return "UIEffect";
+    default:
+        return "END";
+    }
+}
+
+vector<pair<string, uint32>> Build_TopCounts(const unordered_map<string, uint32>& counts, size_t limit)
+{
+    vector<pair<string, uint32>> rows{};
+    rows.reserve(counts.size());
+
+    for (const auto& [key, count] : counts)
+        rows.emplace_back(key, count);
+
+    sort(rows.begin(), rows.end(), [](const auto& lhs, const auto& rhs)
+    {
+        if (lhs.second != rhs.second)
+            return lhs.second > rhs.second;
+
+        return lhs.first < rhs.first;
+    });
+
+    if (rows.size() > limit)
+        rows.resize(limit);
+
+    return rows;
+}
+
+float Get_MaxExtent(const Vec3& extents)
+{
+    return max(extents.x, max(extents.y, extents.z));
+}
+
+double Get_BoundsVolume(const Vec3& extents)
+{
+    return static_cast<double>(extents.x) * 2.0 *
+        static_cast<double>(extents.y) * 2.0 *
+        static_cast<double>(extents.z) * 2.0;
 }
 
 }
@@ -165,6 +244,8 @@ void Profile_View::Render()
         Draw_Toolbar();
         ImGui::Separator();
         Draw_Frame_Info();
+        ImGui::Separator();
+        Draw_Render_Isolation();
         ImGui::Separator();
         Draw_Scopes();
 #if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_BASIC
@@ -254,6 +335,7 @@ void Profile_View::Frame_End()
             s_active->Record_Scope_Sample(scopeName, elapsedMs);
     }
 
+    s_active->Log_AutoHitch(frameMs);
     s_active->Prune_Dead_Scopes();
 }
 
@@ -359,10 +441,21 @@ void Profile_View::Draw_Toolbar()
         Log_Snapshot();
 
     ImGui::SameLine();
+    if (ImGui::Button("Log View Hotspot"))
+        Log_ViewHotspot();
+
+    ImGui::SameLine();
     ImGui::Checkbox("Sort by cost", &_sortByCost);
 
     ImGui::SameLine();
     ImGui::Checkbox("Show disabled", &_showDisabled);
+
+    ImGui::SameLine();
+    ImGui::Checkbox("Auto Hitch Log", &_autoHitchLog);
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(90.f);
+    ImGui::DragFloat("Hitch ms", &_autoHitchThresholdMs, 1.f, 16.f, 1000.f, "%.0f");
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(120.f);
@@ -380,6 +473,43 @@ void Profile_View::Draw_Frame_Info()
     ImGui::Text("FPS (Last / Avg): %d / %d", static_cast<int>(_fpsLast), static_cast<int>(_fpsAvg));
     ImGui::Text("Frame ms (Last / Avg): %.2f / %.2f", static_cast<float>(_frameMsLast), static_cast<float>(_frameMsAvg));
     ImGui::Text("Render Calls: %u", _renderCallCount);
+}
+
+void Profile_View::Draw_Render_Isolation()
+{
+    ImGui::TextUnformatted("Render Isolation");
+
+    bool disableDynamicShadowPass = Client::ClientInstance::Is_DebugDisableDynamicShadowRenderPass();
+    if (ImGui::Checkbox("Disable Dynamic Shadow Render Pass", &disableDynamicShadowPass))
+        Client::ClientInstance::Set_DebugDisableDynamicShadowRenderPass(disableDynamicShadowPass);
+
+    bool disableMapInstanced = Client::ClientInstance::Is_DebugDisableMapInstancedMeshRender();
+    if (ImGui::Checkbox("Disable MapInstancedMesh", &disableMapInstanced))
+        Client::ClientInstance::Set_DebugDisableMapInstancedMeshRender(disableMapInstanced);
+
+    bool disableGrassInstanced = Client::ClientInstance::Is_DebugDisableGrassInstancedRender();
+    if (ImGui::Checkbox("Disable Grass Instanced", &disableGrassInstanced))
+        Client::ClientInstance::Set_DebugDisableGrassInstancedRender(disableGrassInstanced);
+
+    bool disableMapStatic = Client::ClientInstance::Is_DebugDisableMapStaticMeshRender();
+    if (ImGui::Checkbox("Disable MapStaticMesh", &disableMapStatic))
+        Client::ClientInstance::Set_DebugDisableMapStaticMeshRender(disableMapStatic);
+
+    bool disableMapInstancedShadow = Client::ClientInstance::Is_DebugDisableMapInstancedMeshShadow();
+    if (ImGui::Checkbox("Disable MapInstancedMesh Shadow", &disableMapInstancedShadow))
+        Client::ClientInstance::Set_DebugDisableMapInstancedMeshShadow(disableMapInstancedShadow);
+
+    bool useMapInstancedShadowLOD = Client::ClientInstance::Is_DebugUseMapInstancedMeshShadowLOD();
+    if (ImGui::Checkbox("Use MapInstancedMesh Shadow LOD", &useMapInstancedShadowLOD))
+        Client::ClientInstance::Set_DebugUseMapInstancedMeshShadowLOD(useMapInstancedShadowLOD);
+
+    bool disableGrassInstancedShadow = Client::ClientInstance::Is_DebugDisableGrassInstancedShadow();
+    if (ImGui::Checkbox("Disable Grass Instanced Shadow", &disableGrassInstancedShadow))
+        Client::ClientInstance::Set_DebugDisableGrassInstancedShadow(disableGrassInstancedShadow);
+
+    bool disableMapStaticShadow = Client::ClientInstance::Is_DebugDisableMapStaticMeshShadow();
+    if (ImGui::Checkbox("Disable MapStaticMesh Shadow", &disableMapStaticShadow))
+        Client::ClientInstance::Set_DebugDisableMapStaticMeshShadow(disableMapStaticShadow);
 }
 
 void Profile_View::Draw_Scopes()
@@ -585,6 +715,272 @@ void Profile_View::Log_Snapshot() const
     Log_Profile_Snapshot_Line(sourceLoc, "----- end -----");
 }
 
+void Profile_View::Log_Memory_Trace_Snapshot() const
+{
+    const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
+    const DebugMemoryTraceSnapshot snapshot = DebugMemoryTracker::Build_Snapshot(32, 24);
+
+    Log_Tagged_Line(sourceLoc, kMemoryTraceTag, "----- begin -----");
+    Log_Tagged_Line(sourceLoc, kMemoryTraceTag, fmt::format(
+        "enabled={} events={}",
+        snapshot.enabled,
+        snapshot.sequence));
+
+    for (const DebugMemoryTraceCategory& row : snapshot.categories)
+    {
+        Log_Tagged_Line(sourceLoc, kMemoryTraceTag, fmt::format(
+            "category name=\"{}\" events={} counted_mb={:.2f} estimated_mb={:.2f}",
+            row.category,
+            row.eventCount,
+            Bytes_To_Mb(row.countedBytes),
+            Bytes_To_Mb(row.estimatedBytes)));
+    }
+
+    for (const DebugMemoryTracePath& row : snapshot.topPaths)
+    {
+        Log_Tagged_Line(sourceLoc, kMemoryTraceTag, fmt::format(
+            "top_path category=\"{}\" owner=\"{}\" events={} counted_mb={:.2f} estimated_mb={:.2f} path=\"{}\"",
+            row.category,
+            row.owner,
+            row.eventCount,
+            Bytes_To_Mb(row.countedBytes),
+            Bytes_To_Mb(row.estimatedBytes),
+            row.path));
+    }
+
+    Log_Tagged_Line(sourceLoc, kMemoryTraceTag, "----- end -----");
+}
+
+void Profile_View::Log_ViewHotspot() const
+{
+    const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
+
+    Engine::RenderViewHotspotSnapshot snapshot{};
+
+    Log_ViewHotspot_Line(sourceLoc, "----- begin -----");
+
+    if (!GAME->Try_GetRenderViewHotspotSnapshot(snapshot))
+    {
+        Log_ViewHotspot_Line(sourceLoc, "snapshot unavailable=true");
+        Log_ViewHotspot_Line(sourceLoc, "----- end -----");
+        return;
+    }
+
+    if (snapshot.hasCamera)
+    {
+        Log_ViewHotspot_Line(sourceLoc, fmt::format(
+            "camera position=({:.3f}, {:.3f}, {:.3f}) forward=({:.3f}, {:.3f}, {:.3f})",
+            snapshot.cameraPosition.x,
+            snapshot.cameraPosition.y,
+            snapshot.cameraPosition.z,
+            snapshot.cameraForward.x,
+            snapshot.cameraForward.y,
+            snapshot.cameraForward.z));
+    }
+    else
+    {
+        Log_ViewHotspot_Line(sourceLoc, "camera unavailable=true");
+    }
+
+    const uint32 shadowCandidateCount = snapshot.renderGroupCounts[ETOI(Engine::RenderGroup::Shadow)];
+    const uint32 alphaEffectCount =
+        snapshot.renderGroupCounts[ETOI(Engine::RenderGroup::Blend)] +
+        snapshot.renderGroupCounts[ETOI(Engine::RenderGroup::EffectMasked)] +
+        snapshot.renderGroupCounts[ETOI(Engine::RenderGroup::Distortion)];
+
+    unordered_set<uintptr_t> dynamicShadowObjects{};
+    unordered_map<string, uint32> classCounts{};
+    unordered_map<string, uint32> sourcePrefabCounts{};
+    unordered_map<string, uint32> sourceModelPathCounts{};
+    vector<const Engine::RenderViewHotspotEntry*> instancedNonBlendRows{};
+    vector<const Engine::RenderViewHotspotEntry*> nonBlendBoundsRows{};
+    uint32 nonBlendBoundsCount = 0;
+    uint32 instancedNonBlendGroupCount = 0;
+    uint64 instancedNonBlendSubmittedInstances = 0;
+
+    for (const Engine::RenderViewHotspotEntry& entry : snapshot.entries)
+    {
+        if (entry.shadowCasterType == Engine::ShadowCasterType::Dynamic)
+            dynamicShadowObjects.insert(entry.objectKey);
+
+        const string className = entry.className.empty() ? string("<none>") : entry.className;
+        const string sourcePrefab = entry.sourcePrefab.empty() ? string("<none>") : entry.sourcePrefab;
+        const string sourceModelPath = entry.sourceModelPath.empty() ? string("<none>") : String::ToString(entry.sourceModelPath);
+
+        ++classCounts[className];
+        ++sourcePrefabCounts[sourcePrefab];
+        ++sourceModelPathCounts[sourceModelPath];
+
+        if (entry.renderGroup == Engine::RenderGroup::NonBlend)
+        {
+            if (entry.hasWorldBounds)
+            {
+                ++nonBlendBoundsCount;
+                nonBlendBoundsRows.push_back(&entry);
+            }
+
+            if (entry.renderHotspotInstanceCount > 0)
+            {
+                ++instancedNonBlendGroupCount;
+                instancedNonBlendSubmittedInstances += entry.renderHotspotInstanceCount;
+                instancedNonBlendRows.push_back(&entry);
+            }
+        }
+    }
+
+    Log_ViewHotspot_Line(sourceLoc, fmt::format(
+        "summary total_submissions={} unique_objects={} shadow_candidates={} dynamic_shadow_unique={} alpha_effect_submissions={}",
+        snapshot.totalSubmissions,
+        snapshot.uniqueObjectCount,
+        shadowCandidateCount,
+        dynamicShadowObjects.size(),
+        alphaEffectCount));
+
+    Log_ViewHotspot_Line(sourceLoc, fmt::format(
+        "nonblend_diagnostics bounds_entries={} instanced_groups={} submitted_instances={}",
+        nonBlendBoundsCount,
+        instancedNonBlendGroupCount,
+        instancedNonBlendSubmittedInstances));
+
+    Log_ViewHotspot_Line(sourceLoc, fmt::format(
+        "rendered_counts nonblend={} shadow_total={} shadow_cascade0={} shadow_cascade1={} shadow_cascade2={} shadow_cascade3={}",
+        snapshot.nonBlendRenderedCount,
+        snapshot.shadowRenderedCount,
+        snapshot.shadowCascadeRenderedCounts[0],
+        snapshot.shadowCascadeRenderedCounts[1],
+        snapshot.shadowCascadeRenderedCounts[2],
+        snapshot.shadowCascadeRenderedCounts[3]));
+
+    for (size_t groupIndex = 0; groupIndex < ETOI(Engine::RenderGroup::END); ++groupIndex)
+    {
+        const Engine::RenderGroup renderGroup = static_cast<Engine::RenderGroup>(groupIndex);
+        Log_ViewHotspot_Line(sourceLoc, fmt::format(
+            "render_group[{}]={}",
+            To_RenderGroupName(renderGroup),
+            snapshot.renderGroupCounts[groupIndex]));
+    }
+
+    const auto logTopCounts = [&](const char* label, const unordered_map<string, uint32>& counts)
+    {
+        const vector<pair<string, uint32>> rows = Build_TopCounts(counts, kViewHotspotTopLimit);
+        if (rows.empty())
+        {
+            Log_ViewHotspot_Line(sourceLoc, fmt::format("{} empty=true", label));
+            return;
+        }
+
+        for (size_t index = 0; index < rows.size(); ++index)
+        {
+            Log_ViewHotspot_Line(sourceLoc, fmt::format(
+                "{}[{}] count={} key=\"{}\"",
+                label,
+                index,
+                rows[index].second,
+                rows[index].first));
+        }
+    };
+
+    logTopCounts("top_class", classCounts);
+    logTopCounts("top_source_prefab", sourcePrefabCounts);
+    logTopCounts("top_source_model", sourceModelPathCounts);
+
+    sort(instancedNonBlendRows.begin(), instancedNonBlendRows.end(),
+        [](const Engine::RenderViewHotspotEntry* lhs, const Engine::RenderViewHotspotEntry* rhs)
+    {
+        if (lhs->renderHotspotInstanceCount != rhs->renderHotspotInstanceCount)
+            return lhs->renderHotspotInstanceCount > rhs->renderHotspotInstanceCount;
+
+        return Get_MaxExtent(lhs->worldBoundsExtents) > Get_MaxExtent(rhs->worldBoundsExtents);
+    });
+
+    if (instancedNonBlendRows.size() > kViewHotspotTopLimit)
+        instancedNonBlendRows.resize(kViewHotspotTopLimit);
+
+    for (size_t index = 0; index < instancedNonBlendRows.size(); ++index)
+    {
+        const Engine::RenderViewHotspotEntry& entry = *instancedNonBlendRows[index];
+        Log_ViewHotspot_Line(sourceLoc, fmt::format(
+            "top_instanced_nonblend[{}] instances={} class=\"{}\" source_model=\"{}\" object=0x{:X} bounds_center=({:.3f}, {:.3f}, {:.3f}) bounds_extents=({:.3f}, {:.3f}, {:.3f}) max_extent={:.3f}",
+            index,
+            entry.renderHotspotInstanceCount,
+            entry.className.empty() ? string("<none>") : entry.className,
+            entry.sourceModelPath.empty() ? string("<none>") : String::ToString(entry.sourceModelPath),
+            entry.objectKey,
+            entry.worldBoundsCenter.x,
+            entry.worldBoundsCenter.y,
+            entry.worldBoundsCenter.z,
+            entry.worldBoundsExtents.x,
+            entry.worldBoundsExtents.y,
+            entry.worldBoundsExtents.z,
+            Get_MaxExtent(entry.worldBoundsExtents)));
+    }
+
+    sort(nonBlendBoundsRows.begin(), nonBlendBoundsRows.end(),
+        [](const Engine::RenderViewHotspotEntry* lhs, const Engine::RenderViewHotspotEntry* rhs)
+    {
+        const double lhsVolume = Get_BoundsVolume(lhs->worldBoundsExtents);
+        const double rhsVolume = Get_BoundsVolume(rhs->worldBoundsExtents);
+        if (lhsVolume != rhsVolume)
+            return lhsVolume > rhsVolume;
+
+        return Get_MaxExtent(lhs->worldBoundsExtents) > Get_MaxExtent(rhs->worldBoundsExtents);
+    });
+
+    if (nonBlendBoundsRows.size() > kViewHotspotTopLimit)
+        nonBlendBoundsRows.resize(kViewHotspotTopLimit);
+
+    for (size_t index = 0; index < nonBlendBoundsRows.size(); ++index)
+    {
+        const Engine::RenderViewHotspotEntry& entry = *nonBlendBoundsRows[index];
+        Log_ViewHotspot_Line(sourceLoc, fmt::format(
+            "top_nonblend_bounds[{}] volume={:.3f} max_extent={:.3f} instances={} class=\"{}\" source_model=\"{}\" object=0x{:X} bounds_center=({:.3f}, {:.3f}, {:.3f}) bounds_extents=({:.3f}, {:.3f}, {:.3f})",
+            index,
+            Get_BoundsVolume(entry.worldBoundsExtents),
+            Get_MaxExtent(entry.worldBoundsExtents),
+            entry.renderHotspotInstanceCount,
+            entry.className.empty() ? string("<none>") : entry.className,
+            entry.sourceModelPath.empty() ? string("<none>") : String::ToString(entry.sourceModelPath),
+            entry.objectKey,
+            entry.worldBoundsCenter.x,
+            entry.worldBoundsCenter.y,
+            entry.worldBoundsCenter.z,
+            entry.worldBoundsExtents.x,
+            entry.worldBoundsExtents.y,
+            entry.worldBoundsExtents.z));
+    }
+
+    Log_ViewHotspot_Line(sourceLoc, "----- end -----");
+}
+
+void Profile_View::Log_AutoHitch(double frameMs)
+{
+    if (!_autoHitchLog || _autoHitchLogRemaining <= 0)
+        return;
+
+    if (frameMs < static_cast<double>(_autoHitchThresholdMs))
+        return;
+
+    const clock::time_point now = clock::now();
+    if (_lastAutoHitchLogTime != clock::time_point{})
+    {
+        const double elapsedSec = chrono::duration<double>(now - _lastAutoHitchLogTime).count();
+        if (elapsedSec < 1.0)
+            return;
+    }
+
+    _lastAutoHitchLogTime = now;
+    --_autoHitchLogRemaining;
+
+    const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
+    Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
+        "AutoHitch frame_ms={:.2f} threshold_ms={:.2f} remaining={}",
+        frameMs,
+        _autoHitchThresholdMs,
+        _autoHitchLogRemaining));
+    Log_Snapshot();
+    Log_ViewHotspot();
+}
+
 void Profile_View::Draw_Memory()
 {
     ImGui::Text("Memory");
@@ -617,6 +1013,8 @@ void Profile_View::Draw_Memory()
 
     ImGui::Separator();
     Draw_Resource_Memory();
+    ImGui::Separator();
+    Draw_Memory_Trace();
 }
 
 void Profile_View::Draw_Resource_Memory()
@@ -710,6 +1108,114 @@ void Profile_View::Draw_Resource_Memory()
     }
 }
 
+void Profile_View::Draw_Memory_Trace()
+{
+    bool enabled = DebugMemoryTracker::Is_Enabled();
+    if (ImGui::Checkbox("Enable memory trace", &enabled))
+        DebugMemoryTracker::Set_Enabled(enabled);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear trace"))
+        DebugMemoryTracker::Clear();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Log snapshot"))
+        Log_Memory_Trace_Snapshot();
+
+    if (!enabled)
+    {
+        ImGui::TextDisabled("Memory trace is off by default. Enable it before loading/reloading assets.");
+        return;
+    }
+
+    const DebugMemoryTraceSnapshot snapshot = DebugMemoryTracker::Build_Snapshot(32, 24);
+    ImGui::Text("Memory Trace Events: %llu", static_cast<unsigned long long>(snapshot.sequence));
+
+    if (ImGui::BeginTable("MemoryTraceCategories", 4, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Category");
+        ImGui::TableSetupColumn("Events");
+        ImGui::TableSetupColumn("Counted");
+        ImGui::TableSetupColumn("Estimated");
+        ImGui::TableHeadersRow();
+
+        for (const DebugMemoryTraceCategory& row : snapshot.categories)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(row.category.c_str());
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%u", row.eventCount);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%.1f MB", Bytes_To_Mb(row.countedBytes));
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%.1f MB", Bytes_To_Mb(row.estimatedBytes));
+        }
+
+        ImGui::EndTable();
+    }
+
+    if (ImGui::CollapsingHeader("Top Resource Paths", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (ImGui::BeginTable("MemoryTraceTopPaths", 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+        {
+            ImGui::TableSetupColumn("Category");
+            ImGui::TableSetupColumn("Owner");
+            ImGui::TableSetupColumn("Counted");
+            ImGui::TableSetupColumn("Events");
+            ImGui::TableSetupColumn("Path");
+            ImGui::TableHeadersRow();
+
+            for (const DebugMemoryTracePath& row : snapshot.topPaths)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted(row.category.c_str());
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextUnformatted(row.owner.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%.1f MB", Bytes_To_Mb(row.countedBytes));
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%u", row.eventCount);
+                ImGui::TableSetColumnIndex(4);
+                ImGui::TextUnformatted(row.path.c_str());
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Recent Load Events"))
+    {
+        if (ImGui::BeginTable("MemoryTraceRecentEvents", 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+        {
+            ImGui::TableSetupColumn("#");
+            ImGui::TableSetupColumn("Category");
+            ImGui::TableSetupColumn("Owner");
+            ImGui::TableSetupColumn("Counted");
+            ImGui::TableSetupColumn("Path");
+            ImGui::TableHeadersRow();
+
+            for (const DebugMemoryTraceEvent& row : snapshot.recentEvents)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%llu", static_cast<unsigned long long>(row.sequence));
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextUnformatted(row.category.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::TextUnformatted(row.owner.c_str());
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%.1f MB", Bytes_To_Mb(row.countedBytes));
+                ImGui::TableSetColumnIndex(4);
+                ImGui::TextUnformatted(row.path.c_str());
+            }
+
+            ImGui::EndTable();
+        }
+    }
+}
+
 void Profile_View::Reset_Stats()
 {
     if (nullptr == _runtime)
@@ -742,6 +1248,8 @@ void Profile_View::Reset_Stats()
     _hasResourceMemorySample = false;
     _peakWorkingSetMb = 0;
     _peakPrivateBytesMb = 0;
+    _autoHitchLogRemaining = 8;
+    _lastAutoHitchLogTime = {};
 }
 
 void Profile_View::Prune_Dead_Scopes()

@@ -23,11 +23,19 @@
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
 #include "UI_GradientSkillPreviewTest.h"
+#include "UI_Replay.h"
+
+#include "Client_Constants.h"
+#include "GameObject.h"
+#include "Spawn_Prefab.h"
+#include "TransformCom.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
 namespace
 {
+    constexpr char kSoulLikeMaelleTargetId[] = "SL_Maelle";
+
     template <typename TPanel>
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
@@ -171,6 +179,9 @@ void GameplayUI_World::Update(float timeDelta)
      if (_gradientSkillPreviewTestPanel)
         _gradientSkillPreviewTestPanel->Update(timeDelta);
 
+    if (_replayPanel)
+        _replayPanel->Update(timeDelta);
+
     Update_CrossHair(timeDelta);
 
     if (!CLIENT->Is_FadeTransitionPlaying())
@@ -178,21 +189,26 @@ void GameplayUI_World::Update(float timeDelta)
         Try_ShowPendingGetCharacter();
 
         if (Is_GetCharacterOpen())
-            return; // Get Character가 떠 있는 동안 다른 월드 메뉴 액션을 소비하지 않는다.
+            return;
 
         Try_ShowPendingGetClothes();
 
         if (Is_GetClothesOpen())
-            return; // Get Clothes가 떠 있는 동안 다른 월드 메뉴 액션을 소비하지 않는다.
+            return;
+
+        Try_ShowPendingGetWeapon();
 
         if (Is_GetWeaponOpen())
-            return; // Get Weapon은 아직 자동 획득 소비 없이, 열려 있을 때 월드 메뉴 액션만 막는다.
+            return;
 
         if (Is_GetPictosOpen())
-            return; // Get Pictos도 코드 패널만 준비하고, 열린 동안 월드 메뉴 액션만 막는다.
+            return;
 
         if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
             Handle_ArenaCharacterSelectAction(_arenaCharacterSelectPanel->Consume_LastAction());
+
+        if (_replayPanel && _replayPanel->Is_Open())
+            Handle_ReplayAction(_replayPanel->Consume_LastAction());
 
         if (_savePointPanel && _savePointPanel->Is_Open() && !_savePointPanel->Is_ClosingWithOutro())
             Handle_SavePointAction(_savePointPanel->Consume_LastAction());
@@ -204,6 +220,12 @@ void GameplayUI_World::Update(float timeDelta)
 
 void GameplayUI_World::Update_Input()
 {
+    if (_replayPanel && _replayPanel->Is_Open())
+    {
+        Handle_BackInput();
+        return;
+    }
+
     if (CLIENT->Is_FadeTransitionPlaying())
         return;
 
@@ -211,16 +233,16 @@ void GameplayUI_World::Update_Input()
         return;
 
     if (Is_GetCharacterOpen())
-        return; // 닫기 입력은 UI_GetCharacter::Update가 처리하고, 월드 메뉴 입력은 막는다.
+        return;
 
     if (Is_GetClothesOpen())
-        return; // 닫기 입력은 UI_GetClothes::Update가 처리하고, 월드 메뉴 입력은 막는다.
+        return;
 
     if (Is_GetWeaponOpen())
-        return; // 닫기 입력은 UI_GetWeapon::Update가 처리하고, 월드 메뉴 입력은 막는다.
+        return;
 
     if (Is_GetPictosOpen())
-        return; // 닫기 입력은 UI_GetPictos::Update가 처리하고, 월드 메뉴 입력은 막는다.
+        return;
 
     Handle_GradientSkillPreviewTestInput();
 
@@ -283,6 +305,9 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
     if (_arenaCharacterSelectPanel)
         _arenaCharacterSelectPanel->Append_RuntimeUIEntries(entries, "World", "ArenaCharacterSelectPanel");
 
+    if (_replayPanel)
+        _replayPanel->Append_RuntimeUIEntries(entries, "World", "ReplayPanel");
+
     Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
     Append_RuntimePanelEntry(entries, "World", "GradientSkillPreviewTest", _gradientSkillPreviewTestPanel.get());
 
@@ -296,6 +321,7 @@ bool GameplayUI_World::Is_AnyMenuOpen() const
         Is_GetWeaponOpen() ||
         Is_GetPictosOpen() ||
         !_menuStack.empty() ||
+        (_replayPanel && _replayPanel->Is_Open()) ||
         (_savePointPanel && _savePointPanel->Is_ClosingWithOutro());
 }
 
@@ -326,6 +352,9 @@ void GameplayUI_World::Force_CloseAllMenus()
     if (_arenaCharacterSelectPanel && _arenaCharacterSelectPanel->Is_Open())
         _arenaCharacterSelectPanel->Close_Immediately();
 
+    if (_replayPanel && _replayPanel->Is_Open())
+        _replayPanel->Close_Immediately();
+
     if (_gradientSkillPreviewTestPanel && _gradientSkillPreviewTestPanel->Is_Open())
         _gradientSkillPreviewTestPanel->Close_Immediately();
 }
@@ -333,6 +362,7 @@ void GameplayUI_World::Force_CloseAllMenus()
 void GameplayUI_World::Handle_EditorStopRuntime()
 {
     Force_CloseAllMenus();
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
 }
 
 bool GameplayUI_World::Request_ArenaCharacterSelect()
@@ -352,13 +382,45 @@ bool GameplayUI_World::Request_ArenaCharacterSelect()
     if (GAME->Is_WorldGameplayInputBlocked())
         return false;
 
-    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
-    if (controller == nullptr || controller->Is_BattleActive())
-        return false;
-
     Push_Menu(GameplayMenu::ArenaCharacterSelect);
 
     return true;
+}
+
+Shared<SoulLikeController> GameplayUI_World::Spawn_SoulLikeControllerForArena()
+{
+    if (const Shared<SoulLikeController> existingController = CLIENT->Get_SoulLikeController())
+    {
+        if (existingController->Is_BattleActive())
+            return nullptr;
+
+        return existingController;
+    }
+
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+
+    const Shared<GameObject> controllerObject = Spawn_Prefab::Prefab(Constants::Prefab::SoulLikeController)
+        .AtLevel(levelIndex)
+        .InLayer(TEXT("Layer_ETC"))
+        .Spawn();
+
+    if (controllerObject == nullptr)
+    {
+        LOG_WARN("ArenaCharacterSelect: failed to spawn SoulLikeController.");
+        return nullptr;
+    }
+
+    const Shared<SoulLikeController> soulLikeController =
+        dynamic_pointer_cast<SoulLikeController>(controllerObject);
+
+    if (soulLikeController == nullptr)
+    {
+        LOG_WARN("ArenaCharacterSelect: spawned object is not SoulLikeController.");
+        return nullptr;
+    }
+
+    CLIENT->Set_SoulLikeController(soulLikeController);
+    return soulLikeController;
 }
 
 void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction action)
@@ -406,12 +468,7 @@ void GameplayUI_World::Handle_SavePointInput()
 
 void GameplayUI_World::Handle_ArenaCharacterSelectInput()
 {
-    // 3번이 아니라, NPC 대화 이후
     if (!GAME->KeyDown(KEY_TYPE::KEY_3))
-        return;
-
-    const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
-    if (controller == nullptr || !controller->Is_DebugKeyStartEnabled())
         return;
 
     Request_ArenaCharacterSelect();
@@ -458,6 +515,16 @@ void GameplayUI_World::Handle_BackInput()
     if (!GAME->KeyDown(KEY_TYPE::ESCAPE))
         return;
 
+    if (_replayPanel && _replayPanel->Is_Open())
+    {
+        Close_AllMenus(true);
+
+        if (_replayPanel->Is_Open())
+            _replayPanel->Close_Immediately();
+
+        return;
+    }
+
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
     {
         _expeditionStatPanel->Close();
@@ -465,9 +532,34 @@ void GameplayUI_World::Handle_BackInput()
     }
 
     if (_menuStack.empty())
+    {
+        if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+            return;
+
+        if (GAME->Is_WorldGameplayInputBlocked())
+            return;
+
+        if (_replayPanel == nullptr)
+        {
+            _replayPanel = UI_Replay::Create(GAME->Current_LevelIndex());
+            if (_replayPanel == nullptr)
+                return;
+        }
+
+        Push_Menu(GameplayMenu::Replay);
+        GAME->Set_GameplayInputMode(GameplayInputMode::UIOnly);
+        GAME->Set_PlayerInputBlocked(true);
+        GAME->Unlock_Mouse();
         return;
+    }
 
     const GameplayMenu currentMenu = _menuStack.back();
+    if (currentMenu == GameplayMenu::Replay)
+    {
+        Close_AllMenus();
+        return;
+    }
+
     if (Is_CharacterProgressionFlowMenu(currentMenu) && currentMenu == GameplayMenu::CharacterProgression)
     {
         if (_characterProgressionPanel &&
@@ -540,17 +632,57 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
 
     case UI_ArenaCharacterSelect::Action::SelectMaelle:
     {
-        const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController();
+        const Shared<SoulLikeController> controller = Spawn_SoulLikeControllerForArena();
         if (controller == nullptr)
         {
             LOG_WARN("ArenaCharacterSelect: SoulLikeController is missing.");
             return;
         }
 
-        Close_AllMenus(true); // 마엘 선택만 기존 3번키 전투 진입 로직으로 연결한다.
+        Close_AllMenus(true);
 
-        if (!controller->Begin_Battle())
-            LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+        const wstring sequencePath =
+            wstring(Constants::Cinematic::RuntimeJson_Dir) +
+            Constants::Cinematic::Dualliste_Intro;
+
+        Weak<SoulLikeController> weakController = controller;
+
+        CLIENT->Clear_CinematicCompletedCallbacks();
+        CLIENT->Add_CinematicCompletedCallback(
+            [weakController]()
+            {
+                const Shared<SoulLikeController> controller = weakController.lock();
+                if (controller == nullptr)
+                    return;
+
+                const Shared<GameObject> cinematicMaelle = CLIENT->Get_CinematicBoundActor(kSoulLikeMaelleTargetId);
+                const Shared<GameObject> cinematicDualliste = CLIENT->Get_CinematicBoundActor(Constants::Prefab::SL_Dualliste);
+                const Shared<TransformCom> maelleTransform = cinematicMaelle ? cinematicMaelle->Get_Transform() : nullptr;
+                const Shared<TransformCom> duallisteTransform = cinematicDualliste ? cinematicDualliste->Get_Transform() : nullptr;
+                if (maelleTransform != nullptr && duallisteTransform != nullptr)
+                {
+                    controller->Set_BattleSpawnPoseOverride(
+                        maelleTransform->Get_WorldPosition(),
+                        maelleTransform->Get_WorldRotationEuler(),
+                        duallisteTransform->Get_WorldPosition(),
+                        duallisteTransform->Get_WorldRotationEuler());
+                }
+
+                controller->Set_NextMonsterActionDelay(2.f);
+
+                if (!controller->Begin_Battle())
+                    LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+            });
+
+        controller->Start_DuallistePhase1BGM();
+
+        if (!CLIENT->Play_Sequence(sequencePath, 0))
+        {
+            CLIENT->Clear_CinematicCompletedCallbacks();
+
+            if (!controller->Begin_Battle())
+                LOG_WARN("ArenaCharacterSelect: Maelle selected, but SoulLike battle did not start.");
+        }
 
         break;
     }
@@ -565,20 +697,41 @@ void GameplayUI_World::Handle_ArenaCharacterSelectAction(UI_ArenaCharacterSelect
     }
 }
 
+void GameplayUI_World::Handle_ReplayAction(UI_Replay::Action action)
+{
+    switch (action)
+    {
+    case UI_Replay::Action::Replay:
+        Close_AllMenus(true);
+
+        if (!CLIENT->Request_CurrentLevelReplay())
+            LOG_WARN("UI_Replay: failed to request current level replay.");
+        break;
+
+    case UI_Replay::Action::GameExit:
+        PostQuitMessage(0);
+        break;
+
+    case UI_Replay::Action::None:
+    default:
+        break;
+    }
+}
+
 void GameplayUI_World::Handle_GradientSkillPreviewTestInput()
 {
     if (_gradientSkillPreviewTestPanel == nullptr)
         return;
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_4))
-    {
-        if (_gradientSkillPreviewTestPanel->Is_Open())
-            _gradientSkillPreviewTestPanel->Close();
-        else if (!Is_AnyMenuOpen())
-            _gradientSkillPreviewTestPanel->Open();
-
-        return;
-    }
+    //if (GAME->KeyDown(KEY_TYPE::KEY_4))
+    //{
+    //    if (_gradientSkillPreviewTestPanel->Is_Open())
+    //        _gradientSkillPreviewTestPanel->Close();
+    //    else if (!Is_AnyMenuOpen())
+    //        _gradientSkillPreviewTestPanel->Open();
+    //
+    //    return;
+    //}
 
     if (_gradientSkillPreviewTestPanel->Is_Open() && GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
@@ -739,6 +892,16 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu, bool restoreWorldControl)
         }
         break;
 
+    case GameplayMenu::Replay:
+        if (_replayPanel)
+        {
+            if (restoreWorldControl)
+                _replayPanel->Close();
+            else
+                _replayPanel->Close_ForMenuTransition();
+        }
+        break;
+
     case GameplayMenu::None:
     default:
         break;
@@ -821,6 +984,43 @@ void GameplayUI_World::Try_ShowPendingGetClothes()
         return;
 
     _getClothesPanel->Open_ForPresetIds(pendingPresetIds);
+}
+
+void GameplayUI_World::Try_ShowPendingGetWeapon()
+{
+    if (_getWeaponPanel == nullptr || _getWeaponPanel->Is_Open())
+        return;
+
+    if (Is_GetCharacterOpen() || Is_GetClothesOpen())
+        return;
+
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
+        return;
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return;
+
+    if (!_menuStack.empty())
+        return;
+
+    if (_savePointPanel && (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+        return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return;
+
+    Unlock_Manager* unlockManager = CLIENT->Get_UnlockManager();
+    if (unlockManager == nullptr)
+        return;
+
+    vector<string> pendingWeaponIds = unlockManager->Consume_GetWeaponPresentationIds();
+    if (pendingWeaponIds.empty())
+        return;
+
+    _getWeaponPanel->Open_ForWeaponIds(pendingWeaponIds);
 }
 
 bool GameplayUI_World::Is_GetClothesOpen() const
@@ -942,6 +1142,8 @@ void GameplayUI_World::Close_AllMenus(bool immediate)
             _upgradeWeaponPanel->Close_Immediately();
         else if (immediate && menu == GameplayMenu::ArenaCharacterSelect && _arenaCharacterSelectPanel)
             _arenaCharacterSelectPanel->Close_Immediately();
+        else if (immediate && menu == GameplayMenu::Replay && _replayPanel)
+            _replayPanel->Close_Immediately();
         else
             Close_Menu(menu, true);
 
@@ -1006,6 +1208,11 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
     case GameplayMenu::ArenaCharacterSelect:
         if (_arenaCharacterSelectPanel)
             _arenaCharacterSelectPanel->Open();
+        break;
+
+    case GameplayMenu::Replay:
+        if (_replayPanel)
+            _replayPanel->Open();
         break;
 
     case GameplayMenu::None:
@@ -1083,6 +1290,7 @@ void GameplayUI_World::Free()
     Release_Panel(_getWeaponPanel);
     Release_Panel(_getPictosPanel);
     Release_Panel(_arenaCharacterSelectPanel);
+    Release_Panel(_replayPanel);
     Release_Panel(_gradientSkillPreviewTestPanel);
 
     Base::Free();

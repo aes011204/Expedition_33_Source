@@ -39,8 +39,8 @@ HRESULT MB_Volester::Initialize(void* arg)
 
    // _body->Set_Animation("Volester_Idle", 0.3f, true);
 
-    _combatStat->Set_Skill("Volester_SlowShot");
-    _combatStat->Set_Skill("Volester_SpeedShot");
+    //_combatStat->Set_Skill("Volester_SlowShot");
+    //_combatStat->Set_Skill("Volester_SpeedShot");
 
 
     return S_OK;

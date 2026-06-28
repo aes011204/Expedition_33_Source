@@ -301,7 +301,7 @@ TypeData는 이 타입별 입력을 담는다. 따라서 TypeData를 바꾸면 �
 
 - `스폰`.
 - `수명`.
-- `초기 위치`, `구 위치`, `평면/방사 위치`.
+- `초기 위치`, `구 위치`, `평면/방사 위치`, `실린더 위치`.
 - `초기 속도`, `초기 방사성 속도`, `속도 원뿔`.
 - `초기 크기`, `수명에 따른 크기`.
 - `초기 컬러`, `수명에 따른 색상`.
@@ -543,7 +543,7 @@ Detail View에서는 `머티리얼`, `이미터 좌표`, `공간 / 정렬`, `렌
 | `원본 보기` | 원본 material/preset 확인 창을 연다. | 선택 원본을 확인한다. | editor action | Mesh에서는 비활성화될 수 있다. |
 | `원점` | Emitter origin offset이다. | Emitter local 기준 위치 보정으로 읽는다. | Vec3 고정값 | preview 위치 기준에 영향이 있다. |
 | `회전 (도)` | Emitter local 회전이다. | degree 단위 회전 보정이다. | Vec3 고정값 | 축별 회전으로 입력한다. |
-| `화면 정렬` | sprite/card가 camera나 world에 정렬되는 방식이다. | `Facing Camera Position`, `Rectangle`, `Square`, `Away from Center`, `Velocity`, `World Plane XY`, `World Plane XZ` 중 고른다. | combo | 하위 옵션 노출 여부를 결정한다. |
+| `화면 정렬` | sprite/card가 camera나 world에 정렬되는 방식이다. | `Facing Camera Position`, `Rectangle`, `World Up Facing Camera`, `Square`, `Away from Center`, `Velocity`, `World Plane XY`, `World Plane XZ` 중 고른다. | combo | 하위 옵션 노출 여부를 결정한다. |
 | `방향 정렬 방식` | radial/velocity 계열에서 방향을 card에 어떻게 반영할지 정한다. | look 방향 또는 texture axis 기준을 고른다. | combo | UI tooltip과 disabled text를 우선한다. |
 | `정렬할 텍스처 축` | texture X/Y 중 어느 축을 방향에 맞출지 정한다. | 긴 texture의 방향성을 맞출 때 쓴다. | combo | world axis가 아니라 texture 가로/세로 축이다. |
 | `롤 보정 (도)` | 정렬 후 roll 보정값이다. | degree 단위 추가 회전이다. | float 고정값 | texture axis 정렬에서 주로 의미가 있다. |
@@ -569,7 +569,8 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 | Sprite Trail 화면 정렬 | 해석 |
 | --- | --- |
 | `Facing Camera Position` | stamp 위치는 path 위에 유지하고, 각 card가 자기 위치에서 카메라 위치를 바라본다. Path tangent는 회전 기준으로 쓰지 않는다. |
-| `Rectangle` | card 세로축을 World Up으로 유지하고, 가로축은 카메라 가시성을 유지하는 방향으로 잡는다. `카드 길이 축`은 texture X/Y 중 어느 축을 길이로 볼지만 정한다. |
+| `Rectangle` | legacy alias다. card 세로축을 World Up으로 유지하고, 가로축은 카메라 가시성을 유지하는 방향으로 잡는다. `카드 길이 축`은 texture X/Y 중 어느 축을 길이로 볼지만 정한다. |
+| `World Up Facing Camera` | `Rectangle`과 같은 World Up upright card basis를 명시적으로 선택한다. 새 작업에서는 이 이름을 우선 사용한다. |
 | `Square` | 카메라 화면 평면 기준 card에서 더 큰 축으로 정사각형을 만든다. |
 | `Velocity` | SourceHistorySpriteTrail에서는 실제 velocity가 아니라 path tangent를 기준 방향으로 사용한다. `방향 정렬 방식`과 `카드 길이 축`으로 tangent를 look 또는 texture 축에 맞춘다. |
 
@@ -581,13 +582,15 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 
 주로 쓰는 TypeData: Sprite/ Mesh 계열의 particle-style spawn. Trail/Ribbon/Beam에서는 TypeData별 lowering에서 직접 소비하는 값과 아닌 값을 구분해야 한다. Sprite Trail의 stamp 생성 밀도는 `스폰` Module이 아니라 TypeData의 `스탬프 간격` / `스탬프 시간 간격`이 소유한다.
 
+`초당 생성 수`, `스폰 속도 스케일`, `버스트 스케일`의 분포 의미는 모드별로 다르다. `Constant`는 고정값, `Uniform`은 loop 또는 burst 실행 단위 랜덤 샘플, `ConstantCurve`는 Emitter loop 진행률 0..1 기준 시간 커브다.
+
 | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- |
 | `연속 스폰 사용` | spawn rate 사용 여부다. | 켜면 시간 기반 연속 생성이 활성화된다. | bool | 꺼져 있으면 burst만으로 보일 수 있다. |
-| `초당 생성 수` | 초당 생성할 수량이다. | 값이 높을수록 생성 밀도가 커진다. | float 분포 | 너무 낮으면 거의 보이지 않을 수 있다. |
-| `스폰 속도 스케일` | spawn rate multiplier다. | `초당 생성 수`에 곱해지는 배율로 본다. | float 분포 | 0에 가까우면 생성이 크게 줄어든다. |
+| `초당 생성 수` | 초당 생성할 수량이다. | 값이 높을수록 생성 밀도가 커진다. | float 분포 / loop 진행률 | ConstantCurve는 loop 안에서 생성 밀도를 시간에 따라 바꾼다. |
+| `스폰 속도 스케일` | spawn rate multiplier다. | `초당 생성 수`에 곱해지는 배율로 본다. | float 분포 / loop 진행률 | 0에 가까우면 생성이 크게 줄어든다. |
 | `버스트 사용` | burst list 사용 여부다. | 켜면 지정 시간에 burst 생성이 가능하다. | bool | 연속 스폰과 독립적으로 볼 수 있다. |
-| `버스트 스케일` | burst count multiplier다. | burst 목록의 개수에 곱해지는 배율이다. | float 분포 | burst 효과 세기를 조정한다. |
+| `버스트 스케일` | burst count multiplier다. | burst 목록의 개수에 곱해지는 배율이다. | float 분포 / burst 시간 진행률 | ConstantCurve는 각 burst 시간의 loop phase로 평가된다. |
 | `버스트 목록` | burst entry 목록이다. | 각 entry는 시간과 개수를 가진다. | list | 현재 UI는 live 기능으로 본다. |
 | `시간` | burst가 발생할 시간이다. | Emitter loop 내 시간으로 읽는다. | float 고정값 | `스폰 활성 시간`과 함께 확인한다. |
 | `개수` | 해당 burst에서 생성할 수량이다. | burst particle count다. | uint 고정값 | `버스트 스케일`이 함께 곱해질 수 있다. |
@@ -653,6 +656,18 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 | `각도 분포` | Disc/Ring/Arc의 angle 분포다. | degree 단위 angular 범위다. | float 분포 | Arc 형태에서 특히 중요하다. |
 | `배치 방식` | radial shape의 배치 방식이다. | `랜덤 샘플(Random)` 또는 `인덱스 균등(EvenByParticleIndex)`을 고른다. | combo | `사각(Rectangle)`에서는 사용되지 않는다. |
 
+`실린더 위치`는 Sprite와 Mesh Emitter에서 원통 옆면 또는 원통 내부 부피의 위치를 만든다. 터널 벽, 기둥형 범위, 반원통 단면처럼 축 방향 길이가 있는 분포를 잡을 때 사용한다. 위치만 만들며, 흐르는 방향은 속도 계열 Module이 맡고 sprite/card 또는 mesh 회전은 회전 계열 Module이 맡는다.
+
+| UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
+| --- | --- | --- | --- | --- |
+| `길이축` | 원통의 긴 방향이다. | `Local X`, `Local Y`, `Local Look` 중 고른다. | combo | 기본값은 터널형 제작에 맞춘 `Local Look`이다. |
+| `생성 방식` | 원통 sample 영역이다. | `옆면(SideSurface)` 또는 `부피(Volume)`를 고른다. | combo | cap surface는 포함하지 않는다. |
+| `원주 배치` | angle sample 방식이다. | `랜덤 샘플(Random)` 또는 `인덱스 균등(EvenByParticleIndex)`을 고른다. | combo | 균등 배치는 angle에만 적용되고, 반지름/높이는 분포 seed를 따른다. |
+| `중심 오프셋` | 원통 중심 offset이다. | Emitter origin에서 원통 중심을 이동한다. | Vec3 고정값 | 모든 sample의 기준점이다. |
+| `반지름 분포` | 중심축에서 떨어진 거리다. | 음수는 0 이상으로 정규화된다. | float 분포 | 옆면에서 min/max가 다르면 두께 있는 shell이 된다. |
+| `높이 분포` | 길이축 방향 위치 범위다. | 중심 기준 축 좌표 범위다. | float 분포 | `-5..5`처럼 양방향 길이를 직접 표현할 수 있다. |
+| `각도 분포` | 원주 angle 범위다. | degree 단위 angular 범위다. | float 분포 | `0..180`이면 반원통 단면을 만든다. |
+
 ### 6.9 크기 Module
 
 크기 Module은 생성 시점 크기와 lifetime 중 크기 배율을 정한다.
@@ -717,6 +732,7 @@ Sprite Trail의 `화면 정렬`은 일반 Sprite와 저장 enum은 같지만, st
 
 | Module | UI 이름 | 의미 | 값 해석 | 분포/시간축 | 주의점 |
 | --- | --- | --- | --- | --- | --- |
+| `가속` | `월드 스페이스` | 가속 벡터의 좌표계를 정한다. | 켜면 world axis, 끄면 emitter local axis 기준이다. | bool | 기본값은 켜짐이다. 중력/상승처럼 effect 회전과 무관한 힘은 켜둔다. |
 | `가속` | `가속` | 시간에 따라 더해지는 velocity 변화다. | X/Y/Z acceleration이다. | Vec3 분포 | 지속적으로 속도를 바꾼다. |
 | `드래그` | `드래그` | 속도 감쇠 계수다. | 값이 커질수록 velocity가 빨리 줄어든다. | float 분포 | 너무 크면 거의 멈춘 것처럼 보일 수 있다. |
 
@@ -779,6 +795,8 @@ Sprite Trail에서 `Path Follow` 또는 `Path Replay`가 위치 정본을 소유
 ### 6.12 Mesh 회전 Module
 
 Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
+`수명에 따른 메시 회전`은 life 진행도에 따른 자세 오프셋이고, `초기 메시 회전 속도`는 계속 도는 각속도다.
+world/local 기준 선택은 회전 속도 축에만 적용된다.
 
 ![Initial mesh rotation module](UserGuide_Img/detail_initial_mesh_rotation_module.png)
 
@@ -793,6 +811,7 @@ Mesh 회전 Module은 Mesh TypeData가 있는 Emitter에서 사용한다.
 | `초기 메시 회전` | `회전 XYZ` | 생성 시점 mesh XYZ 회전이다. | degree 축별 회전이다. | Vec3 분포 | Mesh TypeData 전용이다. |
 | `수명에 따른 메시 회전` | `추가 회전 XYZ` | lifetime 동안 더할 mesh XYZ 회전이다. | degree 축별 추가 회전이다. | Vec3 분포/curve | Mesh TypeData 전용이다. |
 | `초기 메시 회전 속도` | `회전 속도 XYZ` | mesh XYZ 회전 속도다. | 축별 degree/sec 계열로 읽는다. | Vec3 분포 | Mesh TypeData 전용이다. |
+| `초기 메시 회전 속도` | `월드 스페이스` | 회전 속도 축의 기준을 정한다. | 켜면 world axis, 끄면 기존 mesh Euler/local axis 기준이다. | bool | 초기 메시 보정 뒤에도 world 축으로 돌리고 싶을 때 켠다. |
 | `수명에 따른 메시 회전 속도` | `회전 속도 배율 XYZ` | lifetime 동안 회전 속도 배율을 바꾼다. | 축별 multiplier다. | Vec3 분포/curve | Mesh TypeData 전용이다. |
 
 ### 6.13 컬러 Module
@@ -899,6 +918,8 @@ Sprite Trail에서도 frame 선택, random frame, frame over life 정책은 Type
 | `삭제` | 해당 modulator row를 제거한다. | row 구조를 바꾼다. | editor action | 삭제 후 같은 parameter 변조가 사라진다. |
 
 Material Instance View에서 기본 parameter를 정하고, `머티리얼 변조` Module에서 시간 변화 규칙을 얹는다고 이해하면 된다. UV Offset target은 base offset에 Vec2 값을 더하고, UV Scroll Speed Scale target은 Material Instance의 base scroll speed에 scalar 값을 곱한다. Scroll Speed Scale은 `1.0`이면 원래 속도, `0.0`이면 정지, `-1.0`이면 반대 방향이며, shader가 `scrollSpeed * materialTime`으로 UV를 만들기 때문에 급격한 scale 변화는 누적 감속이 아니라 phase jump처럼 보일 수 있다.
+
+Material Instance Preview는 emitter 문맥이 있으면 `Required.duration` 기준으로 material time과 변조 phase를 반복한다. standalone material preset preview처럼 emitter 문맥이 없는 경우에는 1초 주기 fallback으로 보여준다. 이 preview는 material surface 확인용이므로 particle lifetime, spawn, loop module 전체를 재현하는 정본은 Scene View preview로 본다.
 
 ### 6.18 Type 호환성 메모
 

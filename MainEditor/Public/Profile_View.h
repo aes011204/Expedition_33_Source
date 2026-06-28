@@ -77,17 +77,22 @@ private:
 private:
     void Draw_Toolbar();
     void Draw_Frame_Info();
+    void Draw_Render_Isolation();
     void Draw_Scopes();
     void Draw_Memory();
     void Draw_Resource_Memory();
+    void Draw_Memory_Trace();
     void Reset_Stats();
     void Prune_Dead_Scopes();
     vector<Scope_Row> Build_Scope_Rows() const;
     void Log_Snapshot() const;
+    void Log_ViewHotspot() const;
+    void Log_AutoHitch(double frameMs);
     void Record_Scope_Sample(const string& scopeName, double elapsedMs);
     void Refresh_Memory_Samples();
     Process_Memory Get_Process_Memory() const;
     Resource_Memory Get_Resource_Memory() const;
+    void Log_Memory_Trace_Snapshot() const;
 
 private:
     static Profile_View* s_active;
@@ -98,8 +103,11 @@ private:
     bool _capture = true;
     bool _sortByCost = true;
     bool _showDisabled = false;
+    bool _autoHitchLog = true;
     int _avgWindow = 120;
     int _maxScopeRows = 64;
+    int _autoHitchLogRemaining = 8;
+    float _autoHitchThresholdMs = 80.f;
     char _filter[128] = {};
 
     double _frameMsLast = 0.0;
@@ -112,6 +120,7 @@ private:
     clock::time_point _lastTimingSampleTime = {};
     clock::time_point _lastProcessMemorySampleTime = {};
     clock::time_point _lastResourceMemorySampleTime = {};
+    clock::time_point _lastAutoHitchLogTime = {};
     bool _hasTimingSample = false;
     bool _hasProcessMemorySample = false;
     bool _hasResourceMemorySample = false;

@@ -407,7 +407,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_objectManager, E_FAIL);
 
-    _environmentManager = Environment_Manager::Create();
+    _environmentManager = Environment_Manager::Create(device, context);
     CHECK_NULL(_environmentManager, E_FAIL);
 
     _targetManager = Target_Manager::Create(device, context);
@@ -478,20 +478,6 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _printManager = Print_Manager::Create();
     CHECK_NULL(_printManager, E_FAIL);
 #endif
-
-    VolumetricLightShaftZoneCB lightShaftZoneCB{};
-    lightShaftZoneCB.zoneCount = 1;
-
-    Matrix lightShaftWorld = Matrix::CreateScale(2.f) * Matrix::CreateTranslation(Vec3(0.f, 19.f, 0.f));
-
-    lightShaftZoneCB.zones[0].worldToLocal = lightShaftWorld.Invert();
-    lightShaftZoneCB.zones[0].halfExtents = Vec3(3.f, 10.f, 3.f);
-    lightShaftZoneCB.zones[0].density = 1.f;
-    lightShaftZoneCB.zones[0].lightColor = Vec4(1.f, 0.95f, 0.8f, 1.f);
-    lightShaftZoneCB.zones[0].edgeFade = 1.f;
-    lightShaftZoneCB.zones[0].intensity = 1.f;
-
-    GAME->Set_VolumetricLightShaftZones(lightShaftZoneCB);
 
     return S_OK;
 }
@@ -811,6 +797,7 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
 {
     const bool savedShadowEnabled = _renderer->Is_ShadowEnabled();
     const bool savedRenderOnlyPreviewMode = _renderer->Is_RenderOnlyPreviewMode();
+    const bool savedRenderEnvironment = _renderer->Is_RenderEnvironment();
     const bool savedScreenFxActivated = (_screenFxManager != nullptr) && _screenFxManager->Is_ScreenFXActivated();
     Shared<PostProcessPipeline> postProcessPipeline = _renderer->Get_PostProcessPipeline();
     Shared<LightingPipeline> lightingPipeline = _renderer->Get_LightingPipeline();
@@ -836,7 +823,10 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
         savedSSAO = lightingPipeline->Get_Params();
         savedDeferredLighting = lightingPipeline->Get_DeferredLightingParams();
         DeferredLightingCB previewDeferredLighting = savedDeferredLighting;
-        previewDeferredLighting.iblEnabled = 1u;
+
+        if (!preservePostProcess)
+            previewDeferredLighting.iblEnabled = 1u;
+
         previewDeferredLighting.iblIntensity = 1.25f;
         previewDeferredLighting.iblDiffuseIntensity = 1.18f;
         previewDeferredLighting.iblSpecularIntensity = 0.45f;
@@ -873,7 +863,7 @@ HRESULT GameInstance::Draw_RendererOnly(bool renderPreviewScreenFx, bool preserv
     if (hasPostProcessPipeline)
         postProcessPipeline->Set_PostProcessFeatures(savedPostProcessFeatures);
 
-    _renderer->Set_RenderEnvironment(false);
+    _renderer->Set_RenderEnvironment(savedRenderEnvironment);
 
     return S_OK;
 }
@@ -1441,7 +1431,7 @@ Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelInde
 {
     return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
 }
-
+    
 bool GameInstance::Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const
 {
     return _prototypeManager->Has_Prototype(levelIndex, prototypeTag);
@@ -1558,6 +1548,14 @@ uint32 GameInstance::Get_RenderCall() const
     return _renderer->Get_RenderCall();
 }
 
+bool GameInstance::Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const
+{
+    if (_renderer == nullptr)
+        return false;
+
+    return _renderer->Try_GetRenderViewHotspotSnapshot(outSnapshot);
+}
+
 const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
     return _renderer->Get_PostProcessPipeline();
@@ -1654,6 +1652,30 @@ const FogZoneCB& GameInstance::Get_FogZones() const
 const VolumetricLightShaftZoneCB& GameInstance::Get_VolumetricLightShaftZones() const
 {
     return _environmentManager->Get_VolumetricLightShaftZones();
+}
+
+HRESULT GameInstance::Change_IBL(const wchar_t* irradiancePath, const wchar_t* prefilterPath)
+{
+    CHECK_NULL(_environmentManager, E_FAIL);
+    return _environmentManager->Change_IBL(irradiancePath, prefilterPath);
+}
+
+HRESULT GameInstance::Bind_IBLTextures(Shared<ShaderCom> shader) const
+{
+    CHECK_NULL(_environmentManager, E_FAIL);
+    return _environmentManager->Bind_IBLTextures(shader.get());
+}
+
+void GameInstance::Begin_SoulLikeIBLOverride()
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->Begin_SoulLikeIBLOverride();
+}
+
+void GameInstance::End_SoulLikeIBLOverride()
+{
+    CHECK_NULL(_environmentManager);
+    _environmentManager->End_SoulLikeIBLOverride();
 }
 
 FogZoneCB GameInstance::Build_ActiveFogZones(const Vec3& cameraPosition)

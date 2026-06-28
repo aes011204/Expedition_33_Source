@@ -30,6 +30,7 @@ namespace
         { AuthoringModuleType::Lifetime, "lifeTime", MinOnly(0.0001f) },                         // over-life 계산을 위해 파티클 수명은 양수여야 한다.
         { AuthoringModuleType::SphereLocation, "radius", MinOnly(0.f) },                         // 구 반지름은 음수가 되지 않도록 보정된다.
         { AuthoringModuleType::PlaneRadialLocation, "radiusDistribution", MinOnly(0.f) },        // 반경 분포는 음수가 아닌 범위만 사용한다.
+        { AuthoringModuleType::CylinderLocation, "radiusDistribution", MinOnly(0.f) },           // 원통 반경 분포는 음수가 아닌 범위만 사용한다.
         { AuthoringModuleType::Drag, "drag", MinOnly(0.f) },                                     // 드래그 분포는 음수가 아닌 범위만 사용한다.
         { AuthoringModuleType::InitialColor, "alpha", MinMax(0.f, 1.f) },                        // 작성된 알파 분포는 0..1 범위로 보정된다.
         { AuthoringModuleType::ColorOverLife, "alphaOverLife", MinMax(0.f, 1.f) },               // over-life 알파 끝값은 0..1 범위로 보정된다.

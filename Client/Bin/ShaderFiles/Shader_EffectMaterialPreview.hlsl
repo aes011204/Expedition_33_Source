@@ -4,6 +4,7 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_EffectMaterial.hlsl"
+#include "Shader_EffectMeshCommon.hlsli"
 
 cbuffer cbEffectMaterialPreview : register(b2)
 {
@@ -161,61 +162,50 @@ struct PS_OUT
 
 EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 {
-    EffectMaterialSurface surface = (EffectMaterialSurface)0;
-
     const float2 mainUVPolicy = g_EffectMaterialPreviewUVAxisPolicyParams.xy;
     const float2 noiseUVPolicy = g_EffectMaterialPreviewUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectMaterialPreviewMaskUVAxisPolicyParams.xy;
-    const float2 mainUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams, g_EffectMaterialPreviewUVOffsetParams.xy, mainUVPolicy, g_EffectMaterialPreviewUVRotationParams.x);
-    const float2 noiseUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams, g_EffectMaterialPreviewUVOffsetParams.zw, noiseUVPolicy, g_EffectMaterialPreviewUVRotationParams.y);
-    const float2 maskUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMaskUVParams, g_EffectMaterialPreviewMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMaterialPreviewUVRotationParams.z);
+    const float2 mainUV = Build_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewMainUVParams,
+        g_EffectMaterialPreviewUVOffsetParams.xy,
+        mainUVPolicy,
+        g_EffectMaterialPreviewUVRotationParams.x);
+    const float2 noiseUV = Build_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewNoiseUVParams,
+        g_EffectMaterialPreviewUVOffsetParams.zw,
+        noiseUVPolicy,
+        g_EffectMaterialPreviewUVRotationParams.y);
+    const float2 maskUV = Build_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewMaskUVParams,
+        g_EffectMaterialPreviewMaskUVOffsetParams.xy,
+        maskUVPolicy,
+        g_EffectMaterialPreviewUVRotationParams.z);
     const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVPolicy);
-    const float opacityPower = max(g_EffectMaterialPreviewParams.y, 0.0001f);
-    const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectMaterialPreviewAlphaParams.y);
-    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
-    float noiseRaw = 1.f;
-    float maskAlpha = 1.f;
+    const float4 noiseTexel =
+        (0 != g_EffectMaterialPreviewParams.w && g_EffectMaterialPreviewParams.z > 0.f)
+        ? Sample_PreviewNoiseTexture(noiseUV, noiseUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
+    const float4 maskTexel =
+        (0 != g_EffectMaterialPreviewAlphaParams.z)
+        ? Sample_PreviewMaskTexture(maskUV, maskUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
 
-    const float noiseStrength = saturate(g_EffectMaterialPreviewParams.z);
-    if (g_EffectMaterialPreviewParams.w != 0 && g_EffectMaterialPreviewParams.z > 0.f)
-    {
-        const float4 noiseTexel = Sample_PreviewNoiseTexture(noiseUV, noiseUVPolicy);
-        noiseRaw = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMaterialPreviewSourceParams.x),
-            g_EffectMaterialPreviewSourceParams.z
-        );
-    }
-
-    if (g_EffectMaterialPreviewAlphaParams.z != 0)
-    {
-        const float4 maskTexel = Sample_PreviewMaskTexture(maskUV, maskUVPolicy);
-        maskAlpha = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(maskTexel, (int)g_EffectMaterialPreviewSourceParams.y),
-            g_EffectMaterialPreviewSourceParams.w
-        );
-    }
-
-    const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
-    float coverage = maskAlpha;
-
-    coverage = Effect_ApplyAlphaErosion(coverage, maskAlpha * breakupNoise, alphaErosion);
-
-    const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
-    const float facing = saturate(abs(In.normal.z) * 0.35f + 0.65f);
-    const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
-        symbol.rgb * g_Tint.rgb,
-        g_EffectMaterialPreviewCoreEmissiveColor,
-        selectedOpacity,
-        g_EffectMaterialPreviewCoreEmissiveParams
-    );
-    surface.color = baseColor * energyVariation * facing;
-    surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, coverage, breakupNoise, g_Tint.a);
-
-    if (surface.coverage < max(alphaCutoff, 0.01f))
-        discard;
-
-    return surface;
+    EffectMeshCommonSurfaceInput surfaceInput = (EffectMeshCommonSurfaceInput)0;
+    surfaceInput.symbol = symbol;
+    surfaceInput.noiseTexel = noiseTexel;
+    surfaceInput.maskTexel = maskTexel;
+    surfaceInput.instanceColor = float4(1.f, 1.f, 1.f, 1.f);
+    surfaceInput.tint = g_Tint;
+    surfaceInput.params = g_EffectMaterialPreviewParams;
+    surfaceInput.alphaParams = g_EffectMaterialPreviewAlphaParams;
+    surfaceInput.sourceParams = g_EffectMaterialPreviewSourceParams;
+    surfaceInput.coreEmissiveColor = g_EffectMaterialPreviewCoreEmissiveColor;
+    surfaceInput.coreEmissiveParams = g_EffectMaterialPreviewCoreEmissiveParams;
+    surfaceInput.opacitySource = g_OpacitySource;
+    return EffectMeshCommon_ResolveSurface(surfaceInput);
 }
 
 PS_OUT PS_MAIN(PS_IN In)
@@ -234,66 +224,45 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float2 noiseUVPolicy = g_EffectMaterialPreviewUVAxisPolicyParams.zw;
     const float2 maskUVPolicy = g_EffectMaterialPreviewMaskUVAxisPolicyParams.xy;
     const float2 mainUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams, g_EffectMaterialPreviewUVOffsetParams.xy, mainUVPolicy, g_EffectMaterialPreviewUVRotationParams.x);
-    const float2 noiseUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams, g_EffectMaterialPreviewUVOffsetParams.zw, noiseUVPolicy, g_EffectMaterialPreviewUVRotationParams.y);
-    const float2 maskUV = Build_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMaskUVParams, g_EffectMaterialPreviewMaskUVOffsetParams.xy, maskUVPolicy, g_EffectMaterialPreviewUVRotationParams.z);
+    const float2 noiseUV = Build_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewNoiseUVParams,
+        g_EffectMaterialPreviewUVOffsetParams.zw,
+        noiseUVPolicy,
+        g_EffectMaterialPreviewUVRotationParams.y);
+    const float2 maskUV = Build_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewMaskUVParams,
+        g_EffectMaterialPreviewMaskUVOffsetParams.xy,
+        maskUVPolicy,
+        g_EffectMaterialPreviewUVRotationParams.z);
     const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVPolicy);
-    const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectMaterialPreviewAlphaParams.y);
-    float noiseRaw = 1.f;
-    float maskAlpha = 1.f;
+    const float4 noiseTexel =
+        (0 != g_EffectMaterialPreviewParams.w && g_EffectMaterialPreviewParams.z > 0.f)
+        ? Sample_PreviewNoiseTexture(noiseUV, noiseUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
+    const float4 maskTexel =
+        (0 != g_EffectMaterialPreviewAlphaParams.z)
+        ? Sample_PreviewMaskTexture(maskUV, maskUVPolicy)
+        : float4(1.f, 1.f, 1.f, 1.f);
 
-    const float noiseStrength = saturate(g_EffectMaterialPreviewParams.z);
-    if (g_EffectMaterialPreviewParams.w != 0 && g_EffectMaterialPreviewParams.z > 0.f)
-    {
-        const float4 noiseTexel = Sample_PreviewNoiseTexture(noiseUV, noiseUVPolicy);
-        noiseRaw = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMaterialPreviewSourceParams.x),
-            g_EffectMaterialPreviewSourceParams.z
-        );
-    }
-
-    if (g_EffectMaterialPreviewAlphaParams.z != 0)
-    {
-        const float4 maskTexel = Sample_PreviewMaskTexture(maskUV, maskUVPolicy);
-        maskAlpha = Effect_ApplySourceInvert(
-            Effect_SelectScalarSource(maskTexel, (int)g_EffectMaterialPreviewSourceParams.y),
-            g_EffectMaterialPreviewSourceParams.w
-        );
-    }
-
-    const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
-    const float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * breakupNoise, alphaErosion);
-    const float coverageBase = saturate(coverage * breakupNoise * g_Tint.a);
-    const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
-    const float facing = saturate(abs(In.normal.z) * 0.35f + 0.65f);
-    const int colorSource = (int)g_EffectMaterialPreviewAdditiveParams.x;
-    const int amountSource = (int)g_EffectMaterialPreviewAdditiveParams.y;
-    const int coveragePolicy = (int)g_EffectMaterialPreviewAdditiveParams.z;
-    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
-    const float amount = Effect_SelectAdditiveAmount(symbol, maskAlpha, amountSource);
-    const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
-    const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
-    const float blackGate = Effect_ResolveAdditiveBlackGate(symbol.rgb, colorSource, g_EffectMaterialPreviewAdditiveFlags.x);
-
-    if (discardSource < max(alphaCutoff, 0.01f))
-        discard;
-
-    const float3 materialColor = Effect_ResolveAdditiveColor(
-        symbol.rgb,
-        symbol.rgb * g_Tint.rgb,
-        g_EffectMaterialPreviewAdditiveEmissiveColor,
-        g_EffectMaterialPreviewAdditiveConstantColor,
-        colorSource
-    );
-    const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
-        materialColor,
-        g_EffectMaterialPreviewCoreEmissiveColor,
-        selectedOpacity,
-        g_EffectMaterialPreviewCoreEmissiveParams
-    );
-    const float additiveEnergyScalar = max(g_EffectMaterialPreviewParams.x, 0.f) * max(g_EffectMaterialPreviewAdditiveParams.w, 0.f);
-    const float3 contribution = shapedMaterialColor * energyVariation * facing * policyAmount * additiveEnergyScalar * blackGate;
-    Out.color = float4(contribution, 1.f);
+    EffectMeshCommonAdditiveInput additiveInput = (EffectMeshCommonAdditiveInput)0;
+    additiveInput.symbol = symbol;
+    additiveInput.noiseTexel = noiseTexel;
+    additiveInput.maskTexel = maskTexel;
+    additiveInput.instanceColor = float4(1.f, 1.f, 1.f, 1.f);
+    additiveInput.tint = g_Tint;
+    additiveInput.params = g_EffectMaterialPreviewParams;
+    additiveInput.alphaParams = g_EffectMaterialPreviewAlphaParams;
+    additiveInput.sourceParams = g_EffectMaterialPreviewSourceParams;
+    additiveInput.additiveParams = g_EffectMaterialPreviewAdditiveParams;
+    additiveInput.additiveEmissiveColor = g_EffectMaterialPreviewAdditiveEmissiveColor;
+    additiveInput.additiveConstantColor = g_EffectMaterialPreviewAdditiveConstantColor;
+    additiveInput.additiveFlags = g_EffectMaterialPreviewAdditiveFlags;
+    additiveInput.coreEmissiveColor = g_EffectMaterialPreviewCoreEmissiveColor;
+    additiveInput.coreEmissiveParams = g_EffectMaterialPreviewCoreEmissiveParams;
+    additiveInput.opacitySource = g_OpacitySource;
+    Out.color = float4(EffectMeshCommon_ResolveAdditiveContribution(additiveInput), 1.f);
     return Out;
 }
 
@@ -301,11 +270,12 @@ PS_OUT PS_CHECKER(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
 
+    const float checkerCellSize = 48.f;
     const float2 targetSize = max(g_EffectMaterialPreviewCheckerParams.xy, float2(1.f, 1.f));
-    const float2 aspectUV = float2(In.texCoord.x * targetSize.x / targetSize.y, In.texCoord.y);
-    const float2 coarseCell = floor(aspectUV * 10.f);
+    const float2 checkerCoord = In.texCoord * targetSize / checkerCellSize;
+    const float2 coarseCell = floor(checkerCoord);
     const float checker = fmod(coarseCell.x + coarseCell.y, 2.f);
-    const float2 grid = abs(frac(aspectUV * 10.f) - 0.5f);
+    const float2 grid = abs(frac(checkerCoord) - 0.5f);
     const float gridLine = 1.f - smoothstep(0.455f, 0.495f, max(grid.x, grid.y));
     const float vignette = saturate(1.f - length(In.texCoord - 0.5f) * 0.95f);
     const float3 darkColor = float3(0.10f, 0.12f, 0.16f);
@@ -323,16 +293,12 @@ technique11 DefaultTechnique
 {
     // Plane preview
     PASS_RS_DS_BS_VP(AlphaBlendPass, RS_CullNone, DSS_Default, BS_EffectAlphaBlend, VS_MAIN, PS_MAIN) // 0
-
     // Sphere preview
     PASS_RS_DS_BS_VP(SphereAlphaBlendPass, RS_Default, DSS_Default, BS_EffectAlphaBlend, VS_MAIN, PS_MAIN) // 1
-
     // Plane additive preview
     PASS_RS_DS_BS_VP(AdditivePass, RS_CullNone, DSS_Default, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 2
-
     // Sphere additive preview
     PASS_RS_DS_BS_VP(SphereAdditivePass, RS_Default, DSS_Default, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 3
-
     // Preview-local checker source/background
     PASS_RS_DS_BS_VP(CheckerBackgroundPass, RS_CullNone, DSS_None, BS_Default, VS_CHECKER, PS_CHECKER) // 4
 }

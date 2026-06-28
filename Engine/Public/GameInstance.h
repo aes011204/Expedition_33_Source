@@ -24,6 +24,9 @@
 #pragma region FD
 NS_BEGIN(Engine)
 
+struct ShadowCascadeInfluenceVolume;
+class Event_Bus;
+struct RenderViewHotspotSnapshot;
 class Event_Bus;
 class Graphic_Device;
 struct ShadowCascadeDebugInfo;
@@ -65,6 +68,7 @@ struct StaticCollisionData;
 class ScreenFx_Instance;
 struct DOFPreset;
 struct DOFTransitionDesc;
+struct ShadowCascadeInfluenceVolume;
 NS_END
 #pragma endregion
 
@@ -74,6 +78,7 @@ enum class Collision_Preset;
 
 struct PhysXStaticActorHandle;
 struct PhysXQueryHit;
+struct ShadowCascadeInfluenceVolume;
 
 struct DebugResourceMemorySummary
 {
@@ -234,6 +239,7 @@ public: /* For.Object_Manager */
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
     uint32 Get_RenderCall() const;
+    bool Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     HRESULT Begin_DOFOverrideScope(const string& ownerTag);
@@ -252,6 +258,10 @@ public: /* For.Renderer */
     RenderGroup                         Get_CurrentRenderGroup() const;
     const FogZoneCB&                    Get_FogZones() const;
     const VolumetricLightShaftZoneCB&   Get_VolumetricLightShaftZones() const;
+    HRESULT                             Change_IBL(const wchar_t* irradiancePath, const wchar_t* prefilterPath);
+    HRESULT                             Bind_IBLTextures(Shared<ShaderCom> shader) const;
+    void                                Begin_SoulLikeIBLOverride();
+    void                                End_SoulLikeIBLOverride();
     FogZoneCB                           Build_ActiveFogZones(const Vec3& cameraPosition);
     VolumetricLightShaftZoneCB          Build_ActiveVolumetricLightShaftZones(const Vec3& cameraPosition);
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);

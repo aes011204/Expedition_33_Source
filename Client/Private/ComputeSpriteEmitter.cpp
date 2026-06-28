@@ -64,6 +64,78 @@ static float Hash01(uint32 seed)
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
 }
 
+static float Read_Vec4Component(const Vec4& values, uint32 index)
+{
+    switch (index)
+    {
+    case 0:
+        return values.x;
+    case 1:
+        return values.y;
+    case 2:
+        return values.z;
+    case 3:
+        return values.w;
+    default:
+        return values.x;
+    }
+}
+
+static float Read_Vec4Component(const Vec4& valuesBlock0, const Vec4& valuesBlock1, uint32 index)
+{
+    if (index < 4u)
+        return Read_Vec4Component(valuesBlock0, index);
+
+    return Read_Vec4Component(valuesBlock1, index - 4u);
+}
+
+static float Evaluate_FloatCurve(const PointParticleFloatCurveRuntimeDesc& curve, float phase, float fallbackValue)
+{
+    if (!curve.enabled)
+        return fallbackValue;
+
+    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.curveKeyCount));
+    const float clampedPhase = clamp(phase, 0.f, 1.f);
+    if (keyCount == 1u || clampedPhase <= Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, 0u))
+        return Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < keyCount; ++index)
+    {
+        const float rightTime = Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, index);
+        if (clampedPhase > rightTime)
+            continue;
+
+        const float leftTime = Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, index - 1u);
+        const float leftValue = Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, index - 1u);
+        const float rightValue = Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, index);
+        const float mode = Read_Vec4Component(curve.curveKeyModes, curve.curveKeyModesBlock1, index - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((clampedPhase - leftTime) / width, 0.f, 1.f);
+
+        if (mode < 0.5f)
+            return leftValue;
+
+        if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = Read_Vec4Component(curve.curveKeyLeaveTangents, curve.curveKeyLeaveTangentsBlock1, index - 1u) * width;
+            const float rightArrive = Read_Vec4Component(curve.curveKeyArriveTangents, curve.curveKeyArriveTangentsBlock1, index) * width;
+            return
+                (2.f * t3 - 3.f * t2 + 1.f) * leftValue +
+                (t3 - 2.f * t2 + ratio) * leftLeave +
+                (-2.f * t3 + 3.f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+
+        return lerp(leftValue, rightValue, ratio);
+    }
+
+    return clampedPhase > Read_Vec4Component(curve.curveKeyTimes, curve.curveKeyTimesBlock1, keyCount - 1u)
+           ? Read_Vec4Component(curve.curveKeyValues, curve.curveKeyValuesBlock1, keyCount - 1u)
+           : fallbackValue;
+}
+
 static Vec3 Resolve_WorldScale(const Shared<TransformCom>& transform)
 {
     if (transform == nullptr)
@@ -105,6 +177,20 @@ static Vec2 Resolve_PlaneScale(PointParticlePlaneRadialLocationPlane plane, cons
     case PointParticlePlaneRadialLocationPlane::XY:
     default:
         return Vec2{ scale.x, scale.y };
+    }
+}
+
+static Vec2 Resolve_CylinderScale(PointParticleCylinderLocationAxis axis, const Vec3& scale)
+{
+    switch (axis)
+    {
+    case PointParticleCylinderLocationAxis::LocalX:
+        return Vec2{ max(scale.y, scale.z), scale.x };
+    case PointParticleCylinderLocationAxis::LocalY:
+        return Vec2{ max(scale.x, scale.z), scale.y };
+    case PointParticleCylinderLocationAxis::LocalLook:
+    default:
+        return Vec2{ max(scale.x, scale.y), scale.z };
     }
 }
 
@@ -391,6 +477,9 @@ bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition
 
     if (_desc.sphereLocation.enabled)
         localOffset += _desc.sphereLocation.offset;
+
+    if (_desc.cylinderLocation.enabled)
+        localOffset += _desc.cylinderLocation.offset;
 
     const Vec3 worldOffset =
         _transformCom->Get_WorldRight() * localOffset.x +
@@ -1050,6 +1139,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.motion = _desc.motion;
     desc.orbitOverLife = _desc.orbitOverLife;
     desc.rotation = _desc.rotation;
+    desc.spriteTilt = _desc.spriteTilt;
     desc.spawn = _desc.spawn.particleSpawn;
     desc.lifetimeSeed = _desc.lifetimeSeed;
     desc.initialLocation = _desc.initialLocation;
@@ -1066,6 +1156,17 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.planeRadialLocation.radiusRange = EffectAssetRuntimeLoad::Scale_Vector2(
         desc.planeRadialLocation.radiusRange,
         Vec2{ uniformPlaneScale, uniformPlaneScale }
+    );
+    desc.cylinderLocation = _desc.cylinderLocation;
+    const Vec2 cylinderScale = EffectAssetRuntimeLoad::Resolve_CylinderScale(desc.cylinderLocation.axis, worldScale);
+    desc.cylinderLocation.offset = EffectAssetRuntimeLoad::Scale_Vector3(desc.cylinderLocation.offset, worldScale);
+    desc.cylinderLocation.radiusRange = EffectAssetRuntimeLoad::Scale_Vector2(
+        desc.cylinderLocation.radiusRange,
+        Vec2{ cylinderScale.x, cylinderScale.x }
+    );
+    desc.cylinderLocation.heightRange = EffectAssetRuntimeLoad::Scale_Vector2(
+        desc.cylinderLocation.heightRange,
+        Vec2{ cylinderScale.y, cylinderScale.y }
     );
     desc.planeRadialOrientation = _desc.planeRadialOrientation;
     desc.initialLocationSeed = _desc.initialLocationSeed;
@@ -1128,7 +1229,18 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
 
     if (_desc.spawn.particleSpawn.processSpawnRate)
     {
-        const float spawnRate = max(0.f, _sampledSpawnRate * _sampledSpawnRateScale);
+        const float loopPhase = clamp(_emitterElapsedTime / Resolve_Duration(), 0.f, 1.f);
+        const float spawnRateValue = EffectAssetRuntimeLoad::Evaluate_FloatCurve(
+            _desc.spawn.particleSpawn.spawnRateCurve,
+            loopPhase,
+            _sampledSpawnRate
+        );
+        const float spawnRateScale = EffectAssetRuntimeLoad::Evaluate_FloatCurve(
+            _desc.spawn.particleSpawn.spawnRateScaleCurve,
+            loopPhase,
+            _sampledSpawnRateScale
+        );
+        const float spawnRate = max(0.f, spawnRateValue) * max(0.f, spawnRateScale);
         _spawnAccumulator += spawnRate * safeDeltaTime;
 
         const float wholeSpawn = floorf(_spawnAccumulator + 0.0001f);
@@ -1158,7 +1270,13 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
                 _desc.spawn.particleSpawn.burstScaleSeed,
                 static_cast<uint32>(0xB851u + index * 131u)
             );
-            const float scaledCount = static_cast<float>(burst.count) * max(0.f, sampledBurstScale);
+            const float burstPhase = clamp(burst.time / Resolve_Duration(), 0.f, 1.f);
+            const float burstScale = EffectAssetRuntimeLoad::Evaluate_FloatCurve(
+                _desc.spawn.particleSpawn.burstScaleCurve,
+                burstPhase,
+                sampledBurstScale
+            );
+            const float scaledCount = static_cast<float>(burst.count) * max(0.f, burstScale);
             spawnRequest += static_cast<uint32>(floorf(scaledCount));
             _burstExecuted[index] = true;
         }

@@ -1,7 +1,10 @@
 ﻿#include "SL_Mon_PhaseChangeState.h"
 
+#include "ClientInstance.h"
 #include "SL_Dualliste.h"
 #include "SL_Mon_StateMachineCom.h"
+#include "SoulLikeController.h"
+#include "Client_Constants.h"
 
 NS_BEGIN(Client)
 
@@ -22,9 +25,7 @@ bool SL_Mon_PhaseChangeState::EnterInvoke()
     owner->Begin_PhaseChangeTransition();
     owner->Set_ActionLocked(true);
 
-    _phase = owner->Should_SkipPhaseChangeStunStart()
-        ? Phase::StunEnd
-        : Phase::StunStart;
+    _phase = Phase::PhaseChange;
     _hasStarted = false;
 
     return true;
@@ -38,23 +39,46 @@ void SL_Mon_PhaseChangeState::Play_CurrentPhase()
 
     switch (_phase)
     {
-    case Phase::StunStart:
-        owner->Play_Anim(SL_Dualliste::Anim::Stun_Start, 0.1f, false);
-        break;
-
-    case Phase::StunEnd:
-        owner->Play_Anim(SL_Dualliste::Anim::Stun_End, 0.1f, false);
-        break;
-
     case Phase::PhaseChange:
-        owner->Play_Anim(SL_Dualliste::Anim::PhaseChange, 0.1f, false);
+    {
+        if (const Shared<SoulLikeController> controller = CLIENT->Get_SoulLikeController())
+            controller->Play_DuallisteBGM(SoulLikeController::DuallisteBGMPhase::PhaseTransition);
+
+        Weak<SL_Dualliste> weakOwner = owner;
+        const auto completePhaseChange =
+            [weakOwner]()
+            {
+                const Shared<SL_Dualliste> owner = weakOwner.lock();
+                if (owner == nullptr)
+                    return;
+
+                owner->Set_ActionLocked(false);
+                owner->Finish_PhaseChange();
+                owner->End_PhaseChangeTransition();
+                owner->Change_State(SL_MonState::Idle);
+            };
+
+        const wstring sequencePath =
+            wstring(Constants::Cinematic::RuntimeJson_Dir) +
+            Constants::Cinematic::Dualliste_PhaseChange;
+
+        CLIENT->Clear_CinematicCompletedCallbacks();
+        CLIENT->Add_CinematicCompletedCallback(completePhaseChange);
+
+        if (!CLIENT->Play_Sequence(sequencePath, 0))
+        {
+            CLIENT->Clear_CinematicCompletedCallbacks();
+            completePhaseChange();
+        }
+
+        _phase = Phase::End;
         break;
+    }
 
     case Phase::End:
         break;
     }
 }
-
 void SL_Mon_PhaseChangeState::Update(float timeDelta)
 {
     SL_Mon_State::Update(timeDelta);
@@ -76,27 +100,9 @@ void SL_Mon_PhaseChangeState::Update(float timeDelta)
         return;
     }
 
-    if (!owner->Is_AnimFinished())
-        return;
-
     switch (_phase)
     {
-    case Phase::StunStart:
-        _phase = Phase::StunEnd;
-        Play_CurrentPhase();
-        return;
-
-    case Phase::StunEnd:
-        _phase = Phase::PhaseChange;
-        Play_CurrentPhase();
-        return;
-
     case Phase::PhaseChange:
-        owner->Set_ActionLocked(false);
-        owner->Finish_PhaseChange();
-        owner->End_PhaseChangeTransition();
-        _phase = Phase::End;
-        _stateCom->Change_State(SL_MonState::Idle);
         return;
 
     case Phase::End:

@@ -20,6 +20,9 @@ public:
     void Set_SkillRequest(const Skill_Data& skillData, uint32 slotIndex);
     const string& Get_CurrentSkillKey() const { return _skillData.skillKey; }
 
+    bool Request_Dodge(const SL_MoveRequest& request) override;
+    bool Request_Jump() override;
+
 private:
     SoulLikeAnim Resolve_SkillAnim(uint32 slotIndex) const;
     void Resolve_PlaySection();

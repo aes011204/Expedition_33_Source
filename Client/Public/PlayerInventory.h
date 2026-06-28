@@ -53,7 +53,7 @@ public:
     bool Is_WeaponUnlocked(const string& characterId, const string& weaponId) const;
     uint32 Get_WeaponEnhanceLevel(const string& characterId, const string& weaponId) const;
     bool Set_WeaponEnhanceLevel(const string& characterId, const string& weaponId, uint32 enhanceLevel);
-    void Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel = 1);
+    void Unlock_Weapon(const string& characterId, const string& weaponId, uint32 enhanceLevel = 1, uint32 enhanceExp = 0);
     void Ensure_DefaultUnlockedWeapons(const vector<WeaponInventoryEntry>& weapons);
 
     json Create_SaveJson() const;

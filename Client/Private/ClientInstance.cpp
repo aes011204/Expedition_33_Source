@@ -1,4 +1,5 @@
 ﻿#include "pch.h"
+#include "Client_Constants.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
@@ -26,14 +27,34 @@
 #include "CinematicSequenceRunner.h"
 #include "PlayerInventory.h"
 #include "CostumeManager.h"
+#include "DialogueDB.h"
 #include "PlayerStatCom.h"
 #include "SoulLikeController.h"
+#include "TargetCamera.h"
+#include "BattleTurnCamera.h"
+#include "BattleEncounterProfile.h"
+#include "CameraPresetIO.h"
 #include "Unlock_Manager.h"
+#include "DialogueDB.h"
+#include "DialogueManager.h"
+#include "DialogueCamera.h"
+#include "BattleFollowupManager.h"
+#include "Client_Constants.h"
+#include "Monster_WorldBase.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
 namespace
 {
+    bool g_debugDisableDynamicShadowRenderPass = false;
+    bool g_debugDisableMapInstancedMeshRender = false;
+    bool g_debugDisableGrassInstancedRender = false;
+    bool g_debugDisableMapStaticMeshRender = false;
+    bool g_debugDisableMapInstancedMeshShadow = false;
+    bool g_debugUseMapInstancedMeshShadowLOD = false;
+    bool g_debugDisableGrassInstancedShadow = false;
+    bool g_debugDisableMapStaticMeshShadow = false;
+
     string Get_WeaponCharacterId(HeroId heroId)
     {
         switch (heroId)
@@ -129,25 +150,56 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
 
-    // 일반 픽토스 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
+    // 일반 픽토스 일단은 전부 다 등록. 나중에 몬스터 잡기? 상점? 등에서 뭐 구매하게 만들 수 있으려나
     _playerInventory->Ensure_DefaultUnlockedPictos(Get_AllPictosIds());
 
-    // 무기 세팅
-    _playerInventory->Ensure_DefaultUnlockedWeapons(
-        {
-            { "Gustave", "Lanceram", 1, 0 },
-            { "Gustave", "Baguette", 5, 0 },
-            { "Lune",    "Colim",    1, 0 },
-            { "Lune",    "Baguette", 5, 0 },
-            { "Maelle",  "Medalum",  1, 0 },
-            { "Maelle",  "Baguette", 5, 0 },
-        });
+// 무기 세팅
+vector<PlayerInventory::WeaponInventoryEntry> defaultUnlockedWeapons{};
+const HeroId defaultWeaponHeroes[] = { HeroId::Gustave, HeroId::Lune, HeroId::Maelle };
+
+for (HeroId heroId : defaultWeaponHeroes)
+{
+    const string characterId = Get_WeaponCharacterId(heroId);
+    const string weaponIds[] =
+    {
+        Get_DefaultEquippedWeaponId(heroId),
+        "Baguette",
+    };
+
+    for (const string& weaponId : weaponIds)
+    {
+        if (characterId.empty() || weaponId.empty())
+            continue;
+
+        const GameDataTable::WeaponDesc* weapon = Get_WeaponDesc(characterId, weaponId);
+
+        PlayerInventory::WeaponInventoryEntry entry{};
+        entry.characterId = weapon ? weapon->characterId : characterId;
+        entry.weaponId = weapon ? weapon->weaponId : weaponId;
+        entry.enhanceLevel = weapon ? weapon->level : 1;
+        entry.enhanceExp = 0;
+        defaultUnlockedWeapons.emplace_back(std::move(entry));
+    }
+}
+
+_playerInventory->Ensure_DefaultUnlockedWeapons(defaultUnlockedWeapons);
 
     _costumeManager = CostumeManager::Create();
     CHECK_NULL(_costumeManager, E_FAIL);
 
     _unlockManager = Unlock_Manager::Create();
     CHECK_NULL(_unlockManager, E_FAIL);
+
+    _dialogueDB = DialogueDB::Create();
+    CHECK_NULL(_dialogueDB, E_FAIL);
+
+   _dialogueDB->LoadFromFile(String::ToString(Client::Constants::Dialogue::Dialogue_Dir));
+
+   _dialogueManager = DialogueManager::Create();
+    CHECK_NULL(_dialogueManager, E_FAIL);
+    
+    _battleFollowupManager = BattleFollowupManager::Create();
+    CHECK_NULL(_battleFollowupManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -184,11 +236,8 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
 
 void ClientInstance::Update_Client(float timeDelta)
 {
-    if (_screenFadeTransition)
-        _screenFadeTransition->Update(timeDelta);
-
-    if (_levelTransitionFade)
-        _levelTransitionFade->Update(timeDelta);
+    Update_FadeTransitions(timeDelta);
+    Capture_ReplayMonsterSnapshotIfNeeded();
 
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
@@ -207,12 +256,115 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if(_cinematicSequenceRunner)
         _cinematicSequenceRunner->Update(timeDelta, true);
+
+    if (_dialogueManager)
+    {
+        if (Is_BattleActive() || Is_BattleEntering() || Is_SoulLikeBattleActive())
+        {
+            if (_dialogueManager->IsActive())
+                _dialogueManager->EndDialogue(false);
+        }
+        else
+        {
+            _dialogueManager->Update();
+        }
+    }
+}
+
+void ClientInstance::Update_FadeTransitions(float timeDelta)
+{
+    if (_screenFadeTransition)
+        _screenFadeTransition->Update(timeDelta);
+
+    if (_levelTransitionFade)
+        _levelTransitionFade->Update(timeDelta);
 }
 
 void ClientInstance::Update_UIPreviewOnly(float timeDelta)
 {
     if (_previewManager)
         _previewManager->Update(timeDelta);
+}
+
+bool ClientInstance::Is_DebugDisableMapInstancedMeshRender()
+{
+    return g_debugDisableMapInstancedMeshRender;
+}
+
+bool ClientInstance::Is_DebugDisableDynamicShadowRenderPass()
+{
+    return g_debugDisableDynamicShadowRenderPass;
+}
+
+void ClientInstance::Set_DebugDisableDynamicShadowRenderPass(bool disabled)
+{
+    g_debugDisableDynamicShadowRenderPass = disabled;
+    GAME->Set_ShadowEnabled(!disabled);
+}
+
+void ClientInstance::Set_DebugDisableMapInstancedMeshRender(bool disabled)
+{
+    g_debugDisableMapInstancedMeshRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableGrassInstancedRender()
+{
+    return g_debugDisableGrassInstancedRender;
+}
+
+void ClientInstance::Set_DebugDisableGrassInstancedRender(bool disabled)
+{
+    g_debugDisableGrassInstancedRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapStaticMeshRender()
+{
+    return g_debugDisableMapStaticMeshRender;
+}
+
+void ClientInstance::Set_DebugDisableMapStaticMeshRender(bool disabled)
+{
+    g_debugDisableMapStaticMeshRender = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapInstancedMeshShadow()
+{
+    return g_debugDisableMapInstancedMeshShadow;
+}
+
+void ClientInstance::Set_DebugDisableMapInstancedMeshShadow(bool disabled)
+{
+    g_debugDisableMapInstancedMeshShadow = disabled;
+}
+
+bool ClientInstance::Is_DebugUseMapInstancedMeshShadowLOD()
+{
+    return g_debugUseMapInstancedMeshShadowLOD;
+}
+
+void ClientInstance::Set_DebugUseMapInstancedMeshShadowLOD(bool enabled)
+{
+    g_debugUseMapInstancedMeshShadowLOD = enabled;
+}
+
+bool ClientInstance::Is_DebugDisableGrassInstancedShadow()
+{
+    return g_debugDisableGrassInstancedShadow;
+}
+
+void ClientInstance::Set_DebugDisableGrassInstancedShadow(bool disabled)
+{
+    g_debugDisableGrassInstancedShadow = disabled;
+}
+
+bool ClientInstance::Is_DebugDisableMapStaticMeshShadow()
+{
+    return g_debugDisableMapStaticMeshShadow;
+}
+
+void ClientInstance::Set_DebugDisableMapStaticMeshShadow(bool disabled)
+{
+    g_debugDisableMapStaticMeshShadow = disabled;
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -332,6 +484,36 @@ HRESULT ClientInstance::Reload_GameDataTables()
     return _gameDataTable->Load_All();
 }
 
+HRESULT ClientInstance::Reload_CameraPresetData()
+{
+    if (auto targetCamera = dynamic_pointer_cast<TargetCamera>(GAME->Get_CameraByType(ObjectType::TargetCamera)))
+    {
+        TargetCameraPreset preset{};
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, preset))
+            targetCamera->Set_Preset(TargetCameraMode::NORMAL, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, preset))
+            targetCamera->Set_Preset(TargetCameraMode::AIM, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, preset))
+            targetCamera->Set_Preset(TargetCameraMode::BATTLE_ENTER, preset);
+
+        if (CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::SOULLIKE, preset))
+            targetCamera->Set_Preset(TargetCameraMode::SOULLIKE, preset);
+
+        targetCamera->Change_Mode(targetCamera->Get_CurrentMode());
+    }
+
+    if (auto battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(GAME->Get_CameraByType(ObjectType::BattleTurnCamera)))
+        battleTurnCamera->Reload_BattleCameraAuthoringData();
+
+    if (auto dialogueCamera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+        dialogueCamera->Set_CameraPresetId(dialogueCamera->Get_CameraPresetId());
+
+    return S_OK;
+}
+
 const Item_Data* ClientInstance::Get_Item(const string& itemId)
 {
     if (!_gameDataTable)
@@ -411,9 +593,9 @@ PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotPanel panel
     return _previewShotTable->Get(hero, panel);
 }
 
-HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
+HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos, const Vec3& startRot)
 {
-    return _heroManager->Initialize_Hero(levelIndex, layerTag, startPos);
+    return _heroManager->Initialize_Hero(levelIndex, layerTag, startPos, startRot);
 }
 
 void ClientInstance::Update_HeroManager(float timeDelta)
@@ -452,6 +634,14 @@ void ClientInstance::Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot)
         return;
 
     _heroManager->Set_ActiveHeroSlotForCheckpoint(slot);
+}
+
+void ClientInstance::Set_DialogueFocusActive(bool active)
+{
+    if (_heroManager == nullptr)
+        return;
+
+    _heroManager->Set_DialogueFocusActive(active);
 }
 
 void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
@@ -603,6 +793,152 @@ bool ClientInstance::Request_LoadedLevelTransition(LevelType TargetLevel, Shared
     return SUCCEEDED(GAME->Change_Level(ETOI(TargetLevel), TargetLevelInstance));
 }
 
+bool ClientInstance::Request_CurrentLevelReplay()
+{
+    if (_screenFadeTransition && _screenFadeTransition->Is_Playing())
+        return false;
+
+    if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
+        return false;
+
+    if (Is_BattleActive() || Is_BattleEntering() || Is_SoulLikeBattleActive())
+        return false;
+
+    return Request_ScreenFadeTransition(
+        [this]()
+        {
+            Reset_CurrentLevelRuntimeState();
+        });
+}
+
+void ClientInstance::Reset_CurrentLevelRuntimeState()
+{
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue(false);
+
+    vector<Shared<GameObject>> duplicatePlayers{};
+
+    GAME->Visit_CurrentLevelObjects(
+        [this, &duplicatePlayers](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            const Shared<Player_WorldBase> player =
+                dynamic_pointer_cast<Player_WorldBase>(gameObject);
+            if (player == nullptr)
+                return;
+
+            bool managed = false;
+            if (_heroManager)
+            {
+                for (const HeroPartyEntry& entry : _heroManager->Get_HeroEntries())
+                {
+                    if (entry.hero == player)
+                    {
+                        managed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!managed)
+                duplicatePlayers.push_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& player : duplicatePlayers)
+        GAME->Remove_GameObject(GAME->Current_LevelIndex(), player);
+
+    if (!duplicatePlayers.empty())
+        GAME->Flush_RemovedGameObjects();
+
+    if (_heroManager)
+        _heroManager->Reset_RuntimeToStart();
+
+    Respawn_ReplayMonstersFromSnapshot();
+
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
+    GAME->Set_PlayerInputBlocked(false);
+    GAME->Lock_Mouse();
+}
+
+void ClientInstance::Capture_ReplayMonsterSnapshotIfNeeded()
+{
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+    if (_replayMonsterSnapshotLevelIndex != levelIndex)
+    {
+        _replayMonsterSnapshotLevelIndex = levelIndex;
+        _replayMonsterSpawnObjects.clear();
+        _replayMonsterRuntimeAuthoringLoaded.clear();
+        _replayMonsterSnapshotCaptured = false;
+    }
+
+    if (_replayMonsterSnapshotCaptured)
+        return;
+
+    GAME->Visit_CurrentLevelObjects(
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) == nullptr)
+                return;
+
+            RuntimeCheckpointIO::WorldObject object{};
+            object.layerTag = layerTag;
+            object.objectJson = gameObject->To_Json();
+            _replayMonsterSpawnObjects.emplace_back(std::move(object));
+            _replayMonsterRuntimeAuthoringLoaded.emplace_back(gameObject->Is_RuntimeAuthoringLoaded() ? 1 : 0);
+        });
+
+    _replayMonsterSnapshotCaptured = true;
+}
+
+void ClientInstance::Respawn_ReplayMonstersFromSnapshot()
+{
+    Capture_ReplayMonsterSnapshotIfNeeded();
+
+    if (_replayMonsterSpawnObjects.empty())
+        return;
+
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+    vector<Shared<GameObject>> monstersToRemove{};
+
+    GAME->Visit_CurrentLevelObjects(
+        [&monstersToRemove](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) != nullptr)
+                monstersToRemove.emplace_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& monster : monstersToRemove)
+        GAME->Remove_GameObject(levelIndex, monster);
+
+    if (!monstersToRemove.empty())
+        GAME->Flush_RemovedGameObjects();
+
+    for (size_t index = 0; index < _replayMonsterSpawnObjects.size(); ++index)
+    {
+        const RuntimeCheckpointIO::WorldObject& object = _replayMonsterSpawnObjects[index];
+        Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(object.objectJson);
+        if (gameObject == nullptr)
+            continue;
+
+        const bool runtimeAuthoringLoaded =
+            index < _replayMonsterRuntimeAuthoringLoaded.size() &&
+            _replayMonsterRuntimeAuthoringLoaded[index] != 0;
+        gameObject->Set_RuntimeAuthoringLoaded(runtimeAuthoringLoaded);
+
+        if (const Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(gameObject))
+            worldMonster->Restore_AfterBattleExit();
+
+        (void)GAME->Add_GameObject(levelIndex, object.layerTag, gameObject);
+    }
+}
+
+void ClientInstance::Clear_ReplayMonsterSnapshot()
+{
+    _replayMonsterSpawnObjects.clear();
+    _replayMonsterRuntimeAuthoringLoaded.clear();
+    _replayMonsterSnapshotLevelIndex = UINT32_MAX;
+    _replayMonsterSnapshotCaptured = false;
+}
+
 bool ClientInstance::Is_FadeTransitionPlaying() const
 {
     const bool isScreenFadePlaying = _screenFadeTransition && _screenFadeTransition->Is_Playing();
@@ -613,15 +949,52 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
                                         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject,
-                                        bool completeImmediately)
+                                        bool completeImmediately, int32 battleStartSpawnerId, const Vec3& battleStartOffset)
 {
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue(false);
+
+    if (Should_ForcePlayerAdvantage(FieldID))
+        isPlayerAdvantage = true;
+
     return _battleController->OnEnterBattleField(
         FieldID,
         isPlayerAdvantage,
         heroIds,
         battleMonsterSpawnDescs,
         sourceObject,
-        completeImmediately);
+        completeImmediately,
+        battleStartSpawnerId,
+        battleStartOffset);
+}
+
+bool ClientInstance::Request_DialogueBattlePotatoBag()
+{
+    if (Is_BattleActive() || Is_BattleEntering())
+        return false;
+
+    BattleMonsterSpawnDesc spawnDesc{};
+    spawnDesc.prefabName = Constants::Prefab::MB_PotatoBag;
+
+    vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
+    battleMonsterSpawnDescs.emplace_back(move(spawnDesc));
+
+    if (_screenFxManager)
+        _screenFxManager->Play_BattleInCounterFx();
+
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
+
+    OnEnterBattleField(
+        Constants::Value::potatoBagEncounterId,
+        false,
+        Resolve_BattleEncounterHeroIds(Constants::Value::potatoBagEncounterId),
+        battleMonsterSpawnDescs,
+        nullptr,
+        false,
+        Constants::Value::potatoBagBattleStartSpawnerId,
+        Vec3::Zero);
+
+    return true;
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -657,6 +1030,11 @@ void ClientInstance::Request_BattleTurn()
 Shared<CinematicCamera> ClientInstance::Request_Cinematic()
 {
     return _cameraDirector->Request_Cinematic();
+}
+
+Shared<DialogueCamera> ClientInstance::Request_DialogueCamera()
+{
+    return _cameraDirector->Request_DialogueCamera();
 }
 
 void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
@@ -863,11 +1241,45 @@ Shared<CinematicCamera> ClientInstance::Ensure_CinematicCamera()
     }
 
     Shared<CinematicCamera> cinematicCamera = dynamic_pointer_cast<CinematicCamera>(gameObject);
+
     if(cinematicCamera == nullptr)
         return nullptr;
 
     GAME->Add_Camera(cinematicCamera);
     return cinematicCamera;
+}
+
+Shared<DialogueCamera> ClientInstance::Ensure_DialogueCamera()
+{
+    if(auto camera = dynamic_pointer_cast<DialogueCamera>(GAME->Get_CameraByType(ObjectType::DialogueCamera)))
+    {
+        return camera;  
+    }
+
+    Shared<GameObject> gameObject;
+
+    DialogueCamera::DIALOGUECAMERA_DESC desc{};
+    desc.speedPerSec = 10.f;
+    desc.degreePerSec = 180.f;
+    desc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(60.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 500.f;
+    desc.mouseSensor = 0.05f;
+
+    if(FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), L"GameObject_DialogueCamera", ETOI(LevelType::Static), L"Layer_Camera", gameObject, &desc)))
+    {
+        return nullptr;
+    }
+
+    Shared<DialogueCamera> dialogueCamera = dynamic_pointer_cast<DialogueCamera>(gameObject);
+
+    if(dialogueCamera == nullptr)
+        return nullptr;
+
+    GAME->Add_Camera(dialogueCamera);
+    return dialogueCamera;
 }
 
 Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
@@ -1118,6 +1530,43 @@ bool ClientInstance::Is_WorldControlSuspended() const
     return Is_BattleActive() || Is_SoulLikeBattleActive();
 }
 
+const DialogueData* ClientInstance::FindDialogueData(const string& dialogueKey) const
+{
+    return _dialogueDB->FindDialogueData(dialogueKey);
+}
+
+void ClientInstance::StartDialogue(const DialogueRequest& request)
+{
+    _dialogueManager->StartDialogue(request);
+}
+
+void ClientInstance::EndDialogue(bool restoreWorldState)
+{
+    if (_dialogueManager && _dialogueManager->IsActive())
+        _dialogueManager->EndDialogue(restoreWorldState);
+}
+
+bool ClientInstance::IsDialogueActive() const
+{
+    return _dialogueManager && _dialogueManager->IsActive();
+}
+
+bool ClientInstance::IsDialogueInteractLocked() const
+{
+    return _dialogueManager && _dialogueManager->IsInteractLocked();
+}
+
+void ClientInstance::AddDialogueInteractionOverlap()
+{
+    ++_dialogueInteractionOverlapCount;
+}
+
+void ClientInstance::RemoveDialogueInteractionOverlap()
+{
+    if (_dialogueInteractionOverlapCount > 0)
+        --_dialogueInteractionOverlapCount;
+}
+
 HRESULT ClientInstance::Ready_ResourceLoader()
 {
     _resourceLoader = ResourceLoader::Create(_device, _context);
@@ -1165,6 +1614,8 @@ void ClientInstance::Release_Client()
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);
     ReleaseManager(_soulLikeController);
+
+    Clear_ReplayMonsterSnapshot();
 
     _context.Reset();
     _device.Reset();

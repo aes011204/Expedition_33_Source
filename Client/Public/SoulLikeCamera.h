@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Camera.h"
+#include "BattleCameraClipTypes.h"
 #include "CameraPresetTypes.h"
 
 NS_BEGIN(Client)
@@ -55,6 +56,8 @@ public:
 
 public:
     void SetTargetTransform(Shared<TransformCom> targetTransform);
+    void Align_BehindTarget();
+    void SetCombatFocusTransforms(Shared<TransformCom> playerTransform, Shared<TransformCom> opponentTransform);
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
 
     const TargetCameraPreset& Get_Preset() const;
@@ -67,7 +70,12 @@ public:
 private:
     void Build_DefaultPreset(const SOULLIKE_CAMERA_DESC& desc);
     void Interpolate_CurrentSettings(float timeDelta);
+    void Reset_ActiveClip();
+    void Apply_ActiveClip(float timeDelta);
+    bool Has_ClipKeys(const BattleCameraClip& clip) const;
     bool Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const;
+    bool Try_GetOpponentTransform(Shared<TransformCom>& outOpponentTransformCom) const;
+    Vec3 Resolve_SubjectPosition();
     void Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta);
     void Update_FromCurrentSettings(float timeDelta);
     Vec3 Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta);
@@ -77,8 +85,13 @@ private:
     TargetCameraPreset _currentSettings{};
     TargetCameraPreset _targetSettings{};
     string _activePresetKey{};
+    BattleCameraClip _activeClip{};
+    TargetCameraPreset _activeClipBaseSettings{};
+    float _activeClipTime = 0.f;
+    bool _hasActiveClip = false;
 
     Weak<TransformCom> _targetTransformCom{};
+    Weak<TransformCom> _opponentTransformCom{};
     Vec3 _smoothedTargetPos = Vec3::Zero;
     Vec3 _prevTargetPos = Vec3::Zero;
 

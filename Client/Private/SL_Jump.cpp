@@ -3,6 +3,11 @@
 #include "SL_Maelle.h"
 #include "SL_StateMachineCom.h"
 
+namespace
+{
+    constexpr float kJumpInvincibleRefreshSec = 0.1f;
+}
+
 SL_Jump::SL_Jump(const Shared<SL_Maelle>& owner)
     : SL_State(owner)
 {
@@ -15,7 +20,7 @@ bool SL_Jump::EnterInvoke()
         return false;
 
     owner->Set_CombatLocked(true);
-    owner->Set_InvincibleTime(0.45f);
+    owner->Set_InvincibleTime(kJumpInvincibleRefreshSec);
 
     Stop_Movement();
     Play_Anim(SoulLikeAnim::Jump, 0.05f, false);
@@ -27,11 +32,21 @@ void SL_Jump::Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
-    if (!Is_AnimFinished())
-        return;
+    Shared<SL_Maelle> owner = _owner.lock();
 
-    if (Shared<SL_Maelle> owner = _owner.lock())
+    if (!Is_AnimFinished())
+    {
+        if (owner)
+            owner->Set_InvincibleTime(kJumpInvincibleRefreshSec);
+
+        return;
+    }
+
+    if (owner)
+    {
         owner->Set_CombatLocked(false);
+        owner->Set_InvincibleTime(0.f);
+    }
 
     if (_stateCom)
         _stateCom->Change_State(SL_PlayerState::Idle);
@@ -40,7 +55,10 @@ void SL_Jump::Update(float timeDelta)
 void SL_Jump::ExitInvoke()
 {
     if (Shared<SL_Maelle> owner = _owner.lock())
+    {
         owner->Set_CombatLocked(false);
+        owner->Set_InvincibleTime(0.f);
+    }
 
     SL_State::ExitInvoke();
 }

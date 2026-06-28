@@ -314,6 +314,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
             desc.spawn.particleSpawn.spawnRateSeed = Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, *spawnRateIter, desc.spawn.particleSpawn.spawnRate);
         }
 
         const auto spawnRateScaleIter = data.find("spawnRateScale");
@@ -325,6 +326,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
             desc.spawn.particleSpawn.spawnRateScaleSeed = Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, *spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale);
         }
 
         const auto burstScaleIter = data.find("burstScale");
@@ -336,6 +338,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
             desc.spawn.particleSpawn.burstScaleSeed = Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, *burstScaleIter, desc.spawn.particleSpawn.burstScale);
         }
 
         const auto burstListIter = data.find("burstList");
@@ -374,6 +377,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
             desc.spawn.particleSpawn.spawnRateSeed = Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateCurve, *spawnRateIter, desc.spawn.particleSpawn.spawnRate);
         }
 
         const auto spawnRateScaleIter = data.find("spawnRateScale");
@@ -385,6 +389,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
             desc.spawn.particleSpawn.spawnRateScaleSeed = Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.spawnRateScaleCurve, *spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale);
         }
 
         const auto burstScaleIter = data.find("burstScale");
@@ -396,6 +401,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             };
             desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
             desc.spawn.particleSpawn.burstScaleSeed = Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+            Fill_FloatCurvePayload(desc.spawn.particleSpawn.burstScaleCurve, *burstScaleIter, desc.spawn.particleSpawn.burstScale);
         }
 
         const auto burstListIter = data.find("burstList");
@@ -497,6 +503,9 @@ namespace EffectAssetRuntimeLoad::Emitters
 
         if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
             Fill_PlaneRadialLocationPayload(desc.planeRadialLocation, *planeRadialLocation);
+
+        if (const json* cylinderLocation = Find_ModuleData(emitter, "CylinderLocation"))
+            Fill_CylinderLocationPayload(desc.cylinderLocation, *cylinderLocation);
 
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
         {
@@ -650,6 +659,8 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
+            desc.motion.accelerationInWorldSpace =
+                Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -708,6 +719,12 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.rotation.enabled = true;
             Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
         }
+
+        Fill_SpriteTiltPayload(
+            desc.spriteTilt,
+            Find_ModuleData(emitter, "SpriteTilt"),
+            Find_ModuleData(emitter, "SpriteTiltOverLife")
+        );
 
         if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
         {
@@ -1297,6 +1314,8 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
+            desc.motion.accelerationInWorldSpace =
+                Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1346,6 +1365,12 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.rotation.enabled = true;
             Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
         }
+
+        Fill_SpriteTiltPayload(
+            desc.spriteTilt,
+            Find_ModuleData(emitter, "SpriteTilt"),
+            Find_ModuleData(emitter, "SpriteTiltOverLife")
+        );
 
         if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
         {
@@ -1723,6 +1748,9 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
             Fill_PlaneRadialLocationPayload(desc.planeRadialLocation, *planeRadialLocation);
 
+        if (const json* cylinderLocation = Find_ModuleData(emitter, "CylinderLocation"))
+            Fill_CylinderLocationPayload(desc.cylinderLocation, *cylinderLocation);
+
         if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
         {
             const auto lifeTimeIter = lifetime->find("lifeTime");
@@ -1876,6 +1904,8 @@ namespace EffectAssetRuntimeLoad::Emitters
         if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
         {
             desc.motion.enabled = true;
+            desc.motion.accelerationInWorldSpace =
+                Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1953,6 +1983,11 @@ namespace EffectAssetRuntimeLoad::Emitters
                 desc.meshTransform.initialAngularVelocityDegreesMin = Vec3{ min(minRate.x, maxRate.x), min(minRate.y, maxRate.y), min(minRate.z, maxRate.z) };
                 desc.meshTransform.initialAngularVelocityDegreesMax = Vec3{ max(minRate.x, maxRate.x), max(minRate.y, maxRate.y), max(minRate.z, maxRate.z) };
                 desc.meshTransform.initialAngularVelocitySeed = Read_DistributionRandomSeedDesc(*rotationRateIter, initialMeshRotationRate);
+                desc.meshTransform.initialAngularVelocityInWorldSpace = Read_Bool(
+                    *initialMeshRotationRate,
+                    "inWorldSpace",
+                    desc.meshTransform.initialAngularVelocityInWorldSpace
+                );
             }
         }
 

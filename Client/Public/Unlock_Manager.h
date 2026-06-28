@@ -66,13 +66,15 @@ public:
 
     vector<HeroId> Consume_GetCharacterHeroes();
     vector<string> Consume_GetClothesPresetIds();
+    vector<string> Consume_GetWeaponPresentationIds();
+    void Queue_GetWeaponPresentation(const string& characterId, const string& weaponId);
 
 public:
     // 완료 룰 ID로 저장 -> 불러오기까지 구현하려고
     json Create_SaveJson() const;
 
     // 체크포인트 복원 시에는 완료 상태만 되살리고, 포탈같은건 worldObjects 쪽으로
-    bool Apply_SaveJson(const json& data, bool replayWorldRewards);
+    bool Apply_SaveJson(const json& data, bool replayWorldRewards, bool queuePresentation = true);
 
 private:
     void Register_DefaultRules();
@@ -96,6 +98,7 @@ private:
     uset<HeroId> _unlockedHeroIds{};
     vector<HeroId> _pendingGetCharacterHeroes{};
     vector<string> _pendingGetClothesPresetIds{};
+    vector<string> _pendingGetWeaponPresentationIds{};
 
 public:
     static Unique<Unlock_Manager> Create();

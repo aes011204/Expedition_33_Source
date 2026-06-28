@@ -79,6 +79,9 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     if (CLIENT->Is_WorldControlSuspended())
         return;
 
+    if (!_partyVisibilityAllowed)
+        return;
+
     __super::Priority_Update(timeDelta);
 
     // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
@@ -131,6 +134,9 @@ void Player_WorldBase::Update(float timeDelta)
     if (CLIENT->Is_WorldControlSuspended())
         return;
 
+    if (!_partyVisibilityAllowed)
+        return;
+
     __super::Update(timeDelta);
 
     if (_effectCom)
@@ -155,6 +161,17 @@ void Player_WorldBase::Late_Update(float timeDelta)
     __super::Late_Update(timeDelta);
 
     Update_Culling(Vec3(1.f, 2.f, 1.f));
+}
+
+void Player_WorldBase::Post_PhysX_Update(float timeDelta)
+{
+    if (CLIENT->Is_WorldControlSuspended())
+        return;
+
+    if (!_partyVisibilityAllowed)
+        return;
+
+    __super::Post_PhysX_Update(timeDelta);
 }
 
 HRESULT Player_WorldBase::Render()
@@ -765,6 +782,8 @@ Shared<Body_Player> Player_WorldBase::Create_CostumeBodyVariant(const wstring& m
         (void)model->Normalize_OwnerComponentTagAndBindings();
     }
 
+    CHECK_FAILED(Ready_BodyModifiers(body.get()), nullptr);
+
     return body;
 }
 
@@ -947,7 +966,7 @@ HRESULT Player_WorldBase::Ready_Components()
 
     moveDesc.sweep.skinWidth = 0.03f;
     moveDesc.sweep.groundSnapUp = 0.35f;
-    moveDesc.sweep.groundSnapDown = 0.65f;
+    moveDesc.sweep.groundSnapDown = 0.90f;
     moveDesc.sweep.walkableNormalY = 0.65f;
     moveDesc.sweep.groundY = 0.f;
 

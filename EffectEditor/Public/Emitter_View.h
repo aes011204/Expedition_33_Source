@@ -197,6 +197,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialLocationModule();
     AuthoringModule Make_SphereLocationModule();
     AuthoringModule Make_PlaneRadialLocationModule();
+    AuthoringModule Make_CylinderLocationModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();
@@ -211,6 +212,8 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_SphereRadialOrientationModule();
     AuthoringModule Make_PlaneRadialOrientationModule();
     AuthoringModule Make_RotationOverLifeModule();
+    AuthoringModule Make_SpriteTiltModule();
+    AuthoringModule Make_SpriteTiltOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();
     AuthoringModule Make_RotationRateScaleByLifeModule();
     AuthoringModule Make_InitialMeshRotationModule();

@@ -470,6 +470,12 @@ void TargetCamera::Refresh_TargetTransform()
         _targetTransformCom = player->Get_Transform();
 }
 
+void TargetCamera::Set_OrbitAngles(float yaw, float pitch)
+{
+    _yaw = yaw;
+    _pitch = std::clamp(pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
+}
+
 Vec3 TargetCamera::Get_FreeAimQueryOrigin() const
 {
     CHECK_NULL(_transformCom, Vec3::Zero);

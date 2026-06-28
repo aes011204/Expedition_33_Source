@@ -14,6 +14,7 @@ namespace
     constexpr float kGroundJumpGraceSec = 0.08f;
     constexpr float kCCTGroundDetachGraceSec = 0.12f;
     constexpr float kCCTGroundDetachFallSpeed = -3.5f;
+    constexpr float kCCTGroundStickSpeed = 6.f;
     constexpr float kStillGroundJitterSpeedSq = 0.01f;
     constexpr float kStillGroundXZDeadZone = 0.02f;
     constexpr float kStillGroundYDeadZone = 0.06f;
@@ -112,7 +113,8 @@ void MovementCom::BeginPlay()
     _transformCom = owner->Get_Transform();
     CHECK_NULL(_transformCom);
 
-    _colliderCom = owner->Get_Component<ColliderCom>();
+    if (_colliderCom == nullptr)
+        _colliderCom = owner->Get_Component<ColliderCom>();
 
     if (_moveDesc.backend == MoveBackend::PhysXCCT)
         Create_CharacterController();
@@ -504,7 +506,7 @@ void MovementCom::Apply_Velocity(float timeDelta)
     Update_HorizontalVelocity();
     Update_VerticalVelocity(timeDelta);
 
-    const Vec3 displacement = _velocity * timeDelta;
+    Vec3 displacement = _velocity * timeDelta;
 
     if (_moveDesc.backend == MoveBackend::PhysXCCT && _characterController != nullptr)
     {
@@ -514,18 +516,47 @@ void MovementCom::Apply_Velocity(float timeDelta)
         if (_isGrounded && !_isJumping && displacement.LengthSquared() <= 0.000001f)
             return;
 
+        const Vec3 horizontalVelocity(_velocity.x, 0.f, _velocity.z);
+        const bool shouldStickToGround =
+            _isGrounded &&
+            !_isJumping &&
+            _velocity.y <= 0.f &&
+            horizontalVelocity.LengthSquared() > kStillGroundJitterSpeedSq;
+
+        if (shouldStickToGround)
+        {
+            const float stickDistance = min(
+                _moveDesc.sweep.groundSnapDown,
+                max(_moveDesc.cct.contactOffset, kCCTGroundStickSpeed * timeDelta));
+            displacement.y = min(displacement.y, -stickDistance); // 내려가는 경사에서는 CCT move 자체가 먼저 바닥을 밟게 한다.
+        }
+
         const CharacterControllerMoveResult moveResult =
             _characterController->Move(displacement, timeDelta);
 
-        const bool smoothGrounding = moveResult.collisionDown && _velocity.y <= 0.f;
-        const Vec3 horizontalVelocity(_velocity.x, 0.f, _velocity.z);
+        Vec3 resolvedFootPosition = moveResult.footPosition;
+        const bool snappedToGround =
+            !moveResult.collisionDown &&
+            !_isJumping &&
+            _isGrounded &&
+            Try_SnapCCTToGround(resolvedFootPosition);
+
+        const bool groundedAfterMove = moveResult.collisionDown || snappedToGround;
+        const float currentFootY = _transformCom->Get_WorldPosition().y;
+        const bool isDescendingGroundAdjust =
+            groundedAfterMove &&
+            resolvedFootPosition.y < currentFootY - 0.001f;
+        const bool smoothGrounding =
+            groundedAfterMove &&
+            !isDescendingGroundAdjust &&
+            _velocity.y <= 0.f;
         const bool suppressSmallGroundAdjust =
             smoothGrounding &&
             horizontalVelocity.LengthSquared() <= kStillGroundJitterSpeedSq;
 
-        Sync_Transform_FromCCT(moveResult.footPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
+        Sync_Transform_FromCCT(resolvedFootPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
 
-        const bool hitWalkableDown = moveResult.collisionDown && _velocity.y <= 0.f;
+        const bool hitWalkableDown = groundedAfterMove && _velocity.y <= 0.f;
         const bool canUseDetachGrace =
             !_isJumping &&                          // 실제 점프 중에는 공중 상태를 가리면 안 된다.
             _isGrounded &&                          // 직전까지 grounded였던 경우만 경사 보행 보호를 건다.
@@ -908,6 +939,56 @@ Vec3 MovementCom::Get_CCTFootPosition_FromTransform() const
 {
     CHECK_NULL(_transformCom, Vec3::Zero);
     return _transformCom->Get_WorldPosition();
+}
+
+bool MovementCom::Try_SnapCCTToGround(Vec3& inOutFootPosition)
+{
+    if (_colliderCom == nullptr || _colliderCom->Get_PxShape() == nullptr)
+        return false;
+
+    if (_velocity.y > 0.f)
+        return false;
+
+    const ColliderShapeDesc& shapeDesc = _colliderCom->Get_ShapeDesc();
+
+    const float footProbeRadius =
+        max(0.05f, min(shapeDesc.extents.x, shapeDesc.extents.z) - _moveDesc.sweep.skinWidth);
+
+    const Vec3 probeOrigin =
+        inOutFootPosition + Vec3(0.f, _moveDesc.sweep.groundSnapUp + footProbeRadius, 0.f);
+
+    PhysXQueryHit hit{};
+    const float probeDistance =
+        _moveDesc.sweep.groundSnapUp + _moveDesc.sweep.groundSnapDown + footProbeRadius;
+
+    const bool hasGround = GAME->Sweep_Sphere(
+        probeOrigin,
+        Vec3(0.f, -1.f, 0.f),
+        probeDistance,
+        footProbeRadius,
+        _colliderCom->Get_CollisionPreset(),
+        hit);
+
+    if (!hasGround || !Is_WalkableGround(hit.normal))
+        return false;
+
+    const float targetDeltaY =
+        (_moveDesc.sweep.groundSnapUp + footProbeRadius) - max(0.f, hit.distance - _moveDesc.sweep.skinWidth);
+    if (targetDeltaY > 0.001f ||
+        targetDeltaY < -_moveDesc.sweep.groundSnapDown - 0.001f)
+    {
+        return false;
+    }
+
+    if (fabsf(targetDeltaY) <= 0.0001f)
+        return true;
+
+    inOutFootPosition.y += targetDeltaY; // CCT 자체 foot도 같이 내려야 다음 프레임 ground 판정이 이어진다.
+
+    if (_characterController != nullptr)
+        _characterController->Set_FootPosition(inOutFootPosition);
+
+    return true;
 }
 
 void MovementCom::Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding, bool suppressSmallGroundAdjust)

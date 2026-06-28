@@ -5,6 +5,7 @@
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
+#include "RuntimeCheckpointIO.h"
 #include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
@@ -14,8 +15,13 @@ NS_END
 
 NS_BEGIN(Client)
 
-class CinematicSequenceRunner;
+struct DialogueRequest;
 
+    class DialogueCamera;
+class DialogueManager;
+struct DialogueData;
+class DialogueDB;
+class CinematicSequenceRunner;
 class CinematicCamera;
 class BattleController;
 class Player_WorldBase;
@@ -34,6 +40,7 @@ class CostumeManager;
 
 class SoulLikeController;
 class Unlock_Manager;
+class BattleFollowupManager;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -49,6 +56,7 @@ public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
     HRESULT Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update_Client(float timeDelta);
+    void    Update_FadeTransitions(float timeDelta);
     void    Update_UIPreviewOnly(float timeDelta);
 	void    Release_Client();
 
@@ -64,6 +72,23 @@ public:
     void    Set_StaticResourcesLoaded(bool isLoaded) { _isStaticResourcesLoaded.store(isLoaded); }
 
     bool    Is_GameplayMenuOpen() const;
+
+    static bool Is_DebugDisableDynamicShadowRenderPass();
+    static void Set_DebugDisableDynamicShadowRenderPass(bool disabled);
+    static bool Is_DebugDisableMapInstancedMeshRender();
+    static void Set_DebugDisableMapInstancedMeshRender(bool disabled);
+    static bool Is_DebugDisableGrassInstancedRender();
+    static void Set_DebugDisableGrassInstancedRender(bool disabled);
+    static bool Is_DebugDisableMapStaticMeshRender();
+    static void Set_DebugDisableMapStaticMeshRender(bool disabled);
+    static bool Is_DebugDisableMapInstancedMeshShadow();
+    static void Set_DebugDisableMapInstancedMeshShadow(bool disabled);
+    static bool Is_DebugUseMapInstancedMeshShadowLOD();
+    static void Set_DebugUseMapInstancedMeshShadowLOD(bool enabled);
+    static bool Is_DebugDisableGrassInstancedShadow();
+    static void Set_DebugDisableGrassInstancedShadow(bool disabled);
+    static bool Is_DebugDisableMapStaticMeshShadow();
+    static void Set_DebugDisableMapStaticMeshShadow(bool disabled);
 
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
@@ -81,6 +106,7 @@ public: /* For.GameData Table */
     const Skill_Data* Get_Skill(const string& skillId);
     const vector<string> Get_AllSkillIds();
     HRESULT Reload_GameDataTables();
+    HRESULT Reload_CameraPresetData();
 
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);
@@ -100,7 +126,7 @@ public:
     PreviewShotPreset Get_Preset(HeroId hero, PreviewShotPanel panel);
 
 public: /* For.Hero Manager */
-    HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
+    HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero, const Vec3& startRot = Vec3::Zero);
     void           Update_HeroManager(float timeDelta);
     void           Set_TargetCamera(const Shared<TargetCamera>& camera);
     void           Clear_Party();
@@ -109,6 +135,7 @@ public: /* For.Hero Manager */
     Shared<Player_WorldBase>  Get_ActiveHero() const;
     HeroPartySlot   Get_ActiveHeroSlot() const;
     void            Set_ActiveHeroSlotForCheckpoint(HeroPartySlot slot);
+    void            Set_DialogueFocusActive(bool active);
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
@@ -145,6 +172,10 @@ public: /* For.Fade Transition */
     bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
     bool Request_LevelTransition(LevelType TargetLevel);
     bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
+    bool Request_CurrentLevelReplay();
+    void Reset_CurrentLevelRuntimeState();
+    void Clear_ReplayMonsterSnapshot();
+
     bool Is_FadeTransitionPlaying() const;
 
 public: /* For.Battle_Controller */
@@ -154,7 +185,11 @@ public: /* For.Battle_Controller */
         const vector<HeroId>& heroIds,
         const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr,
-        bool completeImmediately = false);
+        bool completeImmediately = false,
+        int32 battleStartSpawnerId = 0,
+        const Vec3& battleStartOffset = Vec3::Zero);
+
+    bool Request_DialogueBattlePotatoBag();
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
@@ -167,6 +202,7 @@ public: /*For.Camera Director*/
     void Request_Preview();
     void Request_BattleTurn();
     Shared<CinematicCamera> Request_Cinematic();
+    Shared<DialogueCamera> Request_DialogueCamera();
     void Request_TargetCameraMode(TargetCameraMode cameraMode);
     void Restore_PreviousCamera();
 
@@ -213,6 +249,7 @@ public: /*CinematicSequenceRunner*/
 
 public:
     Shared<CinematicCamera> Ensure_CinematicCamera();
+    Shared<DialogueCamera> Ensure_DialogueCamera();
 
 public:
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
@@ -272,9 +309,27 @@ public: /* SoulLike */
 public: /* Unlock Manager */
     Unlock_Manager* Get_UnlockManager() const { return _unlockManager.get(); }
 
+public:
+    const DialogueData* FindDialogueData(const string& dialogueKey) const;
+
+  public:
+    void StartDialogue(const DialogueRequest& request);
+    void EndDialogue(bool restoreWorldState = true);
+    bool IsDialogueActive() const;
+    bool IsDialogueInteractLocked() const;
+    void AddDialogueInteractionOverlap();
+    void RemoveDialogueInteractionOverlap();
+    bool HasDialogueInteractionOverlap() const { return _dialogueInteractionOverlapCount > 0; }
+    
+public: /* Battle Followup Manager */
+     BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
+
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
+    void Capture_ReplayMonsterSnapshotIfNeeded();
+    void Respawn_ReplayMonstersFromSnapshot();
 
 public:
     FOnFreeAimShotHit OnFreeAimShotHit;
@@ -287,6 +342,7 @@ private:
     bool         _isStaticObjectsSpawned = false;
 	bool         _isInitialized = false;
     bool         _isTargetCameraEditMode = false;
+    int          _dialogueInteractionOverlapCount = 0;
 
 private:
     Shared<CameraDirector>              _cameraDirector;
@@ -298,7 +354,8 @@ private:
     Unique<ScreenFadeTransition>        _screenFadeTransition;
     Unique<LevelTransitionFade>         _levelTransitionFade;
     Unique<CinematicSequenceRunner>     _cinematicSequenceRunner;
-
+    Unique<DialogueDB>                  _dialogueDB;
+    Unique<DialogueManager>             _dialogueManager;
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;
     Unique<Hero_Manager>                _heroManager;
@@ -311,6 +368,11 @@ private:
     Shared<SoulLikeController> _soulLikeController;
 
     Unique<Unlock_Manager>      _unlockManager;
+    Unique<BattleFollowupManager>   _battleFollowupManager;
+    vector<RuntimeCheckpointIO::WorldObject> _replayMonsterSpawnObjects;
+    vector<uint8> _replayMonsterRuntimeAuthoringLoaded;
+    uint32 _replayMonsterSnapshotLevelIndex = UINT32_MAX;
+    bool _replayMonsterSnapshotCaptured = false;
 
 public:
 	void Free() override;

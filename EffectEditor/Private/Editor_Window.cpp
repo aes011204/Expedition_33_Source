@@ -39,4 +39,24 @@ void Editor_Window::Save()
 {
 }
 
+void Editor_Window::Request_FocusOnOpen()
+{
+    _requestFocusOnOpen = true;
+}
+
+void Editor_Window::Apply_PendingFocusBeforeBegin()
+{
+    if (_requestFocusOnOpen)
+        ImGui::SetNextWindowFocus();
+}
+
+void Editor_Window::Clear_PendingFocusAfterBegin()
+{
+    if (!_requestFocusOnOpen)
+        return;
+
+    ImGui::SetWindowFocus();
+    _requestFocusOnOpen = false;
+}
+
 NS_END

@@ -74,6 +74,7 @@ namespace
         if (previewPlayer == nullptr)
             return;
 
+        CHECK_FAILED(previewPlayer->Reload_ChangeWeaponPreviewOffsetsFromPrefab()); // 저장된 PP_* offset을 기존 preview 인스턴스에 다시 반영한다.
         CHECK_FAILED(previewPlayer->Apply_EquippedWeaponFromRuntimeData()); // ChangeWeapon 화면에서만 실제 장착 무기를 preview에 붙인다.
     }
 
@@ -579,9 +580,9 @@ void ChangeWeapon_Panel::Apply_PreviewOverrides()
         Engine::PostProcessCB previewPostProcess = _previewOverrideState.postProcess;
         previewPostProcess.exposure = 0.60f;
         previewPostProcess.gamma = 1.33f;
-        previewPostProcess.bloomThreshold = 0.78f;
-        previewPostProcess.bloomIntensity = 0.64f;
-        previewPostProcess.bloomScatter = 0.88f;
+        previewPostProcess.bloomThreshold = 0.55f;
+        previewPostProcess.bloomIntensity = 0.95f;
+        previewPostProcess.bloomScatter = 0.92f;
         postProcessPipeline->Set_PostProcessFeatures(
             Engine::PostProcessFeature::HDR |
             Engine::PostProcessFeature::ToneMapping |

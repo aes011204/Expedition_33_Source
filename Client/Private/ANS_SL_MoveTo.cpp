@@ -6,9 +6,27 @@
 #include "GameObject.h"
 #include "MovementCom.h"
 #include "PhysX_Types.h"
+#include "SL_Dualliste.h"
 #include "SL_Maelle.h"
 #include "SoulLikeController.h"
 #include "TransformCom.h"
+
+namespace
+{
+    Shared<ColliderCom> Resolve_MovementCollider(const Shared<GameObject>& target)
+    {
+        if (target == nullptr)
+            return nullptr;
+
+        if (const Shared<SL_Dualliste> dualliste = dynamic_pointer_cast<SL_Dualliste>(target))
+        {
+            if (const Shared<ColliderCom> bodyCollider = dualliste->Get_Component<ColliderCom>(TEXT("Com_SL_MonsterBody")))
+                return bodyCollider;
+        }
+
+        return target->Get_Component<ColliderCom>();
+    }
+}
 
 REGISTER_GLOBAL_ENUM(Client::ANS_SL_MoveTo::MoveMode, "SLMoveToMode")
 
@@ -158,7 +176,7 @@ void ANS_SL_MoveTo::Apply_Position(const AnimNotifyContext& context, const Share
         {
             const Vec3 currentWorldPos = transform->Get_WorldPosition();
             Vec3 displacement = desiredWorldPos - currentWorldPos;
-            const Shared<ColliderCom> collider = target->Get_Component<ColliderCom>();
+            const Shared<ColliderCom> collider = Resolve_MovementCollider(target);
 
             if (collider)
             {

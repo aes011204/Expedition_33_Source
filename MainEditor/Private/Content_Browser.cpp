@@ -1,6 +1,7 @@
 ﻿#include "Content_Browser.h"
 
 #include "EditorInstance.h"
+#include "DebugMemoryTracker.h"
 #include "Editor_Macro.h"
 #include "Notification_Manager.h"
 #include "GameInstance.h"
@@ -72,7 +73,7 @@ static string FindPortraitGuidInJson(const json& node)
     {
         for (const auto& [key, value] : node.items())
         {
-            if (key.ends_with(".portraitGuid") && value.is_string())
+            if ((key == "_portraitGuid" || key == "portraitGuid" || key.ends_with(".portraitGuid")) && value.is_string())
                 return value.get<string>();
 
             const string nestedGuid = FindPortraitGuidInJson(value);
@@ -349,10 +350,12 @@ void Content_Browser::Render()
                 ImGui::SameLine();
 
                 if (ImGui::Button(ICON_FA_ROTATE_RIGHT "##ContentBrowserRefresh", ImVec2(refreshWidth, 24.f)))
-                    Refresh_AssetState();
+                    ImGui::OpenPopup("ContentBrowserRefreshPopup");
 
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("새로고침");
+
+                Draw_RefreshPopup();
 
                 ImGui::Spacing();
                 ImGui::TextDisabled("검색 "); ImGui::SameLine();
@@ -396,18 +399,37 @@ void Content_Browser::Refresh_AssetState()
     const wstring assetRoot = GAME->Get_AssetRoot();
     if (assetRoot.empty())
     {
-        NOTIFY("새로고침 실패");
+        NOTIFY("전체 폴더 새로고침 실패");
         return;
     }
 
     if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot, true)))
     {
         Refresh_Resources();
-        NOTIFY("새로고침");
+        NOTIFY("전체 폴더 새로고침");
     }
     else
     {
-        NOTIFY("새로고침 실패");
+        NOTIFY("전체 폴더 새로고침 실패");
+    }
+}
+
+void Content_Browser::Refresh_CurrentFolderAssetState()
+{
+    if (_currentFolder == nullptr || _currentFolder->fullPath.empty())
+    {
+        NOTIFY("현재 폴더 새로고침 실패");
+        return;
+    }
+
+    if (SUCCEEDED(GAME->Refresh_AssetRegistryDirectory(_currentFolder->fullPath, _currentFolder->fullPath)))
+    {
+        Refresh_CurrentFolder();
+        NOTIFY("현재 폴더 새로고침");
+    }
+    else
+    {
+        NOTIFY("현재 폴더 새로고침 실패");
     }
 }
 
@@ -437,7 +459,16 @@ void Content_Browser::Load_Icons()
         if (!fs::exists(filePath))
             return nullptr;
 
-        return Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), filePath.c_str(), 1);
+        Shared<Texture> texture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), filePath.c_str(), 1);
+        if (texture != nullptr && !texture->Get_SRVs().empty())
+        {
+            DebugMemoryTracker::Record_TextureSRV(
+                "content.icon",
+                "ContentBrowser.Icon",
+                filePath,
+                texture->Get_SRVs()[0].Get());
+        }
+        return texture;
     };
 
     _iconFiles[static_cast<size_t>(EIconType::Folder)] = loadTexture(L"Folder_Icon.png");
@@ -452,12 +483,40 @@ void Content_Browser::Load_Icons()
 
 void Content_Browser::Refresh_CurrentFolder()
 {
+    if (_currentFolder == nullptr || !fs::exists(_currentFolder->fullPath))
+        return;
+
+    const wstring currentFolderPath = _currentFolder->fullPath;
+
+    _thumbnailCache.clear();
+    _noThumbnailPaths.clear();
     _gridItemCache.clear();
     _gridItemCacheFolder = nullptr;
-    Client::ContentBrowserCore::Refresh_CurrentFolder([](const wstring& filePath)
+
+    FFolderNode refreshedFolder{};
+    Scan_Folder(currentFolderPath, refreshedFolder, [](const wstring& filePath)
     {
         return GAME->Find_AssetGUID(filePath);
     });
+
+    *_currentFolder = move(refreshedFolder);
+    _currentFolder = Find_FolderNode(_rootFolder, currentFolderPath);
+    if (_currentFolder != nullptr)
+        Expand_PathTo(_currentFolder->fullPath);
+}
+
+void Content_Browser::Draw_RefreshPopup()
+{
+    if (!ImGui::BeginPopup("ContentBrowserRefreshPopup"))
+        return;
+
+    if (ImGui::MenuItem("현재 폴더"))
+        Refresh_CurrentFolderAssetState();
+
+    if (ImGui::MenuItem("전체 폴더"))
+        Refresh_AssetState();
+
+    ImGui::EndPopup();
 }
 
 void Content_Browser::Draw_FolderTree(FFolderNode& node)
@@ -1153,6 +1212,15 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry, 
     {
         _noThumbnailPaths.insert(fileEntry.filePath);
         return nullptr;
+    }
+
+    if (!thumbnailTexture->Get_SRVs().empty())
+    {
+        DebugMemoryTracker::Record_TextureSRV(
+            "content.thumbnail",
+            "ContentBrowser.Thumbnail",
+            thumbnailPath,
+            thumbnailTexture->Get_SRVs()[0].Get());
     }
 
     _thumbnailCache[fileEntry.filePath] = thumbnailTexture;

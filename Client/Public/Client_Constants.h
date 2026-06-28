@@ -11,6 +11,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_ChangeWeapon.json";
     inline constexpr wchar_t UI_UpgradeWeapon_Path[] = L"UI/UI_Json/CommonSystem/UI_Upgrade_Weapon.json";
+    inline constexpr wchar_t UI_Replay_Path[] = L"UI/UI_Json/CommonSystem/UI_RePlay.json";
 
     inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/Skill/SkillTree/UI_SkillTree_Test.json";
     inline constexpr wchar_t UI_Lune_SkillTree_Path[] = L"UI/UI_Json/Skill/SkillTree/UI_Lune_SkillTree.json";
@@ -196,9 +197,12 @@ namespace Client::Constants::UI
 
 #pragma region SoulLike
     inline constexpr wchar_t UI_SL_HUD_Path[] = L"UI/UI_Json/Soulslike/UI_SL_HUD.json";
+    inline constexpr wchar_t UI_SL_LockOn_Path[] = L"UI/UI_Json/Soulslike/UI_SL_LockOn.json";
 #pragma endregion
 
-
+#pragma region Dialogue
+    inline constexpr wchar_t UI_Dialogue[] = L"UI/UI_Json/CommonSystem/UI_Dialogue.json";
+#pragma endregion
 
 }
 
@@ -340,6 +344,26 @@ inline constexpr wchar_t UI_BattlePictosDeactivationAnim_Path[] =
         L"UI/UI_Animations/BattleSystem/JumpCounter_Success";
 #pragma endregion
 
+#pragma region Dialogue
+    inline constexpr wchar_t UI_Choice_Dialogue_First_Hover_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_First_Button_Hover";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_First_Hover_Cancel_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_First_Button_Hover_Cancel";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_Intro[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_Intro";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_Second_Hover_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_Second_Button_Hover";
+
+    inline constexpr wchar_t UI_Choice_Dialogue_Second_Hover_Cancel_Path[] =
+        L"UI/UI_Animations/Common/Dialogue/Choice_Dialogue_Second_Button_Hover_Cancel";
+
+    inline constexpr wchar_t UI_Dialogue_Intro[] =
+        L"UI/UI_Animations/Common/Dialogue/Dialogue_Intro";
+#pragma endregion
+
 }
 
 namespace Client::Constants::Map
@@ -441,12 +465,15 @@ namespace Client::Constants::Prefab
     inline constexpr char MW_PotatoBag[]        = "MW_PotatoBag";
     inline constexpr char MB_PotatoBag[]        = "MB_PotatoBag";
 
+    inline constexpr char MW_Simon[]            = "MW_Simon";
+    inline constexpr char MB_Simon[]            = "MB_Simon";
+    inline constexpr char MB_Simon_V2[]         = "MB_Simon_V2";
+
     // 테스트용
     inline constexpr char SL_Test_Lancelier[]   = "SL_Test_Lancelier";
 
     // 쌍검
     inline constexpr char SL_Dualliste[]        = "SL_Dualliste";
-
 
 #pragma endregion
 
@@ -456,17 +483,21 @@ namespace Client::Constants::Prefab
     inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
     inline constexpr char Gustave_Baguette[]        = "WP_Gustave_Baguette";
     inline constexpr char Gustave_Baguette_Gun[]    = "WP_Gustave_Baguette_Gun";
+    inline constexpr char Gustave_Tireso[]          = "WP_Gustave_Tireso";
+    inline constexpr char Gustave_Tireso_Gun[]      = "WP_Gustave_Tireso_Gun";
 
     // 루
     inline constexpr char Lune_Colim[]              = "WP_Lune_Colim";
     inline constexpr char Lune_Baguette[]           = "WP_Lune_Baguette";
+    inline constexpr char Lune_Snowim[]             = "WP_Lune_Snowim";
 
     // 마
     inline constexpr char Maelle_Medalum[]          = "WP_Maelle_Medalum";
     inline constexpr char Maelle_Baguette[]         = "WP_Maelle_Baguette";
+    inline constexpr char Maelle_Plenum[]           = "WP_Maelle_Plenum";
 
     // 시몬
-    inline constexpr char Simon_Weapon[]            = "WP_Simon";
+    inline constexpr char Simon_Weapon[]             = "WP_Simon";
 
     inline constexpr char Dualliste_Sword_L[]        = "WP_Dualliste_Sword_L";
     inline constexpr char Dualliste_Sword_R[]        = "WP_Dualliste_Sword_R";
@@ -478,8 +509,11 @@ namespace Client::Constants::Prefab
     inline constexpr char SoulLikeController[] = "ETC/SoulLikeController";
     inline constexpr char Portal_BishopReward[] = "ETC/Portal_BishopReward";
     inline constexpr char Trigger_Cinematic[] = "ETC/Trigger_Cinematic";
+    inline constexpr char Trigger_BGMZone[] = "ETC/Trigger_BGMZone";
 
     inline constexpr char BattleStartSpawner_Boss[] = "BattleStartSpawner/BSS_GamePlay_Boss";
+    inline constexpr char BSS_Gestral_PotatoBag[] = "BattleStartSpawner/BSS_Gestral_PotatoBag";
+
 }
 
 // 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
@@ -490,8 +524,15 @@ namespace Client::Constants::SoundBGM
     constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
 
+    constexpr const wchar_t* GestralVillageMarket =
+        L"BGM/Gestral/MUS_GestralVillage_ENV_Market_PartA.wav";
+    constexpr const wchar_t* GestralVillageGolgraThrone =
+        L"BGM/Gestral/MUS_GestralVillage_ENV_GolgraThrone.wav";
+
     constexpr const wchar_t* DuallisteBattlePhase1Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase1_Main.wav";
+    constexpr const wchar_t* DuallisteBattlePhaseTransition =
+        L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_PhaseTransition.wav";
     constexpr const wchar_t* DuallisteBattlePhase2Main =
         L"BGM/Gestral/MUS_ForgottenBattlefield_BT_Dualliste_Phase2_Main.wav";
 }
@@ -501,6 +542,9 @@ namespace Client::Constants::Cinematic
     inline constexpr wchar_t RuntimeJson_Dir[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/";
     inline constexpr wchar_t BridgeCinematic[] = L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";
     inline constexpr wchar_t BishopCinematicFileId[] = L"Bishop_Cinematic.json";
+
+    inline constexpr wchar_t Dualliste_Intro[] = L"Dualliste_1.json";
+    inline constexpr wchar_t Dualliste_PhaseChange[] = L"Dualliste.json";
 }
 
 namespace Client::Constants::SoundCue
@@ -531,4 +575,30 @@ namespace Client::Constants::SoundCue
     constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
 
     constexpr const wchar_t* Battle_Parry_Success = L"Battle_Parry_Success";
+
+
+    constexpr const wchar_t* Duallist_Attack = L"VO_ENM_Duallist_Attack";
+    constexpr const wchar_t* Duallist_Pain = L"VO_ENM_Duallist_Pain";
+
+
+}
+
+namespace Client::Constants::Effect
+{
+    constexpr const wchar_t* BreakEffect = L"Effects\\Assets\\Etc\\Break.effect.json";
+
+    constexpr const wchar_t* SL_Slash_L= L"Effects\\Assets\\Player\\Soullike_SwordSlash_L.effect.json";
+    constexpr const wchar_t* SL_Slash_R = L"Effects\\Assets\\Player\\Soullike_SwordSlash_R.effect.json";
+
+}
+
+namespace Client::Constants::Dialogue
+{
+    constexpr const wchar_t* Dialogue_Dir = L"../../../Client/Bin/Resources/Data/json/Dialogue/Dialogues.json";
+}
+
+namespace Client::Constants::Value
+{
+    constexpr uint32 potatoBagEncounterId = 1;
+    constexpr int32  potatoBagBattleStartSpawnerId = 5;
 }

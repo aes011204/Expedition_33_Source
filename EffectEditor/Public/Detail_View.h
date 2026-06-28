@@ -70,6 +70,7 @@ private: //## Data::ModuleDetail
     InitialLocationModuleDetail _initialLocationModuleDetail{};
     SphereLocationModuleDetail _sphereLocationModuleDetail{};
     PlaneRadialLocationModuleDetail _planeRadialLocationModuleDetail{};
+    CylinderLocationModuleDetail _cylinderLocationModuleDetail{};
     InitialSizeModuleDetail _initialSizeModuleDetail{};
     InitialMeshSizeModuleDetail _initialMeshSizeModuleDetail{};
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
@@ -84,6 +85,8 @@ private: //## Data::ModuleDetail
     SphereRadialOrientationModuleDetail _sphereRadialOrientationModuleDetail{};
     PlaneRadialOrientationModuleDetail _planeRadialOrientationModuleDetail{};
     RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
+    SpriteTiltModuleDetail _spriteTiltModuleDetail{};
+    SpriteTiltOverLifeModuleDetail _spriteTiltOverLifeModuleDetail{};
     InitialRotationRateModuleDetail _initialRotationRateModuleDetail{};
     RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
     InitialMeshRotationModuleDetail _initialMeshRotationModuleDetail{};

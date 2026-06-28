@@ -81,7 +81,7 @@ HRESULT NPC_Noco::Ready_PartObjects()
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Noco_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
     _body = dynamic_pointer_cast<NPC_Body>(_partObjects[TEXT("Part_Body")]);
-    CHECK_NULL(_body, E_FAIL);
+    CHECK_NULL(_body, E_FAIL);                           
 
     NPC_Hair::HEAD_DESC headDesc{};
     headDesc.parentMatrix = &_transformCom->Get_WorldMatrix();

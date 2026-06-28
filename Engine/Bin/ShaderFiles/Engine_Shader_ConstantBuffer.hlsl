@@ -314,7 +314,8 @@ cbuffer FogZoneBuffer
     float g_GroundFogDistanceInfluence;
     float g_GroundFogNearFadeDistance;
     float g_GroundFogNearMinFactor;
-    float3 g_FogZonePad0;
+    float g_GlobalFogIntensity;
+    float2 g_FogZonePad0;
 };
 
 cbuffer WaterBuffer : register(b13)

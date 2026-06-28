@@ -14,7 +14,6 @@ class GameObject;
 class PostProcessPipeline;
 class LightingPipeline;
 class LightPipeline;
-class Texture;
 struct DOFPreset;
 struct DOFTransitionDesc;
 
@@ -34,6 +33,7 @@ public:
     void    Restore_RenderGroups();
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
+    bool    Try_GetRenderViewHotspotSnapshot(RenderViewHotspotSnapshot& outSnapshot) const;
     void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
     void    Set_RenderOnlyPreviewMode(bool enabled) { _renderOnlyPreviewMode = enabled; }
@@ -104,6 +104,7 @@ private:
 	void Render_NonBlend();
     void Render_SSAO();
     void Render_Lights();
+    void Render_AmbientVisibility();
     void Render_NonLight();
     void Render_EffectMasked(); // alpha cutout effect를 HDR에 depth-write opaque-like로 출력한다.
     void Render_Distortion(); // HDRColor snapshot과 distortion field를 사용해 fullscreen 왜곡 resolve를 수행한다.
@@ -132,6 +133,7 @@ private :
     HRESULT Render_DOFPreFilterPass();
     HRESULT Render_DOFBlurPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_DOFCompositePass();
+    HRESULT Render_PointLightGlow();
     bool Try_BuildLightShaftParams(LightShaftCB& outParams) const;
     HRESULT Render_DistortionResolve();
 
@@ -162,9 +164,6 @@ private:
     Shared<ShaderCom>               _screenFxShader;
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
-    Shared<Texture>                 _iblIrradianceTexture;
-    Shared<Texture>                 _iblPrefilterTexture;
-    Shared<Texture>                 _iblBrdfLutTexture;
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
@@ -197,6 +196,8 @@ private:
 private:
     void Reset_RenderCall();
     void Add_RenderCall(uint32 count = 1);
+    void Capture_RenderViewHotspotCandidate(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
+    void Publish_RenderViewHotspotSnapshot();
 
 #ifdef _DEBUG
 private:
@@ -227,6 +228,10 @@ private:
     void DumpCurrentOMState(const wchar_t* stageTag) const;
 
 #endif
+
+private:
+    RenderViewHotspotSnapshot _hotspotPendingSnapshot = {};
+    RenderViewHotspotSnapshot _hotspotLastSnapshot = {};
 
 public:
 	static Unique<Renderer> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

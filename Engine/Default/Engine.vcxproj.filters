@@ -199,9 +199,6 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance">
       <UniqueIdentifier>{62431174-4d90-4b26-ad29-bc9eee5df2e5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle">
-      <UniqueIdentifier>{9c62bf2c-8203-4b3e-aebd-5eae6afe0067}</UniqueIdentifier>
-    </Filter>
     <Filter Include="01.Utility\04.Component\ComputeShader">
       <UniqueIdentifier>{aadf4bbf-8e12-4ef8-a651-aae3aefb3b12}</UniqueIdentifier>
     </Filter>
@@ -377,6 +374,9 @@
       <Filter>97. Manager</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Debug_Profile.h">
+      <Filter>94. ETC</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\DebugMemoryTracker.h">
       <Filter>94. ETC</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EnumFlags.h">
@@ -1070,6 +1070,9 @@
       <Filter>97. Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Debug_Profile.cpp">
+      <Filter>94. ETC</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\DebugMemoryTracker.cpp">
       <Filter>94. ETC</Filter>
     </ClCompile>
     <ClCompile Include="..\private\MaterialBuilder.cpp">

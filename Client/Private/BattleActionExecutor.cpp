@@ -105,7 +105,14 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
         Resolve_PhaseGoalPosition(action, phase));
 
     if (phase.faceTarget)
-        Face_ActionTarget(action, action.GetPhaseGoalPos());
+    {
+        const Vec3 faceGoalPos =
+            phase.targetAnchor == BattleTargetAnchor::Self
+                ? Resolve_AnchorPosition(action, BattleTargetAnchor::TargetCenter)
+                : action.GetPhaseGoalPos();
+
+        Face_ActionTarget(action, faceGoalPos);
+    }
 
     Apply_PhasePlayRate(phase, action.Get_CurChar().ModelCom);
 
@@ -117,14 +124,26 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, BattleTargetAnchor anchor) const
 {
+    Vec3 fallbackPos = Vec3::Zero;
+    if (action.Get_CurChar().actor != nullptr)
+    {
+        const Shared<TransformCom> transform = action.Get_CurChar().actor->Get_Transform();
+        if (transform != nullptr)
+            fallbackPos = transform->Get_Position();
+    }
+
     switch (anchor)
     {
     case BattleTargetAnchor::Self:
-        return action.Get_CurChar().actor->Get_Transform()->Get_Position();
+        return fallbackPos;
 
     case BattleTargetAnchor::PrimaryTarget:
         if (action.GetInitTarget().actor)
-            return action.GetInitTarget().actor->Get_Transform()->Get_Position();
+        {
+            const Shared<TransformCom> transform = action.GetInitTarget().actor->Get_Transform();
+            if (transform != nullptr)
+                return transform->Get_Position();
+        }
         break;
 
     case BattleTargetAnchor::TargetCenter:
@@ -145,14 +164,23 @@ Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, Ba
             ++targetCount;
         };
 
-        for (const BattleChar& target : action.GetCurStepTarget())
-            accumulateTargetPosition(target);
+        const auto& steps = action.GetSteps();
+        const uint32 curStepIndex = action.GetCurStepIndex();
+        if (curStepIndex < steps.size())
+        {
+            for (const BattleChar& target : steps[curStepIndex].targets)
+                accumulateTargetPosition(target);
+        }
 
         if (targetCount > 0)
             return center / static_cast<float>(targetCount);
 
         if (action.GetInitTarget().actor)
-            return action.GetInitTarget().actor->Get_Transform()->Get_Position();
+        {
+            const Shared<TransformCom> transform = action.GetInitTarget().actor->Get_Transform();
+            if (transform != nullptr)
+                return transform->Get_Position();
+        }
         break;
     }
     case BattleTargetAnchor::Origin:        // TODO:: 나중에 팀의 중심 값가져오기
@@ -162,7 +190,7 @@ Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, Ba
         break;
     }
 
-    return action.Get_CurChar().actor->Get_Transform()->Get_Position();
+    return fallbackPos;
 }
 
 Vec3 BattleActionExecutor::Resolve_PhaseGoalPosition(const BattleAction& action, const BattleActionPhase& phase) const
@@ -295,7 +323,14 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
     const Vec3 currentPos = transform->Get_Position();
 
     if (phase.faceTarget)
-        SmoothFaceActionTarget(action, action.GetPhaseGoalPos(), timeDelta);
+    {
+        const Vec3 faceGoalPos =
+            phase.targetAnchor == BattleTargetAnchor::Self
+                ? Resolve_AnchorPosition(action, BattleTargetAnchor::TargetCenter)
+                : action.GetPhaseGoalPos();
+
+        SmoothFaceActionTarget(action, faceGoalPos, timeDelta);
+    }
 
     switch (phase.movementPolicy)
     {

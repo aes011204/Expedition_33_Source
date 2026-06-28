@@ -8,6 +8,7 @@ NS_BEGIN(Client)
 
 class UI_ReactionResult;
 class UI_SL_HUD;
+class UI_SL_LockOn;
 class GamePlayUI_SL : public Base
 {
 public:
@@ -31,12 +32,15 @@ private:
     void Update_BattleVictory(float timeDelta);
     bool Ensure_ReactionResult();
     void Update_ReactionResult(float timeDelta);
+    bool Ensure_LockOn();
+    void Update_LockOn(float timeDelta);
     vector<UI_BattleVictory::VictoryPlayerStatDesc> Build_VictoryPlayerStats() const;
     UI_BattleVictory::VictorySummaryDesc Build_VictorySummary() const;
 
 private:
     uint32 _levelIndex = 0;
     Unique<UI_SL_HUD> _slHud{};
+    Unique<UI_SL_LockOn> _lockOn{};
     Unique<UI_BattleVictory> _battleVictory{};
     Unique<UI_ReactionResult> _reactionResult{};
     bool _isVictoryUiActive = false;

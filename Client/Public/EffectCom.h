@@ -90,6 +90,15 @@ public: //## Types::Public
         ANS_Trail::LocalOffsetCurve tipLocalOffsetCurve{};
     };
 
+    struct TrailAnchorRuntimeDesc
+    {
+        ANS_Trail::TrailAnchorSource source = ANS_Trail::TrailAnchorSource::ModelDefault;
+        string baseBoneName{};
+        Vec3 baseLocalOffset{ Vec3::Zero };
+        string tipBoneName{};
+        Vec3 tipLocalOffset{ Vec3::Zero };
+    };
+
 public:
     EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     ~EffectCom() override;
@@ -120,6 +129,7 @@ public: //## Behavior::DrawFeatures
 public: //## Behavior::AttachedEffects
     // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
     static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
+    static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner, EffectPlayTarget target);
 
     // socket follow와 자동 release 후보 정리를 함께 수행한다.
     void Update_AttachedEffects(float timeDelta);
@@ -179,7 +189,8 @@ public: //## Behavior::TrailAndSourceHistory
         const wstring& partTag,
         const wstring& layerTag,
         uint64 trailNotifyToken = 0,
-        const TrailOffsetRuntimeDesc& offsetDesc = TrailOffsetRuntimeDesc{});
+        const TrailOffsetRuntimeDesc& offsetDesc = TrailOffsetRuntimeDesc{},
+        const TrailAnchorRuntimeDesc& anchorDesc = TrailAnchorRuntimeDesc{});
 
     void Update_TrailEffectOffset(
         const wstring& effectName,
@@ -258,6 +269,7 @@ private: //## Types::AttachedEffect
         Shared<IEffectTrailSampleProvider> trailSampleProvider{}; // 각 trail instance가 자기 sample source를 유지한다.
         uint64 trailNotifyToken = 0;
         TrailOffsetRuntimeDesc trailOffset{};
+        bool trailEchoEligible = true;
         Shared<bool> trailSampleEnabled{};
         bool isTrailDraining = false;
         float trailDrainElapsed = 0.f;
@@ -280,6 +292,7 @@ private: //## Types::AttachedEffect
         wstring effectName{};
         wstring layerTag{};
         TrailOffsetRuntimeDesc offsetDesc{};
+        bool echoEligible = true;
         float ageSec = 0.f;
     };
 

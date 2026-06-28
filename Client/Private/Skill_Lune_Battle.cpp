@@ -150,8 +150,15 @@ void Skill_Lune_TerraQuake::Execute(const Skill_Data& skill, const BattleAction&
     if (curTargets.empty())
         return;
 
+    BattleHitSequenceRunner::HitEffectDesc effectDesc{};
+    effectDesc.effectName = L"Lune_TerraQuake_Attack";
+    effectDesc.scale = { 1.3f, 1.4f, 1.3f };
+
     const float damage = DamageSystem::CalculatePlayerAttackDamage(attacker, skill.powerMultiplier);
     DamageSystem::ApplyDamage(damage, attacker, curTargets, attackType);
+
+    for (auto& target : curTargets)
+        Internal::Play_TargetHitEffect(target, effectDesc);
 }
 
 Shared<Skill_Lune_TerraQuake> Skill_Lune_TerraQuake::Create()

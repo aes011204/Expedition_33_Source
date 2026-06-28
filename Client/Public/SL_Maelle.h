@@ -53,6 +53,9 @@ public:
     void    Apply_MoveInput(const SL_MoveRequest& request, float timeDelta);
     void    Stop_Move();
 
+    void    Set_CinematicDriven(bool cinematicDriven);
+    bool    Is_CinematicDriven() const { return _isCinematicDriven; }
+
     void    Set_CombatLocked(bool locked) { _combatLocked = locked; }
     bool    Is_CombatLocked() const { return _combatLocked; }
 
@@ -61,7 +64,7 @@ public:
 
     void    Open_ParryWindow();
     void    Close_ParryWindow();
-    bool    Try_ConsumeParry(const Vec3& impactWorldPos, const Vec3& effectPos);
+    bool    Try_ConsumeParry(const Shared<GameObject>& attacker, const Vec3& impactWorldPos, const Vec3& effectPos);
     bool    Is_ParryWindowOpen() const { return _parryWindowOpen; }
 
     Body_Player* Get_Body() const { return _body.get(); }
@@ -114,6 +117,8 @@ private:
     float _invincibleRemain = 0.f;
     bool  _combatLocked = false;    // 공격/피격처럼 이동 입력을 막아야 하는 전투 상태에서만 true
     bool  _parryWindowOpen = false;
+    bool  _isCinematicDriven = false;
+
     SL_HitAnimOverride _pendingHitAnimOverride = SL_HitAnimOverride::Hit_Light;
 
 private: /* 피격 밀림 */

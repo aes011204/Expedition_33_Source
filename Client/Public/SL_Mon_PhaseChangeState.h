@@ -9,8 +9,6 @@ class SL_Mon_PhaseChangeState final : public SL_Mon_State
 public:
     enum class Phase
     {
-        StunStart,
-        StunEnd,
         PhaseChange,
         End
     };
@@ -27,7 +25,7 @@ private:
     void Play_CurrentPhase();
 
 private:
-    Phase _phase = Phase::StunStart;
+    Phase _phase = Phase::PhaseChange;
     bool _hasStarted = false;
 
 public:

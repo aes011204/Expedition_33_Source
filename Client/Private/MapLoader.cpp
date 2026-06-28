@@ -5,6 +5,8 @@
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
+#include "DebugMemoryTracker.h"
+#include "Mesh.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
@@ -15,9 +17,11 @@
 // 전역 모델 및 콜리전 캐시 정적 멤버 정의 및 초기화
 std::mutex MapLoader::g_globalCacheMutex;
 umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
+unordered_set<string> MapLoader::g_globalMissingModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 umap<string, string> MapLoader::g_globalMaterialSignatureByModel;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
+vector<LIGHT_DESC> MapLoader::g_cachedLights;
 
 MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
 {
@@ -102,6 +106,7 @@ namespace
                 fogCB.groundFogDistanceInfluence = e.value("GroundFogDistanceInfluence", 0.15f);
                 fogCB.groundFogNearFadeDistance = e.value("GroundFogNearFadeDistance", 12.f);
                 fogCB.groundFogNearMinFactor = e.value("GroundFogNearMinFactor", 0.65f);
+                fogCB.globalFogIntensity = e.value("GlobalFogIntensity", 0.5f);
                 hasGroundFogGlobals = true;
             }
 
@@ -359,6 +364,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
     outSession.shaftVolumes = std::move(splitData.shaftVolumes);
     outSession.waters = std::move(splitData.waters);
+    outSession.lights = std::move(splitData.lights);
     outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
     outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
     outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
@@ -370,6 +376,7 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
     outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
+    outSession.lightsDone = outSession.lights.empty();
     outSession.prefabInstancesDone = true;
 
     outSession.beginSessionDuration =
@@ -512,6 +519,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
     Append_JsonArray(mapData, "ShaftVolumes", outSession.shaftVolumes);
     Append_JsonArray(mapData, "Waters", outSession.waters);
+    Append_JsonArray(mapData, "Lights", outSession.lights);
 
     MapAdapter::AppendModelOverrides(mapData, outSession.modelOverrides);
     Append_MaterialOverridesForMapCandidates(mapData, actualPath, outSession.modelOverrides);
@@ -575,6 +583,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
     outSession.shaftVolumesDone = outSession.shaftVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
+    outSession.lightsDone = outSession.lights.empty();
     outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.authoredObjectsDone = outSession.authoredObjects.empty();
     outSession.beginSessionDuration =
@@ -820,6 +829,39 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
+    if (!session.lightsDone)
+    {
+        if (IsBudgetExceeded())
+        {
+            return S_OK;
+        }
+
+        for (const auto& e : session.lights)
+        {
+            LIGHT_DESC desc{};
+            desc.type = LightType::Point;
+
+            const auto& pos = e["Position"];
+            desc.position = Vec4(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>(), 1.f);
+            desc.range = e.value("Range", 10.f);
+
+            const auto& diff = e["Diffuse"];
+            desc.diffuse = Vec4(diff[0].get<float>(), diff[1].get<float>(), diff[2].get<float>(), diff[3].get<float>());
+
+            const auto& amb = e["Ambient"];
+            desc.ambient = Vec4(amb[0].get<float>(), amb[1].get<float>(), amb[2].get<float>(), amb[3].get<float>());
+
+            const auto& spec = e["Specular"];
+            desc.specular = Vec4(spec[0].get<float>(), spec[1].get<float>(), spec[2].get<float>(), spec[3].get<float>());
+
+            g_cachedLights.push_back(desc);
+            GAME->Add_Light(desc);
+        }
+
+        session.lightsDone = true;
+        ++processedCount;
+    }
+
     while (!session.watersDone)
     {
         if (IsBudgetExceeded())
@@ -986,9 +1028,17 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         const json& firstEntry = session.instancedMeshes[groupIndices[0]];
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
-        desc.visible = firstEntry.value("Visible", true);
-        desc.cullEnabled = firstEntry.value("CullEnabled", true);
-        desc.castShadow = firstEntry.value("CastShadow", true);
+        desc.visible = true;
+        desc.cullEnabled = true;
+        desc.castShadow = true;
+
+        for (size_t idx : groupIndices)
+        {
+            const json& entry = session.instancedMeshes[idx];
+            if (!entry.value("Visible", true))     desc.visible = false;
+            if (!entry.value("CullEnabled", true)) desc.cullEnabled = false;
+            if (!entry.value("CastShadow", true))  desc.castShadow = false;
+        }
 
         desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
@@ -1053,7 +1103,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.instancedTransformDuration +=
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
 
-        static constexpr float CHUNK_SIZE = 100.f;
+        static constexpr float CHUNK_SIZE = 200.f;
 
         map<pair<int32, int32>, vector<InstanceTransform>> chunkMap;
         for (const auto& t : desc.transforms)
@@ -1074,6 +1124,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chunkDesc.visible = desc.visible;
             chunkDesc.cullEnabled = desc.cullEnabled;
             chunkDesc.castShadow = desc.castShadow;
+            chunkDesc.cullDist = firstEntry.value("CullDist", 125.f);
 
             Shared<GameObject> spawnedObject = nullptr;
             const HRESULT addResult = GAME->Add_GameObject(
@@ -1166,13 +1217,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.postProcessVolumesDone &&
         session.shaftVolumesDone &&
         session.watersDone &&
+        session.lightsDone &&
         session.prefabInstancesDone &&
         session.authoredObjectsDone;
 
     if (outFinished && !session.summaryLogged)
     {
         LOG_DEBUG(
-            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) authoredObjects(data={}, add={}ms/{}) autoInstanced(groups={}, statics={})",
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) authoredObjects(data={}, add={}ms/{}) autoInstanced(groups={}, statics={}) lights={}",
             session.processCallCount,
             session.beginSessionDuration.count(),
             session.preloadModelPaths.size(),
@@ -1196,7 +1248,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.authoredObjectAddDuration.count(),
             session.authoredObjectAddCount,
             session.autoInstancedGroupCount,
-            session.autoInstancedStaticCount);
+            session.autoInstancedStaticCount,
+            session.lights.size());
 
         session.summaryLogged = true;
     }
@@ -1411,6 +1464,82 @@ HRESULT MapLoader::Convert_Json_To_Bin(const wstring& jsonPath, const wstring& b
     return S_OK;
 }
 
+HRESULT MapLoader::Convert_MapInstance_To_Bin(const wstring& mapInstanceRoot)
+{
+    fs::path root(mapInstanceRoot);
+    if (!fs::exists(root) || !fs::is_directory(root))
+    {
+        return E_FAIL;
+    }
+
+    const vector<pair<string, function<bool(const json&)>>> subfolders = {
+        { "StaticMesh", nullptr },
+        { "InstanceMesh", nullptr },
+        { "PostProcessVolume", nullptr },
+        { "ShaftVolume", nullptr },
+        { "Water", nullptr },
+        { "ETC", [](const json& j) { return j.value("LightType", "Directional") == "Point"; } },
+    };
+
+    for (const auto& [folderName, filter] : subfolders)
+    {
+        fs::path dir = root / folderName;
+        if (!fs::exists(dir))
+        {
+            continue;
+        }
+
+        json arr = json::array();
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".json")
+            {
+                continue;
+            }
+
+            ifstream ifs(entry.path());
+            if (!ifs.is_open())
+            {
+                continue;
+            }
+
+            try
+            {
+                json item = json::parse(ifs);
+                if (!item.is_object())
+                {
+                    continue;
+                }
+
+                if (filter && !filter(item))
+                {
+                    continue;
+                }
+
+                arr.push_back(std::move(item));
+            }
+            catch (...) {}
+        }
+
+        fs::path binPath = root / (folderName + ".bin");
+        ofstream ofs(binPath, ios::binary);
+        if (!ofs.is_open())
+        {
+            continue;
+        }
+
+        try
+        {
+            vector<uint8_t> msgpack = json::to_msgpack(arr);
+            ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+        }
+        catch (...) { return E_FAIL; }
+    }
+
+    return S_OK;
+}
+
 Shared<ModelCom> MapLoader::GetOrLoadModel(
     const ComPtr<Device>& device,
     const ComPtr<Context>& context,
@@ -1437,6 +1566,9 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     bool needsMaterialApply = true;
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+        if (g_globalMissingModelCache.find(cacheKey) != g_globalMissingModelCache.end())
+            return nullptr;
+
         auto it = g_globalModelCache.find(cacheKey);
         if (it != g_globalModelCache.end())
         {
@@ -1450,6 +1582,12 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     if (cachedModel != nullptr)
     {
+        DebugMemoryTracker::Record_CPUBytes(
+            "map.model.cache_hit",
+            "MapLoader.GetOrLoadModel",
+            fs::path(fullPathA).wstring(),
+            0);
+
         if (applyMaterials && needsMaterialApply)
         {
             const auto materialBegin = chrono::steady_clock::now();
@@ -1463,6 +1601,21 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         }
 
         return cachedModel;
+    }
+
+    if (!fs::exists(fs::path(fullPathA)))
+    {
+        {
+            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+            g_globalMissingModelCache.insert(cacheKey);
+        }
+
+        LOG_WARN(
+            "[MapLoader::Model] skip missing model modelFolder='{}' modelPath='{}' resolved='{}'",
+            modelFolder,
+            modelPathStr,
+            fullPathA);
+        return nullptr;
     }
 
     // 2단계: 전역 캐시에 없는 경우 디스크에서 신규 로드 수행
@@ -1480,6 +1633,11 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
 
     if (!model)
     {
+        {
+            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+            g_globalMissingModelCache.insert(cacheKey);
+        }
+
         LOG_WARN(
             "[MapLoader::Model] failed to create model modelFolder='{}' modelPath='{}' resolved='{}' directExists={}",
             modelFolder,
@@ -1507,6 +1665,19 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         g_globalModelCache[cacheKey] = model;
     }
 
+    size_t meshBytes = 0;
+    for (const Shared<Mesh>& mesh : model->Get_Meshes())
+    {
+        if (mesh)
+            meshBytes += mesh->Get_DebugEstimatedBufferBytes();
+    }
+
+    DebugMemoryTracker::Record_CPUBytes(
+        "map.model.loaded",
+        "MapLoader.GetOrLoadModel",
+        fs::path(fullPathA).wstring(),
+        max<size_t>(1, meshBytes));
+
     return model;
 }
 
@@ -1515,8 +1686,16 @@ void MapLoader::Clear_GlobalCache()
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         g_globalModelCache.clear();
+        g_globalMissingModelCache.clear();
         g_globalCollisionCache.clear();
         g_globalMaterialSignatureByModel.clear();
     }
     MapAdapter::Clear_MaterialCache();
+    g_cachedLights.clear();
+}
+
+void MapLoader::Reapply_CachedLights()
+{
+    for (const auto& desc : g_cachedLights)
+        GAME->Add_Light(desc);
 }
