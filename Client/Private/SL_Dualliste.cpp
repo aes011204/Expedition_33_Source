@@ -585,6 +585,7 @@ void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
 
     if (_movementCom)
     {
+        _movementCom->Set_CCTTransformSyncSuppressed(cinematicDriven);
         _movementCom->Clear_FollowMoveCommand();
         _movementCom->Apply_Input({});
         _movementCom->Stop_AllMovement();
@@ -604,6 +605,34 @@ void SL_Dualliste::Set_CinematicDriven(bool cinematicDriven)
         }
 
         _movementCom->Sync_RuntimePositionToTransform();
+    }
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _colliderCom->Clear_Overlap();
+    }
+
+    if (_attackCom)
+    {
+        _attackCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _attackCom->Clear_Overlap();
+    }
+
+    if (_attackRCom)
+    {
+        _attackRCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _attackRCom->Clear_Overlap();
+    }
+
+    if (_attackLCom)
+    {
+        _attackLCom->Set_IsActive(!cinematicDriven);
+        if (cinematicDriven)
+            _attackLCom->Clear_Overlap();
     }
 
     if (_transformCom)

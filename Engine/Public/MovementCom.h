@@ -104,6 +104,8 @@ public:
 
     MoveBackend Get_MoveBackend() const { return _moveDesc.backend; }
     void Set_MoveBackend(MoveBackend backend);
+    void Set_CCTTransformSyncSuppressed(bool suppressed) { _suppressCCTTransformSync = suppressed; }
+    bool Is_CCTTransformSyncSuppressed() const { return _suppressCCTTransformSync; }
 
     void Set_Transform(const Shared<TransformCom> transform)
     {
@@ -209,6 +211,7 @@ private:
 
     Shared<ColliderCom> _colliderCom;
     Shared<PhysicsCharacterController> _characterController;
+    bool _suppressCCTTransformSync = false;
 
 public:
     static Shared<MovementCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
