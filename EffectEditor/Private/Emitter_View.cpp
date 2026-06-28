@@ -808,6 +808,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_SphereRadialOrientationModule();
     case AuthoringModuleType::PlaneRadialOrientation:
         return Make_PlaneRadialOrientationModule();
+    case AuthoringModuleType::CylinderOrientation:
+        return Make_CylinderOrientationModule();
     case AuthoringModuleType::RotationOverLife:
         return Make_RotationOverLifeModule();
     case AuthoringModuleType::SpriteTilt:
@@ -834,6 +836,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_SubUVFrameOverLifeModule();
     case AuthoringModuleType::SizeByLife:
         return Make_SizeByLifeModule();
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        return Make_BeamEnvelopeOverLifeModule();
     case AuthoringModuleType::MeshSizeByLife:
         return Make_MeshSizeByLifeModule();
     case AuthoringModuleType::SpawnPerUnit:
@@ -1069,6 +1073,17 @@ AuthoringModule Emitter_View::Make_PlaneRadialOrientationModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_CylinderOrientationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::CylinderOrientation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = CylinderOrientationModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_RotationOverLifeModule()
 {
     AuthoringModule module{};
@@ -1209,6 +1224,17 @@ AuthoringModule Emitter_View::Make_SizeByLifeModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = SizeByLifeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_BeamEnvelopeOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::BeamEnvelopeOverLife;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = BeamEnvelopeOverLifeModuleData{};
     return module;
 }
 
@@ -1362,6 +1388,9 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
     case AuthoringModuleType::CylinderLocation:
         return emitter.typeData.kind == AuthoringTypeDataKind::None ||
                emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
+    case AuthoringModuleType::CylinderOrientation:
+        return emitter.typeData.kind == AuthoringTypeDataKind::None ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     case AuthoringModuleType::SpriteTilt:
     case AuthoringModuleType::SpriteTiltOverLife:
         return emitter.typeData.kind == AuthoringTypeDataKind::None ||
@@ -1410,6 +1439,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::InitialRotation:
     case AuthoringModuleType::SphereRadialOrientation:
     case AuthoringModuleType::PlaneRadialOrientation:
+    case AuthoringModuleType::CylinderOrientation:
     case AuthoringModuleType::RotationOverLife:
     case AuthoringModuleType::SpriteTilt:
     case AuthoringModuleType::SpriteTiltOverLife:
@@ -1423,6 +1453,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::ColorOverLife:
     case AuthoringModuleType::SubUVFrameOverLife:
     case AuthoringModuleType::SizeByLife:
+    case AuthoringModuleType::BeamEnvelopeOverLife:
     case AuthoringModuleType::MeshSizeByLife:
     case AuthoringModuleType::SpawnPerUnit:
     case AuthoringModuleType::SourceHistorySpriteTrailPathFollow:
@@ -1507,6 +1538,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
     case AuthoringModuleType::PlaneRadialOrientation:
         module = Make_PlaneRadialOrientationModule();
         break;
+    case AuthoringModuleType::CylinderOrientation:
+        module = Make_CylinderOrientationModule();
+        break;
     case AuthoringModuleType::RotationOverLife:
         module = Make_RotationOverLifeModule();
         break;
@@ -1545,6 +1579,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SizeByLife:
         module = Make_SizeByLifeModule();
+        break;
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        module = Make_BeamEnvelopeOverLifeModule();
         break;
     case AuthoringModuleType::MeshSizeByLife:
         module = Make_MeshSizeByLifeModule();
@@ -2455,6 +2492,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = PlaneRadialOrientationModuleData{};
         break;
 
+    case AuthoringModuleType::CylinderOrientation:
+        module.data = CylinderOrientationModuleData{};
+        break;
+
     case AuthoringModuleType::RotationOverLife:
         module.data = RotationOverLifeModuleData{};
         break;
@@ -2505,6 +2546,9 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
 
     case AuthoringModuleType::SizeByLife:
         module.data = SizeByLifeModuleData{};
+        break;
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        module.data = BeamEnvelopeOverLifeModuleData{};
         break;
     case AuthoringModuleType::MeshSizeByLife:
         module.data = MeshSizeByLifeModuleData{};
@@ -2881,6 +2925,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     );
     entries.push_back(
         makeEntry(
+            AuthoringModuleType::CylinderOrientation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::CylinderOrientation),
+            "Sprite/Mesh 전용"
+        )
+    );
+    entries.push_back(
+        makeEntry(
             AuthoringModuleType::RotationOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
@@ -2981,6 +3033,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
             ""
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::BeamEnvelopeOverLife,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::BeamEnvelopeOverLife),
+            "Beam TypeData 전용"
         )
     );
     entries.push_back(

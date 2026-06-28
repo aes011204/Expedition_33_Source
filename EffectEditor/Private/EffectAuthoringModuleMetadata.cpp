@@ -116,6 +116,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"평면/방사 회전",
         L"평면/방사 위치 frame 기반 회전 의도"
     };
+    static const AuthoringModuleMetadata cylinderOrientation{
+        "CylinderOrientation",
+        L"실린더 회전",
+        L"원통 위치 frame 기반 회전 의도"
+    };
     static const AuthoringModuleMetadata sphereRadialOrientation{
         "SphereRadialOrientation",
         L"구/방사 회전",
@@ -206,6 +211,16 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         true,
         true
     };
+    static const AuthoringModuleMetadata beamEnvelopeOverLife{
+        "BeamEnvelopeOverLife",
+        L"수명에 따른 빔 범위/폭",
+        L"수명 진행률 기준 Beam 표시 범위/폭",
+        true,
+        true,
+        false,
+        false,
+        true
+    };
     static const AuthoringModuleMetadata meshSizeByLife{
         "Mesh Size By Life",
         L"수명에 따른 메시 크기",
@@ -291,6 +306,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return sphereRadialOrientation;
     case AuthoringModuleType::PlaneRadialOrientation:
         return planeRadialOrientation;
+    case AuthoringModuleType::CylinderOrientation:
+        return cylinderOrientation;
     case AuthoringModuleType::RotationOverLife:
         return rotationOverLife;
     case AuthoringModuleType::SpriteTilt:
@@ -317,6 +334,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return subUVFrameOverLife;
     case AuthoringModuleType::SizeByLife:
         return sizeByLife;
+    case AuthoringModuleType::BeamEnvelopeOverLife:
+        return beamEnvelopeOverLife;
     case AuthoringModuleType::MeshSizeByLife:
         return meshSizeByLife;
     case AuthoringModuleType::SpawnPerUnit:

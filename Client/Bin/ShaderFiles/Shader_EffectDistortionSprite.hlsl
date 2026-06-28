@@ -160,6 +160,7 @@ struct VS_IN
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
+    float2 spriteTiltDegrees : TEXCOORD2;
 };
 
 struct VS_OUT
@@ -172,6 +173,7 @@ struct VS_OUT
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
     float3 velocityDirection : TEXCOORD4;
+    float2 spriteTiltDegrees : TEXCOORD5;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -187,6 +189,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.subUVRect = In.subUVRect;
     Out.rotationRadians = atan2(In.InstanceMatrix[0].y, In.InstanceMatrix[0].x);
     Out.velocityDirection = In.InstanceMatrix[2].xyz;
+    Out.spriteTiltDegrees = In.spriteTiltDegrees;
 
     return Out;
 }
@@ -201,6 +204,7 @@ struct GS_IN
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
     float3 velocityDirection : TEXCOORD4;
+    float2 spriteTiltDegrees : TEXCOORD5;
 };
 
 struct GS_OUT
@@ -326,6 +330,16 @@ bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out flo
     return resolved;
 }
 
+void ApplySpriteTilt(inout float3 rightDir, inout float3 upDir, float2 tiltDegrees)
+{
+    const float tiltX = radians(tiltDegrees.x);
+    const float tiltY = radians(tiltDegrees.y);
+    float3 normalDir = normalize(cross(rightDir, upDir));
+    rightDir = normalize(rightDir * cos(tiltX) + normalDir * sin(tiltX));
+    normalDir = normalize(cross(rightDir, upDir));
+    upDir = normalize(upDir * cos(tiltY) + normalDir * sin(tiltY));
+}
+
 [maxvertexcount(4)]
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
@@ -333,21 +347,30 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     float3 rightDir = float3(0.f, 0.f, 0.f);
     float3 upDir = float3(0.f, 0.f, 0.f);
     ResolveCameraPlaneBasis(rightDir, upDir);
-    if (g_ScreenAlignmentMode == 5)
+    bool usedInstanceLookBasis = false;
+    if (g_UseInstanceLookDirectionBasis != 0)
+    {
+        float3 lookDir = float3(0.f, 0.f, 0.f);
+        usedInstanceLookBasis = TryNormalizeDirection(In[0].velocityDirection, lookDir);
+        if (usedInstanceLookBasis)
+            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+
+    if (!usedInstanceLookBasis && g_ScreenAlignmentMode == 5)
     {
         rightDir = float3(1.f, 0.f, 0.f);
         upDir = float3(0.f, 1.f, 0.f);
     }
-    else if (g_ScreenAlignmentMode == 6)
+    else if (!usedInstanceLookBasis && g_ScreenAlignmentMode == 6)
     {
         rightDir = float3(1.f, 0.f, 0.f);
         upDir = float3(0.f, 0.f, 1.f);
     }
-    else if (g_ScreenAlignmentMode == 7)
+    else if (!usedInstanceLookBasis && g_ScreenAlignmentMode == 7)
     {
         ResolveWorldUpFacingCameraBasis(particlePosition, rightDir, upDir);
     }
-    else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
+    else if (!usedInstanceLookBasis && (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4))
     {
         float3 lookDir = float3(0.f, 0.f, 0.f);
         const bool hasLookDir = TryResolveDirectionalLookDirection(particlePosition, In[0].velocityDirection, lookDir);
@@ -364,7 +387,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
             ResolveLookAlignedBasis(lookDir, rightDir, upDir);
         }
     }
-    else if (g_ScreenAlignmentMode != 1 && g_ScreenAlignmentMode != 2)
+    else if (!usedInstanceLookBasis && g_ScreenAlignmentMode != 1 && g_ScreenAlignmentMode != 2)
     {
         const float3 lookDir = ResolveFacingLookDirection(particlePosition);
         ResolveLookAlignedBasis(lookDir, rightDir, upDir);
@@ -377,6 +400,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     const float3 billboardUp = upDir;
     rightDir = billboardRight * rotationCos + billboardUp * rotationSin;
     upDir = -billboardRight * rotationSin + billboardUp * rotationCos;
+    ApplySpriteTilt(rightDir, upDir, In[0].spriteTiltDegrees);
     float2 spriteSize = In[0].size;
     if (g_ScreenAlignmentMode == 2)
     {

@@ -787,7 +787,7 @@ void ComputeGeneratedBeamEmitter::Append_BranchPathEntries(const PathEntry& pare
     }
 }
 
-HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayload>& outPayloads) const
+HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayload>& outPayloads)
 {
     if (_pathEntries.empty())
         return S_OK;
@@ -799,8 +799,24 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
     const float visualLife = Resolve_VisualLife();
     const float activeElapsedTime = clamp(Resolve_ActiveElapsedTime(Resolve_Duration()), 0.f, visualLife);
     const float lifeProgress = clamp(activeElapsedTime / visualLife, 0.f, 1.f);
-    const float baseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(lifeProgress));
+    const Vec3 beamEnvelope = Evaluate_BeamEnvelopeOverLife(lifeProgress);
+    const float startRatio = clamp(beamEnvelope.x, 0.f, 1.f);
+    const float endRatio = clamp(beamEnvelope.y, 0.f, 1.f);
+    const float visibleStartRatio = min(startRatio, endRatio);
+    const float visibleEndRatio = max(startRatio, endRatio);
+    const float visibleRatioLength = visibleEndRatio - visibleStartRatio;
+    if (visibleRatioLength <= 0.0001f)
+        return S_OK;
+
+    const float baseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(lifeProgress) * beamEnvelope.z);
     const Vec4 color = Evaluate_ColorOverLife(lifeProgress);
+    float maxVisibleLength = 0.f;
+    for (const PathEntry& pathEntry : _pathEntries)
+    {
+        if (pathEntry.samples.size() >= 2u)
+            maxVisibleLength = max(maxVisibleLength, pathEntry.samples.back().distance * visibleRatioLength);
+    }
+    _visibleBeamLength = max(0.0001f, maxVisibleLength);
 
     for (const PathEntry& pathEntry : _pathEntries)
     {
@@ -808,10 +824,17 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
         if (pathSamples.size() < 2u || outPayloads.size() >= maxSegmentCount)
             continue;
 
+        const float pathLength = pathSamples.back().distance;
+        const float visibleStartDistance = pathLength * visibleStartRatio;
+        const float visibleEndDistance = pathLength * visibleEndRatio;
+        const float visiblePathLength = visibleEndDistance - visibleStartDistance;
+        if (visiblePathLength <= 0.0001f)
+            continue;
+
         const Vec4 subUVRect = Resolve_SubUVRect(Evaluate_SubUVFrameIndex(pathEntry.stripIndex));
         const float uvDistanceScale = _desc.tilingDistance > 0.f
                                       ? 1.f
-                                      : _visibleBeamLength / max(pathSamples.back().distance, 0.0001f);
+                                      : _visibleBeamLength / max(visiblePathLength, 0.0001f);
         const uint32 segmentCount = min(
             static_cast<uint32>(pathSamples.size() - 1u),
             maxSegmentCount - static_cast<uint32>(outPayloads.size())
@@ -822,27 +845,53 @@ HRESULT ComputeGeneratedBeamEmitter::Append_SegmentPayloads(vector<SegmentPayloa
             const PathSample& previous = index > 0u ? pathSamples[index - 1u] : pathSamples[index];
             const PathSample& current = pathSamples[index];
             const PathSample& next = pathSamples[index + 1u];
-            const PathSample& nextNext = index + 2u < pathSamples.size() ? pathSamples[index + 2u] : next;
+            if (next.distance <= visibleStartDistance)
+                continue;
+            if (current.distance >= visibleEndDistance)
+                break;
+
+            PathSample clippedCurrent = current;
+            bool clippedSegmentStart = false;
+            if (current.distance < visibleStartDistance)
+            {
+                clippedCurrent = Interpolate_PathSample(current, next, visibleStartDistance);
+                clippedSegmentStart = true;
+            }
+
+            PathSample clippedNext = next;
+            bool clippedSegmentEnd = false;
+            if (next.distance > visibleEndDistance)
+            {
+                clippedNext = Interpolate_PathSample(current, next, visibleEndDistance);
+                clippedSegmentEnd = true;
+            }
+
+            const PathSample& previousSource = clippedSegmentStart ? clippedCurrent : previous;
+            const PathSample& nextNextSource = index + 2u < pathSamples.size() ? pathSamples[index + 2u] : clippedNext;
+            const PathSample& nextNext = clippedSegmentEnd ? clippedNext : nextNextSource;
 
             SegmentPayload payload{};
             payload.previousPosition =
-                Vec4(previous.position.x, previous.position.y, previous.position.z, index > 0u ? 1.f : 0.f);
-            payload.currentPosition = Vec4(current.position.x, current.position.y, current.position.z, 1.f);
-            payload.nextPosition = Vec4(next.position.x, next.position.y, next.position.z, 1.f);
+                Vec4(previousSource.position.x, previousSource.position.y, previousSource.position.z, (!clippedSegmentStart && index > 0u) ? 1.f : 0.f);
+            payload.currentPosition = Vec4(clippedCurrent.position.x, clippedCurrent.position.y, clippedCurrent.position.z, 1.f);
+            payload.nextPosition = Vec4(clippedNext.position.x, clippedNext.position.y, clippedNext.position.z, 1.f);
             payload.nextNextPosition = Vec4(
                 nextNext.position.x,
                 nextNext.position.y,
                 nextNext.position.z,
-                index + 2u < pathSamples.size() ? 1.f : 0.f
+                (!clippedSegmentEnd && index + 2u < pathSamples.size()) ? 1.f : 0.f
             );
             payload.currentSampleParams =
-                Vec4(current.age, visualLife, current.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
+                Vec4(clippedCurrent.age, visualLife, (clippedCurrent.distance - visibleStartDistance) * uvDistanceScale, baseWidth * pathEntry.widthScale);
             payload.nextSampleParams =
-                Vec4(next.age, visualLife, next.distance * uvDistanceScale, baseWidth * pathEntry.widthScale);
+                Vec4(clippedNext.age, visualLife, (clippedNext.distance - visibleStartDistance) * uvDistanceScale, baseWidth * pathEntry.widthScale);
             payload.startColor = color;
             payload.endColor = color;
             payload.subUVRect = subUVRect;
             outPayloads.push_back(payload);
+
+            if (clippedSegmentEnd)
+                break;
         }
     }
 
@@ -1553,6 +1602,60 @@ float ComputeGeneratedBeamEmitter::Evaluate_WidthScaleByLife(float lifeProgress)
         fallbackScale
     );
     return _desc.sizeByLife.multiplyX ? max(0.f, curveScale) : 1.f;
+}
+
+Vec3 ComputeGeneratedBeamEmitter::Evaluate_BeamEnvelopeOverLife(float lifeProgress) const
+{
+    if (!_desc.beamEnvelopeOverLife.enabled)
+        return Vec3{ 0.f, 1.f, 1.f };
+
+    const auto evaluateFloatCurve = [this](const PointParticleFloatCurveRuntimeDesc& curve, float fallbackValue, float lifeProgress)
+    {
+        if (!curve.enabled)
+            return fallbackValue;
+
+        return Evaluate_CompactCurve(
+            lifeProgress,
+            curve.curveKeyTimes,
+            curve.curveKeyTimesBlock1,
+            curve.curveKeyValues,
+            curve.curveKeyValuesBlock1,
+            curve.curveKeyArriveTangents,
+            curve.curveKeyArriveTangentsBlock1,
+            curve.curveKeyLeaveTangents,
+            curve.curveKeyLeaveTangentsBlock1,
+            curve.curveKeyModes,
+            curve.curveKeyModesBlock1,
+            curve.curveKeyCount,
+            fallbackValue
+        );
+    };
+
+    const PointParticleFloatCurveRuntimeDesc& startCurve = _desc.beamEnvelopeOverLife.startRatioOverLife;
+    const float startRatio = evaluateFloatCurve(startCurve, _desc.beamEnvelopeOverLife.startRatioFallback, lifeProgress);
+
+    const PointParticleFloatCurveRuntimeDesc& endCurve = _desc.beamEnvelopeOverLife.endRatioOverLife;
+    const float endRatio = evaluateFloatCurve(endCurve, _desc.beamEnvelopeOverLife.endRatioFallback, lifeProgress);
+
+    const PointParticleFloatCurveRuntimeDesc& widthCurve = _desc.beamEnvelopeOverLife.widthScaleOverLife;
+    const float widthScale = evaluateFloatCurve(widthCurve, _desc.beamEnvelopeOverLife.widthScaleFallback, lifeProgress);
+
+    return Vec3{ clamp(startRatio, 0.f, 1.f), clamp(endRatio, 0.f, 1.f), max(0.f, widthScale) };
+}
+
+ComputeGeneratedBeamEmitter::PathSample ComputeGeneratedBeamEmitter::Interpolate_PathSample(
+    const PathSample& left,
+    const PathSample& right,
+    float targetDistance)
+{
+    const float segmentDistance = max(0.0001f, right.distance - left.distance);
+    const float ratio = clamp((targetDistance - left.distance) / segmentDistance, 0.f, 1.f);
+
+    PathSample sample{};
+    sample.position = Vec3::Lerp(left.position, right.position, ratio);
+    sample.distance = targetDistance;
+    sample.age = lerp(left.age, right.age, ratio);
+    return sample;
 }
 
 uint32 ComputeGeneratedBeamEmitter::Evaluate_SubUVFrameIndex(uint32 stripIndex) const

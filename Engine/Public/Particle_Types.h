@@ -336,6 +336,12 @@ enum class PointParticleSourceMotionVelocityDirectionMode : uint32
     RandomSideFromTangent = 6,
 };
 
+enum class PointParticleAccelerationTimeBasis : uint32
+{
+    ParticleLife = 0,
+    EmitterNormalizedTime = 1,
+};
+
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleMotionDesc
 {
@@ -366,7 +372,10 @@ struct PointParticleMotionDesc
     };                                                              // 중심 중첩 시 InitialRadialVelocity가 사용할 방향 정책이다.
     Vec3 accelerationMin{ 0.f, 0.f, 0.f };                          // Acceleration 분포의 하한이다.
     Vec3 accelerationMax{ 0.f, 0.f, 0.f };                          // Acceleration 분포의 상한이다.
-    bool accelerationCurveEnabled{ false };                         // true면 Acceleration ConstantCurve를 lifeProgress 기준 절대 가속으로 평가한다.
+    PointParticleAccelerationTimeBasis accelerationTimeBasis{
+        PointParticleAccelerationTimeBasis::ParticleLife
+    };                                                              // Acceleration ConstantCurve를 평가할 시간 기준이다.
+    bool accelerationCurveEnabled{ false };                         // true면 Acceleration ConstantCurve를 선택된 시간 기준으로 절대 가속 평가한다.
     uint32 accelerationCurveKeyCount{ 2 };                          // Acceleration compact curve key 수다.
     Vec4 accelerationCurveTimes{ 0.f, 1.f, 0.f, 0.f };              // Acceleration key time 0..1 값이다.
     Vec4 accelerationCurveTimesBlock1{};                            // Acceleration key 4..7 time 값이다.
@@ -595,6 +604,18 @@ struct PointParticleCylinderLocationDesc
     PointParticleRandomSeedRuntimeDesc angleDegreesSeed{};           // angle random sample seed salt다.
 };
 
+// CylinderOrientation 모듈이 cylinder sample frame에서 고를 방향이다.
+enum class PointParticleCylinderOrientationMode : uint32
+{
+    None = 0,
+    FaceRadialOut = 1,
+    FaceRadialIn = 2,
+    FaceTangentCW = 3,
+    FaceTangentCCW = 4,
+    FaceCylinderAxisPositive = 5,
+    FaceCylinderAxisNegative = 6,
+};
+
 // PlaneRadialOrientation 모듈이 회전 결과를 적용할 runtime 대상이다.
 enum class PointParticlePlaneRadialOrientationTargetKind : uint32
 {
@@ -661,6 +682,23 @@ struct PointParticleSphereRadialOrientationDesc
         PointParticlePlaneRadialOrientationAxis::PositiveY }; // mesh up으로 볼 local 축이다.
     float tiltDegrees{ 0.f };                                 // radial 방향에서 추가로 기울일 각도다.
     float rollOffsetDegrees{ 0.f };                           // 최종 방향 기준 roll 보정 각도다.
+};
+
+// CylinderOrientation 모듈이 만든 cylinder sample frame 기반 초기 회전 payload다.
+struct PointParticleCylinderOrientationDesc
+{
+    bool enabled{ false };                                     // CylinderOrientation 모듈 연결 여부다.
+    PointParticlePlaneRadialOrientationTargetKind targetKind{
+        PointParticlePlaneRadialOrientationTargetKind::Auto }; // 회전 적용 대상 자동/스프라이트/메시 정책이다.
+    PointParticleCylinderOrientationMode orientationMode{
+        PointParticleCylinderOrientationMode::None };          // cylinder frame에서 고를 초기 방향이다.
+    bool followOrbitOverLife{ false };                         // OrbitOverLife 위치 회전을 sprite 방향에도 반영할지 여부다.
+    PointParticlePlaneRadialOrientationAxis meshForwardAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveZ };  // mesh forward로 볼 local 축이다.
+    PointParticlePlaneRadialOrientationAxis meshUpAxis{
+        PointParticlePlaneRadialOrientationAxis::PositiveY };  // mesh up으로 볼 local 축이다.
+    float tiltDegrees{ 0.f };                                  // cylinder orientation 결과에 더하는 pitch/tilt 보정이다.
+    float rollOffsetDegrees{ 0.f };                            // 최종 방향 기준 roll 보정 각도다.
 };
 
 // OrbitOverLife 모듈이 emitter-local offset을 회전시킬 plane이다.
@@ -752,6 +790,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleSubUVFrameOverLifeDesc subUvFrameOverLife{};         // 수명 진행률 기준 frame 선택 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                         // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                                 // motion 모듈들이 만든 compute update 규칙이다.
+    float playbackDuration{ 1.f };                                    // emitter time 기준 curve 평가에 사용할 loop duration이다.
     EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈이 만든 emitter-local pivot 회전 payload다.
     PointParticleRotationDesc rotation{};                             // rotation 모듈들이 만든 sprite 회전 규칙이다.
     PointParticleSpriteTiltDesc spriteTilt{};                         // SpriteTilt 모듈들이 만든 카드 면 기울기 규칙이다.
@@ -762,6 +801,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
     PointParticleCylinderLocationDesc cylinderLocation{};             // CylinderLocation 모듈이 만든 시작 위치 원통 offset 분포다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 sprite 2D 초기 회전 payload다.
+    PointParticleCylinderOrientationDesc cylinderOrientation{};        // CylinderOrientation 모듈이 만든 cylinder frame 기반 sprite 방향 payload다.
     PointParticleRandomSeedRuntimeDesc initialLocationSeed{};         // InitialLocation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};          // SphereLocation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};        // SubUV RandomFrame random sample seed salt다.
