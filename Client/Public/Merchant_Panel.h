@@ -78,6 +78,7 @@ private:
 
     bool    Try_Purchase(size_t slotIndex);
     bool    Can_Purchase(size_t slotIndex) const;
+    bool    Can_InteractSlot(size_t slotIndex) const;
     bool    Is_SlotOwned(const ShopSlotDef& slot) const;
     uint32  Get_SlotQuantity(size_t slotIndex) const;
     uint32  Get_SlotLevel(const ShopSlotDef& slot) const;

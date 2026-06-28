@@ -279,11 +279,11 @@ void Merchant_Panel::Refresh_Slot(size_t slotIndex)
     if (slotUI.priceText)
         slotUI.priceText->Set_Text(Format_NumberWithCommas(slot.price));
 
-    const bool canPurchase = Can_Purchase(slotIndex);
+    const bool canInteract = Can_InteractSlot(slotIndex);
     if (slotUI.button)
     {
-        slotUI.button->Set_Disabled(!canPurchase);
-        slotUI.button->Set_AlphaMultiplier(canPurchase ? 1.f : 0.45f);
+        slotUI.button->Set_Disabled(!canInteract);
+        slotUI.button->Set_AlphaMultiplier(canInteract ? 1.f : 0.45f);
     }
 
     Refresh_FrameColor(slotIndex);
@@ -392,6 +392,21 @@ bool Merchant_Panel::Can_Purchase(size_t slotIndex) const
         return false;
 
     return inventory->Get_Chroma() >= slot.price;
+}
+
+bool Merchant_Panel::Can_InteractSlot(size_t slotIndex) const
+{
+    if (slotIndex >= ShopSlotCount)
+        return false;
+
+    if (_remainingStocks[slotIndex] == 0)
+        return false;
+
+    const ShopSlotDef& slot = kShopSlots[slotIndex];
+    if (CLIENT->Get_PlayerInventory() == nullptr)
+        return false;
+
+    return !Is_SlotOwned(slot);
 }
 
 bool Merchant_Panel::Is_SlotOwned(const ShopSlotDef& slot) const

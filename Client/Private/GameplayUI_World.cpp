@@ -24,6 +24,7 @@
 #include "Wardrobe_Panel.h"
 #include "Pictos_Panel.h"
 #include "UI_GradientSkillPreviewTest.h"
+#include "UI_InteractionPrompt.h"
 #include "UI_Replay.h"
 
 #include "Client_Constants.h"
@@ -112,6 +113,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _crossHair = UI_CrossHair::Create(levelIndex);
     CHECK_NULL(_crossHair, E_FAIL);
 
+    _interactionPrompt = UI_InteractionPrompt::Create(levelIndex);
+    CHECK_NULL(_interactionPrompt, E_FAIL);
+
     _getCharacterPanel = UI_GetCharacter::Create(levelIndex);
     CHECK_NULL(_getCharacterPanel, E_FAIL);
 
@@ -190,6 +194,7 @@ void GameplayUI_World::Update(float timeDelta)
         _replayPanel->Update(timeDelta);
 
     Update_CrossHair(timeDelta);
+    Update_InteractionPrompt();
 
     if (!CLIENT->Is_FadeTransitionPlaying())
     {
@@ -319,6 +324,7 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
         _replayPanel->Append_RuntimeUIEntries(entries, "World", "ReplayPanel");
 
     Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
+    Append_RuntimePanelEntry(entries, "World", "InteractionPrompt", _interactionPrompt.get());
     Append_RuntimePanelEntry(entries, "World", "GradientSkillPreviewTest", _gradientSkillPreviewTestPanel.get());
 
     return entries;
@@ -405,8 +411,15 @@ bool GameplayUI_World::Request_MerchantShop()
     if (_merchantPanel == nullptr)
         return false;
 
+    const bool requestedFromDialogue = CLIENT->IsDialogueInteractLocked();
+
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
-        return false;
+    {
+        if (!requestedFromDialogue)
+            return false;
+
+        _expeditionStatPanel->Close_Immediately();
+    }
 
     if (Get_CurrentMenu() != GameplayMenu::None)
         return false;
@@ -414,7 +427,7 @@ bool GameplayUI_World::Request_MerchantShop()
     if (CLIENT->Is_WorldControlSuspended() || CLIENT->Is_BattleEntering())
         return false;
 
-    if (GAME->Is_WorldGameplayInputBlocked())
+    if (GAME->Is_WorldGameplayInputBlocked() && !requestedFromDialogue)
         return false;
 
     Push_Menu(GameplayMenu::Merchant);
@@ -485,7 +498,7 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
 
 void GameplayUI_World::Handle_SavePointInput()
 {
-    if (!GAME->KeyDown(KEY_TYPE::E))
+    if (!GAME->KeyDown(KEY_TYPE::G))
         return;
 
     if (_savePointPanel == nullptr)
@@ -1118,6 +1131,24 @@ void GameplayUI_World::Update_CrossHair(float timeDelta)
     _crossHair->Open();
     _crossHair->Set_HitState(freeAimState->Is_HitObject());
     _crossHair->Update(timeDelta);
+}
+
+void GameplayUI_World::Update_InteractionPrompt()
+{
+    if (_interactionPrompt == nullptr)
+        return;
+
+    Vec3 worldAnchor{};
+    if (Is_AnyMenuOpen() ||
+        CLIENT->IsDialogueActive() ||
+        CLIENT->IsDialogueInteractLocked() ||
+        !CLIENT->Try_GetInteractionPromptAnchor(worldAnchor))
+    {
+        _interactionPrompt->Clear_Target();
+        return;
+    }
+
+    _interactionPrompt->Show_AtWorldPosition(worldAnchor);
 }
 
 void GameplayUI_World::Push_Menu(GameplayMenu menu)

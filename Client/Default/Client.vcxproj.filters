@@ -653,6 +653,9 @@
     <ClCompile Include="..\Private\GameplayUI_World.cpp">
       <Filter>02. GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_InteractionPrompt.cpp">
+      <Filter>02. GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\MapLandscape.cpp">
       <Filter>02. GameObject\Map\MapLandscape</Filter>
     </ClCompile>
@@ -1372,7 +1375,6 @@
     <ClCompile Include="..\private\DialogueDB.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_GradientSkillPreviewTest.cpp" />
     <ClCompile Include="..\private\DialogueManager.cpp">
       <Filter>07. Dialogue</Filter>
     </ClCompile>
@@ -1401,11 +1403,7 @@
     <ClCompile Include="..\Private\UI_Replay.cpp" />
     <ClCompile Include="..\Private\MapAmbientVisibility.cpp" />
     <ClCompile Include="..\Private\Level_ReplayTransition.cpp" />
-    <ClCompile Include="..\Private\MapEffect_TornadoPaint.cpp">
-      <Filter>02. GameObject\Map\MapEffect</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\ANS_CanAction.cpp" />
-        </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ANS_AnimSpeed.h">
@@ -1485,7 +1483,6 @@
     <ClInclude Include="..\public\DialogueDB.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_GradientSkillPreviewTest.h" />
     <ClInclude Include="..\public\DialogueManager.h">
       <Filter>07. Dialogue</Filter>
     </ClInclude>
@@ -1520,11 +1517,7 @@
     <ClInclude Include="..\Public\UI_Replay.h" />
     <ClInclude Include="..\Public\MapAmbientVisibility.h" />
     <ClInclude Include="..\Public\Level_ReplayTransition.h" />
-    <ClInclude Include="..\Public\MapEffect_TornadoPaint.h">
-      <Filter>02. GameObject\Map\MapEffect</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\ANS_CanAction.h" />
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -2084,6 +2077,9 @@
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\GameplayUI_World.h">
+      <Filter>02. GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_InteractionPrompt.h">
       <Filter>02. GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\MapLandscape.h">

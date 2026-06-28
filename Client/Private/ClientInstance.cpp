@@ -723,6 +723,8 @@ HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 
 void ClientInstance::Clear_GameplayUI()
 {
+    Clear_InteractionPrompt(nullptr);
+
     if (_gamePlayUI)
     {
         _gamePlayUI->Free();
@@ -1565,6 +1567,38 @@ void ClientInstance::RemoveDialogueInteractionOverlap()
 {
     if (_dialogueInteractionOverlapCount > 0)
         --_dialogueInteractionOverlapCount;
+}
+
+void ClientInstance::Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor)
+{
+    if (sourceId == nullptr)
+        return;
+
+    _interactionPromptSourceId = sourceId;
+    _interactionPromptWorldAnchor = worldAnchor;
+    _hasInteractionPromptRequest = true;
+}
+
+void ClientInstance::Clear_InteractionPrompt(const void* sourceId)
+{
+    if (!_hasInteractionPromptRequest)
+        return;
+
+    if (sourceId != nullptr && _interactionPromptSourceId != sourceId)
+        return;
+
+    _hasInteractionPromptRequest = false;
+    _interactionPromptSourceId = nullptr;
+    _interactionPromptWorldAnchor = Vec3::Zero;
+}
+
+bool ClientInstance::Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const
+{
+    if (!_hasInteractionPromptRequest)
+        return false;
+
+    outWorldAnchor = _interactionPromptWorldAnchor;
+    return true;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()

@@ -320,6 +320,10 @@ public:
     void AddDialogueInteractionOverlap();
     void RemoveDialogueInteractionOverlap();
     bool HasDialogueInteractionOverlap() const { return _dialogueInteractionOverlapCount > 0; }
+
+    void Request_InteractionPrompt(const void* sourceId, const Vec3& worldAnchor);
+    void Clear_InteractionPrompt(const void* sourceId);
+    bool Try_GetInteractionPromptAnchor(Vec3& outWorldAnchor) const;
     
 public: /* Battle Followup Manager */
      BattleFollowupManager* Get_BattleFollowupManager() const { return _battleFollowupManager.get(); }
@@ -340,9 +344,12 @@ private:
 
     atomic<bool> _isStaticResourcesLoaded = false;
     bool         _isStaticObjectsSpawned = false;
-	bool         _isInitialized = false;
+    bool         _isInitialized = false;
     bool         _isTargetCameraEditMode = false;
     int          _dialogueInteractionOverlapCount = 0;
+    bool         _hasInteractionPromptRequest = false;
+    const void*  _interactionPromptSourceId = nullptr;
+    Vec3         _interactionPromptWorldAnchor = Vec3::Zero;
 
 private:
     Shared<CameraDirector>              _cameraDirector;

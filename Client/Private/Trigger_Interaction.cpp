@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(Trigger_Interaction)
 
     info.displayName = "Trigger_Interaction";
     info.category = "Trigger";
+    PROPERTY_VEC3("Prompt Body Offset", _promptBodyOffset, 0.01f);
 
     return true;
 }
@@ -39,7 +40,7 @@ HRESULT Trigger_Interaction::Initialize(void* arg)
 
     _ownerNPC = triggerDesc->ownerNpc;
     _localOffset = triggerDesc->localOffset;
-    _hasPlayerOverlap = false;
+    _playerOverlapColliders.clear();
 
     GAMEOBJECT_DESC desc{};
     desc.speedPerSec = 0.f;
@@ -62,17 +63,38 @@ void Trigger_Interaction::Update(float timeDelta)
     GameObject::Update(timeDelta);
 
     if (_ownerNPC == nullptr)
+    {
+        CLIENT->Clear_InteractionPrompt(this);
         return;
+    }
 
     Sync_ToOwnerTransform();
 
+    if (GAME->Is_WorldGameplayInputBlocked())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
+        return;
+    }
+
     if (CLIENT->IsDialogueActive() || CLIENT->IsDialogueInteractLocked())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
         return;
+    }
 
-    if (!_hasPlayerOverlap)
+    if (!Has_PlayerOverlap())
+    {
+        CLIENT->Clear_InteractionPrompt(this);
         return;
+    }
 
-    if (GAME->KeyDown(KEY_TYPE::F))
+    Vec3 promptWorldAnchor{};
+    if (Try_ResolvePromptWorldAnchor(promptWorldAnchor))
+        CLIENT->Request_InteractionPrompt(this, promptWorldAnchor);
+    else
+        CLIENT->Clear_InteractionPrompt(this);
+
+    if (GAME->KeyDown(KEY_TYPE::E))
         _ownerNPC->BuildDialogueRequest(_ownerNPC->Get_SourcePrefabName());
 }
 
@@ -103,11 +125,11 @@ void Trigger_Interaction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
     if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
         return;
 
-    if (!_hasPlayerOverlap)
-    {
-        _hasPlayerOverlap = true;
+    const bool hadPlayerOverlap = Has_PlayerOverlap();
+    _playerOverlapColliders.insert(other.get());
+
+    if (!hadPlayerOverlap && Has_PlayerOverlap())
         CLIENT->AddDialogueInteractionOverlap();
-    }
 }
 
 void Trigger_Interaction::OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
@@ -121,10 +143,16 @@ void Trigger_Interaction::OnEndOverlap(Shared<ColliderCom> self, Shared<Collider
     if (dynamic_pointer_cast<Player_WorldBase>(otherOwner) == nullptr)
         return;
 
-    if (_hasPlayerOverlap)
+    if (other == nullptr)
+        return;
+
+    const bool hadPlayerOverlap = Has_PlayerOverlap();
+    _playerOverlapColliders.erase(other.get());
+
+    if (hadPlayerOverlap && !Has_PlayerOverlap())
     {
-        _hasPlayerOverlap = false;
         CLIENT->RemoveDialogueInteractionOverlap();
+        CLIENT->Clear_InteractionPrompt(this);
     }
 }
 
@@ -162,6 +190,41 @@ void Trigger_Interaction::Sync_ToOwnerTransform()
 
     _transformCom->Set_WorldPosition(triggerPos);
     _transformCom->Set_WorldRotationEuler(ownerTransform->Get_WorldRotationEuler());
+}
+
+bool Trigger_Interaction::Try_ResolvePromptWorldAnchor(Vec3& outWorldAnchor) const
+{
+    if (_ownerNPC == nullptr)
+        return false;
+
+    Shared<TransformCom> ownerTransform = _ownerNPC->Get_Transform();
+    if (ownerTransform == nullptr)
+        return false;
+
+    Vec3 ownerPos = ownerTransform->Get_WorldPosition();
+    Vec3 ownerForward = ownerTransform->Get_WorldForward();
+    ownerForward.y = 0.f;
+
+    if (ownerForward.LengthSquared() > 0.0001f)
+        ownerForward.Normalize();
+    else
+        ownerForward = Vec3::Look;
+
+    Vec3 ownerRight = ownerTransform->Get_WorldRight();
+    ownerRight.y = 0.f;
+
+    if (ownerRight.LengthSquared() > 0.0001f)
+        ownerRight.Normalize();
+    else
+        ownerRight = Vec3::Right;
+
+    outWorldAnchor =
+        ownerPos +
+        ownerRight * _promptBodyOffset.x +
+        Vec3::Up * _promptBodyOffset.y +
+        ownerForward * _promptBodyOffset.z;
+
+    return true;
 }
 
 HRESULT Trigger_Interaction::Ready_Components()
@@ -204,11 +267,13 @@ Shared<GameObject> Trigger_Interaction::Clone(void* arg)
 
 void Trigger_Interaction::Free()
 {
-    if (_hasPlayerOverlap)
+    if (Has_PlayerOverlap())
     {
-        _hasPlayerOverlap = false;
+        _playerOverlapColliders.clear();
         CLIENT->RemoveDialogueInteractionOverlap();
     }
+
+    CLIENT->Clear_InteractionPrompt(this);
 
     GameObject::Free();
 }
