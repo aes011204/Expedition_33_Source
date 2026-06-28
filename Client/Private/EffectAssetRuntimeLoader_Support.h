@@ -95,6 +95,7 @@ NS_BEGIN(Client)
         void Fill_FloatCurvePayload(PointParticleFloatCurveRuntimeDesc& desc, const json& distribution, float fallbackValue);
         void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
         void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
+        void Fill_BeamEnvelopeOverLifePayload(EffectBeamEnvelopeOverLifeRuntimeDesc& desc, const json& beamEnvelopeOverLife);
         void Fill_SpriteTiltPayload(PointParticleSpriteTiltDesc& desc, const json* spriteTilt, const json* spriteTiltOverLife);
         void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
         void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
@@ -106,6 +107,7 @@ NS_BEGIN(Client)
         void Fill_CylinderLocationPayload(PointParticleCylinderLocationDesc& desc, const json& cylinderLocation);
         void Fill_SphereRadialOrientationPayload(PointParticleSphereRadialOrientationDesc& desc, const json& sphereRadialOrientation);
         void Fill_PlaneRadialOrientationPayload(PointParticlePlaneRadialOrientationDesc& desc, const json& planeRadialOrientation);
+        void Fill_CylinderOrientationPayload(PointParticleCylinderOrientationDesc& desc, const json& cylinderOrientation);
         void Fill_MeshVector3CurvePayload(MeshVector3CurveRuntimeDesc& desc, const json& distribution, const Vec3& fallbackValue);
     }
 

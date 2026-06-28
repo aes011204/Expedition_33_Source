@@ -661,6 +661,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -713,6 +714,8 @@ namespace EffectAssetRuntimeLoad::Emitters
 
         if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
             Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
+        if (const json* cylinderOrientation = Find_ModuleData(emitter, "CylinderOrientation"))
+            Fill_CylinderOrientationPayload(desc.cylinderOrientation, *cylinderOrientation);
 
         if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
         {
@@ -1316,6 +1319,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1579,6 +1583,9 @@ namespace EffectAssetRuntimeLoad::Emitters
 
         if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
             Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
+
+        if (const json* beamEnvelope = Find_ModuleData(emitter, "BeamEnvelopeOverLife"))
+            Fill_BeamEnvelopeOverLifePayload(desc.beamEnvelopeOverLife, *beamEnvelope);
 
         outDefinition.concreteDesc = desc;
         return true;
@@ -1906,6 +1913,7 @@ namespace EffectAssetRuntimeLoad::Emitters
             desc.motion.enabled = true;
             desc.motion.accelerationInWorldSpace =
                 Read_Bool(*acceleration, "inWorldSpace", desc.motion.accelerationInWorldSpace);
+            Read_Enum(*acceleration, "timeBasis", desc.motion.accelerationTimeBasis);
             const auto accelerationIter = acceleration->find("acceleration");
             if (accelerationIter != acceleration->end())
             {
@@ -1961,6 +1969,8 @@ namespace EffectAssetRuntimeLoad::Emitters
             Fill_SphereRadialOrientationPayload(desc.sphereRadialOrientation, *sphereRadialOrientation);
         if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
             Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
+        if (const json* cylinderOrientation = Find_ModuleData(emitter, "CylinderOrientation"))
+            Fill_CylinderOrientationPayload(desc.cylinderOrientation, *cylinderOrientation);
 
         if (const json* meshRotationOverLife = Find_ModuleData(emitter, "MeshRotationOverLife"))
         {
