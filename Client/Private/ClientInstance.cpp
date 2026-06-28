@@ -41,6 +41,7 @@
 #include "BattleFollowupManager.h"
 #include "Client_Constants.h"
 #include "Monster_WorldBase.h"
+#include "NPC_Base.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -767,10 +768,17 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
         _dialogueManager->EndDialogue(false);
 
     vector<Shared<GameObject>> duplicatePlayers{};
+    vector<Shared<NPC_Base>> replayNpcs{};
 
     GAME->Visit_CurrentLevelObjects(
-        [this, &duplicatePlayers](const wstring&, const Shared<GameObject>& gameObject)
+        [this, &duplicatePlayers, &replayNpcs](const wstring&, const Shared<GameObject>& gameObject)
         {
+            if (const Shared<NPC_Base> npc = dynamic_pointer_cast<NPC_Base>(gameObject))
+            {
+                replayNpcs.push_back(npc);
+                return;
+            }
+
             const Shared<Player_WorldBase> player =
                 dynamic_pointer_cast<Player_WorldBase>(gameObject);
             if (player == nullptr)
@@ -801,6 +809,16 @@ void ClientInstance::Reset_CurrentLevelRuntimeState()
 
     if (_heroManager)
         _heroManager->Reset_RuntimeToStart();
+
+    for (const Shared<NPC_Base>& npc : replayNpcs)
+    {
+        if (npc == nullptr)
+            continue;
+
+        npc->Reset_DialogueVisualOffset();
+        npc->Reset_ToDefaultAnimation();
+        npc->Restore_AfterBattleExit();
+    }
 
     Respawn_ReplayMonstersFromSnapshot();
 

@@ -1,4 +1,4 @@
-#include "NPC_Base.h"
+﻿#include "NPC_Base.h"
 #include "ClientInstance.h"
 #include "ColliderCom.h"
 #include "Delegate.h"
@@ -29,6 +29,18 @@ void NPC_Base::Register_CommonReflectionProperties(Engine::ClassReflectionInfo& 
     info.properties.push_back(Engine::PropertyInfo{
         "_defaultAnimationKey", "Default Animation", "_defaultAnimationKey",
         Engine::PropertyType::String, offsetof(NPC_Base, _defaultAnimationKey) });
+    info.properties.push_back(Engine::PropertyInfo{
+        "_useInteractionTrigger", "Use Interaction Trigger", "_useInteractionTrigger",
+        Engine::PropertyType::Bool, offsetof(NPC_Base, _useInteractionTrigger) });
+    info.properties.push_back(Engine::PropertyInfo{
+        "_useBackInteractionTrigger", "Back Interaction Trigger", "_useBackInteractionTrigger",
+        Engine::PropertyType::Bool, offsetof(NPC_Base, _useBackInteractionTrigger) });
+    info.properties.push_back(Engine::PropertyInfo{
+        "_interactionTriggerDistance", "Interaction Trigger Distance", "_interactionTriggerDistance",
+        Engine::PropertyType::Float, offsetof(NPC_Base, _interactionTriggerDistance) });
+    info.properties.push_back(Engine::PropertyInfo{
+        "_facePlayerOnDialogueStart", "Face Player On Dialogue Start", "_facePlayerOnDialogueStart",
+        Engine::PropertyType::Bool, offsetof(NPC_Base, _facePlayerOnDialogueStart) });
 }
 
 HRESULT NPC_Base::Initialize(void* arg)
@@ -48,10 +60,15 @@ void NPC_Base::BeginPlay()
     if (!_editorStopHandle.IsValid())
         _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &NPC_Base::On_EditorStopRuntime);
 
+    if (!_useInteractionTrigger)
+        return;
+
     Shared<GameObject> gameObject = nullptr;
     Trigger_Interaction::TRIGGER_INTERACTION_DESC triggerDesc{};
     triggerDesc.ownerNpc = dynamic_pointer_cast<NPC_Base>(GetSharedPtr<GameObject>());
-    triggerDesc.localOffset = Vec3(0.f, 0.f, 4.f);
+    const float triggerDistance = abs(_interactionTriggerDistance);
+    const float triggerForwardSign = _useBackInteractionTrigger ? -1.f : 1.f;
+    triggerDesc.localOffset = Vec3(0.f, 0.f, triggerDistance * triggerForwardSign);
 
     if (FAILED(GAME->Add_GameObject(
       ETOI(LevelType::Static),
@@ -214,6 +231,17 @@ string NPC_Base::Get_CurrentAnimationKey() const
     return animationName;
 }
 
+float NPC_Base::Get_DialogueVisualOffsetY() const
+{
+    if (_transformCom == nullptr)
+        return 0.f;
+
+    if (!_hasDialogueVisualBaseLocalPosition)
+        return 0.f;
+
+    return _transformCom->Get_Position().y - _dialogueVisualBaseLocalPosition.y;
+}
+
 void NPC_Base::Reset_ToDefaultAnimation()
 {
     Apply_DefaultAnimation();
@@ -221,42 +249,32 @@ void NPC_Base::Reset_ToDefaultAnimation()
 
 void NPC_Base::Set_DialogueVisualOffsetY(float offsetY)
 {
-    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
-    if (bodyPart == nullptr)
-        return;
-
-    Shared<TransformCom> bodyTransform = bodyPart->Get_Transform();
-    if (bodyTransform == nullptr)
+    if (_transformCom == nullptr)
         return;
 
     if (!_hasDialogueVisualBaseLocalPosition)
     {
-        _dialogueVisualBaseLocalPosition = bodyTransform->Get_Position();
+        _dialogueVisualBaseLocalPosition = _transformCom->Get_Position();
         _hasDialogueVisualBaseLocalPosition = true;
     }
 
     Vec3 offsetPosition = _dialogueVisualBaseLocalPosition;
     offsetPosition.y += offsetY;
-    bodyTransform->Set_Position(offsetPosition);
+    _transformCom->Set_Position(offsetPosition);
 }
 
 void NPC_Base::Reset_DialogueVisualOffset()
 {
-    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
-    if (bodyPart == nullptr)
-        return;
-
-    Shared<TransformCom> bodyTransform = bodyPart->Get_Transform();
-    if (bodyTransform == nullptr)
+    if (_transformCom == nullptr)
         return;
 
     if (!_hasDialogueVisualBaseLocalPosition)
     {
-        _dialogueVisualBaseLocalPosition = bodyTransform->Get_Position();
+        _dialogueVisualBaseLocalPosition = _transformCom->Get_Position();
         _hasDialogueVisualBaseLocalPosition = true;
     }
 
-    bodyTransform->Set_Position(_dialogueVisualBaseLocalPosition);
+    _transformCom->Set_Position(_dialogueVisualBaseLocalPosition);
 }
 
 void NPC_Base::Restore_AfterBattleExit()

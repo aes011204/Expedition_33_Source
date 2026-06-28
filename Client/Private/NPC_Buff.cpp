@@ -86,7 +86,7 @@ HRESULT NPC_Buff::Ready_PartObjects()
     headDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     headDesc.modelType = ModelType::NonAnim;
     headDesc.modelTag = L"Model_Buff_Hair";
-    headDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("head");
+    headDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("headSocket");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Buff_Hair"), TEXT("Part_Hair"), &headDesc), E_FAIL);
 

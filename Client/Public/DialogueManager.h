@@ -29,7 +29,6 @@ private:
     void ApplyChoice();
     bool ExecuteLineAction(const string& action);
     const DialogueLine* GetCurrentLine();
-    void ApplyCurrentLineNpcVisualOffset(const DialogueLine& currentLine);
     void ApplyCurrentLine();
 
 private:
@@ -46,7 +45,9 @@ private:
     Unique<UI_Dialogue> _uiDialogue = {};
 
     string              _lastAnimationKey;
+    float               _lastAnimationOffsetY = 0.f;
     string              _startAnimationKey;
+    float               _startAnimationOffsetY = 0.f;
 
 public:
     static Unique<DialogueManager> Create();

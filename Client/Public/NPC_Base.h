@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Character_WorldBase.h"
 
 NS_BEGIN(Client)
@@ -30,12 +30,15 @@ public:
     static void Register_CommonReflectionProperties(Engine::ClassReflectionInfo& info);
 
     bool Is_CinematicDriven() const { return _isCinematicDriven; }
+    bool Should_FacePlayerOnDialogueStart() const { return _facePlayerOnDialogueStart; }
+    bool Uses_InteractionTrigger() const { return _useInteractionTrigger; }
 
     void Set_PatrolPoints(vector<Vec3> patrolPoints) { _PatrolPoints = std::move(patrolPoints); }
     const vector<Vec3>& Get_PatrolPoints() const { return _PatrolPoints; }
     const vector<Vec3>& Get_EffectivePatrolPoints();
     void Set_DialogueAnimation(const string& animationKey);
     string Get_CurrentAnimationKey() const;
+    float Get_DialogueVisualOffsetY() const;
     void Reset_ToDefaultAnimation();
     void Set_DialogueVisualOffsetY(float offsetY);
     void Reset_DialogueVisualOffset();
@@ -63,6 +66,10 @@ protected:
     // Converts world-monster root motion into movement speed.
     float _worldMoveSpeedScale = 0.4f;
     string _defaultAnimationKey = {};
+    bool _useInteractionTrigger = true;
+    bool _useBackInteractionTrigger = false;
+    float _interactionTriggerDistance = 4.f;
+    bool _facePlayerOnDialogueStart = true;
     Vec3 _dialogueVisualBaseLocalPosition = Vec3::Zero;
     bool _hasDialogueVisualBaseLocalPosition = false;
     Shared<Trigger_Interaction> _sharedTrigger = {};
